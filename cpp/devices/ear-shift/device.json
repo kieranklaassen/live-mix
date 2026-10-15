@@ -46,7 +46,116 @@
       "description": "Top of the band that is shifted. Sound above it passes unshifted at its own level, so the bright part of a sound stays put. It keeps half an octave or more above Low."
     }
   ],
-  "presets": {},
+  "presets": {
+    "Six a second": {},
+    "Slow turn": {
+      "beat": 0.5,
+      "low": 100,
+      "high": 700
+    },
+    "One a second, wide": {
+      "beat": 1,
+      "low": 60,
+      "high": 2000
+    },
+    "Two a second, low": {
+      "beat": 2,
+      "low": 60,
+      "high": 400
+    },
+    "Three, mostly apart": {
+      "beat": 3,
+      "ears": 0.8,
+      "low": 150,
+      "high": 1000
+    },
+    "Four in the middle": {
+      "beat": 4,
+      "low": 250,
+      "high": 1000
+    },
+    "Ten, in the air": {
+      "beat": 10,
+      "ears": 0,
+      "low": 150,
+      "high": 1000
+    },
+    "Slow wave, in the air": {
+      "beat": 1.5,
+      "ears": 0,
+      "low": 60,
+      "high": 2000
+    },
+    "Narrow band": {
+      "beat": 6,
+      "low": 300,
+      "high": 700
+    },
+    "Four, half apart": {
+      "beat": 4,
+      "ears": 0.5,
+      "low": 150,
+      "high": 2000
+    },
+    "Eight, half apart": {
+      "beat": 8,
+      "ears": 0.5,
+      "low": 60,
+      "high": 1000
+    },
+    "Twelve on the top": {
+      "beat": 12,
+      "ears": 0,
+      "low": 400,
+      "high": 2000
+    },
+    "Three in the bass": {
+      "beat": 3,
+      "ears": 0,
+      "low": 60,
+      "high": 400
+    },
+    "Five, low band": {
+      "beat": 5,
+      "ears": 0.7,
+      "low": 100,
+      "high": 400
+    },
+    "Two and a half, upper": {
+      "beat": 2.5,
+      "low": 200,
+      "high": 2000
+    },
+    "Sixteen, in the air": {
+      "beat": 16,
+      "ears": 0,
+      "low": 150,
+      "high": 2000
+    },
+    "One, upper half": {
+      "beat": 1,
+      "ears": 0.5,
+      "low": 400,
+      "high": 2000
+    },
+    "Two, a little apart": {
+      "beat": 2,
+      "ears": 0.25,
+      "low": 100,
+      "high": 1000
+    },
+    "Eight on the top": {
+      "beat": 8,
+      "low": 400,
+      "high": 1000
+    },
+    "Half a turn, bass": {
+      "beat": 0.5,
+      "ears": 0.5,
+      "low": 60,
+      "high": 400
+    }
+  },
   "origin": {
     "kind": "new",
     "note": "Written for live-mix on cpp/kit, cpp/kit/beat.h and cpp/kit/band.h. A band of the input is shifted up in the left ear and down in the right through a phase difference network; no unit or plug-in is modelled."

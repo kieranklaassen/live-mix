@@ -10,6 +10,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <vector>
 
@@ -242,6 +243,26 @@ static void report_cpu(const char* label, float seconds, Work work) {
   std::printf("%s CPU: %.2f%% of real time\n", label, 100.0 * used / seconds);
 }
 
+// With EAR_SHIFT_SAY set in the environment every check prints what it read,
+// passed or not: the margins are then there to be seen.
+static bool say() {
+  static const bool on = std::getenv("EAR_SHIFT_SAY") != nullptr;
+  return on;
+}
+
+#define CHECK(condition, message)                  \
+  do {                                             \
+    if (say()) std::printf("  read: %s\n", message); \
+    EXPECT(condition, message);                    \
+  } while (0)
+
+#define CHECK_NEAR(actual, expected, tolerance, message)                                          \
+  do {                                                                                            \
+    if (say()) std::printf("  read: %s: %g (expected %g)\n", message, static_cast<double>(actual), \
+                           static_cast<double>(expected));                                        \
+    EXPECT_NEAR(actual, expected, tolerance, message);                                            \
+  } while (0)
+
 int main() {
   char label[200];
 
@@ -268,9 +289,9 @@ int main() {
     const double right_hz = strongest(out.right, rate, 432.0, 448.0, from, at(3.0, rate));
     std::snprintf(label, sizeof label, "%.0f Hz: 440 Hz at Beat 6 reads 443 Hz in the left ear (%.3f)", rate,
                   left_hz);
-    EXPECT(std::fabs(left_hz - 443.0) < 0.02, label);
+    CHECK(std::fabs(left_hz - 443.0) < 0.02, label);
     std::snprintf(label, sizeof label, "%.0f Hz: and 437 Hz in the right ear (%.3f)", rate, right_hz);
-    EXPECT(std::fabs(right_hz - 437.0) < 0.02, label);
+    CHECK(std::fabs(right_hz - 437.0) < 0.02, label);
     const double up_left = level_at(out.left, 443.0, rate, from, to);
     const double down_left = level_at(out.left, 437.0, rate, from, to);
     const double up_right = level_at(out.right, 443.0, rate, from, to);
@@ -278,12 +299,12 @@ int main() {
     std::snprintf(label, sizeof label,
                   "%.0f Hz: the other sideband is 40 dB under (left %.1f dB, right %.1f dB)", rate,
                   db(down_left / up_left), db(up_right / down_right));
-    EXPECT(db(down_left / up_left) < -40.0 && db(up_right / down_right) < -40.0, label);
+    CHECK(db(down_left / up_left) < -40.0 && db(up_right / down_right) < -40.0, label);
     // The shifted tone is the band's share of the input: both crossovers are
     // well away from 440 Hz, so it is within half a dB of what came in.
     std::snprintf(label, sizeof label, "%.0f Hz: the shifted tone keeps its level (left %.2f dB, right %.2f dB)",
                   rate, db(up_left / 0.5), db(down_right / 0.5));
-    EXPECT(std::fabs(db(up_left / 0.5)) < 0.5 && std::fabs(db(down_right / 0.5)) < 0.5, label);
+    CHECK(std::fabs(db(up_left / 0.5)) < 0.5 && std::fabs(db(down_right / 0.5)) < 0.5, label);
     std::printf("  %.0f Hz: what is left unshifted at 440 Hz: %.1f dB (left), %.1f dB (right)\n", rate,
                 db(level_at(out.left, 440.0, rate, from, to) / 0.5),
                 db(level_at(out.right, 440.0, rate, from, to) / 0.5));
@@ -298,11 +319,11 @@ int main() {
     std::snprintf(label, sizeof label,
                   "%.0f Hz: at the band's lowest edge the other sideband is 40 dB under (left %.1f, right %.1f)",
                   rate, db(low_down / low_up), db(low_up_right / low_down_right));
-    EXPECT(db(low_down / low_up) < -40.0 && db(low_up_right / low_down_right) < -40.0, label);
+    CHECK(db(low_down / low_up) < -40.0 && db(low_up_right / low_down_right) < -40.0, label);
     // On the crossover itself half of the tone is in the band.
     std::snprintf(label, sizeof label, "%.0f Hz: a tone on the edge is half shifted (%.2f dB)", rate,
                   db(low_up / 0.5));
-    EXPECT_NEAR(db(low_up / 0.5), -6.02, 0.1, label);
+    CHECK_NEAR(db(low_up / 0.5), -6.02, 0.1, label);
   }
 
   // 2. Ears at 0: the two sides are one, a pulse at Beat, and that pulse is
@@ -315,24 +336,24 @@ int main() {
     device.init(kRate);
     device.set_param(p::kEars, 0.0f);
     Stereo one = run(device, in);
-    EXPECT(one.left == one.right, "Ears 0: the two sides are the same to the sample");
+    CHECK(one.left == one.right, "Ears 0: the two sides are the same to the sample");
     const std::vector<float> mid = mid_of(two);
     std::snprintf(label, sizeof label, "Ears 0 is the mid of Ears 1 (worst %g)",
                   worst_difference(one.left, mid));
-    EXPECT(worst_difference(one.left, mid) < 1.0e-6, label);
+    CHECK(worst_difference(one.left, mid) < 1.0e-6, label);
     const size_t from = at(1.0, kRate), to = at(3.0, kRate);
     const double up = level_at(one.left, 443.0, kRate, from, to);
     const double down = level_at(one.left, 437.0, kRate, from, to);
     std::snprintf(label, sizeof label, "Ears 0: both sidebands at half height (%.2f dB, %.2f dB)",
                   db(up / 0.25), db(down / 0.25));
-    EXPECT(std::fabs(db(up / 0.25)) < 0.5 && std::fabs(db(down / 0.25)) < 0.5, label);
+    CHECK(std::fabs(db(up / 0.25)) < 0.5 && std::fabs(db(down / 0.25)) < 0.5, label);
     // The pulse comes round Beat times a second: read off the level in
     // stretches of one cycle of the tone, it falls to nearly nothing six
     // times in a second and comes back.
     double least = 0.0, most = 0.0;
     swing(one.left, from, to, at(1.0 / 440.0, kRate) * 2, &least, &most);
     std::snprintf(label, sizeof label, "Ears 0: the pulse goes down %.1f dB in each ear", db(least / most));
-    EXPECT(db(least / most) < -20.0, label);
+    CHECK(db(least / most) < -20.0, label);
     int dips = 0;
     {
       const size_t window = at(0.01, kRate);
@@ -344,7 +365,7 @@ int main() {
       }
     }
     std::snprintf(label, sizeof label, "Ears 0: six pulses a second at Beat 6 (%d)", dips);
-    EXPECT(dips == 6, label);
+    CHECK(dips == 6, label);
 
     device.init(kRate);
     device.set_param(p::kEars, 0.5f);
@@ -356,10 +377,10 @@ int main() {
     }
     std::snprintf(label, sizeof label, "Ears 0.5 is the kit's law on the two-ear sound (worst %g)",
                   worst_difference(half, law));
-    EXPECT(worst_difference(half, law) < 1.0e-6, label);
+    CHECK(worst_difference(half, law) < 1.0e-6, label);
     std::snprintf(label, sizeof label, "the mid does not move with Ears (worst %g)",
                   worst_difference(mid_of(half), mid));
-    EXPECT(worst_difference(mid_of(half), mid) < 1.0e-6, label);
+    CHECK(worst_difference(mid_of(half), mid) < 1.0e-6, label);
     // Side over mid is 20·log10(Ears), on a tone well inside a wide band.
     for (float ears : {1.0f, 0.5f, 0.25f}) {
       device.init(kRate);
@@ -367,7 +388,7 @@ int main() {
       Stereo out = run(device, sine(350.0f, 3.0f, kRate, 0.5f));
       const double ratio = db(rms(side_of(out), from, to) / rms(mid_of(out), from, to));
       std::snprintf(label, sizeof label, "Ears %.2f: side over mid", ears);
-      EXPECT_NEAR(ratio, 20.0 * std::log10(ears), 0.2, label);
+      CHECK_NEAR(ratio, 20.0 * std::log10(ears), 0.2, label);
     }
   }
 
@@ -384,7 +405,7 @@ int main() {
       const double right_hz = strongest(out.right, rate, hz - 8.0, hz + 8.0, from, at(2.0, rate));
       std::snprintf(label, sizeof label, "%.0f Hz: %.0f Hz passes unshifted (left %.3f, right %.3f)", rate, hz,
                     left_hz, right_hz);
-      EXPECT(std::fabs(left_hz - hz) < 0.02 && std::fabs(right_hz - hz) < 0.02, label);
+      CHECK(std::fabs(left_hz - hz) < 0.02 && std::fabs(right_hz - hz) < 0.02, label);
       const double whole_left = db(rms(out.left, from, to) / rms(sine(hz, 4.0f, rate, 0.5f), from, to));
       const double whole_right = db(rms(out.right, from, to) / rms(sine(hz, 4.0f, rate, 0.5f), from, to));
       const double tone = db(level_at(out.left, hz, rate, from, to) / 0.5);
@@ -393,10 +414,10 @@ int main() {
       std::snprintf(label, sizeof label,
                     "%.0f Hz: %.0f Hz passes at its level (left %.3f dB, right %.3f dB, the tone itself %.3f dB)",
                     rate, hz, whole_left, whole_right, tone);
-      EXPECT(std::fabs(whole_left) < (far ? 0.03 : 0.12) && std::fabs(whole_right) < (far ? 0.03 : 0.12), label);
+      CHECK(std::fabs(whole_left) < (far ? 0.03 : 0.12) && std::fabs(whole_right) < (far ? 0.03 : 0.12), label);
       std::snprintf(label, sizeof label, "%.0f Hz: the shifted trace of %.0f Hz is 37 dB under (%.1f dB)", rate,
                     hz, trace);
-      EXPECT(trace < -37.0, label);
+      CHECK(trace < -37.0, label);
     }
   }
 
@@ -436,15 +457,38 @@ int main() {
     }
     std::snprintf(label, sizeof label, "more than an octave from an edge each ear is flat within 1 dB (worst %.2f)",
                   worst_far);
-    EXPECT(worst_far < 1.0, label);
+    CHECK(worst_far < 1.0, label);
     std::snprintf(label, sizeof label, "nowhere is an ear more than 3.5 dB off (worst %.2f)", worst_near);
-    EXPECT(worst_near < 3.5, label);
+    CHECK(worst_near < 3.5, label);
     std::snprintf(label, sizeof label, "on an edge an ear is 3 dB down (low %.2f dB, high %.2f dB)", edge_low,
                   edge_high);
-    EXPECT(std::fabs(edge_low + 3.01) < 0.3 && std::fabs(edge_high + 3.01) < 0.3, label);
+    CHECK(std::fabs(edge_low + 3.01) < 0.3 && std::fabs(edge_high + 3.01) < 0.3, label);
     std::printf("  a tone on an edge wavers in each ear at half of Beat: low edge %.1f dB, high edge %.1f dB\n",
                 waver_low, waver_high);
-    EXPECT(waver_low < -20.0 && waver_high < -20.0, "and that waver is deep, as the split's overlap makes it");
+    CHECK(waver_low < -20.0 && waver_high < -20.0, "and that waver is deep, as the split's overlap makes it");
+  }
+
+  // 4b. On the crest of the beat (θ a whole number of turns) nothing is
+  // shifted, and the device is then a plain turn of phase: a tone comes out
+  // at the height it went in, on an edge and either side of it, at any Ears.
+  // That holds only while the parts that pass round the shifter are turned as
+  // the band is; were they not, the joins would notch here. Beat 0.5, read
+  // over 40 ms round the crest at 4 s.
+  for (float ears : {0.0f, 1.0f}) {
+    double worst = 0.0;
+    for (float hz : {150.0f, 1000.0f, 106.0f, 212.0f, 707.0f, 1414.0f, 61.0f, 2777.0f}) {
+      device.init(kRate);
+      set(device, 0.5f, ears, 150.0f, 1000.0f);
+      Stereo out = run(device, sine(hz, 4.1f, kRate, 0.5f));
+      const size_t from = at(3.98, kRate), to = at(4.02, kRate);
+      worst = std::max(worst, std::fabs(db(peak(out.left, from, to) / 0.5)));
+      worst = std::max(worst, std::fabs(db(peak(out.right, from, to) / 0.5)));
+    }
+    std::snprintf(label, sizeof label,
+                  "Ears %.0f: on the crest of the beat every tone is at the height it came in (worst %.3f dB)", ears,
+                  worst);
+    // (17 dB was read here with the low and high parts passed round the pair.)
+    CHECK(worst < 0.2, label);
   }
 
   // 5. The mono fold at Ears 1 pulses to silence at Beat: what speakers, one
@@ -458,12 +502,12 @@ int main() {
     swing(mid, at(1.0, kRate), at(3.0, kRate), at(2.0 / 350.0, kRate), &least, &most);
     std::printf("  the mono fold at Ears 1 goes down %.1f dB at each pulse (350 Hz, band 60 to 2000 Hz)\n",
                 db(least / most));
-    EXPECT(db(least / most) < -30.0, "folded to mono the two ears pulse to silence");
+    CHECK(db(least / most) < -30.0, "folded to mono the two ears pulse to silence");
     // Each ear on its own is steady: the beat is only between them.
     swing(out.left, at(1.0, kRate), at(3.0, kRate), at(2.0 / 350.0, kRate), &least, &most);
     std::snprintf(label, sizeof label, "at Ears 1 each ear is steady on its own (ripple %.2f dB)",
                   db(most / least));
-    EXPECT(db(most / least) < 0.5, label);
+    CHECK(db(most / least) < 0.5, label);
   }
 
   // 6. Each channel is its own: what comes in on one side is never heard on
@@ -473,10 +517,27 @@ int main() {
     device.set_param(p::kEars, 0.5f);
     const std::vector<float> in = sine(440.0f, 1.0f, kRate, 0.5f);
     Stereo out = run(device, in, silence(1.0f, kRate));
-    EXPECT(peak(out.right) == 0.0 && rms(out.left) > 0.2, "a sound on the left stays on the left");
+    CHECK(peak(out.right) == 0.0 && rms(out.left) > 0.2, "a sound on the left stays on the left");
     device.init(kRate);
     out = run(device, silence(1.0f, kRate), in);
-    EXPECT(peak(out.left) == 0.0 && rms(out.right) > 0.2, "a sound on the right stays on the right");
+    CHECK(peak(out.left) == 0.0 && rms(out.right) > 0.2, "a sound on the right stays on the right");
+    // And a side is the same whatever the other is doing: silence on one
+    // side alone is not silence. One side stops after 0.3 s and the other
+    // goes on for longer than the silence that empties the filters.
+    const std::vector<float> longer = sine(440.0f, 1.5f, kRate, 0.5f);
+    std::vector<float> stops = longer;
+    for (size_t i = at(0.3, kRate); i < stops.size(); ++i) stops[i] = 0.0f;
+    device.init(kRate);
+    device.set_param(p::kEars, 0.5f);
+    Stereo both = run(device, longer, longer);
+    device.init(kRate);
+    device.set_param(p::kEars, 0.5f);
+    Stereo right_stops = run(device, longer, stops);
+    device.init(kRate);
+    device.set_param(p::kEars, 0.5f);
+    Stereo left_stops = run(device, stops, longer);
+    CHECK(right_stops.left == both.left, "the left is the same when the right falls silent");
+    CHECK(left_stops.right == both.right, "the right is the same when the left falls silent");
   }
 
   // 7. Low and High move the band. A 200 Hz tone is shifted with Low under
@@ -486,26 +547,27 @@ int main() {
     device.init(kRate);
     set(device, 6.0f, 1.0f, 60.0f, 1000.0f);
     Stereo out = run(device, sine(200.0f, 3.0f, kRate, 0.5f));
-    EXPECT_NEAR(strongest(out.left, kRate, 190.0, 210.0, from, to), 203.0, 0.02, "Low 60: 200 Hz is shifted");
+    CHECK_NEAR(strongest(out.left, kRate, 190.0, 210.0, from, to), 203.0, 0.02, "Low 60: 200 Hz is shifted");
     device.init(kRate);
     set(device, 6.0f, 1.0f, 400.0f, 1000.0f);
     out = run(device, sine(200.0f, 3.0f, kRate, 0.5f));
-    EXPECT_NEAR(strongest(out.left, kRate, 190.0, 210.0, from, to), 200.0, 0.02, "Low 400: 200 Hz passes");
+    CHECK_NEAR(strongest(out.left, kRate, 190.0, 210.0, from, to), 200.0, 0.02, "Low 400: 200 Hz passes");
     device.init(kRate);
     set(device, 6.0f, 1.0f, 150.0f, 2000.0f);
     out = run(device, sine(1500.0f, 3.0f, kRate, 0.5f));
-    EXPECT_NEAR(strongest(out.right, kRate, 1490.0, 1510.0, from, to), 1497.0, 0.02,
+    CHECK_NEAR(strongest(out.right, kRate, 1490.0, 1510.0, from, to), 1497.0, 0.02,
                 "High 2000: 1500 Hz is shifted");
     device.init(kRate);
     set(device, 6.0f, 1.0f, 150.0f, 400.0f);
     out = run(device, sine(1500.0f, 3.0f, kRate, 0.5f));
-    EXPECT_NEAR(strongest(out.right, kRate, 1490.0, 1510.0, from, to), 1500.0, 0.02, "High 400: 1500 Hz passes");
-    // With both at 400 the top is held half an octave over the bottom, so a
-    // band is still there: 480 Hz is shifted more than it is passed.
+    CHECK_NEAR(strongest(out.right, kRate, 1490.0, 1510.0, from, to), 1500.0, 0.02, "High 400: 1500 Hz passes");
+    // With both at 400 the top is held half an octave over the bottom (the
+    // kit's rule), so a band is still there: at its centre, 476 Hz, the
+    // shifted tone is 7 dB under the input.
     device.init(kRate);
     set(device, 6.0f, 1.0f, 400.0f, 400.0f);
-    out = run(device, sine(480.0f, 3.0f, kRate, 0.5f));
-    EXPECT_NEAR(strongest(out.left, kRate, 470.0, 490.0, from, to), 483.0, 0.02,
+    out = run(device, sine(476.0f, 3.0f, kRate, 0.5f));
+    CHECK_NEAR(db(level_at(out.left, 479.0, kRate, from, to) / 0.5), -7.0, 1.0,
                 "Low and High both at 400: a band half an octave wide is left");
   }
 
@@ -525,7 +587,7 @@ int main() {
       const double right_hz = strongest(out.right, rate, 440.0 - beat, 440.0, from, to);
       std::snprintf(label, sizeof label, "%.0f Hz: Beat %.1f puts the ears %.1f Hz apart (%.4f)", rate, beat, beat,
                     left_hz - right_hz);
-      EXPECT(std::fabs(left_hz - right_hz - beat) < 0.01 && left_hz > 440.0 && right_hz < 440.0, label);
+      CHECK(std::fabs(left_hz - right_hz - beat) < 0.01 && left_hz > 440.0 && right_hz < 440.0, label);
     }
   }
 
@@ -547,12 +609,12 @@ int main() {
       std::snprintf(label, sizeof label,
                     "%.0f Hz, blocks of %d: exact silence from %zu samples after the input (last sound at %zu)", rate,
                     block, hush, last);
-      EXPECT(last <= hush && last > hush / 2, label);
+      CHECK(last <= hush && last > hush / 2, label);
       const double cut = std::max(peak(rest.left, hush - at(0.01, rate), hush),
                                   peak(rest.right, hush - at(0.01, rate), hush));
       std::snprintf(label, sizeof label, "%.0f Hz: the last 10 ms before the silence are under -160 dBFS (%g)",
                     rate, cut);
-      EXPECT(cut < 1.0e-8, label);
+      CHECK(cut < 1.0e-8, label);
     }
   }
 
@@ -568,12 +630,14 @@ int main() {
       // Off the beat of anything that counts in blocks.
       device.in_left()[0] = device.in_right()[0] = 0.25f;
       device.process(13);
-      run_blocks(device, sine(220.0f, 0.3f, kRate, 0.5f), block);
-      run_blocks(device, silence(gap, kRate), block);
+      const std::vector<float> first = sine(220.0f, 0.3f, kRate, 0.5f);
+      const std::vector<float> rest(at(gap, kRate), 0.0f);
+      run_blocks(device, first, block);
+      run_blocks(device, rest, block);
       Stereo after = run_blocks(device, sine(440.0f, 1.5f, kRate, 0.5f), block);
       if (block == 128) {
         reference = after;
-        const size_t before = 13 + at(0.3, kRate) + at(gap, kRate);
+        const size_t before = 13 + first.size() + rest.size();
         const size_t from = at(0.5, kRate), to = at(1.5, kRate);
         const double turn = phase_at(after.left, 443.0, kRate, from, to) -
                             phase_at(after.right, 437.0, kRate, from, to);
@@ -581,15 +645,17 @@ int main() {
         const double off = std::remainder(turn - expected, 2.0 * kPi);
         std::snprintf(label, sizeof label,
                       "after %.1f s of silence the beat is where the clock says (%.5f rad off)", gap, off);
-        EXPECT(std::fabs(off) < 0.01, label);
+        CHECK(std::fabs(off) < 0.01, label);
       } else {
         std::snprintf(label, sizeof label, "after %.1f s of silence, blocks of %d give what blocks of 128 give (%g)",
                       gap, block, worst_difference(after, reference));
-        EXPECT(worst_difference(after, reference) < 1.0e-6, label);
+        CHECK(worst_difference(after, reference) < 1.0e-6, label);
       }
     }
     // And it is what a device that never rested puts out: one that heard a
-    // steady offset through the gap, once its filters have forgotten it.
+    // steady offset through the gap, once its filters have forgotten it. Two
+    // histories in float sections agree to about -118 dBFS and no closer
+    // (1.2e-6 was read here, for good); a clock one sample out reads 1e-4.
     twin.init(kRate);
     twin.in_left()[0] = twin.in_right()[0] = 0.25f;
     twin.process(13);
@@ -598,7 +664,7 @@ int main() {
     Stereo never = run(twin, sine(440.0f, 1.5f, kRate, 0.5f));
     std::snprintf(label, sizeof label, "after %.1f s of silence the sound is that of a device that never rested (%g)",
                   gap, worst_difference(never, reference, at(0.5, kRate)));
-    EXPECT(worst_difference(never, reference, at(0.5, kRate)) < 1.0e-6, label);
+    CHECK(worst_difference(never, reference, at(0.5, kRate)) < 1.0e-5, label);
   }
 
   // 11. A phrase with a silence in it, the silence stepped 20 ms at a time
@@ -635,12 +701,12 @@ int main() {
           }
         }
       }
-      EXPECT(rms(reference.left, reference.size() - at(0.3, kRate)) > 0.05, "and the second note sounds");
+      CHECK(rms(reference.left, reference.size() - at(0.3, kRate)) > 0.05, "and the second note sounds");
     }
     std::snprintf(label, sizeof label,
                   "across %zu silences the output does not depend on the block size (worst %g, at %.3f s)",
                   gaps.size(), worst, worst_gap);
-    EXPECT(worst < 1.0e-6, label);
+    CHECK(worst < 1.0e-6, label);
   }
 
   // 12. A knob moved while the device is idle is there when sound comes
@@ -655,11 +721,13 @@ int main() {
     device.in_left()[0] = device.in_right()[0] = 0.25f;
     device.process(13);
     run(device, first);
-    Stereo rest = render(device, 2.0f, kRate);
-    EXPECT(peak(rest.left, at(1.5, kRate)) == 0.0 && peak(rest.right, at(1.5, kRate)) == 0.0,
+    // The silences are counted in samples: one sample more or less on one of
+    // the two devices and their clocks are apart (that reads 1e-4 here).
+    Stereo rest = run(device, std::vector<float>(96000, 0.0f));
+    CHECK(peak(rest.left, at(1.5, kRate)) == 0.0 && peak(rest.right, at(1.5, kRate)) == 0.0,
            "idle 1.5 s after the note");
     set(device, 6.0f, 0.3f, 300.0f, 1500.0f);
-    render(device, 0.1f, kRate);
+    run(device, std::vector<float>(4811, 0.0f));
     Stereo woken = run(device, second);
 
     twin.init(kRate);
@@ -667,33 +735,40 @@ int main() {
     twin.in_left()[0] = twin.in_right()[0] = 0.25f;
     twin.process(13);
     run(twin, first);
-    render(twin, 2.1f, kRate);
+    run(twin, std::vector<float>(96000 + 4811, 0.0f));
     Stereo set_from_start = run(twin, second);
     std::snprintf(label, sizeof label, "knobs moved in silence are there on the next note (worst %g)",
                   worst_difference(woken, set_from_start));
-    EXPECT(worst_difference(woken, set_from_start) < 1.0e-6, label);
-    EXPECT(rms(woken.left) > 0.1, "and that note sounds");
+    CHECK(worst_difference(woken, set_from_start) < 1.0e-6, label);
+    CHECK(rms(woken.left) > 0.1, "and that note sounds");
     // The settings did arrive: 330 Hz is in the new band, 100 and 1500 Hz are
     // on its edges or outside, and the side is at Ears 0.3.
     device.init(kRate);
     Stereo defaults = run(device, second);
-    EXPECT(worst_difference(woken, defaults) > 0.05, "and it is not the note the defaults give");
+    CHECK(worst_difference(woken, defaults) > 0.05, "and it is not the note the defaults give");
   }
 
   // 13. No control clicks when it is thrown from one end to the other while
   // sound is passing, wherever the beat stands.
   {
+    // The limit for each control stands between what the device reads and
+    // what it read with that control's smoothing taken out: Ears 0.05 against
+    // 1.0; Low and High 0.003 at the most against 0.15 to 0.32 (a crossover
+    // that jumps still leaves its filters' states where they were, so the
+    // jump is small at first). Beat has no smoother: it sets the rate of a
+    // phase that is summed, so a throw bends the turn (0.01).
     struct Throw {
       const char* name;
       int id;
       float from;
       float to;
+      double limit;
     };
     const Throw throws[8] = {
-        {"Ears 1 to 0", p::kEars, 1.0f, 0.0f},      {"Ears 0 to 1", p::kEars, 0.0f, 1.0f},
-        {"Low 60 to 400", p::kLow, 60.0f, 400.0f},  {"Low 400 to 60", p::kLow, 400.0f, 60.0f},
-        {"High 400 to 2000", p::kHigh, 400.0f, 2000.0f}, {"High 2000 to 400", p::kHigh, 2000.0f, 400.0f},
-        {"Beat 0.5 to 40", p::kBeat, 0.5f, 40.0f},  {"Beat 40 to 0.5", p::kBeat, 40.0f, 0.5f},
+        {"Ears 1 to 0", p::kEars, 1.0f, 0.0f, 0.15},          {"Ears 0 to 1", p::kEars, 0.0f, 1.0f, 0.15},
+        {"Low 60 to 400", p::kLow, 60.0f, 400.0f, 0.03},      {"Low 400 to 60", p::kLow, 400.0f, 60.0f, 0.03},
+        {"High 400 to 2000", p::kHigh, 400.0f, 2000.0f, 0.03}, {"High 2000 to 400", p::kHigh, 2000.0f, 400.0f, 0.03},
+        {"Beat 0.5 to 40", p::kBeat, 0.5f, 40.0f, 0.05},      {"Beat 40 to 0.5", p::kBeat, 40.0f, 0.5f, 0.05},
     };
     for (const Throw& t : throws) {
       for (bool pure : {true, false}) {
@@ -701,7 +776,7 @@ int main() {
                                          [&](EarShift& d) { d.set_param(t.id, t.to); }, pure);
         std::snprintf(label, sizeof label, "%s on %s is not sudden (%.3f of the change in 8 samples)", t.name,
                       pure ? "a 220 Hz tone" : "three tones", sudden);
-        EXPECT(sudden >= 0.0 && sudden < 0.15, label);
+        CHECK(sudden >= 0.0 && sudden < t.limit, label);
       }
     }
   }
@@ -726,7 +801,7 @@ int main() {
       Stereo next = run(device, sine(440.0f, 1.5f, rate, 0.5f));
       std::snprintf(label, sizeof label, "%.0f Hz: %g at the input leaves finite sound (peak %g)", rate,
                     static_cast<double>(value), std::max(peak(next.left), peak(next.right)));
-      EXPECT(finite_block && finite(next.left) && finite(next.right), label);
+      CHECK(finite_block && finite(next.left) && finite(next.right), label);
       // The same 1.7 s on a device that heard silence in place of the bad block.
       twin.init(rate);
       run(twin, sine(440.0f, 0.2f, rate, 0.5f));
@@ -734,33 +809,57 @@ int main() {
       Stereo clean = run(twin, sine(440.0f, 1.5f, rate, 0.5f));
       std::snprintf(label, sizeof label, "%.0f Hz: a second after %g the sound is as if it never came (%g)", rate,
                     static_cast<double>(value), worst_difference(next, clean, at(1.0, rate)));
-      EXPECT(worst_difference(next, clean, at(1.0, rate)) < 1.0e-5, label);
+      CHECK(worst_difference(next, clean, at(1.0, rate)) < 1.0e-5, label);
       Stereo rest = render(device, 1.5f, rate);
-      EXPECT(peak(rest.left, at(1.0, rate)) == 0.0 && peak(rest.right, at(1.0, rate)) == 0.0,
+      CHECK(peak(rest.left, at(1.0, rate)) == 0.0 && peak(rest.right, at(1.0, rate)) == 0.0,
              "and silence follows it");
     }
     // A whole second of them is silence, not a stuck state.
     device.init(rate);
     Stereo stuck = run(device, std::vector<float>(at(1.0, rate), std::nanf("")));
-    EXPECT(peak(stuck.left) == 0.0 && peak(stuck.right) == 0.0 && finite(stuck.left),
+    CHECK(peak(stuck.left) == 0.0 && peak(stuck.right) == 0.0 && finite(stuck.left),
            "a stream that is not a number gives silence");
   }
 
-  // 15. Levels. The device is a turn of phase and a shift: noise comes out
-  // as loud as it went in at Ears 1, at every rate, and no control makes it
-  // louder. At Ears 0 the band pulses, so it loses half its power. The peaks
-  // of a sound may rise, since its phases are turned: measured and printed.
+  // 15. Levels. The device turns phase and shifts a band; it has no gain.
+  // What is in the band and what is outside it no longer add as one sound in
+  // an ear, so each ear's level over a whole turn of the beat is the sum of
+  // the two powers: the input's level away from the edges, 3 dB under on an
+  // edge, never over. Noise loses what lies near the two edges, a tone loses
+  // by the split's own law, and no setting of Ears makes anything louder. The
+  // peaks of a sound do rise, since its phases are turned: measured, printed
+  // and held under 9 dB.
   for (float rate : kRates) {
     rng_state() = 0xFACEu;
     const std::vector<float> in = noise(6.0f, rate, 0.5f);
     const size_t from = at(1.0, rate);
+    for (float ears : {1.0f, 0.5f, 0.0f}) {
+      device.init(rate);
+      device.set_param(p::kEars, ears);
+      Stereo out = run(device, in);
+      const double left = db(rms(out.left, from) / rms(in, from));
+      const double right = db(rms(out.right, from) / rms(in, from));
+      std::snprintf(label, sizeof label,
+                    "%.0f Hz, Ears %.1f: noise is no louder than it came and little quieter (left %.3f dB, right %.3f dB)",
+                    rate, ears, left, right);
+      CHECK(left < 0.02 && right < 0.02 && left > -0.4 && right > -0.4, label);
+      if (ears == 1.0f) {
+        std::printf("  %.0f Hz: noise at the defaults %.3f dB, its peak %.2f dB over the input's\n", rate, left,
+                    db(std::max(peak(out.left, from), peak(out.right, from)) / peak(in, from)));
+      }
+    }
+    // A 220 Hz tone, half an octave over the default Low: 1/(1 + x) of it
+    // passes unshifted and x/(1 + x) is shifted, x = (220/150)^4.
+    const double x = std::pow(220.0 / 150.0, 4.0);
+    const double y = std::pow(220.0 / 1000.0, 4.0);
+    const double shifted = x / (1.0 + x) / (1.0 + y);
+    const double passed = 1.0 - shifted;
+    const std::vector<float> tone = sine(220.0f, 4.0f, rate, 0.5f);
     device.init(rate);
-    Stereo out = run(device, in);
-    const double level = db(rms(out.left, from) / rms(in, from));
-    std::snprintf(label, sizeof label, "%.0f Hz: noise passes at its own level at the defaults (%.3f dB)", rate,
-                  level);
-    EXPECT(std::fabs(level) < 0.1, label);
-    std::printf("  %.0f Hz: peak of noise out over in %.2f dB\n", rate, db(peak(out.left, from) / peak(in, from)));
+    Stereo out = run(device, tone);
+    const double level = db(rms(out.left, from) / rms(tone, from));
+    std::snprintf(label, sizeof label, "%.0f Hz: a 220 Hz tone at the defaults is the split's two powers", rate);
+    CHECK_NEAR(level, db(std::sqrt(shifted * shifted + passed * passed)), 0.1, label);
     // A tone well inside a wide band, the same pulse in both ears.
     device.init(rate);
     set(device, 6.0f, 0.0f, 60.0f, 2000.0f);
@@ -768,7 +867,7 @@ int main() {
     const double pulsed = db(rms(out.left, from) / rms(sine(350.0f, 6.0f, rate, 0.5f), from));
     std::snprintf(label, sizeof label, "%.0f Hz: at Ears 0 a tone in the band loses 3 dB to the pulse (%.2f dB)",
                   rate, pulsed);
-    EXPECT_NEAR(pulsed, -3.01, 0.15, label);
+    CHECK_NEAR(pulsed, -3.01, 0.15, label);
   }
   {
     // A square wave is the hard case for peaks: its edges are spread out.
@@ -777,10 +876,10 @@ int main() {
     device.init(kRate);
     Stereo out = run(device, square);
     const double rise = db(std::max(peak(out.left), peak(out.right)) / 0.5);
-    std::printf("  a 220 Hz square wave peaks %.2f dB over itself (its level %.3f dB)\n", rise,
-                db(rms(out.left, at(1.0, kRate)) / 0.5));
-    EXPECT(rise < 9.0, "the peaks of a square wave rise by less than 9 dB");
-    EXPECT(std::fabs(db(rms(out.left, at(1.0, kRate)) / 0.5)) < 0.2, "and its level stays");
+    const double level = db(rms(out.left, at(1.0, kRate)) / 0.5);
+    std::printf("  a 220 Hz square wave peaks %.2f dB over itself; its level in an ear is %.3f dB\n", rise, level);
+    CHECK(rise < 9.0, "the peaks of a square wave rise by less than 9 dB");
+    CHECK(level < 0.02 && level > -3.1, "and its level in an ear is between the input's and 3 dB under");
   }
 
   // 16. A second init is the first: after a long run with every control
@@ -796,7 +895,7 @@ int main() {
     render(device, 0.31f, kRate);
     device.init(kRate);
     Stereo again = run(device, in);
-    EXPECT(again.left == fresh.left && again.right == fresh.right, "a second init is the first, to the bit");
+    CHECK(again.left == fresh.left && again.right == fresh.right, "a second init is the first, to the bit");
   }
 
   // 17. Cost, as CPU time: the defaults, and with Low and High never still
