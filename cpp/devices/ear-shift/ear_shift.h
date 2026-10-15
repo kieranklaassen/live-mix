@@ -87,9 +87,10 @@ class EarShift : public kit::DeviceBase<ear_shift::kNumParams> {
     arrive_after_ = static_cast<long>(kArriveSeconds * sr);
     if (arrive_after_ < kLeastArriveSamples) arrive_after_ = kLeastArriveSamples;
     silent_ = arrive_after_;
-    // One whole block more than the silence that counts as new sound, so the
-    // device is never idle before that silence is over.
-    idle_.reset(sr, static_cast<float>(arrive_after_ + kMaxBlockFrames + 1) / sr);
+    // One whole block more than the silence that counts as new sound (and a
+    // little over, for the rounding of seconds), so the device is never idle
+    // before that silence is over.
+    idle_.reset(sr, static_cast<float>(arrive_after_ + kMaxBlockFrames + 64) / sr);
   }
 
   void set_param(int id, float value) {
