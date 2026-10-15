@@ -66,6 +66,7 @@ import { HORNS_DESCRIPTOR, HORNS_DEVICE } from './horns.gen'
 import { HOWL_DESCRIPTOR, HOWL_DEVICE } from './howl.gen'
 import { ICE_DESCRIPTOR, ICE_DEVICE } from './ice.gen'
 import { IMPRINT_DESCRIPTOR, IMPRINT_DEVICE } from './imprint.gen'
+import { ISOCHRONIC_DESCRIPTOR, ISOCHRONIC_DEVICE } from './isochronic.gen'
 import { LADDER_BASS_DESCRIPTOR, LADDER_BASS_DEVICE } from './ladder-bass.gen'
 import { LATE_VIBRATO_DESCRIPTOR, LATE_VIBRATO_DEVICE } from './late-vibrato.gen'
 import { LATTICE_DESCRIPTOR, LATTICE_DEVICE } from './lattice.gen'
@@ -212,6 +213,7 @@ export * from './horns.gen'
 export * from './howl.gen'
 export * from './ice.gen'
 export * from './imprint.gen'
+export * from './isochronic.gen'
 export * from './ladder-bass.gen'
 export * from './late-vibrato.gen'
 export * from './lattice.gen'
@@ -360,6 +362,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   HOWL_DESCRIPTOR,
   ICE_DESCRIPTOR,
   IMPRINT_DESCRIPTOR,
+  ISOCHRONIC_DESCRIPTOR,
   LADDER_BASS_DESCRIPTOR,
   LATE_VIBRATO_DESCRIPTOR,
   LATTICE_DESCRIPTOR,
@@ -509,6 +512,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   HOWL_DEVICE,
   ICE_DEVICE,
   IMPRINT_DEVICE,
+  ISOCHRONIC_DEVICE,
   LADDER_BASS_DEVICE,
   LATE_VIBRATO_DEVICE,
   LATTICE_DEVICE,
@@ -665,6 +669,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'howl', instrument: false, samples: false, zones: false, meters: 7, memoryMb: 4 },
   { id: 'ice', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'imprint', instrument: false, samples: false, zones: false, meters: 30, memoryMb: 4 },
+  { id: 'isochronic', instrument: true, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'ladder-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'late-vibrato', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'lattice', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },

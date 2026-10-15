@@ -134,6 +134,8 @@ build_generated_devices() {
     cpp/devices/ice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device imprint \
     cpp/devices/imprint/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device isochronic \
+    cpp/devices/isochronic/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ladder-bass \
     cpp/devices/ladder-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device late-vibrato \
@@ -431,6 +433,8 @@ test_generated_devices() {
     cpp/test/ice_test.cpp
   native_test imprint_test \
     cpp/test/imprint_test.cpp
+  native_test isochronic_test \
+    cpp/test/isochronic_test.cpp
   native_test ladder_bass_test \
     cpp/test/ladder_bass_test.cpp
   native_test late_vibrato_test \

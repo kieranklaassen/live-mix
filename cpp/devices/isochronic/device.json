@@ -1,0 +1,320 @@
+{
+  "id": "isochronic",
+  "name": "Isochronic",
+  "category": "instrument",
+  "description": "Each key is a tone, or a band of noise at the key, switched on and off evenly by one pulse that all keys share. Offset sets the right ear's pulse behind the left's.",
+  "class": "Isochronic",
+  "header": "isochronic.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "glide",
+      "name": "Place in the glide",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.5,
+      "max": 40,
+      "default": 10,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Pulses a second in each ear, shared by all keys. Slow is a plain on and off; fast runs together into a flutter. Moving it starts a glide again."
+    },
+    {
+      "key": "duty",
+      "name": "Duty",
+      "min": 0.1,
+      "max": 0.9,
+      "default": 0.5,
+      "description": "The share of each period the sound is on: low is short blips, high is long tones. A change waits for the next pulse, up to two seconds at the slowest Rate."
+    },
+    {
+      "key": "edge",
+      "name": "Edge",
+      "min": 2,
+      "max": 50,
+      "default": 8,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long each pulse takes to fade in and out. Short is hard, long is soft. Held to half the shorter of the on time and the gap. A change waits for the next pulse."
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How far the sound drops between pulses. At full the gaps are silent; lower leaves the sound running under the pulse; at zero there is no pulse."
+    },
+    {
+      "key": "offset",
+      "name": "Offset",
+      "min": 0,
+      "max": 180,
+      "default": 0,
+      "unit": "deg",
+      "description": "How far the right ear's pulse runs behind the left's. At 180 the ears take turns. Speakers or mono add the two, and at 180 with half Duty the pulse is gone."
+    },
+    {
+      "key": "warmth",
+      "name": "Warmth",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Adds the second and third partials to the tone. At zero the tone is a pure sine; higher is fuller and brighter. The noise of Air is not changed."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Crossfades each key's tone into a band of noise centred on the key: only tone at zero, only noise at full. The noise is the same in both ears and softer than the tone."
+    },
+    {
+      "key": "target",
+      "name": "Target",
+      "min": 0.5,
+      "max": 40,
+      "default": 10,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The rate the pulse glides to when Glide is above zero. Moving it starts the glide again."
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 0,
+      "max": 30,
+      "default": 0,
+      "unit": "min",
+      "description": "Minutes the pulse takes to go from Rate to Target, from the first key on. Zero is off. Moving it starts the glide again from Rate."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.005,
+      "max": 10,
+      "default": 0.3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a key takes to fade in under the pulses."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 15,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a key takes to fade out after it is let go."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Output level."
+    }
+  ],
+  "presets": {
+    "Ten a second": {
+      "rate": 10,
+      "warmth": 0.3
+    },
+    "Six a second": {
+      "rate": 6,
+      "duty": 0.4,
+      "edge": 20,
+      "warmth": 0.6,
+      "attack": 0.6
+    },
+    "Four soft": {
+      "rate": 4,
+      "depth": 0.55,
+      "edge": 30,
+      "attack": 1.2,
+      "release": 3
+    },
+    "Three a second": {
+      "rate": 3,
+      "duty": 0.4,
+      "edge": 25,
+      "warmth": 0.65
+    },
+    "Slow swell": {
+      "rate": 0.8,
+      "edge": 50,
+      "depth": 0.85,
+      "attack": 0.05,
+      "release": 4,
+      "warmth": 0.45,
+      "volume": -8
+    },
+    "One in two seconds": {
+      "rate": 0.5,
+      "duty": 0.35,
+      "edge": 50,
+      "warmth": 0.2,
+      "release": 3,
+      "volume": -8
+    },
+    "Sixty six a minute": {
+      "rate": 1.1,
+      "duty": 0.22,
+      "edge": 28,
+      "warmth": 0.8,
+      "attack": 0.01,
+      "release": 0.8
+    },
+    "Slowing from one": {
+      "rate": 1,
+      "target": 0.8,
+      "glide": 10,
+      "duty": 0.4,
+      "edge": 50,
+      "air": 0.35,
+      "release": 2.5,
+      "volume": -8
+    },
+    "Fourteen a second": {
+      "rate": 14,
+      "edge": 6,
+      "warmth": 0,
+      "air": 0.4,
+      "attack": 0.1,
+      "release": 0.8
+    },
+    "Eighteen light": {
+      "rate": 18,
+      "depth": 0.5,
+      "edge": 10,
+      "warmth": 0.5,
+      "air": 0.25,
+      "attack": 1,
+      "release": 3
+    },
+    "Forty smooth": {
+      "rate": 40,
+      "edge": 50,
+      "warmth": 0.1,
+      "attack": 0.5,
+      "release": 2
+    },
+    "Forty clicks": {
+      "rate": 40,
+      "duty": 0.2,
+      "edge": 2,
+      "warmth": 0,
+      "attack": 0.02,
+      "release": 0.6
+    },
+    "Forty in noise": {
+      "rate": 40,
+      "air": 1,
+      "edge": 50,
+      "attack": 0.8,
+      "release": 3.5
+    },
+    "Left then right": {
+      "rate": 4,
+      "offset": 180,
+      "edge": 20,
+      "warmth": 0.4
+    },
+    "Ten to six": {
+      "rate": 10,
+      "target": 6,
+      "glide": 10,
+      "air": 0.45,
+      "offset": 60,
+      "attack": 1.5,
+      "release": 3
+    },
+    "Twelve to four": {
+      "rate": 12,
+      "target": 4,
+      "glide": 15,
+      "warmth": 0.9,
+      "duty": 0.35,
+      "edge": 12,
+      "release": 3.5
+    },
+    "Eleven to two": {
+      "rate": 11,
+      "target": 2,
+      "glide": 20,
+      "depth": 0.7,
+      "air": 0.15,
+      "attack": 2.5,
+      "release": 5,
+      "edge": 30
+    },
+    "Eight to sixteen": {
+      "rate": 8,
+      "target": 16,
+      "glide": 8,
+      "depth": 0.5,
+      "edge": 15,
+      "offset": 30,
+      "warmth": 0.7
+    },
+    "Noise at ten": {
+      "rate": 10,
+      "air": 1,
+      "edge": 12,
+      "release": 1,
+      "attack": 0.05
+    },
+    "Two a second": {
+      "rate": 2,
+      "edge": 40,
+      "warmth": 0.5,
+      "attack": 0.02
+    },
+    "Eight short": {
+      "rate": 8,
+      "duty": 0.25,
+      "edge": 3,
+      "warmth": 0.6,
+      "attack": 0.01,
+      "release": 0.4
+    },
+    "Five and air": {
+      "rate": 5,
+      "duty": 0.6,
+      "depth": 0.75,
+      "air": 0.6,
+      "offset": 90,
+      "volume": -7
+    },
+    "One blip a second": {
+      "rate": 1,
+      "duty": 0.1,
+      "edge": 2,
+      "warmth": 0.35,
+      "attack": 0.005,
+      "release": 0.3
+    },
+    "Warm for low keys": {
+      "rate": 6,
+      "warmth": 1,
+      "edge": 20,
+      "duty": 0.6,
+      "depth": 0.6,
+      "attack": 0.8,
+      "release": 4
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for this library on cpp/kit: the pulse shape, the pulse gate, the slow clock and the rate glide are kit/beat.h, the noise streams are kit/colour.h."
+  }
+}

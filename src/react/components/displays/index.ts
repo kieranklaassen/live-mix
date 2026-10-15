@@ -78,6 +78,7 @@ import { COMMON_TONES_FACES } from './common-tones'
 import { BOWLS_FACES } from './bowls'
 import { BINAURAL_FACES } from './binaural'
 import { BAND_PULSE_FACES } from './band-pulse'
+import { ISOCHRONIC_FACES } from './isochronic'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -157,4 +158,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...VESSEL_FACES,
   ...BINAURAL_FACES,
   ...BAND_PULSE_FACES,
+  ...ISOCHRONIC_FACES,
 }

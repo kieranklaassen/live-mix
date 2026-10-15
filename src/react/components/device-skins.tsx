@@ -1938,6 +1938,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   vessel: { ...PLATE_PALETTES.vessel, finish: 'gloss', cap: 'disc' },
   binaural: { ...PLATE_PALETTES.binaural, finish: 'matte', cap: 'dot' },
   'band-pulse': { ...PLATE_PALETTES['band-pulse'], finish: 'brushed', cap: 'skirt' },
+  isochronic: { ...PLATE_PALETTES.isochronic, finish: 'brushed', cap: 'pointer' },
 }
 
 /**
