@@ -1,0 +1,147 @@
+{
+  "id": "breath-pacer",
+  "name": "Breath Pacer",
+  "category": "instrument",
+  "description": "Breath shapes any sound. This makes its own swell of air and tone, marks the turns, starts at In with the first key and can slow down. Stop if you feel light-headed.",
+  "class": "BreathPacer",
+  "header": "breath_pacer.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "place",
+      "name": "Place in the breath",
+      "display": true
+    },
+    {
+      "key": "slowing",
+      "name": "Place in the slow down",
+      "display": true
+    },
+    {
+      "key": "stretch",
+      "name": "Cycle length against its setting",
+      "unit": "x",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "in",
+      "name": "In",
+      "min": 1,
+      "max": 12,
+      "default": 5,
+      "unit": "s",
+      "description": "Seconds the breath takes to fill. Level and brightness rise over this time, and a soft mark at the key sounds as it starts."
+    },
+    {
+      "key": "hold",
+      "name": "Hold",
+      "min": 0,
+      "max": 12,
+      "default": 0,
+      "unit": "s",
+      "description": "Seconds the breath stays full. At zero it turns straight round into Out."
+    },
+    {
+      "key": "out",
+      "name": "Out",
+      "min": 1,
+      "max": 12,
+      "default": 5,
+      "unit": "s",
+      "description": "Seconds the breath takes to empty. Level and brightness fall over this time, and a soft mark a fifth below the key sounds as it starts."
+    },
+    {
+      "key": "rest",
+      "name": "Rest",
+      "min": 0,
+      "max": 12,
+      "default": 0,
+      "unit": "s",
+      "description": "Seconds the breath stays at Floor before the next In. At zero the next In follows at once."
+    },
+    {
+      "key": "slowTo",
+      "name": "Slow to",
+      "min": 1,
+      "max": 2,
+      "default": 1,
+      "unit": "x",
+      "description": "How many times its set length the whole cycle grows to while Over runs. At one, or with Over at zero, the cycle keeps its length."
+    },
+    {
+      "key": "over",
+      "name": "Over",
+      "min": 0,
+      "max": 30,
+      "default": 0,
+      "unit": "min",
+      "description": "Minutes the cycle takes to grow to Slow to, counted from the first key. Zero is off. Moving this or Slow to starts the slow down again from the set length."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Level of the noise, the air of the breath. It is spread a little between the two sides, and it does not grow with the number of keys."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Level of the pitched part, a plain tone at each key."
+    },
+    {
+      "key": "bright",
+      "name": "Bright",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much the brightness follows the breath. At zero the colour stays still. Higher, air and tone open as the breath fills and close as it empties."
+    },
+    {
+      "key": "marks",
+      "name": "Marks",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Level of the two soft struck marks, one at the start of In and one at the start of Out. With Hold at zero there is one mark at the turn, not two."
+    },
+    {
+      "key": "floor",
+      "name": "Floor",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "How much sound stays at the bottom of the breath. At zero it empties to silence. At full the level stays still and only the brightness moves."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 5,
+      "default": 1,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the sound takes to fade once a key is let go. The breath goes on in step while any key still sounds."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {},
+  "origin": {
+    "kind": "new",
+    "note": "A breath pattern in counted seconds heard as a swell of noise and tone with a struck mark at each turn. Written for this library from the kit's beat and colour headers."
+  }
+}
