@@ -1,0 +1,116 @@
+{
+  "id": "binaural",
+  "name": "Binaural",
+  "category": "instrument",
+  "description": "On headphones each key is a pair of warm tones a few hertz apart, one to an ear, heard as a beat between the ears. Ears at 0 puts the beat in the air for speakers.",
+  "class": "Binaural",
+  "header": "binaural.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "beat",
+      "name": "Beat",
+      "min": 0.5,
+      "max": 40,
+      "default": 6,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Hertz between the two tones of a key, the same on every key: the rate of the beat. Heard between the ears alone, the beat fades above about 30 hertz."
+    },
+    {
+      "key": "ears",
+      "name": "Ears",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "At 1 each ear has one tone and the beat is made between the ears. At 0 both tones are in both ears. Speakers, a mono fold or a reverb fed from both sides beat in the air."
+    },
+    {
+      "key": "layout",
+      "name": "Layout",
+      "choices": ["Pair", "Cross"],
+      "default": 0,
+      "description": "Pair gives each ear one tone. Cross gives each ear two tones Beat apart, so each ear beats in the air at Beat while the two ears differ by half of Beat."
+    },
+    {
+      "key": "warmth",
+      "name": "Warmth",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Adds the second and third partials of each tone, each softer than the last. A partial under 1 kHz is split between the ears by Beat. One above is the same in both ears."
+    },
+    {
+      "key": "bed",
+      "name": "Bed",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Level of a stereo noise under the tones, as loud as one key at the top. It follows the loudest key, so there is none before a key and none after the last release."
+    },
+    {
+      "key": "colour",
+      "name": "Colour",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Colour of the bed: white at 0, pink in the middle, brown at 1. Higher is darker, with less hiss and more rumble."
+    },
+    {
+      "key": "target",
+      "name": "Target",
+      "min": 0.5,
+      "max": 40,
+      "default": 6,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The rate Beat glides to while Glide is above 0. The glide covers equal ratios in equal times and then stays at Target."
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 0,
+      "max": 30,
+      "default": 0,
+      "unit": "min",
+      "description": "Minutes Beat takes to reach Target, counted from the first key after it is set. At 0 Beat stays where it is. Moving Beat, Target or Glide starts the glide again."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.01,
+      "max": 10,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "Time a key takes to swell to its full level."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 15,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "Time a key takes to fade once it is let go. The bed fades with the last key."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": 0,
+      "unit": "dB",
+      "description": "Output level. Held keys share one level, so a full chord stays under the soft clip at 0 dB. Above that many keys can reach the clip, which adds tones of its own."
+    }
+  ],
+  "meters": [{ "key": "glide", "name": "Glide place", "display": true }],
+  "presets": {
+    "Six a second": { "beat": 6 }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit and the beat and breath headers (cpp/kit/beat.h, cpp/kit/colour.h). A pair of sines per key around one shared half-beat clock; no source code was ported."
+  }
+}
