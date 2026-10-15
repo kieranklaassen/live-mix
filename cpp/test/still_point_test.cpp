@@ -613,6 +613,19 @@ static void test_limits() {
     EXPECT(jump < 0.04 && jump > 0.005, label);
   }
 
+  // The glide of the limits is seconds, not samples: half a second after an
+  // octave is added, the same place at every rate.
+  for (float rate : kRates) {
+    plain(device, rate);
+    device.set_param(p::kEars, 1.0f);
+    Stereo out = play(device, {on(0.0, 1, kA3), on(1.0, 2, a4)}, 2.0, kBlocks128, rate);
+    const double x = 0.5 / tau;
+    const double want = -0.5 + (1.5 / 12.0) * (12.0 * (1.0 - (1.0 + x) * std::exp(-x)) + 1.0);
+    const double got = semitones(frequency_at(out.right, kA3 * std::pow(2.0, want / 12.0), 1.5, rate, 0.04, 0.005), kA3);
+    std::snprintf(label, sizeof label, "%.0f Hz: half a second after an octave is added the sine is at %.4f st (expected %.4f)", rate, got, want);
+    EXPECT(std::fabs(got - want) < 0.02, label);
+  }
+
   // Two keys landing together give the same render in either order: from
   // silence, and joining a sweep under way.
   {

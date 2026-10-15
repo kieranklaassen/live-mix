@@ -117,6 +117,32 @@ export const STILL_POINT_DESCRIPTOR = wasmDeviceDescriptor(STILL_POINT_DEVICE, {
   category: 'instrument',
   description:
     'Held keys are warm steady tones. One sine sweeps slowly back and forth through them, so the beat with each key slows to stillness as they meet, then speeds away.',
+  presets: {
+    'Half minute pass': { time: 30, reach: 0.5 },
+    'One minute pass': { time: 60, reach: 1, warmth: 0.12, attack: 2, release: 5 },
+    'Two minute pass': { time: 120, reach: 2, level: 0.35, warmth: 0.45, attack: 5, release: 12 },
+    'Pure crossing': { time: 45, reach: 1, level: 0.7, warmth: 0, attack: 0.5 },
+    'Warm crossing': { time: 40, reach: 1.5, warmth: 0.8, attack: 1.5, release: 4 },
+    'Slow split pass': { time: 50, reach: 1, ears: 0.3, warmth: 0.9, attack: 2, release: 6 },
+    'Near unison': { time: 120, reach: 0.1, warmth: 0, attack: 3, release: 6 },
+    'Deep slow beat': { time: 60, reach: 0.2, level: 1, warmth: 0.2, attack: 0.6, release: 2 },
+    'Faint slow beat': { time: 90, reach: 0.3, level: 0.2, warmth: 0.6, attack: 3.5, release: 2.5 },
+    'Soft bloom': { time: 40, reach: 0.3, level: 0.8, warmth: 1, attack: 10, release: 12 },
+    'Sine in one ear': { ears: 1 },
+    'Split and pure': { time: 30, reach: 1, level: 1, ears: 1, warmth: 0 },
+    'Half split': { time: 20, ears: 0.5, warmth: 0.6, attack: 0.3 },
+    'Full and split': { reach: 3, level: 0.7, ears: 0.8, warmth: 1 },
+    'Quick sweep': { time: 4, reach: 2, attack: 0.2, release: 1.5 },
+    'Third each side': { time: 10, reach: 4, level: 0.6, warmth: 0, attack: 0.15, release: 1 },
+    'Fifth reach': { time: 30, reach: 7, level: 0.6, ears: 0.3, warmth: 0.2 },
+    'Octave reach': { time: 24, reach: 12, level: 0.7, warmth: 0.15 },
+    'Even match': { level: 1, warmth: 0.45, attack: 0.3, release: 6 },
+    'Steady tones': { level: 0, warmth: 0.5, attack: 0.4, release: 2 },
+    'Slow swell': { time: 20, warmth: 0.25, attack: 6, release: 10 },
+    'Long tail': { time: 16, warmth: 0.4, attack: 0.05, release: 15 },
+    'Organ tones': { time: 8, level: 0.3, warmth: 1, attack: 0.02, release: 0.3 },
+    'Short tones': { time: 6, reach: 1, warmth: 0.2, attack: 0.01, release: 0.15 },
+  },
 })
 
 export type StillPoint = WasmDevice<typeof STILL_POINT_PARAMS>
