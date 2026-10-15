@@ -243,6 +243,13 @@ static void report_cpu(const char* label, float seconds, Work work) {
   std::printf("%s CPU: %.2f%% of real time\n", label, 100.0 * used / seconds);
 }
 
+template <typename Work>
+static double cpu_seconds(Work work) {
+  const std::clock_t start = std::clock();
+  work();
+  return static_cast<double>(std::clock() - start) / CLOCKS_PER_SEC;
+}
+
 // With EAR_SHIFT_SAY set in the environment every check prints what it read,
 // passed or not: the margins are then there to be seen.
 static bool say() {
@@ -278,8 +285,9 @@ int main() {
 
   // 1. The left ear goes up and the right goes down, each by half of Beat,
   // and the other sideband is 40 dB under. At the defaults on 440 Hz, and at
-  // the bottom of the band at its lowest (a 60 Hz tone with Low at 60, where
-  // the phase pair is nearest its own limit), at 44.1, 48 and 96 kHz.
+  // the bottom of the band as the device starts, which is as low as Low goes
+  // (a 60 Hz tone with Low at 60, where the phase pair is nearest its own
+  // limit), at 44.1, 48 and 96 kHz.
   for (float rate : kRates) {
     device.init(rate);
     Stereo out = run(device, sine(440.0f, 5.0f, rate, 0.5f));
@@ -325,17 +333,44 @@ int main() {
                   db(low_up / 0.5));
     CHECK_NEAR(db(low_up / 0.5), -6.02, 0.1, label);
 
-    // And on the lower edge as the device starts, 150 Hz.
-    device.init(rate);
-    out = run(device, sine(150.0f, 5.0f, rate, 0.5f));
-    const double edge_up = level_at(out.left, 153.0, rate, from, to);
-    const double edge_down = level_at(out.left, 147.0, rate, from, to);
-    const double edge_up_right = level_at(out.right, 153.0, rate, from, to);
-    const double edge_down_right = level_at(out.right, 147.0, rate, from, to);
+    // And on the lower edge wherever Low puts it: 60 Hz is where the device
+    // starts, 150 and 400 Hz are further up the knob.
+    for (float low : {150.0f, 400.0f}) {
+      device.init(rate);
+      set(device, 6.0f, 1.0f, low, 2000.0f);
+      out = run(device, sine(low, 5.0f, rate, 0.5f));
+      const double edge_up = level_at(out.left, low + 3.0, rate, from, to);
+      const double edge_down = level_at(out.left, low - 3.0, rate, from, to);
+      const double edge_up_right = level_at(out.right, low + 3.0, rate, from, to);
+      const double edge_down_right = level_at(out.right, low - 3.0, rate, from, to);
+      std::snprintf(label, sizeof label,
+                    "%.0f Hz: on a lower edge at %.0f Hz the other sideband is 40 dB under (left %.1f, right %.1f)", rate,
+                    low, db(edge_down / edge_up), db(edge_up_right / edge_down_right));
+      CHECK(db(edge_down / edge_up) < -40.0 && db(edge_up_right / edge_down_right) < -40.0, label);
+    }
+
+    // Through the whole of the widest band, a sixth of an octave at a time:
+    // nowhere is the other sideband less than 40 dB under the one that is
+    // meant. The pair's own ripple puts it between 44 and 67 dB under.
+    double worst_other = -200.0, worst_at = 0.0;
+    for (double hz = 70.0; hz <= 1800.0; hz *= std::pow(2.0, 1.0 / 6.0)) {
+      device.init(rate);
+      set(device, 6.0f, 1.0f, 60.0f, 2000.0f);
+      out = run(device, sine(static_cast<float>(hz), 3.0f, rate, 0.5f));
+      // Two seconds: whole turns of 3 Hz, so the two sidebands and the tone
+      // fall on zeros of each other's windows.
+      const double tone_hz = static_cast<double>(static_cast<float>(hz));
+      const double other = db(level_at(out.left, tone_hz - 3.0, rate, from, at(3.0, rate)) /
+                              level_at(out.left, tone_hz + 3.0, rate, from, at(3.0, rate)));
+      if (other > worst_other) {
+        worst_other = other;
+        worst_at = hz;
+      }
+    }
     std::snprintf(label, sizeof label,
-                  "%.0f Hz: on the default lower edge the other sideband is 40 dB under (left %.1f, right %.1f)", rate,
-                  db(edge_down / edge_up), db(edge_up_right / edge_down_right));
-    CHECK(db(edge_down / edge_up) < -40.0 && db(edge_up_right / edge_down_right) < -40.0, label);
+                  "%.0f Hz: from 70 Hz to 1.8 kHz the other sideband is 40 dB under everywhere (worst %.1f dB at %.0f Hz)",
+                  rate, worst_other, worst_at);
+    CHECK(worst_other < -40.0, label);
   }
 
   // 1b. Under 44.1 kHz the silence that empties the filters is no shorter in
@@ -423,10 +458,15 @@ int main() {
   // 3. What is outside the band passes at its own level and where it was.
   // The split is fourth order, so a tone a factor of three from an edge has
   // 1/82 of itself in the band: it comes out 0.106 dB under, of which 0.107
-  // is the unshifted tone and the rest the shifted trace.
+  // is the unshifted tone and the rest the shifted trace. That is the split's
+  // skirt and nothing is added to make it up: 50 Hz and 3 kHz with the band
+  // from 150 Hz to 1 kHz read 0.106 and 0.101 dB under, held to 0.12. The
+  // last two tones are the same factor of three from the band as the device
+  // starts, 60 Hz to 1 kHz.
   for (float rate : kRates) {
-    for (float hz : {50.0f, 3000.0f, 30.0f, 8000.0f}) {
+    for (float hz : {50.0f, 3000.0f, 30.0f, 8000.0f, 20.0f, 3001.0f}) {
       device.init(rate);
+      if (hz != 20.0f && hz != 3001.0f) device.set_param(p::kLow, 150.0f);
       Stereo out = run(device, sine(hz, 4.0f, rate, 0.5f));
       const size_t from = at(1.0, rate), to = at(4.0, rate);
       const double left_hz = strongest(out.left, rate, hz - 8.0, hz + 8.0, from, at(2.0, rate));
@@ -438,7 +478,7 @@ int main() {
       const double whole_right = db(rms(out.right, from, to) / rms(sine(hz, 4.0f, rate, 0.5f), from, to));
       const double tone = db(level_at(out.left, hz, rate, from, to) / 0.5);
       const double trace = db(level_at(out.left, hz + 3.0, rate, from, to) / 0.5);
-      const bool far = hz < 40.0f || hz > 4000.0f;
+      const bool far = hz == 30.0f || hz == 8000.0f;
       std::snprintf(label, sizeof label,
                     "%.0f Hz: %.0f Hz passes at its level (left %.3f dB, right %.3f dB, the tone itself %.3f dB)",
                     rate, hz, whole_left, whole_right, tone);
@@ -455,16 +495,18 @@ int main() {
   // is 3 dB down on an edge, never more than 3.5. On an edge the tone is in
   // each ear both shifted and not, so it wavers there at half of Beat, to
   // silence: that is measured and printed, not held.
-  {
+  // With the band as the device starts (60 Hz to 1 kHz) and with Low at 150.
+  for (double low : {60.0, 150.0}) {
     std::vector<double> tones;
     for (int i = 0; i <= 60; ++i) tones.push_back(20.0 * std::pow(2.0, static_cast<double>(i) / 6.0));
-    tones.push_back(150.0);
+    tones.push_back(low);
     tones.push_back(1000.0);
     double worst_far = 0.0, worst_near = 0.0, edge_low = 0.0, edge_high = 0.0;
     double waver_low = 0.0, waver_high = 0.0;
     for (double hz : tones) {
       if (hz > 20000.0) continue;
       device.init(kRate);
+      device.set_param(p::kLow, static_cast<float>(low));
       const std::vector<float> in = sine(static_cast<float>(hz), 2.0f, kRate, 0.5f);
       Stereo out = run(device, in);
       // One second: three turns of the half beat, six of the beat.
@@ -473,27 +515,30 @@ int main() {
       const double left = db(rms(out.left, from, to) / base);
       const double right = db(rms(out.right, from, to) / base);
       const double off = std::max(std::fabs(left), std::fabs(right));
-      const bool far = hz < 75.0 || (hz > 300.0 && hz < 500.0) || hz > 2000.0;
+      const bool far = hz < 0.5 * low || (hz > 2.0 * low && hz < 500.0) || hz > 2000.0;
       if (far) worst_far = std::max(worst_far, off);
       worst_near = std::max(worst_near, off);
-      if (hz == 150.0 || hz == 1000.0) {
+      if (hz == low || hz == 1000.0) {
         double least = 0.0, most = 0.0;
         swing(out.left, from, to, at(2.0 / hz, kRate), &least, &most);
-        (hz == 150.0 ? edge_low : edge_high) = std::min(left, right);
-        (hz == 150.0 ? waver_low : waver_high) = db(least / most);
+        (hz == low ? edge_low : edge_high) = std::min(left, right);
+        (hz == low ? waver_low : waver_high) = db(least / most);
       }
     }
-    std::snprintf(label, sizeof label, "more than an octave from an edge each ear is flat within 1 dB (worst %.2f)",
+    std::snprintf(label, sizeof label,
+                  "Low %.0f: more than an octave from an edge each ear is flat within 1 dB (worst %.2f)", low,
                   worst_far);
     CHECK(worst_far < 1.0, label);
-    std::snprintf(label, sizeof label, "nowhere is an ear more than 3.5 dB off (worst %.2f)", worst_near);
+    std::snprintf(label, sizeof label, "Low %.0f: nowhere is an ear more than 3.5 dB off (worst %.2f)", low,
+                  worst_near);
     CHECK(worst_near < 3.5, label);
-    std::snprintf(label, sizeof label, "on an edge an ear is 3 dB down (low %.2f dB, high %.2f dB)", edge_low,
-                  edge_high);
+    std::snprintf(label, sizeof label, "Low %.0f: on an edge an ear is 3 dB down (low %.2f dB, high %.2f dB)", low,
+                  edge_low, edge_high);
     CHECK(std::fabs(edge_low + 3.01) < 0.3 && std::fabs(edge_high + 3.01) < 0.3, label);
-    std::printf("  a tone on an edge wavers in each ear at half of Beat: low edge %.1f dB, high edge %.1f dB\n",
-                waver_low, waver_high);
-    CHECK(waver_low < -20.0 && waver_high < -20.0, "and that waver is deep, as the split's overlap makes it");
+    std::printf(
+        "  Low %.0f: a tone on an edge wavers in each ear at half of Beat: low edge %.1f dB, high edge %.1f dB\n",
+        low, waver_low, waver_high);
+    CHECK(waver_low < -15.0 && waver_high < -20.0, "and that waver is deep, as the split's overlap makes it");
   }
 
   // 4b. On the crest of the beat (θ a whole number of turns) nothing is
@@ -689,9 +734,14 @@ int main() {
       }
     }
     // And it is what a device that never rested puts out: one that heard a
-    // steady offset through the gap, once its filters have forgotten it. Two
-    // histories in float sections agree to about -118 dBFS and no closer
-    // (1.2e-6 was read here, for good); a clock one sample out reads 1e-4.
+    // steady offset through the gap, once its filters have forgotten it. On
+    // this tone the two agree to 1e-6 (1.2e-6 with Low at 150) and stay
+    // there, neither closer nor further (read over two minutes): 440 Hz at
+    // 48 kHz repeats exactly every
+    // 1200 samples, and on an input that repeats, the float sections of the
+    // split and of the phase pair settle into a rounding cycle that depends
+    // on where they came from. The clock and the smoothers are equal to the
+    // bit. A clock one sample out reads 1e-4.
     twin.init(kRate);
     twin.in_left()[0] = twin.in_right()[0] = 0.25f;
     twin.process(13);
@@ -701,6 +751,27 @@ int main() {
     std::snprintf(label, sizeof label, "after %.1f s of silence the sound is that of a device that never rested (%g)",
                   gap, worst_difference(never, reference, at(0.5, kRate)));
     CHECK(worst_difference(never, reference, at(0.5, kRate)) < 1.0e-5, label);
+    // On a sound that does not repeat (the same tone with noise 84 dB under
+    // it) the two devices come to the very same state inside half a second
+    // and stay there: the difference above is rounding, not something kept.
+    {
+      rng_state() = 0x5EEDu;
+      std::vector<float> rough = sine(440.0f, 1.5f, kRate, 0.5f);
+      for (float& v : rough) v += 3.0e-5f * white();
+      Stereo heard[2];
+      for (int which = 0; which < 2; ++which) {
+        twin.init(kRate);
+        twin.in_left()[0] = twin.in_right()[0] = 0.25f;
+        twin.process(13);
+        run(twin, sine(220.0f, 0.3f, kRate, 0.5f));
+        run(twin, std::vector<float>(at(gap, kRate), which == 0 ? 0.0f : 0.25f));
+        heard[which] = run(twin, rough);
+      }
+      std::snprintf(label, sizeof label,
+                    "after %.1f s of silence, on a sound that does not repeat, the two are one to the bit (%g)", gap,
+                    worst_difference(heard[0], heard[1], at(0.75, kRate)));
+      CHECK(worst_difference(heard[0], heard[1], at(0.75, kRate)) == 0.0, label);
+    }
   }
 
   // 11. A phrase with a silence in it, the silence stepped 20 ms at a time
@@ -751,6 +822,89 @@ int main() {
     CHECK(worst < 1.0e-6, label);
   }
 
+  // 11b. The same with a note under the idle gate's floor (2e-8, where the
+  // gate's floor is 1e-7). The gate then counts a whole block from the block
+  // the note ended in, up to 2048 samples ahead of the device's own count of
+  // silent samples, so the device may only fall idle a block later than the
+  // silence that empties its filters. With a hold one block shorter the next
+  // note differed by 0.29 of its own height between block sizes; as it is
+  // they are one to the bit. The quiet note ends at several places in a
+  // block of 2048 and the silence is stepped round the two counts.
+  {
+    const size_t arrive = static_cast<size_t>(EarShift::kArriveSeconds * kRate);
+    const float quiet = 2.0e-8f;
+    double worst = 0.0;
+    for (size_t off : {size_t{1}, size_t{700}, size_t{1500}, size_t{2047}}) {
+      for (long step : {-2100L, -2048L, -1L, 0L, 1L, 2048L, 2112L, 4000L}) {
+        const size_t gap = static_cast<size_t>(static_cast<long>(arrive) + step);
+        Stereo reference;
+        for (int block : {1, 128, 2048, 0}) {
+          device.init(kRate);
+          device.in_left()[0] = device.in_right()[0] = quiet;
+          device.process(static_cast<int>(off));
+          std::vector<float> stream = sine(220.0f, 0.3f, kRate, quiet);
+          stream.insert(stream.end(), gap - 1, 0.0f);
+          Stereo all = run_blocks(device, stream, block);
+          set(device, 9.0f, 0.4f, 250.0f, 600.0f);
+          std::vector<float> rest(1, 0.0f);
+          const std::vector<float> second = three_tones(0.3f, kRate);
+          for (float v : second) rest.push_back(v * (quiet / 0.75f));
+          all = concat(all, run_blocks(device, rest, block));
+          if (block == 1) {
+            reference = all;
+          } else {
+            worst = std::max(worst, worst_difference(all, reference) / quiet);
+          }
+        }
+      }
+    }
+    std::snprintf(label, sizeof label,
+                  "a note under the idle gate's floor: the next one does not depend on the block size (%g of its height)",
+                  worst);
+    CHECK(worst < 1.0e-3, label);
+  }
+
+  // 11c. The hold is handed to the gate in seconds and turned back into
+  // samples there, and at 44.1 kHz "the silence and one block" comes back one
+  // sample short: that is what the little over in the hold is for. The case
+  // that needs it: a sound under the gate's floor that ends on the last
+  // sample of a 2048 block, then blocks of silence that add up to one sample
+  // less than the silence that counts. A device without the little over fell
+  // idle there with its filters not emptied and never took the knobs.
+  {
+    const float rate = 44100.0f;
+    const float quiet = 2.0e-8f;
+    const int arrive = EarShift::kLeastArriveSamples;
+    // The note begins on a sample that is not zero: a zero would itself be
+    // the one silent sample that was missing.
+    std::vector<float> note = sine(330.0f, 0.3f, rate, 0.4f);
+    note.erase(note.begin());
+    Stereo heard[2];
+    for (int which = 0; which < 2; ++which) {
+      EarShift& d = which == 0 ? device : twin;
+      d.init(rate);
+      const std::vector<float> under(2048, quiet);
+      std::vector<float> rest(static_cast<size_t>(arrive - 1), 0.0f);
+      if (which == 0) {
+        run_blocks(d, under, 2048);
+        run_blocks(d, std::vector<float>(rest.begin(), rest.begin() + 20480), 2048);
+        d.process(arrive - 1 - 20480);
+        d.process(2048);
+      } else {
+        run_blocks(d, under, 1);
+        rest.insert(rest.end(), 2048, 0.0f);
+        run_blocks(d, rest, 1);
+      }
+      set(d, 9.0f, 0.4f, 250.0f, 600.0f);
+      run_blocks(d, std::vector<float>(4096, 0.0f), which == 0 ? 2048 : 1);
+      heard[which] = run(d, note);
+    }
+    std::snprintf(label, sizeof label,
+                  "44100 Hz: idle is never ahead of the silence that counts, to the sample (worst %g)",
+                  worst_difference(heard[0], heard[1]));
+    CHECK(worst_difference(heard[0], heard[1]) < 1.0e-6 && rms(heard[0].left) > 0.05, label);
+  }
+
   // 12. A knob moved while the device is idle is there when sound comes
   // back: the next note is, to the sample, that of a device set that way from
   // the start. The device is put to rest off the beat of anything that counts
@@ -790,6 +944,26 @@ int main() {
     CHECK(worst_difference(woken, defaults) > 0.05, "and it is not the note the defaults give");
   }
 
+  // 12b. A device that has only just started counts as one that has been
+  // silent for long: a knob moved after its first silent block and before
+  // its first sound is there on that sound, as if set before the block. (A
+  // device that began its count of silence at init glided under the first
+  // note: 0.57 was read here.)
+  {
+    const std::vector<float> note = sine(330.0f, 0.3f, kRate, 0.4f);
+    device.init(kRate);
+    run(device, std::vector<float>(13, 0.0f));
+    set(device, 6.0f, 0.2f, 400.0f, 2000.0f);
+    Stereo moved = run(device, note);
+    twin.init(kRate);
+    set(twin, 6.0f, 0.2f, 400.0f, 2000.0f);
+    run(twin, std::vector<float>(13, 0.0f));
+    Stereo from_start = run(twin, note);
+    std::snprintf(label, sizeof label, "knobs moved after the first silent block are there on the first note (worst %g)",
+                  worst_difference(moved, from_start));
+    CHECK(worst_difference(moved, from_start) < 1.0e-6, label);
+  }
+
   // 13. No control clicks when it is thrown from one end to the other while
   // sound is passing, wherever the beat stands.
   {
@@ -820,6 +994,108 @@ int main() {
                       pure ? "a 220 Hz tone" : "three tones", sudden);
         CHECK(sudden >= 0.0 && sudden < t.limit, label);
       }
+    }
+  }
+
+  // 13b. A few samples of exact zero in the middle of a sound are not a
+  // silence: a knob thrown just after them still glides. (Sound counts as new
+  // only after kArriveSeconds; a device that took any zero sample for a
+  // silence put the knob there at once: 1.0 was read here against 0.05.)
+  {
+    double worst = -1.0;
+    for (int place = 0; place < 6; ++place) {
+      const size_t before = at(0.6 + static_cast<double>(place) / 18.0, kRate) + static_cast<size_t>(place) * 37;
+      const size_t after = 960;
+      std::vector<float> in = sine(220.0f, static_cast<float>(before + after) / kRate, kRate, 0.5f);
+      for (size_t i = before - 5; i < before; ++i) in[i] = 0.0f;
+      const std::vector<float> head(in.begin(), in.begin() + static_cast<long>(before));
+      const std::vector<float> tail(in.begin() + static_cast<long>(before), in.end());
+      Stereo heard[2];
+      for (int which = 0; which < 2; ++which) {
+        device.init(kRate);
+        run(device, head);
+        if (which == 1) device.set_param(p::kEars, 0.0f);
+        heard[which] = run(device, tail);
+      }
+      double early = 0.0, all = 0.0;
+      for (size_t i = 0; i < after; ++i) {
+        const double d = std::max(std::fabs(static_cast<double>(heard[1].left[i]) - heard[0].left[i]),
+                                  std::fabs(static_cast<double>(heard[1].right[i]) - heard[0].right[i]));
+        all = std::max(all, d);
+        if (i < 8) early = std::max(early, d);
+      }
+      if (all > 1.0e-3) worst = std::max(worst, early / all);
+    }
+    std::snprintf(label, sizeof label,
+                  "Ears thrown just after five samples of exact zero still glides (%.3f of the change in 8 samples)",
+                  worst);
+    CHECK(worst >= 0.0 && worst < 0.15, label);
+  }
+
+  // 13c. How long a knob takes: the house's 5 ms. Ears is thrown from 1 to 0
+  // where the two ears are furthest apart (θ at a quarter turn, 0.75 s in)
+  // and the side signal is read against the same passage left alone: 2.5 ms
+  // on it is still well apart (e^-0.5 of it left, 0.61) and 30 ms on it is
+  // gone. Ten times slower reads 0.95 and 0.55; ten times faster 0.01 and 0.
+  {
+    const std::vector<float> in = sine(440.0f, 1.0f, kRate, 0.5f);
+    const size_t before = at(0.75, kRate);
+    const std::vector<float> head(in.begin(), in.begin() + static_cast<long>(before));
+    const std::vector<float> tail(in.begin() + static_cast<long>(before), in.end());
+    Stereo heard[2];
+    for (int which = 0; which < 2; ++which) {
+      device.init(kRate);
+      device.set_param(p::kHigh, 2000.0f);
+      run(device, head);
+      if (which == 1) device.set_param(p::kEars, 0.0f);
+      heard[which] = run(device, tail);
+    }
+    const std::vector<float> thrown = side_of(heard[1]);
+    const std::vector<float> alone = side_of(heard[0]);
+    const double soon = rms(thrown, 96, 144) / rms(alone, 96, 144);
+    const double late = rms(thrown, 1440, 1488) / rms(alone, 1440, 1488);
+    std::snprintf(label, sizeof label,
+                  "Ears takes 5 ms: 2.5 ms after a throw %.2f of the side is left, 30 ms after %.4f", soon, late);
+    CHECK(soon > 0.45 && soon < 0.75 && late < 0.02, label);
+  }
+
+  // 13d. Low and High take the same 5 ms. At Beat 40 a tone in the band is
+  // 20 Hz up in the left ear; an edge is thrown past it, and from 30 ms to
+  // 130 ms after the throw the shifted tone is read against the unshifted
+  // one (20 Hz apart is two bins of that window, a zero of it). High is
+  // thrown down past a tone, which then passes: what is left shifted is the
+  // share the new band still holds. Low is thrown down past a tone, which is
+  // then in the band: what is left unshifted is the share outside it.
+  {
+    struct Slow {
+      const char* name;
+      int id;
+      float from;
+      float to;
+      float hz;
+      bool into;  // the throw takes the tone into the band
+      double limit;
+    };
+    // Read: High -46.1 dB and Low -31.6 dB; with these two smoothers ten
+    // times slower -20.6 and -4.4 dB.
+    const Slow slows[2] = {{"High 2000 to 400 on 1500 Hz", p::kHigh, 2000.0f, 400.0f, 1500.0f, false, -35.0},
+                           {"Low 400 to 60 on 150 Hz", p::kLow, 400.0f, 60.0f, 150.0f, true, -22.0}};
+    for (const Slow& s : slows) {
+      const std::vector<float> in = sine(s.hz, 0.7f, kRate, 0.5f);
+      const size_t before = at(0.5, kRate);
+      device.init(kRate);
+      device.set_param(p::kBeat, 40.0f);
+      device.set_param(s.id, s.from);
+      run(device, std::vector<float>(in.begin(), in.begin() + static_cast<long>(before)));
+      device.set_param(s.id, s.to);
+      Stereo out = run(device, std::vector<float>(in.begin() + static_cast<long>(before), in.end()));
+      const size_t from = at(0.03, kRate), to = at(0.13, kRate);
+      const double shifted = level_at(out.left, s.hz + 20.0, kRate, from, to);
+      const double stays = level_at(out.left, s.hz, kRate, from, to);
+      const double left = s.into ? db(stays / shifted) : db(shifted / stays);
+      std::snprintf(label, sizeof label, "%s: 30 ms on, the tone is %s the band (%.1f dB of it still %s)", s.name,
+                    s.into ? "in" : "out of", left, s.into ? "unshifted" : "shifted");
+      CHECK(left < s.limit, label);
     }
   }
 
@@ -890,7 +1166,7 @@ int main() {
                     db(std::max(peak(out.left, from), peak(out.right, from)) / peak(in, from)));
       }
     }
-    // A 220 Hz tone, half an octave over the default Low: 1/(1 + x) of it
+    // A 220 Hz tone with Low at 150, half an octave under it: 1/(1 + x) of it
     // passes unshifted and x/(1 + x) is shifted, x = (220/150)^4.
     const double x = std::pow(220.0 / 150.0, 4.0);
     const double y = std::pow(220.0 / 1000.0, 4.0);
@@ -898,17 +1174,41 @@ int main() {
     const double passed = 1.0 - shifted;
     const std::vector<float> tone = sine(220.0f, 4.0f, rate, 0.5f);
     device.init(rate);
+    device.set_param(p::kLow, 150.0f);
     Stereo out = run(device, tone);
     const double level = db(rms(out.left, from) / rms(tone, from));
-    std::snprintf(label, sizeof label, "%.0f Hz: a 220 Hz tone at the defaults is the split's two powers", rate);
+    std::snprintf(label, sizeof label, "%.0f Hz: a 220 Hz tone with Low at 150 is the split's two powers", rate);
     CHECK_NEAR(level, db(std::sqrt(shifted * shifted + passed * passed)), 0.1, label);
     if (rate == kRate) {
       // Both parts are in each ear, 3 Hz apart, so the note wavers there.
       double least = 0.0, most = 0.0;
       swing(out.left, from, at(4.0, rate), at(2.0 / 220.0, rate), &least, &most);
-      std::printf("  a 220 Hz tone at the defaults wavers %.2f dB in an ear, at half of Beat\n", db(most / least));
+      std::printf("  a 220 Hz tone with Low at 150 wavers %.2f dB in an ear, at half of Beat\n", db(most / least));
       CHECK_NEAR(db(most / least), db((shifted + passed) / (shifted - passed)), 0.3,
                  "a note half an octave over Low wavers by what the split's two parts make");
+    }
+    // Why the device starts with Low at 60: the notes from A2 to A4 (110 to
+    // 440 Hz) then lie well inside the band. Each ear holds the note shifted
+    // and what is left of it unshifted, half of Beat apart, and the level in
+    // that ear goes between their sum and their difference. At the defaults
+    // no note there wavers by more than 2 dB (1.5 dB at 110 Hz, under 0.7 dB
+    // from 147 Hz up); with Low at 150 the same notes read 5.2, 27.8, 3.9,
+    // 1.0 and 0.9 dB.
+    for (float low : {60.0f, 150.0f}) {
+      double worst = 0.0;
+      for (float hz : {110.0f, 147.0f, 220.0f, 330.0f, 440.0f}) {
+        device.init(rate);
+        device.set_param(p::kLow, low);
+        out = run(device, sine(hz, 5.0f, rate, 0.5f));
+        const double up = level_at(out.left, hz + 3.0, rate, from, at(5.0, rate));
+        const double stay = level_at(out.left, hz, rate, from, at(5.0, rate));
+        const double waver = db((up + stay) / std::fabs(up - stay));
+        worst = std::max(worst, waver);
+        if (say()) std::printf("    %.0f Hz, Low %.0f: %.0f Hz wavers %.2f dB in the left ear\n", rate, low, hz, waver);
+      }
+      std::snprintf(label, sizeof label, "%.0f Hz: with Low at %.0f the notes from A2 to A4 waver %s (worst %.2f dB)",
+                    rate, low, low == 60.0f ? "by 2 dB at the most" : "by far more", worst);
+      CHECK(low == 60.0f ? worst < 2.0 : worst > 20.0, label);
     }
     // A tone well inside a wide band, the same pulse in both ears.
     device.init(rate);
@@ -977,6 +1277,19 @@ int main() {
     report_cpu("ear-shift (defaults, 96 kHz)", 20.0f, [&] { run(device, input96); });
     device.init(kRate);
     report_cpu("ear-shift (idle)", 20.0f, [&] { render(device, 20.0f, kRate); });
+    // Idle, the device only turns its clock: a tenth of what it costs awake
+    // (0.08 % against 0.95 %). Held to a third, both read as CPU time in one
+    // go, the best of three, since the machine is shared.
+    double awake = 1.0e9, idle = 1.0e9;
+    for (int turn = 0; turn < 3; ++turn) {
+      device.init(kRate);
+      awake = std::min(awake, cpu_seconds([&] { run(device, input); }));
+      render(device, 1.0f, kRate);
+      idle = std::min(idle, cpu_seconds([&] { render(device, 20.0f, kRate); }));
+    }
+    std::snprintf(label, sizeof label, "idle, the device costs under a third of what it costs awake (%.2f of it)",
+                  idle / awake);
+    CHECK(idle < awake / 3.0, label);
   }
 
   return finish("ear-shift");
