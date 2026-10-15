@@ -1,0 +1,81 @@
+{
+  "id": "band-pulse",
+  "name": "Band Pulse",
+  "category": "modulation",
+  "description": "Pulses only the band between Low and High, up to 40 times a second, with a set Duty and Edge. The tremolo moves the whole sound; this leaves bass and air steady.",
+  "class": "BandPulse",
+  "header": "band_pulse.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.5,
+      "max": 40,
+      "default": 8,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How many pulses a second. Slow is a swell that comes and goes, the middle is a flutter, and the top is a rough hum on the band."
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far the band drops between pulses. At full the gaps are silent. At zero nothing is pulsed and every part of the sound passes at its own level."
+    },
+    {
+      "key": "duty",
+      "name": "Duty",
+      "min": 0.1,
+      "max": 0.9,
+      "default": 0.5,
+      "description": "How much of each cycle the pulse is on. Low gives short ticks with long gaps, high gives short dips in a steady sound."
+    },
+    {
+      "key": "edge",
+      "name": "Edge",
+      "min": 2,
+      "max": 50,
+      "default": 12,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long a pulse takes to rise and to fall. Short is a hard chop, long is a soft swell. It is held to half of the shorter of the on time and the gap."
+    },
+    {
+      "key": "offset",
+      "name": "Offset",
+      "min": 0,
+      "max": 180,
+      "default": 0,
+      "unit": "deg",
+      "description": "Moves the right side's pulse behind the left's. At 180 with Duty at half the sides take turns, and in mono, or in a reverb fed from both sides, the pulse is gone."
+    },
+    {
+      "key": "low",
+      "name": "Low",
+      "min": 60,
+      "max": 400,
+      "default": 200,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The bottom of the band that is pulsed. Sound under it keeps its own level, so the bass stays steady."
+    },
+    {
+      "key": "high",
+      "name": "High",
+      "min": 400,
+      "max": 4000,
+      "default": 1000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The top of the band that is pulsed. Sound over it keeps its own level. The top stays at least half an octave over Low."
+    }
+  ],
+  "presets": {},
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit, with the pulse of cpp/kit/beat.h and the split of cpp/kit/band.h. An even pulse on the middle band of a sound; no unit or plug-in is modelled."
+  }
+}
