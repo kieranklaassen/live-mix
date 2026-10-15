@@ -105,9 +105,170 @@
       "description": "Output level. Held keys share one level, so a full chord stays under the soft clip at 0 dB. Above that many keys can reach the clip, which adds tones of its own."
     }
   ],
-  "meters": [{ "key": "glide", "name": "Glide place", "display": true }],
+  "meters": [
+    {
+      "key": "glide",
+      "name": "Glide place",
+      "display": true
+    }
+  ],
   "presets": {
-    "Six a second": { "beat": 6 }
+    "Six a second": {
+      "beat": 6
+    },
+    "Slow turn": {
+      "beat": 1,
+      "warmth": 0.15,
+      "attack": 2.5,
+      "release": 5
+    },
+    "Three a second": {
+      "beat": 3,
+      "warmth": 0.5,
+      "attack": 0.8,
+      "release": 2
+    },
+    "Four in the air": {
+      "beat": 4,
+      "ears": 0,
+      "warmth": 0.4
+    },
+    "Ten in the air": {
+      "beat": 10,
+      "ears": 0,
+      "warmth": 0.2,
+      "attack": 0.5
+    },
+    "Rough sixteen": {
+      "beat": 16,
+      "ears": 0.5,
+      "warmth": 0.7,
+      "attack": 0.3,
+      "release": 1.5
+    },
+    "Forty in the air": {
+      "beat": 40,
+      "ears": 0,
+      "warmth": 0,
+      "attack": 1,
+      "release": 2
+    },
+    "Forty crossed": {
+      "beat": 40,
+      "layout": 1
+    },
+    "Ten down to six": {
+      "beat": 10,
+      "target": 6,
+      "glide": 10,
+      "bed": 0.3,
+      "colour": 0.5
+    },
+    "Twelve to four": {
+      "beat": 12,
+      "target": 4,
+      "glide": 15,
+      "warmth": 0.1,
+      "ears": 0.8,
+      "attack": 3,
+      "release": 6
+    },
+    "Eight to sixteen": {
+      "beat": 8,
+      "target": 16,
+      "glide": 8,
+      "warmth": 0.6,
+      "ears": 0.6
+    },
+    "Rising to three": {
+      "beat": 0.5,
+      "target": 3,
+      "glide": 1,
+      "attack": 2,
+      "bed": 0.25,
+      "colour": 0.8
+    },
+    "Pink bed, six": {
+      "beat": 6,
+      "bed": 0.55,
+      "colour": 0.5
+    },
+    "Brown bed, slow": {
+      "beat": 2,
+      "bed": 0.7,
+      "colour": 1,
+      "warmth": 0.2,
+      "attack": 3,
+      "release": 6
+    },
+    "White bed, ten": {
+      "beat": 10,
+      "ears": 0,
+      "bed": 0.4,
+      "colour": 0
+    },
+    "Bars seven apart": {
+      "beat": 7,
+      "warmth": 0.6,
+      "attack": 0.01,
+      "release": 4
+    },
+    "Detuned rank": {
+      "beat": 1.5,
+      "ears": 0,
+      "warmth": 1,
+      "attack": 0.15,
+      "release": 0.4
+    },
+    "Two strings": {
+      "beat": 1,
+      "ears": 0,
+      "warmth": 0.7,
+      "attack": 0.03,
+      "release": 9
+    },
+    "Near unison": {
+      "beat": 0.5,
+      "warmth": 0.05,
+      "attack": 5,
+      "release": 10
+    },
+    "Bare pair": {
+      "beat": 5,
+      "warmth": 0,
+      "attack": 1,
+      "release": 2
+    },
+    "Two a second": {
+      "beat": 2,
+      "ears": 0.7,
+      "warmth": 0.4,
+      "attack": 0.4,
+      "release": 1.5
+    },
+    "Eight a second": {
+      "beat": 8,
+      "layout": 1,
+      "ears": 0.5,
+      "warmth": 0.5,
+      "attack": 0.2,
+      "release": 2.5
+    },
+    "Slow cross": {
+      "beat": 2,
+      "layout": 1,
+      "warmth": 0.25,
+      "attack": 2,
+      "release": 4
+    },
+    "Dark bed, three": {
+      "beat": 3,
+      "bed": 0.9,
+      "colour": 0.85,
+      "warmth": 0,
+      "attack": 4,
+      "release": 8
+    }
   },
   "origin": {
     "kind": "new",

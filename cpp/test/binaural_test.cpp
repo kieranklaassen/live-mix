@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <vector>
 
 #include "../devices/binaural/binaural.h"
@@ -147,6 +148,24 @@ static std::vector<float> power_track(const std::vector<float>& x, double rate, 
   return out;
 }
 
+// RMS of x between about lo and hi hertz over [from, to): two one-pole high passes at lo and two
+// one-pole low passes at hi, worked out for the rate, so the figure means the same at every rate.
+static double band_rms(const std::vector<float>& x, double lo, double hi, double rate, size_t from, size_t to) {
+  to = std::min(to, x.size());
+  const double a = std::exp(-2.0 * kPi * lo / rate), b = std::exp(-2.0 * kPi * hi / rate);
+  double h1 = 0.0, h2 = 0.0, l1 = 0.0, l2 = 0.0, sum = 0.0;
+  for (size_t i = 0; i < to; ++i) {
+    h1 = x[i] + (h1 - x[i]) * a;
+    const double high1 = x[i] - h1;
+    h2 = high1 + (h2 - high1) * a;
+    const double high2 = high1 - h2;
+    l1 = high2 + (l1 - high2) * b;
+    l2 = l1 + (l2 - l1) * b;
+    if (i >= from) sum += l2 * l2;
+  }
+  return to > from ? std::sqrt(sum / static_cast<double>(to - from)) : 0.0;
+}
+
 // The rate of the beat in x: the strongest line of its power between lo and hi.
 static double beat_hz(const std::vector<float>& x, double rate, double lo, double hi, size_t from, size_t to) {
   const std::vector<float> track = power_track(x, rate, from, to);
@@ -236,8 +255,17 @@ int main() {
     device.set_param(p::kTarget, 12.0f);
     device.set_param(p::kGlide, 5.0f);
     for (int n = 0; n < Binaural::kVoices; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.8f);
-    report_cost(rate > 50000.0f ? "binaural (8 keys, Cross, bed, 96 kHz)" : "binaural (8 keys, Cross, bed)", 10.0f, rate,
-                [&] { render(device, 10.0f, rate); });
+    // report_cost reads the wall clock, which on a shared machine says little: the CPU time of the
+    // same render is printed beside it and is the figure to quote.
+    const char* label = rate > 50000.0f ? "binaural (8 keys, Cross, bed, 96 kHz)" : "binaural (8 keys, Cross, bed)";
+    double cpu_seconds = 0.0;
+    report_cost(label, 10.0f, rate, [&] {
+      const std::clock_t start = std::clock();
+      render(device, 10.0f, rate);
+      cpu_seconds = static_cast<double>(std::clock() - start) / CLOCKS_PER_SEC;
+    });
+    std::printf("%s cost by CPU time: %.1f us per 128-frame stereo block, %.2f%% of real time at %.0f kHz (native)\n", label,
+                cpu_seconds * 1.0e6 / (10.0 * rate / 128.0), 100.0 * cpu_seconds / 10.0, rate / 1000.0);
   }
 
   return finish("binaural");
@@ -787,7 +815,7 @@ static void test_bed() {
   char label[200];
   // Bed against tone: the same at every sample rate. At Bed 1 the bed is as
   // loud as one bare key; the knob is a square law, so half is 12 dB under.
-  double balance[3] = {0.0, 0.0, 0.0};
+  double balance[3] = {0.0, 0.0, 0.0}, bright[3] = {0.0, 0.0, 0.0};
   for (int n = 0; n < 3; ++n) {
     const float rate = kRates[n];
     Stereo tones;
@@ -802,7 +830,9 @@ static void test_bed() {
     balance[n] = db(rms(bed.left, from, to) / rms(tones.left, from, to));
     const double right = db(rms(bed.right, from, to) / rms(tones.right, from, to));
     const double together = correlation(bed.left, bed.right, from, to);
-    MEASURED("%.0f Hz: bed against tone %.2f dB left, %.2f dB right; the two sides correlate %.3f", rate, balance[n], right, together);
+    bright[n] = db(band_rms(bed.left, 300.0, 3000.0, rate, from, to) / rms(tones.left, from, to));
+    MEASURED("%.0f Hz: bed against tone %.2f dB left, %.2f dB right; the two sides correlate %.3f; its 300 Hz to 3 kHz band %.2f dB",
+             rate, balance[n], right, together, bright[n]);
     std::snprintf(label, sizeof label, "at %.0f Hz the bed at 1 is as loud as one bare key (%.2f dB)", rate, balance[n]);
     EXPECT_NEAR(balance[n], 0.0, 1.0, label);
     EXPECT_NEAR(right, balance[n], 0.7, "the bed is as loud in the right ear as in the left");
@@ -810,6 +840,11 @@ static void test_bed() {
   }
   EXPECT(std::fabs(balance[0] - balance[1]) < 1.0 && std::fabs(balance[2] - balance[1]) < 1.0,
          "bed against tone is within 1 dB across 44.1, 48 and 96 kHz");
+  // One level over all is one level in each hertz only if the colour holds too: the bed's band from
+  // 300 Hz to 3 kHz stands the same against the tone at every rate (white noise a sample would lose
+  // 3 dB there at 96 kHz).
+  EXPECT(std::fabs(bright[0] - bright[1]) < 0.5 && std::fabs(bright[2] - bright[1]) < 0.5,
+         "the bed's level in each hertz is the same at 44.1, 48 and 96 kHz");
 
   auto one_key = [] {
     device.note_on(1, 220.0f, 0.5f);
@@ -1045,8 +1080,9 @@ static void test_silences() {
   EXPECT(worst < 1.0e-6, label);
 
   // Knobs moved while the device sleeps are simply there at the next key:
-  // the note is the one a device set that way from the start plays. The
-  // device is put to sleep off the beat of its control clock (13 frames).
+  // the note is the one a device set that way from the start plays. Every
+  // voice has played before, so nothing a voice keeps may leak into it, and
+  // the device is put to sleep off the beat of its control clock (13 frames).
   auto moved = [] {
     device.set_param(p::kEars, 0.3f);
     device.set_param(p::kWarmth, 0.8f);
@@ -1062,10 +1098,10 @@ static void test_silences() {
   device.set_param(p::kAttack, 0.01f);
   device.set_param(p::kRelease, 0.05f);
   device.set_param(p::kBed, 0.3f);
-  device.note_on(1, 220.0f, 0.8f);
+  for (int n = 0; n < Binaural::kVoices; ++n) device.note_on(n, kChord[n] * 1.31f, 0.8f);
   render(device, 0.3f, kRate);
   device.process(13);
-  device.note_off(1);
+  for (int n = 0; n < Binaural::kVoices; ++n) device.note_off(n);
   Stereo quiet = render(device, 1.0f, kRate);
   EXPECT(peak(quiet.left, at(0.4)) == 0.0, "the device sleeps before the knobs are moved");
   moved();
