@@ -540,7 +540,7 @@ static void test_ears() {
 static void test_limits() {
   char label[240];
   const float e4 = static_cast<float>(hz_of(64)), a4 = static_cast<float>(hz_of(69));
-  const double tau = StillPoint::kLimitSeconds;
+  const double tau = 0.4;  // written out, as in the manifest's note: a change in the header shows here
 
   // A chord added at 3 s and taken away at 6 s of a sweep under way, at Ears
   // 0.3 with the default Warmth: the same at every block size.
@@ -921,6 +921,48 @@ static void test_voices() {
     EXPECT(std::fabs(db(a / each)) < 0.5 && std::fabs(db(b / each)) < 0.5 && db(gone0 / each) < -50.0 && db(gone1 / each) < -50.0 &&
                std::fabs(db(kept / each)) < 0.5,
            label);
+  }
+
+  // A voice whose old key is still fading has a key waiting in it and is not
+  // taken a second time: two keys into a full pool 5 ms apart, a quarter of
+  // the way through the first one's fade, both arrive.
+  {
+    hold_chord(device);
+    Stereo held = render(device, 1.0f, kRate);
+    const double each = level_of(held, hz_of(52), 0.5, 1.0);
+    device.note_on(20, static_cast<float>(hz_of(78)), 0.8f);
+    render(device, 0.005f, kRate);
+    device.note_on(21, static_cast<float>(hz_of(85)), 0.8f);
+    Stereo out = render(device, 1.0f, kRate);
+    const double a = level_of(out, hz_of(78), 0.5, 1.0), b = level_of(out, hz_of(85), 0.5, 1.0);
+    const double gone0 = level_of(out, hz_of(48), 0.5, 1.0), gone1 = level_of(out, hz_of(50), 0.5, 1.0);
+    const double kept = level_of(out, hz_of(52), 0.5, 1.0);
+    std::snprintf(label, sizeof label,
+                  "two keys into a full pool 5 ms apart both sound (%.1f and %.1f dB against a held key), the two oldest are gone (%.0f and %.0f dB), the third stays (%.1f dB)",
+                  db(a / each), db(b / each), db(gone0 / each), db(gone1 / each), db(kept / each));
+    EXPECT(std::fabs(db(a / each)) < 0.5 && std::fabs(db(b / each)) < 0.5 && db(gone0 / each) < -50.0 && db(gone1 / each) < -50.0 &&
+               std::fabs(db(kept / each)) < 0.5,
+           label);
+  }
+
+  // A key counts at its gain from the moment it is struck, before its attack
+  // has moved: seven soft keys held, then a loud eighth and a loud ninth in
+  // one instant. The ninth takes the oldest soft key, not the loud key that
+  // has yet to sound.
+  {
+    plain(device);
+    device.set_param(p::kLevel, 0.0f);
+    for (int n = 0; n < 7; ++n) device.note_on(n, static_cast<float>(hz_of(chord[n])), 0.2f);
+    render(device, 0.5f, kRate);
+    device.note_on(7, static_cast<float>(hz_of(78)), 1.0f);
+    device.note_on(8, static_cast<float>(hz_of(85)), 1.0f);
+    Stereo out = render(device, 1.0f, kRate);
+    const double eighth = level_of(out, hz_of(78), 0.5, 1.0), ninth = level_of(out, hz_of(85), 0.5, 1.0);
+    const double oldest = level_of(out, hz_of(48), 0.5, 1.0), second = level_of(out, hz_of(50), 0.5, 1.0);
+    std::snprintf(label, sizeof label,
+                  "a loud key and one more struck together over seven soft keys both sound (%.2f dB apart), the oldest soft key makes room (%.0f dB against the next, which is %.2f dB under the loud key)",
+                  db(eighth / ninth), db(oldest / second), -db(second / eighth));
+    EXPECT(std::fabs(db(eighth / ninth)) < 0.5 && db(oldest / second) < -40.0 && std::fabs(db(second / eighth) + 13.98) < 0.5, label);
   }
 
   // Every voice equally loud, the extra key struck twice in one block: it
