@@ -162,7 +162,16 @@ export const TWIN_BARS_DESCRIPTOR = wasmDeviceDescriptor(TWIN_BARS_DEVICE, {
       tone: 0.55,
       volume: -10.5,
     },
-    'Wood knock': { bar: 1, beat: 6, mallet: 1, tone: 0.65, decay: 0.9, damp: 0.6, volume: -7.5 },
+    'Wood knock': {
+      bar: 1,
+      beat: 6,
+      mallet: 1,
+      tone: 0.65,
+      decay: 0.9,
+      damp: 0.6,
+      volume: -7.5,
+      ears: 0.3,
+    },
     'Soft wood hum': { bar: 1, beat: 3, mallet: 0, tone: 0.2, decay: 5, damp: 0.1 },
     'Scattered metal': {
       beat: 6,

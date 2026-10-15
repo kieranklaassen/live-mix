@@ -216,7 +216,8 @@
       "tone": 0.65,
       "decay": 0.9,
       "damp": 0.6,
-      "volume": -7.5
+      "volume": -7.5,
+      "ears": 0.3
     },
     "Soft wood hum": {
       "bar": 1,
