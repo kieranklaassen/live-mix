@@ -10,3 +10,4 @@ browser-tests/.build/
 docs/api
 playground/screenshots
 src/dsp/__tests__/shipped-presets.json
+site

@@ -1,0 +1,401 @@
+/*
+ * The site's own rules. Colours, fonts and radii come from the React kit's tokens
+ * (@kieranklaassen/live-mix/react/styles.css), so a page and a device plate on it are one look.
+ * What is added here: reading sizes, the page's frame, and one colour per role of a signal.
+ */
+@import '@kieranklaassen/live-mix/react/styles.css';
+
+:root {
+  --read: 17px;
+  --measure: 46rem;
+  --wide: 68rem;
+  --gap: 1.5rem;
+  /* One colour per role, in every figure of every lesson. */
+  --sig-in: var(--lm-muted);
+  --sig-out: var(--lm-accent);
+  --sig-ctl: var(--lm-meter-lufs);
+  --sig-alt: var(--lm-brush-ink-1);
+  --sig-grid: var(--lm-grid-line-strong);
+  color-scheme: light;
+}
+:root[data-lm-theme='dark'] {
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-top: 4.5rem;
+}
+body {
+  margin: 0;
+  background: var(--lm-bg);
+  color: var(--lm-text);
+  font-family: var(--lm-font);
+  font-size: var(--read);
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+}
+a {
+  color: inherit;
+  text-decoration-color: var(--lm-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+a:hover {
+  color: var(--lm-accent);
+}
+:focus-visible {
+  outline: 2px solid var(--lm-focus);
+  outline-offset: 2px;
+}
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 2.2em 0 0.6em;
+}
+h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  letter-spacing: -0.025em;
+  margin-top: 0;
+}
+h2 {
+  font-size: 1.55rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--lm-border);
+}
+h3 {
+  font-size: 1.15rem;
+}
+p,
+ul,
+ol,
+pre,
+table,
+blockquote,
+figure {
+  margin: 0 0 1.1em;
+}
+ul,
+ol {
+  padding-left: 1.3em;
+}
+li + li {
+  margin-top: 0.25em;
+}
+code,
+kbd,
+pre {
+  font-family: var(--lm-font-mono);
+  font-size: 0.86em;
+}
+:not(pre) > code {
+  background: var(--lm-panel);
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  padding: 0.05em 0.3em;
+  overflow-wrap: anywhere;
+}
+pre {
+  background: var(--lm-panel) !important;
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  padding: 0.9rem 1rem;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+/* Shiki writes both themes as variables; pick by the page's theme. */
+.astro-code,
+.astro-code span {
+  color: var(--shiki-light);
+}
+[data-lm-theme='dark'] .astro-code,
+[data-lm-theme='dark'] .astro-code span {
+  color: var(--shiki-dark);
+}
+blockquote {
+  border-left: 2px solid var(--lm-accent);
+  padding: 0.1rem 0 0.1rem 1rem;
+  color: var(--lm-muted);
+}
+hr {
+  border: 0;
+  border-top: 1px solid var(--lm-border);
+  margin: 2.5rem 0;
+}
+img,
+svg,
+canvas {
+  max-width: 100%;
+}
+img {
+  height: auto;
+}
+.table-scroll,
+.prose table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+table {
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.45rem 0.8rem 0.45rem 0;
+  border-bottom: 1px solid var(--lm-border);
+}
+th {
+  font-weight: 600;
+  color: var(--lm-muted);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+/* The small upper-case label used over sections, figures and stages. */
+.label {
+  font-family: var(--lm-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lm-muted);
+}
+
+/* Frame */
+.skip {
+  position: absolute;
+  left: -999px;
+}
+.skip:focus {
+  left: 1rem;
+  top: 1rem;
+  z-index: 100;
+  background: var(--lm-raised);
+  padding: 0.5rem 0.8rem;
+}
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--lm-bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--lm-border);
+}
+.site-header .inner {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 0 1.25rem;
+  min-height: 3.25rem;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+.wordmark {
+  font-family: var(--lm-font-mono);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.wordmark::before {
+  content: '';
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--lm-accent);
+}
+.site-nav {
+  display: flex;
+  gap: 1.1rem;
+  margin-left: auto;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.site-nav a {
+  font-size: 0.9rem;
+  text-decoration: none;
+  color: var(--lm-muted);
+  padding: 0.9rem 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.site-nav a:hover,
+.site-nav a[aria-current='page'] {
+  color: var(--lm-text);
+  border-bottom-color: var(--lm-accent);
+}
+main {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 5rem;
+}
+.prose {
+  max-width: var(--measure);
+}
+.prose > :first-child {
+  margin-top: 0;
+}
+.site-footer {
+  border-top: 1px solid var(--lm-border);
+  color: var(--lm-muted);
+  font-size: 0.85rem;
+}
+.site-footer .inner {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 2.5rem;
+  display: flex;
+  gap: 0.5rem 1.5rem;
+  flex-wrap: wrap;
+}
+.site-footer .spacer {
+  flex: 1;
+}
+
+/* Home and index pages */
+.lede {
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--lm-muted);
+  max-width: 40rem;
+}
+.hero {
+  padding: 2rem 0 1rem;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1px;
+  background: var(--lm-border);
+  border: 1px solid var(--lm-border);
+  margin: 2rem 0;
+}
+.card {
+  background: var(--lm-bg);
+  padding: 1.25rem;
+  text-decoration: none;
+  display: block;
+}
+.card:hover {
+  background: var(--lm-panel);
+  color: inherit;
+}
+.card h3 {
+  margin: 0.35rem 0 0.4rem;
+  font-size: 1.1rem;
+}
+.card p {
+  margin: 0;
+  color: var(--lm-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.lesson-list {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+  border-top: 1px solid var(--lm-border);
+}
+.lesson-list li {
+  margin: 0;
+  border-bottom: 1px solid var(--lm-border);
+}
+.lesson-list a {
+  display: grid;
+  grid-template-columns: 2.6rem minmax(0, 1fr);
+  gap: 0.25rem 0.75rem;
+  padding: 0.9rem 0.25rem;
+  text-decoration: none;
+}
+.lesson-list a:hover {
+  background: var(--lm-panel);
+  color: inherit;
+}
+.lesson-list .n {
+  font-family: var(--lm-font-mono);
+  font-size: 0.8rem;
+  color: var(--lm-accent);
+  padding-top: 0.25rem;
+}
+.lesson-list .t {
+  font-weight: 600;
+}
+.lesson-list .s {
+  grid-column: 2;
+  color: var(--lm-muted);
+  font-size: 0.92rem;
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--lm-text);
+  border-radius: var(--lm-radius);
+  background: var(--lm-text);
+  color: var(--lm-bg);
+  text-decoration: none;
+  cursor: pointer;
+}
+.button:hover {
+  background: var(--lm-accent);
+  border-color: var(--lm-accent);
+  color: #fff;
+}
+.button.quiet {
+  background: transparent;
+  color: var(--lm-text);
+  border-color: var(--lm-border);
+}
+.button.quiet:hover {
+  border-color: var(--lm-text);
+  background: transparent;
+  color: var(--lm-text);
+}
+pre.mermaid {
+  background: transparent !important;
+  border: 0;
+  padding: 0;
+  text-align: center;
+}
+pre.mermaid:not([data-processed]) {
+  color: var(--lm-muted);
+  text-align: left;
+}
+
+@media (max-width: 40rem) {
+  :root {
+    --read: 16px;
+  }
+  .site-nav {
+    gap: 0.9rem;
+    margin-left: 0;
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  .site-nav a {
+    padding: 0.5rem 0;
+    white-space: nowrap;
+  }
+  main {
+    padding-top: 1.5rem;
+  }
+}

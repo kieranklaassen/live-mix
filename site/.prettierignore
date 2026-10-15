@@ -1,0 +1,8 @@
+dist
+.astro
+node_modules
+pnpm-lock.yaml
+public/labs
+test-results
+playwright-report
+src/content/lessons

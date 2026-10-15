@@ -1,0 +1,14 @@
+---
+import Base from '../layouts/Base.astro'
+import { href } from '../lib/paths'
+---
+
+<Base title="Not found" indexed={false}>
+  <div class="prose">
+    <h1>There is no page here.</h1>
+    <p>
+      The address may have moved. Start again from <a href={href()}>the front page</a>, or look
+      through <a href={href('lessons/')}>the lessons</a> and <a href={href('docs/')}>the docs</a>.
+    </p>
+  </div>
+</Base>

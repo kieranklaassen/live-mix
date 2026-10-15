@@ -1,0 +1,49 @@
+---
+import '../styles/site.css'
+import Header from '../components/Header.astro'
+import Footer from '../components/Footer.astro'
+import { href } from '../lib/paths'
+
+interface Props {
+  title: string
+  description?: string
+  /** Pages that are an index of others, or the search page, stay out of the search index. */
+  indexed?: boolean
+}
+const { title, description, indexed = true } = Astro.props
+const full = title === 'live-mix' ? title : `${title} · live-mix`
+---
+
+<!doctype html>
+<html lang="en" class="lm-root" data-lm-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{full}</title>
+    {description && <meta name="description" content={description} />}
+    <meta name="color-scheme" content="light dark" />
+    <link rel="sitemap" href={href('sitemap-index.xml')} />
+    <link rel="icon" href={href('favicon.svg')} type="image/svg+xml" />
+    <script is:inline>
+      // Before paint, so a dark system never sees a light flash. The kit's tokens follow this attribute.
+      ;(function () {
+        var dark = window.matchMedia('(prefers-color-scheme: dark)')
+        function set() {
+          document.documentElement.setAttribute('data-lm-theme', dark.matches ? 'dark' : 'light')
+        }
+        set()
+        dark.addEventListener('change', set)
+      })()
+    </script>
+  </head>
+  <body>
+    <a class="skip" href="#main">
+      Skip to the page
+    </a>
+    <Header />
+    <main id="main" data-pagefind-body={indexed ? '' : undefined}>
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>

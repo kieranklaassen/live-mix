@@ -1,0 +1,48 @@
+{
+  "name": "live-mix-site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The public site of live-mix: lessons, docs, devices. A project of its own, with its own lockfile; see docs/site.md.",
+  "engines": {
+    "node": ">=22.22"
+  },
+  "packageManager": "pnpm@10.33.3",
+  "scripts": {
+    "dev": "astro dev",
+    "labs": "bash scripts/build-labs.sh",
+    "build": "astro build && node scripts/build-api.mjs && pagefind --site dist",
+    "preview": "astro preview",
+    "typecheck": "astro check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:browser": "playwright test",
+    "check": "bash scripts/check.sh"
+  },
+  "dependencies": {
+    "@astrojs/markdown-satteri": "0.4.4",
+    "@astrojs/mdx": "8.1.0",
+    "@astrojs/react": "7.1.0",
+    "@astrojs/sitemap": "3.7.4",
+    "@kieranklaassen/live-mix": "link:..",
+    "astro": "7.4.0",
+    "katex": "^0.16.22",
+    "mermaid": "12.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "satteri": "0.10.5"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "pagefind": "^1.4.0",
+    "prettier": "^3.6.0",
+    "prettier-plugin-astro": "1.1.1",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

@@ -1,0 +1,14 @@
+---
+import { COMMIT, REPO_URL } from '../lib/site'
+---
+
+<footer class="site-footer">
+  <div class="inner">
+    <span>live-mix is open source, under the MIT licence.</span>
+    <span class="spacer"></span>
+    <a href={REPO_URL}>Source on GitHub</a>
+    <a href={`${REPO_URL}/commit/${COMMIT}`}>
+      Built from <code>{COMMIT.slice(0, 7)}</code>
+    </a>
+  </div>
+</footer>
