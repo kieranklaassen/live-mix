@@ -6,3 +6,6 @@ public/labs
 test-results
 playwright-report
 src/content/lessons
+# Set in the run of a sentence: a line break inside them would be a space before the full stop.
+src/components/lesson/Claim.astro
+src/components/lesson/Src.astro

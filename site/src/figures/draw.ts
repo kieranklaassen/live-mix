@@ -126,11 +126,7 @@ export function label(value: number): string {
   const size = Math.abs(value)
   let text: string
   if (size >= 1000) text = `${+(size / 1000).toPrecision(3)}k`
-  else if (size >= 100) text = size.toFixed(0)
-  else if (size >= 10) text = `${+size.toFixed(1)}`
-  else if (size >= 1) text = `${+size.toFixed(2)}`
-  else if (size === 0) text = '0'
-  else text = `${+size.toPrecision(2)}`
+  else text = `${+size.toPrecision(4)}`
   return value < 0 ? `−${text}` : text
 }
 

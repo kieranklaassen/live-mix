@@ -36,7 +36,7 @@ export default function Trace({
   const result = state.result
   const seconds = result ? result.frames / RATE : 4
   const length = span ?? seconds - from
-  const scale = length < 0.2 ? 1000 : 1
+  const scale = length < 0.2 && from < 1 ? 1000 : 1
   let lo = Infinity
   let hi = -Infinity
   const series: Series[] = taps.map((tap) => {

@@ -35,8 +35,8 @@ export default function Wave({
   const result = state.result
   const seconds = result ? result.frames / RATE : 4
   const length = span ?? seconds - from
-  // A stretch shorter than a fifth of a second reads better in milliseconds.
-  const scale = length < 0.2 ? 1000 : 1
+  // A stretch shorter than a fifth of a second, near the loop's start, reads better in milliseconds.
+  const scale = length < 0.2 && from < 1 ? 1000 : 1
   let peak = 0
   const series: Series[] = taps.map((tap) => {
     const data =

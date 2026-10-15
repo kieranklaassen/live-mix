@@ -21,7 +21,28 @@ export async function lab(name: string): Promise<Lab> {
   return loadLab(bytes)
 }
 
+export type { Source }
+
 export const seconds = (s: number) => Math.round(s * SAMPLE_RATE)
+
+let bench: Promise<Lab> | undefined
+const played = new Map<number, RenderResult>()
+
+/**
+ * A source as the page plays it: a loop or a test signal from the bench (site/labs/bench.cpp),
+ * by its id in site/src/lab/sources.ts. This is what a lesson's lab is fed in the browser.
+ */
+export async function benchSource(id: string, frames: number): Promise<Source> {
+  bench ??= lab('bench')
+  let result = played.get(frames)
+  if (!result) {
+    result = (await bench).render(silence(frames), {}, frames)
+    played.set(frames, result)
+  }
+  const tap = result.taps[id]
+  if (!tap) throw new Error(`The bench plays no source called ${id}`)
+  return { left: tap.channels_data[0]!, right: tap.channels_data[1] ?? tap.channels_data[0]! }
+}
 
 export function silence(frames: number): Source {
   return { left: new Float32Array(frames), right: new Float32Array(frames) }

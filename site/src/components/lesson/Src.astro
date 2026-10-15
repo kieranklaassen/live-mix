@@ -19,8 +19,4 @@ if (!fs.existsSync(path.join(REPO_ROOT, file))) {
 const anchor = lines ? `#L${lines.replace('-', '-L')}` : ''
 ---
 
-<a class="src" href={`${sourceUrl(file)}${anchor}`}>
-  <slot>
-    <code>{file}</code>
-  </slot>
-</a>
+<a class="src" href={`${sourceUrl(file)}${anchor}`}><slot><code>{file}</code></slot></a>

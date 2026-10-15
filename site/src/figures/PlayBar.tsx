@@ -68,7 +68,13 @@ export default function PlayBar({ lab, seconds, sources, stages, bench }: Props)
           : `Rendered in ${Math.max(1, Math.round(state.result?.ms ?? 0))} ms`
 
   return (
-    <div className="playbar" role="region" aria-label="Player" data-ready={ready ? '' : undefined}>
+    <div
+      className="playbar"
+      role="region"
+      aria-label="Player"
+      data-ready={ready ? '' : undefined}
+      data-renders={state.renders}
+    >
       <button
         type="button"
         className="playbar-play"

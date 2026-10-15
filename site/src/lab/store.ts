@@ -53,6 +53,8 @@ export interface LabState {
   sourceMessage?: string
   values: Record<string, number>
   result?: Result
+  /** How many renders have landed: a page's tests wait on it. */
+  renders: number
   rendering: boolean
   playing: boolean
   /** The tap that is sounding or will sound on play; BENCH for the real device. */
@@ -70,6 +72,7 @@ export const INITIAL_STATE: LabState = {
   sources: [],
   source: '',
   values: {},
+  renders: 0,
   rendering: false,
   playing: false,
   sounding: '',
@@ -132,7 +135,7 @@ export function createLabStore(renderer: Renderer, sounder: Sounder): LabStore {
       (result) => {
         inFlight = false
         const first = !state.result
-        set({ result, rendering: dirty })
+        set({ result, rendering: dirty, renders: state.renders + 1 })
         if (first && !state.sounding) set({ sounding: soundingTap()?.id ?? '' })
         if (state.playing) {
           if (state.sounding === BENCH) sounder.bench(sourceTap() ?? null)
