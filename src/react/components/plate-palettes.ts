@@ -177,6 +177,7 @@ export const PLATE_PALETTES = {
   binaural: { plate: '#5b7fa6', ink: '#06101c', accent: '#fff4d6' },
   'band-pulse': { plate: '#c56b91', ink: '#220818', accent: '#fffbe8' },
   isochronic: { plate: '#a17a05', ink: '#160f00', accent: '#fffbe8' },
+  'ear-shift': { plate: '#6b5cff', ink: '#0a0730', accent: '#fff3b8' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

@@ -36,6 +36,7 @@ import { DRONE_DESCRIPTOR, DRONE_DEVICE } from './drone.gen'
 import { DROPLETS_DESCRIPTOR, DROPLETS_DEVICE } from './droplets.gen'
 import { DRUM_KIT_DESCRIPTOR, DRUM_KIT_DEVICE } from './drum-kit.gen'
 import { DUSK_DESCRIPTOR, DUSK_DEVICE } from './dusk.gen'
+import { EAR_SHIFT_DESCRIPTOR, EAR_SHIFT_DEVICE } from './ear-shift.gen'
 import { ECHO_MEMORY_DESCRIPTOR, ECHO_MEMORY_DEVICE } from './echo-memory.gen'
 import { EMBER_DESCRIPTOR, EMBER_DEVICE } from './ember.gen'
 import { EXPANSE_DESCRIPTOR, EXPANSE_DEVICE } from './expanse.gen'
@@ -183,6 +184,7 @@ export * from './drone.gen'
 export * from './droplets.gen'
 export * from './drum-kit.gen'
 export * from './dusk.gen'
+export * from './ear-shift.gen'
 export * from './echo-memory.gen'
 export * from './ember.gen'
 export * from './expanse.gen'
@@ -332,6 +334,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   DROPLETS_DESCRIPTOR,
   DRUM_KIT_DESCRIPTOR,
   DUSK_DESCRIPTOR,
+  EAR_SHIFT_DESCRIPTOR,
   ECHO_MEMORY_DESCRIPTOR,
   EMBER_DESCRIPTOR,
   EXPANSE_DESCRIPTOR,
@@ -482,6 +485,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   DROPLETS_DEVICE,
   DRUM_KIT_DEVICE,
   DUSK_DEVICE,
+  EAR_SHIFT_DEVICE,
   ECHO_MEMORY_DEVICE,
   EMBER_DEVICE,
   EXPANSE_DEVICE,
@@ -639,6 +643,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'droplets', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'drum-kit', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'dusk', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'ear-shift', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'echo-memory', instrument: false, samples: false, zones: false, meters: 5, memoryMb: 20 },
   { id: 'ember', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'expanse', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 6 },
