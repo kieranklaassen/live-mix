@@ -26,7 +26,7 @@ export const BINAURAL_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'At 1 each ear has one tone and the beat is made between the ears. At 0 both tones are in both ears. Speakers, a mono fold or a reverb fed from both sides beat in the air.',
+      'At 1 each ear has one tone, at 0 both ears have both. Speakers, a mono fold or a reverb fed from both sides beat in the air at any setting. The bed is not narrowed.',
   },
   layout: {
     id: 2,
@@ -38,7 +38,7 @@ export const BINAURAL_PARAMS = {
     unit: '',
     choices: ['Pair', 'Cross'],
     description:
-      'Pair gives each ear one tone. Cross gives each ear two tones Beat apart, so each ear beats in the air at Beat while the two ears differ by half of Beat.',
+      'Pair gives each ear one tone. Cross gives each ear two, Beat apart and 3 dB softer, so each ear beats in the air at Beat while the two ears differ by half of Beat.',
   },
   warmth: {
     id: 3,
@@ -49,7 +49,7 @@ export const BINAURAL_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Adds the second and third partials of each tone, each softer than the last. A partial under 1 kHz is split between the ears by Beat. One above is the same in both ears.',
+      'Adds the second and third partials and holds the peak, so the level drops a little. A partial under 1 kHz is split between the ears by Beat, one above is not.',
   },
   bed: {
     id: 4,
@@ -60,7 +60,7 @@ export const BINAURAL_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Level of a stereo noise under the tones, as loud as one key at the top. It follows the loudest key, so there is none before a key and none after the last release.',
+      'Level of a stereo noise under the tones, as loud as one bare key at the top. It follows the loudest key, so there is none before a key and none after the last release.',
   },
   colour: {
     id: 5,
@@ -93,7 +93,7 @@ export const BINAURAL_PARAMS = {
     taper: 'linear',
     unit: 'min',
     description:
-      'Minutes Beat takes to reach Target, counted from the first key after it is set. At 0 Beat stays where it is. Moving Beat, Target or Glide starts the glide again.',
+      'Minutes Beat takes to reach Target, from when it is set if a key sounds, else from the next key. At 0 Beat stays put. Moving Beat, Target or Glide starts it again.',
   },
   attack: {
     id: 8,
@@ -124,7 +124,7 @@ export const BINAURAL_PARAMS = {
     taper: 'linear',
     unit: 'dB',
     description:
-      'Output level. Held keys share one level, so a full chord stays under the soft clip at 0 dB. Above that many keys can reach the clip, which adds tones of its own.',
+      'Output level. Keys share one level, so a chord of tones stays under the soft clip at 0 dB. Above 0 dB, or with Bed near its top, peaks reach the clip, which adds tones.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -162,23 +162,23 @@ export const BINAURAL_DESCRIPTOR = wasmDeviceDescriptor(BINAURAL_DEVICE, {
       target: 4,
       glide: 15,
       warmth: 0.1,
-      ears: 0.8,
+      ears: 0.5,
       attack: 3,
       release: 6,
     },
     'Eight to sixteen': { beat: 8, target: 16, glide: 8, warmth: 0.6, ears: 0.6 },
-    'Rising to three': { beat: 0.5, target: 3, glide: 1, attack: 2, bed: 0.25, colour: 0.8 },
+    'Rising to three': { beat: 0.5, target: 3, glide: 1, attack: 2, bed: 0.45, colour: 0.8 },
     'Pink bed, six': { beat: 6, bed: 0.55, colour: 0.5 },
     'Brown bed, slow': { beat: 2, bed: 0.7, colour: 1, warmth: 0.2, attack: 3, release: 6 },
     'White bed, ten': { beat: 10, ears: 0, bed: 0.4, colour: 0 },
     'Bars seven apart': { beat: 7, warmth: 0.6, attack: 0.01, release: 4 },
     'Detuned rank': { beat: 1.5, ears: 0, warmth: 1, attack: 0.15, release: 0.4 },
     'Two strings': { beat: 1, ears: 0, warmth: 0.7, attack: 0.03, release: 9 },
-    'Near unison': { beat: 0.5, warmth: 0.05, attack: 5, release: 10 },
+    'Near unison': { beat: 0.5, warmth: 0.05, attack: 5, release: 10, volume: -4 },
     'Bare pair': { beat: 5, warmth: 0, attack: 1, release: 2 },
     'Two a second': { beat: 2, ears: 0.7, warmth: 0.4, attack: 0.4, release: 1.5 },
     'Eight a second': { beat: 8, layout: 1, ears: 0.5, warmth: 0.5, attack: 0.2, release: 2.5 },
-    'Slow cross': { beat: 2, layout: 1, warmth: 0.25, attack: 2, release: 4 },
+    'Slow cross': { beat: 2, layout: 1, warmth: 0.6, attack: 2, release: 4 },
     'Dark bed, three': { beat: 3, bed: 0.8, colour: 0.85, warmth: 0, attack: 4, release: 8 },
   },
 })

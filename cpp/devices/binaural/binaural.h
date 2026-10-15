@@ -51,6 +51,12 @@
 // where it stands), so no second voice piles up on it in step. A stolen voice
 // fades over kStealSeconds and the new key waits in it.
 //
+// Two keys can sound one pitch: A1 and A2 both fold to 110 Hz. A key that
+// starts on a pitch another voice is sounding takes that voice's carrier
+// phase, so the two add in step however far apart they were struck. Left to
+// start at phase 0 the second one cancelled the first by anything up to
+// 54 dB, by the accident of a few milliseconds.
+//
 // Storage: eight voices, two noise filters; no delay line.
 
 #include "../../kit/kit.h"
@@ -81,6 +87,9 @@ class Binaural : public kit::DeviceBase<binaural::kNumParams> {
   // pitch lets its old voice go in that long.
   static constexpr float kStealSeconds = 0.005f;
   static constexpr float kRestrikeSeconds = 0.03f;
+  // Two keys this near in pitch (as a part of it) are one pitch and share a
+  // carrier: a few steps of a float, where a host's octaves may round apart.
+  static constexpr float kSamePitch = 1.0e-6f;
   // Colour follows its knob with this time constant, on the control clock.
   static constexpr float kColourSeconds = 0.02f;
   // Nothing outlives the envelopes, so the hold only has to be there.
@@ -93,6 +102,12 @@ class Binaural : public kit::DeviceBase<binaural::kNumParams> {
     while (hz > kHighHz) hz *= 0.5f;
     while (hz < kLowHz) hz *= 2.0f;
     return hz;
+  }
+
+  // Whether two folded keys are one pitch.
+  static bool same_pitch(float a, float b) {
+    const float apart = a - b;
+    return (apart < 0.0f ? -apart : apart) <= kSamePitch * b;
   }
 
   void init(float sample_rate) {
@@ -154,7 +169,7 @@ class Binaural : public kit::DeviceBase<binaural::kNumParams> {
         return;
       }
       if (voice.fade_step > 0.0f) continue;  // already on its way out
-      if (voice.frequency == frequency) {
+      if (same_pitch(voice.frequency, frequency)) {
         // Struck again, held or still fading: the voice plays on.
         voice.gain_target = gain;
         voice.env.gate_on();
@@ -228,19 +243,30 @@ class Binaural : public kit::DeviceBase<binaural::kNumParams> {
     voice.env.set(param(binaural::kAttack), 0.1f, 1.0f, param(binaural::kRelease));
   }
 
-  // Start a key in a voice that is silent. The carrier begins at phase 0;
-  // where the pair stands in its beat is the device's clock's to say.
-  void start(Voice& voice, float frequency, float gain) {
+  // Start a key in a voice that is silent. The carrier begins at phase 0, or
+  // in step with a voice that already sounds this pitch; where the pair
+  // stands in its beat is the device's clock's to say. `passed` is how many
+  // voices have already moved their carriers on in the sample being made
+  // (none when a key arrives between blocks).
+  void start(Voice& voice, float frequency, float gain, int passed = 0) {
     voice.frequency = frequency;
     voice.carrier = 0.0;
     voice.increment = static_cast<double>(frequency) / static_cast<double>(sample_rate());
+    for (int v = 0; v < kVoices; ++v) {
+      const Voice& other = pool_.voices[v];
+      if (&other == &voice || !other.env.active() || !same_pitch(other.frequency, frequency)) continue;
+      voice.frequency = other.frequency;
+      voice.increment = other.increment;
+      voice.carrier = v < passed ? kit::wrap_phase(other.carrier - other.increment) : other.carrier;
+      break;
+    }
     voice.gain = gain;
     voice.gain_target = gain;
     voice.fade = 0.0f;
     voice.fade_step = 0.0f;
     voice.pending = false;
-    voice.split_second = 2.0f * frequency <= kSplitTopHz;
-    voice.split_third = 3.0f * frequency <= kSplitTopHz;
+    voice.split_second = 2.0f * voice.frequency <= kSplitTopHz;
+    voice.split_third = 3.0f * voice.frequency <= kSplitTopHz;
     voice.env.reset();
     set_envelope(voice);
     voice.env.gate_on();
@@ -375,7 +401,7 @@ inline void Binaural::process(int frames) {
           voice.env.reset();
           voice.fade = 0.0f;
           voice.fade_step = 0.0f;
-          if (voice.pending) start(voice, voice.next_frequency, voice.next_gain);
+          if (voice.pending) start(voice, voice.next_frequency, voice.next_gain, v);
         } else {
           fade = 0.5f + 0.5f * kit::SineTable::cos_lookup(0.5f * voice.fade);
         }
