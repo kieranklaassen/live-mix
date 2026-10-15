@@ -57,7 +57,7 @@ export const COLOURED_NOISE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Depth of a slow, irregular swell: now and then the bed sinks and darkens, then comes back. At 0 the noise is steady.',
+      'Depth of a slow, irregular swell: the bed keeps sinking and darkening, then coming back. At 0 the noise is steady.',
   },
   driftTime: {
     id: 5,
@@ -68,7 +68,7 @@ export const COLOURED_NOISE_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'Average length of one swell. Each swell is longer or shorter than the last by up to half, so the bed never keeps a beat.',
+      'Average length of one swell. Each one lasts from half of this to one and a half times it, so the bed never keeps a beat.',
   },
   width: {
     id: 6,
@@ -137,7 +137,7 @@ export const COLOURED_NOISE_DESCRIPTOR = wasmDeviceDescriptor(COLOURED_NOISE_DEV
     'Pink, top off': { colour: 0.5, highCut: 3500, drift: 0.15 },
     'White, high only': { colour: 0, lowCut: 2000, drift: 0, width: 1, attack: 1 },
     'Pink, mid band': { colour: 0.5, lowCut: 300, highCut: 2500, drift: 0, width: 0.5, volume: -7 },
-    'Pink, centred': { colour: 0.5, lowCut: 60, drift: 0, width: 0 },
+    'Pink, centred': { colour: 0.5, lowCut: 150, highCut: 9000, drift: 0, width: 0, volume: -10 },
     'Pink, 4 s swells': { colour: 0.5, drift: 0.8, driftTime: 4, width: 1, attack: 0.5 },
     'Brown, 2 s swells': {
       colour: 0.9,

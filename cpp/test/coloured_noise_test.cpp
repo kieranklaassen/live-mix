@@ -182,31 +182,46 @@ static void steady(ColouredNoise& d, float rate = kRate) {
   d.set_param(p::kVolume, kSteadyDb);
 }
 
-// How much of an event is heard in its first 8 samples: the largest
-// difference from the same render without the event over those samples,
-// against the largest over 20 ms. Something smoothed or faded has gone a
-// small part of the way; a jump is there at once. The worst of eight moments
-// 0.31 s apart, which with the swells `setup` asks for (2 s on average) are
-// eight places in the drift.
+// How much of an event is heard at once: the largest difference from the
+// same render without the event in the 8 samples from the first one that
+// differs, against the largest over the 20 ms after the event. Something
+// smoothed or faded has gone a small part of the way; a jump is there at
+// once. The worst of eight moments 0.31 s apart, which with the swells
+// `setup` asks for (2 s on average) are eight places in the drift, and all
+// but the first are off the beat of the control clock: Colour and the cuts
+// are read on that clock, up to 16 samples after they are set, so the 8
+// samples after the event itself would say nothing of them there.
+// `step`, if given, takes the same 8 samples against the passage's own peak:
+// where the whole change is small (a voice taken from under nine others) the
+// first figure is a ratio of two small things and this one says how small.
 template <typename Setup, typename Event>
-static double suddenness(Setup setup, Event event) {
+static double suddenness(Setup setup, Event event, float rate = kRate, double* step = nullptr) {
   double worst = 0.0;
+  if (step != nullptr) *step = 0.0;
   for (int trial = 0; trial < 8; ++trial) {
     Stereo out[2];
     for (int pass = 0; pass < 2; ++pass) {
       setup(device);
-      render(device, 0.5f + 0.31f * static_cast<float>(trial), kRate);
+      render(device, 0.5f + 0.31f * static_cast<float>(trial), rate);
+      if (trial > 0) device.process((trial * 7) % 16 + (trial % 2));
       if (pass == 0) event(device);
-      out[pass] = render(device, 0.02f, kRate);
+      out[pass] = render(device, 0.02f, rate);
     }
-    double early = 0.0, whole = 0.0;
+    std::vector<double> difference(out[0].size());
+    size_t first = out[0].size();
+    double whole = 0.0, level = 0.0;
     for (size_t i = 0; i < out[0].size(); ++i) {
-      const double difference = std::max(std::fabs(static_cast<double>(out[0].left[i]) - out[1].left[i]),
-                                         std::fabs(static_cast<double>(out[0].right[i]) - out[1].right[i]));
-      if (i < 8) early = std::max(early, difference);
-      whole = std::max(whole, difference);
+      difference[i] = std::max(std::fabs(static_cast<double>(out[0].left[i]) - out[1].left[i]),
+                               std::fabs(static_cast<double>(out[0].right[i]) - out[1].right[i]));
+      if (difference[i] > 0.0 && first == out[0].size()) first = i;
+      whole = std::max(whole, difference[i]);
+      level = std::max(level, std::max(std::fabs(static_cast<double>(out[0].left[i])), std::fabs(static_cast<double>(out[1].left[i]))));
+      level = std::max(level, std::max(std::fabs(static_cast<double>(out[0].right[i])), std::fabs(static_cast<double>(out[1].right[i]))));
     }
+    double early = 0.0;
+    for (size_t i = first; i < std::min(first + 8, out[0].size()); ++i) early = std::max(early, difference[i]);
     if (whole > 0.0) worst = std::max(worst, early / whole);
+    if (step != nullptr && level > 0.0) *step = std::max(*step, early / level);
   }
   return worst;
 }
@@ -385,6 +400,63 @@ static void test_cuts() {
     EXPECT(std::fabs(band_db(open, kRate, 100.0, 200.0) - band_db(open, kRate, 3200.0, 6400.0) + 10.0 * std::log10(32.0)) < 0.5,
            "wide open, the cuts leave white noise flat from 100 Hz to 6.4 kHz");
   }
+  // A cut only takes away as it comes in from the open end of its range:
+  // Low cut on brown noise from 20 to 32 Hz and High cut on white from 20 to
+  // 12.6 kHz, a twelfth of an octave at a time, the same noise each time. (A
+  // cut mixed in over its first half octave has a notch at the cut part of
+  // the way, and the level comes back up as the notch fills: by 0.7 dB in
+  // all and 2 dB in the lowest octave between 25 and 28 Hz.)
+  // The open end itself: there the cut stands outside the bed's band, so the
+  // band next to it is as it would be with no cut. Half an octave in the cut
+  // is where its knob says, and what it has taken by then is the measure.
+  for (int r = 0; r < 3; ++r) {
+    const float rate = kRates[r];
+    const size_t size = rate > 60000.0f ? 65536 : 32768;
+    double rise[2] = {0.0, 0.0}, rise_band[2] = {0.0, 0.0}, taken[2] = {0.0, 0.0};
+    for (int which = 0; which < 2; ++which) {
+      double last = 0.0, last_band = 0.0, open_band = 0.0;
+      for (int step = 0; step <= 8; ++step) {
+        steady(device, rate);
+        device.set_param(p::kColour, which == 0 ? 1.0f : 0.0f);
+        const float hz = which == 0 ? 20.0f * std::pow(2.0f, static_cast<float>(step) / 12.0f)
+                                    : 20000.0f * std::pow(2.0f, -static_cast<float>(step) / 12.0f);
+        device.set_param(which == 0 ? p::kLowCut : p::kHighCut, hz);
+        device.note_on(1, 220.0f, 1.0f);
+        Stereo out = render(device, 10.5f, rate);
+        const std::vector<double> power = spectrum(out.left, at(0.5, rate), size);
+        const double whole = db(rms(out.left, at(0.5, rate)));
+        const double band = which == 0 ? band_db(power, rate, 20.0, 40.0) : band_db(power, rate, 10000.0, 14000.0);
+        if (step == 0) open_band = which == 0 ? band : band_db(power, rate, 14000.0, 20000.0);
+        if (step == 6) taken[which] = (which == 0 ? band : band_db(power, rate, 14000.0, 20000.0)) - open_band;
+        if (step > 0) {
+          rise[which] = std::max(rise[which], whole - last);
+          rise_band[which] = std::max(rise_band[which], band - last_band);
+        }
+        last = whole;
+        last_band = band;
+      }
+    }
+    std::printf("  at %.1f kHz the level never rises by more than %.3f dB (%.3f dB from 20 to 40 Hz) as Low cut comes in, %.3f dB"
+                " (%.3f dB from 10 to 14 kHz) as High cut does; half an octave in, Low cut has taken %.2f dB from 20 to 40 Hz"
+                " and High cut %.2f dB from 14 to 20 kHz\n",
+                rate / 1000.0, rise[0], rise_band[0], rise[1], rise_band[1], taken[0], taken[1]);
+    std::snprintf(label, sizeof label, "Low cut only takes away as it rises from the open end at %.1f kHz", rate / 1000.0);
+    EXPECT(rise[0] < 0.05 && rise_band[0] < 0.05, label);
+    std::snprintf(label, sizeof label, "High cut only takes away as it comes down from the open end at %.1f kHz", rate / 1000.0);
+    EXPECT(rise[1] < 0.05 && rise_band[1] < 0.05, label);
+    // With a cut that stays where its knob is at the open end (20 Hz, 20 kHz)
+    // these read -2.2 dB at 48 kHz and -5.9 dB at 96 kHz, and brown noise
+    // plays 0.6 dB under the kit's level (test_colour). The top of the band
+    // is read at 96 kHz, where there is room over 20 kHz for the cut to go.
+    if (r == 1) {
+      EXPECT(taken[0] < -2.45 && taken[0] > -3.2,
+             "at its open end Low cut stands outside the band: half an octave in it has taken 2.7 dB from the lowest octave of brown noise");
+    }
+    if (r == 2) {
+      EXPECT(taken[1] < -6.3 && taken[1] > -7.3,
+             "at its open end High cut stands outside the band: half an octave in it has taken 6.7 dB from 14 to 20 kHz at 96 kHz");
+    }
+  }
 }
 
 // --- one bed, however many keys ----------------------------------------------------------------
@@ -477,11 +549,41 @@ static void test_tint() {
   std::printf("  one key at 440 Hz: the peak stands %.1f dB over the bed at Tint 0.5 and %.1f dB at Tint 1;"
               " the whole is %.2f dB louder at Tint 1\n", peak_half, peak_whole, louder);
   // (1 + 4.6) is 15.0 dB and (1 + 2.3) is 10.4 dB at the key itself; the 1.5 % either side read a little under that.
-  EXPECT_NEAR(peak_whole, 14.7, 1.0, "one key's peak stands 15 dB over the bed at Tint 1");
+  EXPECT_NEAR(peak_whole, 14.6, 0.4, "one key's peak stands 15 dB over the bed at Tint 1");
   EXPECT_NEAR(peak_half, 10.1, 1.0, "and 10 dB at Tint 0.5");
   EXPECT_NEAR(louder, 1.95, 0.5, "Tint 1 on one key makes pink noise 2 dB louder");
   EXPECT(rise(none, tint_spectrum(0.0f, [](ColouredNoise& d) { d.note_on(1, 880.0f, 1.0f); }), 440.0, 1.015) == 0.0,
          "at Tint 0 the key played changes nothing");
+
+  // Keys at one pitch are one key. Their bands are the same band of the
+  // same noise and would add in step: taken singly, two ids at one pitch
+  // stand 2 dB over one and ten stand 6 dB over, and the whole is 3 dB louder.
+  // (A phrase that repeats a pitch under a long release does just this.)
+  {
+    auto same = [](int count) {
+      return [count](ColouredNoise& d) {
+        for (int n = 0; n < count; ++n) d.note_on(n, 440.0f, 1.0f);
+      };
+    };
+    const std::vector<double> two = tint_spectrum(1.0f, same(2)), all = tint_spectrum(1.0f, same(10));
+    const double peak_two = rise(two, none, 440.0, 1.015), peak_all = rise(all, none, 440.0, 1.015);
+    const double all_louder = band_db(all, kRate, 20.0, 20000.0) - band_db(none, kRate, 20.0, 20000.0);
+    // A second id that joins late, at a lower gain: still one key's worth.
+    const std::vector<double> late = tint_spectrum(1.0f, [](ColouredNoise& d) {
+      d.note_on(1, 440.0f, 1.0f);
+      render(d, 0.3f, kRate);
+      d.note_on(2, 440.0f, 0.6f);
+      d.note_on(3, 660.0f, 0.0f);  // (a silent key between them in the pool)
+      d.note_on(4, 440.0f, 1.0f);
+    });
+    const double peak_late = rise(late, none, 440.0, 1.015);
+    std::printf("  ids at one pitch: the peak stands %.2f dB over the bed for two and %.2f dB for ten (%.2f dB for one),"
+                " %.2f dB for three that join at different times; ten are %.2f dB louder than no Tint\n",
+                peak_two, peak_all, peak_whole, peak_late, all_louder);
+    EXPECT(std::fabs(peak_two - peak_whole) < 0.5 && std::fabs(peak_all - peak_whole) < 0.5 && std::fabs(peak_late - peak_whole) < 0.5,
+           "keys at one pitch have one key's band between them");
+    EXPECT(std::fabs(all_louder - louder) < 0.3, "and are no louder than one");
+  }
 
   // Ten keys share what one key has: the level does not grow with them, and
   // each still has a peak.
@@ -681,6 +783,17 @@ static void test_drift() {
     EXPECT_NEAR(mean_gap(swells.times), 2.0, 0.4, "the swells are Drift time long on average");
     EXPECT(swells.times.size() > 20 && longest > 1.5 * shortest, "the swells are unpaced: the longest gap is over half as long again as the shortest");
     EXPECT(shallowest - deepest > 2.0, "the swells are irregular in depth");
+    // Length and depth are drawn apart: a long swell is not a deep one. Each
+    // swell's depth against the time between the two lowest moments either
+    // side of it.
+    double n = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+    for (size_t i = 1; i + 1 < swells.times.size(); ++i) {
+      const double x = swells.times[i + 1] - swells.times[i - 1], y = swells.depths[i];
+      n += 1, sx += x, sy += y, sxx += x * x, syy += y * y, sxy += x * y;
+    }
+    const double together = n > 2 ? (n * sxy - sx * sy) / std::sqrt(std::max(1.0e-12, (n * sxx - sx * sx) * (n * syy - sy * sy))) : 1.0;
+    std::printf("  a swell's depth and its length go together by %.2f (correlation over %zu swells)\n", together, swells.times.size());
+    EXPECT(std::fabs(together) < 0.5, "a swell's depth does not follow its length");
   }
   // Brightness: at the lowest moment of the deepest swell the top of the
   // band has sunk further than the bottom.
@@ -705,6 +818,56 @@ static void test_drift() {
     std::printf("  the deepest swell: under 250 Hz %.1f dB down, over 4 kHz %.1f dB down\n", low_sink, high_sink);
     EXPECT(low_sink < -7.5 && low_sink > -9.6, "the deepest swell at Drift 1 takes the bottom of the band about 9 dB down");
     EXPECT_NEAR(high_sink - low_sink, -6.0, 1.5, "a swell darkens as it sinks: the top falls about 6 dB further than the bottom");
+  }
+  // Both sides sink alike (they are unlike noises, so over a minute).
+  {
+    Stereo out[2];
+    for (int pass = 0; pass < 2; ++pass) {
+      steady(device);
+      device.set_param(p::kColour, 0.0f);
+      device.set_param(p::kDrift, pass == 0 ? 1.0f : 0.0f);
+      device.set_param(p::kDriftTime, 2.0f);
+      device.note_on(1, 220.0f, 1.0f);
+      out[pass] = render(device, 60.5f, kRate);
+    }
+    const double left = db(rms(out[0].left, at(0.5)) / rms(out[1].left, at(0.5)));
+    const double right = db(rms(out[0].right, at(0.5)) / rms(out[1].right, at(0.5)));
+    std::printf("  a minute of swells at Drift 1 is %.2f dB under the steady bed on the left and %.2f dB on the right\n", left, right);
+    EXPECT(left < -2.0 && std::fabs(left - right) < 0.3, "the swells sink both sides alike");
+    // The shape of a swell is a raised cosine, flat at the crest and at the
+    // bottom: under 250 Hz (which the darkening leaves alone) against the
+    // same noise without drift, the bed spends a third of the time within
+    // 1 dB of the crest. (A swell of straight lines: 0.235 of it.)
+    const std::vector<float> sunk = split(out[0].left, false, 250.0f, kRate), still = split(out[1].left, false, 250.0f, kRate);
+    const size_t hop = at(0.05);
+    int near = 0, hops = 0;
+    for (size_t start = at(0.5); start + hop <= sunk.size(); start += hop) {
+      near += db(rms(sunk, start, start + hop) / rms(still, start, start + hop)) > -1.0 ? 1 : 0;
+      ++hops;
+    }
+    const double near_crest = static_cast<double>(near) / static_cast<double>(hops);
+    std::printf("  the bed is within 1 dB of the crest %.3f of the time at Drift 1\n", near_crest);
+    EXPECT(near_crest > 0.28 && near_crest < 0.36, "a swell is flat at its crest: a third of the time is within 1 dB of it");
+  }
+  // Drift time is heard at once: the swell under way goes on at the new
+  // pace. From 30 s to 2 s a second into the first swell, the bottom of that
+  // swell is a second away, not a quarter of a minute.
+  {
+    Stereo out[2];
+    for (int pass = 0; pass < 2; ++pass) {
+      steady(device);
+      device.set_param(p::kColour, 0.0f);
+      device.set_param(p::kDrift, 1.0f);
+      device.set_param(p::kDriftTime, 30.0f);
+      device.note_on(1, 220.0f, 1.0f);
+      render(device, 1.0f, kRate);
+      if (pass == 0) device.set_param(p::kDriftTime, 2.0f);
+      out[pass] = render(device, 2.0f, kRate);
+    }
+    const std::vector<float> fast = split(out[0].left, false, 250.0f, kRate), slow = split(out[1].left, false, 250.0f, kRate);
+    const double sunk = db(rms(fast, at(0.8), at(1.2)) / rms(slow, at(0.8), at(1.2)));
+    std::printf("  Drift time moved from 30 s to 2 s a second into a swell: a second later the bed is %.1f dB under where it would have been\n", sunk);
+    EXPECT(sunk < -4.0, "Drift time moved is heard in the swell under way");
   }
   // Half the depth, and four times the length.
   {
@@ -814,7 +977,9 @@ static void test_sleep() {
     }
     std::snprintf(label, sizeof label, "output does not depend on block size (worst %g, %s blocks, %.2f s silence)", worst,
                   worst_block, worst_silence);
-    EXPECT(worst < 1.0e-6, label);
+    // Exactly: the first key after a silence restarts everything, so there is
+    // nothing for a block size to have left behind.
+    EXPECT(worst == 0.0, label);
   }
 
   // A knob moved in silence is simply there for the next key: the note is
@@ -867,7 +1032,7 @@ static void test_sleep() {
         const double diff = apart(moved, fresh);
         std::snprintf(label, sizeof label, "%s moved %s is there for the next key (apart by %g)", move.name,
                       wait > 0.5f ? "while asleep" : "in the silence before sleep", diff);
-        EXPECT(diff < 1.0e-6 && peak(last.left) == 0.0 && rms(gap.left, 0, at(0.05)) > 0.0, label);
+        EXPECT(diff == 0.0 && peak(last.left) == 0.0 && rms(gap.left, 0, at(0.05)) > 0.0, label);
       }
     }
   }
@@ -876,16 +1041,23 @@ static void test_sleep() {
 // --- clicks ------------------------------------------------------------------------------------
 
 // Two keys on a bed that swells every 2 s or so, with a band at each key.
-static void moving(ColouredNoise& d) {
-  d.init(kRate);
+static void moving(ColouredNoise& d, float rate = kRate, float colour = 0.5f, bool dark = false) {
+  d.init(rate);
+  d.set_param(p::kColour, colour);
+  if (dark) d.set_param(p::kHighCut, 500.0f);
   d.set_param(p::kDrift, 1.0f);
   d.set_param(p::kDriftTime, 2.0f);
   d.set_param(p::kTint, 0.7f);
   d.set_param(p::kAttack, 0.01f);
   d.set_param(p::kVolume, 0.0f);
-  d.note_on(1, 220.0f, 0.9f);
-  d.note_on(2, 554.37f, 0.7f);
+  d.note_on(1, dark ? 55.0f : 220.0f, 0.9f);
+  d.note_on(2, dark ? 82.41f : 554.37f, 0.7f);
 }
+
+// The same on a dark bed: brown with nothing over 500 Hz and two low keys.
+// Its samples move slowly, so the first eight of a change are not a matter
+// of where the noise happened to stand.
+static void moving_dark(ColouredNoise& d, float rate = kRate) { moving(d, rate, 1.0f, true); }
 
 static void test_clicks() {
   char label[200];
@@ -910,34 +1082,99 @@ static void test_clicks() {
       EXPECT(sudden < 0.15, label);
     }
   }
-  // Keys: let go at the shortest release, struck again at another gain, a
-  // new key at the shortest attack, and an eleventh key that has to take a
-  // voice.
-  {
-    auto shortest = [](ColouredNoise& d) {
-      moving(d);
+  // The cuts on white noise at each rate, where there is most for a steep
+  // filter to turn round: a full throw, and a short one from the open end.
+  // (A cut that follows its knob through one stage only reads 0.3 on the
+  // throw down from 20 kHz.)
+  for (float rate : kRates) {
+    double worst = 0.0;
+    const struct {
+      int id;
+      float from, to;
+    } throws[] = {{p::kHighCut, 20000.0f, 500.0f}, {p::kHighCut, 20000.0f, 12000.0f}, {p::kLowCut, 20.0f, 2000.0f}, {p::kLowCut, 2000.0f, 20.0f}};
+    for (const auto& one : throws) {
+      const int id = one.id;
+      const float from = one.from, to = one.to;
+      worst = std::max(worst, suddenness(
+                                  [id, from, rate](ColouredNoise& d) {
+                                    moving(d, rate, 0.0f);
+                                    d.set_param(id, from);
+                                  },
+                                  [id, to](ColouredNoise& d) { d.set_param(id, to); }, rate));
+    }
+    std::snprintf(label, sizeof label, "the cuts thrown on white noise are gradual at %.1f kHz (at most %.3f of the change in its first 8 samples)",
+                  rate / 1000.0, worst);
+    std::printf("  %s\n", label);
+    // (0.02 to 0.03 here; 0.07 to 0.09 with the control clock at half its pace.)
+    EXPECT(worst < 0.05, label);
+  }
+  // Keys, on the bright bed and on the dark one: let go at the shortest
+  // release, struck again at another gain, a new key at the shortest attack,
+  // an id sent at another pitch, and an eleventh key that has to take a voice
+  // (from ten keys of unlike gains, and from ten equal ones: with those the
+  // bed does not move at all and the fade of the taken band is all there is).
+  for (int bed = 0; bed < 2; ++bed) {
+    auto base = [bed](ColouredNoise& d) {
+      if (bed == 0) {
+        moving(d);
+      } else {
+        moving_dark(d);
+      }
+    };
+    const float low = bed == 0 ? 110.0f : 41.2f, semitones = bed == 0 ? 5.0f : 2.0f;
+    auto shortest = [base](ColouredNoise& d) {
+      base(d);
       d.set_param(p::kRelease, p::kParamMin[p::kRelease]);
     };
     const double off = suddenness(shortest, [](ColouredNoise& d) {
       d.note_off(1);
       d.note_off(2);
     });
-    const double again = suddenness(shortest, [](ColouredNoise& d) { d.note_on(1, 220.0f, 0.2f); });
-    const double on = suddenness(shortest, [](ColouredNoise& d) { d.note_on(3, 880.0f, 1.0f); });
-    const double steal = suddenness(
-        [](ColouredNoise& d) {
-          moving(d);
-          d.set_param(p::kTint, 1.0f);
-          for (int n = 0; n < 8; ++n) d.note_on(10 + n, 110.0f * std::pow(2.0f, static_cast<float>(n) * 5.0f / 12.0f), 0.5f + 0.05f * n);
+    const double again = suddenness(shortest, [bed](ColouredNoise& d) { d.note_on(1, bed == 0 ? 220.0f : 55.0f, 0.2f); });
+    const double on = suddenness(shortest, [bed](ColouredNoise& d) { d.note_on(3, bed == 0 ? 880.0f : 110.0f, 1.0f); });
+    // The only key held, sent again at another pitch: its old voice fades.
+    const double moved = suddenness(
+        [base](ColouredNoise& d) {
+          base(d);
+          d.note_off(2);
         },
-        [](ColouredNoise& d) { d.note_on(99, 1318.5f, 1.0f); });
-    std::printf("  in the first 8 samples: note off %.3f, a key struck again %.3f, a new key %.3f, a steal %.3f of the change\n",
-                off, again, on, steal);
+        [bed](ColouredNoise& d) { d.note_on(1, bed == 0 ? 330.0f : 73.42f, 0.9f); });
+    double steal_step = 0.0, tied_step = 0.0;
+    const double steal = suddenness(
+        [base, low, semitones](ColouredNoise& d) {
+          base(d);
+          d.set_param(p::kTint, 1.0f);
+          for (int n = 0; n < 8; ++n) d.note_on(10 + n, low * std::pow(2.0f, static_cast<float>(n) * semitones / 12.0f), 0.5f + 0.05f * n);
+        },
+        [bed](ColouredNoise& d) { d.note_on(99, bed == 0 ? 1318.5f : 98.0f, 1.0f); }, kRate, &steal_step);
+    double tied = 0.0;
+    for (float rate : {44100.0f, kRate}) {
+      double step = 0.0;
+      tied = std::max(tied, suddenness(
+                                [bed, low, semitones, rate](ColouredNoise& d) {
+                                  if (bed == 0) {
+                                    moving(d, rate);
+                                  } else {
+                                    moving_dark(d, rate);
+                                  }
+                                  d.note_off(1);
+                                  d.note_off(2);
+                                  d.set_param(p::kTint, 1.0f);
+                                  for (int n = 0; n < 10; ++n) d.note_on(10 + n, low * std::pow(2.0f, static_cast<float>(n) * semitones / 12.0f), 0.8f);
+                                },
+                                [bed](ColouredNoise& d) { d.note_on(99, bed == 0 ? 1318.5f : 98.0f, 0.8f); }, rate, &step));
+      tied_step = std::max(tied_step, step);
+    }
+    std::printf("  on the %s bed, of the change in its first 8 samples: note off %.3f, a key struck again %.3f, a new key %.3f,"
+                " an id sent at another pitch %.3f, a steal %.3f (%.3f of the sound's peak), a steal from ten equal keys %.3f (%.3f)\n",
+                bed == 0 ? "bright" : "dark", off, again, on, moved, steal, steal_step, tied, tied_step);
     EXPECT(off < 0.15, "letting go at the shortest release is gradual");
     EXPECT(again < 0.15, "a key struck again at another gain is gradual");
     EXPECT(on < 0.15, "a new key at the shortest attack is gradual");
+    EXPECT(moved < 0.15, "an id sent at another pitch leaves its old pitch gradually");
     EXPECT(steal < 0.15, "an eleventh key takes a voice gradually");
-    EXPECT(off > 0.0 && again > 0.0 && on > 0.0 && steal > 0.0, "(each of those events changes the sound)");
+    EXPECT(tied < 0.15, "an eleventh key takes a voice from ten equal keys gradually, at 44.1 and 48 kHz");
+    EXPECT(off > 0.0 && again > 0.0 && on > 0.0 && moved > 0.0 && steal > 0.0 && tied > 0.0, "(each of those events changes the sound)");
   }
 }
 
@@ -1136,6 +1373,17 @@ static void test_voices() {
            "a gain outside 0..1 is held to it");
     EXPECT(apart(key(440.0f, std::nanf("")), key(440.0f, 0.5f)) == 0.0, "a gain that is not a number plays at a half");
     EXPECT(peak(key(440.0f, 0.0f).left) == 0.0, "a key at no gain is silent");
+    // A pitch that is not a number: with Tint up it would be a band tuned to nothing.
+    auto beside = [](bool stray) {
+      steady(device);
+      device.set_param(p::kTint, 1.0f);
+      device.note_on(1, 440.0f, 0.5f);
+      if (stray) device.note_on(2, std::nanf(""), 1.0f);
+      return render(device, 1.0f, kRate);
+    };
+    const Stereo strayed = beside(true);
+    EXPECT(finite(strayed.left) && finite(strayed.right) && apart(strayed, beside(false)) == 0.0,
+           "a key whose pitch is not a number is not played");
   }
 }
 
@@ -1205,17 +1453,26 @@ static void test_levels() {
     std::printf("  %s\n", label);
     EXPECT(over == 0 && high < 0.45, label);
   }
-  // Counted at its worst: ten keys of one pitch from ten sources add in step.
+  // Ten ids at one pitch are one key (test_tint), so they are no nearer the
+  // knee than one: at a low pitch on brown noise, where a band has most to
+  // take, for a minute. (Each with a band of its own, they pass the knee two
+  // thousand times in that minute and reach 0.7.)
   {
     device.init(kRate);
+    device.set_param(p::kColour, 1.0f);
     device.set_param(p::kTint, 1.0f);
     device.set_param(p::kWidth, 1.0f);
     device.set_param(p::kDrift, 0.0f);
-    for (int n = 0; n < 10; ++n) device.note_on(n, 220.0f, 1.0f);
-    Stereo out = render(device, 30.0f, kRate);
+    device.set_param(p::kAttack, 0.01f);
+    for (int n = 0; n < 10; ++n) device.note_on(n, 41.2f, 1.0f);
+    Stereo out = render(device, 60.0f, kRate);
+    long over = 0;
+    for (size_t i = 0; i < out.size(); ++i) over += (std::fabs(out.left[i]) > 0.5f ? 1 : 0) + (std::fabs(out.right[i]) > 0.5f ? 1 : 0);
     const double high = std::max(peak(out.left), peak(out.right));
-    std::printf("  ten keys of one pitch at Tint 1: peak %.3f, RMS %.1f dBFS\n", high, db(rms(out.left, at(3.0))));
-    EXPECT(high < 1.0, "ten keys of one pitch stay inside full scale");
+    std::snprintf(label, sizeof label, "ten ids at one low pitch on brown at Tint 1 for a minute: no sample past the knee (peak %.3f, %ld past it, RMS %.1f dBFS)",
+                  high, over, db(rms(out.left, at(3.0))));
+    std::printf("  %s\n", label);
+    EXPECT(over == 0 && high < 0.47, label);
   }
   // The last stage is the kit's soft clip of the sound times Volume: what
   // 0 dB plays is the clip of what -6 dB plays (which stays under the knee)

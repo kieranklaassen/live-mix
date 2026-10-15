@@ -49,7 +49,7 @@
       "min": 0,
       "max": 1,
       "default": 0.2,
-      "description": "Depth of a slow, irregular swell: now and then the bed sinks and darkens, then comes back. At 0 the noise is steady."
+      "description": "Depth of a slow, irregular swell: the bed keeps sinking and darkening, then coming back. At 0 the noise is steady."
     },
     {
       "key": "driftTime",
@@ -59,7 +59,7 @@
       "default": 9,
       "taper": "log",
       "unit": "s",
-      "description": "Average length of one swell. Each swell is longer or shorter than the last by up to half, so the bed never keeps a beat."
+      "description": "Average length of one swell. Each one lasts from half of this to one and a half times it, so the bed never keeps a beat."
     },
     {
       "key": "width",
@@ -154,9 +154,11 @@
     },
     "Pink, centred": {
       "colour": 0.5,
-      "lowCut": 60,
+      "lowCut": 150,
+      "highCut": 9000,
       "drift": 0,
-      "width": 0
+      "width": 0,
+      "volume": -10
     },
     "Pink, 4 s swells": {
       "colour": 0.5,
