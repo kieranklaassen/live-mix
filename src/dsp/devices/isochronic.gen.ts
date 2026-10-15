@@ -26,7 +26,7 @@ export const ISOCHRONIC_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The share of each period the sound is on. Low is short blips with long gaps; high is long tones with short gaps. A change takes hold with the next pulse.',
+      'The share of each period the sound is on: low is short blips, high is long tones. A change waits for the next pulse, up to two seconds at the slowest Rate.',
   },
   edge: {
     id: 2,
@@ -37,7 +37,7 @@ export const ISOCHRONIC_PARAMS = {
     taper: 'log',
     unit: 'ms',
     description:
-      'How long each pulse takes to fade in and out. Short is hard, long is soft. Held to half the shorter of the on time and the gap. A change takes hold with the next pulse.',
+      'How long each pulse takes to fade in and out. Short is hard, long is soft. Held to half the shorter of the on time and the gap. A change waits for the next pulse.',
   },
   depth: {
     id: 3,
@@ -81,7 +81,7 @@ export const ISOCHRONIC_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      "Crossfades each key's tone into a band of noise centred on the key. At zero only the tone sounds; at full only the noise.",
+      "Crossfades each key's tone into a band of noise centred on the key: only tone at zero, only noise at full. The noise is the same in both ears and softer than the tone.",
   },
   target: {
     id: 7,
@@ -161,8 +161,16 @@ export const ISOCHRONIC_DESCRIPTOR = wasmDeviceDescriptor(ISOCHRONIC_DEVICE, {
     'Six a second': { rate: 6, duty: 0.4, edge: 20, warmth: 0.6, attack: 0.6 },
     'Four soft': { rate: 4, depth: 0.55, edge: 30, attack: 1.2, release: 3 },
     'Three a second': { rate: 3, duty: 0.4, edge: 25, warmth: 0.65 },
-    'Slow swell': { rate: 0.8, edge: 50, depth: 0.85, attack: 0.05, release: 4, warmth: 0.45 },
-    'One in two seconds': { rate: 0.5, duty: 0.35, edge: 50, warmth: 0.2, release: 3 },
+    'Slow swell': {
+      rate: 0.8,
+      edge: 50,
+      depth: 0.85,
+      attack: 0.05,
+      release: 4,
+      warmth: 0.45,
+      volume: -8,
+    },
+    'One in two seconds': { rate: 0.5, duty: 0.35, edge: 50, warmth: 0.2, release: 3, volume: -8 },
     'Sixty six a minute': {
       rate: 1.1,
       duty: 0.22,
@@ -179,6 +187,7 @@ export const ISOCHRONIC_DESCRIPTOR = wasmDeviceDescriptor(ISOCHRONIC_DEVICE, {
       edge: 50,
       air: 0.35,
       release: 2.5,
+      volume: -8,
     },
     'Fourteen a second': { rate: 14, edge: 6, warmth: 0, air: 0.4, attack: 0.1, release: 0.8 },
     'Eighteen light': {
@@ -191,16 +200,8 @@ export const ISOCHRONIC_DESCRIPTOR = wasmDeviceDescriptor(ISOCHRONIC_DEVICE, {
       release: 3,
     },
     'Forty smooth': { rate: 40, edge: 50, warmth: 0.1, attack: 0.5, release: 2 },
-    'Forty clicks': {
-      rate: 40,
-      duty: 0.15,
-      edge: 2,
-      warmth: 0,
-      attack: 0.02,
-      release: 0.6,
-      volume: -1.5,
-    },
-    'Forty in noise': { rate: 40, air: 1, edge: 50, attack: 0.8, release: 3.5, volume: -4 },
+    'Forty clicks': { rate: 40, duty: 0.2, edge: 2, warmth: 0, attack: 0.02, release: 0.6 },
+    'Forty in noise': { rate: 40, air: 1, edge: 50, attack: 0.8, release: 3.5 },
     'Left then right': { rate: 4, offset: 180, edge: 20, warmth: 0.4 },
     'Ten to six': {
       rate: 10,
@@ -219,7 +220,6 @@ export const ISOCHRONIC_DESCRIPTOR = wasmDeviceDescriptor(ISOCHRONIC_DEVICE, {
       duty: 0.35,
       edge: 12,
       release: 3.5,
-      volume: -4,
     },
     'Eleven to two': {
       rate: 11,
@@ -240,27 +240,11 @@ export const ISOCHRONIC_DESCRIPTOR = wasmDeviceDescriptor(ISOCHRONIC_DEVICE, {
       offset: 30,
       warmth: 0.7,
     },
-    'Noise at ten': { rate: 10, air: 1, edge: 12, release: 1, attack: 0.05, volume: -4 },
+    'Noise at ten': { rate: 10, air: 1, edge: 12, release: 1, attack: 0.05 },
     'Two a second': { rate: 2, edge: 40, warmth: 0.5, attack: 0.02 },
-    'Eight short': {
-      rate: 8,
-      duty: 0.25,
-      edge: 3,
-      warmth: 0.6,
-      attack: 0.01,
-      release: 0.4,
-      volume: -3,
-    },
-    'Five and air': { rate: 5, duty: 0.6, depth: 0.75, air: 0.6, offset: 90 },
-    'One blip a second': {
-      rate: 1,
-      duty: 0.1,
-      edge: 2,
-      warmth: 0.35,
-      attack: 0.005,
-      release: 0.3,
-      volume: -2,
-    },
+    'Eight short': { rate: 8, duty: 0.25, edge: 3, warmth: 0.6, attack: 0.01, release: 0.4 },
+    'Five and air': { rate: 5, duty: 0.6, depth: 0.75, air: 0.6, offset: 90, volume: -7 },
+    'One blip a second': { rate: 1, duty: 0.1, edge: 2, warmth: 0.35, attack: 0.005, release: 0.3 },
     'Warm for low keys': {
       rate: 6,
       warmth: 1,

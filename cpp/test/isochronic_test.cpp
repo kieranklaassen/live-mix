@@ -181,6 +181,37 @@ static double worst_from_law(const std::vector<float>& gain, double hz, double d
   return worst;
 }
 
+// The peak of what is above `hz` in [from, to): two second order high pass
+// sections (a fourth order Butterworth), run in from 50 ms before `from`.
+static double high_peak(const std::vector<float>& x, double hz, double rate, size_t from, size_t to = SIZE_MAX) {
+  to = std::min(to, x.size());
+  struct Section {
+    double b0, b1, a1, a2, z1 = 0.0, z2 = 0.0;
+    Section(double w, double q) {
+      const double alpha = std::sin(w) / (2.0 * q), c = std::cos(w), a0 = 1.0 + alpha;
+      b0 = 0.5 * (1.0 + c) / a0;
+      b1 = -(1.0 + c) / a0;
+      a1 = -2.0 * c / a0;
+      a2 = (1.0 - alpha) / a0;
+    }
+    double run(double in) {
+      const double out = b0 * in + z1;
+      z1 = b1 * in - a1 * out + z2;
+      z2 = b0 * in - a2 * out;
+      return out;
+    }
+  };
+  const double w = 2.0 * kPi * hz / rate;
+  Section one(w, 0.5412), two(w, 1.3066);
+  const size_t lead = std::min(from, at(0.05, rate));
+  double most = 0.0;
+  for (size_t i = from - lead; i < to; ++i) {
+    const double out = two.run(one.run(x[i]));
+    if (i >= from) most = std::max(most, std::fabs(out));
+  }
+  return most;
+}
+
 static double cpu_seconds() { return static_cast<double>(std::clock()) / CLOCKS_PER_SEC; }
 
 static void test_pulse();
@@ -231,7 +262,7 @@ int main() {
 static void no_change(Isochronic&) {}
 
 static void test_pulse() {
-  char label[200];
+  char label[360];
 
   // Rate 10, Duty 0.5, Edge 8 ms, Depth 1, at the three sample rates: ten
   // pulses a second, exact zeros between, and the gain is the law.
@@ -355,7 +386,7 @@ static double steepest(const std::vector<float>& gain, size_t from = 0, size_t t
 }
 
 static void test_mid_pulse() {
-  char label[240];
+  char label[360];
 
   // Duty and Edge: a pulse under way finishes as it began, and the next one
   // is the new shape. At 2 Hz a period is half a second; the control is
@@ -428,7 +459,7 @@ static void test_mid_pulse() {
 // --- the first pulse -------------------------------------------------------------------------
 
 static void test_first_pulse() {
-  char label[200];
+  char label[360];
   auto turns = [](Isochronic& d) {
     d.set_param(p::kRate, 0.5f);
     d.set_param(p::kOffset, 180.0f);
@@ -508,7 +539,7 @@ static std::vector<double> period_levels(const std::vector<float>& x, size_t fro
 }
 
 static void test_offset() {
-  char label[200];
+  char label[360];
   // Offset 180 at half Duty: each ear pulses fully and the mono sum does not.
   {
     Stereo out = held([](Isochronic& d) { d.set_param(p::kOffset, 180.0f); }, 480.0f, 3.0f);
@@ -556,12 +587,44 @@ static void test_offset() {
                   degrees, degrees / 360.0, worst_right, worst_left);
     EXPECT(worst_left < 2.0e-3 && worst_right < 2.0e-3, label);
   }
+  // Offset turned by hand: a degree every block of 128 from 0 to 180 while a
+  // low pure key sounds. Each step moves the right ear's place in the pulse;
+  // on an edge that is a step in its gain, smoothed over 10 ms. What is above
+  // 1.5 kHz in the right ear is then no more than the steady pulse has
+  // (-73.7 dB against the tone's peak turned, -73.1 steady, as the second
+  // check read them). With the steps not smoothed it is 37 dB more.
+  {
+    auto start = [](float offset) {
+      plain(device);
+      device.set_param(p::kAttack, 0.05f);
+      device.set_param(p::kOffset, offset);
+      device.note_on(1, 110.0f, 0.5f);
+      return render(device, 0.5f, kRate);
+    };
+    Stereo turned = start(0.0f);
+    const size_t from = turned.size();
+    for (int degree = 1; degree <= 180; ++degree) {
+      device.set_param(p::kOffset, static_cast<float>(degree));
+      turned = concat(turned, render(device, 128.0f / kRate, kRate));
+    }
+    const size_t to = turned.size();
+    Stereo steady = start(90.0f);
+    steady = concat(steady, render(device, 0.5f, kRate));
+    const double tone = 0.3525 * 0.55 * 0.5012;  // one key at gain 0.5 and -6 dB
+    const double moving = db(high_peak(turned.right, 1500.0, kRate, from, to) / tone);
+    const double still = db(high_peak(steady.right, 1500.0, kRate, at(0.5)) / tone);
+    std::snprintf(label, sizeof label,
+                  "Offset turned a degree a block adds nothing above 1.5 kHz in the right ear (%.1f dB against the tone, %.1f with Offset still)",
+                  moving, still);
+    MEASURED("%s", label);
+    EXPECT(still < -60.0 && moving < still + 12.0, label);
+  }
 }
 
 // --- a slow, short pulse ---------------------------------------------------------------------
 
 static void test_slow_pulse() {
-  char label[200];
+  char label[360];
   auto phrase = [](int block) {
     plain(device);
     device.set_param(p::kRate, 0.5f);
@@ -584,12 +647,38 @@ static void test_slow_pulse() {
                   block == 0 ? "ragged" : block == 1 ? "1 frame" : "2048 frame", worst);
     EXPECT(worst < 1.0e-6, label);
   }
+
+  // Depth moves over 10 ms. Thrown from 1 to 0 in the middle of the gap, the
+  // sound comes up from nothing: 10 ms later it is at 1 - 1/e of its level
+  // (0.632; 0.865 if Depth moved in 5 ms).
+  {
+    auto throw_in_gap = [](bool thrown) {
+      plain(device);
+      device.set_param(p::kRate, 0.5f);
+      device.set_param(p::kDuty, 0.1f);
+      if (!thrown) device.set_param(p::kDepth, 0.0f);
+      device.note_on(1, 480.0f, 0.7f);
+      Stereo out = render(device, 1.0f, kRate);
+      device.set_param(p::kDepth, 0.0f);
+      return concat(out, render(device, 0.1f, kRate));
+    };
+    Stereo thrown = throw_in_gap(true);
+    Stereo bare = throw_in_gap(false);
+    const std::vector<float> gain = gain_of(thrown.left, bare.left);
+    double found = -1.0;
+    for (size_t i = at(1.01); i < at(1.011) && found < 0.0; ++i) {
+      if (gain[i] >= 0.0f) found = gain[i] / (1.0 - std::exp(-(static_cast<double>(i - at(1.0)) + 1.0) / at(0.01)));
+    }
+    std::snprintf(label, sizeof label, "Depth thrown from 1 to 0 in the gap has gone 0.632 of the way 10 ms later (%.3f of the level)",
+                  found * (1.0 - std::exp(-1.0)));
+    EXPECT(std::fabs(found - 1.0) < 0.05, label);
+  }
 }
 
 // --- keys share the pulse --------------------------------------------------------------------
 
 static void test_keys_together() {
-  char label[200];
+  char label[360];
   Stereo one = held(no_change, 480.0f, 3.0f);
   plain(device);
   device.note_on(1, 480.0f, 0.7f);
@@ -618,7 +707,7 @@ static void test_keys_together() {
 // --- silences, block sizes and knobs moved while nothing sounds ------------------------------
 
 static void test_silences() {
-  char label[220];
+  char label[360];
 
   // The output does not depend on the block size across silences of every
   // length around the moment the device falls asleep (the release is over
@@ -764,7 +853,7 @@ static void test_silences() {
 static const float kEight[8] = {200.0f, 230.0f, 260.0f, 290.0f, 320.0f, 350.0f, 380.0f, 410.0f};
 
 static void test_voices() {
-  char label[220];
+  char label[360];
 
   // A ninth key takes the quietest voice by its envelope and its key's
   // strength, not by what is coming out: here every voice is in the pulse's
@@ -805,6 +894,27 @@ static void test_voices() {
     int left_of_eight = 0;
     for (float hz : kEight) left_of_eight += tone_level(out.left, hz, kRate, at(0.2)) > 0.5 * second ? 1 : 0;
     std::snprintf(label, sizeof label, "two keys into a full pool in one block both sound (%.4f and %.4f) and six of the eight stay (%d)",
+                  first, second, left_of_eight);
+    EXPECT(second > 1.0e-3 && first > 0.8 * second && first < 1.25 * second && left_of_eight == 6, label);
+  }
+
+  // The same with a millisecond between them: the first is still waiting
+  // for its voice to fade (4 ms) when the second arrives. A waiting voice is
+  // not the quietest in the pool, so the second takes another one.
+  {
+    plain(device);
+    device.set_param(p::kDepth, 0.0f);
+    for (int n = 0; n < 8; ++n) device.note_on(n, kEight[n], 0.8f);
+    render(device, 0.5f, kRate);
+    device.note_on(100, 500.0f, 0.8f);
+    device.process(48);
+    device.note_on(101, 560.0f, 0.8f);
+    Stereo out = render(device, 0.6f, kRate);
+    const double first = tone_level(out.left, 500.0, kRate, at(0.2));
+    const double second = tone_level(out.left, 560.0, kRate, at(0.2));
+    int left_of_eight = 0;
+    for (float hz : kEight) left_of_eight += tone_level(out.left, hz, kRate, at(0.2)) > 0.5 * second ? 1 : 0;
+    std::snprintf(label, sizeof label, "two keys a millisecond apart into a full pool both sound (%.4f and %.4f) and six of the eight stay (%d)",
                   first, second, left_of_eight);
     EXPECT(second > 1.0e-3 && first > 0.8 * second && first < 1.25 * second && left_of_eight == 6, label);
   }
@@ -866,12 +976,162 @@ static void test_voices() {
     render(device, 0.5f, kRate);
     device.note_on(3, kEight[3], 0.8f);
     Stereo on = render(device, 0.4f, kRate);
+    // It takes the voice it is fading out of, not a neighbour's: all eight
+    // keys are still there.
+    const double struck = tone_level(on.left, kEight[3], kRate, at(0.2));
+    int still_there = 0;
+    for (float hz : kEight) still_there += tone_level(on.left, hz, kRate, at(0.2)) > 0.5 * struck ? 1 : 0;
     device.note_off(3);
     Stereo off = render(device, 0.6f, kRate);
     const double fall = db(tone_level(off.left, kEight[3], kRate, at(0.4), at(0.6)) /
                            tone_level(on.left, kEight[3], kRate, at(0.2), at(0.4)));
-    std::snprintf(label, sizeof label, "a key struck again with every voice busy keeps its release (%.1f dB after a quarter of it)", fall);
-    EXPECT(fall < -10.0 && fall > -20.0, label);
+    std::snprintf(label, sizeof label,
+                  "a key struck again with every voice busy keeps its release (%.1f dB after a quarter of it) and costs no other key (%d of 8 sound)",
+                  fall, still_there);
+    EXPECT(fall < -10.0 && fall > -20.0 && still_there == 8, label);
+  }
+
+  // A voice used before starts as a new one does: after eight keys and a
+  // silence, a key is the same to the sample as that key from init, tone and
+  // noise (the carrier from its zero crossing, the band's filters empty).
+  {
+    auto patch = [](Isochronic& d) {
+      plain(d);
+      d.set_param(p::kAir, 0.5f);
+      d.set_param(p::kWarmth, 0.6f);
+      d.set_param(p::kOffset, 77.0f);
+    };
+    patch(device);
+    device.note_on(1, 311.0f, 0.7f);
+    Stereo fresh = render(device, 0.5f, kRate);
+    patch(device);
+    for (int n = 0; n < 8; ++n) device.note_on(n, kEight[n] * 1.01f, 0.9f);
+    render(device, 0.37f, kRate);
+    for (int n = 0; n < 8; ++n) device.note_off(n);
+    Stereo rest = render(device, 0.5f, kRate);
+    device.note_on(1, 311.0f, 0.7f);
+    Stereo used = render(device, 0.5f, kRate);
+    const double worst = worst_difference(fresh, used);
+    std::snprintf(label, sizeof label, "a key in a voice used before is the same as from init (worst %g)", worst);
+    EXPECT(peak(rest.left, at(0.4)) == 0.0 && rms(fresh.left) > 1.0e-3 && worst == 0.0, label);
+  }
+
+  // Two keys on one pitch (one of them folded up from under 80 Hz, or one
+  // key under two ids) add in step whenever the second is struck: 3.01 dB
+  // over one key. The second is struck 0 to 1 cycle of the carrier late, in
+  // sixteenths. Before a key took the carrier of the voice already on its
+  // pitch, the two read from 54.65 dB under one key (half a cycle late) to
+  // 3.01 dB over it (a whole cycle), and from -4.6 to +2.2 dB at Air 0.5.
+  {
+    struct Pair {
+      float first, second, sounds;
+      const char* name;
+    };
+    const Pair pairs[] = {{55.0f, 110.0f, 110.0f, "a key at 55 Hz and one at 110 Hz"},
+                          {110.0f, 27.5f, 110.0f, "a key at 110 Hz and one at 27.5 Hz"},
+                          {220.0f, 220.0f, 220.0f, "220 Hz under two ids"}};
+    for (const Pair& pair : pairs) {
+      for (float air : {0.0f, 0.5f}) {
+        const float seconds = air > 0.0f ? 4.0f : 1.0f;
+        auto level = [&](const Stereo& out) {
+          return air > 0.0f ? rms(out.right, at(0.5)) : tone_level(out.right, pair.sounds, kRate, at(0.5));
+        };
+        auto patch = [&](Isochronic& d) {
+          plain(d);
+          d.set_param(p::kDepth, 0.0f);
+          d.set_param(p::kOffset, 180.0f);
+          d.set_param(p::kAir, air);
+          d.note_on(1, pair.first, 0.7f);
+        };
+        patch(device);
+        const double one = level(render(device, seconds, kRate));
+        double lo = 1.0e9, hi = -1.0e9;
+        for (int sixteenth = 0; sixteenth <= 16; ++sixteenth) {
+          patch(device);
+          const int late = static_cast<int>(sixteenth * kRate / pair.sounds / 16.0 + 0.5);
+          for (int i = 0; i < late; ++i) device.process(1);
+          device.note_on(2, pair.second, 0.7f);
+          const double two = db(level(render(device, seconds, kRate)) / one);
+          lo = std::min(lo, two);
+          hi = std::max(hi, two);
+        }
+        std::snprintf(label, sizeof label, "%s, the second up to a cycle late, Air %.1f: the two are %.2f to %.2f dB over one key", pair.name, air,
+                      lo, hi);
+        MEASURED("%s", label);
+        if (air > 0.0f) {
+          EXPECT(hi - lo < 1.0 && lo > 1.5 && hi < 3.01, label);
+        } else {
+          EXPECT(std::fabs(lo - 3.01) < 0.05 && std::fabs(hi - 3.01) < 0.05, label);
+        }
+      }
+    }
+  }
+
+  // The same when the second key has to wait for a voice it takes, and so
+  // starts inside the sample loop, whether the voice on its pitch comes
+  // before it in the pool or after: the pitch's partial doubles (6.02 dB).
+  // At 7919 Hz one sample is 59 degrees of the carrier, so a key that
+  // joined a sample early or late would read 4.8 dB.
+  for (float hz : {311.0f, 7919.0f}) {
+    for (int soft : {0, 5}) {
+      auto pool = [&]() {
+        plain(device);
+        device.set_param(p::kDepth, 0.0f);
+        for (int n = 0; n < 8; ++n) device.note_on(n, n == 2 ? hz : kEight[n], n == soft ? 0.2f : 0.7f);
+      };
+      pool();
+      Stereo alone = render(device, 1.0f, kRate);
+      const double one = tone_level(alone.left, hz, kRate, at(0.5));
+      double lo = 1.0e9, hi = -1.0e9;
+      for (int sixteenth = 0; sixteenth < 16; ++sixteenth) {
+        pool();
+        const float before = 0.2f + sixteenth / (16.0f * 311.0f);
+        Stereo out = render(device, before, kRate);
+        device.note_on(9, hz, 0.7f);
+        out = concat(out, render(device, 1.0f - before, kRate));
+        const double two = db(tone_level(out.left, hz, kRate, at(0.5)) / one);
+        lo = std::min(lo, two);
+        hi = std::max(hi, two);
+      }
+      std::snprintf(label, sizeof label,
+                    "a ninth key at %.0f Hz, a pitch that is sounding, takes voice %d and doubles the pitch whenever it is struck (%.3f to %.3f dB, 6.02 in step)",
+                    hz, soft, lo, hi);
+      EXPECT(std::fabs(lo - 6.02) < 0.05 && std::fabs(hi - 6.02) < 0.05, label);
+    }
+  }
+
+  // A key struck again takes its own carrier on: with a quick attack the
+  // level does not dip while the old voice fades (it fell by up to 16.5 dB
+  // for a moment when the new voice began at its own zero crossing).
+  {
+    double worst = 0.0;
+    for (int sixteenth = 0; sixteenth < 16; ++sixteenth) {
+      plain(device);
+      device.set_param(p::kDepth, 0.0f);
+      device.note_on(1, 220.0f, 0.7f);
+      Stereo held_key = render(device, 0.5f + sixteenth / (16.0f * 220.0f), kRate);
+      device.note_on(1, 220.0f, 0.7f);
+      Stereo after = render(device, 0.05f, kRate);
+      const double full = peak(held_key.left, at(0.3));
+      for (size_t from = 0; from + at(0.005) <= at(0.03); from += at(0.001)) {
+        worst = std::min(worst, db(peak(after.left, from, from + at(0.005)) / full));
+      }
+    }
+    std::snprintf(label, sizeof label, "a key struck again at a quick attack does not dip while the old voice fades (%.2f dB at the lowest)", worst);
+    EXPECT(worst > -0.5, label);
+  }
+
+  // The top of the keys: 12 kHz, or 0.45 of the sample rate where that is
+  // lower. A key above it sounds there, not folded back from past half the
+  // rate.
+  {
+    Stereo out = held([](Isochronic& d) { d.set_param(p::kDepth, 0.0f); }, 30000.0f, 0.5f);
+    const double found = dominant_frequency(out.left, kRate, 2000.0, 23000.0, at(0.2));
+    Stereo low = held([](Isochronic& d) { d.set_param(p::kDepth, 0.0f); }, 5000.0f, 0.5f, 8000.0f);
+    const double found_low = dominant_frequency(low.left, 8000.0, 500.0, 3900.0, at(0.2, 8000.0));
+    std::snprintf(label, sizeof label, "a key at 30 kHz sounds at 12 kHz (%.0f); at a rate of 8 kHz a key at 5 kHz sounds at 3.6 kHz (%.0f)", found,
+                  found_low);
+    EXPECT(std::fabs(found - 12000.0) < 30.0 && std::fabs(found_low - 3600.0) < 20.0, label);
   }
 
   // A ninth key struck and let go before the voice it takes has faded: it
@@ -923,7 +1183,7 @@ static void test_voices() {
 // --- levels ----------------------------------------------------------------------------------
 
 static void test_levels() {
-  char label[220];
+  char label[360];
 
   // One key at gain 0.7 on the default patch, at the three rates.
   for (float rate : kRates) {
@@ -933,6 +1193,33 @@ static void test_levels() {
     const double level = db(std::max(peak(out.left), peak(out.right)));
     std::snprintf(label, sizeof label, "%.0f Hz: one key at gain 0.7 peaks near -18 dBFS at the default volume (%.2f)", rate, level);
     EXPECT(std::fabs(level + 18.0) < 1.0, label);
+  }
+
+  // How hard a key is struck: a tenth of the level for the softest touch
+  // and the rest in a straight line, so gain 0.2 is 0.28 of gain 1, 11.06 dB
+  // under it (13.98 if the gain were the level).
+  {
+    Stereo soft = held([](Isochronic& d) { d.set_param(p::kDepth, 0.0f); }, 220.0f, 0.5f, kRate, 0.2f);
+    Stereo hard = held([](Isochronic& d) { d.set_param(p::kDepth, 0.0f); }, 220.0f, 0.5f, kRate, 1.0f);
+    const double under = db(tone_level(soft.left, 220.0, kRate, at(0.2)) / tone_level(hard.left, 220.0, kRate, at(0.2)));
+    std::snprintf(label, sizeof label, "a key at gain 0.2 is 11.06 dB under one at gain 1 (%.2f)", under);
+    EXPECT(std::fabs(under + 11.06) < 0.5, label);
+  }
+
+  // Release moved while a key is held is the release that key has: set to
+  // 2 s after the key went down at 0.05 s, the key is 15 dB down half a
+  // second after it is let go, not gone.
+  {
+    plain(device);
+    device.set_param(p::kDepth, 0.0f);
+    device.note_on(1, 220.0f, 0.7f);
+    Stereo on = render(device, 0.4f, kRate);
+    device.set_param(p::kRelease, 2.0f);
+    device.note_off(1);
+    Stereo off = render(device, 0.6f, kRate);
+    const double fall = db(tone_level(off.left, 220.0, kRate, at(0.45), at(0.55)) / tone_level(on.left, 220.0, kRate, at(0.2)));
+    std::snprintf(label, sizeof label, "Release moved while a key is held is that key's release (%.1f dB half a second into 2 s, -15 by the law)", fall);
+    EXPECT(std::fabs(fall + 15.0) < 1.5, label);
   }
 
   // A full pool at full gain. The worst case there can be is eight keys on
@@ -957,12 +1244,22 @@ static void test_levels() {
                   warmth, together, chord);
     EXPECT(together > 0.45 && together <= 0.5005 && chord < 0.5, label);
   }
+  // Noise has no fixed peak. Eight keys of noise alone stay under the knee
+  // (the second check read 0.456 in ten minutes on this chord, 0.468 with
+  // all eight on one pitch). With Air part way the tone has already used
+  // the room: in ten minutes this chord passed the knee on 23 samples at
+  // Air 0.25 and at 0.5 (0.527 and 0.522), and eight keys on one pitch on
+  // 1.9 % of them at 0.25 (0.60 after the clip). The clip holds those; one
+  // minute here only says how far past the knee they may go.
   {
     const double noise = full_pool(false, 0.3f, 1.0f, 60.0f);
     const double half = full_pool(false, 0.3f, 0.5f, 60.0f);
-    std::snprintf(label, sizeof label, "eight keys of noise at full gain for a minute stay under the knee (Air 1: %.4f, Air 0.5: %.4f)",
-                  noise, half);
-    EXPECT(noise < 0.5 && half < 0.5, label);
+    const double quarter = full_pool(false, 0.3f, 0.25f, 60.0f);
+    std::snprintf(label, sizeof label,
+                  "eight keys of noise alone at full gain stay under the knee for a minute (%.4f); with Air part way the clip may be met, a little (0.5: %.4f, 0.25: %.4f)",
+                  noise, half, quarter);
+    MEASURED("%s", label);
+    EXPECT(noise < 0.5 && half < 0.55 && quarter < 0.55, label);
   }
 
   // Four keys held, three let go at the longest release: the key that stays
@@ -988,6 +1285,60 @@ static void test_levels() {
                   worst, last - start);
     MEASURED("%s", label);
     EXPECT(worst < 1.0 && std::fabs(last - start - 6.02) < 0.1 && std::max(peak(out.left), peak(out.right)) < 0.5, label);
+  }
+
+  // The same at a release of 2 s, where the rise is quicker: 1.79 dB in the
+  // first 100 ms (45 dB a second over the release time, at its start). At
+  // 0.5 s it is 2.3 dB in 100 ms, and 3.9 dB when seven of eight keys end.
+  // That is the family's law, written down here so a change of it shows.
+  {
+    plain(device);
+    device.set_param(p::kDepth, 0.0f);
+    device.set_param(p::kRelease, 2.0f);
+    for (int n = 0; n < 4; ++n) device.note_on(n, 220.0f * (n + 1), 0.8f);
+    Stereo before = render(device, 0.5f, kRate);
+    for (int n = 1; n < 4; ++n) device.note_off(n);
+    Stereo out = render(device, 4.0f, kRate);
+    const double start = db(tone_level(before.left, 220.0, kRate, at(0.3)));
+    double worst = 0.0, last = start;
+    for (size_t from = 0; from + at(0.1) <= out.size(); from += at(0.1)) {
+      const double level = db(tone_level(out.left, 220.0, kRate, from, from + at(0.1)));
+      worst = std::max(worst, level - last);
+      last = level;
+    }
+    std::snprintf(label, sizeof label,
+                  "at Release 2 s the held key comes up by %.2f dB in the first 100 ms as three of four keys die (1.79 by the law) and %.2f dB in all",
+                  worst, last - start);
+    MEASURED("%s", label);
+    EXPECT(std::fabs(worst - 1.79) < 0.25 && std::fabs(last - start - 6.02) < 0.1, label);
+  }
+
+  // The other side of the law: a chord let go together does not begin to
+  // fall until the sum of its envelopes squared is under 1. Five keys hold
+  // their level for the first 7 dB of the release: at the default 1.5 s a
+  // key of the chord is 1 dB down after 0.2 s, where one key alone is 1 dB
+  // down after 0.025 s.
+  {
+    auto down_one_db = [](int keys) {
+      plain(device);
+      device.set_param(p::kDepth, 0.0f);
+      device.set_param(p::kRelease, 1.5f);
+      for (int n = 0; n < keys; ++n) device.note_on(n, 220.0f * (n + 1), 0.8f);
+      Stereo held = render(device, 1.0f, kRate);
+      for (int n = 0; n < keys; ++n) device.note_off(n);
+      Stereo out = render(device, 1.0f, kRate);
+      const double start = db(tone_level(held.left, 220.0, kRate, at(0.5)));
+      for (size_t from = 0; from + at(0.04) <= out.size(); from += at(0.002)) {
+        if (db(tone_level(out.left, 220.0, kRate, from, from + at(0.04))) < start - 1.0) return (from + at(0.02)) / static_cast<double>(kRate);
+      }
+      return -1.0;
+    };
+    const double one = down_one_db(1), five = down_one_db(5);
+    std::snprintf(label, sizeof label,
+                  "let go together at Release 1.5 s, a key of a chord of five is 1 dB down after %.3f s (0.200 by the law), one key alone after %.3f s (0.025)",
+                  five, one);
+    MEASURED("%s", label);
+    EXPECT(std::fabs(five - 0.200) < 0.02 && std::fabs(one - 0.025) < 0.01, label);
   }
 
   // The clip is a guard for what Volume lets through: eight keys in step at
@@ -1016,7 +1367,7 @@ static void test_levels() {
 // --- the tone --------------------------------------------------------------------------------
 
 static void test_tone() {
-  char label[220];
+  char label[360];
   auto bare = [](float warmth) {
     return [warmth](Isochronic& d) {
       d.set_param(p::kDepth, 0.0f);
@@ -1093,7 +1444,7 @@ static double band_power(const std::vector<float>& x, double hz, double rate, si
 }
 
 static void test_air() {
-  char label[240];
+  char label[360];
   auto airy = [](float air) {
     return [air](Isochronic& d) {
       d.set_param(p::kDepth, 0.0f);
@@ -1161,6 +1512,44 @@ static void test_air() {
     EXPECT(hi - lo < 1.0 && std::fabs(0.5 * (hi + lo) - noise_db[1]) < 1.0, label);
   }
 
+  // At the top of the keys the band reaches half the sample rate and the
+  // sections lose their upper side. The noise is scaled for what they leave:
+  // before that was worked out it was 5.5 dB under the tone on a 12 kHz key
+  // at 44.1 kHz and 3.6 dB at 96 kHz.
+  {
+    double lo = 1.0e9, hi = -1.0e9;
+    char figures[160] = "";
+    for (float rate : kRates) {
+      for (float key : {8000.0f, 12000.0f}) {
+        Stereo noise = held(airy(1.0f), key, 12.5f, rate);
+        const double level = db(rms(noise.left, at(0.5, rate)));
+        lo = std::min(lo, level);
+        hi = std::max(hi, level);
+        std::snprintf(figures + std::strlen(figures), sizeof figures - std::strlen(figures), " %.2f", level);
+      }
+    }
+    std::snprintf(label, sizeof label, "the noise is as loud on keys of 8 and 12 kHz at 44.1, 48 and 96 kHz (%s dBFS, 3 dB under the tone is %.2f)", figures,
+                  tone_db[1] - 3.01);
+    MEASURED("%s", label);
+    EXPECT(hi - lo < 0.7 && std::fabs(0.5 * (hi + lo) - (tone_db[1] - 3.01)) < 0.5, label);
+  }
+
+  // Two keys on one pitch have unlike noise: together they are as loud as
+  // one (their powers add and the scale takes the root of two back). With
+  // one stream for every key they would add in step, 3 dB up.
+  {
+    Stereo one = held(airy(1.0f), 220.0f, 8.5f);
+    plain(device);
+    device.set_param(p::kDepth, 0.0f);
+    device.set_param(p::kAir, 1.0f);
+    device.note_on(1, 220.0f, 0.7f);
+    device.note_on(2, 220.0f, 0.7f);
+    Stereo two = render(device, 8.5f, kRate);
+    const double more = db(rms(two.left, at(0.5)) / rms(one.left, at(0.5)));
+    std::snprintf(label, sizeof label, "two keys of noise on one pitch are as loud as one (%.2f dB; 3.01 if they shared a stream)", more);
+    EXPECT(std::fabs(more) < 1.0, label);
+  }
+
   // Half way the two cross with their powers added.
   {
     Stereo both = held(airy(0.5f), 220.0f, 8.5f);
@@ -1205,7 +1594,7 @@ static std::vector<size_t> pulse_starts(const std::vector<float>& x, size_t from
 }
 
 static void test_glide() {
-  char label[240];
+  char label[360];
 
   // Rate 12 to Target 6 over one minute, a key held: every pulse begins where
   // the closed form puts it, and after the minute the rate is the Target.
@@ -1391,7 +1780,7 @@ static double suddenness(Setup setup, Event event, double period, float rate = k
 }
 
 static void test_clicks() {
-  char label[240];
+  char label[360];
 
   // Each control thrown from end to end and back while a low, pure key
   // sounds, at eight places in the pulse.
@@ -1410,6 +1799,20 @@ static void test_clicks() {
       {p::kAir, 0.0f, 1.0f, "Air up"},           {p::kAir, 1.0f, 0.0f, "Air down"},
       {p::kVolume, -48.0f, 6.0f, "Volume up"},   {p::kVolume, 6.0f, -48.0f, "Volume down"},
   };
+  // The second check measured these throws another way, with nothing
+  // adapted: the largest step from one sample to the next in the 5 ms after
+  // the throw against the steepest step the same sound makes with no throw,
+  // and the peak of what is above 1.5 kHz in those 5 ms against the tone's
+  // peak; 48 places in the pulse, four settings of the pulse, three rates.
+  // The four controls whose plain ratio is over 0.15 read: Depth 1.02 times
+  // and -51.8 dB, Warmth 0.99 and -46.6, Air down 1.14 and -37.2 (the noise
+  // alone has -44.2 up there), Volume 1.04 and -45.9. A smoother made to
+  // jump reads 67 times and -2.3 dB by the same measure. So there is no
+  // click in those: the plain ratio is high where a gap or the pulse's own
+  // fall cuts the change short and leaves it nothing to be compared with.
+  // The largest figure of any throw is Rate thrown at an Edge of 2 ms: 1.38
+  // times and -24.4 dB, the gate catching up along a straight ramp; that one
+  // is in WEAK.md.
   for (float rate : {48000.0f, 44100.0f}) {
     for (const Throw& t : throws) {
       const double period = t.id == p::kRate ? 1.0 / t.from : 0.1;
@@ -1475,7 +1878,7 @@ static void test_clicks() {
 // --- cost ------------------------------------------------------------------------------------
 
 static void test_cost() {
-  char label[200];
+  char label[360];
   for (float rate : {48000.0f, 96000.0f}) {
     const float seconds = 20.0f;
     auto work = [&]() {

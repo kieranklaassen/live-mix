@@ -38,10 +38,26 @@
 //   -18 dBFS at the default Volume and eight at full gain, all in step, reach
 //   the edge of the clip's knee and no further. The clip is a guard only.
 // - Keys under 80 Hz sound an octave or more up; every other key where it is.
+// - A key on a pitch that another voice is sounding (a key folded up onto
+//   it, the same key under another id, or the same key struck again) takes
+//   that voice's carrier, so the two add in step whenever the second is
+//   struck: two keys are 3.01 dB over one. Started from its own zero
+//   crossing, the second cancelled the first when it came half a cycle late
+//   (55 dB under one key) and doubled it when it came a whole cycle late.
+//   Such a key begins part way through a cycle, so the corner at the start
+//   of its attack is not hidden in a zero crossing: at the quickest Attack
+//   it puts 40 dB under the tone above 1.5 kHz (56 dB under before), with no
+//   step in the sound. A key struck again no longer dips while its old voice
+//   fades.
 //
 // The noise is the same in both ears (the ears differ only by the pulse). Its
-// RMS is half the tone's peak, 3 dB under the tone's RMS, so that its peaks
-// stay inside the knee as the tone's do.
+// RMS is half the tone's peak, 3 dB under the tone's RMS, on any key and at
+// any sample rate. Its peaks are another matter: one key's noise peaks 6 to
+// 8 dB over its tone, and eight keys of noise alone at full gain stay under
+// the knee (0.47 in ten minutes). With Air part way the tone has used the
+// room already: eight keys of a chord at full gain pass the knee on a few
+// samples in ten minutes (0.53), and eight on one pitch on 2 % of them
+// (0.62). The clip holds those; the scale is not lowered for them.
 
 #include "../../kit/kit.h"
 #include "../../kit/beat.h"
@@ -62,6 +78,9 @@ class Isochronic : public kit::DeviceBase<isochronic::kNumParams> {
   // down about three semitones either side of the key and 20 dB down an
   // octave away.
   static constexpr float kBandQ = 2.0f;
+  // The power the two sections leave of white noise is summed over this many
+  // steps of ln(frequency), from e^-3 to e^3 of the key (band_power).
+  static constexpr int kBandSteps = 120;
   // The RMS of a key's noise against the peak of its tone.
   static constexpr float kNoiseRms = 0.5f;
   // One key at full gain at 0 dB of Volume. Eight in step add to √8 of one
@@ -83,7 +102,6 @@ class Isochronic : public kit::DeviceBase<isochronic::kNumParams> {
     right_waits_ = false;
     glide_.reset(sr);
     strikes_ = 0;
-    white_ = kit::white_gain(sr);
     steal_step_ = 1.0f / (kStealSeconds * sr);
     restrike_step_ = 1.0f / (kRestrikeSeconds * sr);
     warmth_.set_time(kSmoothingSeconds, sr);
@@ -135,7 +153,7 @@ class Isochronic : public kit::DeviceBase<isochronic::kNumParams> {
       voice.waiting = true;
       fade_out(voice, steal_step_);
     } else {
-      start(voice);
+      start(voice, false);
     }
   }
 
@@ -202,6 +220,9 @@ class Isochronic : public kit::DeviceBase<isochronic::kNumParams> {
   static constexpr float kStealSeconds = 0.004f;
   static constexpr float kRestrikeSeconds = 0.02f;
   static constexpr int kPeakPoints = 17;
+  // Two keys are on one pitch when they are this close, as a part of the
+  // pitch: a sixtieth of a cent. Wider apart they beat, as two keys do.
+  static constexpr double kSamePitch = 1.0e-5;
   static constexpr uint64_t kNoiseSeed = 0x150C4001ull;
 
   static void fade_out(Voice& voice, float step) {
@@ -243,8 +264,9 @@ class Isochronic : public kit::DeviceBase<isochronic::kNumParams> {
     float asked(double phase, float hz) const { return kit::pulse_open(phase, kit::pulse_shape(hz, duty, edge)); }
   };
 
-  void start(Voice& voice);
+  void start(Voice& voice, bool in_sample);
   void restart();
+  static float band_power(float g, float k);
   void build_peak_table();
   float wave_peak(float warmth) const;
   void apply(int id);
@@ -264,7 +286,6 @@ class Isochronic : public kit::DeviceBase<isochronic::kNumParams> {
   float peak_table_[kPeakPoints] = {};
   uint64_t strikes_ = 0;       // keys started since the last restart: each takes its own noise stream
   bool right_waits_ = false;   // the right ear is shut until its first pulse
-  float white_ = 1.0f;
   float steal_step_ = 0.0f;
   float restrike_step_ = 0.0f;
 };
@@ -316,7 +337,7 @@ inline void Isochronic::process(int frames) {
       Voice& voice = pool_.voices[v];
       if (!voice.env.active()) {
         if (!voice.waiting) continue;
-        start(voice);
+        start(voice, true);
       }
       float level = voice.env.next();
       if (voice.fade_step > 0.0f) {
@@ -366,13 +387,26 @@ inline void Isochronic::process(int frames) {
   idle_.settle(output_peak(frames), frames);
 }
 
-// Start a note in a voice that is silent.
-inline void Isochronic::start(Voice& voice) {
+// Start a note in a voice that is silent. `in_sample` when the sample loop
+// calls it, part way through its pass over the voices.
+inline void Isochronic::start(Voice& voice, bool in_sample) {
   const float sr = sample_rate();
   const float hz = voice.next_hz;
   voice.waiting = false;
   voice.step = static_cast<double>(hz) / static_cast<double>(sr);
   voice.carrier = 0.0;  // a sine from its zero crossing
+  // Unless another voice is sounding this pitch: then its carrier is taken,
+  // step and place, and the two stay in step for as long as both sound. All
+  // the voices on a pitch are in step already, so the first found will do.
+  for (Voice& other : pool_.voices) {
+    if (&other == &voice || !other.env.active()) continue;
+    const double apart = other.step - voice.step;
+    if (apart > kSamePitch * voice.step || -apart > kSamePitch * voice.step) continue;
+    voice.step = other.step;
+    // In the sample loop the voices before this one have moved on already.
+    voice.carrier = in_sample && &other < &voice ? kit::wrap_phase(other.carrier - other.step) : other.carrier;
+    break;
+  }
   voice.gain = 0.1f + 0.9f * voice.next_gain;
   voice.second = kit::clamp((0.45f * sr - 2.0f * hz) / (0.05f * sr), 0.0f, 1.0f);
   voice.third = kit::clamp((0.45f * sr - 3.0f * hz) / (0.05f * sr), 0.0f, 1.0f);
@@ -381,17 +415,43 @@ inline void Isochronic::start(Voice& voice) {
     section.reset();
     section.set(hz, kBandQ, sr);
   }
-  // White noise scaled by the root of the rate has π·hz / (288000·Q) of
-  // power left after two such sections, at any sample rate: one value a
-  // sample spreads a third over half the rate, and the pair passes a band
-  // π/4 · hz/Q wide.
-  voice.noise_gain = kNoiseRms * white_ / std::sqrt(kit::kPi * hz / (288000.0f * kBandQ));
+  // One random value a sample has a power of a third, spread over half the
+  // sample rate; what the two sections leave of it is worked out for this
+  // key at this rate, so the noise is as loud at any rate and on any key.
+  voice.noise_gain = kNoiseRms / std::sqrt(band_power(voice.band[0].g, voice.band[0].k) / 3.0f);
   voice.noise.seed(kNoiseSeed + strikes_++);
   voice.fade = 0.0f;
   voice.fade_step = 0.0f;
   set_envelope(voice);
   voice.env.reset();
   voice.env.gate_on();
+}
+
+// The share of white noise's power that two band-pass sections in a row let
+// through: the mean of the fourth power of one section's response over half
+// the sample rate. The sections are the analogue band-pass at the warped
+// frequency u = tan(ω/2) (kit::Svf is the trapezoidal form), so with
+// x = u / g, the frequency in units of the centre,
+//
+//   power = (2g/π) · ∫ F(x)² / (1 + g²x²) dx     F(x) = (kx)² / ((1 - x²)² + (kx)²)
+//
+// summed in ln x, where the band is a quarter wide and the same shape on any
+// key. On a low key g is small, the divisor is 1 and this is g·k/2, which is
+// π·hz / (2·Q·rate); near half the sample rate the divisor takes the band's
+// upper side away: 2.4 dB of it on a 12 kHz key at 44.1 kHz. Called once a
+// note, not in the sample loop.
+inline float Isochronic::band_power(float g, float k) {
+  constexpr float kSpan = 3.0f;
+  const float step = 2.0f * kSpan / static_cast<float>(kBandSteps);
+  float sum = 0.0f;
+  for (int n = 0; n <= kBandSteps; ++n) {
+    const float x = std::exp(-kSpan + step * static_cast<float>(n));
+    const float kx2 = k * k * x * x;
+    const float one = kx2 / ((1.0f - x * x) * (1.0f - x * x) + kx2);
+    const float end = (n == 0 || n == kBandSteps) ? 0.5f : 1.0f;
+    sum += end * one * one * x / (1.0f + g * g * x * x);
+  }
+  return (2.0f * g / kit::kPi) * sum * step;
 }
 
 // Before the first key after every voice has ended. A sleeping device stands
