@@ -309,29 +309,65 @@ describe('following the strokes of the piece', () => {
     expect(signals.map.every((part) => part === 0)).toBe(true)
   })
 
-  it('follows a level smoothly, not at once', () => {
+  it('lets a level in fast and lets it go slowly, neither at once', () => {
     const follower = new VisualFollower()
     const strokes = [stroke()]
     // Nothing moves in a frame of no length.
     expect(follower.step(frame({ dtSec: 0, playheadSec: 8, strokes })).signals.pad).toBe(0)
+    // In one frame of a sixtieth it is a good part of the way up, and after three most of it.
     const first = follower.step(frame({ playheadSec: 8, strokes })).signals.pad
-    expect(first).toBeGreaterThan(0)
-    expect(first).toBeLessThan(0.2)
+    expect(first).toBeGreaterThan(0.3)
+    expect(first).toBeLessThan(0.6)
     const second = follower.step(frame({ playheadSec: 8, strokes })).signals.pad
     expect(second).toBeGreaterThan(first)
+    expect(follower.step(frame({ playheadSec: 8, strokes })).signals.pad).toBeGreaterThan(0.75)
     expect(run(follower, frame({ playheadSec: 8, strokes }), 2).pad).toBeCloseTo(1, 3)
-    // And it falls as smoothly when the stroke is over.
+    // It falls more slowly when the stroke is over.
     const after = follower.step(frame({ playheadSec: 2, strokes })).signals.pad
     expect(after).toBeLessThan(1)
     expect(after).toBeGreaterThan(0.8)
     expect(run(follower, frame({ playheadSec: 2, strokes }), 2).pad).toBeCloseTo(0, 3)
   })
 
-  it('follows the live input as smoothly', () => {
+  it('is half in within a twentieth of a second of a stroke that starts, at sixty and at thirty frames a second', () => {
+    for (const dtSec of [1 / 60, 1 / 30]) {
+      const follower = new VisualFollower()
+      const strokes = [stroke({ startSec: 4, durationSec: 8, fadeInSec: 0 })]
+      follower.step(frame({ dtSec, playheadSec: 3.99, strokes }))
+      let playheadSec = 3.99
+      let frames = 0
+      while (follower.signals.pad < 0.5 && frames < 100) {
+        playheadSec += dtSec
+        follower.step(frame({ dtSec, playheadSec, strokes }))
+        frames++
+      }
+      expect(playheadSec - 4, `${Math.round(1 / dtSec)} frames a second`).toBeLessThan(0.05 + dtSec)
+    }
+  })
+
+  it('stands where the music is after a long frame, as after many short ones', () => {
+    const strokes = [stroke()]
+    // A page that paints once a second: one frame, and the level is there.
+    const seldom = new VisualFollower()
+    seldom.step(frame({ dtSec: 0, playheadSec: 8, strokes }))
+    expect(seldom.step(frame({ dtSec: 1, playheadSec: 8, strokes })).signals.pad).toBeCloseTo(1, 3)
+    // And it has let go as far in one long frame as in the same time of short ones.
+    const often = new VisualFollower()
+    run(often, frame({ playheadSec: 8, strokes }), 2)
+    run(seldom, frame({ playheadSec: 8, strokes }), 2)
+    const gone = seldom.step(frame({ dtSec: 0.25, playheadSec: 2, strokes })).signals.pad
+    expect(gone).toBeCloseTo(
+      run(often, frame({ dtSec: 0.0125, playheadSec: 2, strokes }), 0.25).pad,
+      6,
+    )
+    expect(gone).toBeLessThan(0.2)
+  })
+
+  it('follows the live input as fast', () => {
     const follower = new VisualFollower()
     const first = follower.step(frame({ input: 1 })).signals.input
-    expect(first).toBeGreaterThan(0)
-    expect(first).toBeLessThan(0.2)
+    expect(first).toBeGreaterThan(0.3)
+    expect(first).toBeLessThan(0.6)
     expect(run(follower, frame({ input: 1 }), 2).input).toBeCloseTo(1, 3)
   })
 
@@ -428,21 +464,22 @@ describe('following what is heard', () => {
     expect(texture.high).toBeGreaterThan(drone.high)
   })
 
-  it('follows the spectrum smoothly, not at once', () => {
+  it('lets the spectrum in fast and lets it go slowly, neither at once', () => {
     const follower = new VisualFollower()
     const input = frame({ playing: true, heard: loud() })
     const { signals } = follower.step(input)
     const first = Array.from(signals.bands)
     for (const band of first) {
-      expect(band).toBeGreaterThan(0)
-      expect(band).toBeLessThan(0.2)
+      expect(band).toBeGreaterThan(0.3)
+      expect(band).toBeLessThan(0.6)
     }
-    expect(signals.mix).toBeLessThan(0.2)
+    expect(signals.mix).toBeGreaterThan(0.3)
+    expect(signals.mix).toBeLessThan(0.6)
     follower.step(input)
     signals.bands.forEach((band, index) => expect(band).toBeGreaterThan(first[index]))
     run(follower, input, 2)
     for (const band of signals.bands) expect(band).toBeCloseTo(1, 3)
-    // Silence after: it falls the same way.
+    // Silence after: it falls more slowly.
     const silent = frame({
       playing: true,
       heard: { level: 0, bands: new Float32Array(SPECTRUM_BANDS) },

@@ -155,12 +155,12 @@ describe('how much of a visual shows', () => {
     expect(presenceOf(whole, 4000, 0)).toBe(1)
   })
 
-  it('brings a visual in over a beat and takes it out over a beat', () => {
+  it('has a visual there an eighth of a beat into its stretch, and takes it out over the last beat', () => {
     const stretch = visual('a', 'star', { beat: 4, beats: 8 })
     expect(presenceOf(stretch, 4, 0)).toBe(0)
-    expect(presenceOf(stretch, 4.25, 0)).toBeCloseTo(0.25, 10)
-    expect(presenceOf(stretch, 4.5, 0)).toBeCloseTo(0.5, 10)
-    expect(presenceOf(stretch, 5, 0)).toBe(1)
+    expect(presenceOf(stretch, 4.0625, 0)).toBeCloseTo(0.5, 10)
+    expect(presenceOf(stretch, 4.125, 0)).toBe(1)
+    expect(presenceOf(stretch, 4.25, 0)).toBe(1)
     expect(presenceOf(stretch, 8, 0)).toBe(1)
     expect(presenceOf(stretch, 11, 0)).toBe(1)
     expect(presenceOf(stretch, 11.5, 0)).toBeCloseTo(0.5, 10)
@@ -175,11 +175,22 @@ describe('how much of a visual shows', () => {
     expect(presenceOf(stretch, 400, 1)).toBe(0)
   })
 
-  it('still shows a stretch shorter than two beats wholly at its middle', () => {
+  it('still shows a stretch shorter than two beats wholly, and sooner than it leaves', () => {
     const short = visual('a', 'star', { beat: 4, beats: 1 })
-    expect(presenceOf(short, 4.25, 0)).toBeCloseTo(0.5, 10)
+    // Half a beat is all there is to go out over, and the way in is as much shorter.
+    expect(presenceOf(short, 4.03125, 0)).toBeCloseTo(0.5, 10)
+    expect(presenceOf(short, 4.0625, 0)).toBe(1)
     expect(presenceOf(short, 4.5, 0)).toBe(1)
     expect(presenceOf(short, 4.75, 0)).toBeCloseTo(0.5, 10)
+    expect(presenceOf(short, 5, 0)).toBe(0)
+  })
+
+  it('eases a bend in over a beat as it eases it out', () => {
+    const bend = visual('a', 'mirror', { beat: 4, beats: 8 })
+    expect(presenceOf(bend, 4.125, 0)).toBeCloseTo(0.125, 10)
+    expect(presenceOf(bend, 4.5, 0)).toBeCloseTo(0.5, 10)
+    expect(presenceOf(bend, 5, 0)).toBe(1)
+    expect(presenceOf(bend, 11.5, 0)).toBeCloseTo(0.5, 10)
   })
 })
 
@@ -236,7 +247,8 @@ describe('the frame a piece comes to', () => {
       const layer = frameOf(set, quietSignals(), beat, NO_LEVELS).layers[0]
       return layer && 'paint' in layer ? layer.level : null
     }
-    expect(levelAt(4.5)).toBeCloseTo(0.45, 10)
+    expect(levelAt(4.0625)).toBeCloseTo(0.45, 10)
+    expect(levelAt(4.5)).toBeCloseTo(0.9, 10)
     expect(levelAt(8)).toBeCloseTo(0.9, 10)
     expect(levelAt(11.75)).toBeCloseTo(0.225, 10)
   })
@@ -249,7 +261,7 @@ describe('the frame a piece comes to', () => {
     expect(frameOf(set, quietSignals(), 2, NO_LEVELS).layers).toEqual([])
     expect(frameOf(set, quietSignals(), 20, new Map([['stroke-2', 1]])).layers).toEqual([])
     // Barely there is not there.
-    expect(frameOf(set, quietSignals(), 4.005, new Map([['stroke-1', 0.005]])).layers).toEqual([])
+    expect(frameOf(set, quietSignals(), 4.001, new Map([['stroke-1', 0.005]])).layers).toEqual([])
   })
 
   it('shows a linked visual while its stroke sounds, as loud as the stroke is', () => {

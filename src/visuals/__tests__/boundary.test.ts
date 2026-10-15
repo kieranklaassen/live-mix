@@ -47,6 +47,7 @@ describe('the visuals entry', () => {
       'shader-sources.ts',
       'stage.ts',
       'styles.ts',
+      'sync.ts',
     ])
   })
 
