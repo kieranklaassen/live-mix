@@ -383,6 +383,29 @@ static void test_cycle() {
     }
   }
 
+  // The shape of a rise, read from the sound: a quarter, a half and three
+  // quarters of the way up In 4 the level is the header's rise() of the crest.
+  {
+    tone_only(device);
+    pattern(device, 4.0f, 2.0f, 4.0f, 0.0f);
+    device.note_on(1, whole_key(kRate), 0.7f);
+    Stereo out = play(device, at(6.0));
+    const std::vector<double> track = level_track(out.left);
+    const double crest = track[at(5.0) / 100];
+    for (float t : {0.25f, 0.5f, 0.75f}) {
+      // The middle of the period that straddles the moment: the mean of its two neighbours.
+      const size_t index = at(4.0 * t) / 100;
+      const double measured = 0.5 * (track[index - 1] + track[index]) / crest;
+      std::snprintf(label, sizeof label, "%.2f of the way up In the level is %.4f of the crest (rise says %.4f)", t, measured,
+                    BreathPacer::rise(t));
+      EXPECT(std::fabs(measured - BreathPacer::rise(t)) < 0.002, label);
+    }
+    std::printf("  rise(0.25) %.4f, rise(0.5) %.4f, rise(0.75) %.4f\n", BreathPacer::rise(0.25f), BreathPacer::rise(0.5f),
+                BreathPacer::rise(0.75f));
+    EXPECT(std::fabs(BreathPacer::rise(0.25f) - 0.1982f) < 1.0e-3f && std::fabs(BreathPacer::rise(0.5f) - 0.5f) < 1.0e-4f,
+           "a rise is half a line and half a soft S: 0.198 at a quarter, a half at a half");
+  }
+
   // The shape of a part, as the header states it.
   EXPECT(BreathPacer::rise(0.0f) == 0.0f && std::fabs(BreathPacer::rise(1.0f) - 1.0f) < 1.0e-6f,
          "a rise runs from 0 to 1");
@@ -612,6 +635,28 @@ static void test_marks() {
     device.note_on(1, 220.0f, 0.7f);
     const std::vector<size_t> held = mark_onsets(device, at(6.9), kRate);
     EXPECT(held.size() == 2 && held[1] == at(5.0), "Hold 3: no mark where the Hold begins, one where Out does");
+  }
+
+  // The first In mark (struck as the key arrives) is as loud as the next one,
+  // for one key and for a chord; and a chord's marks are scaled by the root
+  // of the count, so four keys of one pitch class strike no more than twice
+  // as hard as one.
+  {
+    double single = 0.0;
+    for (int keys : {1, 4}) {
+      marks_only(device);
+      pattern(device, 2.0f, 0.0f, 2.0f, 0.0f);
+      for (int n = 0; n < keys; ++n) device.note_on(n, 220.0f * static_cast<float>(n + 1), 0.7f);
+      Stereo out = play(device, at(4.5));
+      const double first = peak(out.left, 0, at(0.4)), next = peak(out.left, at(4.0), at(4.4));
+      if (keys == 1) single = first;
+      std::snprintf(label, sizeof label, "%d key(s): the first In mark peaks at %.4f and the next at %.4f", keys, first, next);
+      EXPECT(first > 0.01 && std::fabs(first / next - 1.0) < 0.01, label);
+      if (keys == 4) {
+        std::snprintf(label, sizeof label, "four keys strike %.2f times as hard as one (the root of the count is 2)", first / single);
+        EXPECT(first / single > 1.0 && first / single <= 2.0, label);
+      }
+    }
   }
 
   // The two marks: the key's own pitch at In, a fifth below it at Out; soft
@@ -1468,6 +1513,20 @@ static void test_levels() {
       levels[n++] = rms(play(device, at(3.0)).left, at(2.0));
     }
     EXPECT(std::fabs(db(levels[1] / levels[0]) + 6.02) < 0.1, "half the gain is 6 dB down");
+  }
+
+  // So is the air's: it is one noise, as loud as the key that opens it.
+  {
+    double levels[2];
+    int n = 0;
+    for (float gain : {0.7f, 0.35f}) {
+      air_only(device);
+      pattern(device, 1.0f, 12.0f, 1.0f, 0.0f);
+      device.note_on(1, 220.0f, gain);
+      levels[n++] = rms(play(device, at(9.0)).left, at(2.0));
+    }
+    std::snprintf(label, sizeof label, "half the gain is 6 dB less air (%.2f dB)", db(levels[1] / levels[0]));
+    EXPECT(std::fabs(db(levels[1] / levels[0]) + 6.02) < 0.1, label);
   }
 
   // The sum is scaled by the root of the count of sounding keys (plan KTD5):
