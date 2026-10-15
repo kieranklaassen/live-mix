@@ -134,7 +134,7 @@ export const BREATH_PACER_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long the sound takes to fade once a key is let go. The breath goes on in step while any key still sounds.',
+      'How long the sound takes to fade once a key is let go. A key played before it has gone joins the breath where it stands. Once it has gone, the next key starts at In.',
   },
   volume: {
     id: 12,
@@ -145,7 +145,7 @@ export const BREATH_PACER_PARAMS = {
     taper: 'linear',
     unit: 'dB',
     description:
-      'Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up.',
+      'Output level of the instrument. A soft clip after it rounds off the peaks when this is set high and many keys are down.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -217,7 +217,7 @@ export const BREATH_PACER_DESCRIPTOR = wasmDeviceDescriptor(BREATH_PACER_DEVICE,
       bright: 0.5,
       marks: 0.3,
     },
-    'Box four': {
+    'Fours all round': {
       in: 4,
       hold: 4,
       out: 4,
@@ -229,7 +229,7 @@ export const BREATH_PACER_DESCRIPTOR = wasmDeviceDescriptor(BREATH_PACER_DEVICE,
       release: 0.6,
       volume: -11,
     },
-    'Four seven eight': {
+    'In 4 hold 7 out 8': {
       in: 4,
       hold: 7,
       out: 8,
@@ -247,10 +247,11 @@ export const BREATH_PACER_DESCRIPTOR = wasmDeviceDescriptor(BREATH_PACER_DEVICE,
       rest: 0,
       slowTo: 2,
       over: 5,
-      air: 0.6,
-      tone: 0.4,
-      bright: 0.5,
-      marks: 0.4,
+      air: 0.75,
+      tone: 0.25,
+      bright: 0.75,
+      marks: 0.45,
+      release: 1.5,
     },
     'Long slow down': {
       in: 2.5,
@@ -338,9 +339,9 @@ export const BREATH_PACER_DESCRIPTOR = wasmDeviceDescriptor(BREATH_PACER_DEVICE,
       marks: 0.7,
     },
     'Long tide': {
-      in: 8,
+      in: 5,
       hold: 0,
-      out: 12,
+      out: 8,
       rest: 0,
       air: 0.9,
       tone: 0.1,

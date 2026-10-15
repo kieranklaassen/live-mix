@@ -240,6 +240,9 @@ static void test_voices();
 static void test_controls();
 static void test_rates();
 static void test_levels();
+static void test_marks_under_keys();
+static void test_steal_and_parts();
+static void test_half_hour();
 static void test_cost();
 
 int main() {
@@ -263,6 +266,9 @@ int main() {
   test_controls();
   test_rates();
   test_levels();
+  test_marks_under_keys();
+  test_steal_and_parts();
+  test_half_hour();
   test_cost();
   return finish("breath-pacer");
 }
@@ -1593,6 +1599,379 @@ static void test_levels() {
     Stereo out = play(device, at(5.0));
     std::snprintf(label, sizeof label, "everything at its top is held by the soft clip (peak %.3f)", both_peak(out));
     EXPECT(both_peak(out) > 0.5 && both_peak(out) <= 1.0, label);
+  }
+}
+
+// --- the marks under keys that come and go ----------------------------------------------------
+
+// The same passage twice, once with a key struck at `place`; in both the key
+// 1 was let go `lifted` seconds before. How suddenly the strike arrives, as
+// suddenness() reads it.
+static double sudden_after_lift(const Change& setup, double place, double lifted, const Change& event) {
+  Stereo out[2];
+  for (int pass = 0; pass < 2; ++pass) {
+    device.init(kRate);
+    setup(device);
+    play(device, at(place - lifted));
+    device.note_off(1);
+    play(device, at(lifted));
+    if (pass == 0) event(device);
+    out[pass] = play(device, at(0.02));
+  }
+  double early = 0.0, whole = 0.0;
+  for (size_t i = 0; i < out[0].size(); ++i) {
+    const double difference = std::max(std::fabs(static_cast<double>(out[0].left[i]) - out[1].left[i]),
+                                       std::fabs(static_cast<double>(out[0].right[i]) - out[1].right[i]));
+    if (i < 8) early = std::max(early, difference);
+    whole = std::max(whole, difference);
+  }
+  return whole > 0.0 ? early / whole : 0.0;
+}
+
+static void test_marks_under_keys() {
+  char label[280];
+  // In 2, Hold 1, Out 2, Rest 1: the Out turn is at 3 s and the next In turn
+  // at 6 s. The moments below fall 3 to 15 ms after a turn, while its mark
+  // rises and is at its loudest.
+  const Change one = [](BreathPacer& d) {
+    pattern(d, 2.0f, 1.0f, 2.0f, 1.0f);
+    d.set_param(p::kFloor, 0.3f);
+    d.note_on(1, 220.0f, 0.8f);
+  };
+  const std::vector<double> ringing = {3.004, 3.006, 3.012, 6.003, 6.007, 6.015};
+
+  // A key that joins while a mark rings comes in gradually: it has no mark
+  // of its own yet, so it must not turn the ringing one down. (Counted into
+  // the marks' scale at once, it took 3 dB off the mark in half a
+  // millisecond: 0.16 here for one key and 0.22 for three.)
+  {
+    const double join = suddenness(one, [](BreathPacer& d) { d.note_on(2, 329.63f, 0.8f); }, ringing);
+    const double three = suddenness(
+        one,
+        [](BreathPacer& d) {
+          d.note_on(2, 277.18f, 0.8f);
+          d.note_on(3, 329.63f, 0.8f);
+          d.note_on(4, 440.0f, 0.8f);
+        },
+        ringing);
+    std::snprintf(label, sizeof label, "a key, and three keys, that join while a mark rings start gradually (%.3f and %.3f of the way after 8 samples)",
+                  join, three);
+    EXPECT(join < 0.08 && three < 0.08, label);
+    std::printf("  joining 3 to 15 ms after a turn: one key %.3f, three keys %.3f of the way after 8 samples\n", join, three);
+  }
+
+  // The ringing mark itself is left as it was: marks alone, a second key 7 ms
+  // after the In turn and 7 ms after the Out turn, against the same marks
+  // with no second key.
+  for (double turn : {0.0, 2.0}) {
+    Stereo out[2];
+    for (int pass = 0; pass < 2; ++pass) {
+      marks_only(device);
+      pattern(device, 2.0f, 0.0f, 2.0f, 0.0f);
+      device.note_on(1, 220.0f, 0.7f);
+      Take take;
+      play(device, take, at(turn + 0.007));
+      if (pass == 0) device.note_on(2, 300.0f, 0.7f);
+      play(device, take, at(0.6));
+      out[pass] = take.out;
+    }
+    const double apart = worst_difference(out[0], out[1]);
+    std::snprintf(label, sizeof label, "a key that joins 7 ms after the turn at %.0f s leaves its mark as it was (worst %g apart, the mark peaks at %.3f)",
+                  turn, apart, both_peak(out[1], at(turn), at(turn + 0.3)));
+    EXPECT(apart < 1.0e-7 && both_peak(out[1], at(turn), at(turn + 0.3)) > 0.05, label);
+  }
+
+  // A key let go and taken up again while its mark rings brings the mark back
+  // as it brings its tone back, not at once. (With the marks' gate opening in
+  // half a millisecond this read 0.22 to 0.32.)
+  {
+    double worst = 0.0;
+    for (float release : {1.0f, 5.0f}) {
+      for (double lifted : {0.02, 0.3}) {
+        for (double place : {3.006, 6.007}) {
+          const Change setup = [&](BreathPacer& d) {
+            d.set_param(p::kRelease, release);
+            one(d);
+          };
+          worst = std::max(worst, sudden_after_lift(setup, place, lifted, [](BreathPacer& d) { d.note_on(1, 220.0f, 0.8f); }));
+        }
+      }
+    }
+    std::snprintf(label, sizeof label, "a key taken up again while its mark rings under the release starts gradually (%.3f of the way after 8 samples)", worst);
+    EXPECT(worst < 0.1, label);
+    std::printf("  the same key again 7 ms after a turn, inside its release: %.3f of the way after 8 samples at the worst\n", worst);
+  }
+
+  // The marks let go as the key does. Marks alone, a key up 20 ms after the
+  // strike, against the same mark held: with Release at 2 s the mark is a few
+  // dB down 130 ms later (the release reaches -100 dB after 1.67 times its
+  // setting), and with Release at its shortest it is all but gone after 40 ms.
+  {
+    double ratio[2];
+    int n = 0;
+    for (float release : {2.0f, p::kParamMin[p::kRelease]}) {
+      Stereo out[2];
+      for (int pass = 0; pass < 2; ++pass) {
+        marks_only(device);
+        device.set_param(p::kRelease, release);
+        device.note_on(1, 220.0f, 0.7f);
+        Take take;
+        play(device, take, at(0.02));
+        if (pass == 0) device.note_off(1);
+        play(device, take, at(0.2));
+        out[pass] = take.out;
+      }
+      const size_t from = at(release > 1.0f ? 0.14 : 0.06), to = at(release > 1.0f ? 0.16 : 0.07);
+      ratio[n++] = rms(out[0].left, from, to) / rms(out[1].left, from, to);
+    }
+    std::snprintf(label, sizeof label, "a mark lets go as its key does: %.1f dB down 130 ms into a Release of 2 s, %.1f dB down 45 ms into the shortest",
+                  db(ratio[0]), db(ratio[1]));
+    EXPECT(db(ratio[0]) < -1.5 && db(ratio[0]) > -8.0 && db(ratio[1]) < -30.0, label);
+  }
+  // Release moved while the key is down reaches the marks too.
+  {
+    Stereo out[2];
+    for (int pass = 0; pass < 2; ++pass) {
+      marks_only(device);
+      device.set_param(p::kRelease, 2.0f);
+      device.note_on(1, 220.0f, 0.7f);
+      Take take;
+      play(device, take, at(0.01));
+      device.set_param(p::kRelease, p::kParamMin[p::kRelease]);
+      play(device, take, at(0.01));
+      if (pass == 0) device.note_off(1);
+      play(device, take, at(0.2));
+      out[pass] = take.out;
+    }
+    const double left_over = db(rms(out[0].left, at(0.06), at(0.07)) / rms(out[1].left, at(0.06), at(0.07)));
+    std::snprintf(label, sizeof label, "Release moved while a key is down reaches its marks (%.1f dB down 45 ms after the key is let go)", left_over);
+    EXPECT(left_over < -30.0, label);
+  }
+}
+
+// --- the steal's fade, and the parts against one another --------------------------------------
+
+// The largest third difference of a signal: a corner or a step stands far
+// above what a low, pure tone has of its own.
+static double kink(const std::vector<float>& x) {
+  double worst = 0.0;
+  for (size_t i = 3; i < x.size(); ++i) {
+    worst = std::max(worst, std::fabs(static_cast<double>(x[i]) - 3.0 * x[i - 1] + 3.0 * x[i - 2] - x[i - 3]));
+  }
+  return worst;
+}
+
+// Eight low, pure keys on a full, still breath; `event` at each of four
+// moments, rendered from 16 samples before it for `seconds` after it. The
+// kink of that passage over the kink of the same passage with no event, at
+// its worst.
+static double kink_against_steady(const Change& event, double seconds) {
+  double worst = 0.0;
+  for (double time : {1.5, 1.7031, 2.2077, 3.1013}) {
+    double kinks[2];
+    for (int pass = 0; pass < 2; ++pass) {
+      tone_only(device);
+      device.set_param(p::kRelease, p::kParamMin[p::kRelease]);
+      pattern(device, 1.0f, 12.0f, 1.0f, 0.0f);
+      for (int n = 0; n < BreathPacer::kMaxVoices; ++n) device.note_on(n, 55.0f * std::pow(2.0f, n / 12.0f), 0.5f);
+      play(device, at(time) - 16);
+      Take take;
+      play(device, take, 16);
+      if (pass == 0) event(device);
+      play(device, take, at(seconds));
+      kinks[pass] = kink(take.out.left);
+    }
+    worst = std::max(worst, kinks[0] / kinks[1]);
+  }
+  return worst;
+}
+
+static void test_steal_and_parts() {
+  char label[280];
+  auto hold_eight = [](BreathPacer& d) {
+    for (int n = 0; n < BreathPacer::kMaxVoices; ++n) d.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.8f);
+  };
+  auto still = [](BreathPacer& d, float rate = kRate) {
+    tone_only(d, rate);
+    pattern(d, 1.0f, 12.0f, 1.0f, 0.0f);
+  };
+
+  // A key struck twice while its stolen voice is still fading for it: the
+  // note that waits is the second strike, its level and its pitch, and the
+  // sound that is fading is left alone.
+  {
+    double level[3], other = 0.0;
+    for (int which = 0; which < 3; ++which) {
+      still(device);
+      hold_eight(device);
+      play(device, at(3.0));
+      if (which == 1) device.note_on(50, 2500.0f, 0.2f);
+      if (which == 2) device.note_on(50, 3100.0f, 0.8f);
+      device.note_on(50, 2500.0f, 0.8f);
+      Stereo out = play(device, at(0.6));
+      level[which] = tone_level(out.left, 2500.0, kRate, at(0.2));
+      if (which == 2) other = tone_level(out.left, 3100.0, kRate, at(0.2));
+    }
+    std::snprintf(label, sizeof label,
+                  "a key struck twice into a full pool plays as its second strike says: softer first %.3f, another pitch first %.3f of one strike; %.5f left of the first pitch",
+                  level[1] / level[0], level[2] / level[0], other / level[0]);
+    EXPECT(level[0] > 0.01 && std::fabs(level[1] / level[0] - 1.0) < 0.02 && std::fabs(level[2] / level[0] - 1.0) < 0.02 &&
+               other < 0.02 * level[0],
+           label);
+  }
+
+  // One pitch under two ids while the first is letting go (two rows of a
+  // piece on one note): the second voice joins the first in step whenever it
+  // arrives, sixteen arrivals across one cycle of the tone, so the two never
+  // cancel by the accident of the moment.
+  {
+    double low = 1.0e9, high = 0.0;
+    for (int trial = 0; trial < 16; ++trial) {
+      still(device);
+      device.set_param(p::kRelease, 5.0f);
+      device.note_on(1, 220.0f, 0.7f);
+      play(device, at(1.5));
+      device.note_off(1);
+      play(device, at(0.2 + trial / (16.0 * 220.0)));
+      device.note_on(2, 220.0f, 0.7f);
+      Stereo out = play(device, at(0.8));
+      const double level = tone_level(out.left, 220.0, kRate, at(0.3));
+      low = std::min(low, level);
+      high = std::max(high, level);
+    }
+    std::snprintf(label, sizeof label, "a second id on the pitch of a key that is letting go adds in step at every arrival (%.3f dB between the least and the most)",
+                  db(high / low));
+    EXPECT(low > 0.01 && db(high / low) < 0.1, label);
+  }
+
+  // The steal's fade is 6 ms at every rate. One sounding key and seven at no
+  // gain fill the pool; a ninth key takes the oldest voice and is let go
+  // before it starts, so the fade is all there is: the output is the fading
+  // key and then exact zeros.
+  for (float rate : kRates) {
+    still(device, rate);
+    device.note_on(0, whole_key(rate), 0.8f);
+    for (int n = 1; n < BreathPacer::kMaxVoices; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 3 / 12.0f), 0.0f);
+    Stereo before = play(device, at(3.0, rate));
+    device.note_on(99, 2500.0f, 0.8f);
+    device.note_off(99);
+    Stereo out = play(device, at(0.05, rate));
+    size_t last = 0;
+    for (size_t i = 0; i < out.size(); ++i) {
+      if (out.left[i] != 0.0f || out.right[i] != 0.0f) last = i + 1;
+    }
+    const double expected = static_cast<double>(BreathPacer::kStealSeconds) * rate;
+    std::snprintf(label, sizeof label, "at %.0f Hz a stolen voice is gone after 6 ms: %zu samples of sound (%.2f ms), then exact zeros", rate, last,
+                  1000.0 * static_cast<double>(last) / rate);
+    EXPECT(peak(before.left, at(2.9, rate)) > 0.01 && std::fabs(static_cast<double>(last) - expected) <= 3.0, label);
+  }
+
+  // The air against the tone, each alone at its knob's top on a full, still
+  // breath with Bright as it comes: the air's RMS sits about 6 dB under the
+  // tone's. (No rule sets this; it is what the default patch's balance of
+  // Air 0.6 and Tone 0.4 is built on, so it is held to within 1.5 dB.)
+  {
+    tone_only(device);
+    device.set_param(p::kBright, p::kParamDefault[p::kBright]);
+    pattern(device, 1.0f, 12.0f, 1.0f, 0.0f);
+    device.note_on(1, 220.0f, 0.7f);
+    const double tone = rms(play(device, at(4.0)).left, at(1.5));
+    air_only(device);
+    pattern(device, 1.0f, 12.0f, 1.0f, 0.0f);
+    device.note_on(1, 220.0f, 0.7f);
+    const double air = rms(play(device, at(12.0)).left, at(1.5));
+    std::snprintf(label, sizeof label, "the air at its top is about 6 dB under the tone at its top (%.2f dB; tone %.2f dBFS, air %.2f dBFS)",
+                  db(air / tone), db(tone), db(air));
+    EXPECT(std::fabs(db(air / tone) + 5.8) < 1.5, label);
+  }
+
+  // Corners. A steal fades the old note out in a straight line over 6 ms and
+  // a key up at the shortest Release starts an exponential fall: each leaves
+  // a corner, far smaller than a step's. Against eight low, pure keys the
+  // third difference reads 176 times the steady chord's for a steal and 111
+  // times for a key up; a fade of 2 ms reads 523 times, and a key cut at
+  // once 87,891 times. (At two other moments a steal reads up to 254 times.)
+  {
+    const double steal = kink_against_steady([](BreathPacer& d) { d.note_on(99, 61.74f, 0.5f); }, 0.03);
+    const double off = kink_against_steady([](BreathPacer& d) { d.note_off(3); }, 0.12);
+    std::printf("  kink against the steady chord: a steal %.0f times, a key up at the shortest Release %.0f times\n", steal, off);
+    std::snprintf(label, sizeof label, "a steal's corner is a 6 ms fade's, not a quicker one's (kink %.0f times the steady chord's)", steal);
+    EXPECT(steal < 300.0, label);
+    std::snprintf(label, sizeof label, "a key up at the shortest Release leaves the corner of its fall and no step (kink %.0f times)", off);
+    EXPECT(off < 220.0, label);
+  }
+}
+
+// --- half an hour -----------------------------------------------------------------------------
+
+// When the turn at `position` seconds of the pattern comes round for a breath
+// that began `start` seconds into the slow down, counted from the slow
+// down's own start: the closed form again, worked out here apart from the
+// device.
+static double turn_time_from(double start, double position, double slow_to, double over) {
+  const double log_ratio = -std::log(slow_to);
+  const double begun = std::exp(log_ratio * start / over);  // the speed where the breath began
+  const double left = over * (std::exp(log_ratio) - begun) / log_ratio;  // the pattern covered until the slow down ends
+  if (position <= left) return over * std::log(begun + position * log_ratio / over) / log_ratio;
+  return over + (position - left) * slow_to;
+}
+
+// Slow to 2 over 30 minutes, the longest the device allows, on In 2.5,
+// Out 2.5. The first turns, then 28 minutes asleep (only the slow down
+// counts on), then a key at 29 minutes whose breath starts at In: its turns
+// come when the closed form says, the slow down lands on its target at 30
+// minutes, and every cycle after that is 10 s to the sample.
+static void test_half_hour() {
+  char label[280];
+  for (float rate : kRates) {
+    marks_only(device, rate);
+    pattern(device, 2.5f, 0.0f, 2.5f, 0.0f);
+    device.set_param(p::kSlowTo, 2.0f);
+    device.set_param(p::kOver, 30.0f);
+    device.note_on(1, 220.0f, 0.7f);
+    MarkFinder early(rate);
+    early.run(device, at(40.0, rate));
+    double worst_early = 0.0;
+    for (size_t k = 0; k < early.onsets.size(); ++k) {
+      worst_early = std::max(worst_early, std::fabs(static_cast<double>(early.onsets[k]) / rate - turn_time(2.5 * static_cast<double>(k), 2.0, 1800.0)));
+    }
+    device.note_off(1);
+    size_t left = at(1740.0, rate) - at(40.0, rate);
+    while (left > 0) {
+      const int n = static_cast<int>(std::min(static_cast<size_t>(2048), left));
+      device.process(n);
+      left -= static_cast<size_t>(n);
+    }
+    const bool silent = device.out_left()[0] == 0.0f && device.out_right()[0] == 0.0f;
+    const double place = device.meter(1), cycle = device.cycle_seconds();
+    device.note_on(2, 220.0f, 0.7f);
+    MarkFinder late(rate);
+    late.run(device, at(100.0, rate));
+    double worst_late = 0.0, worst_cycle = 0.0;
+    int cycles = 0;
+    for (size_t k = 0; k < late.onsets.size(); ++k) {
+      const double expected = turn_time_from(1740.0, 2.5 * static_cast<double>(k), 2.0, 1800.0) - 1740.0;
+      worst_late = std::max(worst_late, std::fabs(static_cast<double>(late.onsets[k]) / rate - expected));
+      if (k + 2 < late.onsets.size() && static_cast<double>(late.onsets[k]) / rate >= 60.0) {
+        worst_cycle = std::max(worst_cycle, std::fabs(static_cast<double>(late.onsets[k + 2] - late.onsets[k]) - 10.0 * rate));
+        ++cycles;
+      }
+    }
+    std::printf("  %.0f Hz, Slow to 2 over 30 min: %zu turns at the start worst %.3f ms from the closed form; at 29 min the cycle reads %.4f s "
+                "(place %.4f); %zu turns from there worst %.3f ms; %d cycles after 30 min worst %.0f samples from 10 s\n",
+                rate, early.onsets.size(), 1000.0 * worst_early, cycle, place, late.onsets.size(), 1000.0 * worst_late, cycles, worst_cycle);
+    std::snprintf(label, sizeof label, "at %.0f Hz the first turns of a half hour slow down come when the closed form says (worst %.3f ms over %zu turns)",
+                  rate, 1000.0 * worst_early, early.onsets.size());
+    EXPECT(early.onsets.size() >= 15 && worst_early < 5.0e-4, label);
+    std::snprintf(label, sizeof label, "at %.0f Hz the slow down counts on through 28 minutes asleep (the cycle reads %.4f s at 29 min, place %.4f)", rate,
+                  cycle, place);
+    EXPECT(silent && std::fabs(cycle - 5.0 * std::pow(2.0, 1740.0 / 1800.0)) < 1.0e-3 && std::fabs(place - 1740.0 / 1800.0) < 1.0e-4, label);
+    std::snprintf(label, sizeof label, "at %.0f Hz a breath begun at 29 min turns when the closed form says, through the end of the slow down (worst %.3f ms over %zu turns)",
+                  rate, 1000.0 * worst_late, late.onsets.size());
+    EXPECT(late.onsets.size() >= 18 && worst_late < 5.0e-4, label);
+    std::snprintf(label, sizeof label, "at %.0f Hz every cycle after 30 min is 10 s to the sample (%d cycles, worst %.0f samples out)", rate, cycles,
+                  worst_cycle);
+    EXPECT(cycles >= 2 && worst_cycle <= 1.0 && device.cycle_seconds() == 10.0 && device.meter(1) == 1.0f, label);
   }
 }
 

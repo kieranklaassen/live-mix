@@ -40,7 +40,9 @@
 //   (two thirds of the key). They rise over 5 ms, fall 60 dB in half a second
 //   and end in exact zeros. With Hold at 0 the Out mark is the one mark of
 //   the turn; where a Hold begins there is none. A key that joins waits for
-//   the next turn. A mark is not shaped by the breath's level.
+//   the next turn, and does not move the marks that are ringing. A key taken
+//   up again while it lets go brings its ringing mark back as its tone. A mark
+//   is not shaped by the breath's level.
 // - The slow down: the speed glides from 1 to 1 / Slow to over Over minutes
 //   by ratio and in closed form (kit::RateGlide), so the whole cycle grows
 //   to Slow to times its length. Slow to and Over arm it; In, Hold, Out and
@@ -48,10 +50,13 @@
 //   the first key; it counts on through releases, new keys and sleep, then
 //   holds. Over at 0 is off.
 // - The sum of the keys is scaled by 1 / √max(1, Σ envelope²) (the tone by
-//   the keys' envelopes, the marks by the marks' own), so a chord is as loud
-//   as one key and a full pool of eight stays under the clip's knee. The air
-//   is one stereo noise, as loud as one key whatever the count. The soft clip
-//   is a guard only.
+//   the keys' envelopes, the marks by the gates of the keys whose marks are
+//   ringing), so a chord is as loud as one key and a full pool of eight stays
+//   under the clip's knee. The air is one stereo noise, as loud as one key
+//   whatever the count. The soft clip is a guard only. While the summed
+//   envelopes stand over 1 the scale makes up for their fall, so a chord let
+//   go together keeps its level for the first tenth of Release or so (five
+//   keys are 6 dB down after 0.18 of it where one key takes 0.10).
 // - The air is pink noise (kit::ColourFilter, one level at every sample
 //   rate) from two unlike streams, spread by the Ears law at a half: its side
 //   is 6 dB under its mid, so it folds to mono without loss. The tone and the
@@ -218,6 +223,10 @@ class BreathPacer : public kit::DeviceBase<breath_pacer::kNumParams> {
       set_frequency(voice, frequency);
       voice.gain.set_target(gain);
       voice.env.gate_on();
+      // A mark of this key may still be ringing under its release: its gate
+      // comes back as the key's tone does, never at once.
+      voice.gate_attack = kAttackSeconds;
+      voice.gate.set(voice.gate_attack, voice.gate_attack, 1.0f, param(breath_pacer::kRelease));
       voice.gate.gate_on();
       return;
     }
@@ -339,7 +348,9 @@ class BreathPacer : public kit::DeviceBase<breath_pacer::kNumParams> {
         const float gate = voice.gate.next() * fade;
         const float gain = voice.gain.next();
         power += envelope * envelope;
-        mark_power += gate * gate;
+        // Only a key whose mark is ringing counts towards the marks' scale: a key
+        // that joins has none yet and must not turn the sounding marks down.
+        if (voice.mark[0].on || voice.mark[1].on) mark_power += gate * gate;
         presence += gain * gain * envelope * envelope;
 
         const kit::SinCos turn = kit::sin_cos(voice.phase);
@@ -423,6 +434,7 @@ class BreathPacer : public kit::DeviceBase<breath_pacer::kNumParams> {
   struct Voice {
     kit::Adsr env;        // the key's own envelope: the tone and the air follow it
     kit::Adsr gate;       // the same key for the marks: open at once, the same release
+    float gate_attack = kMarkGateSeconds;  // how fast `gate` opens: slower for a key taken up again
     kit::Smoother gain;   // the note's gain
     double phase = 0.0;   // in cycles
     double increment = 0.0;
@@ -492,7 +504,8 @@ class BreathPacer : public kit::DeviceBase<breath_pacer::kNumParams> {
     voice.env.set(kAttackSeconds, kAttackSeconds, 1.0f, release);
     voice.env.gate_on();
     voice.gate.reset();
-    voice.gate.set(kMarkGateSeconds, kMarkGateSeconds, 1.0f, release);
+    voice.gate_attack = kMarkGateSeconds;  // nothing rings in a fresh voice
+    voice.gate.set(voice.gate_attack, voice.gate_attack, 1.0f, release);
     voice.gate.gate_on();
   }
 
@@ -591,7 +604,7 @@ class BreathPacer : public kit::DeviceBase<breath_pacer::kNumParams> {
         for (int v = 0; v < kMaxVoices; ++v) {
           Voice& voice = pool_.voices[v];
           voice.env.set(kAttackSeconds, kAttackSeconds, 1.0f, value);
-          voice.gate.set(kMarkGateSeconds, kMarkGateSeconds, 1.0f, value);
+          voice.gate.set(voice.gate_attack, voice.gate_attack, 1.0f, value);
         }
         break;
       case kVolume:
