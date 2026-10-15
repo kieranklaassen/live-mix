@@ -203,8 +203,68 @@ static void test_sleep();
 static void test_clicks();
 static void test_readings();
 static void test_cost();
+static void test_guards();
+
+// Two faults end in a read outside the kit's sine table, which takes any
+// argument without a guard: the control step run once a host block instead
+// of on the control clock (the sine's frequency runs away and its phase goes
+// under zero), and a pitch that is not a number taking a voice. Either stops
+// the program with no line that says why. Each is looked for here first, in a
+// way that cannot reach that read, and main() stops if one is found.
+static bool test_first() {
+  char label[300];
+
+  // The control clock counts samples, not host blocks: one key as two blocks
+  // of 2048 and as 256 blocks of 16. (A device that steps once a block is
+  // still finite this far in; two blocks later it is not.)
+  {
+    Stereo renders[2];
+    const std::vector<int> sizes[2] = {{2048}, {16}};
+    for (int k = 0; k < 2; ++k) {
+      plain(device);
+      device.set_param(p::kEars, 1.0f);
+      device.note_on(1, kA3, 0.7f);
+      renders[k] = play(device, {}, 4096.0 / kRate, sizes[k]);
+    }
+    const bool whole = finite(renders[0].left) && finite(renders[0].right) && finite(renders[1].left) && finite(renders[1].right);
+    const double d = apart(renders[0], renders[1]);
+    std::snprintf(label, sizeof label, "the control step runs on its own clock: two blocks of 2048 are the 256 blocks of 16, sample for sample (%.2g apart)", d);
+    const bool ok = whole && d == 0.0 && both_peak(renders[1]) > 0.01;
+    EXPECT(ok, label);
+    std::fflush(stdout);
+    if (!ok) return false;  // nothing more is rendered on a device like that
+  }
+
+  // A pitch that is not a number takes no voice. Eight keys fill the pool;
+  // the bad key is sent and let go in the same instant, so even a device
+  // that took it never starts it: it would only have faded the oldest key.
+  {
+    plain(device);
+    device.set_param(p::kLevel, 0.0f);
+    for (int n = 0; n < 8; ++n) device.note_on(n, static_cast<float>(hz_of(48 + 2 * n)), 0.7f);
+    Stereo before = render(device, 0.4f, kRate);
+    device.note_on(9, std::nanf(""), 0.7f);
+    device.note_off(9);
+    Stereo after = render(device, 0.4f, kRate);
+    double least = 1.0e9;
+    for (int n = 0; n < 8; ++n) {
+      const double hz = hz_of(48 + 2 * n);
+      least = std::min(least, db(tone_level(after.left, hz, kRate, at(0.2), at(0.4)) / tone_level(before.left, hz, kRate, at(0.2), at(0.4))));
+    }
+    std::snprintf(label, sizeof label, "a pitch that is not a number takes no voice from a full pool: the key that lost most stands %.2f dB from where it was", least);
+    const bool ok = finite(after.left) && finite(after.right) && least > -0.1;
+    EXPECT(ok, label);
+    std::fflush(stdout);
+    if (!ok) return false;
+  }
+  return true;
+}
 
 int main() {
+  if (!test_first()) {
+    std::printf("still-point: stopped before the other tests, which would run a device that reads outside the sine table\n");
+    return finish("still-point");
+  }
   Conformance spec;
   spec.name = "still-point";
   spec.num_params = p::kNumParams;
@@ -226,6 +286,7 @@ int main() {
   test_sleep();
   test_clicks();
   test_readings();
+  test_guards();
   test_cost();
 
   return finish("still-point");
@@ -559,7 +620,7 @@ static void test_limits() {
     std::snprintf(label, sizeof label,
                   "a chord added and taken away in mid sweep is the same in blocks of 1, 2048 and ragged as in 128 (%.2g, %.2g, %.2g apart)", one,
                   big, ragged);
-    EXPECT(one < 1.0e-6 && big < 1.0e-6 && ragged < 1.0e-6 && both_peak(renders[0]) > 0.01, label);
+    EXPECT(one == 0.0 && big == 0.0 && ragged == 0.0 && both_peak(renders[0]) > 0.01, label);
   }
 
   // The same chord at Ears 1, where the right side is the sine alone: its
@@ -1199,7 +1260,7 @@ static void test_sleep() {
   std::snprintf(label, sizeof label,
                 "across %d silences with controls moved inside them, blocks of 1, 2048 and ragged give the 128-frame render (%.2g apart at the worst, at a gap of %.2f s)",
                 static_cast<int>(gaps.size()), worst, worst_gap);
-  EXPECT(worst < 1.0e-6, label);
+  EXPECT(worst == 0.0, label);
   std::printf("%s\n", label);
 
   // A knob moved in silence is simply there on the next key: the same as a
@@ -1234,7 +1295,7 @@ static void test_sleep() {
     std::snprintf(label, sizeof label,
                   "eight knobs moved in a silence of %.1f s are there on the next key: %.2g from a device set that way from init (silence peak %g)",
                   wait, apart(moved, fresh), both_peak(silent, at(0.09)));
-    EXPECT(apart(moved, fresh) < 1.0e-6 && both_peak(silent, at(0.09)) == 0.0 && both_peak(fresh) > 0.01, label);
+    EXPECT(apart(moved, fresh) == 0.0 && both_peak(silent, at(0.09)) == 0.0 && both_peak(fresh) > 0.01, label);
   }
 
   // A control set after the key but before its first sample is there too.
@@ -1254,7 +1315,7 @@ static void test_sleep() {
     other.note_on(2, e4, 0.6f);
     Stereo fresh = render(other, 0.5f, kRate);
     std::snprintf(label, sizeof label, "controls set between a key from silence and its first sample are there at once (%.2g apart)", apart(late, fresh));
-    EXPECT(apart(late, fresh) < 1.0e-6, label);
+    EXPECT(apart(late, fresh) == 0.0, label);
   }
 
   // A second init after a busy passage equals a first one.
@@ -1382,7 +1443,268 @@ static void test_readings() {
   EXPECT(apart(with[0], with[1]) == 0.0, "reading the meters changes nothing in the sound");
 }
 
-// --- cost -------------------------------------------------------------------------------------
+// --- guards a checker's mutants got past ------------------------------------------------------
+
+// The sweep written out from the manifest, for one key from silence: the
+// sine's pitch is a triangle between `lo` and `hi` semitones, one pass in
+// `time` seconds, and its phase is the integral of its frequency.
+struct SweepModel {
+  double lo, hi, time;
+  static double hz(double pitch) { return 440.0 * std::pow(2.0, (pitch - 69.0) / 12.0); }
+  // Cycles turned since the key landed.
+  double phase(double t) const {
+    const double a = std::log(2.0) / 12.0 * (hi - lo) / time;
+    const double up = hz(lo) * (std::exp(a * time) - 1.0) / a;
+    const double down = hz(hi) * (1.0 - std::exp(-a * time)) / a;
+    const double passes = std::floor(t / (2.0 * time));
+    const double r = t - passes * 2.0 * time;
+    if (r < time) return passes * (up + down) + hz(lo) * (std::exp(a * r) - 1.0) / a;
+    return passes * (up + down) + up + hz(hi) * (1.0 - std::exp(-a * (r - time))) / a;
+  }
+};
+
+// How far `x` (a sine that starts at phase 0) is from the model's phase at
+// `seconds`, in cycles, over a Hann window of 20 ms.
+static double phase_off(const std::vector<float>& x, const SweepModel& model, double seconds, double rate) {
+  const long half = static_cast<long>(0.01 * rate);
+  const long centre = static_cast<long>(seconds * rate + 0.5);
+  double re = 0.0, im = 0.0;
+  for (long k = -half; k <= half; ++k) {
+    const long i = centre + k;
+    if (i < 0 || i >= static_cast<long>(x.size())) continue;
+    const double w = 0.5 + 0.5 * std::cos(kPi * static_cast<double>(k) / static_cast<double>(half));
+    const double turn = 2.0 * kPi * model.phase(static_cast<double>(i) / rate);
+    re += w * x[i] * std::sin(turn);
+    im += w * x[i] * std::cos(turn);
+  }
+  return std::atan2(im, re) / (2.0 * kPi);
+}
+
+static void test_guards() {
+  char label[400];
+  const float nan = std::nanf("");
+  const float inf = HUGE_VALF;
+  auto one_key = [&](StillPoint& d, float hz, float gain) {
+    plain(d);
+    d.note_on(1, hz, gain);
+    return render(d, 0.3f, kRate);
+  };
+  auto whole = [](const Stereo& s) { return finite(s.left) && finite(s.right); };
+
+  // A key's pitch is held inside 8 Hz and the top of the range, and a gain
+  // inside 0 and 1, whatever is sent: each absurd key is the key at the edge,
+  // sample for sample. (A key under zero is only tried once a key at zero
+  // holds: its phase would run backwards out of the sine table.)
+  {
+    Stereo eight = one_key(other, 8.0f, 0.7f);
+    Stereo zero = one_key(device, 0.0f, 0.7f);
+    const bool reads = std::isfinite(device.meter(0)) && std::isfinite(device.meter(1)) && std::isfinite(device.meter(2));
+    const bool bottom = whole(zero) && apart(zero, eight) == 0.0 && both_peak(eight) > 0.01 && reads;
+    bool under = bottom;
+    if (bottom) {
+      for (float hz : {-440.0f, -inf, 1.0e-30f}) {
+        Stereo out = one_key(device, hz, 0.7f);
+        under = under && whole(out) && apart(out, eight) == 0.0;
+      }
+    }
+    Stereo top = one_key(other, 12000.0f, 0.7f);
+    bool over = both_peak(top) > 0.01;
+    for (float hz : {inf, 1.0e30f, 30000.0f}) {
+      Stereo out = one_key(device, hz, 0.7f);
+      over = over && whole(out) && apart(out, top) == 0.0;
+    }
+    std::snprintf(label, sizeof label, "a key at 0 Hz is a key at 8 Hz (%s), so is one under zero (%s), and one past the top is a key at 12 kHz (%s)",
+                  bottom ? "yes" : "no", under ? "yes" : "no", over ? "yes" : "no");
+    EXPECT(bottom && under && over, label);
+
+    Stereo half = one_key(other, kA3, 0.5f);
+    Stereo bad = one_key(device, kA3, nan);
+    const bool middle = whole(bad) && apart(bad, half) == 0.0 && both_peak(half) > 0.01;
+    Stereo full = one_key(other, kA3, 1.0f);
+    Stereo big = one_key(device, kA3, inf);
+    Stereo huge = one_key(device, kA3, 1.0e30f);
+    const bool most = whole(big) && whole(huge) && apart(big, full) == 0.0 && apart(huge, full) == 0.0;
+    Stereo none = one_key(other, kA3, 0.0f);
+    Stereo minus = one_key(device, kA3, -3.0f);
+    Stereo least = one_key(device, kA3, -inf);
+    const bool nothing = whole(minus) && whole(least) && apart(minus, none) == 0.0 && apart(least, none) == 0.0;
+    std::snprintf(label, sizeof label, "a gain that is not a number is a gain of 0.5 (%s), one past 1 is 1 (%s), one under 0 is 0 (%s)",
+                  middle ? "yes" : "no", most ? "yes" : "no", nothing ? "yes" : "no");
+    EXPECT(middle && most && nothing, label);
+  }
+
+  // The sine stops at 0.45 of the sample rate. At 44.1 kHz a key at the top
+  // of the range (12 kHz) with Reach 12 asks for 24 kHz at the turn, which
+  // would come back down as 20.1 kHz.
+  {
+    const double rate = 44100.0;
+    plain(device, static_cast<float>(rate));
+    device.set_param(p::kEars, 1.0f);
+    device.set_param(p::kTime, 4.0f);
+    device.set_param(p::kReach, 12.0f);
+    device.note_on(1, 12000.0f, 0.7f);
+    Stereo out = render(device, 4.3f, static_cast<float>(rate));
+    const double held = frequency_at(out.right, 0.45 * rate, 4.0, rate, 0.02, 0.0005);
+    const double level = std::sqrt(2.0) * rms(out.right, at(3.9, rate), at(4.1, rate)) / tone_level(out.left, 12000.0, rate, at(3.9, rate), at(4.1, rate));
+    std::snprintf(label, sizeof label, "44.1 kHz, a 12 kHz key and Reach 12: at the turn the sine stands at %.1f Hz (0.45 of the rate is %.1f), at %.3f of the key",
+                  held, 0.45 * rate, level);
+    EXPECT(std::fabs(held - 0.45 * rate) < 1.0 && std::fabs(level - 0.5) < 0.01, label);
+    std::printf("%s\n", label);
+  }
+
+  // A key that waits in a stolen voice counts for the limits from the strike
+  // and goes on counting once it has begun: a ninth key two octaves over a
+  // full pool takes the upper limit with it (two poles of 0.4 s: 0.888 of
+  // the way after 1.5 s). The first key struck is a middle one, so the voice
+  // that makes room is not an outer key.
+  {
+    const int notes[8] = {55, 48, 50, 52, 53, 57, 59, 60};
+    plain(device);
+    for (int n = 0; n < 8; ++n) device.note_on(n, static_cast<float>(hz_of(notes[n])), 0.7f);
+    render(device, 2.0f, kRate);
+    const double before = device.meter(2);
+    device.note_on(8, static_cast<float>(hz_of(84)), 0.7f);
+    render(device, 1.5f, kRate);
+    const double after = device.meter(2);
+    const double x = 1.5 / 0.4;
+    const double want = 24.0 * (1.0 - (1.0 + x) * std::exp(-x));
+    std::snprintf(label, sizeof label, "a ninth key two octaves over a full pool moves the upper limit from the strike: %.2f st in 1.5 s (%.2f by the two poles)",
+                  after - before, want);
+    EXPECT(std::fabs(before - 60.5) < 0.01 && std::fabs(after - before - want) < 0.3, label);
+    std::printf("%s\n", label);
+  }
+
+  // A key starts at its own gain, whatever the last key in its voice had.
+  // From silence: eight loud keys use every voice and end, and a soft key is
+  // then what it is on a device that never played them. In mid sound: with
+  // one key held, seven keys come and go loud in one render and soft in the
+  // other; a soft key that follows is the same in both.
+  {
+    plain(device);
+    for (int n = 0; n < 8; ++n) device.note_on(n, static_cast<float>(hz_of(50 + 3 * n)), 1.0f);
+    render(device, 0.3f, kRate);
+    for (int n = 0; n < 8; ++n) device.note_off(n);
+    Stereo rest = render(device, 0.5f, kRate);
+    device.note_on(20, kA3, 0.2f);
+    Stereo used = render(device, 0.5f, kRate);
+    plain(other);
+    other.note_on(20, kA3, 0.2f);
+    Stereo fresh = render(other, 0.5f, kRate);
+
+    Stereo mid_sound[2];
+    for (int k = 0; k < 2; ++k) {
+      std::vector<Event> phrase = {on(0.0, 100, kA3, 0.5f)};
+      for (int n = 0; n < 7; ++n) phrase.push_back(on(0.1, n, static_cast<float>(hz_of(60 + 2 * n)), k == 0 ? 1.0f : 0.2f));
+      for (int n = 0; n < 7; ++n) phrase.push_back(off(0.4, n));
+      phrase.push_back(on(1.0, 50, static_cast<float>(hz_of(66)), 0.2f));
+      plain(device);
+      mid_sound[k] = play(device, phrase, 1.5, kBlocks128);
+    }
+    double apart_mid = 0.0;
+    for (size_t i = at(0.9); i < mid_sound[0].size(); ++i) {
+      apart_mid = std::max(apart_mid, std::fabs(static_cast<double>(mid_sound[0].left[i]) - mid_sound[1].left[i]));
+      apart_mid = std::max(apart_mid, std::fabs(static_cast<double>(mid_sound[0].right[i]) - mid_sound[1].right[i]));
+    }
+    std::snprintf(label, sizeof label,
+                  "a soft key after eight loud ones have used every voice is the key on a fresh device (%.2g apart), and after seven loud or seven soft ones in mid sound (%.2g apart)",
+                  apart(used, fresh), apart_mid);
+    EXPECT(both_peak(rest, at(0.3)) == 0.0 && apart(used, fresh) == 0.0 && apart_mid == 0.0 && both_peak(fresh) > 0.01 &&
+               both_peak(mid_sound[0], at(1.1)) > 0.01,
+           label);
+  }
+
+  // Keys into a full pool at every block size: the key that waits begins on
+  // its own sample (the 20 ms fade ends in mid block), so blocks of 1, 2048
+  // and ragged give the 128-frame render sample for sample.
+  {
+    std::vector<Event> phrase;
+    for (int n = 0; n < 8; ++n) phrase.push_back(on(0.0, n, static_cast<float>(hz_of(45 + 3 * n)), 0.6f));
+    phrase.push_back(on(0.5, 8, static_cast<float>(hz_of(72)), 0.8f));
+    phrase.push_back(on(0.507, 9, static_cast<float>(hz_of(79)), 0.5f));
+    phrase.push_back(on(0.6, 9, static_cast<float>(hz_of(81)), 0.5f));
+    phrase.push_back(off(0.9, 8));
+    phrase.push_back(on(0.905, 10, static_cast<float>(hz_of(40)), 0.9f));
+    for (int n = 0; n < 11; ++n) phrase.push_back(off(1.2, n));
+    Stereo renders[4];
+    const std::vector<int>* sizes[4] = {&kBlocks128, &kBlocks1, &kBlocks2048, &kBlocksRagged};
+    for (int k = 0; k < 4; ++k) {
+      device.init(kRate);
+      device.set_param(p::kEars, 0.4f);
+      device.set_param(p::kAttack, 0.05f);
+      device.set_param(p::kRelease, 0.3f);
+      renders[k] = play(device, phrase, 2.0, *sizes[k]);
+    }
+    const double one = apart(renders[1], renders[0]), big = apart(renders[2], renders[0]), ragged = apart(renders[3], renders[0]);
+    std::snprintf(label, sizeof label, "keys into a full pool are the same in blocks of 1, 2048 and ragged as in 128 (%.2g, %.2g, %.2g apart)", one, big, ragged);
+    EXPECT(one == 0.0 && big == 0.0 && ragged == 0.0 && both_peak(renders[0]) > 0.01, label);
+  }
+
+  // The sine's frequency moves in a straight line between control steps, so
+  // its phase follows the sweep written out above. Held for a whole period
+  // instead, it runs half a period early: at Reach 12 that is a fifth of a
+  // cycle by the turn. One key (A5), Time 4, Reach 12, read at Ears 1.
+  for (float rate : kRates) {
+    plain(device, rate);
+    device.set_param(p::kEars, 1.0f);
+    device.set_param(p::kTime, 4.0f);
+    device.set_param(p::kReach, 12.0f);
+    device.note_on(1, 880.0f, 0.7f);
+    Stereo out = render(device, 8.2f, rate);
+    const SweepModel model = {69.0, 93.0, 4.0};
+    double worst = 0.0;
+    for (double t : {0.5, 1.5, 2.5, 3.5, 3.95, 4.5, 6.0, 7.9}) worst = std::max(worst, std::fabs(phase_off(out.right, model, t, rate)));
+    std::snprintf(label, sizeof label, "%.0f Hz: over a pass up and a pass down at Reach 12 the sine's phase stays within %.4f of a cycle of the sweep written out",
+                  static_cast<double>(rate), worst);
+    EXPECT(worst < 0.05, label);
+    std::printf("%s\n", label);
+  }
+
+  // What a chord keeps of its range when it is let go a finger at a time,
+  // from the top down: the limits follow the keys still held and stand still
+  // once none is. Five keys 26 semitones apart with Reach 0.5 (27 from limit
+  // to limit): let go 10 ms apart the range is kept, 300 ms apart about half.
+  {
+    const int notes[5] = {50, 57, 65, 72, 76};
+    double kept[2] = {0.0, 0.0}, later[2] = {0.0, 0.0};
+    const double gaps[2] = {0.01, 0.3};
+    for (int k = 0; k < 2; ++k) {
+      std::vector<Event> phrase;
+      for (int n = 0; n < 5; ++n) phrase.push_back(on(0.0, n, static_cast<float>(hz_of(notes[n]))));
+      for (int n = 4; n >= 0; --n) phrase.push_back(off(2.0 + gaps[k] * (4 - n), n));
+      device.init(kRate);
+      device.set_param(p::kRelease, 15.0f);
+      play(device, phrase, 2.0 + 4.0 * gaps[k] + 0.5, kBlocks128);
+      kept[k] = device.meter(2) - device.meter(1);
+      render(device, 5.0f, kRate);
+      later[k] = device.meter(2) - device.meter(1);
+    }
+    std::snprintf(label, sizeof label,
+                  "a chord 27 st from limit to limit, let go a finger at a time: 10 ms apart it keeps %.2f st, 300 ms apart %.2f st (%.2f and %.2f five seconds on)",
+                  kept[0], kept[1], later[0], later[1]);
+    EXPECT(kept[0] > 26.8 && kept[1] > 12.0 && kept[1] < 17.0 && later[0] == kept[0] && later[1] == kept[1], label);
+    std::printf("%s\n", label);
+  }
+
+  // A key's phase is a double: over a minute a held key stays on its
+  // frequency to a thousandth of a cycle. (A float phase rounds the same way
+  // at every step and walks 0.01 to 0.05 of a cycle off in that time.)
+  {
+    double worst = 0.0;
+    for (float rate : kRates) {
+      plain(device, rate);
+      device.set_param(p::kLevel, 0.0f);
+      device.note_on(1, kA3, 0.7f);
+      Stereo out = render(device, 60.0f, rate, 2048);
+      double turned = (phase_at(out.left, kA3, 59.0, rate, 0.1) - phase_at(out.left, kA3, 1.0, rate, 0.1)) / (2.0 * kPi);
+      turned -= std::round(turned);
+      worst = std::max(worst, std::fabs(turned));
+    }
+    std::snprintf(label, sizeof label, "a held key keeps its phase: %.2g of a cycle off its frequency after a minute, at the worst of three rates", worst);
+    EXPECT(worst < 1.0e-3, label);
+    std::printf("%s\n", label);
+  }
+}
+
 
 static void test_cost() {
   char label[240];

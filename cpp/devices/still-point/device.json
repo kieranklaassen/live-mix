@@ -58,7 +58,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "Level of the sine against one key. At half it sits 6 dB under, and a meeting can dip the key by that much. At full the two can cancel for a moment."
+      "description": "Level of the sine against one key. At half a meeting can dip the tone by 6 dB. At full a pure tone can fade right out where the two meet, for seconds on a slow pass."
     },
     {
       "key": "ears",
@@ -158,10 +158,10 @@
     "Deep slow beat": {
       "time": 60,
       "reach": 0.2,
-      "level": 1,
+      "level": 0.75,
       "warmth": 0.2,
-      "attack": 0.6,
-      "release": 2
+      "attack": 1.2,
+      "release": 4
     },
     "Faint slow beat": {
       "time": 90,
@@ -234,12 +234,6 @@
       "attack": 0.3,
       "release": 6
     },
-    "Steady tones": {
-      "level": 0,
-      "warmth": 0.5,
-      "attack": 0.4,
-      "release": 2
-    },
     "Slow swell": {
       "time": 20,
       "warmth": 0.25,
@@ -252,7 +246,7 @@
       "attack": 0.05,
       "release": 15
     },
-    "Organ tones": {
+    "Full short tones": {
       "time": 8,
       "level": 0.3,
       "warmth": 1,

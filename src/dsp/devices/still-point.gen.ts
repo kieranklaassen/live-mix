@@ -37,7 +37,7 @@ export const STILL_POINT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Level of the sine against one key. At half it sits 6 dB under, and a meeting can dip the key by that much. At full the two can cancel for a moment.',
+      'Level of the sine against one key. At half a meeting can dip the tone by 6 dB. At full a pure tone can fade right out where the two meet, for seconds on a slow pass.',
   },
   ears: {
     id: 3,
@@ -125,7 +125,7 @@ export const STILL_POINT_DESCRIPTOR = wasmDeviceDescriptor(STILL_POINT_DEVICE, {
     'Warm crossing': { time: 40, reach: 1.5, warmth: 0.8, attack: 1.5, release: 4 },
     'Slow split pass': { time: 50, reach: 1, ears: 0.3, warmth: 0.9, attack: 2, release: 6 },
     'Near unison': { time: 120, reach: 0.1, warmth: 0, attack: 3, release: 6 },
-    'Deep slow beat': { time: 60, reach: 0.2, level: 1, warmth: 0.2, attack: 0.6, release: 2 },
+    'Deep slow beat': { time: 60, reach: 0.2, level: 0.75, warmth: 0.2, attack: 1.2, release: 4 },
     'Faint slow beat': { time: 90, reach: 0.3, level: 0.2, warmth: 0.6, attack: 3.5, release: 2.5 },
     'Soft bloom': { time: 40, reach: 0.3, level: 0.8, warmth: 1, attack: 10, release: 12 },
     'Sine in one ear': { ears: 1 },
@@ -137,10 +137,9 @@ export const STILL_POINT_DESCRIPTOR = wasmDeviceDescriptor(STILL_POINT_DEVICE, {
     'Fifth reach': { time: 30, reach: 7, level: 0.6, ears: 0.3, warmth: 0.2 },
     'Octave reach': { time: 24, reach: 12, level: 0.7, warmth: 0.15 },
     'Even match': { level: 1, warmth: 0.45, attack: 0.3, release: 6 },
-    'Steady tones': { level: 0, warmth: 0.5, attack: 0.4, release: 2 },
     'Slow swell': { time: 20, warmth: 0.25, attack: 6, release: 10 },
     'Long tail': { time: 16, warmth: 0.4, attack: 0.05, release: 15 },
-    'Organ tones': { time: 8, level: 0.3, warmth: 1, attack: 0.02, release: 0.3 },
+    'Full short tones': { time: 8, level: 0.3, warmth: 1, attack: 0.02, release: 0.3 },
     'Short tones': { time: 6, reach: 1, warmth: 0.2, attack: 0.01, release: 0.15 },
   },
 })

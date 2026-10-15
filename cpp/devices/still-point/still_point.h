@@ -308,8 +308,10 @@ class StillPoint : public kit::DeviceBase<still_point::kNumParams> {
 
   // The outer held keys: held, or waiting to start. Keys in their release do
   // not count. With none held the limits stand still where they are (they do
-  // not finish a glide they had begun), so a chord let go one finger after
-  // another keeps its range while it rings out.
+  // not finish a glide they had begun), so a chord let go within a few tens
+  // of milliseconds keeps its range while it rings out. Fingers lifted more
+  // slowly narrow it on the way: a chord 27 semitones wide keeps about 23
+  // with its five keys let go 100 ms apart, 13 at 300 ms and 3 at a second.
   void retarget() {
     double low = 1.0e9, high = -1.0e9;
     for (int v = 0; v < kMaxVoices; ++v) {
