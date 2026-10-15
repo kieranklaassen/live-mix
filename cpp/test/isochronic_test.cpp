@@ -852,6 +852,25 @@ static void test_voices() {
     EXPECT(fall < -10.0 && fall > -20.0, label);
   }
 
+  // A ninth key struck and let go before the voice it takes has faded: it
+  // never sounds, and nothing is left holding a voice.
+  {
+    plain(device);
+    device.set_param(p::kDepth, 0.0f);
+    for (int n = 0; n < 8; ++n) device.note_on(n, kEight[n], 0.8f);
+    render(device, 0.5f, kRate);
+    device.note_on(300, 500.0f, 0.8f);
+    device.note_off(300);
+    Stereo out = render(device, 0.5f, kRate);
+    const double never = tone_level(out.left, 500.0, kRate, at(0.1));
+    for (int n = 0; n < 8; ++n) device.note_off(n);
+    render(device, 0.3f, kRate);
+    Stereo rest = render(device, 0.3f, kRate);
+    std::snprintf(label, sizeof label, "a key let go before its voice was free never sounds (%.2g) and holds nothing (peak %g)", never,
+                  std::max(peak(rest.left), peak(rest.right)));
+    EXPECT(never < 1.0e-4 && peak(rest.left) == 0.0 && peak(rest.right) == 0.0, label);
+  }
+
   // Keys under 80 Hz sound an octave or more up; every other key where it is.
   {
     struct Fold {
@@ -947,6 +966,21 @@ static void test_levels() {
                   worst, last - start);
     MEASURED("%s", label);
     EXPECT(worst < 1.0 && std::fabs(last - start - 6.02) < 0.1 && std::max(peak(out.left), peak(out.right)) < 0.5, label);
+  }
+
+  // The clip is a guard for what Volume lets through: eight keys in step at
+  // +6 dB would reach 1.99 and are held to full scale by the clip instead.
+  {
+    device.init(kRate);
+    device.set_param(p::kDepth, 0.0f);
+    device.set_param(p::kWarmth, 0.0f);
+    device.set_param(p::kAttack, 0.005f);
+    device.set_param(p::kVolume, 6.0f);
+    for (int n = 0; n < 8; ++n) device.note_on(n, 220.0f, 1.0f);
+    Stereo out = render(device, 1.0f, kRate);
+    const double level = std::max(peak(out.left), peak(out.right));
+    std::snprintf(label, sizeof label, "at +6 dB eight keys in step are held by the clip (peak %.4f, 1.99 without it)", level);
+    EXPECT(level > 0.99 && level <= 1.0, label);
   }
 
   // Volume is in decibels.

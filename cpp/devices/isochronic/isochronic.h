@@ -21,6 +21,10 @@
 //   once and the right ear's begins Offset later. A later key joins the pulse
 //   that is running. Nothing is decided when the device wakes, because the
 //   block it fell asleep in depends on the host's block size.
+// - Each ear takes up a new Duty or Edge only while its gate is shut and the
+//   new shape is shut at that place too: a pulse under way finishes as it
+//   began, so a change waits at most one period. Depth and Offset move over
+//   10 ms. Rate is followed at once; the gate's own slew holds the step.
 // - Rate glides to Target by the kit's closed form. The glide is armed by any
 //   change of Rate, Target or Glide, starts at the first key after that (at
 //   once with a key held) and counts on through releases, new keys and
