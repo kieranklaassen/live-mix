@@ -45,7 +45,9 @@
 //   the output is exact silence and the next sound meets the same state
 //   whatever the block size; falling idle, which happens on a block's edge,
 //   decides nothing. By then the longest tail (the pair's lowest section, 800
-//   samples to fall by e) is 27 such falls down at 44.1 kHz, under -200 dBFS.
+//   samples to fall by e whatever the rate) is 27 such falls down at 44.1 kHz,
+//   under -200 dBFS; under 44.1 kHz the silence is kLeastArriveSamples long,
+//   so that it is never fewer falls than that.
 // - The input is guarded on the way in: a sample that is not a number becomes
 //   silence and anything past kBound is held to it, so nothing of the kind
 //   can lodge in the sections.
@@ -65,6 +67,8 @@ class EarShift : public kit::DeviceBase<ear_shift::kNumParams> {
   // How long the input has to be exact silence before the filters are emptied
   // and before sound counts as new.
   static constexpr float kArriveSeconds = 0.5f;
+  // And never fewer samples than this: the pair's tail is counted in samples.
+  static constexpr long kLeastArriveSamples = 22050;
   // The largest sample let in: 36 dB over full scale.
   static constexpr float kBound = 64.0f;
 
@@ -81,10 +85,11 @@ class EarShift : public kit::DeviceBase<ear_shift::kNumParams> {
     tune();
     hush();
     arrive_after_ = static_cast<long>(kArriveSeconds * sr);
+    if (arrive_after_ < kLeastArriveSamples) arrive_after_ = kLeastArriveSamples;
     silent_ = arrive_after_;
     // One whole block more than the silence that counts as new sound, so the
     // device is never idle before that silence is over.
-    idle_.reset(sr, kArriveSeconds + static_cast<float>(kMaxBlockFrames + 1) / sr);
+    idle_.reset(sr, static_cast<float>(arrive_after_ + kMaxBlockFrames + 1) / sr);
   }
 
   void set_param(int id, float value) {

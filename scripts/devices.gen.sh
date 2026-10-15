@@ -70,6 +70,8 @@ build_generated_devices() {
     cpp/devices/drum-kit/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device dusk \
     cpp/devices/dusk/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device ear-shift \
+    cpp/devices/ear-shift/device_api.gen.cpp
   MEMORY_BYTES=20971520 EXTRA_EXPORTS=",_device_meter" build_device echo-memory \
     cpp/devices/echo-memory/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ember \
@@ -361,6 +363,8 @@ test_generated_devices() {
     cpp/test/drum_kit_test.cpp
   native_test dusk_test \
     cpp/test/dusk_test.cpp
+  native_test ear_shift_test \
+    cpp/test/ear_shift_test.cpp
   native_test echo_memory_test \
     cpp/test/echo_memory_test.cpp
   native_test ember_test \

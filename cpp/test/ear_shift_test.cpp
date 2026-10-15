@@ -324,6 +324,34 @@ int main() {
     std::snprintf(label, sizeof label, "%.0f Hz: a tone on the edge is half shifted (%.2f dB)", rate,
                   db(low_up / 0.5));
     CHECK_NEAR(db(low_up / 0.5), -6.02, 0.1, label);
+
+    // And on the lower edge as the device starts, 150 Hz.
+    device.init(rate);
+    out = run(device, sine(150.0f, 5.0f, rate, 0.5f));
+    const double edge_up = level_at(out.left, 153.0, rate, from, to);
+    const double edge_down = level_at(out.left, 147.0, rate, from, to);
+    const double edge_up_right = level_at(out.right, 153.0, rate, from, to);
+    const double edge_down_right = level_at(out.right, 147.0, rate, from, to);
+    std::snprintf(label, sizeof label,
+                  "%.0f Hz: on the default lower edge the other sideband is 40 dB under (left %.1f, right %.1f)", rate,
+                  db(edge_down / edge_up), db(edge_up_right / edge_down_right));
+    CHECK(db(edge_down / edge_up) < -40.0 && db(edge_up_right / edge_down_right) < -40.0, label);
+  }
+
+  // 1b. Under 44.1 kHz the silence that empties the filters is no shorter in
+  // samples: the tail it waits for is counted in samples.
+  {
+    device.init(22050.0f);
+    run(device, sine(440.0f, 0.3f, 22050.0f, 0.5f));
+    Stereo rest = render(device, 2.0f, 22050.0f);
+    size_t last = 0;
+    for (size_t i = 0; i < rest.size(); ++i) {
+      if (rest.left[i] != 0.0f || rest.right[i] != 0.0f) last = i + 1;
+    }
+    std::snprintf(label, sizeof label, "22050 Hz: the tail runs %zu samples, as at 44.1 kHz", last);
+    CHECK(last <= static_cast<size_t>(EarShift::kLeastArriveSamples) &&
+              last > static_cast<size_t>(EarShift::kLeastArriveSamples) - 64,
+          label);
   }
 
   // 2. Ears at 0: the two sides are one, a pulse at Beat, and that pulse is
