@@ -7,6 +7,7 @@ import {
   SPECTRUM_BANDS,
   frameOf,
   knobNow,
+  paintsWholePiece,
   presenceOf,
   quietSignals,
   sampleFrame,
@@ -364,6 +365,69 @@ describe('the frame a piece comes to', () => {
     )
     expect(unknown.palette).toBe(visualPalette(DEFAULT_PALETTE))
     expect(unknown.grain).toBe(1)
+  })
+})
+
+describe('the frame of a piece that is emptied by a performance', () => {
+  const three = setOf(
+    visual('a', 'dot-globe', { lane: 0 }),
+    visual('b', 'dot-screen', { lane: 1 }),
+    visual('c', 'dot-globe', { lane: 2, variation: 1 }),
+  )
+  const levels = (set: VisualSet, full?: number) =>
+    frameOf(set, signalsWith(), 0, NO_LEVELS, full).layers.map((layer) =>
+      'paint' in layer ? layer.level : null,
+    )
+
+  it('is the same frame with the piece full as with nothing said', () => {
+    expect(frameOf(three, signalsWith(), 0, NO_LEVELS, 1)).toEqual(
+      frameOf(three, signalsWith(), 0, NO_LEVELS),
+    )
+  })
+
+  it('loses the visuals that paint for the whole piece from the last drawn, and keeps the first', () => {
+    const [first, second, third] = levels(three)
+    expect(levels(three, 0.75)).toEqual([first, second, (third ?? 0) * 0.5])
+    expect(levels(three, 0.5)).toEqual([first, second])
+    expect(levels(three, 0.25)).toEqual([first, (second ?? 0) * 0.5])
+    expect(levels(three, 0)).toEqual([first])
+  })
+
+  it('keeps a whole-piece visual when the one drawn before it is linked to a silent stroke', () => {
+    const set = setOf(
+      visual('linked', 'dot-globe', { lane: 0, stroke: 'stroke-1' }),
+      visual('whole', 'dot-screen', { lane: 1 }),
+    )
+    const frame = frameOf(set, signalsWith(), 0, NO_LEVELS, 0)
+    expect(frame.layers).toHaveLength(1)
+    expect(frame.layers[0]).toMatchObject({ paint: 'dot-screen' })
+  })
+
+  it('never thins out a linked visual or one on a stretch: they come and go by themselves', () => {
+    const set = setOf(
+      visual('whole', 'dot-globe', { lane: 0 }),
+      visual('linked', 'dot-screen', { lane: 1, stroke: 'stroke-1' }),
+      visual('stretch', 'dot-globe', { lane: 2, variation: 1, beat: 0, beats: 8 }),
+    )
+    const sounding = new Map([['stroke-1', 1]])
+    const at = (full: number) => frameOf(set, signalsWith(), 4, sounding, full).layers
+    expect(at(0)).toEqual(at(1))
+    expect(at(0)).toHaveLength(3)
+  })
+
+  it('counts as painting for the whole piece only a style with no stroke and no stretch', () => {
+    expect(paintsWholePiece(visual('a', 'dot-globe'))).toBe(true)
+    expect(paintsWholePiece(visual('a', 'dot-globe', { stroke: 'stroke-1' }))).toBe(false)
+    expect(paintsWholePiece(visual('a', 'dot-globe', { beats: 8 }))).toBe(false)
+    expect(paintsWholePiece(visual('a', 'trails'))).toBe(false)
+    expect(paintsWholePiece(visual('a', 'a-kind-of-a-later-build'))).toBe(false)
+  })
+
+  it('leaves the bends as they are', () => {
+    const set = setOf(visual('a', 'dot-globe'), visual('t', 'trails', { lane: 1 }))
+    expect(frameOf(set, signalsWith(), 0, NO_LEVELS, 0).layers).toEqual(
+      frameOf(set, signalsWith(), 0, NO_LEVELS).layers,
+    )
   })
 })
 

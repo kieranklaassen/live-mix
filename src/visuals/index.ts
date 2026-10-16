@@ -11,6 +11,7 @@
  *   const scope = new SyncScope()                                  // how far the picture is behind the sound:
  *   hearTrace(context, engine.master, clock).read((at, level) => scope.put('sound', at, level))
  *   scope.put('picture', clock(), lightOf(canvas)); scope.behind('picture', 'sound', clock())
+ *   new VisualDesk(() => ({ ..., perform: { rides, ladder, overSec } }))  // the picture follows a performance
  *
  * Separate entry on purpose: it imports nothing from the rest of the library
  * but the JSON types, so a page that only draws loads none of the audio
@@ -111,6 +112,7 @@ export {
   SPECTRUM_BANDS,
   frameOf,
   knobNow,
+  paintsWholePiece,
   presenceOf,
   quietSignals,
   sampleFrame,
@@ -139,6 +141,16 @@ export {
   type StrokePass,
 } from './feed'
 export { VisualDesk, type DeskReading } from './desk'
+export {
+  DIAL_REST_SPAN,
+  fullnessOf,
+  performMoves,
+  staying,
+  type PerformMove,
+  type PerformNow,
+  type PerformReading,
+  type VisualFilter,
+} from './perform'
 export {
   EAR_KEEPS_SEC,
   bandEdges,

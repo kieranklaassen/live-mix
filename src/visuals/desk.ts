@@ -14,6 +14,15 @@ import { VisualFollower, type FollowedStroke, type Heard } from './follow'
 import { frameOf, sampleFrame, type VisualFrame, type VisualSignals } from './frame'
 import type { VisualSet } from './model'
 import { visualPalette } from './palettes'
+import {
+  PerformFollower,
+  performAsk,
+  performedFrame,
+  type PerformAsk,
+  type PerformDials,
+  type PerformNow,
+  type PerformReading,
+} from './perform'
 
 /** The piece and the music as they are now. */
 export interface DeskReading {
@@ -31,6 +40,17 @@ export interface DeskReading {
   tone: number
   /** How loud the live input is, 0 to 1. */
   input: number
+  /**
+   * Where the performance stands, for a picture that follows it (`perform.ts`). Left out or null, the picture is
+   * the one the piece's visuals come to and the dials are handed to the styles as they are.
+   */
+  perform?: PerformReading | null
+}
+
+/** What a performance asks of a frame, and the performance as it has come to for that frame. */
+interface Followed {
+  ask: PerformAsk
+  now: PerformNow
 }
 
 /** Two asks closer together than this are the same frame, in milliseconds. */
@@ -75,6 +95,9 @@ export class VisualDesk {
   private standAt: number | null = null
   private made: VisualFrame | null = null
   private reading: DeskReading | null = null
+  private readonly performance = new PerformFollower()
+  /** Null where no performance is followed. */
+  private asked: Followed | null = null
 
   constructor(private readonly read: () => DeskReading) {}
 
@@ -93,27 +116,46 @@ export class VisualDesk {
     if (this.made !== null && this.at !== null && Math.abs(now - this.at) < SAME_FRAME_MS)
       return this.made
     const reading = this.read()
+    const dtSec = this.at === null ? 0 : Math.max(0, (now - this.at) / 1000)
+    this.asked = this.follow(reading, dtSec)
     const { signals, strokeLevels } = this.follower.step({
-      dtSec: this.at === null ? 0 : Math.max(0, (now - this.at) / 1000),
+      dtSec,
       playheadSec: reading.playheadSec,
       pieceSec: reading.pieceSec,
       playing: reading.playing,
       strokes: reading.strokes,
       heard: reading.heard,
-      energy: reading.energy,
-      space: reading.space,
-      tone: reading.tone,
+      ...this.dials(reading),
       input: reading.input,
     })
     this.at = now
     this.reading = reading
-    this.made = frameOf(
+    const made = frameOf(
       reading.set,
       signals,
       reading.beatSec > 0 ? reading.playheadSec / reading.beatSec : 0,
       strokeLevels,
+      this.asked?.ask.full,
     )
+    this.made = this.asked ? performedFrame(made, this.asked.ask) : made
     return this.made
+  }
+
+  /** Where the performance has the picture this frame; null where the page follows none. */
+  private follow(reading: DeskReading, dtSec: number): Followed | null {
+    if (!reading.perform) {
+      this.performance.rest()
+      return null
+    }
+    const now = this.performance.step(reading.perform, reading, dtSec)
+    return { ask: performAsk(now), now }
+  }
+
+  /** The dials the styles are handed: as they have come to with the performance, else as the page reads them. */
+  private dials(reading: DeskReading): PerformDials {
+    return this.asked
+      ? { energy: this.asked.ask.energy, space: this.asked.now.space, tone: this.asked.now.tone }
+      : { energy: reading.energy, space: reading.space, tone: reading.tone }
   }
 
   /** The frame that shows one kind alone at `now`, in the piece's palette and grain: what the browser draws. */
@@ -123,13 +165,14 @@ export class VisualDesk {
     const reading = this.reading ?? this.read()
     // With the piece while it plays; stopped, or with nothing painted, with a piece of its own, so a style is seen moving.
     const own = reading.playing && reading.strokes.length > 0
-    return sampleFrame(
+    const sample = sampleFrame(
       kind,
       variation,
       own ? frame.signals : this.standIn(now, reading),
       visualPalette(reading.set.palette),
       reading.set.grain,
     )
+    return this.asked ? performedFrame(sample, this.asked.ask) : sample
   }
 
   private standIn(now: number, reading: DeskReading): VisualSignals {
@@ -144,9 +187,7 @@ export class VisualDesk {
       playing: true,
       strokes: STAND_IN,
       heard: null,
-      energy: reading.energy,
-      space: reading.space,
-      tone: reading.tone,
+      ...this.dials(reading),
       input: 0,
     }).signals
   }
