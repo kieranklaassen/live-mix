@@ -83,7 +83,7 @@ lab::Tap path_ms{"pathMs", "The horn's delay, left", lab::kControl, lab::kLesson
 lab::Tap path_right_ms{"pathMsRight", "The horn's delay, right", lab::kControl, lab::kLesson, 1, "ms"};
 lab::Tap pitch{"pitch", "Pitch of the horn, left", lab::kControl, lab::kLesson, 1, "cents"};
 lab::Tap pitch_right{"pitchRight", "Pitch of the horn, right", lab::kControl, lab::kLesson, 1, "cents"};
-lab::Tap doppler{"doppler", "The horn through its moving delay alone", lab::kAudio, lab::kLesson, 2};
+lab::Tap doppler{"doppler", "The horn's moving delay alone", lab::kAudio, lab::kLesson, 2};
 lab::Tap shade_tap{"shade", "Share of the dark copy, left", lab::kControl, lab::kLesson, 1};
 lab::Tap loudness{"loudness", "Loudness of the horn, left", lab::kControl, lab::kLesson, 1, "dB"};
 lab::Tap loudness_right{"loudnessRight", "Loudness of the horn, right", lab::kControl, lab::kLesson, 1, "dB"};
@@ -116,6 +116,7 @@ lab::Tap built_shade{"builtShade", "Share of the dark copy, as built", lab::kCon
 lab::Tap built_pitch{"builtPitch", "Horn pitch, left, as built", lab::kControl, lab::kLesson, 1, "cents"};
 lab::Tap built_drum_loudness{"builtDrumLoudness", "Drum loudness, left, as built", lab::kControl, lab::kLesson, 1,
                              "dB"};
+lab::Tap built_drum_pitch{"builtDrumPitch", "Drum pitch, left, as built", lab::kControl, lab::kLesson, 1, "cents"};
 lab::Tap built_horn_speed{"builtHornSpeed", "Horn speed, as built", lab::kControl, lab::kLesson, 1, "Hz"};
 lab::Tap built_drum_speed{"builtDrumSpeed", "Drum speed, as built", lab::kControl, lab::kLesson, 1, "Hz"};
 
@@ -124,6 +125,21 @@ constexpr float kSqrt2 = 1.41421356f;
 // A delay that moves replays the sound at another speed: 1 less the delay's
 // slope, in samples a sample. In cents, a hundredth of a semitone.
 float cents_of(float slope) { return 1200.0f * std::log2(1.0f - slope); }
+
+// The pitch a moving read point gives, from how far the point moved since it
+// was last asked, over the samples that went by: the sixteen of one point of
+// a value's tap. Between two samples next to each other the point moves by a
+// few parts in a million of where it stands, which a float holds only
+// roughly, and a pitch read off one such move is a few hundredths of a cent
+// out either way. Over sixteen it is steady.
+struct Moved {
+  float last = 2.0f;
+  float cents(float behind) {
+    const float slope = (behind - last) / static_cast<float>(lab::kControlPeriod);
+    last = behind;
+    return cents_of(slope);
+  }
+};
 
 // The Speed the device is on at sample `i` of a render: Speed for the first
 // half of the loop, and Second half for the rest where it names another.
@@ -175,7 +191,7 @@ struct Built {
   float loud[2] = {1.0f, 1.0f};  // what the horn's level is multiplied by, a side
   float dark_share = 0.0f;
   float read_at = 2.0f;          // where the horn's line is read, in samples behind
-  float slope = 0.0f;            // how far that moved since the sample before
+  float drum_read_at = 2.0f;     // and the drum's
   float drum_loud = 1.0f;
   float lows = 0.0f;
   float highs = 0.0f;
@@ -210,8 +226,8 @@ struct Built {
   // off by a one-pole filter, mixed in as the mouth turns from the microphone.
   float shaded(int k, float beam, float faced) {
     const float dark = shade[k].lowpass(beam);
-    dark_share = horn_shade * (1.0f - faced * faced);
-    return beam + (dark - beam) * dark_share;
+    if (k == 0) dark_share = horn_shade * (1.0f - faced * faced);  // the lane draws the left one's
+    return beam + (dark - beam) * horn_shade * (1.0f - faced * faced);
   }
 
   // The pitch wobble: the horn's line is read further back the further the
@@ -307,14 +323,14 @@ struct Built {
       beam *= loud[k];
       float horn = direct * beam;
       if (reflect > 0.0f) horn = walls(horn, angle);
-      if (k == 0) {
-        slope = behind - read_at;
-        read_at = behind;
-      }
+      if (k == 0) read_at = behind;
 
       const float drum_towards = kit::SineTable::cos_lookup(drum_at - 0.5f * where + 1.0f);
       const float low = pieces >= kDrum ? drum(drum_towards) : drum_line.read_linear(2.0f);
-      if (k == 0) drum_loud = (1.0f - drum_am * (0.5f - 0.5f * drum_towards)) * drum_makeup;
+      if (k == 0) {
+        drum_loud = (1.0f - drum_am * (0.5f - 0.5f * drum_towards)) * drum_makeup;
+        drum_read_at = 2.0f + drum_radius * (1.0f - drum_towards);
+      }
       const float wet = horn * horn_gain + low * drum_gain;
       const float in = k == 0 ? left : right;
       out[k] = pieces >= kAmp ? in * dry_share + wet * wet_share : wet;
@@ -368,7 +384,6 @@ struct Built {
   void rest() {
     out[0] = out[1] = 0.0f;
     lows = highs = 0.0f;
-    slope = 0.0f;
   }
 };
 
@@ -419,11 +434,9 @@ struct Again {
   float drum[2] = {0.0f, 0.0f};
   float out[2] = {0.0f, 0.0f};
   float behind[2] = {2.0f, 2.0f};  // where the horn's line is read, in samples behind the newest
-  float slope[2] = {0.0f, 0.0f};   // how far that moved since the sample before
   float loud[2] = {1.0f, 1.0f};    // what the horn's level is multiplied by
   float dark_share = 0.0f;         // the share of the dark copy, left
-  float drum_behind = 2.0f;
-  float drum_slope = 0.0f;
+  float drum_behind = 2.0f;        // where the drum's line is read, left
   float drum_loud = 1.0f;
 
   void start() { *this = Again{}; }
@@ -451,14 +464,12 @@ struct Again {
       const float angle = horn_at - where + 1.0f;
       const float towards = kit::SineTable::cos_lookup(angle);
       const float facing = 0.5f + 0.5f * towards;
-      const float now = 2.0f + horn_radius * (1.0f - towards);
-      slope[k] = now - behind[k];
-      behind[k] = now;
-      beam[k] = device.horn_line_.read_hermite(now);
-      // The device's own filter holds the dark copy of this sample.
+      behind[k] = 2.0f + horn_radius * (1.0f - towards);
+      beam[k] = device.horn_line_.read_hermite(behind[k]);
+      // The device's own filter holds the dark copy of this sample. The
+      // products are taken in the device's order, so that the last bit agrees.
       const float dark = device.shade_[k].state;
-      const float share = horn_shade * (1.0f - facing * facing);
-      float heard = beam[k] + (dark - beam[k]) * share;
+      float heard = beam[k] + (dark - beam[k]) * horn_shade * (1.0f - facing * facing);
       loud[k] = (1.0f - horn_am * (1.0f - facing)) * horn_makeup;
       heard *= loud[k];
       heard = direct * heard;
@@ -477,8 +488,7 @@ struct Again {
       drum[k] = device.drum_line_.read_linear(drum_now) * (1.0f - drum_am * (0.5f - 0.5f * drum_towards)) *
                 drum_makeup;
       if (k == 0) {
-        dark_share = share;
-        drum_slope = drum_now - drum_behind;
+        dark_share = horn_shade * (1.0f - facing * facing);
         drum_behind = drum_now;
         drum_loud = (1.0f - drum_am * (0.5f - 0.5f * drum_towards)) * drum_makeup;
       }
@@ -490,11 +500,7 @@ struct Again {
 
   // Asleep: the device writes silence, and nothing of it moves.
   void rest() {
-    for (int k = 0; k < 2; ++k) {
-      beam[k] = horn[k] = drum[k] = out[k] = 0.0f;
-      slope[k] = 0.0f;
-    }
-    drum_slope = 0.0f;
+    for (int k = 0; k < 2; ++k) beam[k] = horn[k] = drum[k] = out[k] = 0.0f;
   }
 };
 
@@ -590,6 +596,10 @@ void lab_render(int frames) {
   double apart = 0.0, whole = 0.0;
   double built_apart = 0.0, built_whole = 0.0;
   int on = speed.choice();  // the Speed the device stands on
+  // The read points whose motion is a pitch, and the pitch each has now.
+  Moved horn_moved[2], drum_moved, built_horn_moved, built_drum_moved;
+  float horn_cents[2] = {0.0f, 0.0f};
+  float drum_cents = 0.0f, built_horn_cents = 0.0f, built_drum_cents = 0.0f;
 
   const int total = lab::total();
   for (int i = 0; i < total; ++i) {
@@ -619,6 +629,14 @@ void lab_render(int frames) {
       again.rest();
       shown.rest();
       if (!both) held.rest();
+    }
+    // The pitches, from where each read point stood sixteen samples ago. A
+    // point that stands still while the device sleeps reads the played pitch.
+    if (i % lab::kControlPeriod == 0) {
+      for (int k = 0; k < 2; ++k) horn_cents[k] = horn_moved[k].cents(again.behind[k]);
+      drum_cents = drum_moved.cents(again.drum_behind);
+      built_horn_cents = built_horn_moved.cents(shown.read_at);
+      built_drum_cents = built_drum_moved.cents(shown.drum_read_at);
     }
     if (i < frames) continue;  // the first time round is not kept
 
@@ -654,19 +672,20 @@ void lab_render(int frames) {
     keep(drum_speed, i, cabinet.meter(3));
     keep(path_ms, i, (again.behind[0] - 2.0f) * ms_per_sample);
     keep(path_right_ms, i, (again.behind[1] - 2.0f) * ms_per_sample);
-    keep(pitch, i, cents_of(again.slope[0]));
-    keep(pitch_right, i, cents_of(again.slope[1]));
+    keep(pitch, i, horn_cents[0]);
+    keep(pitch_right, i, horn_cents[1]);
     keep(shade_tap, i, again.dark_share);
     keep(loudness, i, lab::to_db(again.loud[0]));
     keep(loudness_right, i, lab::to_db(again.loud[1]));
     keep(side, i, lab::to_db(again.loud[0]) - lab::to_db(again.loud[1]));
     keep(drum_loudness, i, lab::to_db(again.drum_loud));
-    keep(drum_pitch, i, cents_of(again.drum_slope));
+    keep(drum_pitch, i, drum_cents);
     keep(built_loudness, i, lab::to_db(shown.loud[0]));
     keep(built_loudness_right, i, lab::to_db(shown.loud[1]));
     keep(built_shade, i, shown.dark_share);
-    keep(built_pitch, i, cents_of(shown.slope));
+    keep(built_pitch, i, built_horn_cents);
     keep(built_drum_loudness, i, lab::to_db(shown.drum_loud));
+    keep(built_drum_pitch, i, built_drum_cents);
     keep(built_horn_speed, i, shown.horn_speed);
     keep(built_drum_speed, i, shown.drum_speed);
   }

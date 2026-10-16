@@ -10,6 +10,7 @@ import {
   expectWritten,
   gainToDb,
   lab,
+  largestDifference,
   matchesWritten,
   peak,
   POINT_RATE,
@@ -46,6 +47,8 @@ const db = (x: Float32Array) => gainToDb(rms(x))
 /** The speeds the device's source gives its two rotors, in turns a second. */
 const HORN = { slow: 0.8, fast: 6.7 }
 const DRUM = { slow: 0.67, fast: 5.8 }
+/** The radius of the horn's circle at Horn Depth 1, in seconds of travel (kHornRadiusSeconds). */
+const RADIUS = 0.00055
 
 /**
  * A steady tone taken apart: its size and its phase at every sample, from the tone multiplied by
@@ -169,25 +172,46 @@ describe('the rotary speaker lab', () => {
     expectBuild(cabinet, pad, { secondHalf: 2, distance: 0.5, drive: 0.5 })
   })
 
-  it('is, as built, more than 120 dB under the device on every loop at four settings, and the microphones read again are too (claim built-same)', async () => {
+  it('writes, with all eight pieces, the samples the device writes: on nine loops at five settings no sample of either side differs, and the check reads −140 dB, its floor (claim built-same)', async () => {
     const cabinet = await lab(NAME)
-    let worst = -Infinity
+    let compared = 0
     let worstRead = -Infinity
     for (const id of ['pad', 'chords', 'guitar', 'saw', 'mix', 'bass', 'drums', 'noise', 'sine']) {
       const source = await benchSource(id, seconds(LOOP))
       for (const values of [
         {},
+        settings.defaults!.values,
         { speed: 1, distance: 0.5, drive: 0.5, balance: 0.3, mix: 0.6 },
         { secondHalf: 2, distance: 1, drive: 1, spread: 1 },
         { speed: 1, secondHalf: 3, hornDepth: 0.6, drumDepth: 0.5, acceleration: 4, spread: 0 },
       ]) {
-        const result = cabinet.render(source, values)
-        worst = Math.max(worst, result.checks.builtDifference!)
+        const result = cabinet.render(source, { ...values, build: 7 })
+        const where = `${id} at ${JSON.stringify(values)}`
+        for (const side of [0, 1]) {
+          const device = tap(result, 'out', side)
+          // Sample for sample: a level in decibels stops at −140 dB and cannot say this.
+          expect(
+            largestDifference(tap(result, 'built', side), device),
+            `${where}, side ${side}`,
+          ).toBe(0)
+          expect(peak(device), `${where}: there is sound to compare`).toBeGreaterThan(0.05)
+          compared += device.length
+        }
+        // The check the page shows is at its floor, which by itself says only "140 dB under".
+        expect(result.checks.builtDifference, where).toBe(-140)
         worstRead = Math.max(worstRead, result.checks.rebuilt!)
       }
     }
-    expectWritten(-worst, 'more than 120 dB')
+    expect(compared).toBe(9 * 5 * 2 * seconds(LOOP))
+    // The microphones read again are no tap of their own: their check holds them to the output.
     expectWritten(-worstRead, 'more than 120 dB')
+  })
+
+  it('is not the device a step short: without the amplifier and the two blends the build differs from it by far more than a rounding', async () => {
+    const cabinet = await lab(NAME)
+    const pad = await benchSource('pad', seconds(LOOP))
+    const result = cabinet.render(pad, { build: 6, drive: 0.5, mix: 0.6 })
+    expect(largestDifference(tap(result, 'built'), tap(result, 'out'))).toBeGreaterThan(0.01)
   })
 
   it('stands still with the device when the sound stops: the build stays the device across a silence', async () => {
@@ -210,10 +234,13 @@ describe('part 1: a level that is ridden, and a horn that turns', () => {
     expectWritten(heard(tap(result, 'ridden'), 3000).swing, '12.0 dB')
   })
 
-  it('leaves the pitch of the ridden tone less than 0.1 cents from where it was (claim ridden-pitch)', async () => {
+  it('leaves the pitch of the ridden tone less than 0.001 cents from where it was (claim ridden-pitch)', async () => {
     const cabinet = await lab(NAME)
     const ridden = heard(tap(cabinet.render(high(), {}), 'ridden'), 3000)
-    expectWritten(Math.max(ridden.flat, ridden.sharp), 'less than 0.1 cents')
+    expectWritten(Math.max(ridden.flat, ridden.sharp), 'less than 0.001 cents')
+    // The same measure finds the bend where there is one: the horn through its moving delay.
+    const moved = heard(tap(cabinet.render(high(), {}), 'doppler'), 3000)
+    expect(matchesWritten(Math.max(moved.flat, moved.sharp), 'less than 0.001 cents')).toBe(false)
   })
 
   it('at Slow swings the horn 4.8 cents flat and 4.8 cents sharp, its loudness over 12.0 dB, and left against right over 19.1 dB (claim turned-three)', async () => {
@@ -233,27 +260,36 @@ describe('part 1: a level that is ridden, and a horn that turns', () => {
     expectWritten(range(tap(result, 'pitchRight')).hi, '4.8 cents')
   })
 
-  it('at Fast keeps the loudness swing at 12.0 dB and takes the pitch from 40.6 cents flat to 39.7 cents sharp (claim fast-pitch)', async () => {
+  it('at Fast keeps the loudness swing at 12.0 dB and takes the pitch from 40.6 cents flat to 39.6 cents sharp (claim fast-pitch)', async () => {
     const cabinet = await lab(NAME)
     const result = cabinet.render(high(), { speed: 1 })
     const pitch = range(tap(result, 'pitch'))
     expectWritten(range(tap(result, 'loudness')).span, '12.0 dB')
     expectWritten(-pitch.lo, '40.6 cents')
-    expectWritten(pitch.hi, '39.7 cents')
+    expectWritten(pitch.hi, '39.6 cents')
+    // By hand, from the device's own numbers: the read point's slope is at most 2π times the
+    // horn's turns a second times its radius in seconds, and the speed heard is 1 less or more.
+    const slope = 2 * Math.PI * HORN.fast * RADIUS
+    expect(Math.abs(-pitch.lo - -1200 * Math.log2(1 - slope))).toBeLessThan(0.005)
+    expect(Math.abs(pitch.hi - 1200 * Math.log2(1 + slope))).toBeLessThan(0.005)
+    // The other microphone hears the same swing.
+    const right = range(tap(result, 'pitchRight'))
+    expectWritten(-right.lo, '40.6 cents')
+    expectWritten(right.hi, '39.6 cents')
     // In the sound, by a tone taken apart: within a cent and a half of the delay's own slope.
     const moved = heard(tap(result, 'doppler'), 3000, 2)
     expect(Math.abs(moved.flat + pitch.lo)).toBeLessThan(1.5)
     expect(Math.abs(moved.sharp - pitch.hi)).toBeLessThan(1.5)
   })
 
-  it('hears the highest pitch 0.25 of a turn before the loudest moment, when the pitch is less than 0.1 cents from the played one (claim quarter-turn)', async () => {
+  it('hears the highest pitch 0.25 of a turn before the loudest moment, when the pitch is less than 0.01 cents from the played one (claim quarter-turn)', async () => {
     const cabinet = await lab(NAME)
     const result = cabinet.render(high(), {})
     const turn = Math.round(POINT_RATE / HORN.slow)
     const loudest = highestAt(tap(result, 'loudness'), points(1.5), points(1.5) + turn)
     const sharpest = highestAt(tap(result, 'pitch'), loudest - turn, loudest)
     expectWritten(((loudest - sharpest) / POINT_RATE) * HORN.slow, '0.25')
-    expectWritten(Math.abs(tap(result, 'pitch')[loudest]!), 'less than 0.1 cents')
+    expectWritten(Math.abs(tap(result, 'pitch')[loudest]!), 'less than 0.01 cents')
     // The loudest moment is the one at which the horn points at the left microphone.
     const stand = tap(result, 'mics')[0]!
     const pointing = tap(result, 'hornAngle')[loudest]! - (1 + stand)
@@ -304,6 +340,12 @@ describe('part 3: what it is used on', () => {
     expectWritten(Math.max(-pitch.lo, pitch.hi), '2.9 cents')
   })
 
+  it('on the card of the plain bright tone sends the horn a band 13 dB under the band the drum is sent (claim saw-bands)', async () => {
+    const cabinet = await lab(NAME)
+    const result = await played(cabinet, 'useSaw')
+    expectWritten(db(tap(result, 'lows')) - db(tap(result, 'highs')), '13 dB')
+  })
+
   it('renders every named set on its own source, with sound in the tap its card plays', async () => {
     const cabinet = await lab(NAME)
     for (const name of Object.keys(settings.sets)) {
@@ -335,15 +377,25 @@ describe('part 3: what it is used on', () => {
 })
 
 describe('part 4: the build, a piece at a time', () => {
-  it('puts a tone at 800 Hz 6.0 dB down in each band and less than 0.1 dB from its level in the two added, as it does at every frequency (claim bands-800)', async () => {
+  it('puts a tone at 800 Hz 6.0 dB down in each band and less than 0.001 dB from its level in the two added, as it does at every frequency tried (claim bands-800)', async () => {
     const cabinet = await lab(NAME)
     const at = cabinet.render(sine(800, 0.25, seconds(2)), { build: 0 })
     expectWritten(db(tap(at, 'in')) - db(tap(at, 'builtLows')), '6.0 dB')
     expectWritten(db(tap(at, 'in')) - db(tap(at, 'builtHighs')), '6.0 dB')
     for (const hz of [100, 400, 800, 1600, 6400]) {
       const result = cabinet.render(sine(hz, 0.25, seconds(2)), { build: 0 })
-      expectWritten(Math.abs(db(tap(result, 'built')) - db(tap(result, 'in'))), 'less than 0.1 dB')
+      expectWritten(
+        Math.abs(db(tap(result, 'built')) - db(tap(result, 'in'))),
+        'less than 0.001 dB',
+      )
     }
+    // With the highs the right way up the two bands cancel where they meet: the device's own
+    // high band, turned back over and added to its low band, loses a tone at 800 Hz altogether.
+    const lows = tap(at, 'lows')
+    const highs = tap(at, 'highs')
+    const wrong = new Float32Array(lows.length)
+    for (let i = 0; i < wrong.length; i += 1) wrong[i] = lows[i]! - highs[i]!
+    expect(db(tap(at, 'in')) - db(wrong)).toBeGreaterThan(40)
   })
 
   it('takes 12.0 dB off the horn between the front of the turn and the back, and nothing without the piece (claim horn-swing)', async () => {
@@ -380,8 +432,23 @@ describe('part 4: the build, a piece at a time', () => {
     expect(matchesWritten(swing(6000, 1), '19 dB')).toBe(false)
     expect(matchesWritten(swing(3000, 1), '16 dB')).toBe(false)
     // Four fifths of what is heard at the back is the dark copy.
-    expect(range(tap(cabinet.render(high(), { build: 2 }), 'builtShade')).hi).toBeCloseTo(0.8, 5)
+    const shaded = cabinet.render(high(), { build: 2 })
+    expect(range(tap(shaded, 'builtShade')).hi).toBeCloseTo(0.8, 5)
     expect(range(tap(cabinet.render(high(), { build: 1 }), 'builtShade')).hi).toBe(0)
+    // The share drawn is the left microphone's, as the loudness beside it is: it is the share
+    // the device's own numbers give there, and it is highest where that loudness is lowest.
+    expect(largestDifference(tap(shaded, 'builtShade'), tap(shaded, 'shade'))).toBe(0)
+    const turn = Math.round(POINT_RATE / HORN.slow)
+    const share = tap(shaded, 'builtShade')
+    const quietestAt = (id: string) => {
+      const loudness = tap(shaded, id)
+      let at = points(1)
+      for (let i = at; i < points(1) + turn; i += 1) if (loudness[i]! < loudness[at]!) at = i
+      return at
+    }
+    expect(range(share).hi - share[quietestAt('builtLoudness')]!).toBeLessThan(0.0001)
+    // And not where the right microphone hears it quietest, 0.28 of a turn on.
+    expect(range(share).hi - share[quietestAt('builtLoudnessRight')]!).toBeGreaterThan(0.1)
   })
 
   it("swings the horn's delay over 1.1 ms at Horn Depth 1 (claim path-swing)", async () => {
@@ -391,18 +458,21 @@ describe('part 4: the build, a piece at a time', () => {
     expectWritten(range(tap(result, 'pathMsRight')).span, '1.1 ms')
   })
 
-  it('bends the pitch 4.8 cents each way at Slow and from 40.6 cents flat to 39.7 cents sharp at Fast, and not at all without the piece (claim pitch-swing)', async () => {
+  it('bends the pitch 4.8 cents each way at Slow and from 40.6 cents flat to 39.6 cents sharp at Fast, and not at all without the piece (claim pitch-swing)', async () => {
     const cabinet = await lab(NAME)
     const slow = range(tap(cabinet.render(high(), { build: 3 }), 'builtPitch'))
     expectWritten(-slow.lo, '4.8 cents')
     expectWritten(slow.hi, '4.8 cents')
     const fast = range(tap(cabinet.render(high(), { build: 3, speed: 1 }), 'builtPitch'))
     expectWritten(-fast.lo, '40.6 cents')
-    expectWritten(fast.hi, '39.7 cents')
+    expectWritten(fast.hi, '39.6 cents')
     const before = range(tap(cabinet.render(high(), { build: 2, speed: 1 }), 'builtPitch'))
     expect(matchesWritten(-before.lo, '40.6 cents')).toBe(false)
-    expect(matchesWritten(before.hi, '39.7 cents')).toBe(false)
+    expect(matchesWritten(before.hi, '39.6 cents')).toBe(false)
     expect(before.span).toBe(0)
+    const slowBefore = range(tap(cabinet.render(high(), { build: 2 }), 'builtPitch'))
+    expect(matchesWritten(-slowBefore.lo, '4.8 cents')).toBe(false)
+    expect(matchesWritten(slowBefore.hi, '4.8 cents')).toBe(false)
     // And in the sound: the horn's part of the build with the piece, and without it.
     const bent = heard(hornAlone(cabinet.render(high(), { build: 3, speed: 1 })), 3000, 2)
     const straight = heard(hornAlone(cabinet.render(high(), { build: 1, speed: 1 })), 3000, 2)
@@ -414,14 +484,24 @@ describe('part 4: the build, a piece at a time', () => {
     const cabinet = await lab(NAME)
     const slow = cabinet.render(low(), { build: 4 })
     expectWritten(range(tap(slow, 'builtDrumLoudness')).span, '6.0 dB')
-    const wobble = range(tap(slow, 'drumPitch'))
+    const wobble = range(tap(slow, 'builtDrumPitch'))
     expectWritten(-wobble.lo, '1.5 cents')
     expectWritten(wobble.hi, '1.5 cents')
-    const fast = range(tap(cabinet.render(low(), { speed: 1 }), 'drumPitch'))
+    const fast = range(tap(cabinet.render(low(), { build: 4, speed: 1 }), 'builtDrumPitch'))
     expectWritten(-fast.lo, '12.7 cents')
     expectWritten(fast.hi, '12.6 cents')
+    // The device's own drum, read on the main path, swings as far.
+    const device = range(tap(cabinet.render(low(), { speed: 1 }), 'drumPitch'))
+    expectWritten(-device.lo, '12.7 cents')
+    expectWritten(device.hi, '12.6 cents')
     const before = cabinet.render(low(), { build: 3 })
     expect(matchesWritten(range(tap(before, 'builtDrumLoudness')).span, '6.0 dB')).toBe(false)
+    const stillSlow = range(tap(before, 'builtDrumPitch'))
+    expect(matchesWritten(-stillSlow.lo, '1.5 cents')).toBe(false)
+    expect(matchesWritten(stillSlow.hi, '1.5 cents')).toBe(false)
+    const stillFast = range(tap(cabinet.render(low(), { build: 3, speed: 1 }), 'builtDrumPitch'))
+    expect(matchesWritten(-stillFast.lo, '12.7 cents')).toBe(false)
+    expect(matchesWritten(stillFast.hi, '12.6 cents')).toBe(false)
     // In the sound: a low tone swells with the piece and hardly at all without it.
     expect(heard(tap(slow, 'built'), 200, 2).swing).toBeGreaterThan(5)
     expect(heard(tap(before, 'built'), 200, 2).swing).toBeLessThan(1)
@@ -473,6 +553,33 @@ describe('part 4: the build, a piece at a time', () => {
     expect(matchesWritten(weightless.drum, '2.20 s')).toBe(false)
   })
 
+  it('at Acceleration 2 halves the times: 63 % of the way up in 0.125 s for the horn and 0.75 s for the drum, and the horn at rest 0.61 s after Brake, and none of them without the piece (claim acceleration-halves)', async () => {
+    const cabinet = await lab(NAME)
+    const long = sine(1000, 0.25, seconds(8))
+    const middle = points(4)
+    const times = (build: number) => {
+      const up = cabinet.render(long, { secondHalf: 2, acceleration: 2, build })
+      const horn = tap(up, 'builtHornSpeed')
+      const drum = tap(up, 'builtDrumSpeed')
+      const hornFrom = horn[middle - 1]!
+      const drumFrom = drum[middle - 1]!
+      const down = cabinet.render(long, { secondHalf: 3, acceleration: 2, build })
+      return {
+        horn: reaches(horn, middle, hornFrom + SHARE * (HORN.fast - hornFrom), true),
+        drum: reaches(drum, middle, drumFrom + SHARE * (DRUM.fast - drumFrom), true),
+        rest: reaches(tap(down, 'builtHornSpeed'), middle, 0, false),
+      }
+    }
+    const weighted = times(5)
+    expectWritten(weighted.horn, '0.125 s')
+    expectWritten(weighted.drum, '0.75 s')
+    expectWritten(weighted.rest, '0.61 s')
+    const weightless = times(4)
+    expect(matchesWritten(weightless.horn, '0.125 s')).toBe(false)
+    expect(matchesWritten(weightless.drum, '0.75 s')).toBe(false)
+    expect(matchesWritten(weightless.rest, '0.61 s')).toBe(false)
+  })
+
   it('at Distance 1 leaves the straight sound a swing of 3.1 dB, and of 12.0 dB without the piece (claim walls-swing)', async () => {
     const cabinet = await lab(NAME)
     const far = cabinet.render(high(), { distance: 1, build: 6 })
@@ -484,7 +591,7 @@ describe('part 4: the build, a piece at a time', () => {
     expect(db(tap(far, 'built')) - db(tap(before, 'built'))).not.toBe(0)
   })
 
-  it('at Drive 1 brings a quiet tone out 4.7 dB louder than at Drive 0, and no louder without the piece (claim amp-quiet)', async () => {
+  it('at Drive 1 brings a tone at 200 Hz, 60 dB under full scale, out 4.7 dB louder than at Drive 0, and no louder without the piece (claim amp-quiet)', async () => {
     const cabinet = await lab(NAME)
     const quiet = sine(200, 0.001, seconds(2))
     const lift = (build: number) =>
@@ -493,10 +600,33 @@ describe('part 4: the build, a piece at a time', () => {
     expectWritten(lift(7), '4.7 dB')
     expect(matchesWritten(lift(6), '4.7 dB')).toBe(false)
     expect(lift(6)).toBe(0)
+    // By hand: the slope at rest is the gain to the power 0.3, and the gain at Drive 1 is 6.
+    expect(Math.abs(lift(7) - gainToDb(6 ** 0.3))).toBeLessThan(0.01)
     // Loud playing is held back: a tone near full scale comes out quieter than it went in.
     const loud = sine(200, 0.9, seconds(2))
     const held = cabinet.render(loud, { drive: 1 })
     expect(db(tap(held, 'driven')) - db(tap(held, 'in'))).toBeLessThan(-6)
+  })
+
+  it('adds harmonics of both kinds with Drive up, and none at Drive 0: a tone at 1 kHz gains a second and a third', async () => {
+    const cabinet = await lab(NAME)
+    const tone = sine(1000, 0.25, seconds(2))
+    /** The level of one frequency of a tap, over its middle second, in dB against full scale. */
+    const at = (x: Float32Array, hz: number) => {
+      let re = 0
+      let im = 0
+      for (let i = seconds(0.5); i < seconds(1.5); i += 1) {
+        re += x[i]! * Math.cos((2 * Math.PI * hz * i) / RATE)
+        im += x[i]! * Math.sin((2 * Math.PI * hz * i) / RATE)
+      }
+      return gainToDb((2 * Math.hypot(re, im)) / seconds(1))
+    }
+    const clean = tap(cabinet.render(tone, { drive: 0 }), 'driven')
+    const driven = tap(cabinet.render(tone, { drive: 1 }), 'driven')
+    for (const hz of [2000, 3000]) {
+      expect(at(clean, hz), `${hz} Hz at Drive 0`).toBeLessThan(-120)
+      expect(at(driven, hz), `${hz} Hz at Drive 1`).toBeGreaterThan(-45)
+    }
   })
 })
 
@@ -528,12 +658,12 @@ describe('part 5: the device, stage by stage', () => {
     expectWritten(down(drum, DRUM.slow), '1.90 s')
   })
 
-  it('through the moving delay alone bends a tone from 40.6 cents flat to 39.7 cents sharp at Fast and changes its level by less than 0.1 dB (claim doppler-fast)', async () => {
+  it('through the moving delay alone bends a tone from 40.6 cents flat to 39.6 cents sharp at Fast and changes its level by less than 0.02 dB (claim doppler-fast)', async () => {
     const cabinet = await lab(NAME)
     const result = cabinet.render(high(), { speed: 1 })
     const pitch = range(tap(result, 'pitch'))
     expectWritten(-pitch.lo, '40.6 cents')
-    expectWritten(pitch.hi, '39.7 cents')
+    expectWritten(pitch.hi, '39.6 cents')
     const moved = heard(tap(result, 'doppler'), 3000, 2)
     // Its level, a twentieth of a second at a time: each stretch holds a third of a turn.
     const levels: number[] = []
@@ -541,50 +671,95 @@ describe('part 5: the device, stage by stage', () => {
     for (let from = seconds(0.1); from + seconds(0.05) <= sound.length; from += seconds(0.05)) {
       levels.push(gainToDb(rms(sound, from, from + seconds(0.05))))
     }
-    expectWritten(range(levels).span, 'less than 0.1 dB')
+    expectWritten(range(levels).span, 'less than 0.02 dB')
+    // The same measure on the horn after its loudness finds the swing that this stage lacks.
+    const swung: number[] = []
+    const after = tap(result, 'horn')
+    for (let from = seconds(0.1); from + seconds(0.05) <= after.length; from += seconds(0.05)) {
+      swung.push(gainToDb(rms(after, from, from + seconds(0.05))))
+    }
+    expect(matchesWritten(range(swung).span, 'less than 0.02 dB')).toBe(false)
     expect(Math.abs(moved.flat + pitch.lo)).toBeLessThan(1.5)
     expect(Math.abs(moved.sharp - pitch.hi)).toBeLessThan(1.5)
   })
 
-  it("keeps the level of a tone ridden by the horn's gain less than 0.1 dB from what went in, over four whole turns (claim makeup-holds)", async () => {
+  it("keeps the level of a tone ridden by the horn's gain less than 0.001 dB from what went in, over four whole turns (claim makeup-holds)", async () => {
     const cabinet = await lab(NAME)
     // Five seconds at 0.8 turns a second is four turns.
     const result = cabinet.render(high(5), {})
-    expectWritten(Math.abs(db(tap(result, 'ridden')) - db(tap(result, 'in'))), 'less than 0.1 dB')
+    expectWritten(Math.abs(db(tap(result, 'ridden')) - db(tap(result, 'in'))), 'less than 0.001 dB')
+    // At the device's own depths too, where the swing and its make-up are both smaller.
+    const gentle = cabinet.render(high(5), settings.defaults!.values)
+    expectWritten(Math.abs(db(tap(gentle, 'ridden')) - db(tap(gentle, 'in'))), 'less than 0.001 dB')
   })
 
-  it('at either end of Balance silences one band and puts the other 3.0 dB up (claim balance-ends)', async () => {
+  it('at either end of Balance puts one band out alone, 3.0 dB up, with what is left besides it more than 140 dB under (claim balance-ends)', async () => {
     const cabinet = await lab(NAME)
     const pad = await benchSource('pad', seconds(LOOP))
     const hornOnly = cabinet.render(pad, { balance: 1 })
     const drumOnly = cabinet.render(pad, { balance: 0 })
     expectWritten(db(tap(hornOnly, 'out')) - db(tap(hornOnly, 'horn')), '3.0 dB')
     expectWritten(db(tap(drumOnly, 'out')) - db(tap(drumOnly, 'drum')), '3.0 dB')
-    // Nothing of the other band is left: the output is the one band, times the square root of 2.
+    // The output less the one band times the square root of 2, against the output. Its level
+    // is worked out here with no floor, so that a reading is a measurement.
     for (const [result, band] of [
       [hornOnly, 'horn'],
       [drumOnly, 'drum'],
     ] as const) {
-      const out = tap(result, 'out')
-      const alone = tap(result, band)
-      let apart = 0
-      for (let i = seconds(0.1); i < out.length; i += 1) {
-        apart = Math.max(apart, Math.abs(out[i]! - Math.SQRT2 * alone[i]!))
+      for (const side of [0, 1]) {
+        const out = tap(result, 'out', side)
+        const alone = tap(result, band, side)
+        let left = 0
+        let whole = 0
+        for (let i = 0; i < out.length; i += 1) {
+          left += (out[i]! - Math.SQRT2 * alone[i]!) ** 2
+          whole += out[i]! ** 2
+        }
+        expectWritten(-10 * Math.log10(left / whole), 'more than 140 dB')
       }
-      expect(apart, band).toBeLessThan(1e-6)
+    }
+    // With Balance in the middle the other band is there, and the measure says so.
+    const both = cabinet.render(pad, {})
+    const out = tap(both, 'out')
+    const horn = tap(both, 'horn')
+    let left = 0
+    let whole = 0
+    for (let i = 0; i < out.length; i += 1) {
+      left += (out[i]! - Math.SQRT2 * horn[i]!) ** 2
+      whole += out[i]! ** 2
+    }
+    expect(matchesWritten(-10 * Math.log10(left / whole), 'more than 140 dB')).toBe(false)
+  })
+
+  it('at Mix 0 hands the sound on as it came, sample for sample, on every loop (claim mix-zero)', async () => {
+    const cabinet = await lab(NAME)
+    for (const id of ['pad', 'chords', 'guitar', 'saw', 'mix', 'bass', 'drums', 'noise', 'sine']) {
+      const source = await benchSource(id, seconds(LOOP))
+      for (const values of [{ mix: 0 }, { ...settings.defaults!.values, mix: 0, speed: 1 }]) {
+        const result = cabinet.render(source, values)
+        for (const side of [0, 1]) {
+          expect(largestDifference(tap(result, 'out', side), tap(result, 'in', side)), id).toBe(0)
+        }
+      }
+      // A little of the cabinet, and the two are no longer the same.
+      const some = cabinet.render(source, { mix: 0.01 })
+      expect(largestDifference(tap(some, 'out'), tap(some, 'in')), id).toBeGreaterThan(0)
     }
   })
 })
 
 describe('part 7: what goes wrong', () => {
-  it('with Mix at one half takes a tone at 6 kHz more than 20 dB under the level it went in at, at its quietest (claim mix-cancels)', async () => {
+  it('with Mix at one half takes each of six tones from 2 kHz to 12 kHz more than 20 dB under the level it went in at, at its quietest moment in the turn, and with Mix at 1 none of them (claim mix-cancels)', async () => {
     const cabinet = await lab(NAME)
-    const tone = sine(6000, 0.25, seconds(LOOP))
-    const result = cabinet.render(tone, { mix: 0.5 })
-    expectWritten(gainToDb(0.25) - heard(tap(result, 'out'), 6000).lo, 'more than 20 dB')
-    // With Mix at 1 the same tone never falls so far, however dark the back of the turn is.
-    const whole = cabinet.render(tone, {})
-    expect(gainToDb(0.25) - heard(tap(whole, 'out'), 6000).lo).toBeLessThan(20)
+    for (const hz of [2000, 3000, 4000, 6000, 8000, 12000]) {
+      const tone = sine(hz, 0.25, seconds(LOOP))
+      // Its level over 4 ms at a time, which is 8 cycles of the lowest of the six.
+      const quietest = (mix: number) =>
+        gainToDb(0.25) - heard(tap(cabinet.render(tone, { mix }), 'out'), hz, hz / 250).lo
+      expectWritten(quietest(0.5), 'more than 20 dB')
+      // With Mix at 1 the same tone falls less far, however dark the back of the turn is.
+      expect(matchesWritten(quietest(1), 'more than 20 dB'), `${hz} Hz at Mix 1`).toBe(false)
+    }
   })
 
   it('on its card parks the horn with the left microphone hearing it 8.0 dB louder than the right (claim brake-parks)', async () => {
@@ -595,47 +770,98 @@ describe('part 7: what goes wrong', () => {
     expectWritten(tap(result, 'side')[last]!, '8.0 dB')
   })
 
-  it('makes silence of a tone that is turned over on one side (claim sides-cancel)', async () => {
+  it('takes a tone that is turned over on one side more than 300 dB under the level it went in at (claim sides-cancel)', async () => {
     const cabinet = await lab(NAME)
     const wide: Source = sine(1000, 0.25, seconds(2))
     for (let i = 0; i < wide.right.length; i += 1) wide.right[i] = -wide.left[i]!
     const result = cabinet.render(wide, {})
-    // Silence but for what a float leaves of a cosine at a quarter of a turn: the device's Mix at 1
-    // lets through 6 parts in a hundred thousand million million of the sound that came in.
-    expect(peak(tap(result, 'out', 0))).toBeLessThan(1e-15)
-    expect(peak(tap(result, 'out', 1))).toBeLessThan(1e-15)
+    // Nothing reaches the amplifier, so the two microphones hear nothing at all.
     expect(peak(tap(result, 'driven'))).toBe(0)
     expect(peak(tap(result, 'horn'))).toBe(0)
     expect(peak(tap(result, 'drum'))).toBe(0)
+    // What does come out is the plain sound itself, through the weight Mix gives it at 1: the
+    // sine table's cosine of a quarter of a turn, which a float holds as a little more than
+    // nothing. Its level against what went in, worked out here with no floor.
+    for (const side of [0, 1]) {
+      const under = -20 * Math.log10(peak(tap(result, 'out', side)) / peak(tap(result, 'in', side)))
+      expectWritten(under, 'more than 300 dB')
+      // It is not nothing: the weight is there, and the page says so.
+      expect(peak(tap(result, 'out', side))).toBeGreaterThan(0)
+    }
+    // With Mix at one half the plain sound is back, 3 dB under itself, and the measure reads it.
+    const half = cabinet.render(wide, { mix: 0.5 })
+    const under = -20 * Math.log10(peak(tap(half, 'out')) / peak(tap(half, 'in')))
+    expect(matchesWritten(under, 'more than 300 dB')).toBe(false)
   })
 
-  it('leaves the horn standing still 0.2 s after a tone stops, and starts it again from there (claim sleeps)', async () => {
+  it('leaves the horn standing still 0.2 s after a tone stops, for tones from 200 Hz to 6 kHz at two settings, and starts it again from there (claim sleeps)', async () => {
     const cabinet = await lab(NAME)
-    const source = sine(1000, 0.25, seconds(LOOP))
-    for (let i = seconds(1); i < seconds(3); i += 1) {
-      source.left[i] = 0
-      source.right[i] = 0
-    }
-    const result = cabinet.render(source, {})
-    const angle = tap(result, 'hornAngle')
-    let stopped = NaN
-    for (let i = points(1); i < angle.length - 1; i += 1) {
-      if (angle[i + 1] === angle[i]) {
-        stopped = i / POINT_RATE - 1
-        break
+    const times: number[] = []
+    for (const [hz, size] of [
+      [200, 0.25],
+      [1000, 0.25],
+      [1000, 0.01],
+      [3000, 0.25],
+      [6000, 0.25],
+    ] as const) {
+      const source = sine(hz, size, seconds(LOOP))
+      for (let i = seconds(1); i < seconds(3); i += 1) {
+        source.left[i] = 0
+        source.right[i] = 0
+      }
+      for (const values of [{}, settings.defaults!.values]) {
+        const result = cabinet.render(source, values)
+        const angle = tap(result, 'hornAngle')
+        let stopped = NaN
+        for (let i = points(1); i < angle.length - 1; i += 1) {
+          if (angle[i + 1] === angle[i]) {
+            stopped = i / POINT_RATE - 1
+            break
+          }
+        }
+        expectWritten(stopped, '0.2 s')
+        times.push(stopped)
+        // It stands where it stopped until the tone returns at 3 s, and moves on from there.
+        expect(angle[points(2.9)]).toBe(angle[points(1.5)])
+        expect(angle[points(3.2)]).not.toBe(angle[points(2.9)])
       }
     }
-    expectWritten(stopped, '0.2 s')
-    // It stands where it stopped until the tone returns at 3 s, and moves on from there.
-    expect(angle[points(2.9)]).toBe(angle[points(1.5)])
-    expect(angle[points(3.2)]).not.toBe(angle[points(2.9)])
+    // Never the tenth of a second alone: the output has to die away first, and how long that
+    // takes depends on the tone.
+    expect(Math.min(...times)).toBeGreaterThan(0.15)
+    expect(Math.max(...times) - Math.min(...times)).toBeGreaterThan(0.02)
   })
 
-  it('moves a bass far less than a bright tone: all but a sliver of a tone at 100 Hz goes to the drum', async () => {
+  it('on the card of the bass line sends the horn a band 16 dB under the band the drum is sent, and still 16 dB under at Drive 1 (claim bass-horn)', async () => {
     const cabinet = await lab(NAME)
+    const under = (result: RenderResult) => db(tap(result, 'lows')) - db(tap(result, 'highs'))
+    expectWritten(under(await played(cabinet, 'faultBass')), '16 dB')
+    expectWritten(under(await played(cabinet, 'faultBass', { drive: 1 })), '16 dB')
+    // A single low note is further under still: all but a sliver of a tone at 100 Hz goes to the drum.
     const result = cabinet.render(sine(100, 0.25, seconds(2)), {})
     expect(db(tap(result, 'driven')) - db(tap(result, 'highs'))).toBeGreaterThan(30)
     expect(db(tap(result, 'driven')) - db(tap(result, 'lows'))).toBeLessThan(0.5)
+  })
+
+  it('on the card of the bass line swings the drum over 2.1 dB, and over 4.8 dB with Drum Depth at 1 (claim bass-drum)', async () => {
+    const cabinet = await lab(NAME)
+    expectWritten(range(tap(await played(cabinet, 'faultBass'), 'drumLoudness')).span, '2.1 dB')
+    expectWritten(
+      range(tap(await played(cabinet, 'faultBass', { drumDepth: 1 }), 'drumLoudness')).span,
+      '4.8 dB',
+    )
+  })
+
+  it('from Fast brings the horn to rest 2.25 s after Brake is asked for and leaves the drum still turning 4.0 s after (claim brake-fast)', async () => {
+    const cabinet = await lab(NAME)
+    const result = cabinet.render(sine(1000, 0.25, seconds(8)), { speed: 1, secondHalf: 3 })
+    const middle = points(4)
+    expectWritten(reaches(tap(result, 'hornSpeed'), middle, 0, false), '2.25 s')
+    // The loop ends 4.0 s after Brake is asked for, and the drum has not stopped.
+    const drum = tap(result, 'drumSpeed')
+    expect(drum.length - middle).toBe(points(4))
+    expect(drum[drum.length - 1]!).toBeGreaterThan(0.3)
+    expect(Number.isNaN(reaches(drum, middle, 0, false))).toBe(true)
   })
 })
 

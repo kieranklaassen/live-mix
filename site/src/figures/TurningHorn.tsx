@@ -178,6 +178,16 @@ export default function TurningHorn({ horn, drum, rows, mics, built, start = 0, 
     [rows, has, drawn, rowH, plotW],
   )
   const cursor = STRIP.left + (has ? index / (count - 1) : 0) * plotW
+  // The rows' ranges are lettering in the picture, which a screen reader is not read: its words
+  // for the picture say them too.
+  const spoken = has
+    ? `${label}. ${lanes
+        .map(
+          ({ tap, lo, hi }) =>
+            `${tap.name} runs from ${said(lo)} to ${said(hi)}${tap.unit ? ` ${tap.unit}` : ''}`,
+        )
+        .join('; ')}`
+    : label
 
   const waiting = has ? undefined : waitingText(state)
   return (
@@ -215,7 +225,7 @@ export default function TurningHorn({ horn, drum, rows, mics, built, start = 0, 
       <div
         style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 14px', alignItems: 'center' }}
         role="img"
-        aria-label={label}
+        aria-label={spoken}
       >
         <svg
           viewBox={`0 0 ${SIDE} ${SIDE}`}
@@ -283,10 +293,12 @@ export default function TurningHorn({ horn, drum, rows, mics, built, start = 0, 
             the front of the cabinet
           </text>
         </svg>
-        <div ref={strip} style={{ flex: '7 1 280px', minWidth: 0 }}>
+        {/* The box keeps one height, so the page below does not move when the rows are drawn
+            again at the width the screen gives them. */}
+        <div ref={strip} style={{ flex: '7 1 280px', minWidth: 0, height: STRIP.height }}>
           <svg
             viewBox={`0 0 ${wide} ${STRIP.height}`}
-            style={{ display: 'block', width: '100%', height: 'auto' }}
+            style={{ display: 'block', width: '100%', height: '100%' }}
             aria-hidden="true"
           >
             {lanes.map(({ tap, lo, hi, top, bottom, y, d }) => (
