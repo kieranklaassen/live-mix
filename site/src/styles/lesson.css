@@ -292,21 +292,26 @@ button:disabled {
 }
 .control-choices {
   grid-column: 2 / 4;
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  /* Makes up for the last column's and the last row's pull below. */
+  padding: 0 1px 1px 0;
 }
+/* Many choices go onto a second row in a narrow window. Each keeps its whole border and is
+   drawn over its neighbour's by one pixel, so a row that wraps still has a left edge. */
 .control-choices button {
   font-size: 0.78rem;
   padding: 0.25rem 0.6rem;
   min-height: 1.9rem;
   border-radius: 0;
-}
-.control-choices button + button {
-  border-left: 0;
+  margin: 0 -1px -1px 0;
 }
 .control-choices button[aria-checked='true'] {
   background: var(--lm-text);
   border-color: var(--lm-text);
   color: var(--lm-bg);
+  position: relative;
 }
 input[type='range'] {
   width: 100%;

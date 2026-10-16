@@ -91,6 +91,13 @@ describe('the grid', () => {
     expect(ticks(AUDIBLE)).toEqual([20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000])
   })
 
+  it('has no grid for an axis with no real span, and does not go round for ever on one', () => {
+    expect(ticks({ min: 0, max: 1, log: true })).toEqual([])
+    expect(ticks({ min: -5, max: 100, log: true })).toEqual([])
+    expect(ticks({ min: Infinity, max: -Infinity })).toEqual([])
+    expect(ticks({ min: Number.NaN, max: 1 })).toEqual([])
+  })
+
   it('prints numbers short, with a real minus sign', () => {
     expect(label(1500)).toBe('1.5k')
     expect(label(20000)).toBe('20k')

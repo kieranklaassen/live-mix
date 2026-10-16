@@ -1,7 +1,7 @@
 // The device pages: the list reaches every device, an effect's page passes the loop through
 // the device itself, and an instrument's page plays it.
 import { expect, test } from '@playwright/test'
-import { labReady, meter, overflow, watch } from './support.ts'
+import { labReady, meter, overflow, sounds, watch } from './support.ts'
 
 test('the list of devices leads to a device, which names its controls and its source', async ({
   page,
@@ -33,7 +33,7 @@ for (const [id, what] of [
     // Opening it makes no sound.
     expect(await meter(page)).toBe(0)
     await bench.locator('.bench-bar button').click()
-    await expect.poll(() => meter(page), { timeout: 10_000 }).toBeGreaterThan(0)
+    await sounds(page)
     await page.locator('.playbar-play').click()
     await expect(page.locator('.playbar-play[data-playing]')).toHaveCount(0)
     expect(problems).toEqual([])

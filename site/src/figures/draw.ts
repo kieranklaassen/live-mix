@@ -98,7 +98,11 @@ const STEPS = [1, 2, 5, 10]
 /** Round values for grid lines: about `count` of them on a linear axis, 1-2-5 per decade on a logarithmic one. */
 export function ticks(axis: Axis, count = 5): number[] {
   const out: number[] = []
+  // An axis that is not a span of real numbers has no grid: a figure asks for one before its
+  // data has come, and a logarithmic axis from 0 has no first decade to start at.
+  if (!Number.isFinite(axis.min) || !Number.isFinite(axis.max)) return out
   if (axis.log) {
+    if (!(axis.min > 0) || !(axis.max > axis.min)) return out
     const first = Math.floor(Math.log10(axis.min))
     const last = Math.ceil(Math.log10(axis.max))
     for (let decade = first; decade <= last; decade += 1) {

@@ -2,7 +2,7 @@
 // response the lab worked out. The lab says what the first and the last point stand at.
 
 import { useLab, waitingText } from '../lab/page.ts'
-import { rangeOf, roomyAxis } from './draw.ts'
+import { AUDIBLE, rangeOf, roomyAxis } from './draw.ts'
 import Plot, { type Mark, type Series } from './Plot.tsx'
 import type { TapRef } from './roles.ts'
 
@@ -63,8 +63,9 @@ export default function Curve(props: Props) {
     }
   })
   const xAxis = {
-    min: props.xMin ?? (Number.isFinite(x0) ? x0 : 0),
-    max: props.xMax ?? (Number.isFinite(x1) ? x1 : 1),
+    // Before the lab has answered there is no range to read; a logarithmic axis cannot start at 0.
+    min: props.xMin ?? (Number.isFinite(x0) ? x0 : props.xLog ? AUDIBLE.min : 0),
+    max: props.xMax ?? (Number.isFinite(x1) ? x1 : props.xLog ? AUDIBLE.max : 1),
     log: props.xLog,
     unit: props.xUnit,
     title: props.xTitle,

@@ -30,7 +30,7 @@ test('a search can be linked to, and says so when it finds nothing', async ({ pa
     page.locator('.search-group[data-group=site] .search-results a[href*="/lessons/15-"]'),
   ).toBeVisible()
 
-  await page.locator('#search-q').fill('qqzzxxnothing')
+  await page.locator('#search-q').fill('zxqv')
   await expect(page.locator('.search-group[data-group=site]')).toBeHidden()
   await expect(page.locator('.search-status')).not.toBeEmpty()
 })

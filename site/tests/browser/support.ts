@@ -60,6 +60,14 @@ export const meter = (page: Page) =>
     return Number(/scaleX\(([\d.e-]+)\)/.exec(bar?.style.transform ?? '')?.[1] ?? 0)
   })
 
+/**
+ * Waits until the meter moves. Asked ten times a second: a quiet sound, a reverb's tail after a
+ * click, lifts the meter only for a moment in each pass of the loop.
+ */
+export async function sounds(page: Page): Promise<void> {
+  await expect.poll(() => meter(page), { timeout: 10_000, intervals: [100] }).toBeGreaterThan(0)
+}
+
 /** How far the page is wider than its window: 0 when nothing sticks out sideways. */
 export const overflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)

@@ -10,6 +10,7 @@ import {
   pictures,
   renders,
   scrollThrough,
+  sounds,
   watch,
 } from './support.ts'
 
@@ -60,7 +61,7 @@ for (const lesson of lessonIds()) {
 
       await page.locator('.playbar-play').click()
       await expect(page.locator('.playbar-play[data-playing]')).toBeVisible()
-      await expect.poll(() => meter(page), { timeout: 10_000 }).toBeGreaterThan(0)
+      await sounds(page)
 
       const listens = page.locator('.stage-listen')
       const count = await listens.count()
@@ -93,7 +94,7 @@ for (const lesson of lessonIds()) {
       expect(await meter(page)).toBe(0)
       await bench.locator('.bench-bar button').click()
       await expect(page.locator('#lab-stage')).toHaveValue('@bench')
-      await expect.poll(() => meter(page), { timeout: 10_000 }).toBeGreaterThan(0)
+      await sounds(page)
       // The play bar's stop governs it.
       await page.locator('.playbar-play').click()
       await expect(page.locator('.playbar-play[data-playing]')).toHaveCount(0)
