@@ -13,17 +13,37 @@
 //     the transform of what comes out, folded to 4,096 samples first so that
 //     a long ring is all counted. The formula the lesson writes is worked out
 //     at the same frequencies ("combFormula"), and a check says how far apart
-//     the two are.
+//     the two are. The same ring folded to 16,384 samples gives the comb four
+//     times as finely, up to 1 kHz ("teethFlanger").
 //   - with its Depth at 0 on the loop ("still"): the comb with nothing moving.
-//   - as set by the controls on the loop: its oscillator, the delay it reads
-//     at, the delayed copy (the device keeps it for the feedback) and the sum.
+//   - as set by the controls on the loop: its oscillator, the delay each side
+//     reads at, the delayed copy (the device keeps it for the feedback) and
+//     the sum.
 //
-// The Chorus once. It keeps the delay line, the oscillator's phase, the
-// smoothed delay and depth and each voice's gains, but not what each voice
-// read: those are locals of its `read_voices`. So the lab reads the voices
-// again, out of the device's own line with the device's own numbers
-// ("lesson"), sums them as the device does, and reports how far that sum
-// lands from the output the device wrote (the "rebuilt" check).
+// The Chorus twice. Once on the loop: it keeps the delay line, the
+// oscillator's phase, the smoothed delay and depth and each voice's gains,
+// but not what each voice read: those are locals of its `read_voices`. So the
+// lab reads the voices again, out of the device's own line with the device's
+// own numbers ("lesson"), sums them as the device does, and reports how far
+// that sum lands from the output the device wrote (the "rebuilt" check). And
+// once with its Depth at 0 and one sample put in, for its comb up to 1 kHz
+// ("teethChorus"), on the points of "teethFlanger".
+//
+// The build part puts a flanger together a piece at a time, on a path of its
+// own beside the devices (lab::Build in lab.h). It has five pieces, each a
+// function of `Built` below, in the order the steps add them: a delay, read
+// from the kit's own line; an oscillator that moves the read point, which is
+// the Flanger's own class; the mix with the sound as it went in; feedback;
+// and several read points. With the first four the build does to a sample
+// what the Flanger does, in the same order, and its output is compared on
+// every render with the Flanger's own (the "builtDifference" check). The
+// fifth is the lesson's own: the Flanger has one read point, and the Chorus,
+// which has several, is a device of its own with other ranges. Two things
+// the build is told and does not work out: whether the Flanger is asleep,
+// since a sleeping device leaves its line as it was, and where its oscillator
+// then stands, since the oscillator runs on through the sleep. The build's
+// comb is measured as the Flanger's is, with one sample put in and the
+// oscillator held at three places in its cycle.
 
 #include "lab.h"
 
@@ -37,31 +57,33 @@ namespace {
 Flanger swept;
 Flanger held;  // a second Flanger whose Depth stays at 0
 Chorus chorus_device;
+Chorus chorus_held;  // a second Chorus whose Depth stays at 0
 
-lab::Control delay{"delay", "Delay", "ms", 0.5f, 10.0f, 2.5f, lab::kLog};
-lab::Control depth{"depth", "Depth", "%", 0.0f, 100.0f, 50.0f};
+// The Flanger's seven parameters, by its own ids.
+lab::Control delay{"delayMs", "Delay", "ms", 0.5f, 10.0f, 2.5f, lab::kLog};
 lab::Control rate{"rate", "Rate", "Hz", 0.01f, 10.0f, 0.25f, lab::kLog};
+lab::Control depth{"depth", "Depth", "%", 0.0f, 100.0f, 50.0f};
+lab::Control feedback{"feedback", "Feedback", "%", -95.0f, 95.0f, 0.0f};
 lab::Control shape{"shape", "Shape", "", 0.0f, 5.0f, 0.0f, lab::kLinear,
                    "Sine|Triangle|Saw up|Saw down|Square|Random"};
-lab::Control feedback{"feedback", "Feedback", "%", -95.0f, 95.0f, 0.0f};
+lab::Control stereo{"stereo", "Stereo", "deg", 0.0f, 180.0f, 90.0f};
 lab::Control mix{"mix", "Mix", "", 0.0f, 1.0f, 0.5f};
+// Six of the Chorus's eight.
 lab::Control voices{"voices", "Voices", "", 0.0f, 1.0f, 1.0f, lab::kLinear, "2|3"};
-lab::Control chorus_delay{"chorusDelay", "Chorus delay", "ms", 5.0f, 30.0f, 12.0f};
-lab::Control chorus_depth{"chorusDepth", "Chorus depth", "%", 0.0f, 100.0f, 50.0f};
 lab::Control chorus_rate{"chorusRate", "Chorus rate", "Hz", 0.01f, 10.0f, 0.8f, lab::kLog};
+lab::Control chorus_depth{"chorusDepth", "Chorus depth", "%", 0.0f, 100.0f, 50.0f};
+lab::Control chorus_delay{"chorusDelay", "Chorus delay", "ms", 5.0f, 30.0f, 12.0f};
 lab::Control spread{"spread", "Spread", "%", 0.0f, 100.0f, 70.0f};
 lab::Control chorus_mix{"chorusMix", "Chorus mix", "", 0.0f, 1.0f, 0.5f};
 
 lab::Tap in_tap{"in", "Input", lab::kAudio, lab::kSource, 2};
+lab::Tap in_picture{"inPicture", "Input, spectrum over time", lab::kFrames, lab::kSource, 1, "dB"};
 lab::Tap still{"still", "Comb, held still", lab::kAudio, lab::kDevice, 2};
 lab::Tap comb{"comb", "The comb, measured", lab::kCurve, lab::kDevice, 1, "dB"};
 lab::Tap comb_wet{"combWet", "The delayed path alone, measured", lab::kCurve, lab::kDevice, 1, "dB"};
 lab::Tap comb_formula{"combFormula", "The comb as written", lab::kCurve, lab::kLesson, 1, "dB"};
-lab::Tap lfo{"lfo", "Oscillator", lab::kControl, lab::kDevice, 1, ""};
-lab::Tap delay_ms{"delayMs", "Delay time", lab::kControl, lab::kDevice, 1, "ms"};
-lab::Tap flanger_wet{"flangerWet", "Delayed copy alone", lab::kAudio, lab::kDevice, 2};
-lab::Tap flanger_out{"flanger", "Flanger", lab::kAudio, lab::kDevice, 2};
-lab::Tap picture{"flangerPicture", "Flanger, spectrum over time", lab::kFrames, lab::kDevice, 1, "dB"};
+lab::Tap teeth_flanger{"teethFlanger", "The Flanger, held still", lab::kCurve, lab::kDevice, 1, "dB"};
+lab::Tap teeth_chorus{"teethChorus", "The Chorus, held still", lab::kCurve, lab::kDevice, 1, "dB"};
 lab::Tap voice1_ms{"voice1Ms", "Voice 1 delay", lab::kControl, lab::kLesson, 1, "ms"};
 lab::Tap voice2_ms{"voice2Ms", "Voice 2 delay", lab::kControl, lab::kLesson, 1, "ms"};
 lab::Tap voice3_ms{"voice3Ms", "Voice 3 delay", lab::kControl, lab::kLesson, 1, "ms"};
@@ -73,17 +95,175 @@ lab::Tap cents3{"cents3", "Voice 3 pitch", lab::kControl, lab::kLesson, 1, "cent
 lab::Tap voice{"voice", "One voice alone", lab::kAudio, lab::kLesson, 2};
 lab::Tap chorus_wet{"chorusWet", "Voices summed", lab::kAudio, lab::kLesson, 2};
 lab::Tap chorus_out{"chorus", "Chorus", lab::kAudio, lab::kDevice, 2};
+// The Flanger's taps come last: the page opens on the last sound a lab declares.
+lab::Tap lfo{"lfo", "Oscillator", lab::kControl, lab::kDevice, 1, ""};
+lab::Tap delay_ms{"delayMs", "Delay time", lab::kControl, lab::kDevice, 1, "ms"};
+lab::Tap delay_right_ms{"delayMsRight", "Delay time, right side", lab::kControl, lab::kDevice, 1, "ms"};
+lab::Tap flanger_wet{"flangerWet", "Delayed copy alone", lab::kAudio, lab::kDevice, 2};
+lab::Tap flanger_out{"flanger", "Flanger", lab::kAudio, lab::kDevice, 2};
+lab::Tap picture{"flangerPicture", "Flanger, spectrum over time", lab::kFrames, lab::kDevice, 1, "dB"};
 
 lab::Check comb_error{"combError", "The measured comb against the formula: the largest difference in gain, against a gain of 1",
                       "dB"};
 lab::Check rebuilt{"rebuilt", "The voices read again and summed, against the Chorus's own output", "dB"};
 
+lab::Tap built{"built", "The flanger so far", lab::kAudio, lab::kLesson, 2};
+lab::Tap built_delay{"builtDelay", "Read point, as built", lab::kControl, lab::kLesson, 1, "ms"};
+lab::Tap built_delay2{"builtDelay2", "Second read point, as built", lab::kControl, lab::kLesson, 1, "ms"};
+lab::Tap built_delay3{"builtDelay3", "Third read point, as built", lab::kControl, lab::kLesson, 1, "ms"};
+lab::Tap built_cents{"builtCents", "Pitch of the copy, as built", lab::kControl, lab::kLesson, 1, "cents"};
+lab::Tap built_response{"builtResponse", "The comb so far, read point at its centre", lab::kCurve, lab::kLesson, 1,
+                        "dB"};
+lab::Tap built_long{"builtLong", "The comb so far, delay at its longest", lab::kCurve, lab::kLesson, 1, "dB"};
+lab::Tap built_short{"builtShort", "The comb so far, delay at its shortest", lab::kCurve, lab::kLesson, 1, "dB"};
+
 constexpr int kCombPoints = 342;  // bins of a 4,096-point transform: 0 Hz to 3,996 Hz
 constexpr int kCombMost = 131072;  // samples of ring counted at most: 2.7 s
+constexpr int kFineSize = 16384;  // the transform of the finer comb: its 342 bins run from 0 Hz to 999 Hz
 
+kit::Fft<kFineSize> fine_fft;
 float fold_out_[lab::kSpectrumSize];
 float fold_wet_[lab::kSpectrumSize];
 float fold_im_[lab::kSpectrumSize];
+float fine_re_[kFineSize];
+float fine_im_[kFineSize];
+
+// The flanger so far: one function a piece, and run() to take a sample
+// through the pieces there are.
+struct Built {
+  // The pieces, in the order the steps add them.
+  enum Piece : int { kDelay = 0, kMove, kMix, kFeedback, kVoices };
+  static constexpr int kMostVoices = 3;
+  static constexpr float kFurthest = kit::DelayLine<Flanger::kLineSize>::max_delay();
+
+  int pieces = kDelay;
+  kit::DelayLine<Flanger::kLineSize> line[2];  // the kit's delay line, one a side
+  flanger::ModLfo lfo;                         // the Flanger's own oscillator
+  float centre = 0.0f;  // Delay, in samples
+  float swing = 0.0f;   // how far a read point goes either side of it, in samples
+  float lag = 1.0f;     // the share of the way to the oscillator a read point covers each sample
+  float ahead = 0.0f;   // Stereo, in cycles
+  float loop = 0.0f;    // Feedback, as a number to multiply by
+  float blend = 0.0f;   // Mix
+  int count = 1;        // read points
+  float share = 1.0f;   // 1 / count
+  float level = 1.0f;   // 1 / sqrt(count)
+  float sweep[2][kMostVoices] = {};  // where the oscillator has each read point, -1 to +1
+  float point[2][kMostVoices] = {};  // each read point, in samples behind the newest
+  float back[2] = {0.0f, 0.0f};      // what goes round again: what was read one sample ago
+  float out[2] = {0.0f, 0.0f};
+
+  // A delay: the line is read some way behind the place it is written at,
+  // and between two samples where the distance is not a whole number of them.
+  float read(int side, float behind) const { return line[side].read_hermite(behind); }
+
+  // Move it: the oscillator steps on, and each read point goes a share of
+  // the way to where the oscillator now has it, so it follows a little late.
+  void move() {
+    lfo.advance();
+    for (int side = 0; side < 2; ++side) {
+      for (int v = 0; v < count; ++v) {
+        sweep[side][v] += (lfo.value(turn(side, v)) - sweep[side][v]) * lag;
+      }
+    }
+  }
+
+  // How far ahead of the oscillator one read point reads it, in cycles: the
+  // right side by Stereo, and each further read point by an even share more.
+  float turn(int side, int v) const { return (side == 1 ? ahead : 0.0f) + static_cast<float>(v) * share; }
+
+  // Where a read point stands: at Delay, and as far to either side of it as
+  // the oscillator has it. Two samples is the nearest the line can be read.
+  float place(int side, int v) const { return kit::clamp(centre + sweep[side][v] * swing, 2.0f, kFurthest); }
+
+  // Mix: a share of the sound as it went in, and the rest the delayed copy.
+  float mixed(float in, float delayed) const { return in + (delayed - in) * blend; }
+
+  // Feedback: what was read one sample ago goes back into the line with the
+  // input. It passes the Flanger's own limiter on the way, which leaves
+  // anything under full scale exactly as it is.
+  float fed(float in, int side) const { return flush_denormal(in + Flanger::loop_limit(back[side] * loop)); }
+
+  // Several voices: the line is read at every read point there is. The copy
+  // is their sum, scaled so that voices that have drifted apart are as loud
+  // together as one of them. What goes round again is their plain mean.
+  float voice_sum(int side, float* mean) {
+    float sum = 0.0f;
+    for (int v = 0; v < count; ++v) {
+      point[side][v] = place(side, v);
+      sum += read(side, point[side][v]);
+    }
+    *mean = sum * share;
+    return sum * level;
+  }
+
+  // One sample through the pieces built so far, in the order it meets them.
+  void run(float left, float right) {
+    const float in[2] = {left, right};
+    if (pieces >= kMove) move();
+    for (int side = 0; side < 2; ++side) {
+      float mean = 0.0f;
+      const float delayed = voice_sum(side, &mean);
+      line[side].write(pieces >= kFeedback ? fed(in[side], side) : in[side]);
+      back[side] = mean;
+      out[side] = pieces >= kMix ? mixed(in[side], delayed) : delayed;
+    }
+  }
+
+  void start(int pieces_) {
+    pieces = pieces_;
+    centre = delay.value * (0.001f * lab::kSampleRate);
+    swing = pieces >= kMove ? depth.value * 0.01f * Flanger::kDepthScale * centre : 0.0f;
+    lag = 1.0f - kit::time_to_coeff(Flanger::kLfoLagSeconds, lab::kSampleRate);
+    ahead = stereo.value * (1.0f / 360.0f);
+    loop = feedback.value * 0.01f;
+    blend = mix.value;
+    count = pieces >= kVoices ? (voices.on() ? 3 : 2) : 1;
+    share = 1.0f / static_cast<float>(count);
+    level = count == 1 ? 1.0f : 1.0f / std::sqrt(static_cast<float>(count));
+    lfo.reset();
+    lfo.set_rate(rate.value, lab::kSampleRate);
+    lfo.set_shape(shape.choice());
+    for (int side = 0; side < 2; ++side) {
+      line[side].clear();
+      back[side] = out[side] = 0.0f;
+    }
+    settle();
+  }
+
+  // Each read point where the oscillator has it now, with nothing lagging.
+  void settle() {
+    for (int side = 0; side < 2; ++side) {
+      for (int v = 0; v < kMostVoices; ++v) {
+        sweep[side][v] = v < count && pieces >= kMove ? lfo.value(turn(side, v)) : 0.0f;
+        point[side][v] = place(side, v);
+      }
+    }
+  }
+
+  // The Flanger is asleep: nothing comes out, the line stays as it was, and
+  // the oscillator stands where the device's does.
+  void rest(const flanger::ModLfo& theirs) {
+    lfo = theirs;
+    settle();
+    out[0] = out[1] = 0.0f;
+  }
+
+  // Hold the oscillator at one place in a sine's cycle, for measuring the comb.
+  void hold(double phase) {
+    lfo.set_shape(flanger::ModLfo::kSine);
+    lfo.phase_ = phase;
+    lfo.increment_ = 0.0;
+    settle();
+  }
+};
+
+lab::Build build{"A delay|Move it|Mix with the dry sound|Feedback|Several voices", Built::kFeedback, -120.0f,
+                 "The flanger as built, its first four pieces, against the Flanger's own output"};
+
+Built shown;    // at the step the reader chose: what the built taps hold
+Built matched;  // with the first four pieces: what is compared with the Flanger
+Built probe;    // held still with one sample put in, for the comb so far
 
 void configure(Flanger& device, float depth_percent) {
   using namespace flanger;
@@ -93,16 +273,16 @@ void configure(Flanger& device, float depth_percent) {
   device.set_param(kDepth, depth_percent);
   device.set_param(kFeedback, feedback.value);
   device.set_param(kShape, static_cast<float>(shape.choice()));
+  device.set_param(kStereo, stereo.value);
   device.set_param(kMix, mix.value);
-  // Stereo stays where the device starts it: the right side a quarter cycle ahead.
 }
 
-void configure(Chorus& device) {
+void configure(Chorus& device, float depth_percent) {
   using namespace chorus;
   device.init(lab::kSampleRate);
   device.set_param(kVoices, static_cast<float>(voices.choice()));
   device.set_param(kRate, chorus_rate.value);
-  device.set_param(kDepth, chorus_depth.value);
+  device.set_param(kDepth, depth_percent);
   device.set_param(kDelayMs, chorus_delay.value);
   device.set_param(kSpread, spread.value);
   device.set_param(kMix, chorus_mix.value);
@@ -165,6 +345,18 @@ float read_before_write(const kit::DelayLine<Size>& line, float delay_samples) {
                       line.at(at - whole - 2), fraction);
 }
 
+// A comb's curve from what one sample rang out as, folded to `size` samples
+// in `re`: the size of each of the first 342 bins, in dB, with a unit sample
+// at 0 dB. `im` is room for the transform.
+template <class Transform>
+void comb_curve(lab::Tap& tap, const Transform& transform, float* re, float* im, int size) {
+  if (!tap.open(kCombPoints)) return;
+  tap.x1 = static_cast<float>(kCombPoints - 1) * lab::kSampleRate / static_cast<float>(size);
+  for (int n = 0; n < size; ++n) im[n] = 0.0f;
+  transform.forward(re, im);
+  for (int k = 0; k < kCombPoints; ++k) tap.set(k, lab::to_db(std::sqrt(re[k] * re[k] + im[k] * im[k])));
+}
+
 // The comb with nothing moving: one sample into a Flanger at Depth 0, and the
 // transform of everything that comes out. A ring longer than the transform is
 // folded into it, which leaves each bin exactly what the whole ring gives.
@@ -175,6 +367,7 @@ void measure_comb() {
 
   configure(held, 0.0f);
   for (int n = 0; n < lab::kSpectrumSize; ++n) fold_out_[n] = fold_wet_[n] = 0.0f;
+  for (int n = 0; n < kFineSize; ++n) fine_re_[n] = 0.0f;
   // Half of full scale, so the feedback's limiter (linear up to ±1) stays out of it.
   constexpr float kUnit = 0.5f;
   for (int n = 0; n < kCombMost; ++n) {
@@ -185,6 +378,7 @@ void measure_comb() {
     held.process(1);
     fold_out_[n & (lab::kSpectrumSize - 1)] += held.out_left()[0] / kUnit;
     fold_wet_[n & (lab::kSpectrumSize - 1)] += held.last_wet_[0] / kUnit;
+    fine_re_[n & (kFineSize - 1)] += held.out_left()[0] / kUnit;
   }
   for (int n = 0; n < lab::kSpectrumSize; ++n) fold_im_[n] = 0.0f;
   lab::g_spectrum_fft.forward(fold_out_, fold_im_);
@@ -221,6 +415,46 @@ void measure_comb() {
     if (apart > worst) worst = apart;
   }
   comb_error.value = lab::to_db(static_cast<float>(worst));
+
+  // The same ring, four times as finely: the Flanger's comb up to 1 kHz.
+  comb_curve(teeth_flanger, fine_fft, fine_re_, fine_im_, kFineSize);
+}
+
+// The Chorus with nothing moving, on the same points: one sample into a
+// Chorus at Depth 0, where every voice reads the same place.
+void measure_chorus_teeth() {
+  configure(chorus_held, 0.0f);
+  for (int n = 0; n < kFineSize; ++n) fine_re_[n] = 0.0f;
+  constexpr float kUnit = 0.5f;
+  for (int n = 0; n < kCombMost; ++n) {
+    const float x = n == 0 ? kUnit : 0.0f;
+    if (n > 0 && chorus_held.idle_.asleep()) break;
+    chorus_held.in_left()[0] = x;
+    chorus_held.in_right()[0] = x;
+    chorus_held.process(1);
+    fine_re_[n & (kFineSize - 1)] += chorus_held.out_left()[0] / kUnit;
+  }
+  comb_curve(teeth_chorus, fine_fft, fine_re_, fine_im_, kFineSize);
+}
+
+// The comb of the flanger so far: one sample into a copy of the build whose
+// oscillator is held at `phase` of a sine's cycle, and the transform of what
+// its left side rings out as. A quarter of a cycle in, the sine is at its
+// top and the delay at its longest; three quarters in, at its shortest.
+void measure_built(lab::Tap& tap, double phase) {
+  probe.start(build.at());
+  probe.hold(phase);
+  for (int n = 0; n < lab::kSpectrumSize; ++n) fold_out_[n] = 0.0f;
+  constexpr float kUnit = 0.5f;
+  int quiet = 0;  // samples since anything came out
+  for (int n = 0; n < kCombMost && quiet < 2 * Flanger::kLineSize; ++n) {
+    const float x = n == 0 ? kUnit : 0.0f;
+    probe.run(x, x);
+    fold_out_[n & (lab::kSpectrumSize - 1)] += probe.out[0] / kUnit;
+    const float size = probe.out[0] < 0.0f ? -probe.out[0] : probe.out[0];
+    quiet = size > 1.0e-9f ? 0 : quiet + 1;
+  }
+  comb_curve(tap, lab::g_spectrum_fft, fold_out_, fold_im_, lab::kSpectrumSize);
 }
 
 // The loop through the Flanger with its Depth at 0: nothing but the comb.
@@ -242,11 +476,11 @@ void render_still() {
 
 }  // namespace
 
-void lab_setup() {}
+void lab_setup() { fine_fft.init(); }
 
 void lab_render(int frames) {
   configure(swept, depth.value);
-  configure(chorus_device);
+  configure(chorus_device, chorus_depth.value);
 
   const float ms_per_sample = 1000.0f / lab::kSampleRate;
   const float longest = kit::DelayLine<Chorus::kLineSize>::max_delay();
@@ -256,6 +490,17 @@ void lab_render(int frames) {
   double apart = 0.0;
   double whole = 0.0;
 
+  // The build part: the chosen step, and the four pieces that are held to the
+  // Flanger. Where the chosen step is that one, one copy is both.
+  const bool both = build.at() == build.compared_step;
+  Built& compared = both ? shown : matched;
+  shown.start(build.at());
+  if (!both) matched.start(build.compared_step);
+  float built_before = 0.0f;  // the build's first read point one control period ago
+  float built_pitch = 0.0f;
+  double built_apart = 0.0;
+  double built_whole = 0.0;
+
   // The end of the first time round, in blocks: it fills the delay lines, and
   // no stage of it is kept.
   constexpr int kBlock = 64;
@@ -263,16 +508,21 @@ void lab_render(int frames) {
   const float sweep_most = swept.delay_.value + swept.deviation_.value;
   const int wake_swept = sleep_through(swept, frames, memory_of(sweep_most, swept.feedback_.value));
   const int wake_chorus = sleep_through(chorus_device, frames, memory_of(longest, 0.0f));
+  // The build wakes with the Flanger, its oscillator where the Flanger's stands.
+  shown.rest(swept.lfo_);
+  if (!both) matched.rest(swept.lfo_);
   int i = wake_swept < wake_chorus ? wake_swept : wake_chorus;
   for (; i + kBlock <= frames - lab::kControlPeriod; i += kBlock) {
     const bool flanging = i >= wake_swept;
     const bool singing = i >= wake_chorus;
+    bool awake = flanging && !swept.idle_.asleep();
     for (int j = 0; j < kBlock; ++j) {
       const float left = lab::in_at(0, i + j);
       const float right = lab::in_at(1, i + j);
       if (flanging) {
         swept.in_left()[j] = left;
         swept.in_right()[j] = right;
+        awake = awake || left != 0.0f || right != 0.0f;
       }
       if (singing) {
         chorus_device.in_left()[j] = left;
@@ -281,6 +531,16 @@ void lab_render(int frames) {
     }
     if (flanging) swept.process(kBlock);
     if (singing) chorus_device.process(kBlock);
+    if (!flanging) continue;
+    if (!awake) {
+      shown.rest(swept.lfo_);
+      if (!both) matched.rest(swept.lfo_);
+      continue;
+    }
+    for (int j = 0; j < kBlock; ++j) {
+      shown.run(lab::in_at(0, i + j), lab::in_at(1, i + j));
+      if (!both) matched.run(lab::in_at(0, i + j), lab::in_at(1, i + j));
+    }
   }
 
   for (; i < total; ++i) {
@@ -294,6 +554,22 @@ void lab_render(int frames) {
     swept.in_left()[0] = left;
     swept.in_right()[0] = right;
     swept.process(1);
+
+    // The build part, beside the Flanger: asleep when it is, and in step with its oscillator.
+    if (flanging) {
+      shown.run(left, right);
+      if (!both) matched.run(left, right);
+    } else {
+      shown.rest(swept.lfo_);
+      if (!both) matched.rest(swept.lfo_);
+    }
+    if (kept) {
+      const double apart_left = static_cast<double>(compared.out[0]) - swept.out_left()[0];
+      const double apart_right = static_cast<double>(compared.out[1]) - swept.out_right()[0];
+      built_apart += apart_left * apart_left + apart_right * apart_right;
+      built_whole += static_cast<double>(swept.out_left()[0]) * swept.out_left()[0] +
+                     static_cast<double>(swept.out_right()[0]) * swept.out_right()[0];
+    }
 
     // The Chorus, and its voices read again from its own line.
     const bool singing = renders(chorus_device, left, right);
@@ -343,19 +619,24 @@ void lab_render(int frames) {
         pitch[v] = have_before ? 1200.0f * std::log2(1.0f - slope) : 0.0f;
         before[v] = read_at[0][v];
       }
+      const float built_slope = (shown.point[0][0] - built_before) / static_cast<float>(lab::kControlPeriod);
+      built_pitch = have_before ? 1200.0f * std::log2(1.0f - built_slope) : 0.0f;
+      built_before = shown.point[0][0];
       have_before = true;
     }
     if (!kept) continue;
 
     in_tap.put(i, left, right);
-    flanger_wet.put(i, flanging ? swept.last_wet_[0] : 0.0f, flanging ? swept.last_wet_[1] : 0.0f);
-    flanger_out.put(i, swept.out_left()[0], swept.out_right()[0]);
     voice.put(i, first_voice[0], first_voice[1]);
     chorus_wet.put(i, wet[0], wet[1]);
     chorus_out.put(i, out[0], out[1]);
+    flanger_wet.put(i, flanging ? swept.last_wet_[0] : 0.0f, flanging ? swept.last_wet_[1] : 0.0f);
+    flanger_out.put(i, swept.out_left()[0], swept.out_right()[0]);
+    built.put(i, shown.out[0], shown.out[1]);
     if (!control) continue;
     keep(lfo, i, swept.lfo_.value());
     keep(delay_ms, i, swept.meter(1));
+    keep(delay_right_ms, i, swept.meter(2));
     keep(voice1_ms, i, read_at[0][0] * ms_per_sample);
     keep(voice2_ms, i, read_at[0][1] * ms_per_sample);
     keep(voice3_ms, i, read_at[0][2] * ms_per_sample);
@@ -364,10 +645,20 @@ void lab_render(int frames) {
     keep(cents1, i, pitch[0]);
     keep(cents2, i, pitch[1]);
     keep(cents3, i, pitch[2]);
+    keep(built_delay, i, shown.point[0][0] * ms_per_sample);
+    keep(built_delay2, i, shown.point[0][1] * ms_per_sample);
+    keep(built_delay3, i, shown.point[0][2] * ms_per_sample);
+    keep(built_cents, i, built_pitch);
   }
   rebuilt.value = whole > 0.0 ? lab::ratio_db(apart, whole) : lab::kFloorDb;
+  build.difference.value = lab::ratio_db(built_apart, built_whole);
 
   render_still();
   measure_comb();
+  measure_chorus_teeth();
+  measure_built(built_response, 0.0);
+  measure_built(built_long, 0.25);
+  measure_built(built_short, 0.75);
+  if (in_tap.data) lab::spectrogram_tap(in_picture, in_tap.channel(0), frames);
   if (flanger_out.data) lab::spectrogram_tap(picture, flanger_out.channel(0), frames);
 }
