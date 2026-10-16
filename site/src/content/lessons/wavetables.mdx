@@ -1,5 +1,5 @@
 ---
-title: Wavetables and sample playback
+title: Wavetables
 family: signals
 summary: A wavetable is one cycle of a wave, kept as a list of numbers and read round and round at the speed of the note. This lesson reads one too fast and hears what breaks, builds the Wavetable's voice in six pieces, opens the device itself, and then turns to the Sampler, which reads a whole recording the same way.
 long: true
@@ -29,7 +29,7 @@ files:
 
 <Part id="why" title="One stored cycle plays one note. Read faster, it folds.">
 
-A synthesiser needs waves of many colours: a hollow reed, a bright saw, a vowel. Each of them can be written as a sum of sine waves, one at the note's own frequency and others at twice, three times, four times that frequency and so on up. Those are its harmonics. Adding up hundreds of sines for every sample of every key is too much work to do while a note plays.
+A synthesiser needs waves of many colours: a hollow reed, a bright saw, a vowel. Each of them can be written as a sum of sine waves, one at the note's own frequency and others at twice, three times, four times that frequency and so on up. Those are its harmonics: the partials of <Lesson id="samples-and-aliasing" />, by the name the device's own code gives them. Adding up hundreds of sines for every sample of every key is too much work to do while a note plays.
 
 So the engine's Wavetable does the sum once, when it starts, for one cycle of each wave, and keeps the answers: <Src path="cpp/devices/wavetable/wavetable.h" at="static constexpr int kSize = 2048;">2,048 numbers for a cycle</Src>. This lesson calls each number an entry, and the list a table. After that, a note costs a look in a list.
 
@@ -63,7 +63,7 @@ Higher up, the top harmonics would stand above half the sample rate, and a sampl
 
 Both ways of reading can be heard. <Hear set="full" label="Hear the full cycle at a high key" /> plays the Wavetable's own stored saw, read at the speed of a high key with nothing to protect it. The lab does that reading itself, because the device never does. <Hear set="kept" label="Hear the Wavetable on the same key" /> plays the device's own oscillator. Listen for tones under and between the note in the first, and for whether they are there in the second.
 
-Measured on those two sounds, <Claim id="full-folds">at 1,760 Hz what is not on a harmonic of the note stands at −13.4 dB against the whole sound in the full cycle, and at −107.8 dB in the Wavetable's oscillator</Claim>. Every figure in this lesson for what is off the note, which is what has folded back and whatever else a read adds, counts the same band: <Claim id="band">everything more than 8.8 Hz from every multiple of the note's pitch, in 65,536 samples of the held note, which is 1.37 s of it, starting 0.5 s after the key goes down</Claim>. The figure is the level of that band against the level of everything in the stretch. For the Sampler, whose note does not hold still that long, part 5 uses a shorter stretch and says so.
+Measured on those two sounds, <Claim id="full-folds">at 1,760 Hz what is not on a harmonic of the note stands at −13.4 dB against the whole sound in the full cycle, and at −107.8 dB in the Wavetable's oscillator</Claim>. Every figure in this lesson for what is off the note, which is what has folded back and whatever else a read adds, counts the same band: <Claim id="band">everything more than 8.8 Hz from every multiple of the note's pitch, in 65,536 samples of the held note, which is 1.365 s of it, starting 0.5 s after the key goes down</Claim>. The figure is the level of that band against the level of everything in the stretch. For the Sampler, whose note does not hold still that long, part 5 uses a shorter stretch and says so.
 
 So the question of this lesson: how does the device play one stored saw at every key and leave so little between the harmonics?
 
@@ -108,10 +108,10 @@ Written down, the cycle is a sum:
 
 <M
   block
-  t={String.raw`c(\theta) = \sum_{n=1}^{H} a_n \sin\bigl(2\pi\,(n\,\theta + \varphi_n)\bigr)`}
+  t={String.raw`c(\varphi) = \sum_{n=1}^{H} a_n \sin\bigl(2\pi\,(n\,\varphi + \theta_n)\bigr)`}
 />
 
-Read it against the two pictures. <M t={String.raw`\theta`} /> is the place in the cycle, from 0 at its start to 1 at its end: the first picture's axis. <M t="n" /> counts the harmonics up to <M t="H" />, which is 512 for the cycle drawn. <M t="a_n" /> is the height of bar number <M t="n" /> in the second picture, and <M t={String.raw`\varphi_n`} /> says where in its own cycle that harmonic starts. Position and Table change the heights. Pitch does not: it only decides where the bars stand, because a cycle read <M t="f" /> times a second puts harmonic <M t="n" /> at <M t={String.raw`n f`} />. A bar fits while
+Read it against the two pictures. <M t={String.raw`\varphi`} /> is the place in the cycle, from 0 at its start to 1 at its end: the first picture's axis. <M t="n" /> counts the harmonics up to <M t="H" />, which is 512 for the cycle drawn. <M t="a_n" /> is the height of bar number <M t="n" /> in the second picture, and <M t={String.raw`\theta_n`} /> says where in its own cycle that harmonic starts. Position and Table change the heights. Pitch does not: it only decides where the bars stand, because a cycle read <M t="f" /> times a second puts harmonic <M t="n" /> at <M t={String.raw`n f`} />. A bar fits while
 
 <M block t={String.raw`n\,f < \tfrac{1}{2} f_s`} />
 
@@ -207,14 +207,14 @@ The build reads the device's own stored cycles. It also takes from the device, a
 
   </Step>
   <Step title="A phase that reads it" controls="table pitch">
-    To play a note, the read has to go round the cycle as many times a second as the note's frequency. So the build stops counting entries and keeps a phase: a number from 0 to 1 that says how far round the cycle the wave has got. On every sample the phase moves on by the note's share of a cycle, and when it reaches 1 it goes back by 1. The entry it has reached is the one read.
+    To play a note, the read has to go round the cycle as many times a second as the note's frequency. So the build stops counting entries and keeps a phase, as the oscillators of <Lesson id="samples-and-aliasing" /> do: a number from 0 to 1 that says how far round the cycle the wave has got. On every sample the phase moves on by the note's share of a cycle, and when it reaches 1 it goes back by 1. The entry it has reached is the one read.
 
     <M
       block
-      t={String.raw`\theta \;\leftarrow\; \theta + \at{phase-step}{\frac{f}{f_s}} \qquad \at{phase-wrap}{(\text{less } 1 \text{ at } 1)}`}
+      t={String.raw`\varphi \;\leftarrow\; \varphi + \at{phase-step}{\frac{f}{f_s}} \qquad \at{phase-wrap}{(\text{less } 1 \text{ at } 1)}`}
     />
 
-    <M t={String.raw`\theta`} /> is the place in the cycle of part 2, now moving. <M t="f" /> is the note's frequency and <M t="f_s" /> the sample rate, so their ratio is the part of a cycle that goes by in one sample. <Claim id="phase-pitch">With Pitch at 880 Hz the build now goes round 880.0 Hz</Claim>, where the step before stayed on its one low note.
+    <M t={String.raw`\varphi`} /> is the place in the cycle of part 2, now moving. <M t="f" /> is the note's frequency and <M t="f_s" /> the sample rate, so their ratio is the part of a cycle that goes by in one sample. <Claim id="phase-pitch">With Pitch at 880 Hz the build now goes round 880.0 Hz</Claim>, where the step before stayed on its one low note.
 
     <Listing
       path="site/labs/wavetables.cpp"
@@ -241,7 +241,7 @@ The build reads the device's own stored cycles. It also takes from the device, a
       t={String.raw`y = \at{between-line}{T[i] + r\,\bigl(T[i+1] - T[i]\bigr)}`}
     />
 
-    <M t="T" /> is the table and <M t="y" /> the value read. With <M t="N" /> entries in the cycle, the phase stands at <M t={String.raw`N\theta`} /> entries along it: <M t="i" /> is <Src path="site/labs/wavetables.cpp" at="const int index = static_cast<int>(at);">the whole part of that</Src>, the entry below, and <M t="r" /> is <Src path="site/labs/wavetables.cpp" at="const float fraction = at - static_cast<float>(index);">what is left over</Src>, from 0 to 1. The device stores <Src path="cpp/devices/wavetable/wavetable.h" at="out[kSize] = out[0];">the first entry again after the last</Src>, so the entry above the last one is there to be read.
+    <M t="T" /> is the table and <M t="y" /> the value read. With <M t="N" /> entries in the cycle, the phase stands at <M t={String.raw`N\varphi`} /> entries along it: <M t="i" /> is <Src path="site/labs/wavetables.cpp" at="const int index = static_cast<int>(at);">the whole part of that</Src>, the entry below, and <M t="r" /> is <Src path="site/labs/wavetables.cpp" at="const float fraction = at - static_cast<float>(index);">what is left over</Src>, from 0 to 1. The device stores <Src path="cpp/devices/wavetable/wavetable.h" at="out[kSize] = out[0];">the first entry again after the last</Src>, so the entry above the last one is there to be read.
 
     The lab measures the read against the cycle itself, which it works out from the cycle's harmonics at a place between every pair of entries, four different places taken in turn. Read between entries, the stored saw lies <Claim id="between">−46.4 dB from the cycle itself, against −30.0 dB when the entry below is taken</Claim>.
 
@@ -254,7 +254,7 @@ The build reads the device's own stored cycles. It also takes from the device, a
       at={{ line: 'return stored[index] + (stored[index + 1] - stored[index]) * fraction; }' }}
     />
 
-    That is a better read of the same table, and it leaves the tones between the harmonics nearly where they were: <Claim id="between-folds">at 880 Hz, −16.5 dB of the sound is off the note before this piece and −16.8 dB after it</Claim>, counted as in part 1. The staircase was not the cause. What the table holds is.
+    That is a better read of the same table, and it leaves the tones between the harmonics nearly where they were: <Claim id="between-folds">at 880 Hz, −16.54 dB of the sound is off the note before this piece and −16.8 dB after it</Claim>, counted as in part 1. The staircase was not the cause. What the table holds is.
 
     <Curve slot="picture" taps="readExact readBelow readBetween" xTitle="entries from the steepest place">
       Sixteen entries of the stored cycle around its steepest place, read three ways. Try Table on
@@ -263,7 +263,7 @@ The build reads the device's own stored cycles. It also takes from the device, a
 
   </Step>
   <Step title="A table for each octave" controls="table pitch">
-    The stored cycle holds more harmonics than fit under half the rate at this pitch, and no way of reading it will take them out. So the device stores every cycle <Src path="cpp/devices/wavetable/wavetable.h" at="static constexpr int kLevels = 10;">ten times</Src>, each copy with <Src path="cpp/devices/wavetable/wavetable.h" at="const int top = kHarmonics >> level;">half the harmonics of the one before</Src>: 512, then 256, and so on down to 1. A key reads the first copy whose top harmonic stays under half the rate at its pitch. An octave higher, it reads the next.
+    The stored cycle holds more harmonics than fit under half the rate at this pitch. So the device stores every cycle <Src path="cpp/devices/wavetable/wavetable.h" at="static constexpr int kLevels = 10;">ten times</Src>, each copy with <Src path="cpp/devices/wavetable/wavetable.h" at="const int top = kHarmonics >> level;">half the harmonics of the one before</Src>: 512, then 256, and so on down to 1. A key reads the first copy whose top harmonic stays under half the rate at its pitch. An octave higher, it reads the next.
 
     A hard change of copy between two neighbouring keys would be a change of colour between them. So over the top quarter of each octave the read crosses from its copy into the next one up:
 
@@ -324,7 +324,7 @@ The build reads the device's own stored cycles. It also takes from the device, a
       at={{ blend: 'return a + (b - a) * share; }' }}
     />
 
-    Blending two waves can go wrong: where one rises as the other falls, they cancel. The device's tables are made to keep that small. In four of the five, every frame of a row keeps each harmonic at the same place in its cycle, <Src path="cpp/devices/wavetable/wavetable.h" at="row, so a crossfade between two frames moves amplitudes only and never">so a blend changes the heights of the bars and nothing else</Src>. Hollow is the exception: <Src path="cpp/devices/wavetable/wavetable.h" at="std::sin(kit::kPi * fn * duty) / (fn * std::sqrt(1.0f + (fn / 48.0f) * (fn / 48.0f)));">its recipe</Src> stands some harmonics upside down from one frame to the next, and a blend takes those through nothing on the way. Measured on the oscillator with Pitch at its lowest, <Claim id="blend-level">the sound halfway between two neighbouring frames is less than 1 dB quieter than on a stored frame, in all five tables</Claim>.
+    Blending two waves can go wrong: where one rises as the other falls, they cancel. The device's tables are made to keep that small. In four of the five, every frame of a row keeps each harmonic at the same place in its cycle, <Src path="cpp/devices/wavetable/wavetable.h" at="row, so a crossfade between two frames moves amplitudes only and never">so a blend changes the heights of the bars and nothing else</Src>. Hollow is the exception: <Src path="cpp/devices/wavetable/wavetable.h" at="std::sin(kit::kPi * fn * duty) / (fn * std::sqrt(1.0f + (fn / 48.0f) * (fn / 48.0f)));">its recipe</Src> stands some harmonics upside down from one frame to the next, and a blend takes those through nothing on the way. Measured on the oscillator with Pitch at its lowest, <Claim id="blend-level">the sound halfway between two neighbouring frames is quieter than on a stored frame by 0.9 dB where the dip is largest, in the Vowels table, and by less in the other four</Claim>.
 
     <Curve slot="picture" taps="frameBelow frameAbove builtCycle" xTitle="once round the cycle">
       The two stored frames either side of Position, each with every harmonic, and the cycle the
@@ -336,7 +336,7 @@ The build reads the device's own stored cycles. It also takes from the device, a
   <Step title="The rest of the voice" controls="table pitch position motion rate detune sub spread cutoff resonance attack release volume">
     One oscillator reading one row is the heart of the device. Its voice has more around it. There is a second oscillator: Detune tunes one a few cents flat and the other a few cents sharp, and each has its own place in the row. There is a sine wave an octave down, read from the kit's own sine table. Spread puts one oscillator nearer each side. One low-pass filter serves all the keys, and a soft clip stands at the end.
 
-    The build does each of these in its own lines, with the device's numbers. <Claim id="voice">The build and the Wavetable's output now differ by under −120 dB on both channels</Claim>, and a piece sooner they were two different sounds. The floor of the reading below is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows when the difference is that small or there is none. On the page now:
+    The build does each of these in its own lines, with the device's numbers. <Claim id="voice">The build and the Wavetable's output now differ by under −120 dB on both channels</Claim>, and a piece sooner they were two different sounds. The reading below stops at <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, where it says only that the difference is more than 140 dB under. On the page now:
 
     <Check id="builtDifference" />
 
@@ -370,7 +370,7 @@ The build reads the device's own stored cycles. It also takes from the device, a
 The engine has two devices that play stored sound. The Wavetable stores cycles and reads them round and round, as part 4 built it. The Sampler stores one recording and reads it from end to end. This part goes through the Wavetable's stages first, six of them, and then the Sampler's five. Every listing here is the device's own source.
 
 <Flow
-  label="Along the top, the stored cycles feed the choice of a copy for the octave, which feeds the read of the cycle by a phase. The read goes on through the second oscillator, the sub, the spread and the filter to the output. On the row under it, the Motion LFO feeds the place in the row, which goes up into the read."
+  label="The stored cycles feed the choice of a copy for the octave, which feeds the read of the cycle by a phase. The read goes on through the second oscillator, the sub, the spread and the filter to the output. Beside that path, the Motion LFO feeds the place in the row, which feeds the read too."
   blocks={[
     { id: 'stored', label: 'Stored cycles', tap: 'frameBelow', n: 1, signal: 'value' },
     { id: 'copy', label: 'Copy for the octave', from: 'stored', tap: 'copyTop', n: 2, signal: 'value' },
@@ -381,9 +381,10 @@ The engine has two devices that play stored sound. The Wavetable stores cycles a
     { id: 'place', row: 1, label: 'Place in the row', from: 'lfo', tap: 'place', n: 5, signal: 'value' },
   ]}
 >
-  The Wavetable. The row along the top is the sound: stored numbers, a choice among them, the
-  read, and what a voice adds. The row under it is the slow motion that says where in the table's
-  row the read happens. Press a stage's button below, and notice its block light up here.
+  The Wavetable. From Stored cycles to Output is the sound: stored numbers, a choice among them,
+  the read, and what a voice adds. Motion LFO and Place in the row are the slow motion that says
+  where in the table's row the read happens. Press the button of a stage, and notice its block
+  light up here.
 </Flow>
 
 The lab plays one key, held for most of the loop, at <Src path="site/labs/wavetables.cpp" at='lab::Control pitch{"pitch", "Pitch"'>220 Hz</Src> unless Pitch is moved, struck <Src path="site/labs/wavetables.cpp" at="constexpr float kStrike = 0.8f;">at 0.8 of full strength</Src>.
@@ -401,11 +402,11 @@ The lab plays one key, held for most of the loop, at <Src path="site/labs/waveta
   <M
     slot="equation"
     block
-    t={String.raw`c_k(\theta) = \sum_{n=1}^{\at{levels-top}{512 / 2^{k}}} a_n \sin\bigl(2\pi(n\theta + \varphi_n)\bigr)`}
+    t={String.raw`c_k(\varphi) = \sum_{n=1}^{\at{levels-top}{512 / 2^{k}}} a_n \sin\bigl(2\pi(n\varphi + \theta_n)\bigr)`}
   />
 
   <Fragment slot="readback">
-    This is the sum of part 2 with its upper limit made to depend on <M t="k" />, the number of the copy. Copy 0 has all 512 harmonics, copy 1 the lower 256, and so on. The amplitudes <M t="a_n" /> and the starting places <M t={String.raw`\varphi_n`} /> are the recipe's, and they are the same in every copy: a copy with fewer harmonics is the same wave with its top taken off, and nothing else about it moves. The code does not add 512 sines for each of the 2,048 entries. It writes each harmonic into its place in a spectrum and turns the whole spectrum into a cycle in one inverse transform, the subject of <Lesson id="fourier-transform" />. Every cycle is then scaled to <Src path="cpp/devices/wavetable/wavetable.h" at="static constexpr float kTableRms = 0.25f;">the same RMS level, 0.25</Src>, so that moving along a row changes the colour and leaves the loudness about where it was. The listing's lines on a peak would turn a cycle down further <Src path="cpp/devices/wavetable/wavetable.h" at="if (peak * gain > 0.95f) gain = 0.95f / peak;">if it reached past 0.95</Src>, and none of the device's cycles does.
+    This is the sum of part 2 with its upper limit made to depend on <M t="k" />, the number of the copy. Copy 0 has all 512 harmonics, copy 1 the lower 256, and so on. The amplitudes <M t="a_n" /> and the starting places <M t={String.raw`\theta_n`} /> are the recipe's, and they are the same in every copy: a copy with fewer harmonics is the same wave with its top taken off, and nothing else about it moves. The code does not add 512 sines for each of the 2,048 entries. It writes each harmonic into its place in a spectrum and turns the whole spectrum into a cycle in one inverse transform, the subject of <Lesson id="fourier-transform" />. Every cycle is then scaled to <Src path="cpp/devices/wavetable/wavetable.h" at="static constexpr float kTableRms = 0.25f;">the same RMS level, 0.25</Src>, the measure of <Lesson id="level-and-loudness" />, so that moving along a row changes the colour and leaves the loudness about where it was. The listing's lines on a peak would turn a cycle down further <Src path="cpp/devices/wavetable/wavetable.h" at="if (peak * gain > 0.95f) gain = 0.95f / peak;">if it reached past 0.95</Src>, and none of the device's cycles does.
   </Fragment>
 
   <Listing
@@ -424,7 +425,7 @@ The lab adds the recipe's sines up one at a time, the slow way, and holds the de
 <Check id="tableError" />
 
 <StageBlock tap="copyTop" n={2} title="A copy for the octave: which of the ten a key reads">
-  When a key goes down, the device works out which copy its pitch can afford. The rule is the one from part 2: the top harmonic of the copy must stay under half the sample rate. Copy 0 can be read until its 512th harmonic gets there. From then on each octave of pitch needs the next copy.
+  When a key goes down, the device works out which copy its pitch can afford, by the rule of step 4 of the build: the top harmonic of the copy must stay under half the sample rate.
 
   <Controls ids="pitch" />
 
@@ -501,7 +502,7 @@ The device adds its oscillators together before anything can be read out of it, 
 <Check id="builtDifference" />
 
 <StageBlock tap="lfo" n={4} title="The Motion LFO: one slow sine for the whole instrument">
-  Motion needs something slow that goes up and down. The device keeps one phase for it, moved on <Src path="cpp/devices/wavetable/wavetable.h" at="lfo_phase_ += param(kRate) * static_cast<float>(kControlPeriod) / sr;">by Rate</Src> once every <Src path="cpp/devices/wavetable/wavetable.h" at="static constexpr int kControlPeriod = 16;">16 samples</Src>, and reads a sine at it. Every key reads that sine at a place of its own: each stands <Src path="cpp/devices/wavetable/wavetable.h" at="voice.lfo_offset = static_cast<float>(v) * 0.6180340f;">0.618 of a cycle times its number</Src> further on. So the keys of a chord do not all brighten at the same moment.
+  Motion needs something slow that goes up and down: an LFO, the subject of <Lesson id="envelopes-and-lfos" />. The device keeps one phase for it, moved on <Src path="cpp/devices/wavetable/wavetable.h" at="lfo_phase_ += param(kRate) * static_cast<float>(kControlPeriod) / sr;">by Rate</Src> once every <Src path="cpp/devices/wavetable/wavetable.h" at="static constexpr int kControlPeriod = 16;">16 samples</Src>, and reads a sine at it. Every key reads that sine at a place of its own: each stands <Src path="cpp/devices/wavetable/wavetable.h" at="voice.lfo_offset = static_cast<float>(v) * 0.6180340f;">0.618 of a cycle times its number</Src> further on. So the keys of a chord do not all brighten at the same moment.
 
   <Controls ids="motion rate" />
 
@@ -530,7 +531,7 @@ The device adds its oscillators together before anything can be read out of it, 
   />
 </StageBlock>
 
-The same table gives the sub its sine, and the Sampler its slow wobble. The lab reads it at eight places from each entry to the next and compares each with the sine worked out in full. <Claim id="sine-line">Read as the kit reads it, the table is −129.1 dB from the sine at the worst of those places. Taking the entry below, it would be −57.4 dB</Claim>. <Lesson id="samples-and-aliasing" cap /> meets the same table in the kit's sine oscillator and measures the read over a whole loop of sound. The figure here is the one worst place.
+The same table gives the sub its sine, and the Sampler its slow wobble. The lab reads it at eight places from each entry to the next and compares each with the sine worked out in full. <Claim id="sine-line">Read as the kit reads it, the table is −129.1 dB from the sine at the worst of those places. Taking the entry below, it would be −57.44 dB</Claim>. <Lesson id="samples-and-aliasing" cap /> meets the same table in the kit's sine oscillator and measures the read over a whole loop of sound. The figure here is the one worst place.
 
 <StageBlock tap="place" n={5} title="The place in the row: Position, moved by the LFO, turned back at the ends">
   The read needs a place in the row for each oscillator. It is Position with the LFO added, and Motion says how much of the LFO. A place that would leave the row at either end is turned back into it, as a ball comes back off a wall, so the motion never sticks at an end.
@@ -563,7 +564,7 @@ The same table gives the sub its sine, and the Sampler its slow wobble. The lab 
 The place is worked out with the LFO, on the same slow clock, and each oscillator <Src path="cpp/devices/wavetable/wavetable.h" at="voice.position_step[o] = (position_target(voice, o) - voice.position[o]) * per_sample;">walks to its new place in equal steps</Src> over the samples between. Nothing about it depends on the pitch that is played. <Claim id="same-motion">With Motion at 1 and Rate at 1 Hz, the place traced at 220 Hz and the place traced at 880 Hz are the same line, point for point</Claim>. Part 8 comes back to why that matters.
 
 <StageBlock tap="out" n={6} title="The rest of the voice: a second oscillator, a sine below, one filter, one clip">
-  A key has two oscillators. They <Src path="cpp/devices/wavetable/wavetable.h" at="voice.phase[1] = start;">start at the same place in the cycle</Src>, and Detune tunes one down and the other up by half its amount each. Two notes a few cents apart drift in and out of step, so the sum swells and thins slowly. The sub is a sine an octave under the note. Every key's envelope shapes all three, and the keys are added.
+  The two oscillators of a key <Src path="cpp/devices/wavetable/wavetable.h" at="voice.phase[1] = start;">start at the same place in the cycle</Src>, and Detune tunes one down and the other up by half its amount each. Two notes a few cents apart drift in and out of step, so the sum swells and thins slowly. Every key's envelope shapes the two and the sub, and the keys are added.
 
   One low-pass filter for each side then serves every key. It is the filter of <Lesson id="state-variable-filter" />. A soft clip stands last, for chords that add up to more than full scale. <Lesson id="saturation" cap /> is about curves of that kind.
 
@@ -582,7 +583,7 @@ The place is worked out with the LFO, on the same slow clock, and each oscillato
   />
 
   <Fragment slot="readback">
-    <M t="L" /> is the left side before the filter. <M t="v_1" /> and <M t="v_2" /> are the two oscillators, each summed over the keys, and <M t="u" /> is the sub. Every second key has its pair <Src path="cpp/devices/wavetable/wavetable.h" at="bus_a += osc[voice.flip ? 1 : 0] * env;">changed over</Src>, so that the sharper oscillator is not on the same side for every key. <M t={String.raw`\beta`} /> comes from Spread: <Src path="cpp/devices/wavetable/wavetable.h" at="const float angle = (1.0f - value) * kit::kHalfPi * 0.5f;">an eighth of a turn with Spread at 0, and nothing with Spread at 1</Src>. At 0 the cosine and the sine are equal and both oscillators stand in the middle. At 1 the cosine is 1 and the sine 0, and the left side is the first oscillator alone. The right side is the same line with the two oscillators changed over. Because a cosine and a sine squared add up to 1, the power stays where it was as Spread moves.
+    <M t="L" /> is the left side before the filter. <M t="v_1" /> and <M t="v_2" /> are the two oscillators, each summed over the keys, and <M t="u" /> is the sub. Every second key has its pair <Src path="cpp/devices/wavetable/wavetable.h" at="bus_a += osc[voice.flip ? 1 : 0] * env;">changed over</Src>, so that the sharper oscillator is not on the same side for every key. <M t={String.raw`\beta`} /> comes from Spread: <Src path="cpp/devices/wavetable/wavetable.h" at="const float angle = (1.0f - value) * kit::kHalfPi * 0.5f;">an eighth of a turn with Spread at 0, and nothing with Spread at 1</Src>. At 0 the cosine and the sine are equal and both oscillators stand in the middle. At 1 the cosine is 1 and the sine 0, and the left side is the first oscillator alone. The right side is the same line with the two oscillators changed over. A cosine and a sine squared add up to 1, so the power stays where it was as Spread moves: the equal-power law of <Lesson id="stereo" />.
   </Fragment>
 
   <Listing
@@ -600,7 +601,7 @@ The place is worked out with the LFO, on the same slow clock, and each oscillato
 That is the whole Wavetable. The Sampler does the same job on a different kind of stored sound, and each of its stages answers one of the Wavetable's.
 
 <Flow
-  label="Along the top, the recording feeds two smaller copies of itself. A read between frames takes one of the three, the loop and its crossfade follow, then the Tone filter and the clip, and the output. On the row under it, the read head, whose speed the key sets, goes up into the read."
+  label="The recording feeds two smaller copies of itself. A read between frames takes one of the three, the loop and its crossfade follow, then the Tone filter and the clip, and the output. Beside that path, the read head, whose speed the key sets, feeds the read."
   blocks={[
     { id: 'rec', label: 'Recording', tap: 'recording', n: 7 },
     { id: 'copies', label: 'Half and quarter copies', from: 'rec', n: 10 },
@@ -733,7 +734,7 @@ The sound of this stage is read where the lab can reach it, after the loop and b
 
 <Check id="samplerCopy" />
 
-On the lab's recording, with the key on middle C, <Claim id="copies">Tune at 0 and 1 reads the full-rate recording, Tune from 2 to 13 the half-rate copy, and Tune from 14 semitones up the quarter-rate copy</Claim>. An octave up, the guard does what it is there for. <Claim id="guard-octave">With Tune at 12 semitones, −31.6 dB of the sound read from the full-rate recording is off the note, and −47.8 dB of the sound the Sampler makes. Both are counted over 8,192 samples from 0.1 s after the key goes down, more than 70 Hz from every multiple of the note's pitch</Claim>. The window is shorter than part 1's because this note changes colour as it goes. Part 7 has the place where the guard costs something, and the reason the octave is its best case.
+On the lab's recording, with the key on middle C, <Claim id="copies">Tune at 0 and 1 reads the full-rate recording, Tune from 2 to 13 the half-rate copy, and Tune from 14 semitones up the quarter-rate copy</Claim>. An octave up, the guard does what it is there for. <Claim id="guard-octave">With Tune at 12 semitones, −31.6 dB of the sound read from the full-rate recording is off the note, and −47.76 dB of the sound the Sampler makes. Both are counted over 8,192 samples from 0.1 s after the key goes down, more than 70 Hz from every multiple of the note's pitch</Claim>. The window is shorter than part 1's because this note changes colour as it goes. Part 7 has the place where the guard costs something, and the reason the octave is its best case.
 
 <StageBlock tap="sampler" n={11} title="The loop and its crossfade, then Tone and the clip">
   At the end of its stretch the head has to do something. With Loop on Off the key ends there. On Ping-pong the head turns round and reads backwards to the start. On Forward it jumps back to the start, and a jump from one place in a sound to another is a click unless the two places happen to match.
@@ -840,9 +841,9 @@ Each card sets the whole page and plays. The first four play the Wavetable, the 
       caption="The full cycle read at a high pitch, and the Wavetable on the same key. The first line has peaks all the way between the harmonics. The second has the harmonics and little else."
     />
 
-    This is the fault of part 1, and the reason for half of this lesson. A cycle with more harmonics than the pitch has room for puts the rest back down among the others, at frequencies that have nothing to do with the note. The card plays it. Listen for the tones between the harmonics. After the card, move Pitch a little and listen for some of them going down as the note goes up: a harmonic that has folded once moves the opposite way to the pitch.
+    This is the fault of part 1, and the reason for half of this lesson. The card plays it. Listen for the tones between the harmonics. After the card, move Pitch a little and listen for some of them going down as the note goes up: a harmonic that has folded once moves the opposite way to the pitch.
 
-    What to do about it is step 4 of the build: keep copies with fewer harmonics and read the one that fits. Making the read between entries finer does not help, as step 3 measured.
+    What to do about it is step 4 of the build: keep copies with fewer harmonics and read the one that fits.
 
   </Fault>
   <Fault title="A recording played far from its own pitch" set="shrunk">
@@ -903,7 +904,7 @@ Each card sets the whole page and plays. The first four play the Wavetable, the 
     The harmonics a copy leaves out are the ones that would have been over half the sample rate at that key. They could not have sounded as harmonics. All they could do is fold. What is kept reaches high at every pitch: stage 2 of part 5 measures the top harmonic of the copy read across the whole of the Pitch control, and it stays in the top octave of what the sample rate can carry.
   </Myth>
   <Myth says="A straight line is too crude for sound.">
-    It depends on how many entries the fastest wave in the table gets. In the Wavetable that is four at the least, in the fullest copy, which only the lowest keys read, and it doubles with every copy above. Step 3 of the build measured the fullest copy of the saw, where the fastest wave gets the fewest entries. Higher up, the straight line has little left to get wrong: <Claim id="line-fine">with Pitch at 880 Hz, the copy of the saw the key reads, read between its entries, lies −92 dB from that copy itself, where the fullest copy lay −46.4 dB from itself</Claim>. A recording can hold waves with barely two frames each, and there the Sampler takes four neighbours, as stage 9 shows. The read is chosen for what is stored.
+    It depends on how many entries the fastest wave in the table gets. In the Wavetable that is four at the least, in the fullest copy, which only the lowest keys read, and it doubles with every copy above. Step 3 of the build measured the fullest copy of the saw, where the fastest wave gets the fewest entries. Higher up, the straight line has little left to get wrong: <Claim id="line-fine">with Pitch at 880 Hz, the copy of the saw the key reads, read between its entries, lies −91.55 dB from that copy itself, where the fullest copy lay −46.4 dB from itself</Claim>. A recording can hold waves with barely two frames each, and there the Sampler takes four neighbours, as stage 9 shows. The read is chosen for what is stored.
   </Myth>
 </Myths>
 

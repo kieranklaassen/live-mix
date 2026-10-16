@@ -275,9 +275,15 @@ describe('decibels', () => {
     expectWritten(times(-40), '0.0100')
   })
 
-  it('a Fader at 6 dB makes it 2.00 times as tall, and at 12 dB 3.98 times (claim plus-six)', () => {
-    expectWritten(times(6), '2.00')
+  it('a Fader at 6 dB makes it 1.995 times as tall, and at 12 dB 3.98 times (claim plus-six)', () => {
+    expectWritten(times(6), '1.995')
     expectWritten(times(12), '3.98')
+  })
+
+  it('a Fader at 12 dB puts the tallest sample of the drums 8.2 dB over full scale (claim fader-top)', () => {
+    expectWritten(topOf(meter.render(loop.drums!, { fader: 12 }), 'out'), '8.2 dB')
+    // Twice full scale is all the room the page's player has, so this one is past it.
+    expect(topOf(meter.render(loop.drums!, { fader: 12 }), 'out')).toBeGreaterThan(gainToDb(2))
   })
 
   it('at the bottom of its travel the Fader is shut: nothing comes out', () => {
@@ -427,11 +433,11 @@ describe('the weighting', () => {
 })
 
 describe('the gate', () => {
-  it('half the pad silenced: 2.9 dB off its level, 2.8 LU off every block averaged, 0.3 LU off its gated loudness (claim pause)', () => {
+  it('half the pad silenced: 2.9 dB off its level, 2.84 LU off every block averaged, 0.3 LU off its gated loudness (claim pause)', () => {
     const whole = plain.pad!
     const half = meter.render(loop.pad!, { silence: 50 })
     expectWritten(check(whole, 'loopLevel') - check(half, 'loopLevel'), '2.9 dB')
-    expectWritten(check(whole, 'plainLoudness') - check(half, 'plainLoudness'), '2.8 LU')
+    expectWritten(check(whole, 'plainLoudness') - check(half, 'plainLoudness'), '2.84 LU')
     expectWritten(check(whole, 'loopLoudness') - check(half, 'loopLoudness'), '0.3 LU')
   })
 
@@ -528,13 +534,13 @@ describe('the build', () => {
     expectWritten(Math.abs(taller(3)), 'less than 0.01 dB')
   })
 
-  it('gating: the pad with half of it silenced comes out 0.3 dB taller than the whole pad, and 2.8 dB taller without the gate (claim built-gate)', () => {
+  it('gating: the pad with half of it silenced comes out 0.3 dB taller than the whole pad, and 2.84 dB taller without the gate (claim built-gate)', () => {
     const taller = (build: number) =>
       topOf(built(loop.pad!, build, { silence: 50 }), 'built') -
       topOf(built(loop.pad!, build), 'built')
     expectWritten(taller(5), '0.3 dB')
     expect(matchesWritten(taller(4), '0.3 dB')).toBe(false)
-    expectWritten(taller(4), '2.8 dB')
+    expectWritten(taller(4), '2.84 dB')
   })
 
   it('the last step is the main path set by loudness: the same sound, sample for sample', () => {

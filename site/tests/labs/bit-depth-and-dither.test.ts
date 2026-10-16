@@ -192,18 +192,18 @@ describe('bit depth and dither', () => {
     }
   })
 
-  it('with two bits more only moves the trouble down: at 8 bits 31 % of the samples of the chords are still exactly zero and the level of the error still moves through 2.5 dB (claim more-bits)', async () => {
+  it('with two bits more only moves the trouble down: at 8 bits 30.6 % of the samples of the chords are still exactly zero and the level of the error still moves through 2.5 dB (claim more-bits)', async () => {
     const theLab = await lab(NAME)
     const result = await played(theLab, 'ring', { bits: 8 })
-    expectWritten(zeroShare(tap(result, 'rounded')), '31 %')
+    expectWritten(zeroShare(tap(result, 'rounded')), '30.6 %')
     expectWritten(range(tap(result, 'errorLevel')).span, '2.5 dB')
   })
 
-  it('rounds a 440 Hz tone a quarter of a step tall, Level in at −30 dB at 6 bits, to exact silence (claim small-gone)', async () => {
+  it('rounds a 440 Hz tone 0.254 of a step tall, Level in at −30 dB at 6 bits, to exact silence (claim small-gone)', async () => {
     const theLab = await lab(NAME)
     const result = await played(theLab, 'small')
-    // Its largest sample is 0.25 of a step from zero: under the half step that rounds up.
-    expectWritten(peak(tap(result, 'in')) / 2 ** -5, '0.25')
+    // Its largest sample is a quarter of a step from zero: under the half step that rounds up.
+    expectWritten(peak(tap(result, 'in')) / 2 ** -5, '0.254')
     expect(tap(result, 'rounded').every((v) => v === 0)).toBe(true)
     // Twice as tall, it would cross the half step and come out.
     expect(peak(tap(await played(theLab, 'small', { level: -24 }), 'rounded'))).toBeGreaterThan(0)
@@ -477,6 +477,12 @@ describe('bit depth and dither', () => {
     for (const n of [2, 4, 6]) expect(harmonic(n)).toBeLessThan(-90)
   })
 
+  it('plays that tone at 4 bits at a level 12.8 dB over the chords of part 1 in 6 bits (claim stair-loud)', async () => {
+    const theLab = await lab(NAME)
+    const [stair, ring] = [await played(theLab, 'stair'), await played(theLab, 'ring')]
+    expectWritten(levelOf(stair, 'rounded') - levelOf(ring, 'rounded'), '12.8 dB')
+  })
+
   it('with dither takes that harmonic away: at 4,840 Hz the output holds more than 35 dB less, and the bins of the spectrum of the error from 20 Hz to 20 kHz lie within 3.4 dB of each other (claim floor-flat)', async () => {
     const theLab = await lab(NAME)
     const result = await played(theLab, 'stair')
@@ -669,11 +675,11 @@ describe('bit depth and dither', () => {
     expect(settings.sets.mulaw!.values).toEqual({ ...settings.sets.low!.values, companding: 1 })
   })
 
-  it('pays for Mu-law at the loud end: a full-scale sine at 997 Hz at 8 bits stands 50 dB over the error on the Linear stair and 38 dB over it on Mu-law (claim mulaw-top)', async () => {
+  it('pays for Mu-law at the loud end: a full-scale sine at 997 Hz at 8 bits stands 50.0 dB over the error on the Linear stair and 38.5 dB over it on Mu-law (claim mulaw-top)', async () => {
     const theLab = await lab(NAME)
     const full = sine(997, 1, seconds(4))
-    expectWritten(over(theLab.render(full, { bits: 8, companding: 0 })), '50 dB')
-    expectWritten(over(theLab.render(full, { bits: 8, companding: 1 })), '38 dB')
+    expectWritten(over(theLab.render(full, { bits: 8, companding: 0 })), '50.0 dB')
+    expectWritten(over(theLab.render(full, { bits: 8, companding: 1 })), '38.5 dB')
   })
 
   it('on the hiss card finds the longest gap of the drums exact silence for 240 ms when rounded alone at 6 bits, and a hiss at −36 dB there with dither (claim fault-hiss)', async () => {

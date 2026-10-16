@@ -110,7 +110,7 @@ function offNote(x: Float32Array, hz: number, from: number, size: number): numbe
   return 10 * Math.log10(Math.max(off, 1e-300) / all)
 }
 
-/** The Wavetable's held note, from half a second after the key: 65,536 samples, 1.37 s. */
+/** The Wavetable's held note, from half a second after the key: 65,536 samples, 1.365 s. */
 const held = (x: Float32Array, hz: number) => offNote(x, hz, after(0.5), 65536)
 /** The Sampler's note inside its first pass: 8,192 samples from 0.1 s after the key. */
 const firstPass = (x: Float32Array, hz: number) => offNote(x, hz, after(0.1), 8192)
@@ -214,9 +214,9 @@ describe('wavetables and sample playback', () => {
     expectWritten(held(tap(result, 'osc'), 1760), '−107.8 dB')
   })
 
-  it('counts as off the note everything more than 8.8 Hz from every multiple of its pitch, in 65,536 samples of the held note, 1.37 s of it from 0.5 s after the key (claim band)', () => {
+  it('counts as off the note everything more than 8.8 Hz from every multiple of its pitch, in 65,536 samples of the held note, 1.365 s of it from 0.5 s after the key (claim band)', () => {
     expectWritten((NEAR * RATE) / 65536, '8.8 Hz')
-    expectWritten(65536 / RATE, '1.37 s')
+    expectWritten(65536 / RATE, '1.365 s')
     // The measure itself, on a sound whose answer is known: a note of three harmonics, and beside
     // it a tone a hundredth of the note's size that stands between two of them.
     const hz = 1760
@@ -281,11 +281,11 @@ describe('wavetables and sample playback', () => {
     expectWritten(result.checks.stepError!, '−30.0 dB')
   })
 
-  it('hardly moves the folding when the read goes between entries: −16.5 dB off the note at 880 Hz before, −16.8 dB after (claim between-folds)', async () => {
+  it('hardly moves the folding when the read goes between entries: −16.54 dB off the note at 880 Hz before, −16.8 dB after (claim between-folds)', async () => {
     const table = await lab('wavetables')
     const at = (build: number) =>
       held(tap(table.render(nothing(), { build, pitch: 880 }), 'built'), 880)
-    expectWritten(at(STEP.phase), '−16.5 dB')
+    expectWritten(at(STEP.phase), '−16.54 dB')
     expectWritten(at(STEP.between), '−16.8 dB')
   })
 
@@ -323,7 +323,7 @@ describe('wavetables and sample playback', () => {
     expectWritten(differenceDb(sound(STEP.octave, 0.4375), mean), '−29.8 dB')
   })
 
-  it('is less than 1 dB quieter halfway between two neighbouring frames than on a stored frame, in all five tables; only in Hollow do harmonics stand upside down from one frame to the next; every stored cycle stands at 0.25 RMS and none peaks past 0.95 (claim blend-level)', async () => {
+  it('is quieter halfway between two neighbouring frames than on a stored frame by 0.9 dB where the dip is largest, in Vowels, and by less in the other four tables; only in Hollow do harmonics stand upside down from one frame to the next; every stored cycle stands at 0.25 RMS and none peaks past 0.95 (claim blend-level)', async () => {
     const table = await lab('wavetables')
     // The oscillator over two seconds of the held note, which is 55 cycles at 27.5 Hz, where the
     // copy read is the fullest.
@@ -376,9 +376,10 @@ describe('wavetables and sample playback', () => {
       worst.push(dip)
       upsideDown.push(turned)
     }
-    for (const dip of worst) expectWritten(dip, 'less than 1 dB')
-    // The largest is in Vowels, and it is not nothing: a blend of two different cycles is quieter.
-    expect(Math.max(...worst)).toBeGreaterThan(0.5)
+    // The largest is in Vowels, the second table, and it is not nothing: a blend of two
+    // different cycles is quieter.
+    expectWritten(worst[1]!, '0.9 dB')
+    for (const set of [0, 2, 3, 4]) expect(worst[set], `table ${set}`).toBeLessThan(worst[1]!)
     expect(upsideDown.slice(0, 3)).toEqual([0, 0, 0])
     expect(upsideDown[4]).toBe(0)
     expect(upsideDown[3]).toBeGreaterThan(100)
@@ -433,11 +434,11 @@ describe('wavetables and sample playback', () => {
     }
   })
 
-  it('reads the sine table of the kit −129.1 dB from the sine at worst, and −57.4 dB at the entry below (claim sine-line)', async () => {
+  it('reads the sine table of the kit −129.1 dB from the sine at worst, and −57.44 dB at the entry below (claim sine-line)', async () => {
     const table = await lab('wavetables')
     const result = table.render(nothing(), {})
     expectWritten(result.checks.sineLine!, '−129.1 dB')
-    expectWritten(result.checks.sineStep!, '−57.4 dB')
+    expectWritten(result.checks.sineStep!, '−57.44 dB')
   })
 
   it('keeps the top harmonic of the copy read at least 12 kHz and under 24 kHz at every pitch from 27.5 Hz to 4,186 Hz (claim top-harmonic)', async () => {
@@ -505,11 +506,11 @@ describe('wavetables and sample playback', () => {
     expect(copy(-24)).toBe(0)
   })
 
-  it('leaves −31.6 dB off the note at Tune 12 semitones from the full-rate recording, and −47.8 dB from the half-rate copy the Sampler reads: over 8,192 samples from 0.1 s after the key, more than 70 Hz from every harmonic (claim guard-octave)', async () => {
+  it('leaves −31.6 dB off the note at Tune 12 semitones from the full-rate recording, and −47.76 dB from the half-rate copy the Sampler reads: over 8,192 samples from 0.1 s after the key, more than 70 Hz from every harmonic (claim guard-octave)', async () => {
     const table = await lab('wavetables')
     const result = played(table, 'shrunk')
     expectWritten(firstPass(tap(result, 'sampledFull'), tuned(12)), '−31.6 dB')
-    expectWritten(firstPass(tap(result, 'sampled'), tuned(12)), '−47.8 dB')
+    expectWritten(firstPass(tap(result, 'sampled'), tuned(12)), '−47.76 dB')
     expectWritten((NEAR * RATE) / 8192, '70 Hz')
   })
 
@@ -607,11 +608,11 @@ describe('wavetables and sample playback', () => {
 
   // ---- part 8: misconceptions ----------------------------------------------------------------------
 
-  it('reads the copy of the saw for 880 Hz between its entries −92 dB from that copy itself, where the fullest copy lay −46.4 dB from itself (claim line-fine)', async () => {
+  it('reads the copy of the saw for 880 Hz between its entries −91.55 dB from that copy itself, where the fullest copy lay −46.4 dB from itself (claim line-fine)', async () => {
     const table = await lab('wavetables')
     const result = table.render(nothing(), { build: STEP.voice, pitch: 880 })
     expect(result.checks.copyHolds).toBe(16)
-    expectWritten(result.checks.builtError!, '−92 dB')
+    expectWritten(result.checks.builtError!, '−91.55 dB')
     // The fullest copy, read the same way: the figure of step 3.
     expectWritten(
       table.render(nothing(), { build: STEP.voice, pitch: 27.5 }).checks.builtError!,

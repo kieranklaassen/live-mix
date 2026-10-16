@@ -289,11 +289,17 @@ describe('samples, sine waves and aliasing', () => {
     const high = tap(osc.render(nothing(), { freq: 30_000 }), 'sine')
     const low = tap(osc.render(nothing(), { freq: 18_000 }), 'sine')
     expect(peak(high)).toBeGreaterThan(0.99)
-    let worst = 0
-    for (let i = 0; i < high.length; i += 1) worst = Math.max(worst, Math.abs(high[i]! + low[i]!))
-    // Every pair adds up to nothing, but for the samples that stand at the table's own zero,
-    // which the table holds as 1.2e-16 in both.
-    expect(worst).toBeLessThan(1e-15)
+    // Sample by sample: each is the other with its sign turned, or the two stand at the table's
+    // own zero, which the table holds as one number, 1.2e-16, for both.
+    let turned = 0
+    let atZero = 0
+    for (let i = 0; i < high.length; i += 1) {
+      if (high[i] === -low[i]!) turned += 1
+      else if (high[i] === low[i] && Math.abs(high[i]!) < 1e-15) atZero += 1
+    }
+    expect(turned + atZero).toBe(high.length)
+    expect(turned).toBeGreaterThan(0.8 * high.length)
+    expect(atZero).toBeGreaterThan(0)
   })
 
   it('brings 47 kHz out at 1 kHz (claim fold-47k)', async () => {
@@ -407,15 +413,15 @@ describe('samples, sine waves and aliasing', () => {
     expect(matchesWritten(at(STEP.step, 21_120), '−35.2 dB')).toBe(false)
   })
 
-  it('takes those two lines down to −102.9 dB and −45.7 dB with the slope correction (claim build-slope)', async () => {
+  it('takes those two lines down to −102.9 dB and −45.74 dB with the slope correction (claim build-slope)', async () => {
     const osc = await lab(NAME)
     const at = (build: number, hz: number) =>
       line(tap(osc.render(nothing(), { build }), 'built'), hz)
     expectWritten(at(STEP.slope, 1920), '−102.9 dB')
-    expectWritten(at(STEP.slope, 21_120), '−45.7 dB')
+    expectWritten(at(STEP.slope, 21_120), '−45.74 dB')
     // With the piece switched off.
     expect(matchesWritten(at(STEP.fold, 1920), '−102.9 dB')).toBe(false)
-    expect(matchesWritten(at(STEP.fold, 21_120), '−45.7 dB')).toBe(false)
+    expect(matchesWritten(at(STEP.fold, 21_120), '−45.74 dB')).toBe(false)
   })
 
   it('builds the kit’s triangle, sample for sample (claim build-same), and on the way the kit’s saw (claim build-saw-same)', async () => {
@@ -611,26 +617,26 @@ describe('samples, sine waves and aliasing', () => {
 
   // ---- part 6: ways to use it -----------------------------------------------------------------
 
-  it('at 440 Hz, keeps every fold that lands under 12 kHz below −63 dB (claim promise-low) and leaves the strongest at −46.8 dB near 23.75 kHz, against −38.7 dB in the naive saw (claim promise-top)', async () => {
+  it('at 440 Hz, keeps every fold that lands under 12 kHz below −63 dB (claim promise-low) and leaves the strongest at −46.76 dB near 23.75 kHz, against −38.7 dB in the naive saw (claim promise-top)', async () => {
     const osc = await lab(NAME)
     const folds = partials(played(osc, 'promise')).filter((one) => one.hz > RATE / 2)
     const low = folds.filter((one) => one.lands < 12_000)
     expectWritten(Math.max(...low.map((one) => one.kit)), 'under −63 dB')
     const strongest = folds.reduce((a, b) => (b.kit > a.kit ? b : a))
-    expectWritten(strongest.kit, '−46.8 dB')
+    expectWritten(strongest.kit, '−46.76 dB')
     expectWritten(strongest.lands / 1000, '23.75 kHz')
     // The naive saw's strongest fold, for the comparison the lesson makes.
     expectWritten(Math.max(...folds.map((one) => one.naive)), '−38.7 dB')
   })
 
-  it('finds the strongest fold of the naive triangle at −35.2 dB, at 21,120 Hz, where the naive saw has −19.7 dB and the kit’s triangle −45.7 dB (claim way-soft)', async () => {
+  it('finds the strongest fold of the naive triangle at −35.2 dB, at 21,120 Hz, where the naive saw has −19.7 dB and the kit’s triangle −45.74 dB (claim way-soft)', async () => {
     const osc = await lab(NAME)
     const out = played(osc, 'soft')
     const folds = BETWEEN.map((hz) => line(tap(out, 'triangleNaive'), hz))
     expect(folds.indexOf(Math.max(...folds))).toBe(5)
     expectWritten(folds[5]!, '−35.2 dB')
     expectWritten(line(tap(out, 'naive'), 21_120), '−19.7 dB')
-    expectWritten(line(tap(out, 'triangle'), 21_120), '−45.7 dB')
+    expectWritten(line(tap(out, 'triangle'), 21_120), '−45.74 dB')
   })
 
   // ---- part 7: what goes wrong ----------------------------------------------------------------

@@ -65,14 +65,14 @@ Over the loop <Claim id="ring-follows">the level of the error moves through 12.4
 
 Use more bits. Each bit more halves the step, so the levels move closer together and the ring has more of them to use on its way down.
 
-It helps, and it does not cure anything. <Claim id="more-bits">At 8 bits, 31 % of the samples of the same chords are still exactly zero, and the level of the error still moves through 2.5 dB</Claim> with the notes. The breaking up has moved further down the ring. It moves down again with every bit, and it is still there at the bottom, because whatever the step is, a ring that dies away will pass under it. And the number of bits is seldom yours to choose. A file format has the bits it has.
+It helps, and it does not cure anything. <Claim id="more-bits">At 8 bits, 30.6 % of the samples of the same chords are still exactly zero, and the level of the error still moves through 2.5 dB</Claim> with the notes. The breaking up has moved further down the ring. It moves down again with every bit, and it is still there at the bottom, because whatever the step is, a ring that dies away will pass under it. And the number of bits is seldom yours to choose. A file format has the bits it has.
 
 <Predict
   question="A steady tone goes into the rounding. Its peaks reach a quarter of a step from zero. What comes out?"
   choices={['The same tone, a little rougher', 'A square wave one step tall', 'Nothing at all']}
 >
 
-Nothing at all. <Claim id="small-gone">With Level in at −30 dB the 440 Hz tone of this page stands 0.25 of a step tall at 6 bits, and what comes out is exact silence</Claim>. Every sample of it is nearer to zero than to the first level above or below, so every sample is written as zero. Press the button and hear nothing. <Hear set="small" label="Hear the tone rounded" />
+Nothing at all. <Claim id="small-gone">With Level in at −30 dB the 440 Hz tone of this page stands 0.254 of a step tall at 6 bits, and what comes out is exact silence</Claim>. Every sample of it is nearer to zero than to the first level above or below, so every sample is written as zero. Press the button and hear nothing. <Hear set="small" label="Hear the tone rounded" />
 
 Now add a little noise to the tone before it is rounded, and nothing else. <Hear set="smallDithered" label="Hear it with noise added first" />
 
@@ -103,7 +103,7 @@ That noise has a name: dither. It is a small random number added to each sample 
 
 On the chords at 6 bits, <Claim id="ring-dithered">the level of the error with dither stays within 0.6 dB all through the loop, at −36.1 dB</Claim>. That is higher than the error of plain rounding ever was. In exchange it has stopped following the notes: it is a hiss that is the same under a strike, under a ring and under silence. And the ring no longer stops. It fades down into the hiss, as a quiet sound fades into the noise of a room. <Hear set="ringDithered" label="Hear the chords with dither" />
 
-The engine rounds in more places than one, and this lesson opens two of them. Its Vintage Digital device rounds on purpose and with no dither, for the sound of it. Every rounded sound on this page is that device's output. Its Echo Memory device keeps what it remembers in sixteen bits, and dithers on the way in, which nothing else in the engine does. Every sound with dither on this page comes from the function that writes that memory, called on the loop with the sound scaled so that one of its steps stands for one step of Bits. Its dither is of one kind, one random number less another, and what this page measures is true of that kind. A third idea, bending the hiss towards the frequencies where it is noticed least, is in the engine nowhere. Part 4 writes it for this page, and says so where it does.
+The engine rounds in more places than one, and this lesson opens two of them. Its Vintage Digital device rounds on purpose and with no dither, for the sound of it. Every rounded sound on this page is that device's output. Its Echo Memory device keeps what it remembers in sixteen bits, and dithers on the way in, which nothing else in the engine does. Every sound with dither on this page comes from the function that writes that memory. Its dither is of one kind, one random number less another, and what this page measures is true of that kind. A third idea, bending the hiss towards the frequencies where it is noticed least, is in the engine nowhere, and part 4 writes it for this page.
 
 </Part>
 
@@ -209,8 +209,6 @@ Nobody rounds a sound for the good of it, except in the last card here. Rounding
   </Use>
 </Uses>
 
-Four of those cards are about keeping the rounding out of earshot, and one is about putting it there. The same stair does both.
-
 </Part>
 
 <Part id="build" title="Start with a wire. Round it. Look at what the rounding added. Then add noise.">
@@ -253,6 +251,8 @@ The first three pieces build engine code again, and the lab holds them to the en
     The rounding itself is the line with the odd number in it. A float as large as <Src path="site/labs/bit-depth-and-dither.cpp" at="static float nearest(float x)">12,582,912</Src> has no room left for a fraction. Adding that number to the count forces the sum to a whole number, and taking it off again leaves the count, rounded. A count that lies exactly half way goes to the even neighbour. The engine's device rounds in the same way, and on every sample the lab compares the build's rounding with the device's own function:
 
     <Check id="rounding" />
+
+    That reading stops at <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>. There it says that the two are more than 140 dB apart, and not that they are the same. Stage 2 of the next part measures how far apart they are.
 
     <Lanes slot="picture" taps="in built">
       The sound going in and the sound so far, over the whole loop. Notice the end of each ring in
@@ -312,7 +312,7 @@ The first three pieces build engine code again, and the lab holds them to the en
 
     <Check id="builtDifference" />
 
-    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>. It shows that for any difference further down, and for none. So the lab also counts the samples on which the two are not the same number:
+    That reading stops at <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, where a difference more than 140 dB under reads as no difference would. So the lab also counts the samples on which the two are not the same number:
 
     <Check id="storeApart" />
 
@@ -325,7 +325,7 @@ The first three pieces build engine code again, and the lab holds them to the en
 
   </Step>
   <Step title="Shape the noise" controls="level bits">
-    This piece was written for this lesson. The engine has no noise shaping anywhere.
+    This piece was written for this lesson.
 
     The hiss of the step before is spread evenly over every frequency. Hearing is not even. It is sharpest in the middle of the range and dull at the very top. So the last piece leans the hiss upwards. Before it rounds a sample, it takes off the error it made on the sample before. Each error is then followed by its own opposite. Two opposite numbers one after the other cancel for a slow wave and add up for the fastest one, so the error loses its low end and gains at the top.
 
@@ -363,7 +363,7 @@ That is a quantiser, its dither and a noise shaper in a handful of one-line func
 
 From here on it is the engine's own code, with the lab's own beside it wherever a stage says so: the error is made by subtraction, the dither alone is worked out again from the store's generator, and the shaper of stage 7 is not in the engine at all. The page runs the engine's C++, compiled for the browser, on the loop. Three quantisers run side by side on the same sound, and each figure is read from the one its text is talking about.
 
-The first is the device Vintage Digital, which rounds to a step set by Bits and has <Src path="cpp/devices/vintage-digital/vintage_digital.h" at="No dither and no noise floor: the grain follows the signal, and silence">no dither and no noise floor</Src>. The second is the quantiser of the 16-bit store inside the device Echo Memory, the one place where the engine adds noise to a sound before rounding it. That device does not run on this page: the lab calls the function that writes its store, on every sample of the loop. The store's step is fixed, so the lab turns the sound up on the way in and down by as much on the way out, until one step of the store stands for one step of Bits. The noise and the rounding are the store's own. The third is the shaper of part 4, written for this lesson.
+The first is the device Vintage Digital, which rounds to a step set by Bits and has <Src path="cpp/devices/vintage-digital/vintage_digital.h" at="No dither and no noise floor: the grain follows the signal, and silence">no dither and no noise floor</Src>. The second is the quantiser of the 16-bit store inside the device Echo Memory, the one place where the engine adds noise to a sound before rounding it. That device does not run on this page: the lab calls the function that writes its store, on every sample of the loop. The store's step is fixed, so the lab turns the sound up on the way in and down by as much on the way out, until one step of the store stands for one step of Bits. The noise and the rounding are the store's own. The third is the shaper of part 4.
 
 <Flow
   label="The sound divides three ways. One copy is rounded as it is. One has dither added to it and is then rounded. One has its own last error taken off, then dither added, then is rounded."
@@ -381,11 +381,11 @@ The first is the device Vintage Digital, which rounds to a step set by Bits and 
     { id: 'shaped', row: -1, tap: 'shaped', shape: 'end', from: 'round3' },
   ]}
 >
-  The row in the middle is the device Vintage Digital. The row under it is the store of Echo Memory,
-  where noise joins the sound before the rounding. The row over it is the lesson's own shaper, in
-  which what the rounding added comes back and is taken off the next sample. Each error on this page
-  is one of the three outputs less the input. Press a stage's button below, and notice its block
-  light up here.
+  The path that ends at Rounded is the device Vintage Digital. The path that ends at Rounded with
+  dither is the store of Echo Memory, where Dither joins the sound before the rounding. The path
+  that ends at Rounded with dither and shaping is the lesson's own shaper, in which what the
+  rounding added comes back and is taken off the next sample. Each error on this page is one of the
+  three outputs less the input. Press the button of a stage, and notice its block light up here.
 </Flow>
 
 <StageBlock tap="in" n={1} title="The sound, and how much of the stair it covers">
@@ -536,13 +536,13 @@ The first is the device Vintage Digital, which rounds to a step set by Bits and 
       caption="The spectrum of the 440 Hz tone rounded at 4 bits. The tall line is the tone. Every other line is error, and the strongest of them stands on a multiple of the tone's frequency."
     />
 
-    <Claim id="error-lines">The strongest of them is the 11th harmonic, at 4,840 Hz. It stands at −31.1 dB, 19.4 dB under the tone</Claim>. A tone went in, and a chord of its own overtones came out. Nothing about this error is like noise. <Hear set="stair" label="Hear the tone at 4 bits" />
+    <Claim id="error-lines">The strongest of them is the 11th harmonic, at 4,840 Hz. It stands at −31.1 dB, 19.4 dB under the tone</Claim>. A tone went in, and a chord of its own overtones came out. Nothing about this error is like noise. Turn your volume down before you listen: the tone is steady, and <Claim id="stair-loud">its level stands 12.8 dB over that of the chords of part 1</Claim>. <Hear set="stair" label="Hear the tone at 4 bits" />
   </Fragment>
   <Fragment slot="listen">Hear the error alone</Fragment>
 </StageBlock>
 
 <StageBlock tap="dither" n={5} title="The dither: one random number less another">
-  The one place where the engine adds noise to a sound before rounding it is the memory of its Echo Memory device. That device records what passes through it into a store of 16-bit frames and plays it back later, sometimes much later. A store that rounded plainly would give every quiet sound it remembered the broken tail of part 1. So the function that writes each frame adds a random number first.
+  The Echo Memory device records what passes through it into a store of 16-bit frames and plays it back later, sometimes much later. A store that rounded plainly would give every quiet sound it remembered the broken tail of part 1. So the function that writes each frame adds a random number first.
 
   The number is drawn in a particular way: two random numbers, each spread evenly from nothing to one step, and one subtracted from the other.
 
@@ -596,8 +596,6 @@ The first is the device Vintage Digital, which rounds to a step set by Bits and 
 <StageBlock tap="dithered" n={6} title="Rounded with dither">
   The store adds the dither to the sample, counted in steps, and rounds the sum to the nearest whole number. That is all. The noise is not mixed into the sound afterwards. It goes in before the rounding, where it can change which level is chosen.
 
-  The lab calls the store's function on every sample of the loop, with the sound turned up on the way in and down by as much on the way out, so that one of the store's steps stands for one step of Bits.
-
   <Controls ids="level bits" />
 
   <Trace taps="errorLevel ditheredLevel" min={-110} max={-20} unit="dB">
@@ -643,9 +641,9 @@ The first is the device Vintage Digital, which rounds to a step set by Bits and 
 </StageBlock>
 
 <StageBlock tap="shaped" n={7} title="Shape the noise">
-  This stage is not the engine's. Noise shaping is in the engine nowhere, so the lab's own build runs here with all its pieces in.
+  This stage is not the engine's: the lab's own build of part 4 runs here with all its pieces in.
 
-  The error of stage 6 is spread evenly over every frequency. The shaper keeps the dither and the rounding as they are, and changes what is handed to them. It remembers what the two of them added to the last sample, and takes that off this sample before they see it.
+  The shaper keeps the dither and the rounding of stage 6 as they are, and changes what is handed to them. It remembers what the two of them added to the last sample, and takes that off this sample before they see it.
 
   <Controls ids="bits" />
 
@@ -684,7 +682,7 @@ The first is the device Vintage Digital, which rounds to a step set by Bits and 
 
 ### Rate, and the rest of the converter
 
-The device this lesson borrows its rounding from is a whole converter, and rounding is one stage of it. Lower its Rate from the top and its sampler and its hold come back into the path. The sound is then read only at the converter's own ticks and each value is held until the next one, which is the subject of <Lesson id="samples-and-aliasing" />. One filter stands before the sampler and another follows the hold. Every number in this lesson was measured with Rate at the top. Below the top, the error on this page holds everything the converter changed, and the rounding is only part of it.
+The device this lesson borrows its rounding from is a whole converter, and rounding is one stage of it. Lower its Rate from the top and its sampler and its hold come back into the path. The sound is then read only at the converter's own ticks, and each value is held until the next one. What a rate does to the frequencies that do not fit under half of it is the subject of <Lesson id="samples-and-aliasing" />. One filter stands before the sampler and another follows the hold. Every number in this lesson was measured with Rate at the top. Below the top, the error on this page holds everything the converter changed, and the rounding is only part of it.
 
 <Controls ids="rate" />
 
@@ -717,7 +715,7 @@ To judge a quantiser, listen to what it added and not only to what came out. Com
 
 <Part id="ways" title="Five habits of working with a fixed number of bits.">
 
-Each of these is a habit, not a preset. Press "Try it" and the page moves to settings that show the idea, so you can go back up and see what the stair and the errors are doing.
+Each of these is a habit, not a preset, and "Try it" moves the page to settings that show it.
 
 <Ways>
   <Way title="Dither once, at the last step" tag="in the final rounding, and only there" set="master">
@@ -727,13 +725,13 @@ Each of these is a habit, not a preset. Press "Try it" and the page moves to set
     A sound that sits low on the stair is written with few levels, as if bits had been taken away. <Claim id="way-level">The guitar at 8 bits stands 28.9 dB over the error of plain rounding with Level in at 0 dB, and 5.9 dB over it at −24 dB</Claim>. The card plays the low one. After it, raise Level in and listen for the grit falling away. Getting a sound up the stair before it is rounded costs nothing, and no dither gives back what a low level threw away.
   </Way>
   <Way title="Give the quiet end smaller steps" tag="Companding on Mu-law" set="mulaw">
-    The same low guitar on the uneven stair of stage 3. <Claim id="way-mulaw">On Mu-law it stands 33 dB over the error at −24 dB, and 38 dB over it at 0 dB</Claim>: nearly the same at both levels, where the Linear stair of the card before lost most of its margin. The trade shows at the top of the range. <Claim id="mulaw-top">A full-scale sine at 997 Hz at 8 bits stands 50 dB over the error on the Linear stair and 38 dB over it on Mu-law</Claim>. Mu-law spends its levels on the quiet end, which is why it was used to carry a spoken voice in few bits. Its error still follows the sound, so it is a different stair, and no replacement for dither.
+    The same low guitar on the uneven stair of stage 3. <Claim id="way-mulaw">On Mu-law it stands 33 dB over the error at −24 dB, and 38 dB over it at 0 dB</Claim>: nearly the same at both levels, where the Linear stair of the card before lost most of its margin. The trade shows at the top of the range. <Claim id="mulaw-top">A full-scale sine at 997 Hz at 8 bits stands 50.0 dB over the error on the Linear stair and 38.5 dB over it on Mu-law</Claim>. Mu-law spends its levels on the quiet end, which is why it was used to carry a spoken voice in few bits. Its error still follows the sound, so it is a different stair, and no replacement for dither.
   </Way>
   <Way title="Move the hiss to where it is noticed least" tag="noise shaping, written for this lesson" set="lifted">
     The card plays the chords at 8 bits through the shaper of stage 7. Compare it with the first card of part 3, which is the same chords at the same bits with dither alone. The hiss measures higher here and lies further up. Whether that is the better bargain is for your ear, on the speakers you have. Shaping suits a file that is finished. A sound that is worked on afterwards is rounded again at the end, and that rounding lays a level hiss of its own over the shaped one.
   </Way>
   <Way title="Use the steps as a sound" tag="few bits, a lowered Rate, no dither" set="grit">
-    Take the bits down until the error is part of the sound, and lower Rate so that each value is held. The error then rises with every hit and is gone between them, which is the opposite of a hiss. After the card, raise Bits one at a time and listen for the point where the grit stops being heard as part of the drum.
+    The last card of part 3, as a habit: take the bits down until the error is part of the sound, and lower Rate so that each value is held. After the card, raise Bits one at a time and listen for the point where the grit stops being heard as part of the drum.
   </Way>
 </Ways>
 
@@ -743,7 +741,7 @@ Each of these is a habit, not a preset. Press "Try it" and the page moves to set
 
 <Faults>
   <Fault title="The tail turns to grit, then stops" set="ring">
-    The fault this lesson opened on. A sound that dies away passes down through the last few levels, is written with two of them, then one, then none, and the error is the sound itself all the way down. More bits move it lower and leave it there. Dither is the cure, and the last button of part 1 plays these chords with it.
+    The fault this lesson opened on: a sound that dies away passes down through the last few levels and then stops. More bits move it lower and leave it there. Dither is the cure, and the last button of part 1 plays these chords with it.
   </Fault>
   <Fault title="A quiet sound is not there at all" set="small">
     Anything smaller than half a step is written as silence, because zero is the nearest level to every sample of it. The card plays the tone of part 1, a quarter of a step tall, and what it plays is nothing. A reverb tail, the room at the end of a take and the breath before a note are all sounds of this size at some number of bits. Dither keeps them. The price is the next card.

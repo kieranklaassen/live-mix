@@ -76,7 +76,7 @@ That is _aliasing_: one frequency going by the name of another. The frequency th
 
 ### A bright sound is full of frequencies that do not fit
 
-Nobody asks an oscillator for a note at 36 kHz. The trouble arrives another way. A sine is the only wave with one frequency in it. Every other repeating shape is a stack of sines, called its _partials_: one at the note, one at twice the note, one at three times it, and on up. The sharper the corners of the shape, the further up the stack goes.
+Nobody asks an oscillator for a note at 36 kHz. The trouble arrives another way. A sine is the only wave with one frequency in it. Every other repeating shape is a stack of sines, called its _partials_: one at the note, one at twice the note, one at three times it, and on up. Partials that stand at whole multiples of the note, as these do, are also called harmonics, and the later lessons use that word for them. The sharper the corners of the shape, the further up the stack goes.
 
 A _saw wave_ climbs in a straight line and drops back in no time at all. It is a common starting wave for synthesiser strings and brass, and its stack has no top. The plain way to make one is to work that shape out, a sample at a time. This lesson calls the result the naive saw. The picture at the head of this page shows a little of it, over a little of the saw the engine makes. As waves the two differ only beside each drop. What that does to the sound shows in a _spectrum_: frequency runs along the bottom, and a peak stands wherever the sound holds a tone, taller for a louder one. Here is the naive saw on a high note, <Src path="site/labs/samples-and-aliasing.cpp" at={'lab::Control note{"note", "Note"'}>3,840 Hz</Src>.
 
@@ -106,7 +106,7 @@ The engine does not make its saws that way. Its shared code is a folder called t
 
 Compare the two by ear: <Hear set="kit" label="Hear the kit's saw" />
 
-The folds have not all gone, and the picture shows which are left: the ones that land highest, at the right. Why the cure works that way round is in part 5, and what to do about what is left is in part 7. The rest of this page is the rule for where a frequency lands, and the way the engine's oscillators keep clear of it.
+The folds have not all gone, and the picture shows which are left: the ones that land highest, at the right. Why the cure works that way round is in part 5, and what to do about what is left is in part 7.
 
 </Part>
 
@@ -137,7 +137,7 @@ A sine measured at even instants is this list:
 
 <M t="f" /> is the frequency asked for, <M t="f_s" /> the sample rate, and <M t="n" /> counts the samples: 0, 1, 2 and on. The only thing in the list besides the count is the fraction <M t={String.raw`f/f_s`} />, which is how much of a cycle goes by between one sample and the next.
 
-Now add one whole cycle to that fraction. No sample changes, because the sine of an angle and the sine of that angle plus a full turn are the same number. So <M t="f" /> and <M t={String.raw`f - f_s`} /> leave the same samples. And a sine at a negative frequency is the same sine upside down. So 30 kHz leaves the samples of 18 kHz below zero, which are the samples of 18 kHz <Claim id="fold-same-samples">with the sign turned</Claim>, number for number.
+Now add one whole cycle to that fraction. No sample changes, because the sine of an angle and the sine of that angle plus a full turn are the same number. So <M t="f" /> and <M t={String.raw`f - f_s`} /> leave the same samples. And a sine at a negative frequency is the same sine upside down. So 30 kHz leaves the samples of 18 kHz below zero, which are the samples of 18 kHz <Claim id="fold-same-samples">with the sign turned</Claim>. The lab's test compares the two lists a sample at a time. Each sample of the one is the sample of the other with its sign turned, except where the wave crosses zero: there the kit's table holds one number for both, a little off nothing.
 
 Put as a rule, a frequency comes out at its distance from the nearest multiple of the sample rate:
 
@@ -174,7 +174,7 @@ Drawn against the frequency asked for, the rule is a zigzag. The lab measured it
 
 <Claim id="fold-curve">From 500 Hz to 47.5 kHz the measured peak and the rule agree within 0.2 Hz</Claim>.
 
-The rule keeps no record of where a frequency came from. Once a partial has landed at 18 kHz it is a tone at 18 kHz like any other, and nothing after it can tell that it was asked for at 30. So the cure has to come before the samples are made. That is the subject of everything below.
+The rule keeps no record of where a frequency came from. Once a partial has landed at 18 kHz it is a tone at 18 kHz like any other, and nothing after it can tell that it was asked for at 30. So the cure has to come before the samples are made.
 
 </Part>
 
@@ -232,8 +232,6 @@ How much of a sound folds depends on two things: how many of its partials stand 
 
   </Use>
 </Uses>
-
-The count of partials is the thing to keep in mind. The higher and the brighter the note, the more of it lands where it should not.
 
 </Part>
 
@@ -310,7 +308,7 @@ Two of the steps are wrong on purpose. Hearing what is wrong with them is how th
 
     <Check id="builtSaw" />
 
-    At every setting the lab's test tries, the build stopped at this step and the kit's own saw are <Claim id="build-saw-same">the same, sample for sample</Claim>.
+    That reading stops at <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, where it says only that the two are more than 140 dB apart. So the lab's test compares the samples themselves: at every setting it tries, the build stopped at this step and the kit's own saw are <Claim id="build-saw-same">the same, sample for sample</Claim>.
 
     <Wave slot="picture" taps="builtFix:alt" stems fit from={0.5} span={0.001}>
       What this piece adds to the ramp, over the same millisecond. Notice that it is zero nearly
@@ -352,7 +350,7 @@ Two of the steps are wrong on purpose. Hearing what is wrong with them is how th
   <Step title="Round the two corners" controls="note glide">
     The cure is the same one, a degree gentler. Each corner is rounded over two samples: a sample within one sample of a corner is moved towards the rounded curve, and every other sample is left alone. The amount grows with the step, because the faster the phase moves, the sharper a corner is when counted in samples.
 
-    <Claim id="build-slope">The two lines now read −102.9 dB and −45.7 dB</Claim>.
+    <Claim id="build-slope">The two lines now read −102.9 dB and −45.74 dB</Claim>.
 
     <Listing
       path="site/labs/samples-and-aliasing.cpp"
@@ -366,7 +364,7 @@ Two of the steps are wrong on purpose. Hearing what is wrong with them is how th
 
     <Check id="builtDifference" />
 
-    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which it shows when nothing differs at all. At every setting the lab's test tries, gliding notes among them, the build and the kit's triangle are <Claim id="build-same">the same, sample for sample</Claim>.
+    This reading stops at <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, as the one of step 3 does, and there it says only that the two are more than 140 dB apart. So here too the test compares the samples: at every setting it tries, gliding notes among them, the build and the kit's triangle are <Claim id="build-same">the same, sample for sample</Claim>.
 
     <Wave slot="picture" taps="builtFix:alt" stems fit from={0.5} span={0.001}>
       What this piece adds to the folded ramp. Notice that it is far smaller than the saw's
@@ -391,7 +389,7 @@ Here is how the lab puts the pieces in order, for one sample.
   name="built-run"
 />
 
-That is a whole oscillator: a phase, two shapes read off it, and a small correction for each. The one in the kit is the same arithmetic, written as one short function a shape. The next part opens it.
+That is a whole oscillator: a phase, two shapes read off it, and a small correction for each. The one in the kit is the same arithmetic, written as one short function a shape.
 
 </Part>
 
@@ -461,7 +459,7 @@ From here on it is the kit itself. The page runs the engine's C++, compiled for 
 </StageBlock>
 
 <StageBlock tap="sine" n={2} title="The sine: a table read at the phase">
-  A sine is the one shape with nothing above its own frequency, and the kit does not work it out each time. `SineTable` holds one cycle, filled once, as <Src path="cpp/kit/math.h" at="static constexpr int kSize = 4096;">4,096 steps</Src>, and `lookup` reads it at the phase. The phase seldom falls exactly on a step of the table, so `lookup` takes the table's values either side of it and draws a straight line between them.
+  A sine is the one shape with nothing above its own frequency, and the kit does not work it out each time. `SineTable` holds one cycle, filled once, as <Src path="cpp/kit/math.h" at="static constexpr int kSize = 4096;">4,096 entries</Src>, and `lookup` reads it at the phase. The phase seldom falls exactly on an entry of the table, so `lookup` takes the entries either side of it and draws a straight line between them.
 
   <Controls ids="freq" />
 
@@ -477,9 +475,9 @@ From here on it is the kit itself. The page runs the engine's C++, compiled for 
     t={String.raw`\sig{out}{x[n]} = \at{lookup-read}{T[i] + \bigl(T[i+1] - T[i]\bigr)\,r}`}
   />
   <Fragment slot="readback">
-    <M t="T" /> is the table. The phase times the table's size is a place in it: <M t="i" /> is the whole part of that place, the last step the phase has passed, and <M t="r" /> is the part left over, how far it has gone towards the next. The bracket is the rise from one step to the next, and <M t="r" /> of it is added.
+    <M t="T" /> is the table. The phase times the table's size is a place in it: <M t="i" /> is the whole part of that place, the last entry the phase has passed, and <M t="r" /> is the part left over, how far it has gone towards the next. The bracket is the rise from one entry to the next, and <M t="r" /> of it is added.
 
-    A straight line is not a sine, but with that many of them to a cycle the difference is small.
+    A straight line is not a sine, but with that many of them to a cycle the difference is small. <Lesson id="wavetables" cap /> keeps other waves in tables and reads them the same way.
 
     <Check id="tableError" />
 
@@ -509,7 +507,7 @@ From here on it is the kit itself. The page runs the engine's C++, compiled for 
 </StageBlock>
 
 <StageBlock tap="naive" n={3} title="The ramp: a saw, the naive way">
-  The kit's saw is one line of code with three terms. The first two are the naive saw of part 4: the phase doubled, less one. The kit never puts those two out by themselves, so the lab reads them off the kit's phase, and this stage is marked as written for the lesson.
+  The kit's saw is one line of code with three terms. The first two are the naive saw of part 4, the phase doubled, less one, which the lab works out from the kit's phase.
 
   <Controls ids="note" />
 
@@ -523,7 +521,7 @@ From here on it is the kit itself. The page runs the engine's C++, compiled for 
   <Fragment slot="readback">
     <M t="s" /> is the ramp and <M t={String.raw`\varphi`} /> the phase of stage 1. Doubling stretches the phase from a height of one to a height of two, and taking one off centres it on zero.
 
-    As a sum of sines a saw is every multiple of its frequency at once, partial <M t="k" /> at one <M t="k" />th the size of the first. <Lesson id="fourier-transform" cap /> shows why any repeating wave is such a sum.
+    As a sum of sines a saw is every multiple of its frequency at once, partial <M t="k" /> at one <M t="k" />th the size of the first. <Lesson id="fourier-transform" cap /> shows that any repeating wave is a sum of sines, and how to find them.
 
     <M
       block
@@ -729,17 +727,17 @@ The String Machine on this site plays <Src path="cpp/devices/string-machine/stri
 
 <Part id="ways" title="Five ways to live with a sample rate.">
 
-None of these is a preset. Each is a habit of working with shapes that have edges. Press "Try it" and the page moves to settings that show the idea, so you can go back up and see what the spectrum and the samples are doing.
+None of these is a preset. Each is a habit of working with shapes that have edges, and "Try it" moves the page to settings that show it.
 
 <Ways>
   <Way title="Keep bright notes low" tag="the note under a tenth of the rate" set="promise">
-    The comment at the head of the kit's oscillators gives a figure for low notes: <Src path="cpp/kit/osc.h" at="-60 dB for fundamentals under a tenth of the sample rate">"Aliasing sits below −60 dB for fundamentals under a tenth of the sample rate"</Src>, the register of pads and drones. This card plays a note well inside that register, and the lab measured its folds a partial at a time. <Claim id="promise-low">At 440 Hz every fold that lands under 12 kHz is below −63 dB</Claim>. The folds that land higher are stronger: <Claim id="promise-top">the strongest of all stands at −46.8 dB, near 23.75 kHz, where the naive saw has −38.7 dB</Claim>. So on this note the measurement agrees with the comment's figure for folds that land in the lower half of the band, and stands above it at the top of the band. After the card, raise Note and watch the spectrum of stage 5 for the peaks between the partials coming up from the right.
+    The comment at the head of the kit's oscillators gives a figure for low notes: <Src path="cpp/kit/osc.h" at="-60 dB for fundamentals under a tenth of the sample rate">"Aliasing sits below −60 dB for fundamentals under a tenth of the sample rate"</Src>, the register of pads and drones. This card plays a note well inside that register, and the lab measured its folds a partial at a time. <Claim id="promise-low">At 440 Hz every fold that lands under 12 kHz is below −63 dB</Claim>. The folds that land higher are stronger: <Claim id="promise-top">the strongest of all stands at −46.76 dB, near 23.75 kHz, where the naive saw has −38.7 dB</Claim>. So on this note the measurement agrees with the comment's figure for folds that land in the lower half of the band, and stands above it at the top of the band. After the card, raise Note and watch the spectrum of stage 5 for the peaks between the partials coming up from the right.
   </Way>
   <Way title="Test on a note that moves" tag="Glide, and listen under the note" set="watched">
     A fold on a held note can pass for part of the sound. A fold on a moving note slides against the music. So try an oscillator on a glide, and listen below the lowest note, where a saw has nothing of its own. This card is the moving note of part 3 through the kit's saw. <Claim id="way-watched">Below 800 Hz it holds −71 dB</Claim>, far under what the naive saw left there.
   </Way>
   <Way title="Choose a shape with softer edges" tag="a triangle for a saw" set="soft">
-    The cost of a shape is in its corners, so a rounder shape costs less before anything is corrected. On the note the lab starts on, <Claim id="way-soft">the strongest fold of the naive triangle reads −35.2 dB, at 21,120 Hz, where the naive saw has −19.7 dB. In the kit's triangle that line reads −45.7 dB</Claim>. A triangle has fewer and weaker partials than a saw, so there is less of it at the top of the band to begin with. Where the part can take the plainer shape, it is the cheapest cure there is.
+    The cost of a shape is in its corners, so a rounder shape costs less before anything is corrected. On the note the lab starts on, <Claim id="way-soft">the strongest fold of the naive triangle reads −35.2 dB, at 21,120 Hz, where the naive saw has −19.7 dB. In the kit's triangle that line reads −45.74 dB</Claim>. A triangle has fewer and weaker partials than a saw, so there is less of it at the top of the band to begin with. Where the part can take the plainer shape, it is the cheapest cure there is.
   </Way>
   <Way title="Use the folds on purpose" tag="the naive saw, gliding" set="grit">
     Folds are tones at exact places, and they move in exact ways. This card is the naive saw on a glide, with nothing done about them. Listen for an edge that swims against the note. After the card, raise Note and listen for it growing. Chosen, that is an effect. Left in by accident, it is the fault this lesson is about.
