@@ -1,222 +1,778 @@
 ---
 title: The Fourier transform
 family: spectrum
-summary: Any run of samples can be written as a sum of sinusoids, and the Fourier transform is the sum that finds them. This lesson cuts one frame from the loop, runs the engine's own transform on it, and shows every step to the bins and back.
+summary: A short stretch of any sound can be written as a sum of sines, and the Fourier transform is the sum that finds them. This lesson cuts one frame out of a chord, builds the transform a probe at a time, opens up the engine's own, and shows that the way back returns the samples that went in.
+long: true
+opening: { input: in, output: out }
 lab: fourier-transform
 devices: [spectral-blur]
 bench:
   device: spectral-blur
   params: { blur: 0, smear: 0, freeze: 0, tilt: 0, lowCut: 20, highCut: 20000, shimmer: 0, width: 0, mix: 1 }
   as: insert
-  note: The plate opens with everything the device does to its bins turned off (its defaults are Blur 0.6, Smear 0.7, a little Shimmer, a High Cut at 12 kHz and Mix at 0.5). What is left is this lesson and nothing else. Every 512 samples it cuts a frame of 2,048, windows it, transforms it, transforms it back and adds it to the output, so what you hear has been through the bins and come back as the input, 2,304 samples late.
-sources: [saw, sine, guitar, chords, drums, noise, clicks, sweep]
+  note: The plate opens with everything the device does to its bins turned off, where its own defaults hold bins on (Blur 0.6), scatter their angles (Smear 0.7), add a little Shimmer, cut the highs and mix half of the plain sound back in. What is left is this lesson and nothing else. The device cuts a frame, windows it, transforms it, transforms it back and adds it to its output, so what you hear has been to the bins and come back as the sound that went in, a little late.
+sources: [chords, pad, guitar, bass, drums, mix, saw, sine, noise, clicks, sweep]
 seconds: 4
 files:
   - cpp/kit/fft.h
   - cpp/devices/spectral-blur/spectral_blur.h
 ---
 
-A sound in a computer is a list of samples: a height for each instant. The Fourier transform writes the same stretch of sound as another list: how much of each frequency it holds. Neither list says more than the other. N samples go in, N numbers come out, and the inverse transform turns those numbers back into the samples it was given.
+<Part id="why" title="A chord is one tangled line. The notes are in it somewhere.">
 
-It rests on a fact that is easy to state and hard to believe. Any N samples whatever, a drum hit, a chord, a burst of noise, are the sum of sinusoids at N/2 + 1 fixed frequencies, each with its own size and its own starting angle. The transform is the recipe that finds the sizes and the angles. Each of the fixed frequencies is called a *bin*.
+Here is a guitar chord, strummed once and left to ring. Four strings are sounding, tuned to <Src path="site/labs/bench.cpp" at="{110.00f, 164.81f, 220.00f, 261.63f},">110, 165, 220 and 262 Hz</Src>. An ear hears four notes. This is what the computer holds.
 
-A loop is long and what it holds keeps changing, so the transform is never run on all of it at once. It is run on a *frame*, a short run of samples cut from the loop. These are the stages one frame goes through, and at the end the whole loop taken frame by frame. Press Play, then Listen on the first and the last.
+<Still
+  taps="in"
+  from={0.1}
+  span={0.085}
+  caption="A short stretch of the chord, a tenth of a second after the strum. Notice that it is a single line, and that no part of the line belongs to one string."
+/>
 
-<Stages taps="in frame window windowed magnitude phase rebuilt out" />
+A sound in a computer is a list of samples: one height for each instant. The list holds everything there is to know about the chord, and it answers none of a player's questions. It does not say which notes these are, or how loud each one is.
 
-Here is the claim made visible. The frame is grey (it fades at both ends: that is the window, stage 5). In red is the same frame put together again from its lowest bins only. Drag "Bins kept" up from 1 and watch the red line find the grey one, a sinusoid at a time.
+Suppose the job is to take the two upper strings out and leave the two lower ones. Nothing that is done to a sample can do it. Each sample is all four strings added together, so whatever happens to the sample happens to all four. Halve every sample and the whole chord is half as loud. No sample belongs to the top string.
+
+The Fourier transform writes the same stretch of sound as a different list: how much of each frequency it holds. An entry of that list is called a bin.
+
+<Still
+  taps="magnitude"
+  view="spectrum"
+  top={1000}
+  min={-80}
+  max={-10}
+  caption="The same stretch as a level for each bin, up to 1 kHz. Notice the four peaks furthest to the left: the four strings. The peaks to their right are the strings' harmonics."
+/>
+
+The four lowest peaks stand in the bins at <Claim id="chord-strings">105 Hz, 164 Hz, 223 Hz and 258 Hz</Claim>. Those are the bins nearest the four strings. A bin stands at a fixed frequency, and a string rarely lands exactly on one. Part 5 says where the bins stand and why.
+
+Neither list says more than the other. The stretch in these pictures is 4,096 samples long. The transform turns them into 4,096 numbers, and the inverse transform turns those numbers back into the samples. What differs is what is easy. In the second list a string is a few numbers standing side by side, and they can be reached.
+
+<Predict
+  question="Keep the 16 lowest bins of the chord, set all the others to nothing, and turn the result back into sound. What comes out?"
+  choices={['The whole chord, duller', 'The two lower strings by themselves', 'A buzz that is no longer a guitar']}
+>
+
+The two lower strings by themselves. The sixteenth bin stands between the second string and the third, so the cut falls between them. The lab does this to the whole loop, a stretch at a time. Measured over the first bar, <Claim id="two-strings">the strings at 110 Hz and 165 Hz come through within 0.1 dB of how they went in, and those at 220 Hz and 262 Hz come out more than 35 dB down</Claim>.
+
+<Still
+  taps="windowed:in rebuilt:out"
+  view="curve"
+  values={{ keep: 16 }}
+  caption="One stretch of the chord, and the same stretch from its 16 lowest bins. Notice the slow, smooth wave inside the busy one: two strings and nothing else."
+/>
+
+Hear <Hear set="chord" label="the chord" />, then <Hear set="lower" label="its 16 lowest bins" />, then <Hear set="upper" label="all its other bins" />. The second and the third are the two halves of the first. Added together they are the chord again, with a difference <Claim id="parts-sum">more than 130 dB under it</Claim>.
+
+<Still
+  taps="in out"
+  view="spectrum"
+  set="lower"
+  top={1000}
+  min={-110}
+  max={-20}
+  caption="The whole loop going in, and the loop from its 16 lowest bins. Notice that the two lines lie together as far as the second string, and that the second line then drops as if off the edge of a wall."
+/>
+
+</Predict>
+
+That is the use of the transform. It moves a sound to a place where its notes stand apart, something is done there, and the sound is brought back.
+
+This lesson is about one such stretch, which from here on is called a frame. It shows what a bin is, why a frame is faded at both ends before it is transformed, and why the way back returns the samples that went in. <Lesson id="short-time-fourier" cap /> then slides the frame along a sound.
+
+The opening picture of this page is the chord going in, and the chord rebuilt from the 48 lowest bins of each frame, which is where "Bins kept" starts.
+
+</Part>
+
+<Part id="picture" title="Every bin is an arrow that turns. Tip to tail, the arrows draw the frame.">
+
+A bin holds two things about one sine: how large it is, and where in its swing it stands at the frame's first sample. Draw that as an arrow. Its length is the size, and its direction is the starting place.
+
+Now let the arrow turn at a steady speed while the frame goes by. The arrow of bin 1 goes round once in the frame, the arrow of bin 2 twice, the arrow of bin 30 thirty times. The height of an arrow's tip, sample by sample, is that bin's sine.
+
+To add the sines, lay the arrows tip to tail. The height of the last tip is the sum of all their heights, and that sum is the frame's sample.
 
 <Controls ids="position keep" />
 
-<Curve taps="windowed:in rebuilt:out" xTitle="milliseconds" height={240}>
-  One frame of the loop (grey) and the sum of its first few sinusoids (red). With one bin kept the red line is flat: bin 0 is the frame's average. Every bin added is one more sinusoid, a little faster than the last.
-</Curve>
-
-Under each stage is a mark saying where it comes from. *Computed by the engine's kit* means the numbers came out of <Src path="cpp/kit/fft.h">`kit::Fft`</Src>, the transform every spectral device in the engine is built on. *Written for this lesson* means the lab made it: the window, the probe sine further down, and a copy of the transform's sum written out the slow way, which a check holds to the kit's answer.
-
-## Stage by stage
-
-### 1. Cut a frame
-
-The transform needs a fixed number of samples, N. The kit's is a template, `kit::Fft<N>`, and N must be a power of two (a `static_assert` at the top of the class refuses anything else; stage 7 shows why). The lab has four sizes ready: 64, 256, 1,024 and 4,096 samples, which at 48 kHz are 1.3, 5.3, 21 and 85 milliseconds of sound.
-
-A frame is the samples <M t={String.raw`x[0] \dots x[N-1]`} /> starting at a place you choose. Nothing else is done to them yet.
-
-<Controls ids="position size" />
-
-<Curve taps="frame" xTitle="milliseconds" stems height={220}>
-  The frame as it is cut from the loop. At 64 or 256 samples every sample is a stalk; at 4,096 they run together into the wave's outline. Move "Frame starts at" with the drums or the guitar playing and the frame slides along the loop.
-</Curve>
-
-### 2. One bin is a correlation
-
-To ask how much of one frequency a frame holds, multiply the frame by a sinusoid of that frequency, sample by sample, and add the products up. Where the frame swings with the sinusoid, both are positive together and negative together, every product is positive, and the sum grows. Where it does not, the products come out positive and negative in equal measure and cancel. That sum is a *correlation*, and the transform is nothing but this sum, done once for each bin:
-
-<M block t={String.raw`X[k] \;=\; \sum_{n=0}^{N-1} x[n]\,e^{-j 2\pi k n / N}`} />
-
-<M block t={String.raw`\phantom{X[k]} \;=\; \sum_{n=0}^{N-1} x[n]\cos\frac{2\pi k n}{N} \;-\; j \sum_{n=0}^{N-1} x[n]\sin\frac{2\pi k n}{N}`} />
-
-Here <M t="x[n]" /> is sample <M t="n" /> of the frame and <M t="k" /> is the bin. The sinusoid of bin <M t="k" /> turns exactly <M t="k" /> times across the frame, so bin 0 does not turn at all, bin 1 fits one cycle, and so on. <M t="X[k]" /> is a pair of numbers: the sum against the cosine (the real part) and the sum against the sine (the imaginary part, with a minus sign that is only a convention). In the code they are two arrays, `re` and `im`, and the cosines and sines are the tables `cos_` and `sin_` that `init` fills with the angle <M t={String.raw`-2\pi i/N`} />.
-
-The lab does one of these sums in the open, at any frequency you like, not only at a bin's.
-
-<Controls ids="compare" />
-
-<Curve taps="windowed:in cosine:ctl product:out" xTitle="milliseconds" height={240}>
-  The frame (grey), a cosine at the frequency compared (blue, dashed, drawn as tall as the frame so both can be seen), and the frame times a cosine of height 1, sample by sample (red). On the saw at 110 Hz the product stays mostly on one side of zero. Move "Compare with" to 150 Hz, between two harmonics, and it swings both ways.
-</Curve>
-
-<Curve taps="runCos:ctl runSin:alt" xTitle="milliseconds" height={200}>
-  The sums as they build up across the frame, against the cosine (blue) and against the sine (green, dashed), scaled so that a full-scale sine ends at 1. Where the frame holds the frequency a sum climbs or falls steadily. Where it does not, both wander and end near zero.
-</Curve>
-
-<Check id="match" />
-
-**Why a cosine and a sine.** A cosine alone can miss a sinusoid that is plainly there. If the frame's sinusoid crosses zero where the cosine peaks, their product is positive for a quarter of a cycle and negative for the next, and the sum is zero. The sine is the same wave a quarter of a cycle later, and it catches exactly what the cosine misses. Take a 750 Hz sine of amplitude 0.5 and a frame that starts as the sine crosses zero on its way down. The sums are 0 against the cosine and −0.5 against the sine. Cut the frame a quarter of a cycle later and they read <Claim id="quarter-turn">−0.5 and 0</Claim>. The two numbers trade places, and the length of the pair, <M t={String.raw`\sqrt{a^2 + b^2}`} />, stays 0.5. Against 1,500 Hz, which the sine does not hold, both sums end <Claim id="no-match">more than 120 dB down</Claim>.
-
-The kit never computes the sum this way (stage 7), so the lab checks that both roads end in the same place. It writes the sum out for the bin nearest "Compare with" and compares it with the kit's bin:
-
-<Check id="direct" />
-
-On the saw, the drums and noise, at every frame length, the two agree to <Claim id="direct">more than 130 dB under the frame's largest bin</Claim>.
-
-### 3. Two numbers per bin: a level and an angle
-
-The pair <M t={String.raw`(\operatorname{Re} X[k], \operatorname{Im} X[k])`} /> is a point on a plane, and a point can be given another way: how far it is from the centre and in which direction.
-
-<M block t={String.raw`|X[k]| = \sqrt{\operatorname{Re}^2 + \operatorname{Im}^2} \qquad\qquad \varphi_k = \operatorname{atan2}(\operatorname{Im}, \operatorname{Re})`} />
-
-The distance is the *magnitude*: how much of that frequency there is. The direction is the *phase*: where in its cycle that sinusoid stands at the frame's first sample. A picture called "the spectrum" is nearly always the magnitudes alone, in decibels.
-
-The kit's forward transform does not divide by anything, so its numbers grow with the frame. A sine of amplitude 0.5 exactly on bin 100 of a 4,096-sample frame gives that bin a magnitude of <Claim id="scaling">1,024</Claim>, which is <M t={String.raw`\tfrac12 A N`} />, and leaves every other bin under −120 dB. The half is there because a real signal's spectrum is a mirror: bin <M t="N-k" /> always holds the same magnitude as bin <M t="k" /> with the opposite angle, so each sinusoid's size is shared between two bins. That is why every figure here stops at bin N/2, and why the lab's level reads 0 dB for a full-scale sine.
-
-<Spectrum taps="magnitude" uprights="compare" min={-120} max={0} height={240}>
-  The level of every bin of the frame, from the kit's transform. The dashed line is "Compare with": the level under it is what the sums above ended at. The saw shows a peak at 110 Hz and one at each multiple of it.
-</Spectrum>
-
-<Curve taps="phase" xTitle="hertz" yTitle="radians" stems xMax={2000} min={-3.5} max={3.5} height={200}>
-  The angle of each bin up to 2 kHz, from −π to π. Bins more than 60 dB under the largest are drawn at zero, because the angle of almost nothing is noise. Within one peak, neighbouring bins point opposite ways: the window puts the bulk of the frame half a frame in, and half a frame is half a turn for every odd bin. Nudge "Frame starts at": the levels above hardly move and every angle here turns.
-</Curve>
-
-Phase is what the magnitudes leave out. Two frames of the same steady note, cut at different instants, have the same magnitudes and different phases, and the lesson on the short-time transform uses exactly that difference to measure a frequency more finely than the bins can.
-
-Nothing is lost or gained on the way. The squares of all N bins add up to N times the squares of the N samples (Parseval's relation), and through the kit's transform the two sides agree to <Claim id="parseval">better than one part in a million</Claim> on noise at every frame length.
-
-<Check id="parseval" />
-
-### 4. Bin spacing: time against frequency
-
-Bin <M t="k" /> turns <M t="k" /> times in a frame that lasts <M t={String.raw`N/f_s`} /> seconds, so it stands at
-
-<M block t={String.raw`f_k = k\,\frac{f_s}{N}, \qquad \Delta f = \frac{f_s}{N}, \qquad \Delta f \cdot T_{\text{frame}} = 1`} />
-
-The bins are evenly spaced, <M t={String.raw`f_s/N`} /> apart, from 0 Hz to half the sample rate. At 48 kHz a frame of 64 has bins 750 Hz apart; 256 gives 187.5 Hz; 1,024 gives 46.9 Hz; 4,096 gives 11.7 Hz. The last term is the whole trade in one line: the spacing times the frame's length is always 1. To tell two frequencies 10 Hz apart you need a tenth of a second of sound, and for that tenth of a second the transform cannot say *when* anything happened.
-
-<Controls ids="size" />
-
-<Spectrum taps="magnitude" linear fMax={1500} min={-100} max={0} height={240}>
-  The same levels on a linear axis up to 1.5 kHz, where the saw's harmonics stand evenly. At 4,096 samples each is a separate peak. Step the frame length down and they melt into one slope.
-</Spectrum>
-
-In a frame of 4,096 the level between the saw's first two harmonics falls <Claim id="saw-resolved">more than 60 dB</Claim> below the second. In a frame of 1,024 <Claim id="saw-blurred">no bin between them reads lower than the second harmonic itself</Claim>: the frame is too short to tell 110 Hz from 220 Hz. At the other extreme sits a single click. One sample alone has no frequency at all, and the transform says so by giving every bin the same level, <Claim id="click-flat">within 0.001 dB</Claim>. A sine is one bin and all of time; a click is one instant and all of frequency. Every real sound is somewhere between, and the frame length decides which side the picture favours. The engine's Spectral Blur settles on 2,048 samples: 23.4 Hz between bins, 43 ms a frame (<Src path="cpp/devices/spectral-blur/spectral_blur.h" lines="58-59">`kFrame`</Src>).
-
-### 5. Leakage, and the window
-
-The saw's peaks above are not single bins, and the reason is the most important practical fact about the transform. Its sinusoids all turn a whole number of times in the frame. A sinusoid that does not, which is nearly every sinusoid in real sound, cannot be one bin. It has to be built from all of them.
-
-The lab has a probe for this: a sine of its own in a frame of 64 samples, at a frequency you set in bins.
-
-<Controls ids="probe" />
-
-<Curve taps="probeTwiceHann:out probeTwice:in" xTitle="samples" min={-1.1} max={1.1} height={200}>
-  The probe's frame laid end to end twice (grey, dashed), which is how the transform sees it: as one turn of something that repeats for ever. At 8 bins the join in the middle is smooth. At 8.5 the wave breaks there. In red, the same frame under the window, which brings both ends to zero so that there is nothing to break.
-</Curve>
-
-<Curve taps="leakPlain:in leakHann:out" xTitle="bin" yTitle="dB" min={-100} max={5} height={260}>
-  The kit's bins for the probe, bare (grey) and windowed (red). At 8 bins the bare sine is one point at 0 dB and everything else is off the bottom of the picture. Slide towards 8.5 and the grey skirt rises across the whole spectrum, while the red one stays narrow.
-</Curve>
-
-Exactly on bin 8 the bare sine is in that bin alone: every other bin is <Claim id="on-bin-plain">more than 120 dB down</Claim>. Half way to the next bin it is nowhere in particular. The two bins either side read <Claim id="between-plain">3.7 and 4.1 dB low, bin 13 is only 24 dB down, and no bin in the whole spectrum is below −38 dB</Claim>. (The two differ a little because a real sine has a mirror image, here at minus 8.5 bins, and that leaks too.) The spread is *leakage*. It is not noise and not an error of arithmetic: it is the true spectrum of a sine with a break in it every 64 samples.
-
-A *window* is the cure. Before the transform, the frame is multiplied by a curve that is zero at both ends and one in the middle. The engine's spectral devices use the Hann window, a raised cosine (<Src path="cpp/devices/spectral-blur/spectral_blur.h" lines="69-71">written out in Spectral Blur's `init`</Src>):
-
-<M block t={String.raw`w[n] = \tfrac12 - \tfrac12\cos\frac{2\pi n}{N}`} />
-
-With it, the sine half way between bins reads <Claim id="between-hann">1.4 dB low either side and 49 dB down at bin 13</Claim>. The price is paid where there was nothing to fix. The sine exactly on a bin, which was one clean point, now fills three: <Claim id="on-bin-hann">its neighbours stand 6.0 dB below it</Claim>. A window always trades these two against each other. The peak of every sinusoid (the *main lobe*) gets wider, here twice as wide, and in exchange its skirt (the *side lobes*) falls away far faster. No window at all is the narrowest peak there is, with the worst skirt.
-
-<Controls ids="window size" />
-
-<Curve taps="frame:in window:ctl windowed:out" xTitle="milliseconds" height={220}>
-  The frame (grey), the window (blue, dashed, from 0 up to 1 and back) and their product (red, dashed), which is what the transform is given. Switch the window to None and the red frame is the grey one, edges and all; look at the levels in stage 3 as you do.
-</Curve>
-
-### 6. Back again: the bins as turning vectors
-
-The inverse transform is the same sum run the other way. Because bin <M t="N-k" /> mirrors bin <M t="k" />, the two can be taken together, and for a real frame the sum becomes one of plain cosines:
-
-<M block t={String.raw`x[n] \;=\; \frac1N \sum_{k=0}^{N-1} X[k]\,e^{\,j 2\pi k n / N}`} />
-
-<M block t={String.raw`\phantom{x[n]} \;=\; \frac{X[0]}{N} + \sum_{k=1}^{N/2-1} \frac{2\,|X[k]|}{N}\cos\!\Bigl(\frac{2\pi k n}{N} + \varphi_k\Bigr) + \frac{X[N/2]}{N}(-1)^n`} />
-
-Each term is a vector. Its length is <M t={String.raw`2|X[k]|/N`} />, the size of that sinusoid. It starts at the angle <M t={String.raw`\varphi_k`} />, the bin's phase, and for every sample it turns by <M t={String.raw`2\pi k/N`} />, so bin 1 goes round once in the frame and bin <M t="k" /> goes round <M t="k" /> times. Lay the vectors tip to tail, and the height the last tip reaches is the sample.
-
-<Controls ids="keep" />
-
 <TurningVectors real="real" imag="imag" frame="windowed" rebuilt="rebuilt" count="keep" height={320}>
-  On the left, the first bins of the frame as vectors laid tip to tail (blue), drawn with the real axis pointing up; the faint circles are the paths of the longer ones. On the right, the frame (grey) and its rebuild from those bins (red). The dashed line carries the height of the chain's tip across to the sample shown, where it lands on the red curve. Drag "Sample shown" or press Turn, and change "Bins kept" to lengthen the chain.
+  On the left, the frame's lowest bins as arrows laid tip to tail; the faint circles are the paths
+  of the longer ones. On the right, the frame and the same frame rebuilt from those bins. The
+  dashed line carries the height of the last tip across to the sample shown. Try "Sample shown",
+  or press Turn, and notice the tip trace out the rebuilt line. Then try "Bins kept" higher, and
+  notice the rebuilt line close on the frame.
 </TurningVectors>
 
-<Curve taps="residual" xTitle="milliseconds" height={180}>
-  The frame minus its rebuild: everything the bins left out were holding. It shrinks as "Bins kept" rises and is nothing when all are kept.
-</Curve>
+With "Bins kept" at 1 there is one arrow, and it does not turn. Bin 0 is the frame's average, and the rebuilt line is flat. Each bin added is one more arrow, turning a little faster than the last, and one more ripple in the line.
+
+One thing to check against the figure. On the chord, with "Frame starts at" where the page opens, the rebuilt frame differs from the frame by <Claim id="chord-kept">9.1 dB under the frame at 48 bins, 21 dB under at 100 and 82 dB under at 400</Claim>. The lab reads the same number out on every render:
 
 <Check id="rebuildNull" />
 
-For the saw at the starting settings the difference is <Claim id="keep-48">9.7 dB under the frame with 48 bins kept</Claim> and <Claim id="keep-400">20.5 dB under with 400</Claim>. It falls slowly because a saw's harmonics do. With every bin kept, the rebuilt frame and the rebuilt loop are <Claim id="null-all">more than 130 dB under</Claim> what went in, at every frame length, with the window and without: the floor of single-precision arithmetic.
+By 400 bins of the 2,049 there is next to nothing left to add. A strummed chord keeps nearly all of itself in the lowest fifth of the spectrum. Part 3 shows which sounds are like that and which are not.
 
-**The kit's scaling.** The <M t={String.raw`1/N`} /> in the equation has to go somewhere, and the kit leaves it to the caller. `forward` does not divide and neither does `inverse`, so a frame sent there and back returns <Claim id="inverse-times-n">N times as large</Claim>: 4,096 times at the longest frame. Once divided by N it matches the frame to <Claim id="round-trip">more than 130 dB</Claim>. The check below is the measured gain with that N taken out, so it reads 1.
+The frame in this figure fades to nothing at both ends. That is the window, the third piece of part 4.
 
-<Check id="unscaled" />
+</Part>
 
-A device folds that division into a gain it needs anyway. Spectral Blur multiplies each frame it adds to its output by `kOutputScale`, <M t={String.raw`1/(1.5\,N)`} />: the N for the unscaled inverse, the 1.5 for its overlapping windows (<Src path="cpp/devices/spectral-blur/spectral_blur.h" lines="214-215">the constant and its comment</Src>).
+<Part id="uses" title="Sounds that hold a pitch fit in a few bins. Hits and noise need nearly all of them.">
 
-**The whole loop.** The last stage does to every frame what the figure does to one: transform, keep the first bins, transform back, divide by N. With the Hann window the frames are taken half a frame apart, where two neighbouring windows add up to exactly one, and the pieces are summed. Keeping the lowest bins is then a filter with a wall for an edge. With 48 bins of 4,096 kept (everything below 562 Hz), a 440 Hz sine passes within 0.01 dB and a 1 kHz sine comes out <Claim id="cut-hann">more than 95 dB down</Claim>.
+By itself the transform changes nothing. It is a place to work. A meter draws the bins as a spectrum. A device changes them and transforms back: Spectral Blur, the engine's device on this page, holds on to bins from one frame to the next so that a sound hangs in the air. Either works better the fewer bins a sound needs.
 
-<Listen tap="out">Hear the loop from the bins kept</Listen>
+The lab puts a number on that. It sorts a frame's bins from the largest to the smallest and counts how many it takes to hold nine tenths of the frame's energy. Each card shows one frame's bins and gives the count. Its button plays the loop rebuilt from the bins the card keeps.
 
-### 7. How the kit does it fast
+<Uses>
+  <Use title="A held chord" set="held">
+    <Still
+      slot="picture"
+      taps="magnitude"
+      view="spectrum"
+      set="held"
+      top={2000}
+      min={-90}
+      max={-10}
+      caption="One frame of the strummed chord, up to 2 kHz. Notice how narrow each peak is, and how far the line falls between one peak and the next."
+    />
 
-Written out as in stage 2, the transform is N sums of N products. For a frame of 4,096 that is 16.8 million multiplications by a sinusoid. The kit's <Src path="cpp/kit/fft.h" lines="221-251">`transform`</Src> does the same job in 24,576 steps, 683 times fewer, and that saving is what makes it practical to work on bins while the sound plays.
+    Strings that ring hold their pitch, and a steady pitch needs only the few bins around it. Nine tenths of this frame lies in <Claim id="held-share">17 of its 2,049 bins</Claim>. So a change to a handful of numbers reaches one note and leaves the rest alone, which is what part 1 did. The card keeps the 30 lowest bins: the four strings and little of what rings above them.
 
-The saving comes from one observation. Take the even-numbered samples as one signal and the odd-numbered ones as another. Each has N/2 samples, and their transforms <M t="E" /> and <M t="O" />, with <M t={String.raw`W = e^{-j 2\pi / N}`} /> for one step of the turning, give the transform of the whole:
+  </Use>
+  <Use title="A bass line" set="lows">
+    <Still
+      slot="picture"
+      taps="magnitude"
+      view="spectrum"
+      set="lows"
+      top={2000}
+      min={-90}
+      max={-10}
+      caption="One frame of the bass line, up to 2 kHz. Notice that the line is tallest at its low end and falls away above it."
+    />
 
-<M block t={String.raw`X[k] = E[k] + W^k\,O[k], \qquad X[k + N/2] = E[k] - W^k\,O[k]`} />
+    A bass note is steadier still: <Claim id="bass-share">9 bins</Claim> hold nine tenths of this frame. The catch is that low notes lie close together in hertz. Telling one from the next takes bins that are close together, and close bins take a long frame, as part 5 measures. The card keeps the 12 lowest bins of the longest frame.
 
-Two outputs come from two inputs with a single multiplication. That pair of lines is a *butterfly*, and it is the inner loop of the kit's code, term for term: `xr` and `xi` are <M t={String.raw`W^k O[k]`} />, the element at `b` becomes the difference and the one at `a` the sum. The halves are split the same way, and theirs again, down to single samples, which are their own transforms. That is why N must be a power of two, and it leaves <M t={String.raw`\log_2 N`} /> passes of <M t={String.raw`N/2`} /> butterflies each: 12 passes of 2,048 for a frame of 4,096.
+  </Use>
+  <Use title="A drum hit" set="hit">
+    <Still
+      slot="picture"
+      taps="magnitude"
+      view="spectrum"
+      set="hit"
+      min={-90}
+      max={-10}
+      caption="A frame of 256 samples with a snare hit in it. Notice that there is no peak to point at: the line is one broad slope across the whole range."
+    />
 
-The kit runs the recursion from the bottom up, with no recursion in the code. First it puts the samples in the order all that halving would leave them in. Splitting by even and odd over and over sorts the samples by the bits of their index read backwards, so `init` fills a table, `reverse_`, and `transform` begins by swapping each sample with the one at its bit-reversed index. Then the outer loop, `size = 2, 4, 8 … N`, joins neighbouring transforms into ones twice as long. The powers of <M t="W" /> come from the tables: one table of N/2 angles serves every pass, read at a `stride` of `N / size`. The inverse is the same loop with the sign of the sine turned round.
+    A hit is over in an instant, and what is short in time is wide in frequency. With the snare in it, a frame of 4,096 needs <Claim id="hit-share">625 of its 2,049 bins for nine tenths of the energy, and a frame of 256 needs 20 of its 129</Claim>. Nothing in a hit can be reached a few bins at a time. And whatever is done to the bins of a frame is done to the whole length of the frame, so hits are given short frames. The card keeps the 12 lowest bins of frames of 256.
 
-A real frame needs only half of this, since half of its spectrum is the mirror of the other. <Src path="cpp/kit/fft.h" lines="37-89">`forward_real`</Src> works out bins 0 to N/2 alone in half the butterflies, and it is what Spectral Blur calls. Its bins and the complex transform's agree to <Claim id="real-same">more than 130 dB under the largest</Claim>.
+  </Use>
+  <Use title="Noise" set="hiss">
+    <Still
+      slot="picture"
+      taps="magnitude"
+      view="spectrum"
+      set="hiss"
+      min={-90}
+      max={-10}
+      caption="One frame of white noise. Notice that the line is ragged and level from end to end: no bin stands out from its neighbours."
+    />
 
-<Check id="realSame" />
+    Noise is the other end from a held note. Every bin holds about as much as the next, and it takes <Claim id="noise-share">1,213 of the 2,049</Claim> to hold nine tenths. There is no note to find. The transform is still of use here as a filter with a sharp edge: the card keeps the 400 lowest bins and lets nothing above them through.
 
-## What goes wrong
+  </Use>
+</Uses>
 
-**Leakage reaches where you cut.** Switch the window to None and keep 48 bins. A 1 kHz sine, far above the bins kept, now comes through only <Claim id="cut-plain">29 dB down</Claim>, where the window held it under −95 dB. Its skirt reached all the way down into the bins that were kept. With real sound, listen for a buzz at the frame rate: frames laid end to end with nothing to join them.
+</Part>
 
-**The edges of a frame are deaf.** The window is zero at the frame's first sample and close to it nearby. A click that falls exactly there is <Claim id="edge-click">multiplied away altogether</Claim>, and the spectrum of that frame is silence. This is why frames overlap: what one frame barely sees, the next has in its middle.
+<Part id="build" title="Four pieces: one probe, a bank of probes, the window, the way back.">
 
-**Long frames smear time.** A bin holds one size and one angle for the whole frame, so anything done to a bin is done to all 85 ms of it at once. Change the bins of a frame with a hit in it and the change spreads before the hit as well as after. Cut everything above 562 Hz in frames of 4,096 (48 bins kept) and a single click half a second into the loop begins to sound <Claim id="pre-echo">73 ms before it happens, with ripples 43 dB under its peak 20 to 40 ms ahead</Claim>. The same cut in frames of 256 (3 bins kept) lets <Claim id="pre-echo-short">nothing through more than 4 ms early</Claim>. Short frames keep the hit in its place and cannot tell the notes apart. No frame length does both.
+The transform is put together here in the lab's own code, the slow way: plain sums, one after another, with nothing clever in them. It works on one frame, the one that begins at "Frame starts at". Each step adds one small function, and the last step is held to the engine's fast transform.
 
-**Lateness.** A frame cannot be transformed until its last sample has arrived, so anything that works on bins answers at least a frame late. The device on the bench below is 2,304 samples behind its input, 48 ms: a frame of 2,048 and 256 more that it uses to spread its work (<Src path="cpp/devices/spectral-blur/spectral_blur.h" lines="58-61">`kLatency`</Src>). It delays its dry signal by the same amount so that the two stay in step.
+A frame is not a sound until something plays it. "Hear it so far" plays what the pieces so far make of the one frame, round and round with no gap. That is not a convenience of the page. It is how the transform itself takes a frame: as one turn of something that repeats for ever. The third step depends on it.
 
-**The floor.** The kit's transform is single precision. Its round trip ends a little more than 130 dB under the signal, which is far below hearing but is not zero, and it is why the checks on this page stop near −135 dB.
+<Build>
+  <Step title="One probe sine" controls="position size compare">
+    To ask how much of one frequency a frame holds, make a sine of that frequency and multiply the frame by it, sample by sample. Then add the products up. Where the frame swings with the probe, the two are above the line together and below it together, every product is positive, and the sum grows. Where the frame holds nothing of that frequency, the products come out positive and negative in equal measure and cancel.
 
-## What to try
+    One sine is not quite enough. If the frame's wave crosses the line where the probe is at its top, the products cancel although the frequency is plainly there. So a probe is a pair: a cosine, and a sine, which is the same wave a quarter of a cycle later and catches what the cosine misses. The two sums together say how much there is and where in its swing it stands.
 
-- The sine, with "Compare with" swept slowly up to 440 Hz. Watch the sums in stage 2 stop wandering and start to climb, and the check under them rise to its peak.
-- The sine at each frame length. At 64 samples it is a wide hump: a frame of 1.3 ms holds little more than half a cycle of it.
-- The clicks, with the window on None, and "Frame starts at" moved a little either side of 1 s. The levels stay flat and the angles in stage 3 wind faster or slower: the slope of the angle across the bins is where in the frame the click sits.
-- The drums, listening to the output with 20 bins kept, at 4,096 and then at 256. Twenty bins reach 234 Hz in the long frame and 3.75 kHz in the short one: listen for what each leaves of a hit.
-- Noise, with 200 bins kept, on the vectors in stage 6. The chain is a tangle of short steps in every direction: no bin holds much, and no two agree.
-- The saw with "Bins kept" at 10, 20 and 40, on the vectors. Each new harmonic is one more group of long vectors, turning faster, and the red curve grows one more ripple towards the saw's edge.
+    <Listing
+      path="site/labs/fourier-transform.cpp"
+      from="// One probe sine: a cosine and a sine that turn k times in the frame, each"
+      to="found_sin[k] = with_sin;"
+      mark={['with_cos += frame[n] * turn_cos[at];', 'with_sin += frame[n] * turn_sin[at];']}
+      name="probe"
+    />
+
+    The tables `turn_cos` and `turn_sin` hold one turn of each wave in as many steps as the frame has samples. A probe that turns `k` times in the frame walks them `k` steps a sample. The probe stands at the bin nearest "Compare with", and the sound of this step is its answer: a cosine and a sine as tall as the two sums say, added. On the chord that is one pure tone, as much of the lowest string as the frame holds.
+
+    <Curve slot="picture" taps="builtFrame:in builtProbe:ctl builtProduct:out" xTitle="milliseconds" height={220}>
+      The frame, the probe's cosine drawn at the frame's height, and the two multiplied. Try
+      "Compare with" at 140 Hz, between two strings, and notice the product swing as far one way
+      as the other.
+    </Curve>
+
+    <Spectrum slot="picture" taps="builtBins" linear fMax={1000} min={-80} max={-10} height={200}>
+      What the one probe found, as a level at its own frequency, up to 1 kHz. Try "Compare with"
+      along the chord, and notice the single upright move and change height.
+    </Spectrum>
+
+    <Lanes slot="picture" taps="in built" from={0.1} span={0.17}>
+      The loop from where the page first cuts its frame, and the probe's answer played round and
+      round. Notice that the second lane is one steady tone, far simpler than the first.
+    </Lanes>
+
+  </Step>
+  <Step title="A bank of probes" controls="position size compare">
+    One probe answers for one frequency. To find everything in the frame, ask at every frequency that turns a whole number of times in it: no turns, one, two, and so on up to half a turn a sample. Beyond that a sampled sine is the mirror of a slower one and says nothing new. For a frame of N samples that is N/2 + 1 probes, and their answers are the bins.
+
+    <Listing
+      path="site/labs/fourier-transform.cpp"
+      from="// A bank of probes: one for every bin, from no turns in the frame to half a turn a sample."
+      to="for (int k = 0; k <= size / 2; ++k) probe(k);"
+      mark="for (int k = 0; k <= size / 2; ++k) probe(k);"
+      name="bank"
+    />
+
+    On the chord the bank finds <Claim id="built-bank">−29.9 dB at 105 Hz, −26.2 dB at 164 Hz, −39.8 dB at 223 Hz and −29.9 dB at 258 Hz</Claim>: all four strings, where the single probe found the first alone. These slow sums land on the bins of the engine's fast transform, <Claim id="built-bins">more than 130 dB under the largest of them</Claim>:
+
+    <Check id="bank" />
+
+    The price is the work. Each of the 2,049 probes of the longest frame runs over all 4,096 samples: 8.4 million steps for one frame, with two multiplications in each. Part 5 shows how the engine gets the same bins with far fewer.
+
+    The bank also shows a fault. Choose the sine in the row of sounds: one frequency and nothing else. The bank finds something in every bin, and ten bins above its peak the sine still reads <Claim id="built-leak-bare">28 dB under it</Claim>. The sine does not turn a whole number of times in the frame. No probe matches it, so every probe matches it a little.
+
+    <Spectrum slot="picture" taps="builtBins" linear fMax={1000} min={-80} max={-10} height={200}>
+      What every probe found, up to 1 kHz. Try the sine in the row of sounds, and notice the
+      skirts that spread from its one peak across the whole picture.
+    </Spectrum>
+
+    <Lanes slot="picture" taps="in built" from={0.1} span={0.17}>
+      The loop from where the page first cuts its frame, and the sound so far. Notice that the
+      second lane has not changed: the bank has found every bin, and nothing adds their answers up
+      yet.
+    </Lanes>
+
+  </Step>
+  <Step title="The window" controls="position size compare">
+    The leak comes from the two ends of the frame. Played round and round, the frame's last sample is followed by its first, and the wave jumps there. A jump is in no single sine. It takes a little of every frequency to draw one.
+
+    So take the ends away. Before any probe sees the frame, multiply it by a curve that starts at nothing, rises to 1 in the middle and falls back to nothing. The curve used here is the Hann window: one turn of the slowest probe's cosine, turned over and lifted.
+
+    <Listing
+      path="site/labs/fourier-transform.cpp"
+      from="// The window: the frame fades in from nothing and out to nothing before"
+      to="for (int n = 0; n < size; ++n) frame[n] *= static_cast<float>(0.5 - 0.5 * turn_cos[n]);"
+      mark="for (int n = 0; n < size; ++n) frame[n] *= static_cast<float>(0.5 - 0.5 * turn_cos[n]);"
+      name="hann"
+    />
+
+    A frame that begins and ends at nothing joins itself with no jump. On the sine, the leak ten bins above the peak falls to <Claim id="built-leak-windowed">70 dB under it</Claim>. Two prices are paid. A peak is now three bins wide where it could have been one, and the ends of the frame count for very little. Part 5 measures the first and part 7 the second.
+
+    <Curve slot="picture" taps="builtFrame" xTitle="milliseconds" height={200}>
+      The frame the probes are given. Try "Frame starts at", and notice that the frame swells
+      from nothing and dies back to nothing wherever it is cut.
+    </Curve>
+
+    <Spectrum slot="picture" taps="builtBins" linear fMax={1000} min={-80} max={-10} height={200}>
+      What every probe found in the windowed frame. Try the sine again, and notice that the skirts
+      are gone: the peak stands on a clean floor.
+    </Spectrum>
+
+    <Lanes slot="picture" taps="in built" from={0.1} span={0.17}>
+      The loop from where the page first cuts its frame, and the sound so far. Notice that the one
+      probe's tone is a little quieter: the window has taken the frame's ends away from it.
+    </Lanes>
+
+  </Step>
+  <Step title="The way back" controls="position size compare keep">
+    Each probe's answer is a wave: its cosine and its sine, as tall as the two sums say. A probe between the first and the last answers for its mirror as well, so it counts twice, and the whole is divided by the number of samples.
+
+    <Listing
+      path="site/labs/fourier-transform.cpp"
+      from="// What a probe found, as a wave: the same cosine and sine, each as tall as"
+      to="answers[n] += share * (found_cos[k] * turn_cos[at] + found_sin[k] * turn_sin[at]);"
+      mark="answers[n] += share * (found_cos[k] * turn_cos[at] + found_sin[k] * turn_sin[at]);"
+      name="answer"
+    />
+
+    The way back is to add the answers up, and nothing more.
+
+    <Listing
+      path="site/labs/fourier-transform.cpp"
+      from="// The way back: the answers of the first"
+      to="for (int k = 0; k < kept; ++k) answer(k);"
+      mark="for (int k = 0; k < kept; ++k) answer(k);"
+      name="back"
+    />
+
+    With "Bins kept" at its top, the answers of all the probes add up to the frame the probes were given, with a difference <Claim id="built-back">more than 130 dB under it</Claim>. Nothing was lost on the way to the bins, so nothing is missing on the way back. With fewer bins kept the sum is the rebuilt line of part 2, built here by hand.
+
+    With this piece the build is the whole transform, there and back. On every render the lab runs the same frame through the engine's forward and inverse transform and compares the two. They differ by <Claim id="built-same">more than 130 dB under the frame</Claim>.
+
+    <Check id="builtDifference" />
+
+    <Curve slot="picture" taps="builtFrame:in builtAnswer:out" xTitle="milliseconds" height={220}>
+      The frame the probes were given, and their answers added up. Try "Bins kept" from its lowest
+      to its highest, and notice the second line close on the first until one covers the other.
+    </Curve>
+
+    <Lanes slot="picture" taps="in built" from={0.1} span={0.17}>
+      The loop from where the page first cuts its frame, and the sum of the answers played round
+      and round. Notice that the second lane is now the first, faded at the ends of each turn.
+    </Lanes>
+
+  </Step>
+</Build>
+
+Here are the four pieces where they meet. `run` takes one frame through the pieces there are so far.
+
+<Listing
+  path="site/labs/fourier-transform.cpp"
+  from="void run(int start, int k, int kept) {"
+  to="if (pieces < kBack) alone(k);"
+  mark={['if (pieces >= kWindow) window();', 'if (pieces >= kBank) bank();', 'if (pieces >= kBack) back(kept);']}
+  name="run"
+/>
+
+The build runs on one frame and adds nothing up across frames. A sound is longer than a frame, and that is the next lesson's subject. Part 5 goes as far as doing it the simplest way that works, so that the result can be heard.
+
+</Part>
+
+<Part id="engine" title="The kit's transform, stage by stage, and a device that runs it.">
+
+Everything from here on is the engine's own code. `kit::Fft` is the transform that every spectral device of the engine is built on. Spectral Blur is one of those devices, and the page runs it beside the kit with everything it does to its bins turned off. Under each stage is a line that says where its numbers come from: computed by the kit, read from the running device, or written for this lesson, in which case a check holds it to something the engine made.
+
+<Flow
+  label="The sound is cut into a frame, the frame is windowed and transformed, each bin is read as a level and an angle, some bins are kept, and the frame is transformed back and added to the output. Beside it the same sound goes through the device, which does the same to every frame of its own."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'split', shape: 'dot', from: 'in' },
+    { id: 'cut', from: 'split', tap: 'frame', label: 'Cut a frame', n: 1, signal: 'value' },
+    { id: 'window', from: 'cut', tap: 'windowed', label: 'Window', n: 2, signal: 'value' },
+    { id: 'one', row: -1, from: 'window', tap: 'product', label: 'One bin by hand', n: 3, signal: 'value' },
+    { id: 'fft', from: 'window', tap: 'real', label: 'Transform', n: 4, signal: 'value' },
+    { id: 'level', row: -1, from: 'fft', tap: 'magnitude', label: 'Level', n: 5, signal: 'value' },
+    { id: 'angle', row: -2, from: 'fft', tap: 'phase', label: 'Angle', n: 6, signal: 'value' },
+    { id: 'back', from: 'fft', tap: 'rebuilt', label: 'Keep bins, go back', n: 7, signal: 'value' },
+    { id: 'add', from: 'back', tap: 'out', label: 'Frame after frame', n: 8 },
+    { id: 'frames', row: 1, from: 'split', tap: 'deviceLevel', label: "The device's frames", n: 9, signal: 'value' },
+    { id: 'device', row: 1, from: 'frames', tap: 'device', label: 'Out of the device', n: 10 },
+  ]}
+>
+  Along the middle a frame goes to its bins and comes back. The rows above read the bins. The row
+  below is Spectral Blur, doing the same to frames of its own. Press a stage's button below, and
+  notice its block light up here.
+</Flow>
+
+<StageBlock tap="in" n={1} title="Cut a frame">
+  The transform works on a fixed number of samples, N. The kit's is a template, `kit::Fft<N>`, and N must be a power of two: the first line of the class refuses anything else, and stage 4 shows why. The lab has four sizes ready, and "Frame length" picks one. They last <Claim id="frame-lengths">1.3 ms, 5.3 ms, 21.3 ms and 85.3 ms</Claim>.
+
+  <Controls ids="position size" />
+
+  <Curve taps="frame" xTitle="milliseconds" stems height={220}>
+    The frame as it is cut from the loop. Try Frame length at 64, and notice that every sample is
+    a stalk. Try "Frame starts at" with the drums in the row of sounds, and notice the frame slide
+    along the loop.
+  </Curve>
+
+  Nothing is done to the samples yet. The frame begins and ends at whatever height the wave happened to have there.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/fft.h"
+    from="template <int N>"
+    to="static_assert((N & (N - 1)) == 0"
+    mark="static_assert((N & (N - 1)) == 0"
+    name="size"
+  />
+  <Fragment slot="listen">Hear the loop the frame is cut from</Fragment>
+</StageBlock>
+
+<StageBlock tap="windowed" n={2} title="The window">
+  Step 3 of the build said why a frame is faded at its ends. The lab has a probe that shows the leak by itself: a sine of its own in a frame of 64 samples, at a frequency set in bins. At 8 it turns exactly eight times in the frame.
+
+  <Controls ids="probe" />
+
+  <Curve taps="probeTwiceHann:out probeTwice:in" xTitle="samples" min={-1.1} max={1.1} height={200}>
+    The probe's frame laid end to end twice, which is how the transform takes it, and the same
+    under the window. Try "Probe frequency" at 8.5, and notice the plain wave break in the middle
+    of the picture while the windowed one has nothing there to break.
+  </Curve>
+
+  <Curve taps="leakPlain:in leakHann:out" xTitle="bin" yTitle="dB" min={-100} max={5} height={260}>
+    The kit's bins for the probe, plain and windowed. Try "Probe frequency" from 8 towards 8.5,
+    and notice the plain line's skirt rise across the whole picture while the windowed one stays
+    narrow.
+  </Curve>
+
+  Exactly on bin 8 the plain sine is in that bin alone: every other bin is <Claim id="on-bin-plain">more than 120 dB down</Claim>. Half way to the next bin it is nowhere in particular. The bins either side of it read <Claim id="between-plain">3.7 dB and 4.1 dB low, bin 13 is only 24 dB down, and no bin of the whole spectrum is under −38 dB</Claim>. This spread is called leakage. It is not noise and not an error of arithmetic. It is the true spectrum of a sine with a break in it every 64 samples.
+
+  Under the window, the sine half way between bins reads <Claim id="between-hann">1.4 dB low either side and 49 dB down at bin 13</Claim>. The price is paid where there was nothing to mend. The sine exactly on a bin, which was one clean point, now fills three: <Claim id="on-bin-hann">its neighbours stand 6.0 dB below it</Claim>. Every window trades these two against each other. The peak gets wider, and in exchange its skirt falls away far faster.
+
+  Here is the window on the loop's own frame.
+
+  <Controls ids="window size" />
+
+  <Curve taps="frame:in window:ctl windowed:out" xTitle="milliseconds" height={220}>
+    The frame, the window, and the two multiplied, which is what the transform is given. Try
+    Window at None, and notice the product become the frame, ends and all.
+  </Curve>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{ctl}{w[n]} = \at{devicewindow-hann}{\tfrac12 - \tfrac12\cos\frac{2\pi n}{N}}, \quad n = 0 \ldots N-1`}
+  />
+  <Fragment slot="readback">
+    Read it against the picture. At the frame's first sample the cosine is 1, so <M t="w[0]" /> is nothing. Half way through the frame the cosine is −1 and the window is 1. Then it falls back the way it rose. The third line of the picture is the frame times this curve, <M t={String.raw`\sig{out}{w[n]\,x[n]}`} />. The kit has no window of its own: each device writes the table it needs, and the listing is Spectral Blur doing so.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="fft_.init();"
+    to="window_[n] = 0.5f - 0.5f * static_cast<float>"
+    at={{ hann: 'window_[n] = 0.5f - 0.5f * static_cast<float>' }}
+    name="devicewindow"
+  />
+</StageBlock>
+
+<StageBlock tap="product" n={3} title="One bin is a sum">
+  This is step 1 of the build again, in the open, on the windowed frame. It works at any frequency, not only at a bin's.
+
+  <Controls ids="compare" />
+
+  <Curve taps="windowed:in cosine:ctl product:out" xTitle="milliseconds" height={240}>
+    The windowed frame, a cosine at the frequency compared, drawn as tall as the frame, and the
+    frame times a cosine of height 1. Try "Compare with" on the chord's second string, near 165
+    Hz, and then at 140 Hz, and notice the product lean to one side at the first and swing evenly
+    at the second.
+  </Curve>
+
+  <Curve taps="runCos:ctl runSin:alt" xTitle="milliseconds" height={200}>
+    The two sums as they build up across the frame, scaled so that a full-scale sine ends at 1.
+    Try the same two settings, and notice a sum climb or fall steadily at the first, and both
+    wander and end near nothing at the second.
+  </Curve>
+
+  <Check id="match" />
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\begin{gathered} \operatorname{Re} X[k] = \sum_{n=0}^{N-1} \sig{in}{x[n]}\,\sig{ctl}{\cos\frac{2\pi k n}{N}} \\[6pt] \operatorname{Im} X[k] = -\sum_{n=0}^{N-1} \sig{in}{x[n]}\,\sin\at{tables-angle}{\frac{2\pi k n}{N}} \end{gathered}`}
+  />
+  <Fragment slot="readback">
+    Read it against the pictures. <M t={String.raw`\sig{in}{x[n]}`} /> is the windowed frame and the cosine is the dashed wave over it. Each product is one point of the third line, and the sum is where the running line of the second picture ends. <M t="k" /> is the bin: its waves turn exactly <M t="k" /> times in the frame, so bin 0 does not turn at all and bin 1 fits one cycle. The two sums are the two numbers of a bin, called its real part and its imaginary part, and the minus sign on the second is only a convention. Textbooks fold the pair into one line, <M t={String.raw`X[k] = \sum_n x[n]\,e^{-j 2\pi k n / N}`} />, which says the same thing. In the kit the cosines and sines are two tables, filled once, with the minus sign already in the angle.
+
+    Why two sums and not one is the quarter-cycle argument of the build, and it can be measured. Take <Claim id="quarter-turn">a 750 Hz sine of amplitude 0.5 and a frame that begins as the sine crosses the line on its way down: the sums end at 0.00 against the cosine and −0.50 against the sine. Cut the frame a quarter of a cycle later and they end at −0.50 against the cosine and 0.00 against the sine</Claim>. The two numbers have changed places, and the length of the pair, <M t={String.raw`\sqrt{a^2 + b^2}`} />, is 0.50 both times. <Claim id="no-match">Compared with 1,500 Hz, which the sine does not hold, both sums end more than 120 dB down</Claim>.
+
+  The kit never works a bin out this way, so the lab holds the two roads to one end. It writes this sum out for the bin nearest "Compare with" and sets it beside the kit's bin. On the chord, the saw, the drums and noise, at every frame length, the two agree to <Claim id="direct">more than 130 dB under the frame's largest bin</Claim>.
+
+  <Check id="direct" />
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/fft.h"
+    from="for (int i = 0; i < N / 2; ++i) {"
+    to="sin_[i] = static_cast<float>(std::sin(angle));"
+    at={{ angle: 'const double angle = -2.0 * 3.14159265358979323846 * i / N;' }}
+    name="tables"
+  />
+</StageBlock>
+
+<StageBlock tap="real" n={4} title="All the bins at once">
+  Written out as in stage 3, a frame of 4,096 costs 16.8 million multiplications. The kit gets the same bins in 24,576 steps of the kind listed here, with four multiplications in each. That is about 170 times less work, and it is what lets a device work on bins while the sound plays.
+
+  <Curve taps="real:alt imag:alt2" xTitle="hertz" xMax={1000} stems height={220}>
+    The two numbers of every bin up to 1 kHz, as the kit leaves them. Try "Frame starts at" a
+    little later, and notice both sets of stalks change while the peaks stay at the same
+    frequencies.
+  </Curve>
+
+  The kit's forward transform divides by nothing, so its numbers grow with the frame. A sine of amplitude 0.5 exactly on bin 100 of the longest frame gives that bin a size of <Claim id="scaling">1,024</Claim>, which is half the amplitude times N, and leaves every other bin empty. The half is there because the spectrum of a real signal is a mirror: bin <M t="N-k" /> holds the same size as bin <M t="k" /> with the opposite angle, so each sine's size is shared between two bins. That is why every picture here stops at bin N/2.
+
+  A real frame needs only half the work for the same reason. <Src path="cpp/kit/fft.h" at="void forward_real(const Source& sample, float* out) const {">`forward_real`</Src> works out bins 0 to N/2 alone, and it is what the engine's devices call. Its bins and the full transform's agree to <Claim id="real-same">more than 130 dB under the largest</Claim>.
+
+  <Check id="realSame" />
+
+  The saving in work rests on one observation. Take the even-numbered samples of the frame as one signal and the odd-numbered ones as another. Each is half as long. Call their transforms <M t="E" /> and <M t="O" />, and let <M t={String.raw`W = e^{-j 2\pi / N}`} /> stand for one step of the turning. Then the transform of the whole frame comes from the two halves:
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\begin{gathered} \at{butterfly-sum}{X[k] = E[k] + W^k\,O[k]} \\[6pt] \at{butterfly-difference}{X[k + \tfrac{N}{2}] = E[k] - W^k\,O[k]} \end{gathered}`}
+  />
+  <Fragment slot="readback">
+    Read it against the listing below. Two bins come from two bins with a single multiplication: `xr` and `xi` are the two parts of <M t={String.raw`W^k O[k]`} />, the element at `b` becomes the difference and the one at `a` the sum. The halves are split the same way, and theirs again, down to single samples, which are their own transforms. That is why N must be a power of two. It leaves <M t={String.raw`\log_2 N`} /> passes of <M t="N/2" /> such steps: twelve passes of 2,048 for a frame of 4,096.
+
+  The kit runs this from the bottom up. All that halving sorts the samples by the bits of their index read backwards, so `init` fills a table of those indices, and `transform` begins by swapping each sample into its place. Then the loop in the listing joins neighbouring transforms into ones twice as long until one is left. One table of cosines and one of sines serve every pass, read at a `stride`. The inverse is the same loop with the sign of the sine turned round.
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/fft.h"
+    from="for (int size = 2; size <= N; size <<= 1) {"
+    to="im[a] += xi;"
+    mark={['const float xr = re[b] * wr - im[b] * wi;', 'const float xi = re[b] * wi + im[b] * wr;']}
+    at={{ sum: 're[a] += xr;', difference: 're[b] = re[a] - xr;' }}
+    name="butterfly"
+  />
+</StageBlock>
+
+<StageBlock tap="magnitude" n={5} title="A level for each bin">
+  The two numbers of a bin are a point on a plane, and a point can be given another way: how far it is from the centre, and in which direction. The distance is how much of that frequency the frame holds. A picture called a spectrum is nearly always these distances alone, in decibels.
+
+  <Spectrum taps="magnitude" uprights="compare" min={-120} max={0} height={240}>
+    The level of every bin of the frame. The upright line is "Compare with": the level under it
+    is what the sums of stage 3 ended at. Try the saw in the row of sounds, and notice a peak at
+    its lowest frequency and one at each multiple of it.
+  </Spectrum>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{out}{L[k]} = 20\log_{10}\frac{\sqrt{(\operatorname{Re}X[k])^2 + (\operatorname{Im}X[k])^2}}{\tfrac12\sum_n w[n]}`}
+  />
+  <Fragment slot="readback">
+    Read it against the picture. The square root is the distance of the bin's point from the centre. The bottom of the fraction is what a full-scale sine exactly on a bin would give, so such a sine reads 0 dB and everything else reads below it. <M t={String.raw`\sig{out}{L[k]}`} /> is one point of the line.
+
+  Where the bins stand follows from stage 3. Bin <M t="k" /> turns <M t="k" /> times in a frame that lasts <M t={String.raw`N/f_s`} /> seconds, where <M t="f_s" /> is the number of samples in a second. So it stands at
+
+  <M block t={String.raw`f_k = k\,\frac{f_s}{N}`} />
+
+  The bins are evenly spaced from nothing up to half the sample rate. At the lab's four frame lengths they are <Claim id="bin-spacings">750 Hz, 187.5 Hz, 46.9 Hz and 11.7 Hz</Claim> apart. Set that beside the lengths of stage 1 and the whole trade is one line:
+
+  <M block t={String.raw`\Delta f \cdot T = \frac{f_s}{N}\cdot\frac{N}{f_s} = 1`} />
+
+  Here <M t={String.raw`\Delta f`} /> is the distance between bins and <M t="T" /> is how long the frame lasts. Their product is 1 whatever N is. To tell two frequencies ten hertz apart takes a tenth of a second of sound, and for that tenth of a second the transform cannot say when anything happened.
+
+  <Controls ids="size" />
+
+  <Spectrum taps="magnitude" linear fMax={1500} min={-100} max={0} height={240}>
+    The same levels on an even scale up to 1.5 kHz. Try the saw, whose harmonics stand evenly,
+    and step Frame length down from 4096: notice separate peaks melt into one slope.
+  </Spectrum>
+
+  On the saw, in a frame of 4,096, the level between the first two harmonics falls <Claim id="saw-resolved">more than 40 dB</Claim> below the second, wherever the frame is cut. In a frame of 1,024 the dip between them is <Claim id="saw-blurred">less than 6 dB</Claim>: the frame is too short to tell one harmonic from the next. At the other extreme stands a single click. One sample alone has no frequency, and the transform says so by giving every bin the same level, <Claim id="click-flat">within 0.001 dB</Claim>. A sine is one bin and all of the frame. A click is one instant and all of the bins.
+
+  Nothing is gained or lost in the change of list. The squares of all N bins add up to N times the squares of the N samples. Through the kit's transform, on noise, the two sides are apart by <Claim id="parseval">less than 0.0001 %</Claim> at every frame length.
+
+  <Check id="parseval" />
+
+  </Fragment>
+</StageBlock>
+
+<StageBlock tap="phase" n={6} title="An angle for each bin">
+  The direction of a bin's point is its phase: where in its cycle that bin's sine stands at the frame's first sample. It is the half of the transform that a spectrum leaves out.
+
+  <Curve taps="phase" xTitle="hertz" yTitle="radians" stems xMax={1000} min={-3.5} max={3.5} height={200}>
+    The angle of each bin up to 1 kHz, from minus half a turn to half a turn. Bins far under the
+    largest are drawn at nothing, since the angle of almost nothing is noise. Try "Frame starts
+    at" a little later, and notice every stalk turn while the levels of stage 5 hardly move.
+  </Curve>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\varphi[k] = \operatorname{atan2}\bigl(\operatorname{Im}X[k],\ \operatorname{Re}X[k]\bigr)`}
+  />
+  <Fragment slot="readback">
+    Read it against the picture. The function gives the direction of the point whose two numbers it is handed, as an angle between minus half a turn and half a turn. A stalk is one bin's angle. The quarter-cycle measurement of stage 3 was this: the level stayed and the angle moved on by a quarter of a turn.
+
+  Two frames of one steady note, cut at different moments, have the same levels and different angles. Within one peak, neighbouring bins point opposite ways, because the window puts the weight of the frame half a frame in. The next lesson uses the way a bin's angle moves from frame to frame to read a frequency more finely than the bins are spaced.
+
+  </Fragment>
+</StageBlock>
+
+<StageBlock tap="rebuilt" n={7} title="The way back">
+  The inverse transform is step 4 of the build: every bin's wave, added up. The kit does it with the same fast loop as the way there.
+
+  <Controls ids="keep" />
+
+  <Curve taps="windowed:in rebuilt:out" xTitle="milliseconds" height={220}>
+    The windowed frame and the kit's inverse transform of the bins kept. Try "Bins kept" at its
+    top, and notice one line cover the other.
+  </Curve>
+
+  <Curve taps="residual" xTitle="milliseconds" height={180}>
+    The frame less its rebuild: everything the bins left out were holding. Try "Bins kept" higher,
+    and notice it shrink towards a level line.
+  </Curve>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{out}{\hat{x}[n]} = \frac{1}{N}\sum_{k=0}^{N-1} X[k]\,e^{\,j 2\pi k n / N}`}
+  />
+  <Fragment slot="readback">
+    Read it against the picture and against part 2. Each term is one arrow: <M t="X[k]" /> gives its length and its starting direction, and <M t={String.raw`e^{\,j 2\pi k n/N}`} /> turns it <M t="k" /> times in the frame. The sum lays the arrows tip to tail, and <M t={String.raw`\sig{out}{\hat{x}[n]}`} /> is the height of the last tip: the rebuilt line. With bins left out, the sum runs over fewer arrows. The sign of the turning is the opposite of the way there, which in the kit's code is one flag.
+
+  For the saw, the difference between the frame and its rebuild is <Claim id="keep-48">9.7 dB under the frame with 48 bins kept</Claim> and <Claim id="keep-400">20.5 dB under with 400</Claim>. It falls slowly because a saw's harmonics do, where the chord of part 2 was nearly whole by 400. With every bin kept, the rebuilt frame and the rebuilt loop are <Claim id="null-all">more than 130 dB under</Claim> what went in, at every frame length, with the window and without. That is as close to nothing as single-precision arithmetic comes.
+
+  <Check id="rebuildNull" />
+
+  The division by N in the equation has to happen somewhere, and the kit leaves it to the caller. `forward` does not divide and neither does `inverse`, so a frame sent there and back returns <Claim id="inverse-times-n">N times as large</Claim>. Once divided by N it is the frame again, <Claim id="round-trip">more than 130 dB under it</Claim>. The check is the measured gain with that N taken out, so it reads 1.
+
+  <Check id="unscaled" />
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/fft.h"
+    from="void forward(float* re, float* im) const { transform(re, im, false); }"
+    to="void inverse(float* re, float* im) const { transform(re, im, true); }"
+    name="ways"
+  />
+</StageBlock>
+
+<StageBlock tap="out" n={8} title="Frame after frame">
+  To hear what a change to the bins does, the lab does to every frame of the loop what stage 7 does to one: transform, keep the lowest bins, transform back, divide by N. With the Hann window the frames are taken half a frame apart, where two neighbouring windows add up to exactly 1, and the pieces are added together. This is the lab's own arrangement, the simplest that returns the sound, and the next lesson is about doing it properly.
+
+  <Controls ids="keep size window" />
+
+  <Spectrum taps="in out" min={-110} max={-10} height={240}>
+    The spectrum of the whole loop going in and of the loop rebuilt from the bins kept. Try "Bins
+    kept" lower, and notice the edge where the second line leaves the first move down with it.
+  </Spectrum>
+
+  Keeping the lowest bins is a filter with a wall for an edge. With the 48 lowest bins of the longest frame kept, which reach <Claim id="cut-hann">562.5 Hz, a 440 Hz sine passes within 0.01 dB and a 1 kHz sine comes out more than 95 dB down</Claim>.
+
+  <Fragment slot="listen">Hear the loop from the bins kept</Fragment>
+</StageBlock>
+
+<StageBlock tap="deviceLevel" n={9} title="The same transform inside a device">
+  Spectral Blur does all of this to a running sound. It cuts a frame of <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr int kFrame = 2048;">2,048 samples</Src> every <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr int kHop = 512;">512</Src>, multiplies it by the window of stage 2, and calls the kit. The lab starts the device so that one of its frames begins on the very sample the lesson's frame does, and reads that frame's bins out of the device's memory.
+
+  <Spectrum taps="deviceLevel:out magnitude:alt" linear fMax={1000} min={-90} max={-10} height={240}>
+    The device's own bins of its frame, and the lesson's bins of the frame that starts at the
+    same sample. Try Frame length at each size, and notice the lesson's peaks grow wider or
+    narrower than the device's, which stay as they are.
+  </Spectrum>
+
+  The device's bins are the kit's plain transform of the same samples under the same window: the two differ by <Claim id="device-bins">more than 130 dB under the largest bin</Claim>.
+
+  <Check id="deviceBins" />
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="const uint32_t start = position_ - offset - kFrame;"
+    to="[input, window, start](int n) { return input[(start + n) & kRingMask] * window[n]; }, re_);"
+    mark="[input, window, start](int n) { return input[(start + n) & kRingMask] * window[n]; }, re_);"
+    name="deviceframe"
+  />
+</StageBlock>
+
+<StageBlock tap="device" n={10} title="Out of the device: the same samples, late">
+  Between its two transforms the device has its bins in two arrays, and everything it is for happens there. On this page all of that is turned off. So the listing is what remains: the inverse transform, the window a second time, a scale, and the frame added into the output where it belongs.
+
+  <Wave taps="in device:out" from={1.98} span={0.1} fit>
+    The loop going in and coming out of Spectral Blur, around the second strum of the chord.
+    Notice that the second line begins later than the first and is otherwise the same.
+  </Wave>
+
+  The device folds the division by N into a gain it needs anyway. Its frames overlap, each is windowed twice, and the scale that undoes both is <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kOutputScale = 1.0f / (1.5f * kFrame);">`kOutputScale`</Src>. With nothing altered, what comes out is what went in, with a difference <Claim id="device-wire">more than 130 dB under the sound</Claim>. It comes out <Claim id="device-late">2,304 samples late, which is 48 ms</Claim>: a frame cannot be transformed before its last sample has arrived.
+
+  <Check id="deviceWire" />
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="fft_.inverse(re_, im_);"
+    to="channel.output[(out_start + n) & kRingMask] += re_[n] * window_[n] * kOutputScale;"
+    mark="channel.output[(out_start + n) & kRingMask] += re_[n] * window_[n] * kOutputScale;"
+    name="deviceback"
+  />
+  <Fragment slot="listen">Hear the loop through the device, nothing altered</Fragment>
+</StageBlock>
+
+### Every stage that has a time axis, at once
+
+Here are the sounds of this part on one time axis: the loop going in, the loop from the bins kept, what the bins left out held, and the loop through the device.
+
+<Controls ids="keep size window" />
+
+<Lanes taps="in out removed device">
+  Four sounds over the whole loop. Try "Bins kept" from its lowest to its highest, and notice the
+  second lane fill out as the third empties. Notice that the last lane is the first, a little late, whatever
+  is set.
+</Lanes>
+
+The stages that are one frame have no lane here. A frame, its bins and their angles are not one value against time, and each has its own figure above.
+
+</Part>
+
+<Part id="ways" title="Six things to do with a frame's bins.">
+
+The first five cards set the page and play. The last is a habit, and plays nothing.
+
+<Ways>
+  <Way title="Cut with a wall" tag="keep the lowest bins" set="wall">
+    Set every bin above a line to nothing and transform back. The result is a low-pass filter far steeper than one made of a few delays, as stage 8 of part 5 measures. The card plays the mix from its 48 lowest bins. Listen for the bass and the weight of the kick, with everything bright gone.
+  </Way>
+  <Way title="Hear what was taken out" tag="the difference" set="rest">
+    Whatever a change to the bins removes can be heard by taking the result away from the sound that went in. The card plays the mix less its 48 lowest bins: everything the wall stopped. The plain sound, the changed sound and the difference between them are the quickest way to judge any change made to bins. If the difference holds something that was wanted, the cut is in the wrong place.
+  </Way>
+  <Way title="Give the hits their time back" tag="a short frame" set="inplace">
+    The same cut can be made in frames of 256, where it takes 3 bins to reach as high. Each frame is a sixteenth as long, so whatever the cut does to a hit stays close to the hit. The edge of the filter is far softer, and part 7 measures both sides of that bargain. The card plays the drums.
+  </Way>
+  <Way title="Read one note's level" tag="a single probe" set="second">
+    The transform answers for every bin at once. For one frequency a single probe will do, and it need not stand on a bin. With "Compare with" on the chord's second string, the frame holds <Claim id="second-string">−26.1 dB of 165 Hz, and −68.5 dB of 140 Hz</Claim>, a frequency between two strings. The card plays the plain chord and sets the probe. Stage 3 of part 5 shows its sums.
+  </Way>
+  <Way title="Do it to every frame" tag="a device" set="through">
+    One frame is a moment of a sound. A device takes a new frame every few milliseconds, each overlapping the last, and adds the results. The card plays the chord through Spectral Blur with nothing altered: it has been to bins and back for every frame, and it is still the chord. How the frames are laid over one another, and altered on the way, is the subject of <Lesson id="short-time-fourier" />.
+  </Way>
+  <Way title="Pick the frame for the question" tag="Frame length">
+    A long frame answers which notes, and a short one answers when. For a chord or a bass line take the longest frame. For drums take a short one. Stage 5 of part 5 is the place to try both on one sound.
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Five faults, and what to do about each.">
+
+<Faults>
+  <Fault title="The cut leaks" set="bare">
+    With no window, a sine that does not fit the frame spills into every bin, the ones a cut keeps among them. With Window at None and 48 bins kept, <Claim id="cut-plain">a 1 kHz sine, far above the cut, comes through only 29 dB down</Claim>. The card plays the rising sine that way. Once the sine has climbed past the cut it should be gone. Over the last second of the loop it is <Claim id="sweep-bare">40 dB under itself with no window, where the Hann window holds it more than 90 dB under</Claim>. Listen for a buzz that carries on after the tone has left. What to do: window the frame. After the card, set Window to Hann and the buzz goes.
+  </Fault>
+  <Fault title="A long frame throws a hit ahead of itself" set="early">
+    A bin holds one size and one angle for the whole frame, so a change to a bin is a change to the whole length of the frame. Cut at the same place in frames of 4,096, and a single click begins to sound <Claim id="pre-echo">73 ms before it happens, 43 dB under its peak between 20 ms and 40 ms ahead</Claim>. The card plays the clicks that way. Listen for a soft breath before each one. What to do: use a shorter frame. <Hear set="short" label="Hear the same cut in frames of 256" />, where nothing arrives <Claim id="pre-echo-short">more than 4 ms early</Claim>.
+  </Fault>
+  <Fault title="A short frame cannot tell notes apart" set="blunt">
+    The cure for the last fault has its own price. In frames of 256 the bins are so far apart that the whole chord of part 1 lies in the first two. Keep those two, and <Claim id="blunt">the string at 220 Hz comes through less than 2 dB down and the one at 262 Hz less than 5 dB down</Claim>, where the long frame took both out. The card plays the chord cut that way, and it is the whole chord, a little dull. What to do: choose the frame for the sound. No length does both jobs.
+  </Fault>
+  <Fault title="The ends of a frame are deaf">
+    The window is nothing at the frame's first sample and close to nothing beside it. A click that falls exactly there is <Claim id="edge-click">multiplied away altogether</Claim>: the bins of that frame are silence. What to do: overlap the frames, so that what one frame barely sees stands in the middle of another. Every device does. Spectral Blur starts a new frame a quarter of a frame after the last.
+  </Fault>
+  <Fault title="It is late">
+    A frame cannot be transformed until its last sample has arrived, so anything that works on bins answers at least a frame late. Stage 10 of part 5 measures Spectral Blur's delay. No faster machine shortens it. What to do: use a shorter frame where the delay matters, and otherwise let the host shift the other tracks to meet it. The device states its delay for that purpose, and delays its own plain signal by the same amount so that the two stay in step.
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="The transform is an approximation of the sound.">
+    It is another list of the same length, and the way back returns the samples to the last digits a float holds. Step 4 of the build measures it for the slow sums, and stage 7 of part 5 for the kit. Every loss on this page comes from bins that were thrown away on purpose.
+  </Myth>
+  <Myth says="A spectrum shows the frequencies in the sound.">
+    It shows the bins of one frame, which stand at fixed places. The chord's lowest string shows in the nearest bin and not at its own frequency, as part 1 found, and a sine between two bins shows in all of them, as stage 2 of part 5 measures. Under the window even a sine exactly on a bin is three bins wide.
+  </Myth>
+  <Myth says="A longer frame gives a better spectrum.">
+    It gives bins that are closer together, and it pays for them in time, one for one. Stage 5 of part 5 has the equation. The saw's harmonics come apart only in the long frame, and the click of part 7 is thrown furthest ahead of itself by the same long frame.
+  </Myth>
+  <Myth says="The window is a fade to stop clicks at the ends.">
+    Nothing is played at the ends: the frame goes to the probes, not to a speaker. The window is there for the bins. Steps 2 and 3 of the build show the leak of a frame cut square, and what the fade does to it.
+  </Myth>
+  <Myth says="The levels are the sound, and the angles are a detail.">
+    The angles are half of the numbers. Two frames with the same levels and different angles are different samples: stage 3 of part 5 cuts one sine at two moments and gets the same level with the angle a quarter of a turn on. The arrows of part 2 would not draw the frame if each began pointing the wrong way.
+  </Myth>
+  <Myth says="The fast transform trades accuracy for speed.">
+    It does the same sums in an order that shares the work. Stage 3 of part 5 holds one bin worked out the slow way against the kit's, and step 2 of the build holds all of them: both agree to the last digits a float holds.
+  </Myth>
+</Myths>
+
+</Part>
