@@ -22,11 +22,11 @@ files:
   - cpp/kit/filters.h
 ---
 
-A recording played at twice its speed sounds an octave higher, because every wave goes by in half the time. It is also over in half the time. Pitch and length are one thing seen two ways, both set by how fast the recording is read, and a tape or a turntable cannot change one without the other.
+A recording played at twice its speed is an octave higher, because every wave goes by in half the time. It is also over in half the time. Pitch and length are one thing seen two ways, both set by how fast the recording is read, and a tape or a turntable cannot change one without the other.
 
 A pitch shifter has to. The oldest way that works on a running signal needs nothing but a delay line (lesson 10). The sound is written into the line at its ordinary speed and read back by a head that moves *faster* than the writing. Reading faster raises the pitch. It also means the head gains on the place where the sound is being written, and it cannot pass it: nothing is there yet. So before it arrives it jumps back and reads again a stretch it has read once already. A jump is a click, so there are **two** heads, half a stretch apart, and each is faded out while it jumps and faded back in while the other one does.
 
-That is the whole method, and its one flaw is in its last step. The output is made of overlapping pieces, and where two pieces overlap they are two different moments of the sound laid on top of each other. Where they agree, nothing is heard. Where they do not, they cancel or beat. Most of this lesson is about that overlap, the *splice*: what it does to a sine, why, and what the engine's Pitch Shifter does about it. These are the stages, in the signal's order. Press Play, then Listen on any stage that is sound.
+That is the whole method, and its one flaw is in its last step. The output is made of overlapping pieces, and where two pieces overlap they are two different moments of the sound laid on top of each other. Where they agree, the join leaves no mark. Where they do not, they cancel or beat. Most of this lesson is about that overlap, the *splice*: what it does to a sine, why, and what the engine's Pitch Shifter does about it. These are the stages, in the signal's order. Press Play, then Listen on any stage that is sound.
 
 <Stages taps="in ring delayA gainA headA headB voice out" />
 
@@ -78,7 +78,7 @@ Above <M t="r = 1" /> the delay shrinks and the head closes on the writing. Belo
 
 So the head is given a stretch of the ring to sweep, <M t="W" /> long, the Size control, and is sent back to the other end when it reaches one. The device keeps a *phase* <M t={String.raw`\varphi`} /> between 0 and 1 for where the head is in its stretch:
 
-<M block t={String.raw`\varphi[n+1] = \operatorname{frac}\!\Bigl(\varphi[n] + \frac{1 - r}{W}\Bigr), \qquad d = d_0 + \varphi\, W`} />
+<M block t={String.raw`\begin{aligned} \varphi[n+1] &= \operatorname{frac}\!\Bigl(\varphi[n] + \frac{1 - r}{W}\Bigr) \\ d &= d_0 + \varphi\, W \end{aligned}`} />
 
 Taking the fractional part is the jump: it wraps the phase from 0 back to 1 going up and from 1 back to 0 going down. In <Src path="cpp/devices/pitch-shifter/ShiftVoice.h" lines="338-370">`ShiftVoice::sweep`</Src> these are two lines, with <M t="W" /> in samples. <M t="d_0" /> is a floor of 1.5 ms, 72 samples, the closest a head ever comes to the writing. The head stands between two samples nearly all the time, and what it reads there is a cubic through the four samples around it (<Src path="cpp/kit/math.h">`hermite`</Src>, lesson 10).
 
@@ -96,7 +96,7 @@ Both heads stay between <Claim id="delay-span">1.5 ms and 61.5 ms</Claim> behind
 
 One head alone would click at every jump: the wave it was reading stops and another, from 60 ms away, starts in the middle. The second head is there to cover for it. Each head's gain is a raised cosine of its own phase,
 
-<M block t={String.raw`g_A = \tfrac12 - \tfrac12\cos 2\pi\varphi, \qquad g_B = \tfrac12 - \tfrac12\cos 2\pi\bigl(\varphi + \tfrac12\bigr) = 1 - g_A`} />
+<M block t={String.raw`\begin{aligned} g_A &= \tfrac12 - \tfrac12\cos 2\pi\varphi \\ g_B &= \tfrac12 - \tfrac12\cos 2\pi\bigl(\varphi + \tfrac12\bigr) = 1 - g_A \end{aligned}`} />
 
 which is zero at both ends of the stretch and one in the middle. A head jumps at the instant its gain is zero, so the jump itself is silent, and because the second head is half a turn ahead the two gains <Claim id="gains-sum">add to one</Claim> at every instant: a steady sound keeps its level, as long as the two heads are playing the same thing.
 
@@ -138,7 +138,7 @@ A level that wobbles is a spectrum with more than one line in it, and here the l
 
 <M block t={String.raw`f_k = f + k\,\frac{2\,|1 - r|}{W}`} />
 
-For the sine at +12 and 60 ms that is 440 Hz plus multiples of 33.3 Hz. The interval asked for, 880 Hz, is not on that grid. The tallest line stands at <Claim id="grid-line">873.3 Hz</Claim>, 13 cents flat of the octave; the next, at 906.7 Hz, is <Claim id="side-band">17.4 dB</Claim> under it; and at 880 Hz itself there is <Claim id="no-octave">nothing</Claim>, more than 90 dB down. The same sum at seven semitones puts the fifth at <Claim id="fifth-grid">655.9 Hz</Claim>, 9 cents under. The method does not shift a tone to the pitch asked for. It builds a comb around it and the nearest teeth are what is heard.
+For the sine at +12 and 60 ms that is 440 Hz plus multiples of 33.3 Hz. The interval asked for, 880 Hz, is not on that grid. The tallest line stands at <Claim id="grid-line">873.3 Hz</Claim>, 13 cents flat of the octave; the next, at 906.7 Hz, is <Claim id="side-band">17.4 dB</Claim> under it; and at 880 Hz itself there is <Claim id="no-octave">nothing</Claim>, more than 90 dB down. The same sum at seven semitones puts the fifth at <Claim id="fifth-grid">655.9 Hz</Claim>, 9 cents under. The method does not shift a tone to the pitch asked for. It builds a comb around it, and the nearest teeth are what comes out.
 
 <Spectrum taps="fine" linear fMin={640} fMax={1120} min={-90} max={0}>
   The voice's spectrum around 880 Hz, from frames eight times as long as the page's other spectra, so that lines 33 Hz apart stand apart. With the sine at +12: a comb, its tallest tooth just under 880 Hz. Shorten Size and the teeth spread; at 59.1 ms one tooth lands on 880 Hz and the others vanish.
@@ -178,14 +178,14 @@ Size sets how much of the sound each piece holds, and both ends of its range cos
 
 A **short** window splices often. The crossing rate is <M t={String.raw`2|1-r|/W`} />: at +12 and 10 ms, <Claim id="buzz-rate">200 times a second</Claim>. That is no longer a wobble in the level. It is a pitch of its own, and the teeth of the comb stand 200 Hz apart.
 
-A **long** window splices seldom, and replays a lot. The two heads are half a window apart and pass any one moment of the recording at <M t="r" /> times its own speed, so going up, each moment is played about <M t="2r" /> times, <M t={String.raw`W/2r`} /> apart. One click, at +12 and 60 ms, comes out <Claim id="click-copies">four times, 15 ms apart</Claim>. At 400 ms the copies are <Claim id="click-long">100 ms apart</Claim>, far enough to count. Listen to both with the clicks: one is a blur and the other an echo. Going down the opposite happens: each moment is played <M t="2r" /> times on average, which at an octave down is once, so some moments are passed over while both heads are quiet and never heard.
+A **long** window splices seldom, and replays a lot. The two heads are half a window apart and pass any one moment of the recording at <M t="r" /> times its own speed, so going up, each moment is played about <M t="2r" /> times, <M t={String.raw`W/2r`} /> apart. One click, at +12 and 60 ms, comes out <Claim id="click-copies">four times, 15 ms apart</Claim>. At 400 ms the copies are <Claim id="click-long">100 ms apart</Claim>, far enough to count. Listen to both with the clicks. Going down the opposite happens: each moment is played <M t="2r" /> times on average, which at an octave down is once, at whatever gain its head has just then. Of the four clicks in the loop, at −12 two come out once and <Claim id="click-down">two hardly at all</Claim>: they fell where a head was jumping.
 
 Lining the waves up does not help here. A click has no earlier copy of itself to match, and Smooth plays it <Claim id="click-smooth">four times</Claim> as well.
 
 <Controls ids="size mode semitones" />
 
 <Wave taps="in voice" from={1.99} span={0.08} fit>
-  Choose the clicks. Eighty milliseconds of input (grey) and voice (red): one click goes in at 2 s and several come out. Lengthen Size and they move apart; raise the pitch and there are more of them. With the drums, the hit at 2 s has more than one front.
+  With the sine this is two tones laid over each other and shows little. Choose the clicks. Eighty milliseconds of input (grey) and voice (red): one click goes in at 2 s and several come out. Lengthen Size and they move apart; raise the pitch and there are more of them. With the drums, the hit at 2 s has more than one front.
 </Wave>
 
 The window is also the device's delay. The voice is never less than 1.5 ms behind and never more than a Size beyond that, half a Size on average, and where exactly it is changes all the time.

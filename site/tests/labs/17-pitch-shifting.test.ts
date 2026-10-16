@@ -328,6 +328,11 @@ describe('lesson 17: pitch shifting', () => {
     expect(below).toBeCloseTo(-6.0, 0)
     expect(above).toBeCloseTo(-6.0, 0)
     expect(Math.abs(below - above)).toBeLessThan(0.5)
+    // The saw's fifth harmonic, 550 Hz, is 16½ cycles apart at 60 ms: it cancels as well.
+    const fifth = shifter.render(sine(550, 0.25, seconds(4)), {})
+    expect(
+      depth(Array.from(fifth.taps.level!.channels_data[0]!.subarray(1500, 10_500))),
+    ).toBeGreaterThan(40)
   })
 
   it('in Smooth puts the sine out as one line at 880.0 Hz at the level it went in (claim smooth-line), every other line more than 80 dB under it (claim smooth-clean), with no dip (claim smooth-ripple)', async () => {
@@ -412,6 +417,38 @@ describe('lesson 17: pitch shifting', () => {
     expect(smooth.length).toBe(4)
     // A fifth up, 2 × 1.5 = 3 copies.
     expect(at({ semitones: 7 }).length).toBe(3)
+  })
+
+  it('at −12 plays a click once at most, and two of the four in the loop at less than a hundredth of their height: they fell where a head was jumping (claim click-down)', async () => {
+    const shifter = await lab('17-pitch-shifting')
+    const source = await benchSource('clicks', seconds(4))
+    const voice = shifter.render(source, { semitones: -12 }).taps.voice!.channels_data[0]!
+    expect(copies(voice).length).toBe(1)
+    // The tallest sample of the voice in the second after each click.
+    const tallest = [0, 1, 2, 3].map((k) => {
+      let top = 0
+      for (let i = seconds(k); i < seconds(k + 1); i += 1) top = Math.max(top, Math.abs(voice[i]!))
+      return top
+    })
+    expect(tallest.filter((top) => top < 0.01).length).toBe(2)
+    expect(tallest.filter((top) => top > 0.4).length).toBe(2)
+  })
+
+  it('finds a match of 1 on the sine, near a half on noise, and on the guitar one that falls under a half at a new note and stays above 0.85 on average', async () => {
+    const shifter = await lab('17-pitch-shifting')
+    const found = async (id: string) =>
+      shifter.render(await benchSource(id, seconds(4)), { mode: 1 }).taps.match!.channels_data[0]!
+    expect(Math.min(...(await found('sine')))).toBeGreaterThan(0.999)
+    const noise = await found('noise')
+    expect(mean(noise)).toBeGreaterThan(0.4)
+    expect(mean(noise)).toBeLessThan(0.6)
+    const guitar = await found('guitar')
+    expect(Math.min(...guitar)).toBeLessThan(0.5)
+    expect(mean(guitar)).toBeGreaterThan(0.85)
+    // One splice point cannot line up every note of a chord.
+    const chords = await found('chords')
+    expect(Math.min(...chords)).toBeLessThan(0.5)
+    expect(mean(chords)).toBeLessThan(0.95)
   })
 
   it('loses 1.3 dB of noise to the crossfade in Vintage (claim crossfade-loss), and in Smooth keeps the chords within 0.3 dB where Vintage loses 1.6 dB (claim lift)', async () => {
