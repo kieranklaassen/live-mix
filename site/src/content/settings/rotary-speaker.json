@@ -1,0 +1,118 @@
+{
+  "tile": {
+    "values": { "speed": 1, "hornDepth": 0.6, "drumDepth": 0.5, "drive": 0.25, "distance": 0.3 },
+    "tap": "out",
+    "picture": { "taps": ["gainByAngle", "gainByAngleRight"], "view": "curve" }
+  },
+  "sets": {
+    "held": {
+      "label": "The chord as held",
+      "source": "pad",
+      "tap": "in"
+    },
+    "ridden": {
+      "label": "Its level ridden, and nothing else",
+      "source": "pad",
+      "tap": "ridden"
+    },
+    "turned": {
+      "label": "Through the turning speaker",
+      "source": "pad",
+      "tap": "out"
+    },
+    "fast": {
+      "label": "Through it, turning fast",
+      "values": { "speed": 1 },
+      "source": "pad",
+      "tap": "out"
+    },
+    "usePad": {
+      "label": "Held chords, turning slowly",
+      "values": { "hornDepth": 0.6, "drumDepth": 0.5, "drive": 0.25, "distance": 0.3 },
+      "source": "pad",
+      "tap": "out"
+    },
+    "useStrum": {
+      "label": "Strummed chords, turning fast",
+      "values": { "speed": 1, "hornDepth": 0.6, "drumDepth": 0.5, "drive": 0.25, "distance": 0.3 },
+      "source": "chords",
+      "tap": "out"
+    },
+    "useRun": {
+      "label": "A line that gathers speed",
+      "values": {
+        "secondHalf": 2,
+        "hornDepth": 0.6,
+        "drumDepth": 0.5,
+        "drive": 0.25,
+        "distance": 0.3
+      },
+      "source": "guitar",
+      "tap": "out"
+    },
+    "useSaw": {
+      "label": "A plain bright tone, driven and turned",
+      "values": { "speed": 1, "hornDepth": 0.6, "drumDepth": 0.5, "drive": 0.6, "distance": 0.3 },
+      "source": "saw",
+      "tap": "out"
+    },
+    "wayRun": {
+      "label": "Slow, then Fast from the middle",
+      "values": { "secondHalf": 2 },
+      "source": "pad",
+      "tap": "out"
+    },
+    "wayStill": {
+      "label": "A mix with its lows left still",
+      "values": { "speed": 1, "hornDepth": 0.6, "drumDepth": 0, "drive": 0.25, "distance": 0.3 },
+      "source": "mix",
+      "tap": "out"
+    },
+    "wayFar": {
+      "label": "From across the room",
+      "values": { "speed": 1, "distance": 1 },
+      "source": "pad",
+      "tap": "out"
+    },
+    "wayOne": {
+      "label": "Through one microphone",
+      "values": {
+        "speed": 1,
+        "hornDepth": 0.6,
+        "drumDepth": 0.5,
+        "drive": 0.25,
+        "distance": 0.3,
+        "spread": 0
+      },
+      "source": "chords",
+      "tap": "out"
+    },
+    "wayDrive": {
+      "label": "The amplifier pushed",
+      "values": { "hornDepth": 0.6, "drumDepth": 0.5, "drive": 0.8, "distance": 0.3 },
+      "source": "chords",
+      "tap": "out"
+    },
+    "faultMix": {
+      "label": "Mix at one half",
+      "values": { "mix": 0.5 },
+      "source": "saw",
+      "tap": "out"
+    },
+    "faultBrake": {
+      "label": "Stopped where it happened to be",
+      "values": { "secondHalf": 3 },
+      "source": "pad",
+      "tap": "out"
+    },
+    "faultBass": {
+      "label": "A bass line through the cabinet",
+      "values": { "hornDepth": 0.6, "drumDepth": 0.5, "drive": 0.25, "distance": 0.3 },
+      "source": "bass",
+      "tap": "out"
+    }
+  },
+  "defaults": {
+    "values": { "hornDepth": 0.6, "drumDepth": 0.5, "drive": 0.25, "distance": 0.3 }
+  }
+}

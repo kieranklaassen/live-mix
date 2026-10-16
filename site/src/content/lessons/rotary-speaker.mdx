@@ -1,0 +1,825 @@
+---
+title: The rotary speaker
+family: space-and-motion
+summary: A loudspeaker that turns makes a held chord move in pitch, in loudness and from side to side, and never in all three at one moment. This lesson says why a change of level alone is not enough, builds the cabinet a piece at a time, then opens the engine's own and reads every stage out of it as it turns.
+long: true
+opening:
+  input: in
+  output: out
+  caption: A held chord going in and what the two microphones make of it. The input's outline changes only where the chord does. The output's rises over it and sinks under it about three times in the loop, once for each turn of the horn.
+lab: rotary-speaker
+devices: [rotary]
+bench:
+  device: rotary
+  params: { speed: 0, hornDepth: 1, drumDepth: 1, acceleration: 1, drive: 0, balance: 0.5, distance: 0, spread: 0.7, mix: 1 }
+  as: insert
+  note: The plate opens on the settings this lesson starts from, with both depths full, the amplifier clean and the microphones close, so that each motion is plain. The device's own defaults are gentler, and the table below sets the two side by side.
+sources: [pad, chords, guitar, saw, mix, bass, drums, noise, sine]
+seconds: 4
+files:
+  - cpp/devices/rotary/rotary.h
+  - cpp/devices/rotary/device.json
+---
+
+<Part id="why" title="A held chord stands still. A loudspeaker that turns makes it move.">
+
+A chord is held on an organ, or on a synthesiser's pad, and nothing in it changes. Every note keeps the pitch it began with and the level it began with, and the whole chord comes from one place between the loudspeakers. A singer never holds a note like that, and nor does a violinist: the pitch leans a little, the level swells, the head turns. A chord that stands quite still soon sounds like a machine that was left on.
+
+Listen to one. <Hear set="held" label="Hear the chord as held" />
+
+<Still
+  taps="in"
+  set="held"
+  caption="The held chord, as it goes in. Its outline keeps one height for as long as a chord lasts: nothing in it moves."
+/>
+
+So here is the question this lesson answers. How do you make a sound that stands still move, without touching the keys?
+
+### The obvious answer fails
+
+Ride its level up and down. That is tremolo, the subject of <Lesson id="tremolo-and-ring-modulation" />: one slow wave multiplies the sound, which gets louder and quieter in time with it. Here the chord's level is ridden <Claim id="ridden-level">over 12.0 dB</Claim>, a little less than once a second.
+
+<Still
+  taps="ridden"
+  set="ridden"
+  caption="The same chord with its level ridden. The outline swells and sinks, and that is all that happens to it."
+/>
+
+Listen to that. <Hear set="ridden" label="Hear its level ridden" />
+
+It moves, but in one way only. <Claim id="ridden-pitch">A tone put through the same ride comes out less than 0.1 cents from the pitch it went in at</Claim>, where a cent is a hundredth of a semitone, and both loudspeakers are sent the same sound, so the chord stays where it was between them. What the ear hears is a hand on a fader.
+
+### Then the loudspeaker was turned
+
+The answer that lasted is made of wood and a motor. Put the loudspeaker in a cabinet, point it into a horn, and turn the horn. The sound now leaves from a mouth that swings round in a circle: towards the listener, past, away, and back again.
+
+Three things then change together, and they are three things that ears are made to notice.
+
+- **Pitch.** While the mouth swings towards you, each wave has a little less far to come than the one before it, so the waves arrive closer together and the pitch is higher. While it swings away the pitch is lower. This is the Doppler effect, which bends the note of a siren as it goes by.
+- **Loudness.** A horn throws its sound forwards. Pointing at you it is loud. Pointing at the back of the cabinet it is quieter, and duller as well, since the highest frequencies are the ones a horn beams most narrowly.
+- **Side.** With two ears, or two microphones, the mouth passes one before the other. The sound leans left and then right.
+
+The engine's cabinet is listened to through two microphones, and the lab reads what each one hears of the horn. At the settings this page starts from the horn turns <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kHornHz[2] = {0.8f, 6.7f};">0.8 times a second</Src>. As the left microphone hears it, <Claim id="turned-three">the horn's pitch swings between 4.8 cents flat and 4.8 cents sharp and its loudness over 12.0 dB, and its level at the left microphone against its level at the right one swings over 19.1 dB</Claim>: at one moment the left microphone has much the louder horn, and a third of a second later the right one has.
+
+<Still
+  taps="loudness loudnessRight"
+  set="turned"
+  caption="How loud each microphone hears the horn. The two lines have one shape, and the right microphone's runs behind the left's: the mouth passes the left microphone first."
+/>
+
+Listen to the chord through it. <Hear set="turned" label="Hear it through the turning speaker" />
+
+A swing of five cents is not much. At this speed the pitch drifts as it does in a chorus, and the swell and the lean from side to side are what the ear follows. Now let Speed be Fast. The horn turns <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kHornHz[2] = {0.8f, 6.7f};">6.7 times a second</Src>, and the mouth covers the same circle that much faster. <Claim id="fast-pitch">The loudness still swings over 12.0 dB, and the pitch now swings between 40.6 cents flat and 39.7 cents sharp</Claim>, getting on for half a semitone each way, which is as wide as a singer's vibrato.
+
+<Hear set="fast" label="Hear it fast" />
+
+<Predict
+  question="The horn's mouth swings round once. When does the left microphone hear the highest pitch?"
+  choices={[
+    'As the mouth points straight at the microphone',
+    'A quarter of a turn before that',
+    'A quarter of a turn after that',
+  ]}
+>
+
+A quarter of a turn before. The pitch rises with the speed at which the mouth is coming closer, and it comes closer fastest while it is moving straight at the microphone, which is when the horn points across the line to it. When the horn points straight at the microphone the mouth is as near as it gets, and for a moment it is neither coming nor going. Measured on the lab at Slow, <Claim id="quarter-turn">the pitch is at its highest 0.25 of a turn before the loudness is, and at the loudest moment the pitch is less than 0.1 cents from the pitch that was played</Claim>.
+
+<Still
+  taps="pitch"
+  set="turned"
+  from={0}
+  span={2.5}
+  caption="The pitch of the horn at the left microphone, over two turns. It is highest while the mouth is on its way towards the microphone."
+/>
+
+<Still
+  taps="loudness"
+  set="turned"
+  from={0}
+  span={2.5}
+  caption="Its loudness at the same microphone over the same two turns. Each peak stands where the line above comes down through its middle."
+/>
+
+So the pitch, the loudness and the side never peak together. A tremolo with a vibrato added would move in step with itself. A horn that turns moves in a round, one motion handing over to the next, and the ear hears a thing going past.
+
+</Predict>
+
+The cabinet has a second rotor. A horn is too small to throw low notes about, so the lows go to a loudspeaker of their own that fires into a turning drum with an opening in its side. It does to the lows a gentler version of what the horn does to the highs, at a speed of its own. Part 4 builds both.
+
+The engine's device is that cabinet as arithmetic: an amplifier, a filter that parts the sound in two, two rotors and two microphones. This lesson starts it with both depths full, the amplifier clean and the microphones close, so that each motion is easy to see. Part 9 puts those settings beside the device's own.
+
+</Part>
+
+<Part id="picture" title="A horn seen from above, and three lines against time.">
+
+One picture holds what a turning horn does. Its left half is the cabinet seen from over its top: the horn as a wedge, its mouth as a dot at the wide end, and the two microphones standing in front. Its right half is what the left microphone hears, a row for each of the three things that change, on one time axis. The line down the rows marks the instant that the left half shows.
+
+<Controls ids="speed hornDepth spread" />
+
+<TurningHorn horn="hornAngle" drum="drumAngle" rows="pitch loudness side" mics="mics" start={0.82}>
+  The cabinet from above, and the horn's pitch, its loudness and its lean to the left over the loop,
+  as the lab reads them. Move the instant shown until the wedge points at the left microphone, and
+  notice the loudness at its top while the pitch crosses its middle. Try Spread at 0, and notice the
+  third row lie flat. While the loop plays, the wedge turns with the sound.
+</TurningHorn>
+
+Check this against the picture. Leave the three controls where the lesson starts them and move the instant until the wedge points straight at the left microphone. That is where the picture opens. The loudness row then reads <Claim id="picture-top">3.4 dB</Claim>, its highest, and the pitch row is passing through its middle on the way down. Move the instant back by a quarter of a turn, to where the wedge points across the picture and its mouth is coming straight at the microphone. The pitch row is at its top, <Claim id="picture-sharp">4.8 cents</Claim>, and the loudness is on its way up.
+
+Three settings shape the picture, and each belongs to one part of it.
+
+- **Speed** sets how often the rows repeat. It also sets how tall the pitch row is, since the pitch follows how fast the mouth moves, while the loudness row keeps its height.
+- **Horn Depth** scales all three rows together. At 0 the horn might as well stand still.
+- **Spread** is the angle between the two microphones. It moves the two circles apart, and the further apart they stand, the longer the mouth takes to get from one to the other and the further the sound leans.
+
+Notice the loudness row. Its top is above 0 dB and its bottom is much further below. The device does that on purpose: it sets the size of the swing first and then raises the whole by one fixed amount, so that the power over a full turn is the power that went in. Stage 6 of part 5 has the sum.
+
+Notice also what the picture leaves out. The short arc inside the circle is the second rotor, the drum, which carries the lows and turns the other way. The three rows say nothing of it. And the rows hold only as long as the speed holds: what happens when Speed changes is the most recognisable sound a rotary speaker makes, and part 4 gets to it at step 6.
+
+</Part>
+
+<Part id="uses" title="Four sounds that are put through it.">
+
+A rotary speaker was made for one instrument and has been used on most of the others since. What it needs is a sound with something sustained in it and something above the crossover for the horn to throw about. Each card below shows a sound and what a sensible setting does to it, lists that setting, and plays it. A card's button moves the whole page to its setting, so every figure further down shows it too, and the play bar offers the way back to where you were.
+
+The cards use the device's own depths, drive and distance, which are gentler than the settings this lesson starts from.
+
+<Uses>
+  <Use title="Held chords" set="usePad">
+    <Still
+      slot="picture"
+      taps="in out"
+      set="usePad"
+      caption="A held chord going in and coming out. The outline of the output breathes slowly where the input's stands flat."
+    />
+
+    This is the sound the cabinet was built for: chords that would otherwise stand still. At Slow the pitch hardly moves, and what the ear follows is a slow swell that crosses from one side to the other. On this loop <Claim id="use-pad">the horn's loudness at the left microphone swings over 4.0 dB and its pitch stays within 2.9 cents of the pitch played</Claim>: enough to be alive, and too little to notice as an effect.
+
+  </Use>
+  <Use title="Strummed chords" set="useStrum">
+    <Still
+      slot="picture"
+      taps="in out"
+      set="useStrum"
+      from={0}
+      span={2}
+      caption="Two seconds of strummed chords. Each ring comes out with a fast ripple on it, several to every strum."
+    />
+
+    A guitar chord rings for a second or two after it is struck, and at Fast the horn goes round several times within one ring. The ripple is fast enough to be heard as a shimmer on the chord and not as a rhythm against it. The strum itself gets through unchanged in time, since the cabinet's longest delay is a few thousandths of a second.
+
+  </Use>
+  <Use title="A line that gathers speed" set="useRun">
+    <Still
+      slot="picture"
+      taps="hornSpeed drumSpeed"
+      set="useRun"
+      caption="How fast each rotor turns over the loop. At the start both are winding down from Fast. At the middle Speed goes to Fast again, and the horn is there almost at once while the drum climbs after it."
+    />
+
+    The change of speed is played like a note. A player holds Slow through a phrase and asks for Fast on its last chord, and the chord lifts as the horn gathers speed with the drum coming after. Then back to Slow, and it settles. On this card the lab asks for Fast at the middle of the loop and for Slow at its start.
+
+  </Use>
+  <Use title="A plain bright tone" set="useSaw">
+    <Still
+      slot="picture"
+      taps="in out"
+      set="useSaw"
+      from={0}
+      span={0.5}
+      caption="Half a second of a steady saw wave going in and coming out. The input is a block of one height. The output swells and thins three times."
+    />
+
+    A saw wave from a synthesiser is every harmonic at once, and by itself it is harsh and flat. Nearly all of it lies above the crossover, so the horn has the whole sound to work with. Drive rounds its edge, the pitch swing turns it into something close to a voice with vibrato, and the dark copy makes each turn open and close like a mouth.
+
+  </Use>
+</Uses>
+
+</Part>
+
+<Part id="build" title="Two bands and two rotors, a piece at a time.">
+
+The quickest way to understand a rotary speaker is to make one. This part starts with a filter that parts the sound in two and adds seven pieces to it, one at a time. After each piece the lanes are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these lanes and plays "Hear it so far".
+
+Until the last step the build has no amplifier and no blend with the plain sound: what you hear is what the two microphones pick up. Each piece is a function, and the last listing of step 8 is the loop that calls them in the order a sample meets them.
+
+<Build>
+  <Step title="Part the sound in two">
+    A horn small enough to spin cannot throw low notes, and a drum heavy enough to carry them cannot be spun about like a horn. So the cabinet has two loudspeakers, and the first thing it does to a sound is share it out: the highs to one, the lows to the other. One filter gives both at once. It is the filter of <Lesson id="state-variable-filter" />, set at <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kCrossoverHz = 800.0f;">800 Hz</Src>.
+
+    Each band is written into a short delay line of its own, which the later pieces will read from. For now both lines are read straight back and added. <Claim id="bands-800">A tone at 800 Hz comes out of each band 6.0 dB down, and the two bands added carry it less than 0.1 dB from the level it went in at</Claim>. The sum holds its level at every other frequency too, which is why the highs are turned over on their way in: without that, the two bands would cancel where they meet.
+
+    Press "Hear it so far". It is the loop, and nothing in it moves.
+
+    <Listing
+      path="site/labs/rotary-speaker.cpp"
+      from="// Two bands: one filter gives the lows and the highs of the sound at once."
+      to="drum_line.write(split.low); }"
+      name="bands"
+    />
+
+    <Lanes slot="picture" taps="in builtLows builtHighs built">
+      The sound going in, the two bands, and the two added again. Notice that the last lane has the
+      height of the first: nothing was lost in the parting.
+    </Lanes>
+
+  </Step>
+  <Step title="Turn the horn, and listen to how loud it is" controls="speed hornDepth spread">
+    Now the horn turns. Its angle moves on by its speed on every sample, and each microphone asks one question of it: how nearly does the mouth point at me? The answer is a cosine, 1 when the mouth points straight at the microphone and −1 when it points straight away. Spread says where the two microphones stand, so each gets a cosine of its own.
+
+    The loudness follows that cosine. At Horn Depth 1 the device takes away <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kHornAm = 0.75f;">three quarters</Src> of the level when the mouth points away, and <Claim id="horn-swing">a steady tone in the horn then falls by 12.0 dB between the front of the turn and the back</Claim>. With this piece taken out again it falls by nothing. One fixed gain after it brings the whole back up, so that a deeper swing is not a quieter sound.
+
+    The two microphones hear the same swell at different moments. At Slow, with Spread where the lesson starts it, <Claim id="mics-apart">the right microphone's loudest moment comes 0.35 s after the left's</Claim>.
+
+    It is a tremolo so far, one for each side. Press "Hear it so far" and listen for the sound crossing from left to right.
+
+    <Listing
+      path="site/labs/rotary-speaker.cpp"
+      from="// A horn that turns: `towards` is the cosine of the angle between the"
+      to="if (drum_angle < 0.0) drum_angle += 1.0; }"
+      mark={['float facing(float towards) const', 'float loudness(float faced) const', 'horn_angle += horn_speed * per_sample;']}
+      name="turn"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="builtHighs builtLoudness builtLoudnessRight built"
+      ranges={{ builtLoudness: [-12, 6], builtLoudnessRight: [-12, 6] }}
+    >
+      The high band, how loud each microphone hears the horn, and the sound so far. Try Spread at 0,
+      and notice the two loudness lanes fall into step. Try Horn Depth at 0, and notice them go flat.
+    </Lanes>
+
+  </Step>
+  <Step title="Make it darker when it faces away" controls="speed hornDepth spread">
+    A horn beams its highest frequencies in a narrow cone and lets the lower ones spill round its sides. So when the mouth turns away, the sound does not only get quieter: it loses its top first.
+
+    The build keeps a second copy of what the microphone hears, with the top taken off by a one-pole low-pass filter at <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kShadeHz = 2200.0f;">2,200 Hz</Src>, and mixes it in as the mouth turns from the microphone: none of it at the front, <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kHornShade = 0.8f;">four fifths</Src> of the sound at the back. The swing now depends on the frequency. <Claim id="shade-swing">A tone at 6 kHz in the horn falls by 19 dB between front and back and a tone at 3 kHz by 16 dB, where before this piece each fell by 12.0 dB</Claim>.
+
+    <Listing
+      path="site/labs/rotary-speaker.cpp"
+      from="// Darker when it faces away: a copy of the horn's sound with the top taken"
+      to="return beam + (dark - beam) * dark_share; }"
+      name="shade"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="builtLoudness builtShade built"
+      ranges={{ builtLoudness: [-12, 6], builtShade: [0, 1] }}
+    >
+      The horn's loudness at the left microphone, the share of the dark copy, and the sound so far.
+      Notice that the share is at its highest where the loudness is at its lowest: the back of the
+      turn is both the quietest and the dullest.
+    </Lanes>
+
+  </Step>
+  <Step title="Let the distance change, which bends the pitch" controls="speed hornDepth spread">
+    So far the mouth has turned on the spot. In a cabinet it travels: it swings out towards the microphone and back, and sound takes time to cross the gap. The build reads the horn's delay line further back the further the mouth is from the microphone. At Horn Depth 1 <Claim id="path-swing">the delay swings over 1.1 ms</Claim> between the nearest point of the circle and the furthest, which the device's source gives as <Src path="cpp/devices/rotary/rotary.h" at="// - Horn Depth 1 swings the horn's path by ±0.55 ms, the mouth of a 19 cm">the mouth of a horn 19 cm long</Src>.
+
+    A delay that holds still changes nothing but the time of arrival. A delay that is getting shorter plays the sound back a little fast, and one that is getting longer plays it a little slow: <Lesson id="chorus-and-flanging" /> is built on that. Here the delay follows a circle, so the pitch goes up and down once a turn, and how far depends on how fast the circle is run. <Claim id="pitch-swing">At Slow the horn is heard between 4.8 cents flat and 4.8 cents sharp, and at Fast between 40.6 cents flat and 39.7 cents sharp</Claim>. With this piece taken out again the pitch does not move at all.
+
+    <Listing
+      path="site/labs/rotary-speaker.cpp"
+      from="// The pitch wobble: the horn's line is read further back the further the"
+      to="float path(float towards) const { return 2.0f + horn_radius * (1.0f - towards); }"
+      name="path"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="builtPitch builtLoudness built"
+      ranges={{ builtLoudness: [-12, 6] }}
+    >
+      The horn's pitch at the left microphone, its loudness there, and the sound so far. Notice that
+      the pitch peaks a quarter of a turn before the loudness does. Let Speed be Fast, and notice the
+      pitch lane grow about eight times taller while the loudness lane keeps its height.
+    </Lanes>
+
+  </Step>
+  <Step title="Give the lows a drum of their own" controls="speed hornDepth drumDepth spread">
+    The low band has been going straight through. Now it gets its rotor: a drum that turns under the bass loudspeaker, the other way from the horn and at a speed of its own, <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kDrumHz[2] = {0.67f, 5.8f};">0.67 turns a second at Slow and 5.8 at Fast</Src>.
+
+    Low notes bend round things, so the drum does less than the horn in every way. At Drum Depth 1 <Claim id="drum-swing">the drum's level falls by 6.0 dB between front and back, and its pitch swings 1.5 cents each way at Slow and between 12.7 cents flat and 12.6 cents sharp at Fast</Claim>. It has no dark copy, and it sees the two microphones only half as far apart as the horn does. Before this piece the lows did not move at all.
+
+    Because the two rotors turn at different speeds and in opposite directions, the highs and the lows never stay lined up. That is a large part of why the cabinet does not sound like one effect with one rate.
+
+    <Listing
+      path="site/labs/rotary-speaker.cpp"
+      from="// The drum: the lows, read from their own line at their own rotor's angle."
+      to="(1.0f - drum_am * (0.5f - 0.5f * towards)) * drum_makeup; }"
+      name="drum"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="builtLows builtDrumLoudness builtLoudness built"
+      ranges={{ builtDrumLoudness: [-12, 6], builtLoudness: [-12, 6] }}
+    >
+      The low band, how loud the left microphone hears the drum and the horn, and the sound so far.
+      Notice that the drum's swell is shallower than the horn's and slips against it.
+    </Lanes>
+
+  </Step>
+  <Step title="Give the rotors weight" controls="speed secondHalf hornDepth drumDepth acceleration spread">
+    Until now Speed has been obeyed at once. A real rotor is a thing with mass on the end of a belt, and it takes time to get going. This is the sound most people know a rotary speaker by: the player changes the speed at the end of a phrase, and the chord gathers itself up, or winds down.
+
+    The page cannot press a control in the middle of a loop, so the lab has one of its own for this. Second half names the Speed the lab changes to at the middle of the loop, and it changes back at the loop's start, so both runs are in every pass.
+
+    On each reading of the controls, a rotor's speed covers a fixed share of what is left of the way to where Speed wants it. That is the curve of a thing coasting towards a speed: fast at first, then ever more slowly. The horn is light and the drum is heavy. Going from Slow to Fast, <Claim id="weights">the horn has covered 63 % of the way after 0.25 s and the drum after 1.50 s</Claim>, so for a second or two the highs are already whirling while the lows are still gathering speed. With this piece taken out again both are at the new speed on the first reading after the change.
+
+    Brake asks for a speed of nothing and adds a steady friction, so the rotors do not creep towards rest for ever. Measured over a loop of eight seconds with Brake asked for at its middle, <Claim id="brake-rest">the horn stands still 1.23 s after Brake is asked for from Slow, and the drum, which had not quite reached its own Slow speed, 2.20 s after</Claim>. Acceleration divides every one of these times.
+
+    <Listing
+      path="site/labs/rotary-speaker.cpp"
+      from="// Two weights: a rotor's speed covers a share of the way to where Speed"
+      to="started = true; }"
+      mark={['now += (target - now) * kit::min(1.0f, tick / seconds);', 'now -= Rotary::kBrakeFriction * acceleration.value * tick;']}
+      name="weights"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="builtHornSpeed builtDrumSpeed built"
+      ranges={{ builtHornSpeed: [0, 7], builtDrumSpeed: [0, 7] }}
+    >
+      How fast each rotor turns, and the sound so far. Let Second half be Fast, and notice the horn's
+      speed leap up at the middle of the loop while the drum's climbs after it. Try Acceleration at
+      its lowest, and notice that the drum never arrives.
+    </Lanes>
+
+  </Step>
+  <Step title="Step back, and hear the cabinet's walls" controls="speed secondHalf hornDepth drumDepth acceleration distance spread">
+    A microphone a hand's width from the horn hears the beam go by and little else. One across the room hears less of the beam and more of the box: sound that left the horn in other directions and came back off the cabinet's walls.
+
+    Distance moves the microphones back. The build takes a little off the sound that comes straight from the horn and adds two more copies of it, each a few milliseconds late, <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kReflectSeconds[kNumReflections] = {0.0019f, 0.0037f};">1.9 ms and 3.7 ms</Src>, and each reading the horn as if from another place round the circle. Each copy has its own pitch wobble at its own point in the turn, and the second is turned over. At the same time the swing of the straight sound is made shallower: at Distance 1 <Claim id="walls-swing">the loudness of the straight sound swings over 3.1 dB, where before this piece it swung over 12.0 dB</Claim> whatever Distance said.
+
+    The result is smoother and wider, nearer to a chorus than to a tremolo. The lesson starts Distance at 0, so nothing changes here until you raise it.
+
+    <Listing
+      path="site/labs/rotary-speaker.cpp"
+      from="// The cabinet's walls: two more copies of the horn's sound, each a few"
+      to="return horn; }"
+      name="walls"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="builtLoudness builtShade built"
+      ranges={{ builtLoudness: [-12, 6], builtShade: [0, 1] }}
+    >
+      The loudness of the straight sound at the left microphone, the share of the dark copy, and the
+      sound so far. Try Distance at 1, and notice both lanes flatten while the sound keeps moving.
+    </Lanes>
+
+  </Step>
+  <Step title="Put an amplifier in front, and two blends behind" controls="speed secondHalf hornDepth drumDepth acceleration drive balance distance spread mix">
+    Three things are left, and none of them turns.
+
+    The cabinet has an amplifier of its own, and players push it. Drive sends the sound through a soft curve before the filter parts it. The curve is not the same above zero as below it, so it adds harmonics of both kinds, and it holds loud playing back while a gain after it brings quiet playing up: at Drive 1 <Claim id="amp-quiet">a quiet tone comes out 4.7 dB louder than it does at Drive 0</Claim>, and without this piece Drive changes nothing. A filter after the curve takes away the steady offset the lopsided curve leaves.
+
+    Balance weighs the horn against the drum, and Mix blends what the microphones hear with the plain sound. Both are set so that the power stays level as they are moved.
+
+    <Listing
+      path="site/labs/rotary-speaker.cpp"
+      from="// The amplifier: a soft curve that is not the same above and below zero,"
+      to="return x + ((shaped - Rotary::kBiasOut) * level - x) * amount; }"
+      name="amp"
+    />
+
+    That is every piece. The loop that calls them, in the order a sample meets them:
+
+    <Listing
+      path="site/labs/rotary-speaker.cpp"
+      from="// One sample through the pieces built so far, in the order it meets them."
+      to="out[k] = pieces >= kAmp ? in * dry_share + wet * wet_share : wet; } }"
+      name="run"
+    />
+
+    With all eight pieces the build does to a sample what the device does, in the same order. The lab runs the device beside it on every render and compares the two outputs. <Claim id="built-same">What is left when one is taken from the other is more than 120 dB under the device's output, on every loop and at every setting the test tries</Claim>. Where the two are the same to the last bit the check reads the lowest number it can say.
+
+    <Check id="builtDifference" />
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the whole cabinet as built. Try Mix at one half, and notice the plain
+      sound come back into the outline.
+    </Lanes>
+
+  </Step>
+</Build>
+
+A step before the last is the lesson's own: a cabinet with a piece missing, which the device never is. One thing the build is told and does not work out for itself. When nothing has come in for <Src path="cpp/devices/rotary/rotary.h" at="idle_.reset(sr, 0.1f);">a tenth of a second</Src> and the output has died away, the device stops working until sound returns, and its rotors stand still meanwhile. The build stands still with it.
+
+</Part>
+
+<Part id="engine" title="The engine's own cabinet, opened up.">
+
+The build of part 4 was the lesson's. This part is the device itself, <Src path="cpp/devices/rotary/rotary.h" />, read as it runs. The lab hands it one sample at a time and reads its state after each, so every stage below is the device's own number or the device's own sound. Where a stage is a value the device works out and throws away inside its loop, the lab works it out again from the state the device does keep, and says so.
+
+<Flow
+  label="The Rotary. Both sides of the sound are added into one and go through an amplifier and a crossover. The highs go through a delay that moves, a filter that darkens them and a gain, and gain two reflections. The lows go through the drum. The two are weighed against each other and mixed with the plain sound. Two rotors set the angles that the horn and the drum read."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'amp', label: 'Amplifier', from: 'in', tap: 'driven', n: 1 },
+    { id: 'split', label: 'Crossover', from: 'amp', tap: 'highs', n: 2 },
+    { id: 'rotors', row: -1, label: 'Rotors', tap: 'hornSpeed', n: 3, signal: 'value' },
+    { id: 'delay', label: 'Moving delay', from: ['split', 'rotors'], tap: 'doppler', n: 4 },
+    { id: 'shade', label: 'Darker away', from: 'delay', tap: 'shade', n: 5, signal: 'sound' },
+    { id: 'loud', label: 'Loudness', from: 'shade', tap: 'loudness', n: 6, signal: 'sound' },
+    { id: 'walls', label: 'Walls', from: 'loud', tap: 'horn', n: 7 },
+    { id: 'drum', row: 1, label: 'Drum', from: 'split', tap: 'drum', n: 8 },
+    { id: 'mix', label: 'Balance and Mix', from: ['walls', 'drum'], n: 9 },
+    { id: 'out', tap: 'out', shape: 'end', from: 'mix' },
+  ]}
+>
+  The row along the middle is the horn's and the row under it the drum's. The row over them carries
+  no sound: it is how fast the two rotors turn. The plain sound that Mix blends back in at the end
+  is left out of the picture. Press a stage's button below, and notice its block light up here.
+</Flow>
+
+The listing is the whole of the device's work on one sample. Its first lines turn the two rotors and take the sample through the amplifier and the crossover. The loop under them runs once for each microphone: it reads the horn, darkens it, sets its loudness, adds the walls, reads the drum, and weighs the two. The last lines mix. The nine stages below take those lines in turn.
+
+<Listing
+  path="cpp/devices/rotary/rotary.h"
+  from="for (int i = 0; i < frames; ++i) {"
+  to="out_right_[i] = in[1] * dry_gain + wet[1] * wet_gain; }"
+  name="loop"
+  at={{
+    turn: 'horn_angle_ += horn_speed_ * per_sample;',
+    drive: 'dc_.process(tube(0.5f * (in[0] + in[1]), glide(drive_), glide(drive_level_)));',
+    towards: 'const float towards = kit::SineTable::cos_lookup(angle);',
+    facing: 'const float facing = 0.5f + 0.5f * towards;',
+    read: 'float beam = horn_line_.read_hermite(2.0f + horn_radius * (1.0f - towards));',
+    shade: 'beam += (dark - beam) * horn_shade * (1.0f - facing * facing);',
+    loud: 'beam *= (1.0f - horn_am * (1.0f - facing)) * horn_makeup;',
+    wet: 'wet[k] = horn * horn_gain + drum * drum_gain;',
+    left: 'out_left_[i] = in[0] * dry_gain + wet[0] * wet_gain;',
+  }}
+/>
+
+<StageBlock tap="driven" n={1} title="Both sides become one, and the amplifier">
+  A cabinet has one amplifier and one horn, so the first thing the device does is add the left side and the right side of what comes in and halve the sum. Whatever was different between the two sides is gone from here on. The two sides that come out are made by the two microphones and by nothing else.
+
+  Then the amplifier. It is a soft curve: nearly straight for small values, and bending over as they grow, towards a ceiling it never reaches.
+
+  <Controls ids="drive" />
+
+  <Curve taps="driveCurve" diagonal xTitle="value in" yTitle="value out" min={-1.2} max={1.2} height={300}>
+    What the amplifier makes of each value, from the device's own function. With Drive at 0 the
+    drive's curve lies on the line of no change. Raise Drive, and notice the top bend over sooner
+    than the bottom: the curve is not the same on both sides of zero.
+  </Curve>
+
+  <M block t={String.raw`s(u) = \frac{u}{\sqrt{1 + u^2}}, \qquad u = G\,\sig{in}{x} + \beta`} />
+
+  Here <M t="x" /> is the sample going in, <M t="G" /> is a gain that rises with Drive, from 1 to <Src path="cpp/devices/rotary/rotary.h" at="const float u = (1.0f + 5.0f * drive) * x + kBias;">6</Src>, and <M t={String.raw`\beta`} /> is a small fixed offset, <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kBias = 0.2f;">0.2</Src>. The offset is what makes the curve lopsided: a wave pushed through it is flattened more on one side than on the other, which adds harmonics at even multiples of each frequency as well as odd ones. Curves of this kind are the subject of <Lesson id="saturation" />.
+
+  A curve like this makes new frequencies, and some of them would land above half the sample rate and fold back down. So the device does not read the curve at one value. It takes the mean of the curve over the step from the sample before to this one, which for this curve can be written out exactly:
+
+  <M block t={String.raw`\bar s = \frac{u + u_{-1}}{\sqrt{1 + u^2} + \sqrt{1 + u_{-1}^2}}`} />
+
+  where <M t={String.raw`u_{-1}`} /> is the value of <M t="u" /> one sample ago. The mean of a curve over a step is smoother than the curve, and that takes the edge off the new frequencies before they can fold.
+
+  <Listing
+    path="cpp/devices/rotary/rotary.h"
+    from="float tube(float x, float drive, float level) {"
+    to="return x + ((shaped - kBiasOut) * level - x) * amount; }"
+    name="tube"
+  />
+
+  The last line takes away what the offset alone would put out, so that silence stays silence, and multiplies by a level that undoes most of the gain. Quiet playing comes out louder than it went in and loud playing is held back, as step 8 of part 4 measured. A filter after the function removes whatever steady offset is left. At Drive 0 the function hands the sample back untouched.
+
+  <Fragment slot="listen">Hear the sound after the amplifier</Fragment>
+</StageBlock>
+
+<StageBlock tap="highs" n={2} title="The crossover parts the highs from the lows">
+  One filter with two outputs shares the sound out. It is the kit's state-variable filter, set once when the device starts, at <Src path="cpp/devices/rotary/rotary.h" at="split_.set(kCrossoverHz, 0.5f, sr);">800 Hz with a quality of one half</Src>. That quality is the one at which the low output and the high output, added, lose nothing at any frequency.
+
+  <Spectrum taps="splitLow:alt3 splitHigh:alt splitSum:out" min={-48} max={6}>
+    What the crossover does to each frequency: what the drum is sent, what the horn is sent, and the
+    two together. Notice that the two bands cross a little under the line of the two together, and
+    that this line lies flat.
+  </Spectrum>
+
+  <M block t={String.raw`\bigl|L\bigr| = \frac{1}{1 + w^2}, \qquad \bigl|H\bigr| = \frac{w^2}{1 + w^2}`} />
+
+  <M block t={String.raw`w = \frac{\tan(\pi f / f_s)}{\tan(\pi f_c / f_s)}`} />
+
+  Here <M t="f" /> is a frequency, <M t="f_c" /> is the crossover's, <M t="f_s" /> is the sample rate, and <M t="L" /> and <M t="H" /> are what the low and the high outputs do to a tone at <M t="f" />. Far below the top of hearing <M t="w" /> is close to <M t={String.raw`f / f_c`} />. At the crossover it is 1 and each band is at one half, which is the fall that step 1 of part 4 measured. Two octaves either side, one band has nearly all of the sound: measured on the device, <Claim id="split-bands">a tone at 200 Hz reaches the horn 24.6 dB down, and a tone at 3,200 Hz reaches the drum 24.8 dB down</Claim>. The two numbers differ a little because the filter's frequencies are bent near the top of the range, which is what the tangents in <M t="w" /> are for.
+
+  The two levels add to exactly 1, but only if the bands are added the right way up. The high output of this filter comes out turned over against the low one, so the device <Src path="cpp/devices/rotary/rotary.h" at="horn_line_.write(-split_.high);">turns it back as it writes it</Src> into the horn's line. The spectrum's flat line is that sum.
+
+  The stage's button plays the high band. <Listen tap="lows">Hear the low band</Listen>, and notice how much of a chord is down there: the drum has more to do than its small numbers suggest.
+
+  <Fragment slot="listen">Hear the high band</Fragment>
+</StageBlock>
+
+<StageBlock tap="hornSpeed" n={3} title="Two rotors, each with its own weight">
+  Nothing that follows holds still, and this stage is why. The device keeps an angle for the horn and an angle for the drum, in turns, and <Src path="cpp/devices/rotary/rotary.h" at="horn_angle_ += horn_speed_ * per_sample;" to="if (drum_angle_ < 0.0) drum_angle_ += 1.0;">moves each on by its speed on every sample</Src>, the horn's upwards and the drum's downwards. They are the slowest oscillators in the engine, and <Lesson id="envelopes-and-lfos" /> is about the kind.
+
+  The speeds are not set. They are steered. Every <Src path="cpp/devices/rotary/rotary.h" at="static constexpr int kControlPeriod = 16;">16 samples</Src> the device reads Speed, and moves each rotor's speed part of the way to where Speed wants it.
+
+  <Controls ids="speed secondHalf acceleration" />
+
+  <Trace taps="hornSpeed drumSpeed" min={0} max={7} unit="Hz">
+    How fast each rotor turns, read from the device. Let Second half be Fast, and notice the horn
+    reach its new speed long before the drum. Let it be Brake, and notice both lines come down to
+    nothing and stay there until the loop starts again.
+  </Trace>
+
+  <M block t={String.raw`\sig{ctl}{v} \leftarrow \sig{ctl}{v} + \at{approach-step}{\bigl(\hat v - \sig{ctl}{v}\bigr)\,\min\!\Bigl(1, \frac{T A}{\tau}\Bigr)}`} />
+
+  Here <M t="v" /> is a rotor's speed in turns a second and <M t={String.raw`\hat v`} /> is the speed that Speed asks for. <M t="T" /> is the time between two readings, <M t="A" /> is Acceleration, and <M t={String.raw`\tau`} /> is the rotor's time constant: the time it takes to cover 63 % of the way. Each rotor has two, one for speeding up and one for slowing down, and the drum's are several times the horn's.
+
+  <Listing
+    path="cpp/devices/rotary/rotary.h"
+    from="// Time constants of each rotor speeding up and slowing down, and the"
+    to="static constexpr float kBrakeFriction = 0.15f;"
+    name="times"
+  />
+
+  <Listing
+    path="cpp/devices/rotary/rotary.h"
+    from="static float approach(float speed, float target, float up_seconds, float down_seconds,"
+    to="return speed; }"
+    name="approach"
+    at={{ step: 'speed += (target - speed) * kit::min(1.0f, dt / seconds);' }}
+  />
+
+  On Brake the speed asked for is nothing, and the two lines inside the `if` take a steady amount off as well. Without them a rotor would get ever closer to rest and never reach it. With them it stops, wherever in its turn it happens to be.
+
+  Measured on the device, as step 6 of part 4 measured on the build: going from Slow to Fast, <Claim id="device-weights">the horn has covered 63 % of the way after 0.25 s and the drum after 1.50 s. Going back, the horn takes 0.50 s and the drum 1.90 s</Claim>.
+</StageBlock>
+
+<StageBlock tap="doppler" n={4} title="A delay that follows the mouth bends the pitch">
+  For each microphone the device asks how nearly the horn's mouth points at it, and reads the horn's delay line further back the less it does.
+
+  <M block t={String.raw`\at{loop-towards}{c = \cos 2\pi(\theta - m)}, \qquad \at{loop-read}{d = 2 + R\,(1 - c)}`} />
+
+  Here <M t={String.raw`\theta`} /> is the horn's angle in turns and <M t="m" /> is where the microphone stands, so <M t="c" /> is 1 when the mouth points at the microphone and −1 when it points away. <M t="d" /> is how many samples back the line is read, and <M t="R" /> is the radius of the mouth's circle counted in samples of travel: Horn Depth times <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kHornRadiusSeconds = 0.00055f;">0.55 ms</Src>. The 2 is the nearest the line is ever read.
+
+  <Controls ids="speed hornDepth" />
+
+  <Curve taps="pathByAngle" follow="hornAngle" xTitle="the horn's angle, turns" yTitle="delay, ms" height={260}>
+    How late the left microphone hears the horn, at each angle of one turn. While the loop plays, a
+    dot rides the curve at the horn's angle. Notice where the curve is steepest: that is where the
+    pitch is furthest from the pitch that was played.
+  </Curve>
+
+  A delay that changes by <M t={String.raw`\Delta d`} /> samples from one sample to the next plays the sound back at a different speed, and so at a different pitch:
+
+  <M block t={String.raw`r = 1 - \Delta d = 1 - 2\pi\,\frac{v R}{f_s}\,\sin 2\pi(\theta - m)`} />
+
+  Here <M t="r" /> is the ratio of the pitch heard to the pitch played. The second form comes from the first by taking the slope of the circle: the angle moves on by <M t={String.raw`v / f_s`} /> turns a sample, so the delay's slope is largest a quarter of a turn from the microphone and is nothing when the mouth points at it or away. The swing of the pitch grows with <M t="v" /> and with <M t="R" />, which is why Fast bends the pitch about eight times as far as Slow and why Horn Depth scales it.
+
+  <Trace taps="pitch pitchRight" unit="cents">
+    The pitch of the horn at each microphone, worked out from how the device's read point moves. Let
+    Speed be Fast, and notice both lines grow. Notice that one runs behind the other, by the angle
+    between the microphones.
+  </Trace>
+
+  The line is read between samples with a smooth curve through four of them, since a read point that slides would otherwise click at every sample it passes. The stage's button plays what that read gives and nothing more: the horn's band with its pitch bent and its level untouched. Heard like this at Fast it is a vibrato. Measured on a steady tone at Fast, <Claim id="doppler-fast">its pitch runs from 40.6 cents flat to 39.7 cents sharp, and its level changes by less than 0.1 dB</Claim>.
+
+  <Fragment slot="listen">Hear the moving delay alone</Fragment>
+</StageBlock>
+
+<StageBlock tap="shade" n={5} title="Darker when the mouth faces away">
+  The device keeps a filtered copy of what each microphone has just read, with the top taken off by a one-pole low-pass, the filter of <Lesson id="one-pole" />. It mixes that copy in according to how far the mouth has turned away.
+
+  <M block t={String.raw`\at{loop-facing}{q = \tfrac{1}{2}(1 + c)}, \qquad \at{loop-shade}{p \leftarrow p + (\bar p - p)\,\sigma\,(1 - q^2)}`} />
+
+  Here <M t="p" /> is the sound read from the line and <M t={String.raw`\bar p`} /> is its filtered copy. <M t="q" /> runs from 1, facing the microphone, to 0, facing away. <M t={String.raw`\sigma`} /> is the most of the dark copy that is ever used: Horn Depth times <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kHornShade = 0.8f;">0.8</Src>, less a little as Distance rises. The square keeps the sound bright over the front part of the turn and lets it darken quickly round the back.
+
+  <Trace taps="shade" min={0} max={1}>
+    The share of the dark copy in what the left microphone hears. Try Horn Depth at one half, and
+    notice the peaks fall to half their height.
+  </Trace>
+
+  <Still
+    taps="hornPicture"
+    set="turned"
+    view="spectrogram"
+    top={8000}
+    caption="The horn at the left microphone, as a spectrum over time. The upper part of the picture fades each time the mouth turns away and comes back as it returns, while the lower part changes much less."
+  />
+</StageBlock>
+
+<StageBlock tap="loudness" n={6} title="Louder when it faces you">
+  Now the level. The device multiplies what the microphone hears by a gain that is highest when the mouth points at it.
+
+  <M block t={String.raw`\at{loop-loud}{\sig{out}{g} = \bigl(1 - a\,(1 - q)\bigr)\,M}`} />
+
+  Here <M t="g" /> is the gain and <M t="a" /> is the share of the level that is lost at the back of the turn: Horn Depth times <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kHornAm = 0.75f;">0.75</Src>, less as Distance rises. <M t="M" /> is one fixed gain that makes up for the loss:
+
+  <M block t={String.raw`\at{makeup-gain}{M = \frac{1}{\sqrt{\bigl(1 - \tfrac{a}{2}\bigr)^2 + \tfrac{a^2}{8}}}}`} />
+
+  Without <M t="M" /> the horn would only ever be turned down, and a deeper swing would be a quieter sound. Under the root is the mean of the gain's square over one whole turn, so <M t="M" /> brings the power of a turn back to what went in. Measured on the device's own gain, <Claim id="makeup-holds">a tone ridden by it for four whole turns comes out less than 0.1 dB from the level it went in at</Claim>. That is why the loudness in part 2's picture stands above 0 dB at the front.
+
+  <Listing
+    path="cpp/devices/rotary/rotary.h"
+    from="// Keeps the mean power of a gain that swings between 1 and 1 - am at unity."
+    to="return 1.0f / std::sqrt(mean * mean + 0.125f * am * am); }"
+    name="makeup"
+    at={{ gain: 'return 1.0f / std::sqrt(mean * mean + 0.125f * am * am);' }}
+  />
+
+  <Controls ids="hornDepth spread" />
+
+  <Curve taps="gainByAngle gainByAngleRight" follow="hornAngle" xTitle="the horn's angle, turns" yTitle="loudness, dB" min={-12} max={6} height={260}>
+    How loud each microphone hears the horn, at each angle of one turn. While the loop plays, a dot
+    rides the first curve at the horn's angle. Try Spread, and notice the two curves slide apart:
+    the gap between their tops is the angle between the microphones.
+  </Curve>
+
+  The device does not keep this gain. The lab works it out again from the device's own angle and the device's own depth, and that is the value this stage shows.
+</StageBlock>
+
+<StageBlock tap="horn" n={7} title="The walls answer from other angles">
+  Distance changes what the microphones hear in two ways at once, and the device works both out on its control clock.
+
+  <Listing
+    path="cpp/devices/rotary/rotary.h"
+    from="const float horn_am = horn_depth * kHornAm * (1.0f - 0.6f * distance);"
+    to="reflect_.set(0.4f * distance, started_);"
+    name="depths"
+    mark={['direct_.set(1.0f - 0.2f * distance, started_);', 'reflect_.set(0.4f * distance, started_);']}
+  />
+
+  The first lines make every swing shallower as Distance rises. The two marked lines take a fifth off the straight sound at most and bring up two reflections, each read from the same line as the horn, later, and with the horn seen from another place: <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kReflectAngle[kNumReflections] = {0.31f, 0.64f};">0.31 and 0.64 of a turn</Src> round from the microphone. Each has the pitch wobble of its own place, so at any moment the microphone hears three pitches that disagree slightly, which is what a chorus is.
+
+  <Controls ids="distance" />
+
+  <Lanes taps="doppler horn" label="The horn through its moving delay alone, and the horn at the two microphones, one under the other against time">
+    The horn before its loudness and its walls, and after. Try Distance at 1, and notice the deep
+    swells of the second lane fill in.
+  </Lanes>
+
+  The stage's button plays the horn as the two microphones hear it: everything the device does to the highs.
+
+  <Fragment slot="listen">Hear the horn at the microphones</Fragment>
+</StageBlock>
+
+<StageBlock tap="drum" n={8} title="The drum does the same, more gently">
+  The low band takes the same path with smaller numbers and fewer steps. Its line is read <Src path="cpp/devices/rotary/rotary.h" at="const float drum = drum_line_.read_linear(2.0f + drum_radius * (1.0f - drum_towards)) *">at a point that follows the drum's angle</Src>, with a swing of <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kDrumRadiusSeconds = 0.0002f;">0.2 ms</Src> at Drum Depth 1, and its level loses at most <Src path="cpp/devices/rotary/rotary.h" at="static constexpr float kDrumAm = 0.5f;">half</Src> at the back. It has no dark copy and no reflections.
+
+  <Controls ids="drumDepth" />
+
+  <Trace taps="drumLoudness loudness" min={-12} max={6} unit="dB">
+    How loud the left microphone hears the drum and the horn. Notice that the drum's line is the
+    shallower and the slower, and that the two slide past each other: the rotors turn in opposite
+    directions at speeds that are not in any simple ratio.
+  </Trace>
+
+  The drum also sees the microphones <Src path="cpp/devices/rotary/rotary.h" at="const float drum_towards = kit::SineTable::cos_lookup(drum_angle - 0.5f * side + 1.0f);">half as far apart</Src> as the horn does, so the lows lean from side to side less than the highs. That suits how low notes behave in a room, and it keeps the bottom of a mix from swinging about.
+
+  <Fragment slot="listen">Hear the drum at the microphones</Fragment>
+</StageBlock>
+
+<StageBlock tap="out" n={9} title="Balance and Mix">
+  Two blends finish the device. Balance weighs the horn against the drum, and Mix weighs what the microphones hear against the plain sound that came in.
+
+  <M block t={String.raw`\at{loop-wet}{\sig{alt}{y} = \sqrt{2}\,\sin\bigl(\tfrac{\pi}{2} B\bigr)\,h + \sqrt{2}\,\cos\bigl(\tfrac{\pi}{2} B\bigr)\,l}`} />
+
+  <M block t={String.raw`\at{loop-left}{\sig{out}{o} = \cos\bigl(\tfrac{\pi}{2}\mu\bigr)\,\sig{in}{x} + \sin\bigl(\tfrac{\pi}{2}\mu\bigr)\,\sig{alt}{y}}`} />
+
+  Here <M t="h" /> is the horn at one microphone and <M t="l" /> is the drum there, <M t="B" /> is Balance, <M t={String.raw`\mu`} /> is Mix, <M t="x" /> is that side of the sound as it came in, and <M t="o" /> is what goes out. Both blends follow a quarter of a circle, so the squares of the two weights always add to the same sum and the power does not sag in the middle. At Balance one half both weights are 1, and <Claim id="balance-ends">at either end one band is silent and the other is 3.0 dB up</Claim>.
+
+  <Controls ids="balance mix" />
+
+  <Wave taps="in out">
+    The sound going in and the sound coming out. Try Mix at 0, and notice the two lie on each
+    other. Try Balance at each end, and listen for the horn alone and the drum alone.
+  </Wave>
+
+  The lab checks its own reading here. It takes what it read at stages 4 to 8, weighs and mixes it as these two lines do, and compares the result with what the device wrote out.
+
+  <Check id="rebuilt" />
+
+  <Fragment slot="listen">Hear the output</Fragment>
+</StageBlock>
+
+### All the stages at once
+
+<Controls ids="speed secondHalf hornDepth drumDepth acceleration drive balance distance spread mix" />
+
+<Lanes
+  taps="in driven highs hornSpeed doppler shade loudness horn drum out"
+  ranges={{ hornSpeed: [0, 7], shade: [0, 1], loudness: [-12, 6] }}
+>
+  Every stage on one time axis, in the order the sound meets them. Let Second half be Fast, and
+  follow the change down the lanes: the speed leaps, the swells of the horn crowd together, and the
+  drum's lane catches up after.
+</Lanes>
+
+To judge what the cabinet did, compare three things: <Listen tap="in">what went in</Listen>, <Listen tap="out">what came out</Listen>, and <Listen tap="ridden">the plain sound with only its level ridden</Listen>, which is the answer that part 1 turned down.
+
+</Part>
+
+<Part id="ways" title="Five things people do with it.">
+
+A rotary speaker has few settings and one of them is played. These are the habits worth knowing. Each card lists settings to try and plays them.
+
+<Ways>
+  <Way title="Play the change of speed" tag="Slow for the phrase, Fast for its last chord" set="wayRun">
+    <Still
+      slot="picture"
+      taps="pitch"
+      set="wayRun"
+      caption="The pitch of the horn at the left microphone over the loop. At the start the horn is still slowing down from Fast, and the swings shrink and spread out. From the middle they grow tall and crowd together as it gathers speed again."
+    />
+
+    The run between the speeds is the instrument. Change at a moment that means something in the music: up on the last chord of a phrase, down as the next begins. Lower Acceleration for a heavier cabinet that takes longer over it, and raise it when the run gets in the way.
+
+  </Way>
+  <Way title="Keep the bass still" tag="Drum Depth at nothing" set="wayStill">
+    On a whole mix, or a part with a bass line in it, a low end that swells and leans makes the ground move. Drum Depth at 0 lets the lows through the cabinet without turning them, while the horn goes on moving everything above the crossover. Balance towards the drum does something different: it makes the still part louder than the moving part.
+
+  </Way>
+  <Way title="Step back from it" tag="Distance raised" set="wayFar">
+    <Still
+      slot="picture"
+      taps="loudness"
+      set="wayFar"
+      min={-10}
+      max={5}
+      caption="The loudness of the horn's straight sound at the left microphone, with the microphones far off. The swells are shallow: the axis is tall enough to hold those the lesson starts with."
+    />
+
+    Close microphones give the pulse: every pass of the horn is a beat. Far ones give the wash, since the walls fill in between the passes. Close suits a part that should be noticed, and far suits one that should sit behind others.
+
+  </Way>
+  <Way title="Use one microphone" tag="Spread at nothing" set="wayOne">
+    At Spread 0 both microphones stand in one place and the two sides are the same sound. The pitch and the loudness still move and the lean from side to side is gone. That is the setting for a part that has its own place in a mix, or one that will be heard through a single loudspeaker.
+
+  </Way>
+  <Way title="Push the amplifier" tag="Drive raised" set="wayDrive">
+    The cabinet's amplifier is part of its sound. With Drive up, loud chords thicken and take on an edge, and quiet playing comes up towards them, so the part holds its place without a compressor. The new harmonics are made before the crossover, so most of them go to the horn and are thrown about with the rest.
+
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Five ways it goes wrong, three of them to hear.">
+
+<Faults>
+  <Fault title="Half plain, half turned" set="faultMix">
+    <Still
+      slot="picture"
+      taps="outPicture"
+      set="faultMix"
+      view="spectrogram"
+      top={8000}
+      caption="A steady bright tone with Mix at one half, as a spectrum over time. Dark bands sweep up and down through the harmonics as the horn turns: each is a frequency that the plain sound and the turned one cancel at for that moment."
+    />
+
+    Mix at one half looks like the safe setting, and it makes a flanger. The plain sound and the horn's sound reach the output a fraction of a millisecond apart, and the gap changes as the mouth swings. Two copies of a sound a moment apart cancel at some frequencies, as <Lesson id="chorus-and-flanging" /> shows, and here the cancelled frequencies sweep with the turn. <Claim id="mix-cancels">A tone at 6 kHz with Mix at one half comes out, at its quietest, more than 20 dB under the level it went in at</Claim>. A cabinet in a room has no such control. Use Mix at 1, and if the plain sound is wanted beside it, bring it in on a channel of its own, where a longer gap can be put between the two.
+
+  </Fault>
+  <Fault title="Stopped facing the wall" set="faultBrake">
+    <Still
+      slot="picture"
+      taps="loudness loudnessRight"
+      set="faultBrake"
+      caption="How loud each microphone hears the horn. From the middle of the loop the swells slow down and stop, and the two lines stay where the horn left them."
+    />
+
+    Brake lets the rotors stop wherever they happen to be, and wherever they stop is how the part sounds from then on. On this card <Claim id="brake-parks">the horn comes to rest with the left microphone hearing it 8.0 dB louder than the right</Claim>: it has stopped nearly facing away from the right microphone, which gets the dull back of the horn, and the picture between the loudspeakers leans left until Speed is changed. Ask for Slow and Brake again to try another place, or do not stop it.
+
+  </Fault>
+  <Fault title="A bass that hardly moves" set="faultBass">
+    A bass line through the cabinet comes out almost as it went in. Nearly all of it lies below the crossover and goes to the drum, whose swings are a fraction of the horn's. Raising Drum Depth helps a little. Raising Drive helps more, since the harmonics it adds lie above the crossover and reach the horn.
+
+  </Fault>
+  <Fault title="A wide sound goes in, and one sound comes out">
+    The device adds the two sides of its input into one before it does anything else. A part that was wide comes out with the cabinet's own width and none of its own, and whatever was only in the difference between the sides is gone altogether: <Claim id="sides-cancel">a tone that is the same on both sides but turned over on one comes out as silence</Claim>. Put the cabinet on the single part it is meant for, before any widening, and not across a finished stereo picture.
+
+  </Fault>
+  <Fault title="The rotors stop in a rest">
+    When nothing has come in for a tenth of a second and the output has died away, the device stops working, and its rotors stop with it. <Claim id="sleeps">A tone that stops leaves the horn standing still 0.2 s later</Claim>, and when the next note arrives the horn starts again from where it stood. In a part with long rests the motion therefore does not keep time through the gaps. If that matters, keep some sound going into the cabinet.
+
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Five things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="A rotary speaker is a tremolo.">
+    A tremolo moves the level and nothing else. The horn moves the pitch, the loudness, the tone and the side, each at a different point of the turn. Part 1 plays the level alone beside the whole, and the three rows of part 2's picture never peak together.
+  </Myth>
+  <Myth says="The pitch is highest when the horn points at you.">
+    It is highest a quarter of a turn earlier, while the mouth is coming straight at you. When the horn points at you the pitch is the played pitch and the loudness is at its top. The prediction of part 1 measures it, and the curve of stage 4 in part 5 shows where the delay is steepest.
+  </Myth>
+  <Myth says="Fast is Slow, sped up.">
+    The loudness swings as far at either speed, but the pitch swing grows with the speed: about eight times as far at Fast, as step 4 of part 4 measured. And the two rotors change speed at different paces, so the run between the speeds is a sound that neither speed has.
+  </Myth>
+  <Myth says="The whole sound spins.">
+    Only the part above the crossover goes through the horn. The lows go to a drum that turns the other way, more slowly, with half the swing in level and a small fraction of the swing in pitch. Stage 2 of part 5 shows where the line is drawn, and stage 8 the drum beside the horn.
+  </Myth>
+  <Myth says="Brake stops it.">
+    Brake lets it coast. The horn takes more than a second to come to rest from Slow and the drum more than two, as step 6 of part 4 measured, and from Fast both take longer. And where they stop is left to chance, as the second card of part 7 shows.
+  </Myth>
+</Myths>
+
+</Part>
