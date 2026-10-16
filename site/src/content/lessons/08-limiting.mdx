@@ -21,7 +21,7 @@ files:
 
 A limiter makes a promise: nothing comes out above a level you choose, the *ceiling*. Not on average and not most of the time. Every peak, the first one included.
 
-It is tempting to call that a compressor with its ratio at infinity, and the curve agrees: over the ceiling, the output stops rising. But the curve was never the hard part. The compressor of lesson 7 measured the level over 30 ms and then moved its gain over 10 ms more, so the front of every hit went through before the gain had moved. That suits a device that shapes a sound. It is no good for a promise. A gain that reacts to a peak is late for it.
+It is tempting to call that a compressor with its ratio at infinity, and the curve agrees: over the ceiling, the output stops rising. But the curve was never the hard part. The compressor of lesson 7 measured the level over 30 ms and then moved its gain over 10 ms or more, so the front of every hit went through before the gain had moved. That suits a device that shapes a sound. It is no good for a promise. A gain that reacts to a peak is late for it.
 
 So a limiter needs two things a compressor does not. It has to know the real height of the wave, which is not the height of its samples: between two samples the wave can stand higher than either. And it has to know about a peak before that peak reaches the output, which is only possible if the sound waits. The limiter delays the sound a little and works the gain out from the copy that has not been delayed, so the gain is always a little ahead of what it is applied to.
 
@@ -82,7 +82,7 @@ In decibels that is <M t={String.raw`G = \min(0,\ C - P)`} />: for every decibel
 <Controls ids="ceiling" />
 
 <Curve taps="curve:out curveFormula:ctl" diagonal uprights="ceiling" xTitle="peak in, dB" yTitle="peak out, dB" min={-24} max={12} height={300}>
-  Peak out against peak in. The dots are measured: the lab plays a steady 1 kHz tone at each level through a second copy of the device and reads the highest sample that comes out. The dashed line through them is the formula, and the grey diagonal is no change. Lesson 7's curve bent; this one has a corner, and it sits on the ceiling.
+  Peak out against peak in. The red line is measured: the lab plays a steady 1 kHz tone at each level through a second copy of the device and reads the highest sample that comes out. The dashed line on top of it is the formula, and the grey diagonal is no change. Lesson 7's curve bent; this one has a corner, and it sits on the ceiling.
 </Curve>
 
 <Check id="curveError" />
@@ -93,7 +93,7 @@ A tone 12 dB over the ceiling comes out <Claim id="at-the-ceiling">at the ceilin
 
 If the gain were simply <M t={String.raw`g_{\text{req}}`} />, it would dive and spring back inside every cycle, flattening each crest and leaving the rest alone. That is a clipper, and it adds harmonics to everything it touches. So the gain is allowed to fall at once and made to come back slowly:
 
-<M block t={String.raw`r[n] = \min\Bigl(g_{\text{req}}[n],\ \ r[n-1] + k\,\bigl(1 - r[n-1]\bigr)\Bigr), \qquad k = 1 - e^{-1/(\tau f_s)}`} />
+<M block t={String.raw`\begin{gathered} r[n] = \min\bigl(g_{\text{req}}[n],\; r[n-1] + k\,(1 - r[n-1])\bigr) \\[4pt] k = 1 - e^{-1/(\tau f_s)} \end{gathered}`} />
 
 The second term is the one-pole smoother of lesson 7 heading for 1, no reduction: each sample it closes the fraction <M t="k" /> of the distance left. <M t={String.raw`\tau`} /> is the Release control and <M t="f_s" /> the sample rate. The <M t={String.raw`\min`} /> is the fall: when a new peak asks for less gain than the recovering value, the value drops to it in one sample. Unlike the compressor, this smoother works on the gain itself, not on decibels, and it runs on every sample, not on a control clock.
 
