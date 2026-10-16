@@ -1,12 +1,22 @@
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import type { Lab, RenderResult } from '../../src/lab/runner.ts'
+import { readSettings, resolveSet } from '../../src/lib/settings.ts'
 import {
   benchSource,
   click,
   differenceDb,
+  expectBuild,
   expectSoundLab,
+  expectWritten,
   gainToDb,
   lab,
+  matchesWritten,
   peak,
+  POINT_RATE,
+  points,
+  range,
   RATE,
   rms,
   seconds,
@@ -103,37 +113,263 @@ function lowestAt(x: Float32Array, width: number): number {
   return outline(x, width, 8).reduce((a, b) => (b.top < a.top ? b : a)).at
 }
 
+/** How much the lab's own spectrum of a tap of its last render holds from `lo` to `hi` hertz, in dB. */
+function band(shifter: Lab, tap: string, lo: number, hi: number): number {
+  const spectrum = shifter.spectrum(tap)
+  let sum = 0
+  for (let k = 0; k < spectrum.length; k += 1) {
+    const hz = (k * RATE) / 4096
+    if (hz >= lo && hz < hi) sum += 10 ** (spectrum[k]! / 10)
+  }
+  return 10 * Math.log10(Math.max(sum, 1e-20))
+}
+
+const first = (result: RenderResult, id: string) => result.taps[id]!.channels_data[0]!
+
+/** The lesson's named settings, as the page's cards read them. */
+const settings = readSettings(NAME)!
+
+/** A named set as its card plays it: on its own source, with `over` laid on its values. */
+async function played(shifter: Lab, name: string, over: Record<string, number> = {}) {
+  const set = settings.sets[name]
+  if (!set) throw new Error(`The lesson has no set called ${name}`)
+  const { values, source } = resolveSet(shifter.description, set)
+  return shifter.render(await benchSource(source!, seconds(4)), { ...values, ...over })
+}
+
+/** The step of the build path at which each piece first runs. */
+const STEP = { wire: 0, pair: 1, carrier: 2, sideBand: 3, feedback: 4, mix: 5 }
+
 describe('frequency shifting', () => {
-  it('is a sound lab on the sine: every tap says something, loops, and answers to every control', async () => {
+  it('is a sound lab on the saw: every tap says something, loops, and answers to every control', async () => {
+    const shifter = await lab(NAME)
+    const source = await benchSource('saw', seconds(4))
+    const result = shifter.render(source, {})
+    // With the LFO's depth at zero the shift in force is one flat value.
+    expectSoundLab(shifter, source, result, { quiet: ['shiftNow'] })
+  })
+
+  it('has a build part: six steps, each changing a built tap and none the main path, the last held to the device', async () => {
+    const shifter = await lab(NAME)
+    const source = await benchSource('saw', seconds(4))
+    // Feedback, Mix and Width start where their pieces do nothing to the sound.
+    expectBuild(shifter, source, { feedback: 0.5, mix: 0.5, width: 0.5 })
+  })
+
+  // ---- Part 1: the note, and the three ways of moving its partials ------------------------
+
+  it("finds the saw's first four partials at 110, 220, 330 and 440 Hz (claim saw-in)", async () => {
+    const saw = await benchSource('saw', seconds(4))
+    for (const hz of [110, 220, 330]) expect(strongest(saw.left, hz - 40, hz + 40)).toBe(hz)
+    expectWritten(strongest(saw.left, 400, 480), '440 Hz')
+  })
+
+  it('played faster by the ratio that takes 110 Hz to 160 Hz, puts the four partials at 160, 320, 480 and 640 Hz, each at the level it had (claim pitched-lines)', async () => {
+    const shifter = await lab(NAME)
+    const saw = await benchSource('saw', seconds(4))
+    const pitched = first(await played(shifter, 'faster'), 'pitched')
+    for (const k of [1, 2, 3]) expect(strongest(pitched, 160 * k - 30, 160 * k + 30)).toBe(160 * k)
+    expectWritten(strongest(pitched, 610, 670), '640 Hz')
+    for (const k of [1, 2, 3, 4]) {
+      expect(Math.abs(tone(pitched, 160 * k).db - tone(saw.left, 110 * k).db)).toBeLessThan(0.01)
+    }
+  })
+
+  it("times a cosine at 50 Hz, splits the saw's lowest partial into lines at 60 Hz and 160 Hz, each 6.0 dB under it (claim ring-saw)", async () => {
+    const shifter = await lab(NAME)
+    const saw = await benchSource('saw', seconds(4))
+    const ring = first(await played(shifter, 'ringed'), 'ring')
+    const went = tone(saw.left, 110).db
+    expectWritten(strongest(ring, 30, 100), '60 Hz')
+    expectWritten(strongest(ring, 130, 165), '160 Hz')
+    expectWritten(went - tone(ring, 60).db, '6.0 dB')
+    expectWritten(went - tone(ring, 160).db, '6.0 dB')
+    // And the line itself is gone.
+    expect(went - tone(ring, 110).db).toBeGreaterThan(90)
+  })
+
+  it("with Shift at 50 Hz, moves the saw's partials from 110, 220, 330 and 440 Hz to 160, 270, 380 and 490 Hz, each at its own level (claim saw-partials)", async () => {
+    const shifter = await lab(NAME)
+    const saw = await benchSource('saw', seconds(4))
+    const out = first(await played(shifter, 'shifted'), 'out')
+    for (const partial of [110, 220, 330]) {
+      expect(strongest(out, partial + 20, partial + 80)).toBe(partial + 50)
+    }
+    expectWritten(strongest(out, 460, 520), '490 Hz')
+    for (const partial of [110, 220, 330, 440]) {
+      expect(Math.abs(tone(out, partial + 50).db - tone(saw.left, partial).db)).toBeLessThan(0.01)
+    }
+  })
+
+  it('shifted by its own 110 Hz, the saw has lines at 220, 330 and 440 Hz, each at the level of the partial below, and what is left at 110 Hz is more than 70 dB under the line at 220 Hz (claim whole-note)', async () => {
+    const shifter = await lab(NAME)
+    const saw = await benchSource('saw', seconds(4))
+    const whole = first(await played(shifter, 'whole'), 'out')
+    expect(strongest(whole, 180, 260)).toBe(220)
+    expect(strongest(whole, 290, 370)).toBe(330)
+    expectWritten(strongest(whole, 400, 480), '440 Hz')
+    for (const hz of [220, 330, 440]) {
+      expect(Math.abs(tone(whole, hz).db - tone(saw.left, hz - 110).db)).toBeLessThan(0.05)
+    }
+    expectWritten(tone(whole, 220).db - tone(whole, 110).db, 'more than 70 dB')
+  })
+
+  // ---- Part 2: the ruler -----------------------------------------------------------------
+
+  it("at the starting settings puts the saw's first four lines at 210, 320, 430 and 540 Hz on the ruler, and the lines of the faster copy at 210, 420 and 630 Hz (claim ruler-reads)", async () => {
+    const shifter = await lab(NAME)
+    const saw = await benchSource('saw', seconds(4))
+    const result = shifter.render(saw, {})
+    const out = first(result, 'out')
+    for (const hz of [210, 320, 430]) expect(strongest(out, hz - 30, hz + 30)).toBe(hz)
+    expectWritten(strongest(out, 510, 570), '540 Hz')
+    const pitched = first(result, 'pitched')
+    for (const hz of [210, 420]) expect(strongest(pitched, hz - 30, hz + 30)).toBe(hz)
+    expectWritten(strongest(pitched, 600, 660), '630 Hz')
+    // The ruler's own points: its tallest point within 30 Hz of each line is within one point of it.
+    const ruler = result.taps.rulerOut!
+    const ys = ruler.channels_data[0]!
+    const step = (ruler.x1 - ruler.x0) / (ys.length - 1)
+    for (const hz of [210, 320, 430, 540]) {
+      let best = Math.round((hz - 30) / step)
+      for (let p = best; p <= Math.round((hz + 30) / step); p += 1) if (ys[p]! > ys[best]!) best = p
+      expect(Math.abs(best * step - hz)).toBeLessThanOrEqual(step)
+    }
+  })
+
+  // ---- Part 4: the build, a piece at a time ----------------------------------------------
+
+  it('with the pair in, runs the first copy of a 440 Hz sine 78.5° behind it and the second 0.34° short of a quarter turn ahead of the first, each less than 0.001 dB from the level of the sine; without the pair there is no second copy and the first is the sine (claim build-pair)', async () => {
     const shifter = await lab(NAME)
     const source = await benchSource('sine', seconds(4))
-    const result = shifter.render(source, {})
-    expectSoundLab(shifter, source, result)
+    const went = tone(source.left, 440)
+    const measure = (build: number) => {
+      const taps = shifter.render(source, { build }).taps
+      const one = tone(taps.built!.channels_data[0]!, 440)
+      const two = tone(taps.builtQuadrature!.channels_data[0]!, 440)
+      return {
+        behind: -turn(one.degrees - went.degrees),
+        ahead: turn(two.degrees - one.degrees),
+        first: Math.abs(one.db - went.db),
+        second: Math.abs(two.db - went.db),
+      }
+    }
+    const withPair = measure(STEP.pair)
+    expectWritten(withPair.behind, '78.5°')
+    expectWritten(90 - withPair.ahead, '0.34°')
+    expectWritten(withPair.first, 'less than 0.001 dB')
+    expectWritten(withPair.second, 'less than 0.001 dB')
+    const without = measure(STEP.wire)
+    expect(matchesWritten(without.behind, '78.5°')).toBe(false)
+    expect(matchesWritten(without.second, 'less than 0.001 dB')).toBe(false)
   })
 
-  it('moves a 1 kHz sine to 1.1 kHz at the level it went in at (claim shift-1k), with the copy at 900 Hz 49.0 dB below (claim image-1k)', async () => {
+  it('with the carrier in and Shift at 100 Hz, turns the 440 Hz sine into lines at 340 Hz and 540 Hz, each 6.0 dB under it; without the carrier there is nothing at either (claim build-carrier)', async () => {
     const shifter = await lab(NAME)
-    const source = sine(1000, 0.5, seconds(2))
-    const out = shifter.render(source, { shift: 100 }).taps.out!.channels_data[0]!
-    expect(strongest(out, 800, 1300)).toBe(1100)
-    expect(tone(out, 1100).db - tone(source.left, 1000).db).toBeCloseTo(0, 2)
-    const image = tone(out, 1100).db - tone(out, 900).db
-    expect(image).toBeGreaterThan(48.5)
-    expect(image).toBeLessThan(49.5)
+    const source = await benchSource('sine', seconds(4))
+    const went = tone(source.left, 440).db
+    const under = (build: number, hz: number) =>
+      went - tone(shifter.render(source, { build }).taps.built!.channels_data[0]!, hz).db
+    const built = shifter.render(source, { build: STEP.carrier }).taps.built!.channels_data[0]!
+    expectWritten(strongest(built, 250, 430), '340 Hz')
+    expectWritten(strongest(built, 450, 650), '540 Hz')
+    for (const hz of [340, 540]) {
+      expectWritten(under(STEP.carrier, hz), '6.0 dB')
+      expect(matchesWritten(under(STEP.pair, hz), '6.0 dB')).toBe(false)
+    }
+    // The tone itself is gone from the product.
+    expect(under(STEP.carrier, 440)).toBeGreaterThan(120)
   })
 
-  it('keeps the quadrature output 90° ahead of the in-phase one, within 0.71°, from 22 Hz to 23,978 Hz (claim quarter-turn)', async () => {
+  it('with the two products added and Shift at 100 Hz, leaves the line of the 440 Hz sine at 340 Hz 50.5 dB under its line at 540 Hz, which stands 0.0 dB from the sine; with one product alone the two lines are level (claim build-sideband)', async () => {
+    const shifter = await lab(NAME)
+    const source = await benchSource('sine', seconds(4))
+    const went = tone(source.left, 440).db
+    const lines = (build: number) => {
+      const built = shifter.render(source, { build }).taps.built!.channels_data[0]!
+      return { apart: tone(built, 540).db - tone(built, 340).db, kept: tone(built, 540).db - went }
+    }
+    const added = lines(STEP.sideBand)
+    expectWritten(added.apart, '50.5 dB')
+    expectWritten(added.kept, '0.0 dB')
+    const one = lines(STEP.carrier)
+    expect(matchesWritten(one.apart, '50.5 dB')).toBe(false)
+    expect(matchesWritten(one.kept, '0.0 dB')).toBe(false)
+  })
+
+  it('with the feedback path in and Feedback at 0.5, adds to the 440 Hz sine shifted by 100 Hz a line at 640 Hz, 6.06 dB under the line at 540 Hz; without the path there is nothing at 640 Hz (claim build-feedback)', async () => {
+    const shifter = await lab(NAME)
+    const source = await benchSource('sine', seconds(4))
+    const under = (build: number) => {
+      const built = shifter.render(source, { build, feedback: 0.5 }).taps.built!.channels_data[0]!
+      return tone(built, 540).db - tone(built, 640).db
+    }
+    expectWritten(under(STEP.feedback), '6.06 dB')
+    expect(matchesWritten(under(STEP.sideBand), '6.06 dB')).toBe(false)
+    expect(under(STEP.sideBand)).toBeGreaterThan(120)
+  })
+
+  it('with the mix in and Mix at 0.5, brings the 440 Hz sine back at 440 Hz, 3.0 dB under what went in, beside the shifted line at 540 Hz, 3.0 dB under too; without the mix there is nothing at 440 Hz (claim build-mix)', async () => {
+    const shifter = await lab(NAME)
+    const source = await benchSource('sine', seconds(4))
+    const went = tone(source.left, 440).db
+    const under = (build: number, hz: number) =>
+      went - tone(shifter.render(source, { build, mix: 0.5 }).taps.built!.channels_data[0]!, hz).db
+    expectWritten(under(STEP.mix, 440), '3.0 dB')
+    expectWritten(under(STEP.mix, 540), '3.0 dB')
+    expect(matchesWritten(under(STEP.feedback, 440), '3.0 dB')).toBe(false)
+    expect(matchesWritten(under(STEP.feedback, 540), '3.0 dB')).toBe(false)
+  })
+
+  it("with all six pieces is the device's own output, to −140 dB, the floor of the measure, on every loop, in every mode and with every control turned (claim build-same)", async () => {
+    const shifter = await lab(NAME)
+    const tried: Record<string, number>[] = [
+      {},
+      { mode: 1 },
+      { mode: 2, width: 1 },
+      { mode: 3, shift: 0, feedback: 0.98 },
+      { shift: 0, fine: 1.5, feedback: 0.85, delay: 12, tone: 7000, width: 1, mix: 0.5 },
+      { feedback: 0.98, lfoDepth: 1, lfoRate: 3, width: 0.6, mix: 0.5, delay: 500, tone: 200 },
+    ]
+    for (const id of ['saw', 'sine', 'chords', 'guitar', 'pad', 'drums', 'bass', 'mix', 'noise']) {
+      const source = await benchSource(id, seconds(4))
+      for (const values of tried) {
+        const { checks } = shifter.render(source, { ...values, build: STEP.wire })
+        expectWritten(checks.builtDifference!, 'at most −140 dB')
+      }
+    }
+    // A sound with gaps longer than the device stays awake for: the build rests with it.
+    const struck = shifter.render(click(seconds(4), 100), { feedback: 0.9, delay: 400 })
+    expectWritten(struck.checks.builtDifference!, 'at most −140 dB')
+    expect(peak(struck.taps.built!.channels_data[0]!)).toBeGreaterThan(0.5)
+  })
+
+  // ---- Part 5: the device, stage by stage -------------------------------------------------
+
+  it('with a carrier at 100 Hz, splits the 440 Hz sine into lines at 340 Hz and 540 Hz, each 6.0 dB under it (claim ring-halves), and leaves what is at 440 Hz more than 120 dB down (claim ring-original-gone)', async () => {
+    const shifter = await lab(NAME)
+    const source = await benchSource('sine', seconds(4))
+    const ring = shifter.render(source, {}).taps.ring!.channels_data[0]!
+    const went = tone(source.left, 440).db
+    expect(strongest(ring, 250, 430)).toBe(340)
+    expect(strongest(ring, 450, 650)).toBe(540)
+    expectWritten(went - tone(ring, 340).db, '6.0 dB')
+    expectWritten(went - tone(ring, 540).db, '6.0 dB')
+    expectWritten(went - tone(ring, 440).db, 'more than 120 dB')
+  })
+
+  it('keeps the quadrature output a quarter turn ahead of the in-phase one, less than 0.71° out, from 22 Hz to 23,978 Hz (claim quarter-turn)', async () => {
     const shifter = await lab(NAME)
     // The lab's own search of the band, from the impulse responses of the kit's pair.
-    const first = shifter.render(sine(1000, 0.5, seconds(0.5)), {})
-    expect(first.checks.quarterError).toBeLessThan(0.71)
-    expect(first.checks.quarterError).toBeGreaterThan(0.69)
+    const start = shifter.render(sine(1000, 0.5, seconds(0.5)), {})
+    expectWritten(start.checks.quarterError!, 'less than 0.71°')
+    expect(start.checks.quarterError).toBeGreaterThan(0.69)
     // The curve the page draws: every point of it inside the band.
-    const curve = first.taps.phaseDifference!
+    const curve = start.taps.phaseDifference!
     const ahead = curve.channels_data[0]!
     for (let p = 0; p < ahead.length; p += 1) {
       const hz = curve.x0 * Math.pow(curve.x1 / curve.x0, p / (ahead.length - 1))
-      if (hz >= 22) expect(Math.abs(ahead[p]! - 90)).toBeLessThan(0.71)
+      if (hz >= 22) expectWritten(Math.abs(ahead[p]! - 90), 'less than 0.71°')
     }
     // And the device's own pair as it runs, with a sine at the band's ends and the ripple's crests.
     for (const hz of [22, 30.2, 62, 1000, 8863, 15_200, 23_734, 23_978]) {
@@ -149,49 +385,9 @@ describe('frequency shifting', () => {
     const taps = shifter.render(sine(20, 0.5, seconds(4)), { shift: 100 }).taps
     const i = tone(taps.inPhase!.channels_data[0]!, 20).degrees
     const q = tone(taps.quadrature!.channels_data[0]!, 20).degrees
-    expect(Math.abs(turn(q - i) - 90)).toBeGreaterThan(1.55)
-    expect(Math.abs(turn(q - i) - 90)).toBeLessThan(1.75)
+    expectWritten(Math.abs(turn(q - i) - 90), '1.6°')
     const out = taps.out!.channels_data[0]!
-    const image = tone(out, 120).db - tone(out, 80).db
-    expect(image).toBeGreaterThan(36.5)
-    expect(image).toBeLessThan(37.5)
-  })
-
-  it('leaves the cancelled copy 44.2 dB down at the crests of the ripple, its worst in the band (claim image-worst)', async () => {
-    const shifter = await lab(NAME)
-    for (const hz of [30.2, 62, 330.6, 8863, 15_200]) {
-      const out = shifter.render(sine(hz, 0.5, seconds(4)), { shift: 100 }).taps.out!
-      const image =
-        tone(out.channels_data[0]!, hz + 100).db -
-        tone(out.channels_data[0]!, Math.abs(hz - 100)).db
-      expect(image, `at ${hz} Hz`).toBeGreaterThan(44.1)
-      expect(image, `at ${hz} Hz`).toBeLessThan(44.4)
-    }
-  })
-
-  it('splits the 440 Hz sine into lines at 340 and 540 Hz, each 6.0 dB under it (claim ring-halves), and leaves nothing at 440 Hz (claim ring-original-gone)', async () => {
-    const shifter = await lab(NAME)
-    const source = await benchSource('sine', seconds(4))
-    const ring = shifter.render(source, {}).taps.ring!.channels_data[0]!
-    const went = tone(source.left, 440).db
-    expect(strongest(ring, 250, 430)).toBe(340)
-    expect(strongest(ring, 450, 650)).toBe(540)
-    expect(tone(ring, 340).db - went).toBeCloseTo(-6.02, 1)
-    expect(tone(ring, 540).db - went).toBeCloseTo(-6.02, 1)
-    expect(tone(ring, 440).db - went).toBeLessThan(-120)
-  })
-
-  it("passes each of the saw's first twenty harmonics through both chains within 0.001 dB (claim same-level)", async () => {
-    const shifter = await lab(NAME)
-    const saw = await benchSource('saw', seconds(4))
-    const taps = shifter.render(saw, {}).taps
-    for (let k = 1; k <= 20; k += 1) {
-      const went = tone(saw.left, 110 * k).db
-      const first = tone(taps.inPhase!.channels_data[0]!, 110 * k).db
-      const second = tone(taps.quadrature!.channels_data[0]!, 110 * k).db
-      expect(Math.abs(first - went)).toBeLessThan(0.001)
-      expect(Math.abs(second - went)).toBeLessThan(0.001)
-    }
+    expectWritten(tone(out, 120).db - tone(out, 80).db, '37 dB')
   })
 
   it('runs the in-phase output a turn and 78.5° behind the input at 440 Hz (claim lag-440)', async () => {
@@ -201,51 +397,22 @@ describe('frequency shifting', () => {
     const behind = turn(
       tone(taps.inPhase!.channels_data[0]!, 440).degrees - tone(source.left, 440).degrees,
     )
-    expect(behind).toBeCloseTo(-78.5, 0)
+    expectWritten(-behind, '78.5°')
     // The whole turn is in the curve, which follows the phase down from 5 Hz without a jump.
     expect(Math.abs(curveAt(taps.phaseI!, 440) - (behind - 360))).toBeLessThan(1)
   })
 
-  it("works the chosen side band out again from the device's pair and carrier, to the floor of the measure (claim rebuilt-exact)", async () => {
+  it("passes each of the saw's first twenty harmonics through both chains less than 0.001 dB from the level it went in at (claim same-level)", async () => {
     const shifter = await lab(NAME)
-    const chords = await benchSource('chords', seconds(4))
-    const settings: Record<string, number>[] = [
-      {},
-      { mode: 1 },
-      { mode: 2 },
-      { mode: 3 },
-      { shift: 0, fine: 1.5, feedback: 0.9, delay: 12, mix: 0.5 },
-      { feedback: 0.98, lfoDepth: 1, width: 1 },
-    ]
-    for (const values of settings) {
-      expect(shifter.render(chords, values).checks.rebuilt, JSON.stringify(values)).toBe(-140)
+    const saw = await benchSource('saw', seconds(4))
+    const taps = shifter.render(saw, {}).taps
+    for (let k = 1; k <= 20; k += 1) {
+      const went = tone(saw.left, 110 * k).db
+      const one = tone(taps.inPhase!.channels_data[0]!, 110 * k).db
+      const two = tone(taps.quadrature!.channels_data[0]!, 110 * k).db
+      expectWritten(Math.abs(one - went), 'less than 0.001 dB')
+      expectWritten(Math.abs(two - went), 'less than 0.001 dB')
     }
-  })
-
-  it('gives the same output for Down at +100 Hz as for Up at −100 Hz, to 130 dB (claim down-is-negative)', async () => {
-    const shifter = await lab(NAME)
-    const source = sine(1000, 0.5, seconds(2))
-    const down = shifter.render(source, { shift: 100, mode: 1 }).taps.out!.channels_data[0]!
-    const negative = shifter.render(source, { shift: -100 }).taps.out!.channels_data[0]!
-    expect(strongest(down, 800, 1300)).toBe(900)
-    expect(differenceDb(down, negative)).toBeLessThan(-130)
-  })
-
-  it('in Stereo sends the sine out at 540 Hz on the left and 340 Hz on the right (claim stereo-split)', async () => {
-    const shifter = await lab(NAME)
-    const source = await benchSource('sine', seconds(4))
-    const out = shifter.render(source, { mode: 2 }).taps.out!
-    expect(strongest(out.channels_data[0]!, 250, 650)).toBe(540)
-    expect(strongest(out.channels_data[1]!, 250, 650)).toBe(340)
-  })
-
-  it('in Ring puts both side bands out 3.0 dB under the input (claim ring-mode)', async () => {
-    const shifter = await lab(NAME)
-    const source = sine(1000, 0.5, seconds(2))
-    const out = shifter.render(source, { shift: 100, mode: 3 }).taps.out!.channels_data[0]!
-    const went = tone(source.left, 1000).db
-    expect(tone(out, 900).db - went).toBeCloseTo(-3.01, 1)
-    expect(tone(out, 1100).db - went).toBeCloseTo(-3.01, 1)
   })
 
   it('with Width at 1 and Mode on Up puts the right output 90.0° ahead of the left (claim width-quarter)', async () => {
@@ -254,7 +421,7 @@ describe('frequency shifting', () => {
       const out = shifter.render(sine(hz, 0.5, seconds(2)), { width: 1 }).taps.out!
       const left = tone(out.channels_data[0]!, hz + 100)
       const right = tone(out.channels_data[1]!, hz + 100)
-      expect(turn(right.degrees - left.degrees)).toBeCloseTo(90, 1)
+      expectWritten(turn(right.degrees - left.degrees), '90.0°')
       expect(right.db - left.db).toBeCloseTo(0, 3)
     }
     // Half the width is half the turn.
@@ -264,21 +431,90 @@ describe('frequency shifting', () => {
     expect(turn(ahead)).toBeCloseTo(45, 1)
   })
 
-  it("moves the saw's partials from 110, 220, 330 and 440 Hz to 160, 270, 380 and 490 Hz, each at its own level (claim saw-partials)", async () => {
+  it('with Width at 1, a shift of 1 Hz and Mix at 0.5, brings the quiet moment of the right side 0.25 s before that of the left; with Width at 0 they fall together (claim width-travels)', async () => {
     const shifter = await lab(NAME)
-    const saw = await benchSource('saw', seconds(4))
-    const out = shifter.render(saw, { shift: 50 }).taps.out!.channels_data[0]!
-    for (const partial of [110, 220, 330, 440]) {
-      expect(strongest(out, partial + 20, partial + 80)).toBe(partial + 50)
-      expect(tone(out, partial + 50).db - tone(saw.left, partial).db).toBeCloseTo(0, 2)
+    const source = await benchSource('sine', seconds(4))
+    // When, in each second of the loop, a side's level is lowest.
+    const quiet = (level: Float32Array) =>
+      [0, 1, 2, 3].map((second) => {
+        let at = points(second)
+        for (let k = at; k < points(second + 1); k += 1) if (level[k]! < level[at]!) at = k
+        return at / POINT_RATE
+      })
+    const apart = (width: number) => {
+      const taps = shifter.render(source, { shift: 0, fine: 1, mix: 0.5, width }).taps
+      const left = quiet(taps.levelLeft!.channels_data[0]!)
+      const right = quiet(taps.levelRight!.channels_data[0]!)
+      return left.map((at, k) => at - right[k]!)
     }
-    // Shifted by its own fundamental, the saw is a harmonic series again, with no fundamental.
-    const whole = shifter.render(saw, { shift: 110 }).taps.out!.channels_data[0]!
-    expect(strongest(whole, 180, 260)).toBe(220)
-    expect(tone(whole, 110).db).toBeLessThan(tone(whole, 220).db - 60)
+    for (const gap of apart(1)) expectWritten(gap, '0.25 s')
+    for (const gap of apart(0)) expect(matchesWritten(gap, '0.25 s')).toBe(false)
   })
 
-  it('mixed half and half at a shift of 1 Hz, swells 3.0 dB over the sine (claim beat-crest) and dies 40 dB under it (claim beat-null), once a second (claim beat-rate)', async () => {
+  it("works the chosen sideband out again from the device's pair and carrier, at least 140 dB under it, the floor of the measure (claim rebuilt-exact)", async () => {
+    const shifter = await lab(NAME)
+    const chords = await benchSource('chords', seconds(4))
+    const tried: Record<string, number>[] = [
+      {},
+      { mode: 1 },
+      { mode: 2 },
+      { mode: 3 },
+      { shift: 0, fine: 1.5, feedback: 0.9, delay: 12, mix: 0.5 },
+      { feedback: 0.98, lfoDepth: 1, width: 1 },
+    ]
+    for (const values of tried) {
+      expectWritten(-shifter.render(chords, values).checks.rebuilt!, 'at least 140 dB')
+    }
+  })
+
+  it('shifted by 100 Hz, moves a 1 kHz sine to 1.1 kHz, less than 0.01 dB from the level it went in at (claim shift-1k), with the copy at 900 Hz 49.0 dB below (claim image-1k)', async () => {
+    const shifter = await lab(NAME)
+    const source = sine(1000, 0.5, seconds(2))
+    const out = shifter.render(source, { shift: 100 }).taps.out!.channels_data[0]!
+    expectWritten(strongest(out, 800, 1300) / 1000, '1.1 kHz')
+    expectWritten(Math.abs(tone(out, 1100).db - tone(source.left, 1000).db), 'less than 0.01 dB')
+    expectWritten(tone(out, 1100).db - tone(out, 900).db, '49.0 dB')
+  })
+
+  it('leaves the cancelled copy at least 44.2 dB down at the crests of the ripple, its worst in the band (claim image-worst)', async () => {
+    const shifter = await lab(NAME)
+    for (const hz of [30.2, 62, 330.6, 8863, 15_200]) {
+      const out = shifter.render(sine(hz, 0.5, seconds(4)), { shift: 100 }).taps.out!
+      const image =
+        tone(out.channels_data[0]!, hz + 100).db -
+        tone(out.channels_data[0]!, Math.abs(hz - 100)).db
+      expectWritten(image, 'at least 44.2 dB')
+      expect(image, `at ${hz} Hz`).toBeLessThan(44.3)
+    }
+  })
+
+  it('gives the same output for Down at +100 Hz as for Up at −100 Hz, the two more than 130 dB apart (claim down-is-negative)', async () => {
+    const shifter = await lab(NAME)
+    const source = sine(1000, 0.5, seconds(2))
+    const down = shifter.render(source, { shift: 100, mode: 1 }).taps.out!.channels_data[0]!
+    const negative = shifter.render(source, { shift: -100 }).taps.out!.channels_data[0]!
+    expect(strongest(down, 800, 1300)).toBe(900)
+    expectWritten(-differenceDb(down, negative), 'more than 130 dB')
+  })
+
+  it('in Stereo, shifted by 100 Hz, sends the 440 Hz sine out at 540 Hz on the left and 340 Hz on the right (claim stereo-split)', async () => {
+    const shifter = await lab(NAME)
+    const source = await benchSource('sine', seconds(4))
+    const out = shifter.render(source, { mode: 2 }).taps.out!
+    expectWritten(strongest(out.channels_data[0]!, 250, 650), '540 Hz')
+    expectWritten(strongest(out.channels_data[1]!, 250, 650), '340 Hz')
+  })
+
+  it('in Ring puts both sidebands of a 1 kHz sine out 3.0 dB under the input (claim ring-mode)', async () => {
+    const shifter = await lab(NAME)
+    const source = sine(1000, 0.5, seconds(2))
+    const out = shifter.render(source, { shift: 100, mode: 3 }).taps.out!.channels_data[0]!
+    const went = tone(source.left, 1000).db
+    expectWritten(went - tone(out, 900).db, '3.0 dB')
+    expectWritten(went - tone(out, 1100).db, '3.0 dB')
+  })
+
+  it('with Shift at 0, Fine at 1 Hz and Mix at 0.5, swells 3.0 dB over the sine (claim beat-crest) and dies more than 40 dB under it (claim beat-null), once a second (claim beat-rate)', async () => {
     const shifter = await lab(NAME)
     const source = await benchSource('sine', seconds(4))
     const out = shifter.render(source, { shift: 0, fine: 1, mix: 0.5 }).taps.out!.channels_data[0]!
@@ -287,8 +523,8 @@ describe('frequency shifting', () => {
     const went = peak(source.left)
     const crest = Math.max(...shape.map((one) => one.top))
     const trough = Math.min(...shape.map((one) => one.top))
-    expect(gainToDb(crest / went)).toBeCloseTo(3.01, 1)
-    expect(gainToDb(trough / went)).toBeLessThan(-40)
+    expectWritten(gainToDb(crest / went), '3.0 dB')
+    expectWritten(-gainToDb(trough / went), 'more than 40 dB')
     // The first instant of each stretch where the outline is under a hundredth of the input.
     const quiet = shape.filter((one) => one.top < went * 0.01).map((one) => one.at)
     const nulls = quiet.filter((at, k) => k === 0 || at - quiet[k - 1]! > 0.1)
@@ -298,41 +534,151 @@ describe('frequency shifting', () => {
 
   it('at a shift of zero, mixed half and half, cancels a tone at 1,168 Hz by more than 60 dB (claim still-notch)', async () => {
     const shifter = await lab(NAME)
-    const first = shifter.render(sine(1168, 0.5, seconds(2)), { shift: 0, mix: 0.5 })
+    const start = shifter.render(sine(1168, 0.5, seconds(2)), { shift: 0, mix: 0.5 })
     // The in-phase chain is a turn and a half behind there.
-    expect(Math.abs(curveAt(first.taps.phaseI!, 1168) + 540)).toBeLessThan(1)
-    const out = first.taps.out!.channels_data[0]!
-    const went = first.taps.in!.channels_data[0]!
-    expect(gainToDb(rms(out) / rms(went))).toBeLessThan(-60)
+    expect(Math.abs(curveAt(start.taps.phaseI!, 1168) + 540)).toBeLessThan(1)
+    const out = start.taps.out!.channels_data[0]!
+    const went = start.taps.in!.channels_data[0]!
+    expectWritten(-gainToDb(rms(out) / rms(went)), 'more than 60 dB')
   })
 
   it('at a shift of 0.5 Hz up, moves the notch from 1,168 Hz to 2 kHz in 0.32 s and to 4 kHz in 0.73 s (claim notch-climbs)', async () => {
     const shifter = await lab(NAME)
-    const settings = { shift: 0, fine: 0.5, mix: 0.5 }
+    const values = { shift: 0, fine: 0.5, mix: 0.5 }
     // When a tone is at its quietest in the two seconds, one beat, from `from`.
-    const nullAt = (hz: number, values: Record<string, number>, from: number) => {
-      const out = shifter.render(sine(hz, 0.25, seconds(4)), values).taps.out!.channels_data[0]!
+    const nullAt = (hz: number, over: Record<string, number>, from: number) => {
+      const out = shifter.render(sine(hz, 0.25, seconds(4)), over).taps.out!.channels_data[0]!
       return from + lowestAt(out.subarray(from * RATE, (from + 2) * RATE), 48)
     }
-    const start = nullAt(1168, settings, 1)
+    const start = nullAt(1168, values, 1)
     expect(start).toBeCloseTo(2, 2)
-    expect(nullAt(2000, settings, 1.5) - start).toBeCloseTo(0.32, 2)
-    expect(nullAt(4000, settings, 1.5) - start).toBeCloseTo(0.73, 2)
+    expectWritten(nullAt(2000, values, 1.5) - start, '0.32 s')
+    expectWritten(nullAt(4000, values, 1.5) - start, '0.73 s')
     // Down, the notch is at 2 kHz before it is at 1,168 Hz.
-    const down = { ...settings, mode: 1 }
-    expect(nullAt(1168, down, 1) - nullAt(2000, down, 0.5)).toBeCloseTo(0.32, 2)
+    const down = { ...values, mode: 1 }
+    expectWritten(nullAt(1168, down, 1) - nullAt(2000, down, 0.5), '0.32 s')
   })
 
-  it('at a feedback of 0.5 stacks lines at 540, 640, 740 and 840 Hz, each about 6.1 dB under the last (claim feedback-steps)', async () => {
+  it('with Feedback at 0.5, stacks on the 440 Hz sine shifted by 100 Hz lines at 540, 640, 740 and 840 Hz, each under the last, by 6.06 dB, then 6.08 dB, then 6.11 dB (claim feedback-steps)', async () => {
     const shifter = await lab(NAME)
     const source = await benchSource('sine', seconds(4))
     const out = shifter.render(source, { feedback: 0.5 }).taps.out!.channels_data[0]!
     const levels = [540, 640, 740, 840].map((hz) => tone(out, hz).db)
     expect(levels[0]! - tone(source.left, 440).db).toBeCloseTo(0, 1)
-    for (let k = 1; k < levels.length; k += 1) {
-      expect(levels[k - 1]! - levels[k]!).toBeGreaterThan(6.02)
-      expect(levels[k - 1]! - levels[k]!).toBeLessThan(6.15)
+    const written = ['6.06 dB', '6.08 dB', '6.11 dB']
+    for (let k = 1; k < levels.length; k += 1)
+      expectWritten(levels[k - 1]! - levels[k]!, written[k - 1]!)
+    // With the loop's filter opened to the top, the feedback alone is left: 6.0 dB a pass.
+    const open = shifter.render(source, { feedback: 0.5, tone: 16_000 }).taps.out!
+    expect(tone(open.channels_data[0]!, 540).db - tone(open.channels_data[0]!, 640).db).toBeCloseTo(
+      6.02,
+      1,
+    )
+  })
+
+  // ---- Parts 3 and 6: the cards -----------------------------------------------------------
+
+  it('renders every named set on its own source: the tap its card plays is sound, and between 40 dB and 3 dB under full scale', async () => {
+    const shifter = await lab(NAME)
+    for (const [name, set] of Object.entries(settings.sets)) {
+      const result = await played(shifter, name)
+      const tap = result.taps[set.tap ?? 'out']!
+      expect(tap.kind, name).toBe('audio')
+      for (const data of tap.channels_data) {
+        expect(
+          data.every((v) => Number.isFinite(v)),
+          name,
+        ).toBe(true)
+        const level = gainToDb(rms(data))
+        expect(level, `${name}, dB`).toBeGreaterThan(-40)
+        expect(level, `${name}, dB`).toBeLessThan(-3)
+        expect(peak(data), `${name}, its largest sample`).toBeLessThan(1)
+      }
     }
+  })
+
+  it('on the chords at the device’s own defaults, lets the shift in force wander between 0.15 Hz and 0.69 Hz over the loop (claim use-drift)', async () => {
+    const shifter = await lab(NAME)
+    const result = await played(shifter, 'drift')
+    const { lo, hi } = range(first(result, 'shiftNow'))
+    expectWritten(lo, '0.15 Hz')
+    expectWritten(hi, '0.69 Hz')
+  })
+
+  it('with a long delay, fed a 440 Hz sine, puts each echo 9 Hz higher and 3.1 dB quieter than the last (claim way-steps)', async () => {
+    const shifter = await lab(NAME)
+    const source = await benchSource('sine', seconds(4))
+    const { values } = resolveSet(shifter.description, settings.sets.steps!)
+    const out = first(shifter.render(source, values), 'out')
+    const lines = [449, 458, 467, 476]
+    lines.forEach((hz, k) => {
+      expect(strongest(out, hz - 4, hz + 4)).toBe(hz)
+      if (k > 0) {
+        expectWritten(hz - lines[k - 1]!, '9 Hz')
+        expectWritten(tone(out, lines[k - 1]!).db - tone(out, hz).db, '3.1 dB')
+      }
+    })
+  })
+
+  it('with LFO Depth at 0.35, sways the shift in force between −6.1 Hz and 6.1 Hz (claim way-sway)', async () => {
+    const shifter = await lab(NAME)
+    const { lo, hi } = range(first(await played(shifter, 'sway'), 'shiftNow'))
+    expectWritten(lo, '−6.1 Hz')
+    expectWritten(hi, '6.1 Hz')
+  })
+
+  // ---- Part 7: what goes wrong ------------------------------------------------------------
+
+  it("shifted by 30 Hz, puts the saw's first two partials at 140 Hz and 250 Hz: an octave has become 10.0 semitones (claim fault-apart)", async () => {
+    const shifter = await lab(NAME)
+    const saw = await benchSource('saw', seconds(4))
+    const { values } = resolveSet(shifter.description, settings.sets.apart!)
+    const out = first(shifter.render(saw, values), 'out')
+    const low = strongest(out, 120, 160)
+    const high = strongest(out, 230, 270)
+    expectWritten(low, '140 Hz')
+    expectWritten(high, '250 Hz')
+    expectWritten(12 * Math.log2(high / low), '10.0 semitones')
+  })
+
+  it("shifted up 100 Hz, moves the bass's strongest low line from 55 Hz to 155 Hz and leaves 26 dB less below 100 Hz than went in, at the same level over the whole band (claim fault-thin)", async () => {
+    const shifter = await lab(NAME)
+    const result = await played(shifter, 'thin')
+    const lowsOut = band(shifter, 'out', 0, 100)
+    const lowsIn = band(shifter, 'in', 0, 100)
+    expectWritten(strongest(first(result, 'in'), 30, 200), '55 Hz')
+    expectWritten(strongest(first(result, 'out'), 30, 400), '155 Hz')
+    expectWritten(lowsIn - lowsOut, '26 dB')
+    expectWritten(
+      Math.abs(gainToDb(rms(first(result, 'out')) / rms(first(result, 'in')))),
+      'less than 0.1 dB',
+    )
+  })
+
+  it('shifted down 300 Hz, brings the saw’s partial at 110 Hz out at 190 Hz and the one at 220 Hz at 80 Hz, each at its own level (claim fault-through)', async () => {
+    const shifter = await lab(NAME)
+    const saw = await benchSource('saw', seconds(4))
+    const out = first(await played(shifter, 'through'), 'out')
+    expectWritten(strongest(out, 170, 210), '190 Hz')
+    expectWritten(strongest(out, 60, 100), '80 Hz')
+    expect(Math.abs(tone(out, 190).db - tone(saw.left, 110).db)).toBeLessThan(0.01)
+    expect(Math.abs(tone(out, 80).db - tone(saw.left, 220).db)).toBeLessThan(0.01)
+  })
+
+  it('brings a 440 Hz sine shifted down by 500 Hz out at 60 Hz (claim through-zero)', async () => {
+    const shifter = await lab(NAME)
+    const source = await benchSource('sine', seconds(4))
+    const out = shifter.render(source, { shift: -500 }).taps.out!.channels_data[0]!
+    expectWritten(strongest(out, 20, 600), '60 Hz')
+    expect(tone(out, 60).db - tone(source.left, 440).db).toBeCloseTo(0, 2)
+  })
+
+  it('folds a 23.6 kHz sine shifted up by 1 kHz back to 23.4 kHz (claim past-top)', async () => {
+    const shifter = await lab(NAME)
+    const source = sine(23_600, 0.5, seconds(1))
+    const out = shifter.render(source, { shift: 1000 }).taps.out!.channels_data[0]!
+    expectWritten(strongest(out, 23_000, 23_995, 5) / 1000, '23.4 kHz')
+    expect(tone(out, 23_400).db - tone(source.left, 23_600).db).toBeCloseTo(0, 2)
   })
 
   it('in Ring at a shift of zero and a feedback of 0.98 builds until the limiter holds what comes back at 1.0 (claim ring-loop) and the output stands at 2.4 (claim ring-loop-out)', async () => {
@@ -340,25 +686,33 @@ describe('frequency shifting', () => {
     const source = await benchSource('sine', seconds(4))
     const taps = shifter.render(source, { shift: 0, mode: 3, feedback: 0.98 }).taps
     expect(peak(source.left)).toBeCloseTo(0.25, 2)
-    expect(peak(taps.back!.channels_data[0]!)).toBeGreaterThan(0.99)
+    expectWritten(peak(taps.back!.channels_data[0]!), '1.0')
     expect(peak(taps.back!.channels_data[0]!)).toBeLessThanOrEqual(1)
-    expect(peak(taps.out!.channels_data[0]!)).toBeCloseTo(2.4, 1)
+    expectWritten(peak(taps.out!.channels_data[0]!), '2.4')
     // The same feedback on Up, where the loop's gain is under 1, stays small.
     const up = shifter.render(source, { shift: 0, feedback: 0.98 }).taps
     expect(peak(up.back!.channels_data[0]!)).toBeLessThan(0.9)
   })
 
-  it('at a shift of 0 Hz gives the in-phase output, to the floor of the measure (claim zero-shift), at the level of the input within 0.001 dB (claim zero-level) and 524° behind it at 1 kHz (claim lag-1k)', async () => {
+  it('puts out exact silence for silence (claim silence)', async () => {
+    const shifter = await lab(NAME)
+    const taps = shifter.render(silence(seconds(1)), { feedback: 0.9, lfoDepth: 1 }).taps
+    for (const data of taps.out!.channels_data) expect(data.every((v) => v === 0)).toBe(true)
+  })
+
+  // ---- Part 8: what is often said ---------------------------------------------------------
+
+  it('at a shift of 0 Hz gives the in-phase output, at least 140 dB under it apart (claim zero-shift), less than 0.001 dB from the level of the input (claim zero-level) and 524° behind it at 1 kHz (claim lag-1k)', async () => {
     const shifter = await lab(NAME)
     const source = sine(1000, 0.5, seconds(2))
     const taps = shifter.render(source, { shift: 0 }).taps
     const out = taps.out!.channels_data[0]!
-    expect(differenceDb(out, taps.inPhase!.channels_data[0]!)).toBe(-140)
-    expect(Math.abs(gainToDb(rms(out) / rms(source.left)))).toBeLessThan(0.001)
+    expectWritten(-differenceDb(out, taps.inPhase!.channels_data[0]!), 'at least 140 dB')
+    expectWritten(Math.abs(gainToDb(rms(out) / rms(source.left))), 'less than 0.001 dB')
     // Not the input: the two differ by more than either is loud.
     expect(differenceDb(out, source.left)).toBeGreaterThan(0)
     const behind = turn(tone(out, 1000).degrees - tone(source.left, 1000).degrees)
-    expect(behind - 360).toBeCloseTo(-523.9, 0)
+    expectWritten(360 - behind, '524°')
     expect(Math.abs(curveAt(taps.phaseI!, 1000) - (behind - 360))).toBeLessThan(1)
   })
 
@@ -372,29 +726,30 @@ describe('frequency shifting', () => {
       if (Math.abs(out[k]!) > Math.abs(out[at]!)) at = k
     }
     expect(at).toBe(103)
-    expect(out[at]!).toBeCloseTo(-0.787, 2)
+    expectWritten(-out[at]!, '0.79')
     expect(Math.abs(energy - 1)).toBeLessThan(1e-6)
   })
 
-  it('brings a 440 Hz sine shifted down by 500 Hz out at 60 Hz (claim through-zero)', async () => {
-    const shifter = await lab(NAME)
-    const source = await benchSource('sine', seconds(4))
-    const out = shifter.render(source, { shift: -500 }).taps.out!.channels_data[0]!
-    expect(strongest(out, 20, 600)).toBe(60)
-    expect(tone(out, 60).db - tone(source.left, 440).db).toBeCloseTo(0, 2)
-  })
+  // ---- Part 9: the device's own defaults --------------------------------------------------
 
-  it('folds a 23.6 kHz sine shifted up by 1 kHz back to 23.4 kHz (claim past-top)', async () => {
+  it("starts the page's device table from the device's own defaults: the settings file's defaults, laid over the lab's starting values, are device.json's", async () => {
     const shifter = await lab(NAME)
-    const source = sine(23_600, 0.5, seconds(1))
-    const out = shifter.render(source, { shift: 1000 }).taps.out!.channels_data[0]!
-    expect(strongest(out, 23_000, 23_995, 5)).toBe(23_400)
-    expect(tone(out, 23_400).db - tone(source.left, 23_600).db).toBeCloseTo(0, 2)
-  })
-
-  it('puts out exact silence for silence (claim silence)', async () => {
-    const shifter = await lab(NAME)
-    const taps = shifter.render(silence(seconds(1)), { feedback: 0.9, lfoDepth: 1 }).taps
-    for (const data of taps.out!.channels_data) expect(data.every((v) => v === 0)).toBe(true)
+    const device = JSON.parse(
+      fs.readFileSync(
+        fileURLToPath(new URL('../../../cpp/devices/freq-shifter/device.json', import.meta.url)),
+        'utf8',
+      ),
+    ) as { params: { key: string; default: number }[] }
+    const { values } = resolveSet(shifter.description, { values: settings.defaults!.values })
+    // The lab's controls are the device's ten parameters, by the same names.
+    expect(Object.keys(values).sort()).toEqual(device.params.map((one) => one.key).sort())
+    // A starting value comes out of the lab as the 32-bit number the device holds.
+    for (const { key, default: start } of device.params) {
+      expect(Math.fround(values[key]!), key).toBe(Math.fround(start))
+    }
+    // Only what differs from the lab's start is written down.
+    for (const [id, value] of Object.entries(settings.defaults!.values)) {
+      expect(shifter.description.controls.find((one) => one.id === id)!.initial).not.toBe(value)
+    }
   })
 })

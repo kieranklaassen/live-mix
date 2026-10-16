@@ -1,0 +1,143 @@
+{
+  "tile": {
+    "values": { "shift": 100 },
+    "source": "saw",
+    "tap": "out",
+    "picture": { "taps": ["rulerIn", "rulerOut"], "view": "curve", "min": -70, "max": -10 }
+  },
+  "sets": {
+    "note": {
+      "label": "The note as played",
+      "source": "saw",
+      "tap": "in"
+    },
+    "faster": {
+      "label": "Played faster",
+      "values": { "shift": 50 },
+      "source": "saw",
+      "tap": "pitched"
+    },
+    "ringed": {
+      "label": "Times a cosine",
+      "values": { "shift": 50 },
+      "source": "saw",
+      "tap": "ring"
+    },
+    "shifted": {
+      "label": "Shifted",
+      "values": { "shift": 50 },
+      "source": "saw"
+    },
+    "whole": {
+      "label": "Shifted by the note's own frequency",
+      "values": { "shift": 110 },
+      "source": "saw"
+    },
+    "drift": {
+      "label": "A slow drift on chords",
+      "values": {
+        "shift": 0,
+        "fine": 0.4,
+        "feedback": 0.5,
+        "lfoDepth": 0.08,
+        "width": 0.6,
+        "mix": 0.5
+      },
+      "source": "chords"
+    },
+    "wide": {
+      "label": "A pad that moves across",
+      "values": { "shift": 0, "fine": 0.4, "width": 1, "mix": 0.5 },
+      "source": "pad"
+    },
+    "metal": {
+      "label": "A guitar turned to metal",
+      "values": {
+        "shift": 233,
+        "feedback": 0.3,
+        "delay": 90,
+        "tone": 6000,
+        "width": 0.3,
+        "mix": 0.7
+      },
+      "source": "guitar"
+    },
+    "retuned": {
+      "label": "Drums moved up",
+      "values": { "shift": 60 },
+      "source": "drums"
+    },
+    "climb": {
+      "label": "Notches that climb",
+      "values": { "shift": 0, "fine": 0.5, "mix": 0.5 },
+      "source": "noise"
+    },
+    "spiral": {
+      "label": "A spiral",
+      "values": {
+        "shift": 0,
+        "fine": 1.5,
+        "feedback": 0.85,
+        "delay": 12,
+        "tone": 7000,
+        "width": 1,
+        "mix": 0.5
+      },
+      "source": "chords"
+    },
+    "steps": {
+      "label": "Echoes that climb",
+      "values": { "shift": 0, "fine": 9, "feedback": 0.7, "delay": 420, "mix": 0.5 },
+      "source": "guitar"
+    },
+    "sway": {
+      "label": "A shift that sways",
+      "values": {
+        "shift": 0,
+        "feedback": 0.35,
+        "delay": 20,
+        "lfoRate": 0.25,
+        "lfoDepth": 0.35,
+        "tone": 8000,
+        "width": 0.7,
+        "mix": 0.5
+      },
+      "source": "pad"
+    },
+    "both": {
+      "label": "Both sidebands",
+      "values": { "shift": 110, "mode": 3 },
+      "source": "saw"
+    },
+    "apart": {
+      "label": "Chords pulled apart",
+      "values": { "shift": 30 },
+      "source": "chords"
+    },
+    "thin": {
+      "label": "A bass with no bottom",
+      "values": { "shift": 100 },
+      "source": "bass"
+    },
+    "through": {
+      "label": "Down through zero",
+      "values": { "shift": -300 },
+      "source": "saw"
+    },
+    "zero": {
+      "label": "No shift, mixed half and half",
+      "values": { "shift": 0, "mix": 0.5 },
+      "source": "chords"
+    }
+  },
+  "defaults": {
+    "values": {
+      "shift": 0,
+      "fine": 0.4,
+      "feedback": 0.5,
+      "lfoDepth": 0.08,
+      "width": 0.6,
+      "mix": 0.5
+    }
+  }
+}
