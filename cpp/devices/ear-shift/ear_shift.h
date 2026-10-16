@@ -37,10 +37,9 @@
 //   silence on the edge itself. That is the price of shifting a band only.
 //   Half an octave from an edge the waver is 4.4 dB, an octave away 1.1 dB.
 //   Low starts at 60 Hz, as low as it goes, so that the notes from A2 up lie
-//   inside the band: from 110 to 440 Hz a note then wavers by 1.5 dB at the
-//   most, where with Low at 150 Hz a note at 147 Hz wavered by 28 dB (the
-//   harness reads both). The price is paid by the bass: a note between 42 and
-//   85 Hz now wavers by 4.4 dB or more.
+//   inside the band: from 110 to 440 Hz a note wavers by 1.5 dB at the most.
+//   The price is paid by the bass: a note between 42 and 85 Hz wavers by
+//   4.4 dB or more.
 // - The phase pair is the kit's: within a degree from about 20 Hz at 44.1 and
 //   48 kHz and from 42 Hz at 96 kHz, so the other sideband is 44 dB under or
 //   better through the whole band at those rates. Its low limit rises with

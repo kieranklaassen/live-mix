@@ -194,8 +194,8 @@ class StillPoint : public kit::DeviceBase<still_point::kNumParams> {
         voice.phase += voice.increment;
         if (voice.phase >= 1.0) voice.phase -= 1.0;
         const kit::SinCos two = kit::second_partial(turn);
-        const float three = turn.s * (3.0f - 4.0f * turn.s * turn.s);
-        const float four = two.c * two.c - two.s * two.s;
+        const float three = kit::third_partial(turn).s;
+        const float four = kit::second_partial(two).c;
         keys += amp * (turn.s + warmth * voice.partials * (kPartial2 * two.c + kPartial3 * three + kPartial4 * four));
         power += amp * amp;
         if (amp > top) top = amp;
@@ -257,8 +257,8 @@ class StillPoint : public kit::DeviceBase<still_point::kNumParams> {
     for (int n = 0; n < 4096; ++n) {
       const kit::SinCos turn = kit::sin_cos(static_cast<double>(n) / 4096.0);
       const kit::SinCos two = kit::second_partial(turn);
-      const float three = turn.s * (3.0f - 4.0f * turn.s * turn.s);
-      const float four = two.c * two.c - two.s * two.s;
+      const float three = kit::third_partial(turn).s;
+      const float four = kit::second_partial(two).c;
       const float tone = turn.s + kPartial2 * two.c + kPartial3 * three + kPartial4 * four;
       const float size = tone < 0.0f ? -tone : tone;
       if (size > peak) peak = size;

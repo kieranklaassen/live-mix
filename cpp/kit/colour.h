@@ -25,8 +25,11 @@
 //
 // White noise a device filters itself (a band at a key, say) is one value a
 // sample, so its level in each hertz falls by 3 dB when the sample rate
-// doubles. Scale it by white_gain(sample_rate) first. ColourFilter needs no
-// such scaling: its level is set for the rate it was given.
+// doubles. white_gain(sample_rate) makes up for that while the filter lies
+// well under half the sample rate. A band that reaches up there loses its
+// upper side, so Isochronic, whose bands follow the keys, works out what
+// each band lets through instead (band_power in isochronic.h). ColourFilter
+// needs no such scaling: its level is set for the rate it was given.
 
 #include <cmath>
 #include <cstdint>

@@ -46,9 +46,8 @@
 //   (55 dB under one key) and doubled it when it came a whole cycle late.
 //   Such a key begins part way through a cycle, so the corner at the start
 //   of its attack is not hidden in a zero crossing: at the quickest Attack
-//   it puts 40 dB under the tone above 1.5 kHz (56 dB under before), with no
-//   step in the sound. A key struck again no longer dips while its old voice
-//   fades.
+//   it puts 40 dB under the tone above 1.5 kHz, with no step in the sound.
+//   A key struck again does not dip while its old voice fades.
 //
 // The noise is the same in both ears (the ears differ only by the pulse). Its
 // RMS is half the tone's peak, 3 dB under the tone's RMS, on any key and at
@@ -438,8 +437,9 @@ inline void Isochronic::start(Voice& voice, bool in_sample) {
 // summed in ln x, where the band is a quarter wide and the same shape on any
 // key. On a low key g is small, the divisor is 1 and this is g·k/2, which is
 // π·hz / (2·Q·rate); near half the sample rate the divisor takes the band's
-// upper side away: 2.4 dB of it on a 12 kHz key at 44.1 kHz. Called once a
-// note, not in the sample loop.
+// upper side away: 2.4 dB of it on a 12 kHz key at 44.1 kHz. Called once
+// when a note starts, which for a note that waited for its voice is inside
+// the sample loop: 121 exponentials and no allocation.
 inline float Isochronic::band_power(float g, float k) {
   constexpr float kSpan = 3.0f;
   const float step = 2.0f * kSpan / static_cast<float>(kBandSteps);

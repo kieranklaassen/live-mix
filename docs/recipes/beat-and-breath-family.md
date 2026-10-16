@@ -42,7 +42,7 @@ On from phase 0 for Duty of the period, between the half heights of two half-cos
 
 ## Noise against sample rate
 
-White noise is one value a sample, so its level in each hertz falls 3 dB when the rate doubles. `kit::ColourFilter` is worked out from the rate and gives the same RMS and the same level in each hertz at any rate. White noise that a device filters itself is scaled by `kit::white_gain(sr)` first. Two streams from `kit::StreamRng` are unlike; two `kit::Rng` are one sequence at two places.
+White noise is one value a sample, so its level in each hertz falls 3 dB when the rate doubles. `kit::ColourFilter` is worked out from the rate and gives the same RMS and the same level in each hertz at any rate. White noise that a device filters itself has to be scaled for the rate: `kit::white_gain(sr)` does it while the filter lies well under half the rate, and Isochronic, whose bands follow the keys up towards it, works out what each band lets through instead (`band_power` in `isochronic.h`). Two streams from `kit::StreamRng` are unlike; two `kit::Rng` are one sequence at two places.
 
 ## The split
 

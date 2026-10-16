@@ -87,7 +87,7 @@ class WindingDown : public kit::DeviceBase<winding_down::kNumParams> {
     const float away = octaves < 0.0f ? -octaves : octaves;
     if (!(away < 0.5f * span)) return 0.0f;
     // away / span is under a half, so the cosine's phase stays inside the table.
-    return 0.5f + 0.5f * kit::SineTable::lookup(away / span + 0.25f);
+    return 0.5f + 0.5f * kit::SineTable::cos_lookup(away / span);
   }
 
   void init(float sample_rate) {

@@ -197,9 +197,9 @@ class ColouredNoise : public kit::DeviceBase<coloured_noise::kNumParams> {
 
   // A voice taken for another key falls 60 dB in 30 ms. An exponential fall
   // is steepest where it starts, and a taken voice's band falls twice as fast
-  // as the voice (its share goes by the square of its level): at 5 ms a
-  // quarter of the whole change was in its first eight samples, here a tenth
-  // at 44.1 kHz. The key that takes the voice begins when the fall is over,
+  // as the voice (its share goes by the square of its level): over 30 ms,
+  // under a tenth of the whole change is in its first eight samples at
+  // 44.1 kHz. The key that takes the voice begins when the fall is over,
   // 50 ms on.
   static constexpr float kStealSeconds = 0.03f;
   // An id sent again at another pitch: its old voice falls 60 dB in 50 ms.
@@ -313,7 +313,7 @@ inline void ColouredNoise::process(int frames) {
       x = high_cut_[c][1].lowpass(high_cut_[c][0].lowpass(x));
       // The swell's darkening: some of what lies over the corner is taken
       // away. With nothing sunk this is the sample itself.
-      x -= dark * (x - dark_[c].lowpass(x));
+      x -= dark * dark_[c].highpass(x);
       float bands = 0.0f;
       if (tinted) {
         for (int v = 0; v < kMaxVoices; ++v) {
@@ -345,7 +345,7 @@ inline void ColouredNoise::start(Voice& voice) {
     band.reset();
     band.set(voice.frequency, kBandQ, sample_rate());
   }
-  voice.env.set(param(kAttack), param(kAttack), 1.0f, param(kRelease));  // (idle: it rises from nothing)
+  voice.env.set(param(kAttack), param(kAttack), 1.0f, param(kRelease));
   voice.env.gate_on();
   regroup();
 }
