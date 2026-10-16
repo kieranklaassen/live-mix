@@ -138,6 +138,17 @@ export default function DelayRing({ slots, write, read, built, start = 12, label
           <button
             type="button"
             className="button quiet"
+            disabled={!has || (step === 0 && !running)}
+            onClick={() => {
+              setRunning(false)
+              setStep(0)
+            }}
+          >
+            To the start
+          </button>
+          <button
+            type="button"
+            className="button quiet"
             disabled={!has || step <= 0}
             onClick={() => {
               setRunning(false)
@@ -168,17 +179,6 @@ export default function DelayRing({ slots, write, read, built, start = 12, label
             }}
           >
             {running ? 'Stop' : 'Run'}
-          </button>
-          <button
-            type="button"
-            className="button quiet"
-            disabled={!has || (step === 0 && !running)}
-            onClick={() => {
-              setRunning(false)
-              setStep(0)
-            }}
-          >
-            To the start
           </button>
           <output
             aria-live="off"

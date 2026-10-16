@@ -191,7 +191,7 @@ describe('delay and echo', () => {
     const echo = await lab('delay-and-echo')
     for (const back of [2, 5, 8]) {
       const result = echo.render(smallClick(seconds(0.5)), { ringBack: back, feedback: 0.5 })
-      const [, written] = result.taps.ringWrite!.channels_data as [Float32Array, Float32Array]
+      const [where, written] = result.taps.ringWrite!.channels_data as [Float32Array, Float32Array]
       const [slot, read] = result.taps.ringRead!.channels_data as [Float32Array, Float32Array]
       expect(written[0]).toBe(1)
       // Nothing is read until the read head reaches the slot the click lies in.
@@ -200,9 +200,13 @@ describe('delay and echo', () => {
       expect(read[first]).toBe(1)
       expect(slot[first]).toBe(0)
       expect(written[first]).toBe(0.5)
-      // And again, at half of that, the same number of steps on.
+      expect(where[first]).toBe(back)
+      // And again, at half of that, the same number of steps on: read from the slot the copy
+      // was written to, and written twice as far round.
       expect(read[2 * back]).toBe(0.5)
+      expect(slot[2 * back]).toBe(back)
       expect(written[2 * back]).toBe(0.25)
+      expect(where[2 * back]).toBe((2 * back) % 16)
       if (back === 5) {
         expectWritten(first, '5 samples')
         expectWritten(written[first]!, '0.5')
@@ -241,12 +245,12 @@ describe('delay and echo', () => {
 
   // ---- part 5: the device, stage by stage ------------------------------------------------------
 
-  it("reads the heads and the record path again from the device's own numbers and lands −140 dB from the device, which is no difference at all (claim rebuilt)", async () => {
+  it("reads the heads and the record path again from the device's own numbers and lands −140 dB from the device, the floor of the lab's scale (claim rebuilt)", async () => {
     const echo = await lab('delay-and-echo')
     const drums = await benchSource('drums', seconds(4))
     for (const values of [{}, busy]) {
       const result = echo.render(drums, values)
-      // −140 dB is the lab's word for "the same".
+      // −140 dB is as far down as the lab reads: no difference, or one further down than that.
       expectWritten(result.checks.heads!, '−140 dB')
       expectWritten(result.checks.record!, '−140 dB')
     }
@@ -270,10 +274,28 @@ describe('delay and echo', () => {
     expect(turned(-60)).toBeCloseTo(1.5, 2)
     expect(turned(120)).toBeCloseTo(0, 2)
     expect(turned(200)).toBeCloseTo(1 - 200 / 120, 2)
+    // The two stills of stages 1 and 2, on the page's own loop: Time is turned back at the start
+    // of the loop and lengthened half way, and the place read never jumps. Its largest move from
+    // one point to the next is 0.17 ms, where a jump would be the whole 60 ms.
+    const still = echo.render(await benchSource('clicks', seconds(4)), { nudge: 60 }).taps
+    const place = still.delay!.channels_data[0]!
+    const speed = still.speed!.channels_data[0]!
+    const half = place.length / 2
+    expect(place[0]).toBeGreaterThan(309)
+    expect(place[half - 1]).toBeCloseTo(250, 2)
+    expect(place[place.length - 1]).toBeCloseTo(310, 2)
+    expect(
+      Math.max(...Array.from(place.subarray(1), (v, i) => Math.abs(v - place[i]!))),
+    ).toBeLessThan(0.2)
+    expect(speed[0]).toBeCloseTo(1.5, 2)
+    expect(speed[half]).toBeCloseTo(0.5, 2)
+    expect(speed[half - 1]).toBeCloseTo(1, 3)
+    expect(speed[speed.length - 1]).toBeCloseTo(1, 3)
   })
 
-  it('moves the read point up to 1.45 ms and the pitch from 6.5 cents flat to 7.8 cents sharp with Wow at 1 (claim wow-range), and 0.07 ms and from 4.2 cents flat to 4.1 cents sharp with Flutter at 1 (claim flutter-range), over an 8 s loop', async () => {
+  it('moves the read point up to 1.45 ms and the pitch from 6.5 cents flat to 7.8 cents sharp with Wow at 1 (claim wow-range), and 0.07 ms and from 4.2 cents flat to 4.1 cents sharp with Flutter at 1 (claim flutter-range), over the second pass of an 8 s loop', async () => {
     const echo = await lab('delay-and-echo')
+    // A render plays its loop twice and keeps the second pass: seconds 8 to 16 of the device.
     const tone = sine(1000, 0.25, seconds(8))
     const wow = echo.render(tone, { ...once, wow: 1 }).taps
     const wowDelay = range(wow.delay!.channels_data[0]!)
@@ -297,13 +319,19 @@ describe('delay and echo', () => {
     expect(steady.delay!.channels_data[0]!.every((v) => v === 250)).toBe(true)
   })
 
-  it('bends the pitch by the same amount at any Time (claim same-wobble)', async () => {
+  it('bends the pitch by the same amount whatever Time is: the speed meter reads the same, point for point, with Time at its shortest, at its longest and at two places between (claim same-wobble)', async () => {
     const echo = await lab('delay-and-echo')
     const tone = sine(1000, 0.25, seconds(4))
     const short = tap(echo.render(tone, { wow: 1, flutter: 1, time: 100 }), 'speed')
-    const long = tap(echo.render(tone, { wow: 1, flutter: 1, time: 1000 }), 'speed')
     expect(short.some((v) => v !== 1)).toBe(true)
-    expect(short.every((v, i) => v === long[i])).toBe(true)
+    // From the shortest Time to the longest, the meter reads the same at every point.
+    for (const time of [30, 250, 1000, 2000]) {
+      const other = tap(echo.render(tone, { wow: 1, flutter: 1, time }), 'speed')
+      expect(
+        short.every((v, i) => v === other[i]),
+        `Time at ${time} ms`,
+      ).toBe(true)
+    }
   })
 
   it("plays a 1 kHz sine at the pitch the device's speed meter says, less than 0.1 cent apart, counted from its zero crossings (claim pitch-formula)", async () => {
@@ -360,17 +388,32 @@ describe('delay and echo', () => {
     ).toBeLessThan(0.02)
   })
 
-  it('loses 2.0 dB at 10 kHz and 11.7 dB at 20 kHz to a linear read half way between samples (claim linear-half), and 0.53 dB at 10 kHz and 8.4 dB at 20 kHz to a Hermite read (claim hermite-half)', async () => {
+  it('loses 2.0 dB at 10 kHz and 11.7 dB at 20 kHz to a linear read half way between samples (claim linear-half), and 0.5 dB at 10 kHz and 8.4 dB at 20 kHz to a Hermite read (claim hermite-half)', async () => {
     const echo = await lab('delay-and-echo')
     const half = echo.render(smallClick(seconds(0.5)), { fraction: 0.5 })
     const linear = half.taps.responseLinear!.channels_data[0]!
     const hermite = half.taps.responseHermite!.channels_data[0]!
     expectWritten(-at(linear, 10_000), '2.0 dB')
     expectWritten(-at(linear, 20_000), '11.7 dB')
-    expectWritten(-at(hermite, 10_000), '0.53 dB')
+    // 0.534 dB, read between two points of the lab's curve: one decimal is what that supports.
+    expectWritten(-at(hermite, 10_000), '0.5 dB')
     expectWritten(-at(hermite, 20_000), '8.4 dB')
     // The mean of two neighbours is cos(π f / fs).
     expect(at(linear, 10_000)).toBeCloseTo(20 * Math.log10(Math.cos((Math.PI * 10_000) / RATE)), 2)
+    // Half way is the worst there is: nearer either sample, both reads lose less.
+    for (const fraction of [0.25, 0.4, 0.6, 0.75]) {
+      const off = echo.render(smallClick(seconds(0.5)), { fraction })
+      for (const [id, worst] of [
+        ['responseLinear', linear],
+        ['responseHermite', hermite],
+      ] as const) {
+        for (const hz of [10_000, 20_000]) {
+          expect(at(tap(off, id), hz), `${id} at ${fraction}, ${hz} Hz`).toBeGreaterThan(
+            at(worst, hz),
+          )
+        }
+      }
+    }
     // On a stored sample, at either end, both reads are flat.
     for (const fraction of [0, 1]) {
       const whole = echo.render(smallClick(seconds(0.5)), { fraction })
@@ -458,7 +501,7 @@ describe('delay and echo', () => {
     expectWritten(late[7]!, '4 samples')
   })
 
-  it("makes the loop again from the kit's filters and tanh and lands on the device's repeats to the last bit, at any Feedback, filter setting and Drive (claim loop-rebuilt)", async () => {
+  it("makes the loop again from the kit's filters and tanh and lands −140 dB from the device's repeats, the floor of the lab's scale, at each Feedback, filter setting and Drive tried (claim loop-rebuilt)", async () => {
     const echo = await lab('delay-and-echo')
     for (const feedback of [0.3, 0.5, 0.9, 1.1]) {
       for (const values of [{}, filtered, { highCut: 4500 }, { ...filtered, drive: 1 }]) {
@@ -495,14 +538,17 @@ describe('delay and echo', () => {
     expect(curve[200]).toBeLessThanOrEqual(1)
   })
 
-  it('settles a 1 kHz burst at a feedback of 1.1 and a Time of 30 ms, after 8 s, with its peaks at 0.63 on the tape with Drive at 0, and at 0.16, a quarter of that, with Drive at 1 (claim settles)', async () => {
+  it('holds a 1 kHz burst at a feedback of 1.1 and a Time of 30 ms: in the last second of an 8 s loop its peaks on the tape stand at 0.63 with Drive at 0, and at 0.16, a quarter of that, with Drive at 1, each less than 1 % from the second before (claim settles)', async () => {
     const echo = await lab('delay-and-echo')
     const source = burst(seconds(8))
     const last = (drive: number) => {
       const tape = tap(echo.render(source, { feedback: 1.1, time: 30, drive }), 'tape')
-      // The last second, and the second before it: it has stopped growing.
+      // The last second, and the second before it. The peaks are still easing down there, by
+      // half a percent a second (0.6371 then 0.6336 with Drive at 0), so the number is the last
+      // second's and no later one's.
       const now = peak(tape.subarray(seconds(7)))
-      expect(Math.abs(now - peak(tape.subarray(seconds(6), seconds(7))))).toBeLessThan(0.01 * now)
+      const before = peak(tape.subarray(seconds(6), seconds(7)))
+      expectWritten((100 * Math.abs(now - before)) / before, 'less than 1 %')
       return now
     }
     const straight = last(0)
@@ -526,8 +572,9 @@ describe('delay and echo', () => {
     }
   })
 
-  it('lets a burst die slowly at a feedback of exactly 1: its 24th repeat is 0.7 dB under its first (claim unity)', async () => {
+  it("lets the lab's burst, a tenth of full scale, die slowly at a feedback of exactly 1: its 24th repeat is 0.7 dB under its first (claim unity)", async () => {
     const echo = await lab('delay-and-echo')
+    // The lab plays its own burst into the second copy of the device, whatever goes in here.
     const levels = tap(echo.render(smallClick(seconds(0.5)), { feedback: 1 }), 'repeats')
     expectWritten(levels[0]! - levels[23]!, '0.7 dB')
     // Past 1 the same burst grows: 0.8 dB a repeat at first.
@@ -553,6 +600,23 @@ describe('delay and echo', () => {
     const dry = echo.render(drums, { mix: 0, feedback: 0.9 })
     expect(tap(dry, 'out').every((v, i) => v === tap(dry, 'in')[i])).toBe(true)
     expect(tap(dry, 'out', 1).every((v, i) => v === tap(dry, 'in', 1)[i])).toBe(true)
+  })
+
+  it('changes only the output when Mix moves, and every stage after the input when Wow does: what the caption of all the stages at once says', async () => {
+    const echo = await lab('delay-and-echo')
+    const drums = await benchSource('drums', seconds(4))
+    const stages = ['in', 'delay', 'speed', 'heads', 'back', 'sum', 'tape', 'out']
+    const start = echo.render(drums, {})
+    const changed = (values: Record<string, number>) => {
+      const result = echo.render(drums, values)
+      return stages.filter((id) =>
+        result.taps[id]!.channels_data.some((data, side) =>
+          data.some((v, i) => v !== start.taps[id]!.channels_data[side]![i]),
+        ),
+      )
+    }
+    expect(changed({ mix: 0.8 })).toEqual(['out'])
+    expect(changed({ wow: 1 })).toEqual(stages.slice(1))
   })
 
   it('sleeps on silence: nothing on the tape and exact silence out (claim silence)', async () => {
@@ -660,7 +724,7 @@ describe('delay and echo', () => {
     )
   })
 
-  it('step 6, a soft ceiling: at a Feedback of 1.1 and a Time of 30 ms a 1 kHz burst settles after 8 s with its peaks at 0.63 on the ring, and at the step before it is cut off flat at 1.00 (claim build-ceiling)', async () => {
+  it('step 6, a soft ceiling: at a Feedback of 1.1 and a Time of 30 ms a 1 kHz burst is held with its peaks at 0.63 on the ring in the last second of an 8 s loop, and at the step before it is cut off flat at 1.00 (claim build-ceiling)', async () => {
     const echo = await lab('delay-and-echo')
     const source = burst(seconds(8))
     const last = (step: number) => {
@@ -732,7 +796,7 @@ describe('delay and echo', () => {
     expect(sides(6)[1]).toBe(sides(6)[0])
   })
 
-  it('with all eight pieces the build is the device, sample for sample: −140 dB from its output on every loop and at every setting tried (claim build-same)', async () => {
+  it('with all eight pieces the build is the device, sample for sample: every sample of both sides of its output is the same number as the device puts out, on every loop and at every setting tried (claim build-same)', async () => {
     const echo = await lab('delay-and-echo')
     for (const id of ['clicks', 'drums', 'guitar', 'pad']) {
       const source = await benchSource(id, seconds(4))
@@ -742,7 +806,20 @@ describe('delay and echo', () => {
         { feedback: 1.1, time: 30 },
         { time: 100.01, heads: 3, spread: 1 },
       ]) {
-        expectWritten(echo.render(source, values).checks.builtDifference!, '−140 dB')
+        // The last step shows the whole build: its output against the device's, a sample at a time.
+        const result = echo.render(source, { ...values, build: 7 })
+        for (const side of [0, 1]) {
+          const built = tap(result, 'built', side)
+          const device = tap(result, 'out', side)
+          expect(built.length).toBe(seconds(4))
+          expect(
+            built.findIndex((v, i) => v !== device[i]),
+            `${id}, side ${side}, ${JSON.stringify(values)}: the first sample that differs`,
+          ).toBe(-1)
+        }
+        // The lab's own reading of the same comparison is then at its floor, which is all −140
+        // can say: no difference, or one further down than that.
+        expectWritten(result.checks.builtDifference!, '−140 dB')
       }
     }
     // The comparison is of the whole build whichever step is shown, and it is a comparison: a
@@ -751,10 +828,10 @@ describe('delay and echo', () => {
     const shown = echo.render(drums, { ...busy, build: 3 })
     expectWritten(shown.checks.builtDifference!, '−140 dB')
     expect(tap(shown, 'built').some((v, i) => v !== tap(shown, 'out')[i])).toBe(true)
-    const whole = echo.render(drums, { ...busy, build: 7 })
-    expect(tap(whole, 'built').every((v, i) => v === tap(whole, 'out')[i])).toBe(true)
-    // Asleep on silence, as the device is.
-    expectWritten(echo.render(silence(seconds(1)), busy).checks.builtDifference!, '−140 dB')
+    // Asleep on silence, as the device is: both put out exact zeros.
+    const asleep = echo.render(silence(seconds(1)), { ...busy, build: 7 })
+    expect(tap(asleep, 'built').every((v) => v === 0)).toBe(true)
+    expect(tap(asleep, 'out').every((v) => v === 0)).toBe(true)
   })
 
   // ---- the named sets: what each card plays, and the number its card states -------------------
@@ -801,6 +878,15 @@ describe('delay and echo', () => {
     const result = await played(echo, 'wash')
     expectWritten(trip(result, 1000), '3.4 dB')
     expectWritten(trip(result, 4000), '12.6 dB')
+    // The card's picture: the first repeat is flat, and each later one has lost more at both ends
+    // than in the middle, and most at the top.
+    for (const hz of [50, 1000, 16_000])
+      expect(Math.abs(at(tap(result, 'repeat1'), hz))).toBeLessThan(0.01)
+    for (const id of ['repeat2', 'repeat3', 'repeat5']) {
+      const middle = at(tap(result, id), 1000)
+      expect(at(tap(result, id), 50)).toBeLessThan(middle - 10)
+      expect(at(tap(result, id), 16_000)).toBeLessThan(at(tap(result, id), 50))
+    }
   })
 
   it('keeps the lows out of the loop: on the bass setting a trip costs 18.6 dB at 100 Hz and 7.3 dB at 1 kHz (claim use-low)', async () => {
@@ -841,6 +927,8 @@ describe('delay and echo', () => {
     const result = await played(echo, 'swell')
     expectWritten(gainToDb(level(result, 'heads')) - gainToDb(level(result, 'in')), '3.0 dB')
     expectWritten(Math.max(peak(tap(result, 'tape')), peak(tap(result, 'tape', 1))), '0.25')
+    // At this card's Mix the swell stays under the playing in the output.
+    expect(echoesUnder(result, settings.sets.swell!.values!.mix!)).toBeGreaterThan(0)
   })
 
   it('starts the tape at 2.67 times its speed, 17 semitones up, when Time is shortened by 200 ms on the dive card (claim way-dive)', async () => {
@@ -852,6 +940,10 @@ describe('delay and echo', () => {
     expectWritten(12 * Math.log2(fastest), '17 semitones')
     // Before the turn the transport is steady.
     expect(speed[speed.length / 2 - 1]).toBe(1)
+    // At the loop's start Time is turned back by 200 ms, more than the motor's 120: the tape
+    // runs backwards at first, and that is the slowest it goes.
+    expect(speed[0]).toBeCloseTo(1 - 200 / 120, 2)
+    expect(range(speed).lo).toBe(speed[0])
   })
 
   it('grows until the ceiling holds it: on the runaway card the heads read 7.0 dB more than the drums going in, and the largest sample on the tape is 0.52 (claim fault-runaway)', async () => {

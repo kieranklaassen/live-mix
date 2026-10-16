@@ -614,7 +614,7 @@ void lab_render(int frames) {
   const int total = lab::total();
   for (int i = 0; i < total; ++i) {
     // Time moves half way through the loop and back at its start, each time
-    // as a turn of the knob: the device's motor follows.
+    // as a turn of the control: the device's motor follows.
     const int at = i % frames;
     if (at == 0 && i > 0) {
       echo.set_param(kTime, time.value);
