@@ -56,9 +56,9 @@ At 2 kHz the table's sine stands <Claim id="table-error">133 dB under</Claim> th
 
 ### 2. A little more than two samples a cycle is enough
 
-Between the dots there is room for any curve at all. The _sampling theorem_ says which one to draw: if the wave that was measured held no frequency at or above half the sample rate, then it is the only such wave through those samples, and so the samples lose nothing. Half the sample rate, 24 kHz here, is the _Nyquist frequency_. Hearing reaches about 20 kHz at best, so a rate of 48 kHz has room for everything audible and a little to spare.
+Between the dots there is room for any curve at all. The _sampling theorem_ says which one to draw: if the wave that was measured held no frequency at or above half the sample rate, then it is the only such wave through those samples, and so the samples lose nothing. Half the sample rate, 24 kHz here, is the _Nyquist frequency_.
 
-"Enough" is hard to believe from the picture of the samples. Set the frequency to 23,952 Hz, one step of the slider under 24 kHz. A cycle now gets 2.004 samples, and the dots at the top of the page look like a slow swell of something else. The spectrum disagrees. It shows how much of each frequency the loop holds, worked out by the kit's own Fourier transform (lesson 2), and it finds one line, <Claim id="near-nyquist">within a bin of 23,952 Hz and at full level</Claim>. The sine is all there.
+"Enough" is hard to believe from the picture of the samples. Set the frequency to 23,952 Hz, one step of the slider under 24 kHz. A cycle now gets 2.004 samples, and the dots at the top of the page look nothing like a sine at full level: they <Claim id="near-nyquist-dots">turn sign at every sample and none reaches a sixth of full level</Claim>. The spectrum disagrees. It shows how much of each frequency the loop holds, worked out by the kit's own Fourier transform (lesson 2), and it finds one line, <Claim id="near-nyquist">within a bin of 23,952 Hz and at full level</Claim>. The sine is all there.
 
 <Controls ids="freq" />
 
@@ -111,7 +111,7 @@ At the 3,840 Hz this lab starts on, a cycle is twelve and a half samples and six
 </Wave>
 
 <Spectrum taps="naive:in" linear min={-90} max={6}>
-  The naive saw's spectrum. The six peaks that fall away gently from 3,840 Hz are the saw. The six between them, all near −21 dB, are partials from above 24 kHz that have folded, and so is the small one at 0 Hz. Move the frequency off 3,840 Hz and the folds stop sharing six places: they spread into a thicket.
+  The naive saw's spectrum. The six peaks that fall away gently from 3,840 Hz are the saw. The six between them, all near −21 dB, are partials from above 24 kHz that have folded, and so is the small one at 0 Hz. Move the frequency off 3,840 Hz and the folds stop sharing six places: they spread into a thicket of lines.
 </Spectrum>
 
 ### 5. The kit's correction, term by term
@@ -173,7 +173,7 @@ The measured partials sit on the formula <Claim id="smooth-error">within 0.1 dB<
 
 ## What goes wrong
 
-**The folds near the top stay.** <M t="H" /> is not a wall at 24 kHz. In the kit's loop the line at 21,120 Hz reads <Claim id="kit-line-top">−30.6 dB, only 10.9 dB under</Claim> the naive saw's. At a 4 kHz fundamental the folds that land at or under the fundamental are <Claim id="fold-4k-low">41.9 dB lower or more</Claim>, but all the folds added together are just <Claim id="fold-4k-all">13.1 dB lower</Claim>, because the ones near the top carry most of what is left. The header of `osc.h` puts the kit's aliasing below −60 dB for fundamentals under a tenth of the sample rate. Partial by partial, that describes the folds that land low: at 440 Hz every fold under 12 kHz is <Claim id="promise-low">below −63 dB</Claim>. The strongest fold of all is at <Claim id="promise-top">−46.8 dB, near 23,750 Hz</Claim>, against −38.7 dB for the naive saw. For notes bright enough that this matters, the header points to a voice that runs at a multiple of the sample rate.
+**The folds near the top stay.** <M t="H" /> is not a wall at 24 kHz. In the kit's loop the line at 21,120 Hz reads <Claim id="kit-line-top">−30.6 dB, only 10.9 dB under</Claim> the naive saw's. At a 4 kHz fundamental the folds that land at or under the fundamental are <Claim id="fold-4k-low">41.9 dB lower or more</Claim>, but all the folds added together are just <Claim id="fold-4k-all">13.1 dB lower</Claim>, because the ones near the top carry most of what is left. The header of `osc.h` puts the kit's aliasing <Src path="cpp/kit/osc.h" lines="8-11">below −60 dB for fundamentals under a tenth of the sample rate</Src>. Partial by partial, that describes the folds that land low: at 440 Hz every fold under 12 kHz is <Claim id="promise-low">below −63 dB</Claim>. The strongest fold of all is at <Claim id="promise-top">−46.8 dB, near 23,750 Hz, against −38.7 dB for the naive saw</Claim>. For notes bright enough that this matters, the header points to a voice that runs at a multiple of the sample rate.
 
 **The top of the saw is dulled.** The triangle cannot tell a fold from a harmonic. It scales everything by <M t="H" />, so the saw's own partials lose a little too: <Claim id="droop-fundamental">0.18 dB at the fundamental</Claim> and <Claim id="droop-top">7.2 dB at the sixth partial</Claim>, just under 24 kHz.
 
@@ -190,6 +190,6 @@ The measured partials sit on the formula <Claim id="smooth-error">within 0.1 dB<
 - Set it to 24 kHz exactly, then one step lower. Silence, then a full-level sine.
 - Listen to the naive saw, then the kit's. Listen for the tone an octave under the note in the first, and for it gone in the second.
 - Listen to the correction by itself. It is all the kit adds: two samples at each drop.
-- Take the saw down to 110 Hz. More than two hundred partials now fit under 24 kHz before the first one folds, and the folds are far smaller. Compare the two saws again.
-- Move the saw a step off 3,840 Hz with the last spectrum in view. The six tidy lines of folds break into dozens, each fold on a frequency of its own.
+- Take the saw down to 110 Hz. More than two hundred partials now fit under 24 kHz before the first one folds. Compare the two saws again.
+- Move the saw off 3,840 Hz, to 3,800 Hz say, with the naive saw's spectrum in view. The <Claim id="thicket">13 peaks above −60 dB become more than fifty</Claim>, the folds no longer sharing six places.
 - Then set it near 4 kHz and watch the grey peaks slide under the harmonics, where they hide.

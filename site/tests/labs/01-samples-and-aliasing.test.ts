@@ -141,6 +141,15 @@ describe('lesson 1: samples, sine waves and aliasing', () => {
     expect(data[47]!).toBeLessThan(501)
   })
 
+  it('shows a sine at 23,952 Hz as dots that turn sign each sample and stay under a sixth of full level (claim near-nyquist-dots)', async () => {
+    const osc = await lab(NAME)
+    const dots = osc.render(nothing(), { freq: 23_952 }).taps.samples!.channels_data[0]!
+    expect(dots.length).toBe(25)
+    expect(peak(dots)).toBeLessThan(1 / 6)
+    expect(peak(dots)).toBeGreaterThan(0.14)
+    for (let n = 2; n < 25; n += 1) expect(dots[n]! * dots[n - 1]!).toBeLessThan(0)
+  })
+
   it('samples a sine at exactly 24 kHz, started at zero, as silence (claim nyquist-silence)', async () => {
     const osc = await lab(NAME)
     const out = osc.render(nothing(), { freq: 24_000 })
@@ -185,6 +194,22 @@ describe('lesson 1: samples, sine waves and aliasing', () => {
       const hz = k * BIN
       if (Math.abs(hz - 1920 * Math.round(hz / 1920)) > 400) expect(levels[k]!).toBeLessThan(-90)
     }
+  })
+
+  it('shows 13 peaks above −60 dB in the naive loop at 3,840 Hz and more than fifty once the saw moves off it (claim thicket)', async () => {
+    const osc = await lab(NAME)
+    const lines = (note: number) => {
+      osc.render(nothing(), { note })
+      const levels = osc.spectrum('naive')
+      let count = levels[0]! > -60 && levels[0]! > levels[1]! ? 1 : 0
+      for (let k = 1; k < levels.length - 1; k += 1)
+        if (levels[k]! > -60 && levels[k]! > levels[k - 1]! && levels[k]! >= levels[k + 1]!)
+          count += 1
+      return count
+    }
+    // Six harmonics, six lines of folds and the one at 0 Hz.
+    expect(lines(3840)).toBe(13)
+    for (const note of [3520, 3700, 3800, 3880]) expect(lines(note)).toBeGreaterThan(50)
   })
 
   it("leaves partial 12 at −80.7 dB in the kit's saw, 55.2 dB lower (claim kit-fold-12)", async () => {
