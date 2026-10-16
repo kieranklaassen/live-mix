@@ -334,7 +334,7 @@ void partial_curves(const String& s, const float* x, int count) {
 }
 
 // The pick's comb: with the second pluck M samples ahead in a loop P samples
-// round, partial k comes out sin(pi k M / P) of its full size.
+// round, partial k comes out |2 sin(pi k M / P)| of its size.
 void comb_curve(const String& s) {
   constexpr int kPoints = 2401;
   if (!comb.open(kPoints)) return;
@@ -342,7 +342,7 @@ void comb_curve(const String& s) {
   comb.x1 = 12000.0f;
   for (int p = 0; p < kPoints; ++p) {
     const double hz = 12000.0 * p / (kPoints - 1);
-    const double size = std::fabs(std::sin(lab::kPi * hz * s.comb_offset_ / lab::kSampleRate));
+    const double size = 2.0 * std::fabs(std::sin(lab::kPi * hz * s.comb_offset_ / lab::kSampleRate));
     comb.set(p, size > 1.0e-3 ? static_cast<float>(20.0 * std::log10(size)) : -60.0f);
   }
 }
