@@ -13,6 +13,7 @@ import {
   gainToDb,
   lab,
   matchesWritten,
+  noise,
   peak,
   RATE,
   rms,
@@ -63,20 +64,36 @@ const LEAD = 96
 
 /**
  * Echoes in the 10 ms of a response that start at `from`, counted here as the lab counts them:
- * samples larger than both neighbours and within 60 dB of the largest of the same 10 ms.
+ * samples larger in size than both neighbours and within 60 dB of the largest of the same 10 ms.
+ * `within` draws that line somewhere else.
  */
-function echoesIn(h: Float32Array, from: number): number {
+function echoesIn(h: Float32Array, from: number, within = 60): number {
   let top = 0
   for (let i = from; i < from + 480; i += 1) top = Math.max(top, Math.abs(h[i]!))
+  const floor = top * 10 ** (-within / 20)
   let count = 0
   for (let i = from; i < from + 480; i += 1) {
     const here = Math.abs(h[i]!)
     const before = i > 0 ? Math.abs(h[i - 1]!) : 0
     const after = Math.abs(h[i + 1] ?? 0)
-    if (here > top * 0.001 && here > before && here >= after) count += 1
+    if (here > floor && here > before && here >= after) count += 1
   }
   return count
 }
+
+type Curve = { channels_data: Float32Array[]; x0: number; x1: number }
+
+/** When a curve that only falls first stands at `level`, by a straight line between its points. */
+function timeDown(curve: Curve, level: number): number {
+  const data = curve.channels_data[0]!
+  const p = data.findIndex((v) => v <= level)
+  const part = (data[p - 1]! - level) / (data[p - 1]! - data[p]!)
+  return curve.x0 + ((p - 1 + part) * (curve.x1 - curve.x0)) / (data.length - 1)
+}
+
+/** The time to fall 60 dB that a stretch of the lab's decay curve gives, from `top` dB to `bottom` dB. */
+const fallOver = (curve: Curve, top: number, bottom: number) =>
+  (60 / (top - bottom)) * (timeDown(curve, bottom) - timeDown(curve, top))
 
 /** The level, in dB, of each 100 ms of a signal. */
 function levels(x: Float32Array): number[] {
@@ -119,7 +136,7 @@ function quietest(x: Float32Array, width: number): number {
   return best
 }
 
-/** The level of the octave round `hz` in a lab's average spectrum, in dB. */
+/** A lab's average spectrum, averaged again over the points of the octave round `hz`, in dB. */
 function octave(spectrum: Float32Array, hz: number): number {
   let sum = 0
   let count = 0
@@ -227,12 +244,34 @@ describe('plate reverb', () => {
       for (let w = 1; w < 6; w += 1) expect(counts[w]!).toBeGreaterThan(counts[w - 1]!)
     })
 
-    it('falls 60 dB in 1.68 s at the settings the page opens on (claim fall-start)', async () => {
+    it('falls 60 dB in 1.7 s at the left output at the settings the page opens on (claim fall-start); read a decibel higher or a decibel lower it comes out between 1.64 s and 1.72 s (claim fall-read)', async () => {
       const plate = await lab(NAME)
-      expectWritten(plate.render(click(seconds(1)), {}).checks.fall!, '1.68 s')
+      const result = plate.render(click(seconds(1)), {})
+      expectWritten(result.checks.fall!, '1.7 s')
+      const curve = result.taps.decayCurve!
+      // The lab's reading is the stretch from 5 dB down to 25 dB down.
+      expect(fallOver(curve, -5, -25)).toBeCloseTo(result.checks.fall!, 3)
+      for (const [top, bottom] of [
+        [-4, -24],
+        [-6, -26],
+      ]) {
+        expectWritten(fallOver(curve, top!, bottom!), 'over 1.64 s')
+        expectWritten(fallOver(curve, top!, bottom!), 'under 1.72 s')
+      }
+      // A longer stretch reads longer: the line is steeper at its top than further down.
+      expect(fallOver(curve, -5, -35)).toBeGreaterThan(result.checks.fall!)
     })
 
-    it('takes 2.1 s to fall 60 dB round 250 Hz, 1.8 s round 4 kHz and 1.2 s round 16 kHz at the settings the page opens on (claim fall-bands)', async () => {
+    it('finds the line of the energy still to come 60 dB down 1.9 s after the click, later than the reading of 1.7 s says (claim fall-whole)', async () => {
+      const plate = await lab(NAME)
+      const result = plate.render(click(seconds(1)), {})
+      const curve = result.taps.decayCurve!
+      expect(curve.x0).toBe(0)
+      expectWritten(timeDown(curve, -60), '1.9 s')
+      expect(timeDown(curve, -60)).toBeGreaterThan(result.checks.fall! + 0.1)
+    })
+
+    it('takes 2.1 s to fall 60 dB round 250 Hz, 1.8 s round 4 kHz and 1.2 s round 16 kHz at the settings the page opens on (claim fall-bands), and over the left-hand half goes up as well as down, by less than 0.2 s from one band to the next (claim fall-wander)', async () => {
       const plate = await lab(NAME)
       const result = plate.render(click(seconds(1)), {})
       expectWritten(fallAt(result, 250), '2.1 s')
@@ -242,9 +281,14 @@ describe('plate reverb', () => {
       const curve = Array.from(tap(result, 'fallBands'))
       expect(curve.length).toBe(13)
       for (let p = 6; p < 13; p += 1) expect(curve[p]!).toBeLessThan(curve[p - 1]!)
+      // Over the left-hand half it goes both ways, a little.
+      const steps = curve.slice(1, 6).map((v, p) => v - curve[p]!)
+      expect(steps.some((step) => step > 0)).toBe(true)
+      expect(steps.some((step) => step < 0)).toBe(true)
+      for (const step of steps) expectWritten(Math.abs(step), 'less than 0.2 s')
     })
 
-    it('keeps the picture of the tail within 60 dB of its brightest for 2.2 s round 500 Hz and 1.4 s round 16 kHz, and with Damping at 0.7 for 2.2 s and 1.0 s (claim picture-dark)', async () => {
+    it('keeps the picture of the tail within 60 dB of the band’s own brightest moment for 2.2 s round 500 Hz and 1.4 s round 16 kHz, and with Damping at 0.7 for 2.2 s and 1.0 s (claim picture-dark)', async () => {
       const plate = await lab(NAME)
       const start = plate.render(click(seconds(1)), {}).taps.tail!
       expectWritten(litFor(start, 500), '2.2 s')
@@ -283,7 +327,7 @@ describe('plate reverb', () => {
       expectWritten(echoes, '96')
       expectWritten(peak(hit), '0.22')
       const before = tap(struck(plate, STEP.gap), 'builtHit')
-      expect(matchesWritten(echoesIn(before, GAP + seconds(0.03)), '96')).toBe(false)
+      expect(echoesIn(before, GAP + seconds(0.03))).toBe(0)
       expect(matchesWritten(peak(before), '0.22')).toBe(false)
       // One sample, and under it the trace of the filter after the gap, 66 dB down.
       expect(before.filter((v) => Math.abs(v) > 0.001).length).toBe(1)
@@ -292,7 +336,7 @@ describe('plate reverb', () => {
       expectWritten(Math.abs(kept), 'less than 0.01 dB')
     })
 
-    it('step 3, one loop: the click comes round 275 ms after it arrived, and from 0.5 s to 1 s after the click the sound stands at −65 dB (claim build-loop); without the piece nothing comes round and that stretch is under −170 dB', async () => {
+    it('step 3, one loop: the click comes round 275 ms after it arrived, and from 0.5 s to 1 s after the click the sound stands at −65 dB (claim build-loop); without the piece nothing comes round and that stretch holds −185 dB, the all-passes ringing down', async () => {
       const plate = await lab(NAME)
       const looped = tap(struck(plate, STEP.loop), 'builtHit')
       // With Decay at 0 nothing comes back: what differs from that is what came round.
@@ -305,12 +349,13 @@ describe('plate reverb', () => {
       const before = tap(struck(plate, STEP.diffuse), 'builtHit')
       const beforeOnce = tap(struck(plate, STEP.diffuse, { decay: 0 }), 'builtHit')
       expect(before.findIndex((v, i) => Math.abs(v - beforeOnce[i]!) > 1e-9)).toBe(-1)
-      const beforeLevel = levelOf(before, seconds(0.5), seconds(1))
+      // The helper's decibels stop at −180 dB and this is under that, so it is worked out here.
+      const beforeLevel = 20 * Math.log10(rms(before, seconds(0.5), seconds(1)))
       expect(matchesWritten(beforeLevel, '−65 dB')).toBe(false)
-      expectWritten(beforeLevel, 'under −170 dB')
+      expectWritten(beforeLevel, '−185 dB')
     })
 
-    it('step 4, two loops crossed: the two halves are heard with a likeness of 0.62, and what entered the right half reaches the left 248 ms after it arrived (claim build-cross); with one loop the likeness is 1 and the first return comes at 275 ms', async () => {
+    it('step 4, two loops crossed: the two halves are heard with a likeness of 0.62 on a single click and of 0.41 on the drum loop, and what entered the right half reaches the left 248 ms after it arrived (claim build-cross); with one loop the likeness is 1 and the first return comes at 275 ms', async () => {
       const plate = await lab(NAME)
       const crossed = struck(plate, STEP.cross)
       expectWritten(likeness(tap(crossed, 'built', 0), tap(crossed, 'built', 1)), '0.62')
@@ -329,9 +374,17 @@ describe('plate reverb', () => {
         beforeHit.findIndex((v, i) => Math.abs(v - beforeOnce[i]!) > 1e-9) - GAP,
       )
       expect(matchesWritten(beforeRound, '248 ms')).toBe(false)
+
+      const drums = await benchSource('drums', seconds(4))
+      const onDrums = (step: number) => {
+        const result = plate.render(drums, { build: step })
+        return likeness(tap(result, 'built', 0), tap(result, 'built', 1))
+      }
+      expectWritten(onDrums(STEP.cross), '0.41')
+      expectWritten(onDrums(STEP.loop), '1.00')
     })
 
-    it('step 5, damping: from 1 s to 1.5 s after a click the octave round 8 kHz stands 8.4 dB under the octave round 500 Hz with Damping at 0.3 (claim build-damp); without the piece it stands 3.5 dB under', async () => {
+    it('step 5, damping: from 1 s to 1.5 s after a click the spectrum averaged over the octave round 8 kHz stands 8.4 dB under its average over the octave round 500 Hz with Damping at 0.3 (claim build-damp); without the piece it stands 3.5 dB under', async () => {
       const plate = await lab(NAME)
       const tilt = (step: number) => {
         struck(plate, step)
@@ -344,7 +397,7 @@ describe('plate reverb', () => {
       expectWritten(before, '3.5 dB')
     })
 
-    it('step 6, seven places a side: the two sides have a likeness under 0.01, and the left first sounds 428 samples after the gap and the right 568 samples (claim build-read); without the piece the likeness is 0.63 and both sound as the gap ends', async () => {
+    it('step 6, seven places a side: on a single click the two sides have a likeness under 0.01 and on the drum loop of −0.14, and the left first sounds 428 samples after the gap and the right 568 samples (claim build-read); without the piece the likeness is 0.63 on the click and 0.41 on the drums, and both sides sound as the gap ends', async () => {
       const plate = await lab(NAME)
       const read = struck(plate, STEP.read)
       expectWritten(Math.abs(likeness(tap(read, 'built', 0), tap(read, 'built', 1))), 'under 0.01')
@@ -360,17 +413,25 @@ describe('plate reverb', () => {
       const beforeQuick = struck(plate, STEP.damp, { decay: 0.1 })
       expect(firstSound(tap(beforeQuick, 'built', 0)) - GAP).toBe(0)
       expect(firstSound(tap(beforeQuick, 'built', 1)) - GAP).toBe(0)
+
+      const drums = await benchSource('drums', seconds(4))
+      const onDrums = (step: number) => {
+        const result = plate.render(drums, { build: step })
+        return likeness(tap(result, 'built', 0), tap(result, 'built', 1))
+      }
+      expectWritten(onDrums(STEP.read), '−0.14')
+      expectWritten(onDrums(STEP.damp), '0.41')
     })
 
-    it('step 7, movement: a steady 440 Hz tone comes out with a level that swings over 20.6 dB, and the left half’s first delay grows by up to 19.35 samples (claim build-move); without the piece the level holds within 0.001 dB and the delay does not move', async () => {
+    it('step 7, movement: a steady 440 Hz tone comes out with a level that swings through 21 dB, and the left half’s first delay grows by up to 19.35 samples (claim build-move); without the piece the level holds within 0.001 dB and the delay does not move', async () => {
       const plate = await lab(NAME)
       const tone = sine(440, 0.25, seconds(8))
       // The lab starts with the delays held still: the piece is the device's movement, let go.
       const moving = plate.render(tone, { movement: 1, build: STEP.move })
-      expectWritten(swing(tap(moving, 'built')), '20.6 dB')
+      expectWritten(swing(tap(moving, 'built')), '21 dB')
       expectWritten(peak(tap(moving, 'builtSweep').subarray(100)), '19.35 samples')
       const before = plate.render(tone, { movement: 1, build: STEP.read })
-      expect(matchesWritten(swing(tap(before, 'built')), '20.6 dB')).toBe(false)
+      expect(matchesWritten(swing(tap(before, 'built')), '21 dB')).toBe(false)
       expectWritten(swing(tap(before, 'built')), 'less than 0.001 dB')
       expect(tap(before, 'builtSweep').every((v) => v === 0)).toBe(true)
     })
@@ -411,6 +472,21 @@ describe('plate reverb', () => {
       // The same sound alike in both channels goes in whole.
       const alike = plate.render(sine(440, 0.5, seconds(1)), { predelay: 0 })
       expectWritten(rms(tap(alike, 'predelayed')) / (0.5 / Math.SQRT2), '1.000')
+    })
+
+    it('gives a sound on one side alone the reverb it gives the same sound on both sides, 6.0 dB lower: every sample is half (claim one-side)', async () => {
+      const plate = await lab(NAME)
+      const both = sine(440, 0.5, seconds(1))
+      const one = sine(440, 0.5, seconds(1))
+      one.right = new Float32Array(one.right.length)
+      const whole = plate.render(both, {})
+      const half = plate.render(one, {})
+      for (const channel of [0, 1]) {
+        const full = tap(whole, 'out', channel)
+        const sided = tap(half, 'out', channel)
+        expectWritten(levelOf(full) - levelOf(sided), '6.0 dB')
+        expect(sided.every((v, i) => v === 0.5 * full[i]!)).toBe(true)
+      }
     })
 
     it('lets a sample through 959 samples later at a pre-delay of 20 ms, and at once at 0 ms (claim predelay-one-less)', async () => {
@@ -525,6 +601,29 @@ describe('plate reverb', () => {
       expect(Math.min(...tank)).toBeGreaterThan(100)
     })
 
+    it('counts the same at the output wherever the line of 60 dB is drawn: at 40 dB or at 100 dB the average is within 1 of the same (claim density-floor), and white noise counted the same way has 160 in 10 ms (claim density-noise)', async () => {
+      const plate = await lab(NAME)
+      // One click in eight seconds: the output is the whole answer, from the gap's 959 samples on.
+      const answer = tap(plate.render(click(seconds(8)), {}), 'out')
+      const mean = (within: number) => {
+        let sum = 0
+        for (let w = 10; w < 50; w += 1) sum += echoesIn(answer, 959 + w * 480, within)
+        return sum / 40
+      }
+      expectWritten(mean(60), '152')
+      expect(Math.abs(mean(40) - mean(60))).toBeLessThan(1)
+      expect(Math.abs(mean(100) - mean(60))).toBeLessThan(1)
+      // A line drawn 20 dB down is another count: it leaves out the smaller echoes.
+      expect(mean(20)).toBeLessThan(mean(60) - 10)
+      // Three seconds of noise, a second of each of three seeds.
+      let sum = 0
+      for (const seed of [1, 2, 3]) {
+        const hiss = noise(0.5, seconds(1), seed).left
+        for (let w = 0; w < 100; w += 1) sum += echoesIn(hiss, w * 480)
+      }
+      expectWritten(sum / 300, '160')
+    })
+
     it('sets the four input all-passes to 229, 173, 611 and 447 samples at 48 kHz, no two sharing a factor (claim input-lengths)', async () => {
       const plate = await lab(NAME)
       const input = Array.from(tap(plate.render(click(seconds(1)), {}), 'lengths')).slice(0, 4)
@@ -592,19 +691,19 @@ describe('plate reverb', () => {
       expect(Math.abs(checks.fall! / checks.fallFormula! - 1)).toBeLessThan(0.1)
     }
 
-    it('falls 60 dB in 1.13 s at a decay of 0.3 with no damping (claim fall-03), where the formula gives 1.04 s (claim formula-03)', () =>
-      fallWith(0.3, '1.13 s', '1.04 s'))
+    it('falls 60 dB in 1.1 s at a decay of 0.3 with no damping (claim fall-03), where the formula gives 1.04 s (claim formula-03)', () =>
+      fallWith(0.3, '1.1 s', '1.04 s'))
 
-    it('falls 60 dB in 1.77 s at a decay of 0.5 with no damping (claim fall-05), where the formula gives 1.81 s (claim formula-05)', () =>
-      fallWith(0.5, '1.77 s', '1.81 s'))
+    it('falls 60 dB in 1.8 s at a decay of 0.5 with no damping (claim fall-05), where the formula gives 1.81 s (claim formula-05)', () =>
+      fallWith(0.5, '1.8 s', '1.81 s'))
 
-    it('falls 60 dB in 3.32 s at a decay of 0.7 with no damping (claim fall-07), where the formula gives 3.51 s (claim formula-07)', () =>
-      fallWith(0.7, '3.32 s', '3.51 s'))
+    it('falls 60 dB in 3.3 s at a decay of 0.7 with no damping (claim fall-07), where the formula gives 3.51 s (claim formula-07)', () =>
+      fallWith(0.7, '3.3 s', '3.51 s'))
 
-    it('falls 60 dB in 10.8 s at a decay of 0.9 with no damping (claim fall-09), where the formula gives 11.9 s (claim formula-09)', () =>
-      fallWith(0.9, '10.8 s', '11.9 s'))
+    it('falls 60 dB in 11 s at a decay of 0.9 with no damping (claim fall-09), where the formula gives 11.9 s (claim formula-09)', () =>
+      fallWith(0.9, '11 s', '11.9 s'))
 
-    it('dies away more slowly the higher the decay, from 0.47 s at 0 to 10.4 s at 0.9 (claim decay-range)', async () => {
+    it('dies away more slowly the higher the decay, from 0.47 s at 0 to 10 s at 0.9 (claim decay-range)', async () => {
       const plate = await lab(NAME)
       const source = click(seconds(1))
       const times = [0, 0.1, 0.3, 0.5, 0.7, 0.9].map(
@@ -612,7 +711,7 @@ describe('plate reverb', () => {
       )
       for (let i = 1; i < times.length; i += 1) expect(times[i]!).toBeGreaterThan(times[i - 1]!)
       expectWritten(times[0]!, '0.47 s')
-      expectWritten(times.at(-1)!, '10.4 s')
+      expectWritten(times.at(-1)!, '10 s')
       expect(times.at(-1)! / times[0]!).toBeGreaterThan(20)
     })
 
@@ -623,23 +722,17 @@ describe('plate reverb', () => {
       const data = curve.channels_data[0]!
       expect(data[0]).toBe(0)
       for (let p = 1; p < data.length; p += 1) expect(data[p]!).toBeLessThanOrEqual(data[p - 1]!)
-      const timeAt = (level: number) => {
-        const p = data.findIndex((v) => v <= level)
-        const part = (data[p - 1]! - level) / (data[p - 1]! - data[p]!)
-        return curve.x0 + ((p - 1 + part) * (curve.x1 - curve.x0)) / (data.length - 1)
-      }
-      expect(3 * (timeAt(-25) - timeAt(-5))).toBeCloseTo(out.checks.fall!, 3)
+      expect(3 * (timeDown(curve, -25) - timeDown(curve, -5))).toBeCloseTo(out.checks.fall!, 3)
     })
 
-    it('shortens the highs with damping and hardly the lows: at 0.7 the band at 5 kHz falls 60 dB in 1.27 s against 1.85 s with none, the band at 500 Hz in 1.85 s against 1.87 s (claim damping-bands)', async () => {
+    it('shortens the highs with damping and hardly the lows: at 0.7 the band at 5 kHz falls 60 dB in 1.3 s, 0.7 of its time with none, and the band at 500 Hz keeps 0.99 of its time (claim damping-bands)', async () => {
       const plate = await lab(NAME)
       const source = click(seconds(1))
       const bright = plate.render(source, { damping: 0 }).checks
       const dark = plate.render(source, { damping: 0.7 }).checks
-      expectWritten(dark.fallHigh!, '1.27 s')
-      expectWritten(bright.fallHigh!, '1.85 s')
-      expectWritten(dark.fallLow!, '1.85 s')
-      expectWritten(bright.fallLow!, '1.87 s')
+      expectWritten(dark.fallHigh!, '1.3 s')
+      expectWritten(dark.fallHigh! / bright.fallHigh!, '0.7')
+      expectWritten(dark.fallLow! / bright.fallLow!, '0.99')
       const highsLost = 1 - dark.fallHigh! / bright.fallHigh!
       const lowsLost = 1 - dark.fallLow! / bright.fallLow!
       expect(highsLost).toBeGreaterThan(0.25)
@@ -678,11 +771,14 @@ describe('plate reverb', () => {
       expectWritten(lossAt(500, 0.3), 'less than 0.02 dB')
     })
 
-    it('loses its highs a little sooner even with no damping: the band round 16 kHz falls 60 dB in 1.62 s where the band round 1 kHz takes 1.87 s (claim still-loses-highs)', async () => {
+    it('loses its highs a little sooner even with no damping: the band round 16 kHz falls 60 dB in 1.6 s where the band round 1 kHz takes 1.9 s (claim still-loses-highs)', async () => {
       const plate = await lab(NAME)
       const result = plate.render(click(seconds(1)), { damping: 0 })
-      expectWritten(fallAt(result, 16_000), '1.62 s')
-      expectWritten(fallAt(result, 1000), '1.87 s')
+      expectWritten(fallAt(result, 16_000), '1.6 s')
+      expectWritten(fallAt(result, 1000), '1.9 s')
+      // From 4 kHz up, each band falls sooner than the band under it.
+      const curve = Array.from(tap(result, 'fallBands'))
+      for (let p = 9; p < 13; p += 1) expect(curve[p]!).toBeLessThan(curve[p - 1]!)
     })
 
     it('first sounds 428 samples after the pre-delay on the left and 568 samples on the right, which are 8.9 ms and 11.8 ms (claim first-out), the right repeating the left for its first 1,083 samples (claim sides-early), and over the whole response the two sides are unrelated: a likeness under 0.01 (claim sides)', async () => {
@@ -728,11 +824,36 @@ describe('plate reverb', () => {
       expect(tap(held, 'wobbleRight').every((v) => v === 0)).toBe(true)
     })
 
-    it('holds a steady tone steady when still, within 0.1 dB (claim still-steady), and swings it over 20.6 dB when the delays move (claim moving-swings)', async () => {
+    it('holds a steady tone steady when still, within 0.1 dB (claim still-steady), and swings it through 21 dB when the delays move (claim moving-swings)', async () => {
       const plate = await lab(NAME)
       const source = sine(440, 0.25, seconds(8))
       expectWritten(swing(tap(plate.render(source, {}), 'out')), 'less than 0.1 dB')
-      expectWritten(swing(tap(plate.render(source, { movement: 1 }), 'out')), '20.6 dB')
+      const moving = tap(plate.render(source, { movement: 1 }), 'out')
+      expectWritten(swing(moving), '21 dB')
+      // Read from a quarter, a half and three quarters of a tenth of a second later, it is the same.
+      for (const from of [1200, 2400, 3600]) expectWritten(swing(moving.subarray(from)), '21 dB')
+    })
+
+    it('swings a tone at 220 Hz through 0.7 dB with the delays moving: how far depends on the tone (claim swing-low)', async () => {
+      const plate = await lab(NAME)
+      const moving = plate.render(sine(220, 0.25, seconds(8)), { movement: 1 })
+      expectWritten(swing(tap(moving, 'out')), '0.7 dB')
+    })
+
+    it('on the drum loop, read half a second at a time, comes out with the delays moving within 0.5 dB of the same with them still (claim moving-drums)', async () => {
+      const plate = await lab(NAME)
+      const drums = await benchSource('drums', seconds(4))
+      const still = tap(plate.render(drums, {}), 'out')
+      const moving = tap(plate.render(drums, { movement: 1 }), 'out')
+      let furthest = 0
+      for (let from = 0; from + seconds(0.5) <= still.length; from += seconds(0.5)) {
+        const apart =
+          levelOf(moving, from, from + seconds(0.5)) - levelOf(still, from, from + seconds(0.5))
+        furthest = Math.max(furthest, Math.abs(apart))
+      }
+      expectWritten(furthest, 'less than 0.5 dB')
+      // The two are not the same sound: the movement is there, and it evens out.
+      expect(furthest).toBeGreaterThan(0.01)
     })
 
     it('gives 441 Hz 3.5 dB more than 440 Hz when the delays are still (claim pitch-luck)', async () => {
@@ -783,10 +904,10 @@ describe('plate reverb', () => {
       expectWritten(levelOfBoth(result, 'in') - levelOfBoth(result, 'added'), '5.1 dB')
     })
 
-    it('gives the strummed chords a tail that falls 60 dB in 5.8 s round 500 Hz and in 3.4 s round 5 kHz (claim use-chords)', async () => {
+    it('gives the strummed chords a tail that falls 60 dB in about 6 s round 500 Hz and in 3.4 s round 5 kHz (claim use-chords)', async () => {
       const plate = await lab(NAME)
       const checks = (await played(plate, 'chords')).checks
-      expectWritten(checks.fallLow!, '5.8 s')
+      expectWritten(checks.fallLow!, '6 s')
       expectWritten(checks.fallHigh!, '3.4 s')
     })
 
@@ -814,24 +935,35 @@ describe('plate reverb', () => {
       expectWritten(answered(20), '28.9 ms')
     })
 
-    it('falls 60 dB in 0.96 s with Decay at 0.25 and the delays moving (claim way-short)', async () => {
+    it('takes between 0.9 s and 1 s to fall 60 dB with Decay at 0.25 and the delays moving (claim way-short)', async () => {
       const plate = await lab(NAME)
-      const checks = (await played(plate, 'short')).checks
-      expectWritten(checks.fall!, '0.96 s')
+      const result = await played(plate, 'short')
+      expectWritten(result.checks.fall!, 'over 0.9 s')
+      expectWritten(result.checks.fall!, 'under 1 s')
+      // And read a decibel higher or lower on the line.
+      for (const [top, bottom] of [
+        [-4, -24],
+        [-6, -26],
+      ]) {
+        expectWritten(fallOver(result.taps.decayCurve!, top!, bottom!), 'over 0.9 s')
+        expectWritten(fallOver(result.taps.decayCurve!, top!, bottom!), 'under 1 s')
+      }
     })
 
-    it('with Damping at 0 falls 60 dB in 2.44 s round 5 kHz and in 2.55 s round 500 Hz (claim way-bright)', async () => {
+    it('with Damping at 0 falls 60 dB in 2.4 s round 5 kHz, and round 500 Hz takes less than 0.2 s longer (claim way-bright)', async () => {
       const plate = await lab(NAME)
       const checks = (await played(plate, 'bright')).checks
-      expectWritten(checks.fallHigh!, '2.44 s')
-      expectWritten(checks.fallLow!, '2.55 s')
+      expectWritten(checks.fallHigh!, '2.4 s')
+      expect(checks.fallLow!).toBeGreaterThan(checks.fallHigh!)
+      expectWritten(checks.fallLow! - checks.fallHigh!, 'less than 0.2 s')
     })
 
-    it('with Decay at 0.85 and Damping at 0.7 falls 60 dB in 7.7 s round 500 Hz and in 2.6 s round 5 kHz (claim way-dark)', async () => {
+    it('with Decay at 0.85 and Damping at 0.7 falls 60 dB in about 8 s round 500 Hz and in 2.6 s round 5 kHz, three times as long at the bottom as at the top (claim way-dark)', async () => {
       const plate = await lab(NAME)
       const checks = (await played(plate, 'dark')).checks
-      expectWritten(checks.fallLow!, '7.7 s')
+      expectWritten(checks.fallLow!, '8 s')
       expectWritten(checks.fallHigh!, '2.6 s')
+      expectWritten(checks.fallLow! / checks.fallHigh!, '3.0')
     })
 
     it('with the mix at 1 puts out the plate and nothing of the dry sound: what the plate adds is the output, sample for sample (claim way-alone)', async () => {
@@ -852,7 +984,7 @@ describe('plate reverb', () => {
       expectWritten(levelOf(tap(result, 'out'), at, at + seconds(0.2)), '−23 dB')
     })
 
-    it('swings a held 440 Hz tone over 21 dB across the loop with the delays moving, and holds it within 0.01 dB with them still (claim fault-swell)', async () => {
+    it('swings a held 440 Hz tone through 21 dB across the loop with the delays moving, and holds it within 0.01 dB with them still (claim fault-swell)', async () => {
       const plate = await lab(NAME)
       expectWritten(swing(tap(await played(plate, 'swell'), 'out')), '21 dB')
       expectWritten(
@@ -869,12 +1001,12 @@ describe('plate reverb', () => {
       expectWritten(ms(firstSound(out)), '259 ms')
     })
 
-    it('with Damping at 1 falls 60 dB in 0.49 s though Decay is at 0.9, where with Damping at 0.3 it takes 10.1 s (claim fault-shut)', async () => {
+    it('with Damping at 1 falls 60 dB in 0.5 s though Decay is at 0.9, where with Damping at 0.3 it takes 10 s (claim fault-shut)', async () => {
       const plate = await lab(NAME)
       const { values } = setOf(plate, 'shut')
       const source = click(seconds(1))
-      expectWritten(plate.render(source, values).checks.fall!, '0.49 s')
-      expectWritten(plate.render(source, { ...values, damping: 0.3 }).checks.fall!, '10.1 s')
+      expectWritten(plate.render(source, values).checks.fall!, '0.5 s')
+      expectWritten(plate.render(source, { ...values, damping: 0.3 }).checks.fall!, '10 s')
     })
   })
 
@@ -895,13 +1027,6 @@ describe('plate reverb', () => {
         }
         expect(levelOf(sound.channels_data[0]!), `${name} is not silent`).toBeGreaterThan(-60)
       }
-    })
-
-    it('plays the first card of the lesson as the device starts: the settings file’s defaults', async () => {
-      const plate = await lab(NAME)
-      expect(setOf(plate, 'plate').values).toEqual(
-        resolveSet(plate.description, { values: settings.defaults!.values }).values,
-      )
     })
 
     it('plays the tile between −36 and −5 dB on each of the six loops of the map', async () => {

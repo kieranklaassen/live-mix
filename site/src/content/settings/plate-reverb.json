@@ -19,11 +19,6 @@
       "source": "drums",
       "tap": "combed"
     },
-    "plate": {
-      "label": "The drums with the plate behind them",
-      "values": { "mix": 0.35, "decay": 0.7, "movement": 1 },
-      "source": "drums"
-    },
     "drums": {
       "label": "Drums",
       "values": { "mix": 0.3, "damping": 0.4, "movement": 1 },
