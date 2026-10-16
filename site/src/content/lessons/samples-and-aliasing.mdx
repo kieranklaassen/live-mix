@@ -1,7 +1,9 @@
 ---
 title: Samples, sine waves and aliasing
 family: signals
-summary: Digital sound is a list of numbers, 48,000 of them a second. This lesson runs the kit's oscillators with nothing after them, shows what those numbers can and cannot hold, and takes the kit's saw apart to see how it keeps what cannot be held from coming back as something else.
+summary: Digital sound is a list of numbers, 48,000 of them a second. This lesson says what such a list can hold, shows what becomes of a frequency that does not fit, builds the engine's saw and triangle a piece at a time, then opens the real ones to see how they keep what cannot be held from coming back as something else.
+long: true
+opening: { input: naive, output: saw }
 lab: samples-and-aliasing
 devices: [string-machine, chamber-strings, drum-kit]
 bench:
@@ -14,182 +16,784 @@ seconds: 2
 files:
   - cpp/kit/osc.h
   - cpp/kit/math.h
+  - cpp/devices/string-machine/string_machine.h
 ---
 
-A sound in the air is a pressure that changes smoothly in time. A computer cannot hold "smoothly". It holds numbers. So the wave is measured at even instants, 48,000 times a second in this engine, and each measurement is kept as one number, a _sample_. Everything the engine does to sound, it does to lists of these numbers.
+<Part id="why" title="A computer cannot hold a wave. It holds numbers.">
 
-The surprise is how little that loses. As long as the wave holds nothing faster than half the sample rate, the samples hold all of it: there is exactly one such wave through them, and it can be drawn back. The trap is what happens otherwise. A wave faster than half the sample rate is not dropped. Its samples are also the samples of a slower wave, and the slower wave is what comes out. That is _aliasing_: one frequency going by the name of another.
+A sound in the air is a pressure that rises and falls smoothly. A microphone turns it into a voltage that rises and falls the same way. A computer cannot store "smoothly". It stores numbers. So the wave is measured at even instants, and each measurement is kept as one number. That number is a _sample_.
 
-An oscillator has to mind this more than anything else in the engine, because the shapes worth making have sharp edges, and a sharp edge holds frequencies without end. This lesson runs two of the kit's oscillators bare: its sine, asked for frequencies it has no business making, and its saw, beside a saw written the obvious way. Nothing goes in. Press Play, which starts on the kit's saw, then Listen on any stage.
+How often the wave is measured is the _sample rate_. Every lab on this site runs at <Src path="site/labs/lab.h" at="constexpr float kSampleRate = 48000.0f;">48,000 samples a second</Src>. The loop this page plays is two seconds long, so it is <Claim id="loop-samples">96,000 samples</Claim> and nothing else. Everything the engine does to sound, it does to lists like that one.
 
-<Stages taps="sine naive correction saw" />
+Start with the plainest sound there is, a sine wave: one pitch and nothing more. Here is a little of one as the engine stores it.
 
-Listen to the sine first. Move its frequency up and the pitch rises, as it should, until 24 kHz. Then it comes back down.
+<Still
+  taps="sine"
+  from={0}
+  span={0.002}
+  caption="Four cycles of a sine wave as it is stored. Each cycle is two dozen numbers, and the picture joins them with straight lines so that the eye can follow them. Nothing is kept between one number and the next."
+/>
 
-<Controls ids="freq note" />
+A sample says how high the wave stood at one instant. It says nothing about the time until the next one. That looks like a great deal thrown away, and the surprise of this lesson is how little is lost. As long as the wave holds no frequency as high as half the sample rate, exactly one such wave passes through the samples, and it can be drawn back whole.
 
-<SamplesOnWaves waves="wave:in" samples="samples:out">
-  Twenty-four samples of the sine (red, each a dot on a stalk) and the wave they were taken from (grey). Only the dots are kept. Raise the frequency and the dots grow sparse on the wave; past 24 kHz there are fewer than two of them to a cycle.
-</SamplesOnWaves>
+Half the sample rate has a name, the _Nyquist frequency_. Half of 48,000 is 24,000, so on this page it is 24 kHz, above the highest pitch a person hears. The reason for the half is simple. A wave goes up and comes down once in every cycle, and to catch both, a cycle needs more than two samples. A wave at exactly half the rate gets two. A faster one gets fewer.
 
-Under each stage is a mark saying where it comes from. _Computed by the engine's kit_ is the kit's own class, running. _Written for this lesson_ is not in the engine: the naive saw is there to show what the kit avoids, and the grey wave above is drawn by the lab between samples the kit made.
+So here is the question this lesson starts from. What comes out when a sound is asked to go higher than half the rate?
 
-## Stage by stage
+<Predict
+  question="A sine wave is asked to rise steadily in pitch for two seconds, from nothing up to 48 kHz, twice as high as the samples can follow. What comes out?"
+  choices={[
+    'It rises until it is too high to hear, and stays silent',
+    'It rises, then comes back down',
+    'It rises, then breaks up into noise',
+  ]}
+>
 
-### 1. A sample is a number at an instant
+It rises, then comes back down. Listen to it, at a modest volume: <Hear set="rising" label="Hear the sine asked to rise" />
 
-A sine at frequency <M t="f" />, measured <M t="f_s" /> times a second, is the list
+The picture of it is a _spectrogram_. Time runs along the bottom and frequency up the side, and the sound is drawn where it is. One sine is one line.
 
-<M block t={String.raw`x[n] = \sin\!\left(2\pi\,\frac{f}{f_s}\,n\right), \qquad n = 0, 1, 2, \dots`} />
+<Still
+  taps="sweepPicture"
+  view="spectrogram"
+  set="rising"
+  caption="A sine asked to rise in a straight line for the whole loop. For the first half the line climbs as asked. At the top of the picture, which is half the sample rate, it turns round, and for the second half it comes down the way it went up."
+/>
 
-The only thing in it besides the count <M t="n" /> is the ratio <M t={String.raw`f/f_s`} />: how much of a cycle goes by between one sample and the next. The kit calls it the _increment_, and every oscillator in the engine is built on it. <Src path="cpp/kit/osc.h" lines="84-95">`SineOsc`</Src> keeps a _phase_, a number from 0 to 1 that says how far through the cycle the wave is. Each call of `next` reads the sine at the phase, adds the increment, and takes 1 off when the phase passes 1. At 2 kHz the increment is 1/24, so the phase goes round once every 24 samples.
+Measured on the loop, the sine <Claim id="sweep-turns">climbs for a second to 24 kHz and falls for a second</Claim>. <Claim id="sweep-mirror">Half a second in it was asked for 12 kHz, and it stands at 12 kHz. A second later it was asked for 36 kHz, and it stands at 12 kHz again</Claim>.
 
-The sine itself is not worked out each time. <Src path="cpp/kit/math.h" lines="104-140">`SineTable`</Src> holds one cycle as 4,096 steps (4,097 points, so that the last step has an end), filled once, and `lookup` draws a straight line between the two points either side of the phase. A straight line is not a sine, but with 4,096 of them to the cycle the difference is small:
+Nothing was dropped and nothing broke. The oscillator did as it was told: no line of its code knows about half the rate. But the samples of a sine at 36 kHz are also samples that a sine at 12 kHz could have left, and a loudspeaker is given the lowest wave that fits them. Part 2 shows why.
 
-<Check id="tableError" />
+</Predict>
 
-At 2 kHz the table's sine stands <Claim id="table-error">133 dB under</Claim> the exact sine of the same phase.
+That is _aliasing_: one frequency going by the name of another. The frequency that was asked for is said to _fold_ about half the sample rate, like a strip of paper folded there.
 
-<Wave taps="sine" stems span={0.001}>
-  One millisecond of the loop as it is stored: 48 numbers. Nothing joins them, because nothing is kept between them.
-</Wave>
+### A bright sound is full of frequencies that do not fit
 
-### 2. A little more than two samples a cycle is enough
+Nobody asks an oscillator for a note at 36 kHz. The trouble arrives another way. A sine is the only wave with one frequency in it. Every other repeating shape is a stack of sines, called its _partials_: one at the note, one at twice the note, one at three times it, and on up. The sharper the corners of the shape, the further up the stack goes.
 
-Between the dots there is room for any curve at all. The _sampling theorem_ says which one to draw: if the wave that was measured held no frequency at or above half the sample rate, then it is the only such wave through those samples, and so the samples lose nothing. Half the sample rate, 24 kHz here, is the _Nyquist frequency_.
+A _saw wave_ climbs in a straight line and drops back in no time at all. It is the bright, buzzing wave under most synthesiser strings and brass, and its stack has no top. The plain way to make one is to work that shape out, a sample at a time. This lesson calls the result the naive saw. The picture at the head of this page draws two saws across the whole loop, and at that scale each is a solid band with nothing to tell them apart. What tells them apart is a _spectrum_: frequency runs along the bottom, and a peak stands wherever the sound holds a tone. Here is the naive saw on a high note, <Src path="site/labs/samples-and-aliasing.cpp" at={'lab::Control note{"note", "Note"'}>3,840 Hz</Src>.
 
-"Enough" is hard to believe from the picture of the samples. Set the frequency to 23,952 Hz, one step of the slider under 24 kHz. A cycle now gets 2.004 samples, and the dots at the top of the page look nothing like a sine at full level: they <Claim id="near-nyquist-dots">turn sign at every sample and none reaches a sixth of full level</Claim>. The spectrum disagrees. It shows how much of each frequency the loop holds, worked out by the kit's own Fourier transform (<Lesson id="fourier-transform" />), and it finds one line, <Claim id="near-nyquist">within a bin of 23,952 Hz and at full level</Claim>. The sine is all there.
+<Still
+  taps="naive"
+  view="spectrum"
+  set="naive"
+  caption="The spectrum of the naive saw. The tallest peak is the note, and the peaks at two, three, four and five times its frequency are the saw's own partials. Half way between each pair stands another peak, nearly as tall, and one stands below the note. Those belong to no saw."
+/>
+
+The peaks in between are partials from above half the rate that have folded back down. The lowest of them is <Claim id="under-naive">a tone at 1,920 Hz, an octave under the note and 18 dB quieter than it</Claim>. Listen for that low tone under the note: <Hear set="naive" label="Hear the naive saw" />
+
+The engine does not make its saws that way. Its shared code is a folder called the kit, and the kit's oscillators are in <Src path="cpp/kit/osc.h" />. On the same note, in the kit's saw, the tone at 1,920 Hz stands <Claim id="under-kit">72 dB</Claim> under the note.
+
+<Still
+  taps="saw"
+  view="spectrum"
+  set="kit"
+  caption="The spectrum of the kit's saw on the same note. The saw's own partials stand where they stood. The peaks between them are far lower at the left of the picture, and rise towards the right."
+/>
+
+Compare the two by ear: <Hear set="kit" label="Hear the kit's saw" />
+
+The folds have not all gone, and the picture shows which are left: the ones that land near the top. Why the cure works that way round is in part 5, and what to do about what is left is in part 7. Every later lesson that meets a fold sends its reader back to this page, so the rest of it is the rule for where a frequency lands, and the way the engine's oscillators keep clear of it.
+
+</Part>
+
+<Part id="picture" title="The same dots belong to more than one wave.">
+
+The picture below takes a short run of the kit's sine. On the left are three things: the wave at the frequency set, the samples taken from it, each a dot on a stalk, and the lowest wave that passes through the same dots. On the right is the spectrum of the whole loop, on an axis that runs all the way to the sample rate. A dashed upright with no name stands at half the rate, and a named one at the frequency set.
 
 <Controls ids="freq" />
 
-<Spectrum taps="sine" linear uprights="freq" min={-100} max={6}>
-  The spectrum of the sine, on an even frequency axis that ends at 24 kHz. The dashed upright is the frequency set. Up to 24 kHz the peak stands on it. Carry on and the upright leaves the picture at the right, while the peak turns round and comes back.
-</Spectrum>
-
-### 3. Past half the sample rate, a frequency folds
-
-Nothing in `SineOsc` stops the increment at one half, so the lab can ask it for 30 kHz. What comes out is a sine at <Claim id="fold-30k">18 kHz, at full level</Claim>. The rule is
-
-<M block t={String.raw`f_{\text{out}} = \left|\, f - f_s \cdot \operatorname{round}\!\left(\frac{f}{f_s}\right) \right|`} />
-
-the distance from <M t="f" /> to the nearest multiple of the sample rate. It follows from the list in stage 1. Add a whole cycle to the increment and no sample changes, because the sine of an angle and of that angle plus a full turn are the same number: <M t="f" /> and <M t={String.raw`f - f_s`} /> give the same samples. And a negative frequency is the same sine upside down. So 30 kHz has the samples of −18 kHz, which are the samples of 18 kHz <Claim id="fold-same-samples">with the sign turned</Claim>, number for number. Drawn against the frequency asked for, the rule is a zigzag that turns back at 24 kHz, like paper folded there. Hence _folding_. At 47 kHz the sine comes out at <Claim id="fold-47k">1 kHz</Claim>.
-
-<Controls ids="freq" />
-
-<SamplesOnWaves waves="wave:in alias:ctl" samples="samples:out">
-  The same 24 samples (red), the wave at the frequency set (grey), and the lowest wave that passes through the same samples (blue). Below 24 kHz blue lies on grey and hides it. Above, they part: the samples belong to both, and the blue one is what a listener gets.
+<SamplesOnWaves waves="wave:in alias:ctl" samples="samples:out" spectrum="sine" uprights="freq">
+  The samples of the sine, the wave they were taken from and the lowest wave through them. Beside
+  them, the spectrum of the loop. Try Sine frequency slowly upwards, and notice the two waves lie on
+  each other until the upright passes half the sample rate. Past it they part, and the peak of the
+  spectrum comes back down while the upright goes on up.
 </SamplesOnWaves>
+
+Below half the rate the two waves are one wave. That is the good half of sampling, and it is exact: the dots lose nothing. Above half the rate the dots belong to both waves, and what comes out of a loudspeaker is the lower one.
+
+Check this against the picture. <Claim id="fold-30k">Set Sine frequency to 30 kHz. On the left the dots are fewer than two to a cycle of the wave that was asked for, and the other wave through them is slower. On the right the peak stands at 18 kHz, at full level</Claim>: as far under half the rate as the upright is over it. The lab works the landing place out on every render.
 
 <Check id="lands" />
 
-<Curve taps="folding:out foldFormula:ctl" diagonal uprights="freq" xTitle="frequency asked for" yTitle="frequency that comes out" xUnit="Hz" yUnit="Hz" xMin={0} xMax={48000} min={-2500} max={26000} height={260}>
-  Where the sine comes out against where it was set. The red dots are measured: the kit's sine at 48 frequencies, each through the transform, and the peak found. The dashed blue line is the rule above. The grey diagonal is a sine that comes out where it was put, and the upright is the frequency set now.
+### Why it folds
+
+A sine measured at even instants is this list:
+
+<M block t={String.raw`x[n] = \sin\!\left(2\pi\,\frac{f}{f_s}\,n\right)`} />
+
+<M t="f" /> is the frequency asked for, <M t="f_s" /> the sample rate, and <M t="n" /> counts the samples: 0, 1, 2 and on. The only thing in the list besides the count is the fraction <M t={String.raw`f/f_s`} />, which is how much of a cycle goes by between one sample and the next.
+
+Now add one whole cycle to that fraction. No sample changes, because the sine of an angle and the sine of that angle plus a full turn are the same number. So <M t="f" /> and <M t={String.raw`f - f_s`} /> leave the same samples. And a sine at a negative frequency is the same sine upside down. So 30 kHz leaves the samples of 18 kHz below zero, which are the samples of 18 kHz <Claim id="fold-same-samples">with the sign turned</Claim>, number for number.
+
+Put as a rule, a frequency comes out at its distance from the nearest multiple of the sample rate:
+
+<M
+  block
+  t={String.raw`f_{\text{out}} = \left|\, f - f_s \cdot \operatorname{round}\!\left(\frac{f}{f_s}\right) \right|`}
+/>
+
+Read it against the spectrum above. <M t={String.raw`\operatorname{round}(f/f_s)`} /> is the nearest whole number of sample rates. Up to half the rate that number is zero, the rule gives back <M t="f" />, and the peak stands on the upright. From half the rate to the rate itself the nearest multiple is the rate, and the distance to it shrinks as <M t="f" /> grows: the peak walks back down while the upright walks up. <Claim id="fold-47k">At 47 kHz the sine comes out at 1 kHz</Claim>.
+
+Drawn against the frequency asked for, the rule is a zigzag. The lab measured it as well: the kit's sine at <Src path="site/labs/samples-and-aliasing.cpp" at="constexpr int kFoldPoints = 48;">48 frequencies</Src>, each put through a Fourier transform (<Lesson id="fourier-transform" />) and its peak found.
+
+<Curve
+  taps="folding:out foldFormula:ctl"
+  diagonal
+  uprights="freq"
+  xTitle="frequency asked for"
+  yTitle="frequency that comes out"
+  xUnit="Hz"
+  yUnit="Hz"
+  xMin={0}
+  xMax={48000}
+  min={-2500}
+  max={26000}
+  height={260}
+>
+  Where the sine comes out against where it was set: the peak as measured, and the folding formula.
+  The line called No change is a sine that comes out where it was put. Try Sine frequency, and notice
+  the upright meet the measured line at the height where the spectrum above has its peak.
 </Curve>
 
 <Check id="foldError" />
 
-From 500 Hz to 47.5 kHz the measured peak and the rule agree <Claim id="fold-curve">within 0.2 Hz</Claim>.
+<Claim id="fold-curve">From 500 Hz to 47.5 kHz the measured peak and the rule agree within 0.2 Hz</Claim>.
 
-### 4. A saw, the obvious way
+The rule keeps no record of where a frequency came from. Once a partial has landed at 18 kHz it is a tone at 18 kHz like any other, and nothing after it can tell that it was asked for at 30. So the cure has to come before the samples are made. That is the subject of everything below.
 
-A saw rises in a straight line and drops back. The phase already does that, from 0 to 1, so the obvious saw is the phase stretched to run from −1 to 1:
+</Part>
 
-<M block t={String.raw`\text{naive}[n] = 2\,\varphi[n] - 1`} />
+<Part id="uses" title="Where it bites: high notes, bright shapes, notes that move.">
 
-As a sum of sines (<Lesson id="fourier-transform" />, shows why any repeating wave is one) a saw is every multiple of its frequency at once, the <M t="k" />th at one <M t="k" />th of the first:
+How much of a sound folds depends on two things: how many of its partials stand above half the rate, and how strong they are up there. A saw is the hard case, because its partials die away slowly. Each card below shows one kind of sound, says what the folds amount to on it, lists a setting and plays it. A card's button moves the whole page to its setting, so the figures further down show it too, and the play bar offers the way back to where you were.
 
-<M block t={String.raw`2\varphi - 1 = -\frac{2}{\pi} \sum_{k=1}^{\infty} \frac{\sin(2\pi k \varphi)}{k}`} />
+<Uses>
+  <Use title="A low note" set="low">
+    <Still
+      slot="picture"
+      taps="naive:in saw:out"
+      view="spectrum"
+      set="low"
+      caption="The naive saw and the kit's saw on a low note. The two lines keep close together across the picture: a close row of partials, falling away to the right, where the kit's saw ends a little lower."
+    />
 
-Measured one partial at a time, the naive saw has exactly these levels: <Claim id="naive-levels">−3.9 dB at the fundamental and 6 dB less at twice it</Claim>. The sum has no last term, because the drop takes no time at all. On paper that is harmless. In samples, every partial above 24 kHz folds by the rule of stage 3, and partial <M t="k" /> of a saw at <M t="f" /> lands at the distance from <M t="kf" /> to the nearest multiple of 48 kHz.
+    A low note has room. <Claim id="use-low">At 110 Hz, 218 partials fit under half the rate before the first one folds, and by then they are weak: the strongest fold stands at −50.7 dB, and the folds that land under the note add up to −53.2 dB</Claim>. This card plays the naive saw, with no correction at all. A bass line asks very little of an oscillator.
 
-At the 3,840 Hz this lab starts on, a cycle is twelve and a half samples and six partials fit under 24 kHz. The seventh, at 26,880 Hz, lands at 21,120; the eighth at 17,280; and so on down, 3,840 Hz at a time, until the twelfth, at 46,080 Hz, lands at 1,920 Hz: a tone an octave below the note, belonging to no saw. Measured by itself that partial stands at <Claim id="naive-fold-12">−25.5 dB</Claim>. The thirteenth lands at 1,920 Hz as well, from the other side of 48 kHz, and the ones after it climb back up the same six places, half way between the harmonics. In the loop as it sounds, each of those six lines is the sum of everything that lands there, and each reads <Claim id="naive-lines">between −19.7 and −21.9 dB</Claim>.
+  </Use>
+  <Use title="A high, bright note" set="naive">
+    <Still
+      slot="picture"
+      taps="naive:in saw:out"
+      view="spectrum"
+      set="naive"
+      caption="Both saws on a high note. At the saw's own partials the two lines lie on each other. Between them the naive saw's peaks stand nearly as tall as the partials, and the kit's stand lower, by most at the left."
+    />
 
-<Controls ids="note" />
+    This is where folding is heard. <Claim id="use-high">At 3,840 Hz six partials fit under half the rate, and the folds of the naive saw add up to −13.3 dB. In the kit's saw they add up to −29.4 dB</Claim>. A lead line, the top octaves of a string pad and anything played with a bright shape high up live here.
 
-<Wave taps="naive:in" stems span={0.001}>
-  One millisecond of the naive saw. Every sample is on the ramp, and the drop falls between two of them, not at the same place from one cycle to the next.
-</Wave>
+  </Use>
+  <Use title="A note that moves" set="moving">
+    <Still
+      slot="picture"
+      taps="naivePicture"
+      view="spectrogram"
+      set="moving"
+      caption="The naive saw gliding up two octaves and back. The saw's partials rise together and fall together. Other lines cross them going the opposite way, and some reach the bottom of the picture: those are the folds."
+    />
 
-<Spectrum taps="naive:in" linear min={-90} max={6}>
-  The naive saw's spectrum. The six peaks that fall away gently from 3,840 Hz are the saw. The six between them, all near −21 dB, are partials from above 24 kHz that have folded, and so is the small one at 0 Hz. Move the frequency off 3,840 Hz and the folds stop sharing six places: they spread into a thicket of lines.
-</Spectrum>
+    On a held note the folds are steady tones, and an ear can take them for part of the sound. When the note bends, slides or carries vibrato, every partial moves the same way and every fold moves the other way. <Claim id="use-moving">With the note gliding up two octaves from 880 Hz and back, the naive saw holds −30.4 dB below 800 Hz</Claim>, under the lowest note it plays, where a saw has nothing at all.
 
-### 5. The kit's correction, term by term
+  </Use>
+  <Use title="A pure tone" set="pure">
+    <Still
+      slot="picture"
+      taps="sine"
+      view="spectrum"
+      set="pure"
+      caption="The kit's sine, high up. One peak, and nothing else in the picture."
+    />
 
-The ramp is not the trouble. The drop is. <Src path="cpp/kit/osc.h" lines="17-20">`BlepOsc::saw`</Src> keeps the ramp and changes the drop into one that takes two samples to happen:
+    A sine is one partial. Kept under half the rate it has nothing to fold, and it needs no correction: <Claim id="use-pure">the kit's sine at 12 kHz is one line at 12 kHz, with nothing else over −120 dB</Claim>. The cost of a shape is paid in its corners, and a sine has none.
 
-```cpp
-advance(increment);
-return 2.0f * phase_ - 1.0f - blep(phase_, inc_);
-```
+  </Use>
+</Uses>
 
-`advance` steps the phase. The first two terms are the naive saw. The third is <Src path="cpp/kit/osc.h" lines="54-65">`blep(t, dt)`</Src>, short for band-limited step, with `t` the phase and `dt` the increment. It asks where the nearest drop is, in samples, and answers with a parabola:
+The count of partials is the thing to keep in mind. The higher and the brighter the note, the more of it lands where it should not.
 
-<M block t={String.raw`\text{blep} = \begin{cases} -(1 - x)^2, \quad x = \dfrac{t}{dt} & t < dt \\[10pt] \phantom{-}(1 + x)^2, \quad x = \dfrac{t - 1}{dt} & t > 1 - dt \\[10pt] \phantom{-}0 & \text{otherwise} \end{cases}`} />
+</Part>
 
-- **`t < dt`**: the phase is smaller than one step, so it wrapped on this very step and the drop is behind this sample. `t / dt` is how far behind, from 0 to 1 sample. The code writes the answer as `t + t - t * t - 1`, which is <M t={String.raw`-(1-x)^2`} />. Taken away from the naive value, it lifts the sample: by 1, to the middle of the drop, when the sample falls on the drop itself, and by nothing a whole sample later.
-- **`t > 1 - dt`**: the next step will wrap, so the drop is ahead. `(t - 1) / dt` is how far ahead, from −1 to 0. The code's `t * t + t + t + 1` is <M t={String.raw`(1+x)^2`} />, and taking it away lowers the sample.
-- **otherwise** the sample has no drop beside it and the naive value stands.
+<Part id="build" title="Build the oscillator: a phase, a ramp and two small corrections.">
 
-The parabolas come from one idea. Take the saw on paper and replace each instant of it by a weighted average of the two samples' worth of time around it, the weight a triangle: most at the instant, none one sample either side. A straight ramp averaged evenly about each point is the same ramp. A drop becomes the running total of a triangle, which is one parabola curving away and another curving back. What `blep` returns is that curve less the bare drop, the _residual_, and it is zero everywhere but the two samples next to the drop.
+The kit's shaped oscillator is a class called <Src path="cpp/kit/osc.h" at="class BlepOsc {">`BlepOsc`</Src>. This part builds it again from nothing, in five pieces. After each piece the pictures are drawn from what has been built so far, "Hear it so far" plays it, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these pictures.
 
-<Controls ids="note" />
+Two of the steps are wrong on purpose. Hearing what is wrong with them is how the piece after each earns its place.
 
-<SamplesOnWaves waves="edgeIdeal:in edgeSmooth:ctl" samples="edgeNaive:alt edgeKit:out" xTitle="samples from the drop">
-  Sixteen samples around one drop. The saw on paper (grey) and the saw with its drop spread by the triangle (blue); the naive samples (green) lie on the grey, the kit's (red) on the blue. Red covers green wherever they are the same number, which is everywhere but samples −1 and 0.
-</SamplesOnWaves>
+<Build>
+  <Step title="Start with a phase that wraps" controls="note">
+    An oscillator has to know where in its cycle it is. That is the _phase_: a number from 0 to 1, where 0 is the start of a cycle and 1 is the start of the next. On each sample it moves on by the same step, which is the note's frequency divided by the sample rate. When it reaches 1 it drops back by exactly 1, so the part that went over is kept and the phase does not lose its place.
 
-In this picture the drop falls 0.35 of a sample after sample −1. That sample is pulled down by <Claim id="edge-pull">0.42 and the next pulled up by 0.12</Claim>, which are <M t={String.raw`0.65^2`} /> and <M t={String.raw`0.35^2`} />.
+    The first line of the listing keeps the step under half a cycle, as the kit does: a shaped wave is not asked for a note above half the rate.
 
-<Wave taps="correction" stems span={0.001} fit>
-  The correction by itself over the same millisecond as the naive saw above: what the kit adds to it. A pair of samples at each drop, one down and one up, and zero between.
-</Wave>
+    A phase is not yet a sound. To hear it, this step reads the kit's sine table at the phase, which gives a pure tone at the note. Stage 2 of part 5 opens the table.
 
-<Check id="sumError" />
+    <Listing
+      path="site/labs/samples-and-aliasing.cpp"
+      from="// A phase that wraps: one step further each sample"
+      to="float tone() const { return kit::SineTable::lookup(phase); }"
+      name="built-phase"
+    />
 
-The naive saw with this added is the kit's saw <Claim id="sum-exact">to the last bit</Claim>, and the correction touches <Claim id="two-samples">two samples in each cycle, by 1 at most</Claim>. The cost is a comparison a sample and a few multiplications at each drop.
+    <SamplesOnWaves slot="picture" waves="phaseLine:in" samples="builtPhase:ctl" min={-0.1} max={1.1}>
+      The phase the build keeps, a dot each sample, on the ramp it steps along. Try Note higher, and
+      notice the dots take longer strides and wrap more often.
+    </SamplesOnWaves>
 
-### 6. What the correction does to each partial
+  </Step>
+  <Step title="Stretch the phase into a saw" controls="note glide">
+    The phase already has the shape of a saw: it climbs in a straight line and drops back. It only runs from 0 to 1, and sound swings about zero. So the naive saw is the phase doubled, less one.
 
-Averaging over a triangle two samples wide does a simple thing to a sine: it leaves the frequency alone and scales the size by
+    This is the naive saw of part 1, and it brings part 1's fault with it. The step before was one clean line in the spectrum. <Claim id="build-ramp">This one has a line at 1,920 Hz that reads −21.9 dB</Claim>, and with the piece taken out again nothing stands there.
 
-<M block t={String.raw`H(f) = \left( \frac{\sin(\pi f / f_s)}{\pi f / f_s} \right)^{2}`} />
+    Glide now has something to show. It bends the note up and back over the loop. Raise it and press "Hear it so far", and listen for tones that slide down while the note slides up.
 
-<M t="H" /> is 1 at 0 Hz, 0.41 at 24 kHz, and exactly zero at 48 kHz and at every multiple of it. Put that beside the folding rule. A partial lands low when it started near a multiple of 48 kHz, which is just where <M t="H" /> is near zero. A partial lands near 24 kHz when it started near 24 or 72 kHz, where <M t="H" /> is not small. So the correction is strongest on the folds that land lowest, and weakest on the ones that land at the top of the band.
+    <Listing
+      path="site/labs/samples-and-aliasing.cpp"
+      from="// A naive saw: the phase itself"
+      to="float ramp() const { return 2.0f * phase - 1.0f; }"
+      mark="float ramp() const"
+      name="built-ramp"
+    />
 
-<Controls ids="note" />
+    <Wave slot="picture" taps="built" stems from={0.5} span={0.001}>
+      One millisecond of the build, a dot each sample. Notice that every dot lies on the ramp, and
+      that the drop falls between two dots, at a different place in each cycle.
+    </Wave>
 
-<Curve taps="reduction:out reductionFormula:ctl" xTitle="the partial's frequency before it folds" yTitle="kit against naive" xUnit="Hz" yUnit="dB" xMin={0} xMax={96000} min={-80} max={5} height={260}>
-  How much lower each partial is in the kit's saw than in the naive one, against the frequency the partial has before folding. The red dots are measured, a partial at a time, at the nearest frequency that repeats exactly in the measuring frame. The dashed blue line is the formula, in decibels. It dives at 48 and 96 kHz: the partials there are the ones that would land lowest.
-</Curve>
+    <Spectrum slot="picture" taps="built" linear min={-100} max={6}>
+      The spectrum of the build, on an even axis up to half the sample rate. Notice twelve tall
+      peaks where a saw on this note has six. Every second one, counting from the tallest, is the
+      saw's own. The six between them are not, and nor is the short one at the left edge.
+    </Spectrum>
 
-<Check id="smoothError" />
+  </Step>
+  <Step title="Spread the drop over two samples" controls="note glide">
+    The ramp is not the trouble. The drop is. It happens between two samples, in no time, and a change that takes no time holds every frequency there is.
 
-The measured partials sit on the formula <Claim id="smooth-error">within 0.1 dB</Claim>, so the picture of stage 5 is the whole truth about this saw: it is the saw on paper, averaged over a triangle, then sampled. The twelfth partial, the one that lands at 1,920 Hz, is left at <Claim id="kit-fold-12">−80.7 dB, which is 55.2 dB lower</Claim> than the naive saw has it. In the loop as it sounds, the line at 1,920 Hz reads <Claim id="kit-line-low">−76.0 dB, against −21.9 dB</Claim> in the naive saw.
+    The cure is to let the drop take a little time. This piece looks at each sample and asks whether a drop lies within one sample of it. If one does, the sample is moved towards the middle of the drop, by more the nearer the drop is. Every other sample is left as it was. The amounts are not guessed: they are what the samples would have been if the saw on paper had been smoothed over two samples' width before it was sampled. Stage 4 of part 5 works them out.
 
-<Spectrum taps="naive:in saw:out" linear min={-90} max={6}>
-  Both saws as they land in the band: naive (grey) and the kit's (red). At the harmonics red covers grey, a little lower towards the right. Between them the grey peaks are the naive saw's folds and the red peaks inside them what the kit leaves: least at the left, most at the right.
-</Spectrum>
+    The line at 1,920 Hz now reads <Claim id="build-step">−76.0 dB</Claim>. Take the piece out again and it is back where it was.
 
-## What goes wrong
+    <Listing
+      path="site/labs/samples-and-aliasing.cpp"
+      from="// The step correction: how far a sample beside a drop"
+      to="return t * t + t + t + 1.0f; } return 0.0f; }"
+      mark={['return t + t - t * t - 1.0f;', 'return t * t + t + t + 1.0f;']}
+      name="built-step"
+    />
 
-**The folds near the top stay.** <M t="H" /> is not a wall at 24 kHz. In the kit's loop the line at 21,120 Hz reads <Claim id="kit-line-top">−30.6 dB, only 10.9 dB under</Claim> the naive saw's. At a 4 kHz fundamental the folds that land at or under the fundamental are <Claim id="fold-4k-low">41.9 dB lower or more</Claim>, but all the folds added together are just <Claim id="fold-4k-all">13.1 dB lower</Claim>, because the ones near the top carry most of what is left. The header of `osc.h` puts the kit's aliasing <Src path="cpp/kit/osc.h" lines="8-11">below −60 dB for fundamentals under a tenth of the sample rate</Src>. Partial by partial, that describes the folds that land low: at 440 Hz every fold under 12 kHz is <Claim id="promise-low">below −63 dB</Claim>. The strongest fold of all is at <Claim id="promise-top">−46.8 dB, near 23,750 Hz, against −38.7 dB for the naive saw</Claim>. For notes bright enough that this matters, the header points to a voice that runs at a multiple of the sample rate.
+    The build has now made the kit's saw, and the lab holds it to that on every render.
 
-**The top of the saw is dulled.** The triangle cannot tell a fold from a harmonic. It scales everything by <M t="H" />, so the saw's own partials lose a little too: <Claim id="droop-fundamental">0.18 dB at the fundamental</Claim> and <Claim id="droop-top">7.2 dB at the sixth partial</Claim>, just under 24 kHz.
+    <Check id="builtSaw" />
 
-**Exactly half the sample rate.** The theorem says _below_ half, and means it. Set the sine to 24 kHz: it gets two samples a cycle, and since this one starts at zero both of them fall where the wave crosses zero. The loop is <Claim id="nyquist-silence">silence</Claim>.
+    At every setting the lab's test tries, the build stopped at this step and the kit's own saw are <Claim id="build-saw-same">the same, sample for sample</Claim>.
 
-**Folds that hide.** At exactly 4 kHz a cycle is 12 samples, the naive saw is <Claim id="hidden-4k">one pattern of 12 numbers repeated</Claim>, and every fold lands on a harmonic. The spectrum shows no stray peak. The folds are still there, changing the levels of the harmonics they sit on. Move the frequency a little and they walk out.
+    <Wave slot="picture" taps="builtFix:alt" stems fit from={0.5} span={0.001}>
+      What this piece adds to the ramp, over the same millisecond. Notice that it is zero nearly
+      everywhere: a pair of samples at each drop, one moved down and the next moved up.
+    </Wave>
 
-**The kit's shaped oscillator will not be asked.** <Src path="cpp/kit/osc.h" lines="48-52">`BlepOsc::advance`</Src> clamps the increment to 0.49, so a saw, a pulse or a triangle from the kit never has its fundamental above 23,520 Hz. `SineOsc` has no such clamp, which is the only reason stage 3 could be shown with the kit's own code.
+    <Spectrum slot="picture" taps="built" linear min={-100} max={6}>
+      The spectrum of the build with the correction in. Notice the peaks that were not the saw: the
+      one at the left has almost gone, and each one further right has lost less.
+    </Spectrum>
 
-## What to try
+  </Step>
+  <Step title="Fold the ramp into a triangle" controls="note glide">
+    A saw is one shape. The kit's oscillator makes a second from the same phase: a _triangle_, which climbs for half the cycle and comes back down for the other half. The naive way is again one line of code. Fold the ramp at its middle.
 
-- Listen to the sine and move its frequency slowly from 2 kHz to the far end. Listen for the pitch rising out of hearing and then falling back in. At 47 kHz it is a 1 kHz tone.
-- Set the sine to 30 kHz and look at the samples in stage 3: 18 kHz, drawn in blue through dots taken from 30.
-- Set it to 24 kHz exactly, then one step lower. Silence, then a full-level sine.
-- Listen to the naive saw, then the kit's. Listen for the tone an octave under the note in the first, and for it gone in the second.
-- Listen to the correction by itself. It is all the kit adds: two samples at each drop.
-- Take the saw down to 110 Hz. More than two hundred partials now fit under 24 kHz before the first one folds. Compare the two saws again.
-- Move the saw off 3,840 Hz, to 3,800 Hz say, with the naive saw's spectrum in view. The <Claim id="thicket">13 peaks above −60 dB become more than fifty</Claim>, the folds no longer sharing six places.
-- Then set it near 4 kHz and watch the grey peaks slide under the harmonics, where they hide.
+    A triangle has no drop. It has two corners in each cycle, where the slope turns round, and a corner is a milder case of the same trouble. <Claim id="build-fold">The line at 1,920 Hz reads −44.9 dB, and one at 21,120 Hz reads −35.2 dB</Claim>. Both are lower than the naive saw's, and both are still there.
+
+    The step correction has no part in this shape. It mends drops, and a triangle has none.
+
+    <Listing
+      path="site/labs/samples-and-aliasing.cpp"
+      from="// A naive triangle: the ramp folded at its middle"
+      to="float fold() const { return phase < 0.5f ? 4.0f * phase - 1.0f : 3.0f - 4.0f * phase; }"
+      mark="float fold() const"
+      name="built-fold"
+    />
+
+    <Wave slot="picture" taps="built" stems from={0.5} span={0.001}>
+      One millisecond of the triangle, a dot each sample. Notice where the corners fall:
+      now and then on a dot, and more often between two, as the saw's drop did.
+    </Wave>
+
+    <Spectrum slot="picture" taps="built" linear min={-100} max={6}>
+      The spectrum of the naive triangle. Notice that its own partials are fewer and fall away
+      faster than the saw's, and that low peaks still stand between them.
+    </Spectrum>
+
+  </Step>
+  <Step title="Round the two corners" controls="note glide">
+    The cure is the same one, a degree gentler. Each corner is rounded over two samples: a sample within one sample of a corner is moved towards the rounded curve, and every other sample is left alone. The amount grows with the step, because the faster the phase moves, the sharper a corner is when counted in samples.
+
+    <Claim id="build-slope">The two lines now read −102.9 dB and −45.7 dB</Claim>.
+
+    <Listing
+      path="site/labs/samples-and-aliasing.cpp"
+      from="// The slope correction: how far a sample beside a corner"
+      to="return 8.0f * inc * (corner(phase) - corner(half_on >= 1.0f ? half_on - 1.0f : half_on)); }"
+      mark="return 8.0f * inc *"
+      name="built-slope"
+    />
+
+    That is all five pieces. The steps before this one were the lesson's own: an oscillator with a piece missing, which the kit's at no time is. With every piece in place the build does to a sample what the kit's triangle does, in the same order, and the lab compares the two on every render.
+
+    <Check id="builtDifference" />
+
+    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which it shows when nothing differs at all. At every setting the lab's test tries, gliding notes among them, the build and the kit's triangle are <Claim id="build-same">the same, sample for sample</Claim>.
+
+    <Wave slot="picture" taps="builtFix:alt" stems fit from={0.5} span={0.001}>
+      What this piece adds to the folded ramp. Notice that it is far smaller than the saw's
+      correction was, and that it touches the samples beside each corner and no others.
+    </Wave>
+
+    <Spectrum slot="picture" taps="built" linear min={-100} max={6}>
+      The spectrum of the finished triangle. Notice the peaks between the partials: the
+      one furthest left has sunk out of the picture, and the tallest of them, near the right, has
+      lost least.
+    </Spectrum>
+
+  </Step>
+</Build>
+
+Here is how the lab puts the pieces in order, for one sample.
+
+<Listing
+  path="site/labs/samples-and-aliasing.cpp"
+  from="// One sample through the pieces built so far."
+  to="return fold() + fix; }"
+  name="built-run"
+/>
+
+That is a whole oscillator: a phase, two shapes read off it, and a small correction for each. The one in the kit is the same arithmetic, written as one short function a shape. The next part opens it.
+
+</Part>
+
+<Part id="engine" title="The kit's oscillators, opened up.">
+
+From here on it is the kit itself. The page runs the engine's C++, compiled for the browser, and each figure is read out of the running code. Under its title each stage says where its figure comes from. Two things were written for the lesson and are marked so: the naive saw and the naive triangle are terms inside the kit's functions, never put out by themselves, so the lab works them out again from the kit's own phase, and a check holds the sum to what the kit made. The listings are the engine's source as it stands, with the file and the line numbers, so you can go and read around them.
+
+<Flow
+  label="A note sets the step of a phase. The phase is read three ways: through a sine table, as a ramp with a step correction added to make the saw, and as a ramp folded in two with a slope correction added to make the triangle."
+  blocks={[
+    { id: 'note', label: 'Note', shape: 'end', signal: 'value' },
+    { id: 'phase', label: 'Phase', from: 'note', tap: 'phase', n: 1, signal: 'value' },
+    { id: 'split', shape: 'dot', from: 'phase' },
+    { id: 'table', row: -1, from: 'split', tap: 'sine', label: 'Sine table', n: 2 },
+    { id: 'sine', row: -1, from: 'table', shape: 'end', label: 'Sine' },
+    { id: 'ramp', from: 'split', tap: 'naive', label: 'Naive saw', n: 3 },
+    { id: 'blep', row: 1, from: 'split', tap: 'correction', label: 'Step correction', n: 4 },
+    { id: 'sum', shape: 'sum', from: ['ramp', 'blep'] },
+    { id: 'saw', from: 'sum', tap: 'saw', shape: 'end', label: 'Saw', n: 5 },
+    { id: 'fold', row: 2, from: 'split', tap: 'triangleNaive', label: 'Naive triangle', n: 6 },
+    { id: 'blamp', row: 3, from: 'split', label: 'Slope correction', signal: 'sound', n: 6 },
+    { id: 'sumT', row: 2, shape: 'sum', from: ['fold', 'blamp'] },
+    { id: 'triangle', row: 2, from: 'sumT', tap: 'triangle', shape: 'end', label: 'Triangle' },
+  ]}
+>
+  One phase, and three shapes read off it. The wires that leave the phase carry a number, where in
+  the cycle the wave is, and everything to their right is sound. Press a stage's button below, and
+  notice its block light up here. In the lab the sine runs on a phase of its own, set by Sine
+  frequency, so that it can be asked for more than a shaped wave is allowed.
+</Flow>
+
+<StageBlock tap="phase" n={1} title="The phase: where in the cycle the wave is">
+  Every shape starts from one number that says how far through its cycle the wave has come. `BlepOsc` keeps it in `phase_`, and each of its shapes begins by calling `advance`, which moves the phase on by one step.
+
+  <Controls ids="note" />
+
+  <SamplesOnWaves waves="phaseLine:in" samples="phase:ctl" min={-0.1} max={1.1}>
+    The phase of the kit's oscillator, a dot each sample, and the ramp it steps along. Try Note at its
+    highest, and notice how few dots a cycle gets.
+  </SamplesOnWaves>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{ctl}{\varphi[n]} = \bigl(\sig{ctl}{\varphi[n-1]} + \at{advance-step}{\Delta}\bigr) \at{advance-wrap}{\bmod 1}`}
+  />
+  <Fragment slot="readback">
+    Read it against the picture. <M t={String.raw`\varphi`} /> is the phase, and each dot is one value of it. <M t={String.raw`\Delta`} /> is the step from one dot to the next: the note's frequency over the sample rate, the same fraction <M t={String.raw`f/f_s`} /> that part 2's list of samples turned on. "Mod 1" is the wrap, where a dot falls back to the bottom of the picture. The code does it by taking 1 off when the phase reaches 1, and since the step is under one half, once is enough.
+
+    <M block t={String.raw`\at{advance-clamp}{\Delta = \min\bigl(f / f_s,\ 0.49\bigr)}`} />
+
+    The line that sets the step also keeps it under 0.49 of a cycle. So a shape from this class has its fundamental under half the rate whatever note it is asked for.
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/osc.h"
+    from="void advance(float increment) {"
+    to="if (phase_ >= 1.0f) phase_ -= 1.0f;"
+    name="advance"
+    at={{
+      clamp: 'inc_ = clamp(increment, 1.0e-7f, 0.49f);',
+      step: 'phase_ += inc_;',
+      wrap: 'if (phase_ >= 1.0f) phase_ -= 1.0f;',
+    }}
+  />
+</StageBlock>
+
+<StageBlock tap="sine" n={2} title="The sine: a table read at the phase">
+  A sine is the one shape with nothing above its own frequency, and the kit does not work it out each time. `SineTable` holds one cycle, filled once, as <Src path="cpp/kit/math.h" at="static constexpr int kSize = 4096;">4,096 steps</Src>, and `lookup` reads it at the phase. The phase seldom falls exactly on a step of the table, so `lookup` takes the table's values either side of it and draws a straight line between them.
+
+  <Controls ids="freq" />
+
+  <Wave taps="sine:out" stems span={0.001}>
+    One millisecond of the sine as it is stored, a dot each sample. Try Sine frequency higher, and
+    notice the dots grow sparse on the wave they came from. Nothing joins them, because nothing is
+    kept between them.
+  </Wave>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{out}{x[n]} = \at{lookup-read}{T[i] + \bigl(T[i+1] - T[i]\bigr)\,r}`}
+  />
+  <Fragment slot="readback">
+    <M t="T" /> is the table. The phase times the table's size is a place in it: <M t="i" /> is the whole part of that place, the last step the phase has passed, and <M t="r" /> is the part left over, how far it has gone towards the next. The bracket is the rise from one step to the next, and <M t="r" /> of it is added.
+
+    A straight line is not a sine, but with that many of them to a cycle the difference is small.
+
+    <Check id="tableError" />
+
+    At each sine frequency the lab's test tries, the table's sine stands <Claim id="table-error">133 dB under</Claim> the exact sine of the same phase.
+
+    `SineOsc`, the kit's plain sine oscillator, is that read and a phase of its own:
+
+    <Listing
+      path="cpp/kit/osc.h"
+      from="float next(float increment, float phase_mod = 0.0f) {"
+      to="return out;"
+      name="next"
+    />
+
+    Compare it with `advance` in stage 1. Nothing here limits the step. That is the only reason parts 1 and 2 could ask the kit's own code for a frequency above half the rate.
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/math.h"
+    from="static float lookup(float phase) {"
+    to="return table[index] + (table[index + 1] - table[index]) * fraction;"
+    name="lookup"
+    at={{ read: 'return table[index] + (table[index + 1] - table[index]) * fraction;' }}
+  />
+  <Fragment slot="listen">Hear the sine</Fragment>
+</StageBlock>
+
+<StageBlock tap="naive" n={3} title="The ramp: a saw, the naive way">
+  The kit's saw is one line of code with three terms. The first two are the naive saw of part 4: the phase doubled, less one. The kit never puts those two out by themselves, so the lab reads them off the kit's phase, and this stage is marked as written for the lesson.
+
+  <Controls ids="note" />
+
+  <Spectrum taps="naive:in" linear min={-100} max={6}>
+    The spectrum of the naive saw, on an even axis up to half the sample rate. Try Note a little lower,
+    and notice the peaks between the saw's own partials break up into many: the folds stop sharing
+    six places.
+  </Spectrum>
+
+  <M slot="equation" block t={String.raw`\sig{in}{s[n]} = \at{saw-sum}{2\,\varphi[n] - 1}`} />
+  <Fragment slot="readback">
+    <M t="s" /> is the ramp and <M t={String.raw`\varphi`} /> the phase of stage 1. Doubling stretches the phase from a height of one to a height of two, and taking one off centres it on zero.
+
+    As a sum of sines a saw is every multiple of its frequency at once, partial <M t="k" /> at one <M t="k" />th the size of the first. <Lesson id="fourier-transform" cap /> shows why any repeating wave is such a sum.
+
+    <M
+      block
+      t={String.raw`2\varphi - 1 = -\frac{2}{\pi} \sum_{k=1}^{\infty} \frac{\sin(2\pi k \varphi)}{k}`}
+    />
+
+    Measured one partial at a time, the naive saw has exactly those sizes: <Claim id="naive-levels">−3.9 dB at the fundamental and 6 dB less at twice it</Claim>. The sum has no last term, because the drop takes no time at all. On paper that is harmless. In samples, every partial above half the rate folds by the rule of part 2.
+
+    At the note the lab starts on, six partials fit under half the rate. The seventh is asked for at <M t={String.raw`7 \times 3{,}840 = 26{,}880`} /> hertz, and the rule lands it at <M t={String.raw`48{,}000 - 26{,}880 = 21{,}120`} />. Each partial after it lands one note's width lower, until the twelfth, asked for at <M t={String.raw`12 \times 3{,}840 = 46{,}080`} /> hertz, lands at <M t={String.raw`48{,}000 - 46{,}080 = 1{,}920`} />: an octave under the note, where no saw has anything. <Claim id="naive-fold-12">Measured by itself, at the nearest frequency the measuring frame holds exactly, that partial stands at −25.5 dB</Claim>. The thirteenth lands in the same place from the other side of the sample rate, and the ones after it climb back up the same six places.
+
+    So in the loop as it sounds, each of those places holds the sum of everything that lands there. <Claim id="naive-lines">There are six of them between the saw's partials, from 1,920 Hz up to 21,120 Hz, and each reads between −19.7 and −21.9 dB</Claim>.
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/osc.h"
+    from="float saw(float increment) {"
+    to="return 2.0f * phase_ - 1.0f - blep(phase_, inc_);"
+    name="saw"
+    at={{ sum: 'return 2.0f * phase_ - 1.0f - blep(phase_, inc_);' }}
+  />
+  <Fragment slot="listen">Hear the naive saw</Fragment>
+</StageBlock>
+
+<StageBlock tap="correction" n={4} title="The step correction: two samples at each drop">
+  The third term of that line is the cure. `blep`, short for band-limited step, is handed the phase and the step. It asks how far the nearest drop is, counted in samples, and answers with a piece of a parabola. Everywhere else it answers zero.
+
+  <Controls ids="note" />
+
+  <SamplesOnWaves
+    waves="edgeIdeal:in edgeSmooth:out"
+    samples="edgeNaive:in edgeKit:out"
+    xTitle="samples from the drop"
+  >
+    The samples around one drop. The saw as drawn on paper carries the naive samples, and the saw
+    with its edge spread carries the kit's. Notice that the two sets of dots part at two samples
+    only, the ones either side of the drop.
+  </SamplesOnWaves>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{alt}{c[n]} = \begin{cases} \at{blep-after}{\phantom{-}(1 - d)^2} & 0 \le d < 1 \\[6pt] \at{blep-before}{-(1 + d)^2} & -1 < d < 0 \\[6pt] \phantom{-}0 & \text{otherwise} \end{cases}`}
+  />
+  <Fragment slot="readback">
+    <M t="c" /> is what is added to the ramp, and <M t="d" /> is the time since the nearest drop, in samples: the bottom axis of the picture. Just after a drop the code finds it as the phase over the step, <M t={String.raw`\varphi/\Delta`} />. Just before one it is <M t={String.raw`(\varphi - 1)/\Delta`} />, which is below zero.
+
+    - **The first row** is a sample that has just passed a drop. It sits at the bottom of the ramp and is lifted. The lift is 1, to the middle of the drop, when the sample falls on the drop itself, and nothing a whole sample later.
+    - **The second row** is a sample with a drop just ahead. It sits at the top of the ramp and is lowered, by the mirror of the same curve.
+    - **The last row** is every other sample. No drop is beside it, and the ramp's value stands.
+
+    The code returns these with the sign turned, because the saw's line takes `blep` away where this page adds <M t="c" />.
+
+    The two parabolas come from one idea. Take the saw on paper and replace each instant of it by a weighted average of the time around it, two samples wide. The weight is a triangle: most at the instant, and none a sample either side. A straight ramp averaged evenly about each of its points is the same ramp. A drop becomes the running total of a triangle, which is one parabola curving away and another curving back. What `blep` returns is that curve less the bare drop, and it is zero everywhere but beside the drop.
+
+    In the picture above the drop falls <Src path="site/labs/samples-and-aliasing.cpp" at="constexpr float kPast = 0.65f;">0.65 of a sample before sample 0</Src>. The sample before it is <Claim id="edge-pull">pulled down by 0.42 and the one after it pulled up by 0.12</Claim>, which are <M t={String.raw`0.65^2`} /> and <M t={String.raw`0.35^2`} />.
+
+    <Wave taps="correction:alt" stems fit span={0.001}>
+      The correction by itself over one millisecond. Notice a pair of samples at each drop, one down
+      and one up, and zero between.
+    </Wave>
+
+    It touches <Claim id="two-samples">two samples in each cycle, by 1 at most</Claim>. The cost is two comparisons a sample, and a few multiplications at each drop.
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/osc.h"
+    from="static float blep(float t, float dt) {"
+    to="return t * t + t + t + 1.0f; } return 0.0f; }"
+    name="blep"
+    at={{ after: 'return t + t - t * t - 1.0f;', before: 'return t * t + t + t + 1.0f;' }}
+  />
+  <Fragment slot="listen">Hear the correction alone</Fragment>
+</StageBlock>
+
+<StageBlock tap="saw" n={5} title="The kit's saw: the ramp and the correction, added">
+  The saw is the two together. It costs one addition more than the naive saw.
+
+  <M block t={String.raw`\sig{out}{y[n]} = \sig{in}{s[n]} + \sig{alt}{c[n]}`} />
+
+  <Check id="sumError" />
+
+  The naive saw with the correction added is the kit's saw <Claim id="sum-exact">to the last bit</Claim>, so the two stages before this one are the whole of it.
+
+  What that small correction does is easiest to see one partial at a time. Averaging over a triangle two samples wide does a simple thing to a sine: it leaves the frequency alone and scales the size.
+
+  <M
+    block
+    t={String.raw`H(f) = \left( \frac{\sin(\pi f / f_s)}{\pi f / f_s} \right)^{2}`}
+  />
+
+  <M t="H" /> is the scale for a sine at frequency <M t="f" />, before it folds. It is 1 at the bottom. At half the rate it is <M t={String.raw`(2/\pi)^2`} />, about 0.41. At the sample rate, and at every multiple of it, the sine on top is zero and so is <M t="H" />.
+
+  Put that beside the folding rule. A partial lands low when it was asked for near a multiple of the sample rate, and that is exactly where <M t="H" /> is close to zero. A partial lands near the top when it was asked for near half the rate, or one and a half times it, where <M t="H" /> is not small. So the correction is strongest on the folds that land lowest and weakest on the ones that land at the top. That is the slope across the picture of the kit's saw in part 1.
+
+  <Controls ids="note" />
+
+  <Curve
+    taps="reduction:out reductionFormula:ctl"
+    xTitle="the partial's frequency before it folds"
+    yTitle="kit against naive"
+    xUnit="Hz"
+    yUnit="dB"
+    xMin={0}
+    xMax={96000}
+    min={-80}
+    max={5}
+    height={260}
+  >
+    How much lower each partial stands in the kit's saw than in the naive saw, against the frequency the
+    partial has before it folds: measured a partial at a time, and the formula. Try Note lower, and
+    notice more measured points arrive and stay on the formula's line, which dives at the sample
+    rate and at twice it.
+  </Curve>
+
+  <Check id="smoothError" />
+
+  At each note the lab's test tries, the measured partials sit on the formula <Claim id="smooth-error">within 0.1 dB</Claim>. So the picture of stage 4 is the whole truth about this saw: it is the saw on paper, averaged over a triangle, then sampled. The twelfth partial, the one that lands an octave under the note, is left at <Claim id="kit-fold-12">−80.7 dB, which is 55.2 dB lower</Claim> than the naive saw has it. In the loop as it sounds, the line at 1,920 Hz reads <Claim id="kit-line-low">−76.0 dB, against −21.9 dB</Claim> in the naive saw.
+
+  <Spectrum taps="naive:in saw:out" linear min={-100} max={6}>
+    The naive saw and the kit's saw as they land under half the rate. At the saw's partials the two lines
+    lie on each other. Between them, notice how far the kit's peaks stand under the naive saw's: furthest
+    at the left, least at the right.
+  </Spectrum>
+
+  <Fragment slot="listen">Hear the kit's saw</Fragment>
+</StageBlock>
+
+<StageBlock tap="triangle" n={6} title="The triangle: the same cure, a degree gentler">
+  `BlepOsc` makes a triangle from the same phase. Its first line is the naive triangle of part 4. Its second adds a correction at each of the two corners. A corner is where the slope jumps, as a drop is where the height jumps, and `blamp` is to a corner what `blep` is to a drop: the running total of it, a piece of a cubic where that was a piece of a parabola.
+
+  <Controls ids="note" />
+
+  <Spectrum taps="triangleNaive:alt2 triangle:alt3" linear min={-120} max={6}>
+    The naive triangle and the kit's triangle. Notice that a triangle has odd partials only, falling
+    away fast, and that the peaks between them are lower in the kit's triangle, by most at the left.
+  </Spectrum>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{alt3}{y_{\triangle}[n]} = \at{triangle-fold}{\sig{alt2}{g[n]}} + \at{triangle-fix}{8\,\Delta\,\bigl(b(\varphi) - b(\varphi + \tfrac{1}{2})\bigr)}`}
+  />
+  <Fragment slot="readback">
+    <M t="g" /> is the naive triangle, the ramp folded in two. It climbs four units of height in a cycle and falls four, so its slope is <M t={String.raw`4\Delta`} /> a sample on the way up and the same on the way down, and at each corner the slope jumps by <M t={String.raw`8\Delta`} />. That is where the eight comes from, and why the correction grows with the step. <M t="b" /> is `blamp`, the shape of one rounded corner, and it is zero away from a corner. The corner at the bottom of the cycle is added. The corner at the top is half a cycle on and turns the other way, so it is taken away.
+
+    <M
+      block
+      t={String.raw`b = \begin{cases} \dfrac{(1 - d)^3}{6} & 0 \le d < 1 \\[10pt] \dfrac{(1 + d)^3}{6} & -1 < d < 0 \\[10pt] 0 & \text{otherwise} \end{cases}`}
+    />
+
+    <M t="d" /> is again the time since the nearest corner, in samples. Both rows are largest at the corner itself and fade to nothing a sample away.
+
+    <Listing
+      path="cpp/kit/osc.h"
+      from="static float blamp(float t, float dt) {"
+      to="return t * t * t / 6.0f; } return 0.0f; }"
+      name="blamp"
+    />
+
+    The rounding is the same triangle-weighted average as before, so the formula of stage 5 should hold for this shape too. It does.
+
+    <Check id="cornerError" />
+
+    At every second semitone of Note's range, the triangle's measured partials sit on that formula <Claim id="corner-error">within 0.1 dB</Claim>, wherever a partial is strong enough to measure. <Claim id="corner-13">Partial 13, asked for at 49,912 Hz in the measuring frame, loses 56.7 dB in the triangle, and 56.7 dB in the saw</Claim>.
+
+    The same class has a third shape, <Src path="cpp/kit/osc.h" at="float pulse(float increment, float width) {">a pulse</Src>. A pulse has two jumps in each cycle, one up and one down, and its code calls `blep` once for each.
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/osc.h"
+    from="float triangle(float increment) {"
+    to="value += 8.0f * inc_ * (blamp(phase_, inc_) - blamp(wrap(phase_ + 0.5f), inc_));"
+    name="triangle"
+    at={{ fold: 'float value = phase_ < 0.5f', fix: 'value += 8.0f * inc_' }}
+  />
+  <Fragment slot="listen">Hear the kit's triangle</Fragment>
+</StageBlock>
+
+### All the stages at once
+
+Here are the sounds of every stage on one time axis, two thousandths of a second of the loop, with every control live. In this figure a sample is drawn as a bar as wide as the time until the next one. The bar is the figure's way of drawing, not the sound's: the numbers are instants, as every picture above shows them.
+
+<Controls ids="freq note glide" />
+
+<Lanes
+  taps="sine:out naive:in correction:alt saw:out triangleNaive:alt2 triangle:alt3"
+  from={0.5}
+  span={0.002}
+>
+  The sine, the naive saw, the step correction, the kit's saw, the naive triangle and the kit's triangle. Try
+  Note lower, and notice the correction's pairs of samples spread apart while each stays as large as
+  it was: the correction depends on where a drop falls between two samples, not on the note.
+</Lanes>
+
+To judge what the correction is worth, compare three things: <Listen tap="naive">the naive saw</Listen>, <Listen tap="saw">the kit's saw</Listen>, and <Listen tap="correction">the correction</Listen>, which is the second less the first.
+
+The String Machine on this site plays <Src path="cpp/devices/string-machine/string_machine.h" at="kit::BlepOsc osc[3];">three of these saws for every key</Src>, an octave apart. Part 9 has it.
+
+</Part>
+
+<Part id="ways" title="Five ways to live with a sample rate.">
+
+None of these is a preset. Each is a habit of working with shapes that have edges. Press "Try it" and the page moves to settings that show the idea, so you can go back up and see what the spectrum and the samples are doing.
+
+<Ways>
+  <Way title="Keep bright notes low" tag="the note under a tenth of the rate" set="promise">
+    The header of the kit's oscillators makes a promise: <Src path="cpp/kit/osc.h" at="-60 dB for fundamentals under a tenth of the sample rate">aliasing below −60 dB for fundamentals under a tenth of the sample rate</Src>. Partial by partial, that describes the folds that land low. <Claim id="promise-low">At 440 Hz every fold that lands under 12 kHz is below −63 dB</Claim>. It does not describe the top of the band, where <Claim id="promise-top">the strongest fold of all stands at −46.8 dB, near 23.75 kHz, against −38.7 dB for the naive saw</Claim>. Pads and drones live well inside the promise. After the card, raise Note and watch the spectrum of stage 5 for the peaks between the partials coming up from the right.
+  </Way>
+  <Way title="Test on a note that moves" tag="Glide, and listen under the note" set="watched">
+    A fold on a held note can pass for part of the sound. A fold on a moving note slides against the music. So try an oscillator on a glide, and listen below the lowest note, where a saw has nothing of its own. This card is the moving note of part 3 through the kit's saw. <Claim id="way-watched">Below 800 Hz it holds −71 dB</Claim>, far under what the naive saw left there.
+  </Way>
+  <Way title="Choose a shape with softer edges" tag="a triangle for a saw" set="soft">
+    The cost of a shape is in its corners, so a rounder shape costs less before anything is corrected. On the note the lab starts on, <Claim id="way-soft">the strongest fold of the naive triangle reads −35.2 dB, at 21,120 Hz, where the naive saw has −19.7 dB. In the kit's triangle that line reads −45.7 dB</Claim>. A triangle has fewer and weaker partials than a saw, so it is a duller sound. Where the part allows it, it is the cheapest cure there is.
+  </Way>
+  <Way title="Use the folds on purpose" tag="the naive saw, gliding" set="grit">
+    Folds are tones at exact places, and they move in exact ways. This card is the naive saw on a glide, with nothing done about them. Listen for an edge that swims against the note. After the card, raise Note and listen for it growing. Chosen, that is an effect. Left in by accident, it is the fault this lesson is about.
+  </Way>
+  <Way title="Make the wave faster than it is played" tag="oversampling">
+    For notes bright and high enough that what is left matters, the kit's header <Src path="cpp/kit/osc.h" at="bright leads belong on an oversampled voice">points to an oversampled voice</Src>. The wave is made at a multiple of the sample rate, everything above half the real rate is filtered away, and then every second sample is kept, or every fourth. The partials that fold are then higher ones, which are weaker, and the filter takes out most of what would have landed. <Lesson id="saturation" cap /> builds that filter and measures it.
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Six ways it goes wrong, three of them to hear.">
+
+<Faults>
+  <Fault title="The folds near the top stay" set="kit">
+    The correction is not a wall at half the rate. <Claim id="kit-line-top">In the kit's saw on the note the lab starts on, the line at 21,120 Hz reads −30.6 dB, only 10.9 dB under</Claim> the naive saw's. Count all the folds and the gain is modest. <Claim id="fold-4k-low">With Note at 4 kHz, the folds that land at or under the note are 41.9 dB lower or more</Claim> in the kit's saw, but <Claim id="fold-4k-all">all the folds added together are just 13.1 dB lower</Claim>, because the ones near the top carry most of what is left. What to do: keep bright notes low, take the top off with a filter after the oscillator, as most patches do anyway, or oversample.
+  </Fault>
+  <Fault title="Folds that hide" set="hidden">
+    <Claim id="hidden-4k">With Note at exactly 4 kHz a cycle is a whole number of samples, and the naive saw is one pattern of 12 samples repeated</Claim>. Every fold lands on one of the saw's own partials. The spectrum shows no stray peak, and the folds are still there, changing the sizes of the partials they sit on. An oscillator checked on one such note looks clean. Check it on notes that do not divide the sample rate, or on a glide.
+  </Fault>
+  <Fault title="A thicket of folds" set="thicket">
+    The opposite case. On the note the lab starts on, the folds share six places. Move the note a little, as this card does, and they stop sharing: <Claim id="thicket">the 13 peaks above −60 dB in the naive saw at 3,840 Hz become more than fifty</Claim>. Each is smaller than the six were, and there are far more of them. Look at the spectrum of stage 3 after pressing the card. The cure is the one already built, and it works best on the ones that land low.
+  </Fault>
+  <Fault title="The top of the saw is dulled">
+    The correction cannot tell a fold from a partial that belongs. It scales everything by the formula of stage 5, so the saw's own partials lose a little too: <Claim id="droop-fundamental">0.18 dB at the fundamental</Claim> and <Claim id="droop-top">7.2 dB at the sixth partial, 23,036 Hz in the measuring frame</Claim>. The loss is small where notes are played and largest at the very top of the band. If the top matters, that is one more reason to oversample.
+  </Fault>
+  <Fault title="Exactly half the sample rate">
+    The rule of part 1 says below half, and means it. <Claim id="nyquist-silence">A sine at exactly 24 kHz that starts at zero gets two samples a cycle, both where the wave crosses zero, and the loop is silence</Claim>. A little lower and the sine is all there, as part 8 shows. What to do: nothing that matters should sit at the edge of the band.
+  </Fault>
+  <Fault title="A shaped wave will not go that high">
+    `BlepOsc` limits its step, as stage 1 of part 5 shows. Asked for a note above that limit, a saw or a triangle from the kit plays the limit and says nothing. No music is written up there, but a test that sweeps an oscillator to the top of the band will find a note that stops rising. `SineOsc` has no such limit, and will fold.
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="Digital sound is a staircase.">
+    A sample is a number at an instant. It is not a level held until the next one. Under half the rate exactly one wave passes through the samples, and it is smooth: the picture of part 2 draws it through the dots. The stairs are how some pictures draw samples, the last figure of part 5 among them.
+  </Myth>
+  <Myth says="A wave needs many samples in each cycle to be stored properly.">
+    Any number above two will do. Take a sine so close under half the rate that a cycle gets barely more than two samples.
+
+    <Still
+      taps="wave:in samples:out"
+      view="curve"
+      values={{ freq: 23952 }}
+      caption="A sine just under half the sample rate, and its samples, joined here by straight lines. The samples swing back and forth far inside the wave they were taken from, and grow slowly from left to right."
+    />
+
+    The samples look nothing like a sine at full level. <Claim id="near-nyquist-dots">At 23,952 Hz they turn sign at every sample, and none of those in the picture reaches a sixth of full level</Claim>. The spectrum of the loop disagrees with the eye. <Claim id="near-nyquist">It finds one line, within a bin of 23,952 Hz and at full level</Claim>. The sine is all there.
+
+  </Myth>
+  <Myth says="Aliasing is a kind of noise.">
+    It is tones, at the exact places the folding rule gives. On a held note they hold still: stage 3 of part 5 finds six of them between the partials of one saw. They pass for noise only when there are very many, as in the thicket of part 7.
+  </Myth>
+  <Myth says="A filter after the oscillator will clean it up.">
+    Once a partial has folded it is a frequency under half the rate like any other, and it sits among the partials that belong. In the fault called Folds that hide it sits exactly on top of them. No filter can take out the one and leave the other. A filter can lower the top of the band, folds and partials together, and that is all. The cure has to act before the samples exist, which is what the two corrections of part 4 do.
+  </Myth>
+  <Myth says="Frequencies above half the sample rate are simply lost.">
+    They are kept, in the wrong place. The sine of part 1 was asked to go twice as high as the samples can follow, and it sounded all the way.
+  </Myth>
+  <Myth says="A higher sample rate makes the problem go away.">
+    It moves the fold higher. A saw's partials have no top, so some of them stand above half the rate whatever the rate is. What a higher rate buys is that the partials which fold are higher ones, and weaker: each partial of a saw is smaller than the one before, as stage 3 of part 5 measures. That is the oversampling of part 6. It makes the folds smaller. It does not end them.
+  </Myth>
+</Myths>
+
+</Part>
