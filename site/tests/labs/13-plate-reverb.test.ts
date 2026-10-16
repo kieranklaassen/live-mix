@@ -105,6 +105,22 @@ describe('lesson 13: plate reverb', () => {
     expectSoundLab(plate, clicks, result, { quiet: ['wobbleLeft', 'wobbleRight'] })
   })
 
+  it('answers a click at a tenth of its height and at −47 dB over the loop (claim click-level), and the drums 26 dB louder (claim drums-level)', async () => {
+    const plate = await lab(NAME)
+    const answer = async (id: string) =>
+      plate.render(await benchSource(id, seconds(4)), {}).taps.out!.channels_data[0]!
+    const clicks = await answer('clicks')
+    const peak = clicks.reduce((top, v) => Math.max(top, Math.abs(v)), 0)
+    expect(peak).toBeGreaterThan(0.085)
+    expect(peak).toBeLessThan(0.11)
+    const level = gainToDb(rms(clicks))
+    expect(level).toBeGreaterThan(-47.5)
+    expect(level).toBeLessThan(-46.5)
+    const louder = gainToDb(rms(await answer('drums'))) - level
+    expect(louder).toBeGreaterThan(25)
+    expect(louder).toBeLessThan(27)
+  })
+
   it('gives a sound that is opposite in the two channels no reverb at all: it takes the mean of the two (claim one-channel)', async () => {
     const plate = await lab(NAME)
     const source = sine(440, 0.5, seconds(1))
@@ -263,6 +279,19 @@ describe('lesson 13: plate reverb', () => {
     expect(out.checks.trip).toBeCloseTo(0.7253, 3)
   })
 
+  it('brings what entered the right half round to the left 11,901 samples later, at 248 ms (claim crossing)', async () => {
+    const plate = await lab(NAME)
+    const source = oneSample(seconds(1))
+    // With the decay at 0 nothing crosses: what differs from that is what came round.
+    const round = plate.render(source, {}).taps.hitTank!
+    const alone = plate.render(source, { decay: 0 }).taps.hitTank!.channels_data[0]!
+    // The picture starts 20 ms, 960 samples, before the burst arrives.
+    expect(round.x0).toBe(-20)
+    const first = round.channels_data[0]!.findIndex((v, i) => Math.abs(v - alone[i]!) > 1e-9)
+    // 6800 and 5100 samples of delay in the right half, and one for the crossing.
+    expect(first - 960).toBe(11_901)
+  })
+
   /** With no damping: the measured time and the formula's, each as the lesson rounds it. */
   async function fallAt(decay: number, measured: number, formula: number) {
     const plate = await lab(NAME)
@@ -333,6 +362,21 @@ describe('lesson 13: plate reverb', () => {
     expect(middle.fallHigh!).toBeGreaterThan(dark.fallHigh!)
   })
 
+  it('gives 1.8 s at 500 Hz and 1.2 s at 5 kHz by the formula at a decay of 0.5 and a damping of 0.7 (claim damping-formula), within a tenth of what is measured', async () => {
+    const plate = await lab(NAME)
+    const checks = plate.render(oneSample(seconds(1)), { damping: 0.7 }).checks
+    const a = 0.7
+    const formula = (hz: number) => {
+      const w = (2 * Math.PI * hz) / 48_000
+      const gain2 = (1 - a) ** 2 / (1 - 2 * a * Math.cos(w) + a * a)
+      return (-3 * checks.trip!) / Math.log10(0.5 ** 4 * gain2)
+    }
+    expect(formula(500)).toBeCloseTo(1.79, 2)
+    expect(formula(5000)).toBeCloseTo(1.19, 2)
+    near(checks.fallLow!, formula(500), 0.1)
+    near(checks.fallHigh!, formula(5000), 0.1)
+  })
+
   it('passes its damping filter 3 dB down at 10.6 kHz with the damping at 0.3, and at 2.75 kHz at 0.7 (claim damping-cutoff)', async () => {
     const plate = await lab(NAME)
     // With no decay the left half holds the input alone: the filter's gain is what is after
@@ -374,7 +418,7 @@ describe('lesson 13: plate reverb', () => {
     ).toBeLessThan(0.01)
   })
 
-  it('adds up to 19.35 samples to the delay of each half’s first all-pass, the left once a second (claim wobble-range), and nothing when held still', async () => {
+  it('adds up to 19.35 samples to the delay of each half’s first all-pass, the left once a second and the right at 0.95 Hz (claim wobble-range), and nothing when held still', async () => {
     const plate = await lab(NAME)
     const source = sine(440, 0.25, seconds(4))
     const moving = plate.render(source, { movement: 1 }).taps
@@ -389,8 +433,9 @@ describe('lesson 13: plate reverb', () => {
     }
     // A point of a trace is 16 samples: 3000 points are a second. The left comes round in one.
     for (let k = from; k < 3000; k += 100) expect(left[k + 3000]!).toBeCloseTo(left[k]!, 1)
-    // The right does not: it turns at 0.95 Hz.
+    // The right does not: it turns at 0.95 Hz, once in 3158 points.
     expect(Math.abs(right[1500 + 3000]! - right[1500]!)).toBeGreaterThan(1)
+    for (let k = from; k < 3000; k += 100) expect(right[k + 3158]!).toBeCloseTo(right[k]!, 1)
     const held = plate.render(source, {}).taps
     expect(held.wobbleLeft!.channels_data[0]!.every((v) => v === 0)).toBe(true)
     expect(held.wobbleRight!.channels_data[0]!.every((v) => v === 0)).toBe(true)
