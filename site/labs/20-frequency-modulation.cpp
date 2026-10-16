@@ -32,10 +32,8 @@ namespace {
 FmGlass glass;
 
 lab::Control pitch{"pitch", "Pitch", "Hz", 55.0f, 1760.0f, 220.0f, lab::kLog};
-// Eight of the device's twelve ratios, by their place in FmGlass::kRatios: a
-// row of twelve does not fit a phone's width.
-constexpr int kOffered[8] = {0, 1, 2, 3, 4, 5, 6, 11};
-lab::Control ratio{"ratio", "Ratio", "", 0.0f, 7.0f, 6.0f, lab::kLinear, "0.5|1|1.41|2|2.76|3|3.5|14"};
+// The device's own list, FmGlass::kRatios, in its order.
+lab::Control ratio{"ratio", "Ratio", "", 0.0f, 11.0f, 6.0f, lab::kLinear, "0.5|1|1.41|2|2.76|3|3.5|4|5|7|9|14"};
 lab::Control index{"index", "Index", "rad", 0.0f, 8.0f, 2.0f};
 lab::Control decay{"decay", "Decay", "s", 0.05f, 20.0f, 0.4f, lab::kLog};
 lab::Control feedback{"feedback", "Feedback", "", 0.0f, 1.0f, 0.0f};
@@ -153,7 +151,7 @@ void lab_setup() {
 void lab_render(int frames) {
   using namespace fm_glass;
   const float hz = pitch.value;
-  const int ratio_place = kOffered[kit::clamp_int(ratio.choice(), 0, 7)];
+  const int ratio_place = kit::clamp_int(ratio.choice(), 0, FmGlass::kNumRatios - 1);
 
   // The device's knob is Brightness: the index at the strike is
   // kMaxIndex · Brightness^1.5 · key_index_scale(pitch). The lab's slider is

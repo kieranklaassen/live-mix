@@ -17,13 +17,14 @@ files:
   - cpp/kit/env.h
   - cpp/kit/osc.h
   - cpp/kit/filters.h
+  - cpp/kit/device.h
 ---
 
-Take a sine wave, the plainest sound there is (lesson 1). Now let a second sine push its phase forwards and pull it back, hundreds of times a second. The first sine is the **carrier**: it is the one that is heard. The second is the **modulator**: it is never heard, it only bends the carrier. Done slowly this is a wobble in pitch. Done hundreds of times a second it is too fast to be a wobble, and what comes out is something else: a set of new, steady frequencies standing either side of the carrier. That is all frequency modulation is, and it costs two table reads and a multiplication for every sample.
+Take a sine wave, the plainest sound there is (lesson 1). Now let a second sine push its phase forwards and pull it back, hundreds of times a second. The first sine is the **carrier**: it is the one that is heard. The second is the **modulator**: it is never heard, it only bends the carrier. Done slowly this is a wobble in pitch. Done hundreds of times a second it is too fast to be a wobble, and what comes out is something else: a set of new, steady frequencies standing either side of the carrier. That is all frequency modulation is, and it costs two table reads and a few multiplications for every sample.
 
 Two numbers decide the result. The **ratio** of the modulator's frequency to the carrier's decides *where* the new frequencies stand, and so whether the tone is a note with harmonics or the clang of a bell. The **index**, how far the phase is pushed, decides *how many* of them there are. Put the index under an envelope, large at the strike and falling away, and the tone is bright when it is struck and pure as it rings, which is how a struck bar or a glass behaves.
 
-The lab strikes the engine's Glass once every two seconds and runs it one sample at a time. Glass has four operators, wired as two carrier and modulator pairs, tuned apart and panned apart. The lab sets Detune to 0, Spread to 1, Velocity to 0 and Feedback to 0, so the left channel is one pair alone, at the note's own pitch, struck the same every time. Everything below is that pair until the last stage, where the rest comes back. These are its stages:
+The lab strikes the engine's Glass once every two seconds and runs it one sample at a time. Glass has four operators. In the algorithm it starts on they are wired as two carrier and modulator pairs, tuned apart and panned apart. The lab sets Detune to 0, Spread to 1, Velocity to 0 and Feedback to 0, so the left channel is one pair alone, at the note's own pitch, struck the same every time. Everything below is that pair until the last stage, where the rest comes back. These are its stages:
 
 <Stages taps="modulator modEnv indexNow ampEnv carrier modulated out" />
 
@@ -49,7 +50,7 @@ An operator is a counter and a table. The counter is the phase, a number from 0 
 
 The step is `increment` and the wrap is `advance` in <Src path="cpp/devices/fm-glass/fm_glass.h" lines="234-237">the device</Src>. The sine is not computed: <Src path="cpp/kit/math.h" lines="106-140">`SineTable::lookup`</Src> reads it from a table of 4,096 steps round the circle and draws a straight line between the two nearest. All four operators of every voice read the same table.
 
-The carrier steps at the note's frequency. The modulator steps at the note's frequency times the Ratio, so the device counts its ratio as modulator over carrier: a Ratio of 2 is a modulator an octave above the note. Ratio is not a slider. It is a list of twelve, <Src path="cpp/devices/fm-glass/fm_glass.h" lines="52-54">`kRatios`</Src>: 0.5, 1, 1.41, 2, 2.76, 3, 3.5, 4, 5, 7, 9 and 14. The lab offers eight of them. Stage 3 shows why a list is the honest control.
+The carrier steps at the note's frequency. The modulator steps at the note's frequency times the Ratio, so the device counts its ratio as modulator over carrier: a Ratio of 2 is a modulator an octave above the note. Ratio is not a slider. It is a list of twelve, <Src path="cpp/devices/fm-glass/fm_glass.h" lines="52-54">`kRatios`</Src>: 0.5, 1, 1.41, 2, 2.76, 3, 3.5, 4, 5, 7, 9 and 14. Stage 3 shows why a list is the honest control.
 
 <Controls ids="pitch" />
 
@@ -123,9 +124,9 @@ The levels <M t={String.raw`J_k(I)`} /> are **Bessel functions**, and the name i
   The level of the carrier's line (red) and of the first, second and third side bands (blue, green and orange) against the index, measured. Below zero a line has turned upside down. The dashed upright is the index slider. While the note plays, the dot rides the carrier's curve at the index the note has at that instant, and slides back to the left as the note rings.
 </Curve>
 
-Read the picture from the left. At an index of 0 the carrier is at 1 and every side band at 0: the held tone is <Claim id="one-sine">one sine, with every other line more than 130 dB under it</Claim>. As the index grows the carrier *falls*, because the energy that fills the side bands comes out of it: the wave never gets taller than 1, so what the side bands gain something else must lose. The first pair rises, then the second, then the third, each starting later than the one before. At an index of 1 the carrier's line reads <Claim id="bessel-one">−2.3 dB and the first pair −7.1 dB</Claim>, the 0.765 and 0.440 that tables of the functions give.
+Read the picture from the left. At an index of 0 the carrier is at 1 and every side band at 0: the held tone is <Claim id="one-sine">one sine, with every other line more than 130 dB under it</Claim>. As the index grows the carrier *falls*. The wave is still one sine of height 1 with its phase pushed about, so its power has not changed, and whatever goes into the side bands has to come out of the other lines. The first pair rises, then the second, then the third, each starting later than the one before. At an index of 1 the carrier's line reads <Claim id="bessel-one">−2.3 dB and the first pair −7.1 dB</Claim>, the 0.765 and 0.440 that tables of the functions give.
 
-Then the curves do what makes this sound unlike a filter opening. Each line rises, falls to nothing, and comes back upside down. The measured curves cross zero where the tables say: <Claim id="line-zeros">the carrier at 2.40 and 5.52, the first pair at 3.83 and 7.02, the second at 5.14</Claim>. At an index of 2.405 the carrier's line in the held tone is <Claim id="carrier-null">81 dB down</Claim>: a note with nothing at all at its own pitch.
+Then the curves do what makes this sound unlike a filter opening. Each line rises, falls to nothing, and comes back upside down. The measured curves cross zero where the tables say: <Claim id="line-zeros">the carrier at 2.40 and 5.52, the first pair at 3.83 and 7.02, the second at 5.14</Claim>. At an index of 2.405 the carrier's line in the held tone is <Claim id="carrier-null">81 dB down</Claim>: a note with next to nothing at its own pitch.
 
 <Spectrum taps="steady" linear fMax={6000} min={-80} max={0}>
   The held tone's spectrum again, to watch against the curves. Take the index slowly from 0 to 8: energy moves outward from the carrier into more and more lines, and any one line swells, vanishes and returns.
@@ -137,22 +138,22 @@ How many lines matter? The rule of thumb is that the lines worth counting reach 
 
 A held index gives a held tone. The instrument comes alive when the index moves, and in this device it always moves: the modulator has an envelope of its own.
 
-The device's knob is not the index but **Brightness**, from 0 to 1. At the strike the index is
+The device's knob is not the index but **Brightness**, from 0 to 1. With Velocity at 0, and before the limit of "What goes wrong" is applied, the index at the strike is
 
 <M block t={String.raw`I_{\text{strike}} = 8\;B^{1.5}\;\sqrt{261.63 / f}`} />
 
-radians: <Src path="cpp/devices/fm-glass/fm_glass.h" lines="56-63">`kMaxIndex`</Src> is 8, Brightness goes through a power of 1.5 so the low end of the knob has room, and the square root is the key scaling of <Src path="cpp/devices/fm-glass/fm_glass.h" lines="80-87">`key_index_scale`</Src>, which gives notes below middle C more index and notes above it less (never more than 1.4 times, never less than 0.3). The lab's Index slider works that sum backwards and sets the Brightness that gives the index asked for. At the starting settings the device grants <Claim id="index-strike">2.00 rad for the 2 asked</Claim>.
+radians: <Src path="cpp/devices/fm-glass/fm_glass.h" lines="56-63">`kMaxIndex`</Src> is 8, Brightness goes through a power of 1.5, and the square root is the key scaling of <Src path="cpp/devices/fm-glass/fm_glass.h" lines="80-87">`key_index_scale`</Src>, which gives notes below middle C more index and notes above it less (never more than 1.4 times, never less than 0.3). The lab's Index slider works that sum backwards and sets the Brightness that gives the index asked for. At the starting settings the device grants <Claim id="index-strike">2.00 rad for the 2 asked</Claim>.
 
 From there the index is that number times the modulator's envelope, <Src path="cpp/kit/env.h" lines="12-112">the kit's `Adsr`</Src>. Its decay is one multiplication a sample towards the level it settles on, with the coefficient chosen so that 60 dB of the fall takes the set time:
 
 <M block t={String.raw`e[n] = s + \bigl(e[n-1] - s\bigr)\,c, \qquad c = e^{-6.908 / (T f_s)}`} />
 
-Here <M t="s" /> is the level it settles on (0 while Sustain is 0) and 6.908 is <M t={String.raw`\ln 1000`} />, 60 dB. <M t="T" /> is where the device's voicing is. For the modulator it is Decay times <Src path="cpp/devices/fm-glass/fm_glass.h" lines="80-83">`key_time_scale`</Src>, which stretches low notes and shortens high ones. For the carrier it is four times that (`kAmpDecayRatio`). So the brightness of a note is gone long before its loudness. At 220 Hz and a Decay of 0.4 s the modulator's envelope falls 60 dB in <Claim id="mod-decay">0.43 s</Claim> and the carrier's in <Claim id="amp-decay">1.72 s</Claim>.
+Here <M t="s" /> is the level it settles on (0 while Sustain is 0) and 6.908 is <M t={String.raw`\ln 1000`} />, 60 dB. <M t="T" /> is where the device's voicing is. For the modulator it is Decay times <Src path="cpp/devices/fm-glass/fm_glass.h" lines="80-83">`key_time_scale`</Src>, which stretches low notes and shortens high ones. For the carrier it is four times that (<Src path="cpp/devices/fm-glass/fm_glass.h" lines="62-63">`kAmpDecayRatio`</Src>). So the brightness of a note is gone long before its loudness. At 220 Hz and a Decay of 0.4 s the modulator's envelope falls 60 dB in <Claim id="mod-decay">0.43 s</Claim> and the carrier's in <Claim id="amp-decay">1.72 s</Claim>.
 
 <Controls ids="decay index" />
 
 <Trace taps="modEnv:ctl ampEnv:out" min={0} max={1.05}>
-  The two envelopes of the pair across the loop, read from the device: the modulator's (blue), which is the brightness, and the carrier's (red), which is the loudness. Both start at the strike. The blue one is down before the red one has lost half its height.
+  The two envelopes of the pair across the loop, read from the device: the modulator's (blue), which is the brightness, and the carrier's (red), which is the loudness. Both start at the strike. The blue one is at the foot of the picture while the red one is still plainly ringing.
 </Trace>
 
 <Spectrogram tap="picture" top={6000} min={-100} max={-10}>
@@ -163,15 +164,15 @@ In the first 85 ms of the note the first pair of side bands stands <Claim id="br
 
 ### 6. The rest of the device around the pair
 
-What goes out is the pair times a gain, then two guards. One voice at full level is scaled by 0.29 (`kVoiceGain`) and the Volume. A <Src path="cpp/kit/filters.h">DC blocker</Src> at 12 Hz follows, because a side band can land on 0 Hz exactly: the first lower one does at a ratio of 1. With two plain sines it arrives there at a level of nothing, but once Feedback is up it does not, and a constant offset is not sound. At a ratio of 1, an index of 2 and full Feedback the held tone sits <Claim id="dc-offset">0.013 below centre</Claim>. Last is a soft clip that is exactly a wire below half of full scale and rounds off only when many notes pile up.
+What goes out is the pair times a gain, then two guards. One voice at full level is scaled by 0.29 (<Src path="cpp/devices/fm-glass/fm_glass.h" lines="220-221">`kVoiceGain`</Src>) and the Volume. A <Src path="cpp/kit/filters.h">DC blocker</Src> <Src path="cpp/devices/fm-glass/fm_glass.h" lines="100-103">set at 12 Hz</Src> follows, because a side band can land on 0 Hz exactly: the first lower one does at a ratio of 1. With two plain sines it arrives there at a level of nothing, but once Feedback is up it does not, and a constant offset is not sound. At a ratio of 1, an index of 2 and full Feedback the held tone sits <Claim id="dc-offset">0.013 below centre</Claim>. Last is <Src path="cpp/kit/math.h" lines="44-52">a soft clip</Src> that is exactly a wire below half of full scale and rounds off only when many notes pile up.
 
 <Check id="rebuilt" />
 
 That check is the lab's proof that the stages above are the device's. It takes the phases, the envelopes, the modulator's output and the index out of every sounding voice, runs them through the line of stage 2, the gain, a DC blocker and the clip, and compares with the left channel. At the starting settings the two are <Claim id="rebuilt-exact">the same, sample for sample</Claim>.
 
-The other three operators are more of the same thing. In the **Bell** algorithm, used here, and in **Pad**, they make a second pair. <Src path="cpp/devices/fm-glass/fm_glass.h" lines="65-78">`kShapes`</Src> voices it apart from the first: in Bell its index is 0.7 times the first pair's and its modulator dies in 0.6 of the time, measured here as <Claim id="pair-b">0.70 times the index and 0.26 s against 0.43 s</Claim>. Detune tunes the pairs half its amount flat and sharp, so they beat, and Spread pans them apart, so the beat moves between the speakers. In **Glass** three operators are stacked, a modulator on a modulator on a carrier, beside one bare carrier. In **Mallet** one modulator bends two carriers and the fourth operator is a short partial at four times the note.
+The other three operators are more of the same thing. In the **Bell** algorithm, used here, and in **Pad**, they make a second pair. <Src path="cpp/devices/fm-glass/fm_glass.h" lines="65-78">`kShapes`</Src> voices it apart from the first: in Bell its index is 0.7 times the first pair's and its modulator dies in 0.6 of the time, measured here as <Claim id="pair-b">0.70 times the index and 0.26 s against 0.43 s</Claim>. Detune <Src path="cpp/devices/fm-glass/fm_glass.h" lines="487-491">tunes the pairs half its amount flat and sharp</Src>, so they beat, and Spread pans them apart, so the beat moves between the speakers. The other two are in <Src path="cpp/devices/fm-glass/fm_glass.h" lines="248-284">`render`</Src> as well. In **Glass** three operators are stacked, a modulator on a modulator on a carrier, beside one bare carrier. In **Mallet** one modulator bends two carriers and the fourth operator is a short partial at four times the note.
 
-<Trace taps="indexNow:ctl indexB:alt2" lines="index" unit="rad">
+<Trace taps="indexNow:ctl indexB:alt2" lines="index" unit="rad" min={0} max={8.5}>
   The index of each pair across the loop, in radians: the first pair (blue), heard on the left, and the second (orange), on the right. The dashed line is the slider. When the first pair's trace starts below it, the device has granted less than was asked: see "What goes wrong".
 </Trace>
 
@@ -185,7 +186,7 @@ The other three operators are more of the same thing. In the **Bell** algorithm,
 
 ## What goes wrong
 
-**Aliasing.** The ladder of side bands has no top rung. A line that passes half the sample rate folds back down (lesson 1) to a frequency that belongs to no ladder, and a high ratio at a large index sends many there. The usual cure is to run the oscillators at several times the sample rate. This device does not. It knows from the Bessel functions how far the lines above −60 dB reach, <M t={String.raw`I + 1.6\sqrt{I} + 1.8`} /> modulators from the carrier, and when a note starts it caps the index at the largest value whose reach stays under 0.47 of the sample rate (<Src path="cpp/devices/fm-glass/fm_glass.h" lines="287-307">`index_for_room`</Src>). Set the ratio to 14 and the index to 8:
+**Aliasing.** The ladder of side bands has no top rung. A line that passes half the sample rate folds back down (lesson 1) to a frequency that belongs to no ladder, and a high ratio at a large index sends many there. The usual cure is to run the oscillators at several times the sample rate. This device does not. It knows from the Bessel functions how far the lines above −60 dB reach, <M t={String.raw`I + 1.6\sqrt{I} + 1.8`} /> modulators from the carrier, and when a note starts it caps the index at the largest value whose reach stays under 0.47 of the sample rate (<Src path="cpp/devices/fm-glass/fm_glass.h" lines="226-227">`kBandLimit`</Src>, <Src path="cpp/devices/fm-glass/fm_glass.h" lines="287-307">`index_for_room`</Src>). Set the ratio to 14 and the index to 8:
 
 <Controls ids="ratio" />
 
@@ -197,19 +198,19 @@ The other three operators are more of the same thing. In the **Bell** algorithm,
 
 <Check id="granted" />
 
-At 220 Hz and a ratio of 14 the device grants <Claim id="cap-granted">2.78 rad of the 8 asked</Claim>. Above 0.47 of the sample rate the capped tone's strongest line is <Claim id="cap-clean">71 dB down, where the uncapped tone's is 13 dB down</Claim>. The price is that high notes are duller than the knob says, and that is audible as the design: at 880 Hz and a ratio of 3.5 the most the device grants is <Claim id="key-scale">2.64 rad</Claim>. A modulator that would itself sit above the limit is not run at all. At 1,760 Hz and a ratio of 14 it would be at 24.6 kHz, and the note is <Claim id="modulator-silent">one sine</Claim>.
+At 220 Hz and a ratio of 14 the device grants <Claim id="cap-granted">2.78 rad of the 8 asked</Claim>. Above 0.47 of the sample rate the capped tone's strongest line is <Claim id="cap-clean">71 dB down, where the uncapped tone's is 13 dB down</Claim>. The price is that high notes get less index than the knob asks for: at 880 Hz and a ratio of 3.5 the most the device grants is <Claim id="key-scale">2.64 rad</Claim>. A modulator that would itself sit above the limit is not run at all. At 1,760 Hz and a ratio of 14 it would be at 24.6 kHz, and the note is <Claim id="modulator-silent">one sine</Claim>.
 
 **A note with no fundamental.** Near an index of 2.4 the carrier's line is gone, and at a ratio that is not whole nothing else stands at the note's pitch. Whether the note still seems to sit at its pitch is then up to the ear, and worth listening for. More index is not more of the same tone.
 
-**Clicks at the strike.** Every fresh voice starts its four operators at phase 0, so every strike has the same attack. A voice taken over while it still sounds is not reset, because the jump in phase would click, and a key struck again while held fades its old voice out over 30 ms beside the new one.
+**Clicks at the strike.** Every fresh voice starts its four operators at phase 0, so every strike has the same attack. A voice taken over while it still sounds is not reset, because the jump in phase would click, and a key struck again while held fades its old voice out over 30 ms beside the new one. Both are in <Src path="cpp/devices/fm-glass/fm_glass.h" lines="121-150">`note_on`</Src>.
 
-**Zipper noise in the index.** Brightness is smoothed over 5 ms before it reaches the operators, so turning the knob under a held note slides the index and does not step it.
+**Zipper noise in the index.** Brightness is smoothed over 5 ms (<Src path="cpp/kit/device.h" lines="24-25">`kSmoothingSeconds`</Src>) before it reaches the operators, so turning the knob under a held note slides the index and does not step it.
 
 ## What to try
 
 - Index at 0, then slowly up to 8, with the held tone playing: <Listen tap="steady">Hear the held tone</Listen>. The curves of stage 4 say which line is about to vanish.
-- Index 2.4, ratio 3.5. The carrier's line is gone from the spectrum. Then ratio 2, where a reflected side band lands on the carrier and puts it back.
-- Ratio 1, 2 and 3 in turn, then 1.41 and 2.76. The first three are notes; the last two are the clang this instrument is named for.
+- Index 2.4, ratio 3.5. The carrier's line has all but gone from the spectrum. Then ratio 2, where a reflected side band lands on the carrier and puts it back.
+- Ratio 1, 2 and 3 in turn, then 1.41 and 2.76. The first three put every line on a harmonic of the note; the last two put only the carrier's line on one.
 - Decay from 0.05 s to 5 s with the note playing. The spectrogram shows the same ladder collapsing quickly or slowly.
 - Ratio 14, index 8, and the pitch from 55 Hz upwards. Watch the granted index fall and the grey lines of the last picture start to fold.
 - Feedback at 1 with the index at 1. The modulator is no longer a sine, so every side band grows side bands of its own.

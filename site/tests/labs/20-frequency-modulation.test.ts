@@ -17,7 +17,7 @@ const ON_A_BIN = 40 * BIN
 const heldSpectrum = (theLab: Lab, tap = 'steady') => theLab.spectrum(tap, 0, 8192, 65_536)
 
 /** The lab's ratio switch, by the ratio each position stands for. */
-const RATIO = { half: 0, one: 1, two: 3, threeAndAHalf: 6, fourteen: 7 }
+const RATIO = { half: 0, one: 1, two: 3, threeAndAHalf: 6, fourteen: 11 }
 
 /** The highest level within a bin of `hz`, in dB where a full-scale sine reads 0. */
 function lineAt(spectrum: Float32Array, hz: number): number {
@@ -124,6 +124,18 @@ describe('lesson 20: frequency modulation', () => {
     const held = heldSpectrum(fm)
     for (const odd of [1, 3, 5, 7]) expect(lineAt(held, odd * ON_A_BIN)).toBeGreaterThan(-30)
     for (const even of [2, 4, 6, 8]) expect(lineAt(held, even * ON_A_BIN)).toBeLessThan(-90)
+    // At a ratio of 1 there is a line on every multiple of the note.
+    fm.render(nothing, { ratio: RATIO.one, index: 2, pitch: ON_A_BIN })
+    const every = heldSpectrum(fm)
+    for (const harmonic of [1, 2, 3, 4])
+      expect(lineAt(every, harmonic * ON_A_BIN)).toBeGreaterThan(-30)
+    // At 3.5 the first lines beside the carrier are at 2.5, 4.5, 6 and 8 times the note.
+    fm.render(nothing, { ratio: RATIO.threeAndAHalf, index: 2, pitch: ON_A_BIN })
+    const uneven = heldSpectrum(fm)
+    for (const multiple of [2.5, 4.5, 6, 8])
+      expect(lineAt(uneven, multiple * ON_A_BIN)).toBeGreaterThan(-30)
+    for (const multiple of [2, 3, 4, 5, 7])
+      expect(lineAt(uneven, multiple * ON_A_BIN)).toBeLessThan(-90)
   })
 
   it('brings the first lower side band back up from below zero at −7.1 dB, the level of the upper one (claim reflected-level)', async () => {
