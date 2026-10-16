@@ -302,18 +302,18 @@ export function twinBarsSpan(beat: number): number {
 }
 
 /** The lower lane's scale of seconds, by ratio, and its scale of level in dB against the fundamental at the stroke. */
-export const TWIN_BARS_RING_FROM_SEC = 0.01
-export const TWIN_BARS_RING_TO_SEC = 30
+const TWIN_BARS_RING_FROM_SEC = 0.01
+const TWIN_BARS_RING_TO_SEC = 30
 export const TWIN_BARS_TOP_DB = 12
 export const TWIN_BARS_FLOOR_DB = -60
-/** A dot shows where the beat is only this slow (R10): above it the beat is the still shape alone. */
-export const TWIN_BARS_MARK_MOST_HZ = 3
+/** A dot shows where the beat is only this slow: above it the beat is the still shape alone. */
+const TWIN_BARS_MARK_MOST_HZ = 3
 /** A stroke is followed for at least this long, so a roll restarts the marks twice a second at the most. */
 export const TWIN_BARS_FOLLOWS_SEC = 0.5
 /** The pair stays lit this long after the last key was held, so short notes do not make it flicker. */
 export const TWIN_BARS_LIT_SEC = 0.5
 /** The level in the foot is the mean over this long. */
-export const TWIN_BARS_LEVEL_SEC = 1
+const TWIN_BARS_LEVEL_SEC = 1
 
 export interface TwinBarsLayout {
   /** The baseline of the words at the top, and where they start and end. */

@@ -178,7 +178,7 @@ const sectionG = (hz: number, sampleRate: number): number =>
  * sections warp it; the low part also passes the all-pass the upper pair sums
  * to, conj(D) / D.
  */
-export function bandPulseParts(
+function bandPulseParts(
   hz: number,
   low: number,
   high: number,
@@ -296,7 +296,7 @@ export function bandPulseLayout(view: Pick<DisplayView, 'width' | 'height'>): Ba
 }
 
 /** A side's lane as a line: the level the band is given over the time the lanes show, read wherever the pulse turns. */
-export function bandPulseLanePoints(
+function bandPulseLanePoints(
   set: BandPulseSettings,
   layout: BandPulseLayout,
   right = false,
@@ -323,12 +323,12 @@ export function bandPulseLanePoints(
 }
 
 /** How high a level stands on the frequency axis, held to its foot. */
-export function bandPulseLevelY(heard: number, plot: Box): number {
+function bandPulseLevelY(heard: number, plot: Box): number {
   return yOfDb(Math.max(BAND_PULSE_FOOT_DB, gainToDb(heard)), plot, 0, BAND_PULSE_FOOT_DB)
 }
 
 /** What a gap leaves of each frequency, as a line across the frequency axis. */
-export function bandPulseCurvePoints(
+function bandPulseCurvePoints(
   set: BandPulseSettings,
   layout: BandPulseLayout,
   sampleRate = 48000,

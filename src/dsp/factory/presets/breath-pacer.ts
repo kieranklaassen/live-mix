@@ -83,7 +83,7 @@ export const BREATH_PACER_PRESETS: readonly FactoryPreset[] = [
     description:
       'A tone in for four seconds, held four, out four and silent four, struck as it starts in and as it starts out, in a tight chamber.',
     instrument: { deviceId: 'breath-pacer', preset: 'Fours all round', params: { volume: -10.4 } },
-    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.2 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber' }],
   },
   {
     id: 'four-seven-eight',
@@ -232,7 +232,7 @@ export const BREATH_PACER_PRESETS: readonly FactoryPreset[] = [
     description:
       'Marks alone: a soft struck note on every bar line at 80 beats a minute, the key on one bar and a fifth lower on the next.',
     instrument: { deviceId: 'breath-pacer', preset: 'Marks alone', params: { volume: -9 } },
-    effects: [{ deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.25 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Room' }],
   },
   {
     id: 'tone-hiss-and-hall',

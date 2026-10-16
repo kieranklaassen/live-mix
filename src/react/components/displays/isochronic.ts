@@ -33,7 +33,7 @@ import {
   type Point,
 } from '../display-kit'
 import { plateDisplay, type DisplayView, type PlateFace } from '../plate-display'
-import { levelFoot } from './instrument-parts'
+import { levelFoot, meanOutShare, type HeardLevel } from './instrument-parts'
 
 const wrap = (cycles: number): number => (Number.isFinite(cycles) ? cycles - Math.floor(cycles) : 0)
 
@@ -106,7 +106,7 @@ export function isochronicOpen(phase: number, pulse: IsochronicPulse): number {
 }
 
 /** `kit::pulse_gain`: what the pulse lets through, from the level in the gap up to all of it. */
-export const isochronicGain = (open: number, floor: number): number => floor + (1 - floor) * open
+const isochronicGain = (open: number, floor: number): number => floor + (1 - floor) * open
 
 /** What each ear is let through at `phase` of the one clock: the right ear reads it Offset later. */
 export function isochronicEars(phase: number, pulse: IsochronicPulse): [number, number] {
@@ -138,7 +138,7 @@ let peakTable: number[] | null = null
  * out at seventeen values of Warmth and read between two of them, as the
  * device reads it.
  */
-export function isochronicWavePeak(warmth: number): number {
+function isochronicWavePeak(warmth: number): number {
   if (!peakTable) {
     peakTable = []
     for (let k = 0; k < PEAK_POINTS; k++) {
@@ -204,10 +204,6 @@ export const ISOCHRONIC_PERIODS = 3
 const TAKE_SEC = 0.5
 /** The level is taken over this long, so it does not follow the pulse. */
 export const ISOCHRONIC_LEVEL_SEC = 1
-/** The level's bar moves only when the level has moved by this share of its scale (1.2 dB). */
-const LEVEL_STEP = 0.02
-/** The foot of the level's scale, dB under full scale. */
-const LEVEL_FLOOR_DB = -60
 
 export interface IsochronicLayout {
   /** The line the Rate and the period are written on, and the ends of the words. */
@@ -314,7 +310,7 @@ export function isochronicNoisePoints(air: number): number[] {
 
 // --- The display --------------------------------------------------------------
 
-interface IsochronicState {
+interface IsochronicState extends HeardLevel {
   /** The knobs the glide is made of, as they stood when its place was last taken. */
   rate: number
   target: number
@@ -322,10 +318,6 @@ interface IsochronicState {
   /** The glide's place as it was last taken from the device, and when. */
   place: number
   takenAt: number
-  /** The mean squares of the sound that came out in the last second, each with the time it stands for. */
-  heard: { at: number; square: number; dt: number }[]
-  /** The level the foot shows, as a share of its scale. */
-  shown: number
 }
 
 const isochronic = plateDisplay<IsochronicState>({
@@ -514,28 +506,7 @@ const isochronic = plateDisplay<IsochronicState>({
     }
 
     // --- The level that comes out, over the last second ---
-    // Each frame's reading stands for the time since the frame before it, and
-    // the mean is taken over the whole second, so time with nothing read counts
-    // as silence and a level that pulses is read as its mean.
-    const rms = frame.powered && frame.signal ? frame.signal.output.rms : NaN
-    if (!Number.isFinite(rms) || !(frame.dt >= 0) || frame.dt > ISOCHRONIC_LEVEL_SEC) {
-      state.heard = []
-      state.shown = 0
-    } else {
-      if (frame.dt > 0) state.heard.push({ at: frame.now, square: rms * rms, dt: frame.dt })
-      const from = frame.now - ISOCHRONIC_LEVEL_SEC
-      state.heard = state.heard.filter((one) => one.at > from && one.at <= frame.now)
-      let sum = 0
-      for (const one of state.heard) sum += one.square * Math.min(one.dt, one.at - from)
-      const mean = sum / ISOCHRONIC_LEVEL_SEC
-      const db = mean > 1e-12 ? 10 * Math.log10(mean) : LEVEL_FLOOR_DB
-      const share = clamp(1 - db / LEVEL_FLOOR_DB, 0, 1)
-      // The bar moves when the level has moved by a step, and to its ends.
-      const end = share <= 0 || share >= 1
-      if (Math.abs(share - state.shown) > LEVEL_STEP || (end && share !== state.shown))
-        state.shown = share
-    }
-    levelFoot(frame, lay.foot, state.shown)
+    levelFoot(frame, lay.foot, meanOutShare(state, frame, ISOCHRONIC_LEVEL_SEC))
   },
 })
 

@@ -285,13 +285,15 @@ export function stillPointSpan(
   return { bottom: middle - half, top: middle + half }
 }
 
+/** A figure as the display says it: with one decimal under ten, whole from there. */
+const figure = (value: number): string =>
+  value < 9.95 ? value.toFixed(1) : String(Math.round(value))
+
 /** A length of time as the display says it: "4.2 s", "42 s". */
-export const stillPointSeconds = (seconds: number): string =>
-  seconds < 9.95 ? `${seconds.toFixed(1)} s` : `${Math.round(seconds)} s`
+export const stillPointSeconds = (seconds: number): string => `${figure(seconds)} s`
 
 /** A beat as the display says it: "0.4 Hz", "3.2 Hz", "41 Hz". */
-export const stillPointRate = (hz: number): string =>
-  hz < 9.95 ? `${hz.toFixed(1)} Hz` : `${Math.round(hz)} Hz`
+export const stillPointRate = (hz: number): string => `${figure(hz)} Hz`
 
 // --- The level that comes out -----------------------------------------------------
 
@@ -427,7 +429,8 @@ const stillPoint = plateDisplay<StillPointState>({
 
     // Where the sweep stands: the device's readings while it sounds, else the notes played through again.
     const gate = frame.hasMeter('gate') ? frame.meter('gate') : 0
-    const replay = frame.powered ? stillPointReplay(frame.notes, set) : null
+    const replay = (): StillPointRun | null =>
+      frame.powered ? stillPointReplay(frame.notes, set) : null
     const metered =
       frame.powered &&
       gate > 0 &&
@@ -443,7 +446,8 @@ const stillPoint = plateDisplay<StillPointState>({
       const sine = frame.meter('sine')
       const place = high > low ? clamp((sine - low) / (high - low), 0, 1) : 0
       if (state.place === null || frame.dt <= 0) {
-        state.up = replay ? replay.phase < 0.5 : true
+        const played = replay()
+        state.up = played ? played.phase < 0.5 : true
       } else if (
         Math.abs(low - state.low) + Math.abs(high - state.high) <
         0.2 * Math.abs(sine - state.sine)
@@ -458,10 +462,11 @@ const stillPoint = plateDisplay<StillPointState>({
       phase = state.up ? 0.5 * place : 1 - 0.5 * place
     } else {
       state.place = null
-      if (replay) {
-        low = replay.low
-        high = Math.max(low, replay.high)
-        phase = replay.phase
+      const played = replay()
+      if (played) {
+        low = played.low
+        high = Math.max(low, played.high)
+        phase = played.phase
       }
     }
 
@@ -557,8 +562,7 @@ const stillPoint = plateDisplay<StillPointState>({
       text(frame, `beat ${stillPointRate(beat)}`, right, lay.base, { align: 'right' })
     } else {
       text(frame, `${stillPointSeconds(set.time)} a pass`, plot.x, lay.base)
-      const reach = set.reach < 9.95 ? set.reach.toFixed(1) : String(Math.round(set.reach))
-      text(frame, `${reach} st past`, right, lay.base, { align: 'right' })
+      text(frame, `${figure(set.reach)} st past`, right, lay.base, { align: 'right' })
     }
 
     // The level that comes out: the mean of the last second, so a sound that beats does not make the foot beat.

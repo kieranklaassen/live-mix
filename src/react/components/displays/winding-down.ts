@@ -276,7 +276,7 @@ export function windingLayout(view: Pick<DisplayView, 'width' | 'height'>): Wind
 }
 
 /** The bell as a line over the rate axis: 1 at Rate, down to the axis half of Layers octaves either side. */
-export function windingBellPoints(set: WindingSettings, layout: WindingLayout): Point[] {
+function windingBellPoints(set: WindingSettings, layout: WindingLayout): Point[] {
   const { plot } = layout
   const foot = plot.y + plot.h
   const half = 0.5 * set.span
@@ -293,7 +293,7 @@ export function windingBellPoints(set: WindingSettings, layout: WindingLayout): 
 }
 
 /** Where a layer's mark stands: across at its rate, as high as the bell is there. */
-export function windingMark(layer: WindingLayer, layout: WindingLayout): Point {
+function windingMark(layer: WindingLayer, layout: WindingLayout): Point {
   const { plot } = layout
   return [
     windingXOfHz(clamp(layer.hz, WINDING_MIN_HZ, WINDING_MAX_HZ), plot),
@@ -306,7 +306,7 @@ export function windingMark(layer: WindingLayer, layout: WindingLayout): Point {
  * show, read every half pixel, so the line has the same number of points at
  * every setting and each of them stays where it is across.
  */
-export function windingLanePoints(
+function windingLanePoints(
   place: number,
   set: WindingSettings,
   layout: WindingLayout,

@@ -207,7 +207,7 @@ export const ISOCHRONIC_PRESETS: readonly FactoryPreset[] = [
     description:
       'Tone and noise pulsing five a second, the right ear a quarter of a pulse behind; the hall blends the two ears.',
     instrument: { deviceId: 'isochronic', preset: 'Five and air' },
-    effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.35 } }],
+    effects: [{ deviceId: 'hall-reverb', preset: 'Hall' }],
   },
   {
     id: 'low-hum-six',
@@ -273,7 +273,7 @@ export const ISOCHRONIC_PRESETS: readonly FactoryPreset[] = [
       preset: 'Six a second',
       params: { air: 0.7, depth: 0.8, volume: -5 },
     },
-    effects: [{ deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.4 } }],
+    effects: [{ deviceId: 'plate-reverb', preset: 'Long plate' }],
   },
   {
     id: 'flutter-under-shimmer',

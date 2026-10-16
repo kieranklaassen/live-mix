@@ -25,17 +25,19 @@ import {
   dot,
   fillTo,
   freqGrid,
+  gainToDb,
   ground,
   hzOfX,
   rule,
   text,
   trace,
   xOfHz,
+  yOfDb,
   type Box,
   type Point,
 } from '../display-kit'
 import { plateDisplay, type DisplayNote, type DisplayView, type PlateFace } from '../plate-display'
-import { levelFoot } from './instrument-parts'
+import { levelFoot, meanOutShare, type HeardLevel } from './instrument-parts'
 
 // --- The device's numbers (`kit/colour.h`, `coloured_noise.h`, `kit/env.h`) ----
 
@@ -417,6 +419,12 @@ export function colouredNoiseSwell(index: number): ColouredNoiseSwell {
   return swells[index]
 }
 
+/** Where the swell of that number begins, in Drift times: where the one before it ends, which is drawn first. */
+function swellStart(index: number): number {
+  if (index > 0) colouredNoiseSwell(index - 1)
+  return swellStarts[index]
+}
+
 /**
  * Where the train stands `turns` Drift times after the key from silence:
  * which swell, how far through it (0..1), and how far the bed is sunk there at
@@ -424,9 +432,16 @@ export function colouredNoiseSwell(index: number): ColouredNoiseSwell {
  */
 export function colouredNoiseTrain(turns: number): { index: number; phase: number; sunk: number } {
   const t = Number.isFinite(turns) && turns > 0 ? turns : 0
+  while (swellStarts[swells.length] <= t) colouredNoiseSwell(swells.length)
+  // The last swell that begins at or before `t`: the starts only rise.
   let index = 0
-  while (colouredNoiseSwell(index).length + swellStarts[index] <= t) index += 1
-  const swell = colouredNoiseSwell(index)
+  let after = swells.length
+  while (after - index > 1) {
+    const middle = (index + after) >> 1
+    if (swellStarts[middle] <= t) index = middle
+    else after = middle
+  }
+  const swell = swells[index]
   const phase = (t - swellStarts[index]) / swell.length
   return { index, phase, sunk: swell.depth * (0.5 - 0.5 * Math.cos(2 * Math.PI * phase)) }
 }
@@ -494,10 +509,6 @@ export const COLOURED_NOISE_DRIFT_FOOT_DB = -16
 export const COLOURED_NOISE_TOP_HZ = 10000
 /** The level is taken over this long, so it follows a swell and nothing quicker. */
 export const COLOURED_NOISE_LEVEL_SEC = 1
-/** The level's bar moves only when the level has moved by this share of its scale (1.2 dB). */
-const LEVEL_STEP = 0.02
-/** The foot of the level's scale, dB under full scale. */
-const LEVEL_FLOOR_DB = -60
 /** A frame that comes this long after the one before is a new start: the dot's place is worked out afresh. */
 const LATE_SEC = 0.5
 /** A start this much later than the one being followed is another key from silence. */
@@ -558,8 +569,7 @@ export function colouredNoiseLayout(
 
 /** How high a level of the bed stands in the curve's box, held to the box. */
 export function colouredNoiseCurveY(db: number, box: Box): number {
-  const share = (COLOURED_NOISE_TOP_DB - db) / (COLOURED_NOISE_TOP_DB - COLOURED_NOISE_FOOT_DB)
-  return box.y + clamp(share, 0, 1) * box.h
+  return clamp(yOfDb(db, box, COLOURED_NOISE_TOP_DB, COLOURED_NOISE_FOOT_DB), box.y, box.y + box.h)
 }
 
 /**
@@ -567,7 +577,7 @@ export function colouredNoiseCurveY(db: number, box: Box): number {
  * at each band its key and the two half heights of its peak, so a peak a
  * pixel wide is drawn as high as it stands.
  */
-export function colouredNoiseCurve(
+function colouredNoiseCurve(
   bed: ColouredNoiseBed,
   bands: readonly ColouredNoiseBand[],
   box: Box,
@@ -591,8 +601,7 @@ export function colouredNoiseCurve(
 
 /** How high a level of the drift stands in its box: the crest at the top line. */
 export function colouredNoiseDriftY(gain: number, box: Box): number {
-  const db = gain > 1e-6 ? 20 * Math.log10(gain) : -120
-  return box.y + 1 + clamp(db / COLOURED_NOISE_DRIFT_FOOT_DB, 0, 1) * (box.h - 2)
+  return box.y + 1 + clamp(gainToDb(gain) / COLOURED_NOISE_DRIFT_FOOT_DB, 0, 1) * (box.h - 2)
 }
 
 /**
@@ -610,10 +619,8 @@ export function colouredNoiseDriftPoints(
   const times: number[] = []
   const steps = Math.max(8, Math.round(wide / 1.5))
   for (let i = 0; i <= steps; i++) times.push(from + (i / steps) * COLOURED_NOISE_SPAN)
-  for (let index = colouredNoiseTrain(from).index + 1; swellStarts[index] < to; index++) {
-    times.push(swellStarts[index])
-    colouredNoiseSwell(index)
-  }
+  for (let index = colouredNoiseTrain(from).index + 1; swellStart(index) < to; index++)
+    times.push(swellStart(index))
   times.sort((a, b) => a - b)
   const deep = clamp(drift, 0, 1)
   return times.map((time) => [time, deep * colouredNoiseTrain(time).sunk])
@@ -637,15 +644,11 @@ export function colouredNoiseTimeText(seconds: number): string {
 
 // --- The display --------------------------------------------------------------
 
-interface ColouredNoiseState {
+interface ColouredNoiseState extends HeardLevel {
   /** Where the train stands, in Drift times since the key from silence; null when nothing sounds. */
   turns: number | null
   /** When that key was struck, on the frame's clock. */
   began: number
-  /** The mean squares of the sound that came out in the last second, each with the time it stands for. */
-  heard: { at: number; square: number; dt: number }[]
-  /** The level the foot shows, as a share of its scale. */
-  shown: number
 }
 
 const colouredNoise = plateDisplay<ColouredNoiseState>({
@@ -833,28 +836,7 @@ const colouredNoise = plateDisplay<ColouredNoiseState>({
       )
 
     // --- The level that comes out, over the last second ---
-    // Each frame's reading stands for the time since the frame before it, and
-    // the mean is taken over the whole second, so time with nothing read counts
-    // as silence and a level that pulses is read as its mean.
-    const rms = frame.powered && frame.signal ? frame.signal.output.rms : NaN
-    if (!Number.isFinite(rms) || !(frame.dt >= 0) || frame.dt > COLOURED_NOISE_LEVEL_SEC) {
-      state.heard = []
-      state.shown = 0
-    } else {
-      if (frame.dt > 0) state.heard.push({ at: frame.now, square: rms * rms, dt: frame.dt })
-      const since = frame.now - COLOURED_NOISE_LEVEL_SEC
-      state.heard = state.heard.filter((one) => one.at > since && one.at <= frame.now)
-      let sum = 0
-      for (const one of state.heard) sum += one.square * Math.min(one.dt, one.at - since)
-      const mean = sum / COLOURED_NOISE_LEVEL_SEC
-      const db = mean > 1e-12 ? 10 * Math.log10(mean) : LEVEL_FLOOR_DB
-      const share = clamp(1 - db / LEVEL_FLOOR_DB, 0, 1)
-      // The bar moves when the level has moved by a step, and to its ends.
-      const end = share <= 0 || share >= 1
-      if (Math.abs(share - state.shown) > LEVEL_STEP || (end && share !== state.shown))
-        state.shown = share
-    }
-    levelFoot(frame, lay.foot, state.shown)
+    levelFoot(frame, lay.foot, meanOutShare(state, frame, COLOURED_NOISE_LEVEL_SEC))
   },
 })
 

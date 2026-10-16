@@ -305,25 +305,20 @@ function glideY(lay: BinauralLayout, rate: number, lowest: number, highest: numb
 
 /** The pitch the lanes are drawn for while no key sounds: both partials of it are split. */
 export const BINAURAL_REST_HZ = 220
-const REST_HZ = BINAURAL_REST_HZ
 /** The level is averaged over this long. */
-export const BINAURAL_MEAN_SEC = 1
-const MEAN_SEC = BINAURAL_MEAN_SEC
+const MEAN_SEC = 1
 /** The rate and the glide's place are taken from the device this often while a glide runs: twice a second. */
 export const BINAURAL_HOLD_SEC = 0.5
-const HOLD_SEC = BINAURAL_HOLD_SEC
 /** The foot's scale: from this many dB under full scale. */
 export const BINAURAL_FLOOR_DB = -60
-const FLOOR_DB = BINAURAL_FLOOR_DB
 
 export interface BinauralState {
   /** The knobs the glide is made of, as they stood when the rate was last taken. */
   beat: number
   target: number
   glide: number
-  /** The glide's place and the rate there, held between two takings, and when they were taken. */
+  /** The glide's place, held between two takings, and when it was taken. */
   place: number
-  rate: number
   since: number
   /** The output's power in the frames of the last second, each with how long it stood. */
   spans: number[]
@@ -390,7 +385,6 @@ const binaural = plateDisplay<BinauralState>({
     target: NaN,
     glide: NaN,
     place: 0,
-    rate: 0,
     since: 0,
     spans: [],
     powers: [],
@@ -405,29 +399,32 @@ const binaural = plateDisplay<BinauralState>({
     const glide = frame.value('glide')
     const gliding = glide > 0
 
-    // Where the glide is: the device's reading. It and the rate there are
-    // taken when a knob of the glide moves and otherwise twice a second, so
-    // the lanes are drawn again at that pace and no faster.
+    // Where the glide is: the device's reading. It is taken when a knob of
+    // the glide moves and otherwise twice a second, and the rate follows from
+    // it, so the lanes are drawn again at that pace and no faster.
     const read = gliding && frame.hasMeter('glide') ? frame.meter('glide') : 0
     const reading = Number.isFinite(read) ? clamp(read, 0, 1) : 0
     const moved = beat !== state.beat || target !== state.target || glide !== state.glide
-    const due = frame.now - state.since >= HOLD_SEC || frame.now < state.since
+    const due = frame.now - state.since >= BINAURAL_HOLD_SEC || frame.now < state.since
     if (moved || due || !(frame.dt > 0)) {
       state.beat = beat
       state.target = target
       state.glide = glide
       state.place = reading
-      state.rate = binauralRate(beat, target, glide, reading)
       state.since = frame.now
     }
-    const { place, rate } = state
+    const { place } = state
+    const rate = binauralRate(beat, target, glide, place)
     const span = binauralSpan(rate)
     const beats = rate * span
 
     // The key that lights the lanes, and how its ears are made.
     const times = binauralTimes(frame.value('attack'), frame.value('release'))
     const sounding = frame.powered ? binauralSounding(frame.notes, times) : null
-    const tone = binauralTone((name) => frame.value(name), sounding ? sounding.hz : REST_HZ)
+    const tone = binauralTone(
+      (name) => frame.value(name),
+      sounding ? sounding.hz : BINAURAL_REST_HZ,
+    )
     const bed = Math.min(1, binauralBedShare(frame.value('bed')))
 
     // --- The lanes ---
@@ -517,7 +514,7 @@ const binaural = plateDisplay<BinauralState>({
     // --- The level that comes out, over the last second ---
     const mean = binauralMeanLevel(state, frame)
     const db = mean > 0 ? gainToDb(mean) : -Infinity
-    const share = Number.isFinite(db) ? clamp(1 - db / FLOOR_DB, 0, 1) : 0
+    const share = Number.isFinite(db) ? clamp(1 - db / BINAURAL_FLOOR_DB, 0, 1) : 0
     // It moves by whole pixels: what is left of a beat in the mean is less than one.
     if (share === 0 || Math.abs(share - state.shown) * lay.foot.w >= 1) state.shown = share
     const { foot } = lay
