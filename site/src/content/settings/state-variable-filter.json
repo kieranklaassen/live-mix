@@ -1,0 +1,173 @@
+{
+  "tile": {
+    "values": { "resonance": 4, "lfoAmount": 60, "lfoRate": 0.5 },
+    "tap": "out",
+    "picture": {
+      "taps": ["lowResponse", "bandResponse", "highResponse"],
+      "view": "spectrum",
+      "min": -36,
+      "max": 18
+    }
+  },
+  "sets": {
+    "buzz": {
+      "label": "The saw as it is",
+      "source": "saw",
+      "tap": "in"
+    },
+    "onepole": {
+      "label": "Through one pole",
+      "values": { "cutoff": 440 },
+      "source": "saw",
+      "tap": "onePole"
+    },
+    "loop": {
+      "label": "Through two integrators in a loop",
+      "values": { "cutoff": 440 },
+      "source": "saw",
+      "tap": "low"
+    },
+    "sing": {
+      "label": "With Resonance at 4",
+      "values": { "cutoff": 440, "resonance": 4 },
+      "source": "saw",
+      "tap": "low"
+    },
+    "dark": {
+      "label": "A bright wave, made dark",
+      "values": { "slope": 1, "cutoff": 700, "resonance": 2 },
+      "source": "saw"
+    },
+    "pluck": {
+      "label": "A bass that opens on each note",
+      "values": {
+        "cutoff": 120,
+        "resonance": 4,
+        "envAmount": 70,
+        "envAttack": 4,
+        "envRelease": 120
+      },
+      "source": "bass"
+    },
+    "drift": {
+      "label": "Held chords, swept",
+      "values": {
+        "slope": 1,
+        "cutoff": 800,
+        "resonance": 4,
+        "drive": 6,
+        "lfoAmount": 70,
+        "lfoRate": 0.5,
+        "lfoShape": 1
+      },
+      "source": "pad"
+    },
+    "wall": {
+      "label": "The mix from the next room",
+      "values": { "slope": 1, "cutoff": 300 },
+      "source": "mix"
+    },
+    "slow": {
+      "label": "A slow sweep",
+      "values": {
+        "slope": 1,
+        "cutoff": 700,
+        "resonance": 1.5,
+        "drive": 3,
+        "lfoAmount": 50,
+        "lfoRate": 0.25
+      },
+      "source": "saw"
+    },
+    "wah": {
+      "label": "Opened by the playing",
+      "values": {
+        "type": 2,
+        "cutoff": 350,
+        "resonance": 5,
+        "drive": 3,
+        "envAmount": 80,
+        "envAttack": 4,
+        "envRelease": 120,
+        "mix": 0.6
+      },
+      "source": "guitar"
+    },
+    "duck": {
+      "label": "Loud goes dark",
+      "values": {
+        "cutoff": 5000,
+        "resonance": 0.9,
+        "envAmount": -70,
+        "envAttack": 30,
+        "envRelease": 600
+      },
+      "source": "drums"
+    },
+    "hole": {
+      "label": "A hole that moves",
+      "values": { "type": 3, "cutoff": 900, "resonance": 1.5, "lfoAmount": 90, "lfoRate": 0.25 },
+      "source": "noise"
+    },
+    "ping": {
+      "label": "Clicks made into notes",
+      "values": { "cutoff": 1760, "resonance": 20 },
+      "source": "clicks"
+    },
+    "steps": {
+      "label": "Random steps",
+      "values": {
+        "type": 2,
+        "cutoff": 1200,
+        "resonance": 6,
+        "lfoAmount": 80,
+        "lfoRate": 8,
+        "lfoShape": 5,
+        "mix": 0.5
+      },
+      "source": "pad"
+    },
+    "howl": {
+      "label": "Resonance on a harmonic",
+      "values": { "cutoff": 440, "resonance": 10 },
+      "source": "saw"
+    },
+    "tamed": {
+      "label": "The same, with Drive",
+      "values": { "cutoff": 440, "resonance": 10, "drive": 6 },
+      "source": "saw"
+    },
+    "chatter": {
+      "label": "An envelope that chatters",
+      "values": {
+        "cutoff": 200,
+        "resonance": 4,
+        "envAmount": 80,
+        "envAttack": 1,
+        "envRelease": 10
+      },
+      "source": "bass"
+    },
+    "jump": {
+      "label": "A cutoff that jumps",
+      "values": { "cutoff": 800, "resonance": 2, "lfoAmount": 60, "lfoRate": 2, "lfoShape": 4 },
+      "source": "pad"
+    }
+  },
+  "defaults": {
+    "values": {
+      "cutoff": 1000,
+      "resonance": 0.7071,
+      "type": 0,
+      "slope": 0,
+      "lfoAmount": 0,
+      "lfoRate": 1,
+      "lfoShape": 0,
+      "envAmount": 0,
+      "envAttack": 10,
+      "envRelease": 200,
+      "drive": 0,
+      "mix": 1
+    }
+  }
+}

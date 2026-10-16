@@ -23,13 +23,32 @@
 //   "sameStage" check runs the device's stage type at the kit's rate beside
 //   the kit's and reports how far apart the two land.
 // - The cutoff the kit's filter stands at on every sample is the device's:
-//   its knob, moved by its own envelope follower and oscillator. Both start
+//   its Cutoff, moved by its own envelope follower and oscillator. Both start
 //   at zero, so the filter stands still until the reader asks otherwise.
+// - The controls are the device's twelve parameters, with its own ranges and
+//   starting values (params.gen.h).
 //
-// Two more filters run for contrast. The loop written the obvious way, with
-// last sample's feedback ("late"), is the lesson's, and is only measured,
-// never heard: it blows up. The kit's Biquad, the same low-pass as a direct
-// form, follows the same cutoff, and only its level is kept.
+// Three more filters run for contrast. The kit's one-pole low-pass, the
+// filter of the lesson before this one, follows the same cutoff and is heard.
+// The loop written the obvious way, with last sample's feedback ("late"), is
+// the lesson's, and is only measured, never heard: it blows up. The kit's
+// Biquad, the same low-pass as a direct form, follows the same cutoff, and
+// only its level is kept.
+//
+// The build part puts the filter together a piece at a time, on a path of its
+// own beside the device (lab::Build in lab.h). It has five pieces, each a
+// function of `Loop` or `Built` below, in the order the steps add them: one
+// integrator in a loop; a second integrator, with a fixed brake; the brake as
+// Resonance; the outputs, weighed by Type; and the cutoff moved on every
+// sample by the device's own envelope and oscillator. The path writes the
+// "built" taps and leaves every other tap as it was. Two copies of it run: one
+// at the step the reader chose, which is what the taps show, and one with all
+// five pieces, whose three outputs are compared on every render with the
+// kit's Svf on the same moving cutoff (the "builtDifference" check). The
+// build writes the loop's sum with its division in the line, and the kit does
+// the division once when the filter is set, so the two differ in the last
+// bits of a sample and no more. A third copy takes one unit sample, for the
+// curve of the step.
 
 #include "lab.h"
 
@@ -44,34 +63,44 @@ AutoFilter device;
 AutoFilter probe;  // a second device, for the response to one unit sample
 
 kit::Svf svf[2];
-kit::Svf ringer;     // a third, for the kit's response to one unit sample
-kit::Biquad direct;  // the same low-pass as a direct form, on the same cutoff
+kit::Svf ringer;       // a third, for the kit's response to one unit sample
+kit::Biquad direct;    // the same low-pass as a direct form, on the same cutoff
+kit::OnePole pole[2];  // one pole on the same cutoff: the filter of the lesson before
 
 // The device's own filter stage and its coefficients, by the types of the
 // members that hold them.
 decltype(AutoFilter::stage1_) twin;
 decltype(AutoFilter::coeffs_) twin_coeffs;
 
-// The ranges and the starting values are the device's own (params.gen.h).
+// The device's twelve parameters. The ranges and the starting values are its
+// own (params.gen.h), and so are the choices, in its order.
 lab::Control cutoff{"cutoff",         "Cutoff", "Hz", p::kParamMin[p::kCutoffHz], p::kParamMax[p::kCutoffHz],
                     p::kParamDefault[p::kCutoffHz], lab::kLog};
 lab::Control resonance{"resonance",  "Resonance", "Q", p::kParamMin[p::kResonance], p::kParamMax[p::kResonance],
                        p::kParamDefault[p::kResonance], lab::kLog};
 lab::Control type{"type", "Type", "", 0.0f, 4.0f, 0.0f, lab::kLinear, "Low-pass|High-pass|Band-pass|Notch|Peak"};
 lab::Control slope{"slope", "Slope", "", 0.0f, 1.0f, 0.0f, lab::kLinear, "12 dB|24 dB"};
-lab::Control lfo_amount{"lfoAmount", "Oscillator amount", "%", 0.0f, 100.0f, 0.0f};
-lab::Control lfo_rate{"lfoRate", "Oscillator rate", "Hz", 0.01f, 20.0f, 1.0f, lab::kLog};
-// Four of the device's six shapes (it has a rising and a falling saw too).
-lab::Control lfo_shape{"lfoShape", "Oscillator shape", "", 0.0f, 3.0f, 0.0f, lab::kLinear,
-                       "Sine|Triangle|Square|Random"};
-constexpr int kShapes[4] = {AutoFilter::kSine, AutoFilter::kTriangle, AutoFilter::kSquare, AutoFilter::kSampleHold};
-lab::Control env_amount{"envAmount", "Envelope amount", "%", -100.0f, 100.0f, 0.0f};
-lab::Control drive{"drive", "Drive", "dB", 0.0f, 24.0f, 0.0f};
+lab::Control lfo_amount{"lfoAmount",  "Oscillator amount", "%", p::kParamMin[p::kLfoAmount],
+                        p::kParamMax[p::kLfoAmount], p::kParamDefault[p::kLfoAmount]};
+lab::Control lfo_rate{"lfoRate",     "Oscillator rate", "Hz", p::kParamMin[p::kLfoRateHz], p::kParamMax[p::kLfoRateHz],
+                      p::kParamDefault[p::kLfoRateHz], lab::kLog};
+lab::Control lfo_shape{"lfoShape", "Oscillator shape", "", 0.0f, 5.0f, 0.0f, lab::kLinear,
+                       "Sine|Triangle|Rising saw|Falling saw|Square|Random steps"};
+lab::Control env_amount{"envAmount",  "Envelope amount", "%", p::kParamMin[p::kEnvAmount],
+                        p::kParamMax[p::kEnvAmount], p::kParamDefault[p::kEnvAmount]};
+lab::Control env_attack{"envAttack",    "Envelope attack", "ms", p::kParamMin[p::kEnvAttackMs],
+                        p::kParamMax[p::kEnvAttackMs], p::kParamDefault[p::kEnvAttackMs], lab::kLog};
+lab::Control env_release{"envRelease",    "Envelope release", "ms", p::kParamMin[p::kEnvReleaseMs],
+                         p::kParamMax[p::kEnvReleaseMs], p::kParamDefault[p::kEnvReleaseMs], lab::kLog};
+lab::Control drive{"drive", "Drive", "dB", p::kParamMin[p::kDriveDb], p::kParamMax[p::kDriveDb],
+                   p::kParamDefault[p::kDriveDb]};
+lab::Control mix{"mix", "Mix", "", p::kParamMin[p::kMix], p::kParamMax[p::kMix], p::kParamDefault[p::kMix]};
 
 lab::Tap in_tap{"in", "Input", lab::kAudio, lab::kSource, 2};
-lab::Tap lfo_tap{"lfo", "Oscillator", lab::kControl, lab::kDevice, 1};
 lab::Tap envelope_tap{"envelope", "Envelope", lab::kControl, lab::kDevice, 1};
-lab::Tap sweep{"sweep", "Cutoff, in octaves from the knob", lab::kControl, lab::kDevice, 1, "oct"};
+lab::Tap lfo_tap{"lfo", "Oscillator", lab::kControl, lab::kDevice, 1};
+lab::Tap sweep{"sweep", "Cutoff, in octaves from where it is set", lab::kControl, lab::kDevice, 1, "oct"};
+lab::Tap one_pole{"onePole", "One-pole low-pass", lab::kAudio, lab::kKit, 2};
 lab::Tap high{"high", "High-pass", lab::kAudio, lab::kKit, 2};
 lab::Tap band{"band", "Band-pass", lab::kAudio, lab::kKit, 2};
 lab::Tap low{"low", "Low-pass", lab::kAudio, lab::kKit, 2};
@@ -87,6 +116,8 @@ lab::Tap band_response{"bandResponse", "Band-pass", lab::kSpectrum, lab::kKit, 1
 lab::Tap high_response{"highResponse", "High-pass", lab::kSpectrum, lab::kKit, 1, "dB"};
 lab::Tap notch_response{"notchResponse", "Notch", lab::kSpectrum, lab::kKit, 1, "dB"};
 lab::Tap peak_response{"peakResponse", "Peak", lab::kSpectrum, lab::kLesson, 1, "dB"};
+lab::Tap one_pole_response{"onePoleResponse", "One pole", lab::kSpectrum, lab::kKit, 1, "dB"};
+lab::Tap two_pole_response{"twoPoleResponse", "Two one-poles in a row", lab::kSpectrum, lab::kKit, 1, "dB"};
 lab::Tap device_response{"deviceResponse", "The device", lab::kSpectrum, lab::kDevice, 1, "dB"};
 lab::Tap one_stage_response{"oneStageResponse", "One stage of the kit's filter at 48 kHz, same type", lab::kSpectrum,
                             lab::kLesson, 1, "dB"};
@@ -104,6 +135,15 @@ lab::Check formula{"formula", "The three measured responses against the formulas
 lab::Check late_over{"lateOver", "The largest sample of the late loop's ring, over the largest of the kit's", "dB"};
 lab::Check direct_apart{"directApart", "The direct form's low-pass against the state-variable one", "dB"};
 lab::Check same_stage{"sameStage", "The device's own filter stage at 48 kHz, against the kit's", "dB"};
+
+lab::Tap built{"built", "The filter so far", lab::kAudio, lab::kLesson, 2};
+lab::Tap built_high{"builtHigh", "High, as built", lab::kAudio, lab::kLesson, 1};
+lab::Tap built_band{"builtBand", "Band, as built", lab::kAudio, lab::kLesson, 1};
+lab::Tap built_low{"builtLow", "Low, as built", lab::kAudio, lab::kLesson, 1};
+lab::Tap built_cutoff{"builtCutoff", "The build's cutoff, in octaves from where it is set", lab::kControl,
+                      lab::kLesson, 1, "oct"};
+lab::Tap built_response{"builtResponse", "The filter so far", lab::kSpectrum, lab::kLesson, 1, "dB"};
+lab::Tap built_before{"builtBefore", "One step back", lab::kSpectrum, lab::kLesson, 1, "dB"};
 
 constexpr int kMaxRing = 16384;   // the longest response kept, in samples
 constexpr int kMinRing = 1024;
@@ -144,6 +184,122 @@ struct LateLoop {
   }
 };
 
+// The k the kit's filter starts with (cpp/kit/filters.h): a Q of 0.7071, the
+// most brake that leaves no sag at the cutoff and the least that leaves no bump.
+constexpr float kFlatBrake = 1.4142f;
+
+// One channel of the filter so far: two memories, and the three sounds the
+// loop holds on this sample.
+struct Loop {
+  float s1 = 0.0f;  // the first integrator's total, as it stands before this sample
+  float s2 = 0.0f;  // the second's
+  float low = 0.0f;
+  float band = 0.0f;
+  float high = 0.0f;
+
+  // One integrator in a loop. An integrator is a running total: on each
+  // sample it adds g times what it is fed. Here it is fed the input less its
+  // own output, so the total stops moving once it has caught the input up.
+  // The output stands on both sides of that sentence, low = s1 + g * (x - low),
+  // so the line is the sentence solved for it.
+  void one(float x, float g) {
+    low = (s1 + g * x) / (1.0f + g);
+    high = x - low;
+    s1 = flush_denormal(2.0f * low - s1);
+  }
+
+  // Two integrators in a loop. The first is fed what is left of the input
+  // once both outputs are taken away, high = x - k * band - low, and its
+  // total is band. The second is fed band, and its total is low. Each of the
+  // three needs the other two, so the first line is the three solved for
+  // band; low and high then follow from it.
+  void two(float x, float g, float k) {
+    band = (s1 + g * (x - s2)) / (1.0f + g * (g + k));
+    low = s2 + g * band;
+    high = x - k * band - low;
+    s1 = flush_denormal(2.0f * band - s1);
+    s2 = flush_denormal(2.0f * low - s2);
+  }
+
+  void reset() { s1 = s2 = low = band = high = 0.0f; }
+};
+
+// The filter so far: the pieces there are, and run() to take a sample of
+// both channels through them.
+struct Built {
+  // The pieces, in the order the steps add them.
+  enum Piece : int { kOne = 0, kTwo, kBrake, kOutputs, kMoving };
+
+  int pieces = kOne;
+  Loop loop[2];
+  float g = 0.0f;          // how far an integrator's total moves for what it is fed
+  float k = kFlatBrake;    // the brake: how much of band is taken away from the input
+  float hz = 0.0f;         // where the cutoff stands on this sample
+  float out[2] = {0.0f, 0.0f};
+
+  // The cutoff as an integrator's gain: the kit's own tangent of the kit's
+  // own angle, pi times the cutoff over the sample rate.
+  void tune(float cutoff_hz) {
+    if (cutoff_hz == hz) return;
+    hz = cutoff_hz;
+    g = kit::tan_prewarp(kit::kPi * kit::clamp(hz, 5.0f, lab::kSampleRate * 0.49f) / lab::kSampleRate);
+  }
+
+  // Resonance: the brake is no longer fixed. The control is Q, and the brake
+  // is one over it, as the kit has it: a large Q is a light brake.
+  float brake() const { return 1.0f / kit::max(resonance.value, 0.1f); }
+
+  // The outputs: the loop already holds three sounds on every sample. A type
+  // is three weights, one for each, out of the device's own table: low, band
+  // times k, and high.
+  float chosen(const Loop& made) const {
+    const float* weight = AutoFilter::kTypeWeights[kit::clamp_int(type.choice(), 0, 4)];
+    return weight[0] * made.low + weight[1] * k * made.band + weight[2] * made.high;
+  }
+
+  // Modulation: the cutoff moves. The device's envelope and its oscillator
+  // each push it by a number of octaves, the two are added, and the sum goes
+  // on top of Cutoff as a power of two, kept between 20 Hz and 20 kHz.
+  float moved(float envelope, float oscillator) const {
+    const float octaves = env_amount.value * 0.01f * AutoFilter::kEnvOctaves * envelope +
+                          lfo_amount.value * 0.01f * AutoFilter::kLfoOctaves * oscillator;
+    const float pitch = std::log2(cutoff.value) + octaves;
+    return kit::clamp(std::exp2(pitch), AutoFilter::kMinCutoffHz, AutoFilter::kMaxCutoffHz);
+  }
+
+  // One sample of both channels through the pieces built so far.
+  void run(float left, float right, float envelope, float oscillator) {
+    if (pieces >= kMoving) tune(moved(envelope, oscillator));
+    const float in[2] = {left, right};
+    for (int c = 0; c < 2; ++c) {
+      if (pieces >= kTwo) loop[c].two(in[c], g, k);
+      else loop[c].one(in[c], g);
+      out[c] = pieces >= kOutputs ? chosen(loop[c]) : loop[c].low;
+    }
+  }
+
+  void start(int pieces_) {
+    pieces = pieces_;
+    hz = 0.0f;
+    tune(cutoff.value);
+    k = pieces >= kBrake ? brake() : kFlatBrake;
+    loop[0].reset();
+    loop[1].reset();
+    out[0] = out[1] = 0.0f;
+  }
+};
+
+// The bound is measured. On the bench's loops the build lands 127 dB or more
+// under the kit's filter at the starting values, and 97 dB under at the worst
+// setting tried (a cutoff of 20 Hz at a Q of 25, where the loop's sums are at
+// their largest beside what comes out), so 90 leaves room and no more.
+lab::Build build{"One integrator|A second integrator|Resonance|The outputs|A cutoff that moves", Built::kMoving,
+                 -90.0f, "The filter as built, all five pieces, against the kit's filter on the same moving cutoff"};
+
+Built shown;   // at the step the reader chose: what the built taps hold
+Built held;    // with every piece: what is compared with the kit's filter
+Built struck;  // one unit sample goes through this one, for a step's curve
+
 void configure(AutoFilter& d, bool moving) {
   d.init(lab::kSampleRate);
   d.set_param(p::kType, type.value);
@@ -152,10 +308,12 @@ void configure(AutoFilter& d, bool moving) {
   d.set_param(p::kResonance, resonance.value);
   d.set_param(p::kDriveDb, moving ? drive.value : 0.0f);
   d.set_param(p::kEnvAmount, moving ? env_amount.value : 0.0f);
+  d.set_param(p::kEnvAttackMs, env_attack.value);
+  d.set_param(p::kEnvReleaseMs, env_release.value);
   d.set_param(p::kLfoAmount, moving ? lfo_amount.value : 0.0f);
   d.set_param(p::kLfoRateHz, lfo_rate.value);
-  d.set_param(p::kLfoShape, static_cast<float>(kShapes[kit::clamp_int(lfo_shape.choice(), 0, 3)]));
-  d.set_param(p::kMix, 1.0f);
+  d.set_param(p::kLfoShape, lfo_shape.value);
+  d.set_param(p::kMix, moving ? mix.value : 1.0f);
 }
 
 // The device's oscillator and envelope as they stand. Asleep (50 ms after
@@ -250,6 +408,42 @@ void measure_tuning(float hz) {
   tuned.x1 = plain_tuned.x1 = late_tuned.x1 = top;
 }
 
+// One pole at the cutoff, and two of them in a row: what one unit sample
+// leaves of each frequency.
+void measure_poles(float hz) {
+  kit::OnePole first, second;
+  first.set_cutoff(hz, lab::kSampleRate);
+  second.set_cutoff(hz, lab::kSampleRate);
+  bool cut = false;
+  const int count = ring_length(hz, 1.0f, &cut);
+  for (int i = 0; i < count; ++i) {
+    ring_sum[i] = first.lowpass(i == 0 ? 1.0f : 0.0f);
+    tuned_late[i] = second.lowpass(ring_sum[i]);
+  }
+  if (cut) {
+    fade_out(ring_sum, count);
+    fade_out(tuned_late, count);
+  }
+  lab::response_tap(one_pole_response, ring_sum, count);
+  lab::response_tap(two_pole_response, tuned_late, count);
+}
+
+// The curve of the build with `pieces` of its pieces: one unit sample through
+// it, with the cutoff standing where Cutoff puts it.
+void built_curve(lab::Tap& tap, int pieces) {
+  struck.start(pieces);
+  bool cut = false;
+  const float q = pieces >= Built::kBrake ? resonance.value : 1.0f / kFlatBrake;
+  const int count = ring_length(cutoff.value, q, &cut);
+  for (int i = 0; i < count; ++i) {
+    const float x = i == 0 ? 1.0f : 0.0f;
+    struck.run(x, x, 0.0f, 0.0f);
+    ring_sum[i] = struck.out[0];
+  }
+  if (cut) fade_out(ring_sum, count);
+  lab::response_tap(tap, ring_sum, count);
+}
+
 // Everything that depends on the controls alone: one unit sample through the
 // kit's filter, through the late loop and through a second device, each with
 // the cutoff standing still, and the responses those give.
@@ -317,8 +511,6 @@ void measure() {
   }
   formula.value = worst;
 
-  measure_tuning(hz);
-
   // The first 12 ms of each low-pass. The late loop is drawn no taller than
   // four times the kit's, however far it has run away.
   const float kit_peak = lab::peak(ring_low, count);
@@ -332,7 +524,7 @@ void measure() {
   }
   late_over.value = lab::to_db(late_peak) - lab::to_db(kit_peak);
 
-  // One unit sample through a second device: no drive, nothing moving.
+  // One unit sample through a second device: no drive, nothing moving, all wet.
   configure(probe, false);
   const int device_count = count + kDeviceExtra;
   for (int offset = 0; offset < device_count; offset += 256) {
@@ -356,6 +548,11 @@ void measure() {
     one_stage_response.scale = same.scale;
     for (int point = 0; point < same.length; ++point) one_stage_response.set(point, same.data[point]);
   }
+
+  measure_tuning(hz);
+  measure_poles(hz);
+  built_curve(built_response, build.at());
+  built_curve(built_before, build.at() > 0 ? build.at() - 1 : 0);
 }
 
 }  // namespace
@@ -367,9 +564,15 @@ void lab_render(int frames) {
   for (int c = 0; c < 2; ++c) {
     svf[c].reset();
     twin[c].reset();
+    pole[c].reset();
   }
   direct.reset();
   direct.set_identity();
+
+  // The build part: the chosen step, and the whole build that is held to the kit's filter.
+  shown.start(build.at());
+  held.start(build.compared_step);
+  double built_apart = 0.0, built_whole = 0.0;
 
   const float q = resonance.value;
   float hz = cutoff.value;
@@ -387,11 +590,16 @@ void lab_render(int frames) {
   for (int i = 0; i < total; ++i) {
     const float left = lab::in_at(0, i);
     const float right = lab::in_at(1, i);
+    // The oscillator as the device is about to read it, and after its tick the
+    // envelope it has just used. Asleep, it keeps both on paper.
+    float oscillator = oscillator_now(device);
     device.in_left()[0] = left;
     device.in_right()[0] = right;
     device.process(1);
+    if (device.slept_ > 0.0) oscillator = oscillator_now(device);
+    const float envelope = envelope_now(device);
 
-    // The cutoff the device stands at on this sample: its knob, moved by its
+    // The cutoff the device stands at on this sample: its Cutoff, moved by its
     // envelope and its oscillator. Every other filter here follows it.
     // (Its meter() is asked again only when the device has moved it, or is
     // asleep and keeping it on paper.)
@@ -403,6 +611,8 @@ void lab_render(int frames) {
       last_hz = hz;
       svf[0].set(hz, q, lab::kSampleRate);
       svf[1].set(hz, q, lab::kSampleRate);
+      pole[0].set_cutoff(hz, lab::kSampleRate);
+      pole[1].set_cutoff(hz, lab::kSampleRate);
       direct.set_lowpass(hz, q, lab::kSampleRate);
       twin_coeffs = decltype(twin_coeffs)::make(hz, q, lab::kSampleRate);
     }
@@ -413,6 +623,7 @@ void lab_render(int frames) {
     const float k = svf[0].k;
 
     in_tap.put(i, left, right);
+    one_pole.put(i, pole[0].lowpass(left), pole[1].lowpass(right));
     high.put(i, svf[0].high, svf[1].high);
     band.put(i, svf[0].band * k, svf[1].band * k);
     low.put(i, svf[0].low, svf[1].low);
@@ -423,6 +634,16 @@ void lab_render(int frames) {
     // The direct form and the device's own stage, on the left channel.
     const float direct_low = direct.process(left);
     const auto stage = twin[0].process(left, twin_coeffs);
+
+    // The build part, beside the kit's filter: the reader's step to the built
+    // taps, and the whole build to be compared.
+    shown.run(left, right, envelope, oscillator);
+    held.run(left, right, envelope, oscillator);
+    built.put(i, shown.out[0], shown.out[1]);
+    const bool taken = shown.pieces >= Built::kOutputs;
+    built_high.put(i, taken ? shown.loop[0].high : 0.0f);
+    built_band.put(i, taken ? shown.k * shown.loop[0].band : 0.0f);
+    built_low.put(i, taken ? shown.loop[0].low : 0.0f);
 
     if (std::fabs(svf[0].low) > svf_top) svf_top = std::fabs(svf[0].low);
     if (std::fabs(direct_low) > direct_top) direct_top = std::fabs(direct_low);
@@ -436,8 +657,9 @@ void lab_render(int frames) {
       svf_level.put(i, svf_held);
       direct_level.put(i, direct_held);
       lfo_tap.put(i, oscillator_now(device));
-      envelope_tap.put(i, envelope_now(device));
+      envelope_tap.put(i, envelope);
       sweep.put(i, std::log2(hz / cutoff.value));
+      built_cutoff.put(i, std::log2(shown.hz / cutoff.value));
     }
 
     if (i >= frames && i < 2 * frames) {
@@ -453,12 +675,23 @@ void lab_render(int frames) {
       twin_diff += d_low * d_low + d_band * d_band + d_high * d_high;
       twin_ref += static_cast<double>(svf[0].low) * svf[0].low + static_cast<double>(svf[0].band) * svf[0].band +
                   static_cast<double>(svf[0].high) * svf[0].high;
+      // The build's three sounds against the kit's, on both channels.
+      for (int c = 0; c < 2; ++c) {
+        const double b_low = static_cast<double>(held.loop[c].low) - svf[c].low;
+        const double b_band = static_cast<double>(held.k) * held.loop[c].band - static_cast<double>(k) * svf[c].band;
+        const double b_high = static_cast<double>(held.loop[c].high) - svf[c].high;
+        built_apart += b_low * b_low + b_band * b_band + b_high * b_high;
+        built_whole += static_cast<double>(svf[c].low) * svf[c].low +
+                       static_cast<double>(k) * k * svf[c].band * svf[c].band +
+                       static_cast<double>(svf[c].high) * svf[c].high;
+      }
     }
   }
 
   sum.value = lab::ratio_db(sum_apart, sum_in);
   direct_apart.value = lab::ratio_db(direct_diff, direct_ref);
   same_stage.value = lab::ratio_db(twin_diff, twin_ref);
+  build.difference.value = lab::ratio_db(built_apart, built_whole);
 
   if (out_tap.data) lab::spectrogram_tap(picture, out_tap.channel(0), frames);
   measure();

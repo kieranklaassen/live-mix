@@ -1,211 +1,1118 @@
 ---
 title: The state-variable filter
 family: filters
-summary: Two integrators in a loop make a low-pass, a band-pass and a high-pass at once, with one knob for where and one for how sharply. This lesson reads all three out of the kit's filter as it runs, and shows why this form can be retuned on every sample.
+summary: Two integrators in a loop make a low-pass, a band-pass and a high-pass at once, with one control for where and one for how sharply. This lesson says why one pole is not enough, builds the loop a piece at a time, then opens the engine's own filter and reads all three outputs out of it as it runs.
+long: true
+opening:
+  input: in
+  output: out
+  view: spectrum
+  min: -110
+  max: -10
+  top: 12000
+  caption: A saw wave going in and the same wave coming out of the device as this lesson starts it. Each spike is one harmonic of the note. Up to the cutoff the two lines lie on each other. Past it the output's spikes fall away faster and faster.
 lab: state-variable-filter
 devices: [auto-filter]
 bench:
   device: auto-filter
-  params: { type: 0, slope: 0, cutoffHz: 1000, resonance: 0.7071, driveDb: 0, envAmount: 0, lfoAmount: 0 }
-  note: The plate opens on the device's own defaults, which are also where this lesson starts. A low-pass at 1 kHz with a Q of 0.7071, 12 dB an octave, no drive, and the envelope and the oscillator both at zero.
-sources: [noise, saw, drums, guitar, chords, clicks, sweep]
+  params:
+    { type: 0, slope: 0, cutoffHz: 1000, resonance: 0.7071, driveDb: 0, envAmount: 0, lfoAmount: 0 }
+  note: The plate opens on the device's own defaults, which are also where this lesson starts. A low-pass at 1 kHz with a Resonance of 0.7071, 12 dB an octave, no Drive, and the envelope and the oscillator both at zero.
+sources: [saw, drums, bass, pad, chords, guitar, mix, noise, clicks, sweep]
 seconds: 4
 files:
   - cpp/kit/filters.h
   - cpp/devices/auto-filter/auto_filter.h
   - cpp/devices/auto-filter/SvfTptTone.h
+  - cpp/devices/auto-filter/params.gen.h
   - cpp/kit/oversample.h
+  - cpp/kit/device.h
+  - cpp/common/dsp_util.h
 ---
 
-The one-pole filter (<Lesson id="one-pole" />) has one memory, and one memory can do one thing: lean towards its input at a fixed rate. It cuts at a gentle 6 dB an octave and it cannot favour any frequency. Give a filter two memories and let each feed the other, and it can do what a weight on a spring does: swing. A filter that can swing cuts twice as steeply, and it can be made to favour the frequency it swings at. That favouring is **resonance**.
+<Part id="why" title="A bright sound has to be made dark, and one memory is too gentle to do it.">
 
-The state-variable filter is the plainest way to build one. It is two integrators in a row, with the output of each fed back and taken away from the input. An integrator is a running total: slow movements pile up in it and fast ones average away. What goes into the first integrator is the input with the lows and the middle already taken out, which is a high-pass. After one integrator it is a band-pass. After two it is a low-pass. All three exist at once, at three points of one loop, and the filter costs the same whichever you take.
+Play one note on almost any synthesiser, with nothing after the oscillator, and what comes out is a buzz. The loop this page opens on is that sound: a saw wave at <Src path="site/labs/bench.cpp" at="const float saw_step = 110.0f / lab::kSampleRate;">110 Hz</Src>, a low A.
 
-Two numbers set it. The **cutoff** is how fast the integrators run, and it slides the whole picture along the frequency axis. The resonance, written **Q**, is how little of the band-pass is fed back. That feedback is the loop's brake: the less of it there is, the longer the loop goes on swinging at its cutoff.
+A saw wave is not one frequency. It holds its note, then a tone at twice the note, at three times, at four times, and so on to the top of hearing. Those are its harmonics, and each is a little weaker than the one before. A spectrum shows them. It sorts a sound by frequency, low at the left and high at the right, and draws how much there is of each.
 
-<Stages taps="in sweep high band low notch peak out" />
+<Still
+  taps="in"
+  set="buzz"
+  view="spectrum"
+  min={-110}
+  max={-10}
+  top={12000}
+  caption="The saw as a spectrum. Every spike is a harmonic. The first, at the left, is the note. They get closer together to the right only because the axis counts in octaves, and they get weaker as they go."
+/>
 
-Noise goes in, in grey: every frequency at the same level, so whatever shape comes out is the filter's own. Press Play, move the cutoff, then turn the resonance up and hear a pitch appear in the noise.
+The first spike is the note you played. All the others are its colour, and the highest of them are the buzz. <Hear set="buzz" label="Hear the saw as it is" />
 
-<Controls ids="cutoff resonance type" />
+So the sound has a note that is wanted and an edge that is not. A fader is no help, because a fader turns the note and the edge down together. The question this lesson answers is how to take the top off a sound and leave the bottom of it alone, and then how to move the place where that happens while the sound plays.
 
-<Spectrum taps="in out" uprights="cutoff" min={-90} max={-10}>
-  The spectrum of the noise (grey) and of what the device makes of it (red). The dashed line is the cutoff. Turn the resonance up and a bump grows on the line; change the type and the red line keeps a different part of the grey.
-</Spectrum>
+### The filter you already have is too gentle
 
-Under each stage is a mark saying where it comes from. High, band, low and notch are *computed by the engine's kit*: they are read out of <Src path="cpp/kit/filters.h" lines="52-110">the kit's `Svf`</Src>, the filter most of the engine's devices use, as it runs at the sample rate. The output is *read from the running device*, the Auto Filter, which does not use that class. It carries a filter stage of its own, <Src path="cpp/devices/auto-filter/SvfTptTone.h">`SvfTptTone.h`</Src>, the same arithmetic line for line, and runs it at twice the sample rate. Stage 7 holds the two against each other. The cutoff the kit's filter stands at is the device's too, so the device's envelope and oscillator move both. They start at zero, and the filter stands still until stage 5.
+The tool is called a low-pass filter: it lets the low frequencies pass and holds the high ones back. The frequency where it starts to hold back is its cutoff. <Lesson id="one-pole" cap /> built the smallest one there is, a filter with a single memory, which is called a one-pole. That lesson says what a pole is. Here it is on the saw, with its cutoff two octaves above the note.
 
-## Stage by stage
+<Still
+  taps="in onePole"
+  set="onepole"
+  view="spectrum"
+  min={-110}
+  max={-10}
+  top={12000}
+  caption="The saw going in and coming out of the one-pole. The output's spikes are lower towards the right, and every one of them is still there."
+/>
 
-### 1. Two integrators in a loop
+It has dulled the sound. It has not closed it. <Claim id="one-pole-short">With its cutoff at 440 Hz the one-pole takes 16.2 dB off what the saw holds between 2 and 5 kHz</Claim>, and every harmonic in that band can still be seen in the picture. <Hear set="onepole" label="Hear it through one pole" />
 
-The whole filter is three lines. With <M t="x" /> the input and <M t={String.raw`\omega_c`} /> the cutoff as an angular frequency:
+The reason is the one-pole's slope. Past its cutoff it lets through half as much for every doubling of frequency, which is 6 dB an octave, and it has no other setting. Measured on the kit's own, <Claim id="one-pole-slope">with the cutoff at 250 Hz it falls 5.8 dB between 1 and 2 kHz</Claim>. The saw's harmonics already fall away at about that rate by themselves, so the filter does little more than tilt a sound that was tilted to begin with.
 
-<M block t={String.raw`\begin{gathered} \text{high} = x - k\cdot\text{band} - \text{low} \\[0.3em] \text{band} = \omega_c\!\int \text{high}\;dt \\[0.3em] \text{low} = \omega_c\!\int \text{band}\;dt \end{gathered}`} />
+A one-pole lacks a second thing, and it is the one musicians miss more. It cannot favour a frequency. One memory can only lean towards its input, so its curve runs level and then downhill and has no way to rise. A filter that could lift the frequencies right at its cutoff would mark the place where it closes, and that mark is most of what people mean when they say a filter has a sound.
 
-An integrator's gain is <M t={String.raw`f_c / f`} />: large for slow signals, 1 at the cutoff, small for fast ones, falling 6 dB for every octave. Far below the cutoff both integrators have gain to spare, and a feedback loop with gain to spare forces its output to match its input: low follows <M t="x" />, and high, which is what is left over, is next to nothing. Far above the cutoff the integrators pass almost nothing back, so high is <M t="x" /> itself, band is that once integrated and 6 dB an octave down, and low is twice integrated and 12 dB an octave down. Writing <M t={String.raw`w = f / f_c`} /> for frequency in units of the cutoff, the three responses are
+### Two memories that feed each other
 
-<M block t={String.raw`\begin{gathered} |H_{\text{low}}| = \frac{1}{D} \quad\; |H_{\text{band}}| = \frac{k\,w}{D} \quad\; |H_{\text{high}}| = \frac{w^2}{D} \\[1em] D = \sqrt{(1 - w^2)^2 + k^2 w^2} \end{gathered}`} />
+Hang a weight on a spring and pull it down. Two quantities describe it at any instant: where the weight is, and how fast it is moving. Each drives the other. The speed changes the position, and the position, through the spring, changes the speed. One quantity alone can only settle. Two that feed each other can swing.
 
-They share the bottom of the fraction and differ only on top: 1, <M t="kw" />, <M t="w^2" />. The band-pass here is the band output times <M t="k" />, which is what the kit's `bandpass()` returns: scaled so that it passes its centre at exactly 0 dB.
+Before computers were digital, engineers worked out such motions on analogue computers. The working part of those machines was the integrator, a circuit that keeps a running total of what it is fed. Speed is the running total of acceleration, and position is the running total of speed, so two integrators in a row, with their outputs fed back to the start, are a spring and a weight made of electricity. The quantities such a loop keeps were called its state variables.
+
+In the late sixties the same loop was turned into a filter, and it kept the name: the state-variable filter. Put a sound in where the force on the weight would go. What comes out of the second integrator, the position, is a low-pass. It is twice as steep as a one-pole, because the sound has been through two running totals and not one. Here it is on the saw at the same cutoff.
+
+<Still
+  taps="in low"
+  set="loop"
+  view="spectrum"
+  min={-110}
+  max={-10}
+  top={12000}
+  caption="The saw going in and coming out of the loop's low-pass, at the cutoff the one-pole had. Past the cutoff the output's spikes drop away twice as fast, and the highest are off the bottom of the picture."
+/>
+
+<Claim id="loop-steeper">With the same cutoff, 440 Hz, the loop takes 31.5 dB off the same band</Claim>, nearly twice as many decibels as the one-pole took. Hear the two, one after the other: <Hear set="onepole" label="one pole" /> <Hear set="loop" label="the loop" />
+
+### And it can lift what it does not cut
+
+The spring has something a single memory has not: a brake. With a strong brake the weight creeps back to rest. With a weak one it swings past rest and back, many times, always at the same rate. In the filter that rate is the cutoff, and the brake is a control. It is called Resonance, and a higher setting is a weaker brake.
+
+<Still
+  taps="in low"
+  set="sing"
+  view="spectrum"
+  min={-110}
+  max={-10}
+  top={12000}
+  caption="The same low-pass with Resonance raised. Find the fourth spike from the left, where the cutoff is: the output's stands above the input's. Everything to the right of it is cut as before."
+/>
+
+<Claim id="sing-harmonic">With the cutoff on the saw's fourth harmonic, at 440 Hz, and Resonance at 4, that harmonic comes out 12.0 dB up</Claim>. One harmonic has been picked out of the buzz and turned up, while those above it are still taken away. <Hear set="sing" label="Hear the harmonic stand out" />
+
+<Predict
+  question="Resonance goes up again, from 4 to 10, and a steady tone exactly on the cutoff goes in. A low-pass filter is supposed to take sound away. How large does that tone come out?"
+  choices={['A little smaller than it went in', 'The same size as it went in', 'Ten times as large as it went in']}
+>
+
+Ten times as large. The number on the Resonance control is the filter's gain at its cutoff. Measured with the cutoff at 1 kHz, the low-pass passes a tone on the cutoff at <Claim id="peak-is-q">+12.04 dB at a Q of 4 and +20.00 dB at 10</Claim>, which are four times and ten times. Q is the name engineers give the number, and it is what the Resonance control is marked in.
+
+<Still
+  taps="lowResponse"
+  values={{ resonance: 10 }}
+  view="spectrum"
+  min={-48}
+  max={24}
+  caption="What the low-pass does to each frequency with Resonance at 10. The line is level at 0 dB at the left, where everything passes, and falls away at the right. Between the two it climbs to a peak on the cutoff."
+/>
+
+A filter that only took away could never do this. The loop is not only taking away. Near its cutoff it is swinging in step with the sound, and each cycle of the sound pushes the swing a little further. Part 7 says what that costs.
+
+</Predict>
+
+The rest of this page is about that loop. It uses two pieces of the engine. The first is the kit's own state-variable filter, the one most of the engine's devices are built on. The second is the Auto Filter, a device that puts such a filter in the path of a sound and moves its cutoff by itself. The page starts where that device starts: a low-pass at <Src path="cpp/devices/auto-filter/params.gen.h" at="2  cutoffHz: 20..20000 Hz, default 1000">1 kHz</Src>, with Resonance at <Src path="cpp/devices/auto-filter/params.gen.h" at="3  resonance: 0.5..25 Q, default 0.7071">0.7071</Src>, and nothing moving.
+
+</Part>
+
+<Part id="picture" title="Three curves that meet at the cutoff.">
+
+One picture holds what this filter does, and it has three lines because the loop has three outputs. Read each line like this. Pick a frequency on the bottom edge, go straight up to the line, then across to the left edge. That is how many decibels a steady tone at that frequency comes out above or below the level it went in at. A line at 0 dB is a wire.
+
+The lab measures the lines. It sends a single sample through the kit's filter, keeps what rings out of each output, and works out how much of each frequency there is in it.
 
 <Controls ids="cutoff resonance" />
 
-<Spectrum taps="lowResponse:out bandResponse:alt highResponse:alt3" uprights="cutoff" min={-60} max={30} height={280}>
-  The three responses, measured: the lab puts one unit sample through a second copy of the kit's filter, keeps what rings out of each output, and works out its level at each frequency. Low-pass in red, band-pass in green, high-pass in purple, meeting at the cutoff. Moving the cutoff slides all three sideways, and their shape holds until the top octave.
+<Spectrum
+  taps="lowResponse:out bandResponse:alt highResponse:alt3"
+  uprights="cutoff"
+  min={-48}
+  max={30}
+  height={300}
+>
+  The three outputs of one filter, measured. The dashed line is the cutoff. Try Cutoff from one end
+  to the other, and notice all three lines slide sideways together without changing shape. Then
+  raise Resonance, and notice Low-pass and High-pass rise to a point on the dashed line while
+  Band-pass narrows around it.
 </Spectrum>
 
-<Check id="formula" />
+The Low-pass line is level at the left and falls away at the right: low tones pass and high ones are held back. The High-pass line is its mirror image. The Band-pass line passes the frequencies near the cutoff and holds back both ends.
 
-Below the cutoff the high-pass rises <Claim id="high-slope">12.0 dB an octave</Claim>. With the cutoff at 250 Hz the low-pass falls <Claim id="low-slope">12.1 dB between 1 and 2 kHz</Claim>, and the band-pass loses <Claim id="band-slope">6.0 dB an octave</Claim> on either side. Measured against the formulas above, the three curves agree to <Claim id="formula">within 0.01 dB</Claim>.
+Here is a sentence to check against the picture. With Resonance where it starts, the Low-pass and High-pass lines cross on the dashed line, and <Claim id="minus-3">they cross at −3.01 dB, the level at which half the power gets through, while the Band-pass line passes that frequency at 0.00 dB</Claim>. Now raise Resonance to 4 and look again: the crossing has gone up to the height part 1 measured, and the Band-pass line still touches 0 dB.
 
-Move the first of the three lines around and it reads <M t={String.raw`\text{low} + k\cdot\text{band} + \text{high} = x`} />. The three outputs are not three filters that happen to share a cutoff: they are one signal cut into three parts, and the parts add back to the whole. The lab does that sum on every render, and what is left over is <Claim id="sum-is-input">more than 130 dB under the input</Claim>, the rounding of single-precision arithmetic and nothing else.
+Two controls set everything in the picture.
 
-<Check id="sum" />
+- **Cutoff** is where. It slides all three lines along the frequency axis, and the place where they meet goes with it.
+- **Resonance** is how sharply. It lifts the Low-pass and High-pass lines at the cutoff and nowhere else, and it narrows the Band-pass line around the cutoff.
 
-### 2. The cutoff: how fast the integrators run
+The slopes are fixed, and they are what the second integrator bought. <Claim id="high-slope">Well below the cutoff the high-pass rises 12.0 dB an octave, measured from 125 to 250 Hz with the cutoff at 1 kHz</Claim>. <Claim id="low-slope">With the cutoff at 250 Hz the low-pass falls 12.1 dB between 1 and 2 kHz</Claim>. <Claim id="band-slope">The band-pass loses 6.0 dB an octave on either side, measured from 1 to 2 kHz above that cutoff and from 31.25 to 62.5 Hz below it</Claim>. The band-pass has half the slope because the sound it carries has been through one integrator and not two.
 
-A program cannot integrate; it can only add up samples. The kit uses the trapezoid rule: on each sample the running total grows by the mean of this input and the last, times a gain <M t="g" />. For slow signals that is as good as the real thing, with <M t={String.raw`g = \pi f_c / f_s`} />. But a trapezoid integrator's idea of frequency bends. It treats a sine at frequency <M t="f" /> as an ideal integrator would treat one at <M t={String.raw`(f_s/\pi)\tan(\pi f / f_s)`} />, so the whole endless frequency axis is folded into the span from zero to half the sample rate. Left like that, a cutoff asked for at 8 kHz lands <Claim id="no-tangent">7.9 % flat, at 7.37 kHz</Claim>. The cure is to bend the request the other way first, which is called pre-warping:
+</Part>
 
-<M block t={String.raw`g = \tan\!\left(\frac{\pi f_c}{f_s}\right)`} />
+<Part id="uses" title="Four sounds a filter is usually put on.">
 
-In the code this is the second line of <Src path="cpp/kit/filters.h" lines="73-80">`Svf::set`</Src>, after the first has kept the cutoff between 5 Hz and 0.49 of the sample rate. The tangent is <Src path="cpp/kit/filters.h" lines="44-50">`tan_prewarp`</Src>, which below 0.7 radians (a cutoff of 10.7 kHz at 48 kHz) is not the library's tangent but a ratio of two short polynomials, <M t={String.raw`x(15 - x^2)/(15 - 6x^2)`} />. It is there so that a filter being swept can afford to be retuned on every sample.
+An equaliser, the subject of <Lesson id="equalising" />, trims a sound and is left alone. This filter is used the other way. It is set so that it can be heard, and then it is moved. Each card has a picture of the filter at work on one kind of sound, the settings that made the picture, and a button that sets the page to them and plays.
 
-With that one tangent the band-pass peaks <Claim id="band-peak">within 0.01 % of the cutoff</Claim>, from 100 Hz to 16 kHz and at every Q tried. At a Q of 0.7071 the low-pass and the high-pass both pass the cutoff at <Claim id="minus-3">−3.01 dB</Claim>, half the power each.
+<Uses>
+  <Use title="A bright wave, made dark" set="dark">
+    <Still
+      slot="picture"
+      taps="in out"
+      set="dark"
+      view="spectrum"
+      min={-110}
+      max={-10}
+      top={12000}
+      caption="The saw going in and coming out. The output keeps the first few spikes, lifts the ones beside the cutoff a little, and lets the rest fall off the bottom of the picture."
+    />
 
-For contrast the lab also runs the loop written the obvious way: each integrator adds <M t={String.raw`2\pi f_c / f_s`} /> times its input to its total, and the feedback is whatever the last sample left behind. Call it the late loop. It errs the other way, and further: at a Q of 4 its peak is <Claim id="late-sharp-4k">4.9 % sharp at 4 kHz</Claim>, most of a semitone, and <Claim id="late-sharp-8k">15 % sharp at 8 kHz</Claim>.
+    This is the oldest use, and the reason synthesisers have filters. An oscillator makes a wave with every harmonic in it, and the filter decides how many of them are heard. <Claim id="use-dark">On the saw, with Slope at 24 dB and the cutoff at 700 Hz, what lies between 2 and 5 kHz comes out 43 dB down</Claim>. A little Resonance marks the place where the sound closes. Start here, then move Cutoff while it plays.
 
-<Controls ids="cutoff" />
-
-<Curve taps="tuned:out plainTuned:alt3 lateTuned:alt" xLog xMin={0.5} xMax={2} min={-24} max={18} height={260} xTitle="frequency, as a multiple of the cutoff" yTitle="dB">
-  The band-pass close up, an octave either side of the cutoff, against frequency in units of the cutoff. All three are measured at a Q of 4, whatever the resonance is set to, so that there is a peak to see. The kit's (red) peaks at 1 wherever the cutoff is. At 1 kHz the kit's loop with the tangent left out (purple, dashed) and the late loop (green, dashed) lie under it. Raise the cutoff: the purple peak slides left, and the green one slides right and grows.
-</Curve>
-
-### 3. Resonance: the loop's brake
-
-The band output is how fast the low output is changing, so feeding <M t={String.raw`k\cdot\text{band}`} /> back against the input is friction: a force against the motion, in proportion to its speed. The code keeps <M t={String.raw`k = 1/Q`} />, the damping, and the control is its inverse.
-
-At the cutoff <M t="w = 1" />, the first term of <M t="D" /> is zero, and the low-pass and the high-pass both have gain <M t={String.raw`1/k`} />. **Q is the gain at the cutoff**: <Claim id="peak-is-q">+12.04 dB at a Q of 4 and +20.00 dB at 10</Claim>. The two integrators' feedback cancels there and the brake is all that holds the loop. A Q of <M t={String.raw`1/\sqrt2`} />, 0.7071, is the largest with no bump at all, the flattest pass band two memories can give (the Butterworth response), and it is where the kit and the device both start.
-
-The band-pass peaks on the cutoff whatever the Q. The low-pass peaks a little under it, where <M t="D" /> is smallest: <Claim id="low-peak-under">1.6 % under at a Q of 4</Claim> and <Claim id="low-peak-q2">6.5 % under at a Q of 2</Claim>.
-
-A peak in the response and a ring in time are one fact seen twice. Hit the filter with a single sample and it swings at its cutoff, each swing smaller than the last by a fixed ratio; after <M t="Q" /> cycles the ring is <Claim id="ring-27">27 dB down</Claim>. At 1 kHz and a Q of 0.7071 it is 60 dB under its largest sample in <Claim id="ring-flat">1.8 ms</Claim>, before two cycles are over. At a Q of 10 that takes <Claim id="ring-60">22 cycles</Claim>.
-
-<Controls ids="cutoff resonance" />
-
-<Curve taps="ring" xTitle="milliseconds after the sample">
-  The kit's low-pass in the 12 ms after one unit sample goes in. At a Q of 0.7071 it rises, dips under zero once and is gone. Turn the resonance up and it rings; each swing is one cycle of the cutoff, so moving the cutoff changes the ring's pitch. Choose Clicks as the source and Listen to the low-pass to hear the same thing.
-</Curve>
-
-The device lets Q run <Src path="cpp/devices/auto-filter/params.gen.h" lines="8">from 0.5 to 25</Src>. The loop would hold a note for ever at <M t="k = 0" />, and neither the device nor the kit lets it get there: the kit takes <Src path="cpp/kit/filters.h" lines="76">any Q under 0.1 as 0.1</Src>.
-
-### 4. Solving the loop with no delay
-
-The three lines chase each other. High needs this sample's band and low; band needs this sample's high. The obvious way out is to use last sample's band and low, and that is the late loop of stage 2. At a low cutoff being one sample late does no harm. But one sample is a phase lag that grows with frequency, and in a feedback loop enough lag turns the brake into a push. With a Q of 0.7071 that loop runs away once the cutoff passes <Claim id="late-blows-up">7.9 kHz</Claim>, a sixth of the sample rate. Less brake makes it last longer, not shorter: at a Q of 4 it holds until <Claim id="late-limit-q4">13.5 kHz</Claim>.
-
-The kit does a little algebra instead. A trapezoid integrator's output is <M t="g" /> times its input plus what it remembers, so with memories <M t="s_1" /> and <M t="s_2" /> the loop on one sample is three equations in three unknowns:
-
-<M block t={String.raw`\begin{gathered} \text{high} = x - k\,\text{band} - \text{low} \\[0.3em] \text{band} = g\,\text{high} + s_1 \\[0.3em] \text{low} = g\,\text{band} + s_2 \end{gathered}`} />
-
-Put the first and the third into the second and band stands alone:
-
-<M block t={String.raw`\begin{gathered} \text{band} = \frac{s_1 + g\,(x - s_2)}{1 + g\,(g + k)} \\[1em] \text{low} = s_2 + g\,\text{band} \end{gathered}`} />
-
-This is <Src path="cpp/kit/filters.h" lines="82-91">`Svf::process`</Src>, term for term. The division is done once, in `set`, as `a1 = 1 / (1 + g * (g + k))`, with `a2 = g * a1` and `a3 = g * a2` beside it. Then on each sample `v3 = x - ic2` is the input less the second memory; `v1 = a1 * ic1 + a2 * v3` is band; `v2 = ic2 + a2 * ic1 + a3 * v3` is low, with band already multiplied in; and `high = x - k * v1 - v2` is the first line, now that everything in it is known. Last, each memory steps on by the trapezoid rule, `ic1 = 2 * v1 - ic1` and `ic2 = 2 * v2 - ic2`: twice the new output less the old memory. That is a handful of multiplications and additions a sample, and no tangent.
-
-Because the feedback is this sample's and not last sample's, the digital loop is the pre-warped formula exactly, and that formula has no cutoff and no Q at which it gains energy. With the cutoff anywhere from 20 Hz to 20 kHz and Q from 0.5 to 25, the kit's filter answers a unit sample with <Claim id="kit-stable">nothing larger than the sample that went in</Claim>.
-
-<Controls ids="cutoff resonance" />
-
-<Curve taps="ring:out lateRing:alt" xTitle="milliseconds after the sample">
-  The same 12 ms, with the late loop (green, dashed) over the kit's (red). At 1 kHz the two lie together. With the resonance where it starts, raise the cutoff past 7.9 kHz and the green line stops dying away and grows; it is drawn no taller than four times the red, however far it has gone.
-</Curve>
-
-<Check id="lateOver" />
-
-### 5. Moving the cutoff
-
-A filter that only ever stood still could be built several ways. This one is built to be swept, and what makes it good at that is what its two memories hold. They are the integrators' totals, which are near enough the band and low outputs themselves: quantities that mean the same thing at any cutoff. Change <M t="g" /> between two samples and both memories are still right. The next sample integrates at the new rate and that is all.
-
-The other standard way to write the same response is the direct form, which the kit keeps for equalisers that stay put (<Src path="cpp/kit/filters.h" lines="112-128">`Biquad`</Src>, <Lesson id="equalising" />). Its two memories are mixtures of past inputs and outputs, weighted by the coefficients, and they mean something only alongside the coefficients that made them. Standing still, the two forms are the same filter: on the noise their low-passes differ by <Claim id="direct-still">more than 100 dB under the signal</Claim>. Move the cutoff and the direct form has to recover from memories that no longer fit.
-
-In the device the cutoff is a sum in octaves, so a sweep covers the same musical distance up as down (<Src path="cpp/devices/auto-filter/auto_filter.h" lines="137-178">the top of its sample loop</Src>):
-
-<M block t={String.raw`f_c = \text{Cutoff}\cdot 2^{\,5\,\cdot\,\text{Env}\,\cdot\,\text{envelope}\;+\;3\,\cdot\,\text{Osc}\,\cdot\,\text{oscillator}}`} />
-
-The envelope is the louder channel's size, followed by a one-pole (<Lesson id="one-pole" />) whose attack and release the lab leaves where the device starts them, at <Src path="cpp/devices/auto-filter/params.gen.h" lines="11-12">10 ms and 200 ms</Src>. At full amount a full-scale sound opens the filter <Src path="cpp/devices/auto-filter/auto_filter.h" lines="207-208">five octaves</Src>. The oscillator runs free between −1 and 1 and at full amount swings the cutoff three octaves each way; the lab offers four of its six shapes. The sum is taken on every sample, and the coefficients are made again on every sample where it has changed.
-
-<Controls ids="lfoAmount lfoRate lfoShape envAmount" />
-
-<Trace taps="lfo:ctl envelope:alt3 sweep:out" min={-5} max={5} unit="">
-  The device's oscillator (blue), its envelope (purple) and where they put the cutoff, in octaves from the knob (red). The oscillator turns and the envelope follows the sound whether or not they are used; with both amounts at zero the red line lies flat on 0. Raise an amount and red follows that term of the sum.
-</Trace>
-
-<Spectrogram tap="picture" top={12000} min={-72} max={-40}>
-  The device's output over the loop: time across, frequency up, level as colour. With the noise as the source the bright part is what the filter lets through, and its edge is the cutoff. Give the oscillator some amount and the edge traces the oscillator's shape.
-</Spectrogram>
-
-<Trace taps="directLevel:alt svfLevel:out" min={-40} max={30} unit="dB">
-  The largest sample in each 10 ms, in decibels, out of two low-passes on the same moving cutoff: the kit's state-variable filter (red) and the kit's direct form (green). Standing still, red covers green. Set the oscillator's amount to 100 and its shape to Square, so the cutoff jumps six octaves at a time, and green spikes where it jumps down.
-</Trace>
-
-<Check id="directApart" />
-
-With the square at 20 Hz and full amount on the noise, the direct form's largest sample is <Claim id="direct-jump">27 dB above</Claim> the state-variable filter's, whose own largest sample stays <Claim id="svf-holds">within 0.1 dB</Claim> of the largest in the noise going in. A smooth sweep is kinder. With the sine at 20 Hz the two reach the same peaks, though their outputs are already <Claim id="direct-smooth">only 29 dB apart</Claim>.
-
-### 6. Notch and peak: sums of the three
-
-Since the three outputs are parts of the input, adding some of them back gives more shapes for no more filtering. Low plus high is everything but the band, a **notch**:
-
-<M block t={String.raw`\begin{gathered} \text{notch} = \text{low} + \text{high} = x - k\cdot\text{band} \\[0.3em] \text{peak} = \text{low} - \text{high} \end{gathered}`} />
-
-At the cutoff low and high are the same size, and one is a quarter of a cycle behind the input and the other a quarter ahead, so they are opposite and their sum is nothing: the kit's notch is <Claim id="notch-depth">more than 100 dB down</Claim> at the cutoff. Q sets how wide the hole is: an octave under the cutoff the notch has taken off <Claim id="notch-width">2.75 dB at a Q of 0.7071 and 0.21 dB at a Q of 3</Claim>. Take the difference and the two opposites add: the **peak** is <M t="2Q" /> at the cutoff, <Claim id="peak-2q">+15.6 dB at a Q of 3</Claim>, and 0 dB far away on both sides. It is not the bell of an equaliser (<Lesson id="equalising" />): its height cannot be set apart from its width, and the sound far above the cutoff comes out upside down.
-
-The kit's `notch()` is the one line `low + high`, and the lab ticks the filter with it. The kit has no peak. The device has both, as rows of <Src path="cpp/devices/auto-filter/auto_filter.h" lines="212-217">a table of weights</Src> for low, <M t="k" /> times band, and high: (1, 0, 0) for the low-pass, (0, 0, 1) for the high-pass, (0, 1, 0) for the band-pass, (1, 0, 1) for the notch and (1, 0, −1) for the peak. Changing the type slides the three weights to their new row over 10 ms, so the switch does not click.
-
-<Controls ids="cutoff resonance" />
-
-<Spectrum taps="notchResponse:out peakResponse:alt" uprights="cutoff" min={-60} max={30} height={280}>
-  The two sums, measured as in stage 1: the notch (red) and the peak (green). Raise the resonance and the notch narrows while the peak grows. Both are heard in the strip at the top.
-</Spectrum>
-
-### 7. The device: the same loop at twice the rate
-
-The Auto Filter's stage is <Src path="cpp/devices/auto-filter/SvfTptTone.h" lines="51-87">its own code</Src>, with the coefficients in a struct apart from the memories, so both channels share one set, and with the library's tangent in place of the kit's short cut. The lab runs that stage beside the kit's, at the kit's rate and on the same cutoff. At 1 kHz the check reads <Claim id="same-stage">its floor, −140 dB</Claim>: the two cannot be told apart. At 8 kHz and a Q of 4 they are <Claim id="same-stage-8k">82 dB apart</Claim>, which is the size of the short cut's error.
-
-<Check id="sameStage" />
-
-What the device adds is around the stage (<Src path="cpp/devices/auto-filter/auto_filter.h" lines="185-195">the wet path</Src> and <Src path="cpp/devices/auto-filter/auto_filter.h" lines="308-320">`filter`</Src>):
-
-- **Twice the rate.** The stage runs between two of <Src path="cpp/kit/oversample.h">the kit's half-band converters</Src>, so its frequency axis bends towards 48 kHz and not 24 kHz, and the audible band is nearly straight. A 1 kHz low-pass is at <Claim id="device-top">−54.8 dB at 20 kHz in the device and −70.2 dB in one stage at 48 kHz</Claim>; a true 12 dB an octave would be −52 dB. The converters cost <Claim id="latency">31 samples</Claim> of delay.
-- **24 dB an octave.** Two stages in a row, each at <M t={String.raw`\sqrt Q`} />, so the gain at the cutoff is still <M t="Q" />: <Claim id="q-both-slopes">+20.0 dB at a Q of 10 on either slope</Claim>. With the cutoff at 250 Hz the pair falls <Claim id="slope-24">24.3 dB between 1 and 2 kHz</Claim>.
-- **Drive.** The input is turned up and a tanh is put on both memories of each stage, <Src path="cpp/devices/auto-filter/auto_filter.h" lines="301-306">in full from 3 dB of drive</Src>. Half of that gain, in decibels, is taken off again at the output.
-
-<Controls ids="type slope cutoff resonance" />
-
-<Spectrum taps="deviceResponse:out oneStageResponse:alt" uprights="cutoff" min={-90} max={30} height={280}>
-  One unit sample through a second copy of the device (red), against the same type from one stage of the kit's filter at 48 kHz (green). At 12 dB the two part company only in the top octave, where the green line dives towards half the sample rate. At 24 dB the red line falls twice as fast and the green one shows what a single stage does.
-</Spectrum>
-
-Through the device, at a Q of 3, the band-pass passes the cutoff at <Claim id="device-types">0.0 dB, the notch is more than 100 dB down there, and the peak is at +15.6 dB</Claim>: the three sums of stage 6, made from the device's own stage.
-
-## What goes wrong
-
-**The top octave bends.** Pre-warping puts the cutoff in the right place and nothing else. Every other frequency is still squeezed towards half the sample rate, so at 48 kHz a low-pass falls faster than it should as it gets there: the kit's filter at 1 kHz drops <Claim id="warp-slope">13.3 dB between 4 and 8 kHz</Claim>, not 12. For a high-pass on a detector that does not matter. For a filter that is the sound, the device pays for twice the rate.
-
-**Resonance is gain.** A tone on the cutoff comes out <M t="Q" /> times as large: at a Q of 25, <Claim id="gain-q">28.0 dB up</Claim>. A full-scale tone would leave the kit's filter at 25 times full scale. The kit's `Svf` has no guard, which is why devices built on it keep Q modest. The Auto Filter's guard is its drive: the tanh holds each memory inside ±1, so the loop cannot store more than that however long it is pushed. With 6 dB of drive that full-scale tone at a Q of 25 comes out at <Claim id="drive-caps">0.24 of full scale</Claim>.
-
-**A jump is still a jump.** The state-variable form does not thump when its cutoff moves, but the sound on either side of a jump is two different sounds, and the join can click. The device slides every knob <Src path="cpp/kit/device.h" lines="25">over 5 ms</Src> and the type and the slope <Src path="cpp/devices/auto-filter/auto_filter.h" lines="210">over 10 ms</Src>. Its oscillator is not smoothed: a square is meant to snap.
-
-**Rings that never quite end.** A ring dies away by a fixed ratio for ever, into numbers so small that some processors handle them very slowly. Both memories are passed through <Src path="cpp/common/dsp_util.h" lines="5-11">`flush_denormal`</Src>, which calls anything under 10⁻¹⁵ zero, so a filter left alone reaches exact silence.
-
-**Late.** The device's output is 31 samples behind its input. The stages from the kit's filter in this lesson are not delayed at all, so the output drawn against the input sits two thirds of a millisecond to the right.
-
-## What to try
-
-- Noise, with the resonance at 0.7071: sweep the **cutoff** and Listen to low, band and high in turn. Then the same at a Q of 8, where the cutoff becomes a pitch.
-- The saw, Q of 10, type Band-pass: sweep the cutoff slowly from 100 Hz up and the harmonics of 110 Hz sound one at a time.
-- Clicks, with Listen on the low-pass and the resonance at 10: each click is a short note at the cutoff. This is the ring of stage 3.
-- Drums, type Band-pass, cutoff 350 Hz, Q of 5, **envelope amount** at 80: each hit opens the filter and it falls back between them.
-- Noise, **oscillator amount** at 100, shape Square, and the last figure of stage 5: the direct form's spikes where the cutoff jumps down. Then Sine, and they go.
-- Type Notch, oscillator amount 90, rate 0.15 Hz, Q of 1.5, on the guitar chords: a hole moving slowly through the sound.
+  </Use>
+  <Use title="A bass that opens on each note" set="pluck">
+    <Still
+      slot="picture"
+      taps="sweep"
+      set="pluck"
+      caption="Where the cutoff stands over the four seconds of the bass line, in octaves above its setting. It leaps up as each note is struck and sinks back as the note dies."
+    />
+
+    A filter that stands still makes every note the same colour. Here the device listens to how loud the bass is and raises the cutoff by that much, so a note starts bright and closes as it fades, the way a plucked string does. <Claim id="use-pluck">On the bass line the loudest note lifts the cutoff 0.9 octaves</Claim>. Envelope amount sets how far a note opens the filter, and Envelope release how long it takes to close.
+
+  </Use>
+  <Use title="Held chords, swept" set="drift">
+    <Still
+      slot="picture"
+      taps="picture"
+      set="drift"
+      view="spectrogram"
+      top={8000}
+      caption="The output over the four seconds: time across, frequency up, and more sound where the picture is stronger. The top edge of the sound rises and falls twice, in straight lines. That edge is the cutoff."
+    />
+
+    Chords that are held have nothing in them that moves. A slow oscillator on the cutoff gives them something. <Claim id="use-drift">Under the held chords the cutoff goes 2.1 octaves each way</Claim> from where Cutoff puts it, once every two seconds, with enough Resonance for the moving edge to be heard as a tone of its own. Oscillator rate is the control to try first.
+
+  </Use>
+  <Use title="The mix from the next room" set="wall">
+    <Still
+      slot="picture"
+      taps="in out"
+      set="wall"
+      view="spectrum"
+      min={-120}
+      max={-20}
+      caption="The whole mix going in and coming out. At the left the two lines lie on each other. From the cutoff on, the output dives away from the input."
+    />
+
+    A wall lets the bass through and stops the rest, and a steep low-pass set low does the same to a whole mix. It is how a track is made to seem to come from another room, or to arrive from far away when the cutoff is then raised. <Claim id="use-wall">On the mix, what lies from 1 to 12 kHz comes out 52 dB down, and what lies from 20 to 300 Hz comes out 0.4 dB up</Claim>: the bottom of the mix is all still there.
+
+  </Use>
+</Uses>
+
+The same filter turned over does the opposite jobs. A high-pass set low takes away what lies under an instrument's lowest note, and a band-pass keeps only the middle of a sound, as a small loudspeaker does. Type chooses between them, and part 5 shows that the choice costs nothing: all of them are already there.
+
+</Part>
+
+<Part id="build" title="Start with one running total. Add a second. Then let go of the brake.">
+
+This part puts the filter together a piece at a time. Each step adds one piece, and after each the lab sends a single sample through what has been built so far and measures its curve again. "Hear it so far" plays the loop through it.
+
+The listings are the lab's own source. This code was written for the lesson, to be read: it is not the engine's. It runs beside the engine's filter all the same, and the last step says how far apart the two land.
+
+<Build>
+  <Step title="One integrator in a loop" controls="cutoff">
+    An integrator is a running total. On each sample it adds a small share of what it is fed to what it already holds. Feed it a steady value and the total climbs without end, which is no use by itself. So the first piece feeds the integrator the input less its own output. Now the total climbs only while it is behind the input, and stops when it has caught up.
+
+    A total that chases its input follows slow changes and falls behind fast ones. That is a low-pass, and it is the one-pole of part 1 made from an integrator. What the total has not caught up with, the input less the output, is the fast part of the sound: a high-pass. The build keeps both, and plays the low one.
+
+    <Listing
+      path="site/labs/state-variable-filter.cpp"
+      from="// One integrator in a loop. An integrator is a running total"
+      to="s1 = flush_denormal(2.0f * low - s1); }"
+      name="one"
+    />
+
+    The share is `g`. A small `g` is a slow total and a low cutoff. It is made from Cutoff by a tangent, and part 5 says why a tangent. The cutoff is first kept between <Src path="cpp/kit/filters.h" at="const float f = clamp(hz, 5.0f, sample_rate * 0.49f);">5 Hz and 0.49 of the sample rate</Src>, as the kit keeps it.
+
+    <Listing
+      path="site/labs/state-variable-filter.cpp"
+      from="// The cutoff as an integrator's gain"
+      to="g = kit::tan_prewarp(kit::kPi * kit::clamp(hz, 5.0f, lab::kSampleRate * 0.49f) / lab::kSampleRate); }"
+      name="tune"
+    />
+
+    <Claim id="build-one">With the cutoff at 250 Hz, a tone at 2 kHz comes out of this step 5.9 dB under a tone at 1 kHz</Claim>. One integrator gives 6 dB an octave, and no more.
+
+    <Spectrum slot="picture" taps="builtResponse:out" uprights="cutoff" min={-48} max={30}>
+      The curve of what has been built so far. Try Cutoff lower, and notice the line keep its
+      gentle slope wherever the dashed line stands.
+    </Spectrum>
+
+  </Step>
+  <Step title="A second integrator" controls="cutoff">
+    The second piece is another running total, fed by the first. And the loop is closed round both: the input now has both totals taken away from it before it reaches the first integrator.
+
+    There are three sounds in the loop now. What is left of the input is `high`. The first total is `band`. The second total is `low`. Each of the three needs the other two on the same sample, so the first line of `two` is the three of them solved for `band`, and the next two lines follow from it.
+
+    Two totals that feed each other can swing, as the weight on the spring did, and something has to stop them. That is `k`, the share of `band` that is taken away from the input. It is the brake. For now it is fixed at <Src path="cpp/kit/filters.h" at="float k = 1.4142f;">1.4142</Src>, where the kit's filter starts it.
+
+    <Listing
+      path="site/labs/state-variable-filter.cpp"
+      from="// Two integrators in a loop. The first is fed"
+      to="s2 = flush_denormal(2.0f * low - s2); }"
+      mark={['band = (s1 + g * (x - s2)) / (1.0f + g * (g + k));', 'low = s2 + g * band;']}
+      name="two"
+    />
+
+    <Claim id="build-two">With the cutoff at 250 Hz, a tone at 2 kHz now comes out 12.1 dB under a tone at 1 kHz</Claim>. The second total has doubled the slope.
+
+    <Spectrum
+      slot="picture"
+      taps="builtResponse:out builtBefore:in"
+      uprights="cutoff"
+      min={-48}
+      max={30}
+    >
+      The curve so far, and the curve one step back. Notice that The filter so far falls away
+      twice as steeply as One step back to the right of the dashed line, and that the two agree to
+      the left of it. Try Cutoff, and notice both move.
+    </Spectrum>
+
+  </Step>
+  <Step title="Resonance" controls="cutoff resonance">
+    The third piece lets go of the brake. `k` stops being a fixed number and becomes one over Resonance, so a high Resonance is a light brake. The kit will not take a Resonance <Src path="cpp/kit/filters.h" at="k = 1.0f / max(q, 0.1f);">under 0.1</Src>, and neither does the build.
+
+    <Listing
+      path="site/labs/state-variable-filter.cpp"
+      from="// Resonance: the brake is no longer fixed."
+      to="float brake() const { return 1.0f / kit::max(resonance.value, 0.1f); }"
+      mark="float brake() const"
+      name="brake"
+    />
+
+    With a light brake the loop swings longer at its cutoff, and a sound that holds that frequency pushes the swing along. <Claim id="build-brake">With Resonance at 4 and the cutoff at 1 kHz, a tone on the cutoff comes out of this step at +12.04 dB. One step back, with the same Resonance, it came out at −3.01 dB</Claim>, because the control was not yet joined to anything.
+
+    <Spectrum
+      slot="picture"
+      taps="builtResponse:out builtBefore:in"
+      uprights="cutoff"
+      min={-48}
+      max={30}
+    >
+      The curve so far, and the curve one step back, which has the fixed brake. Try Resonance
+      from one end to the other, and notice The filter so far rise to a point on the dashed line
+      while One step back stays as it was.
+    </Spectrum>
+
+  </Step>
+  <Step title="The outputs" controls="cutoff resonance type">
+    Nothing is added to the loop in this step. The three sounds have been there since the second one, and only `low` was played. The fourth piece plays any mixture of them.
+
+    A Type is three weights: one for `low`, one for `band` times `k`, one for `high`. The device keeps them in a table, and the build reads the device's own. Low-pass, Band-pass and High-pass each take one of the three. Notch takes `low` and `high` together, and Peak takes `low` less `high`. Part 5 shows what those two sums do.
+
+    <Listing
+      path="site/labs/state-variable-filter.cpp"
+      from="// The outputs: the loop already holds three sounds"
+      to="return weight[0] * made.low + weight[1] * k * made.band + weight[2] * made.high; }"
+      mark="return weight[0] * made.low"
+      name="chosen"
+    />
+
+    <Claim id="build-outputs">With Type at High-pass and the cutoff at 1 kHz, a tone at 250 Hz comes out of this step 24.1 dB down</Claim>. One step back Type was joined to nothing, and that tone passed.
+
+    <Lanes slot="picture" taps="in builtHigh builtBand builtLow built">
+      The sound going in, the three sounds the loop holds, and the one Type picks. Try each Type,
+      and notice the bottom lane become one of the three above it, or a mixture of two.
+    </Lanes>
+
+    <Spectrum
+      slot="picture"
+      taps="builtResponse:out builtBefore:in"
+      uprights="cutoff"
+      min={-48}
+      max={30}
+    >
+      The curve of the Type chosen, and the curve one step back, which is the low-pass whatever
+      Type says. Try Notch, and notice The filter so far dive on the dashed line.
+    </Spectrum>
+
+  </Step>
+  <Step
+    title="A cutoff that moves"
+    controls="cutoff resonance type lfoAmount lfoRate lfoShape envAmount"
+  >
+    The last piece moves the cutoff while the sound plays. The device works out two numbers on every sample: an envelope, which says how loud the sound is, and an oscillator, a slow wave of its own. Each pushes the cutoff by some number of octaves, the two are added, and the sum goes on top of Cutoff. The build takes both numbers from the running device and does the sum itself.
+
+    <Listing
+      path="site/labs/state-variable-filter.cpp"
+      from="// Modulation: the cutoff moves."
+      to="return kit::clamp(std::exp2(pitch), AutoFilter::kMinCutoffHz, AutoFilter::kMaxCutoffHz); }"
+      name="moved"
+    />
+
+    Then `g` is made again from the new cutoff, on every sample where it has changed, and that is all. Nothing in the loop has to be told. Its two totals are the band and low sounds themselves, near enough, and they mean the same thing at any cutoff.
+
+    <Listing
+      path="site/labs/state-variable-filter.cpp"
+      from="// One sample of both channels through the pieces built so far."
+      to="out[c] = pieces >= kOutputs ? chosen(loop[c]) : loop[c].low; } }"
+      mark="if (pieces >= kMoving) tune(moved(envelope, oscillator));"
+      name="run"
+    />
+
+    <Claim id="build-moves">With Oscillator amount at 100 the build's cutoff goes 3.00 octaves each way</Claim>. One step back it stood still.
+
+    This is the step that is held to the engine. On every render the lab runs the whole build beside the kit's filter, on the same sound and the same moving cutoff, and compares their three outputs. The build divides where the kit multiplies by a number it worked out earlier, so the two round differently in the last digit a sample can hold.
+
+    <Check id="builtDifference" />
+
+    <Claim id="build-same">On the saw, the drums, the bass and the noise, at the starting values, the build lands more than 120 dB under the kit's filter</Claim>. <Claim id="build-worst">At the worst setting tried, a cutoff of 20 Hz with Resonance at 25, it lands more than 95 dB under</Claim>.
+
+    <Lanes
+      slot="picture"
+      taps="in builtCutoff built"
+      ranges={{ builtCutoff: [-3.2, 3.2] }}
+    >
+      The sound going in, where the build's cutoff stands, and the sound so far. Try Oscillator
+      amount, and notice the middle lane start to swing and the bottom lane swell and thin with
+      it.
+    </Lanes>
+
+  </Step>
+</Build>
+
+</Part>
+
+<Part id="engine" title="The kit's filter and the device around it, opened up.">
+
+Everything from here on is the engine's own code. The page compiles the engine's C++ and runs the loop through it, and each figure is read out of the running code at the point the text is talking about. Under each stage is a mark that says where it comes from.
+
+Two things are being read. The first is the kit's state-variable filter, the class most of the engine's devices use. The lab ticks it once for each sample and reads its three outputs. The second is the Auto Filter, the device on the plate in part 9. It does not use the kit's class. It carries a filter stage of its own with the same arithmetic, runs it at twice the sample rate, and moves its cutoff with an envelope and an oscillator. The cutoff the kit's filter stands at on each sample is the device's, so both follow the same controls.
+
+The first picture is the loop itself.
+
+<Flow
+  label="The input has two things taken away from it: the band output times k, and the low output. What is left is the high output. It goes into a first integrator, whose total is the band output, and that goes into a second, whose total is the low output."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'left', shape: 'sum', from: 'in', back: ['first', 'second'], tap: 'high', n: 1 },
+    { id: 'first', label: 'Integrator: band', from: 'left', tap: 'band', n: 2 },
+    { id: 'second', label: 'Integrator: low', from: 'first', tap: 'low', n: 3 },
+    { id: 'low', label: 'low', shape: 'end', from: 'second' },
+  ]}
+>
+  The loop. Both integrators send their totals back to the circle, where they are taken away from
+  the input. Press the button of stage 1, 2 or 3 below, and notice a different block light up: the
+  three outputs are three places on one path.
+</Flow>
+
+Stages 1 to 3 are those three places. Stages 4 and 5 are the brake and the way the loop is worked out on one sample. Stages 6 and 7 are two more outputs made by adding the first three. Stages 8 to 11 move the cutoff, and stages 12 and 13 are what the device puts round the loop.
+
+<StageBlock tap="high" n={1} title="What is left over is the high-pass">
+  The loop starts with a subtraction. From the input it takes the low output, and the band output times `k`. Stage 3 will show that the low output is the slow part of the sound, and stage 2 that the band output is the part near the cutoff. Take both away and the fast part is left.
+
+  <Controls ids="cutoff" />
+
+  <Wave taps="in high:alt3" from={1} span={0.03} fit>
+    Three hundredths of a second of the input and of what is left over. Try Cutoff at its lowest,
+    and notice High-pass become the input almost whole. Raise it, and notice High-pass shrink to
+    the sudden steps of the wave, which are its fastest part.
+  </Wave>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\at{process-high}{\sig{alt3}{\text{high}}} = \sig{in}{x} - k\,\sig{alt}{\text{band}} - \sig{out}{\text{low}}`}
+  />
+  <Fragment slot="readback">
+    Read it against the loop above. The input is <M t="x" />. The two paths that come back into the circle are <M t={String.raw`k`} /> times band, and low. What leaves the circle is high. Move the two terms to the other side and the line says something else: low, plus <M t="k" /> times band, plus high, is the input. The three outputs are one sound cut into three parts. The lab adds them up again on every render, and <Claim id="sum-is-input">what is left over is more than 130 dB under the input</Claim>, on the saw, the drums and the noise. That is the rounding of the last digit a sample can hold.
+
+    <Check id="sum" />
+
+    The kit's filter keeps very little: two memories, the numbers made from Cutoff and Resonance, and the three outputs of the last sample.
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/filters.h"
+    from="struct Svf {"
+    to="float high = 0.0f;"
+    mark={['float ic1 = 0.0f;', 'float ic2 = 0.0f;']}
+    name="state"
+  />
+  <Fragment slot="listen">Hear what is left over</Fragment>
+</StageBlock>
+
+<StageBlock tap="band" n={2} title="The first integrator, and how fast it runs">
+  An integrator passes slow sounds at a large size and fast ones at a small size, and the size halves for every doubling of frequency. At exactly one frequency its gain is 1, and that frequency is the filter's cutoff. So the cutoff is nothing but how fast the integrators run.
+
+  A program cannot keep a true running total of a sound. It has samples, and it can only add them up. The kit uses the trapezoid rule: on each sample the total grows by <M t="g" /> times the mean of this input and the last. It keeps one memory, <M t="s_1" />, to do it.
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\begin{aligned} \at{process-band}{\sig{alt}{\text{band}}} &= g\,\sig{alt3}{\text{high}} + s_1 \\ \at{process-s1}{s_1} &\leftarrow 2\,\sig{alt}{\text{band}} - s_1 \end{aligned}`}
+  />
+  <Fragment slot="readback">
+    The first line is the output: what the memory holds, plus <M t="g" /> times what came in on this sample. The second line makes the memory ready for the next sample. Twice the output less the old memory is the output plus <M t="g" /> times this input once more, so each input is counted in two halves, one now and one on the next sample. That is the mean of two inputs, and it is why the rule is named after a trapezoid.
+
+    For slow sounds <M t="g" /> would be <M t={String.raw`\pi f_c / f_s`} />, with <M t="f_c" /> the cutoff and <M t="f_s" /> the sample rate. But a total made of samples bends the frequency axis: the whole endless axis is folded into the span from zero to half the sample rate, and the fold squeezes the top. <Claim id="no-tangent">Left like that, a cutoff asked for at 8 kHz lands 7.9 % flat, at 7.37 kHz</Claim>. The cure is to bend the request the other way first.
+
+    <M block t={String.raw`\at{set-g}{g} = \tan\!\left(\frac{\pi f_c}{f_s}\right)`} />
+
+    With that one tangent <Claim id="band-peak">the band-pass peaks within 0.01 % of the cutoff, from 100 Hz to 16 kHz</Claim>, at every Resonance tried.
+
+    The picture is the band-pass close up, an octave either side of the cutoff. It has three lines. One is the kit's filter. One is the kit's loop with the tangent left out. The third is the loop written the obvious way, in which each integrator adds a share of its input to its total and the feedback is whatever the last sample left behind. Call that the late loop. It errs the other way, and further: <Claim id="late-sharp-4k">at a Q of 4 its peak is 4.9 % sharp at 4 kHz</Claim>, most of a semitone, and <Claim id="late-sharp-8k">15 % sharp at 8 kHz</Claim>.
+
+    <Controls ids="cutoff" />
+
+    <Curve
+      taps="tuned:out plainTuned:alt3 lateTuned:alt"
+      xLog
+      xMin={0.5}
+      xMax={2}
+      min={-24}
+      max={18}
+      height={260}
+      xTitle="frequency, as a multiple of the cutoff"
+      yTitle="decibels"
+    >
+      The band-pass an octave either side of the cutoff. All three lines are measured at a Q of 4,
+      whatever Resonance is set to, so that there is a peak to see. Try Cutoff from 1 kHz upwards,
+      and notice the kit's band-pass stay on 1 while the loop without the tangent slides to the
+      left and the late loop slides to the right and grows.
+    </Curve>
+
+    The kit's tangent is not the library's. For angles <Src path="cpp/kit/filters.h" at="if (x > 0.7f) return std::tan(x);">up to 0.7 radians</Src>, which is every cutoff up to a little over a fifth of the sample rate, it is a ratio of two short polynomials. That is cheap enough to work out on every sample of a sweep.
+
+    <Listing
+      path="cpp/kit/filters.h"
+      from="inline float tan_prewarp(float x) {"
+      to="return x * (15.0f - x2) / (15.0f - 6.0f * x2);"
+      name="tangent"
+    />
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/filters.h"
+    from="void set(float hz, float q, float sample_rate) {"
+    to="a3 = g * a2;"
+    mark="g = tan_prewarp(kPi * f / sample_rate);"
+    name="set"
+    at={{ g: 'g = tan_prewarp(kPi * f / sample_rate);', k: 'k = 1.0f / max(q, 0.1f);' }}
+  />
+  <Fragment slot="listen">Hear the band</Fragment>
+</StageBlock>
+
+<StageBlock tap="low" n={3} title="The second integrator makes the low-pass">
+  The band output goes into a second integrator, the same as the first, with a memory <M t="s_2" /> of its own. Its total is the low output. A sound well above the cutoff has now been made smaller twice, once by each integrator, which is where the 12 dB an octave of part 2 comes from.
+
+  <Controls ids="cutoff resonance" />
+
+  <Wave taps="in low" from={1} span={0.03} fit>
+    Three hundredths of a second of the input and of the low output. Notice the wave's sudden
+    steps rounded off. Try Cutoff lower, and notice Low-pass become smoother and smaller.
+  </Wave>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\begin{aligned} \at{process-low}{\sig{out}{\text{low}}} &= g\,\sig{alt}{\text{band}} + s_2 \\ \at{process-s2}{s_2} &\leftarrow 2\,\sig{out}{\text{low}} - s_2 \end{aligned}`}
+  />
+  <Fragment slot="readback">
+    These are the two lines of stage 2 again, one place along. With all three stages written down, the curves of part 2 can be written down too. Let <M t="w" /> be the frequency as a multiple of the cutoff, so that <M t="w = 1" /> is the cutoff itself.
+
+    <M
+      block
+      t={String.raw`\begin{gathered} |H_{\text{low}}| = \frac{1}{D} \\[0.8em] |H_{\text{band}}| = \frac{k\,w}{D} \\[0.8em] |H_{\text{high}}| = \frac{w^2}{D} \\[0.8em] D = \sqrt{(1 - w^2)^2 + k^2 w^2} \end{gathered}`}
+    />
+
+    Each <M t="|H|" /> is how much of a tone at <M t="w" /> an output lets through. The three share the bottom of the fraction and differ only on top. Far below the cutoff <M t="w" /> is small, <M t="D" /> is close to 1, and the three are 1, next to nothing, and less still. Far above it <M t="D" /> is close to <M t="w^2" /> and the low output falls as one over it, a quarter for every doubling. The band-pass here is the band output times <M t="k" />, as the kit's own band-pass returns it, so that it passes its centre at 0 dB.
+
+    The lab measures the three curves and works out the three formulas at every point, with the tangent of stage 2 in <M t="w" />. <Claim id="formula">The two agree within 0.01 dB at the six settings tried, from a cutoff of 100 Hz to one of 16 kHz</Claim>. A ring too long for the lab to keep whole, which is a high Resonance at a very low cutoff, reads lower than its formula, and the check below then says by how much.
+
+    <Check id="formula" />
+
+  </Fragment>
+  <Fragment slot="listen">Hear the low-pass</Fragment>
+</StageBlock>
+
+<StageBlock tap="ring" n={4} title="Resonance: how hard the brake is">
+  The band output is how fast the low output is changing. Taking some of it away from the input is friction: a push against the motion, in proportion to its speed. The share is <M t="k" />, and the Resonance control is its inverse.
+
+  At the cutoff <M t="w = 1" />, the first term of <M t="D" /> is zero, and the formulas of stage 3 leave the low-pass and the high-pass with the same gain: one over <M t="k" />. That is the measurement of part 1 again. The two integrators cancel each other at the cutoff, and the brake is all that holds the loop.
+
+  A peak in the curve and a ring in time are one fact seen twice. Strike the filter with a single sample and it swings at its cutoff, each swing smaller than the last by a fixed ratio.
+
+  <Controls ids="cutoff resonance" />
+
+  <Curve taps="ring" xTitle="milliseconds after the sample" yTitle="sample value">
+    The kit's low-pass in the moments after a single sample goes in. With Resonance where it
+    starts, the line rises, dips under nothing once and is gone. Try Resonance higher, and notice
+    it ring. Then try Cutoff, and notice the swings crowd together or spread out.
+  </Curve>
+
+  <M slot="equation" block t={String.raw`\begin{gathered} \at{set-k}{k} = \frac{1}{Q} \\[0.8em] |H_{\text{low}}(w = 1)| = \frac{1}{k} = Q \end{gathered}`} />
+  <Fragment slot="readback">
+    <M t="Q" /> is the number on the Resonance control. A Q of 0.7071, one over the square root of two, is the largest with no bump in the curve at all, and it is where the kit and the device both start. The device lets it run <Src path="cpp/devices/auto-filter/params.gen.h" at="3  resonance: 0.5..25 Q, default 0.7071">from 0.5 to 25</Src>.
+
+    The band-pass peaks on the cutoff whatever the Q. The low-pass peaks a little under it, where <M t="D" /> is smallest: <Claim id="low-peak-under">with the cutoff at 1 kHz it peaks 1.6 % under at a Q of 4</Claim> and <Claim id="low-peak-q2">6.4 % under at a Q of 2</Claim>.
+
+    <Claim id="ring-27">With the cutoff at 1 kHz, where a cycle is a millisecond, the ring is 27 dB down after Q cycles</Claim>, at a Q of 5, of 10 and of 20. <Claim id="ring-flat">At that cutoff and a Q of 0.7071 it is 60 dB under its largest sample in 1.8 ms</Claim>, before two cycles are over. <Claim id="ring-60">At a Q of 10 that takes 22 cycles</Claim>.
+
+  </Fragment>
+</StageBlock>
+
+<StageBlock tap="lateRing" n={5} title="Solving the loop with no delay">
+  The lines of stages 1 to 3 chase each other. High needs this sample's band and low. Band needs this sample's high. The obvious way out is to use the band and low of the sample before, and that is the late loop of stage 2. At a low cutoff being one sample late does no harm. But one sample is a lag that grows with frequency, and in a loop enough lag turns the brake into a push.
+
+  <Controls ids="cutoff resonance" />
+
+  <Curve taps="ring:out lateRing:alt" xTitle="milliseconds after the sample" yTitle="sample value">
+    The same moments, with the late loop laid over the kit's low-pass. At 1 kHz the two lie
+    together. With Resonance where it starts, try Cutoff near its top, and notice the late loop
+    stop dying away and grow. It is drawn no taller than four times the kit's, however far it
+    has gone.
+  </Curve>
+
+  <Check id="lateOver" />
+
+  <Claim id="late-blows-up">With a Q of 0.7071 the late loop runs away once the cutoff passes 7.9 kHz</Claim>, a sixth of the sample rate. Less brake makes it last longer, not shorter: <Claim id="late-limit-q4">at a Q of 4 it holds until 13.5 kHz</Claim>.
+
+  The kit does a little algebra in place of the delay. The three lines are three equations in three unknowns. Put the first and the third into the second and band stands alone.
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\begin{aligned} \sig{alt}{\text{band}} &= \frac{s_1 + g\,(\sig{in}{x} - s_2)}{1 + g\,(g + k)} \\[0.6em] \sig{out}{\text{low}} &= s_2 + g\,\sig{alt}{\text{band}} \end{aligned}`}
+  />
+  <Fragment slot="readback">
+    Nothing on the right of the first line is unknown: the two memories, the input, and two numbers that change only when a control moves. So band comes first, low follows from it, and high is then the subtraction of stage 1.
+
+    The listing is the same, with the division done ahead of time. When a control moves, the kit works out `a1`, which is one over the bottom of that fraction, with `a2` and `a3`, which are `a1` times `g` once and twice. Then on each sample `v3` is the input less the second memory, `v1` is band and `v2` is low. The two lines after them move the memories on by the trapezoid rule. That is a handful of multiplications and additions a sample, and no tangent.
+
+    Because the feedback is this sample's and not the last one's, the loop made of samples is the formula of stage 3 exactly, and that formula has no cutoff and no Q at which it gains energy. <Claim id="kit-stable">With the cutoff anywhere from 20 Hz to 20 kHz and Q from 0.5 to 25, the kit's filter answers a single sample with nothing larger than the sample that went in</Claim>.
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/filters.h"
+    from="const float v3 = x - ic2;"
+    to="high = x - k * v1 - v2;"
+    name="process"
+    at={{
+      band: 'const float v1 = a1 * ic1 + a2 * v3;',
+      low: 'const float v2 = ic2 + a2 * ic1 + a3 * v3;',
+      s1: 'ic1 = flush_denormal(2.0f * v1 - ic1);',
+      s2: 'ic2 = flush_denormal(2.0f * v2 - ic2);',
+      high: 'high = x - k * v1 - v2;',
+    }}
+  />
+</StageBlock>
+
+<StageBlock tap="notch" n={6} title="Notch: low plus high">
+  The three outputs are parts of the input, so adding some of them back together gives more shapes for no more filtering. Low plus high is everything but the band. That is a notch: a filter that takes one region out and leaves both sides of it.
+
+  <Controls ids="cutoff resonance" />
+
+  <Spectrum
+    taps="notchResponse:out peakResponse:alt"
+    uprights="cutoff"
+    min={-48}
+    max={30}
+    height={280}
+  >
+    The two sums, measured as the curves of part 2 were. Try Resonance higher, and notice Notch
+    become narrower while Peak, the sum of stage 7, grows taller.
+  </Spectrum>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\text{notch} = \sig{out}{\text{low}} + \sig{alt3}{\text{high}} = \sig{in}{x} - k\,\sig{alt}{\text{band}}`}
+  />
+  <Fragment slot="readback">
+    The second form is the line of stage 1 moved round: the input with the band taken out of it. At the cutoff the low and high outputs are the same size, and one is a quarter of a cycle behind the input and the other a quarter ahead, so they are opposite and their sum is nothing. <Claim id="notch-depth">With the cutoff at 1 kHz the kit's notch is more than 100 dB down there</Claim>, at a Q of 0.7071, of 3 and of 10.
+
+    Q sets how wide the hole is. <Claim id="notch-width">An octave under the cutoff, at 500 Hz, the notch has taken off 2.8 dB at a Q of 0.7071 and 0.2 dB at a Q of 3</Claim>.
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/filters.h"
+    from="float notch(float x) {"
+    to="return low + high;"
+    mark="return low + high;"
+    name="notch"
+  />
+  <Fragment slot="listen">Hear the notch</Fragment>
+</StageBlock>
+
+<StageBlock tap="peak" n={7} title="Peak: low less high">
+  Take the difference of the same two outputs and, at the cutoff, the two opposites add. The result lifts the region the notch removed and leaves the rest at its own level. The kit has no function for it, so this stage is the lesson's own sum of the kit's two outputs. The device has it as one of its five types.
+
+  <M slot="equation" block t={String.raw`\text{peak} = \sig{out}{\text{low}} - \sig{alt3}{\text{high}}`} />
+  <Fragment slot="readback">
+    At the cutoff each of the two has gain <M t="Q" />, so the peak stands at twice <M t="Q" />: <Claim id="peak-2q">+15.6 dB at a Q of 3, with the cutoff at 1 kHz</Claim>. Far away on both sides it is at 0 dB. It is not the bell of an equaliser, which <Lesson id="equalising" /> builds. Its height cannot be set apart from its width, and the sound far above the cutoff comes out upside down, because there it is the high output with a minus sign.
+
+    The device makes all five types from one table: a weight for low, for band times <M t="k" />, and for high, a row for each type. When Type changes, the three weights slide to their new row over <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kSwitchSeconds = 0.010f;">10 ms</Src>, so the change does not click.
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/auto-filter/auto_filter.h"
+    from="// Low, band (times k) and high weights of each Type"
+    to="{1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 1.0f}, {1.0f, 0.0f, -1.0f},"
+    name="weights"
+  />
+  <Fragment slot="listen">Hear the peak</Fragment>
+</StageBlock>
+
+### The device around the loop
+
+That is the whole of the filter. The rest of this part is the device, which puts the loop in the path of a sound and moves it. Here is the device as a picture.
+
+<Flow
+  label="The sound divides three ways. One copy is measured by an envelope follower. One copy is filtered: brought to twice the sample rate, put through the loop and brought back. One copy waits, to be mixed with the filtered sound at the end. The envelope and a free-running oscillator are added up into the cutoff the loop stands at."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'split', shape: 'dot', from: 'in' },
+    { id: 'env', row: 1, from: 'split', tap: 'envelope', label: 'Envelope', n: 8, signal: 'value' },
+    { id: 'osc', row: 1, tap: 'lfo', label: 'Oscillator', n: 9, signal: 'value' },
+    { id: 'cut', row: 1, from: ['env', 'osc'], tap: 'sweep', label: 'Cutoff, in octaves', n: 10, signal: 'value' },
+    { id: 'loop', from: ['split', 'cut'], label: 'The loop, at twice the rate', n: 12 },
+    { id: 'mix', from: ['loop', 'split'], label: 'Slope, Drive, Mix', n: 13 },
+    { id: 'out', tap: 'out', shape: 'end', from: 'mix' },
+  ]}
+>
+  The row along the top is sound. The row under it carries numbers about the sound and never the
+  sound itself. Press the button of stage 13 below, and notice the last block light up.
+</Flow>
+
+<StageBlock tap="envelope" n={8} title="The envelope: how loud the sound is, as one number">
+  To open the filter when the playing gets louder, the device first has to know how loud the playing is. It takes the size of each sample, on whichever channel is larger, and smooths it with a one-pole that has two speeds: a fast one for when the sound is above the number it holds, and a slow one for when the sound is below it. <Lesson id="one-pole" cap /> builds that follower.
+
+  <Controls ids="envAttack envRelease" />
+
+  <Trace taps="envelope" min={0} max={0.5} unit="">
+    The envelope over the loop, as a share of full scale. Try the drums as the sound, and notice
+    it leap at each hit and sink between them. Then try Envelope release shorter, and notice it
+    sink faster.
+  </Trace>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\begin{gathered} \at{follower-step}{\sig{ctl}{\text{env}}} \leftarrow \sig{ctl}{\text{env}} + c\,\bigl(\at{follower-level}{|\sig{in}{x}|} - \sig{ctl}{\text{env}}\bigr) \\[0.6em] \at{follower-coeff}{c} = 1 - e^{-1/(T f_s)} \end{gathered}`}
+  />
+  <Fragment slot="readback">
+    On each sample the envelope moves a share <M t="c" /> of the way from where it is to the size of the sample. <M t="T" /> is a time in seconds: Envelope attack while the sample is larger than the envelope, and Envelope release while it is smaller. A short <M t="T" /> gives a large share, and the envelope gets there quickly. The device starts them at <Src path="cpp/devices/auto-filter/params.gen.h" at="6  envAttackMs: 1..500 ms, default 10">10 ms</Src> and <Src path="cpp/devices/auto-filter/params.gen.h" at="7  envReleaseMs: 10..2000 ms, default 200">200 ms</Src>. The envelope is read before Drive, so turning Drive up does not open the filter further.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/auto-filter/auto_filter.h"
+    from="// Envelope follower on the louder channel, before Drive."
+    to="(level > envelope_ ? attack_coeff_ : release_coeff_) * (level - envelope_));"
+    name="follower"
+    at={{
+      coeff: 'attack_coeff_ = 1.0f - std::exp(-1000.0f / (attack_ms * sr));',
+      level: 'const float level = kit::max(std::fabs(in[0]), std::fabs(in[1]));',
+      step: 'envelope_ = flush_denormal(envelope_ +',
+    }}
+  />
+</StageBlock>
+
+<StageBlock tap="lfo" n={9} title="The oscillator: a slow wave that is never heard">
+  The second thing that moves the cutoff does not listen to the sound at all. It is an oscillator that runs by itself between −1 and 1, far too slowly to be a note. It has six shapes. Sine and Triangle glide. The two saws climb or fall and snap back. Square jumps between two places. Random steps holds a new random value for each cycle.
+
+  <Controls ids="lfoRate lfoShape" />
+
+  <Trace taps="lfo" min={-1.2} max={1.2} unit="">
+    The oscillator over the loop. Try each Oscillator shape, and notice the line take that shape.
+    Try Oscillator rate, and notice the cycles crowd together or spread out.
+  </Trace>
+
+  <Fragment slot="readback">
+    The oscillator is a phase that goes from 0 to 1 and starts again, and a shape that turns the phase into a value. On each sample the phase steps on by Oscillator rate over the sample rate. The listing is the shapes.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/auto-filter/auto_filter.h"
+    from="static float lfo_value(int shape, float phase, float held) {"
+    to="return kit::SineTable::lookup(phase);"
+    name="shapes"
+  />
+</StageBlock>
+
+<StageBlock tap="sweep" n={10} title="The cutoff, added up in octaves">
+  The envelope and the oscillator each push the cutoff, and the two pushes are added. They are added in octaves and not in hertz, so a push covers the same musical distance wherever Cutoff stands, and as far up as down.
+
+  <Controls ids="envAmount lfoAmount" />
+
+  <Trace taps="lfo:ctl envelope:alt3 sweep:out" min={-3.5} max={5} unit="">
+    The oscillator, the envelope, and where the two put the cutoff, in octaves from its setting.
+    The first two run whether or not they are used. With both amounts at zero the cutoff's line
+    lies level on 0. Try Oscillator amount, and notice the cutoff take the oscillator's shape.
+    Then try Envelope amount on the drums, and notice the hits ride on top of it.
+  </Trace>
+
+  <Spectrogram tap="picture" top={12000} min={-90} max={-30}>
+    The device's output over the loop: time across, frequency up, and more sound where the picture
+    is stronger. Try Oscillator amount with the noise as the sound, and notice the top edge of the
+    sound trace the oscillator's shape. That edge is the cutoff.
+  </Spectrogram>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\at{sum-pitch}{f_c} = \text{Cutoff}\cdot 2^{\;\at{sum-octaves}{5\,m_e\,\sig{alt3}{\text{env}} \,+\, 3\,m_o\,\sig{ctl}{\text{osc}}}}`}
+  />
+  <Fragment slot="readback">
+    <M t={String.raw`m_e`} /> is Envelope amount and <M t={String.raw`m_o`} /> is Oscillator amount, each as a share of its full setting. At full amount a full-scale sound opens the filter <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kEnvOctaves = 5.0f;">five octaves</Src>, and the oscillator swings it <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kLfoOctaves = 3.0f;">three octaves</Src> each way. Envelope amount can be set below zero, and then a loud sound closes the filter. The result is kept between <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kMinCutoffHz = 20.0f;">20 Hz</Src> and <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kMaxCutoffHz = 20000.0f;">20 kHz</Src>.
+
+    Both are measured. <Claim id="osc-swing">With Oscillator amount at 100 the cutoff goes 3.00 octaves each way</Claim>. No loop of the bench reaches full scale, so the envelope does not reach its five. <Claim id="env-opens">With Envelope amount at 100 on the drums, the envelope's largest value is 0.31 and the cutoff's highest point is 1.56 octaves up</Claim>, which is five times it.
+
+    The sum is taken on every sample, and the filter's numbers are made again on every sample where it has changed.
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/auto-filter/auto_filter.h"
+    from="const float lfo = lfo_value(shape, static_cast<float>(lfo_phase_), lfo_held_);"
+    to="const float pitch = cutoff_log2_.next() + octaves;"
+    name="sum"
+    at={{
+      octaves: 'const float octaves = env_amount_.next() * 0.01f * kEnvOctaves * kit::min(1.0f, envelope_) +',
+      pitch: 'const float pitch = cutoff_log2_.next() + octaves;',
+    }}
+  />
+</StageBlock>
+
+<StageBlock tap="svfLevel" n={11} title="Why this form: its memories mean the same at any cutoff">
+  A filter that only ever stood still could be written several ways. This one is written to be swept, and what makes it good at that is what its two memories hold. They are the integrators' totals, which are near enough the band and low outputs themselves. Those mean the same thing at any cutoff. Change <M t="g" /> between two samples and both memories are still right.
+
+  The other common way to write the same curve is called the direct form. The kit keeps one for equalisers that stay put, and <Lesson id="equalising" /> is about it. Its two memories are mixtures of past inputs and outputs, weighted by the filter's numbers, and they mean something only beside the numbers that made them. The lab runs the kit's direct form as a low-pass beside the kit's state-variable filter, on the same sound and the same moving cutoff.
+
+  <Controls ids="lfoAmount lfoRate lfoShape" />
+
+  <Trace taps="directLevel:alt svfLevel:out" min={-40} max={30} unit="dB">
+    The largest sample in each hundredth of a second, in decibels, out of the two low-passes.
+    Standing still, the two lines lie on each other. Try Oscillator amount at 100 with Oscillator
+    shape at Square and the noise as the sound, and notice the direct form spike where the cutoff
+    jumps down.
+  </Trace>
+
+  <Check id="directApart" />
+
+  <Fragment slot="readback">
+    Standing still, the two are one filter: <Claim id="direct-still">their low-passes differ by more than 100 dB under the sound</Claim>, on the noise, the saw and the drums at the starting values.
+
+    Then the cutoff is made to jump six octaves at a time, with Oscillator shape at Square, Oscillator rate at its fastest and Oscillator amount at 100, on the noise. <Claim id="direct-jump">The direct form's largest sample is 27 dB above the state-variable filter's</Claim>. <Claim id="svf-holds">The state-variable filter's own largest sample stays within 0.1 dB of the largest in the noise going in</Claim>.
+
+    A smooth sweep is kinder. With Oscillator shape at Sine and the other two the same, the two filters reach the same peaks, though <Claim id="direct-smooth">their outputs are by then only 29 dB apart</Claim>.
+
+  </Fragment>
+</StageBlock>
+
+<StageBlock tap="deviceResponse" n={12} title="The device's stage: the same loop at twice the rate">
+  The Auto Filter's stage is its own code. It keeps the numbers made from the cutoff apart from the memories, so that both channels share one set, and it uses the library's tangent where the kit has its short one. The arithmetic is the kit's, line for line.
+
+  <Controls ids="type cutoff resonance" />
+
+  <Spectrum
+    taps="deviceResponse:out oneStageResponse:alt"
+    uprights="cutoff"
+    min={-90}
+    max={30}
+    height={280}
+  >
+    A single sample through a second copy of the device, against the same type from one stage of
+    the kit's filter at 48 kHz. Notice that the two lines part only in the top octave, where the
+    kit's dives towards half the sample rate. Try Cutoff higher, and notice them part sooner.
+  </Spectrum>
+
+  <Fragment slot="readback">
+    The lab runs the device's stage beside the kit's, at the kit's rate and on the same cutoff, and compares all three outputs. <Claim id="same-stage">At 1 kHz, on the noise, the check reads its floor, −140 dB</Claim>: the two cannot be told apart. <Claim id="same-stage-8k">At 8 kHz and a Q of 4, on the noise, they are 82 dB apart</Claim>, which is the size of the short tangent's error.
+
+    <Check id="sameStage" />
+
+    What the device changes is the rate. Its stage runs at twice the sample rate, between two of the kit's converters. Stage 2 said that a filter made of samples squeezes the top of the frequency axis towards half its sample rate. At twice the rate that squeeze is an octave further up, out of hearing, and the part of the curve that is heard is nearly straight. <Claim id="device-top">A low-pass at 1 kHz is at −54.8 dB at 20 kHz in the device and at −70.2 dB in one stage at 48 kHz</Claim>. The converters cost time: <Claim id="latency">a single sample comes out of the device 31 samples late</Claim>, which is <Src path="cpp/kit/oversample.h" at="static constexpr int kLatency = 31;">the converters' own figure</Src>.
+
+    <Listing
+      path="cpp/devices/auto-filter/SvfTptTone.h"
+      from="c.g = std::tan (kPi * cutoffHz / (float) sampleRate);"
+      to="c.a3 = c.g * c.a2;"
+      name="coeffs"
+    />
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/auto-filter/SvfTptTone.h"
+    from="const auto v3 = x - ic2;"
+    to="return { v2, v1, x - c.k * v1 - v2 };"
+    name="stage"
+  />
+</StageBlock>
+
+<StageBlock tap="out" n={13} title="Two stages, Drive and Mix">
+  Three more controls stand round the device's loop.
+
+  **Slope** puts a second stage after the first. Each then has <Src path="cpp/devices/auto-filter/auto_filter.h" at="stage_q_ = std::exp2(q_log2 * (1.0f - 0.5f * slope));">a Q of the square root of the one asked for</Src>, so that the two peaks multiply back to <M t="Q" />. **Drive** turns the sound up before the filter and then bends both memories of each stage, so that neither can hold more than a fixed amount. **Mix** blends the filtered sound with the sound that went in, which has been kept waiting for as long as the converters take.
+
+  <Controls ids="type slope drive mix" />
+
+  <Spectrum taps="in out" uprights="cutoff" min={-110} max={-10}>
+    The spectrum of the sound going in and of what the device makes of it. Try Slope at 24 dB, and
+    notice the output fall away twice as steeply past the dashed line. Try Mix lower, and notice
+    the output come back towards the input.
+  </Spectrum>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\at{wet-mix}{\sig{out}{\text{out}}} = \text{dry} + \text{Mix}\cdot(\text{wet} - \text{dry})`}
+  />
+  <Fragment slot="readback">
+    Dry is the input, late by the converters' delay. Wet is what came through the loop. Mix at 0 is all dry and Mix at 1 is all wet, and between them the blend runs in a straight line. <Claim id="mix-dry">With Mix at 0 on the drums, the output is the input 31 samples late, to more than 120 dB</Claim>.
+
+    The slopes are measured through the device. <Claim id="q-both-slopes">With the cutoff at 1 kHz the gain at the cutoff is +20.0 dB at a Q of 10 on either slope</Claim>. <Claim id="slope-24">With the cutoff at 250 Hz and Slope at 24 dB the pair falls 24.3 dB between 1 and 2 kHz</Claim>.
+
+    So are the types. <Claim id="device-types">With the cutoff at 1 kHz and a Q of 3, the device's band-pass passes the cutoff at 0.0 dB, its notch is more than 100 dB down there, and its peak is at +15.6 dB</Claim>: the sums of stages 6 and 7, made from the device's own stage.
+
+    Drive is in full <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kDriveFullAmountDb = 3.0f;">from 3 dB</Src> up. Half of what it adds, in decibels, is taken off again after the filter. Part 7 measures what it is for.
+
+    <Listing
+      path="cpp/devices/auto-filter/auto_filter.h"
+      from="float y = weights[0] * o.low + weights[1] * o.band + weights[2] * o.high;"
+      to="return y;"
+      name="filter"
+    />
+
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/auto-filter/auto_filter.h"
+    from="const float dry = dry_[c].read(kLatency);"
+    to="out[c] = dry + (y - dry) * wet;"
+    name="wet"
+    at={{ mix: 'out[c] = dry + (y - dry) * wet;' }}
+  />
+  <Fragment slot="listen">Hear the device</Fragment>
+</StageBlock>
+
+### All the stages at once
+
+Here is every stage that moves in time, on one time axis: the sound going in, the two numbers the device works out from it, the cutoff they add up to, the five outputs of the kit's filter on that cutoff, and the device's own output.
+
+<Lanes
+  taps="in envelope lfo sweep high band low notch peak out"
+  ranges={{ envelope: [0, 0.5], lfo: [-1.2, 1.2], sweep: [-3.2, 3.2] }}
+  label="The input, the envelope, the oscillator, the cutoff in octaves, the five outputs of the kit's filter and the device's output, one under another against time."
+>
+  Try Oscillator amount in stage 10, and notice the cutoff's lane begin to swing and the lanes
+  under it swell and thin in turn: the high output is largest when the cutoff is low, and the low
+  output when it is high.
+</Lanes>
+
+</Part>
+
+<Part id="ways" title="Six things people do with a filter that moves.">
+
+Each card sets the page to its settings and plays them. None of them is a rule. They are places to start from, and the controls stay yours to move once a card is sounding.
+
+<Ways>
+  <Way title="Sweep it slowly" tag="Oscillator amount up, Oscillator rate down" set="slow">
+    <Still
+      slot="picture"
+      taps="picture"
+      set="slow"
+      view="spectrogram"
+      top={8000}
+      caption="The output over the four seconds: time across, frequency up. Each level line is one harmonic of the saw. The top edge of the sound rises and falls once, slowly, and the harmonics come and go under it."
+    />
+
+    A sound that holds still is given a slow movement of its own. Set Oscillator rate so that a cycle lasts a bar or longer, and keep Resonance low enough that the moving edge colours the sound without whistling. Sine and Triangle glide. With Slope at 24 dB the edge is plainer.
+
+  </Way>
+  <Way title="Let the playing open it" tag="Envelope amount above zero" set="wah">
+    <Still
+      slot="picture"
+      taps="sweep"
+      set="wah"
+      caption="Where the band stands over the four seconds, in octaves above its setting. It jumps at each picked note and falls back before the next."
+    />
+
+    A band-pass with a high Resonance picks one region out of a sound, and the envelope moves that region with the player's hand. <Claim id="way-wah">On the picked guitar the loudest note lifts the band 0.7 octaves</Claim>. Mix below 1 keeps some of the plain sound under it. Shorten Envelope release for a quicker answer, and see part 7 for what happens when it is too short.
+
+  </Way>
+  <Way title="Loud goes dark" tag="Envelope amount below zero" set="duck">
+    <Still
+      slot="picture"
+      taps="sweep"
+      set="duck"
+      caption="Where the cutoff stands over the four seconds of the drums, in octaves from its setting. Every hit pushes it down, the hardest hits furthest, and it climbs back between them."
+    />
+
+    Turn Envelope amount below zero and the filter closes as the sound gets louder. Start with Cutoff high, so that quiet playing passes whole. <Claim id="way-duck">On the drums the loudest hit pushes the cutoff 0.8 octaves down</Claim>. It takes the top off the hardest hits and leaves the soft ones bright.
+
+  </Way>
+  <Way title="A hole that moves" tag="Type at Notch, swept" set="hole">
+    <Still
+      slot="picture"
+      taps="picture"
+      set="hole"
+      view="spectrogram"
+      top={8000}
+      caption="The output over the four seconds: time across, frequency up. The noise fills the picture, and a line of missing sound runs through it, climbing and then falling."
+    />
+
+    A notch takes one region out and passes the rest, so on a full sound it is heard only when it moves. Here a slow oscillator carries the hole up and down through noise, which has every frequency in it, so the hole is plain to see and to hear. Then choose the mix as the sound and listen for it there. Raise Resonance to narrow it, lower it to widen it.
+
+  </Way>
+  <Way title="Strike it" tag="Resonance high, a click going in" set="ping">
+    <Still
+      slot="picture"
+      taps="out"
+      set="ping"
+      span={0.03}
+      caption="The first three hundredths of a second of the output. A click goes in at the left edge. What comes out is not a click: it is a short note that dies away."
+    />
+
+    Stage 4 showed that a filter with a high Resonance answers a single sample with a ring at its cutoff. So a click through the filter is a small struck note. Cutoff is its pitch, and Resonance is how long it lasts. Any sharp sound will strike it: try the drums.
+
+  </Way>
+  <Way title="Step it at random" tag="Oscillator shape at Random steps" set="steps">
+    <Still
+      slot="picture"
+      taps="sweep"
+      set="steps"
+      span={2}
+      caption="Where the band stands over two seconds, in octaves from its setting. It holds a place, then jumps to another, with no pattern."
+    />
+
+    With Oscillator shape at Random steps the oscillator holds a new random value for each of its cycles. On a band-pass, a held chord becomes a run of different colours. Mix at half lets the chord itself through beside them.
+
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Six ways it goes wrong, three of them to hear.">
+
+<Faults>
+  <Fault title="Resonance is gain" set="howl">
+    <Still
+      slot="picture"
+      taps="in out"
+      set="howl"
+      view="spectrum"
+      min={-110}
+      max={0}
+      top={12000}
+      caption="The saw going in and coming out. The output's fourth spike, where the cutoff is, stands far above the input's and above every other spike in the picture."
+    />
+
+    The number on Resonance is how many times larger a tone on the cutoff comes out. <Claim id="gain-q">At a Q of 25 a tone on the cutoff comes out 28.0 dB up</Claim>, through the kit's filter and through the device alike. On a sound with a harmonic on the cutoff the whole level rises: <Claim id="fault-howl">with the cutoff on the saw's harmonic at 440 Hz and Resonance at 10, the output is 7.2 dB louder than the saw that went in</Claim>. The kit's filter has no guard against this, which is why devices built on it keep their Resonance modest.
+
+    Turn Resonance down, or turn the sound down before the filter. The Auto Filter has a third answer, which is Drive. It bends both memories so that the loop cannot store more than a fixed amount, however long it is pushed. <Claim id="drive-caps">A full-scale tone on the cutoff at a Q of 25 comes out at 0.24 of full scale with 6 dB of Drive</Claim>, where without Drive it would come out 25 times too large for a sample to hold. <Claim id="fault-tamed">The saw, at this card's settings with 6 dB of Drive added, comes out 0.3 dB quieter than it went in</Claim>. <Hear set="tamed" label="Hear it with Drive" />
+
+  </Fault>
+  <Fault title="An envelope that chatters" set="chatter">
+    <Still
+      slot="picture"
+      taps="sweep"
+      set="chatter"
+      from={0.7}
+      span={0.4}
+      caption="Four tenths of a second of where the cutoff stands, on a bass note. It does not rise once and fall once. It shakes up and down with every cycle of the note."
+    />
+
+    A bass note is a slow wave. With Envelope attack and Envelope release both short, the envelope follows the wave itself, up and down with every cycle, and not the loudness of the note. The cutoff then shakes at the speed of the note. Listen for a roughness on each note that is not in the bass going in.
+
+    <Claim id="fault-chatter">On the bass, with Envelope release at 10 ms, the cutoff travels 83 octaves up and down over the four seconds. With Envelope release at 200 ms and nothing else changed, it travels 19 octaves</Claim>. Lengthen Envelope release until the cutoff moves once for each note.
+
+  </Fault>
+  <Fault title="A cutoff that jumps" set="jump">
+    <Still
+      slot="picture"
+      taps="picture"
+      set="jump"
+      view="spectrogram"
+      top={8000}
+      caption="The output over the four seconds: time across, frequency up. The top edge of the sound is a row of flat steps with upright sides, and each side is a jump."
+    />
+
+    The loop itself does not misbehave when its cutoff jumps, as stage 11 measured. But the sound on either side of a jump is two different sounds, and the join between them can be heard. The device slides each of its own controls over <Src path="cpp/kit/device.h" at="static constexpr float kSmoothingSeconds = 0.005f;">5 ms</Src>, so that a hand on Cutoff makes no click. Its oscillator is not smoothed: a square is meant to snap. If the snap is not wanted, choose Triangle or Sine, or lower Resonance so that there is less of an edge to move.
+
+  </Fault>
+  <Fault title="The top octave bends">
+    The tangent of stage 2 puts the cutoff in the right place and nothing else. Every other frequency is still squeezed towards half the sample rate, so a low-pass falls faster than it should as it gets there. <Claim id="warp-slope">With the cutoff at 1 kHz the kit's low-pass falls 13.3 dB between 4 and 8 kHz</Claim>, more than a decibel over its slope lower down.
+
+    For a filter inside a detector that does not matter. For a filter that is the sound, do as the device does and run it at twice the rate, where the squeeze is out of hearing. Stage 12 measures the difference.
+
+  </Fault>
+  <Fault title="It is late">
+    The device's output is behind its input by the delay stage 12 measured, because of the converters round its loop. Inside the device that is allowed for: Mix blends the filtered sound with an input that has been held back by the same amount. Outside it, a copy of the sound that goes round the device arrives early. The device reports its delay, so a host that knows to ask can hold the other path back.
+
+    The stages read from the kit's filter in part 5 are not delayed at all. Drawn against them, the device's output sits a little to the right.
+
+  </Fault>
+  <Fault title="A ring that never quite ends">
+    A ring dies away by a fixed ratio for ever, into numbers so small that some processors handle them very slowly. Nothing can be heard of this, and a device left ringing into silence would still cost more and more to run. Both memories of the kit's filter and of the device's stage are passed through a guard that calls <Src path="cpp/common/dsp_util.h" at="constexpr float kDenormalThreshold = 1.0e-15f;">anything under a very small threshold</Src> nothing at all, so a filter left alone reaches exact silence.
+
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="A low-pass filter only takes sound away.">
+    With Resonance above its starting value it also adds. The prediction of part 1 measures a tone on the cutoff coming out ten times as large, and the first fault of part 7 measures a whole sound coming out louder than it went in.
+  </Myth>
+  <Myth says="The cutoff is the frequency where the sound stops.">
+    Nothing stops at the cutoff. Part 2 measures the low-pass there at half power, and an octave further on it has lost only its 12 dB. The cutoff is where the curve turns the corner, and Slope and Resonance say how sharp the corner is.
+  </Myth>
+  <Myth says="Low-pass, band-pass and high-pass are three different filters.">
+    In this filter they are three places on one loop, worked out together on every sample whether or not they are used. Stage 1 of part 5 adds them up again and gets the input back. Type only chooses which of them to listen to.
+  </Myth>
+  <Myth says="Two gentle filters in a row make the same thing.">
+    Two one-poles one after the other do fall 12 dB an octave in the end, and that is all they share with the loop. <Claim id="two-poles">Two of the kit's one-poles in a row, each with its cutoff at 1 kHz, pass that frequency at −6.0 dB</Claim>, twice the loss of the loop at its starting Resonance, and no setting of Resonance changes it, because neither of them has a brake to let go of. The corner of their curve is as soft as a corner can be.
+
+    <Still
+      taps="twoPoleResponse:alt lowResponse:out"
+      values={{ resonance: 4 }}
+      view="spectrum"
+      min={-48}
+      max={24}
+      caption="Two one-poles in a row and the loop's low-pass, on one cutoff, with Resonance at 4. The loop rises to a point at the cutoff. The two one-poles sag there, and Resonance does not reach them."
+    />
+
+  </Myth>
+  <Myth says="24 dB is twice the filter, so it has twice the peak.">
+    The device gives each of its two stages the square root of the Resonance asked for, so that their peaks multiply back to the one asked for. Stage 13 measures the same gain at the cutoff on either Slope. What doubles is the steepness past the corner.
+  </Myth>
+  <Myth says="Resonance adds a tone of its own to the sound.">
+    This filter adds nothing that was not put in. It rings only when something strikes it, and the ring dies away: stage 5 measures that no setting makes it answer a single sample with anything larger than that sample. What is heard as the filter's tone is the part of the sound that lies near the cutoff, turned up.
+  </Myth>
+</Myths>
+
+</Part>
