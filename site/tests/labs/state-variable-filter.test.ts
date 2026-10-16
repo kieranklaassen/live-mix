@@ -214,12 +214,12 @@ describe('the state-variable filter', () => {
     expectWritten(levelDb(one, 1000) - levelDb(one, 2000), '5.8 dB')
   })
 
-  it('brings the saw’s harmonic at 440 Hz out 12.0 dB up with the cutoff on it and Resonance at 4 (claim sing-harmonic)', async () => {
+  it('brings the saw’s harmonic at 440 Hz out 12.04 dB up with the cutoff on it and Resonance at 4 (claim sing-harmonic)', async () => {
     const filter = await lab(NAME)
     const result = await played(filter, 'sing')
     const [out, into] = [tap(result, 'low'), tap(result, 'in')]
     // The whole loop holds a whole number of cycles of 440 Hz, so the sum is that harmonic alone.
-    expectWritten(levelDb(out, 440, out.length) - levelDb(into, 440, into.length), '12.0 dB')
+    expectWritten(levelDb(out, 440, out.length) - levelDb(into, 440, into.length), '12.04 dB')
   })
 
   // ── The kit's filter ───────────────────────────────────────────────────────────────────────
@@ -258,10 +258,10 @@ describe('the state-variable filter', () => {
     expectWritten(levelDb(low, 1000) - levelDb(low, 2000), '12.1 dB')
   })
 
-  it('loses 6.0 dB an octave either side of the cutoff on the band-pass, from 1 to 2 kHz above a cutoff of 250 Hz and from 31.25 to 62.5 Hz below it (claim band-slope)', async () => {
+  it('loses 6.04 dB over the octave from 1 to 2 kHz above a cutoff of 250 Hz on the band-pass, and 6.0 dB over the octave from 31.25 to 62.5 Hz below it (claim band-slope)', async () => {
     const filter = await lab(NAME)
     const band = tap(filter.render(unitSample(), { cutoff: 250 }), 'band')
-    expectWritten(levelDb(band, 1000) - levelDb(band, 2000), '6.0 dB')
+    expectWritten(levelDb(band, 1000) - levelDb(band, 2000), '6.04 dB')
     expectWritten(levelDb(band, 62.5) - levelDb(band, 31.25), '6.0 dB')
   })
 
@@ -378,14 +378,14 @@ describe('the state-variable filter', () => {
     }
   })
 
-  it('peaks the low-pass 1.6 % under a cutoff of 1 kHz at a Q of 4 (claim low-peak-under) and 6.4 % under at 2 (claim low-peak-q2)', async () => {
+  it('peaks the low-pass 1.6 % under a cutoff of 1 kHz at a Q of 4 (claim low-peak-under) and 6.44 % under at 2 (claim low-peak-q2)', async () => {
     const filter = await lab(NAME)
     const under = (resonance: number) => {
       const low = tap(filter.render(unitSample(), { cutoff: 1000, resonance }), 'low')
       return 100 * (1 - peakHz(low, 700, 1300, ringLength(1000, resonance)) / 1000)
     }
     expectWritten(under(4), '1.6 %')
-    expectWritten(under(2), '6.4 %')
+    expectWritten(under(2), '6.44 %')
   })
 
   it('rings 27 dB down after Q cycles, with the cutoff at 1 kHz (claim ring-27)', async () => {
@@ -480,11 +480,11 @@ describe('the state-variable filter', () => {
     }
   })
 
-  it('takes 2.8 dB off an octave under the cutoff, at 500 Hz, with the notch at a Q of 0.7071, and 0.2 dB at 3 (claim notch-width)', async () => {
+  it('takes 2.755 dB off an octave under the cutoff, at 500 Hz, with the notch at a Q of 0.7071, and 0.2 dB at 3 (claim notch-width)', async () => {
     const filter = await lab(NAME)
     const octaveUnder = (resonance: number) =>
       levelDb(tap(filter.render(unitSample(), { cutoff: 1000, resonance }), 'notch'), 500)
-    expectWritten(-octaveUnder(0.7071), '2.8 dB')
+    expectWritten(-octaveUnder(0.7071), '2.755 dB')
     expectWritten(-octaveUnder(3), '0.2 dB')
   })
 
@@ -609,13 +609,22 @@ describe('the state-variable filter', () => {
     expectWritten(levelDb(low, 4000) - levelDb(low, 8000), '13.3 dB')
   })
 
-  it('passes a tone on the cutoff 28.0 dB up at a Q of 25 (claim gain-q)', async () => {
+  it('passes a tone on the cutoff 27.96 dB up at a Q of 25 (claim gain-q)', async () => {
     const filter = await lab(NAME)
     const tone = sine(440, 0.1, seconds(2))
     const result = filter.render(tone, { cutoff: 440, resonance: 25 })
     for (const id of ['low', 'out']) {
-      expectWritten(gainToDb(rms(tap(result, id)) / rms(tone.left)), '28.0 dB')
+      expectWritten(gainToDb(rms(tap(result, id)) / rms(tone.left)), '27.96 dB')
     }
+  })
+
+  it('passes what the page can play at the top of Resonance: at a Q of 25 with the cutoff on the saw’s note, 110 Hz, the device’s loudest sample is 4.0 times full scale (claim loud-range)', async () => {
+    const filter = await lab(NAME)
+    const saw = await benchSource('saw', seconds(4))
+    const loudest = topOf(filter.render(saw, { cutoff: 110, resonance: 25 }), 'out')
+    expectWritten(loudest, '4.0 times')
+    // The page's player has room for twice full scale: this is past it, and no card is.
+    expect(loudest).toBeGreaterThan(2)
   })
 
   it('holds a full-scale tone on the cutoff at a Q of 25 to 0.24 of full scale with 6 dB of drive, where without it the tone comes out at 25 times full scale (claim drive-caps)', async () => {
@@ -629,14 +638,14 @@ describe('the state-variable filter', () => {
     expectWritten(peak(tap(filter.render(tone, { ...values, drive: 6 }), 'out')), '0.24')
   })
 
-  it('opens the cutoff 1.56 octaves on the loudest hit of the drums with Envelope amount at 100, five times the envelope’s 0.311 (claim env-opens)', async () => {
+  it('opens the cutoff 1.56 octaves on the loudest hit of the drums with Envelope amount at 100, five times the envelope’s 0.31 (claim env-opens)', async () => {
     const filter = await lab(NAME)
     const drums = await benchSource('drums', seconds(4))
     const result = filter.render(drums, { envAmount: 100 })
     const opened = range(tap(result, 'sweep')).hi
     const envelope = range(tap(result, 'envelope')).hi
     expectWritten(opened, '1.56 octaves')
-    expectWritten(envelope, '0.311')
+    expectWritten(envelope, '0.31')
     expect(opened).toBeCloseTo(5 * envelope, 3)
     // The envelope is read before Drive: with Drive at its highest it is the same line.
     const driven = filter.render(drums, { envAmount: 100, drive: 24 })

@@ -404,7 +404,7 @@ describe('the one-pole filter and smoothing', () => {
     }
   })
 
-  it('stops 7 float steps short of a steady 1 at 500 Hz, and leaves that in the high-pass, 128 dB down (claim never-arrives) (claim never-silent)', async () => {
+  it('stops 7 float steps short of a steady 1 at 500 Hz, and leaves that in the high-pass, 127.6 dB down (claim never-arrives) (claim never-silent)', async () => {
     const pole = await lab('one-pole')
     const out = pole.render(constant(1, seconds(1)), { cutoff: 500 })
     const low = tap(out, 'low')
@@ -413,10 +413,10 @@ describe('the one-pole filter and smoothing', () => {
     expectWritten(short / FLOAT_STEP, '7 float steps')
     expect(short / FLOAT_STEP).toBeCloseTo(7, 5)
     expect(high[high.length - 1]).toBe(Math.fround(short))
-    expectWritten(-20 * Math.log10(short), '128 dB')
+    expectWritten(-20 * Math.log10(short), '127.6 dB')
   })
 
-  it("is the filter inside the Tremolo: the device's low band, read out of it sample by sample, and the lab's own one-pole are the same, sample for sample (claim split)", async () => {
+  it("is the filter inside the Tremolo: on the noise and the saw the device's low band and the lesson's low-pass are the same, sample for sample, and on every loop tried the check reads its floor, −140 dB (claim split)", async () => {
     const pole = await lab('one-pole')
     for (const id of ['noise', 'drums', 'clicks', 'saw']) {
       const source = await benchSource(id, seconds(4))
@@ -641,7 +641,7 @@ describe('the one-pole filter and smoothing', () => {
     expect(number.every((v, n) => n === 0 || v < number[n - 1]!)).toBe(true)
   })
 
-  it('the running average of 31 samples takes a tone at 1,548 Hz out, more than 60 dB down, and lets a higher one at 2,323 Hz through 13.4 dB down (claim build-holes); one number of memory passes the first 10.3 dB down and the second 13.6 dB down (claim build-one-number)', async () => {
+  it('the running average of 31 samples takes a tone at 1,548 Hz out, more than 60 dB down, and lets a higher one at 2,323 Hz through 13.4 dB down (claim build-holes); one number of memory passes the first 10.34 dB down and the second 13.6 dB down (claim build-one-number)', async () => {
     const pole = await lab('one-pole')
     // 1,548 Hz is the tone that fits the 31 samples exactly once: 48,000 / 31.
     const fits = RATE / 31
@@ -656,11 +656,11 @@ describe('the one-pole filter and smoothing', () => {
     expectWritten(1.5 * fits, '2,323 Hz')
     expectWritten(down(0, fits), 'more than 60 dB')
     expectWritten(down(0, 1.5 * fits), '13.4 dB')
-    expectWritten(down(1, fits), '10.3 dB')
+    expectWritten(down(1, fits), '10.34 dB')
     expectWritten(down(1, 1.5 * fits), '13.6 dB')
     // Each number goes with its piece: at the other step neither is what is measured.
     expect(matchesWritten(down(1, fits), 'more than 60 dB')).toBe(false)
-    expect(matchesWritten(down(0, fits), '10.3 dB')).toBe(false)
+    expect(matchesWritten(down(0, fits), '10.34 dB')).toBe(false)
     expect(matchesWritten(down(0, 1.5 * fits), '13.6 dB')).toBe(false)
   })
 

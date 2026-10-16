@@ -400,13 +400,13 @@ describe('equalising with biquads', () => {
     expectWritten(gainAt(eq, 'built', 3000, { ...wire, presence: 5, build: 1 }), '5.00 dB')
   })
 
-  it('adds the shelves at step 3: with Low at +6 dB a tone at 120 Hz comes out 3.00 dB up and one at 30 Hz 5.99 dB up, and neither moves with the piece taken out (claim build-shelf)', async () => {
+  it('adds the shelves at step 3: with Low at +6 dB a tone at 120 Hz comes out 3.00 dB up and one at 30 Hz 6.0 dB up, and neither moves with the piece taken out (claim build-shelf)', async () => {
     const eq = await lab(NAME)
     const values = { ...wire, low: 6 }
     expectWritten(gainAt(eq, 'built', 120, { ...values, build: 2 }), '3.00 dB')
-    expectWritten(gainAt(eq, 'built', 30, { ...values, build: 2 }), '5.99 dB')
+    expectWritten(gainAt(eq, 'built', 30, { ...values, build: 2 }), '6.0 dB')
     expect(matchesWritten(gainAt(eq, 'built', 120, { ...values, build: 1 }), '3.00 dB')).toBe(false)
-    expect(matchesWritten(gainAt(eq, 'built', 30, { ...values, build: 1 }), '5.99 dB')).toBe(false)
+    expect(matchesWritten(gainAt(eq, 'built', 30, { ...values, build: 1 }), '6.0 dB')).toBe(false)
     expectWritten(gainAt(eq, 'built', 9000, { ...wire, air: 6, build: 2 }), '3.00 dB')
   })
 
@@ -576,14 +576,14 @@ describe('equalising with biquads', () => {
     }
   })
 
-  it('is half its decibels up at 781 Hz and 1,280 Hz at Q 2, and the centre over the distance between them is that Q (claim bell-width)', async () => {
+  it('is half its decibels up at 781.2 Hz and 1,279.6 Hz at Q 2, and the centre over the distance between them is that Q (claim bell-width)', async () => {
     const eq = await lab(NAME)
     const roots = eq.render(short(), {}).taps.bellRoots!.channels_data[0]!
     const curve = (hz: number) => fromRoots(roots, hz).db
     const lo = crossing(curve, 500, 1000, 3)
     const hi = crossing(curve, 1000, 2000, 3)
-    expectWritten(lo, '781 Hz')
-    expectWritten(hi, '1,280 Hz')
+    expectWritten(lo, '781.2 Hz')
+    expectWritten(hi, '1,279.6 Hz')
     expectWritten(1000 / (hi - lo), '2.0')
     // Steady tones through the bell say the same.
     expectWritten(gainAt(eq, 'bell', lo, {}), '+3.00 dB')
@@ -601,13 +601,13 @@ describe('equalising with biquads', () => {
 
   // ---- shelves and cuts -----------------------------------------------------------------------
 
-  it('lifts +3.00 dB at 120 Hz with Low at +6, +5.63 dB an octave under and +0.37 dB an octave over (claim shelf-low)', async () => {
+  it('lifts +3.00 dB at 120 Hz with Low at +6, +5.63 dB an octave under and +0.4 dB an octave over (claim shelf-low)', async () => {
     const eq = await lab(NAME)
     const values = { ...wire, low: 6 }
     expectWritten(gainAt(eq, 'afterLow', 120, values), '+3.00 dB')
     expectWritten(gainAt(eq, 'afterLow', 60, values), '+5.63 dB')
-    expectWritten(gainAt(eq, 'afterLow', 240, values), '+0.37 dB')
-    expectWritten(gainAt(eq, 'afterLow', 30, values), '+5.99 dB')
+    expectWritten(gainAt(eq, 'afterLow', 240, values), '+0.4 dB')
+    expectWritten(gainAt(eq, 'afterLow', 30, values), '+6.0 dB')
   })
 
   it('lifts +3.00 dB at 9 kHz with Air at +6 and +5.99 dB at 20 kHz (claim shelf-air)', async () => {
@@ -783,16 +783,16 @@ describe('equalising with biquads', () => {
 
   // ---- phase ----------------------------------------------------------------------------------
 
-  it('turns the phase 19.4 degrees forward at 781 Hz and 19.4 degrees back at 1,280 Hz for the +6 dB bell, nothing at its centre, and 36.8 degrees at +12 dB (claim bell-phase)', async () => {
+  it('turns the phase 19.4 degrees forward at 0.78 kHz and 19.4 degrees back at 1.28 kHz for the +6 dB bell, nothing at its centre, and 36.8 degrees at +12 dB (claim bell-phase)', async () => {
     const eq = await lab(NAME)
     const { taps } = eq.render(short(), {})
     const roots = taps.bellRoots!.channels_data[0]!
     const forward = greatest((hz) => fromRoots(roots, hz).degrees, 400, 1000)
     const back = greatest((hz) => -fromRoots(roots, hz).degrees, 1000, 2500)
     expectWritten(forward.value, '19.4 degrees')
-    expectWritten(forward.hz, '781 Hz')
+    expectWritten(forward.hz / 1000, '0.78 kHz')
     expectWritten(back.value, '19.4 degrees')
-    expectWritten(back.hz, '1,280 Hz')
+    expectWritten(back.hz / 1000, '1.28 kHz')
     expect(Math.abs(fromRoots(roots, 1000).degrees)).toBeLessThan(0.05)
     // The phase the lab draws, from the bell's impulse response, is the phase the roots give.
     const phase = taps.bellPhase!
@@ -968,6 +968,17 @@ describe('equalising with biquads', () => {
     const result = await played(eq, 'over')
     expectWritten(topOf(result, 'out'), '3.6 dB')
     expectWritten(-topOf(result, 'in'), '4.4 dB')
+  })
+
+  it('passes what the page can play with every band up: all four bands at +12 dB put the loudest sample of the drums, on either side, at 2.1 times full scale, and no card comes near that (claim loud-range)', async () => {
+    const eq = await lab(NAME)
+    const drums = await benchSource('drums', seconds(4))
+    const { taps } = eq.render(drums, { low: 12, body: 12, presence: 12, air: 12 })
+    const loudest = Math.max(...taps.out!.channels_data.map((side) => peak(side)))
+    expectWritten(loudest, '2.1 times')
+    expect(loudest).toBeGreaterThan(2)
+    // The loudest card of the page is the fault's own, under 4 dB over full scale, which is 1.6 times.
+    expect(topOf(await played(eq, 'over'), 'out')).toBeLessThan(4)
   })
 
   it('thins the mix when too much is cut away: 40 to 100 Hz comes out 44 dB lower and the loop 7.3 dB quieter (claim fault-thin)', async () => {

@@ -52,7 +52,7 @@ So the sound has a note that is wanted and an edge that is not. A fader is no he
 
 ### The filter you already have is too gentle
 
-The tool is called a low-pass filter: it lets the low frequencies pass and holds the high ones back. The frequency where it starts to hold back is its cutoff. <Lesson id="one-pole" cap /> built the smallest one there is, a filter with a single memory, which is called a one-pole. That lesson says what a pole is. Here it is on the saw, with its cutoff two octaves above the note.
+The tool is called a low-pass filter: it lets the low frequencies pass and holds the high ones back. The frequency where the holding back sets in is its cutoff. <Lesson id="one-pole" cap /> built the smallest one there is, a filter with a single memory, which is called a one-pole. That lesson says what a pole is, and measures what a cutoff marks: the frequency at which half the power still passes. Here it is on the saw, with its cutoff two octaves above the note.
 
 <Still
   taps="in onePole"
@@ -66,7 +66,7 @@ The tool is called a low-pass filter: it lets the low frequencies pass and holds
 
 It has dulled the sound. It has not closed it. <Claim id="one-pole-short">With its cutoff at 440 Hz the one-pole takes 16.2 dB off what the saw holds between 2 and 5 kHz</Claim>, and in the picture the output's spikes still stand well clear of the bottom all the way to the right. <Hear set="onepole" label="Hear it through one pole" />
 
-The reason is the one-pole's slope. Past its cutoff it lets through half as much for every doubling of frequency, which is 6 dB an octave, and it has no other setting. Measured on the kit's own, <Claim id="one-pole-slope">with the cutoff at 250 Hz it falls 5.8 dB between 1 and 2 kHz</Claim>. The saw's harmonics already fall away at about that rate by themselves, so the filter does little more than tilt a sound that was tilted to begin with.
+The reason is the one-pole's slope, which stage 3 of that lesson explains. Past its cutoff it lets through half as much for every doubling of frequency, which is 6 dB an octave, and it has no other setting. Measured on the kit's own, <Claim id="one-pole-slope">with the cutoff at 250 Hz it falls 5.8 dB between 1 and 2 kHz</Claim>, two octaves over the cutoff, where the slope is not yet quite the whole 6. The saw's harmonics already fall away at about that rate by themselves, so the filter does little more than tilt a sound that was tilted to begin with.
 
 A one-pole lacks a second thing, and it is the one musicians miss more. It cannot favour a frequency. One memory can only lean towards its input, so its curve runs level and then downhill and has no way to rise. A filter that could lift the frequencies right at its cutoff would mark the place where it closes, and that mark is most of what people mean when they say a filter has a sound.
 
@@ -104,7 +104,7 @@ The spring has something a single memory has not: a brake. With a strong brake t
   caption="The same low-pass with Resonance raised. Find the fourth spike from the left, where the cutoff is: the output's stands above the input's. Its neighbours on either side are lifted too, by less. Further to the right the spikes still fall away."
 />
 
-<Claim id="sing-harmonic">With the cutoff on the saw's fourth harmonic, at 440 Hz, and Resonance at 4, that harmonic comes out 12.0 dB up</Claim>. One harmonic has been picked out of the buzz and turned up more than any other, while the high ones are still taken away. <Hear set="sing" label="Hear the harmonic stand out" />
+<Claim id="sing-harmonic">With the cutoff on the saw's fourth harmonic, at 440 Hz, and Resonance at 4, that harmonic comes out 12.04 dB up</Claim>. One harmonic has been picked out of the buzz and turned up more than any other, while the high ones are still taken away. <Hear set="sing" label="Hear the harmonic stand out" />
 
 <Predict
   question="Resonance goes up again, from 4 to 10, and a steady tone exactly on the cutoff goes in. A low-pass filter is supposed to take sound away. How large does that tone come out?"
@@ -160,7 +160,7 @@ Two controls set everything in the picture.
 - **Cutoff** is where. It slides all three lines along the frequency axis, and the place where they meet goes with it.
 - **Resonance** is how sharply. It lifts the Low-pass and High-pass lines around the cutoff and leaves them as they were far from it, and it narrows the Band-pass line around the cutoff.
 
-The slopes are fixed, and they are what the second integrator bought. <Claim id="high-slope">Well below the cutoff the high-pass rises 12.0 dB an octave, measured from 125 to 250 Hz with the cutoff at 1 kHz</Claim>. <Claim id="low-slope">With the cutoff at 250 Hz the low-pass falls 12.1 dB between 1 and 2 kHz</Claim>. <Claim id="band-slope">The band-pass loses 6.0 dB an octave on either side, measured from 1 to 2 kHz above that cutoff and from 31.25 to 62.5 Hz below it</Claim>. The band-pass has half the slope because the sound it carries has been through one integrator and not two.
+The slopes are fixed, and they are what the second integrator bought. <Claim id="high-slope">Well below the cutoff the high-pass rises 12.0 dB an octave, measured from 125 to 250 Hz with the cutoff at 1 kHz</Claim>. <Claim id="low-slope">With the cutoff at 250 Hz the low-pass falls 12.1 dB between 1 and 2 kHz</Claim>. <Claim id="band-slope">The band-pass loses 6.04 dB over the octave from 1 to 2 kHz above that cutoff, and 6.0 dB over the octave from 31.25 to 62.5 Hz below it</Claim>. The band-pass has half the slope because the sound it carries has been through one integrator and not two.
 
 </Part>
 
@@ -368,7 +368,7 @@ The listings are the lab's own source. This code was written for the lesson, to 
       name="moved"
     />
 
-    Then `g` is made again from the new cutoff, on every sample where it has changed, and that is all. Nothing in the loop has to be told. Its two totals are the band and low sounds themselves, near enough, and they mean the same thing at any cutoff.
+    Then `g` is made again from the new cutoff, on every sample where it has changed, and that is all. Nothing in the loop has to be told, and stage 11 of part 5 says why.
 
     <Listing
       path="site/labs/state-variable-filter.cpp"
@@ -596,7 +596,7 @@ Stages 1 to 3 are those three places. Stages 4 and 5 are the brake and the way t
   <Fragment slot="readback">
     <M t="Q" /> is the number on the Resonance control. A Q of 0.7071, one over the square root of two, is the largest with no bump in the curve at all, and it is where the kit and the device both start. The device lets it run <Src path="cpp/devices/auto-filter/params.gen.h" at="3  resonance: 0.5..25 Q, default 0.7071">from 0.5 to 25</Src>.
 
-    The band-pass peaks on the cutoff whatever the Q. The low-pass peaks a little under it, where <M t="D" /> is smallest: <Claim id="low-peak-under">with the cutoff at 1 kHz it peaks 1.6 % under at a Q of 4</Claim> and <Claim id="low-peak-q2">6.4 % under at a Q of 2</Claim>.
+    The band-pass peaks on the cutoff whatever the Q. The low-pass peaks a little under it, where <M t="D" /> is smallest: <Claim id="low-peak-under">with the cutoff at 1 kHz it peaks 1.6 % under at a Q of 4</Claim> and <Claim id="low-peak-q2">6.44 % under at a Q of 2</Claim>.
 
     <Claim id="ring-27">With the cutoff at 1 kHz, where a cycle is a millisecond, the ring is 27 dB down after Q cycles</Claim>, at a Q of 5, of 10 and of 20. <Claim id="ring-flat">At that cutoff and a Q of 0.7071 it is 60 dB under its largest sample in 1.8 ms</Claim>, before two cycles are over. <Claim id="ring-60">At a Q of 10 that takes 22 cycles</Claim>.
 
@@ -674,7 +674,7 @@ Stages 1 to 3 are those three places. Stages 4 and 5 are the brake and the way t
   <Fragment slot="readback">
     The second form is the line of stage 1 moved round: the input with the band taken out of it. At the cutoff the low and high outputs are the same size, and one is a quarter of a cycle behind the input and the other a quarter ahead, so they are opposite and their sum is nothing. <Claim id="notch-depth">With the cutoff at 1 kHz the kit's notch is more than 100 dB down there</Claim>, at a Q of 0.7071, of 3 and of 10.
 
-    Q sets how wide the hole is. <Claim id="notch-width">An octave under the cutoff, at 500 Hz, the notch has taken off 2.8 dB at a Q of 0.7071 and 0.2 dB at a Q of 3</Claim>.
+    Q sets how wide the hole is. <Claim id="notch-width">An octave under the cutoff, at 500 Hz, the notch has taken off 2.755 dB at a Q of 0.7071 and 0.2 dB at a Q of 3</Claim>.
 
   </Fragment>
   <Listing
@@ -725,12 +725,13 @@ That is the whole of the filter. The rest of this part is the device, which puts
     { id: 'out', tap: 'out', shape: 'end', from: 'mix' },
   ]}
 >
-  The row along the top is sound. The row under it carries numbers about the sound and never the
-  sound itself. Press the button of stage 13 below, and notice the last block light up.
+  From the input, the loop and the block of Slope, Drive and Mix carry sound. Envelope, Oscillator
+  and Cutoff carry numbers about the sound and never the sound itself. Press the button of stage
+  13 below, and notice the output's block light up.
 </Flow>
 
 <StageBlock tap="envelope" n={8} title="The envelope: how loud the sound is, as one number">
-  To open the filter when the playing gets louder, the device first has to know how loud the playing is. It takes the size of each sample, on whichever channel is larger, and smooths it with a one-pole that has two speeds: a fast one for when the sound is above the number it holds, and a slow one for when the sound is below it. <Lesson id="one-pole" cap /> builds that follower.
+  To open the filter when the playing gets louder, the device first has to know how loud the playing is. It takes the size of each sample, on whichever channel is larger, and smooths it with a one-pole that has two speeds: a fast one for when the sound is above the number it holds, and a slow one for when the sound is below it. <Lesson id="one-pole" cap /> builds the filter, and <Lesson id="envelopes-and-lfos" /> comes back to this follower beside the envelope that a key plays.
 
   <Controls ids="envAttack envRelease" />
 
@@ -773,7 +774,7 @@ That is the whole of the filter. The rest of this part is the device, which puts
   </Trace>
 
   <Fragment slot="readback">
-    The oscillator is a phase that goes from 0 to 1 and starts again, and a shape that turns the phase into a value. On each sample the phase steps on by Oscillator rate over the sample rate. The listing is the shapes.
+    The oscillator is a phase that goes from 0 to 1 and starts again, and a shape that turns the phase into a value. On each sample the phase steps on by Oscillator rate over the sample rate. The listing is the shapes, and <Lesson id="envelopes-and-lfos" /> takes such an oscillator apart.
   </Fragment>
   <Listing
     slot="listing"
@@ -810,7 +811,7 @@ That is the whole of the filter. The rest of this part is the device, which puts
   <Fragment slot="readback">
     <M t={String.raw`m_{\text{env}}`} /> is Envelope amount and <M t={String.raw`m_{\text{osc}}`} /> is Oscillator amount, each as a share of its full setting. At full amount a full-scale sound opens the filter <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kEnvOctaves = 5.0f;">five octaves</Src>, and the oscillator swings it <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kLfoOctaves = 3.0f;">three octaves</Src> each way. Envelope amount can be set below zero, and then a loud sound closes the filter. The result is kept between <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kMinCutoffHz = 20.0f;">20 Hz</Src> and <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kMaxCutoffHz = 20000.0f;">20 kHz</Src>.
 
-    Both are measured. <Claim id="osc-swing">With Oscillator amount at 100 the cutoff goes 3.00 octaves each way</Claim>. On the drums the envelope stays well short of full scale, so the cutoff stays well short of its five. <Claim id="env-opens">With Envelope amount at 100 on the drums, the envelope's largest value is 0.311 and the cutoff's highest point is 1.56 octaves up</Claim>, which is five times it.
+    Both are measured. <Claim id="osc-swing">With Oscillator amount at 100 the cutoff goes 3.00 octaves each way</Claim>. On the drums the envelope stays well short of full scale, so the cutoff stays well short of its five. <Claim id="env-opens">With Envelope amount at 100 on the drums, the envelope's largest value is 0.31 and the cutoff's highest point is 1.56 octaves up</Claim>, which is five times the envelope before it was rounded here.
 
     The sum is taken on every sample, and the filter's numbers are made again on every sample where it has changed.
 
@@ -1053,7 +1054,7 @@ Each card sets the page to its settings and plays them. None of them is a rule. 
       caption="The saw going in and coming out. The output's fourth spike, where the cutoff is, stands far above the input's and above every other spike in the picture."
     />
 
-    The number on Resonance is how many times larger a tone on the cutoff comes out. <Claim id="gain-q">At a Q of 25 a tone on the cutoff comes out 28.0 dB up</Claim>, through the kit's filter and through the device alike. On a sound with a harmonic on the cutoff the whole level rises: <Claim id="fault-howl">with the cutoff on the saw's harmonic at 440 Hz and Resonance at 10, the output is 7.2 dB louder than the saw that went in</Claim>. The kit's filter has no guard against this.
+    The number on Resonance is how many times larger a tone on the cutoff comes out. <Claim id="gain-q">At a Q of 25 a tone on the cutoff comes out 27.96 dB up</Claim>, through the kit's filter and through the device alike. On a sound with a harmonic on the cutoff the whole level rises: <Claim id="fault-howl">with the cutoff on the saw's harmonic at 440 Hz and Resonance at 10, the output is 7.2 dB louder than the saw that went in</Claim>. The kit's filter has no guard against this. Nor has this page's player much room for it: <Src path="site/src/lab/player.ts" at="export const volumeGain = (volume: number) => 0.5 * volume * volume">with its volume all the way up it plays at half gain</Src>, so a sound past twice full scale clips in your ear and not in the pictures. No card on this page comes out over full scale, and the controls can go well past twice that: <Claim id="loud-range">with Resonance at 25 and Cutoff on the saw's own note, 110 Hz, the device's loudest sample is 4.0 times full scale</Claim>.
 
     Turn Resonance down, or turn the sound down before the filter. The Auto Filter has a third answer, which is Drive. It bends both memories so that the loop cannot store more than a fixed amount, however long it is pushed. <Claim id="drive-caps">A full-scale tone on the cutoff at a Q of 25 comes out at 0.24 of full scale with 6 dB of Drive, where without Drive it comes out at 25 times full scale</Claim>. <Claim id="fault-tamed">The saw, at this card's settings with 6 dB of Drive added, comes out 0.3 dB quieter than it went in</Claim>. <Hear set="tamed" label="Hear it with Drive" />
 

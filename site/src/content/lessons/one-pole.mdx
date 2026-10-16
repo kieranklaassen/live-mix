@@ -114,7 +114,7 @@ Take that average away from the sound and what is left is the quick part. That i
 
 This is the one-pole filter. It has one number of memory and one multiplication a sample, and it does two jobs that look unrelated. On a sound it takes one end off. On a control it turns a jump into a glide. In this engine the second job is everywhere: <Claim id="smoothed-devices">more than 100 of its devices</Claim> keep one of these on their controls.
 
-It is also where filters begin. The three lessons after this one, <Lesson id="state-variable-filter" />, <Lesson id="equalising" /> and <Lesson id="phasing" />, build on what this one sets out: what a pole is, and what the slope of a filter, counted in decibels an octave, means. Both are said plainly in part 5, and measured there.
+It is also where filters begin. The three lessons after this one, <Lesson id="state-variable-filter" />, <Lesson id="equalising" /> and <Lesson id="phasing" />, build on what this one sets out: what a pole is, what a cutoff marks, and what the slope of a filter, counted in decibels an octave, means. Stages 1 and 3 of part 5 say each plainly, and measure it.
 
 </Part>
 
@@ -262,7 +262,7 @@ The first step and the fifth are wrong on purpose. What is wrong with each is th
       name="follow"
     />
 
-    Nothing is ever dropped from this average. A sample's weight shrinks by the same factor at every step and does not reach nothing, so the holes go. <Claim id="build-one-number">The tone at 1,548 Hz now comes through, 10.3 dB down, and the tone at 2,323 Hz is 13.6 dB down</Claim>: the higher tone is the quieter one again. And the memory is one number a channel, whatever the Cutoff.
+    Nothing is ever dropped from this average. A sample's weight shrinks by the same factor at every step and does not reach nothing, so the holes go. <Claim id="build-one-number">The tone at 1,548 Hz now comes through, 10.34 dB down, and the tone at 2,323 Hz is 13.6 dB down</Claim>: the higher tone is the quieter one again. And the memory is one number a channel, whatever the Cutoff.
 
     <Lanes slot="picture" taps="in built">
       The sound going in and the average kept as one number. Try Cutoff at its highest, and notice
@@ -352,7 +352,7 @@ The first step and the fifth are wrong on purpose. What is wrong with each is th
 
     <Check id="builtDifference" />
 
-    <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">The floor of that reading</Src> is what it shows when there is no difference to measure. <Claim id="build-same">On every loop of this page, at each of the settings the lab's test tries, the reading stands at −140 dB</Claim>.
+    That reading cannot go under <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">its floor</Src>, which it shows for any difference that far or further under the kit's blend. <Claim id="build-same">On every loop of this page, at each of the settings the lab's test tries, the reading stands at −140 dB</Claim>: whatever lies between the build and the kit is more than 140 dB under the sound.
 
     <Lanes slot="picture" taps="in builtFader built" from={0.25} span={0.5}>
       The same half second as the step before. Try Smoothing at its longest, and notice each stair
@@ -394,9 +394,9 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
     { id: 'out', row: 2, from: 'times', shape: 'end', label: 'out' },
   ]}
 >
-  The upper rows are the filter on a sound, and the lowest row is the same filter on a control: its
-  first two blocks carry the fader's value, not sound. Press a stage's button below, and notice its
-  block light up here.
+  From the input, the blocks One pole, In minus low and In the Tremolo are the filter on a sound.
+  The row that starts at fader is the same filter on a control: fader and Smoother carry the
+  fader's value, not sound. Press a stage's button below, and notice its block light up here.
 </Flow>
 
 <StageBlock tap="low" n={1} title="One line: an average that keeps one number">
@@ -535,7 +535,7 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
 </StageBlock>
 
 <StageBlock tap="high" n={4} title="The high-pass: what the average leaves out">
-  A high-pass needs no second filter. If the low-pass is the slow part of a signal, the rest of the signal is the quick part.
+  The kit's high-pass is step 4 of the build: the input less the low-pass, with no second filter.
 
   <Controls ids="cutoff" />
 
@@ -586,7 +586,7 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
 
   <Check id="split" />
 
-  On every loop and cutoff the lab's test tries, the low band inside the device and the lab's own one-pole are <Claim id="split">the same, sample for sample</Claim>.
+  On the noise and the saw, which keep the device awake the whole loop through, the low band inside the device and the low-pass of stage 1 are <Claim id="split">the same, sample for sample</Claim>, at each cutoff the lab's test tries inside the crossover's range. On the drums and the clicks the device rests in the silences and its filter rests with it. There the check reads its floor, −140 dB: whatever lies between the device's band and a one-pole that rests when the device does is more than 140 dB under the band.
 
   What the device does with the two bands is the last line of the listing below: `down` is the gain on the low band, and the bracket after it is the gain on the rest. The lab sets the device as the bench at the foot of this page opens it, with Shape at Square and Depth at full. The first gain is then 1 for half of each cycle and 0 for the other half, and the second is the opposite. <Claim id="trades">On every loop of this page the device's output is one band at a time: the gap between the output and that band is more than 100 dB under the band</Claim>. The lab leaves out <Src path="site/labs/one-pole.cpp" at="constexpr int kTurnOver = 2400;">the 50 ms after each change-over</Src>, where the device's slew rounds the square.
 
@@ -604,7 +604,7 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
 </StageBlock>
 
 <StageBlock tap="smoothed" n={6} title="The same filter on a control">
-  A host sends a control's value when the control has moved, far less often than once a sample, and the device holds it until the next. The engine's rule is that the device smooths what it is sent. `Smoother` is the one-pole with its input renamed: `target` is the value that arrived, `value` is where the control has got to, and `next()` is one step of the line of stage 1.
+  Part 1's staircase is what every device is sent, and the engine's rule is that the device smooths it. `Smoother` is the one-pole with its input renamed: `target` is the value that arrived, `value` is where the control has got to, and `next()` is one step of the line of stage 1.
 
   <Controls ids="updates smoothing" />
 
@@ -641,7 +641,7 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
 </StageBlock>
 
 <StageBlock tap="glide" n={7} title="Landing, and the smoother that arrives on time">
-  Covering a share of the distance does not finish by itself. Left alone the value would stop a little short of its target, as part 7 measures, or, falling towards zero, shrink into numbers too small to compute with quickly. So `next()` lands: once the distance left is under <Src path="cpp/kit/smooth.h" at="const float epsilon = 1.0e-6f">a millionth of the target and a billionth more</Src>, or a step no longer changes the float, it puts the value exactly on the target.
+  Covering a share of the distance does not finish by itself. Left alone the value would stop a little short of its target, as part 7 measures. So `next()` lands: once the distance left is under <Src path="cpp/kit/smooth.h" at="const float epsilon = 1.0e-6f">a millionth of the target and a billionth more</Src>, or a step no longer changes the float, it puts the value exactly on the target.
 
   <Controls ids="smoothing" />
 
@@ -676,7 +676,7 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
 </StageBlock>
 
 <StageBlock tap="out" n={8} title="Under the fader: what a stair does to a sound">
-  The last stage is where the two halves of the lesson meet: a control, smoothed or not, multiplies a sound. A gain that jumps puts a jump into the wave. A gain that glides does not.
+  The last stage is where the two halves of the lesson meet: a control, smoothed or not, multiplies a sound.
 
   <Controls ids="updates smoothing rides" />
 
@@ -725,7 +725,7 @@ One pole has few settings, so the ways of using it are habits more than recipes.
     Part 1 found that sending values more often is not enough by itself. With smoothing it is worth having: the stairs are small, and what is left of them is rounded. <Claim id="way-fine">With 200 values a second and Smoothing at 5 ms, what the fader leaves above 2 kHz on the tone is 50 dB lower than the unsmoothed fader left at 10 a second, and 10 dB lower than the smoothing alone left</Claim>.
   </Way>
   <Way title="Think of it as a time" tag="when it is not on a sound">
-    On a control, or inside a detector that follows a level, nobody hears a cutoff. What matters is how long the filter's memory is. Ask for that, and let the formula of stage 2 turn it into a pole. Then remember what stage 2 measured: the move is not done after one time constant, and is over, for most purposes, after three to five.
+    On a control, or inside a detector that follows a level, nobody hears a cutoff. What matters is how long the filter's memory is. Ask for that, let the formula of stage 2 turn it into a pole, and allow the three to five time constants that stage measured.
   </Way>
 </Ways>
 
@@ -737,7 +737,7 @@ Most of what goes wrong with one pole is one of its virtues seen from the other 
 
 <Faults>
   <Fault title="Zipper noise" set="zipper">
-    A control that is applied as it arrives puts a jump into the sound at every value. With Smoothing at 0 the smoother is not there at all: <Claim id="smoothing-zero">the tone under it is the tone under the stepped fader, sample for sample</Claim>. The cure is the subject of this lesson. Smooth every control that can move while sound is passing, and in this engine use the kit's `Smoother` at the kit's time unless there is a reason not to.
+    A control that is applied as it arrives puts a jump into the sound at every value. With Smoothing at 0 the smoother is not there at all: <Claim id="smoothing-zero">the tone under it is the tone under the stepped fader, sample for sample</Claim>. Smooth every control that can move while sound is passing: in this engine, with the kit's `Smoother` at the time stage 6 gives.
   </Fault>
   <Fault title="Stairs with soft corners" set="stairs">
     Smoothing rounds the corner of each stair. It does not join the stairs up. When values come seldom and the smoothing is short, the gain glides for a moment and then stands still until the next value. <Claim id="fault-stairs">With four values a second and Smoothing at 5 ms the gain stands exactly on a stair 76 % of the time, although what is left above 2 kHz on the tone is 40 dB lower than unsmoothed</Claim>. The clicks have gone, and the level still moves in steps. Send the values more often, or lengthen the smoothing until one glide runs into the next.
@@ -755,7 +755,7 @@ Most of what goes wrong with one pole is one of its virtues seen from the other 
 
   </Fault>
   <Fault title="It does not arrive">
-    The filter covers a share of the distance, and a float cannot hold a distance smaller than its own step. <Claim id="never-arrives">With Cutoff at 500 Hz the low-pass stops 7 float steps short of a steady 1</Claim> and stays there, <Claim id="never-silent">which leaves the high-pass 128 dB down for good, and not silent</Claim>. A slower pole stops further out: <Claim id="stall">the bare filter with a time constant of 5 ms ends 120 float steps short, 103 dB down</Claim>.
+    The filter covers a share of the distance, and a float cannot hold a distance smaller than its own step. <Claim id="never-arrives">With Cutoff at 500 Hz the low-pass stops 7 float steps short of a steady 1</Claim> and stays there, <Claim id="never-silent">which leaves the high-pass 127.6 dB down for good, and not silent</Claim>. A slower pole stops further out: <Claim id="stall">the bare filter with a time constant of 5 ms ends 120 float steps short, 103 dB down</Claim>.
 
     <Check id="stall" />
 
@@ -776,7 +776,7 @@ Most of what goes wrong with one pole is one of its virtues seen from the other 
     It is the time constant: the time to cover <Src path="cpp/kit/math.h" at="// A time constant as a one-pole coefficient: the pole that covers 63 % of a">63 % of the way</Src>. <Claim id="lag-15">At 5 ms a control is 95 % of the way 15 ms after its value was sent</Claim>, and stage 7 measures how much longer it takes to land. The step picture of stage 2 shows the curve still climbing long after it has crossed that level.
   </Myth>
   <Myth says="A high-pass is a different filter from a low-pass.">
-    Here it is the same filter and one subtraction. Step 4 of the build adds it in a line, and stage 4 shows the two responses crossing. The two halves add back to the input.
+    Here it is the same filter and one subtraction. Step 4 of the build adds it in a line, and stage 4 shows the two responses crossing.
   </Myth>
   <Myth says="Smoothing a control removes its steps.">
     It rounds their corners. The picture of stage 6 shows a staircase before and after: the corners are gone, and the stairs are still there. The card "Stairs with soft corners" in part 7 plays one. The steps go when the values come about as often as the smoothing is long.
