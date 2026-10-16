@@ -1,0 +1,160 @@
+{
+  "tile": {
+    "values": {
+      "pitch": 440,
+      "position": 0.45
+    },
+    "tap": "out",
+    "picture": {
+      "taps": ["barsKept", "barsFolded"],
+      "view": "curve",
+      "min": -80,
+      "max": 0
+    }
+  },
+  "sets": {
+    "full": {
+      "label": "The full cycle at a high pitch",
+      "values": {
+        "pitch": 1760
+      },
+      "tap": "naive"
+    },
+    "kept": {
+      "label": "The Wavetable on the same key",
+      "values": {
+        "pitch": 1760
+      },
+      "tap": "osc"
+    },
+    "pad": {
+      "label": "A pad that moves",
+      "values": {
+        "table": 0,
+        "position": 0.3,
+        "motion": 0.45,
+        "rate": 0.25,
+        "detune": 9,
+        "sub": 0.25,
+        "cutoff": 4200,
+        "resonance": 0.15,
+        "attack": 0.8,
+        "release": 1.2,
+        "hold": 2.6
+      }
+    },
+    "bass": {
+      "label": "A bass with a sine under it",
+      "values": {
+        "pitch": 55,
+        "position": 0.25,
+        "detune": 5,
+        "sub": 0.8,
+        "cutoff": 1400,
+        "resonance": 0.25,
+        "attack": 0.01,
+        "release": 0.2,
+        "hold": 1.5
+      }
+    },
+    "vowels": {
+      "label": "A voice that changes vowel",
+      "values": {
+        "pitch": 110,
+        "table": 1,
+        "position": 0.5,
+        "motion": 1,
+        "rate": 0.4,
+        "attack": 0.05,
+        "release": 0.5
+      }
+    },
+    "keys": {
+      "label": "A recording played a fifth up",
+      "values": {
+        "tune": 7
+      },
+      "tap": "sampler"
+    },
+    "still": {
+      "label": "One place in the row",
+      "values": {
+        "table": 4,
+        "position": 0.6
+      }
+    },
+    "beat": {
+      "label": "Two oscillators a few cents apart",
+      "values": {
+        "position": 0.5,
+        "detune": 14,
+        "spread": 0
+      }
+    },
+    "wide": {
+      "label": "Motion on both sides",
+      "values": {
+        "table": 4,
+        "position": 0.5,
+        "motion": 0.8,
+        "rate": 0.6,
+        "spread": 1
+      }
+    },
+    "closed": {
+      "label": "A filter closed over a bright table",
+      "values": {
+        "pitch": 110,
+        "table": 3,
+        "position": 0.4,
+        "motion": 0.6,
+        "rate": 0.3,
+        "cutoff": 700,
+        "resonance": 0.6
+      }
+    },
+    "pingpong": {
+      "label": "There and back along a recording",
+      "values": {
+        "tune": -5,
+        "loop": 2
+      },
+      "tap": "sampler"
+    },
+    "shrunk": {
+      "label": "The recording an octave up",
+      "values": {
+        "tune": 12
+      },
+      "tap": "sampler"
+    },
+    "unguarded": {
+      "label": "An octave up from the full-rate recording",
+      "values": {
+        "tune": 12
+      },
+      "tap": "sampledFull"
+    },
+    "justOver": {
+      "label": "Just over the first threshold",
+      "values": {
+        "tune": 2
+      },
+      "tap": "sampled"
+    }
+  },
+  "defaults": {
+    "values": {
+      "table": 0,
+      "position": 0.3,
+      "motion": 0.45,
+      "detune": 9,
+      "sub": 0.25,
+      "cutoff": 4200,
+      "resonance": 0.15,
+      "attack": 1.2,
+      "release": 3.5,
+      "volume": -9
+    }
+  }
+}
