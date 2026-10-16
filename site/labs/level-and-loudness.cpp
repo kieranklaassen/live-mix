@@ -24,7 +24,9 @@
 //   step and are not kept, so the lab takes them again from the stored power
 //   with the device's own expression ("lesson"), runs them through the
 //   device's one-second follower, and reports how far that lands from the
-//   follower the device stored (the "levelRebuilt" check).
+//   follower the device stored (the "levelRebuilt" check). What the first of
+//   the two one-poles holds is read too, for how far one filter alone moves
+//   over the loop (the "firstPole" check).
 // - Frequency weighting, the 400 ms blocks and the gate are not in the
 //   engine's C++. The library measures loudness in TypeScript only
 //   (src/core/analysis/loudness.ts). They are written here for the lesson
@@ -85,7 +87,7 @@ lab::Tap tone{"tone", "A tone as tall as the output", lab::kAudio, lab::kLesson,
 lab::Tap weighted{"weighted", "What the loudness meter hears", lab::kAudio, lab::kLesson, 2};
 lab::Tap out_tap{"out", "Output", lab::kAudio, lab::kLesson, 2};
 lab::Tap peak_tap{"peak", "Peak, held 40 ms", lab::kControl, lab::kDevice, 1, "dB"};
-lab::Tap true_peak{"truePeak", "Peak between the samples", lab::kControl, lab::kDevice, 1, "dB"};
+lab::Tap true_peak{"truePeak", "Peak between the samples", lab::kControl, lab::kCalled, 1, "dB"};
 lab::Tap between_tap{"between", "The wave over its samples", lab::kControl, lab::kLesson, 1, "dB"};
 lab::Tap level{"level", "Level", lab::kControl, lab::kLesson, 1, "dB"};
 lab::Tap windowed{"windowed", "Level over the window", lab::kControl, lab::kLesson, 1, "dB"};
@@ -110,6 +112,7 @@ lab::Check tone_level{"toneLevel", "The tone's level", "dB"};
 lab::Check tone_loudness{"toneLoudness", "The tone's loudness", "LUFS"};
 lab::Check gain_check{"gain", "The gain the output is multiplied by", "dB"};
 lab::Check level_rebuilt{"levelRebuilt", "The level taken again, against the compressor's own follower", "dB"};
+lab::Check first_pole{"firstPole", "How far the compressor's first filter alone moves over the loop", "dB"};
 
 lab::Tap built{"built", "The loop, set by the meter so far", lab::kAudio, lab::kLesson, 2};
 lab::Tap built_peak{"builtPeak", "Tallest sample of each tenth of a second", lab::kControl, lab::kLesson, 1};
@@ -612,6 +615,10 @@ void lab_render(int frames) {
   float slow = AmbientComp::kFloorDb;
   float worst = 0.0f;
   bool was_resting = true;
+  // What the first of its two filters holds, at its least and its most over the pass that is kept.
+  float pole_least = 0.0f;
+  float pole_most = 0.0f;
+  bool pole_read = false;
 
   // The build part.
   shown.start(build.at());
@@ -659,6 +666,12 @@ void lab_render(int frames) {
     comp.in_right()[0] = right;
     const bool ticks = comp.clock_.counter == 0;  // the device reads its level on this sample
     comp.process(1);
+    if (i >= frames && !comp.resting_) {
+      const float first = comp.rms_[0].state;
+      pole_least = pole_read ? kit::min(pole_least, first) : first;
+      pole_most = pole_read ? kit::max(pole_most, first) : first;
+      pole_read = true;
+    }
     if (comp.resting_) {
       level_now = AmbientComp::kFloorDb;
       slow = AmbientComp::kFloorDb;
@@ -739,6 +752,9 @@ void lab_render(int frames) {
   whole_true_peak.value = lab::to_db(top_wave);
   tone_true_peak.value = lab::to_db(top_tone_wave);
   level_rebuilt.value = worst;
+  first_pole.value = pole_read && pole_least > AmbientComp::kFloorPower
+                         ? 10.0f * std::log10(pole_most / pole_least)
+                         : 0.0f;
   build.difference.value = lab::ratio_db(built_apart, built_whole);
 
   draw_law();
