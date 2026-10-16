@@ -121,8 +121,8 @@ in. Nothing here was checked on a person's machine, and nobody has listened to
 any of it.
 
 **Measured in Node, on the labs.** Each lesson's lab is the engine's C++
-compiled to WebAssembly, and `pnpm test` runs it: 558 tests. Every quantity a
-lesson states (550 of them across the twenty lessons) is the title of a test
+compiled to WebAssembly, and `pnpm test` runs it: 583 tests. Every quantity a
+lesson states (574 of them across the twenty lessons) is the title of a test
 that measures it, and `check-claims.mjs` fails a lesson whose stated quantity
 no test holds. These are measurements of the samples the code puts out: a
 level in dB, a frequency, a time, a difference between two signals.

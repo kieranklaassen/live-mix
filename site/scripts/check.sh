@@ -53,6 +53,8 @@ if [ "${1:-}" = "--root" ]; then
   out="$(mktemp -d)"
   trap 'rm -rf "$out"' EXIT
   SITE_BASE=/ SITE_URL="${SITE_ROOT_URL:-https://example.org}" pnpm exec astro build --outDir "$out"
+  # The API reference is TypeDoc's, written once above: copied in, not written again.
+  SITE_API_REUSE=1 node scripts/build-api.mjs "$out"
   SITE_BASE=/ node scripts/check-links.mjs "$out"
   if grep -rl --include='*.html' 'href="/live-mix/' "$out" | head -1 | grep -q .; then
     echo "A page built for a domain's root still links under /live-mix/." >&2
