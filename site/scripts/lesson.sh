@@ -19,9 +19,9 @@
 # lesson's own, which it names: run again later, and change nothing.
 #
 # SITE_SLOTS names a folder of locks that everyone working in one tree shares. With it a step
-# waits its turn: the heavy ones (lab, test, build, browser) run one at a time, the others two
-# at a time. A lock is let go when its step ends, however it ends. Without it the steps run
-# straight.
+# waits its turn: the heavy ones (lab, test, build, browser) run one at a time, or as many at a
+# time as SITE_HEAVY_SLOTS says, the others two at a time. A lock is let go when its step ends,
+# however it ends. Without it the steps run straight.
 #
 # Needs what scripts/check.sh needs, and the labs built once (pnpm labs) for the bench.
 set -uo pipefail
@@ -50,7 +50,7 @@ trap 'rm -f "$log"' EXIT
 step() {
   local name="$1" pool="$2"
   shift 2
-  local slots=1 slot lock queued=$SECONDS
+  local slots="${SITE_HEAVY_SLOTS:-1}" slot lock queued=$SECONDS
   [ "$pool" = light ] && slots=2
   if [ -n "${SITE_SLOTS:-}" ]; then
     mkdir -p "$SITE_SLOTS"

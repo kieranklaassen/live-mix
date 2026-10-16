@@ -20,7 +20,9 @@ export default defineConfig({
   testDir: 'tests/browser',
   timeout: 90_000,
   fullyParallel: true,
-  workers: process.env.CI ? 2 : 4,
+  // One lesson's tests share the machine with other lessons' (scripts/lesson.sh), so they take
+  // two workers as a runner does.
+  workers: process.env.CI || process.env.SITE_ONLY_LESSON ? 2 : 4,
   shard: siteShard(),
   reporter: [['list']],
   use: {
