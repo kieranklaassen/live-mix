@@ -125,9 +125,9 @@
       "source": "saw"
     },
     "zero": {
-      "label": "No shift, mixed half and half",
+      "label": "Notches that stand still",
       "values": { "shift": 0, "mix": 0.5 },
-      "source": "chords"
+      "source": "noise"
     }
   },
   "defaults": {

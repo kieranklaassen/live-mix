@@ -38,6 +38,7 @@ Play one low note on a saw wave. It is heard as one thing at one pitch, and it i
   taps="rulerIn"
   set="note"
   view="curve"
+  xTitle="hertz"
   min={-70}
   max={-10}
   caption="The saw's partials on a ruler marked in hertz that starts at zero. The lines stand at even distances, and the distance from zero to the first line is the same as the others."
@@ -59,6 +60,7 @@ Here <M t="f" /> is the frequency of any one partial and <M t="r" /> is the rati
   taps="rulerIn rulerPitched"
   set="faster"
   view="curve"
+  xTitle="hertz"
   min={-70}
   max={-10}
   caption="The note, and the note played faster. The lines of the faster one still stand at even distances that begin at zero. The distances have grown: the pattern is stretched, as a drawing on rubber is."
@@ -78,6 +80,7 @@ What can is multiplying the sound, sample by sample, by a second wave. That is r
   taps="rulerIn rulerRing"
   set="ringed"
   view="curve"
+  xTitle="hertz"
   min={-70}
   max={-10}
   caption="The note, and the note times a cosine. Every line of the note has become two, one on each side of where it stood, and nothing is left where it stood. The upper line of one partial and the lower line of the next stand close together, between the places where the note's own lines were."
@@ -97,6 +100,7 @@ A frequency shifter is a ring modulator that makes its product twice. It uses tw
   taps="rulerIn rulerOut"
   set="shifted"
   view="curve"
+  xTitle="hertz"
   min={-70}
   max={-10}
   caption="The note, and the note shifted. The lines of the output stand at the same even distances as the lines of the input. The whole pattern has slid along the ruler, and its first distance, from zero, is no longer the same as the rest. The small bump near the left edge is what is left of a line that was cancelled, and part 5 measures how far down it is."
@@ -118,7 +122,7 @@ Sounds whose partials are not whole multiples of one frequency are familiar ones
 
 One early use was a practical one. In a hall, a microphone hears the loudspeakers, and a frequency that comes round that loop a little stronger each time turns into a howl. If everything is moved by a few hertz on each trip, no frequency lands on itself twice, and none can build. That was done for speech, which has no chords to put out of tune.
 
-Musicians found the rest. A large shift turns a note into a clang, which is a sound of its own. A very small one, mixed with the sound as it went in, makes a slow movement that travels through the spectrum in one direction and does not come back. The device in this engine is tuned for that last use, and left to itself it starts there. This lesson starts it as a bare shifter, with nothing but the shifted sound coming out, so that the shift itself shows. Part 9 puts the two beside each other.
+Musicians found the rest. A large shift turns a note into a row of partials that fits no one pitch, which is a sound of its own. A very small one, mixed with the sound as it went in, makes a slow movement that travels through the spectrum in one direction and does not come back. The device in this engine is tuned for that last use, and left to itself it starts there. This lesson starts it as a bare shifter, with nothing but the shifted sound coming out, so that the shift itself shows. Part 9 puts the two beside each other.
 
 <Predict
   question="The saw's partials are whole multiples of its lowest one. Shift the saw up by exactly the frequency of that lowest partial. What comes out?"
@@ -133,6 +137,7 @@ An octave higher would be lines at twice the old frequencies, which leaves out e
   taps="rulerIn rulerOut"
   set="whole"
   view="curve"
+  xTitle="hertz"
   min={-70}
   max={-10}
   caption="The note, and the note shifted by the frequency of its lowest partial. Every line of the output stands on a line of the input, one place along, and the first place is empty."
@@ -207,6 +212,7 @@ The size of the shift decides what the device is for. Under a hertz or so, mixed
       taps="rulerIn rulerOut"
       set="metal"
       view="curve"
+      xTitle="hertz"
       min={-85}
       max={-25}
       caption="A guitar line on the ruler, going in and coming out. The output holds the guitar's own lines and, between them, the same lines moved along."
@@ -253,7 +259,7 @@ These are places to start. On each, move Shift or Fine after the card and listen
 
 <Part id="build" title="A wire, two copies, a carrier and a sum: a shifter in six steps.">
 
-A frequency shifter is a short program. This part begins with something that does nothing and adds five pieces to it, one at a time. After each piece the pictures are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these pictures and plays "Hear it so far".
+A frequency shifter is a short program. This part begins with a piece that does nothing and adds five more to it, one at a time. After each piece the pictures are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these pictures and plays "Hear it so far".
 
 The numbers in this part were measured on the sine, which is a single partial. With one line going in, what each piece does to a line is plain to see. Choose the sine in the row of sounds while you step through, then go through again on the saw.
 
@@ -278,7 +284,7 @@ The numbers in this part were measured on the sine, which is a single partial. W
 
     The kit's answer is to give up on the first copy being the sound itself. It makes two copies, neither of which is the input, and asks only that they stand a quarter turn apart from each other. Each holds every frequency of the input at the level it had.
 
-    <Claim id="build-pair">On the 440 Hz sine, the first copy runs 78.5° behind the sine, and the second runs ahead of the first by 0.34° short of a quarter turn. Each is less than 0.001 dB from the sine's level. With this piece taken out again there is no second copy, and the first is the sine itself</Claim>.
+    <Claim id="build-pair">On the 440 Hz sine, the first copy stands 78.5° behind the sine in its cycle, and the second runs ahead of the first by 0.34° short of a quarter turn. Each is less than 0.001 dB from the sine's level. With this piece taken out again there is no second copy, and the first is the sine itself</Claim>. A steady sine shows where in its cycle a copy stands and not how many whole cycles late it is: stage 1 of part 5 finds one whole turn more.
 
     <Listing
       path="site/labs/frequency-shifting.cpp"
@@ -312,8 +318,7 @@ The numbers in this part were measured on the sine, which is a single partial. W
 
     <Lanes slot="picture" taps="in built" from={1} span={0.03}>
       A short stretch of the sound going in and the first copy times the cosine. Try the sine, and
-      notice the sound so far swell and shrink: two frequencies close together, drifting in and
-      out of step.
+      notice the sound so far swell and shrink: two frequencies, drifting in and out of step.
     </Lanes>
 
     <Spectrum slot="picture" taps="in built" linear fMax={1200} min={-80} max={0}>
@@ -384,7 +389,7 @@ The numbers in this part were measured on the sine, which is a single partial. W
 
     <Claim id="build-mix">With Mix at 0.5 the 440 Hz sine is back at 440 Hz, 3.0 dB under the level it went in at, beside the shifted line at 540 Hz, which is 3.0 dB under it too. At the step before there is nothing at 440 Hz</Claim>.
 
-    Width comes with this piece because it is heard only against something: the dry sound, or the other side. It turns the right side's carrier ahead of the left's by up to a quarter of a cycle.
+    Width comes with this piece because it shows only against something: the dry sound, or the other side. It turns the right side's carrier ahead of the left's by up to a quarter of a cycle.
 
     <Listing
       path="site/labs/frequency-shifting.cpp"
@@ -398,7 +403,7 @@ The numbers in this part were measured on the sine, which is a single partial. W
 
     <Check id="builtDifference" />
 
-    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows for any difference further down than that. On every loop of this page, in every mode, at each of the settings the lab's test tries, <Claim id="build-same">the reading is −140 dB</Claim>.
+    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows for any difference further down than that. On every loop of this page, in every mode, at each of the settings the lab's test tries, <Claim id="build-same">the reading is −140 dB</Claim>. The test also sets the build to this last step and goes through its output beside the device's, sample by sample, and finds none that differs.
 
     <Lanes slot="picture" taps="in built" from={1} span={0.03}>
       A short stretch of the sound going in and the whole shifter's output. Try Mix at 0.5 on the
@@ -423,7 +428,7 @@ Here is how the lab puts the pieces in order, for one sample.
   name="run"
 />
 
-That is a whole frequency shifter in seven small functions. The one in the engine is the same pieces in the same order, written as one loop. Around them it has what a device needs and the build left out: controls that glide when they are moved, and the rest after a silence. The next part opens it.
+That is a whole frequency shifter in seven small functions, and an eighth that puts them in order. The one in the engine is the same pieces in the same order, written as one loop. Around them it has what a device needs and the build left out: controls that glide when they are moved, and the rest after a silence.
 
 </Part>
 
@@ -471,7 +476,7 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
     t={String.raw`\sig{alt}{y[n]} = \at{section-step}{c}\,\bigl(\sig{in}{x[n]} + \sig{alt}{y[n-2]}\bigr) - \sig{in}{x[n-2]}`}
   />
 
-  <M t="x[n]" /> is the sample going into the section and <M t="y[n]" /> the sample coming out, and both reach back two samples. <M t="c" /> is the section's one number. It says where the half turn happens: the nearer <M t="c" /> is to 1, the lower. The numbers that weigh the input, <M t="c" /> and then 1, are the numbers that weigh the output, 1 and then <M t="c" />, in the opposite order. A filter built that way passes every frequency at exactly the level it came in at, and can change only its phase.
+  <M t="x[n]" /> is the sample going into the section and <M t="y[n]" /> the sample coming out, and both reach back two samples. <M t="c" /> is the section's one number. It says where the half turn happens: the nearer <M t="c" /> is to 1, the lower. Move the output's terms to one side and the input's to the other. The numbers that weigh the input are then <M t="c" /> and −1, and the numbers that weigh the output are 1 and <M t="-c" />: the same two in the opposite order, with the sign turned. A filter built that way passes every frequency at exactly the level it came in at, and can change only its phase.
 
   <Listing
     path="cpp/kit/hilbert.h"
@@ -503,7 +508,11 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
 
   <Check id="quarterError" />
 
-  The quadrature output is a quarter turn ahead, <Claim id="quarter-turn">less than 0.71° out, from 22 Hz to 23,978 Hz</Claim>, which is all that the page's sample rate can hold but a sliver at each end. The ripple is the same height at every crest: the error is spent evenly, and none of the band is better than it needs to be at the cost of another part. Below the band it grows fast: <Claim id="below-band">at 20 Hz the pair is 1.6° from a quarter turn</Claim>.
+  The quadrature output is a quarter turn ahead, <Claim id="quarter-turn">less than 0.71° out, from 22 Hz to 23,978 Hz</Claim>, which is all that the page's sample rate can hold but a sliver at each end. Below the band it grows fast: <Claim id="below-band">at 20 Hz the pair is 1.6° from a quarter turn</Claim>.
+
+  Those are the lab's measurements, and the band is wider than the one the kit's own comment gives, which is <Src path="cpp/kit/hilbert.h" at="0.002 to 0.498 of the sample rate.">about 0.002 to 0.498 of the sample rate</Src>: at the page's <Src path="site/labs/lab.h" at="constexpr float kSampleRate = 48000.0f;">48,000 samples a second</Src>, 96 Hz to 23,904 Hz. This is how they were made. The lab puts one sample of height 1 through the kit's pair and keeps what each chain answers. From the two answers it works out each chain's phase at a frequency, with the sum of <Lesson id="fourier-transform" />, and it searches the band for the frequency where the two are furthest from a quarter turn apart. The check above shows what the search found. The lab's test then feeds the running device sines at the two ends of the band and at crests of the ripple, and reads the angle between the pair's two outputs. The figure at 20 Hz was read the same way.
+
+  The ripple is the same height at every crest the test tries: the error is spent evenly, and none of the band is better than it needs to be at the cost of another part.
 
   Now the pair as sound, read from the running device.
 
@@ -545,11 +554,11 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
 
     The device adds the frequency up. It does not work the angle out from the time. So Shift can move without the carrier jumping. The angle is kept as <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="double carrier_phase_ = 0.0;">a double</Src>, because at the slowest shifts the step is too small a number to add to a float without losing it.
 
-    The frequency has three parts, added in <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="const float hz = shift_.next() + lfo_depth_.next() * kLfoRangeHz * lfo;">one line</Src>. Shift and Fine are summed, and their sum glides to a new value with a time constant of <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="static constexpr float kGlideSeconds = 0.02f;">20 ms</Src>, so a jump of hundreds of hertz is a sweep and not a step. The LFO adds a sway of up to <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="static constexpr float kLfoRangeHz = 50.0f;">50 Hz</Src> either way. LFO Depth is <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="lfo_depth_.set(value * value, primed());">squared</Src> first, so the lower half of its travel covers the few hertz where slow movement lives.
+    The frequency has three parts, added in <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="const float hz = shift_.next() + lfo_depth_.next() * kLfoRangeHz * lfo;">one line</Src>. Shift and Fine are summed, and their sum glides to a new value with a time constant of <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="static constexpr float kGlideSeconds = 0.02f;">20 ms</Src>, so a jump of hundreds of hertz is a sweep and not a step. The LFO adds a sway of up to <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="static constexpr float kLfoRangeHz = 50.0f;">50 Hz</Src> either way. LFO Depth is <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="lfo_depth_.set(value * value, primed());">squared</Src> first, so the low end of its travel is spread over the first few hertz, where slow movement lives. Part 6 measures one such setting.
 
     The cosine and the sine of the angle are the point's across and up. Both are read from the kit's table of <Src path="cpp/kit/math.h" at="static constexpr int kSize = 4096;">4,096 steps</Src> to a cycle, with a straight line between neighbours. The cosine is the same table read a quarter of a cycle further on.
 
-    Width turns the right side's carrier ahead of the left's by up to <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="const float offset = width_.next() * 0.25f;">a quarter of a cycle</Src>. <Claim id="width-quarter">With Width at 1 and Mode on Up, the right output is 90.0° ahead of the left</Claim> at each of the three frequencies the test tries. The two sides are then themselves a pair a quarter turn apart.
+    Width turns the right side's carrier ahead of the left's by up to <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="const float offset = width_.next() * 0.25f;">a quarter of a cycle</Src>. <Claim id="width-quarter">With Width at 1 and Mode on Up, sines at 110 Hz, 1 kHz and 5 kHz, each shifted by 100 Hz, come out 90.0° ahead on the right</Claim>. The two sides are then themselves a pair a quarter turn apart.
 
   </Fragment>
 
@@ -595,10 +604,11 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
 
   <Controls ids="shift mode" />
 
-  <Spectrum taps="in upper:out lower:ctl" linear fMax={2000} min={-96} max={0}>
-    The input, the sum and the difference, on an axis even in hertz. Try Shift, and notice each
-    move one way by the shift. Notice too the small bump on the other side of the input's line,
-    where the cancelling is not complete.
+  <Spectrum taps="in upper:out lower:ctl" linear fMax={1200} min={-96} max={0}>
+    The input, the sum and the difference, on an axis even in hertz. Try the sine, where one line
+    goes in, and notice the sum's line stand above it by the shift and the difference's below it by
+    as much. Notice too the small bump each has under the other's line, where the cancelling is not
+    complete. Then try Shift.
   </Spectrum>
 
   <Check id="rebuilt" />
@@ -609,7 +619,7 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
 
   <M block t={String.raw`\tan\frac{\varepsilon}{2}`} />
 
-  So the ripple of stage 1 is the whole story of what leaks. <Claim id="image-worst">At the crests of that ripple the cancelled copy is at least 44.2 dB down</Claim>, which is the least it is anywhere in the band, and <Claim id="image-20">at 20 Hz, below the band, it is only 37 dB down</Claim>.
+  So the ripple of stage 1 decides what leaks, and the shift has no say in it. <Claim id="image-worst">A sine at a crest of that ripple, shifted up by 100 Hz or down by 333 Hz, leaves the cancelled copy at least 44.2 dB under the kept one</Claim>. The test tries seven crests, from the bottom of the band to the top, and at each the measured figure is the formula's, worked from the angle between the pair's two outputs at that frequency. <Claim id="image-band">Fed the furthest from a quarter turn that the lab's search found, the formula gives at least 44.2 dB for a sine anywhere from 22 Hz to 23,978 Hz</Claim>. Below that band it is worse: <Claim id="image-20">a 20 Hz sine shifted by 100 Hz leaves the cancelled copy only 37 dB down</Claim>.
 
   One product alone is the ring modulator of the build's third step. The lab keeps one on the main path too, the input times the carrier's cosine. <Claim id="ring-halves">For the 440 Hz sine and a carrier at 100 Hz its two lines stand at 340 Hz and 540 Hz, each 6.0 dB under the line that went in</Claim>, and <Claim id="ring-original-gone">what is left at 440 Hz is more than 120 dB down</Claim>. Compare <Listen tap="ring">the ring modulator</Listen> with the button under this stage.
 
@@ -622,7 +632,7 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
   <Fragment slot="readback">
     This is the device's own line. <M t="d" /> is the direction: 1 adds, −1 subtracts, and 0 drops the second product. <M t="g" /> is a make-up gain. It is 1 when the direction is 1 or −1, and the square root of 2 when the direction is 0, so that the two half-height sidebands of a ring modulator carry the power of one.
 
-    Mode is four settings of the direction, one for each side, held in <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="static constexpr float kDirection[4][2] = {" to="{0.0f, 0.0f},    // Ring">a small table</Src>. Down is −1 on both sides, and it is the same thing as a shift below zero: <Claim id="down-is-negative">Down at +100 Hz and Up at −100 Hz give outputs whose difference is more than 130 dB under either</Claim>. Stereo is 1 on the left and −1 on the right: <Claim id="stereo-split">shifted by 100 Hz, the 440 Hz sine comes out at 540 Hz on the left and 340 Hz on the right</Claim>. Ring is 0 on both: <Claim id="ring-mode">both sidebands of a 1 kHz sine come out 3.0 dB under the input</Claim>.
+    Mode is four settings of the direction, one for each side, held in <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="static constexpr float kDirection[4][2] = {" to="{0.0f, 0.0f},    // Ring">a small table</Src>. Down is −1 on both sides, and it is the same thing as a shift below zero: <Claim id="down-is-negative">on a 1 kHz sine, Down at +100 Hz and Up at −100 Hz give outputs whose difference is more than 130 dB under either</Claim>. Stereo is 1 on the left and −1 on the right: <Claim id="stereo-split">shifted by 100 Hz, the 440 Hz sine comes out at 540 Hz on the left and 340 Hz on the right</Claim>. Ring is 0 on both: <Claim id="ring-mode">both sidebands of a 1 kHz sine come out 3.0 dB under the input</Claim>.
 
     The direction <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="direction_[c].set_time(kGlideSeconds, sr);">glides</Src> between settings in the same time as the shift does. So a change of Mode passes through the ring sound on its way and does not jump.
 
@@ -659,7 +669,7 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
   <Fragment slot="readback">
     "Driven" is what goes into the pair, and "back" is this stage's tap: the shifted sound, late, darkened and limited. What comes back has been shifted already, and it goes through the pair and the carrier again. <Claim id="feedback-steps">With Feedback at 0.5, the 440 Hz sine shifted by 100 Hz stacks up lines at 540, 640, 740 and 840 Hz, each under the last: by 6.06 dB, then 6.08 dB, then 6.11 dB</Claim>. Six of those decibels are the half that Feedback takes. The rest is Tone's filter, which every pass goes through once more, and which takes a little more from each line as the lines climb. Feedback stops at <Src path="cpp/devices/freq-shifter/device.json" at={'"max": 0.98,'}>0.98</Src>.
 
-    Two things follow from "shifted again on every pass", and part 6 has a card for each. With a delay of a few milliseconds the copies make a comb, as any short delay with feedback does, and the shift moves the comb's teeth along on every pass, so the comb climbs for as long as the sound lasts. With a long delay the passes are heard apart, as echoes that step up or down.
+    Two things follow from "shifted again on every pass", and part 6 has a card for each. With a delay of a few milliseconds the copies make a comb, as any short delay with feedback does, and the shift moves the comb's teeth along on every pass, so the comb climbs for as long as the sound lasts. With a long delay the passes arrive apart, as echoes that step up or down.
 
   </Fragment>
 
@@ -690,7 +700,7 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
     at={{ dry: '*dry_gain = std::cos(angle);', wet: '*wet_gain = std::sin(angle);' }}
   />
 
-  With a large shift, the mix is two sounds side by side. With a small one it is something else, because the two are nearly the same sound. Take one sine, mixed half and half with itself moved a hertz. The sum is two tones too close to tell apart, and they are heard as one tone that swells as the two fall into step and dies as they fall out.
+  With a large shift, the mix is two sounds side by side. With a small one it is something else, because the two are nearly the same sound. Take one sine, mixed half and half with itself moved a hertz. The sum is two tones a hertz apart, and it has the shape of one tone that swells as the two fall into step and dies as they fall out.
 
   <Still
     taps="in out"
@@ -701,21 +711,21 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
 
   <Claim id="beat-crest">With Shift at 0, Fine at 1 Hz and Mix at 0.5, the output rises to 3.0 dB over the sine</Claim> and <Claim id="beat-null">falls to more than 40 dB under it</Claim>, <Claim id="beat-rate">once a second</Claim>.
 
-  A sound of many partials does more. Every partial beats at the same rate, but not at the same moment, because each left the in-phase chain with a different lag: the ramp of stage 1. So the silence arrives at one frequency after another. A notch travels through the spectrum, upwards for a shift up and downwards for a shift down. <Claim id="notch-climbs">At a shift of 0.5 Hz up, the notch that stands at 1,168 Hz reaches 2 kHz 0.32 s later and 4 kHz 0.73 s later</Claim>. The ramp runs through several whole turns across the band, so several notches are on their way at once, and as one leaves at the top another is rising from the bottom. The motion does not turn round.
+  A sound of many partials does more. Every partial beats at the same rate, but not at the same moment, because each left the in-phase chain with a different lag: the ramp of stage 1. So the silence arrives at one frequency after another. A notch travels through the spectrum, upwards for a shift up and downwards for a shift down. <Claim id="notch-climbs">At a shift of 0.5 Hz up, the notch that stands at 1,168 Hz reaches 2 kHz 0.32 s later and 4 kHz 0.73 s later</Claim>. The ramp falls through more than two whole turns across the band, as its picture in stage 1 shows, so two or three notches are on their way at once, and as one leaves at the top another is rising from the bottom. The motion does not turn round.
 
   The picture below shows it on whatever is playing. To see it at its plainest, put the page on white noise with a small shift: <Hear set="climb" label="Notches that climb" />
 
   <Controls ids="fine mix mode" />
 
   <Spectrogram tap="picture" top={6000} min={-70} max={-20} height={260}>
-    The output's spectrum over the loop: time across, frequency up. With the card above playing,
+    The output's spectrum over the loop: time across, frequency up. With the button above pressed,
     bands of low level climb the picture. Try Mode on Down, and notice them fall. Try Fine nearer
     zero, and notice them climb more slowly.
   </Spectrogram>
 
-  With the shift at exactly zero the carrier stands still, and so do the notches. <Claim id="still-notch">A tone at 1,168 Hz, where the in-phase chain is a turn and a half behind, then comes out more than 60 dB down</Claim> at a Mix of one half.
+  With the shift at exactly zero the carrier stands still, and so do the notches. <Claim id="still-notch">A tone at 1,168 Hz, where the in-phase chain is a turn and a half behind, then comes out more than 60 dB down</Claim> at a Mix of one half. To see that notch stand, put the page on white noise with no shift, and notice one level band across the picture above, at that frequency: <Hear set="zero" label="Notches that stand still" show />
 
-  Width is heard here too. In stage 2 it put the right side's carrier part of a cycle ahead, so the right side now beats ahead of the left by the same part of a beat.
+  Width shows here too. In stage 2 it put the right side's carrier part of a cycle ahead, so the right side now beats ahead of the left by the same part of a beat.
 
   <Still
     taps="levelLeft levelRight"
@@ -754,17 +764,17 @@ To judge what the shifter did, compare three things: <Listen tap="in">what went 
 Each of these is a habit of working, not a preset. Press "Try it" and the page moves to settings that show the idea, so you can go back up and see what the ruler, the ladder and the notches are doing.
 
 <Ways>
-  <Way title="A drift that does not repeat" tag="under a hertz, half mixed, a slow LFO" set="drift">
-    The device's own starting point. The shift is too small to move a note, and the LFO keeps it from holding one value, so the swells and fades do not come round in a pattern you can count. After the card, raise LFO Depth a little and listen for the movement quickening and slowing.
+  <Way title="A drift whose rate wanders" tag="under a hertz, half mixed, a slow LFO" set="drift">
+    The device's own starting point. The shift is too small to move a note, and the LFO keeps it from holding one value, so the swells and fades come at a rate that keeps changing: part 3 measured how far the shift wanders on this card. After the card, raise LFO Depth a little and listen for the movement quickening and slowing.
   </Way>
   <Way title="Notches that only climb" tag="Fine, with no Feedback" set="climb">
     A phaser's notches go up and come back. These go one way for as long as the sound lasts, because the carrier turns one way. After the card, set Mode to Down and they fall. Then bring Fine towards zero and they slow, and at zero they stop where they are.
   </Way>
   <Way title="A spiral" tag="Feedback, with a Delay of a few milliseconds" set="spiral">
-    A short delay with feedback is a comb: a row of peaks at even distances in hertz. Here each trip round the loop also shifts the sound, so the comb's teeth move along on every pass. Listen for a rising that has no top. After the card, lengthen Delay and the teeth draw closer together.
+    A short delay with feedback is a comb: a row of peaks at even distances in hertz. Here each trip round the loop also shifts the sound, so the comb's teeth move along on every pass. Listen for a rising that has no top. After the card, lengthen Delay, which draws a comb's teeth closer together, and listen for what that does to the rising.
   </Way>
   <Way title="Echoes that climb" tag="a long Delay" set="steps">
-    With a long delay the passes are heard one after another, and each has been shifted once more than the one before. <Claim id="way-steps">Fed a 440 Hz sine at this card's settings, each echo is 9 Hz higher and 3.1 dB quieter than the last</Claim>. On the guitar, listen for the first echoes coming back a little sharp and the later ones going out of tune with themselves.
+    With a long delay the passes arrive one after another, and each has been shifted once more than the one before. <Claim id="way-steps">Fed a 440 Hz sine at this card's settings, each echo is 9 Hz higher and 3.1 dB quieter than the last</Claim>. On the guitar, listen for the first echoes coming back a little sharp and the later ones going out of tune with themselves.
   </Way>
   <Way title="A shift that sways" tag="LFO Depth" set="sway">
     <Still
@@ -778,7 +788,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
 
   </Way>
   <Way title="Both sidebands on purpose" tag="Mode on Ring" set="both">
-    Ring drops the second product and gives the ring modulator of <Lesson id="tremolo-and-ring-modulation" />, made up in level. On this card the saw is multiplied by a carrier at its own lowest frequency, so every partial's two sidebands land on its two neighbours and the note stays a note. After the card, move Shift a little way off and listen for the two rows of lines drifting apart.
+    Ring drops the second product and gives the ring modulator of <Lesson id="tremolo-and-ring-modulation" />, made up in level. On this card the saw is multiplied by a carrier at its own lowest frequency, so every partial's two sidebands land on its two neighbours and the row is still whole multiples of one frequency. <Claim id="way-both">The output's three lowest lines stand at 110, 220 and 330 Hz, and the output rests 0.10 of full scale below zero</Claim>: the lowest partial's lower sideband has landed on zero hertz, where it is a steady offset and no sound. After the card, move Shift a little way off and listen for the two rows of lines drifting apart.
   </Way>
 </Ways>
 
@@ -793,9 +803,12 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
       taps="rulerIn rulerOut"
       set="apart"
       view="curve"
+      xTitle="hertz"
+      from={0}
+      span={600}
       min={-85}
       max={-25}
-      caption="Strummed chords on the ruler, going in and coming out. Every line has moved by the same small distance, which is a large interval for the low lines and a small one for the high."
+      caption="The low half of the ruler for strummed chords, going in and coming out. Every line has moved by the same small distance, which is a large interval for the low lines and a small one for the high."
     />
 
     Intervals are ratios, and a shift keeps differences. <Claim id="fault-apart">Shifted by 30 Hz, the saw's first two partials stand at 140 Hz and 250 Hz: what was an octave has become 10.0 semitones</Claim>. A chord has such intervals between every pair of its notes, and each is bent by a different amount. If the tune must survive, keep the shift to a hertz or two and mix it with the dry sound. If the sound must move by a musical interval, the tool is the one of <Lesson id="pitch-shifting" />.
@@ -811,13 +824,13 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     The cancelling is exactly as good as the quarter turn. Stage 3 of part 5 has the numbers: how far under the kept sideband the cancelled one is for a test tone, at the crests of the pair's ripple, and below the band, where it is worst. Whether that can be heard under a given sound is for your ear. The place to listen is a single pure tone with a large shift, for a faint second tone on the other side of where the tone stood.
   </Fault>
   <Fault title="Past the top">
-    The same folding happens at the other end, and nothing in the device guards against it. <Claim id="past-top">A sine at 23.6 kHz shifted up by 1 kHz folds back to 23.4 kHz</Claim>: the place it was sent is past the top of what the page's sample rate can hold. Shift stops at <Src path="cpp/devices/freq-shifter/device.json" at={'"max": 1000,'}>1 kHz</Src>, so one pass can fold only the very top of the band. Feedback carries a partial further up on every pass, and Tone, which darkens each pass, is what keeps that in hand.
+    The same folding happens at the other end, and nothing in the device guards against it. <Claim id="past-top">A sine at 23.6 kHz shifted up by 1 kHz folds back to 23.4 kHz</Claim>: the place it was sent is past the top of what the page's sample rate can hold. Shift stops at <Src path="cpp/devices/freq-shifter/device.json" at={'"max": 1000,'}>1 kHz</Src>, so one pass can fold only the very top of the band. Feedback carries a partial further up on every pass. Every pass also goes through Tone's filter once more, which takes more from a line the higher it has climbed: stage 4 of part 5 measured that on a ladder of four lines.
   </Fault>
   <Fault title="A loop that builds">
-    Going once round the feedback loop, a single sideband comes back no larger than it left, so with Feedback under 1 the loop dies away. Ring at a shift of zero is the exception. Both sidebands land on the partial they came from, the make-up gain goes round with them, and each pass can come back larger than the last. The limiter is what stops it. <Claim id="ring-loop">In Ring, with Shift at 0 and Feedback at 0.98, a sine that peaks at a quarter of full scale builds until what comes back is held at 1.0</Claim>, and <Claim id="ring-loop-out">the output stands at 2.4</Claim> full scales. Lower Feedback, or move the shift off zero.
+    Going once round the feedback loop, a single sideband comes back no larger than it left, so with Feedback under 1 the loop dies away. Ring at a shift of zero is the exception. Both sidebands land on the partial they came from, the make-up gain goes round with them, and each pass can come back larger than the last. The limiter is what stops it. <Claim id="ring-loop">In Ring, with Shift at 0 and Feedback at 0.98, a sine that peaks at a quarter of full scale builds until what comes back is held at 1.0</Claim>, and <Claim id="ring-loop-out">the output stands at 2.4</Claim> full scales. No card on this page plays that setting. Set by hand it is far louder than anything else here, so lower the page's level first. The cure is to lower Feedback, or to move the shift off zero.
   </Fault>
   <Fault title="What silence does">
-    Fed silence, the device puts out <Claim id="silence">exact silence</Claim>. After <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="idle_.reset(sr, kParamMax[kDelay] * 0.001f + 0.2f);">its longest delay and a fifth of a second more</Src> of it, the device rests: the carrier and the LFO stop where they are until sound returns. So a slow drift does not carry on turning through a long gap, and what follows the gap starts from where the carrier stopped.
+    Fed silence, the device puts out <Claim id="silence">exact silence</Claim>. After <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="idle_.reset(sr, kParamMax[kDelay] * 0.001f + 0.2f);">its longest delay and a fifth of a second more</Src> of it, the device <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="if (!idle_.wake(input_present(frames))) {">rests</Src>: the carrier and the LFO stop where they are until sound returns. So a slow drift does not carry on turning through a long gap, and what follows the gap starts from where the carrier stopped.
   </Fault>
 </Faults>
 
@@ -830,13 +843,13 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     A change of pitch multiplies every frequency by one number, and a shift adds one number to every frequency. The two agree on one partial at most. The ruler of part 2 shows both at once: the lines of the faster copy fan out from zero, and the shifted lines slide. Only the first keeps a note a note.
   </Myth>
   <Myth says="With the shift at zero the device does nothing.">
-    The carrier then stands still, with its cosine at 1 and its sine at 0, and what comes out is the in-phase output of the pair. <Claim id="zero-shift">At a shift of 0 Hz the output and the in-phase output differ by at least 140 dB under either</Claim>. <Claim id="zero-level">A 1 kHz sine comes out less than 0.001 dB from the level it went in at</Claim>, and <Claim id="lag-1k">524° behind it</Claim>. A steady tone only starts its cycle somewhere else. A click changes shape: <Claim id="click-smear">a single sample of height 1 comes out as a train of samples, the largest of them 0.79 of the click's height, three samples late</Claim> and upside down, carrying <Claim id="click-energy">the same energy to one part in a million</Claim>. This is also why mixing the dry sound with an unshifted wet one makes the fixed notches of stage 5.
+    The carrier then stands still, with its cosine at 1 and its sine at 0, and what comes out is the in-phase output of the pair. <Claim id="zero-shift">At a shift of 0 Hz the difference between the output and the in-phase output is at least 140 dB under either</Claim>, the floor of the measure. <Claim id="zero-level">A 1 kHz sine comes out less than 0.001 dB from the level it went in at</Claim>, and <Claim id="lag-1k">524° behind it</Claim>. A steady tone only starts its cycle somewhere else. A click changes shape: <Claim id="click-smear">a single sample of height 1 comes out as a train of samples, the largest of them 0.79 of the click's height, three samples late</Claim> and upside down, carrying <Claim id="click-energy">the same energy to one part in a million</Claim>. This is also why mixing the dry sound with an unshifted wet one makes the fixed notches of stage 5.
   </Myth>
   <Myth says="The unwanted sideband is removed.">
     It is cancelled, by adding it to a copy of itself turned upside down, and the cancelling is only as exact as the pair's quarter turn. Step 4 of the build measured what was left on a sine, and stage 3 of part 5 found where in the band it is least far down.
   </Myth>
   <Myth says="A shift of a hertz is too small to hear.">
-    By itself it nearly is. Mixed with the dry sound it is a swell and a silence once a second, at every frequency in turn. Stage 5 of part 5 measured both the swell and the depth of the silence, and the picture there shows the bands they make.
+    By itself it moves each partial one hertz, and whether you can hear that is for your ear. Mixed with the dry sound it is a swell and a silence once a second, at every frequency in turn. Stage 5 of part 5 measured both the swell and the depth of the silence, and the picture there shows the bands they make.
   </Myth>
   <Myth says="To move frequencies about, a device must take the sound apart into a spectrum first.">
     This one holds no spectrum at any time. It works a sample at a time: eight all-pass sections, two readings of a table, two multiplications and a sum, as the listings of stages 1 and 3 show. The ruler and the spectra on this page are the lab's, for looking. A device that does work on the spectrum itself is the subject of <Lesson id="spectral-processing" />.

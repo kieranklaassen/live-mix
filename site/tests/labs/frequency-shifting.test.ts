@@ -91,6 +91,21 @@ function strongest(x: Float32Array, lo: number, hi: number, step = 1): number {
 /** An angle brought between −180° and 180°. */
 const turn = (degrees: number) => ((((degrees + 180) % 360) + 360) % 360) - 180
 
+/** Where a frequency sent below zero or past half the sample rate comes out, in hertz. */
+const folded = (hz: number) => (Math.abs(hz) > RATE / 2 ? RATE - Math.abs(hz) : Math.abs(hz))
+
+/**
+ * How far under the kept sideband the cancelled one is left, in dB, by a pair that is `degrees`
+ * from a quarter turn: the tangent of half the angle, as the lesson's stage 3 gives it.
+ */
+const leak = (degrees: number) => -20 * Math.log10(Math.tan((Math.abs(degrees) * Math.PI) / 360))
+
+/**
+ * Crests of the pair's ripple, in hertz, from the bottom of the band to the top: worked out from
+ * the kit's eight coefficients, apart from the lab.
+ */
+const CRESTS = [30.2, 61.9, 329.9, 1805, 8838, 15_162, 23_938.1]
+
 /** A curve tap whose points stand in even ratios, read at a frequency. */
 function curveAt(tap: { channels_data: Float32Array[]; x0: number; x1: number }, hz: number) {
   const ys = tap.channels_data[0]!
@@ -262,6 +277,11 @@ describe('frequency shifting', () => {
     const without = measure(STEP.wire)
     expect(matchesWritten(without.behind, '78.5°')).toBe(false)
     expect(matchesWritten(without.second, 'less than 0.001 dB')).toBe(false)
+    // The first copy is then the sine itself, and the second copy's tap holds nothing.
+    const wire = shifter.render(source, { build: STEP.wire })
+    const through = first(wire, 'in')
+    expect(first(wire, 'built').every((v, k) => v === through[k])).toBe(true)
+    expect(peak(first(wire, 'builtQuadrature'))).toBe(0)
   })
 
   it('with the carrier in and Shift at 100 Hz, turns the 440 Hz sine into lines at 340 Hz and 540 Hz, each 6.0 dB under it; without the carrier there is nothing at either (claim build-carrier)', async () => {
@@ -295,6 +315,8 @@ describe('frequency shifting', () => {
     const one = lines(STEP.carrier)
     expect(matchesWritten(one.apart, '50.5 dB')).toBe(false)
     expect(matchesWritten(one.kept, '0.0 dB')).toBe(false)
+    // Level: one product alone holds both sidebands at one height.
+    expect(Math.abs(one.apart)).toBeLessThan(0.01)
   })
 
   it('with the feedback path in and Feedback at 0.5, adds to the 440 Hz sine shifted by 100 Hz a line at 640 Hz, 6.06 dB under the line at 540 Hz; without the path there is nothing at 640 Hz (claim build-feedback)', async () => {
@@ -321,7 +343,7 @@ describe('frequency shifting', () => {
     expect(matchesWritten(under(STEP.feedback, 540), '3.0 dB')).toBe(false)
   })
 
-  it("with all six pieces is the device's own output, to −140 dB, the floor of the measure, on every loop, in every mode and with every control turned (claim build-same)", async () => {
+  it("with all six pieces is the device's own output, sample for sample, and the reading is −140 dB, the floor of the measure, on every loop, in every mode and with every control turned (claim build-same)", async () => {
     const shifter = await lab(NAME)
     const tried: Record<string, number>[] = [
       {},
@@ -334,8 +356,19 @@ describe('frequency shifting', () => {
     for (const id of ['saw', 'sine', 'chords', 'guitar', 'pad', 'drums', 'bass', 'mix', 'noise']) {
       const source = await benchSource(id, seconds(4))
       for (const values of tried) {
+        // The reading is of the whole build, whichever step the page shows.
         const { checks } = shifter.render(source, { ...values, build: STEP.wire })
         expectWritten(checks.builtDifference!, 'at most −140 dB')
+        // At the last step the built taps hold the whole build: no sample of it differs.
+        const { taps } = shifter.render(source, { ...values, build: STEP.mix })
+        for (const side of [0, 1]) {
+          const made = taps.out!.channels_data[side]!
+          const built = taps.built!.channels_data[side]!
+          expect(
+            built.every((v, k) => v === made[k]),
+            `${id}, ${JSON.stringify(values)}, side ${side}`,
+          ).toBe(true)
+        }
       }
     }
     // A sound with gaps longer than the device stays awake for: the build rests with it.
@@ -371,16 +404,22 @@ describe('frequency shifting', () => {
       const hz = curve.x0 * Math.pow(curve.x1 / curve.x0, p / (ahead.length - 1))
       if (hz >= 22) expectWritten(Math.abs(ahead[p]! - 90), 'less than 0.71°')
     }
-    // And the device's own pair as it runs, with a sine at the band's ends and the ripple's crests.
-    for (const hz of [22, 30.2, 62, 1000, 8863, 15_200, 23_734, 23_978]) {
+    // And the device's own pair as it runs, with a sine at the band's ends, between two crests
+    // and at the ripple's crests: the crests are one height, to the last digit written.
+    const apart = (hz: number) => {
       const taps = shifter.render(sine(hz, 0.5, seconds(2)), {}).taps
       const i = tone(taps.inPhase!.channels_data[0]!, hz).degrees
       const q = tone(taps.quadrature!.channels_data[0]!, hz).degrees
-      expect(Math.abs(turn(q - i) - 90), `at ${hz} Hz`).toBeLessThan(0.71)
+      return Math.abs(turn(q - i) - 90)
+    }
+    for (const hz of [22, 1000, 23_978]) expect(apart(hz), `at ${hz} Hz`).toBeLessThan(0.71)
+    for (const hz of CRESTS) {
+      expect(apart(hz), `at ${hz} Hz`).toBeLessThan(0.71)
+      expect(apart(hz), `at ${hz} Hz`).toBeGreaterThan(0.7)
     }
   })
 
-  it('is 1.6° from a quarter turn at 20 Hz (claim below-band), where the cancelled copy is only 37 dB down (claim image-20)', async () => {
+  it('is 1.6° from a quarter turn at 20 Hz (claim below-band), where a 20 Hz sine shifted by 100 Hz leaves the cancelled copy only 37 dB down (claim image-20)', async () => {
     const shifter = await lab(NAME)
     const taps = shifter.render(sine(20, 0.5, seconds(4)), { shift: 100 }).taps
     const i = tone(taps.inPhase!.channels_data[0]!, 20).degrees
@@ -415,7 +454,7 @@ describe('frequency shifting', () => {
     }
   })
 
-  it('with Width at 1 and Mode on Up puts the right output 90.0° ahead of the left (claim width-quarter)', async () => {
+  it('with Width at 1 and Mode on Up brings sines at 110 Hz, 1 kHz and 5 kHz, each shifted by 100 Hz, out 90.0° ahead on the right (claim width-quarter)', async () => {
     const shifter = await lab(NAME)
     for (const hz of [110, 1000, 5000]) {
       const out = shifter.render(sine(hz, 0.5, seconds(2)), { width: 1 }).taps.out!
@@ -476,19 +515,38 @@ describe('frequency shifting', () => {
     expectWritten(tone(out, 1100).db - tone(out, 900).db, '49.0 dB')
   })
 
-  it('leaves the cancelled copy at least 44.2 dB down at the crests of the ripple, its worst in the band (claim image-worst)', async () => {
+  it("leaves the cancelled copy of a sine at a crest of the ripple at least 44.2 dB under the kept one, shifted up by 100 Hz or down by 333 Hz, as the tangent of half the pair's error says (claim image-worst)", async () => {
     const shifter = await lab(NAME)
-    for (const hz of [30.2, 62, 330.6, 8863, 15_200]) {
-      const out = shifter.render(sine(hz, 0.5, seconds(4)), { shift: 100 }).taps.out!
-      const image =
-        tone(out.channels_data[0]!, hz + 100).db -
-        tone(out.channels_data[0]!, Math.abs(hz - 100)).db
-      expectWritten(image, 'at least 44.2 dB')
-      expect(image, `at ${hz} Hz`).toBeLessThan(44.3)
+    for (const hz of CRESTS) {
+      const found: number[] = []
+      for (const shift of [100, -333]) {
+        const taps = shifter.render(sine(hz, 0.5, seconds(4)), { shift }).taps
+        const out = taps.out!.channels_data[0]!
+        const image = tone(out, folded(hz + shift)).db - tone(out, folded(hz - shift)).db
+        expectWritten(image, 'at least 44.2 dB')
+        expect(image, `at ${hz} Hz, shifted ${shift} Hz`).toBeLessThan(44.3)
+        // The formula, from the angle between the pair's two outputs at the frequency going in.
+        const i = tone(taps.inPhase!.channels_data[0]!, hz).degrees
+        const q = tone(taps.quadrature!.channels_data[0]!, hz).degrees
+        expect(
+          Math.abs(image - leak(turn(q - i) - 90)),
+          `at ${hz} Hz, shifted ${shift} Hz`,
+        ).toBeLessThan(0.05)
+        found.push(image)
+      }
+      // The shift has no say in it.
+      expect(Math.abs(found[0]! - found[1]!), `at ${hz} Hz`).toBeLessThan(0.05)
     }
   })
 
-  it('gives the same output for Down at +100 Hz as for Up at −100 Hz, the two more than 130 dB apart (claim down-is-negative)', async () => {
+  it("fed the furthest from a quarter turn that the lab's search found, the formula gives at least 44.2 dB for a sine anywhere from 22 Hz to 23,978 Hz (claim image-band)", async () => {
+    const shifter = await lab(NAME)
+    const { checks } = shifter.render(sine(1000, 0.5, seconds(0.5)), {})
+    expectWritten(leak(checks.quarterError!), 'at least 44.2 dB')
+    expect(leak(checks.quarterError!)).toBeLessThan(44.3)
+  })
+
+  it('on a 1 kHz sine gives the same output for Down at +100 Hz as for Up at −100 Hz, the two more than 130 dB apart (claim down-is-negative)', async () => {
     const shifter = await lab(NAME)
     const source = sine(1000, 0.5, seconds(2))
     const down = shifter.render(source, { shift: 100, mode: 1 }).taps.out!.channels_data[0]!
@@ -625,6 +683,24 @@ describe('frequency shifting', () => {
     const { lo, hi } = range(first(await played(shifter, 'sway'), 'shiftNow'))
     expectWritten(lo, '−6.1 Hz')
     expectWritten(hi, '6.1 Hz')
+  })
+
+  it("in Ring, shifted by its own 110 Hz, leaves the saw's three lowest lines at 110, 220 and 330 Hz and the output resting 0.10 below zero (claim way-both)", async () => {
+    const shifter = await lab(NAME)
+    const out = first(await played(shifter, 'both'), 'out')
+    expect(strongest(out, 70, 150)).toBe(110)
+    expect(strongest(out, 180, 260)).toBe(220)
+    expectWritten(strongest(out, 290, 370), '330 Hz')
+    // Nothing stands between the lines: half way from one to the next is more than 60 dB under.
+    for (const hz of [165, 275]) expect(tone(out, 220).db - tone(out, hz).db).toBeGreaterThan(60)
+    let sum = 0
+    for (const v of out) sum += v
+    expectWritten(-sum / out.length, '0.10')
+    // Up, the same shift leaves no such offset.
+    const up = first(await played(shifter, 'both', { mode: 0 }), 'out')
+    let rest = 0
+    for (const v of up) rest += v
+    expect(Math.abs(rest / up.length)).toBeLessThan(0.005)
   })
 
   // ---- Part 7: what goes wrong ------------------------------------------------------------
