@@ -1,0 +1,87 @@
+{
+  "tile": {
+    "values": { "setBy": 3 },
+    "tap": "out",
+    "picture": { "taps": ["tone", "out"], "view": "wave", "from": 0, "span": 2 }
+  },
+  "sets": {
+    "tallDrums": {
+      "label": "Drums, set by peak",
+      "values": { "setBy": 1 },
+      "source": "drums",
+      "tap": "out"
+    },
+    "tallPad": {
+      "label": "Pad, set by peak",
+      "values": { "setBy": 1 },
+      "source": "pad",
+      "tap": "out"
+    },
+    "evenDrums": {
+      "label": "Drums, set by loudness",
+      "values": { "setBy": 3 },
+      "source": "drums",
+      "tap": "out"
+    },
+    "evenPad": {
+      "label": "Pad, set by loudness",
+      "values": { "setBy": 3 },
+      "source": "pad",
+      "tap": "out"
+    },
+    "evenBass": {
+      "label": "Bass, set by loudness",
+      "values": { "setBy": 3 },
+      "source": "bass",
+      "tap": "out"
+    },
+    "evenChords": {
+      "label": "Chords, set by loudness",
+      "values": { "setBy": 3 },
+      "source": "chords",
+      "tap": "out"
+    },
+    "evenMix": {
+      "label": "Mix, set by loudness",
+      "values": { "setBy": 3 },
+      "source": "mix",
+      "tap": "out"
+    },
+    "gap": {
+      "label": "Drums, set by level",
+      "values": { "setBy": 2 },
+      "source": "drums",
+      "tap": "out"
+    },
+    "slow": {
+      "label": "Mix, a three-second window",
+      "values": { "window": 3000 },
+      "source": "mix",
+      "tap": "out"
+    },
+    "rests": {
+      "label": "Pad with a rest, set by loudness",
+      "values": { "setBy": 3, "silence": 50 },
+      "source": "pad",
+      "tap": "out"
+    },
+    "restsLevel": {
+      "label": "Pad with a rest, set by level",
+      "values": { "setBy": 2, "silence": 50 },
+      "source": "pad",
+      "tap": "out"
+    },
+    "ringing": {
+      "label": "Chords, set by level",
+      "values": { "setBy": 2 },
+      "source": "chords",
+      "tap": "out"
+    },
+    "hiss": {
+      "label": "Noise, set by peak",
+      "values": { "setBy": 1 },
+      "source": "noise",
+      "tap": "out"
+    }
+  }
+}
