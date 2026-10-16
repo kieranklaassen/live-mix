@@ -3,6 +3,7 @@ import type { Lab, RenderResult } from '../../src/lab/runner.ts'
 import { readSettings, resolveSet } from '../../src/lib/settings.ts'
 import {
   BIN,
+  FADE,
   expectBuild,
   expectSoundLab,
   expectWritten,
@@ -134,6 +135,44 @@ function standsAt(x: Float32Array, at: number): number {
 const power = (levels: number[]) =>
   10 * Math.log10(levels.reduce((sum, db) => sum + 10 ** (db / 10), 0))
 
+/** Where the folds of a saw at 3,840 Hz land between its own partials: half way from each to the next. */
+const BETWEEN = [1920, 5760, 9600, 13_440, 17_280, 21_120]
+
+/**
+ * What a whole loop holds from `from` to `to` hertz, in dB where a full-scale sine reads 0: the
+ * Fourier sum over all of the loop under a Hann window, at every half hertz between the two,
+ * added up. Half a hertz is one bin of a two-second loop, and a sine under a Hann window is
+ * spread over bins that add up to 1.5 times its own power, wherever between two bins it lies.
+ */
+function loopBand(x: Float32Array, from: number, to: number): number {
+  const windowed = Float64Array.from(
+    x,
+    (v, i) => v * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / x.length)),
+  )
+  let sum = 0
+  for (let hz = from; hz <= to; hz += 0.5) {
+    let re = 0
+    let im = 0
+    for (let i = 0; i < windowed.length; i += 1) {
+      const angle = (2 * Math.PI * hz * i) / RATE
+      re += windowed[i]! * Math.cos(angle)
+      im -= windowed[i]! * Math.sin(angle)
+    }
+    sum += ((4 / windowed.length) * Math.hypot(re, im)) ** 2
+  }
+  return 10 * Math.log10(sum / 1.5)
+}
+
+/** How many peaks an audio tap's spectrum has above `floor` dB, the one at 0 Hz among them. */
+function peaksAbove(theLab: Lab, id: string, floor: number): number {
+  const levels = theLab.spectrum(id)
+  let count = levels[0]! > floor && levels[0]! > levels[1]! ? 1 : 0
+  for (let k = 1; k < levels.length - 1; k += 1)
+    if (levels[k]! > floor && levels[k]! > levels[k - 1]! && levels[k]! >= levels[k + 1]!)
+      count += 1
+  return count
+}
+
 describe('samples, sine waves and aliasing', () => {
   it('is a sound lab with nothing going in: every tap says something, loops, and answers to every control', async () => {
     const osc = await lab(NAME)
@@ -177,6 +216,9 @@ describe('samples, sine waves and aliasing', () => {
     const sweep = tap(played(osc, 'rising'), 'sweep')
     expectWritten(standsAt(sweep, 0.5) / 1000, '12 kHz')
     expectWritten(standsAt(sweep, 1.5) / 1000, '12 kHz')
+    // Both measure within a thousandth of a hertz of 12 kHz: a hertz is room enough.
+    expect(Math.abs(standsAt(sweep, 0.5) - 12_000)).toBeLessThan(1)
+    expect(Math.abs(standsAt(sweep, 1.5) - 12_000)).toBeLessThan(1)
     // What was asked for at those two moments: the step grows evenly to a whole cycle a sample.
     expect((RATE * 0.5) / 2).toBe(12_000)
     expect((RATE * 1.5) / 2).toBe(36_000)
@@ -249,7 +291,9 @@ describe('samples, sine waves and aliasing', () => {
     expect(peak(high)).toBeGreaterThan(0.99)
     let worst = 0
     for (let i = 0; i < high.length; i += 1) worst = Math.max(worst, Math.abs(high[i]! + low[i]!))
-    expect(worst).toBeLessThan(1e-6)
+    // Every pair adds up to nothing, but for the samples that stand at the table's own zero,
+    // which the table holds as 1.2e-16 in both.
+    expect(worst).toBeLessThan(1e-15)
   })
 
   it('brings 47 kHz out at 1 kHz (claim fold-47k)', async () => {
@@ -276,22 +320,36 @@ describe('samples, sine waves and aliasing', () => {
 
   // ---- part 3 -------------------------------------------------------------------------------
 
-  it('at 110 Hz, fits 218 partials under half the rate, has its strongest fold at −50.7 dB, and −53.2 dB of folds under the note (claim use-low)', async () => {
+  it('at 110 Hz, fits 218 partials under half the rate, has its strongest fold at −50.7 dB, and holds −51.6 dB under the note, from 5 Hz to 105 Hz (claim use-low)', async () => {
     const osc = await lab(NAME)
-    const found = partials(played(osc, 'low'))
+    const out = played(osc, 'low')
+    const found = partials(out)
     expect(found.filter((one) => one.hz < RATE / 2).length).toBe(218)
+    // At exactly 110 Hz too, which the measuring frame's 109.9 Hz stands for.
+    expect(Math.floor(RATE / 2 / 110)).toBe(218)
     const folds = found.filter((one) => one.hz > RATE / 2)
     expectWritten(Math.max(...folds.map((one) => one.naive)), '−50.7 dB')
-    expectWritten(power(folds.filter((one) => one.lands < 110).map((one) => one.naive)), '−53.2 dB')
+    // Under the note a saw has nothing of its own, so what the loop holds there is folds: all
+    // of them, however high they were asked for. The band stops short of 0 Hz and of the note.
+    expectWritten(loopBand(tap(out, 'naive'), 5, 105), '−51.6 dB')
+    // The partials the measuring frame counts, up to twice the sample rate, are most of it.
+    const counted = power(folds.filter((one) => one.lands < 110).map((one) => one.naive))
+    expect(counted).toBeGreaterThan(-53.5)
+    expect(counted).toBeLessThan(-51.6)
   })
 
-  it('at 3,840 Hz, adds the folds of the naive saw up to −13.3 dB and those of the kit’s to −29.4 dB (claim use-high)', async () => {
+  it('at 3,840 Hz, fits six partials under half the rate, and adds the six lines of folds between them up to −13.2 dB in the naive saw and −28.9 dB in the kit’s (claim use-high)', async () => {
     const osc = await lab(NAME)
-    const folds = partials(played(osc, 'naive')).filter((one) => one.hz > RATE / 2)
-    expectWritten(power(folds.map((one) => one.naive)), '−13.3 dB')
-    expectWritten(power(folds.map((one) => one.kit)), '−29.4 dB')
-    // Six partials fit under half the rate, and the measuring frame reaches twice the rate.
-    expect(partials(played(osc, 'naive')).length - folds.length).toBe(6)
+    const out = played(osc, 'naive')
+    // The measuring frame reaches twice the sample rate: six of its partials are under half of it.
+    expect(partials(out).filter((one) => one.hz < RATE / 2).length).toBe(6)
+    // In the loop as it sounds, each line holds everything that lands there, from however high.
+    expectWritten(power(BETWEEN.map((hz) => line(tap(out, 'naive'), hz))), '−13.2 dB')
+    expectWritten(power(BETWEEN.map((hz) => line(tap(out, 'saw'), hz))), '−28.9 dB')
+    // The card called "kit" plays the same settings.
+    expect(resolveSet(osc.description, settings.sets.kit!).values).toEqual(
+      resolveSet(osc.description, settings.sets.naive!).values,
+    )
   })
 
   it('under a note gliding from 880 Hz, holds −30.4 dB below 800 Hz in the naive saw (claim use-moving) and −71 dB in the kit’s (claim way-watched)', async () => {
@@ -371,17 +429,19 @@ describe('samples, sine waves and aliasing', () => {
     ]) {
       for (const build of [STEP.phase, STEP.step, STEP.slope]) {
         const out = osc.render(nothing(), { ...values, build })
-        // −140 dB is what the lab reads when nothing differs at all.
+        // −140 dB is the floor of the lab's reading: nothing differs, or less than that.
         expect(out.checks.builtDifference).toBe(-140)
         expect(out.checks.builtSaw).toBe(-140)
       }
+      // So the taps are compared too, every sample of each: at the last step the build is the
+      // kit's triangle, and at the third its saw and its correction.
+      const last = osc.render(nothing(), { ...values, build: STEP.slope })
+      expect(tap(last, 'built'), JSON.stringify(values)).toEqual(tap(last, 'triangle'))
+      const third = osc.render(nothing(), { ...values, build: STEP.step })
+      expect(tap(third, 'built'), JSON.stringify(values)).toEqual(tap(third, 'saw'))
+      expect(tap(third, 'builtFix'), JSON.stringify(values)).toEqual(tap(third, 'correction'))
     }
-    // The built taps are those sounds: at the last step the kit's triangle, at the third its saw.
     const last = osc.render(nothing(), { build: STEP.slope })
-    expect(tap(last, 'built')).toEqual(tap(last, 'triangle'))
-    const third = osc.render(nothing(), { build: STEP.step })
-    expect(tap(third, 'built')).toEqual(tap(third, 'saw'))
-    expect(tap(third, 'builtFix')).toEqual(tap(third, 'correction'))
     // The phase the build keeps is the kit's.
     expect(tap(last, 'builtPhase')).toEqual(tap(last, 'phase'))
   })
@@ -435,13 +495,11 @@ describe('samples, sine waves and aliasing', () => {
   it('finds six lines of folds between the harmonics of the naive loop, from 1,920 Hz up to 21,120 Hz, each from −19.7 dB to −21.9 dB (claim naive-lines)', async () => {
     const osc = await lab(NAME)
     const plain = tap(osc.render(nothing(), {}), 'naive')
-    const lines = [1920, 5760, 9600, 13_440, 17_280, 21_120].map((hz) => line(plain, hz))
+    const lines = BETWEEN.map((hz) => line(plain, hz))
     expectWritten(lines[0]!, '−21.9 dB')
     expectWritten(lines[5]!, '−19.7 dB')
-    for (const level of lines) {
-      expect(level).toBeGreaterThan(-22)
-      expect(level).toBeLessThan(-19.6)
-    }
+    // The lowest reads least and the highest most, and each of the rest lies between its neighbours.
+    for (let i = 1; i < lines.length; i += 1) expect(lines[i]!).toBeGreaterThan(lines[i - 1]!)
     // And nothing anywhere else: the loop is one pattern of 25 samples.
     const levels = osc.spectrum('naive')
     for (let k = 0; k < levels.length; k += 1) {
@@ -485,10 +543,26 @@ describe('samples, sine waves and aliasing', () => {
 
   it("adds the correction to the naive saw and gets the kit's saw, to the last bit (claim sum-exact)", async () => {
     const osc = await lab(NAME)
-    for (const note of [55, 440, 3520, 8000]) {
-      expect(osc.render(nothing(), { note }).checks.sumError).toBe(-140)
+    for (const values of [
+      { note: 55 },
+      { note: 440 },
+      { note: 3520 },
+      { note: 8000 },
+      { note: 880, glide: 2 },
+    ]) {
+      const out = osc.render(nothing(), values)
+      // −140 dB is the floor of the lab's reading, so the samples are added here as well, in
+      // the 32 bits the lab keeps them in. Past the 20 ms where the loop's wrap is crossfaded:
+      // there each tap is a mix of two passes, rounded once more.
+      expect(out.checks.sumError).toBe(-140)
+      const plain = tap(out, 'naive')
+      const fix = tap(out, 'correction')
+      const kit = tap(out, 'saw')
+      let apart = 0
+      for (let i = FADE; i < kit.length; i += 1)
+        if (Math.fround(plain[i]! + fix[i]!) !== kit[i]) apart += 1
+      expect(apart, JSON.stringify(values)).toBe(0)
     }
-    expect(osc.render(nothing(), { note: 880, glide: 2 }).checks.sumError).toBe(-140)
   })
 
   it('measures every partial where the triangle formula puts it, within 0.1 dB (claim smooth-error)', async () => {
@@ -552,8 +626,7 @@ describe('samples, sine waves and aliasing', () => {
   it('finds the strongest fold of the naive triangle at −35.2 dB, at 21,120 Hz, where the naive saw has −19.7 dB and the kit’s triangle −45.7 dB (claim way-soft)', async () => {
     const osc = await lab(NAME)
     const out = played(osc, 'soft')
-    const places = [1920, 5760, 9600, 13_440, 17_280, 21_120]
-    const folds = places.map((hz) => line(tap(out, 'triangleNaive'), hz))
+    const folds = BETWEEN.map((hz) => line(tap(out, 'triangleNaive'), hz))
     expect(folds.indexOf(Math.max(...folds))).toBe(5)
     expectWritten(folds[5]!, '−35.2 dB')
     expectWritten(line(tap(out, 'naive'), 21_120), '−19.7 dB')
@@ -570,26 +643,19 @@ describe('samples, sine waves and aliasing', () => {
     expectWritten(band, '−30.6 dB')
     expectWritten(plain - band, '10.9 dB')
     // Between the two, the kit's lines fall the lower they land.
-    const lines = [1920, 5760, 9600, 13_440, 17_280, 21_120].map((hz) => line(tap(out, 'saw'), hz))
+    const lines = BETWEEN.map((hz) => line(tap(out, 'saw'), hz))
     for (let i = 1; i < lines.length; i += 1) expect(lines[i]!).toBeGreaterThan(lines[i - 1]! + 4)
   })
 
-  it('at 4 kHz, takes 41.9 dB or more off the folds that land at or under the fundamental (claim fold-4k-low), and 13.1 dB off all the folds together (claim fold-4k-all)', async () => {
+  it('at 3,840 Hz, reads the line at 1,920 Hz 54.1 dB lower in the kit’s loop than in the naive one (claim fold-low), and the six lines of folds together 15.7 dB lower (claim fold-all)', async () => {
     const osc = await lab(NAME)
-    const out = osc.render(nothing(), { note: 4000 })
-    // The measuring frame's nearest frequency: 4,000.5 Hz.
-    expect(Math.abs(out.taps.reduction!.x0 - 4000)).toBeLessThan(1)
-    const folds = partials(out).filter((one) => one.hz > RATE / 2)
-    const low = folds.filter((one) => one.lands <= 4010)
-    expect(low.map((one) => one.k)).toEqual([11, 12, 13, 23])
-    expectWritten(-Math.max(...low.map((one) => one.taken)), '41.9 dB')
-    expectWritten(
-      power(folds.map((one) => one.naive)) - power(folds.map((one) => one.kit)),
-      '13.1 dB',
-    )
-    // The fold that lands highest loses far less.
-    const highest = folds.reduce((a, b) => (b.lands > a.lands ? b : a))
-    expect(highest.taken).toBeGreaterThan(-8.2)
+    const out = played(osc, 'kit')
+    const plain = BETWEEN.map((hz) => line(tap(out, 'naive'), hz))
+    const band = BETWEEN.map((hz) => line(tap(out, 'saw'), hz))
+    expectWritten(plain[0]! - band[0]!, '54.1 dB')
+    expectWritten(power(plain) - power(band), '15.7 dB')
+    // The line that lands highest carries most of what the kit's saw has left: more than half.
+    expect(band[5]! - power(band)).toBeGreaterThan(-3)
   })
 
   it("dulls the saw's own partials: 0.18 dB at the fundamental (claim droop-fundamental), 7.2 dB at the sixth, 23,036 Hz (claim droop-top)", async () => {
@@ -616,7 +682,8 @@ describe('samples, sine waves and aliasing', () => {
     for (let i = 960; i + 12 < plain.length; i += 1) {
       worst = Math.max(worst, Math.abs(plain[i + 12]! - plain[i]!))
     }
-    expect(worst).toBeLessThan(1e-3)
+    // A step of a twelfth of a cycle is not exact in 32 bits: the pattern holds to their rounding.
+    expect(worst).toBeLessThan(1e-6)
     // Nothing stands between the harmonics: half way from each to the next the spectrum is empty.
     const levels = osc.spectrum('naive')
     for (let harmonic = 0; harmonic < 6; harmonic += 1) {
@@ -625,19 +692,18 @@ describe('samples, sine waves and aliasing', () => {
     }
   })
 
-  it('shows 13 peaks above −60 dB in the naive loop at 3,840 Hz and more than fifty once the saw moves off it (claim thicket)', async () => {
+  it('shows 13 peaks above −60 dB in the naive loop at 3,840 Hz, one of them at 0 Hz, and more than fifty once the saw moves off it (claim thicket)', async () => {
     const osc = await lab(NAME)
     const lines = (note: number) => {
       osc.render(nothing(), { note })
-      const levels = osc.spectrum('naive')
-      let count = levels[0]! > -60 && levels[0]! > levels[1]! ? 1 : 0
-      for (let k = 1; k < levels.length - 1; k += 1)
-        if (levels[k]! > -60 && levels[k]! > levels[k - 1]! && levels[k]! >= levels[k + 1]!)
-          count += 1
-      return count
+      return peaksAbove(osc, 'naive', -60)
     }
-    // Six harmonics, six lines of folds and the one at 0 Hz.
+    // Six harmonics, six lines of folds and the one at 0 Hz, where the 25th partial lands
+    // (25 times 3,840 Hz is twice the sample rate).
     expect(lines(3840)).toBe(13)
+    const low = osc.spectrum('naive')
+    expect(low[0]).toBeGreaterThan(-60)
+    expect(low[0]).toBeGreaterThan(low[1]!)
     for (const note of [3520, 3700, 3800, 3880]) expect(lines(note)).toBeGreaterThan(50)
     expect(settings.sets.thicket!.values).toEqual({ note: 3800 })
   })
@@ -649,8 +715,10 @@ describe('samples, sine waves and aliasing', () => {
     osc.render(nothing(), { freq: 23_952 })
     const found = top(osc, 'sine')
     expect(Math.abs(found.hz - 23_952)).toBeLessThan(BIN)
-    expect(found.db).toBeGreaterThan(-0.2)
-    expect(found.db).toBeLessThan(0.05)
+    // It measures −0.05 dB: the sine stands a tenth of a bin off the bin that reads it.
+    expect(Math.abs(found.db)).toBeLessThan(0.1)
+    // One line: the spectrum has no other peak above −100 dB.
+    expect(peaksAbove(osc, 'sine', -100)).toBe(1)
   })
 
   it('shows a sine at 23,952 Hz as dots that turn sign each sample and stay under a sixth of full level (claim near-nyquist-dots)', async () => {

@@ -51,7 +51,8 @@ kit::BlepOsc triangle_osc;
 
 lab::Control freq{"freq", "Sine frequency", "Hz", 0.0f, 48000.0f, 2000.0f};
 lab::Control note{"note", "Note", "Hz", 55.0f, 8000.0f, 3840.0f, lab::kLog};
-lab::Control glide{"glide", "Glide", "octaves", 0.0f, 2.0f, 0.0f};
+// "oct" and not "octaves": the page prints the value before the unit, and at 1 that read "1 octaves".
+lab::Control glide{"glide", "Glide", "oct", 0.0f, 2.0f, 0.0f};
 
 // The loop, in the lesson's order but for the last: play starts on the last of these.
 lab::Tap sweep{"sweep", "A sine asked to rise to 48 kHz", lab::kAudio, lab::kKit, 1};

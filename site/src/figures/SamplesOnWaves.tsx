@@ -3,9 +3,9 @@
 // Both are curves the lab worked out; this draws the first kind as lines and the second as stalks.
 // With `spectrum` it draws a second picture beside the first: how much of each frequency the
 // loop of that sound holds, on an even axis that runs to the sample rate, with an upright at
-// half the rate and one at each control named. Nothing sampled stands past the first upright.
-// That first upright carries no name: the plot writes every upright's name on one row, and the
-// two names would lie across each other whenever the control stands past half the rate.
+// half the rate and one at each control named, each with its name beside it. Nothing sampled
+// stands past the first upright. The plot keeps two names off each other: the one that would run
+// into the other is written a row lower (`namePlaces` in draw.ts).
 
 import { useLab, waitingText } from '../lab/page.ts'
 import { SAMPLE_RATE } from '../lab/rate.ts'
@@ -82,7 +82,7 @@ export default function SamplesOnWaves({
     <div className="samples-beside-spectrum">
       {dots}
       <Plot
-        label={`The spectrum of ${spectrum.name}`}
+        label={`The spectrum of ${spectrum.name}, with an upright at half the sample rate`}
         series={[
           {
             key: spectrum.id,
@@ -97,7 +97,10 @@ export default function SamplesOnWaves({
         x={{ min: 0, max: SAMPLE_RATE, unit: 'Hz', title: 'hertz' }}
         y={{ min: -100, max: 6, unit: 'dB', title: 'decibels' }}
         height={height}
-        marks={[{ x: SAMPLE_RATE / 2, text: '' }, ...uprightsAt(uprights, state.values)]}
+        marks={[
+          { x: SAMPLE_RATE / 2, text: 'half the sample rate' },
+          ...uprightsAt(uprights, state.values),
+        ]}
         waiting={waitingText(state)}
         stamp={result}
       />
