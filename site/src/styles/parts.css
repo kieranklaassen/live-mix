@@ -307,8 +307,11 @@
   border-top: 1px solid var(--lm-text);
 }
 .build-tabs li {
+  /* A name that takes two lines sets the height of the row: every step's rule is at its foot. */
+  display: flex;
   flex: 1 1 0;
-  min-width: min(100%, 9.5rem);
+  /* Seven steps stand in one row beside a part's number on a wide page. */
+  min-width: min(100%, 7.5rem);
   margin: 0;
 }
 .build-tabs button {
@@ -361,10 +364,22 @@
   .build-step {
     grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   }
+  /* A line of source is wider than half a step: the listing and the buttons run its width. */
+  .build-source,
+  .build-nav {
+    grid-column: 1 / -1;
+  }
 }
 .build-text,
-.build-side {
+.build-side,
+.build-source {
   min-width: 0;
+}
+.build-source > :first-child {
+  margin-top: 0;
+}
+.build-source > :last-child {
+  margin-bottom: 0;
 }
 .build-count {
   margin: 0 0 6px;
@@ -381,7 +396,8 @@
   outline: 2px solid var(--lm-focus);
   outline-offset: 4px;
 }
-.build-text > :is(p, ul, ol) {
+.build-text > :is(p, ul, ol),
+.build-source > :is(p, ul, ol) {
   max-width: 620px;
   font-size: 18px;
 }
@@ -389,7 +405,6 @@
 .build-nav {
   display: flex;
   flex-wrap: wrap;
-  margin-top: 22px;
   padding: 0 1px 1px 0;
 }
 .build-nav .hear {

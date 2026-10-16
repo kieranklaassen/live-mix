@@ -11,6 +11,7 @@ import fs from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import {
   farEnd,
+  turnToFarEnd,
   isLong,
   labReady,
   lessonIds,
@@ -81,10 +82,7 @@ function longCases(lesson: string) {
     if ((await knob.count()) > 0) {
       const before = await pictures(page)
       const count = await renders(page)
-      const far = await farEnd(knob)
-      await knob.focus()
-      await knob.press(far.key)
-      await expect.poll(() => valueOf(knob)).toBe(far.value)
+      const far = { value: await turnToFarEnd(knob) }
       await expect.poll(() => renders(page)).toBeGreaterThan(count)
       await expect
         .poll(async () => (await pictures(page)).some((one, i) => one !== before[i]))
@@ -216,11 +214,7 @@ function longCases(lesson: string) {
         (await knob.locator('xpath=ancestor::*[@data-control][1]').getAttribute('data-control')) ??
         ''
       start = await valueOf(knob)
-      const far = await farEnd(knob)
-      moved = far.value
-      await knob.focus()
-      await knob.press(far.key)
-      await expect.poll(() => valueOf(knob)).toBe(moved)
+      moved = await turnToFarEnd(knob)
     }
     const source = page.locator('#lab-source')
     const picks = (await source.count()) > 0

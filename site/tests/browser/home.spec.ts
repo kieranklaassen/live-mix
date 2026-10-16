@@ -11,7 +11,11 @@ const families: { lessons: { id: string; title: string }[] }[] = JSON.parse(
   fs.readFileSync(`${SRC}families.json`, 'utf8'),
 )
 const mapped = families.flatMap((family) => family.lessons)
-const written = mapped.filter((lesson) => fs.existsSync(`${SRC}lessons/${lesson.id}.mdx`))
+// A one-lesson build (scripts/lesson.sh) holds the map with that lesson alone written.
+const only = process.env.SITE_ONLY_LESSON
+const written = mapped.filter(
+  (lesson) => fs.existsSync(`${SRC}lessons/${lesson.id}.mdx`) && (!only || lesson.id === only),
+)
 
 /** The labs' modules the page has asked for, by file name, in order. */
 function modules(page: Page): string[] {
@@ -40,8 +44,9 @@ test.describe('with scripts off', () => {
       for (const lesson of written) {
         const tile = page.locator(`.tile[data-tile="${lesson.id}"]`)
         await expect(tile.locator(`a[href$="/lessons/${lesson.id}/"]`)).toContainText(lesson.title)
-        // The picture is drawn: a line of the lab's render, not an empty box.
-        await expect(tile.locator('.tile-picture svg path').first()).toBeAttached()
+        // The picture is drawn, not an empty box: a line of the lab's render, or the layers of
+        // its spectrum over time.
+        await expect(tile.locator('.tile-picture svg :is(path, rect[mask])').first()).toBeAttached()
       }
       await expect(page.locator('.tile a')).toHaveCount(written.length)
       await expect(page.locator('.tile button')).toHaveCount(0)

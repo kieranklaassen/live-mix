@@ -107,10 +107,18 @@ export interface Cut {
   mark?: string | string[]
   /** Lines to leave out, from one text to another: shown as one line that says how many. */
   skip?: [from: string, to: string]
+  /**
+   * Lines an equation links to, each under a key: text on the line, in the lines shown, once.
+   * The line with the key `coeff` of the listing `pole` has the id `pole-coeff`.
+   */
+  at?: Record<string, string>
 }
 
 /** One line of a listing as shown: a line of the file, or the place where lines are left out. */
-export type Row = { line: number; marked: boolean } | { gap: number }
+export type Row = { line: number; marked: boolean; key?: string } | { gap: number }
+
+/** A key a line is linked by: small letters, digits and hyphens, and not a line's number. */
+const KEY = /^[a-z][a-z0-9-]*$/
 
 /** The rows a listing shows, each line with its number in the file. */
 export function rowsOf(source: string, cut: Cut, where: Where): Row[] {
@@ -122,11 +130,34 @@ export function rowsOf(source: string, cut: Cut, where: Where): Row[] {
   }
   const left = cut.skip && rangeOf(source, cut.skip[0], cut.skip[1], where, range)
 
+  const keys = new Map<number, string>()
+  for (const [key, text] of Object.entries(cut.at ?? {})) {
+    if (!KEY.test(key) || /^l\d+$/.test(key)) {
+      throw new Error(
+        `${who(where)}: a line of ${where.file} is given the key "${key}". A key is small ` +
+          `letters, digits and hyphens, begins with a letter, and is not a line's number.`,
+      )
+    }
+    const { first: line } = linesOf(source, text, where, range)
+    if (left && line >= left.first && line <= left.last) {
+      throw new Error(
+        `${who(where)}: the line "${text}" of ${where.file}, with the key "${key}", is among the lines left out.`,
+      )
+    }
+    if (keys.has(line)) {
+      throw new Error(
+        `${who(where)}: line ${line} of ${where.file} is given two keys, "${keys.get(line)}" and "${key}". One will do.`,
+      )
+    }
+    keys.set(line, key)
+  }
+
   const rows: Row[] = []
   for (let line = range.first; line <= range.last; line++) {
-    if (!left || line < left.first || line > left.last)
-      rows.push({ line, marked: marked.has(line) })
-    else if (line === left.first) rows.push({ gap: left.last - left.first + 1 })
+    if (!left || line < left.first || line > left.last) {
+      const key = keys.get(line)
+      rows.push(key ? { line, marked: marked.has(line), key } : { line, marked: marked.has(line) })
+    } else if (line === left.first) rows.push({ gap: left.last - left.first + 1 })
   }
   return rows
 }
@@ -147,7 +178,8 @@ export interface LineTransformer {
 /**
  * Cuts a whole file, already coloured, down to `rows`. The file is coloured first so that a
  * listing which starts inside a comment is still coloured as one. Each line gets its number in
- * the file, linked to `href(line)`, and the id `<name>-L<line>` for a link from the page.
+ * the file, linked to `href(line)`; a line with a key gets the id `<name>-<key>`, which a term
+ * of an equation links to. A line has no id by its number: the number moves when the file does.
  */
 export function listingLines(
   rows: readonly Row[],
@@ -165,7 +197,7 @@ export function listingLines(
         ]
         return
       }
-      node.properties.id = `${to.name}-L${row.line}`
+      if (row.key) node.properties.id = `${to.name}-${row.key}`
       if (row.marked) node.properties.class = 'line marked'
       // The number is for the eye and the mouse. The caption's link is the one read out and
       // reached by keyboard, so a listing is not forty stops on the way down a page.
@@ -188,7 +220,7 @@ export function listingLines(
 export interface ListingProps extends Cut {
   /** The file, from the repository's root: "cpp/kit/filters.h". */
   file: string
-  /** The start of the ids of its lines. The file's name without its ending when not given. */
+  /** The start of the ids of its keyed lines. The file's name without its ending when not given. */
   name?: string
 }
 

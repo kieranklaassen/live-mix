@@ -549,7 +549,7 @@ Everything from here on is the engine's own code. `kit::Stft` is the class that 
     band keep its own time where on Upward the light climbs.
   </Spectrogram>
 
-  <M block t={String.raw`Y_m[k] = \at{gain-L584}{g_m[k]}\,X_m[k]`} />
+  <M block t={String.raw`Y_m[k] = \at{gain-scale}{g_m[k]}\,X_m[k]`} />
 
   Read it against the picture. <M t="g_m[k]" /> is one point of it: column <M t="m" />, row <M t="k" />. In the listing that is `re[k] *= g; im[k] *= g;`. Both parts of the bin are scaled alike, so its size changes and its phase does not.
 
@@ -557,7 +557,7 @@ Everything from here on is the engine's own code. `kit::Stft` is the class that 
 
   <M
     block
-    t={String.raw`\begin{gathered} g_j = L_j\,\bigl(1 - d + d\,m_j\bigr) \\[6pt] L_j = \min\Bigl(\at{lift-L517}{2},\; 1\big/\sqrt{\overline{(1 - d + d\,m_j)^2}}\Bigr) \end{gathered}`}
+    t={String.raw`\begin{gathered} g_j = L_j\,\bigl(1 - d + d\,m_j\bigr) \\[6pt] L_j = \min\Bigl(\at{lift-lift}{2},\; 1\big/\sqrt{\overline{(1 - d + d\,m_j)^2}}\Bigr) \end{gathered}`}
   />
 
   with <M t="m_j" /> the light, from 0 to 1, <M t="d" /> the depth, and <M t="L_j" /> a lift that pays for the dark. The bar is an average over one cycle of the flicker: the lift is chosen so that the band's power, averaged over a cycle, is what went in. At the top of its flash a band therefore stands <Claim id="flash">4.9 dB over its input</Claim>, which is what the lift costs.
@@ -568,6 +568,7 @@ Everything from here on is the engine's own code. `kit::Stft` is the class that 
     to="swing_[j] = lift * d;"
     mark="const float lift = kit::min(kMaxLift, 1.0f / std::sqrt(power));"
     name="lift"
+    at={{ lift: 'const float lift = kit::min(kMaxLift' }}
   />
 
   A bin between two bands takes a blend of their gains, half a cosine wide, so that <M t="g" /> has no edges across the spectrum. A partial is three bins wide, as stage 2 showed, and a gain that jumped from one bin to the next would cut through the middle of it. This lesson starts with three of the device's refinements set aside so that the picture is plain: every band flickers as deeply as the next (Lean at 0), every flash is as tall as the last (Vary at 0), and the two sides move as one (Apart at 0).
@@ -583,6 +584,7 @@ Everything from here on is the engine's own code. `kit::Stft` is the class that 
     to="im[k] *= g;"
     mark={['re[k] *= g;', 'im[k] *= g;']}
     name="gain"
+    at={{ scale: 're[k] *= g;' }}
   />
 </StageBlock>
 

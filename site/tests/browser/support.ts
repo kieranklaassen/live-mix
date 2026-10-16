@@ -115,6 +115,21 @@ export async function farEnd(knob: Locator): Promise<{ key: 'Home' | 'End'; valu
 }
 
 /**
+ * Sends a knob to the far end of its range by the keys, and gives the value it lands on. A
+ * control inside a build step wakes when it comes into view, so the key is pressed until the
+ * control has taken it.
+ */
+export async function turnToFarEnd(knob: Locator): Promise<number> {
+  const far = await farEnd(knob)
+  await expect(async () => {
+    await knob.focus()
+    await knob.press(far.key)
+    expect(await valueOf(knob)).toBe(far.value)
+  }).toPass({ timeout: 15_000 })
+  return far.value
+}
+
+/**
  * Press a button that wakes only once it is in view: it is brought into view first, since a
  * button that has not woken is not yet one that can be pressed, and a press would wait for it.
  */

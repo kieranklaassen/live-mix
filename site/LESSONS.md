@@ -54,7 +54,7 @@ finding. [Checking one lesson](#checking-one-lesson) says what that script runs.
      measures, then write the sentence.
    - **Read off the code** (a constant, a range, a table's size). It stands beside a link to
      the line that holds it: `<Src path="…" at="the text on that line">`, or a term of an
-     equation linked to a line of a listing with `\at`. The link is found by the line's text,
+     equation linked to a keyed line of a listing with `\at`. The link is found by the line's text,
      so the build fails when the code has moved on.
    - **A setting.** It comes from the lesson's settings file, and the page prints it from
      there: a card writes its own settings out, so the text never types them a second time.
@@ -645,8 +645,11 @@ the build fails. `Build` takes `tap` (the built sound to play, when the build pa
 than one). `Step` takes `title` and `controls` (the lab's controls that exist by this step, by
 id; a step with none says there is nothing to set yet). A step's children are what the piece
 is for and its listing, with the new lines marked; its slot `picture` is the figure of the
-signal so far. Every step is in the page as built, in order; once the lab is ready one shows
-at a time, with Back, Add and "Hear it so far".
+signal so far, or several. The text up to the first listing stands beside the picture; the
+listing, and anything the step writes after it, runs the step's whole width, so write the
+purpose first and the listing after it. Every step is in the page as built, in order; once the
+lab is ready one shows at a time, with Back, Add and "Hear it so far". A step's controls wake
+when they come into view.
 
 ```mdx
 <Build>
@@ -685,9 +688,9 @@ is not says what kind of signal it is.
 <StageBlock tap="sidechain" n={1} title="The detector ignores the lows">
   The detector listens to a copy of the sound with the lows taken out.
 
-  <M slot="equation" block t={String.raw`\sig{ctl}{L} = 10 \log_{10} \at{measure-L140}{p}`} />
+  <M slot="equation" block t={String.raw`\sig{ctl}{L} = 10 \log_{10} \at{measure-level}{p}`} />
   <Fragment slot="readback">Read it against the picture: the level is ten times the logarithm of the power.</Fragment>
-  <Listing slot="listing" path="cpp/devices/ambient-comp/ambient_comp.h" from="void step_gain(float power) {" to="const float over = level - threshold_.next();" name="measure" />
+  <Listing slot="listing" path="cpp/devices/ambient-comp/ambient_comp.h" from="void step_gain(float power) {" to="const float over = level - threshold_.next();" name="measure" at={{ level: 'const float level = power > kFloorPower' }} />
   <Fragment slot="listen">Hear what the detector hears</Fragment>
 </StageBlock>
 ```
@@ -696,7 +699,7 @@ is not says what kind of signal it is.
 numbered as the file numbers them and linked to the source at the commit built: `path`, `from`
 and `to` (text on the first and the last line), `mark` (text on a line to mark as new, or a
 list of them), `skip` (`[fromText, toText]`: lines to leave out, shown as one line that says
-how many), `name`.
+how many), `at` (lines an equation links to, each under a key, by text on the line), `name`.
 
 ```mdx
 <Listing
@@ -705,26 +708,29 @@ how many), `name`.
   to="return x - lowpass(x); } };"
   mark="state = flush_denormal"
   skip={['void set_cutoff', 'void reset()']}
+  at={{ step: 'state = flush_denormal' }}
   name="pole"
 />
 ```
 
-- A text names its line by being there once: `from` and `to` once in the whole file, `mark`
-  and `skip` once within the lines shown. A space in a text matches any run of spaces and line
+- A text names its line by being there once: `from` and `to` once in the whole file, `mark`,
+  `skip` and `at` once within the lines shown. A space in a text matches any run of spaces and line
   breaks. The build fails on a text that is not there, or is there twice.
-- A line has the id `<name>-L<number>`. The name is the file's, without its ending, when not
-  given. Two listings on one page with one name fail the build, so a lesson that lists a file
-  twice names one of them.
+- A line that `at` gives a key has the id `<name>-<key>`; a key is small letters, digits and
+  hyphens. The name is the file's, without its ending, when not given. Two listings on one
+  page with one name fail the build, so a lesson that lists a file twice names one of them.
 - A listing is never given by line numbers.
 
 **`M`** is an equation, set when the site is built: `t`, always as `String.raw`, and `block`
 for a line of its own. Two commands are added to the mathematics. `\sig{role}{term}` sets a
 term in the colour of a signal's role (`in`, `out`, `ctl`, `alt`, `alt2`, `alt3`), the colour
-of that line in the figures. `\at{name-L19}{term}` links a term to a line of a listing on the
-page. An unknown role stops the build.
+of that line in the figures. `\at{pole-step}{term}` links a term to the line of the listing
+`pole` that its `at` gives the key `step`. A line is never linked by its number, which moves
+when the file does: the build refuses `\at{pole-L19}{…}`, and the shape check fails a link
+whose line is not on the page. An unknown role stops the build.
 
 ```mdx
-<M block t={String.raw`\sig{out}{y[n]} = \at{filters-L19}{a}\,\sig{in}{x[n]}`} />
+<M block t={String.raw`\sig{out}{y[n]} = \at{pole-step}{a}\,\sig{in}{x[n]}`} />
 ```
 
 **`Src`** links to a file of the engine at the commit built: `path`, `at` (text on the line
@@ -927,13 +933,14 @@ the first that fails:
 
 1. the format check of the lesson's own files;
 2. the build of that one lab;
-3. the lab's test;
+3. the lab's test, and the level of the lesson's tile on every loop the tile takes;
 4. a build of a site that holds that one lesson and the home page, written to
    `site/.lesson/<id>/` and never to `site/dist`. It loads that lesson's text and settings and
    no other lesson's, so a lesson half written beside it cannot stop it;
 5. on that build, the claims check, the wording check and the shape check, each for that
    lesson alone;
-6. the lesson's browser test, on that build served at a port of its own.
+6. the lesson's browser test, on that build served at a port of its own, and the lesson's
+   tile on the map with scripts off: a link, and a picture that is drawn.
 
 It prints one line a step, with its result and how long it took:
 

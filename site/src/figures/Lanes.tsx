@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { pagePlayer, useLab, waitingText } from '../lab/page.ts'
 import { CONTROL_PERIOD, SAMPLE_RATE } from '../lab/rate.ts'
-import { MONO, useCanvas } from './canvas.ts'
+import { MONO, plateText, useCanvas } from './canvas.ts'
 import {
   label as number,
   loopAxis,
@@ -129,10 +129,6 @@ export default function Lanes({ taps, ranges = {}, lines = {}, from = 0, span, l
             context.lineTo(width, at)
             context.stroke()
             context.setLineDash([])
-            context.fillStyle = c.muted
-            context.textAlign = 'right'
-            context.textBaseline = at - top > 16 ? 'bottom' : 'top'
-            context.fillText(mark.name, width - 5, at + (at - top > 16 ? -3 : 3))
           }
           context.strokeStyle = colour
           context.lineWidth = 1.6
@@ -144,6 +140,13 @@ export default function Lanes({ taps, ranges = {}, lines = {}, from = 0, span, l
             else context.lineTo(at, py(ys[i]!))
           }
           context.stroke()
+          // The dashed line's label, after the line it could be struck out by.
+          if (mark) {
+            const at = Math.round(py(mark.value)) + 0.5
+            context.textAlign = 'right'
+            context.textBaseline = at - top > 16 ? 'bottom' : 'top'
+            plateText(context, c, mark.name, width - 5, at + (at - top > 16 ? -3 : 3), c.sunken)
+          }
         }
         context.restore()
       })

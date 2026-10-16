@@ -6,11 +6,13 @@
 #   format    the lesson's own files, as the formatter wants them
 #   lab       its lab, built (site/public/labs/<id>.wasm)
 #   test      its lab test (tests/labs/<id>.test.ts)
+#   tile      the level of its tile on the home map, on every loop the tile takes
 #   build     a site that holds the home page and this lesson, in site/.lesson/<id>/
 #   claims    every claim is held by a test; in a long lesson, with its number as written
 #   wording   no name and no comparison, in its own files and its page
 #   shape     a long lesson holds its packet
 #   browser   its browser tests (tests/browser/lessons.spec.ts), on that build at its own port
+#   map       its tile on the map of that build with scripts off: a link and a drawn picture
 #
 #   bash site/scripts/lesson.sh <id>
 #
@@ -92,6 +94,8 @@ mapfile -t own < <(node scripts/check-lessons.mjs --packet "$id")
 step format light pnpm exec prettier --check --ignore-unknown "${own[@]}"
 step lab heavy bash scripts/build-labs.sh "$id"
 step test heavy npx vitest run --no-file-parallelism "tests/labs/$id.test.ts"
+# The level of its tile on the home map, on every loop the tile takes.
+step tile heavy npx vitest run --no-file-parallelism tests/labs/tiles.test.ts -t "$id:"
 # SITE_PORT is left to the lesson: the build is served at a port that only this lesson has.
 step build heavy env -u SITE_PORT SITE_ONLY_LESSON="$id" pnpm exec astro build
 step claims light node scripts/check-claims.mjs "$id"
@@ -99,5 +103,8 @@ step wording light node scripts/check-wording.mjs "$id" "$folder"
 step shape light node scripts/check-lessons.mjs "$id" "$folder"
 step browser heavy env -u SITE_PORT SITE_ONLY_LESSON="$id" LESSONS="$id" \
   pnpm exec playwright test tests/browser/lessons.spec.ts
+# Its tile on the map, as the page is with scripts off: a link and a picture that is drawn.
+step map light env -u SITE_PORT SITE_ONLY_LESSON="$id" \
+  pnpm exec playwright test tests/browser/home.spec.ts -g 'scripts off\W+/ is the map'
 
 printf '\n%s holds.\n' "$id"

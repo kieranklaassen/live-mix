@@ -9,8 +9,10 @@
 //   </Step>
 //
 // The text and the listing, with its new lines marked, are the step's own words. `picture` is
-// the figure of the signal so far: lanes, or any other figure. `controls` lists the lab's
-// controls that exist by this step, by id; a step with none says there is nothing to set yet.
+// the figure of the signal so far: lanes, or any other figure, or several. `controls` lists the
+// lab's controls that exist by this step, by id; a step with none says there is nothing to set
+// yet. The text up to the first listing stands beside the picture; the listing, and what the
+// step writes after it, runs the step's whole width, since a line of source is wider than half.
 import Controls from '../../figures/Control.tsx'
 import { buildControl } from '../../figures/build-steps.ts'
 import { countOnPage, sinceStartOnPage } from '../../figures/once.ts'
@@ -28,6 +30,10 @@ countOnPage(Astro.locals, 'step')
 const n = sinceStartOnPage(Astro.locals, 'step')
 const of = buildControl(lab)?.choices.length
 const count = of === undefined ? `Step ${n}` : `Step ${n} of ${of}`
+const words = await Astro.slots.render('default')
+const cut = words.indexOf('<figure class="listing"')
+const beside = cut < 0 ? words : words.slice(0, cut)
+const below = cut < 0 ? '' : words.slice(cut)
 ---
 
 <article class="build-step" data-step>
@@ -36,8 +42,7 @@ const count = of === undefined ? `Step ${n}` : `Step ${n} of ${of}`
     <h3 data-step-title tabindex="-1">
       {title}
     </h3>
-    <slot />
-    <div class="build-nav" data-step-nav></div>
+    <Fragment set:html={beside} />
   </div>
   <div class="build-side">
     <slot name="picture" />
@@ -47,4 +52,6 @@ const count = of === undefined ? `Step ${n}` : `Step ${n} of ${of}`
       <p class="build-nothing">No controls yet: there is nothing to set.</p>
     )}
   </div>
+  {below && <div class="build-source" set:html={below} />}
+  <div class="build-nav" data-step-nav />
 </article>

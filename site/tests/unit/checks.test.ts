@@ -170,6 +170,22 @@ describe('check-lessons', () => {
     ])
   })
 
+  it('finds an equation that links to a line no listing of the page has', () => {
+    const linked = (to: string) =>
+      `<div class="math"><span class="katex"><a href="#${to}"><span>a</span></a></span></div>`
+    const keyed = listing.replace(
+      '<code>float y',
+      '<code><span class="line" id="pole-step">float y',
+    )
+    const parts = partsAtTheFloors()
+    parts.engine = `${flow}${stage.repeat(6)}${keyed}${linked('pole-step')}`
+    expect(shapeOf(longPage(parts), 'made-up')).toEqual([])
+    parts.engine = `${flow}${stage.repeat(6)}${keyed}${linked('pole-coeff')}`
+    expect(shapeOf(longPage(parts), 'made-up')).toEqual([
+      'made-up: part 5 (engine): an equation links to "pole-coeff", and no listing of the page has a line with that key',
+    ])
+  })
+
   it('finds a figure with no key', () => {
     const parts = partsAtTheFloors()
     parts.picture = live('')

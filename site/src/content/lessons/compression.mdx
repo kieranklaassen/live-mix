@@ -433,6 +433,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     from="const float left = sidechain_[0].highpass(in[0]);"
     to="out_right_[i] = in[1] * applied;"
     name="loop"
+    at={{ applied: 'const float applied = 1.0f - mix + mix * gain_ * makeup_.next();' }}
   />
   <Fragment slot="listen">Hear the sound at the split</Fragment>
 </StageBlock>
@@ -454,7 +455,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <M
     block
-    t={String.raw`\sig{alt}{|H(f)|^2} = \frac{(f/\at{ignore-L212}{f_c})^4}{1 + (f/\at{ignore-L212}{f_c})^4}`}
+    t={String.raw`\sig{alt}{|H(f)|^2} = \frac{(f/\at{ignore-cutoff}{f_c})^4}{1 + (f/\at{ignore-cutoff}{f_c})^4}`}
   />
 
   Read it against the picture. Far above the corner the top and the bottom of the fraction are nearly the same size, so it is close to 1 and nothing is lost: the flat part of the line. At the corner the fraction is one half, and half the power is 3 dB down. An octave under the corner the top is a sixteenth, and the line is falling by 12 dB for each further octave. Measured with steady tones through the running device, the side chain is <Claim id="corner-3db">3.0 dB down at the corner</Claim> and <Claim id="octave-under">12.3 dB down an octave under it</Claim>.
@@ -467,6 +468,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     from="case kScLowCut:"
     to="filter.set(value, kit::kSqrtHalf, sample_rate());"
     name="ignore"
+    at={{ cutoff: 'filter.set(value, kit::kSqrtHalf, sample_rate())' }}
   />
   <Fragment slot="listen">Hear what the detector hears</Fragment>
 </StageBlock>
@@ -485,10 +487,10 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <M
     block
-    t={String.raw`\sig{ctl}{p[n]} = \sig{in}{x[n]} + \at{pole-L19}{a}\,\bigl(\sig{ctl}{p[n-1]} - \sig{in}{x[n]}\bigr)`}
+    t={String.raw`\sig{ctl}{p[n]} = \sig{in}{x[n]} + \at{pole-step}{a}\,\bigl(\sig{ctl}{p[n-1]} - \sig{in}{x[n]}\bigr)`}
   />
 
-  <M block t={String.raw`\at{pole-L14}{a = e^{-1/(\tau f_s)}}`} />
+  <M block t={String.raw`\at{pole-coeff}{a = e^{-1/(\tau f_s)}}`} />
 
   Here <M t="x" /> is the power going in, half the sum of the two channels' squares, and <M t="p" /> is the smoothed power. <M t="a" /> is a number just under 1 that says how much of the old value is kept. <M t={String.raw`\tau`} /> is the filter's time constant, which the device sets to <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="static constexpr float kRmsSeconds = 0.03f;">30 ms</Src>, and <M t="f_s" /> is the sample rate. The filter is set by a corner frequency, so the device <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="stage.set_cutoff(1.0f / (kit::kTwoPi * kRmsSeconds), sr);">asks for the corner</Src> that goes with that time, one over <M t={String.raw`2\pi\tau`} />, and in the filter's own line the <M t={String.raw`2\pi`} /> cancels.
 
@@ -498,6 +500,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     to="float highpass(float x) { return x - lowpass(x); }"
     mark="state = flush_denormal(x + (state - x) * a);"
     name="pole"
+    at={{ coeff: 'a = std::exp(-kTwoPi * clamp(hz', step: 'state = flush_denormal(x + (state - x) * a);' }}
   />
 
   One pole is not enough. The square of a sine wave is a steady part plus a wobble at twice the sine's frequency, and one pole lets some of that wobble through. A gain that follows a wobble bends the wave it is put on. So the device runs a second pole of the same kind after the first.
@@ -515,7 +518,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   Last, the power becomes a level in decibels, because hearing judges loudness in ratios and Threshold is marked in dB:
 
-  <M block t={String.raw`\sig{ctl}{L} = \at{curve-L140}{10 \log_{10} p}`} />
+  <M block t={String.raw`\sig{ctl}{L} = \at{curve-level}{10 \log_{10} p}`} />
 
   Ten, not twenty, because <M t="p" /> is already a power. That has a consequence worth remembering when setting a threshold. A full-scale sine wave on both channels has a mean power of one half, so it reads <Claim id="sine-reads">−3 dB</Claim>, not 0.
 
@@ -547,7 +550,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <M
     block
-    t={String.raw`\sig{alt}{G(x)} = \begin{cases} 0 & x \le -W/2 \\[4pt] \at{curve-L147}{s\,\dfrac{(x + W/2)^2}{2W}} & -W/2 < x < W/2 \\[8pt] \at{curve-L144}{s\,x} & x \ge W/2 \end{cases}`}
+    t={String.raw`\sig{alt}{G(x)} = \begin{cases} 0 & x \le -W/2 \\[4pt] \at{curve-knee}{s\,\dfrac{(x + W/2)^2}{2W}} & -W/2 < x < W/2 \\[8pt] \at{curve-over}{s\,x} & x \ge W/2 \end{cases}`}
   />
 
   <M block t={String.raw`s = \frac{1}{R} - 1`} />
@@ -568,6 +571,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     from="const float level = power > kFloorPower"
     to="target = slope_ * into * into / (2.0f * knee_); }"
     name="curve"
+    at={{ level: 'const float level = power > kFloorPower', over: 'target = slope_ * over;', knee: 'target = slope_ * into * into / (2.0f * knee_);' }}
   />
 </StageBlock>
 
@@ -591,7 +595,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <M
     block
-    t={String.raw`c = \begin{cases} \at{ballistics-L154}{e^{-1/(\tau_{\text{attack}} f_r)}} & G[k] < D[k-1] \\[4pt] \at{ballistics-L156}{e^{-1/(\tau_{\text{release}} f_r)}} & \text{otherwise} \end{cases}`}
+    t={String.raw`c = \begin{cases} \at{ballistics-attack}{e^{-1/(\tau_{\text{attack}} f_r)}} & G[k] < D[k-1] \\[4pt] \at{ballistics-release}{e^{-1/(\tau_{\text{release}} f_r)}} & \text{otherwise} \end{cases}`}
   />
 
   It is the filter of stage 3 again. <M t="G" /> is what the curve of stage 4 asks for on reading <M t="k" />, and <M t="D" /> is the reduction in force, how far down the gain is. On each reading <M t="D" /> closes part of the gap between them, and <M t="c" /> is the share of the gap that is left. <M t="f_r" /> is the rate of the readings, <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="float tick_rate_ = 3000.0f;">3,000 a second</Src> at the page's sample rate. Each share is worked out when its control is set, by the kit's function for it:
@@ -624,13 +628,14 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     from="slow_level_ = flush_denormal(level"
     to="if (reduction_ > -kDenormalThreshold) reduction_ = 0.0;"
     name="ballistics"
+    at={{ attack: '* attack_coeff_;', release: '* release_coeff_;' }}
   />
 </StageBlock>
 
 <StageBlock tap="gain" n={6} title="From decibels to a number to multiply by">
   The reduction is in decibels and the sound is in samples, so the last step of the side chain turns one into the other.
 
-  <M block t={String.raw`\sig{ctl}{g} = \at{ramp-L162}{10^{\,\sig{out}{D}/20}}`} />
+  <M block t={String.raw`\sig{ctl}{g} = \at{ramp-target}{10^{\,\sig{out}{D}/20}}`} />
 
   <M t="D" /> is the reduction of stage 5. Twenty this time, because <M t="g" /> multiplies an amplitude and not a power. A reduction of 6 dB is a gain of about one half.
 
@@ -650,6 +655,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     from="// Land on the last tick's value exactly"
     to="gain_step_ = (gain_target_ - gain_) * (1.0f / static_cast<float>(kControlPeriod));"
     name="ramp"
+    at={{ target: 'gain_target_ = kit::db_to_gain' }}
   />
 </StageBlock>
 
@@ -676,7 +682,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <M
     block
-    t={String.raw`\sig{out}{y} = \sig{in}{x}\,\at{loop-L113}{\bigl(1 - m + m\,\sig{ctl}{g}\,g_{\text{make-up}}\bigr)}`}
+    t={String.raw`\sig{out}{y} = \sig{in}{x}\,\at{loop-applied}{\bigl(1 - m + m\,\sig{ctl}{g}\,g_{\text{make-up}}\bigr)}`}
   />
 
   <M t="x" /> is a sample going in and <M t="y" /> the same sample coming out. <M t="g" /> is the gain of stage 6, and the make-up is written as a number to multiply by. <M t="m" /> is Mix, from 0 to 1. At 1 the bracket is the gain times the make-up, and all of what comes out has been compressed. At 0 the bracket is exactly 1, and what comes out is <Claim id="mix-zero">the input, sample for sample</Claim>. In between is the last step of the build: the sound as it went in, with a squeezed copy underneath it.

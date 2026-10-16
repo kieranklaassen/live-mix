@@ -188,19 +188,56 @@ describe('the rows of a listing', () => {
 describe('a listing as it is written into the page', () => {
   const href = (line: number) => `https://example.org/gain.h#L${line}`
 
-  it('numbers each line as the file does, links the number and gives the line an id', async () => {
+  it('numbers each line as the file does and links the number, with no id by the number', async () => {
     const rows = rowsOf(SOURCE, { from: 'struct Gain {', to: 'float target' }, where)
     const lines = linesIn(await render(SOURCE, listingLines(rows, { name: 'gain', href })))
     expect(lines).toHaveLength(3)
     lines.forEach((line, index) => {
       const number = 6 + index
-      expect(line).toContain(`id="gain-L${number}"`)
+      expect(line).not.toContain(' id="')
       expect(line).toMatch(
         new RegExp(`<a [^>]*href="https://example\\.org/gain\\.h#L${number}"[^>]*>${number}</a>`),
       )
     })
     expect(lines[0]).toContain('struct')
     expect(lines[2]).toContain('target')
+  })
+
+  it('gives a line the id of its key, found by text on the line', async () => {
+    const rows = rowsOf(
+      SOURCE,
+      { from: 'struct Gain {', to: 'float target', at: { start: 'float g = 1.0f;' } },
+      where,
+    )
+    const lines = linesIn(await render(SOURCE, listingLines(rows, { name: 'gain', href })))
+    expect(lines.map((line) => /id="([^"]*)"/.exec(line)?.[1])).toEqual([
+      undefined,
+      'gain-start',
+      undefined,
+    ])
+  })
+
+  it('refuses a key on text the lines shown do not hold, a key that is a line number, two keys on a line and a key on a line left out', () => {
+    const cut = { from: 'struct Gain {', to: 'g += 0.01f' }
+    expect(() => rowsOf(SOURCE, { ...cut, at: { gone: 'no such text' } }, where)).toThrow(
+      /"no such text" is not in lines/,
+    )
+    expect(() => rowsOf(SOURCE, { ...cut, at: { l7: 'float g = 1.0f;' } }, where)).toThrow(
+      /the key "l7"/,
+    )
+    expect(() => rowsOf(SOURCE, { ...cut, at: { Start: 'float g = 1.0f;' } }, where)).toThrow(
+      /the key "Start"/,
+    )
+    expect(() =>
+      rowsOf(SOURCE, { ...cut, at: { one: 'float g = 1.0f;', two: 'g = 1.0f' } }, where),
+    ).toThrow(/two keys, "one" and "two"/)
+    expect(() =>
+      rowsOf(
+        SOURCE,
+        { ...cut, skip: ['float g = 1.0f;', 'target = to;'], at: { start: 'float g = 1.0f;' } },
+        where,
+      ),
+    ).toThrow(/among the lines left out/)
   })
 
   it('marks a marked line and no other', async () => {
@@ -225,9 +262,8 @@ describe('a listing as it is written into the page', () => {
     )
     const lines = linesIn(await render(SOURCE, listingLines(rows, { name: 'gain', href })))
     expect(lines).toHaveLength(4)
-    expect(lines[0]).toContain('id="gain-L6"')
+    expect(lines[0]).toContain('>6</a>')
     expect(lines[1]).toMatch(/^<span class="line gap">3 lines left out<\/span>$/)
-    expect(lines[2]).toContain('id="gain-L10"')
     expect(lines[2]).toContain('>10</a>')
     expect(lines[3]).toContain('>11</a>')
   })
@@ -298,7 +334,7 @@ describe('a listing of a file of the repository', () => {
     expect(first).toBeGreaterThan(0)
     expect(last).toBeGreaterThan(first)
 
-    const listing = listingOf({ file, from, to }, {}, 'one-pole')
+    const listing = listingOf({ file, from, to, at: { top: from } }, {}, 'one-pole')
     expect(listing.lines).toEqual({ first, last })
     expect(listing.href).toBe(`${blob}${file}#L${first}-L${last}`)
     expect(listing.lang).toBe('cpp')
@@ -307,7 +343,7 @@ describe('a listing of a file of the repository', () => {
     const lines = linesIn(await render(listing.source, listing.transformer))
     expect(lines).toHaveLength(last - first + 1)
     expect(lines[0]).toContain(`href="${blob}${file}#L${first}"`)
-    expect(lines[0]).toContain(`id="${name}-L${first}"`)
+    expect(lines[0]).toContain(`id="${name}-top"`)
     expect(lines.at(-1)).toContain(`href="${blob}${file}#L${last}"`)
   })
 

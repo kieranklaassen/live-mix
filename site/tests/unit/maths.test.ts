@@ -58,17 +58,21 @@ describe(String.raw`\sig`, () => {
 })
 
 describe(String.raw`\at`, () => {
-  it('links a term to a line of a listing on the page, with nothing refused', () => {
-    const html = mathsHtml(String.raw`\at{filters-L19}{a}\,y[n-1]`)
-    expect(html).toContain('<a href="#filters-L19">')
+  it('links a term to a keyed line of a listing on the page, with nothing refused', () => {
+    const html = mathsHtml(String.raw`\at{filters-coeff}{a}\,y[n-1]`)
+    expect(html).toContain('<a href="#filters-coeff">')
     expect(html).not.toContain(REFUSED)
   })
 
   it('takes a term that is coloured as well', () => {
-    const html = mathsHtml(String.raw`\at{filters-L19}{\sig{out}{y}}`)
-    expect(html).toContain('<a href="#filters-L19">')
+    const html = mathsHtml(String.raw`\at{filters-coeff}{\sig{out}{y}}`)
+    expect(html).toContain('<a href="#filters-coeff">')
     expect(html).toContain('class="enclosing sig-out"')
     expect(html).not.toContain(REFUSED)
+  })
+
+  it('refuses a line by its number, which moves when the file does', () => {
+    expect(() => mathsHtml(String.raw`\at{filters-L19}{a}`)).toThrow(/a line by its number/)
   })
 })
 

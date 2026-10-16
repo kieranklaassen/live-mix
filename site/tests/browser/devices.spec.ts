@@ -10,10 +10,12 @@ test('the list of devices leads to a device, which names its controls and its so
   await page.goto('devices/')
   expect(await page.locator('.device-list a').count()).toBeGreaterThan(100)
   await page.locator('.device-list a[href$="/devices/compressor/"]').click()
+  // The list has a heading too: wait for the device's own page before counting on it.
+  await page.waitForURL(/\/devices\/compressor\/$/)
   await expect(page.locator('h1')).toBeVisible()
-  expect(
-    await page.locator('#controls ~ * tbody tr, .param-table tbody tr').count(),
-  ).toBeGreaterThan(3)
+  await expect
+    .poll(() => page.locator('#controls ~ * tbody tr, .param-table tbody tr').count())
+    .toBeGreaterThan(3)
   await expect(page.locator('.facts a[href*="github.com"]')).toBeVisible()
   expect(problems).toEqual([])
 })

@@ -141,6 +141,31 @@ export function useCanvas(
 }
 
 /**
+ * A label of a dashed line, written on a plate of the picture's ground so that a line drawn
+ * through the same place does not strike it out. It takes the text's alignment and baseline as
+ * they are set.
+ */
+export function plateText(
+  context: CanvasRenderingContext2D,
+  c: Colours,
+  text: string,
+  x: number,
+  y: number,
+  ground: string = c.panel,
+): void {
+  const wide = context.measureText(text).width
+  const left = context.textAlign === 'right' ? x - wide : x
+  const top = context.textBaseline === 'bottom' ? y - 11 : y - 1
+  context.save()
+  context.globalAlpha = 0.82
+  context.fillStyle = ground
+  context.fillRect(left - 3, top, wide + 6, 13)
+  context.restore()
+  context.fillStyle = c.muted
+  context.fillText(text, x, y)
+}
+
+/**
  * The grid of a picture and its numbers: a line across at each round value of `y`, a line up at
  * each of `x`, and the frame round them, `w` by `h` inside EDGE. `at` says where a value stands.
  * A number along the bottom that would run into the one before it, or off the picture, is left

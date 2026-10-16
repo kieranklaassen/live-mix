@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { pagePlayer, useLab } from '../lab/page.ts'
-import { EDGE, drawGrid, useCanvas } from './canvas.ts'
+import { EDGE, MONO, drawGrid, plateText, useCanvas } from './canvas.ts'
 import { fromUnit, minMaxPlaced, toUnit, withUnit, type Axis } from './draw.ts'
 import { ROLE_VAR, type Role } from './roles.ts'
 
@@ -112,6 +112,8 @@ export default function Plot(props: Props) {
       context.rect(EDGE.left, EDGE.top, w, h)
       context.clip()
 
+      // A dashed line's label is written after the lines, so that none runs through it.
+      const labels: (() => void)[] = []
       for (const mark of marks) {
         context.strokeStyle = c.muted
         context.setLineDash([3, 3])
@@ -121,22 +123,22 @@ export default function Plot(props: Props) {
           context.moveTo(EDGE.left, at)
           context.lineTo(EDGE.left + w, at)
           context.stroke()
-          context.setLineDash([])
-          context.fillStyle = c.muted
-          context.textAlign = 'right'
-          context.textBaseline = at - EDGE.top > 16 ? 'bottom' : 'top'
-          context.fillText(mark.text, EDGE.left + w - 6, at + (at - EDGE.top > 16 ? -3 : 3))
+          labels.push(() => {
+            context.textAlign = 'right'
+            context.textBaseline = at - EDGE.top > 16 ? 'bottom' : 'top'
+            plateText(context, c, mark.text, EDGE.left + w - 6, at + (at - EDGE.top > 16 ? -3 : 3))
+          })
         } else if (mark.x !== undefined) {
           const at = Math.round(px(mark.x)) + 0.5
           context.moveTo(at, EDGE.top)
           context.lineTo(at, EDGE.top + h)
           context.stroke()
-          context.setLineDash([])
-          context.fillStyle = c.muted
           const left = at - EDGE.left > w / 2
-          context.textAlign = left ? 'right' : 'left'
-          context.textBaseline = 'top'
-          context.fillText(mark.text, at + (left ? -5 : 5), EDGE.top + 18)
+          labels.push(() => {
+            context.textAlign = left ? 'right' : 'left'
+            context.textBaseline = 'top'
+            plateText(context, c, mark.text, at + (left ? -5 : 5), EDGE.top + 18)
+          })
         }
         context.setLineDash([])
       }
@@ -240,6 +242,9 @@ export default function Plot(props: Props) {
           }
         }
       }
+      context.setLineDash([])
+      context.font = MONO
+      for (const write of labels) write()
       context.restore()
     },
     [props.stamp, waiting, x.min, x.max, x.log, y.min, y.max, height, JSON.stringify(marks)],

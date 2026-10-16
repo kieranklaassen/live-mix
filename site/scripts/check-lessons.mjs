@@ -271,6 +271,20 @@ export function shapeOf(html, lesson) {
     'equations on a line of their own',
   )
 
+  // A term of an equation that links to a line of a listing has that line on the page.
+  const ids = new Set(all(article, (node) => 'id' in node.attrs).map((node) => node.attrs.id))
+  for (const maths of all(article, MATHS)) {
+    for (const link of all(maths, is({ tag: 'a' }))) {
+      const to = link.attrs.href ?? ''
+      if (to.startsWith('#') && !ids.has(to.slice(1))) {
+        say(
+          where(maths),
+          `an equation links to "${to.slice(1)}", and no listing of the page has a line with that key`,
+        )
+      }
+    }
+  }
+
   // Every figure has a key, and neither its key nor its caption names a colour.
   for (const figure of figures) {
     const keys = all(figure, KEY)
