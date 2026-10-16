@@ -53,7 +53,7 @@ The second tool is older than the mixing desk: a cut. A cut removes everything o
 
 <Hear set="cutaway" label="Hear the bottom cut away" />
 
-It worked on the low middle. <Claim id="cut-takes-all">The band from 200 to 500 Hz comes out 11 dB lower. The band from 40 to 100 Hz comes out 64 dB lower</Claim>, which is to say that the kick and the bass are no longer in the mix. A cut cannot reach into the middle of a sound. It can only take an end off.
+It worked on the low middle. <Claim id="cut-takes-all">The band from 200 to 500 Hz comes out 11 dB lower. The band from 40 to 100 Hz comes out 64 dB lower</Claim>, which is to say that the bottom of the kick and of the bass is no longer in the mix. A cut cannot reach into the middle of a sound. It can only take an end off.
 
 ### Why it is called an equaliser
 
@@ -113,7 +113,7 @@ A bell has no edges. It is deepest at its centre and fades away to either side w
 
 </Predict>
 
-One more thing before the pictures begin. This lesson starts with all four bands away from flat and both cuts in circuit, so that every stage has something to show. The device itself starts flat. Part 9 puts the two beside each other.
+One more thing before part 2. This lesson starts with all four bands away from flat and both cuts in circuit, so that every stage has something to show. The device itself starts flat. Part 9 puts the two beside each other.
 
 </Part>
 
@@ -152,7 +152,7 @@ Notice what the picture leaves out. It says what happens to a steady tone, and m
 
 <Part id="uses" title="Five kinds of sound, and what is usually moved on each.">
 
-The four bands of the engine's equaliser sit where instruments usually need them. Low is for weight. Body is the low middle, where sounds pile up. Presence is the region the ear is most sensitive to. Air is the top. Each card below shows a sound's spectrum going into a sensible setting and coming out of it, lists the setting, and plays it. A card's button moves the whole page to its setting, so every figure further down shows it too, and the play bar offers the way back to where you were.
+The four bands of the engine's equaliser sit where instruments usually need them. Low is for weight. Body is the low middle, where sounds pile up. Presence is the region the ear is most sensitive to. Air is the top. Each card below shows either a sound's spectrum going into a sensible setting and coming out of it, or the curve of the setting itself. It lists the setting and plays it. A card's button moves the whole page to its setting, so every figure further down shows it too, and the play bar offers the way back to where you were.
 
 <Uses>
   <Use title="Drums" set="drums">
@@ -209,7 +209,7 @@ The four bands of the engine's equaliser sit where instruments usually need them
       taps="curveDevice"
       set="whole"
       view="curve"
-      caption="What this setting does to each frequency. Nothing in it is far from the level line: a small rise at each end and a small dip between."
+      caption="What this setting does to each frequency. Above the Low cut at the far left, nothing in it is far from the level line: a small rise at each end and a small dip between."
     />
 
     Across a finished mix an equaliser is asked for very little: a decibel or two, in broad strokes. A mix that wants more than that usually has one part inside it that wants attention instead. Here <Claim id="use-whole">the band from 40 to 100 Hz comes out 1.2 dB higher, the band from 200 to 500 Hz 1.3 dB lower and the band from 8 to 16 kHz 1.4 dB higher</Claim>.
@@ -346,7 +346,7 @@ The small filter is called a biquad. Part 5 says where the name comes from and w
   <Step title="Make it the engine's chain" controls="lowCut low body presence air highCut">
     Two things separate step 4 from the device.
 
-    The first is doing nothing. With the Low cut as low as it goes, the biquad pair of step 4 is still a filter, with its corner at the bottom of the range, and it still takes something off the lowest notes. A band at 0 dB is still a biquad doing arithmetic on every sample. The device has a rule instead: a band at exactly 0 dB is skipped, and a cut at the end of its range is out of circuit. <Claim id="build-chain">With every band at 0 dB and both cuts at the ends of their ranges, a tone at 20 Hz comes out 0.00 dB down, where step 4 left it 3.01 dB down</Claim>, and the sound is then the input itself, sample for sample.
+    The first is doing nothing. With the Low cut as low as it goes, the biquad pair of step 4 is still a filter, with its corner at the bottom of the range, and it still takes something off the lowest notes. A bell or a shelf at 0 dB costs only work: its recipe then gives the numbers of a wire, and the lab's test finds step 3 with every band at 0 dB handing on the input itself. The device has a rule for both: a band at exactly 0 dB is skipped, and a cut at the end of its range is out of circuit. <Claim id="build-chain">With every band at 0 dB and both cuts at the ends of their ranges, a tone at 20 Hz comes out 0.00 dB down, where step 4 left it 3.01 dB down</Claim>, and the sound is then the input itself, sample for sample.
 
     The second is what the cuts are made of. The device builds them from another small filter, the state-variable filter of <Lesson id="state-variable-filter" />, set to the same corner and the same Qs. It draws the same curve, and stage 5 of the next part says what the device gains by it.
 
@@ -362,7 +362,7 @@ The small filter is called a biquad. Part 5 says where the name comes from and w
 
     <Check id="builtDifference" />
 
-    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows when there is no difference at all. On every loop of this page, at each of the settings the lab's test tries, the build and the device are <Claim id="build-same">the same, sample for sample</Claim>. The steps before this one were the lesson's own: an equaliser with a piece missing, which the engine's device at no time is.
+    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>. It shows that for no difference at all, and also for one too small for it to read, so the lab's test lays the two sounds beside each other as well. On every sound this page offers, at each of the settings the test tries, the build and the device are <Claim id="build-same">the same, sample for sample</Claim>. The steps before this one were the lesson's own: an equaliser with a piece missing, which the engine's device at no time is.
 
     <Curve
       slot="picture"
@@ -456,7 +456,7 @@ Six of those blocks are one filter with different numbers in it. So the first tw
 
   <Check id="forms" />
 
-  On the drum loop the two <Claim id="forms-agree">differ by 112 dB under the sound</Claim>. That is the rounding of the last digit a sample can hold, and nothing else.
+  On the drum loop, with the bell where this page starts it, the two <Claim id="forms-agree">differ by 112 dB under the sound</Claim>. The two do the same sums in a different order, and each sum is rounded to the digits a sample can hold, so the rounding is all there is to part them. A bell placed lower has more of it: <Claim id="forms-low">with Frequency at 100 Hz the same reading is 82 dB under the sound</Claim>. The fault about rounding in part 7 says why.
 
   <Listing
     slot="listing"
@@ -486,11 +486,11 @@ Six of those blocks are one filter with different numbers in it. So the first tw
   On the same picture every biquad owns four points. Two are called zeros and two are called poles. The level the filter gives a frequency is then a matter of distances. Stand on the circle at that frequency. Measure the distance to each zero and multiply the two. Measure the distance to each pole and multiply the two. Divide the first product by the second.
 
   <PolesAndZeros roots="bellRoots" response="bellResponse">
-    At the left, the part of the circle where the bell's zeros and poles stand, with a small map of
-    the whole circle in its corner. At the right, the bell's measured curve. Try Frequency looked at,
-    and notice the point run along the circle while its mark runs along the curve: where the point
-    is nearer a pole than a zero the curve is above 0 dB. Then try Gain below 0 dB, and notice the
-    zeros and the poles change places.
+    First the part of the circle where the bell's zeros and poles stand, with a small map of the
+    whole circle in its corner. Then the bell's measured curve. Try Frequency looked at, and notice
+    the point run along the circle while its mark runs along the curve: where the point is nearer
+    a pole than a zero the curve is above 0 dB. Then try Gain below 0 dB, and notice the zeros and
+    the poles change places.
   </PolesAndZeros>
 
   As a formula, with <M t="d_1" /> and <M t="d_2" /> the two distances to the zeros and <M t="e_1" /> and <M t="e_2" /> the two to the poles:
@@ -522,12 +522,13 @@ Six of those blocks are one filter with different numbers in it. So the first tw
     xLog
     xTitle="hertz"
     yTitle="decibels"
-    min={-48}
-    max={48}
+    min={-60}
+    max={60}
   >
-    The bell, the curve of its zeros alone and the curve of its poles alone. Notice that the two
-    halves are huge and nearly mirror each other, and that the bell is the small difference where
-    they fail to cancel.
+    The bell, the curve of its zeros alone and the curve of its poles alone. With the bell where
+    the page starts it, the zeros' curve is the one far under the level line at the left edge and
+    the poles' the one far over it. Notice that the two halves are huge and nearly mirror each
+    other, and that the bell is the small difference where they fail to cancel.
   </Curve>
 
   At 20 Hz <Claim id="halves-add">the zeros alone are 35.5 dB down and the poles alone 35.5 dB up, and everywhere the two add to the bell within 0.001 dB</Claim>. This is worth holding on to. A gentle curve can be the difference between two violent ones, and a filter made that way asks a lot of the arithmetic. Part 7 shows where that is felt.
@@ -583,7 +584,7 @@ Six of those blocks are one filter with different numbers in it. So the first tw
     at={{ w: 'const float w = kTwoPi', alpha: '*alpha = std::sin(w)' }}
   />
 
-  The device gives both of its bells a Q of 0.7, which is broad. <Claim id="body-centre">Body at −5 is −5.00 dB at 320 Hz and still −2.38 dB an octave either side</Claim>. Put the bell of part 2 at the same Q and, where it added 0.11 dB two octaves from its centre, it adds <Claim id="bell-two-octaves-broad">0.8 dB</Claim>. A broad bell is a tone control: it tilts a whole region and has no place the ear can point to.
+  The device gives both of its bells a Q of 0.7, which is broad. <Claim id="body-centre">Body at −5 is −5.00 dB at 320 Hz and still −2.38 dB an octave either side</Claim>. Put the bell of part 2 at the same Q and, where it added 0.11 dB two octaves from its centre, it adds <Claim id="bell-two-octaves-broad">0.8 dB</Claim>. A broad bell is a tone control: it tilts a whole region, with no one frequency to point to.
 
   <Fragment slot="listen">Hear the sound after both bells</Fragment>
 </StageBlock>
@@ -641,11 +642,11 @@ Six of those blocks are one filter with different numbers in it. So the first tw
     xTitle="hertz"
     yTitle="decibels"
     min={-60}
-    max={6}
+    max={10}
   >
     The device's two cuts, each measured alone, and the low cut made again from two biquads. Try Low
     cut and High cut, and notice the left edge fall twice as steeply as the right. At most
-    settings the dashed line lies on the low cut all the way down.
+    settings the low cut from two biquads lies on the device's own all the way down.
   </Curve>
 
   Both cuts have the shape that stays level for as long as it can before the corner, with no bump, and then falls. It is called a Butterworth response:
@@ -673,11 +674,11 @@ Six of those blocks are one filter with different numbers in it. So the first tw
     name="tune"
   />
 
-  The filters here are not biquads. They are the kit's state-variable filter, the subject of <Lesson id="state-variable-filter" />, which draws the same curves from a different arrangement of two memories. The device has two reasons. A cut's corner is a control that gets swept while the sound plays, and that filter stays well behaved while its corner moves. The other reason shows in the picture when Low cut is set high: far down the slope the dashed line parts from the device's own.
+  The filters here are not biquads. They are the kit's state-variable filter, the subject of <Lesson id="state-variable-filter" />, which draws the same curves from a different arrangement of two memories. Two things are gained by it. A cut's corner is a control that gets swept while the sound plays, and the kit keeps its biquad <Src path="cpp/kit/filters.h" at="static or slowly moving EQ; use Svf where the cutoff is modulated.">for settings that stay put or move slowly, and this filter for a corner that moves</Src>. The other shows in the picture when Low cut is set high: far down the slope the low cut from two biquads parts from the device's own.
 
   <Check id="cutForms" />
 
-  Measured with one sample, as these curves are, <Claim id="cut-forms">the pair of biquads is 1.1 dB off at 20 Hz when set to 100 Hz, where the curve is 56 dB down, and 0.11 dB off when set to 30 Hz</Claim>, while the device's pair lands on the formula. Yet on a steady tone at 20 Hz the two are <Claim id="cut-tone">less than 0.02 dB apart</Claim>. So the biquads have the corner in the right place. What differs is what one very loud sample leaves behind in the memories as rounding, and the fault of that name in part 7 says more.
+  Measured with one sample, as these curves are, <Claim id="cut-forms">the pair of biquads is 1.1 dB off at 20 Hz when set to 100 Hz, where the curve is 56 dB down, and 0.11 dB off when set to 30 Hz</Claim>, while the device's pair lands on the formula. Yet on a steady tone at 20 Hz the two are <Claim id="cut-tone">less than 0.02 dB apart</Claim>. So the biquads have the corner in the right place. What differs is what one sample at full scale leaves behind in the memories as rounding. The lab's test works the two biquads again with the same five numbers and with memories that hold twice as many digits, and then <Claim id="cut-rounding">one sample through them lands less than 0.02 dB from the formula at 20 Hz, set to 100 Hz and set to 30 Hz</Claim>. The fault about rounding in part 7 says more.
 
   The high cut is a little steeper than its formula, and more so the higher it is set. <Claim id="high-cut">It is 3.01 dB down at its corner. An octave over, it is 12.4 dB down when set to 1 kHz and 14.3 dB down when set to 5 kHz, where the formula gives 12.3 dB for both</Claim>. The top of the range is the reason, and part 7 has that too.
 
@@ -725,7 +726,7 @@ Six of those blocks are one filter with different numbers in it. So the first tw
 
   <Check id="curveError" />
 
-  Measured, the device is <Claim id="curves-add">within 0.03 dB of its bands added, wherever the curve is above −20 dB</Claim>. Below that, the measurement itself runs into rounding, which part 7 explains.
+  Measured where this page starts, the device is <Claim id="curves-add">less than 0.02 dB from its bands added, wherever the curve is above −20 dB, and less than 0.2 dB from them at every setting the lab's test picks at random</Claim>. The two part most where a boost lifts a deep cut back over that line. There and below it, the measurement itself runs into rounding, which part 7 explains.
 
   In the device the four bands with a gain are four biquads in a row, for each of the two channels.
 
@@ -736,7 +737,7 @@ Six of those blocks are one filter with different numbers in it. So the first tw
     name="tones"
   />
 
-  The first line of that loop is the rule of step 5 of the build: a band that is doing nothing is skipped. `design_tone` is where each band gets its recipe, and where a gain of exactly nothing gets the numbers of a wire.
+  The first line inside that loop is the rule of step 5 of the build: a band that is doing nothing is skipped. `design_tone` is where each band gets its recipe, and where a gain of exactly nothing gets the numbers of a wire.
 
   <Listing
     path="cpp/devices/ambient-eq/ambient_eq.h"
@@ -745,7 +746,7 @@ Six of those blocks are one filter with different numbers in it. So the first tw
     name="design"
   />
 
-  With every band flat, both cuts at the ends of their ranges and Clear off, nothing is left in circuit, and the device's output is <Claim id="flat-is-wire">the input, sample for sample</Claim>. Many equalisers cannot say that. One that runs its filters at 0 dB still does arithmetic on every sample, and the rounding of it is a faint noise of its own.
+  With every band flat, both cuts at the ends of their ranges and Clear off, nothing is left in circuit, and the device's output is <Claim id="flat-is-wire">the input, sample for sample</Claim>. A cut left in circuit at the end of its range could not say that, as step 5 of the build measured.
 
   One more thing happens when a control moves. If a filter's five numbers changed all at once, its two memories would hold sums that were made for the old numbers, and the output would jump: a click. So the device does not hand a new value straight to the recipe. It lets the value <Src path="cpp/devices/ambient-eq/ambient_eq.h" at="Values are smoothed over 5 ms at the control rate">glide to where it was put over 5 ms</Src>, and works the recipe out again <Src path="cpp/devices/ambient-eq/ambient_eq.h" at="static constexpr int kEqPeriod = 16;">every 16 samples</Src> for as long as it is moving.
 
@@ -761,7 +762,7 @@ Six of those blocks are one filter with different numbers in it. So the first tw
 
   <Check id="rebuilt" />
 
-  The reading is the floor of the measurement: the copy and the device made <Claim id="rebuilt">the very same samples</Claim>. So the device has nothing in its six bands that this stage has not shown.
+  The reading is the floor of the measurement, and the lab's test lays the two beside each other as well: with Clear off, the copy and the device made <Claim id="rebuilt">the very same samples</Claim>. So the device has nothing in its six bands that this stage has not shown.
 </StageBlock>
 
 <StageBlock tap="bellPhase" n={7} title="What the curve leaves out: time">
@@ -769,7 +770,7 @@ Six of those blocks are one filter with different numbers in it. So the first tw
 
   <Controls ids="bellHz bellGain bellQ" />
 
-  <Curve taps="bellPhase" xLog xTitle="hertz" yTitle="degrees" min={-45} max={45}>
+  <Curve taps="bellPhase" xLog xTitle="hertz" yTitle="degrees" min={-40} max={40}>
     How far the one bell turns each frequency, in degrees of a cycle. Notice that the line crosses
     nothing at the bell's centre, and is furthest from it on either side. Try Gain at 0 dB, and
     notice it go level: a bell that changes no level changes no timing.
@@ -784,9 +785,9 @@ Six of those blocks are one filter with different numbers in it. So the first tw
 
   Here <M t={String.raw`\theta_1`} /> and <M t={String.raw`\theta_2`} /> are the directions of the lines from the two zeros to the point, and <M t={String.raw`\psi_1`} /> and <M t={String.raw`\psi_2`} /> the directions of the lines from the two poles. The turn is the zeros' two directions added, less the poles' two added. Far from the bell, a zero and its pole are seen in nearly the same direction, and they cancel. At the bell's centre they are seen in exactly the same direction, and cancel again. In between, to either side of the centre, the directions differ most. Measured, the bell this page starts with turns a tone <Claim id="bell-phase">19.4 degrees forward at 781 Hz and 19.4 degrees back at 1,280 Hz, which are the two frequencies where it is half its decibels up. At +12 dB the most it turns is 36.8 degrees</Claim>.
 
-  By itself that cannot be heard: the ear does not notice a steady tone arriving a fraction of a cycle early. It matters when the equalised sound is mixed with a copy that was not equalised, because then the two no longer line up, and their sum has dips that neither has alone. An effect is made of exactly that in <Lesson id="phasing" />.
+  By itself that does little: a steady tone turned by part of a cycle is the same tone, begun a moment sooner or later. It matters when the equalised sound is mixed with a copy that was not equalised, because then the two no longer line up, and their sum has dips that neither has alone. An effect is made of exactly that in <Lesson id="phasing" />.
 
-  The other thing the curve leaves out is ringing, and that can be heard. Stage 1 showed the fading note a bell adds to every sample. How long the note lasts is set by one number: how far the poles are from the centre of the circle.
+  The other thing the curve leaves out is ringing, and part 7 has a card to hear it by. Stage 1 showed the fading note a bell adds to every sample. How long the note lasts is set by one number: how far the poles are from the centre of the circle.
 
   <Curve taps="bellRing" xMax={20} xTitle="milliseconds" yTitle="sample value">
     What the bell adds to one sample, over twenty milliseconds. Try Q at its highest and Gain at
@@ -798,7 +799,7 @@ Six of those blocks are one filter with different numbers in it. So the first tw
 
   <M t="r" /> is the distance of the poles from the centre, which is what is left of the note after each sample. <M t={String.raw`\ln r`} /> is its natural logarithm, a negative number that is close to nothing when <M t="r" /> is close to 1. <M t={String.raw`\tau`} /> is the time, in seconds, for the note to fall to 37 % of its size. The nearer the poles are to the circle, the longer the bell rings.
 
-  Now recall the recipe of stage 3. The poles' distance comes from <M t={String.raw`\alpha / A`} />: a high Q makes <M t={String.raw`\alpha`} /> small, and a boost makes <M t="A" /> large. Both push the poles out. A cut does the opposite, because in a cut it is the zeros that go out, and zeros do not ring. So <Claim id="ring-boost">a +12 dB bell at 1 kHz with a Q of 10 rings for 6.4 ms</Claim>, and the cut of the same size and width for <Claim id="ring-cut">1.6 ms</Claim>. A narrow boost adds a note to the sound. A narrow cut hardly does. Part 6 makes a rule of that and part 7 lets you hear it.
+  Now recall the recipe of stage 3. The poles' distance comes from <M t={String.raw`\alpha / A`} />: a high Q makes <M t={String.raw`\alpha`} /> small, and a boost makes <M t="A" /> large. Both push the poles out. A cut does the opposite, because in a cut it is the zeros that go out, and zeros do not ring. So, by that measure, <Claim id="ring-boost">a +12 dB bell at 1 kHz with a Q of 10 rings for 6.4 ms</Claim>, and the cut of the same size and width for <Claim id="ring-cut">1.6 ms</Claim>. A narrow boost adds a note to the sound. A narrow cut hardly does. Part 6 makes a rule of that and part 7 lets you hear it.
 </StageBlock>
 
 <StageBlock tap="bandPower" n={8} title="Clear listens">
@@ -807,8 +808,8 @@ Six of those blocks are one filter with different numbers in it. So the first tw
   It listens to a copy of the sound taken after the six bands. Every <Src path="cpp/devices/ambient-eq/ambient_eq.h" at="static constexpr int kHop = 1024;">1,024 samples</Src> it takes the last <Src path="cpp/devices/ambient-eq/ambient_eq.h" at="static constexpr int kFrame = 4096;">4,096</Src> and finds how much of each frequency they hold. That is the transform of <Lesson id="short-time-fourier" />. Then it adds the result up into <Src path="cpp/devices/ambient-eq/ambient_eq.h" at="static constexpr int kBands = 23;">23 bands</Src>, each <Src path="cpp/devices/ambient-eq/ambient_eq.h" at="23 bands: four half an octave wide from 45 to 180 Hz, then thirds of an">a third of an octave wide, or half an octave at the bottom</Src>, and smooths each band's power over <Src path="cpp/devices/ambient-eq/ambient_eq.h" at="static constexpr float kPowerSeconds = 0.3f;">0.3 s</Src>, so that a single drum hit does not count as a note that rings on.
 
   <Curve taps="bandPower bandMargin" xLog xTitle="hertz" yTitle="decibels">
-    What Clear hears in each band at the end of the loop, and the line a band has to rise above
-    before any of it counts. Notice any band where the first line stands over the second: how far
+    What Clear hears in each band at the moment of the loop when one band stood furthest over
+    its line, and the line a band has to rise above before any of it counts. Notice any band where the first line stands over the second: how far
     over is its excess. Try Low from end to end, and notice the left of the first line move against
     the second, because Clear listens after the six bands.
   </Curve>
@@ -857,18 +858,18 @@ Six of those blocks are one filter with different numbers in it. So the first tw
 
   <Controls ids="clear clearTime" />
 
-  <Curve taps="respClear" xLog xTitle="hertz" yTitle="decibels" min={-13} max={1}>
+  <Curve taps="respClear" xLog xTitle="hertz" yTitle="decibels" min={-13} max={3}>
     Every cut Clear made over the loop, at its deepest. The page starts with Clear off, and the
     line is level. Try Clear at its highest, and notice a narrow dip or two appear where this loop
     rings on, and nothing anywhere else.
   </Curve>
 
-  <Trace taps="clearDepth" min={-12} max={0} unit="dB">
+  <Trace taps="clearDepth" min={-12} max={2} unit="dB">
     The deepest cut in force at each moment of the loop. Try Clear time longer with Clear up, and
     notice the line move more slowly and smooth over the beats.
   </Trace>
 
-  How deep can it go? On a steady tone set in a bed of noise, standing far above it, Clear at its highest <Claim id="clear-cap">cuts 12 dB and no further</Claim>, which is the cap of stage 8. With Clear at 0.4, where the device itself starts, it cuts <Claim id="clear-share">4.8 dB</Claim>, which is 0.4 of that. On a lone note it does nothing at all: <Claim id="clear-lone-note">a sine, a saw and plain noise are each cut by exactly 0 dB</Claim>, the first two because one note is not a bed and the third because no band of plain noise stands out of the others. On the drum loop at this page's starting settings, <Claim id="clear-on-drums">Clear at its highest finds 1.1 dB to cut, near 107 Hz</Claim>, where a drum rings.
+  How deep can it go? On a steady tone set in a bed of noise, standing far above it, Clear at its highest <Claim id="clear-cap">cuts 12 dB and no further</Claim>, which is the cap of stage 8. With Clear at 0.4, where the device itself starts, it cuts <Claim id="clear-share">4.8 dB</Claim>, which is 0.4 of that. On a lone note it does nothing at all: <Claim id="clear-lone-note">a sine, a saw and plain noise are each cut by exactly 0 dB</Claim>. The sine is one note, and one note is not a bed. The saw fills the range, and the one band of it that stands over its line is its lowest note's, which has no sound under it. No band of plain noise stands over its line at all. On the drum loop at this page's starting settings, <Claim id="clear-on-drums">Clear at its highest finds 1.1 dB to cut, near 107 Hz</Claim>, where a drum rings.
 
   A cut does not jump to what is wanted. Each time Clear listens, the cut moves a fixed share of the way there:
 
@@ -879,13 +880,13 @@ Six of those blocks are one filter with different numbers in it. So the first tw
 
   <M t="c" /> is the cut in force and <M t="t" /> the cut wanted, both in decibels. <M t="k" /> is the share of the remaining distance that is kept each time, a number just under 1. <M t="f" /> is how many times a second Clear listens, and <M t="T" /> is the time to cover 63 % of the way. Going down, <M t="T" /> is Clear time. Coming back it is <Src path="cpp/devices/ambient-eq/ambient_eq.h" at="const float back = kit::time_to_coeff(2.0f * param(kClearTime), frames_per_second);">twice Clear time</Src>, so a cut arrives sooner than it leaves and does not flutter.
 
-  <Curve taps="clearGlide" xTitle="seconds" yTitle="decibels" min={-13} max={1}>
+  <Curve taps="clearGlide" xTitle="seconds" yTitle="decibels" min={-13} max={3}>
     One cut by that rule: 12 dB wanted from the start, then nothing wanted from half way along.
     Notice that it goes down faster than it comes back. Try Clear time, and notice both halves
     stretch together.
   </Curve>
 
-  By that rule alone, <Claim id="clear-glide">with Clear time at 0.2 s a cut asked for 12 dB at once is 63 % of the way down after 0.2 s, and takes 0.4 s to come 63 % of the way back</Claim>. In the device there is more to wait for, because stage 8 smooths what it hears and waits for the surroundings to last. On a tone that starts in a bed of noise, <Claim id="clear-onset">with Clear time at 0.2 s the cut first moves 0.3 s after the tone and is 63 % of the way down after 0.5 s; with Clear time at 1.5 s, after 1.7 s</Claim>. Clear is slow on purpose. It is for what rings on, and a thing has to last before it can be said to ring on.
+  By that rule alone, <Claim id="clear-glide">with Clear time at 0.2 s a cut asked for 12 dB at once is 63 % of the way down after 0.2 s, and takes 0.4 s to come 63 % of the way back</Claim>. In the device there is more to wait for, because stage 8 smooths what it hears and waits for the surroundings to last. When a tone and a bed of noise start together out of silence, <Claim id="clear-onset">with Clear time at 0.2 s the cut first moves 0.3 s after they start and is 63 % of the way down after 0.5 s; with Clear time at 1.5 s, after 1.7 s</Claim>. Clear is slow on purpose. It is for what rings on, and a thing has to last before it can be said to ring on.
 
   Between listens the cut is not held still and then stepped. Its gain is ramped, and each bell's recipe is worked out again <Src path="cpp/devices/ambient-eq/ambient_eq.h" at="static constexpr int kClearPeriod = 64;">every 64 samples</Src>, for the reason stage 6 gave: a filter that jumps clicks. Both channels get the same cut, so that the sound does not lean to one side.
 
@@ -933,7 +934,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     When a sound is dull, the first thought is to turn the top up. Often the same balance can be had by turning down what there is too much of, and the two are not equal in what they cost. A boost adds level, and there is a ceiling to level. A cut gives level back. On the mix, <Claim id="way-cut">Low and Air at +5 dB bring the loudest sample 2.9 dB nearer full scale, and Body at −5 dB takes it 1.2 dB further off</Claim>. Both settings make the low middle smaller beside the two ends. After the card, turn Body back to 0 dB, bring Low and Air up in its place, and compare.
   </Way>
   <Way title="Clear the bottom" tag="Low cut, raised until it is missed" set="bottom">
-    Most parts of a mix carry something under their lowest note that nobody plays: a thump from a hand, a rumble from the room. One part's worth does no harm. A dozen parts' worth is a blur under the bass. On the strummed guitar, <Claim id="way-bottom">with the Low cut at 100 Hz what lies under 60 Hz comes out 14.8 dB lower and the loop 0.2 dB quieter</Claim>: almost nothing of the guitar has gone. After the card, raise Low cut until the guitar begins to sound thin, then come back a little.
+    Most parts of a mix carry something under their lowest note that nobody plays: a thump from a hand, a rumble from the room. One part's worth does no harm. A dozen parts' worth is a blur under the bass. On the strummed guitar, <Claim id="way-bottom">with the Low cut at 100 Hz what lies from 20 to 60 Hz comes out 14.8 dB lower and the loop 0.2 dB quieter</Claim>: almost nothing of the guitar has gone. After the card, raise Low cut until the guitar begins to sound thin, then come back a little.
   </Way>
   <Way title="Find it with a boost, then turn it over" tag="a narrow bell, swept, then cut" set="find">
     An ugly resonance is hard to place by ear and easy to find by making it worse. The card sets the one bell narrow and tall. After it, move Frequency slowly along and listen for the place where the guitar suddenly honks or booms. That is the frequency. Now take Gain below 0 dB, and widen the bell with Q until the cut stops sounding like a hole. The loud search is only a search: stage 7 of part 5 says why a bell that narrow and that tall is not left in a mix.
@@ -955,37 +956,39 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
 
 Three of these can be heard. One is easier to see, and its picture comes first because a card is too small to hold it.
 
-<Curve taps="bellAtOne bellHigh" xTitle="octaves from the centre" yTitle="decibels" min={-1} max={13}>
+<Controls ids="bellGain bellQ" />
+
+<Curve taps="bellAtOne bellHigh" xTitle="octaves from the centre" yTitle="decibels" min={-3} max={13}>
   The one bell twice, with the same Gain and the same Q: once centred on 1 kHz and once on 12 kHz,
   each drawn against the distance from its own centre in octaves. Notice the second fall to nothing
   an octave over its centre, which is the top of the range, and run narrower than the first all the
-  way down. Try Q lower, with the control in part 2, and notice the two lines part further.
+  way down. Try Q at 0.7, and notice the two lines part further.
 </Curve>
 
 <Faults>
   <Fault title="A narrow boost rings" set="ring">
-    The card sends single clicks through the one bell, set narrow and tall. Each click comes out with a short note stuck to it, at the bell's frequency. That note is the fading answer of stage 1, lasting as long as stage 7 measured. On music it is heard as a whistle or a honk that follows every hit, and as one note of a chord that will not stop. Use a broader bell, or less gain, or the cut of way 3 in place of the boost.
+    The card sends single clicks through the one bell, set narrow and tall. Each click comes out with a short note stuck to it, at the bell's frequency. That note is the fading answer of stage 1, lasting as long as stage 7 measured. On music, listen for a whistle or a honk that follows every hit, or for one note of a chord that will not stop. Use a broader bell, or less gain, or the cut of way 3 in place of the boost.
   </Fault>
   <Fault title="A boost is gain, and gain runs out" set="over">
     Turn your volume down before you play this one. Every boost raises the level of the sound that passes it, and nothing in an equaliser stops that at full scale. <Claim id="fault-over">Low and Air at +12 dB put the loudest sample of the mix 3.6 dB over full scale, where it went in 4.4 dB under</Claim>. Whatever comes next will clip it. After a boost, turn the sound down by about as much, or do the job with cuts.
   </Fault>
   <Fault title="Too much cut away" set="thin">
-    Each cut seems to clean the sound up, so it is easy to keep going. This card is the device's own preset called <Src path="cpp/devices/ambient-eq/device.json" at={'"Thin": {'}>Thin</Src>, put on the whole mix, where it does not belong. <Claim id="fault-thin">The band from 40 to 100 Hz comes out 44 dB lower and the loop 7.3 dB quieter</Claim>. It sounds like a small radio. On one part in a full mix the same setting can be right. The fault is to judge a cut with nothing playing beside it.
+    Each cut seems to clean the sound up, so it is easy to keep going. This card is the device's own preset called <Src path="cpp/devices/ambient-eq/device.json" at={'"Thin": {'}>Thin</Src>, put on the whole mix, where it does not belong. <Claim id="fault-thin">The band from 40 to 100 Hz comes out 44 dB lower and the loop 7.3 dB quieter</Claim>. Play it, and listen for a small radio. On one part in a full mix the same setting can be right. The fault is to judge a cut with nothing playing beside it.
   </Fault>
   <Fault title="A bell near the top is squeezed">
     The circle of stage 2 ends at half the sample rate. A filter has no way to draw a curve beyond it, and a recipe that aims a bell near the top has to fit the bell's upper side into the room that is left. The picture over these cards shows it.
 
-    <Claim id="cramp">Half an octave over its centre, a +6 dB bell of Q 2 holds 2.02 dB at 1 kHz and 0.62 dB at 12 kHz. An octave over, it holds 0.63 dB and exactly nothing</Claim>. The device's Presence is far enough down to show it only a little: <Claim id="presence-lopsided">at +6 it is 2.81 dB at 1.5 kHz and 2.67 dB at 6 kHz, lopsided by 0.14 dB</Claim>. It is also why the High cut of stage 5 fell faster than its formula. A device that needs true shapes at the top has to run its filters at a higher sample rate. This one does not, and its top two bands are a little narrower than their names say.
+    <Claim id="cramp">Half an octave over its centre, a +6 dB bell of Q 2 holds 2.02 dB at 1 kHz and 0.62 dB at 12 kHz. An octave over, it holds 0.63 dB and exactly nothing</Claim>. The device's Presence is far enough down to show it only a little: <Claim id="presence-lopsided">at +6 it is 2.81 dB at 1.5 kHz and 2.67 dB at 6 kHz, lopsided by 0.14 dB</Claim>. It is also why the High cut of stage 5 fell faster than its formula. A device that needs true shapes at the top has to run its filters at a higher sample rate. This one does not, and its Presence and Air are a little squeezed on the side towards the top.
 
   </Fault>
   <Fault title="Rounding leaves a floor">
-    Stage 2 showed a gentle bell as the small difference of two violent halves. For a band placed low, the halves are at their most violent: the filter's memories hold large numbers that all but cancel, and a sample has only so many digits. What is lost in the cancelling stays behind as a faint error. The lab's curves, which are made with one very loud sample, run into it far down. <Claim id="rounding-floor">With the Low cut at 500 Hz the device measures −70 dB at 44 Hz that way, where its bands add to −81 dB, and a steady tone there comes out at −81 dB</Claim>. So the curve is right and the one-sample measurement is not: under a certain depth it is measuring its own rounding. The floor is far below the sound that makes it and nobody hears it. It is the reason stage 6 compared its two curves only where they are above a certain depth.
+    Stage 2 showed a gentle bell as the small difference of two violent halves. For a band placed low, the halves are at their most violent: the filter's memories hold large numbers that all but cancel, and a sample has only so many digits. What is lost in the cancelling stays behind as a faint error. The lab's curves are made with one sample, which holds every frequency at once. The error is the rounding of that whole sample, and far down a cut it is larger than the little that is left. <Claim id="rounding-floor">With the Low cut at 500 Hz and the four bands where this page starts them, the device measures −70 dB at 44 Hz that way, where its bands add to −81 dB, and a steady tone there comes out at −81 dB</Claim>. So the curve is right and the one-sample measurement is not: under a certain depth it is measuring its own rounding. The floor is far below the sound that makes it. It is the reason stage 6 compared its two curves only where they are above a certain depth.
   </Fault>
   <Fault title="A filter that jumps">
     Move a control and the filter's numbers change under a sound that is passing through it. If they changed all at once, each move would be a small click, and a quick sweep would be a zipper of them. The device glides every value and fades each cut in and out of circuit, as stages 5 and 6 showed. If you hear a click when a setting changes, it is the sound meeting a filter that had no time to glide: a preset recalled in the middle of a held note is the usual case.
   </Fault>
   <Fault title="Equalising a part alone">
-    A part played alone invites you to make it full: more bottom, more top, more of everything. Every part made full that way wants the same room, and the mix is worse for it. The strummed guitar of part 3 was set for what it leaves free, and alone it sounded thin. Set an equaliser with the other parts playing. Listen to the part alone only to find a fault.
+    A part played alone invites you to make it full: more bottom, more top, more of everything. Every part made full that way wants the same room, and the mix is worse for it. The strummed guitar of part 3 was set for what it leaves free, and alone it may have struck you as thin. Set an equaliser with the other parts playing. Listen to the part alone only to find a fault.
   </Fault>
 </Faults>
 
@@ -1004,10 +1007,10 @@ Three of these can be heard. One is easier to see, and its picture comes first b
     It is the same filter. Stage 3 showed that a cut is a boost with its top and its bottom exchanged, and that the two undo each other exactly. The advice to cut first is good for other reasons, and they are real ones: a cut gives level back where a boost uses it up, and a narrow cut rings far less than the narrow boost of the same size.
   </Myth>
   <Myth says="An equaliser only changes levels, so the timing is untouched.">
-    Every band that changes a level also turns the phase of the frequencies round it, as stage 7 measured. Heard alone, that is nothing. Mixed with an unequalised copy of the same sound, it changes how the two add.
+    Every band that changes a level also turns the phase of the frequencies round it, as stage 7 measured. Alone, that changes no level. Mixed with an unequalised copy of the same sound, it changes how the two add.
   </Myth>
   <Myth says="Even set flat, an equaliser colours the sound.">
-    Some do, because they keep their filters running. This one takes a band out of circuit when it has nothing to do, and with everything flat its output is its input to the last digit, as stage 6 showed. If a flat setting here sounds different, the difference is in the listening.
+    One that left its cuts in circuit would: step 5 of the build measured what a cut at the very end of its range still takes off the lowest notes. This one takes a band out of circuit when it has nothing to do, and with everything flat its output is its input to the last digit, as stage 6 showed. If a flat setting here sounds different, the difference is in the listening.
   </Myth>
   <Myth says="The narrower the band, the more exact the tool.">
     Narrower in frequency is longer in time. Stage 7 measured a narrow boost ringing for several cycles of its own note. A filter cannot be told to act on one frequency for one instant: the more closely it picks a frequency, the longer it has to listen and the longer it has to answer.

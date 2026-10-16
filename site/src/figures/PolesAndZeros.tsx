@@ -45,6 +45,14 @@ const DB: Axis = { min: -13, max: 13 }
 /** The control's steps along its logarithmic range. */
 const STEPS = 600
 const MONO = { fontFamily: 'var(--lm-font-mono)', fontSize: 10, fill: 'var(--lm-muted)' } as const
+/** The same words where lines may run under them: an edge of the page's ground keeps them clear. */
+const OVER_LINES = {
+  ...MONO,
+  paintOrder: 'stroke',
+  stroke: 'var(--lm-bg)',
+  strokeWidth: 3,
+  strokeLinejoin: 'round',
+} as const
 
 const role = (name: keyof typeof ROLE_VAR) => `var(${ROLE_VAR[name]})`
 const hertz = (hz: number) => `${Math.round(hz).toLocaleString('en-GB')} Hz`
@@ -109,6 +117,9 @@ export default function PolesAndZeros({ roots, response, built, label }: Props) 
   const py = (point: Point) => (centre.im + half - point.im) * scale
   const inside = (point: Point, room = 0) =>
     px(point) >= room && px(point) <= SIDE - room && py(point) >= room && py(point) <= SIDE - room
+  // A mark's number is left out where the picture's own words stand, or its small map.
+  const clearOfWords = (point: Point) =>
+    !(py(point) < 26 && px(point) > SIDE - 172) && (whole || px(point) > 82 || py(point) > 82)
   // The frequencies whose points on the circle are in the picture.
   let lowest = Infinity
   let highest = -Infinity
@@ -206,13 +217,13 @@ export default function PolesAndZeros({ roots, response, built, label }: Props) 
                       d={`M${px(on)},${py(on)}L${px(tick)},${py(tick)}`}
                       style={{ ...hair, stroke: 'var(--lm-muted)' }}
                     />
-                    {inside(out, 12) && (
+                    {inside(out, 12) && clearOfWords(out) && (
                       <text
                         x={px(out)}
                         y={py(out)}
                         textAnchor="middle"
                         dominantBaseline="middle"
-                        style={MONO}
+                        style={OVER_LINES}
                       >
                         {numberLabel(at)}
                       </text>
@@ -257,7 +268,7 @@ export default function PolesAndZeros({ roots, response, built, label }: Props) 
             height={SIDE - 1}
             style={{ ...hair, stroke: 'var(--sig-grid)' }}
           />
-          <text x={SIDE - 6} y={14} textAnchor="end" style={MONO}>
+          <text x={SIDE - 6} y={14} textAnchor="end" style={OVER_LINES}>
             hertz, round the circle
           </text>
           {has && !whole && (
@@ -353,15 +364,17 @@ export default function PolesAndZeros({ roots, response, built, label }: Props) 
       <ul className="fig-legend key" style={{ paddingLeft: 0 }}>
         <li>
           <i style={{ background: role('alt') }} />
-          Zeros{has && <b>{`${lengths[0]!.toFixed(3)} and ${lengths[1]!.toFixed(3)} away`}</b>}
+          Zeros, the rings
+          {has && <b>{`${lengths[0]!.toFixed(3)} and ${lengths[1]!.toFixed(3)} away`}</b>}
         </li>
         <li>
           <i style={{ background: role('alt2') }} />
-          Poles{has && <b>{`${lengths[2]!.toFixed(3)} and ${lengths[3]!.toFixed(3)} away`}</b>}
+          Poles, the crosses
+          {has && <b>{`${lengths[2]!.toFixed(3)} and ${lengths[3]!.toFixed(3)} away`}</b>}
         </li>
         <li>
           <i style={{ background: role('ctl') }} />
-          At {hertz(hz)}
+          <span style={{ whiteSpace: 'nowrap' }}>At {hertz(hz)}</span>
           {has && (
             <b>
               {`${b0.toFixed(3)} × ${zeros.toFixed(4)} ÷ ${poles.toFixed(4)} = ${size.toFixed(3)}, which is ${signed(db)}`}

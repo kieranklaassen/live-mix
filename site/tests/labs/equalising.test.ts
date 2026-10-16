@@ -185,6 +185,86 @@ const bandOver = (eq: Lab, lo: number, hi: number, of = 'out', against = 'in') =
   band(eq.spectrum(of), lo, hi) - band(eq.spectrum(against), lo, hi)
 
 const LOOPS = ['drums', 'guitar', 'chords', 'bass', 'pad', 'mix']
+/** Every sound the page offers in its play bar (the lesson's `sources`). */
+const SOUNDS = ['mix', 'drums', 'bass', 'chords', 'pad', 'guitar', 'noise', 'saw', 'clicks']
+
+/** Whether two taps hold the very same samples, on both channels. */
+function sameSamples(result: RenderResult, one: string, other: string): boolean {
+  return [0, 1].every((c) => {
+    const a = result.taps[one]!.channels_data[c]!
+    const b = result.taps[other]!.channels_data[c]!
+    return a.length === b.length && a.every((v, i) => v === b[i])
+  })
+}
+
+/**
+ * Clear's bands as the lab draws them: the two curves are steps, one step to a band, so a band
+ * is a run of points over which neither curve changes. Each with the frequencies it runs over.
+ */
+function heardBands(result: RenderResult) {
+  const heard = result.taps.bandPower!
+  const power = heard.channels_data[0]!
+  const line = result.taps.bandMargin!.channels_data[0]!
+  const bands: { from: number; to: number; power: number; line: number }[] = []
+  power.forEach((v, p) => {
+    const last = bands.at(-1)
+    if (last && last.power === v && last.line === line[p]) last.to = hzOf(heard, p)
+    else bands.push({ from: hzOf(heard, p), to: hzOf(heard, p), power: v, line: line[p]! })
+  })
+  return bands
+}
+
+/** How many separate dips deeper than `depth` dB a curve has. */
+function dips(tap: TapData, depth: number): number {
+  const data = tap.channels_data[0]!
+  let count = 0
+  for (let p = 1; p < data.length - 1; p += 1)
+    if (data[p]! < -depth && data[p]! < data[p - 1]! && data[p]! <= data[p + 1]!) count += 1
+  return count
+}
+
+/**
+ * The low cut from two biquads worked again here, away from the lab: the kit's recipe for a
+ * high-pass in single precision, as the kit works it, then one unit sample through the two in
+ * transposed direct form II, and the level of 20 Hz in what comes out, in dB. `round` is what
+ * each sum is rounded to: Math.fround for the single precision the kit runs in, or nothing,
+ * which leaves the memories the double precision of a JavaScript number.
+ */
+function cutPairAt20(corner: number, round: (v: number) => number): number {
+  const f = Math.fround
+  const design = (q: number) => {
+    const w = f(f(f(2 * Math.PI) * corner) / RATE)
+    const cosw = f(Math.cos(w))
+    const alpha = f(f(Math.sin(w)) / f(2 * f(q)))
+    const inverse = f(1 / f(1 + alpha))
+    const edge = f(1 + cosw)
+    return {
+      b0: f(f(edge * 0.5) * inverse),
+      b1: f(-edge * inverse),
+      b2: f(f(edge * 0.5) * inverse),
+      a1: f(f(-2 * cosw) * inverse),
+      a2: f(f(1 - alpha) * inverse),
+      z1: 0,
+      z2: 0,
+    }
+  }
+  const pair = [design(0.5412), design(1.3066)]
+  const w = (2 * Math.PI * 20) / RATE
+  let re = 0
+  let im = 0
+  for (let n = 0; n < 16384; n += 1) {
+    let x = n === 0 ? 1 : 0
+    for (const one of pair) {
+      const y = round(round(one.b0 * x) + one.z1)
+      one.z1 = round(round(round(one.b1 * x) - round(one.a1 * y)) + one.z2)
+      one.z2 = round(round(one.b2 * x) - round(one.a2 * y))
+      x = y
+    }
+    re += x * Math.cos(w * n)
+    im -= x * Math.sin(w * n)
+  }
+  return 10 * Math.log10(re * re + im * im)
+}
 
 describe('equalising with biquads', () => {
   it('is a sound lab on the mix: every tap says something, loops, and answers to every control', async () => {
@@ -347,25 +427,40 @@ describe('equalising with biquads', () => {
     expectWritten(-gainAt(eq, 'built', 20, { ...wire, build: 3 }), '3.01 dB')
     expect(matchesWritten(-gainAt(eq, 'built', 20, { ...wire, build: 3 }), '0.00 dB')).toBe(false)
     // And then it is the input itself.
-    const result = eq.render(await benchSource('mix', seconds(2)), { ...wire, build: 4 })
-    for (const c of [0, 1]) {
-      const dry = result.taps.in!.channels_data[c]!
-      expect(result.taps.built!.channels_data[c]!.every((v, i) => v === dry[i])).toBe(true)
-    }
+    const mix = await benchSource('mix', seconds(2))
+    expect(sameSamples(eq.render(mix, { ...wire, build: 4 }), 'built', 'in')).toBe(true)
+    // Bells and shelves at 0 dB have the numbers of a wire: step 3, which runs all four, hands
+    // on the input itself. The cuts of step 4, at the ends of their ranges, do not.
+    expect(sameSamples(eq.render(mix, { ...wire, build: 2 }), 'built', 'in')).toBe(true)
+    expect(sameSamples(eq.render(mix, { ...wire, build: 3 }), 'built', 'in')).toBe(false)
   })
 
-  it('is the device at its last step, sample for sample, on every loop and at settings that work every piece (claim build-same)', async () => {
+  it('is the device at its last step, sample for sample, on every sound of the page and at settings that work every piece (claim build-same)', async () => {
     const eq = await lab(NAME)
     const busy = { lowCut: 250, highCut: 3000, low: -8, body: 9, presence: -7, air: 5 }
-    for (const id of LOOPS) {
+    const tried: Record<string, number>[] = [{}, busy, wire, { clear: 1 }, { low: 0, air: 0 }]
+    for (const id of SOUNDS) {
       const source = await benchSource(id, seconds(4))
-      for (const values of [{}, busy, wire, { clear: 1 }, { low: 0, air: 0 }]) {
+      for (const values of tried) {
         for (const build of [0, 4]) {
-          const { checks } = eq.render(source, { ...values, build })
+          const result = eq.render(source, { ...values, build })
+          const { checks } = result
           expect(checks.builtDifference, `${id} at step ${build}`).toBe(-140)
           expect(checks.builtDifference).toBeLessThanOrEqual(checks.builtBound!)
+          if (build !== 4) continue
+          // The check's floor is also what it reads for a difference under one part in ten
+          // million, so the samples themselves: the build's against the chain the lab keeps
+          // from the kit's filters, and with Clear at 0, where nothing follows the six bands,
+          // against the device's own output.
+          expect(sameSamples(result, 'built', 'afterHighCut'), id).toBe(true)
+          if (!values.clear) {
+            expect(sameSamples(result, 'afterHighCut', 'out'), id).toBe(true)
+            expect(sameSamples(result, 'built', 'out'), id).toBe(true)
+          }
         }
       }
+      // A step short of the last is not the device: its samples are not the device's.
+      expect(sameSamples(eq.render(source, { build: 3 }), 'built', 'out'), id).toBe(false)
     }
   })
 
@@ -393,7 +488,7 @@ describe('equalising with biquads', () => {
 
   // ---- part 5: one biquad ---------------------------------------------------------------------
 
-  it('runs the difference equation as written and the form the kit runs to within rounding: on the drums they differ by 112 dB under the sound (claim forms-agree)', async () => {
+  it('runs the difference equation as written and the form the kit runs to within rounding: on the drums, with the bell where the page starts it, they differ by 112 dB under the sound (claim forms-agree)', async () => {
     const eq = await lab(NAME)
     const drums = await benchSource('drums', seconds(4))
     expectWritten(-eq.render(drums, {}).checks.forms!, '112 dB')
@@ -402,6 +497,13 @@ describe('equalising with biquads', () => {
       const source = await benchSource(id, seconds(4))
       expect(eq.render(source, {}).checks.forms).toBeLessThan(-100)
     }
+  })
+
+  it('finds more rounding between the two forms when the bell is placed low: with Frequency at 100 Hz the reading on the drums is 82 dB under the sound (claim forms-low)', async () => {
+    const eq = await lab(NAME)
+    const drums = await benchSource('drums', seconds(4))
+    expectWritten(-eq.render(drums, { bellHz: 100 }).checks.forms!, '82 dB')
+    expect(matchesWritten(-eq.render(drums, {}).checks.forms!, '82 dB')).toBe(false)
   })
 
   it('puts the poles of a +6 dB bell at 1 kHz and Q 2 at 0.977 from the centre and its zeros at 0.955 (claim pole-radius)', async () => {
@@ -571,6 +673,25 @@ describe('equalising with biquads', () => {
     }
   })
 
+  it('lays that difference to rounding in the memories: the same two biquads with memories of twice the digits land less than 0.02 dB from the formula at 20 Hz, set to 100 Hz and set to 30 Hz (claim cut-rounding)', async () => {
+    const eq = await lab(NAME)
+    const butterworth = (hz: number, corner: number) =>
+      -10 * Math.log10(1 + Math.pow(corner / hz, 8))
+    for (const [corner, off] of [
+      [100, '1.1 dB'],
+      [30, '0.11 dB'],
+    ] as const) {
+      // Worked here in single precision, the pair is the lab's, and as far off as the lab's.
+      const single = cutPairAt20(corner, Math.fround)
+      const { taps } = eq.render(short(), { lowCut: corner })
+      expect(Math.abs(single - at(taps.respCutBiquad!, 20))).toBeLessThan(0.005)
+      expectWritten(butterworth(20, corner) - single, off)
+      // With nothing rounded but the five numbers, it is on the formula.
+      const double = cutPairAt20(corner, (v) => v)
+      expectWritten(Math.abs(double - butterworth(20, corner)), 'less than 0.02 dB')
+    }
+  })
+
   // ---- bands in a row -------------------------------------------------------------------------
 
   it('reads Body at −5 as −5.00 dB at 320 Hz and −2.38 dB an octave either side (claim body-centre)', async () => {
@@ -581,10 +702,18 @@ describe('equalising with biquads', () => {
     expectWritten(gainAt(eq, 'afterBody', 640, values), '−2.38 dB')
   })
 
-  it('measures the device within 0.03 dB of its bands added, wherever the curve is above −20 dB (claim curves-add)', async () => {
+  it('measures the device less than 0.02 dB from its bands added where the page starts, wherever the curve is above −20 dB, and less than 0.2 dB from them at settings picked at random (claim curves-add)', async () => {
     const eq = await lab(NAME)
+    expectWritten(eq.render(short(), {}).checks.curveError!, 'less than 0.02 dB')
+    const hard = {
+      lowCut: 210.23973449101436,
+      highCut: 15481.723054316273,
+      low: 11.653494464152843,
+      body: 10.140907102762931,
+      presence: -5.573974464455148,
+      air: -3.1010783629261613,
+    }
     const tried: Record<string, number>[] = [
-      {},
       wire,
       { lowCut: 500, highCut: 1000 },
       { lowCut: 100, low: 12, air: 12 },
@@ -593,19 +722,51 @@ describe('equalising with biquads', () => {
       { lowCut: 133, highCut: 4376, low: -7.8, body: -1.6, presence: -7.7, air: -12 },
       { lowCut: 251, highCut: 17593, low: -4.2, body: 9.2, presence: -7, air: -5.3 },
       { lowCut: 50, highCut: 12674, low: 7.5, body: 11.6, presence: 10.9, air: -11.3 },
+      // The furthest apart of 2,500 settings picked at random: a low cut 30 dB down at 89 Hz,
+      // and Low and Body lifting the curve back over −20 dB there.
+      hard,
     ]
-    for (const values of tried) {
-      expectWritten(eq.render(short(), values).checks.curveError!, 'less than 0.03 dB')
+    // A few hundred more, picked by a generator that gives the same ones on every run. One
+    // control in seven is put at an end of its range, where the device takes it out of circuit.
+    let state = 20261016
+    const random = () => {
+      state ^= state << 13
+      state ^= state >>> 17
+      state ^= state << 5
+      return (state >>> 0) / 0xffffffff
     }
+    const gain = () => (random() < 0.15 ? (random() < 0.5 ? -12 : 12) : -12 + 24 * random())
+    for (let n = 0; n < 300; n += 1) {
+      tried.push({
+        lowCut: 20 * Math.pow(25, random() < 0.1 ? 0 : random()),
+        highCut: 1000 * Math.pow(20, random() < 0.1 ? 1 : random()),
+        low: gain(),
+        body: gain(),
+        presence: gain(),
+        air: gain(),
+      })
+    }
+    for (const values of tried) {
+      expectWritten(eq.render(short(), values).checks.curveError!, 'less than 0.2 dB')
+    }
+    // The bound is not slack by ten times: the hard setting is over 0.05 dB apart.
+    expect(eq.render(short(), hard).checks.curveError).toBeGreaterThan(0.05)
   })
 
   it("builds the chain from the kit's filters to the very samples the device made (claim rebuilt)", async () => {
     const eq = await lab(NAME)
     const drums = await benchSource('drums', seconds(4))
-    expect(eq.render(drums, {}).checks.rebuilt).toBe(-140)
+    const start = eq.render(drums, {})
+    expect(start.checks.rebuilt).toBe(-140)
     const chords = await benchSource('chords', seconds(4))
     const busy = { lowCut: 250, highCut: 3000, low: -8, body: 9, presence: -7, air: 5 }
-    expect(eq.render(chords, busy).checks.rebuilt).toBe(-140)
+    const worked = eq.render(chords, busy)
+    expect(worked.checks.rebuilt).toBe(-140)
+    // The floor of the check is not yet proof. With Clear at 0 nothing follows the six bands,
+    // so the device's output is their end, and the copy's last tap holds the same samples.
+    expect(sameSamples(start, 'afterHighCut', 'out')).toBe(true)
+    expect(sameSamples(worked, 'afterHighCut', 'out')).toBe(true)
+    expect(sameSamples(worked, 'afterAir', 'out')).toBe(false)
     // With Clear cutting, the chain still matches what the device hands to Clear.
     expect(eq.render(drums, { clear: 1 }).checks.rebuilt).toBe(-140)
   })
@@ -670,7 +831,7 @@ describe('equalising with biquads', () => {
     expectWritten(-lowest(tap(part, 'clearDepth')), '4.8 dB')
   })
 
-  it('waits before it cuts: with Clear time at 0.2 s the cut on a tone that starts in noise first moves 0.3 s after the tone and is 63 % of the way down after 0.5 s; with Clear time at 1.5 s, after 1.7 s (claim clear-onset)', async () => {
+  it('waits before it cuts: when a tone and a bed of noise start together out of silence, with Clear time at 0.2 s the cut first moves 0.3 s after they start and is 63 % of the way down after 0.5 s; with Clear time at 1.5 s, after 1.7 s (claim clear-onset)', async () => {
     const eq = await lab(NAME)
     // Three seconds of silence, in which the device lets go and falls asleep, then the tone in noise.
     const frames = seconds(8)
@@ -726,11 +887,34 @@ describe('equalising with biquads', () => {
 
   it('leaves a lone note alone at Clear 1: a sine, a saw and plain noise are cut by exactly 0 dB (claim clear-lone-note)', async () => {
     const eq = await lab(NAME)
+    const rendered: Record<string, RenderResult> = {}
     for (const id of ['sine', 'saw', 'noise']) {
       const source = await benchSource(id, seconds(4))
-      const depth = tap(eq.render(source, { clear: 1 }), 'clearDepth')
-      expect(depth.every((v) => v === 0)).toBe(true)
+      rendered[id] = eq.render(source, { clear: 1 })
+      expect(tap(rendered[id]!, 'clearDepth').every((v) => v === 0)).toBe(true)
     }
+    // Why, for each. The device calls a band lit when it is within 25 dB of the loudest, and
+    // wants more than three of them before there is a bed at all.
+    const lit = (id: string) => {
+      const bands = heardBands(rendered[id]!)
+      const loudest = Math.max(...bands.map((one) => one.power))
+      return bands.filter((one) => one.power >= loudest - 25)
+    }
+    // The sine is one note: no bed.
+    expect(lit('sine').length).toBeLessThanOrEqual(3)
+    // The saw is a bed. Its one band over its line is the band of its lowest note, 110 Hz,
+    // and no band under that one holds sound within 25 dB of it.
+    expect(lit('saw').length).toBeGreaterThanOrEqual(8)
+    const saw = heardBands(rendered.saw!)
+    const over = saw.filter((one) => one.power > one.line)
+    expect(over.length).toBe(1)
+    expect(over[0]!.from).toBeLessThan(110)
+    expect(over[0]!.to).toBeGreaterThan(110)
+    for (const one of saw.filter((other) => other.to < over[0]!.from))
+      expect(one.power).toBeLessThan(over[0]!.power - 25)
+    // Plain noise is a bed with no band over its line.
+    expect(lit('noise').length).toBeGreaterThanOrEqual(8)
+    expect(heardBands(rendered.noise!).every((one) => one.power < one.line)).toBe(true)
   })
 
   it('finds 1.1 dB to cut in the drum loop at Clear 1 and the starting settings, near 107 Hz (claim clear-on-drums)', async () => {
@@ -751,7 +935,7 @@ describe('equalising with biquads', () => {
     expectWritten(topOf(boosted, 'out') - topOf(boosted, 'in'), '2.9 dB')
   })
 
-  it('clears the bottom of the strummed guitar without touching the rest: with the Low cut at 100 Hz what lies under 60 Hz comes out 14.8 dB lower and the loop 0.2 dB quieter (claim way-bottom)', async () => {
+  it('clears the bottom of the strummed guitar without touching the rest: with the Low cut at 100 Hz what lies from 20 to 60 Hz comes out 14.8 dB lower and the loop 0.2 dB quieter (claim way-bottom)', async () => {
     const eq = await lab(NAME)
     const result = await played(eq, 'bottom')
     expectWritten(-bandOver(eq, 20, 60), '14.8 dB')
@@ -773,6 +957,8 @@ describe('equalising with biquads', () => {
     const where = bottomHz(taps.respClear!)
     expect(where).toBeGreaterThan(200)
     expect(where).toBeLessThan(300)
+    // One band: the curve of all its cuts has one dip deeper than a tenth of a decibel.
+    expect(dips(taps.respClear!, 0.1)).toBe(1)
   })
 
   // ---- part 7: what goes wrong ----------------------------------------------------------------
@@ -801,6 +987,14 @@ describe('equalising with biquads', () => {
     // The side under the centre narrows too.
     expectWritten(at(taps.bellAtOne!, -1), '0.63 dB')
     expectWritten(at(taps.bellHigh!, -1), '0.38 dB')
+    // The picture's caption: at Q 0.7 the two lines are further apart than at Q 2, on both sides.
+    const broad = eq.render(short(), { bellQ: 0.7 }).taps
+    for (const octaves of [-1, 0.5]) {
+      const apart = at(taps.bellAtOne!, octaves) - at(taps.bellHigh!, octaves)
+      expect(at(broad.bellAtOne!, octaves) - at(broad.bellHigh!, octaves)).toBeGreaterThan(
+        apart + 0.4,
+      )
+    }
   })
 
   it('leaves Presence at +6 lopsided by 0.14 dB: 2.81 dB at 1.5 kHz and 2.67 dB at 6 kHz (claim presence-lopsided)', async () => {
@@ -814,7 +1008,7 @@ describe('equalising with biquads', () => {
     expectWritten(under - over, '0.14 dB')
   })
 
-  it('leaves a floor of rounding under one loud sample: with the Low cut at 500 Hz the device measures −70 dB at 44 Hz that way where its bands add to −81 dB, and a steady tone there comes out at −81 dB (claim rounding-floor)', async () => {
+  it('leaves a floor of rounding under one loud sample: with the Low cut at 500 Hz and the four bands where the page starts them the device measures −70 dB at 44 Hz that way where its bands add to −81 dB, and a steady tone there comes out at −81 dB (claim rounding-floor)', async () => {
     const eq = await lab(NAME)
     const { taps } = eq.render(short(), { lowCut: 500 })
     expectWritten(at(taps.curveDevice!, 44), '−70 dB')
