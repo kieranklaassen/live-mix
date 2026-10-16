@@ -38,6 +38,8 @@ export function wordingIn(text, patterns) {
 
 const SOURCES = ['src', 'labs', 'tests', 'LESSONS.md', 'README.md']
 const READ = /\.(ts|tsx|astro|mdx|md|css|cpp|h|mjs|json)$/
+// The check's own test writes the phrases it looks for.
+const NOT_READ = ['tests/unit/checks.test.ts']
 
 function files(start) {
   if (!fs.existsSync(start)) return []
@@ -58,6 +60,7 @@ export function checkWording(site = SITE) {
   let read = 0
   for (const start of SOURCES) {
     for (const file of files(path.join(site, start))) {
+      if (NOT_READ.includes(path.relative(site, file).split(path.sep).join('/'))) continue
       read += 1
       for (const hit of wordingIn(fs.readFileSync(file, 'utf8'), patterns)) {
         problems.push(`${path.relative(site, file)}:${hit.line}: "${hit.said}" in: ${hit.text}`)
