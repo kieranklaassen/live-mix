@@ -125,7 +125,10 @@ export function checkSettings(
           `${lesson}: the control "${id}", named in ${where}, is not one the lab has. ${known}`,
         )
       }
-      if (value < control.min || value > control.max) {
+      // The lab holds a control as a single-precision number, so a value is read as one too:
+      // 0.1 written in a file is the end of a range the lab reports as 0.10000000149.
+      const held = Math.fround(value)
+      if (held < control.min || held > control.max) {
         throw new Error(
           `${lesson}: "${id}" is ${value} in ${where}, outside its range of ${control.min} to ${control.max}.`,
         )

@@ -133,6 +133,23 @@ describe('a lesson’s settings file', () => {
     )
   })
 
+  it('takes a value written at the end of a range the lab holds as a single-precision number', () => {
+    // The lab hands back 0.1 as the nearest single, which as a double is a little over 0.1.
+    const single: LabDescription = {
+      ...lab,
+      controls: [control(0, 'release', Math.fround(0.1), Math.fround(1.7), 0.5)],
+    }
+    const ends = settingsSchema.parse({
+      sets: { low: { label: 'low', values: { release: 0.1 } } },
+      defaults: { values: { release: 1.7 } },
+    })
+    expect(() => checkSettings(ends, single, SOURCES, 'compression')).not.toThrow()
+    const under = settingsSchema.parse({
+      sets: { low: { label: 'low', values: { release: 0.0999 } } },
+    })
+    expect(() => checkSettings(under, single, SOURCES, 'compression')).toThrow('outside its range')
+  })
+
   it('stops the build on a source the lesson does not list', () => {
     const settings = withSet({ label: 'odd', source: 'noise' })
     expect(() => checkSettings(settings, lab, SOURCES, 'compression')).toThrow(
