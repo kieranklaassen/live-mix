@@ -6,6 +6,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { escapeRegExp } from './shared.mjs'
 
 const SITE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -20,8 +21,7 @@ export function claimsIn(text) {
 
 /** Whether a test file's text names a claim: "claim <id>" with nothing of an id after it. */
 export function holds(testText, id) {
-  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return new RegExp(`claim ${escaped}(?![\\w-])`).test(testText)
+  return new RegExp(`claim ${escapeRegExp(id)}(?![\\w-])`).test(testText)
 }
 
 /** What is wrong, one line each; empty when every claim is held. */

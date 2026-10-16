@@ -7,6 +7,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { escapeRegExp, htmlFiles } from './shared.mjs'
 
 const SITE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const NAMES = path.join(SITE, 'scripts/wording-names.txt')
@@ -20,8 +21,7 @@ export function patternsOf(text) {
     .map((line) => {
       if (line.startsWith('~'))
         return { said: line.slice(1), pattern: new RegExp(line.slice(1), 'i') }
-      const escaped = line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      return { said: line, pattern: new RegExp(`(?<![\\w-])${escaped}(?![\\w-])`, 'i') }
+      return { said: line, pattern: new RegExp(`(?<![\\w-])${escapeRegExp(line)}(?![\\w-])`, 'i') }
     })
 }
 
@@ -68,20 +68,13 @@ export function checkWording(site = SITE) {
     }
   }
   const lessons = path.join(site, 'dist/lessons')
-  for (const file of fs.existsSync(lessons) ? htmlIn(lessons) : []) {
+  for (const file of fs.existsSync(lessons) ? htmlFiles(lessons) : []) {
     read += 1
     for (const hit of wordingIn(textOf(fs.readFileSync(file, 'utf8')), patterns)) {
       problems.push(`${path.relative(site, file)}: "${hit.said}" in: ${hit.text}`)
     }
   }
   return { problems, read }
-}
-
-function htmlIn(folder) {
-  return fs
-    .readdirSync(folder, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.html'))
-    .map((entry) => path.join(entry.parentPath, entry.name))
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

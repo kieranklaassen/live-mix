@@ -14,6 +14,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { chromium } from '@playwright/test'
+import { basePath as base, CHROMIUM_ARGS, findChromium, sitePort } from './site-env.mjs'
 
 const args = process.argv.slice(2)
 const option = (name, fallback) => {
@@ -21,22 +22,15 @@ const option = (name, fallback) => {
   return at >= 0 ? args[at + 1] : fallback
 }
 const all = (name) => args.flatMap((arg, i) => (arg === `--${name}` ? [args[i + 1]] : []))
-const page_path =
+const pagePath =
   args.find((arg, i) => !arg.startsWith('--') && !args[i - 1]?.startsWith('--')) ?? ''
-const base = (process.env.SITE_BASE ?? '/live-mix').replace(/\/+$/, '')
-const root = option('url', `http://localhost:${process.env.SITE_PORT ?? 4321}${base}/`)
+const root = option('url', `http://localhost:${sitePort}${base}/`)
 const width = Number(option('width', 1280))
 const out = option('out', path.join(os.tmpdir(), 'site-look'))
 const play = args.includes('--play')
 const SLICE = 2000
 
-const executablePath = [process.env.SITE_CHROMIUM, '/opt/pw-browsers/chromium'].find(
-  (file) => file && fs.existsSync(file),
-)
-const browser = await chromium.launch({
-  executablePath,
-  args: ['--autoplay-policy=no-user-gesture-required'],
-})
+const browser = await chromium.launch({ executablePath: findChromium(), args: CHROMIUM_ARGS })
 const page = await browser.newPage({ viewport: { width, height: 900 } })
 const problems = []
 page.on(
@@ -51,7 +45,7 @@ page.on(
     response.status() >= 400 && problems.push(`${response.status()}: ${response.url()}`),
 )
 
-await page.goto(new URL(page_path, root).href, { waitUntil: 'networkidle' })
+await page.goto(new URL(pagePath, root).href, { waitUntil: 'networkidle' })
 const hasLab = (await page.locator('.playbar').count()) > 0
 if (hasLab) {
   await page
@@ -122,7 +116,7 @@ const overflow = await page.evaluate(
   () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
 )
 const status = hasLab ? await page.locator('.playbar-status').textContent() : 'no lab on this page'
-console.log(`${new URL(page_path, root).href} at ${width} px`)
+console.log(`${new URL(pagePath, root).href} at ${width} px`)
 console.log(`lab: ${status}`)
 console.log(`figures drawn: ${drawn} of ${figures}`)
 console.log(`sticking out sideways: ${overflow} px`)
@@ -136,7 +130,7 @@ if (play && hasLab) {
 // The bars that stay in view would be in every picture's middle: let them lie where they are.
 await page.addStyleTag({ content: '.playbar, .site-header { position: static !important; }' })
 fs.mkdirSync(out, { recursive: true })
-const name = (page_path.replace(/\/+$/, '').split('/').pop() || 'home').replace(/[^\w-]/g, '_')
+const name = (pagePath.replace(/\/+$/, '').split('/').pop() || 'home').replace(/[^\w-]/g, '_')
 const full = await page.evaluate(() => document.body.scrollHeight)
 const files = []
 for (let top = 0, n = 0; top < full; top += SLICE, n += 1) {

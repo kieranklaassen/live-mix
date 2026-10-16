@@ -6,19 +6,14 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { htmlFiles } from './shared.mjs'
+import { DEFAULT_BASE, siteBase } from './site-env.mjs'
 
 const SITE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 const ATTRIBUTE = /\s(?:href|src)=(?:"([^"]*)"|'([^']*)')/g
 const ID = /\sid=(?:"([^"]*)"|'([^']*)')/g
 const TAG_WITH_LINK = /<(a|link|script|img|source|iframe)\b[^>]*>/gi
-
-function htmlFiles(folder) {
-  return fs
-    .readdirSync(folder, { recursive: true, withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.html'))
-    .map((entry) => path.join(entry.parentPath, entry.name))
-}
 
 /** The file a path of the site is answered with, or undefined when there is none. */
 function fileFor(dist, pathname) {
@@ -35,8 +30,13 @@ function fileFor(dist, pathname) {
  * each. `skipAnchors` names folders whose pages' headings are not looked for (the API
  * reference: thousands of pages another tool writes).
  */
-export function checkLinks(dist, base = '/live-mix', { skipAnchors = ['api'] } = {}) {
+export function checkLinks(dist, base = DEFAULT_BASE, { skipAnchors = ['api'] } = {}) {
   const root = base.replace(/\/+$/, '')
+  const targets = new Map()
+  const targetOf = (pathname) => {
+    if (!targets.has(pathname)) targets.set(pathname, fileFor(dist, pathname))
+    return targets.get(pathname)
+  }
   const ids = new Map()
   const idsOf = (file) => {
     if (!ids.has(file)) {
@@ -68,7 +68,7 @@ export function checkLinks(dist, base = '/live-mix', { skipAnchors = ['api'] } =
           problems.push(`${page}: ${link} leaves the site's base path ${root}/`)
           continue
         }
-        const target = fileFor(dist, url.pathname.slice(root.length))
+        const target = targetOf(url.pathname.slice(root.length))
         if (!target) {
           problems.push(`${page}: ${link} leads to nothing`)
           continue
@@ -92,7 +92,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.error(`${dist} is not there. Build the site first: pnpm build`)
     process.exit(1)
   }
-  const { problems, internal, external } = checkLinks(dist, process.env.SITE_BASE ?? '/live-mix')
+  const { problems, internal, external } = checkLinks(dist, siteBase)
   for (const problem of problems) console.error(problem)
   console.log(
     problems.length

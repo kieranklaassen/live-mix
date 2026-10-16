@@ -8,10 +8,10 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { basePath as base, sitePort } from './site-env.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist')
-const base = (process.env.SITE_BASE ?? '/live-mix').replace(/\/+$/, '')
-const port = Number(process.argv[2] ?? process.env.SITE_PORT ?? 4321)
+const port = Number(process.argv[2] ?? sitePort)
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',

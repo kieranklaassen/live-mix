@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { htmlFiles } from './shared.mjs'
 
 const site = fileURLToPath(new URL('..', import.meta.url))
 const repo = path.resolve(site, '..')
@@ -37,9 +38,7 @@ const TAG = '<code class="tsd-tag">'
 const IGNORED_TAG = '<code class="tsd-tag" data-pagefind-ignore>'
 let pages = 0
 let marked = 0
-for (const entry of fs.readdirSync(target, { recursive: true, withFileTypes: true })) {
-  if (!entry.isFile() || !entry.name.endsWith('.html')) continue
-  const file = path.join(entry.parentPath, entry.name)
+for (const file of htmlFiles(target)) {
   const html = fs.readFileSync(file, 'utf8')
   pages += 1
   if (!html.includes(COLUMN)) continue

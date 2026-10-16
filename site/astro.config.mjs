@@ -6,15 +6,14 @@ import sitemap from '@astrojs/sitemap'
 import { satteri } from '@astrojs/markdown-satteri'
 import { docLinks, mermaidBlocks } from './src/lib/markdown-plugins.ts'
 import { COMMIT, REPO_ROOT, REPO_URL } from './src/lib/site.ts'
+import { siteBase } from './scripts/site-env.mjs'
 
 // The address comes from the environment so one build serves a path prefix or a domain's root.
-// `??`, not `||`: SITE_BASE='/' is a real answer.
-const base = process.env.SITE_BASE ?? '/live-mix'
 const site = process.env.SITE_URL ?? 'https://kieranklaassen.github.io'
 
 export default defineConfig({
   site,
-  base,
+  base: siteBase,
   trailingSlash: 'always',
   // Left off: with it on, the space between two links in running text is removed.
   compressHTML: false,
@@ -22,7 +21,7 @@ export default defineConfig({
   markdown: {
     processor: satteri({
       hastPlugins: [
-        docLinks({ base, repoRoot: REPO_ROOT, sourceUrl: `${REPO_URL}/blob/${COMMIT}/` }),
+        docLinks({ base: siteBase, repoRoot: REPO_ROOT, sourceUrl: `${REPO_URL}/blob/${COMMIT}/` }),
         mermaidBlocks(),
       ],
     }),

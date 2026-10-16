@@ -1,15 +1,16 @@
 // The site's browser tests run on the site as built: `pnpm build` first, then `pnpm test:browser`.
 // They are served under the same base path the build was made for (SITE_BASE, '/live-mix' when
 // unset), so a test never knows whether it is at a domain's root or under a prefix.
-import fs from 'node:fs'
 import { defineConfig } from '@playwright/test'
+import {
+  basePath as base,
+  CHROMIUM_ARGS,
+  findChromium,
+  sitePort as port,
+} from './scripts/site-env.mjs'
 
-const base = (process.env.SITE_BASE ?? '/live-mix').replace(/\/+$/, '')
-const port = Number(process.env.SITE_PORT ?? 4321)
 // A machine that ships its own Chromium says where; otherwise Playwright's own is used.
-const chromium = [process.env.SITE_CHROMIUM, '/opt/pw-browsers/chromium'].find(
-  (file) => file && fs.existsSync(file),
-)
+const chromium = findChromium()
 
 export default defineConfig({
   testDir: 'tests/browser',
@@ -22,7 +23,7 @@ export default defineConfig({
     launchOptions: {
       executablePath: chromium,
       // Sound starts only on a click in the page; this lets the click of a test count as one.
-      args: ['--autoplay-policy=no-user-gesture-required'],
+      args: CHROMIUM_ARGS,
     },
   },
   webServer: {
