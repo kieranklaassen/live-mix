@@ -1,6 +1,6 @@
-// Limiting: the True Peak Limiter (cpp/devices/true-peak-limiter)
-// run one sample at a time, so every stage of its gain can be read out of the
-// device itself as it works.
+// Limiting: the True Peak Limiter (cpp/devices/true-peak-limiter), the limiter
+// of the engine's master bus, run one sample at a time, so every stage of its
+// gain can be read out of the device itself as it works.
 //
 //   in × push ─┬─ detector ─ required ─ release ─ lowest of 73 ─ mean of 72 ─┐
 //              └─ delay, 77 samples ────────────────────────────────────── × gain ─ clip ─► out
@@ -15,10 +15,44 @@
 // equations write them, and reports how far that lands from the gain the
 // device stored (the "rebuilt" check).
 //
+// Two taps are sums of the lesson's own on the device's sound: the pushed
+// input cut off at the ceiling, which is the answer a limiter is there to
+// better, and what the limiter took away, the delayed copy less the output.
+//
+// The same limiter is the last stage of the Ambient Limiter
+// (cpp/devices/ambient-limiter), the device the library ships it in, behind
+// a slow gain that rides a sustained over down first. That device runs here
+// too, on the same loop at the same Push and Ceiling and otherwise as it
+// starts by itself, and three taps are read from it: its slow gain, the gain
+// its own limiter is left to make, and its output. Ride is that device's own
+// control and reaches those three taps only.
+//
+// Beside the loop there are pictures that are not the loop: one click through
+// a second device, the loop's largest peak close to, the wave between the
+// samples, what the detector's filter keeps of each frequency, and the static
+// curve.
+//
+// The build part puts a limiter together a piece at a time, on a path of its
+// own beside the device (lab::Build in lab.h). It has seven pieces, each a
+// function of `Built` below, in the order the steps add them: turn it up;
+// clip; the gain needed; release; look ahead and hold; ramp; the peaks
+// between the samples. The path writes the "built" taps and leaves every
+// other tap as it was. Two copies of it run: one at the step the reader
+// chose, which is what the taps show, and one with all seven pieces, whose
+// output is compared on every render with the device's own output (the
+// "builtDifference" check). With all seven the build does to a sample what
+// the device does, in the same order, so the two are the same sample for
+// sample. A step before the last is the lesson's own: a limiter with a piece
+// missing, which the device never is. A third copy takes one click, for the
+// close view of the steps.
+//
 // lab-sources: cpp/devices/true-peak-limiter/true_peak_limiter_device.cpp
 
 #include "lab.h"
 
+#include <cstring>
+
+#include "../../cpp/devices/ambient-limiter/ambient_limiter.h"
 #include "../../cpp/devices/true-peak-limiter/true_peak_limiter_device.h"
 
 using namespace livemix;
@@ -46,20 +80,34 @@ void open_view(lab::Tap& tap) {
 
 TruePeakLimiterDevice device;
 TruePeakLimiterDevice probe;  // a second device, for the static curve and the single click
+AmbientLimiter ambient;       // the device the library ships the limiter in
 
 lab::Control push{"push", "Push", "dB", -12.0f, 24.0f, 12.0f};
 lab::Control ceiling{"ceiling", "Ceiling", "dB", -20.0f, 0.0f, -1.0f};
 lab::Control release{"release", "Release", "ms", 10.0f, 2000.0f, 100.0f, lab::kLog};
+// The Ambient Limiter's own control: how much of a sound that stays over the
+// ceiling its slow gain takes. It reaches that device's three taps and no other.
+lab::Control ride{"ride", "Ride", "", 0.0f, 1.0f, 1.0f};
 
 // The loop, stage by stage.
 lab::Tap in_tap{"in", "Input", lab::kAudio, lab::kSource, 2};
 lab::Tap pushed{"pushed", "Pushed", lab::kAudio, lab::kDevice, 2};
+lab::Tap clip_only{"clipOnly", "Pushed, and cut off at the ceiling", lab::kAudio, lab::kLesson, 2};
 lab::Tap peak_tap{"peak", "True peak", lab::kControl, lab::kLesson, 1, "dB"};
 lab::Tap required{"required", "Gain the peak asks for", lab::kControl, lab::kLesson, 1, "dB"};
 lab::Tap released{"released", "After the release", lab::kControl, lab::kDevice, 1, "dB"};
 lab::Tap minimum{"minimum", "Lowest in the window", lab::kControl, lab::kDevice, 1, "dB"};
 lab::Tap gain{"gain", "Gain", lab::kControl, lab::kDevice, 1, "dB"};
 lab::Tap delayed{"delayed", "Delayed", lab::kAudio, lab::kDevice, 2};
+lab::Tap removed{"removed", "What was taken away: delayed less output", lab::kAudio, lab::kLesson, 2};
+
+// The same loop through the Ambient Limiter: its slow gain, what that leaves
+// for the limiter behind it, and what comes out.
+lab::Tap ride_gain{"rideGain", "The slow gain in front", lab::kControl, lab::kDevice, 1, "dB"};
+lab::Tap wall_gain{"wallGain", "The limiter's gain behind it", lab::kControl, lab::kDevice, 1, "dB"};
+lab::Tap ambient_out{"ambient", "Through the Ambient Limiter", lab::kAudio, lab::kDevice, 2};
+
+// The last sound of the main path: what a card plays when it names no tap.
 lab::Tap out_tap{"out", "Output", lab::kAudio, lab::kDevice, 2};
 lab::Tap out_peak{"outPeak", "True peak of the output", lab::kControl, lab::kLesson, 1, "dB"};
 
@@ -77,6 +125,7 @@ lab::Tap near_gain{"nearGain", "Gain", lab::kCurve, lab::kDevice, 1};
 lab::Tap near_pushed{"nearPushed", "Pushed, as it goes in", lab::kCurve, lab::kDevice, 1};
 lab::Tap near_delayed{"nearDelayed", "Delayed", lab::kCurve, lab::kDevice, 1};
 lab::Tap near_out{"nearOut", "Output", lab::kCurve, lab::kDevice, 1};
+lab::Tap near_clipped{"nearClipped", "Delayed, and cut off at the ceiling", lab::kCurve, lab::kLesson, 1};
 lab::Tap near_ceiling{"nearCeiling", "Ceiling", lab::kCurve, lab::kLesson, 1};
 
 // Between the samples: where the loop's wave stands furthest over its
@@ -100,6 +149,14 @@ lab::Check latency{"latency", "The latency the device reports", "samples"};
 lab::Check overshoot{"overshoot", "The wave over the largest of the four samples around it, at the spot shown", "dB"};
 lab::Check clipped{"clipped", "Samples the last clip changed", "samples"};
 lab::Check clip_depth{"clipDepth", "The most the last clip took off", "dB"};
+
+// The build part's taps: the sound so far, the lanes a step draws, and one
+// click through the pieces so far, a point a sample.
+lab::Tap built{"built", "The limiter so far", lab::kAudio, lab::kLesson, 2};
+lab::Tap built_peak{"builtPeak", "Highest sample so far", lab::kControl, lab::kLesson, 1, "dB"};
+lab::Tap built_gain{"builtGain", "Gain, as built", lab::kControl, lab::kLesson, 1, "dB"};
+lab::Tap built_click_gain{"builtClickGain", "Gain, as built, around one click", lab::kCurve, lab::kLesson, 1};
+lab::Tap built_click_out{"builtClickOut", "The click, as it comes out", lab::kCurve, lab::kLesson, 1};
 
 void configure(TruePeakLimiterDevice& d, float push_db, float ceiling_db, float release_ms) {
   d.init(lab::kSampleRate);
@@ -152,38 +209,215 @@ struct Extreme {
   }
 };
 
+// The limiter so far: one function a piece, and run() to take a sample
+// through the pieces there are.
+struct Built {
+  // The pieces, in the order the steps add them.
+  enum Piece : int { kPush = 0, kClip, kGain, kRelease, kHold, kRamp, kBetween };
+
+  static constexpr int kLook = 72;           // the look-ahead: 1.5 ms at the lab's 48,000 samples a second
+  static constexpr int kWindow = kLook + 1;  // the hold is one sample longer
+  static constexpr int kLine = 128;          // room for the sound to wait in: a power of two over 77
+
+  int pieces = kPush;
+  float push_gain = 1.0f;  // Push, as a number to multiply by
+  float top = 1.0f;        // Ceiling, as the largest size a sample may have
+  float share = 0.0f;      // Release, as the share of the way back to 1 the gain covers in a sample
+  int wait = 0;            // how many samples the sound waits
+  float line[2][kLine] = {};
+  int line_at = 0;
+  float history[2][2 * kTaps] = {};  // the last twelve samples of each channel, kept twice over
+  int history_at = 0;
+  float released = 1.0f;
+  float recent[kWindow] = {};  // the last 73 values of the released gain
+  int recent_at = 0;
+  float floors[kLook] = {};    // the last 72 of their lowest
+  int floors_at = 0;
+  int since = 0;
+  double sum = kLook;
+  float gain = 1.0f;
+  float out[2] = {0.0f, 0.0f};
+
+  // Turn it up: Push is in decibels, and a sound is turned up by multiplying
+  // every sample by one number. This is that number.
+  static float as_gain(float db) { return std::pow(10.0f, db / 20.0f); }
+
+  // Clip: whatever stands over the ceiling is cut off at the ceiling, and
+  // whatever stands under it is left alone.
+  float clip(float x) const {
+    if (x > top) return top;
+    if (x < -top) return -top;
+    return x;
+  }
+
+  // The gain needed: for a peak over the ceiling, the number that puts it
+  // exactly on the ceiling. For a peak under it, 1: no change.
+  float needed(float peak) const { return peak > top ? top / peak : 1.0f; }
+
+  // Release: down at once, back slowly. Each sample the gain covers a fixed
+  // share of what is left of the way back to 1, and a peak that asks for
+  // less than that takes it down in one step.
+  float release(float asked) {
+    released += (1.0f - released) * share;
+    if (released > 1.0f - 1.0e-7f) released = 1.0f;
+    if (asked < released) released = asked;
+    return released;
+  }
+
+  // Look ahead: the sound waits in a ring, and what comes out now went in
+  // `wait` samples ago. The gain is worked out from the sound as it goes in.
+  void wait_in_line(const float* now, float* then) {
+    for (int c = 0; c < 2; ++c) {
+      line[c][line_at] = now[c];
+      then[c] = line[c][(line_at - wait) & (kLine - 1)];
+    }
+    line_at = (line_at + 1) & (kLine - 1);
+  }
+
+  // And hold: the lowest of the last 73 gains. A dip one sample long becomes
+  // a floor that lasts from the moment a peak is seen until it has come out.
+  float hold(float newest) {
+    recent[recent_at] = newest;
+    recent_at = recent_at + 1 == kWindow ? 0 : recent_at + 1;
+    float lowest = newest;
+    for (float one : recent) lowest = kit::min(lowest, one);
+    return lowest;
+  }
+
+  // Ramp: the mean of the last 72 of those floors. When the floor drops, one
+  // more of the 72 is low at each sample, so the mean walks down a straight
+  // line and arrives as the peak does. The sum is kept running, and added up
+  // afresh every 72 samples so that rounding does not build up in it.
+  float ramp(float lowest) {
+    sum += static_cast<double>(lowest) - static_cast<double>(floors[floors_at]);
+    floors[floors_at] = lowest;
+    floors_at = floors_at + 1 == kLook ? 0 : floors_at + 1;
+    if (++since == kLook) {
+      since = 0;
+      sum = 0.0;
+      for (float one : floors) sum += one;
+    }
+    const float mean = static_cast<float>(sum / kLook);
+    return mean > 1.0f ? 1.0f : mean;
+  }
+
+  // Peaks between samples: the height of the wave, not of its samples. Four
+  // points in each gap, each a weighted sum of the twelve samples around it,
+  // from the device's own table; the reading is the largest of them and of
+  // the sample itself, on either channel. It is about the gap after the
+  // sample six back, so the sound waits five samples longer.
+  float true_peak(float left, float right) {
+    history_at = history_at + 1 == kTaps ? 0 : history_at + 1;
+    history[0][history_at] = history[0][history_at + kTaps] = left;
+    history[1][history_at] = history[1][history_at + kTaps] = right;
+    const int newest = history_at + kTaps;
+    float peak = kit::max(std::fabs(history[0][newest - kBack]), std::fabs(history[1][newest - kBack]));
+    for (int p = 0; p < kPhases; ++p) {
+      const float* h = Limiter::kFirCoefficients[p];
+      float between_left = 0.0f;
+      float between_right = 0.0f;
+      for (int i = 0; i < kTaps; ++i) {
+        between_left += h[i] * history[0][newest - i];
+        between_right += h[i] * history[1][newest - i];
+      }
+      peak = kit::max(peak, kit::max(std::fabs(between_left), std::fabs(between_right)));
+    }
+    return peak;
+  }
+
+  // One sample through the pieces built so far, in the order it meets them.
+  void run(float left, float right) {
+    const float now[2] = {left * push_gain, right * push_gain};
+    float sound[2] = {now[0], now[1]};
+    if (pieces >= kHold) wait_in_line(now, sound);
+    gain = 1.0f;
+    if (pieces >= kGain) {
+      // One gain for both channels: the larger of the two decides.
+      const float peak =
+          pieces >= kBetween ? true_peak(now[0], now[1]) : kit::max(std::fabs(now[0]), std::fabs(now[1]));
+      gain = needed(peak);
+      if (pieces >= kRelease) gain = release(gain);
+      if (pieces >= kHold) gain = hold(gain);
+      if (pieces >= kRamp) gain = ramp(gain);
+    }
+    for (int c = 0; c < 2; ++c) out[c] = pieces >= kClip ? clip(sound[c] * gain) : sound[c];
+  }
+
+  // The three controls as the numbers the pieces use, and everything that
+  // remembers a sound cleared.
+  void start(int pieces_) {
+    pieces = pieces_;
+    push_gain = as_gain(push.value);
+    top = as_gain(ceiling.value);
+    share = 1.0f - std::exp(-1.0f / (::release.value * 0.001f * lab::kSampleRate));
+    wait = pieces >= kBetween ? kLook + kBack - 1 : kLook;
+    std::memset(line, 0, sizeof line);
+    std::memset(history, 0, sizeof history);
+    line_at = history_at = recent_at = floors_at = since = 0;
+    released = 1.0f;
+    for (float& one : recent) one = 1.0f;
+    for (float& one : floors) one = 1.0f;
+    sum = kLook;
+    gain = 1.0f;
+    out[0] = out[1] = 0.0f;
+  }
+};
+
+lab::Build build{"Turn it up|Clip|The gain needed|Release|Look ahead and hold|Ramp|Peaks between samples",
+                 Built::kBetween, -120.0f,
+                 "The limiter as built, all seven pieces, against the device's own output"};
+
+Built shown;    // at the step the reader chose: what the built taps hold
+Built held;     // with every piece: what is compared with the device
+Built clicked;  // at the step the reader chose, for one click
+
+// The static curve as it was last measured, and the two settings that reach
+// it. It is measured again only when one of them has moved.
+constexpr int kCurvePoints = 37;
+float curve_measured[kCurvePoints];
+float curve_written[kCurvePoints];
+float curve_worst = 0.0f;
+float curve_settings[2];
+bool curve_kept = false;
+
 // The static curve, measured: a steady 1 kHz sine at each level through a
 // second device with no push, read once the gain has settled.
 void measure_curve() {
-  constexpr int kPoints = 37;
-  constexpr int kRun = 960;     // 20 ms, twenty cycles
+  constexpr int kRun = 960;      // 20 ms, twenty cycles
   constexpr int kMeasure = 480;  // the last ten of them
-  if (!curve.open(kPoints) || !curve_formula.open(kPoints)) return;
+  if (!curve.open(kCurvePoints) || !curve_formula.open(kCurvePoints)) return;
   curve.x0 = curve_formula.x0 = -24.0f;
   curve.x1 = curve_formula.x1 = 12.0f;
-  const float step = kit::kTwoPi * 1000.0f / lab::kSampleRate;
-  float worst = 0.0f;
-  for (int p = 0; p < kPoints; ++p) {
-    const float level_db = -24.0f + static_cast<float>(p);
-    const float amplitude = kit::db_to_gain(level_db);
-    configure(probe, 0.0f, ceiling.value, release.value);
-    float top = 0.0f;
-    for (int i = 0; i < kRun; i += 16) {
-      for (int j = 0; j < 16; ++j) {
-        const float x = amplitude * std::sin(step * static_cast<float>(i + j));
-        probe.in_left()[j] = x;
-        probe.in_right()[j] = x;
+  const float settings[2] = {ceiling.value, release.value};
+  if (!curve_kept || std::memcmp(settings, curve_settings, sizeof settings) != 0) {
+    const float step = kit::kTwoPi * 1000.0f / lab::kSampleRate;
+    curve_worst = 0.0f;
+    for (int p = 0; p < kCurvePoints; ++p) {
+      const float level_db = -24.0f + static_cast<float>(p);
+      const float amplitude = kit::db_to_gain(level_db);
+      configure(probe, 0.0f, ceiling.value, release.value);
+      float top = 0.0f;
+      for (int i = 0; i < kRun; i += 16) {
+        for (int j = 0; j < 16; ++j) {
+          const float x = amplitude * std::sin(step * static_cast<float>(i + j));
+          probe.in_left()[j] = x;
+          probe.in_right()[j] = x;
+        }
+        probe.process(16);
+        if (i >= kRun - kMeasure) top = kit::max(top, lab::peak(probe.out_left(), 16));
       }
-      probe.process(16);
-      if (i >= kRun - kMeasure) top = kit::max(top, lab::peak(probe.out_left(), 16));
+      curve_measured[p] = lab::to_db(top);
+      curve_written[p] = level_db < ceiling.value ? level_db : ceiling.value;
+      curve_worst = kit::max(curve_worst, magnitude(curve_measured[p] - curve_written[p]));
     }
-    const float measured = lab::to_db(top);
-    const float written = level_db < ceiling.value ? level_db : ceiling.value;
-    curve.set(p, measured);
-    curve_formula.set(p, written);
-    worst = kit::max(worst, magnitude(measured - written));
+    std::memcpy(curve_settings, settings, sizeof settings);
+    curve_kept = true;
   }
-  curve_error.value = worst;
+  for (int p = 0; p < kCurvePoints; ++p) {
+    curve.set(p, curve_measured[p]);
+    curve_formula.set(p, curve_written[p]);
+  }
+  curve_error.value = curve_worst;
 }
 
 // A sine at a quarter of the sample rate, sampled 45 degrees from its crests:
@@ -240,6 +474,26 @@ void draw_click() {
   }
 }
 
+// The same click through the build so far, with nothing pushed: the gain the
+// pieces make and what comes out, a point a sample, from 1 ms before the
+// click goes in to 3 ms after.
+void draw_built_click() {
+  constexpr int kLead = 48;
+  constexpr int kPoints = kLead + 144 + 1;
+  if (!built_click_gain.open(kPoints) || !built_click_out.open(kPoints)) return;
+  built_click_gain.x0 = built_click_out.x0 = -1000.0f * kLead / lab::kSampleRate;
+  built_click_gain.x1 = built_click_out.x1 = 1000.0f * (kPoints - 1 - kLead) / lab::kSampleRate;
+  clicked.start(build.at());
+  clicked.push_gain = 1.0f;
+  const float size = 4.0f * clicked.top;
+  for (int n = 0; n < kPoints; ++n) {
+    const float x = n == kLead ? size : 0.0f;
+    clicked.run(x, x);
+    built_click_gain.set(n, clicked.gain);
+    built_click_out.set(n, clicked.out[0]);
+  }
+}
+
 // The gain of a row of the filter's table at each frequency: the size of the
 // sum the Fourier transform is, of its twelve coefficients. Rows 0 and 3 are
 // the points an eighth of a gap from a sample, rows 1 and 2 the two in the
@@ -275,6 +529,20 @@ void lab_render(int frames) {
   const int window = limiter.min_frames_;
   latency.value = static_cast<float>(limiter.latencyFrames());
 
+  // The Ambient Limiter at the same Push and Ceiling, with its own Ride, and
+  // otherwise as it starts by itself: its release at a second and a half.
+  ambient.init(lab::kSampleRate);
+  ambient.set_param(ambient_limiter::kGain, push.value);
+  ambient.set_param(ambient_limiter::kCeiling, ceiling.value);
+  ambient.set_param(ambient_limiter::kRide, ride.value);
+
+  // The build part: the chosen step, and the whole build that is held to the device.
+  shown.start(build.at());
+  const bool whole = build.at() == build.compared_step;
+  if (!whole) held.start(build.compared_step);
+  Built& compared = whole ? shown : held;
+  double built_apart = 0.0, built_whole = 0.0;
+
   // The second pass, sample by sample, for the close views.
   float* keep_pushed[2] = {lab::take(frames), lab::take(frames)};
   float* keep_delayed[2] = {lab::take(frames), lab::take(frames)};
@@ -302,7 +570,7 @@ void lab_render(int frames) {
   int out_index = 0;
 
   Extreme top_peak(true), low_required(false), low_released(false), low_minimum(false), low_gain(false),
-      top_out(true);
+      top_out(true), low_ride(false), low_wall(false), top_built(true), low_built(false);
   float loop_peak = -1.0f;  // the largest reading of the kept pass, and when
   int loop_peak_at = 0;
   float spot_excess = -1.0f;  // where the wave stands furthest over its samples
@@ -408,6 +676,25 @@ void lab_render(int frames) {
       top_out.see(kit::max(kit::max(seen[0].sample, seen[1].sample), kit::max(seen[0].between, seen[1].between)));
     }
 
+    // The Ambient Limiter, beside it on the same sample.
+    ambient.in_left()[0] = left;
+    ambient.in_right()[0] = right;
+    ambient.process(1);
+    low_ride.see(kit::db_to_gain(ambient.ride_db_));
+    low_wall.see(ambient.wall_.envelope_);
+
+    // The build part, beside the device.
+    shown.run(left, right);
+    if (!whole) held.run(left, right);
+    if (i >= frames) {
+      const double apart_left = static_cast<double>(compared.out[0]) - now_out[0];
+      const double apart_right = static_cast<double>(compared.out[1]) - now_out[1];
+      built_apart += apart_left * apart_left + apart_right * apart_right;
+      built_whole += static_cast<double>(now_out[0]) * now_out[0] + static_cast<double>(now_out[1]) * now_out[1];
+    }
+    top_built.see(kit::max(magnitude(shown.out[0]), magnitude(shown.out[1])));
+    low_built.see(shown.gain);
+
     top_peak.see(now_peak);
     low_required.see(now_required);
     low_released.see(limiter.release_state_);
@@ -416,14 +703,23 @@ void lab_render(int frames) {
 
     in_tap.put(i, left, right);
     pushed.put(i, now_pushed[0], now_pushed[1]);
+    clip_only.put(i, kit::clamp(now_pushed[0], -limiter.ceiling_, limiter.ceiling_),
+                  kit::clamp(now_pushed[1], -limiter.ceiling_, limiter.ceiling_));
     delayed.put(i, now_delayed[0], now_delayed[1]);
+    removed.put(i, now_delayed[0] - now_out[0], now_delayed[1] - now_out[1]);
+    ambient_out.put(i, ambient.out_left()[0], ambient.out_right()[0]);
     out_tap.put(i, now_out[0], now_out[1]);
+    built.put(i, shown.out[0], shown.out[1]);
     top_peak.put(peak_tap, i);
     low_required.put(required, i);
     low_released.put(released, i);
     low_minimum.put(minimum, i);
     low_gain.put(gain, i);
     top_out.put(out_peak, i);
+    low_ride.put(ride_gain, i);
+    low_wall.put(wall_gain, i);
+    top_built.put(built_peak, i);
+    low_built.put(built_gain, i);
 
     if (i >= frames && i < 2 * frames) {
       const int k = i - frames;
@@ -441,6 +737,7 @@ void lab_render(int frames) {
   clipped.value = static_cast<float>(clip_count);
   clip_depth.value = static_cast<float>(clip_most);
   overshoot.value = spot_excess > 0.0f ? spot_db : 0.0f;
+  build.difference.value = lab::ratio_db(built_apart, built_whole);
 
   const auto wrap = [frames](int k) { return ((k % frames) + frames) % frames; };
 
@@ -448,8 +745,8 @@ void lab_render(int frames) {
   // sample j - 6, which comes out at j - 6 + 77: time 0 of this view.
   {
     const int centre = loop_peak_at - kBack + limiter.delay_frames_;
-    lab::Tap* views[] = {&near_released, &near_minimum, &near_gain,   &near_pushed,
-                         &near_delayed,  &near_out,     &near_ceiling};
+    lab::Tap* views[] = {&near_released, &near_minimum, &near_gain,    &near_pushed,
+                         &near_delayed,  &near_out,     &near_clipped, &near_ceiling};
     for (lab::Tap* view : views) open_view(*view);
     if (near_ceiling.data) {
       // The channel the peak is on, turned so that the peak points up.
@@ -469,6 +766,7 @@ void lab_render(int frames) {
         near_pushed.set(p, turn * keep_pushed[c][k]);
         near_delayed.set(p, turn * keep_delayed[c][k]);
         near_out.set(p, turn * keep_out[c][k]);
+        near_clipped.set(p, kit::clamp(turn * keep_delayed[c][k], -limiter.ceiling_, limiter.ceiling_));
         near_ceiling.set(p, limiter.ceiling_);
       }
     }
@@ -496,6 +794,7 @@ void lab_render(int frames) {
 
   draw_tone();
   draw_click();
+  draw_built_click();
   draw_response();
   measure_curve();
 }
