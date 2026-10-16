@@ -1,0 +1,20 @@
+---
+// The lab's convolution against the browser's own convolver, worked out in the reader's browser:
+// <ConvolverCheck source="in" impulse="impulse" result="wet" />
+import ConvolverCheck from '../../figures/ConvolverCheck.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  source: string
+  impulse: string
+  result: string
+}
+const { source, impulse, result } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+for (const ref of tapRefs(`${source} ${impulse} ${result}`, lab.taps, lesson)) {
+  if (ref.kind !== 'audio') throw new Error(`${lesson}: "${ref.id}" is not sound.`)
+}
+---
+
+<ConvolverCheck client:visible source={source} impulse={impulse} result={result} />

@@ -37,8 +37,18 @@ export interface RenderResult {
 
 export interface Lab {
   description: LabDescription
-  /** Render `frames` of the source at the given control values (missing ones stay at their defaults). */
-  render(source: Source, values: Record<string, number>, frames?: number): RenderResult
+  /**
+   * Render `frames` of the source at the given control values (missing ones stay at their
+   * defaults). `aux` is the second signal of a lab that takes one; left out, the last one stays.
+   */
+  render(
+    source: Source,
+    values: Record<string, number>,
+    frames?: number,
+    aux?: Source,
+  ): RenderResult
+  /** True for a lab that takes a second signal beside the source. */
+  takesAux: boolean
   /** The average spectrum of an audio tap of the last render, in dB per bin up to half the sample rate. */
   spectrum(tap: string, channel?: number, start?: number, count?: number): Float32Array
 }
@@ -50,7 +60,12 @@ export async function loadLab(bytes: BufferSource): Promise<Lab> {
   const description = describeLab(wasm)
   const heap = () => new Float32Array(wasm.memory.buffer)
 
-  function render(source: Source, values: Record<string, number>, frames?: number): RenderResult {
+  function render(
+    source: Source,
+    values: Record<string, number>,
+    frames?: number,
+    aux?: Source,
+  ): RenderResult {
     const wanted = Math.min(frames ?? source.left.length, source.left.length, description.maxFrames)
     const count = Math.max(0, wanted - (wanted % CONTROL_PERIOD))
     const memory = heap()
@@ -58,6 +73,12 @@ export async function loadLab(bytes: BufferSource): Promise<Lab> {
     memory.set(source.right.subarray(0, count), wasm.lab_input(1) >> 2)
     for (const control of description.controls) {
       wasm.lab_set(control.index, values[control.id] ?? control.initial)
+    }
+    if (aux && wasm.lab_aux && wasm.lab_aux_set) {
+      const length = Math.min(aux.left.length, description.maxFrames)
+      memory.set(aux.left.subarray(0, length), wasm.lab_aux(0) >> 2)
+      memory.set(aux.right.subarray(0, length), wasm.lab_aux(1) >> 2)
+      wasm.lab_aux_set(length)
     }
     const started = now()
     wasm.lab_run(count)
@@ -97,5 +118,5 @@ export async function loadLab(bytes: BufferSource): Promise<Lab> {
     return heap().slice(pointer, pointer + wasm.lab_spectrum_bins())
   }
 
-  return { description, render, spectrum }
+  return { description, render, spectrum, takesAux: wasm.lab_aux !== undefined }
 }

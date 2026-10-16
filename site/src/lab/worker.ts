@@ -4,6 +4,7 @@
 
 import { loadLab, type Lab, type RenderResult, type Source, type TapData } from './runner.ts'
 import type { LabDescription } from './describe.ts'
+import { withRoom } from './room.ts'
 
 export type WorkerRequest =
   | { type: 'init'; labUrl: string; benchUrl: string; frames: number }
@@ -35,7 +36,8 @@ async function init(labUrl: string, benchUrl: string, frames: number): Promise<L
     const left = tap.channels_data[0]
     if (left) sources.set(tap.id, { left, right: tap.channels_data[1] ?? left })
   }
-  lab = await loadLab(labBytes)
+  // The one lab that takes a second signal takes the engine's room (lesson 15).
+  lab = withRoom(await loadLab(labBytes))
   return lab.description
 }
 

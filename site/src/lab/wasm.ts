@@ -39,6 +39,9 @@ export interface LabExports {
   lab_check_value(i: number): number
   lab_spectrum(tap: number, channel: number, start: number, count: number): number
   lab_spectrum_bins(): number
+  /** Only in a lab that takes a second signal (LAB_AUX in site/labs/lab.h). */
+  lab_aux?(channel: number): number
+  lab_aux_set?(frames: number): void
 }
 
 /** Instantiate a lab from its bytes: the same call in Node (tests) and in the page's worker. */

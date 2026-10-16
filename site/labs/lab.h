@@ -22,6 +22,8 @@
 //   kKit     computed by a kit class the device is built from
 //   kLesson  written for the lesson
 //   kSource  the sound that goes in, before anything is done to it
+//   kEngine  made by the engine's own code outside a device: its TypeScript,
+//            run by the page and handed to the lab (lab::aux below)
 //
 // Labs are built by site/scripts/build-labs.sh with the flags the library's
 // own devices are built with, plus -fno-access-control so a lab can read a
@@ -48,7 +50,7 @@ enum Kind : int {
   kFrames = 4,    // a picture: `columns` columns of `length / columns` rows
 };
 
-enum Origin : int { kDevice = 0, kKit = 1, kLesson = 2, kSource = 3 };
+enum Origin : int { kDevice = 0, kKit = 1, kLesson = 2, kSource = 3, kEngine = 4 };
 
 enum Scale : int { kLinear = 0, kLog = 1 };
 
@@ -91,6 +93,20 @@ inline int frames() { return g_frames; }
 //   for (int i = 0; i < lab::total(); ++i) { x = lab::in_at(0, i); ... tap.put(i, y); }
 inline int total() { return 2 * g_frames + kFadeFrames; }
 inline float in_at(int channel, int i) { return g_frames > 0 ? g_input[channel & 1][i % g_frames] : 0.0f; }
+
+// ---------------------------------------------------------------------------
+// A second signal, for the lab that asks for one with `#define LAB_AUX` ahead
+// of this file: something the page makes with the engine's TypeScript and
+// hands over beside the source, such as a room's impulse response
+// (site/src/lab/room.ts). Its taps are kEngine.
+
+#ifdef LAB_AUX
+inline float g_aux[2][kMaxFrames];
+inline int g_aux_frames = 0;
+
+inline const float* aux(int channel) { return g_aux[channel & 1]; }
+inline int aux_frames() { return g_aux_frames; }
+#endif
 
 // ---------------------------------------------------------------------------
 // Controls
@@ -445,6 +461,14 @@ void lab_init(void) {
 float lab_sample_rate(void) { return lab::kSampleRate; }
 int lab_max_frames(void) { return lab::kMaxFrames; }
 float* lab_input(int channel) { return lab::g_input[channel & 1]; }
+
+#ifdef LAB_AUX
+// Exported by name here, so only a lab that takes a second signal has them.
+__attribute__((export_name("lab_aux"))) float* lab_aux(int channel) { return lab::g_aux[channel & 1]; }
+__attribute__((export_name("lab_aux_set"))) void lab_aux_set(int frames) {
+  lab::g_aux_frames = frames < 0 ? 0 : (frames > lab::kMaxFrames ? lab::kMaxFrames : frames);
+}
+#endif
 
 int lab_control_count(void) { return lab::g_control_count; }
 static lab::Control* lab_control_at(int i) {

@@ -6,7 +6,7 @@ export const TAP_KINDS = ['audio', 'control', 'curve', 'spectrum', 'frames'] as 
 export type TapKind = (typeof TAP_KINDS)[number]
 
 /** Where a stage comes from. The page shows this under every stage. */
-export const ORIGINS = ['device', 'kit', 'lesson', 'source'] as const
+export const ORIGINS = ['device', 'kit', 'lesson', 'source', 'engine'] as const
 export type Origin = (typeof ORIGINS)[number]
 
 export const ORIGIN_TEXT: Record<Origin, string> = {
@@ -14,6 +14,7 @@ export const ORIGIN_TEXT: Record<Origin, string> = {
   kit: "Computed by the engine's kit",
   lesson: 'Written for this lesson',
   source: 'The sound going in',
+  engine: "Made by the engine's own code",
 }
 
 export interface ControlInfo {

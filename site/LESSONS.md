@@ -17,7 +17,7 @@ Compression is the pattern. Read its three files before writing another:
 
 1. **The engine's own code runs.** A stage is read from the running device, or computed by the
    kit class the device is built from, or written for the lesson. The lab says which
-   (`kDevice`, `kKit`, `kLesson`, `kSource`) and the page shows it under each stage. Nothing
+   (`kDevice`, `kKit`, `kLesson`, `kSource`, `kEngine`) and the page shows it under each stage. Nothing
    written for the lesson is passed off as the engine. Where the lab rebuilds part of a device,
    a `Check` reports how far the rebuild lands from the device, on every render.
 2. **Every stated quantity is held by a test.** A number about behaviour is written
@@ -102,6 +102,10 @@ void lab_render(int frames) {  // every time a control moves
 - **A device with `.cpp` files** names them in a comment the build reads:
   `// lab-sources: cpp/devices/plate-reverb/plate_reverb.cpp`. Leave out its `device_api*.cpp`.
   `// lab-memory-mb: 128` and `// lab-arena-mb: 96` give a lab more room.
+- **A stage made by the engine's TypeScript** (the room of lesson 15) is `kEngine`. The page
+  runs the engine's function and hands the result to the lab as a second signal: `#define
+  LAB_AUX` ahead of `lab.h`, then `lab::aux(channel)` and `lab::aux_frames()`.
+  `src/lab/room.ts` is the one such hand-over there is.
 - **A lab that plays by itself** (an instrument, an oscillator) ignores `lab::in_at` and its
   lesson names `sources: [none]`. `labs/bench.cpp` shows how notes are played into the
   engine's instruments.
