@@ -41,18 +41,18 @@ Under each stage is a mark saying where it comes from. High, band, low and notch
 
 The whole filter is three lines. With <M t="x" /> the input and <M t={String.raw`\omega_c`} /> the cutoff as an angular frequency:
 
-<M block t={String.raw`\text{high} = x - k\cdot\text{band} - \text{low} \qquad \text{band} = \omega_c\!\int \text{high}\;dt \qquad \text{low} = \omega_c\!\int \text{band}\;dt`} />
+<M block t={String.raw`\begin{gathered} \text{high} = x - k\cdot\text{band} - \text{low} \\[0.3em] \text{band} = \omega_c\!\int \text{high}\;dt \\[0.3em] \text{low} = \omega_c\!\int \text{band}\;dt \end{gathered}`} />
 
 An integrator's gain is <M t={String.raw`f_c / f`} />: large for slow signals, 1 at the cutoff, small for fast ones, falling 6 dB for every octave. Far below the cutoff both integrators have gain to spare, and a feedback loop with gain to spare forces its output to match its input: low follows <M t="x" />, and high, which is what is left over, is next to nothing. Far above the cutoff the integrators pass almost nothing back, so high is <M t="x" /> itself, band is that once integrated and 6 dB an octave down, and low is twice integrated and 12 dB an octave down. Writing <M t={String.raw`w = f / f_c`} /> for frequency in units of the cutoff, the three responses are
 
-<M block t={String.raw`|H_{\text{low}}| = \frac{1}{D} \qquad |H_{\text{band}}| = \frac{k\,w}{D} \qquad |H_{\text{high}}| = \frac{w^2}{D} \qquad\quad D = \sqrt{(1 - w^2)^2 + k^2 w^2}`} />
+<M block t={String.raw`\begin{gathered} |H_{\text{low}}| = \frac{1}{D} \quad\; |H_{\text{band}}| = \frac{k\,w}{D} \quad\; |H_{\text{high}}| = \frac{w^2}{D} \\[1em] D = \sqrt{(1 - w^2)^2 + k^2 w^2} \end{gathered}`} />
 
-They share a bottom line and differ only on top: 1, <M t="kw" />, <M t="w^2" />. The band-pass here is the band output times <M t="k" />, which is what the kit's `bandpass()` returns: scaled so that it passes its centre at exactly 0 dB.
+They share the bottom of the fraction and differ only on top: 1, <M t="kw" />, <M t="w^2" />. The band-pass here is the band output times <M t="k" />, which is what the kit's `bandpass()` returns: scaled so that it passes its centre at exactly 0 dB.
 
 <Controls ids="cutoff resonance" />
 
 <Spectrum taps="lowResponse:out bandResponse:alt highResponse:alt3" uprights="cutoff" min={-60} max={30} height={280}>
-  The three responses, measured: the lab puts one unit sample through a second copy of the kit's filter, keeps what rings out of each output, and works out its level at each frequency. Low-pass in red, band-pass in green, high-pass in purple, meeting at the cutoff. Moving the cutoff slides all three sideways without changing their shape.
+  The three responses, measured: the lab puts one unit sample through a second copy of the kit's filter, keeps what rings out of each output, and works out its level at each frequency. Low-pass in red, band-pass in green, high-pass in purple, meeting at the cutoff. Moving the cutoff slides all three sideways, and their shape holds until the top octave.
 </Spectrum>
 
 <Check id="formula" />
@@ -69,7 +69,7 @@ A program cannot integrate; it can only add up samples. The kit uses the trapezo
 
 <M block t={String.raw`g = \tan\!\left(\frac{\pi f_c}{f_s}\right)`} />
 
-In the code this is the first line of <Src path="cpp/kit/filters.h" lines="73-80">`Svf::set`</Src>, after the cutoff is kept between 5 Hz and 0.49 of the sample rate. The tangent is <Src path="cpp/kit/filters.h" lines="44-50">`tan_prewarp`</Src>, which below 0.7 radians (a cutoff of 10.7 kHz at 48 kHz) is not the library's tangent but a ratio of two short polynomials, <M t={String.raw`x(15 - x^2)/(15 - 6x^2)`} />. It is there so that a filter being swept can afford to be retuned on every sample.
+In the code this is the second line of <Src path="cpp/kit/filters.h" lines="73-80">`Svf::set`</Src>, after the first has kept the cutoff between 5 Hz and 0.49 of the sample rate. The tangent is <Src path="cpp/kit/filters.h" lines="44-50">`tan_prewarp`</Src>, which below 0.7 radians (a cutoff of 10.7 kHz at 48 kHz) is not the library's tangent but a ratio of two short polynomials, <M t={String.raw`x(15 - x^2)/(15 - 6x^2)`} />. It is there so that a filter being swept can afford to be retuned on every sample.
 
 With that one tangent the band-pass peaks <Claim id="band-peak">within 0.01 % of the cutoff</Claim>, from 100 Hz to 16 kHz and at every Q tried. At a Q of 0.7071 the low-pass and the high-pass both pass the cutoff at <Claim id="minus-3">−3.01 dB</Claim>, half the power each.
 
@@ -97,7 +97,7 @@ A peak in the response and a ring in time are one fact seen twice. Hit the filte
   The kit's low-pass in the 12 ms after one unit sample goes in. At a Q of 0.7071 it rises, dips under zero once and is gone. Turn the resonance up and it rings; each swing is one cycle of the cutoff, so moving the cutoff changes the ring's pitch. Choose Clicks as the source and Listen to the low-pass to hear the same thing.
 </Curve>
 
-The device lets Q run from 0.5 to 25. The loop would hold a note for ever at <M t="k = 0" />, and neither the device nor the kit lets it get there: the kit takes any Q under 0.1 as 0.1.
+The device lets Q run <Src path="cpp/devices/auto-filter/params.gen.h" lines="8">from 0.5 to 25</Src>. The loop would hold a note for ever at <M t="k = 0" />, and neither the device nor the kit lets it get there: the kit takes <Src path="cpp/kit/filters.h" lines="76">any Q under 0.1 as 0.1</Src>.
 
 ### 4. Solving the loop with no delay
 
@@ -105,11 +105,11 @@ The three lines chase each other. High needs this sample's band and low; band ne
 
 The kit does a little algebra instead. A trapezoid integrator's output is <M t="g" /> times its input plus what it remembers, so with memories <M t="s_1" /> and <M t="s_2" /> the loop on one sample is three equations in three unknowns:
 
-<M block t={String.raw`\text{high} = x - k\,\text{band} - \text{low} \qquad \text{band} = g\,\text{high} + s_1 \qquad \text{low} = g\,\text{band} + s_2`} />
+<M block t={String.raw`\begin{gathered} \text{high} = x - k\,\text{band} - \text{low} \\[0.3em] \text{band} = g\,\text{high} + s_1 \\[0.3em] \text{low} = g\,\text{band} + s_2 \end{gathered}`} />
 
 Put the first and the third into the second and band stands alone:
 
-<M block t={String.raw`\text{band} = \frac{s_1 + g\,(x - s_2)}{1 + g\,(g + k)} \qquad\quad \text{low} = s_2 + g\,\text{band}`} />
+<M block t={String.raw`\begin{gathered} \text{band} = \frac{s_1 + g\,(x - s_2)}{1 + g\,(g + k)} \\[1em] \text{low} = s_2 + g\,\text{band} \end{gathered}`} />
 
 This is <Src path="cpp/kit/filters.h" lines="82-91">`Svf::process`</Src>, term for term. The division is done once, in `set`, as `a1 = 1 / (1 + g * (g + k))`, with `a2 = g * a1` and `a3 = g * a2` beside it. Then on each sample `v3 = x - ic2` is the input less the second memory; `v1 = a1 * ic1 + a2 * v3` is band; `v2 = ic2 + a2 * ic1 + a3 * v3` is low, with band already multiplied in; and `high = x - k * v1 - v2` is the first line, now that everything in it is known. Last, each memory steps on by the trapezoid rule, `ic1 = 2 * v1 - ic1` and `ic2 = 2 * v2 - ic2`: twice the new output less the old memory. That is a handful of multiplications and additions a sample, and no tangent.
 
@@ -118,7 +118,7 @@ Because the feedback is this sample's and not last sample's, the digital loop is
 <Controls ids="cutoff resonance" />
 
 <Curve taps="ring:out lateRing:alt" xTitle="milliseconds after the sample">
-  The same 12 ms, with the late loop (green, dashed) over the kit's (red). At 1 kHz the two lie together. Raise the cutoff past 7.9 kHz and the green line stops dying away and grows; it is drawn no taller than four times the red, however far it has gone.
+  The same 12 ms, with the late loop (green, dashed) over the kit's (red). At 1 kHz the two lie together. With the resonance where it starts, raise the cutoff past 7.9 kHz and the green line stops dying away and grows; it is drawn no taller than four times the red, however far it has gone.
 </Curve>
 
 <Check id="lateOver" />
@@ -133,12 +133,12 @@ In the device the cutoff is a sum in octaves, so a sweep covers the same musical
 
 <M block t={String.raw`f_c = \text{Cutoff}\cdot 2^{\,5\,\cdot\,\text{Env}\,\cdot\,\text{envelope}\;+\;3\,\cdot\,\text{Osc}\,\cdot\,\text{oscillator}}`} />
 
-The envelope is the louder channel's size, followed by a one-pole (lesson 4) with an attack of 10 ms and a release of 200 ms: at full amount, a full-scale sound opens the filter five octaves. The oscillator runs free between −1 and 1 and at full amount swings the cutoff three octaves each way; the lab offers four of its six shapes. The sum is taken on every sample, and the coefficients are made again on every sample where it has changed.
+The envelope is the louder channel's size, followed by a one-pole (lesson 4) whose attack and release the lab leaves where the device starts them, at <Src path="cpp/devices/auto-filter/params.gen.h" lines="11-12">10 ms and 200 ms</Src>. At full amount a full-scale sound opens the filter <Src path="cpp/devices/auto-filter/auto_filter.h" lines="207-208">five octaves</Src>. The oscillator runs free between −1 and 1 and at full amount swings the cutoff three octaves each way; the lab offers four of its six shapes. The sum is taken on every sample, and the coefficients are made again on every sample where it has changed.
 
 <Controls ids="lfoAmount lfoRate lfoShape envAmount" />
 
-<Trace taps="lfo:ctl envelope:alt sweep:out" min={-5} max={5} unit="">
-  The device's oscillator (blue), its envelope (green) and where they put the cutoff, in octaves from the knob (red). The oscillator turns and the envelope follows the sound whether or not they are used; with both amounts at zero the red line lies flat on 0. Raise an amount and red follows that term of the sum.
+<Trace taps="lfo:ctl envelope:alt3 sweep:out" min={-5} max={5} unit="">
+  The device's oscillator (blue), its envelope (purple) and where they put the cutoff, in octaves from the knob (red). The oscillator turns and the envelope follows the sound whether or not they are used; with both amounts at zero the red line lies flat on 0. Raise an amount and red follows that term of the sum.
 </Trace>
 
 <Spectrogram tap="picture" top={12000} min={-72} max={-40}>
@@ -146,7 +146,7 @@ The envelope is the louder channel's size, followed by a one-pole (lesson 4) wit
 </Spectrogram>
 
 <Trace taps="directLevel:alt svfLevel:out" min={-40} max={30} unit="dB">
-  The largest sample in each 10 ms, in decibels, out of two low-passes on the same moving cutoff: the kit's state-variable filter (red) and the kit's direct form (green). Standing still, red covers green. Set the oscillator's amount to 100 and its shape to Square, so the cutoff jumps six octaves at a time, and green spikes at every jump.
+  The largest sample in each 10 ms, in decibels, out of two low-passes on the same moving cutoff: the kit's state-variable filter (red) and the kit's direct form (green). Standing still, red covers green. Set the oscillator's amount to 100 and its shape to Square, so the cutoff jumps six octaves at a time, and green spikes where it jumps down.
 </Trace>
 
 <Check id="directApart" />
@@ -157,7 +157,7 @@ With the square at 20 Hz and full amount on the noise, the direct form's largest
 
 Since the three outputs are parts of the input, adding some of them back gives more shapes for no more filtering. Low plus high is everything but the band, a **notch**:
 
-<M block t={String.raw`\text{notch} = \text{low} + \text{high} = x - k\cdot\text{band} \qquad\qquad \text{peak} = \text{low} - \text{high}`} />
+<M block t={String.raw`\begin{gathered} \text{notch} = \text{low} + \text{high} = x - k\cdot\text{band} \\[0.3em] \text{peak} = \text{low} - \text{high} \end{gathered}`} />
 
 At the cutoff low and high are the same size, and one is a quarter of a cycle behind the input and the other a quarter ahead, so they are opposite and their sum is nothing: the kit's notch is <Claim id="notch-depth">more than 100 dB down</Claim> at the cutoff. Q sets how wide the hole is: an octave under the cutoff the notch has taken off <Claim id="notch-width">2.75 dB at a Q of 0.7071 and 0.21 dB at a Q of 3</Claim>. Take the difference and the two opposites add: the **peak** is <M t="2Q" /> at the cutoff, <Claim id="peak-2q">+15.6 dB at a Q of 3</Claim>, and 0 dB far away on both sides. It is not the bell of an equaliser (lesson 6): its height cannot be set apart from its width, and the sound far above the cutoff comes out upside down.
 
@@ -179,7 +179,7 @@ What the device adds is around the stage (<Src path="cpp/devices/auto-filter/aut
 
 - **Twice the rate.** The stage runs between two of <Src path="cpp/kit/oversample.h">the kit's half-band converters</Src>, so its frequency axis bends towards 48 kHz and not 24 kHz, and the audible band is nearly straight. A 1 kHz low-pass is at <Claim id="device-top">−54.8 dB at 20 kHz in the device and −70.2 dB in one stage at 48 kHz</Claim>; a true 12 dB an octave would be −52 dB. The converters cost <Claim id="latency">31 samples</Claim> of delay.
 - **24 dB an octave.** Two stages in a row, each at <M t={String.raw`\sqrt Q`} />, so the gain at the cutoff is still <M t="Q" />: <Claim id="q-both-slopes">+20.0 dB at a Q of 10 on either slope</Claim>. With the cutoff at 250 Hz the pair falls <Claim id="slope-24">24.3 dB between 1 and 2 kHz</Claim>.
-- **Drive.** The input is turned up and a tanh is put on both memories of each stage, in full from 3 dB of drive. Half of that gain, in decibels, is taken off again at the output.
+- **Drive.** The input is turned up and a tanh is put on both memories of each stage, <Src path="cpp/devices/auto-filter/auto_filter.h" lines="301-306">in full from 3 dB of drive</Src>. Half of that gain, in decibels, is taken off again at the output.
 
 <Controls ids="type slope cutoff resonance" />
 
@@ -195,9 +195,9 @@ Through the device, at a Q of 3, the band-pass passes the cutoff at <Claim id="d
 
 **Resonance is gain.** A tone on the cutoff comes out <M t="Q" /> times as large: at a Q of 25, <Claim id="gain-q">28.0 dB up</Claim>. A full-scale tone would leave the kit's filter at 25 times full scale. The kit's `Svf` has no guard, which is why devices built on it keep Q modest. The Auto Filter's guard is its drive: the tanh holds each memory inside ±1, so the loop cannot store more than that however long it is pushed. With 6 dB of drive that full-scale tone at a Q of 25 comes out at <Claim id="drive-caps">0.24 of full scale</Claim>.
 
-**A jump is still a jump.** The state-variable form does not thump when its cutoff moves, but the sound on either side of a jump is two different sounds, and the join can click. The device slides every knob over 5 ms and the type and the slope over 10 ms. Its oscillator is not smoothed: a square is meant to snap.
+**A jump is still a jump.** The state-variable form does not thump when its cutoff moves, but the sound on either side of a jump is two different sounds, and the join can click. The device slides every knob <Src path="cpp/kit/device.h" lines="25">over 5 ms</Src> and the type and the slope <Src path="cpp/devices/auto-filter/auto_filter.h" lines="210">over 10 ms</Src>. Its oscillator is not smoothed: a square is meant to snap.
 
-**Rings that never quite end.** A ring dies away by a fixed ratio for ever, into numbers so small that some processors handle them very slowly. Both memories are passed through `flush_denormal`, which calls anything under 10⁻¹⁵ zero, so a filter left alone reaches exact silence.
+**Rings that never quite end.** A ring dies away by a fixed ratio for ever, into numbers so small that some processors handle them very slowly. Both memories are passed through <Src path="cpp/common/dsp_util.h" lines="5-11">`flush_denormal`</Src>, which calls anything under 10⁻¹⁵ zero, so a filter left alone reaches exact silence.
 
 **Late.** The device's output is 31 samples behind its input. The stages from the kit's filter in this lesson are not delayed at all, so the output drawn against the input sits two thirds of a millisecond to the right.
 
@@ -207,5 +207,5 @@ Through the device, at a Q of 3, the band-pass passes the cutoff at <Claim id="d
 - The saw, Q of 10, type Band-pass: sweep the cutoff slowly from 100 Hz up and the harmonics of 110 Hz sound one at a time.
 - Clicks, with Listen on the low-pass and the resonance at 10: each click is a short note at the cutoff. This is the ring of stage 3.
 - Drums, type Band-pass, cutoff 350 Hz, Q of 5, **envelope amount** at 80: each hit opens the filter and it falls back between them.
-- Noise, **oscillator amount** at 100, shape Square, and the last figure of stage 5: the direct form's spikes at each jump. Then Sine, and they go.
+- Noise, **oscillator amount** at 100, shape Square, and the last figure of stage 5: the direct form's spikes where the cutoff jumps down. Then Sine, and they go.
 - Type Notch, oscillator amount 90, rate 0.15 Hz, Q of 1.5, on the guitar chords: a hole moving slowly through the sound.
