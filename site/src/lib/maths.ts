@@ -96,5 +96,8 @@ export function mathsHtml(t: string, block = false): string {
     // The two commands are extensions of HTML, which the renderer would warn of at each use.
     strict: (code: string) => (code === 'htmlExtension' ? 'ignore' : 'warn'),
   })
-  return unnestLinks(html)
+  // The search reads none of it: the renderer writes every term three times (as MathML, as the
+  // source, as what is shown), which a search takes for words such as "qqq" and shows in its
+  // excerpts, and a letter alone answers a search for any word that starts with it.
+  return unnestLinks(html).replace(/^<span /, '<span data-pagefind-ignore ')
 }

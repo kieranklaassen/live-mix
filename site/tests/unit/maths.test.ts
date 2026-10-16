@@ -22,6 +22,17 @@ describe('an equation', () => {
     expect(mathsHtml(String.raw`y[n] = x[n] + a\,y[n-1]`, true)).toContain('katex-display')
   })
 
+  it('is left out of the search, whole: its outermost element says so, in line and as a block', () => {
+    for (const block of [false, true]) {
+      const html = mathsHtml(String.raw`C(z) = \sig{out}{z} + \tfrac{1}{2}`, block)
+      const outer = /^<span ([^>]*)>/.exec(html)?.[1] ?? ''
+      expect(outer).toContain('data-pagefind-ignore')
+      expect(outer).toContain(block ? 'class="katex-display"' : 'class="katex"')
+      // Once, on the outermost element: everything the renderer wrote is inside it.
+      expect(html.match(/data-pagefind-ignore/g)).toHaveLength(1)
+    }
+  })
+
   it('still fails on mathematics that cannot be read', () => {
     expect(() => mathsHtml(String.raw`\frac{1}{`)).toThrow()
   })
@@ -81,7 +92,7 @@ describe(String.raw`\at`, () => {
    */
   function shown(html: string): string {
     const from = html.indexOf('<span class="katex-html"')
-    const wrapped = html.slice(0, from).match(/<span class="katex(-display)?">/g)!.length
+    const wrapped = html.slice(0, from).match(/<span [^>]*class="katex(-display)?">/g)!.length
     return html.slice(from, html.length - wrapped * '</span>'.length)
   }
 
