@@ -1,0 +1,142 @@
+{
+  "tile": {
+    "values": { "pattern": 1, "beat": 6, "sub": 0.3, "drive": 0.3, "look": 0.15 },
+    "tap": "out",
+    "picture": { "taps": ["oscWave", "filteredWave"], "view": "curve" }
+  },
+  "sets": {
+    "voice": {
+      "label": "The whole voice",
+      "values": {},
+      "tap": "out"
+    },
+    "raw": {
+      "label": "An oscillator alone",
+      "values": {},
+      "tap": "raw"
+    },
+    "closed": {
+      "label": "The filter closed to the note",
+      "values": { "cutoff": 84.8, "emphasis": 0, "contour": 0, "decay": 10, "hold": 2 },
+      "tap": "out"
+    },
+    "bassline": {
+      "label": "A bass line",
+      "values": { "pattern": 1, "note": 55, "beat": 6, "sub": 0.3, "drive": 0.3 },
+      "tap": "out"
+    },
+    "lead": {
+      "label": "A held lead",
+      "values": {
+        "note": 440,
+        "wave": 1,
+        "beat": 4,
+        "cutoff": 1500,
+        "emphasis": 0.45,
+        "contour": 0.3,
+        "decay": 10,
+        "hold": 2.5
+      },
+      "tap": "out"
+    },
+    "sub": {
+      "label": "A soft sub",
+      "values": { "sub": 1, "cutoff": 85, "emphasis": 0, "contour": 0, "decay": 10, "hold": 2.5 },
+      "tap": "out"
+    },
+    "pad": {
+      "label": "A chord on the pad",
+      "values": { "hold": 2.5 },
+      "tap": "pad"
+    },
+    "pluck": {
+      "label": "Plucked",
+      "values": { "pattern": 1, "cutoff": 300, "emphasis": 0.4, "contour": 0.8, "decay": 0.15 },
+      "tap": "out"
+    },
+    "held": {
+      "label": "Held open",
+      "values": { "beat": 6, "cutoff": 800, "contour": 0.3, "decay": 10, "hold": 2.5 },
+      "tap": "out"
+    },
+    "sing": {
+      "label": "A singing filter",
+      "values": {
+        "note": 55,
+        "cutoff": 220,
+        "emphasis": 0.9,
+        "contour": 0.75,
+        "decay": 2.5,
+        "hold": 3,
+        "volume": 6
+      },
+      "tap": "out"
+    },
+    "wide": {
+      "label": "Two oscillators apart",
+      "values": {
+        "note": 55,
+        "beat": 14,
+        "sub": 0.6,
+        "cutoff": 700,
+        "emphasis": 0.2,
+        "contour": 0.5,
+        "decay": 1.2,
+        "drive": 0.5,
+        "hold": 1.5
+      },
+      "tap": "out"
+    },
+    "growl": {
+      "label": "Driven",
+      "values": {
+        "note": 55,
+        "beat": 8,
+        "sub": 0.25,
+        "emphasis": 0.35,
+        "contour": 0.4,
+        "decay": 0.9,
+        "drive": 0.85,
+        "volume": 3
+      },
+      "tap": "out"
+    },
+    "dim": {
+      "label": "A filter that closes",
+      "values": {
+        "padCutoff": 6000,
+        "padEnvelope": -0.6,
+        "padAttack": 0.05,
+        "padRelease": 2,
+        "hold": 2
+      },
+      "tap": "pad"
+    },
+    "gate": {
+      "label": "A wave switched on and off",
+      "values": { "shape": 2 },
+      "tap": "raw"
+    },
+    "choked": {
+      "label": "Choked",
+      "values": { "note": 440, "cutoff": 100, "contour": 0, "decay": 10, "hold": 2 },
+      "tap": "out"
+    },
+    "hollow": {
+      "label": "A beat that empties the note",
+      "values": { "note": 55, "beat": 25, "cutoff": 2000, "contour": 0, "decay": 10, "hold": 3.5 },
+      "tap": "out"
+    },
+    "thin": {
+      "label": "Emphasis takes the bottom",
+      "values": { "note": 55, "emphasis": 0.9, "contour": 0.3, "decay": 10, "hold": 2.5 },
+      "tap": "out"
+    },
+    "octave": {
+      "label": "Halfway between the two waves",
+      "values": { "wave": 0.42, "decay": 10, "hold": 2.5 },
+      "tap": "out"
+    }
+  },
+  "defaults": { "values": { "beat": 6, "sub": 0.3, "drive": 0.3, "volume": -9 } }
+}

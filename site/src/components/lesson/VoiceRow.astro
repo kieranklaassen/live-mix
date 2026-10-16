@@ -1,0 +1,138 @@
+---
+// A voice as blocks in a row, each with two cycles of its wave and the level of each harmonic
+// under it, so that what each block does to the sound is read along the row.
+// <VoiceRow waves="oscWave:alt mixWave:alt2 outWave:out" parts="oscHarmonics mixHarmonics outHarmonics" live>Caption.</VoiceRow>
+// <VoiceRow waves="oscWave outWave" parts="oscHarmonics outHarmonics" set="bass" caption="What to notice." />
+// `waves` are curve taps of a sound against cycles of its note, one for each block in the order
+// of the signal, and each block is named after its wave's tap; a role after a colon gives the
+// block its colour. `parts` are curve taps in dB against the harmonic's number, one for each
+// wave, in the same order. `set`, `values` and `source` say what is rendered, as a still's do.
+// `min` and `max` are the bottom and the top of the bars, in dB. `own` draws each wave to its
+// own peak; left out, every wave is drawn to the largest of the row, so that sizes compare.
+// The picture is drawn when the site is built, so it is in the page with scripts off. With
+// `live` it then follows the lab as the reader moves its controls. In a step of the build part,
+// `step` is that step's number from 0:
+// <VoiceRow slot="picture" waves="builtWave" parts="builtHarmonics" live step={3}>Caption.</VoiceRow>
+import { getEntry } from 'astro:content'
+import VoiceRow, { type BuiltRow, type RowBlock } from '../../figures/VoiceRow.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+import { checkSettings, lessonSettings, setNamed } from '../../lib/settings.ts'
+import { renderStill } from '../../lib/still.ts'
+
+interface Props {
+  /** The wave of each block, "oscWave mixWave:alt2 outWave:out": curve taps, in the signal's order. */
+  waves: string
+  /** The harmonics of each block, in the same order: curve taps in dB. */
+  parts: string
+  /** A set of the lesson's settings file, by name. Left out, the lab's starting values. */
+  set?: string
+  /** Control values by id, laid over the set's. */
+  values?: Record<string, number>
+  /** One of the lesson's sources. Left out, the set's, and then the lesson's first. */
+  source?: string
+  /** Follow the running lab. A live picture is drawn at the lab's starting values. */
+  live?: boolean
+  /** The step of the build the picture is built at, from 0, for a picture of built taps. */
+  step?: number
+  /** The bottom and the top of the bars, in dB. */
+  min?: number
+  max?: number
+  /** Draw each wave to its own peak. */
+  own?: boolean
+  /** What to notice, where the figure has no children (a card's picture). */
+  caption?: string
+  label?: string
+}
+const {
+  waves,
+  parts,
+  set,
+  values: over,
+  source: asked,
+  live = false,
+  step,
+  min = -96,
+  max = 0,
+  own = false,
+  caption,
+  label,
+} = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const waveRefs = tapRefs(waves, lab.taps, lesson)
+const partRefs = tapRefs(parts, lab.taps, lesson, false)
+if (waveRefs.length !== partRefs.length) {
+  throw new Error(
+    `${lesson}: <VoiceRow> has ${waveRefs.length} waves and ${partRefs.length} sets of harmonics. It takes one of each for a block.`,
+  )
+}
+for (const tap of [...waveRefs, ...partRefs]) {
+  if (tap.kind !== 'curve') {
+    throw new Error(`${lesson}: <VoiceRow> draws curve taps, and "${tap.id}" is not one.`)
+  }
+}
+if (!(min < max)) {
+  throw new Error(
+    `${lesson}: <VoiceRow min={${min}} max={${max}}>: the bottom is not below the top.`,
+  )
+}
+if (live && (set !== undefined || over !== undefined || asked !== undefined)) {
+  throw new Error(
+    `${lesson}: a live <VoiceRow> follows the page, and takes no set, values or source.`,
+  )
+}
+const entry = await getEntry('lessons', lesson)
+if (!entry) throw new Error(`${lesson}: <VoiceRow> was used on a page that is not a lesson's.`)
+const named = set === undefined ? undefined : setNamed(await lessonSettings(entry), set, lesson)
+const values = { ...named?.values, ...over }
+const source = asked ?? named?.source ?? entry.data.sources[0]!
+// Held to the lab as a set of the lesson's file is, as a still is.
+checkSettings(
+  { sets: { 'a row': { label: 'a row', values, source } } },
+  lab,
+  entry.data.sources,
+  lesson,
+)
+const steps = lab.controls.find((control) => control.id === 'build')?.choices.length ?? 0
+if (step !== undefined && !(Number.isInteger(step) && step >= 0 && step < steps)) {
+  throw new Error(`${lesson}: <VoiceRow step={${step}}> is not a step of the lab's build.`)
+}
+const { result } = await renderStill({
+  lab: entry.data.lab,
+  source,
+  seconds: entry.data.seconds,
+  values: step === undefined ? values : { ...values, build: step },
+})
+const built: BuiltRow = { curves: {}, ends: {} }
+for (const tap of [...waveRefs, ...partRefs]) {
+  const found = result.taps[tap.id]
+  const data = found?.channels_data[0]
+  built.curves[tap.id] = data ? Array.from(data, (value) => Number(value.toFixed(4))) : []
+  built.ends[tap.id] = found ? Number(found.x1.toFixed(4)) : 0
+}
+const blocks: RowBlock[] = waveRefs.map((wave, at) => ({ wave, parts: partRefs[at]! }))
+const said =
+  label ??
+  `${waveRefs.map((tap) => tap.name).join(', then ')}: two cycles of each one's wave, and the level of each harmonic under it`
+---
+
+<figure class="fig">
+  {live ? (
+    <VoiceRow
+      client:visible
+      blocks={blocks}
+      built={built}
+      live
+      min={min}
+      max={max}
+      own={own}
+      label={said}
+    />
+  ) : (
+    <VoiceRow blocks={blocks} built={built} min={min} max={max} own={own} label={said} />
+  )}
+  <figcaption>
+    {caption}
+    <slot />
+  </figcaption>
+</figure>
