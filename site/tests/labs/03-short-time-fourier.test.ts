@@ -412,4 +412,54 @@ describe('lesson 3: the short-time Fourier transform', () => {
     expect(dry).toBeGreaterThan(10_000)
     expect(altered / dry).toBeGreaterThan(0.99)
   })
+
+  it('takes 375 frames of the four-second loop at a frame of 2,048 (claim frames-count)', async () => {
+    const stft = await lab(NAME)
+    const result = stft.render(await benchSource('guitar', seconds(4)), {})
+    expect(result.taps.picture!.columns).toBe(375)
+    expect(result.taps.pictureOut!.columns).toBe(375)
+  })
+
+  it('puts 3 % of the unit sample ahead of it at Depth 0.5 and 21 % at full Depth (claim smear-depth), 5 samples ahead on average at Grain 0 and 62 at Grain 1 (claim smear-grain)', async () => {
+    const stft = await lab(NAME)
+    const guitar = await benchSource('guitar', seconds(1))
+    // The share of the energy that lies ahead of the sample, and how far ahead it lies on average.
+    const ahead = (values: Record<string, number>) => {
+      const smeared = stft.render(guitar, values).taps.clickWet!.channels_data[0]!
+      const middle = (smeared.length - 1) / 2
+      let whole = 0
+      let before = 0
+      let reach = 0
+      smeared.forEach((value, i) => {
+        whole += value ** 2
+        if (i < middle) {
+          before += value ** 2
+          reach += value ** 2 * (middle - i)
+        }
+      })
+      return { share: before / whole, samples: reach / before }
+    }
+    const half = ahead({ depth: 0.5 })
+    const full = ahead({ depth: 1 })
+    expect(half.share).toBeGreaterThan(0.025)
+    expect(half.share).toBeLessThan(0.035)
+    expect(full.share).toBeGreaterThan(0.2)
+    expect(full.share).toBeLessThan(0.22)
+    // Depth moves how much, and not how far.
+    expect(Math.abs(half.samples - full.samples)).toBeLessThan(0.5)
+    const broad = ahead({ grain: 0 })
+    const narrow = ahead({ grain: 1 })
+    expect(broad.samples).toBeGreaterThan(4.5)
+    expect(broad.samples).toBeLessThan(5.5)
+    expect(narrow.samples).toBeGreaterThan(60)
+    expect(narrow.samples).toBeLessThan(63)
+  })
+
+  it('never opens the pass on a steady sine, saw or noise (claim steady-never)', async () => {
+    const stft = await lab(NAME)
+    for (const id of ['sine', 'saw', 'noise']) {
+      const result = stft.render(await benchSource(id, seconds(4)), {})
+      expect(range(result.taps.pass!.channels_data[0]!).hi).toBe(0)
+    }
+  })
 })
