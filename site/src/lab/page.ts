@@ -79,13 +79,14 @@ export function pagePlayer(): Player {
 }
 
 export function labStore(): LabStore {
-  // The player is asked for only inside a click, where a browser lets a context start.
+  // The player makes its context on the first play, inside a click, where a browser lets one
+  // start. A volume set before then makes the player and no context, and the play starts at it.
   store ??= createLabStore(workerRenderer(), {
     play: (tap) => pagePlayer().play(tap),
     update: (tap) => pagePlayer().update(tap),
     bench: (source) => pagePlayer().bench(source),
     stop: () => player?.stop(),
-    setVolume: (volume) => player?.setVolume(volume),
+    setVolume: (volume) => pagePlayer().setVolume(volume),
   })
   return store
 }

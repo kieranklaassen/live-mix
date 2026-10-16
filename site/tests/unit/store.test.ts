@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { LabDescription } from '../../src/lab/describe.ts'
+import { createPlayer, volumeGain, type PlayerContext } from '../../src/lab/player.ts'
 import {
   BENCH,
   createLabStore,
@@ -42,14 +43,14 @@ const description: LabDescription = {
   checks: [],
 }
 
-function tap(id: string, kind: Tap['kind'], origin: Tap['origin']): Tap {
+function tap(id: string, kind: Tap['kind'], origin: Tap['origin'], frames: number): Tap {
   const info = description.taps.find((one) => one.id === id)!
   return {
     ...info,
     kind,
     origin,
-    channels_data: [new Float32Array(16), new Float32Array(16)],
-    length: 16,
+    channels_data: [new Float32Array(frames), new Float32Array(frames)],
+    length: frames,
     x0: 0,
     x1: 1,
     columns: 0,
@@ -57,19 +58,19 @@ function tap(id: string, kind: Tap['kind'], origin: Tap['origin']): Tap {
   }
 }
 
-const result = (): Result => ({
-  frames: 16,
+const result = (frames = 16): Result => ({
+  frames,
   ms: 1,
   checks: {},
   taps: {
-    in: tap('in', 'audio', 'source'),
-    level: tap('level', 'control', 'device'),
-    out: tap('out', 'audio', 'device'),
+    in: tap('in', 'audio', 'source', frames),
+    level: tap('level', 'control', 'device', frames),
+    out: tap('out', 'audio', 'device', frames),
   },
 })
 
 /** A renderer whose renders land when the test says so. */
-function fakes() {
+function fakeRenderer() {
   const renders: { values: Record<string, number>; source: string; land: (r: Result) => void }[] =
     []
   let loaded: ((d: LabDescription) => void) | undefined
@@ -85,6 +86,20 @@ function fakes() {
       new Promise((resolve) => renders.push({ source, values: { ...values }, land: resolve })),
     setFile: (left) => files.push(left),
   }
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
+  return {
+    renderer,
+    renders,
+    files,
+    tick,
+    load: () => loaded?.(description),
+    fail: (e: Error) => failed?.(e),
+  }
+}
+
+/** The store over that renderer and a sounder that only remembers what it was asked. */
+function fakes() {
+  const made = fakeRenderer()
   const sounder = {
     play: vi.fn(),
     update: vi.fn(),
@@ -92,17 +107,7 @@ function fakes() {
     stop: vi.fn(),
     setVolume: vi.fn(),
   } satisfies Sounder
-  const store = createLabStore(renderer, sounder)
-  const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
-  return {
-    store,
-    sounder,
-    renders,
-    files,
-    tick,
-    load: () => loaded?.(description),
-    fail: (e: Error) => failed?.(e),
-  }
+  return { ...made, store: createLabStore(made.renderer, sounder), sounder }
 }
 
 async function ready() {
@@ -113,6 +118,95 @@ async function ready() {
   made.renders[0]!.land(result())
   await made.tick()
   return made
+}
+
+interface FakeNode {
+  gain: { value: number }
+  to: unknown[]
+}
+interface FakeSource {
+  buffer: unknown
+  loop: boolean
+  started?: { when: number; offset: number }
+  stopped?: number
+  connect(): void
+  start(when: number, offset: number): void
+  stop(when: number): void
+}
+
+/** The context of player.test.ts, cut to what is read here: a clock the test moves, where each
+ * source started and stopped, and the gain that goes out. */
+function fakeContext() {
+  const sources: FakeSource[] = []
+  const gains: FakeNode[] = []
+  const node = () => ({
+    to: [] as unknown[],
+    gain: {
+      value: 1,
+      setValueAtTime(value: number) {
+        this.value = value
+      },
+      linearRampToValueAtTime(value: number) {
+        this.value = value
+      },
+      setTargetAtTime(value: number) {
+        this.value = value
+      },
+    },
+    connect(other: unknown) {
+      this.to.push(other)
+    },
+  })
+  const analyser = { ...node(), fftSize: 2048, getFloatTimeDomainData: () => {} }
+  const context = {
+    currentTime: 0,
+    sampleRate: 48_000,
+    state: 'running',
+    destination: node(),
+    resume: async () => {},
+    createGain: () => {
+      const made = node()
+      gains.push(made)
+      return made
+    },
+    createAnalyser: () => analyser,
+    createBuffer: (_channels: number, length: number, rate: number) => ({
+      duration: length / rate,
+      getChannelData: () => new Float32Array(length),
+    }),
+    createBufferSource: () => {
+      const made: FakeSource = {
+        buffer: null,
+        loop: false,
+        connect() {},
+        start(when, offset) {
+          this.started = { when, offset }
+        },
+        stop(when) {
+          this.stopped = when
+        },
+      }
+      sources.push(made)
+      return made
+    },
+  }
+  /** The gain everything leaves through: the one that goes on to the analyser. */
+  const master = () => gains.find((gain) => gain.to.includes(analyser))
+  return { context, sources, master }
+}
+
+/** The store over the real player, with a loop of four seconds rendered. */
+async function withPlayer() {
+  const made = fakeRenderer()
+  const audio = fakeContext()
+  const player = createPlayer(() => audio.context as unknown as PlayerContext)
+  const store = createLabStore(made.renderer, player)
+  void store.init({ lab: 'x', sources: ['drums'], seconds: 4 })
+  made.load()
+  await made.tick()
+  made.renders[0]!.land(result(4 * 48_000))
+  await made.tick()
+  return { ...audio, store }
 }
 
 describe('the store of a lesson page', () => {
@@ -233,10 +327,40 @@ describe('the store of a lesson page', () => {
     made.store.stop()
     expect(made.sounder.stop).toHaveBeenCalledTimes(1)
     expect(made.store.getState().playing).toBe(false)
-    // Back to a stage of the lab: the bench's feed is taken away.
+    // Back to a stage of the lab: the stage is played, and playing it is what takes the sound
+    // back. Taking the feed away first would leave nothing sounding, and the loop would restart.
     made.store.listen(BENCH)
     made.store.listen('out')
-    expect(made.sounder.bench).toHaveBeenLastCalledWith(null)
     expect(made.sounder.play.mock.calls.at(-1)![0].id).toBe('out')
+    expect(made.sounder.bench).not.toHaveBeenCalledWith(null)
+  })
+})
+
+describe('the store over the real player', () => {
+  it('carries on from the same place when a stage takes the sound back from the bench', async () => {
+    const { store, sources, context } = await withPlayer()
+    store.openBench()
+    store.listen('out')
+    expect(sources[0]!.started).toEqual({ when: 0, offset: 0 })
+    context.currentTime = 1
+    store.listen(BENCH)
+    expect(sources[1]!.started).toEqual({ when: 1, offset: 1 })
+    context.currentTime = 2.5
+    store.listen('out')
+    expect(sources).toHaveLength(3)
+    expect(sources[2]!.started!.when).toBe(2.5)
+    expect(sources[2]!.started!.offset).toBeCloseTo(2.5, 6)
+    // The bench's feed is faded out under the stage that took over.
+    expect(sources[1]!.stopped).toBeCloseTo(2.52, 6)
+  })
+
+  it('starts at the volume that was set before the first play', async () => {
+    const { store, master } = await withPlayer()
+    store.setVolume(0.2)
+    // No context yet: the player keeps the volume for the one a play makes.
+    expect(master()).toBeUndefined()
+    store.play()
+    expect(master()!.gain.value).toBe(volumeGain(0.2))
+    expect(store.getState().volume).toBe(0.2)
   })
 })

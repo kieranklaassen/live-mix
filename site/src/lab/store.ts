@@ -235,7 +235,6 @@ export function createLabStore(renderer: Renderer, sounder: Sounder): LabStore {
       if (!found) return
       const fromBench = state.sounding === BENCH
       set({ sounding: tap })
-      if (fromBench && state.playing) sounder.bench(null)
       if (state.playing && !fromBench) sounder.update(found)
       else sounder.play(found)
       set({ playing: true })
