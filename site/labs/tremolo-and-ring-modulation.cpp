@@ -195,7 +195,7 @@ struct Built {
   }
 
   // No offset: the gain is the wave alone, so it spends half its time below
-  // zero. The square root of two makes up the power the offset carried.
+  // zero. The square root of two brings its mean square to 1.
   float ringing(float m) const { return kSqrt2 * m; }
 
   // One sample through the pieces built so far.
@@ -404,7 +404,7 @@ struct TremoloAgain {
   bool started = false;
   float raw = 0.0f;                  // the shape the left side reads, before the slew
   float gain[2] = {1.0f, 1.0f};      // what each side is multiplied by, the mix in it
-  float high = 1.0f;                 // what Harmonic multiplies the left side's highs by
+  float high = 1.0f;                 // what Harmonic multiplies the left side's highs by; 1 in the other modes
   float out[2] = {0.0f, 0.0f};
   float sudden[2] = {0.0f, 0.0f};    // the tremolo with the shape used as it is, unslewed
 
@@ -455,7 +455,7 @@ struct TremoloAgain {
       // The one number a side is multiplied by, where the mode has one.
       const float one = w_tremolo * down + w_pan * pan[c] + w_harmonic * down + w_vibrato;
       gain[c] = 1.0f + (one - 1.0f) * mix_now;
-      if (c == 0) high = 1.0f + (up - 1.0f) * mix_now;
+      if (c == 0) high = 1.0f + w_harmonic * (up - 1.0f) * mix_now;
       // The same law on the shape before the slew: what the slew is there to prevent.
       sudden[c] = x * (1.0f - half * (1.0f - shapes[c]) * mix_now);
     }

@@ -11,6 +11,7 @@ import {
   gainToDb,
   lab,
   matchesWritten,
+  onsetMs,
   peak,
   points,
   POINT_RATE,
@@ -91,6 +92,10 @@ function largestJump(x: Float32Array): number {
   return most
 }
 
+/** The largest jump from one sample to the next on either side of a sound. */
+const largestJumpOf = (result: RenderResult, id: string) =>
+  Math.max(largestJump(tap(result, id, 0)), largestJump(tap(result, id, 1)))
+
 /** The level of a sound over the loop, both sides together, in dB against full scale. */
 function levelOf(result: RenderResult, id: string): number {
   const left = rms(tap(result, id, 0))
@@ -135,8 +140,9 @@ describe('tremolo and ring modulation', () => {
     const theLab = await lab(NAME)
     const pad = await benchSource('pad', LOOP)
     const result = theLab.render(pad, {})
-    // With Ring Drift at 0 the carrier holds one frequency.
-    expectSoundLab(theLab, pad, result, { quiet: ['carrierHz'] })
+    // With Ring Drift at 0 the carrier holds one frequency, and on Tremolo, the mode the lab
+    // starts in, Harmonic puts no gain on the highs.
+    expectSoundLab(theLab, pad, result, { quiet: ['carrierHz', 'gainHigh'] })
   })
 
   it('builds the two in six pieces on taps of its own: every step changes one and none changes the main path', async () => {
@@ -148,13 +154,13 @@ describe('tremolo and ring modulation', () => {
   // ---------------------------------------------------------------------------------------
   // Part 1: why.
 
-  it('switched on and off, the pad jumps: the largest jump from one sample to the next is 9.1 dB larger than any in the pad as played (claim switch-jump)', async () => {
+  it('switched on and off, the pad jumps: on both sides the largest jump from one sample to the next is 8.1 dB larger than any in the pad as played (claim switch-jump)', async () => {
     const theLab = await lab(NAME)
     const result = await played(theLab, 'switched')
-    const before = largestJump(tap(result, 'in'))
-    expectWritten(gainToDb(largestJump(tap(result, 'unslewed')) / before), '9.1 dB')
+    const before = largestJumpOf(result, 'in')
+    expectWritten(gainToDb(largestJumpOf(result, 'unslewed') / before), '8.1 dB')
     // The device at the same settings, its slew in place, makes no jump larger than the pad's.
-    expect(largestJump(tap(result, 'tremolo'))).toBeLessThan(before)
+    expect(largestJumpOf(result, 'tremolo')).toBeLessThan(before)
   })
 
   it('ridden up and down, the gain moves between 0.25 and 1.00, a swing of 12.0 dB, and no jump is larger than the largest in the pad (claim ridden)', async () => {
@@ -164,7 +170,7 @@ describe('tremolo and ring modulation', () => {
     expectWritten(gain.lo, '0.25')
     expectWritten(gain.hi, '1.00')
     expectWritten(gainToDb(gain.hi / gain.lo), '12.0 dB')
-    expect(largestJump(tap(result, 'tremolo'))).toBeLessThan(largestJump(tap(result, 'in')))
+    expect(largestJumpOf(result, 'tremolo')).toBeLessThan(largestJumpOf(result, 'in'))
   })
 
   it('at 4 Hz the tone has lines at 436 Hz and 444 Hz beside it, each 6.0 dB under the one at 440 Hz (claim pred-slow)', async () => {
@@ -292,6 +298,12 @@ describe('tremolo and ring modulation', () => {
     const result = await played(theLab, 'clang')
     expectWritten(levelOf(result, 'in') - levelOf(result, 'ring'), '4.1 dB')
     expectWritten(levelOf(result, 'in') - levelOf(result, 'product'), '0.2 dB')
+    // The timing is untouched: three hits of the loop speak within a quarter of a millisecond
+    // of where they spoke going in.
+    for (const from of [0, seconds(0.45), seconds(0.95)]) {
+      const apart = onsetMs(tap(result, 'ring'), from) - onsetMs(tap(result, 'in'), from)
+      expect(Math.abs(apart)).toBeLessThan(0.25)
+    }
   })
 
   // ---------------------------------------------------------------------------------------
@@ -304,11 +316,13 @@ describe('tremolo and ring modulation', () => {
 
   it('a slow wave brings a steady tone out 4.3 dB quieter, where the wire brings it out 0.0 dB quieter (claim build-slow)', async () => {
     const theLab = await lab(NAME)
-    expectWritten(quieter(theLab.render(tone(), { build: 1 })), '4.3 dB')
-    expectWritten(quieter(theLab.render(tone(), { build: 0 })), '0.0 dB')
-    expect(matchesWritten(quieter(theLab.render(tone(), { build: 0 })), '4.3 dB')).toBe(false)
+    const wire = quieter(theLab.render(tone(), { build: 0 }))
+    const slow = theLab.render(tone(), { build: 1 })
+    expectWritten(quieter(slow), '4.3 dB')
+    expectWritten(wire, '0.0 dB')
+    expect(matchesWritten(wire, '4.3 dB')).toBe(false)
     // The gain of the slow wave goes from silence to the sound as it was.
-    const gain = range(tap(theLab.render(tone(), { build: 1 }), 'builtGain'))
+    const gain = range(tap(slow, 'builtGain'))
     expect(gain.lo).toBeLessThan(0.001)
     expect(gain.hi).toBeGreaterThan(0.999)
   })
@@ -317,17 +331,22 @@ describe('tremolo and ring modulation', () => {
     const theLab = await lab(NAME)
     const lowest = (step: number) =>
       range(tap(theLab.render(tone(), { build: step, depth: 0.5 }), 'builtGain')).lo
-    expectWritten(lowest(2), '0.50')
-    expectWritten(-gainToDb(lowest(2)), '6.0 dB')
+    const [before, dipped] = [lowest(1), lowest(2)]
+    expectWritten(dipped, '0.50')
+    expectWritten(-gainToDb(dipped), '6.0 dB')
     // The step before has no Depth: its gain still goes to silence.
-    expect(matchesWritten(lowest(1), '0.50')).toBe(false)
-    expect(matchesWritten(-gainToDb(lowest(1)), '6.0 dB')).toBe(false)
+    expect(matchesWritten(before, '0.50')).toBe(false)
+    expect(matchesWritten(-gainToDb(before), '6.0 dB')).toBe(false)
   })
 
   it('a square closes in 3.4 ms once it has its slew, measured on a steady sound at the third step (claim build-slew)', async () => {
     const theLab = await lab(NAME)
-    const result = theLab.render(steady(0.5), { build: 2, rate: 4, shape: 2 })
-    expectWritten(fallMs(tap(result, 'built'), 0.5), '3.4 ms')
+    const fall = (step: number) =>
+      fallMs(tap(theLab.render(steady(0.5), { build: step, rate: 4, shape: 2 }), 'built'), 0.5)
+    expectWritten(fall(2), '3.4 ms')
+    // The step before has neither the square nor the slew: its sine takes far longer to fall.
+    expect(matchesWritten(fall(1), '3.4 ms')).toBe(false)
+    expect(fall(1)).toBeGreaterThan(50)
   })
 
   it('with Stereo Phase at 180 the two gains add up to 1.00 at every moment, and without the piece they do not (claim build-ears)', async () => {
@@ -336,14 +355,18 @@ describe('tremolo and ring modulation', () => {
       const result = theLab.render(tone(), { build: step, phase: 180 })
       return together(tap(result, 'builtGain'), tap(result, 'builtGainRight'), (a, b) => a + b)
     }
-    expectWritten(sum(3).lo, '1.00')
-    expectWritten(sum(3).hi, '1.00')
-    // At the step before, the right side reads the wave where the left does.
-    expect(matchesWritten(sum(2).lo, '1.00')).toBe(false)
-    expect(matchesWritten(sum(2).hi, '1.00')).toBe(false)
+    const [before, parted] = [sum(2), sum(3)]
+    expectWritten(parted.lo, '1.00')
+    expectWritten(parted.hi, '1.00')
+    // At the step before, the right side reads the wave where the left does: the two gains
+    // rise and fall together, and their sum goes from nothing to 2.
+    expect(matchesWritten(before.lo, '1.00')).toBe(false)
+    expect(matchesWritten(before.hi, '1.00')).toBe(false)
+    expect(before.lo).toBeLessThan(0.01)
+    expect(before.hi).toBeGreaterThan(1.99)
   })
 
-  it('the fourth step is the engine tremolo: less than −120 dB apart on every loop and at every shape (claim build-same)', async () => {
+  it('the fourth step is the engine tremolo: the two read −140 dB apart, the floor of the reading, on every loop and at every shape (claim build-same)', async () => {
     const theLab = await lab(NAME)
     const tried: Record<string, number>[] = [
       {},
@@ -368,12 +391,14 @@ describe('tremolo and ring modulation', () => {
     ]) {
       const source = await benchSource(id, LOOP)
       for (const values of tried) {
-        for (const step of [0, 3, 5]) {
-          const { builtDifference } = theLab.render(source, { ...values, build: step }).checks
-          expectWritten(builtDifference!, 'less than −120 dB')
-        }
+        const { builtDifference } = theLab.render(source, values).checks
+        expectWritten(builtDifference!, '−140 dB')
       }
     }
+    // The comparison is made at the fourth step whichever step is shown (the second test of
+    // this file holds that on the pad): here, at the last step on a loop with silences in it.
+    const last = theLab.render(await benchSource('clicks', LOOP), { phase: 90, build: 5 })
+    expectWritten(last.checks.builtDifference!, '−140 dB')
   })
 
   it('at audio rate the build makes new tones: 340 Hz and 540 Hz, each 12.0 dB under the tone that went in, with the tone itself at 440 Hz 6.0 dB under (claim build-fast)', async () => {
@@ -405,16 +430,20 @@ describe('tremolo and ring modulation', () => {
     expect(matchesWritten(under(before, 440), 'more than 100 dB')).toBe(false)
   })
 
-  it('the last step is what the Ring of the engine does at Ring Mix 1: the two are less than 0.01 dB apart at 340 Hz and at 540 Hz (claim build-ring-device)', async () => {
+  it('the last step is what the Ring of the engine does at Ring Mix 1: the two are less than 0.001 dB apart at 340 Hz and at 540 Hz (claim build-ring-device)', async () => {
     const theLab = await lab(NAME)
     const result = theLab.render(tone(), { build: 5, ringMix: 1 })
     for (const hz of [340, 540]) {
       expectWritten(
         Math.abs(lineDb(tap(result, 'built'), hz) - lineDb(tap(result, 'ring'), hz)),
-        'less than 0.01 dB',
+        'less than 0.001 dB',
       )
     }
+    // The device's two lines are where the build's are, and the tone itself is in neither.
+    expectWritten(loudestHz(tap(result, 'ring'), 300, 400).hz, '340 Hz')
+    expectWritten(loudestHz(tap(result, 'ring'), 500, 600).hz, '540 Hz')
     expectWritten(under(tap(result, 'ring'), 440), 'more than 100 dB')
+    expectWritten(under(tap(result, 'built'), 440), 'more than 100 dB')
   })
 
   // ---------------------------------------------------------------------------------------
@@ -534,7 +563,7 @@ describe('tremolo and ring modulation', () => {
   // ---------------------------------------------------------------------------------------
   // Part 5: the engine's Ring.
 
-  it('the Ring at Ring Mix 1 turns a tone into two, at 340 Hz and 540 Hz, each 3.0 dB under it, leaves the tone at 440 Hz more than 100 dB under, and brings the whole out less than 0.01 dB from the level it went in (claim ring-lines)', async () => {
+  it('the Ring at Ring Mix 1 turns a tone into two, at 340 Hz and 540 Hz, each 3.0 dB under it, leaves the tone at 440 Hz more than 100 dB under, and brings the whole out less than 0.001 dB from the level it went in (claim ring-lines)', async () => {
     const theLab = await lab(NAME)
     const result = theLab.render(tone(), { ringMix: 1 })
     for (const id of ['product', 'ring']) {
@@ -544,11 +573,11 @@ describe('tremolo and ring modulation', () => {
       expectWritten(under(out, 340), '3.0 dB')
       expectWritten(under(out, 540), '3.0 dB')
       expectWritten(under(out, 440), 'more than 100 dB')
-      expectWritten(Math.abs(gainToDb(rms(out) / rms(tap(result, 'in')))), 'less than 0.01 dB')
+      expectWritten(Math.abs(gainToDb(rms(out) / rms(tap(result, 'in')))), 'less than 0.001 dB')
     }
   })
 
-  it('the other shapes add a pair at 140 Hz and 740 Hz: 19.1 dB under the first pair for Triangle, 12.6 dB for Soft square and 19.3 dB for Diode, which also comes out 1 dB quieter (claim ring-shapes)', async () => {
+  it('at Ring Mix 1, on a tone at half of full scale, the other shapes add a pair at 140 Hz and 740 Hz: 19.1 dB under the first pair for Triangle, 12.6 dB for Soft square and 19.3 dB for Diode, which also comes out 1 dB quieter (claim ring-shapes)', async () => {
     const theLab = await lab(NAME)
     const third = (wave: number) => {
       const out = tap(theLab.render(tone(), { ringMix: 1, wave }), 'ring')
@@ -584,14 +613,14 @@ describe('tremolo and ring modulation', () => {
     expectWritten(taken(150), '47.0 dB')
   })
 
-  it('Ring Mix is equal power: at 0.5 the tone is 3.0 dB under what went in, the two new tones 6.0 dB under, and the whole less than 0.01 dB from the level it went in (claim ring-mix)', async () => {
+  it('Ring Mix is equal power: at 0.5 the tone is 3.0 dB under what went in, the two new tones 6.0 dB under, and the whole less than 0.001 dB from the level it went in (claim ring-mix)', async () => {
     const theLab = await lab(NAME)
     const result = theLab.render(tone(), {})
     const out = tap(result, 'ring')
     expectWritten(under(out, 440), '3.0 dB')
     expectWritten(under(out, 340), '6.0 dB')
     expectWritten(under(out, 540), '6.0 dB')
-    expectWritten(Math.abs(gainToDb(rms(out) / rms(tap(result, 'in')))), 'less than 0.01 dB')
+    expectWritten(Math.abs(gainToDb(rms(out) / rms(tap(result, 'in')))), 'less than 0.001 dB')
   })
 
   it('at Width 1 the two sides are a quarter of a cycle apart: as loud as each other, and 3.0 dB quieter summed to one speaker (claim ring-width)', async () => {
@@ -610,7 +639,10 @@ describe('tremolo and ring modulation', () => {
 
   it('Second on Octave adds a pair at 240 Hz and 640 Hz, 2.5 dB under the first pair (claim ring-second)', async () => {
     const theLab = await lab(NAME)
-    const out = tap(theLab.render(tone(), { ringMix: 1, second: 2 }), 'ring')
+    const result = theLab.render(tone(), { ringMix: 1, second: 2 })
+    const out = tap(result, 'ring')
+    // The two gains' squares add up to 1: the level holds.
+    expect(Math.abs(gainToDb(rms(out) / rms(tap(result, 'in'))))).toBeLessThan(0.01)
     expectWritten(loudestHz(out, 200, 280).hz, '240 Hz')
     expectWritten(loudestHz(out, 600, 680).hz, '640 Hz')
     expectWritten(lineDb(out, 340) - lineDb(out, 240), '2.5 dB')
@@ -633,19 +665,26 @@ describe('tremolo and ring modulation', () => {
     expectWritten(onChords.hi, '100.3 Hz')
   })
 
-  it('reads both devices rightly: each worked out again is less than −120 dB from what the device wrote, in every mode, with every wave, on every loop (claim rebuilt-same)', async () => {
+  it('reads both devices rightly: each worked out again reads −140 dB from what the device wrote, the floor of the reading, in every mode, with every wave, on every loop (claim rebuilt-same)', async () => {
     const theLab = await lab(NAME)
-    const tried: Record<string, number>[] = [
+    // The two devices do not hear each other, so one render tries a setting of each.
+    const tremolos: Record<string, number>[] = [
       {},
       { mode: 1, shape: 1, depth: 0.8, drift: 1 },
       { mode: 2, shape: 2, rate: 7, crossover: 300, smooth: 0.5, phase: 120 },
       { mode: 3, shape: 3, rate: 0.5, mix: 0.6 },
+      {},
+      {},
+    ]
+    const rings: Record<string, number>[] = [
+      {},
       { wave: 1, second: 1, width: 1, ringMix: 1, lowCut: 200, tone: 4000 },
       { wave: 2, second: 3, frequency: 3000, ringDrift: 1 },
       { wave: 3, frequency: 250, ringMix: 0.8, width: 0.4 },
       { wave: 3, second: 2, frequency: 2, width: 1, ringMix: 0.7 },
       { frequency: 9, second: 2, width: 0.6 },
     ]
+    const tried = tremolos.map((values, index) => ({ ...values, ...rings[index] }))
     for (const id of [
       'chords',
       'pad',
@@ -661,8 +700,8 @@ describe('tremolo and ring modulation', () => {
       const source = await benchSource(id, LOOP)
       for (const values of tried) {
         const { tremoloRebuilt, ringRebuilt } = theLab.render(source, values).checks
-        expectWritten(tremoloRebuilt!, 'less than −120 dB')
-        expectWritten(ringRebuilt!, 'less than −120 dB')
+        expectWritten(tremoloRebuilt!, '−140 dB')
+        expectWritten(ringRebuilt!, '−140 dB')
       }
     }
   })
@@ -714,12 +753,12 @@ describe('tremolo and ring modulation', () => {
     expectWritten(travel(await played(theLab, 'shimmer', { mode: 0 }), 'tremolo'), '15.9 dB')
   })
 
-  it('Pan moves a line from side to side: each side travels more than 10 dB while the two together travel less than 0.5 dB (claim way-pan)', async () => {
+  it('Pan moves a line from side to side: each side travels 15.2 dB while the two together travel less than 0.001 dB (claim way-pan)', async () => {
     const theLab = await lab(NAME)
     const result = await played(theLab, 'pan')
-    expectWritten(travel(result, 'tremolo', 0), 'more than 10 dB')
-    expectWritten(travel(result, 'tremolo', 1), 'more than 10 dB')
-    expectWritten(travel(result, 'tremolo'), 'less than 0.5 dB')
+    expectWritten(travel(result, 'tremolo', 0), '15.2 dB')
+    expectWritten(travel(result, 'tremolo', 1), '15.2 dB')
+    expectWritten(travel(result, 'tremolo'), 'less than 0.001 dB')
   })
 
   it('a little of the ringing sound over a pad leaves its level less than 0.1 dB from where it was (claim way-halo)', async () => {
@@ -730,11 +769,11 @@ describe('tremolo and ring modulation', () => {
     expect(tap(result, 'ring').some((value, i) => value !== tap(result, 'wet')[i])).toBe(true)
   })
 
-  it('a slow carrier at full Width is a pan: each side travels more than 25 dB while the two together travel 2.1 dB (claim way-sides)', async () => {
+  it('a slow carrier at full Width is a pan: each side travels 30 dB while the two together travel 2.1 dB (claim way-sides)', async () => {
     const theLab = await lab(NAME)
     const result = await played(theLab, 'sides')
-    expectWritten(travel(result, 'ring', 0), 'more than 25 dB')
-    expectWritten(travel(result, 'ring', 1), 'more than 25 dB')
+    expectWritten(travel(result, 'ring', 0), '30 dB')
+    expectWritten(travel(result, 'ring', 1), '30 dB')
     expectWritten(travel(result, 'ring'), '2.1 dB')
     expectWritten(Math.abs(levelOf(result, 'ring') - levelOf(result, 'in')), 'less than 0.1 dB')
   })
@@ -750,6 +789,12 @@ describe('tremolo and ring modulation', () => {
     expectWritten(lineDb(out, 440) - lineDb(out, 460), '4.1 dB')
     expectWritten(lineDb(out, 440) - lineDb(out, 380), '14.6 dB')
     expectWritten(lineDb(out, 440) - lineDb(out, 500), '14.6 dB')
+    // With Shape on Sine at the same Rate there is one pair of lines and no more.
+    const sine = tap(theLab.render(tone(), { ...values, shape: 0 }), 'tremolo')
+    expect(lineDb(sine, 440) - lineDb(sine, 420)).toBeLessThan(7)
+    for (const hz of [400, 380, 480, 500]) {
+      expect(lineDb(sine, 440) - lineDb(sine, hz)).toBeGreaterThan(100)
+    }
   })
 
   it('the Ring at Ring Mix 0.5 stands the peaks of the mix 3.8 dB taller while its level moves less than 0.5 dB (claim fault-peaks)', async () => {
@@ -775,7 +820,8 @@ describe('tremolo and ring modulation', () => {
 
   it('the Tremolo oscillator stands still in a silence: on single clicks a second apart it turns for 10 % of the loop (claim fault-sleep)', async () => {
     const theLab = await lab(NAME)
-    const phase = tap(theLab.render(await benchSource('clicks', LOOP), {}), 'lfoPhase')
+    const clicks = await benchSource('clicks', LOOP)
+    const phase = tap(theLab.render(clicks, {}), 'lfoPhase')
     let moved = 0
     for (let k = 1; k < phase.length; k += 1) if (phase[k] !== phase[k - 1]) moved += 1
     expectWritten((100 * moved) / phase.length, '10 %')
@@ -784,6 +830,15 @@ describe('tremolo and ring modulation', () => {
     let still = 0
     for (let k = 1; k < turning.length; k += 1) if (turning[k] === turning[k - 1]) still += 1
     expect(still).toBe(0)
+    // The Ring on the same clicks rests too, and catches up: each click comes out as large as
+    // a carrier that never stopped would make it. The carrier starts on its crest, a quarter
+    // of a cycle in (ring.h), and the kept pass of the loop is the second.
+    const hz = 100.3
+    const rung = tap(theLab.render(clicks, { frequency: hz, ringMix: 1 }), 'ring')
+    const free = (n: number) => Math.sin(2 * Math.PI * (0.25 + (hz * (LOOP + n)) / RATE))
+    for (const n of [seconds(2), seconds(3)]) {
+      expect(rung[n]! / rung[seconds(1)]!).toBeCloseTo(free(n) / free(seconds(1)), 3)
+    }
   })
 
   // ---------------------------------------------------------------------------------------
