@@ -1,0 +1,204 @@
+{
+  "tile": {
+    "tap": "out",
+    "picture": {
+      "taps": ["gate", "envelope"],
+      "view": "wave"
+    }
+  },
+  "sets": {
+    "tone": {
+      "label": "A tone that never stops",
+      "tap": "tone",
+      "values": {
+        "toPitch": 0
+      }
+    },
+    "switched": {
+      "label": "Switched by the key",
+      "tap": "gated",
+      "values": {
+        "toPitch": 0
+      }
+    },
+    "shaped": {
+      "label": "Shaped by an envelope",
+      "tap": "note",
+      "values": {
+        "toPitch": 0
+      }
+    },
+    "early": {
+      "label": "Let go early",
+      "tap": "note",
+      "values": {
+        "hold": 0.1,
+        "attack": 0.4,
+        "toPitch": 0
+      }
+    },
+    "pluck": {
+      "label": "A plucked note",
+      "values": {
+        "attack": 0.002,
+        "decay": 0.6,
+        "sustain": 0,
+        "release": 0.3,
+        "toPitch": 0
+      }
+    },
+    "pad": {
+      "label": "A pad that swells",
+      "values": {
+        "pitch": 110,
+        "attack": 1.2,
+        "decay": 1,
+        "sustain": 0.8,
+        "release": 1.5,
+        "rate": 4,
+        "toPitch": 8
+      }
+    },
+    "organ": {
+      "label": "Keys that speak at once",
+      "values": {
+        "attack": 0.005,
+        "decay": 0.01,
+        "sustain": 1,
+        "release": 0.05,
+        "toPitch": 0
+      }
+    },
+    "vibrato": {
+      "label": "Vibrato",
+      "values": {
+        "attack": 0.1,
+        "sustain": 0.8,
+        "rate": 5.5,
+        "toPitch": 30
+      }
+    },
+    "sweep": {
+      "label": "A filter that sweeps",
+      "values": {
+        "pitch": 110,
+        "sustain": 0.8,
+        "rate": 0.5,
+        "toPitch": 0,
+        "resonance": 3,
+        "lfoAmount": 50
+      }
+    },
+    "trill": {
+      "label": "A trill",
+      "values": {
+        "sustain": 0.8,
+        "rate": 6,
+        "shape": 2,
+        "toPitch": 100
+      }
+    },
+    "slow": {
+      "label": "One sweep a note",
+      "values": {
+        "pitch": 110,
+        "sustain": 0.8,
+        "release": 1.2,
+        "rate": 0.25,
+        "toPitch": 0,
+        "cutoffHz": 1500,
+        "resonance": 4,
+        "lfoAmount": 60
+      }
+    },
+    "steps": {
+      "label": "Random steps on the cutoff",
+      "values": {
+        "pitch": 110,
+        "sustain": 0.8,
+        "rate": 8,
+        "shape": 3,
+        "toPitch": 0,
+        "resonance": 5,
+        "lfoAmount": 50
+      }
+    },
+    "touch": {
+      "label": "The note opens its own filter",
+      "values": {
+        "pitch": 110,
+        "attack": 0.002,
+        "decay": 0.5,
+        "sustain": 0.2,
+        "toPitch": 0,
+        "cutoffHz": 250,
+        "resonance": 3,
+        "envAmount": 80
+      }
+    },
+    "throb": {
+      "label": "A level that throbs",
+      "values": {
+        "sustain": 0.8,
+        "rate": 3,
+        "shape": 1,
+        "toPitch": 0,
+        "depth": 0.7
+      }
+    },
+    "click": {
+      "label": "A click at each end",
+      "values": {
+        "pitch": 55,
+        "attack": 0.001,
+        "decay": 0.01,
+        "sustain": 1,
+        "release": 0.01,
+        "toPitch": 0,
+        "cutoffHz": 20000,
+        "resonance": 0.71
+      }
+    },
+    "short": {
+      "label": "A note that never arrives",
+      "values": {
+        "hold": 0.1,
+        "attack": 1,
+        "toPitch": 0
+      }
+    },
+    "overlap": {
+      "label": "A release longer than the gap",
+      "values": {
+        "hold": 3.5,
+        "release": 3,
+        "toPitch": 0
+      }
+    },
+    "fast": {
+      "label": "A wobble too fast to follow",
+      "values": {
+        "sustain": 0.8,
+        "rate": 20,
+        "toPitch": 100
+      }
+    },
+    "apart": {
+      "label": "Two LFOs at one rate",
+      "values": {
+        "sustain": 0.8,
+        "rate": 2,
+        "toPitch": 0,
+        "resonance": 4,
+        "lfoAmount": 40,
+        "depth": 0.7
+      }
+    }
+  },
+  "defaults": {
+    "values": {
+      "cutoffHz": 1000,
+      "resonance": 0.7071
+    }
+  }
+}
