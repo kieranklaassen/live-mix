@@ -269,7 +269,8 @@ What a lab's test holds, in this order:
   control moving at least one tap of the main path. A tap that is rightly flat goes in
   `{ quiet: [...] }`; an audio tap that starts on an event by design (a note, a jump at the
   loop's first sample) goes in `{ steps: [...] }`.
-- The second is `expectBuild(theLab, source)`: the `build` control has a choice a step; every
+- The second is `expectBuild(theLab, source, values?)` (`values` turns controls for every step,
+  for a piece that does nothing at the lab's starting values): the `build` control has a choice a step; every
   step changes a built tap and leaves the main path as it was; every built tap is finite at
   every step and loops; and at every step the compared step is within the lab's bound of what
   the engine made.
@@ -674,7 +675,8 @@ at a time, with Back, Add and "Hear it so far".
 
 **`StageBlock`** is one stage of the device: `tap` (the lab's tap the stage is read at),
 `title`, `n` (its number, as the signal-flow picture prints it under its block). Its children
-are the purpose and a figure. Three slots, each of which a stage may leave out: `equation`,
+are the purpose and a figure. Four slots, in the order they are shown, each of which a stage
+may leave out: `equation`, `readback` (the equation read back term by term against the figure),
 `listing`, and `listen` (the words on its button). Under the title the stage says where it
 comes from, as the lab says it. A stage whose tap is sound gets the button; a stage whose tap
 is not says what kind of signal it is.
@@ -684,6 +686,7 @@ is not says what kind of signal it is.
   The detector listens to a copy of the sound with the lows taken out.
 
   <M slot="equation" block t={String.raw`\sig{ctl}{L} = 10 \log_{10} \at{measure-L140}{p}`} />
+  <Fragment slot="readback">Read it against the picture: the level is ten times the logarithm of the power.</Fragment>
   <Listing slot="listing" path="cpp/devices/ambient-comp/ambient_comp.h" from="void step_gain(float power) {" to="const float over = level - threshold_.next();" name="measure" />
   <Fragment slot="listen">Hear what the detector hears</Fragment>
 </StageBlock>
@@ -947,7 +950,8 @@ names. On 3, change nothing and run again later: someone else's file is half wri
 What it reads from the environment:
 
 - `SITE_SLOTS` names a folder of locks shared by everyone working in one tree. With it the
-  heavy steps (lab, test, build, browser) run one at a time and the others two at a time. A
+  heavy steps (lab, test, build, browser) run one at a time, or as many as `SITE_HEAVY_SLOTS`
+  says, and the others two at a time. A
   lock is let go when its step ends, however it ends.
 - `SITE_ONLY_LESSON` is set by the script itself: it is what makes the build hold one lesson,
   in `site/.lesson/<id>/`, served at port 4321 plus the lesson's number in the map.

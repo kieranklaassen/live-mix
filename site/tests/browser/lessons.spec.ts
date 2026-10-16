@@ -173,8 +173,8 @@ function longCases(lesson: string) {
       )
       await expect(page.locator('.stage-block-listen button[aria-pressed="true"]')).toHaveCount(1)
     }
-    // A stage that is not sound has no button.
-    await expect(said.locator('button')).toHaveCount(0)
+    // A stage that is not sound has no button to hear it.
+    await expect(said.locator('.stage-block-listen button')).toHaveCount(0)
     for (const words of await said.locator('.stage-block-kind').allTextContents()) {
       expect(words.trim()).not.toBe('')
     }

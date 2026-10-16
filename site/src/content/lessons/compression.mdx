@@ -1,14 +1,16 @@
 ---
 title: Compression
 family: dynamics
-summary: A compressor turns the loud parts of a sound down and leaves the quiet parts alone. This lesson runs the engine's own one sample at a time and reads every stage out of it as it works.
+summary: A compressor is a hand on a fader that never tires. It turns the loud parts down, so that everything can come up. This lesson says why anyone wanted that, builds one a piece at a time, then opens the engine's own and reads every stage out of it as it works.
+long: true
+opening: { input: in, output: out }
 lab: compression
 devices: [ambient-comp]
 bench:
   device: ambient-comp
   params: { threshold: -24, ratio: 4, knee: 6, attack: 10, release: 0.3, tails: 1 }
   note: The plate opens on the settings this lesson starts from, not on the device's own defaults, which are slower and gentler (ratio 2, attack 300 ms, release 2 s, tails held).
-sources: [drums, guitar, chords, saw, noise, sine]
+sources: [drums, bass, guitar, chords, pad, mix, saw, noise, sine]
 seconds: 4
 files:
   - cpp/devices/ambient-comp/ambient_comp.h
@@ -16,155 +18,762 @@ files:
   - cpp/kit/math.h
 ---
 
-A compressor is a hand on a fader that never tires. It listens to how loud the sound is, and when that passes a level you chose, it pulls the fader down by an amount you also chose. When the sound drops again it lets the fader back up. Everything else about a compressor is detail on three questions: **how loud is "loud"**, **how far down**, and **how fast**.
+<Part id="why" title="Music is louder and quieter than the place it has to fit.">
 
-The signal splits in two. One copy is the sound itself, which only ever gets multiplied by a gain. The other copy, the *side chain*, is never heard: it exists to work out what that gain should be. These are its stages, in the order the signal meets them. Press Play, then Listen on any stage that is sound.
+A guitar chord is struck and left to ring. The strike is the loudest thing in the bar. Two seconds later the same chord is still sounding, far quieter, and that last part of the ring is often the part worth hearing.
 
-<Stages taps="in sidechain levelOnePole level target reduction gain out" />
+This page has a meter for how loud a sound is. It reads in decibels below full scale, the largest number a sample can be, and it measures the way the compressor's own detector will; part 5 says how. On the two chords of the loop below it reads <Claim id="chords-span">−17.7 dB at the strike and −51.7 dB at the end of the ring, which is 34 dB apart</Claim>.
 
-The loop goes in grey and comes out red. Pull the threshold down and watch the loud hits shrink while the quiet ones between them stay where they were.
+<Still
+  taps="meterIn"
+  set="played"
+  caption="Four seconds, two chords. Each strike stands at the top of the picture, and the ring falls away from it for two seconds."
+/>
+
+Listen to them first. <Hear set="played" label="Hear the chords as played" />
+
+Then the recording leaves the room it was made in. It is played in a car, or in a kitchen with the tap running. Each of those places has a floor and a ceiling. Under the floor, a quiet sound is lost in the noise of the place. Over the ceiling, the speaker distorts or the converter runs out of numbers. The distance between the quietest and the loudest moment of a piece of music is its dynamic range, and a performance often has more of it than the listening place has room for.
+
+So here is the question this lesson answers. How do you bring the end of the ring up without the strike going through the ceiling?
+
+### The obvious answer fails
+
+Turn it all up. A fader multiplies every sample by one number, so the end of the ring comes up, and the strike comes up by exactly as much. Here the chords are turned up until the loop measures <Claim id="fader-over">10 dB louder. The loudest sample of the strike now stands more than 4 dB over full scale, and the strike and the end of the ring are still 34 dB apart</Claim>. A converter has no number larger than full scale. Whatever passes it is cut off flat, which is distortion.
+
+<Still
+  taps="in out"
+  set="fader"
+  caption="The chords as played, and turned up. The numbers at the side count in full scales: the strikes of the output pass 1, the most a converter can carry."
+/>
+
+Turn your own volume down first: it is loud, and the strikes pass full scale. <Hear set="fader" label="Hear it turned up" />
+
+Nothing was gained. The ring is louder and the strike is over the ceiling. The distance between them is what it was.
+
+### First there was a hand
+
+The first answer was a person. An engineer sat with a hand on the fader and the song in their head. Just before a loud phrase the hand came down a little, and in the quiet ones it went back up. This is called riding the gain. Done well, nobody hears it: they hear a player who is always there.
+
+A hand has limits. It can follow a phrase but not a syllable, and it cannot follow a drum hit at all. It tires, and it does not do the same thing twice.
+
+### Then the hand was built
+
+So the hand was built as a machine. It listens to the level, and when the level is high it turns the sound down by itself. When the level falls it lets the sound back up. That is all a compressor is.
+
+<Still
+  taps="meterIn gain"
+  set="evened"
+  caption="The level of the chords, and the gain the engine's compressor puts on them. At each strike the level jumps up and the gain drops. As the ring dies away the gain climbs back."
+/>
+
+Each control of a compressor answers one of three questions that the engineer answered without thinking.
+
+- **How loud is loud?** Below some level the hand stays still. Threshold sets that level. What "level" means for a sound that swings both ways thousands of times a second is a question of its own, and stage 3 of part 5 answers it.
+- **How far down?** Once the sound is over the line, some of the excess is taken away. Ratio says how much, and Knee says whether that begins suddenly or gently.
+- **How fast?** Attack is how quickly the hand moves when the sound gets loud. Release is how quickly it lets go again.
+
+### And then everything could come up
+
+There is a second half to the idea, and it is the reason compression ended up on nearly everything. Once the loud part is lower, the whole sound can be turned up without the loud part reaching the ceiling. Here are the same chords through the engine's compressor, followed by the same 10 dB that put them over full scale before.
+
+<Still
+  taps="meterIn meterOut"
+  set="evened"
+  caption="The level going in and the level coming out. The end of each ring has come up a long way. The strike has hardly moved."
+/>
+
+Measured on that render, <Claim id="evened-lift">the end of the ring comes out 9.2 dB higher than it went in and the strike 1.5 dB higher. The two are now 26.3 dB apart, and the loudest sample is 1 dB under full scale</Claim>. The fader alone gave the same lift to both, and put the strike over full scale doing it.
+
+Compare it with the two before. <Hear set="evened" label="Hear it compressed, then turned up" />
+
+<Predict
+  question="The compressor is working hard on those chords, and its Make-up is at 0 dB. Is what comes out louder than what went in, quieter, or the same?"
+  choices={['Louder', 'Quieter', 'The same']}
+>
+
+Quieter. A compressor only turns down. With Make-up at 0 dB and the rest of that setting as it was, the chords come out <Claim id="quieter">11.7 dB quieter</Claim> than they went in, measured over the whole loop, and no sample is larger than it was.
+
+Everything that comes out of a compressor louder was made louder by a plain gain that follows it. That gain is called make-up, because it makes up for what was taken. The compressor's part is to change how far the sound can come up before its loud moments reach the ceiling.
+
+<Controls ids="makeup" />
+
+<Trace taps="meterIn meterOut" min={-70} max={0} unit="dB">
+  The level going in and the level coming out, on whichever loop is playing. Try Make-up from 0 dB
+  upwards, and notice the whole of the second line rise by that much while its shape stays as the
+  compressor left it.
+</Trace>
+
+</Predict>
+
+That second job is what the compressor in this engine is tuned for. It is made for long, slow sounds whose tails should stay in the picture. This lesson starts it faster and firmer than it starts by itself, so that each stage is easy to see. Part 9 puts the two beside each other.
+
+</Part>
+
+<Part id="picture" title="Level in along the bottom, level out up the side.">
+
+One picture holds most of what a compressor does. Read it like this. Pick a level on the bottom edge, go straight up to the line, then across to the left edge: that is how loud it comes out. The diagonal is a wire, where a sound comes out as loud as it went in. A compressor follows the diagonal up to the threshold and then leans over. How far it leans is the ratio.
 
 <Controls ids="threshold ratio" />
 
-<Wave taps="in out">
-  The loop before the compressor (grey) and after it (red). Where only red shows, the two are the same: the compressor left that part alone.
-</Wave>
-
-Under each stage is a mark saying where it comes from. *Read from the running device* means the lab reached into the Ambient Compressor's own state while it ran. *Written for this lesson* means the device works that value out and throws it away, so the lab worked it out again from the device's numbers; a check further down holds the two together.
-
-## Stage by stage
-
-### 1. The side chain ignores the lows
-
-Low frequencies carry most of the energy in music. A kick drum or a sub drone would otherwise decide the gain for everything else, and the whole mix would duck on every beat. So the first thing the side chain does is high-pass itself: a state-variable filter at 12 dB an octave (<Src path="cpp/kit/filters.h">the kit's `Svf`</Src>, with <M t={String.raw`Q = 1/\sqrt 2`} />, the flattest setting with no bump at the corner).
-
-This filter is in the detector's path only. The lows are still in the sound you hear; they just don't get a vote.
-
-<Controls ids="scLowCut" />
-
-<Spectrum taps="in sidechain" uprights="scLowCut" min={-90} max={-10}>
-  The spectrum of the loop (grey) and of what the detector hears (red). Below the dashed line the detector's copy falls away at 12 dB an octave. Move "Ignore below" up with the drums playing and the kick stops driving the gain.
-</Spectrum>
-
-### 2. How loud is it? Mean power, smoothed
-
-A sample is not loud or quiet; it's a number that swings through zero thousands of times a second. Loudness is a property of a stretch of signal. The usual measure is the *root mean square*: square each sample (so negative and positive both count), average, and take the root. The compressor skips the root, because the next stage takes a logarithm anyway and a root is just a factor of two in decibels.
-
-The two channels are linked: the device takes the mean of their squares, <M t={String.raw`\tfrac12(l^2 + r^2)`} />, so one gain is applied to both sides and the stereo image never moves.
-
-For "average" it uses the cheapest averager there is, a one-pole low-pass on the power:
-
-<M block t={String.raw`p[n] = x^2[n] + a\,\bigl(p[n-1] - x^2[n]\bigr), \qquad a = e^{-1/(\tau f_s)}`} />
-
-Here <M t={String.raw`\tau`} /> is 30 ms and <M t={String.raw`f_s`} /> is the sample rate. Each new sample of power moves the average a small step towards itself; <M t="a" /> says how much of the old average survives. In the code this is <Src path="cpp/kit/filters.h">`OnePole::lowpass`</Src>, one line: `state = x + (state - x) * a`.
-
-One pole is not enough, and the reason is worth seeing. The square of a sine at frequency <M t="f" /> is a constant plus a cosine at <M t="2f" />: the power *wobbles* at twice the frequency of the sound. A single 30 ms pole lets a little of that wobble through, and a gain that wobbles at 110 Hz is no longer a fader, it's a modulator: it bends the wave and adds harmonics. So the device runs **two** 30 ms poles in a row. Choose the saw as the source to see it: it is the lowest note here, at 110 Hz, so its power wobbles at 220 Hz.
-
-<Trace taps="levelOnePole:alt level:ctl" from={3} span={0.06} unit="dB">
-  Sixty milliseconds of the level, in decibels: after the first pole (green) and after the second (blue). With the saw as the source the green line ripples at twice the note's frequency and the blue one is nearly flat.
-</Trace>
-
-For a 55 Hz sine, the lowest A of a bass, the wobble after one pole is <Claim id="ripple-one-pole">0.42 dB from trough to crest</Claim>; after the second it is <Claim id="ripple-two-poles">0.02 dB</Claim>, which is 52 dB under the level it rides on. That is why even the fastest attack cannot bend a bass note.
-
-Then the power becomes a level in decibels, <M t={String.raw`L = 10\log_{10} p`} />:
-
-<Trace taps="level" lines="threshold" min={-60} max={0} unit="dB">
-  The level the detector reads across the whole loop, with the threshold as a dashed line. Whatever rises above the line is what the compressor will act on.
-</Trace>
-
-Decibels are the right unit from here on because hearing works in ratios: the threshold, the ratio and the knee are all statements about ratios of level. One thing to know when you set a threshold against this detector: a full-scale sine on both channels reads <Claim id="sine-reads">−3 dB</Claim>, not 0, because the mean of <M t={String.raw`\sin^2`} /> is one half.
-
-### 3. How far down? The curve
-
-Now the compressor knows the level <M t="L" />. The curve turns it into a gain change <M t="G" />, in decibels, zero or below. With <M t={String.raw`x = L - T`} /> the distance over the threshold <M t="T" />, ratio <M t="R" /> and knee width <M t="W" />:
-
-<M block t={String.raw`s = \frac{1}{R} - 1 \qquad\qquad G(x) = \begin{cases} 0 & x \le -W/2 \\[4pt] s\,\dfrac{(x + W/2)^2}{2W} & -W/2 < x < W/2 \\[8pt] s\,x & x \ge W/2 \end{cases}`} />
-
-The slope <M t="s" /> is the heart of it. A ratio of 4:1 means that for every 4 dB the input rises over the threshold, the output may rise 1 dB; the other 3 dB are taken away, so <M t={String.raw`s = \tfrac14 - 1 = -\tfrac34`} /> dB of gain per dB over. At 1:1 the slope is 0 and nothing happens. As the ratio grows the slope approaches −1 and the output stops rising at all, which is a limiter (<Lesson id="limiting" />).
-
-A hard corner at the threshold is audible: a sound hovering around it flips between two behaviours. The *knee* replaces the corner with a parabola that starts half a knee below the threshold and ends half a knee above, chosen so that its value and its slope meet the straight lines at both ends. In the code this is the `if` ladder at the top of <Src path="cpp/devices/ambient-comp/ambient_comp.h">`step_gain`</Src>, term for term.
-
-<Controls ids="threshold ratio knee" />
-
-<Curve taps="curve curveFormula" diagonal follow="level" uprights="threshold" xTitle="level in, dB" yTitle="level out, dB" min={-60} max={0} height={320}>
-  Level out against level in. The dots are *measured*: the lab plays a steady tone at each level through a second copy of the device and reads where the gain settles. The dashed line is the formula above. The grey diagonal is no compression. While the loop plays, the red dot rides the curve at the level the detector reads right now.
+<Curve
+  taps="curve"
+  diagonal
+  follow="level"
+  uprights="threshold"
+  xTitle="level in, dB"
+  yTitle="level out, dB"
+  min={-60}
+  max={0}
+  height={320}
+>
+  Level out against level in, measured on the device: the lab plays a steady tone at each level
+  through a second copy of it and reads where the gain settles. Try Ratio at 1, and notice the line
+  lie on the diagonal. While the loop plays, a dot rides the line at the level the detector reads.
 </Curve>
 
-<Check id="curveError" />
+Here is a sentence to check against the picture. Leave the two controls where the lesson starts them, and find −12 dB on the bottom edge. Go up to the line and across. It comes out at <Claim id="curve-reads">−21 dB</Claim>. That tone went in 12 dB over the threshold and comes out <Claim id="ratio-4">3 dB over</Claim> it, and that is what a ratio of 4 means: of every 4 dB over the line, 1 dB is let through.
 
-At a ratio of 4 with no knee, a tone 12 dB over the threshold comes out <Claim id="ratio-4">3 dB over it</Claim>. Below the bottom of the knee the gain is <Claim id="below-knee">exactly 0 dB</Claim>: the compressor is not "almost off", it is off.
+Turn Ratio to 1 and nothing happens at all. The higher the ratio, the flatter the line. A line that is completely flat lets nothing get louder than the threshold, which is a limiter, the subject of <Lesson id="limiting" />.
 
-### 4. How fast? Attack and release
+Notice what the picture leaves out: time. It says where the gain ends up for a level that holds still. It does not say how the gain gets there, and a played sound does not hold still. Most of what a compressor does to a played sound is in the part this picture leaves out, and that is where the rest of the lesson goes.
 
-If the gain jumped to whatever the curve asked for, every tick, it would follow the level's every twitch and the sound would be crushed flat and distorted. A compressor is musical because it is *slow*, and slow in two different ways: how quickly it clamps down when the level rises (attack) and how quickly it lets go when the level falls (release).
+</Part>
 
-Both are one more one-pole smoother, this time on the gain change in decibels, with a different time constant depending on direction:
+<Part id="uses" title="Five kinds of sound, five different jobs.">
 
-<M block t={String.raw`G_k = G^{\text{target}}_k + c\,\bigl(G_{k-1} - G^{\text{target}}_k\bigr), \qquad c = \begin{cases} e^{-1/(\tau_{\text{attack}} f_c)} & \text{target below } G_{k-1} \\ e^{-1/(\tau_{\text{release}} f_c)} & \text{otherwise} \end{cases}`} />
+The same controls do different work depending on the shape of what goes in. Each card below shows a sound and what a sensible setting does to it, lists that setting, and plays it. A card's button moves the whole page to its setting, so every figure further down shows it too, and the play bar offers the way back to where you were.
 
-A time constant here means *63 % of the way in that time*: after one attack time the gain has covered 63 % of the distance to where the curve wants it, after two, 86 %, after three, 95 %. It never arrives; it gets closer by the same fraction every tick. <Src path="cpp/kit/math.h">`time_to_coeff`</Src> is that exponential.
+<Uses>
+  <Use title="Drums" set="drums">
+    <Still
+      slot="picture"
+      taps="in out"
+      set="drums"
+      from={0}
+      span={2}
+      caption="Two seconds of the loop. The front of each hit comes out as tall as it went in, with less behind it."
+    />
 
-Note the rate <M t="f_c" />. This smoother does not run on every sample. From the decibel conversion onward the device works on a *control clock*, once every 16 samples, 3,000 times a second at 48 kHz. Logarithms and powers are expensive and the gain of a compressor has no business changing faster than that.
+    Hits are tall and short, and what rings after them is much quieter. The compressor is set to arrive just after the front of each hit. The front passes, the body behind it is held down, and the make-up lifts the whole by a fixed amount. On this loop the gain goes <Claim id="use-drums">9 dB down at its deepest and comes back to less than 0.5 dB down</Claim> before the next hit.
 
-Smoothing in decibels, not on the linear gain, is a choice. It makes a release from −12 dB take as long as one from −3 dB, which is how a hand on a fader with a decibel scale behaves, and it is why the reduction traces below are clean exponentials.
+  </Use>
+  <Use title="Bass" set="bass">
+    <Still
+      slot="picture"
+      taps="meterIn gain"
+      set="bass"
+      caption="The level of the bass line, and the gain the compressor puts on it. The gain is lowest under the loudest notes."
+    />
 
-<Controls ids="attack release tails" />
+    A bass line should sit at one level under everything else, and it seldom does: some notes come out of the instrument louder than others. With every note over the threshold, the compressor leans hardest on the loudest. Over this loop the gain moves <Claim id="use-bass">between 0.8 dB and 6.3 dB down</Claim>, which pushes the loud notes towards the quiet ones.
 
-<Trace taps="target:alt reduction:out" min={-24} max={0} unit="dB">
-  What the curve asks for at each instant (green) and where the gain actually is (red), in decibels of reduction. A short attack makes red follow green down closely; a long one lets each hit through before the gain has moved. A short release lets red spring back between hits; a long one holds it down across them.
-</Trace>
+  </Use>
+  <Use title="A line played by hand" set="line">
+    <Still
+      slot="picture"
+      taps="meterIn gain"
+      set="line"
+      caption="The level of a guitar line, and the gain on it. The gain sits a little under the top throughout, and dips at each note."
+    />
 
-<Check id="rebuilt" />
+    A part played by hand is uneven from phrase to phrase, and evening it out is the job the hand on the fader did. A gentle ratio and a wide knee take a little off all the time, and more when the player digs in: <Claim id="use-line">between 2.5 dB and 4.9 dB</Claim> on this line. If you can hear it working, it is doing too much.
 
-That check is the lab's proof that it has understood the device. It takes the device's own detector power on every tick, computes the level, the curve and the attack and release with the formulas above, and compares with the reduction the device itself stored. On the drums at the starting settings the two differ by <Claim id="rebuilt-zero">less than 0.001 dB</Claim>.
+  </Use>
+  <Use title="The whole mix" set="mix">
+    <Still
+      slot="picture"
+      taps="meterIn gain"
+      set="mix"
+      caption="The level of a whole mix, and the gain on it. The gain line hardly moves: little is asked of the compressor here."
+    />
 
-There is a catch with attack times that the device's header is careful about. Attack is the time constant of *this* smoother, but the detector in stage 2 needs time of its own to notice that the level has risen. With the attack at its shortest, 10 ms, a tone that starts from silence takes about <Claim id="attack-floor">39 ms</Claim> to bring down 63 % of its final reduction; at an attack of 100 ms, about <Claim id="attack-100">134 ms</Claim>. The detector adds roughly 30 ms to whatever you set. You can see it at the start of each drum hit:
+    Across a finished mix a compressor is asked for very little: a low ratio, a wide knee, slow times. When one part gets loud, everything gives way a little together, and separate parts start to move as one. Here the gain stays <Claim id="use-mix">between 1.5 dB and 2.2 dB down</Claim> for the whole loop.
 
-<Wave taps="in out" from={0} span={0.12}>
-  The first 120 ms of the loop. The front of the hit comes out as loud as it went in: the gain has not moved yet. Compressors on drums are often set slow on purpose for exactly this, to keep the crack and tame the body.
-</Wave>
+  </Use>
+  <Use title="Pads and tails" set="pad">
+    <Still
+      slot="picture"
+      taps="in out"
+      set="pad"
+      caption="A pad going in and coming out. It has no hits, only a slow swell, and it comes out a little smaller all the way along."
+    />
 
-**Tails** is this device's own addition. The Ambient Compressor was built for sounds that swell and die away over seconds, and a classic release pulls a dying tail back *up* as it fades, flattening the shape of the decay. In its Hold setting the device pauses the release whenever the level is falling by more than 1.5 dB a second, so a tail keeps its own shape; it tells by comparing the level with a one-second average of itself. This lesson starts on Release, the textbook behaviour, so the traces above are the classic ones. Switch to Hold with the guitar chords playing and watch the red line stop rising while each chord rings out.
+    A pad has no hits to catch. It has slow swells, and tails that should be left to die away at their own speed. This card is the engine's compressor close to the way it starts by itself: gentle, slow, and with Tails on Hold. The gain moves <Claim id="use-pad">between 4.1 dB and 4.6 dB down</Claim>, about half a decibel of travel in four seconds. On a sound this even, a slow compressor is close to a fixed gain. That is the point of it: as little movement as possible.
 
-### 5. Back to a gain, without zipper noise
+  </Use>
+</Uses>
 
-The reduction in decibels becomes a number to multiply by, <M t={String.raw`g = 10^{G/20}`} />. But it only changes once every 16 samples, and a gain that steps is a staircase multiplied onto the sound: at 3,000 steps a second that is a faint buzz, called *zipper noise*. So between ticks the device ramps the linear gain in a straight line: each tick it lands exactly on the last target and sets a per-sample step towards the new one. The price is that the gain is 16 samples, a third of a millisecond, behind. The sound itself is not delayed at all.
+These are places to start, not rules. The right setting is the one you stop noticing.
 
-<Trace taps="gain" min={-30} max={0} unit="dB">
-  The gain the device multiplies the sound by, read sample by sample from the device and shown in decibels.
-</Trace>
+</Part>
 
-### 6. Make-up and mix
+<Part id="build" title="Start with a wire. Add one piece. Listen. Add the next.">
 
-Compression only ever turns things down, so the result is quieter than the input. *Make-up* gain turns the compressed sound back up by a fixed amount. This is where compression earns its reputation for making things louder: pull the peaks down 9 dB, add 9 dB of make-up, and the peaks are where they were while everything quiet is 9 dB closer to them.
+The quickest way to understand a compressor is to make one. This part begins with something that does nothing and adds six pieces to it, one at a time. After each piece the lanes are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these lanes and plays "Hear it so far".
 
-*Mix* blends the compressed sound with the untouched input:
+Some of the steps are wrong on purpose. Hearing what is missing is how the next piece earns its place.
 
-<M block t={String.raw`\text{out} = \text{in}\cdot\bigl(1 - m + m\,g\,g_{\text{makeup}}\bigr)`} />
+<Build>
+  <Step title="Start with a wire">
+    What goes in comes out. In the code that is one multiplication, by a number called `applied`, and the number is 1. Every piece after this one is a way of deciding that number.
 
-Dry and wet are the same signal at different gains, so this is a plain linear crossfade; an equal-power one would add 3 dB half way. With the mix at 0 the output is <Claim id="mix-zero">the input, sample for sample</Claim>. Settings in between are *parallel compression*: the dry signal keeps its sharp peaks on top while a heavily squeezed copy fills in underneath.
+    Press "Hear it so far". It is the loop, untouched.
 
-<Controls ids="makeup mix" />
+    <Listing
+      path="site/labs/compression.cpp"
+      from="// A wire: what goes in comes out"
+      to="out[1] = right * applied; }"
+      name="wire"
+    />
 
-<Wave taps="in out" fit>
-  In and out again, with the height fitted to the louder of the two. Set the threshold to −40 dB, the ratio to 10, the make-up to +12 dB and the mix to 0.5 for parallel compression: the hits keep their height and the space between them fills up.
-</Wave>
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the sound so far. Notice that they are the same.
+    </Lanes>
 
-## What goes wrong
+  </Step>
+  <Step title="Teach it to measure" controls="scLowCut">
+    Before anything can be turned down, the build has to know how loud the sound is. One sample cannot say: it is a number on its way through zero. So the build squares each sample, which makes it positive, and smooths the squares, which gives a running average. Every <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="static constexpr int kControlPeriod = 16;">16 samples</Src> it reads that average off in decibels.
 
-**Pumping.** With a short release and a loud, regular sound (the drums here, release at 0.1 s, threshold at −40 dB), the gain dives on each hit and rushes back up in the gap, dragging the quiet sound between hits up with it. You hear the room, the noise and the tails *breathe* in time with the beat. Sometimes that's the effect you want. When it isn't: lengthen the release, raise the threshold, or raise "Ignore below" so the kick stops deciding.
+    The lows are taken out of the measured copy first, below the frequency that Ignore below sets, so that a kick drum does not decide everything. Part 5 goes through each of these in turn.
 
-**Distortion from being too fast.** If attack and release were shorter than one cycle of the wave, the gain would change within the cycle and reshape it. This device makes that impossible on purpose: its attack stops at 10 ms and its detector has those two 30 ms poles in front. Faster designs need a look-ahead delay to stay clean.
+    The sound is still untouched. There is a meter on the wire, and nothing reads it yet.
 
-**The first hit after silence.** A compressor that remembers its gain meets the next sound with whatever the last one left. This device forgets instead: after half a second of exact silence it rests, the reduction returns to 0 dB, and the detector is cleared. On silence its gain is <Claim id="silence">exactly 0 dB</Claim> and its output is exact silence.
+    <Listing
+      path="site/labs/compression.cpp"
+      from="// Measure the level: the mean of the two channels' squares"
+      to="std::log10(power) : AmbientComp::kFloorDb; }"
+      mark="power = rms[1].lowpass"
+      name="measure"
+    />
 
-**Louder is not better.** Make-up gain makes anything sound more exciting for a moment. Match the level by ear before deciding whether the compression helped.
+    <Lanes slot="picture" taps="in builtLevel built" ranges={{ builtLevel: [-60, 0] }}>
+      The sound going in, its level as the build measures it, and the sound so far. Try Ignore below
+      at its highest, and notice the level of the low hits drop while the sound stays as it was.
+    </Lanes>
 
-## What to try
+  </Step>
+  <Step title="Draw a line, and lean on what crosses it" controls="scLowCut threshold ratio">
+    Now the level is used. Threshold is a line across the level's lane. While the level is under it, nothing happens. For every decibel the level stands over it, this piece asks for part of a decibel less gain: at a ratio of 4, three quarters of one. A steady tone 12 dB over the threshold comes down <Claim id="build-corner">9.0 dB</Claim>, and with this piece taken out again it comes down by nothing.
 
-- Drums, threshold −30 dB, ratio 6. Sweep **attack** from 10 ms to 300 ms and listen to the front of each hit come back.
-- Same settings, sweep **release** from 0.1 s to 3 s. Short pumps; long turns the compressor into a slow level control that barely moves.
-- Guitar chords, **tails** on Hold and then Release. Watch the reduction trace while a chord dies away.
-- The saw, and the level figure in stage 2: this is the ripple the second pole is there to remove.
-- Noise, any settings: the level is constant, so the gain settles and stays. A compressor only does something interesting to a sound whose level changes.
-- Set **ratio** to 1. Every figure goes flat and the red wave covers the grey. A ratio of 1:1 is a wire.
+    <Listing
+      path="site/labs/compression.cpp"
+      from="// Threshold and ratio: of every dB the level stands over"
+      to="return over > 0.0f ? slope * over : 0.0f; }"
+      mark="return over > 0.0f"
+      name="corner"
+    />
+
+    The answer is in decibels, and a sound is turned down by multiplying it. So a second small function turns the one into the other, and walks the gain to its new value over the samples until the next reading.
+
+    <Listing
+      path="site/labs/compression.cpp"
+      from="// The reduction in dB becomes a number to multiply by."
+      to="gain_step = (gain_target - gain) * (1.0f / static_cast<float>(AmbientComp::kControlPeriod)); }"
+      name="aim"
+    />
+
+    Listen to it on the drums. The gain copies every twitch of the level: down on a hit, straight back up behind it. This is a compressor with no sense of time.
+
+    <Lanes
+      slot="picture"
+      taps="in builtLevel builtGain built"
+      ranges={{ builtLevel: [-60, 0], builtGain: [-24, 0] }}
+      lines={{ builtLevel: 'threshold' }}
+    >
+      The level with the threshold across it, and the gain the build puts on the sound. Try
+      Threshold lower, and notice the gain dip wherever the level crosses the dashed line.
+    </Lanes>
+
+  </Step>
+  <Step title="Round the corner" controls="scLowCut threshold ratio knee">
+    A sound whose level hovers about the threshold is turned down, let go and turned down again, because the corner at the threshold is sharp. The knee replaces the corner with a curve that begins half a knee under the threshold and ends half a knee over it. Far from the threshold nothing changes. Near it, the turning down begins sooner and more gently.
+
+    A tone exactly at the threshold was left alone by the corner. <Claim id="build-knee">With a knee of 6 dB at a ratio of 4 it now loses 0.56 dB</Claim>.
+
+    <Listing
+      path="site/labs/compression.cpp"
+      from="// The soft knee as ambient_comp.h writes it"
+      to="return slope * into * into / (2.0f * knee_db); } return 0.0f; }"
+      mark="return slope * into * into"
+      name="knee"
+    />
+
+    On the drums the change is small, because a hit passes through the knee in an instant. It matters on sounds that sit near the threshold for a long time.
+
+    <Lanes
+      slot="picture"
+      taps="in builtLevel builtGain built"
+      ranges={{ builtLevel: [-60, 0], builtGain: [-24, 0] }}
+      lines={{ builtLevel: 'threshold' }}
+    >
+      The same lanes as the step before. Try Knee at its widest, and notice the gain begin to dip
+      before the level reaches the dashed line.
+    </Lanes>
+
+  </Step>
+  <Step title="Give the hand some weight" controls="scLowCut threshold ratio knee attack release tails">
+    Until now the gain went wherever the curve pointed, at once. This piece makes it travel. On each reading the reduction covers a fixed share of the distance to what the curve asks for. Attack sets the share when more reduction is asked for, and Release sets it when less is.
+
+    With Attack as short as it goes, the build now takes <Claim id="build-times">39 ms to bring a tone that starts from silence 63 % of the way down, where the step before took 27 ms</Claim>. Those 27 ms were the time the level takes to be measured, and they are still in there.
+
+    <Listing
+      path="site/labs/compression.cpp"
+      from="// Attack and release: the reduction no longer jumps"
+      to="if (reduction > -kDenormalThreshold) reduction = 0.0; }"
+      mark={['reduction = target + (reduction - target) * attack_coeff;', 'reduction = target + (reduction - target) * release_coeff;']}
+      name="follow"
+    />
+
+    Listen again. <Claim id="build-drums">At step 3 the gain on the drums dived 5.9 dB on the loudest hit and was back at 0 dB before the next. Now it dips 5.7 dB and comes back only as far as 0.3 dB down</Claim>. The twitching has gone, and the gain now moves the way a hand would.
+
+    Tails is this device's own addition. On Hold, the release waits while a sound is dying away. Stage 5 of the next part comes back to it.
+
+    <Lanes
+      slot="picture"
+      taps="in builtTarget builtGain built"
+      ranges={{ builtTarget: [-24, 0], builtGain: [-24, 0] }}
+    >
+      What the curve asks for, and the gain as it now moves. Try Release at its longest, and notice
+      the gain stay down across the gaps between the hits.
+    </Lanes>
+
+  </Step>
+  <Step title="Give back what was taken" controls="scLowCut threshold ratio knee attack release tails makeup">
+    Everything so far only turns down. Make-up is one more gain after the compressor's, a fixed one, to turn the result back up. It starts at 0 dB, which is a gain of 1, so adding this piece changes nothing until Make-up is raised.
+
+    <Claim id="build-makeup">With Make-up at 9 dB, the tone that step 3 turned down 9.0 dB comes out 0.0 dB from where it went in</Claim>: as loud as it was. A quieter tone, under the threshold, would come out 9 dB louder than it was. That is the whole trick of part 1 in one line of code.
+
+    <Listing
+      path="site/labs/compression.cpp"
+      from="// Make-up: one more gain after the compressor's"
+      to="float made_up() const { return gain * lift; }"
+      mark="float made_up() const"
+      name="makeup"
+    />
+
+    <Lanes slot="picture" taps="in builtGain built" ranges={{ builtGain: [-24, 12] }}>
+      The gain on the sound, with the make-up in it. Try Make-up at 6 dB, and notice the whole gain
+      line rise, and the sound between the hits come out larger than it went in.
+    </Lanes>
+
+  </Step>
+  <Step title="Leave some of the original in" controls="scLowCut threshold ratio knee attack release tails makeup mix">
+    Mix blends the compressed sound with the sound as it went in. The two are the same samples at different gains, so the blend is still one number to multiply by. Mix starts at 1, which is all compressed sound, so this piece too changes nothing until its control is moved.
+
+    <Claim id="build-mix">With Mix at 0.5 and Make-up back at 0 dB, the tone of step 3 comes out 3.4 dB down, where the step before left it 9.0 dB down</Claim>.
+
+    <Listing
+      path="site/labs/compression.cpp"
+      from="// Mix: some of the sound as it went in"
+      to="float blended() const { return 1.0f - mix.value + mix.value * gain * lift; }"
+      mark="float blended() const"
+      name="mix"
+    />
+
+    That is all seven pieces. The steps before this one were the lesson's own: a compressor with a piece missing, which the engine's device at no time is. With every piece in place the build does to a sample what the device does, in the same order, and the lab compares the two outputs on every render.
+
+    <Check id="builtDifference" />
+
+    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows when there is no difference at all. On every loop of this page, at each of the settings the lab's test tries, the build and the device are <Claim id="build-same">the same, sample for sample</Claim>.
+
+    <Lanes slot="picture" taps="in builtGain built" ranges={{ builtGain: [-24, 12] }}>
+      The gain on the sound, with make-up and mix in it. Try Mix at 0.5, and notice the dips in the
+      gain line grow shallow: half of the sound is no longer turned down at all.
+    </Lanes>
+
+  </Step>
+</Build>
+
+Here is how the lab puts the pieces in order, for one sample.
+
+<Listing
+  path="site/labs/compression.cpp"
+  from="// One sample through the pieces built so far"
+  to="pieces >= kMakeup ? made_up() : gain; wire(left, right); }"
+  name="run"
+/>
+
+That is a whole compressor in a handful of small functions. The one in the engine is the same pieces in the same order, written as one loop and one function, with each piece done carefully. The next part opens it.
+
+</Part>
+
+<Part id="engine" title="The engine's own compressor, opened up.">
+
+Everything from here on is the device itself. The page compiles the engine's C++ and runs the loop through it, and each figure is read out of the running code at the point the text is talking about. The listings are the engine's source as it stands, with the file and the line numbers, so you can go and read around them.
+
+<Flow
+  label="The sound divides in two. One copy goes straight on to be multiplied by a gain and blended. The other, the side chain, is filtered, measured, put through the curve and smoothed to work that gain out."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'split', shape: 'dot', from: 'in' },
+    { id: 'hp', row: 1, from: 'split', tap: 'sidechain', label: 'High-pass', n: 2 },
+    { id: 'level', row: 1, from: 'hp', tap: 'level', label: 'Level', n: 3, signal: 'value' },
+    { id: 'curve', row: 1, from: 'level', tap: 'target', label: 'Curve', n: 4, signal: 'value' },
+    { id: 'times', row: 1, from: 'curve', tap: 'reduction', label: 'Attack, release', n: 5, signal: 'value' },
+    { id: 'gain', label: 'Times the gain', from: ['split', 'times'], n: 6 },
+    { id: 'blend', label: 'Make-up, mix', from: ['gain', 'split'], n: 7 },
+    { id: 'out', tap: 'out', shape: 'end', from: 'blend' },
+  ]}
+>
+  The row along the top is sound, and can be heard. The row under it is the side chain: after its
+  first block it carries numbers about the sound, never the sound. Press a stage's button below, and
+  notice its block light up here.
+</Flow>
+
+<StageBlock tap="in" n={1} title="The sound splits in two">
+  One copy is the sound itself. Nothing is ever done to it except multiplying it by one number. The other copy is the side chain. It is never heard: it exists to work out what that number should be.
+
+  Keeping the two apart is the idea everything else rests on. The detector can be as odd as it likes, and filter and square and smooth its copy, without colouring the sound.
+
+  The listing is the whole of the device's work on one sample. Its first three lines are the side chain. The next two move the gain: on one sample in sixteen the gain is aimed afresh by `step_gain`, which stages 3 to 6 open up, and on every sample it takes one step towards its aim. The last four lines apply it.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/ambient-comp/ambient_comp.h"
+    from="const float left = sidechain_[0].highpass(in[0]);"
+    to="out_right_[i] = in[1] * applied;"
+    name="loop"
+  />
+  <Fragment slot="listen">Hear the sound at the split</Fragment>
+</StageBlock>
+
+<StageBlock tap="sidechain" n={2} title="The detector ignores the lows">
+  Low frequencies carry most of the energy in music. Left alone, the kick drum and the bass would decide the gain for everything else, and the whole sound would dip on every beat. So the side chain filters its own copy first, with a high-pass at 12 dB an octave whose corner is set by Ignore below.
+
+  The lows are still in the sound you hear. They just do not get a vote.
+
+  <Controls ids="scLowCut" />
+
+  <Spectrum taps="sidechainResponse:alt" uprights="scLowCut" min={-48} max={6}>
+    How much of each frequency reaches the detector, worked out from the kit's own filter, set as
+    the device sets it. Try Ignore below from one end to the other, and notice the slope slide along
+    with the dashed line while everything above it stays at 0 dB.
+  </Spectrum>
+
+  The picture as a formula, with <M t="f" /> a frequency and <M t="f_c" /> the corner:
+
+  <M
+    block
+    t={String.raw`\sig{alt}{|H(f)|^2} = \frac{(f/\at{ignore-L212}{f_c})^4}{1 + (f/\at{ignore-L212}{f_c})^4}`}
+  />
+
+  Read it against the picture. Far above the corner the top and the bottom of the fraction are nearly the same size, so it is close to 1 and nothing is lost: the flat part of the line. At the corner the fraction is one half, and half the power is 3 dB down. An octave under the corner the top is a sixteenth, and the line is falling by 12 dB for each further octave. Measured with steady tones through the running device, the side chain is <Claim id="corner-3db">3.0 dB down at the corner</Claim> and <Claim id="octave-under">12.3 dB down an octave under it</Claim>.
+
+  The filter is the kit's state-variable filter, the subject of <Lesson id="state-variable-filter" />. The device sets it with the one resonance that gives this shape, with no bump at the corner.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/ambient-comp/ambient_comp.h"
+    from="case kScLowCut:"
+    to="filter.set(value, kit::kSqrtHalf, sample_rate());"
+    name="ignore"
+  />
+  <Fragment slot="listen">Hear what the detector hears</Fragment>
+</StageBlock>
+
+<StageBlock tap="level" n={3} title="How loud is it? The mean of the squares">
+  A single sample is not loud or quiet. A full-scale sine wave passes through zero twice in every cycle, and it does not go silent twice a cycle. Loudness belongs to a stretch of sound, so the detector needs an average, and the plain average of a wave that swings both ways is zero. Squaring fixes that. Every sample becomes positive, and the square of a signal is its power, which is what loudness follows.
+
+  The two channels are squared and averaged together, so one gain goes on both sides and the stereo picture cannot wander. Then the power is smoothed, and read off in decibels.
+
+  <Trace taps="level" lines="threshold" min={-60} max={0} unit="dB">
+    The level the detector reads across the loop, with Threshold across it. Try Threshold lower, and
+    notice how much more of the line stands above it: that part is all the compressor acts on.
+  </Trace>
+
+  The smoothing is a one-pole filter, the smallest filter there is and the subject of <Lesson id="one-pole" />. Each new value is the old value moved a little towards the input:
+
+  <M
+    block
+    t={String.raw`\sig{ctl}{p[n]} = \sig{in}{x[n]} + \at{pole-L19}{a}\,\bigl(\sig{ctl}{p[n-1]} - \sig{in}{x[n]}\bigr)`}
+  />
+
+  <M block t={String.raw`\at{coeff-L80}{a = e^{-1/(\tau f_s)}}`} />
+
+  Here <M t="x" /> is the power going in, half the sum of the two channels' squares, and <M t="p" /> is the smoothed power. <M t="a" /> is a number just under 1 that says how much of the old value is kept. <M t={String.raw`\tau`} /> is the time the filter takes to cover 63 % of the way to a new level, which the device sets to <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="static constexpr float kRmsSeconds = 0.03f;">30 ms</Src>, and <M t="f_s" /> is the sample rate.
+
+  <Listing
+    path="cpp/kit/filters.h"
+    from="// One-pole lowpass, y += (1 - a)(x - y)"
+    to="float highpass(float x) { return x - lowpass(x); }"
+    mark="state = flush_denormal(x + (state - x) * a);"
+    name="pole"
+  />
+
+  <Listing
+    path="cpp/kit/math.h"
+    from="// A time constant as a one-pole coefficient"
+    to="return std::exp(-1.0f / (seconds * sample_rate)); }"
+    name="coeff"
+  />
+
+  One pole is not enough. The square of a sine wave is a steady part plus a wobble at twice the sine's frequency, and one pole lets some of that wobble through. A gain that follows a wobble bends the wave it is put on. So the device runs a second pole of the same kind after the first.
+
+  <Still
+    taps="levelOnePole:alt level:ctl"
+    source="saw"
+    values={{ ratio: 1, scLowCut: 20 }}
+    from={3}
+    span={0.06}
+    caption="Sixty milliseconds of a steady low note. The level after one pole ripples at twice the note's frequency. After the second pole the ripple is nearly gone."
+  />
+
+  For a sine at 55 Hz, the lowest A of a bass, the level after one pole wobbles by <Claim id="ripple-one-pole">0.42 dB from trough to crest</Claim>, and after the second by <Claim id="ripple-two-poles">0.02 dB</Claim>. The device's own notes put that second wobble <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="52 dB down after the two poles">52 dB under the level it rides on</Src>.
+
+  Last, the power becomes a level in decibels, because hearing judges loudness in ratios and Threshold is marked in dB:
+
+  <M block t={String.raw`\sig{ctl}{L} = \at{curve-L140}{10 \log_{10} p}`} />
+
+  Ten, not twenty, because <M t="p" /> is already a power. That has a consequence worth remembering when setting a threshold. A full-scale sine wave on both channels has a mean power of one half, so it reads <Claim id="sine-reads">−3 dB</Claim>, not 0.
+</StageBlock>
+
+<StageBlock tap="target" n={4} title="How far down? The curve">
+  Now there is a level, and the picture of part 2 becomes arithmetic. Call the distance of the level over the threshold <M t="x" />. The curve turns <M t="x" /> into a change of gain in decibels, and that change is zero or less: this is the stage that decides, and it can only decide to turn down.
+
+  <Controls ids="threshold ratio knee" />
+
+  <Curve
+    taps="curve:out curveFormula:alt"
+    diagonal
+    follow="level"
+    uprights="threshold"
+    xTitle="level in, dB"
+    yTitle="level out, dB"
+    min={-60}
+    max={0}
+    height={320}
+  >
+    The curve measured on the device, and the curve the formula under this picture draws. Try Knee
+    from 0 dB to its widest, and notice the corner at the threshold round off while both ends of the
+    line stay where they were.
+  </Curve>
+
+  <Check id="curveError" />
+
+  <M
+    block
+    t={String.raw`\sig{alt}{G(x)} = \begin{cases} 0 & x \le -W/2 \\[4pt] \at{curve-L147}{s\,\dfrac{(x + W/2)^2}{2W}} & -W/2 < x < W/2 \\[8pt] \at{curve-L144}{s\,x} & x \ge W/2 \end{cases}`}
+  />
+
+  <M block t={String.raw`s = \frac{1}{R} - 1`} />
+
+  <M block t={String.raw`\sig{out}{L_{\text{out}}} = \sig{ctl}{L} + \sig{alt}{G(L - T)}`} />
+
+  <M t="R" /> is Ratio, <M t="T" /> is Threshold and <M t="W" /> is Knee, the width of the rounded part in decibels. The slope <M t="s" /> says how many decibels of gain are taken for each decibel over the line. At a ratio of 4 it is three quarters of one, taken away. At a ratio of 1 it is zero, and the curve is the diagonal.
+
+  The three rows are the three parts of the line in the picture. The first is the diagonal: under the knee nothing is taken. The last is the leaning part, a straight line of slope <M t="s" />. The middle row is the knee, a parabola. It is chosen so that both its height and its slope meet the straight lines at each end, which is why the measured curve shows no kink where the knee begins or ends.
+
+  Below the bottom of the knee the reduction is <Claim id="below-knee">exactly 0 dB</Claim>. The compressor is not almost off there. It is off.
+
+  Read the listing against the formula: `slope_` is <M t="s" />, `knee_` is <M t="W" />, `over` is <M t="x" />, and the two comparisons are written with twice <M t="x" /> so that nothing has to be divided.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/ambient-comp/ambient_comp.h"
+    from="const float level = power > kFloorPower"
+    to="target = slope_ * into * into / (2.0f * knee_); }"
+    name="curve"
+  />
+</StageBlock>
+
+<StageBlock tap="reduction" n={5} title="How fast? Attack and release">
+  If the gain jumped to whatever the curve asked for, the result would be step 3 of the build: a gain that copies every twitch of the level. So one more one-pole filter runs, this time on the reduction itself, in decibels. It has two time constants and picks between them on every reading: Attack when the curve asks for more reduction than there is now, Release when it asks for less.
+
+  <Controls ids="attack release tails" />
+
+  <Trace taps="target:alt reduction:out" min={-24} max={0} unit="dB">
+    What the curve asks for, and the reduction in force. Try Attack longer, and notice the reduction
+    arrive later and reach less deep on each hit. Try Release longer, and notice it stay down across
+    the gaps.
+  </Trace>
+
+  <Check id="rebuilt" />
+
+  <M
+    block
+    t={String.raw`\sig{out}{G[k]} = \sig{alt}{T[k]} + c\,\bigl(\sig{out}{G[k-1]} - \sig{alt}{T[k]}\bigr)`}
+  />
+
+  <M
+    block
+    t={String.raw`c = \begin{cases} \at{ballistics-L154}{e^{-1/(\tau_{\text{attack}} f_c)}} & T[k] < G[k-1] \\[4pt] \at{ballistics-L156}{e^{-1/(\tau_{\text{release}} f_c)}} & \text{otherwise} \end{cases}`}
+  />
+
+  It is the filter of stage 3 again. <M t="T" /> is what the curve asks for, and <M t="G" /> is the reduction in force. On each reading <M t="G" /> closes part of the gap between them, and <M t="c" /> is the share of the gap that is left. <M t="f_c" /> is the rate of the readings, <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="float tick_rate_ = 3000.0f;">3,000 a second</Src> at the page's sample rate.
+
+  The check above is the lab's proof that it has read the device rightly. On every reading it takes the device's own detector power, works out the level, the curve and this filter again, and compares the result with the reduction the device stored. On the drums at the starting settings the two differ by <Claim id="rebuilt-zero">less than 0.001 dB</Claim>.
+
+  A time constant is not the time a change takes. After one, the reduction has covered 63 % of the distance; after two, 86 %; after three, 95 %. And the detector in front of it has two poles of its own to get through first. Measured on the running device with a tone that starts from silence, the reduction takes <Claim id="attack-floor">39 ms</Claim> to cover 63 % of the way with Attack as short as it goes, and <Claim id="attack-100">134 ms</Claim> with Attack at a tenth of a second.
+
+  This device adds one thing a plain compressor does not have. With Tails on Hold, the release is paused while the sound is dying away, which the device takes to mean that the level stands <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="static constexpr float kDyingDb = 1.5f;">1.5 dB</Src> or more under its own average over the last <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="static constexpr float kSlowSeconds = 1.0f;">second</Src>. A ring that is fading is left to fade at its own speed, and the gain does not creep up underneath it. This lesson starts on Release, which is how a textbook compressor behaves.
+
+  <Still
+    taps="meterIn gain"
+    set="evened"
+    values={{ tails: 0 }}
+    caption="The chords of part 1 again, with Tails on Hold. The gain drops at each strike and then stays where it is while the ring dies away. In part 1, on Release, it climbed back."
+  />
+
+  On those chords, <Claim id="tails-hold">just before the second strike the gain is still 20.0 dB down on Hold, where on Release it has come back to 0.9 dB down</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/ambient-comp/ambient_comp.h"
+    from="slow_level_ = flush_denormal(level"
+    to="if (reduction_ > -kDenormalThreshold) reduction_ = 0.0;"
+    name="ballistics"
+  />
+</StageBlock>
+
+<StageBlock tap="gain" n={6} title="From decibels to a number to multiply by">
+  The reduction is in decibels and the sound is in samples, so the last step of the side chain turns one into the other.
+
+  <M block t={String.raw`\sig{ctl}{g} = \at{ramp-L162}{10^{\,\sig{out}{G}/20}}`} />
+
+  Twenty this time, because <M t="g" /> multiplies an amplitude and not a power. A reduction of 6 dB is a gain of about one half.
+
+  There is a catch. The reduction only changes once every 16 samples. A gain that moves in steps puts a small step into the sound at every reading, thousands of them a second. The result is a buzz under the sound, often called zipper noise. So between readings the device does not hold the gain still. It walks it in a straight line from the last value to the new one.
+
+  <Curve taps="gainHeld:alt gainRamped:ctl" xTitle="samples" yTitle="gain">
+    128 samples of the loop, taken where the gain moves most: the value the device aims at, which
+    holds still between readings, and the gain it puts on the sound. Notice the second line reach
+    each step of the first exactly one reading late.
+  </Curve>
+
+  The price is that the gain arrives 16 samples late, a third of a millisecond at the page's sample rate. The sound itself is not delayed at all.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/ambient-comp/ambient_comp.h"
+    from="// Land on the last tick's value exactly"
+    to="gain_step_ = (gain_target_ - gain_) * (1.0f / static_cast<float>(kControlPeriod));"
+    name="ramp"
+  />
+</StageBlock>
+
+<StageBlock tap="out" n={7} title="Make-up and mix">
+  Two more numbers ride along with the gain. Make-up is a fixed gain that turns the compressed sound back up. Mix blends the compressed sound with the sound as it went in. The two are the same signal at different gains, with no delay between them, so the blend needs no special care: it is one multiplication.
+
+  <Controls ids="makeup mix" />
+
+  <Curve
+    taps="curve:alt curveWhole:out"
+    diagonal
+    uprights="threshold"
+    xTitle="level in, dB"
+    yTitle="level out, dB"
+    min={-60}
+    max={12}
+    height={320}
+  >
+    The curve alone, and the level that comes out once make-up and mix have been applied. Try
+    Make-up higher, and notice the whole second line rise until its quiet end stands above the
+    diagonal: louder than it went in. Then try Mix lower, and notice the loud end go back towards
+    the diagonal.
+  </Curve>
+
+  <M
+    block
+    t={String.raw`\sig{out}{y} = \sig{in}{x}\,\at{loop-L113}{\bigl(1 - m + m\,\sig{ctl}{g}\,g_{\text{make-up}}\bigr)}`}
+  />
+
+  <M t="x" /> is a sample going in and <M t="y" /> the same sample coming out. <M t="g" /> is the gain of stage 6, and the make-up is written as a number to multiply by. <M t="m" /> is Mix, from 0 to 1. At 1 the bracket is the gain times the make-up, and all of what comes out has been compressed. At 0 the bracket is exactly 1, and what comes out is <Claim id="mix-zero">the input, sample for sample</Claim>. In between is the last step of the build: the sound as it went in, with a squeezed copy underneath it.
+
+  <Fragment slot="listen">Hear what comes out</Fragment>
+</StageBlock>
+
+### All seven at once, on your loop
+
+Here is the whole device with every control live. The lanes are read at each stage in turn: the sound at the split, what the detector hears, the level, what the curve asks for, the reduction in force, the gain, and the sound that comes out.
+
+<Controls ids="threshold ratio knee attack release tails scLowCut makeup mix" />
+
+<Lanes
+  taps="in sidechain level target reduction gain out"
+  ranges={{ level: [-60, 0], target: [-24, 0], reduction: [-24, 0], gain: [-24, 0] }}
+  lines={{ level: 'threshold' }}
+>
+  Every stage on one time axis. Try any control, and notice which lanes change and which do not:
+  Ignore below changes every lane from the second down, and Make-up only the last.
+</Lanes>
+
+To judge what a compressor did, compare three things: <Listen tap="in">what went in</Listen>, <Listen tap="out">what came out</Listen>, and <Listen tap="removed">what was taken away</Listen>, which is the first less the second.
+
+</Part>
+
+<Part id="ways" title="Six things people do with these controls.">
+
+Each of these is a habit of working, not a preset. Press "Try it" and the page moves to settings that show the idea, so you can go back up and see what the curve and the gain are doing.
+
+<Ways>
+  <Way title="Even out a performance" tag="threshold just under the loud phrases" set="line">
+    The original job. A low ratio and a soft knee, with Threshold set so that the loud phrases lose a few decibels and the quiet ones lose less. After the card, raise Threshold until the trace of stage 5 only moves on the loudest phrases, and stop there.
+  </Way>
+  <Way title="Let the hit through" tag="a slower attack" set="hit">
+    With a slower attack, more of each hit has passed before the gain arrives. On the drums <Claim id="way-hit">the gain dips 9.3 dB with Attack at 60 ms and 11.3 dB with it at 10 ms</Claim>, so the slower setting leaves more of each hit standing. After the card, shorten Attack and listen for the body of each hit shrinking.
+  </Way>
+  <Way title="Bring up the tail" tag="a short release, then make-up" set="evened">
+    Let the gain come back while the sound rings, and turn the result up. The ring rises towards the strike: this is the setting of part 1. A long release does the opposite. It holds the gain down across the ring, and the ring keeps its distance from the strike. Tails on Hold does the same on purpose, as stage 5 shows.
+  </Way>
+  <Way title="Hold a mix together" tag="a low ratio, a wide knee, slowly" set="mix">
+    A decibel or two of reduction across everything at once. When one part gets loud the rest gives way a little, and separate parts begin to move as one. After the card, lower Threshold a little at a time. Listen for the point where the mix starts to sound held, and then for the point where it starts to sound small.
+  </Way>
+  <Way title="Compress beside the sound" tag="heavy settings, mix near a third" set="beside">
+    Squash a copy hard, turn it up, and blend it under the untouched sound. <Claim id="way-beside">On the drums the compressed copy alone moves through 19.7 dB of gain. Blended, the gain on the whole moves through 5.7 dB, and is less than 3 dB up or down at any moment</Claim>. The hits keep their shape, because they are mostly the sound as it went in.
+  </Way>
+  <Way title="Keep the lows out of it" tag="Ignore below, raised" set="lows">
+    If the whole sound dips with every bass note, the detector is listening to the bass. Raise Ignore below until the gain follows the part of the sound you care about. On the mix, with Threshold and Ratio left alone, <Claim id="way-lows">the gain dips 6.2 dB with Ignore below at 300 Hz and 11.1 dB with it at 20 Hz</Claim>.
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Every one of these is a setting, and most of them can be heard here.">
+
+<Faults>
+  <Fault title="Pumping" set="pump">
+    With a short release and a loud, regular sound, the gain dives on each hit and rushes back in the gap. Everything quiet swells in time with the beat. <Claim id="fault-pump">On the drums the gain swings between 0.6 dB and 20.6 dB down on this setting. With Release at 1 s it stays between 10.1 dB and 20.6 dB down</Claim>, and the swelling stops. Some music wants the swell. When it is an accident, lengthen the release.
+  </Fault>
+  <Fault title="The front of the hit gets through" set="front">
+    This compressor measures before it acts, and measuring takes time. By the time the gain moves, the first few hundredths of a second of a hit have passed at full height. <Claim id="fault-front">On the drums the gain goes 11.3 dB down behind each hit, and the loudest sample of the loop comes out only 0.5 dB lower than it went in</Claim>. If you like the hit, that is a gift, and part 6 uses it. If the top of the hit is the trouble, a compressor is the wrong tool. The tool that holds a ceiling is the limiter of <Lesson id="limiting" />.
+  </Fault>
+  <Fault title="Too much" set="flat">
+    A threshold under everything, a high ratio and a lot of make-up. The compressor is at work the whole time, <Claim id="fault-flat">with the gain at least 9.0 dB down all through the loop. Going in, the loudest sample stood 18.4 dB over the level of the loop. Coming out, it stands 26.8 dB over it</Claim>. Each hit is now a tall front with a flattened body behind it. Raise Threshold until the gain comes back to nothing between phrases, so that the sound has something to be loud against.
+  </Fault>
+  <Fault title="The noise comes up too" set="evened">
+    Make-up raises everything that was quiet, and that includes the hiss and the room. In part 1 the end of each ring came up by nearly all of the make-up, which was the point. Anything else that was down there came up with it. Listen to the last half second of each chord. The cure is a quieter recording, or less make-up.
+  </Fault>
+  <Fault title="A gain that is too fast">
+    A gain that changes within one cycle of a wave reshapes the wave, and that is distortion. This device is built to keep away from it. Its attack stops at <Src path="cpp/devices/ambient-comp/device.json" at={'"min": 10,'}>10 ms</Src>, and the two poles of stage 3 stand in front of it. A faster design has to read the sound ahead of time to stay clean.
+  </Fault>
+  <Fault title="The first hit after a silence">
+    A compressor that remembers its gain meets the next sound with whatever the last one left behind. This one rests after <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="static constexpr float kRestSeconds = 0.5f;">half a second</Src> of silence: the reduction goes back to nothing and the detector is cleared. Fed silence, its gain is <Claim id="silence">exactly 0 dB</Claim> and its output is exact silence.
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="A compressor makes things louder.">
+    It only turns down. The loudness comes from the make-up after it: with Make-up at 0 dB the chords of part 1 came out quieter, and the answer to that part's question has the number. What the compressor changes is how far the sound can come up before its loud moments reach the ceiling.
+  </Myth>
+  <Myth says="A ratio of 4 means four times quieter.">
+    The ratio works only on the part above the threshold, and in decibels. The sentence under the curve of part 2 is the case to remember: a tone goes in 12 dB over and comes out 3 dB over. A sound below the knee is not touched at all, as stage 4 shows.
+  </Myth>
+  <Myth says="An attack of 10 ms means it has reacted in 10 ms.">
+    After one time constant the gain is 63 % of the way there, and the detector adds its own time in front. Stage 5 measures it on the running device: at the shortest setting it is nearly four times what the control says.
+  </Myth>
+  <Myth says="The threshold is a peak level.">
+    The detector measures the mean of the squares, smoothed. A full-scale sine wave reads 3 dB under its own peak, as stage 3 shows, and a single full-scale sample reads <Claim id="click-reads">−36 dB</Claim>, far under its own height. So a threshold lets peaks well above itself through. That is the fault of the front in part 7.
+  </Myth>
+  <Myth says="It only changes the volume, so it cannot change the tone.">
+    A slow gain is a change of volume. A gain that moves within one cycle of the wave multiplies the wave by a changing number, and that makes frequencies that were not there. It is why the level is smoothed twice: the ripple in the picture of stage 3 is what such a gain would follow.
+  </Myth>
+  <Myth says="Mix at one half is half the compression.">
+    Mix blends amplitudes, not decibels. <Claim id="mix-half">A tone that the compressor turns down 12 dB comes out 4.1 dB down at a mix of one half</Claim>, not 6. The second line in the picture of stage 7 shows the same thing for every level at once.
+  </Myth>
+</Myths>
+
+</Part>

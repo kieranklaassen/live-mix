@@ -1,10 +1,11 @@
 ---
 // One stage of the engine's device: what it is for, in words and a figure; then its equation,
-// its listing and a way to hear it, each of which a stage may leave out.
+// the equation read back, its listing and a way to hear it, each of which a stage may leave out.
 //
 //   <StageBlock tap="sidechain" n={2} title="The detector ignores the lows">
 //     Its purpose, and a figure of it.
 //     <M slot="equation" block t={String.raw`…`} />
+//     <Fragment slot="readback">The equation read back, term by term, against the figure.</Fragment>
 //     <Listing slot="listing" path="…" from="…" to="…" />
 //     <Fragment slot="listen">Hear what the detector hears</Fragment>
 //   </StageBlock>
@@ -31,7 +32,7 @@ const [ref] = tapRefs(tap, lab.taps, lesson)
 
 /** What a stage that cannot be heard is. */
 const NOT_SOUND: Record<Exclude<TapKind, 'audio'>, string> = {
-  control: 'a value over time, worked out sixteen samples apart',
+  control: 'a value that changes over time',
   curve: 'a curve: one value against another',
   spectrum: 'a spectrum: a level for each frequency',
   frames: 'a spectrum over time',
@@ -50,6 +51,11 @@ const NOT_SOUND: Record<Exclude<TapKind, 'audio'>, string> = {
   {Astro.slots.has('equation') && (
     <div class="stage-block-equation">
       <slot name="equation" />
+    </div>
+  )}
+  {Astro.slots.has('readback') && (
+    <div class="stage-block-readback">
+      <slot name="readback" />
     </div>
   )}
   {Astro.slots.has('listing') && (

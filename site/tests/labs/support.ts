@@ -262,8 +262,11 @@ export function expectSoundLab(
  * choice a step; every step changes a built tap and leaves the main path's taps as they were;
  * every built tap is finite at every step, loops, and says something at some step; and on every
  * render the step the lab names is within the bound the lab states of what the engine made.
+ *
+ * `values` turns controls for every step: a piece that does nothing at the lab's starting values
+ * (a make-up gain of 0 dB) needs its control turned before its step can change the sound.
  */
-export function expectBuild(theLab: Lab, source: Source) {
+export function expectBuild(theLab: Lab, source: Source, values: Record<string, number> = {}) {
   const { controls, taps, checks } = theLab.description
   const control = controls.find((one) => one.id === 'build')
   if (!control) throw new Error('The lab has no build control')
@@ -284,7 +287,9 @@ export function expectBuild(theLab: Lab, source: Source) {
   }
 
   const struck = startsOnAnEvent(source)
-  const renders = control.choices.map((_, step) => theLab.render(source, { build: step }))
+  const renders = control.choices.map((_, step) =>
+    theLab.render(source, { ...values, build: step }),
+  )
   const said = new Set<string>()
   renders.forEach((result, step) => {
     const name = `step ${step} (${control.choices[step]})`

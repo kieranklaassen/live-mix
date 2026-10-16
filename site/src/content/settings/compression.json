@@ -1,0 +1,97 @@
+{
+  "tile": {
+    "values": { "threshold": -30, "ratio": 6, "knee": 12, "makeup": 4 },
+    "tap": "out",
+    "picture": { "taps": ["curve"], "view": "curve" }
+  },
+  "sets": {
+    "played": {
+      "label": "The chords as played",
+      "source": "chords",
+      "tap": "in"
+    },
+    "fader": {
+      "label": "Turned up 10 dB",
+      "values": { "ratio": 1, "makeup": 10 },
+      "source": "chords"
+    },
+    "evened": {
+      "label": "Compressed, then turned up 10 dB",
+      "values": { "threshold": -45, "ratio": 4, "makeup": 10 },
+      "source": "chords"
+    },
+    "drums": {
+      "label": "Drums",
+      "values": { "threshold": -30, "ratio": 4, "attack": 30, "release": 0.2, "makeup": 3 },
+      "source": "drums"
+    },
+    "bass": {
+      "label": "Bass",
+      "values": { "threshold": -30, "ratio": 4, "attack": 30, "release": 0.3, "makeup": 4 },
+      "source": "bass"
+    },
+    "line": {
+      "label": "A played line, evened out",
+      "values": { "threshold": -28, "ratio": 3, "knee": 12, "makeup": 4 },
+      "source": "guitar"
+    },
+    "mix": {
+      "label": "The whole mix, held together",
+      "values": {
+        "threshold": -28,
+        "ratio": 1.5,
+        "knee": 18,
+        "attack": 300,
+        "release": 2,
+        "makeup": 1.5
+      },
+      "source": "mix"
+    },
+    "pad": {
+      "label": "A pad",
+      "values": {
+        "threshold": -30,
+        "ratio": 2,
+        "knee": 12,
+        "attack": 300,
+        "release": 2,
+        "tails": 0,
+        "makeup": 3
+      },
+      "source": "pad"
+    },
+    "hit": {
+      "label": "Letting the hit through",
+      "values": { "threshold": -30, "ratio": 6, "attack": 60, "release": 0.2, "makeup": 3 },
+      "source": "drums"
+    },
+    "beside": {
+      "label": "Compressed beside the sound",
+      "values": { "threshold": -42, "ratio": 10, "release": 0.2, "makeup": 10, "mix": 0.35 },
+      "source": "drums"
+    },
+    "lows": {
+      "label": "The lows kept out of the detector",
+      "values": { "threshold": -30, "ratio": 4, "scLowCut": 300 },
+      "source": "mix"
+    },
+    "pump": {
+      "label": "Pumping",
+      "values": { "threshold": -40, "ratio": 8, "knee": 0, "release": 0.1, "makeup": 4 },
+      "source": "drums"
+    },
+    "front": {
+      "label": "The front gets through",
+      "values": { "threshold": -30, "ratio": 6, "release": 0.2 },
+      "source": "drums"
+    },
+    "flat": {
+      "label": "Too much",
+      "values": { "threshold": -48, "ratio": 10, "knee": 0, "makeup": 12 },
+      "source": "drums"
+    }
+  },
+  "defaults": {
+    "values": { "ratio": 2, "knee": 12, "attack": 300, "release": 2, "tails": 0 }
+  }
+}
