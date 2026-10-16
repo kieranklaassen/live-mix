@@ -7,10 +7,10 @@
 // The lab declares the room's controls like any others; this file reads their values.
 
 import { spaceImpulseChannel, type SpaceOptions } from '../../../src/core/tracks/space.ts'
-import { SAMPLE_RATE, type Lab, type Source } from './runner.ts'
+import { SAMPLE_RATE, type Lab, type Source, type Values } from './runner.ts'
 
 /** The lab's control ids, as the engine's options. Times the lab shows in milliseconds are seconds there. */
-export function roomOptions(values: Record<string, number>): SpaceOptions {
+export function roomOptions(values: Values): SpaceOptions {
   const ms = (id: string) => (values[id] === undefined ? undefined : values[id] / 1000)
   return {
     decaySec: values.decay,
@@ -25,7 +25,7 @@ export function roomOptions(values: Record<string, number>): SpaceOptions {
 let last: { key: string; impulse: Source } | undefined
 
 /** The room's impulse response at the lab's rate, left and right. The same values give the same samples. */
-export function roomImpulse(values: Record<string, number>): Source {
+export function roomImpulse(values: Values): Source {
   const options = roomOptions(values)
   const key = JSON.stringify(options)
   if (last?.key !== key) {
@@ -48,7 +48,12 @@ export function withRoom(lab: Lab): Lab {
   )
   return {
     ...lab,
-    render: (source, values, frames) =>
-      lab.render(source, values, frames, roomImpulse({ ...initial, ...values })),
+    render: (source, values, frames) => {
+      // A value left undefined is one left out: the control's default stands.
+      const set = Object.fromEntries(
+        Object.entries(values).filter(([, value]) => value !== undefined),
+      )
+      return lab.render(source, values, frames, roomImpulse({ ...initial, ...set }))
+    },
   }
 }

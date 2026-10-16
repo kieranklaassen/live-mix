@@ -5,9 +5,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-// @ts-expect-error a plain script, with no types of its own
 import { checkLinks } from '../../scripts/check-links.mjs'
-// @ts-expect-error a plain script, with no types of its own
 import { patternsOf, wordingIn } from '../../scripts/check-wording.mjs'
 
 const made: string[] = []

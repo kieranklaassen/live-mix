@@ -35,18 +35,16 @@ export interface RenderResult {
   ms: number
 }
 
+/** Control values by id. One left out, or undefined, stays at the control's default. */
+export type Values = Readonly<Record<string, number | undefined>>
+
 export interface Lab {
   description: LabDescription
   /**
    * Render `frames` of the source at the given control values (missing ones stay at their
    * defaults). `aux` is the second signal of a lab that takes one; left out, the last one stays.
    */
-  render(
-    source: Source,
-    values: Record<string, number>,
-    frames?: number,
-    aux?: Source,
-  ): RenderResult
+  render(source: Source, values: Values, frames?: number, aux?: Source): RenderResult
   /** True for a lab that takes a second signal beside the source. */
   takesAux: boolean
   /** The average spectrum of an audio tap of the last render, in dB per bin up to half the sample rate. */
@@ -60,12 +58,7 @@ export async function loadLab(bytes: BufferSource): Promise<Lab> {
   const description = describeLab(wasm)
   const heap = () => new Float32Array(wasm.memory.buffer)
 
-  function render(
-    source: Source,
-    values: Record<string, number>,
-    frames?: number,
-    aux?: Source,
-  ): RenderResult {
+  function render(source: Source, values: Values, frames?: number, aux?: Source): RenderResult {
     const wanted = Math.min(frames ?? source.left.length, source.left.length, description.maxFrames)
     const count = Math.max(0, wanted - (wanted % CONTROL_PERIOD))
     const memory = heap()
