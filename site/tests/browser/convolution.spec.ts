@@ -99,7 +99,7 @@ test.describe('the convolution lesson', () => {
 
     // On another room, and with only part of the impulse in use: checked again.
     const count = await renders(page)
-    const decay = page.locator('#control-decay').first()
+    const decay = page.locator('.dial[data-control="decay"]').getByRole('slider').first()
     await decay.focus()
     await decay.press('Home')
     await expect.poll(() => renders(page)).toBeGreaterThan(count)

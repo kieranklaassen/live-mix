@@ -1,10 +1,12 @@
-// The one bar that stays in view: play and stop, which stage is sounding, the source, the level.
-// It also starts the page's lab, since every page with a lab has one of these.
+// The one bar that stays in view: play and stop, what is sounding, the way back from a card,
+// the source, the level. It also starts the page's lab, since every page with a lab has one of
+// these, and it brings the styles of the parts that play (styles/parts.css) with it.
 
+import '../styles/parts.css'
 import { useEffect, useRef } from 'react'
 import { labStore, pagePlayer, startLab, useLab } from '../lab/page.ts'
 import type { SourceInfo } from '../lab/sources.ts'
-import { BENCH, type LabState } from '../lab/store.ts'
+import { BENCH, isBuilt, type LabState } from '../lab/store.ts'
 import { toDb } from './draw.ts'
 import SourcePicker from './SourcePicker.tsx'
 
@@ -12,7 +14,7 @@ interface Props {
   lab: string
   seconds: number
   sources: SourceInfo[]
-  /** The stages that are sound, in the signal's order. */
+  /** The stages that are sound, in the signal's order. Those the build path writes are listed apart. */
   stages: { id: string; name: string }[]
   /** The name of the real device on the bench, when the page has one. */
   bench?: string
@@ -64,6 +66,7 @@ function spectrumTaps(): string[] {
 
 export default function PlayBar({ lab, seconds, sources, stages, bench }: Props) {
   const state = useLab()
+  const bar = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     startLab({
       lab,
@@ -73,20 +76,52 @@ export default function PlayBar({ lab, seconds, sources, stages, bench }: Props)
     })
   }, [lab, seconds, sources])
 
+  useEffect(() => {
+    const root = document.documentElement
+    // Scripts run here: the buttons that need the lab may show (figures/Mark.astro says it first
+    // on a page that has such a button in its text).
+    root.setAttribute('data-lab', '')
+    // The bar lies over the page's foot, and wraps to more rows in a narrow window: the page is
+    // told how tall it is, so that what a key brings into view is never brought under it.
+    const element = bar.current
+    if (!element) return
+    const measure = () =>
+      root.style.setProperty('--playbar-height', `${Math.ceil(element.offsetHeight)}px`)
+    measure()
+    const sizes = new ResizeObserver(measure)
+    sizes.observe(element)
+    return () => {
+      sizes.disconnect()
+      root.style.removeProperty('--playbar-height')
+    }
+  }, [])
+
   const ready = state.status === 'ready' && state.result !== undefined
-  const sounding = state.sounding || stages[stages.length - 1]?.id || ''
+  const main = stages.filter((stage) => !isBuilt(stage.id))
+  const built = stages.filter((stage) => isBuilt(stage.id))
+  const sounding = state.sounding || main[main.length - 1]?.id || ''
+  // A card that is sounding is named beside its stage; once a control is moved by hand the card's
+  // name goes and the stage's stands alone.
+  const audition = state.playing ? state.audition : null
+  const called = (name: string) => (audition ? `${name} · ${audition.label}` : name)
+  const stageName = stages.find((stage) => stage.id === sounding)?.name
   const soundingName =
-    sounding === BENCH
-      ? `The real device: ${bench}`
-      : stages.find((stage) => stage.id === sounding)?.name
+    sounding === BENCH ? `The real device: ${bench}` : stageName && called(stageName)
+  const option = (stage: { id: string; name: string }) => (
+    <option key={stage.id} value={stage.id}>
+      {stage.id === sounding ? called(stage.name) : stage.name}
+    </option>
+  )
 
   return (
     <div
+      ref={bar}
       className="playbar"
       role="region"
       aria-label="Player"
       data-ready={ready ? '' : undefined}
       data-renders={state.renders}
+      data-audition={audition?.id}
     >
       <button
         type="button"
@@ -99,6 +134,17 @@ export default function PlayBar({ lab, seconds, sources, stages, bench }: Props)
         <span aria-hidden="true">{state.playing ? '■' : '▶'}</span>
         {state.playing ? 'Stop' : 'Play'}
       </button>
+      {state.memory && (
+        <button
+          type="button"
+          className="playbar-back"
+          title="Put back the settings, the source and the stage from before the first card"
+          onClick={() => labStore().back()}
+        >
+          <span aria-hidden="true">↩</span> Back
+          <span className="playbar-back-more"> to where you were</span>
+        </button>
+      )}
       <div className="playbar-field playbar-stage">
         <label htmlFor="lab-stage">Hearing</label>
         <select
@@ -107,11 +153,8 @@ export default function PlayBar({ lab, seconds, sources, stages, bench }: Props)
           disabled={!ready}
           onChange={(event) => labStore().listen(event.target.value)}
         >
-          {stages.map((stage) => (
-            <option key={stage.id} value={stage.id}>
-              {stage.name}
-            </option>
-          ))}
+          {main.map(option)}
+          {built.length > 0 && <optgroup label="Built so far">{built.map(option)}</optgroup>}
           {bench && state.benchOpen && <option value={BENCH}>The real device: {bench}</option>}
         </select>
       </div>

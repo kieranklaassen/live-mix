@@ -1,0 +1,28 @@
+---
+// The row of sounds under a lesson's title: <Sounds />. One choice for each source the lesson
+// lists, bound to the same source as the play bar's picker. A lesson whose lab plays by itself
+// has nothing to choose and gets no row.
+import { getEntry } from 'astro:content'
+import Mark from '../../figures/Mark.astro'
+import Sounds from '../../figures/Sounds.tsx'
+import { NO_SOURCE } from '../../lab/sources.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+import { lessonSources } from '../../lib/lessons.ts'
+
+const { lesson } = pageLab(Astro.locals)
+const entry = await getEntry('lessons', lesson)
+if (!entry)
+  throw new Error(`${lesson}: the row of sounds was used on a page that is not a lesson's.`)
+const sources = lessonSources(entry)
+const none = sources.length === 1 && sources[0]?.id === NO_SOURCE.id
+---
+
+{!none && (
+  <div class="sounds">
+    <Mark />
+    <span class="sounds-label" id="sounds-label">
+      The sound this page plays
+    </span>
+    <Sounds client:load sources={sources} labelledBy="sounds-label" />
+  </div>
+)}

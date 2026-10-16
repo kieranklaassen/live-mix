@@ -1,0 +1,72 @@
+---
+// One stage of the engine's device: what it is for, in words and a figure; then its equation,
+// its listing and a way to hear it, each of which a stage may leave out.
+//
+//   <StageBlock tap="sidechain" n={2} title="The detector ignores the lows">
+//     Its purpose, and a figure of it.
+//     <M slot="equation" block t={String.raw`…`} />
+//     <Listing slot="listing" path="…" from="…" to="…" />
+//     <Fragment slot="listen">Hear what the detector hears</Fragment>
+//   </StageBlock>
+//
+// `tap` is the lab's tap the stage is read at. Under the title the stage says where it comes
+// from, as the lab says it. A stage whose tap is sound gets a button that plays it, with the
+// words of `listen` or, with none, "Hear this stage"; a stage whose tap is not sound says what kind
+// of signal it is.
+import Listen from '../../figures/Listen.tsx'
+import Mark from '../../figures/Mark.astro'
+import { tapRefs } from '../../figures/roles.ts'
+import { ORIGIN_TEXT, type TapKind } from '../../lab/describe.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  tap: string
+  title: string
+  /** The stage's number, as the signal-flow picture prints it under the stage's block. */
+  n?: number | string
+}
+const { tap, title, n } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const [ref] = tapRefs(tap, lab.taps, lesson)
+
+/** What a stage that cannot be heard is. */
+const NOT_SOUND: Record<Exclude<TapKind, 'audio'>, string> = {
+  control: 'a value over time, worked out sixteen samples apart',
+  curve: 'a curve: one value against another',
+  spectrum: 'a spectrum: a level for each frequency',
+  frames: 'a spectrum over time',
+}
+---
+
+<section class="stage-block" data-stage-block={ref.id}>
+  <h3>
+    {n !== undefined && <span class="stage-block-n">{n}</span>}
+    {title}
+  </h3>
+  <p class="stage-block-origin" data-origin={ref.origin}>
+    {ORIGIN_TEXT[ref.origin]}
+  </p>
+  <slot />
+  {Astro.slots.has('equation') && (
+    <div class="stage-block-equation">
+      <slot name="equation" />
+    </div>
+  )}
+  {Astro.slots.has('listing') && (
+    <div class="stage-block-listing">
+      <slot name="listing" />
+    </div>
+  )}
+  {ref.kind === 'audio' ? (
+    <p class="stage-block-listen">
+      <Mark />
+      <Listen client:visible tap={ref.id} block>
+        <slot name="listen">Hear this stage</slot>
+      </Listen>
+    </p>
+  ) : (
+    <p class="stage-block-kind">
+      {ref.name} is not sound: it is {NOT_SOUND[ref.kind]}.
+    </p>
+  )}
+</section>

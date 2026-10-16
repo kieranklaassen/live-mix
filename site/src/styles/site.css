@@ -59,6 +59,15 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-padding-top: 4.5rem;
+  /* A lesson's play bar is fixed to the foot of the window and says how tall it is
+     (figures/PlayBar.tsx): what the keys reach is brought into view over it, not under it. */
+  scroll-padding-bottom: calc(var(--playbar-height, 0px) + 12px);
+}
+/* In a narrow window the header is two rows tall. */
+@media (max-width: 40rem) {
+  html {
+    scroll-padding-top: 6.5rem;
+  }
 }
 body {
   margin: 0;

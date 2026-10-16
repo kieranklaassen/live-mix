@@ -208,7 +208,7 @@ export default function GrainCloud({
         <div ref={line} className="fig-playhead" style={{ display: 'none' }} />
         {waiting && <p className="fig-waiting">{waiting}</p>}
       </div>
-      <ul className="fig-legend">
+      <ul className="fig-legend key">
         <li>
           <i style={{ background: `var(${ROLE_VAR[tap.role]})` }} />A grain: as long as it sounds,
           as thick as its window is open

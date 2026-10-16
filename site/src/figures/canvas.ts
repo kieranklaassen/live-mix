@@ -15,6 +15,9 @@ export const EDGE = { left: 44, right: 10, top: 8, bottom: 22 }
  */
 export let MONO = '10px monospace'
 
+/** How far one character of a number runs: 10 px of a mono face, where every character is as wide. */
+const DIGIT = 6
+
 export interface Colours {
   role: Record<Role, string>
   muted: string
@@ -22,6 +25,8 @@ export interface Colours {
   line: string
   bg: string
   panel: string
+  /** The ground a lane of a figure lies on. */
+  sunken: string
 }
 
 let cached: { theme: string | null; colours: Colours } | undefined
@@ -46,6 +51,7 @@ export function colours(): Colours {
     line: read('--sig-grid', '#ccc'),
     bg: read('--lm-bg', '#fff'),
     panel: read('--lm-panel', '#f4f4f4'),
+    sunken: read('--lm-sunken', '#eee'),
   }
   cached = { theme, colours: value }
   return value
@@ -137,6 +143,8 @@ export function useCanvas(
 /**
  * The grid of a picture and its numbers: a line across at each round value of `y`, a line up at
  * each of `x`, and the frame round them, `w` by `h` inside EDGE. `at` says where a value stands.
+ * A number along the bottom that would run into the one before it, or off the picture, is left
+ * out; its line is still drawn. Every figure with axes draws its grid here, once.
  */
 export function drawGrid(
   context: CanvasRenderingContext2D,
@@ -162,6 +170,7 @@ export function drawGrid(
   }
   context.textBaseline = 'top'
   context.textAlign = 'center'
+  let lastLabelEnd = -Infinity
   for (const value of ticks(x.axis, Math.max(2, Math.round(w / 90)))) {
     const at = Math.round(x.at(value)) + 0.5
     context.strokeStyle = c.grid
@@ -169,8 +178,13 @@ export function drawGrid(
     context.moveTo(at, EDGE.top)
     context.lineTo(at, EDGE.top + h)
     context.stroke()
-    context.fillStyle = c.muted
-    context.fillText(label(value), at, EDGE.top + h + 6)
+    const text = label(value)
+    const half = (text.length * DIGIT) / 2
+    if (at - half > lastLabelEnd + 6 && at + half <= EDGE.left + w + EDGE.right) {
+      context.fillStyle = c.muted
+      context.fillText(text, at, EDGE.top + h + 6)
+      lastLabelEnd = at + half
+    }
   }
   context.strokeStyle = c.line
   context.strokeRect(EDGE.left + 0.5, EDGE.top + 0.5, w - 1, h - 1)

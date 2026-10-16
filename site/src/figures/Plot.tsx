@@ -1,11 +1,11 @@
-// The picture every figure of lines is made of: axes, a grid, one line per signal, a readout
-// under the pointer, and a line that moves with the loop while it plays. Wave, Trace, Curve and
-// Spectrum each say what to draw; this draws it.
+// The picture every figure of lines is made of: axes, a grid, one line per signal, a key that
+// names each line as the lab does, a readout under the pointer, and a line that moves with the
+// loop while it plays. Wave, Trace, Curve and Spectrum each say what to draw; this draws it.
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { pagePlayer, useLab } from '../lab/page.ts'
-import { EDGE, MONO, useCanvas } from './canvas.ts'
-import { fromUnit, label, minMaxPlaced, ticks, toUnit, withUnit, type Axis } from './draw.ts'
+import { EDGE, drawGrid, useCanvas } from './canvas.ts'
+import { fromUnit, minMaxPlaced, toUnit, withUnit, type Axis } from './draw.ts'
 import { ROLE_VAR, type Role } from './roles.ts'
 
 export interface Series {
@@ -97,42 +97,7 @@ export default function Plot(props: Props) {
       const px = (value: number) => EDGE.left + toUnit(x, value) * w
       const py = (value: number) => EDGE.top + (1 - toUnit(y, value)) * h
 
-      // The grid and its numbers.
-      context.font = MONO
-      context.lineWidth = 1
-      context.textBaseline = 'middle'
-      context.textAlign = 'right'
-      for (const value of ticks(y, Math.max(2, Math.round(h / 44)))) {
-        const at = Math.round(py(value)) + 0.5
-        context.strokeStyle = value === 0 ? c.line : c.grid
-        context.beginPath()
-        context.moveTo(EDGE.left, at)
-        context.lineTo(EDGE.left + w, at)
-        context.stroke()
-        context.fillStyle = c.muted
-        context.fillText(label(value), EDGE.left - 6, at)
-      }
-      context.textBaseline = 'top'
-      context.textAlign = 'center'
-      const xTicks = ticks(x, Math.max(2, Math.round(w / 90)))
-      let lastLabelEnd = -Infinity
-      for (const value of xTicks) {
-        const at = Math.round(px(value)) + 0.5
-        context.strokeStyle = c.grid
-        context.beginPath()
-        context.moveTo(at, EDGE.top)
-        context.lineTo(at, EDGE.top + h)
-        context.stroke()
-        const text = label(value)
-        const half = context.measureText(text).width / 2
-        if (at - half > lastLabelEnd + 6 && at + half <= width) {
-          context.fillStyle = c.muted
-          context.fillText(text, at, EDGE.top + h + 6)
-          lastLabelEnd = at + half
-        }
-      }
-      context.strokeStyle = c.line
-      context.strokeRect(EDGE.left + 0.5, EDGE.top + 0.5, w - 1, h - 1)
+      drawGrid(context, c, w, h, { axis: x, at: px }, { axis: y, at: py })
       context.fillStyle = c.muted
       context.textBaseline = 'top'
       context.textAlign = 'left'
@@ -344,7 +309,8 @@ export default function Plot(props: Props) {
         {hover !== null && hasData && <div className="fig-hover" style={{ left: hoverLeft }} />}
         {waiting && <p className="fig-waiting">{waiting}</p>}
       </div>
-      <ul className="fig-legend">
+      {/* The key: a swatch and a name for each line, the name the lab gives the signal. */}
+      <ul className="fig-legend key">
         {series.map((one) => {
           const value = hover === null ? undefined : valueAt(one, hover)
           return (

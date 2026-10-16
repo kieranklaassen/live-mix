@@ -1,0 +1,600 @@
+/*
+ * The playing parts of a lesson page: the buttons that play, the row of sounds, the controls, the
+ * key of a figure, lanes, the build part, the signal-flow picture and a stage's block. The page's
+ * frame and its reading parts are lesson.css's; the tokens are site.css's.
+ */
+
+/* ---- nothing that needs the lab before a script says it runs ------------- */
+
+/* A page read with scripts off shows no button that would do nothing, and no figure says that a
+   lab is loading. The first part on a page that has a button marks the page as it is read
+   (figures/Mark.astro), and the play bar does again. */
+:root:not([data-lab])
+  :is(
+    .hear,
+    .listen,
+    .stage-listen,
+    .sounds,
+    .dials,
+    .build-bar,
+    .build-nav,
+    .build-nothing,
+    .playbar,
+    .fig-waiting,
+    .lanes-waiting
+  ) {
+  display: none;
+}
+
+/* ---- a button that plays ------------------------------------------------- */
+
+.hear {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 16px 0 14px;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.2;
+  text-align: left;
+  color: var(--lm-text);
+  background: transparent;
+  border: 1px solid var(--lm-text);
+  border-radius: 0;
+  cursor: pointer;
+}
+.hear > span[aria-hidden] {
+  flex: none;
+  width: 0.9em;
+  font-size: 11px;
+  text-align: center;
+}
+.hear:hover:not(:disabled),
+.hear-main {
+  color: var(--lm-bg);
+  background: var(--lm-text);
+}
+.hear-main:hover:not(:disabled) {
+  color: var(--lm-bg);
+  background: var(--lm-accent);
+  border-color: var(--lm-accent);
+}
+/* Lit: this is what sounds. */
+.hear[aria-pressed='true'],
+.hear[aria-pressed='true']:hover:not(:disabled) {
+  color: var(--lm-bg);
+  background: var(--lm-accent);
+  border-color: var(--lm-accent);
+}
+/* Busy: pressed, and its render not yet landed. */
+.hear[aria-busy='true'] {
+  border-style: dashed;
+  cursor: progress;
+}
+.hear:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.hear:focus-visible,
+.sounds-choices button:focus-visible,
+.dial-choices button:focus-visible,
+.build-tabs button:focus-visible,
+.playbar-back:focus-visible {
+  outline: 2px solid var(--lm-focus);
+  outline-offset: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- the row of sounds --------------------------------------------------- */
+
+.sounds {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.sounds-label,
+.dial-name,
+.build-count,
+.build-tab-place {
+  font-family: var(--lm-font-mono);
+  font-size: 12px;
+  color: var(--lm-muted);
+}
+.sounds-choices,
+.dial-choices {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  /* Makes up for the last column's and the last row's pull below. */
+  padding: 0 1px 1px 0;
+}
+/* Many choices go onto a second row in a narrow window. Each keeps its whole border and is
+   drawn over its neighbour's by one pixel, so a row that wraps still has a left edge. */
+.sounds-choices button,
+.dial-choices button {
+  min-height: 36px;
+  margin: 0 -1px -1px 0;
+  padding: 0 14px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--lm-text);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  cursor: pointer;
+}
+.sounds-choices button:hover:not(:disabled),
+.dial-choices button:hover:not(:disabled) {
+  border-color: var(--lm-text);
+  position: relative;
+}
+.sounds-choices button[aria-checked='true'],
+.dial-choices button[aria-checked='true'] {
+  color: var(--lm-bg);
+  background: var(--lm-text);
+  border-color: var(--lm-text);
+  position: relative;
+}
+.sounds-choices button:disabled,
+.dial-choices button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---- controls ------------------------------------------------------------ */
+
+.dials {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px 22px;
+  margin: 1rem 0 1.4rem;
+  padding: 14px 16px 12px;
+  border: 1px solid var(--rule-soft);
+  border-top: 1px solid var(--rule);
+}
+.dial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 68px;
+}
+.dial-name {
+  max-width: 9rem;
+  text-align: center;
+  line-height: 1.25;
+}
+.dial-value {
+  font-family: var(--lm-font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--lm-control-value);
+  white-space: nowrap;
+}
+/* The knob is dragged sideways: a finger moving up or down over it scrolls the page. */
+.dial .lm-knob {
+  width: auto;
+}
+.dial .lm-knob__control {
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+.dial .lm-knob__control:disabled {
+  cursor: default;
+}
+.dial .lm-knob__control:focus-visible {
+  outline: 2px solid var(--lm-focus);
+  outline-offset: 2px;
+}
+.dial-switch {
+  align-items: flex-start;
+  min-width: 0;
+}
+.dial-switch .dial-name {
+  max-width: none;
+  text-align: left;
+}
+
+/* ---- a figure's key ------------------------------------------------------ */
+
+/* A swatch and a name for each line a figure draws. */
+.key {
+  list-style: none;
+  font-family: var(--lm-font-mono);
+  font-size: 12px;
+  color: var(--lm-muted);
+}
+.key li {
+  margin: 0;
+}
+.key i {
+  flex: none;
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+}
+/* The colours of a spectrogram, quiet to loud. */
+.key i.ramp {
+  width: 44px;
+  height: 8px;
+  background: linear-gradient(to right, var(--lm-bg), var(--sig-ctl) 60%, var(--sig-out));
+  border: 1px solid var(--rule-soft);
+}
+
+/* ---- lanes --------------------------------------------------------------- */
+
+/* The names in a column of their own, each beside its lane; the lanes share one time axis. */
+.lanes {
+  display: grid;
+  grid-template-columns: minmax(0, 8.5rem) minmax(0, 1fr);
+  gap: 0 10px;
+  min-width: 0;
+}
+.lanes-names {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+}
+.lanes-names li {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.25;
+}
+.lanes-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--lm-text);
+  overflow-wrap: anywhere;
+}
+.lanes-name i {
+  width: 10px;
+  transform: translateY(-4px);
+}
+.lanes-range {
+  padding-left: 16px;
+  font-size: 11px;
+}
+.lanes-picture {
+  position: relative;
+  min-width: 0;
+  touch-action: pan-y;
+}
+.lanes-picture canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.lanes-playhead {
+  top: 0;
+  bottom: auto;
+}
+.lanes-waiting {
+  position: absolute;
+  inset: 0 0 18px;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 0.86rem;
+  color: var(--lm-muted);
+}
+
+/* ---- the build part ------------------------------------------------------ */
+
+.build {
+  margin: 28px 0;
+}
+/* The steps to go to: what is built, where the reader is, what is still to come. */
+.build-tabs {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 0 24px;
+  padding: 0;
+  border-top: 1px solid var(--lm-text);
+}
+.build-tabs li {
+  flex: 1 1 0;
+  min-width: min(100%, 9.5rem);
+  margin: 0;
+}
+.build-tabs button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-height: 56px;
+  padding: 9px 12px 10px 0;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.25;
+  text-align: left;
+  color: var(--lm-muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  cursor: pointer;
+}
+.build-tabs button:hover,
+.build-tabs button[data-place='built'] {
+  color: var(--lm-text);
+}
+.build-tabs button[data-place='here'] {
+  color: var(--lm-text);
+  border-bottom: 3px solid var(--lm-accent);
+  padding-bottom: 8px;
+}
+.build-tabs button[data-place='here'] .build-tab-place {
+  color: var(--lm-accent);
+}
+/* With scripts off the steps follow one another, each under a rule. */
+.build-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px 48px;
+  padding: 20px 0 32px;
+  border-top: 1px solid var(--rule);
+}
+.build-step[hidden] {
+  display: none;
+}
+/* One step at a time stands under the row of steps, which is its rule. */
+.build:has(.build-tabs) .build-step {
+  padding-top: 0;
+  border-top: 0;
+}
+@media (min-width: 62rem) {
+  .build-step {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  }
+}
+.build-text,
+.build-side {
+  min-width: 0;
+}
+.build-count {
+  margin: 0 0 6px;
+}
+.build-step h3 {
+  margin: 0 0 14px;
+  font-size: 28px;
+  line-height: 1.15;
+}
+.build-step h3:focus {
+  outline: none;
+}
+.build-step h3:focus-visible {
+  outline: 2px solid var(--lm-focus);
+  outline-offset: 4px;
+}
+.build-text > :is(p, ul, ol) {
+  max-width: 620px;
+  font-size: 18px;
+}
+/* Back, Add and "Hear it so far", joined in a row. */
+.build-nav {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 22px;
+  padding: 0 1px 1px 0;
+}
+.build-nav .hear {
+  margin: 0 -1px -1px 0;
+}
+.build-nav .hear:hover:not(:disabled),
+.build-nav .hear[aria-pressed='true'] {
+  position: relative;
+}
+.build-side .fig {
+  margin: 0 0 16px;
+}
+.build-side .dials {
+  margin: 0;
+}
+.build-nothing {
+  margin: 0;
+  padding: 14px 16px;
+  font-family: var(--lm-font-mono);
+  font-size: 13px;
+  color: var(--lm-muted);
+  border: 1px solid var(--rule-soft);
+  border-top: 1px solid var(--rule);
+}
+/* A step the reader went to comes in with a short fade; not when the system asks for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .build-step[data-entered] {
+    animation: build-step-in 220ms ease-out;
+  }
+}
+@keyframes build-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ---- the signal-flow picture --------------------------------------------- */
+
+.flow-scroll {
+  overflow-x: auto;
+  padding: 16px 0 12px;
+  background: var(--lm-sunken);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule-soft);
+}
+/* As large as it was laid out and no larger; smaller in a narrower column (figures/Flow.tsx). */
+.flow svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+/* Sound in the colour of the text; a value worked out from it in the colour of a control signal. */
+.flow [data-signal='sound'] {
+  --flow-ink: var(--lm-text);
+}
+.flow [data-signal='value'] {
+  --flow-ink: var(--sig-ctl);
+}
+.flow-wire {
+  fill: none;
+  stroke: var(--flow-ink);
+  stroke-width: 1.5;
+}
+.flow-wire[data-signal='value'] {
+  stroke-dasharray: 5 4;
+}
+.flow-head,
+.flow-joint {
+  fill: var(--flow-ink);
+}
+.flow-block :is(rect, circle) {
+  fill: var(--lm-bg);
+  stroke: var(--flow-ink);
+  stroke-width: 1.5;
+}
+.flow-block[data-shape='dot'] circle {
+  fill: var(--flow-ink);
+}
+.flow-plus {
+  fill: none;
+  stroke: var(--flow-ink);
+  stroke-width: 1.5;
+}
+.flow-block text {
+  font-family: var(--lm-font-mono);
+  font-size: 13px;
+  fill: var(--lm-text);
+}
+.flow-block text.flow-number {
+  font-size: 11px;
+  fill: var(--lm-muted);
+}
+/* The block whose signal is the one sounding. */
+.flow-block[data-lit] :is(rect, circle) {
+  fill: var(--lm-accent);
+  stroke: var(--lm-accent);
+}
+.flow-block[data-lit] text:not(.flow-number) {
+  fill: var(--lm-bg);
+}
+.flow-block[data-lit] text.flow-number {
+  fill: var(--lm-accent);
+}
+.flow > .key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 18px;
+  margin: 6px 0 0;
+  padding: 0;
+}
+.flow > .key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.flow > .key i {
+  height: 0;
+  border-top: 2px solid var(--flow-ink);
+}
+.flow > .key i[data-signal='value'] {
+  border-top: 2px dashed var(--flow-ink);
+}
+
+/* ---- one stage ----------------------------------------------------------- */
+
+.stage-block {
+  max-width: 760px;
+  margin: 40px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+.stage-block h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0 0 4px;
+  font-size: 28px;
+  line-height: 1.15;
+}
+.stage-block-n {
+  flex: none;
+  font-family: var(--lm-font-mono);
+  font-size: 13px;
+  color: var(--part-ink, var(--lm-accent));
+}
+.stage-block-origin,
+.stage-block-kind {
+  font-family: var(--lm-font-mono);
+  font-size: 12px;
+  color: var(--lm-muted);
+}
+.stage-block-origin {
+  margin: 0 0 14px;
+}
+.stage-block-equation,
+.stage-block-listing {
+  margin: 16px 0;
+}
+.stage-block-listen,
+.stage-block-kind {
+  margin: 16px 0 0;
+}
+
+/* ---- the play bar: the way back ------------------------------------------ */
+
+.playbar-back {
+  min-height: 2.3rem;
+  padding: 0.3rem 0.7rem;
+  font: inherit;
+  color: var(--lm-text);
+  background: transparent;
+  border: 1px solid var(--lm-text);
+  border-radius: 0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.playbar-back:hover {
+  color: var(--lm-bg);
+  background: var(--lm-text);
+}
+@media (max-width: 640px) {
+  .playbar-back-more {
+    display: none;
+  }
+  .lanes {
+    grid-template-columns: minmax(0, 5.75rem) minmax(0, 1fr);
+    gap: 0 6px;
+  }
+  .lanes-names {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  .lanes-name {
+    gap: 4px;
+  }
+  .lanes-range {
+    padding-left: 0;
+    font-size: 10px;
+  }
+  .build-step h3,
+  .stage-block h3 {
+    font-size: 24px;
+  }
+  .build-text > :is(p, ul, ol) {
+    font-size: 17px;
+  }
+}

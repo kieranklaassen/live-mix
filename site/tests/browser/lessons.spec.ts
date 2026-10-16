@@ -38,12 +38,16 @@ for (const lesson of lessonIds()) {
       // one picture is another picture.
       const before = await pictures(page)
       const count = await renders(page)
-      const slider = page.locator('.control input[type=range]').first()
-      if ((await slider.count()) > 0) {
-        await slider.focus()
-        await slider.press((await slider.inputValue()) === '1000' ? 'Home' : 'End')
+      // A ranged control is a knob, found by its role and moved by the keys.
+      const controls = page.locator('.dials')
+      const knob = controls.getByRole('slider').first()
+      if ((await knob.count()) > 0) {
+        await knob.focus()
+        const atTop =
+          (await knob.getAttribute('aria-valuenow')) === (await knob.getAttribute('aria-valuemax'))
+        await knob.press(atTop ? 'Home' : 'End')
       } else {
-        await page.locator('.control [role=radio][aria-checked=false]').first().click()
+        await controls.getByRole('radio', { checked: false }).first().click()
       }
       await expect.poll(() => renders(page)).toBeGreaterThan(count)
       await expect

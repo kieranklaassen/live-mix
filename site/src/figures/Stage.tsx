@@ -7,6 +7,7 @@ import type { Tap } from '../lab/store.ts'
 import { rgbOf, useCanvas } from './canvas.ts'
 import { AUDIBLE, minMaxColumns, minMaxPlaced, rangeOf, toUnit } from './draw.ts'
 import type { TapRef } from './roles.ts'
+import { tapState } from './sounding.ts'
 
 /** What a stage that is not sound is, in a word, where the listen button would be. */
 const KIND_WORD: Record<TapRef['kind'], string> = {
@@ -94,7 +95,8 @@ function Small({ tap, data }: { tap: TapRef; data: Tap | undefined }) {
 export default function Stage({ tap, step }: { tap: TapRef; step: number }) {
   const state = useLab()
   const data = state.result?.taps[tap.id]
-  const sounding = state.playing && state.sounding === tap.id
+  // Lit while its tap sounds by a stage's own button: a card that plays the same tap is the one lit.
+  const sounding = tapState(state, tap.id) === 'sounding'
   const canListen = tap.kind === 'audio'
   return (
     <li className="stage" data-stage={tap.id} data-sounding={sounding ? '' : undefined}>

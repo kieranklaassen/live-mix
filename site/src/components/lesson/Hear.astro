@@ -1,0 +1,30 @@
+---
+// A card's button: <Hear set="pump" /> sets the page to one of the lesson's named sets
+// (src/content/settings/<lesson>.json) and plays it. It is lit while its card is the one that
+// sounds, and busy from the press until the render that carries the set lands.
+import { getEntry } from 'astro:content'
+import Hear from '../../figures/Hear.tsx'
+import Mark from '../../figures/Mark.astro'
+import { countOnPage } from '../../figures/once.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+import { lessonSettings, setNamed } from '../../lib/settings.ts'
+
+interface Props {
+  /** A name under `sets` in the lesson's settings file. */
+  set: string
+  /** What the button says. */
+  label?: string
+}
+const { set, label = 'Hear' } = Astro.props
+const { lesson } = pageLab(Astro.locals)
+const entry = await getEntry('lessons', lesson)
+if (!entry) throw new Error(`${lesson}: a card's button was used on a page that is not a lesson's.`)
+const { label: called, ...named } = setNamed(await lessonSettings(entry), set, lesson)
+
+// Two cards may play one set: each is lit by its own press, so each has an id of its own.
+const nth = countOnPage(Astro.locals, `card ${set}`)
+const id = nth === 1 ? set : `${set}-${nth}`
+---
+
+<Mark />
+<Hear client:visible card={{ id, label: called }} set={named} label={label} />

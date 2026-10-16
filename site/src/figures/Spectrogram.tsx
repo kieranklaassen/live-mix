@@ -109,8 +109,9 @@ export default function Spectrogram({
         <canvas ref={canvas} role="img" aria-label={label} />
         {waiting && <p className="fig-waiting">{waiting}</p>}
       </div>
-      <ul className="fig-legend">
+      <ul className="fig-legend key">
         <li>
+          <i className="ramp" />
           {tap.name}: seconds across, hertz up, from {number(min)} dB (the page's colour) to{' '}
           {number(max)} dB
         </li>

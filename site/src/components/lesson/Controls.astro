@@ -1,6 +1,7 @@
 ---
 // The lab's controls, by id, beside the figure they move: <Controls ids="threshold ratio knee" />
 import Controls from '../../figures/Control.tsx'
+import Mark from '../../figures/Mark.astro'
 import { controlsNamed, pageLab } from '../../lib/lab-info.ts'
 
 interface Props {
@@ -10,4 +11,5 @@ const { lab, lesson } = pageLab(Astro.locals)
 const controls = controlsNamed(Astro.props.ids, lab, lesson)
 ---
 
+<Mark />
 <Controls client:load controls={controls} />

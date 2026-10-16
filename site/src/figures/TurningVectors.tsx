@@ -277,7 +277,7 @@ export default function TurningVectors({
         <canvas ref={canvas} role="img" aria-label={label} />
         {waiting && <p className="fig-waiting">{waiting}</p>}
       </div>
-      <ul className="fig-legend">
+      <ul className="fig-legend key">
         <li>
           <i style={{ background: `var(${ROLE_VAR.ctl})` }} />
           {kept} {kept === 1 ? 'vector' : 'vectors'}, tip to tail
