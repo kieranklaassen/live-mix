@@ -181,6 +181,7 @@ export const PLATE_PALETTES = {
   'ear-shift': { plate: '#6b5cff', ink: '#0a0730', accent: '#fff3b8' },
   'winding-down': { plate: '#a27e90', ink: '#1c0a14', accent: '#fffbe8' },
   'breath-pacer': { plate: '#60aeb2', ink: '#041a1c', accent: '#7a1030' },
+  'coloured-noise': { plate: '#b5503e', ink: '#fff5e9', accent: '#0d1540' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

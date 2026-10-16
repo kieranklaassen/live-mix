@@ -15,6 +15,7 @@ import { CHOIR_PRESETS } from './choir'
 import { CHORD_HARP_PRESETS } from './chord-harp'
 import { CLARINET_PRESETS } from './clarinet'
 import { CLUB_KIT_PRESETS } from './club-kit'
+import { COLOURED_NOISE_PRESETS } from './coloured-noise'
 import { DRONE_PRESETS } from './drone'
 import { DROPLETS_PRESETS } from './droplets'
 import { DRUM_KIT_PRESETS } from './drum-kit'
@@ -124,4 +125,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...ISOCHRONIC_PRESETS,
   ...STILL_POINT_PRESETS,
   ...BREATH_PACER_PRESETS,
+  ...COLOURED_NOISE_PRESETS,
 ]
