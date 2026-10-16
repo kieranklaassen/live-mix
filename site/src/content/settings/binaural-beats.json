@@ -1,0 +1,85 @@
+{
+  "tile": {
+    "tap": "out",
+    "picture": {
+      "taps": ["levelMid", "levelLeft"],
+      "view": "wave",
+      "from": 1,
+      "span": 1
+    }
+  },
+  "sets": {
+    "one": {
+      "label": "One tone",
+      "tap": "carrier"
+    },
+    "air": {
+      "label": "Two tones in the air",
+      "values": { "ears": 0 }
+    },
+    "apart": {
+      "label": "One tone to each ear"
+    },
+    "held": {
+      "label": "A held key",
+      "values": { "warmth": 0.3 }
+    },
+    "chord": {
+      "label": "A chord",
+      "values": { "keys": 1 }
+    },
+    "bedded": {
+      "label": "Tones over a bed",
+      "values": { "bed": 0.5 }
+    },
+    "shifted": {
+      "label": "A plain tone through the Ear Shift",
+      "tap": "shifted"
+    },
+    "pulse": {
+      "label": "A pulse",
+      "tap": "pulsed"
+    },
+    "slow": {
+      "label": "Once a second",
+      "values": { "beat": 1 }
+    },
+    "fast": {
+      "label": "Forty a second",
+      "values": { "beat": 40 }
+    },
+    "halfway": {
+      "label": "Ears half way",
+      "values": { "ears": 0.5 }
+    },
+    "turns": {
+      "label": "The ears take turns",
+      "values": { "offset": 180 },
+      "tap": "pulsed"
+    },
+    "soft": {
+      "label": "A soft pulse",
+      "values": { "depth": 0.5, "edge": 30 },
+      "tap": "pulsed"
+    },
+    "folded": {
+      "label": "The two ears added",
+      "tap": "mid"
+    },
+    "edge": {
+      "label": "A tone on the band's edge",
+      "values": { "key": 440, "high": 440 },
+      "tap": "shifted"
+    },
+    "loud-bed": {
+      "label": "Bed all the way up",
+      "values": { "bed": 1 }
+    },
+    "cancel": {
+      "label": "The turns added",
+      "values": { "offset": 180 },
+      "tap": "pulsedMid"
+    }
+  },
+  "defaults": { "values": { "warmth": 0.3 } }
+}
