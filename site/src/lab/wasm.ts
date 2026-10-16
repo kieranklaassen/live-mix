@@ -18,7 +18,6 @@ export interface LabExports {
   lab_control_max(i: number): number
   lab_control_default(i: number): number
   lab_control_scale(i: number): number
-  lab_control_value(i: number): number
   lab_tap_count(): number
   lab_tap_id(i: number): number
   lab_tap_name(i: number): number

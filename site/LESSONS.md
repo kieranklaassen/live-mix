@@ -96,7 +96,7 @@ void lab_render(int frames) {  // every time a control moves
   `spectrogram_tap(tap, x, count)`; `energy_decay_tap(tap, x, count)`; `to_db`, `power_to_db`,
   `difference_db(x, y, count)`, `peak`, `rms`; `ratio_db(diff, ref)` for a lab that adds the
   two sums up as its loop runs; `fourier_at(h, count, hz)` (one frequency of an impulse
-  response, as `re` and `im`); `kPi` as a double; `run_blocks` for a device run in blocks.
+  response, as `re` and `im`); `kPi` as a double.
   The page can already draw the spectrum of any audio tap, so a spectrum tap is only for
   something that is not a tap of the loop.
 - **Memory:** no heap. Buffers are file-level arrays or `lab::take(count)` (zeroed, gone at

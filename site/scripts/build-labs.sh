@@ -34,7 +34,7 @@ mkdir -p "$out_dir"
 exports=(
   lab_init lab_sample_rate lab_max_frames lab_input lab_set lab_run
   lab_control_count lab_control_id lab_control_name lab_control_unit lab_control_choices
-  lab_control_min lab_control_max lab_control_default lab_control_scale lab_control_value
+  lab_control_min lab_control_max lab_control_default lab_control_scale
   lab_tap_count lab_tap_id lab_tap_name lab_tap_unit lab_tap_kind lab_tap_origin lab_tap_channels
   lab_tap_data lab_tap_length lab_tap_x0 lab_tap_x1 lab_tap_columns lab_tap_scale
   lab_check_count lab_check_id lab_check_name lab_check_unit lab_check_value

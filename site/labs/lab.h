@@ -450,24 +450,6 @@ inline void energy_decay_tap(Tap& tap, const float* x, int count, int points = 4
   for (; p >= 0; --p) tap.data[p] = 0.0f;
 }
 
-// Run a device over `count` frames of stereo input in blocks of `block`
-// frames, and call `after(offset, n)` once each block so the lab can read
-// the device's output (and, built with -fno-access-control, its state).
-template <class Device, class After>
-inline void run_blocks(Device& device, const float* left, const float* right, int count, int block, After&& after) {
-  for (int offset = 0; offset < count; offset += block) {
-    const int n = count - offset < block ? count - offset : block;
-    float* in_left = device.in_left();
-    float* in_right = device.in_right();
-    for (int i = 0; i < n; ++i) {
-      in_left[i] = left[offset + i];
-      in_right[i] = right[offset + i];
-    }
-    device.process(n);
-    after(offset, n);
-  }
-}
-
 }  // namespace lab
 
 // Each lab defines these two.
@@ -509,7 +491,6 @@ float lab_control_min(int i) { return lab_control_at(i) ? lab_control_at(i)->min
 float lab_control_max(int i) { return lab_control_at(i) ? lab_control_at(i)->max : 0.0f; }
 float lab_control_default(int i) { return lab_control_at(i) ? lab_control_at(i)->initial : 0.0f; }
 int lab_control_scale(int i) { return lab_control_at(i) ? lab_control_at(i)->scale : 0; }
-float lab_control_value(int i) { return lab_control_at(i) ? lab_control_at(i)->value : 0.0f; }
 void lab_set(int i, float value) {
   if (lab_control_at(i)) lab_control_at(i)->set(value);
 }
