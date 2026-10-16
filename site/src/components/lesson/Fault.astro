@@ -3,7 +3,12 @@
 // that make it, in words read from the same named set the card's button plays
 // (src/content/settings/<lesson>.json):
 // <Fault title="Pumping" set="pump">What happens, and what to do about it.</Fault>
-// A card with no `set` has no settings and no button.
+// A card with no `set` has no settings and no button. A card may carry a picture, as a use
+// card does, over its words:
+// <Fault title="Pumping" set="pump">
+//   <Still slot="picture" taps="in out" set="pump" caption="…" />
+//   What happens, and what to do about it.
+// </Fault>
 import { getEntry } from 'astro:content'
 import Hear from './Hear.astro'
 import { pageLab } from '../../lib/lab-info.ts'
@@ -22,6 +27,11 @@ const words = set && entry && setInWords(lab, setNamed(await lessonSettings(entr
 ---
 
 <article class="lesson-card fault" data-set={set}>
+  {Astro.slots.has('picture') && (
+    <div class="lesson-card-picture">
+      <slot name="picture" />
+    </div>
+  )}
   <div class="lesson-card-text">
     <h3>{title}</h3>
     <slot />

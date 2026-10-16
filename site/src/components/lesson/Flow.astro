@@ -16,7 +16,13 @@
 // by one that is not the block before it on its row is reached by a path round the blocks
 // between; and `back` names a block further along whose output comes back: feedback, drawn
 // against the flow. A block that names a `tap` is lit while that tap sounds, and is named after
-// it when it has no `label`. A tap the lab does not have stops the build.
+// it when it has no `label`: an adder (`shape: 'sum'`) has that name under its circle, or over
+// it where a path comes into it from below. A tap the lab does not have stops the build.
+//
+// In a narrow column the picture wraps: it is cut between two columns of blocks into bands
+// that stand one under another, and a path that crosses a cut goes on in the next band at the
+// height of its row (figures/flow.ts, wrapFlow). The rows stay rows, so a caption may speak
+// of the row along the top and the row under it.
 import Flow from '../../figures/Flow.tsx'
 import { flowBlocks, type FlowBlock } from '../../figures/flow.ts'
 import { pageLab } from '../../lib/lab-info.ts'

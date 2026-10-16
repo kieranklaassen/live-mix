@@ -1,9 +1,11 @@
 ---
 // A picture rendered from the lab when the site is built, as inline SVG with a key and a caption:
 // <Still taps="in out" set="pump" view="wave" from={1} span={2} caption="What to notice." />
+// <Still taps="in out" view="spectrum" min={-80} max={0} top={8000} caption="What to notice." />
 // It is in the page with scripts off and costs the browser nothing. Its lines are in their
 // roles' colours, as a live figure's are. A tap the lab does not have, or a set the lesson's
-// settings file does not have, stops the build, naming the lesson.
+// settings file does not have, stops the build, naming the lesson. So does a range that does not
+// run upwards and a top that is not a frequency the picture can reach.
 import { getEntry } from 'astro:content'
 import { ROLE_VAR } from '../../figures/roles.ts'
 import { pageLab } from '../../lib/lab-info.ts'
@@ -23,6 +25,15 @@ interface Props {
   /** The span of time drawn, in seconds: where it starts, and its length (to the loop's end when left out). */
   from?: number
   span?: number
+  /**
+   * The vertical range, in the view's own unit: decibels for a spectrum and for the levels of a
+   * spectrogram, the curve's unit for a curve, amplitude for a wave. An end left out is fitted.
+   * Two stills meant to be compared are given the same.
+   */
+  min?: number
+  max?: number
+  /** The highest frequency drawn by a spectrum and a spectrogram, in hertz. Fitted when left out. */
+  top?: number
   /** What to notice in the picture. */
   caption: string
 }

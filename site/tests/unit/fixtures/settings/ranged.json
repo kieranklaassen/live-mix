@@ -1,0 +1,6 @@
+{
+  "tile": {
+    "tap": "in",
+    "picture": { "taps": ["in"], "view": "wave", "span": 2, "min": -4, "max": 4 }
+  }
+}

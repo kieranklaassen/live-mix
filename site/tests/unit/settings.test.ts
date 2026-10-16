@@ -104,6 +104,19 @@ describe('a lesson’s settings file', () => {
     })
   })
 
+  it('takes the range of a tile’s picture: its min, its max and its top', () => {
+    const picture = { taps: ['out'], view: 'spectrum', min: -80, max: 0, top: 8000 }
+    expect(settingsSchema.parse({ tile: { tap: 'out', picture } }).tile!.picture).toEqual({
+      ...picture,
+      from: 0,
+    })
+    // Each is a number, and a top is above 0.
+    for (const wrong of [{ min: 'low' }, { max: null }, { top: 0 }, { top: -100 }, { top: '8k' }]) {
+      const tile = { tap: 'out', picture: { ...picture, ...wrong } }
+      expect(settingsSchema.safeParse({ tile }).success, JSON.stringify(wrong)).toBe(false)
+    }
+  })
+
   it('is refused when it holds a key the shape does not have', () => {
     expect(settingsSchema.safeParse({ ...whole, cards: {} }).success).toBe(false)
     expect(

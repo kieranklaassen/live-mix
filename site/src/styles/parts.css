@@ -8,7 +8,8 @@
 
 /* A page read with scripts off shows no button that would do nothing, and no figure says that a
    lab is loading. The first part on a page that has a button marks the page as it is read
-   (figures/Mark.astro), and the play bar does again. */
+   (figures/Mark.astro), and the play bar does again. `.controls` is the row of controls a
+   figure draws for itself, over its own picture. */
 :root:not([data-lab])
   :is(
     .hear,
@@ -16,6 +17,7 @@
     .stage-listen,
     .sounds,
     .dials,
+    .controls,
     .build-bar,
     .build-nav,
     .build-nothing,
@@ -451,6 +453,44 @@
   border-top: 1px solid var(--rule);
   border-bottom: 1px solid var(--rule-soft);
 }
+/* The picture is in the page once for each width of column it may stand in, wrapped onto
+   further bands for a narrow one (figures/flow.ts, FLOW_FITS: `full` as it was laid out, then
+   `large`, `mid` and `narrow`). The width of its own column picks the one that shows, so a
+   picture in half a build step wraps as one on a phone does. Each rule below undoes the one
+   before it. */
+.flow {
+  container-type: inline-size;
+}
+.flow-scroll[data-fits] {
+  display: none;
+}
+.flow-scroll[data-fits~='full'] {
+  display: block;
+}
+@container (max-width: 959.98px) {
+  .flow-scroll[data-fits] {
+    display: none;
+  }
+  .flow-scroll[data-fits~='large'] {
+    display: block;
+  }
+}
+@container (max-width: 759.98px) {
+  .flow-scroll[data-fits] {
+    display: none;
+  }
+  .flow-scroll[data-fits~='mid'] {
+    display: block;
+  }
+}
+@container (max-width: 519.98px) {
+  .flow-scroll[data-fits] {
+    display: none;
+  }
+  .flow-scroll[data-fits~='narrow'] {
+    display: block;
+  }
+}
 /* As large as it was laid out and no larger; smaller in a narrower column (figures/Flow.tsx). */
 .flow svg {
   display: block;
@@ -476,6 +516,12 @@
 .flow-head,
 .flow-joint {
   fill: var(--flow-ink);
+}
+/* Where a path runs off the end of its band, to go on in the next. */
+.flow-on {
+  fill: none;
+  stroke: var(--flow-ink);
+  stroke-width: 1.5;
 }
 .flow-block :is(rect, circle) {
   fill: var(--lm-bg);

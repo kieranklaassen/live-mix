@@ -2,7 +2,12 @@
 // One habit of working with the technique, with settings to try, in words read from the same
 // named set the card's button plays (src/content/settings/<lesson>.json):
 // <Way title="Let the hit through" tag="a slow attack" set="hit">What it does and why.</Way>
-// A card with no `set` has no settings and no button.
+// A card with no `set` has no settings and no button. A card may carry a picture, as a use
+// card does, over its words:
+// <Way title="Let the hit through" set="hit">
+//   <Still slot="picture" taps="in out" set="hit" caption="…" />
+//   What it does and why.
+// </Way>
 import { getEntry } from 'astro:content'
 import Hear from './Hear.astro'
 import { pageLab } from '../../lib/lab-info.ts'
@@ -23,6 +28,11 @@ const words = set && entry && setInWords(lab, setNamed(await lessonSettings(entr
 ---
 
 <article class="lesson-card way" data-set={set}>
+  {Astro.slots.has('picture') && (
+    <div class="lesson-card-picture">
+      <slot name="picture" />
+    </div>
+  )}
   <div class="lesson-card-text">
     {tag && <p class="lesson-card-tag">{tag}</p>}
     <h3>{title}</h3>

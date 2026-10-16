@@ -2,34 +2,52 @@
 // The picture a lesson opens on: the sound going in and what comes out on one time axis, as a
 // still at the lab's starting values on the lesson's first source, with a key that names each
 // line and a button to hear each. <Opening input="in" output="out" />
+//
+// The page places it from the lesson's front matter, `opening: { input: in, output: out }`,
+// which may say more, each as a still takes it: `view`, `from` and `span`, `min`, `max` and
+// `top`. `separate: true` draws the two taps apart, one picture above the other, each on a
+// vertical range of its own, for a lesson whose input is a sliver beside its output; a
+// spectrogram is always drawn so, since a picture of colour holds one tap. `caption` is what to
+// notice. A tap that is not sound has no button.
+//
+//   opening: { input: in, output: out, view: spectrum, top: 8000, caption: What to notice. }
 import { getEntry } from 'astro:content'
 import { ROLE_VAR } from '../../figures/roles.ts'
 import { pageLab } from '../../lib/lab-info.ts'
-import { lessonStill, plotHtml } from '../../lib/still.ts'
+import { lessonOpening, plotHtml, type OpeningProps } from '../../lib/still.ts'
 import Listen from './Listen.astro'
 
-interface Props {
-  /** The tap of the sound going in, and the tap of what comes out, by id. */
-  input: string
-  output: string
+interface Props extends OpeningProps {
+  /** What to notice in the picture. */
+  caption?: string
 }
-const { input, output } = Astro.props
-const { lesson } = pageLab(Astro.locals)
+const { caption, ...asked } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
 const entry = await getEntry('lessons', lesson)
 if (!entry)
   throw new Error(`${lesson}: an opening picture was used on a page that is not a lesson's.`)
-const picture = await lessonStill(entry, { taps: `${input}:in ${output}:out` })
+const pictures = await lessonOpening(entry, asked)
+const sound = (id: string) => lab.taps.find((tap) => tap.id === id)?.kind === 'audio'
 ---
 
 <figure class="fig opening">
-  <Fragment set:html={plotHtml(picture)} />
+  {pictures.map((picture) => (
+    <Fragment set:html={plotHtml(picture)} />
+  ))}
   <ul class="fig-legend">
-    {picture.key.map((line) => (
-      <li>
-        <i style={`background: var(${ROLE_VAR[line.role]})`} />
-        {line.name}
-        <Listen tap={line.id}>Hear it</Listen>
-      </li>
-    ))}
+    {pictures.flatMap((picture) =>
+      picture.key.map((line) => (
+        <li>
+          <i
+            style={`background: var(${ROLE_VAR[line.role]})`}
+            class={line.dashed ? 'dashed' : undefined}
+          />
+          {line.name}
+          {sound(line.id) && <Listen tap={line.id}>Hear it</Listen>}
+        </li>
+      )),
+    )}
+    {pictures.map((picture) => picture.note && <li>{picture.note}</li>)}
   </ul>
+  {caption && <figcaption>{caption}</figcaption>}
 </figure>

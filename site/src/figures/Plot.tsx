@@ -98,15 +98,23 @@ export default function Plot(props: Props) {
       const py = (value: number) => EDGE.top + (1 - toUnit(y, value)) * h
 
       drawGrid(context, c, w, h, { axis: x, at: px }, { axis: y, at: py })
-      context.fillStyle = c.muted
-      context.textBaseline = 'top'
-      context.textAlign = 'left'
-      if (y.title) context.fillText(y.title, EDGE.left + 6, EDGE.top + 5)
-      context.textAlign = 'right'
-      context.textBaseline = 'bottom'
-      if (x.title) context.fillText(x.title, EDGE.left + w - 6, EDGE.top + h - 4)
+      // The axes' titles, in two corners of the picture. They are written after the lines, on a
+      // plate as the label of a dashed line is, so that no line strikes them out.
+      const titles = (write: (text: string, at: number, top: number) => void) => {
+        context.font = MONO
+        context.fillStyle = c.muted
+        context.textBaseline = 'top'
+        context.textAlign = 'left'
+        if (y.title) write(y.title, EDGE.left + 6, EDGE.top + 5)
+        context.textAlign = 'right'
+        context.textBaseline = 'bottom'
+        if (x.title) write(x.title, EDGE.left + w - 6, EDGE.top + h - 4)
+      }
 
-      if (waiting) return
+      if (waiting) {
+        titles((text, at, top) => context.fillText(text, at, top))
+        return
+      }
       context.save()
       context.beginPath()
       context.rect(EDGE.left, EDGE.top, w, h)
@@ -245,6 +253,7 @@ export default function Plot(props: Props) {
       context.setLineDash([])
       context.font = MONO
       for (const write of labels) write()
+      titles((text, at, top) => plateText(context, c, text, at, top))
       context.restore()
     },
     [props.stamp, waiting, x.min, x.max, x.log, y.min, y.max, height, JSON.stringify(marks)],

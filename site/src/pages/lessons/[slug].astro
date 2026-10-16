@@ -66,6 +66,10 @@ const deviceOrThrow = (id: string, named: 'its bench names' | 'it names') => {
 const bench = data.bench
   ? { ...data.bench, entry: deviceOrThrow(data.bench.device, 'its bench names') }
   : undefined
+// An effect on the bench is fed the loop the page plays. An instrument takes no sound in: the
+// bench plays it a phrase of its own, so its page never says it runs on the loop.
+const benchRuns =
+  bench?.as === 'instrument' ? 'played a short phrase that comes round' : 'on the same loop'
 const devices = data.devices.map((id) => deviceOrThrow(id, 'it names'))
 
 // The long shape: the nine parts under a hero, as the map and the lesson's own text give them.
@@ -119,7 +123,7 @@ const labTest = inRepo(`site/tests/labs/${data.lab}.test.ts`)
       </noscript>
       <div class="lesson-opening">
         <Sounds />
-        {opening && <Opening input={opening.input} output={opening.output} />}
+        {opening && data.opening && <Opening {...data.opening} />}
       </div>
 
       <div class="lesson-body">
@@ -135,7 +139,7 @@ const labTest = inRepo(`site/tests/labs/${data.lab}.test.ts`)
                 Everything above ran in a lab: the engine's code, stopped at each stage so it could
                 be looked at. Here is{' '}
                 <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a> itself, running
-                live through the engine as an app runs it, on the same loop.
+                live through the engine as an app runs it, {benchRuns}.
               </p>
               {bench.note && <p>{bench.note}</p>}
             </>
@@ -309,7 +313,7 @@ const labTest = inRepo(`site/tests/labs/${data.lab}.test.ts`)
             <p>
               Everything above ran in a lab: the engine's code, stopped at each stage so it could be
               looked at. Here is <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a>{' '}
-              itself, running live through the engine as an app runs it, on the same loop.
+              itself, running live through the engine as an app runs it, {benchRuns}.
             </p>
             {bench.note && <p>{bench.note}</p>}
             <Mark />

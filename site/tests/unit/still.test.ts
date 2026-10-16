@@ -6,10 +6,12 @@ import { describe, expect, it } from 'vitest'
 import { lab, silence as nothing } from '../labs/support.ts'
 import {
   benchSource,
+  lessonOpening,
   lessonStill,
   lessonTile,
   plotHtml,
   renderStill,
+  type Numbers,
   type StillLesson,
 } from '../../src/lib/still.ts'
 
@@ -158,7 +160,208 @@ describe('a lesson’s still', () => {
   })
 })
 
+describe('a still’s ranges', () => {
+  /** The two ends of an axis of even steps, worked back from where its numbers stand. */
+  const ends = ({ ticks }: Numbers) => {
+    const value = (text: string) => Number(text.replace('−', '-').replace('k', 'e3'))
+    const [first, last] = [ticks.at(0)!, ticks.at(-1)!]
+    const span = (value(last.text) - value(first.text)) / (last.at - first.at)
+    const min = value(first.text) - first.at * span
+    return [min, min + span].map((end) => Math.round(end * 1e6) / 1e6)
+  }
+
+  it('stands a wave on the vertical range it is given, and fits the end it is not', async () => {
+    const fitted = await lessonStill(SAMPLE, { taps: 'in', source: 'sine' })
+    const ranged = await lessonStill(SAMPLE, { taps: 'in', source: 'sine', min: -2, max: 2 })
+    expect(ends(ranged.y)).toEqual([-2, 2])
+    expect(ranged.lines).not.toBe(fitted.lines)
+    expect(ranged.x).toEqual(fitted.x)
+    // Only the top is given: the bottom is the one the still chose by itself.
+    const topped = await lessonStill(SAMPLE, { taps: 'in', source: 'sine', max: 8 })
+    expect(ends(topped.y)).toEqual([ends(fitted.y)[0], 8])
+  })
+
+  it('gives two stills that are given one range the same numbers', async () => {
+    const range = { taps: 'in', view: 'spectrum', min: -80, max: 0, top: 5000 } as const
+    const drums = await lessonStill(SAMPLE, { ...range, source: 'drums' })
+    const sine = await lessonStill(SAMPLE, { ...range, source: 'sine' })
+    expect(drums.y).toEqual(sine.y)
+    expect(drums.x).toEqual(sine.x)
+    expect(drums.lines).not.toBe(sine.lines)
+  })
+
+  it('draws a spectrum up to the frequency given, on the levels given', async () => {
+    const spectrum = await lessonStill(COMPRESSION, {
+      taps: 'in out',
+      view: 'spectrum',
+      min: -80,
+      max: 0,
+      top: 5000,
+    })
+    expect(spectrum.x.ticks.map((tick) => tick.text)).toEqual(
+      '20 50 100 200 500 1k 2k 5k'.split(' '),
+    )
+    expect(spectrum.x.ticks.at(-1)!.at).toBeCloseTo(1, 9)
+    expect(ends(spectrum.y)).toEqual([-80, 0])
+  })
+
+  it('stands a curve on the range given, in the curve’s own unit', async () => {
+    const curve = await lessonStill(COMPRESSION, {
+      taps: 'curve curveFormula',
+      view: 'curve',
+      min: -100,
+      max: 20,
+    })
+    expect(ends(curve.y)).toEqual([-100, 20])
+  })
+
+  it('draws a picture of colour up to the frequency given, between the levels given', async () => {
+    const colour = await lessonStill(FRAMES, {
+      taps: 'picture',
+      view: 'spectrogram',
+      min: -70,
+      max: -10,
+      top: 4000,
+    })
+    expect(ends(colour.y)).toEqual([0, 4000])
+    expect(colour.note).toMatch(/from −70 dB .* to −10 dB$/)
+    const fitted = await lessonStill(FRAMES, { taps: 'picture', view: 'spectrogram' })
+    expect(colour.lines).not.toBe(fitted.lines)
+  })
+
+  it('stops the build on a range whose min is not below its max, naming the lesson', async () => {
+    await expect(lessonStill(COMPRESSION, { taps: 'in', min: 1, max: -1 })).rejects.toThrow(
+      "compression: a picture's range runs from 1 to -1: its min must be below its max.",
+    )
+    await expect(
+      lessonStill(COMPRESSION, { taps: 'in', view: 'spectrum', min: -60, max: -60 }),
+    ).rejects.toThrow("compression: a picture's range runs from -60 to -60")
+    await expect(
+      lessonStill(FRAMES, { taps: 'picture', view: 'spectrogram', min: 0, max: -60 }),
+    ).rejects.toThrow("short-time-fourier: a picture's range runs from 0 to -60")
+    // One end given, on the wrong side of the end the still fits by itself.
+    await expect(lessonStill(COMPRESSION, { taps: 'in', min: 50 })).rejects.toThrow(
+      /^compression: a picture's range runs from 50 to /,
+    )
+  })
+
+  it('stops the build on a top that is not a frequency the picture can reach, naming the lesson', async () => {
+    for (const top of [0, -100, 24_001]) {
+      await expect(
+        lessonStill(FRAMES, { taps: 'picture', view: 'spectrogram', top }),
+      ).rejects.toThrow(
+        `short-time-fourier: a picture's top is ${top} Hz: it must be above 0 Hz and at most 24000 Hz, half the sample rate.`,
+      )
+    }
+    await expect(
+      lessonStill(COMPRESSION, { taps: 'in', view: 'spectrum', top: 30_000 }),
+    ).rejects.toThrow("compression: a picture's top is 30000 Hz")
+    // A spectrum starts at 20 Hz, so its top is above that.
+    await expect(
+      lessonStill(COMPRESSION, { taps: 'in', view: 'spectrum', top: 20 }),
+    ).rejects.toThrow("compression: a picture's top is 20 Hz: it must be above 20 Hz")
+    await expect(
+      lessonStill(FRAMES, { taps: 'picture', view: 'spectrogram', top: 24_000 }),
+    ).resolves.toBeDefined()
+  })
+})
+
+describe('a still of a curve', () => {
+  it('draws every curve of a tap that holds several, under one line of the key', async () => {
+    const render = await renderStill({ lab: 'short-time-fourier', source: 'guitar', seconds: 4 })
+    const { columns, length } = render.result.taps.windows!
+    expect(columns).toBeGreaterThan(1)
+    const picture = await lessonStill(FRAMES, { taps: 'windows', view: 'curve' })
+    expect(picture.lines.match(/<path /g)).toHaveLength(columns)
+    // Each is a line of its own points, and none is a band of them all run together.
+    expect(picture.lines.match(/[ML]/g)).toHaveLength(length)
+    expect(picture.lines).not.toMatch(/Z"/)
+    expect(picture.key).toEqual([
+      { id: 'windows', name: "Each frame's two windows", role: 'out', dashed: false },
+    ])
+  })
+})
+
+describe('the picture a lesson opens on', () => {
+  it('is one still of the two taps on one time axis, when it is given nothing more', async () => {
+    const opening = await lessonOpening(COMPRESSION, { input: 'in', output: 'out' })
+    expect(opening).toHaveLength(1)
+    expect(opening[0]).toEqual(await lessonStill(COMPRESSION, { taps: 'in:in out:out' }))
+    expect(opening[0]!.label).toBe('Input and Output against time')
+  })
+
+  it('takes a view, a span of time and its ranges, as a still does', async () => {
+    const [spectrum, ...more] = await lessonOpening(COMPRESSION, {
+      input: 'in',
+      output: 'out',
+      view: 'spectrum',
+      min: -80,
+      max: 0,
+      top: 5000,
+    })
+    expect(more).toEqual([])
+    expect(spectrum!.label).toBe('The spectrum of Input and Output')
+    expect(spectrum!.x.ticks.at(-1)!.text).toBe('5k')
+    expect(spectrum!.y.ticks.map((tick) => tick.text)).toEqual(['−80', '−60', '−40', '−20', '0'])
+    const [short] = await lessonOpening(COMPRESSION, {
+      input: 'in',
+      output: 'out',
+      from: 1,
+      span: 2,
+    })
+    expect(short!.x.ticks.map((tick) => tick.text)).toEqual(['1', '1.5', '2', '2.5', '3'])
+  })
+
+  it('draws the two taps apart, each fitted by itself, when it is asked to', async () => {
+    const opening = await lessonOpening(COMPRESSION, {
+      input: 'in',
+      output: 'out',
+      separate: true,
+    })
+    expect(opening.map((picture) => picture.label)).toEqual([
+      'Input against time',
+      'Output against time',
+    ])
+    expect(opening.map((picture) => picture.key)).toEqual([
+      [{ id: 'in', name: 'Input', role: 'in', dashed: undefined }],
+      [{ id: 'out', name: 'Output', role: 'out', dashed: undefined }],
+    ])
+    expect(opening[1]).toEqual(await lessonStill(COMPRESSION, { taps: 'out:out' }))
+  })
+
+  it('draws a picture of colour for each tap, since one holds one tap', async () => {
+    const opening = await lessonOpening(FRAMES, {
+      input: 'picture',
+      output: 'pictureOut',
+      view: 'spectrogram',
+    })
+    expect(opening).toHaveLength(2)
+    expect(opening[0]!.note).toMatch(/^Every frame's spectrum: /)
+    expect(opening[1]!.note).toMatch(/^Every frame's spectrum, of the output: /)
+  })
+
+  it('stops the build on a tap the lab does not have, naming the lesson', async () => {
+    await expect(lessonOpening(COMPRESSION, { input: 'in', output: 'outt' })).rejects.toThrow(
+      'compression: the lab has no tap called "outt".',
+    )
+  })
+})
+
 describe('a lesson’s tile', () => {
+  it('draws its picture on the range its entry gives', async () => {
+    const heights = (picture: string) =>
+      [...picture.matchAll(/[ML][\d.]+,(\d+)/g)].map((found) => Number(found[1]))
+    // The picture is 200 high. Sound lies within −1 to 1, so on −4 to 4 it keeps to the middle
+    // quarter; the same sound fitted closely reaches near the picture's top and bottom.
+    const ranged = heights((await lessonTile({ ...SAMPLE, id: 'ranged' }, FIXTURES)).picture)
+    expect(ranged.length).toBeGreaterThan(100)
+    expect(Math.min(...ranged)).toBeGreaterThanOrEqual(75)
+    expect(Math.max(...ranged)).toBeLessThanOrEqual(125)
+    const fitted = heights((await lessonTile(SAMPLE, FIXTURES)).picture)
+    expect(Math.min(...fitted)).toBeLessThan(20)
+    expect(Math.max(...fitted)).toBeGreaterThan(180)
+  })
+
   it('is the tile entry of its settings file: the tap it plays and the picture it draws', async () => {
     const tile = await lessonTile(SAMPLE, FIXTURES)
     expect(tile).toMatchObject({

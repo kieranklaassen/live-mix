@@ -201,6 +201,14 @@ export interface PictureAsk {
   /** The span of time drawn, in seconds: where it starts, and its length (to the loop's end when left out). */
   from?: number
   span?: number
+  /**
+   * The vertical range, in the view's own unit: decibels for a spectrum and for the levels of a
+   * spectrogram, the curve's unit for a curve, amplitude for a wave. An end left out is fitted.
+   */
+  min?: number
+  max?: number
+  /** The highest frequency drawn, in hertz, by a spectrum and a spectrogram. Fitted when left out. */
+  top?: number
 }
 
 /** How a picture is laid out: how many columns of points it has, and whether its axes are round. */
@@ -219,6 +227,8 @@ interface Line extends KeyLine {
   x1: number
   /** The points stand in even ratios from `x0` to `x1`. */
   xLog?: boolean
+  /** A further curve of a tap that holds several: drawn, and named in the key by the first. */
+  more?: boolean
 }
 
 const colour = (role: Role) => `var(${ROLE_VAR[role]})`
@@ -296,6 +306,39 @@ function axisFor(lo: number, hi: number, layout: Layout): Axis {
   return { min: lo - room, max: hi + room }
 }
 
+/**
+ * The vertical range of a picture: the one fitted to it, with each end the picture is given
+ * (`min`, `max`) in its place. Stops the build, naming the lesson, on a range that does not run
+ * upwards.
+ */
+function rangeAsked<A extends Axis>(fitted: A, ask: PictureAsk, lesson: string): A {
+  if (ask.min === undefined && ask.max === undefined) return fitted
+  const min = ask.min ?? fitted.min
+  const max = ask.max ?? fitted.max
+  if (!(min < max)) {
+    throw new Error(
+      `${lesson}: a picture's range runs from ${min} to ${max}: its min must be below its max.`,
+    )
+  }
+  return { ...fitted, min, max }
+}
+
+/**
+ * The highest frequency a picture draws: the `top` it is given, or the one fitted to it. Stops
+ * the build, naming the lesson, on a top the picture cannot reach: one not above where its
+ * frequencies start, or above half the sample rate.
+ */
+function topAsked(fitted: number, ask: PictureAsk, lesson: string, above = 0): number {
+  if (ask.top === undefined) return fitted
+  const nyquist = SAMPLE_RATE / 2
+  if (!(ask.top > above && ask.top <= nyquist)) {
+    throw new Error(
+      `${lesson}: a picture's top is ${ask.top} Hz: it must be above ${above} Hz and at most ${nyquist} Hz, half the sample rate.`,
+    )
+  }
+  return ask.top
+}
+
 const joined = (taps: readonly { name: string }[]) => taps.map((tap) => tap.name).join(' and ')
 
 function finish(
@@ -315,13 +358,15 @@ function finish(
     lines: lines.map((line) => pathOf(line, x, y, layout.columns)).join(''),
     x: xs,
     y: ys,
-    key: lines.map(({ id, name, role, dashed }) => ({ id, name, role, dashed })),
+    key: lines
+      .filter((line) => !line.more)
+      .map(({ id, name, role, dashed }) => ({ id, name, role, dashed })),
     label: said,
   }
 }
 
 /** Signals against time: sound as it is, and a control's value at its own rate. */
-function wave(render: StillRender, ask: PictureAsk, layout: Layout): Picture {
+function wave(render: StillRender, ask: PictureAsk, layout: Layout, lesson: string): Picture {
   const from = ask.from ?? 0
   const { length, scale, x } = loopAxis(render.result, from, ask.span)
   let lo = Infinity
@@ -347,14 +392,15 @@ function wave(render: StillRender, ask: PictureAsk, layout: Layout): Picture {
   })
   // Sound swings about zero, so zero stays in the middle; a control's value is fitted as it lies.
   const top = Math.max(Math.abs(lo), Math.abs(hi)) || 1
-  const y = sound ? axisFor(-top, top, layout) : axisFor(lo, hi, layout)
+  const fitted = sound ? axisFor(-top, top, layout) : axisFor(lo, hi, layout)
+  const y = rangeAsked(fitted, ask, lesson)
   const unit = sound ? '' : (ask.taps[0]?.unit ?? '')
   return finish(lines, x, y, { x: x.title, y: unit }, `${joined(ask.taps)} against time`, layout)
 }
 
 /** How much of each frequency: a sound's average spectrum, or a spectrum the lab worked out. */
-function spectrum(render: StillRender, ask: PictureAsk, layout: Layout): Picture {
-  const x = AUDIBLE
+function spectrum(render: StillRender, ask: PictureAsk, layout: Layout, lesson: string): Picture {
+  const x = { ...AUDIBLE, max: topAsked(AUDIBLE.max, ask, lesson, AUDIBLE.min) }
   let lo = Infinity
   let hi = -Infinity
   const lines: Line[] = ask.taps.map((tap) => {
@@ -369,7 +415,7 @@ function spectrum(render: StillRender, ask: PictureAsk, layout: Layout): Picture
             x1: found?.x1 ?? 1,
             xLog: found?.log,
           }
-    // Only what stands in the audible band sets the height.
+    // Only what stands in the band drawn sets the height.
     const n = line.ys.length
     for (let i = 0; i < n; i += 1) {
       const at = line.xLog
@@ -384,18 +430,18 @@ function spectrum(render: StillRender, ask: PictureAsk, layout: Layout): Picture
   })
   if (!(hi >= lo)) [lo, hi] = [-96, 0]
   // The quietest 90 dB under the loudest point are below anything a picture can show.
-  const y = axisFor(Math.max(lo, hi - 90), hi, layout)
+  const y = rangeAsked(axisFor(Math.max(lo, hi - 90), hi, layout), ask, lesson)
   const said = `The spectrum of ${joined(ask.taps)}`
   return finish(lines, x, y, { x: 'hertz', y: 'decibels' }, said, layout)
 }
 
 /** One value against another: the lab says what the first and the last point stand at. */
-function curve(render: StillRender, ask: PictureAsk, layout: Layout): Picture {
+function curve(render: StillRender, ask: PictureAsk, layout: Layout, lesson: string): Picture {
   let lo = Infinity
   let hi = -Infinity
   let x0 = Infinity
   let x1 = -Infinity
-  const lines: Line[] = ask.taps.map((tap, index) => {
+  const lines: Line[] = ask.taps.flatMap((tap, index) => {
     const found = render.result.taps[tap.id]
     const ys = found?.channels_data[0] ?? new Float32Array(0)
     const [least, most] = rangeOf(ys)
@@ -403,7 +449,7 @@ function curve(render: StillRender, ask: PictureAsk, layout: Layout): Picture {
     hi = Math.max(hi, most)
     x0 = Math.min(x0, found?.x0 ?? 0)
     x1 = Math.max(x1, found?.x1 ?? 1)
-    return {
+    const line: Line = {
       ...tap,
       ys,
       x0: found?.x0 ?? 0,
@@ -412,10 +458,21 @@ function curve(render: StillRender, ask: PictureAsk, layout: Layout): Picture {
       // A curve the lesson wrote to hold the device's against is the dashed one, as in a live figure.
       dashed: tap.origin === 'lesson' && index > 0,
     }
+    // A tap of columns (the lab's `kFrames`) holds a curve a column, each from `x0` to `x1`, as
+    // the windows of overlapping frames are: every one is drawn, and the key names the tap once.
+    const columns = found?.kind === 'frames' ? found.columns : 1
+    if (columns < 2) return [line]
+    const rows = Math.floor(ys.length / columns)
+    return Array.from({ length: columns }, (_, column) => ({
+      ...line,
+      ys: ys.subarray(column * rows, (column + 1) * rows),
+      more: column > 0,
+    }))
   })
   const x = { min: x0, max: x1, log: lines.every((line) => line.xLog) }
+  const y = rangeAsked(axisFor(lo, hi, layout), ask, lesson)
   const unit = ask.taps[0]?.unit ?? ''
-  return finish(lines, x, axisFor(lo, hi, layout), { x: '', y: unit }, joined(ask.taps), layout)
+  return finish(lines, x, y, { x: '', y: unit }, joined(ask.taps), layout)
 }
 
 /** A picture of one grey a point, as a PNG in a `data:` address: all an SVG mask needs. */
@@ -453,7 +510,8 @@ const CELLS = { across: 256, up: 128 }
  * columns. The colour runs from the page's own, through the control role's, to the output
  * role's, as the live figure's does: each of the two is a flat colour seen through a mask, so
  * the picture follows the scheme. The levels shown are the loudest 60 dB, and the frequencies
- * those that hold anything within 40 dB of the loudest point.
+ * those that hold anything within 40 dB of the loudest point, unless the picture is given its
+ * levels (`min`, `max`) or its highest frequency (`top`).
  */
 function spectrogram(
   render: StillRender,
@@ -488,10 +546,11 @@ function spectrogram(
     }
   }
   const nyquist = SAMPLE_RATE / 2
-  const top = Math.min(nyquist, roomyAxis(0, Math.max(1000, (highest / (rows - 1)) * nyquist)).max)
+  const reached = roomyAxis(0, Math.max(1000, (highest / (rows - 1)) * nyquist)).max
+  const top = topAsked(Math.min(nyquist, reached), ask, lesson)
   const rowsShown = Math.max(1, Math.round((top / nyquist) * (rows - 1)) + 1)
-  const max = Math.ceil(loudest)
-  const min = max - 60
+  const ceiling = Math.ceil(loudest)
+  const { min, max } = rangeAsked({ min: ceiling - 60, max: ceiling }, ask, lesson)
 
   // Each point of the kept picture holds the loudest of the cells it covers.
   const across = Math.min(CELLS.across, lastCol - firstCol)
@@ -547,10 +606,10 @@ export function drawStill(
   lesson: string,
   layout: Layout = STILL,
 ): Picture {
-  if (ask.view === 'spectrum') return spectrum(render, ask, layout)
-  if (ask.view === 'curve') return curve(render, ask, layout)
+  if (ask.view === 'spectrum') return spectrum(render, ask, layout, lesson)
+  if (ask.view === 'curve') return curve(render, ask, layout, lesson)
   if (ask.view === 'spectrogram') return spectrogram(render, ask, layout, lesson)
-  return wave(render, ask, layout)
+  return wave(render, ask, layout, lesson)
 }
 
 /**
@@ -576,11 +635,15 @@ export function plotHtml(picture: Picture, height = HEIGHT): string {
       ({ at, text }) =>
         `<span style="position:absolute;left:${across(at)};bottom:${EDGE.bottom - 16}px;transform:translateX(-50%)">${text}</span>`,
     )
+  // An axis's title stands over the lines on a plate of the picture's ground, as the label of a
+  // dashed line does in a live figure (figures/canvas.ts), so that no line strikes it out.
+  const plate =
+    'padding:1px 3px 2px;background:color-mix(in srgb, var(--lm-panel) 82%, transparent)'
   const titles = [
     picture.y.title &&
-      `<span style="position:absolute;left:${EDGE.left + 6}px;top:${EDGE.top + 5}px">${escape(picture.y.title)}</span>`,
+      `<span style="position:absolute;left:${EDGE.left + 3}px;top:${EDGE.top + 4}px;${plate}">${escape(picture.y.title)}</span>`,
     picture.x.title &&
-      `<span style="position:absolute;right:${EDGE.right + 6}px;bottom:${EDGE.bottom + 4}px">${escape(picture.x.title)}</span>`,
+      `<span style="position:absolute;right:${EDGE.right + 3}px;bottom:${EDGE.bottom + 2}px;${plate}">${escape(picture.x.title)}</span>`,
   ]
   return (
     `<div class="still-plot" style="position:relative;height:${height}px">` +
@@ -625,12 +688,17 @@ export interface StillProps {
   view?: PictureView
   from?: number
   span?: number
+  /** The vertical range, in the view's own unit; an end left out is fitted. */
+  min?: number
+  max?: number
+  /** The highest frequency drawn by a spectrum and a spectrogram, in hertz; fitted when left out. */
+  top?: number
 }
 
 /**
  * The picture a `<Still>` of a lesson shows. Stops the build, naming the lesson, on a tap the lab
  * does not have, a set the lesson's file does not have, a control or a value the lab does not
- * take, and a source the lesson does not list.
+ * take, a source the lesson does not list, and a range or a top that makes no sense.
  */
 export async function lessonStill(
   lesson: StillLesson,
@@ -658,8 +726,44 @@ export async function lessonStill(
     seconds: lesson.data.seconds,
     values,
   })
-  const ask = { taps, view: props.view ?? 'wave', from: props.from, span: props.span }
+  const { from, span, min, max, top } = props
+  const ask = { taps, view: props.view ?? 'wave', from, span, min, max, top }
   return drawStill(render, ask, lesson.id)
+}
+
+/** What the picture a lesson opens on is given: the `opening` of the lesson's front matter. */
+export interface OpeningProps {
+  /** The tap of the sound going in, and the tap of what comes out, by id. */
+  input: string
+  output: string
+  /** As a still's: `wave` (against time) when left out. */
+  view?: PictureView
+  from?: number
+  span?: number
+  min?: number
+  max?: number
+  top?: number
+  /** The two taps apart, one picture above the other, each on a vertical range of its own. */
+  separate?: boolean
+}
+
+/**
+ * The picture a lesson opens on, as the stills it is made of: one of the two taps together, at
+ * the lab's starting values on the lesson's first source; or two, the tap going in and then the
+ * tap coming out, where the lesson asks for them `separate` (an input that is a sliver beside
+ * its output) or the view holds one tap a picture (a spectrogram).
+ */
+export function lessonOpening(
+  lesson: StillLesson,
+  props: OpeningProps,
+  dir = SETTINGS_DIR,
+): Promise<Picture[]> {
+  const { input, output, separate, ...ask } = props
+  const taps = [`${input}:in`, `${output}:out`]
+  const apart = separate || ask.view === 'spectrogram'
+  return Promise.all(
+    (apart ? taps : [taps.join(' ')]).map((one) => lessonStill(lesson, { ...ask, taps: one }, dir)),
+  )
 }
 
 /** A lab that makes its own sound: the lesson lists no source but "nothing goes in". */

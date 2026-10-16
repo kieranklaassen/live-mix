@@ -3,7 +3,7 @@ import { glob } from 'astro/loaders'
 import { z } from 'astro/zod'
 import { docId, EXCLUDED_DIRS } from './lib/doc-routes.ts'
 import { MAP } from './lib/lesson-map.ts'
-import { settingsSchema } from './lib/settings.ts'
+import { PICTURE_VIEWS, settingsSchema } from './lib/settings.ts'
 import { onlyLesson } from '../scripts/site-env.mjs'
 
 // A one-lesson build (scripts/lesson.sh) reads that lesson's text and its settings and no other
@@ -32,9 +32,25 @@ const lessons = defineCollection({
     summary: z.string(),
     /**
      * The picture a long lesson opens on: the tap of the sound going in and the tap of what
-     * comes out, by id, drawn on one time axis.
+     * comes out, by id, drawn on one time axis. The rest is as a still takes it, and optional:
+     * the view, the span of time, the vertical range and the highest frequency. `separate` draws
+     * the two taps apart, one above the other, each on a range of its own; `caption` is what to
+     * notice (components/lesson/Opening.astro).
      */
-    opening: z.strictObject({ input: z.string(), output: z.string() }).optional(),
+    opening: z
+      .strictObject({
+        input: z.string(),
+        output: z.string(),
+        view: z.enum(PICTURE_VIEWS).optional(),
+        from: z.number().min(0).optional(),
+        span: z.number().positive().optional(),
+        min: z.number().optional(),
+        max: z.number().optional(),
+        top: z.number().positive().optional(),
+        separate: z.boolean().optional(),
+        caption: z.string().min(1).optional(),
+      })
+      .optional(),
     /** The lab module's name: site/labs/<lab>.cpp. */
     lab: z.string(),
     /** Ids of the devices the lesson is about, for the device pages' "Lessons" block. */

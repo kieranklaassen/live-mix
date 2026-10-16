@@ -1,6 +1,8 @@
 // A signal-flow picture, apart from any page: blocks that each name a row and what feeds them,
 // checked against the lab and laid out as boxes joined by paths. A path may leave the main row
-// for a side row and come back into it, go round a block, or come back against the flow.
+// for a side row and come back into it, go round a block, or come back against the flow. For a
+// narrow column the picture is cut between two columns of blocks into bands that stand one under
+// another, and a path that crosses a cut goes on in the next band at the height of its row.
 // Tested in tests/unit/flow.test.ts.
 
 import type { TapInfo } from '../lab/describe.ts'
@@ -50,6 +52,10 @@ export interface FlowNode extends FlowPart {
   y: number
   w: number
   h: number
+  /** A path comes into the block from under it: its number stands at its corner, and an adder's words over it. */
+  fromBelow?: boolean
+  /** In a wrapped picture, the band the block stands in, counted from 0. */
+  band?: number
 }
 
 export interface FlowEdge {
@@ -63,6 +69,10 @@ export interface FlowEdge {
   signal: FlowSignal
   /** The corners of the path, from the block it leaves to the block it reaches. */
   points: [number, number][]
+  /** In a wrapped picture a path is drawn a piece a band: the band of this piece, counted from 0. */
+  band?: number
+  /** This piece stops at the edge of its band and goes on in the next: it does not reach its block. */
+  goesOn?: boolean
 }
 
 export interface FlowLayout {
@@ -72,6 +82,10 @@ export interface FlowLayout {
   edges: FlowEdge[]
   /** Where a wire divides after a block: drawn as a dot. */
   joints: { x: number; y: number; signal: FlowSignal }[]
+  /** The columns the blocks stand in along the flow, each from its left edge to its right. */
+  columns?: { left: number; right: number }[]
+  /** How many bands a wrapped picture is cut into. Left out of one that is not wrapped. */
+  bands?: number
 }
 
 const list = (ids: string | string[] | undefined): string[] =>
@@ -189,6 +203,46 @@ export const FLOW = {
   pad: 10,
   /** Room under a block for the number of its stage. */
   number: 16,
+  /** From one line of a block's words to the next. */
+  line: 16,
+}
+
+/** The words of a block that are there to draw: a block named '' has none. */
+const wordsOf = (part: FlowPart) => part.lines.filter((line) => line !== '')
+
+/**
+ * Where the middle of each line of a block's words stands, from the first line down. A box's
+ * words are inside it. An adder's are under its circle, so that they are not struck through by
+ * its cross, or over it where a path comes into it from below.
+ */
+export function wordsAt(node: FlowNode): number[] {
+  const count = node.lines.length
+  if (node.shape !== 'sum') {
+    return node.lines.map((_, i) => node.y + (i - (count - 1) / 2) * FLOW.line)
+  }
+  const clear = node.h / 2 + FLOW.line * 0.75
+  return node.lines.map((_, i) =>
+    node.fromBelow ? node.y - clear - (count - 1 - i) * FLOW.line : node.y + clear + i * FLOW.line,
+  )
+}
+
+/** The foot of a block and of an adder's words under it: the number of its stage stands under this. */
+export function footOf(node: FlowNode): number {
+  const under = node.shape === 'sum' && !node.fromBelow && wordsOf(node).length > 0
+  return under ? wordsAt(node)[node.lines.length - 1]! + FLOW.line / 2 : node.y + node.h / 2
+}
+
+/** How far a block reaches each way, with an adder's words and the number under it. */
+function reachOf(node: FlowNode) {
+  const words = node.shape === 'sum' ? wordsOf(node) : []
+  const half = Math.max(node.w, ...words.map((line) => line.length * FLOW.letter)) / 2
+  const over = words.length > 0 && node.fromBelow ? wordsAt(node)[0]! - FLOW.line / 2 : Infinity
+  return {
+    left: node.x - half,
+    right: node.x + half,
+    top: Math.min(node.y - node.h / 2, over),
+    bottom: footOf(node) + (node.n ? FLOW.number : 0),
+  }
 }
 
 function sizeOf(part: FlowPart): { w: number; h: number } {
@@ -201,6 +255,13 @@ function sizeOf(part: FlowPart): { w: number; h: number } {
   return { w: Math.max(56, even(letters * FLOW.letter + 24)), h: FLOW.boxHeight }
 }
 
+/** The width a block's column keeps for it: its own, or for an adder the width of its words. */
+function roomOf(part: FlowPart, own: number): number {
+  if (part.shape !== 'sum') return own
+  const letters = Math.max(0, ...wordsOf(part).map((line) => line.length))
+  return Math.max(own, Math.ceil((letters * FLOW.letter + 8) / 2) * 2)
+}
+
 /** Lay the blocks out: columns along the flow, rows as the blocks name them, and every path. */
 export function layoutFlow(parts: readonly FlowPart[]): FlowLayout {
   // A block stands one column after the last of what feeds it.
@@ -211,7 +272,10 @@ export function layoutFlow(parts: readonly FlowPart[]): FlowLayout {
   const sizes = new Map(parts.map((part) => [part.id, sizeOf(part)]))
   const columns = Math.max(0, ...column.values()) + 1
   const widths = Array.from({ length: columns }, (_, c) =>
-    Math.max(0, ...parts.filter((p) => column.get(p.id) === c).map((p) => sizes.get(p.id)!.w)),
+    Math.max(
+      0,
+      ...parts.filter((p) => column.get(p.id) === c).map((p) => roomOf(p, sizes.get(p.id)!.w)),
+    ),
   )
   const middles: number[] = []
   let left = 0
@@ -314,13 +378,21 @@ export function layoutFlow(parts: readonly FlowPart[]): FlowLayout {
     .filter((one) => edges.filter((edge) => edge.from === one.id).length > 1)
     .map((one) => ({ x: tapOff(one)[0], y: one.y, signal: one.signal }))
 
+  // The blocks a path reaches from under them.
+  for (const edge of edges) {
+    const [, y] = edge.points[edge.points.length - 1]!
+    const to = node(edge.to)
+    if (y >= to.y + to.h / 2) to.fromBelow = true
+  }
+
   // Move everything so the picture starts at its own top left corner, with room round it.
+  const reaches = nodes.map(reachOf)
   const xs = [
-    ...nodes.flatMap((one) => [one.x - one.w / 2, one.x + one.w / 2]),
+    ...reaches.flatMap((one) => [one.left, one.right]),
     ...edges.flatMap((edge) => edge.points.map(([x]) => x)),
   ]
   const ys = [
-    ...nodes.flatMap((one) => [one.y - one.h / 2, one.y + one.h / 2 + (one.n ? FLOW.number : 0)]),
+    ...reaches.flatMap((one) => [one.top, one.bottom]),
     ...edges.flatMap((edge) => edge.points.map(([, y]) => y)),
   ]
   const dx = FLOW.pad - Math.min(...xs)
@@ -334,7 +406,169 @@ export function layoutFlow(parts: readonly FlowPart[]): FlowLayout {
       points: edge.points.map(([x, y]) => [x + dx, y + dy] as [number, number]),
     })),
     joints: joints.map((joint) => ({ ...joint, x: joint.x + dx, y: joint.y + dy })),
+    columns: widths.map((width, c) => ({
+      left: middles[c]! - width / 2 + dx,
+      right: middles[c]! + width / 2 + dx,
+    })),
   }
+}
+
+/** How a picture is cut to wrap, in its own units. */
+const WRAP = {
+  /** Where a cut falls after a column: past the point where a wire turns off, half the gap on. */
+  cut: 22,
+  /** How far a path that is cut runs on past the cut, and how far before it it comes in. */
+  lead: 12,
+  /** How far inside the picture's edge such a path stops and starts. */
+  inset: 2,
+  /** Between two bands. */
+  gap: 12,
+}
+
+/** The columns `first` to `last`, as the stretch of the picture from `left` to `right`. */
+interface Band {
+  first: number
+  last: number
+  left: number
+  right: number
+}
+
+/** A band's width as it is drawn: with the room a path takes to come in and to go on. */
+const bandWidth = (band: Band, index: number, count: number) =>
+  band.right - band.left + (index > 0 ? WRAP.lead : 0) + (index < count - 1 ? WRAP.lead : 0)
+
+/** The columns dealt into bands, each as many columns as `width` holds and never fewer than one. */
+function bandsOf(flow: FlowLayout, columns: { right: number }[], width: number): Band[] {
+  const end = columns.length - 1
+  const cutAfter = (c: number) => (c === end ? flow.width : columns[c]!.right + WRAP.cut)
+  const bands: Band[] = []
+  for (let first = 0; first <= end;) {
+    const left = first === 0 ? 0 : cutAfter(first - 1)
+    const wide = (last: number) =>
+      cutAfter(last) - left + (first > 0 ? WRAP.lead : 0) + (last < end ? WRAP.lead : 0)
+    let last = first
+    while (last < end && wide(last + 1) <= width) last += 1
+    bands.push({ first, last, left, right: cutAfter(last) })
+    first = last + 1
+  }
+  return bands
+}
+
+/**
+ * A picture for a column `width` wide. One that fits is given back as it is. A wider one is cut
+ * between columns of blocks into bands, as few as hold it and as even as they can be, and the
+ * bands stand one under another, each closed up to what it holds. A path that crosses a cut is
+ * drawn a piece a band: it runs off the end of its band (`goesOn`) and comes in at the start of
+ * the next at the same height of its row, as a line of text does. A path that comes back
+ * against the flow goes through the bands the other way.
+ */
+export function wrapFlow(flow: FlowLayout, width: number): FlowLayout {
+  const columns = flow.columns
+  if (flow.width <= width || !columns || columns.length < 2) return flow
+  let bands = bandsOf(flow, columns, width)
+  for (let narrower = width - 8; narrower > 0; narrower -= 8) {
+    const tried = bandsOf(flow, columns, narrower)
+    if (tried.length > bands.length) break
+    bands = tried
+  }
+  const count = bands.length
+  if (count < 2) return flow
+  const bandAt = (x: number) => {
+    let band = 0
+    while (band < count - 1 && x >= bands[band]!.right) band += 1
+    return band
+  }
+
+  // Every path, a piece a band. Only a stretch along a row crosses a cut: a path turns up or
+  // down at a block's middle or half a gap after a block, and a cut falls past both.
+  const pieces: { edge: FlowEdge; band: number; points: [number, number][]; goesOn?: true }[] = []
+  const reach = WRAP.lead - WRAP.inset
+  for (const edge of flow.edges) {
+    let band = bandAt(edge.points[0]![0])
+    let points = [edge.points[0]!]
+    for (const point of edge.points.slice(1)) {
+      const to = bandAt(point[0])
+      const y = points[points.length - 1]![1]
+      while (band !== to) {
+        const step = to > band ? 1 : -1
+        const cut = step > 0 ? bands[band]!.right : bands[band]!.left
+        points.push([cut + step * reach, y])
+        pieces.push({ edge, band, points, goesOn: true })
+        band += step
+        points = [[cut - step * reach, y]]
+      }
+      points.push(point)
+    }
+    pieces.push({ edge, band, points })
+  }
+
+  // Each band closed up to what it holds, and moved under the one before.
+  const tops = bands.map(() => Infinity)
+  const feet = bands.map(() => -Infinity)
+  const holds = (band: number, top: number, foot: number) => {
+    tops[band] = Math.min(tops[band]!, top)
+    feet[band] = Math.max(feet[band]!, foot)
+  }
+  for (const one of flow.nodes) {
+    const { top, bottom } = reachOf(one)
+    holds(bandAt(one.x), top, bottom)
+  }
+  for (const piece of pieces) for (const [, y] of piece.points) holds(piece.band, y, y)
+  const across = bands.map((band, index) => (index > 0 ? WRAP.lead : 0) - band.left)
+  const down: number[] = []
+  let height = 0
+  bands.forEach((_, index) => {
+    down.push(height + FLOW.pad - tops[index]!)
+    height += feet[index]! - tops[index]! + 2 * FLOW.pad + (index < count - 1 ? WRAP.gap : 0)
+  })
+  const moved = <P extends { x: number; y: number }>(one: P, band = bandAt(one.x)) => ({
+    ...one,
+    x: one.x + across[band]!,
+    y: one.y + down[band]!,
+  })
+  return {
+    width: Math.max(...bands.map((band, index) => bandWidth(band, index, count))),
+    height,
+    nodes: flow.nodes.map((one) => ({ ...moved(one), band: bandAt(one.x) })),
+    edges: pieces.map(({ edge, band, points, goesOn }) => ({
+      ...edge,
+      band,
+      ...(goesOn && { goesOn }),
+      points: points.map(([x, y]) => [x + across[band]!, y + down[band]!] as [number, number]),
+    })),
+    joints: flow.joints.map((joint) => moved(joint)),
+    bands: count,
+  }
+}
+
+/**
+ * The widths of column a picture is laid out for, narrowest first: the name the styles know
+ * each by (styles/parts.css, where the column's own width picks one) and the most the picture
+ * may be wide there. A picture is shown at four fifths of its size at the least
+ * (figures/Flow.tsx), so each width is the narrowest column of its kind and a quarter more:
+ * columns under 520 px (a phone's is 350, where the picture keeps its size), from 520, from 760
+ * and from 960.
+ */
+export const FLOW_FITS = [
+  { name: 'narrow', width: 340 },
+  { name: 'mid', width: 650 },
+  { name: 'large', width: 950 },
+  { name: 'full', width: 1200 },
+] as const
+
+/** A flow laid out for each width of column: one picture for all the widths that take the same. */
+export function flowLayouts(parts: readonly FlowPart[]): { fits: string[]; flow: FlowLayout }[] {
+  const wide = layoutFlow(parts)
+  const layouts: { fits: string[]; flow: FlowLayout; cut: string }[] = []
+  for (const fit of FLOW_FITS) {
+    const flow = wrapFlow(wide, fit.width)
+    // Two pictures cut at the same places are the same picture.
+    const cut = flow.nodes.map((one) => one.band ?? 0).join(' ')
+    const same = layouts.find((one) => one.cut === cut)
+    if (same) same.fits.push(fit.name)
+    else layouts.push({ fits: [fit.name], flow, cut })
+  }
+  return layouts.map(({ fits, flow }) => ({ fits, flow }))
 }
 
 /** A path's corners as an SVG path. */

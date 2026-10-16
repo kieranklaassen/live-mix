@@ -43,6 +43,14 @@ export const settingsSchema = z.strictObject({
         /** The span of time drawn, in seconds: where it starts, and its length (to the loop's end when left out). */
         from: z.number().min(0).default(0),
         span: z.number().positive().optional(),
+        /**
+         * As a still's (lib/still.ts): the vertical range, in the view's own unit, and for a
+         * spectrum or a spectrogram the highest frequency drawn, in hertz. Each is fitted when
+         * left out.
+         */
+        min: z.number().optional(),
+        max: z.number().optional(),
+        top: z.number().positive().optional(),
       }),
     })
     .optional(),

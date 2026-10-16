@@ -384,12 +384,12 @@ interface Written {
 
 /**
  * A number as a lesson writes it: `'39 ms'`, `'0.42 dB'`, `'−46.8 dB'`, `'23,750 Hz'`, `'63 %'`,
- * or a stated bound, `'less than 0.001 dB'` (also "under", "at most", "more than", "over",
+ * `'19.4°'`, or a stated bound, `'less than 0.001 dB'` (also "under", "at most", "more than", "over",
  * "at least"). The unit is not read: the measurement is in the unit the lesson writes.
  */
 function readWritten(written: string): Written {
   const found =
-    /^(?:(less than|under|at most|more than|over|at least) )?([+−-]?)(\d[\d,]*)(?:\.(\d+))?(?: .+|%)?$/.exec(
+    /^(?:(less than|under|at most|more than|over|at least) )?([+−-]?)(\d[\d,]*)(?:\.(\d+))?(?: .+|[%°])?$/.exec(
       written.trim(),
     )
   if (!found) throw new Error(`Not a number as a lesson writes one: "${written}"`)

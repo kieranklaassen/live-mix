@@ -4,7 +4,16 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import Flow from '../../src/figures/Flow.tsx'
-import { flowBlocks, layoutFlow, type FlowBlock, type FlowEdge } from '../../src/figures/flow.ts'
+import {
+  FLOW,
+  FLOW_FITS,
+  flowBlocks,
+  layoutFlow,
+  wrapFlow,
+  type FlowBlock,
+  type FlowEdge,
+  type FlowLayout,
+} from '../../src/figures/flow.ts'
 import type { TapInfo } from '../../src/lab/describe.ts'
 
 const taps: TapInfo[] = [
@@ -180,6 +189,192 @@ describe('a flow with a feedback path', () => {
   })
 })
 
+/** An adder that names the tap read at its output, and has no words of its own. */
+const ADDER: FlowBlock[] = [
+  { id: 'in', label: 'in', shape: 'end' },
+  { id: 'sum', shape: 'sum', from: 'in', tap: 'sidechain' },
+  { id: 'out', label: 'out', shape: 'end', from: 'sum' },
+]
+
+/** The texts of a block as the page has them, and its circle. */
+function drawn(blocks: FlowBlock[], id: string) {
+  const html = renderToStaticMarkup(
+    createElement(Flow, { blocks: flowBlocks(blocks, taps, 'a lesson'), label: 'A flow' }),
+  )
+  const block = new RegExp(`<g class="flow-block" data-block="${id}"[^>]*>(.*?)</g>`).exec(
+    html,
+  )![1]!
+  const circle = /<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/.exec(block)!
+  return {
+    circle: { x: Number(circle[1]), y: Number(circle[2]), r: Number(circle[3]) },
+    words: [...block.matchAll(/<text x="([\d.]+)" y="([\d.]+)"[^>]*>([^<]*)</g)].map(
+      ([, x, y, text]) => ({ x: Number(x), y: Number(y), text }),
+    ),
+  }
+}
+
+describe('an adder that names a tap', () => {
+  const flow = layoutFlow(flowBlocks(ADDER, taps, 'a lesson'))
+  const node = (id: string) => flow.nodes.find((one) => one.id === id)!
+
+  it('is named after its tap and keeps the size of its circle', () => {
+    expect(node('sum').lines).toEqual(['Side chain,', 'high-passed'])
+    expect(node('sum').w).toBe(24)
+    expect(node('sum').h).toBe(24)
+  })
+
+  it('stands its neighbours clear of its words', () => {
+    const half = (11 * FLOW.letter) / 2
+    expect(node('sum').x - half).toBeGreaterThanOrEqual(node('in').x + node('in').w / 2)
+    expect(node('sum').x + half).toBeLessThanOrEqual(node('out').x - node('out').w / 2)
+  })
+
+  it('has its words under its circle, not across it, and inside the picture', () => {
+    const { circle, words } = drawn(ADDER, 'sum')
+    expect(words.map((one) => one.text)).toEqual(['Side chain,', 'high-passed'])
+    // The type is 13 tall and set about its middle.
+    expect(words[0]!.y - 6.5).toBeGreaterThan(circle.y + circle.r)
+    expect(words[1]!.y).toBeGreaterThan(words[0]!.y + 13)
+    expect(words[1]!.y + 6.5).toBeLessThanOrEqual(flow.height)
+    for (const one of words) expect(one.x).toBe(circle.x)
+  })
+
+  it('has its words over its circle where a path comes into it from below', () => {
+    const back = LOOP.map((block) => (block.id === 'sum' ? { ...block, tap: 'level' } : block))
+    const { circle, words } = drawn(back, 'sum')
+    expect(words.map((one) => one.text)).toEqual(['Level'])
+    expect(words[0]!.y + 6.5).toBeLessThan(circle.y - circle.r)
+    expect(words[0]!.y - 6.5).toBeGreaterThanOrEqual(0)
+  })
+})
+
+/** The pieces a connection is drawn in. */
+const pieces = (flow: FlowLayout, from: string, to: string) =>
+  flow.edges.filter((one) => one.from === from && one.to === to)
+
+describe('a flow wrapped into a narrow column', () => {
+  const wide = layoutFlow(flowBlocks(SIDE, taps, 'a lesson'))
+  const flow = wrapFlow(wide, 340)
+  const node = (id: string) => flow.nodes.find((one) => one.id === id)!
+  const inBand = (band: number) => flow.nodes.filter((one) => one.band === band)
+
+  it('is left as it is where it fits', () => {
+    expect(wide.width).toBeGreaterThan(340)
+    expect(wrapFlow(wide, wide.width)).toBe(wide)
+    expect(wide.bands).toBeUndefined()
+  })
+
+  it('is cut into bands no wider than the column, each wholly under the one before', () => {
+    expect(flow.bands).toBeGreaterThan(1)
+    expect(flow.width).toBeLessThanOrEqual(340)
+    expect(flow.nodes.map((one) => one.id)).toEqual(wide.nodes.map((one) => one.id))
+    for (const one of flow.nodes) {
+      expect(one.x - one.w / 2).toBeGreaterThanOrEqual(0)
+      expect(one.x + one.w / 2).toBeLessThanOrEqual(flow.width)
+      expect(one.y - one.h / 2).toBeGreaterThanOrEqual(0)
+      expect(one.y + one.h / 2).toBeLessThanOrEqual(flow.height)
+    }
+    for (let band = 1; band < flow.bands!; band += 1) {
+      const foot = Math.max(...inBand(band - 1).map((one) => one.y + one.h / 2))
+      const head = Math.min(...inBand(band).map((one) => one.y - one.h / 2))
+      expect(inBand(band).length).toBeGreaterThan(0)
+      expect(head).toBeGreaterThan(foot)
+    }
+  })
+
+  it('keeps the order of the flow, along a band and then onto the next, and the rows', () => {
+    const main = ['in', 'split', 'gain', 'mix', 'out'].map(node)
+    main.slice(1).forEach((one, i) => {
+      const before = main[i]!
+      expect(one.band).toBeGreaterThanOrEqual(before.band!)
+      if (one.band === before.band) expect(one.x).toBeGreaterThan(before.x)
+      // The main path is one row in every band: a block of it stands level with the one before.
+      if (one.band === before.band) expect(one.y).toBe(before.y)
+    })
+    // The side row is still under the main path of its band.
+    const beside = main.find((one) => one.band === node('hp').band)!
+    expect(node('hp').y).toBeGreaterThan(beside.y)
+  })
+
+  it('draws a connection that crosses a cut in two pieces: off the end of its band, and in at the start of the next at the height of its row', () => {
+    const cut = wide.edges.find(
+      (one) => one.kind === 'straight' && node(one.to).band === node(one.from).band! + 1,
+    )!
+    const from = node(cut.from)
+    const to = node(cut.to)
+    const [leaves, comes, ...more] = pieces(flow, cut.from, cut.to)
+    expect(more).toEqual([])
+    expect(leaves!.goesOn).toBe(true)
+    expect(leaves!.band).toBe(from.band)
+    expect(first(leaves!)).toEqual([from.x + from.w / 2, from.y])
+    expect(last(leaves!)[1]).toBe(from.y)
+    // Past every block of its band, and still inside the picture.
+    expect(last(leaves!)[0]).toBeGreaterThan(
+      Math.max(...inBand(from.band!).map((one) => one.x + one.w / 2)),
+    )
+    expect(last(leaves!)[0]).toBeLessThanOrEqual(flow.width)
+
+    expect(comes!.goesOn).toBeUndefined()
+    expect(comes!.band).toBe(to.band)
+    expect(first(comes!)[1]).toBe(to.y)
+    expect(first(comes!)[0]).toBeGreaterThanOrEqual(0)
+    expect(first(comes!)[0]).toBeLessThan(
+      Math.min(...inBand(to.band!).map((one) => one.x - one.w / 2)),
+    )
+    expect(last(comes!)).toEqual([to.x - to.w / 2, to.y])
+  })
+
+  it('draws every connection, in one piece more than the cuts it crosses, and only the last reaches its block', () => {
+    for (const one of wide.edges) {
+      const drawnIn = pieces(flow, one.from, one.to)
+      expect(drawnIn).toHaveLength(Math.abs(node(one.to).band! - node(one.from).band!) + 1)
+      expect(drawnIn.map((piece) => piece.goesOn === true)).toEqual(
+        drawnIn.map((_, i) => i < drawnIn.length - 1),
+      )
+      expect(drawnIn.every((piece) => piece.kind === one.kind && piece.signal === one.signal)).toBe(
+        true,
+      )
+    }
+    expect(flow.joints).toHaveLength(wide.joints.length)
+  })
+
+  it('holds every path inside the picture', () => {
+    for (const one of flow.edges) {
+      for (const [x, y] of one.points) {
+        expect(x).toBeGreaterThanOrEqual(0)
+        expect(x).toBeLessThanOrEqual(flow.width)
+        expect(y).toBeGreaterThanOrEqual(0)
+        expect(y).toBeLessThanOrEqual(flow.height)
+      }
+    }
+  })
+})
+
+describe('a wrapped flow with a feedback path', () => {
+  const flow = wrapFlow(layoutFlow(flowBlocks(LOOP, taps, 'a lesson')), 240)
+  const node = (id: string) => flow.nodes.find((one) => one.id === id)!
+
+  it('carries the feedback back through the bands, right to left, into the foot of the sum', () => {
+    const from = node('filter').band!
+    const to = node('sum').band!
+    expect(from).toBeGreaterThan(to)
+    const back = pieces(flow, 'filter', 'sum')
+    expect(back.map((piece) => piece.band)).toEqual(
+      Array.from({ length: from - to + 1 }, (_, i) => from - i),
+    )
+    // Each piece but the first comes in at the right of its band and runs leftwards.
+    for (const piece of back.slice(1)) {
+      expect(first(piece)[0]).toBeGreaterThan(last(piece)[0])
+      expect(first(piece)[0]).toBeGreaterThan(
+        Math.max(
+          ...flow.nodes.filter((one) => one.band === piece.band).map((one) => one.x + one.w / 2),
+        ),
+      )
+    }
+    expect(last(back.at(-1)!)).toEqual([node('sum').x, node('sum').y + node('sum').h / 2])
+  })
+})
+
 describe('what stops the build', () => {
   it('a block that names a tap the lab lacks, with the lesson and the taps there are', () => {
     expect(() => flowBlocks([{ id: 'a', tap: 'levle' }], taps, 'compression')).toThrow(
@@ -246,5 +441,28 @@ describe('the picture as it is built into the page', () => {
 
   it('lights no block before anything sounds', () => {
     expect(html).not.toContain('data-lit')
+  })
+
+  const fits = (page: string) =>
+    [...page.matchAll(/data-fits="([^"]*)"/g)].map((found) => found[1]!.split(' '))
+
+  it('is laid out for each width of column, a narrow one wrapped, and each width is given one', () => {
+    const laid = fits(html)
+    expect(laid.flat().sort()).toEqual(FLOW_FITS.map((fit) => fit.name).sort())
+    // This flow fits the widest columns as it is and is wrapped for the narrowest.
+    expect(laid.length).toBeGreaterThan(1)
+    expect(laid.at(-1)).toContain('full')
+    expect(html.match(/<svg /g)).toHaveLength(laid.length)
+    // A path that is cut ends in a mark that it goes on.
+    expect(html).toContain('class="flow-on"')
+  })
+
+  it('is built once where it fits the narrowest column as it is', () => {
+    const small = renderToStaticMarkup(
+      createElement(Flow, { blocks: flowBlocks(ADDER, taps, 'a lesson'), label: 'A small flow' }),
+    )
+    expect(fits(small)).toEqual([FLOW_FITS.map((fit) => fit.name)])
+    expect(small.match(/<svg /g)).toHaveLength(1)
+    expect(small).not.toContain('class="flow-on"')
   })
 })

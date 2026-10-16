@@ -423,8 +423,9 @@ The page adds by itself:
   starting values on the first source, with a key and a button to hear each. It counts as one
   of the lesson's figures. `opening` may say more, each optional
   ([The opening picture](#the-opening-picture)).
-- **Part 9, the real device:** the device's plate on the same loop, the table of starting
-  settings beside the device's defaults with its button (where the settings file has
+- **Part 9, the real device:** the device's plate on the same loop, or played a short phrase
+  where the bench is `as: instrument`, and the page's sentence says which. Then the table of
+  starting settings beside the device's defaults with its button (where the settings file has
   `defaults`), links to the device's page, its source, its tests and the lab's test, and the
   list of `files`.
 - **The play bar**, in reach all the way down, and **tiles for the lessons before and after**.

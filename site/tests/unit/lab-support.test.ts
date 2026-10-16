@@ -234,6 +234,16 @@ describe('a number as a lesson writes it', () => {
     expect(matchesWritten(63.2, '63%')).toBe(true)
   })
 
+  it('reads a number in degrees, the sign against the number or a space off it', () => {
+    expect(matchesWritten(19.44, '19.4°')).toBe(true)
+    expect(matchesWritten(19.46, '19.4°')).toBe(false)
+    expect(matchesWritten(-90.2, '−90°')).toBe(true)
+    expect(matchesWritten(-90.6, '−90°')).toBe(false)
+    expect(matchesWritten(19.44, '19.4 °')).toBe(true)
+    expect(matchesWritten(170, 'less than 180°')).toBe(true)
+    expect(matchesWritten(180, 'less than 180°')).toBe(false)
+  })
+
   it('holds a stated bound', () => {
     expect(matchesWritten(0.0004, 'less than 0.001 dB')).toBe(true)
     expect(matchesWritten(0.002, 'less than 0.001 dB')).toBe(false)
