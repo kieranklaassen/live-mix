@@ -1112,6 +1112,26 @@ static void test_voices() {
   EXPECT(peak(rest.left, at(0.3)) == 0.0 && peak(rest.right, at(0.3)) == 0.0,
          "and it leaves exact silence after one release of each key");
 
+  // A key struck twice while the voice it took still fades for it, first
+  // soft at one pitch, then loud at another: the note that waits is the
+  // second strike, its pitch and its level, as a key struck once plays it.
+  {
+    double level[2], other = 0.0;
+    for (int pass = 0; pass < 2; ++pass) {
+      hold_chord(8, 0.05f);
+      render(device, 1.0f, kRate);
+      if (pass == 1) device.note_on(99, 790.0f, 0.2f);
+      device.note_on(99, 620.0f, 0.8f);
+      Stereo out = render(device, 0.6f, kRate);
+      level[pass] = level_at(out.left, 623.0, kRate, at(0.2), at(0.6));
+      if (pass == 1) other = level_at(out.left, 793.0, kRate, at(0.2), at(0.6));
+    }
+    MEASURED("a key struck twice into a full pool, soft at 790 Hz and then loud at 620 Hz: %.4f of one strike at 620 Hz, %.5f of it left at 790 Hz",
+             level[1] / level[0], other / level[0]);
+    EXPECT(level[0] > 0.02 && std::fabs(level[1] / level[0] - 1.0) < 0.02 && other < 0.02 * level[0],
+           "a key struck twice into a full pool plays as its second strike says, its pitch and its level");
+  }
+
   // A key let go before its stolen voice was free never sounds.
   hold_chord(8, 0.05f);
   render(device, 1.0f, kRate);
