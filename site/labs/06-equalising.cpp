@@ -188,17 +188,8 @@ void phase_tap(lab::Tap& tap, const float* h, int count) {
   tap.scale = lab::kLog;
   for (int p = 0; p < kPoints; ++p) {
     const double hz = 20.0 * std::pow(1000.0, static_cast<double>(p) / (kPoints - 1));
-    const double w = 2.0 * 3.14159265358979323846 * hz / lab::kSampleRate;
-    const double cw = std::cos(w), sw = std::sin(w);
-    double c = 1.0, s = 0.0, re = 0.0, im = 0.0;
-    for (int n = 0; n < count; ++n) {
-      re += h[n] * c;
-      im -= h[n] * s;
-      const double next = c * cw - s * sw;
-      s = s * cw + c * sw;
-      c = next;
-    }
-    tap.data[p] = static_cast<float>(std::atan2(im, re) * 180.0 / 3.14159265358979323846);
+    const lab::Bin bin = lab::fourier_at(h, count, hz);
+    tap.data[p] = static_cast<float>(std::atan2(bin.im, bin.re) * 180.0 / lab::kPi);
   }
 }
 
@@ -421,13 +412,8 @@ void lab_render(int frames) {
       }
     }
   }
-  const auto level = [](double diff, double ref) {
-    if (ref <= 0.0) return diff <= 0.0 ? lab::kFloorDb : 0.0f;
-    const double ratio = diff / ref;
-    return ratio > 1.0e-14 ? static_cast<float>(10.0 * std::log10(ratio)) : lab::kFloorDb;
-  };
-  forms.value = level(forms_diff, forms_ref);
-  rebuilt.value = level(rebuilt_diff, rebuilt_ref);
+  forms.value = lab::ratio_db(forms_diff, forms_ref);
+  rebuilt.value = lab::ratio_db(rebuilt_diff, rebuilt_ref);
 
   // --- Each band's curve: one sample through its filter --------------------
   kit::Svf cut_a, cut_b;

@@ -38,9 +38,15 @@
 namespace lab {
 
 constexpr float kSampleRate = 48000.0f;
-constexpr int kMaxFrames = 8 * 48000;  // eight seconds
+constexpr int kMaxFrames = 8 * 48000;
 constexpr int kFadeFrames = 960;       // 20 ms: the crossfade across a loop's wrap
 constexpr int kControlPeriod = 16;     // samples per point of a control tap
+constexpr int kMaxControls = 32;       // the most a lab may declare of each of the three
+constexpr int kMaxTaps = 48;
+constexpr int kMaxChecks = 16;
+
+// Pi as a double, for the lab's own sums. The kit's kPi is a float.
+constexpr double kPi = 3.14159265358979323846;
 
 enum Kind : int {
   kAudio = 0,     // sound: drawn as a wave, and heard
@@ -112,7 +118,7 @@ inline int aux_frames() { return g_aux_frames; }
 // Controls
 
 struct Control;
-inline Control* g_controls[32];
+inline Control* g_controls[kMaxControls];
 inline int g_control_count = 0;
 
 struct Control {
@@ -131,7 +137,7 @@ struct Control {
           int scale_ = kLinear, const char* choices_ = "")
       : id(id_), name(name_), unit(unit_), min(min_), max(max_), initial(initial_), scale(scale_),
         choices(choices_), value(initial_) {
-    if (g_control_count < 32) g_controls[g_control_count++] = this;
+    if (g_control_count < kMaxControls) g_controls[g_control_count++] = this;
   }
 
   void set(float v) {
@@ -146,7 +152,7 @@ struct Control {
 // Taps
 
 struct Tap;
-inline Tap* g_taps[48];
+inline Tap* g_taps[kMaxTaps];
 inline int g_tap_count = 0;
 
 struct Tap {
@@ -165,7 +171,7 @@ struct Tap {
 
   Tap(const char* id_, const char* name_, int kind_, int origin_, int channels_ = 1, const char* unit_ = "")
       : id(id_), name(name_), kind(kind_), origin(origin_), channels(channels_ == 2 ? 2 : 1), unit(unit_) {
-    if (g_tap_count < 48) g_taps[g_tap_count++] = this;
+    if (g_tap_count < kMaxTaps) g_taps[g_tap_count++] = this;
   }
 
   void clear() {
@@ -220,7 +226,7 @@ struct Tap {
 // rebuilt stage is from the device. The page shows them and the tests hold them.
 
 struct Check;
-inline Check* g_checks[16];
+inline Check* g_checks[kMaxChecks];
 inline int g_check_count = 0;
 
 struct Check {
@@ -229,7 +235,7 @@ struct Check {
   const char* unit;
   float value = 0.0f;
   Check(const char* id_, const char* name_, const char* unit_) : id(id_), name(name_), unit(unit_) {
-    if (g_check_count < 16) g_checks[g_check_count++] = this;
+    if (g_check_count < kMaxChecks) g_checks[g_check_count++] = this;
   }
 };
 
@@ -243,6 +249,15 @@ constexpr float kFloorDb = -140.0f;
 inline float to_db(float gain) { return gain > 1.0e-7f ? 20.0f * std::log10(gain) : kFloorDb; }
 inline float power_to_db(float power) { return power > 1.0e-14f ? 10.0f * std::log10(power) : kFloorDb; }
 
+// A sum of squared differences against the sum of squares it is held to, in
+// dB: for the lab that adds the two up as its loop runs. -140 when nothing
+// differs; 0 when there is a difference and nothing to hold it to.
+inline float ratio_db(double diff, double ref) {
+  if (ref <= 0.0) return diff <= 0.0 ? kFloorDb : 0.0f;
+  const double ratio = diff / ref;
+  return ratio > 1.0e-14 ? static_cast<float>(10.0 * std::log10(ratio)) : kFloorDb;
+}
+
 // The level of `x - y` against the level of `y`, in dB: how well a rebuilt
 // signal matches the one it claims to equal. -140 when they are the same.
 inline float difference_db(const float* x, const float* y, int count) {
@@ -252,9 +267,7 @@ inline float difference_db(const float* x, const float* y, int count) {
     diff += d * d;
     ref += static_cast<double>(y[i]) * static_cast<double>(y[i]);
   }
-  if (ref <= 0.0) return diff <= 0.0 ? kFloorDb : 0.0f;
-  const double ratio = diff / ref;
-  return ratio > 1.0e-14 ? static_cast<float>(10.0 * std::log10(ratio)) : kFloorDb;
+  return ratio_db(diff, ref);
 }
 
 inline float peak(const float* x, int count) {
@@ -286,7 +299,7 @@ inline void spectrum_init() {
   if (g_spectrum_ready) return;
   g_spectrum_fft.init();
   for (int n = 0; n < kSpectrumSize; ++n) {
-    g_spectrum_window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * 3.14159265358979323846 * n / kSpectrumSize));
+    g_spectrum_window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * kPi * n / kSpectrumSize));
   }
   g_spectrum_ready = true;
 }
@@ -329,11 +342,36 @@ inline void spectrum_tap(Tap& tap, const float* x, int count) {
   spectrum(x, count, tap.data);
 }
 
+// The sum the Fourier transform is (lesson 2), of `count` samples at one
+// frequency in hertz: what an impulse response `h` does to that frequency.
+// The angle of (re, im) is the phase, power() the level squared.
+struct Bin {
+  double re;
+  double im;
+  double power() const { return re * re + im * im; }
+};
+
+inline Bin fourier_at(const float* h, int count, double hz) {
+  const double w = 2.0 * kPi * hz / kSampleRate;
+  // One turn of a unit vector per sample, by recurrence: no sine per term.
+  const double cw = std::cos(w), sw = std::sin(w);
+  double c = 1.0, s = 0.0;
+  Bin sum{0.0, 0.0};
+  for (int n = 0; n < count; ++n) {
+    sum.re += h[n] * c;
+    sum.im -= h[n] * s;
+    const double next = c * cw - s * sw;
+    s = s * cw + c * sw;
+    c = next;
+  }
+  return sum;
+}
+
 // The response of something to frequency, from its impulse response `h`: the
 // level in dB at `points` frequencies standing in even ratios from `f0` to
-// `f1` hertz, each worked out as the sum the Fourier transform is (lesson 2),
-// at exactly that frequency. For a filter's curve: put one unit sample
-// through it, keep what comes out, and hand it here.
+// `f1` hertz, each worked out by fourier_at, at exactly that frequency. For
+// a filter's curve: put one unit sample through it, keep what comes out, and
+// hand it here.
 inline void response_tap(Tap& tap, const float* h, int count, int points = 241, float f0 = 20.0f,
                          float f1 = 20000.0f) {
   if (!tap.open(points)) return;
@@ -342,18 +380,7 @@ inline void response_tap(Tap& tap, const float* h, int count, int points = 241, 
   tap.scale = kLog;
   for (int p = 0; p < points; ++p) {
     const double hz = f0 * std::pow(static_cast<double>(f1) / f0, static_cast<double>(p) / (points - 1));
-    const double w = 2.0 * 3.14159265358979323846 * hz / kSampleRate;
-    // One turn of a unit vector per sample, by recurrence: no sine per term.
-    const double cw = std::cos(w), sw = std::sin(w);
-    double c = 1.0, s = 0.0, re = 0.0, im = 0.0;
-    for (int n = 0; n < count; ++n) {
-      re += h[n] * c;
-      im -= h[n] * s;
-      const double next = c * cw - s * sw;
-      s = s * cw + c * sw;
-      c = next;
-    }
-    tap.data[p] = power_to_db(static_cast<float>(re * re + im * im));
+    tap.data[p] = power_to_db(static_cast<float>(fourier_at(h, count, hz).power()));
   }
 }
 
@@ -375,7 +402,7 @@ inline void spectrogram_tap(Tap& tap, const float* x, int count, int columns = 2
   if (!ready) {
     fft.init();
     for (int n = 0; n < kPictureSize; ++n) {
-      window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * 3.14159265358979323846 * n / kPictureSize));
+      window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * kPi * n / kPictureSize));
     }
     ready = true;
   }

@@ -188,7 +188,7 @@ int ring_length(float hz, float q, bool* cut) {
 // The response formulas at `hz`, for a filter whose integrators have gain g:
 // w is the frequency as the filter sees it, in units of its cutoff.
 void formulas(float hz, float g, float k, float* low_db, float* band_db, float* high_db) {
-  const double w = std::tan(3.14159265358979323846 * hz / lab::kSampleRate) / g;
+  const double w = std::tan(lab::kPi * hz / lab::kSampleRate) / g;
   const double w2 = w * w;
   const double bottom = (1.0 - w2) * (1.0 - w2) + static_cast<double>(k) * k * w2;
   *low_db = lab::power_to_db(static_cast<float>(1.0 / bottom));
@@ -456,14 +456,9 @@ void lab_render(int frames) {
     }
   }
 
-  const auto apart_db = [](double diff, double ref) {
-    if (ref <= 0.0) return diff <= 0.0 ? lab::kFloorDb : 0.0f;
-    const double ratio = diff / ref;
-    return ratio > 1.0e-14 ? static_cast<float>(10.0 * std::log10(ratio)) : lab::kFloorDb;
-  };
-  sum.value = apart_db(sum_apart, sum_in);
-  direct_apart.value = apart_db(direct_diff, direct_ref);
-  same_stage.value = apart_db(twin_diff, twin_ref);
+  sum.value = lab::ratio_db(sum_apart, sum_in);
+  direct_apart.value = lab::ratio_db(direct_diff, direct_ref);
+  same_stage.value = lab::ratio_db(twin_diff, twin_ref);
 
   if (out_tap.data) lab::spectrogram_tap(picture, out_tap.channel(0), frames);
   measure();

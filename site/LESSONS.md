@@ -94,7 +94,9 @@ void lab_render(int frames) {  // every time a control moves
 - **Helpers:** `spectrum_tap(tap, x, count)`; `response_tap(tap, h, count)` (a filter's curve
   from its impulse response, at logarithmic steps from 20 Hz to 20 kHz);
   `spectrogram_tap(tap, x, count)`; `energy_decay_tap(tap, x, count)`; `to_db`, `power_to_db`,
-  `difference_db(x, y, count)`, `peak`, `rms`; `run_blocks` for a device run in blocks.
+  `difference_db(x, y, count)`, `peak`, `rms`; `ratio_db(diff, ref)` for a lab that adds the
+  two sums up as its loop runs; `fourier_at(h, count, hz)` (one frequency of an impulse
+  response, as `re` and `im`); `kPi` as a double; `run_blocks` for a device run in blocks.
   The page can already draw the spectrum of any audio tap, so a spectrum tap is only for
   something that is not a tap of the loop.
 - **Memory:** no heap. Buffers are file-level arrays or `lab::take(count)` (zeroed, gone at
@@ -198,6 +200,13 @@ The components, which need no import:
 | `<M t={String.raw`y[n] = a\,y[n-1]`} />`                                                                                          | An equation; with `block`, on a line of its own. Always `String.raw`.                                                                                                      |
 | `<Listen tap="out">Hear the output</Listen>`                                                                                      | A button in the text.                                                                                                                                                      |
 | `<Aside title="...">`                                                                                                             | A box beside the run of the text.                                                                                                                                          |
+
+Six figures were made for one lesson each and take taps the same way. The first lines of
+their files in `src/components/lesson/` show how each is written: `<SamplesOnWaves>` (samples
+against the waves through them), `<TurningVectors>` (a frame's bins as vectors that turn),
+`<OverlappingWindows>` (the windows of overlapping frames and their sum), `<PhaseTurns>` (a
+filter's phase in half turns), `<GrainCloud>` (each grain as a bead) and `<ConvolverCheck>`
+(the lab's convolution against the browser's own).
 
 A figure's children are its caption. Write the caption as what to look at and what moving a
 control does to it.

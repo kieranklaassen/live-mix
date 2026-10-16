@@ -86,7 +86,7 @@ void measure_lines() {
   static double reference[4][kLineWindow];
   for (int k = 0; k < 4; ++k) {
     for (int n = 0; n < kLineWindow; ++n) {
-      reference[k][n] = std::sin(2.0 * 3.14159265358979323846 * n * (0.125 + k / 128.0));
+      reference[k][n] = std::sin(2.0 * lab::kPi * n * (0.125 + k / 128.0));
     }
   }
   for (int p = 0; p < kLinePoints; ++p) {
@@ -122,7 +122,7 @@ float frequency_against_phase(double carrier, double modulator, double radians) 
   constexpr int kCount = 4800;
   static float by_phase[kCount];
   static float by_frequency[kCount];
-  const double turn = 2.0 * 3.14159265358979323846;
+  const double turn = 2.0 * lab::kPi;
   double phase = 0.0;  // cycles
   for (int n = 0; n < kCount; ++n) {
     by_phase[n] = static_cast<float>(std::sin(turn * carrier * n + radians * std::sin(turn * modulator * n)));

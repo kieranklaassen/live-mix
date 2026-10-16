@@ -78,7 +78,6 @@ lab::Check comb_error{"combError", "The measured comb against the formula: the l
                       "dB"};
 lab::Check rebuilt{"rebuilt", "The voices read again and summed, against the Chorus's own output", "dB"};
 
-constexpr double kPi = 3.14159265358979323846;
 constexpr int kCombPoints = 342;  // bins of a 4,096-point transform: 0 Hz to 3,996 Hz
 constexpr int kCombMost = 131072;  // samples of ring counted at most: 2.7 s
 
@@ -202,7 +201,7 @@ void measure_comb() {
   const double m = static_cast<double>(held.mix_.value);
   double worst = 0.0;
   for (int k = 0; k < kCombPoints; ++k) {
-    const double w = 2.0 * kPi * k / lab::kSpectrumSize;
+    const double w = 2.0 * lab::kPi * k / lab::kSpectrumSize;
     const double loop_re = 1.0 - g * std::cos(w * (d + 1.0));
     const double loop_im = g * std::sin(w * (d + 1.0));
     const double size = loop_re * loop_re + loop_im * loop_im;
@@ -366,8 +365,7 @@ void lab_render(int frames) {
     keep(cents2, i, pitch[1]);
     keep(cents3, i, pitch[2]);
   }
-  rebuilt.value = whole > 0.0 && apart / whole > 1.0e-14 ? static_cast<float>(10.0 * std::log10(apart / whole))
-                                                          : lab::kFloorDb;
+  rebuilt.value = whole > 0.0 ? lab::ratio_db(apart, whole) : lab::kFloorDb;
 
   render_still();
   measure_comb();

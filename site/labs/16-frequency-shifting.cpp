@@ -86,8 +86,7 @@ float phase_q_points[kPhasePoints];
 float difference_points[kPhasePoints];
 float quarter_error_found = 0.0f;
 
-constexpr double kPiDouble = 3.14159265358979323846;
-constexpr double kDegrees = 180.0 / kPiDouble;
+constexpr double kDegrees = 180.0 / lab::kPi;
 
 struct Turned {
   double i_degrees;  // the in-phase chain's phase, between -180 and 180
@@ -96,7 +95,7 @@ struct Turned {
 };
 
 Turned measure_at(double hz) {
-  const double w = 2.0 * kPiDouble * hz / lab::kSampleRate;
+  const double w = 2.0 * lab::kPi * hz / lab::kSampleRate;
   const double cw = std::cos(w), sw = std::sin(w);
   double c = 1.0, s = 0.0;
   double i_re = 0.0, i_im = 0.0, q_re = 0.0, q_im = 0.0;
@@ -243,12 +242,7 @@ void lab_render(int frames) {
       reference += static_cast<double>(wrote) * static_cast<double>(wrote);
     }
   }
-  if (reference <= 0.0) {
-    rebuilt.value = difference <= 0.0 ? lab::kFloorDb : 0.0f;
-  } else {
-    const double ratio = difference / reference;
-    rebuilt.value = ratio > 1.0e-14 ? static_cast<float>(10.0 * std::log10(ratio)) : lab::kFloorDb;
-  }
+  rebuilt.value = lab::ratio_db(difference, reference);
 
   if (out_tap.data) lab::spectrogram_tap(picture, out_tap.channel(0), frames);
 

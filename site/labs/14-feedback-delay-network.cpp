@@ -24,9 +24,9 @@
 // the device sets them.
 //
 // The decay curves and the spectrum over time are of the response to one
-// click, from rest, of a second copy of the device's network. The bare network, with nothing in its loop but lines, a
-// mixing matrix and a gain, is written for the lesson from the kit's parts,
-// with the device's own lengths.
+// click, from rest, of a second copy of the device's network. The bare
+// network, with nothing in its loop but lines, a mixing matrix and a gain, is
+// written for the lesson from the kit's parts, with the device's own lengths.
 
 #include "lab.h"
 
@@ -182,6 +182,12 @@ void run_bare(int which, bool lossless, float* out, float* first) {
   }
 }
 
+int echoes_between(const float* x, int from, int to) {
+  int count = 0;
+  for (int i = from; i < to; ++i) count += x[i] != 0.0f ? 1 : 0;
+  return count;
+}
+
 // Echoes per millisecond, counted in windows of 50 ms: every sample that is
 // not exactly zero is an echo arriving.
 void count_echoes(lab::Tap& tap, const float* x) {
@@ -190,16 +196,9 @@ void count_echoes(lab::Tap& tap, const float* x) {
   tap.x0 = 0.5f * kWindow / lab::kSampleRate;
   tap.x1 = (windows - 0.5f) * kWindow / lab::kSampleRate;
   for (int w = 0; w < windows; ++w) {
-    int count = 0;
-    for (int i = 0; i < kWindow; ++i) count += x[w * kWindow + i] != 0.0f ? 1 : 0;
+    const int count = echoes_between(x, w * kWindow, (w + 1) * kWindow);
     tap.set(w, static_cast<float>(count) / (1000.0f * kWindow / lab::kSampleRate));
   }
-}
-
-int echoes_between(const float* x, int from, int to) {
-  int count = 0;
-  for (int i = from; i < to; ++i) count += x[i] != 0.0f ? 1 : 0;
-  return count;
 }
 
 void copy_curve(lab::Tap& tap, const float* x, int count) {
@@ -223,7 +222,7 @@ void teeth(const float* h) {
   comb_teeth.x0 = 0.0f;
   comb_teeth.x1 = kTop;
   for (int p = 0; p < kPoints; ++p) {
-    const double w = 2.0 * 3.14159265358979323846 * kTop * p / (kPoints - 1) / lab::kSampleRate;
+    const double w = 2.0 * lab::kPi * kTop * p / (kPoints - 1) / lab::kSampleRate;
     double re = 0.0, im = 0.0;
     for (int e = 0; e < echoes; ++e) {
       re += h[at[e]] * std::cos(w * at[e]);

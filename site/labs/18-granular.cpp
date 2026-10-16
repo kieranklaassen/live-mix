@@ -387,7 +387,7 @@ void measure_lines() {
 void lab_setup() {
   lines_fft.init();
   for (int n = 0; n < kLinesSize; ++n) {
-    lines_window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * 3.14159265358979323846 * n / kLinesSize));
+    lines_window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * lab::kPi * n / kLinesSize));
   }
 }
 
@@ -431,9 +431,7 @@ void lab_render(int frames) {
       grains.put(i, s.grains[0], s.grains[1]);
       out_tap.put(i, s.out[0], s.out[1]);
       steady.put(i, s.steady[0], s.steady[1]);
-    }
 
-    if (i >= frames) {
       for (int c = 0; c < 2; ++c) {
         const double miss = static_cast<double>(s.rebuilt[c]) - s.out[c];
         off += miss * miss;

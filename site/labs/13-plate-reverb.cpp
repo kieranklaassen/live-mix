@@ -45,12 +45,12 @@ namespace {
 PlateReverbDevice plate;  // the loop goes through this one
 PlateReverb struck;       // this one is given a single sample
 
-// The all-pass gains. plate_reverb.cpp keeps them in its unnamed namespace,
-// out of reach, so they are written again here; a wrong one fails "rebuilt".
+// The gains of the all-passes the lab works out again. plate_reverb.cpp keeps
+// them in its unnamed namespace, out of reach, so they are written again
+// here; a wrong one fails "rebuilt".
 constexpr float kInputGainA = 0.750f;   // input all-passes 1 and 2
 constexpr float kInputGainB = 0.625f;   // input all-passes 3 and 4
 constexpr float kTankGainA = -0.700f;   // each half's first all-pass, the one whose delay moves
-constexpr float kTankGainB = 0.500f;    // each half's second
 
 constexpr int kRate = 48000;
 constexpr int kWindow = 480;            // 10 ms: the stretch echoes are counted in
@@ -70,7 +70,7 @@ constexpr int kCombPoints = 801;         // from 0 to 2 kHz in even steps of 2.5
 constexpr float kCombTop = 2000.0f;
 constexpr int kRung = 12288;             // by here one all-pass, or the delay with feedback, is 120 dB down
 constexpr int kCombLength = 229;        // the first input all-pass's length, for a like-for-like echo
-constexpr float kCombGain = 0.750f;
+constexpr float kCombGain = kInputGainA;
 
 lab::Control decay{"decay", "Decay", "", 0.0f, 0.9f, 0.5f};
 lab::Control damping{"damping", "Damping", "", 0.0f, 1.0f, 0.3f};
@@ -222,17 +222,7 @@ void copy_curve(lab::Tap& tap, const float* from, int points, float x0, float x1
 void level_at_even_steps(const float* h, int count, float* out) {
   for (int p = 0; p < kCombPoints; ++p) {
     const double hz = kCombTop * static_cast<double>(p) / (kCombPoints - 1);
-    const double w = 2.0 * 3.14159265358979323846 * hz / lab::kSampleRate;
-    const double cw = std::cos(w), sw = std::sin(w);
-    double c = 1.0, sn = 0.0, re = 0.0, im = 0.0;
-    for (int n = 0; n < count; ++n) {
-      re += h[n] * c;
-      im -= h[n] * sn;
-      const double next = c * cw - sn * sw;
-      sn = sn * cw + c * sw;
-      c = next;
-    }
-    out[p] = lab::power_to_db(static_cast<float>(re * re + im * im));
+    out[p] = lab::power_to_db(static_cast<float>(lab::fourier_at(h, count, hz).power()));
   }
 }
 
@@ -354,7 +344,6 @@ void strike() {
   float* from_right = lab::take(kOutHit);
   if (!left || !low || !high || !node || !from_left || !from_right) return;
 
-  // Two bands, each through two of the kit's band-pass filters in a row.
   kit::Svf low_band[2], high_band[2];
   for (int k = 0; k < 2; ++k) {
     low_band[k].set(500.0f, 2.0f, lab::kSampleRate);
@@ -492,8 +481,7 @@ void lab_render(int frames) {
   float worst = lab::kFloorDb;
   for (int s = 0; s < 4; ++s) {
     if (whole[s] <= 0.0) continue;
-    const double ratio = apart[s] / whole[s];
-    const float db = ratio > 1.0e-14 ? static_cast<float>(10.0 * std::log10(ratio)) : lab::kFloorDb;
+    const float db = lab::ratio_db(apart[s], whole[s]);
     if (db > worst) worst = db;
   }
   rebuilt.value = worst;

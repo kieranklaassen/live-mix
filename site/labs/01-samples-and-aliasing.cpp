@@ -28,8 +28,6 @@ using namespace livemix;
 
 namespace {
 
-constexpr double kPiD = 3.14159265358979323846;
-
 kit::SineOsc sine_osc;
 kit::BlepOsc saw_osc;
 
@@ -51,7 +49,6 @@ lab::Tap alias{"alias", "The lowest wave through the same samples", lab::kCurve,
 lab::Tap folding{"folding", "Peak of the spectrum, measured", lab::kCurve, lab::kKit, 1, "Hz"};
 lab::Tap fold_formula{"foldFormula", "The folding formula", lab::kCurve, lab::kLesson, 1, "Hz"};
 
-// Sixteen samples around one edge of the saw.
 lab::Tap edge_ideal{"edgeIdeal", "The saw as drawn on paper", lab::kCurve, lab::kLesson, 1};
 lab::Tap edge_smooth{"edgeSmooth", "The saw with its edge spread", lab::kCurve, lab::kLesson, 1};
 lab::Tap edge_naive{"edgeNaive", "Naive samples", lab::kCurve, lab::kLesson, 1};
@@ -92,7 +89,6 @@ float folded(float hz) {
 
 double wrap(double phase) { return phase - std::floor(phase); }
 
-// The sine's samples, and the waves that pass through them.
 void draw_samples(float inc) {
   constexpr int kSamples = 24;
   constexpr int kFine = 40;
@@ -107,29 +103,29 @@ void draw_samples(float inc) {
   const double low = static_cast<double>(inc) - std::floor(static_cast<double>(inc) + 0.5);
   for (int p = 0; p <= kSamples * kFine; ++p) {
     const double at = static_cast<double>(p) / kFine;
-    wave.set(p, static_cast<float>(std::sin(2.0 * kPiD * at * inc)));
-    alias.set(p, static_cast<float>(std::sin(2.0 * kPiD * at * low)));
+    wave.set(p, static_cast<float>(std::sin(2.0 * lab::kPi * at * inc)));
+    alias.set(p, static_cast<float>(std::sin(2.0 * lab::kPi * at * low)));
   }
 }
 
-// A sine at each of 48 frequencies from 500 Hz to 47.5 kHz through the kit's
-// oscillator, one frame each, and where the peak of its spectrum stands.
-void measure_folding() {
-  constexpr int kPoints = 48;
-  constexpr int kFormulaPoints = 97;
-  if (!folding.open(kPoints) || !fold_formula.open(kFormulaPoints)) return;
-  folding.x0 = 500.0f;
-  folding.x1 = 47500.0f;
-  fold_formula.x0 = 0.0f;
-  fold_formula.x1 = lab::kSampleRate;
-  for (int p = 0; p < kFormulaPoints; ++p) fold_formula.set(p, folded(500.0f * static_cast<float>(p)));
+// What lab_setup measured of the folding, kept for every render.
+constexpr int kFoldPoints = 48;
+constexpr int kFoldFormulaPoints = 97;
+float folding_points[kFoldPoints];
+float fold_formula_points[kFoldFormulaPoints];
+float fold_error_found = 0.0f;
 
-  float* x = lab::take(lab::kSpectrumSize);
-  float* level = lab::take(lab::kSpectrumBins);
-  if (!x || !level) return;
+// A sine at each of 48 frequencies from 500 Hz to 47.5 kHz through the kit's
+// oscillator, one frame each, and where the peak of its spectrum stands. No
+// control and no source reaches it, so this runs once.
+void measure_folding() {
+  for (int p = 0; p < kFoldFormulaPoints; ++p) fold_formula_points[p] = folded(500.0f * static_cast<float>(p));
+
+  static float x[lab::kSpectrumSize];
+  static float level[lab::kSpectrumBins];
   const float bin_hz = lab::kSampleRate / lab::kSpectrumSize;
   float worst = 0.0f;
-  for (int p = 0; p < kPoints; ++p) {
+  for (int p = 0; p < kFoldPoints; ++p) {
     const float hz = 500.0f + 1000.0f * static_cast<float>(p);
     kit::SineOsc osc;
     osc.reset();
@@ -147,11 +143,22 @@ void measure_folding() {
       if (bend < 0.0f) place += 0.5f * (a - c) / bend;
     }
     const float measured = place * bin_hz;
-    folding.set(p, measured);
+    folding_points[p] = measured;
     const float error = std::fabs(measured - folded(hz));
     if (error > worst) worst = error;
   }
-  fold_error.value = worst;
+  fold_error_found = worst;
+}
+
+void put_folding() {
+  if (!folding.open(kFoldPoints) || !fold_formula.open(kFoldFormulaPoints)) return;
+  folding.x0 = 500.0f;
+  folding.x1 = 47500.0f;
+  fold_formula.x0 = 0.0f;
+  fold_formula.x1 = lab::kSampleRate;
+  for (int p = 0; p < kFoldPoints; ++p) folding.set(p, folding_points[p]);
+  for (int p = 0; p < kFoldFormulaPoints; ++p) fold_formula.set(p, fold_formula_points[p]);
+  fold_error.value = fold_error_found;
 }
 
 // Seventeen samples of the saw with an edge in the middle, and the two
@@ -188,7 +195,7 @@ void draw_edge(float inc) {
 // What the correction does to a partial at `hz`, as an amplitude: the square
 // of sin(pi x) / (pi x), with x the frequency over the sample rate.
 double triangle_response(double hz) {
-  const double x = kPiD * hz / lab::kSampleRate;
+  const double x = lab::kPi * hz / lab::kSampleRate;
   if (std::fabs(x) < 1.0e-9) return 1.0;
   const double s = std::sin(x) / x;
   return s * s;
@@ -263,6 +270,7 @@ void measure_partials(float hz) {
 void lab_setup() {
   kit::SineTable::init();
   frame_fft.init();
+  measure_folding();
 }
 
 void lab_render(int frames) {
@@ -278,7 +286,7 @@ void lab_render(int frames) {
     // The sine: the kit reads its table at the phase, then steps the phase on.
     const double phase = sine_osc.phase;
     const float s = sine_osc.next(sine_inc);
-    const double exact = std::sin(2.0 * kPiD * phase);
+    const double exact = std::sin(2.0 * lab::kPi * phase);
     table_diff += (s - exact) * (s - exact);
     table_ref += exact * exact;
     sine.put(i, s);
@@ -294,16 +302,12 @@ void lab_render(int frames) {
     correction.put(i, fix);
     saw.put(i, band);
   }
-  table_error.value =
-      table_ref > 0.0 && table_diff / table_ref > 1.0e-14 ? static_cast<float>(10.0 * std::log10(table_diff / table_ref))
-                                                         : lab::kFloorDb;
-  sum_error.value =
-      sum_ref > 0.0 && sum_diff / sum_ref > 1.0e-14 ? static_cast<float>(10.0 * std::log10(sum_diff / sum_ref))
-                                                    : lab::kFloorDb;
+  table_error.value = table_ref > 0.0 ? lab::ratio_db(table_diff, table_ref) : lab::kFloorDb;
+  sum_error.value = sum_ref > 0.0 ? lab::ratio_db(sum_diff, sum_ref) : lab::kFloorDb;
   lands.value = folded(sine_inc * lab::kSampleRate);
 
   draw_samples(sine_inc);
-  measure_folding();
+  put_folding();
   draw_edge(saw_inc);
   measure_partials(note.value);
 }

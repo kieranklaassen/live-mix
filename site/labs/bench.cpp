@@ -153,14 +153,13 @@ void render_signals(int frames) {
     saw.set(i, level * saw_osc.saw(saw_step));
     const float n = 0.25f * noise_source.white();
     noise.set(i, n, 0.25f * noise_source.white());
-    (void)n;
     clicks.set(i, i % kBar == 0 || i % kBar == kBar / 2 ? 1.0f : 0.0f);
     const double t = static_cast<double>(i) / lab::kSampleRate;
     const double phase = 20.0 * duration / (octaves * std::log(2.0)) * (std::exp2(octaves * t / duration) - 1.0);
     float fade = 1.0f;
     if (i < edge) fade = static_cast<float>(i) / edge;
     if (i >= frames - edge) fade = static_cast<float>(frames - 1 - i) / edge;
-    sweep.set(i, level * fade * static_cast<float>(std::sin(2.0 * 3.14159265358979323846 * phase)));
+    sweep.set(i, level * fade * static_cast<float>(std::sin(2.0 * lab::kPi * phase)));
   }
 }
 

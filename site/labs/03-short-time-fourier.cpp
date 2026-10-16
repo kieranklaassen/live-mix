@@ -229,7 +229,7 @@ void render_device(float* kept) {
   const float* source_left = lab::in(0);
   const float* source_right = lab::in(1);
   for (int i = 0, at_source = 0; i < total; ++i, ++at_source) {
-    if (at_source == first_kept) at_source = 0;  // the loop comes round
+    if (at_source == first_kept) at_source = 0;
     const float left = source_left[at_source];
     const float right = source_right[at_source];
     // What the device's two Stfts are about to return: the altered frames added up.
@@ -365,7 +365,7 @@ void render_frames(Frames<Frame>& f, const float* device_out) {
   const float* source = lab::in(0);
   begin_columns(columns);
   for (int i = 0, at_source = 0; i < total; ++i, ++at_source) {
-    if (at_source == frames) at_source = 0;  // the loop comes round
+    if (at_source == frames) at_source = 0;
     const float x = source[at_source];
     const float y = f.plain.process(x, [&](float* re, float* im) {
       write_column(picture, column_of(i, Frame, kHop, columns), re, im, kBins, Stft::kFullScale);
@@ -412,12 +412,8 @@ void render_frames(Frames<Frame>& f, const float* device_out) {
     }
   }
   close_columns(picture, columns, kBins);
-  const auto level = [](double diff, double ref) {
-    if (ref <= 0.0) return diff <= 0.0 ? lab::kFloorDb : 0.0f;
-    return diff / ref > 1.0e-14 ? static_cast<float>(10.0 * std::log10(diff / ref)) : lab::kFloorDb;
-  };
-  returned.value = level(null_diff, null_ref);
-  by_hand.value = level(hand_diff, hand_ref);
+  returned.value = lab::ratio_db(null_diff, null_ref);
+  by_hand.value = lab::ratio_db(hand_diff, hand_ref);
 
   // The device's output through the same transform.
   begin_columns(columns);
@@ -456,7 +452,7 @@ void render_frames(Frames<Frame>& f, const float* device_out) {
       diff += dr * dr + di * di;
       ref += static_cast<double>(f.seen_re[k]) * f.seen_re[k] + static_cast<double>(f.seen_im[k]) * f.seen_im[k];
     }
-    transformed.value = level(diff, ref);
+    transformed.value = lab::ratio_db(diff, ref);
   }
 
   // The windows of the frames that lie over two frames' length of time, each

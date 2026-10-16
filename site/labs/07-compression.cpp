@@ -16,6 +16,8 @@
 
 #include "lab.h"
 
+#include <cstring>
+
 #include "../../cpp/devices/ambient-comp/ambient_comp.h"
 
 using namespace livemix;
@@ -24,8 +26,6 @@ namespace {
 
 AmbientComp comp;
 AmbientComp probe;  // a second device, for measuring the static curve
-float level_now_ = -100.0f;
-float target_now_ = 0.0f;
 
 lab::Control threshold{"threshold", "Threshold", "dB", -60.0f, 0.0f, -24.0f};
 lab::Control ratio{"ratio", "Ratio", ":1", 1.0f, 10.0f, 4.0f};
@@ -77,42 +77,63 @@ float knee_curve(float level_db, float threshold_db, float knee_db, float slope)
   return 0.0f;
 }
 
+constexpr int kCurvePoints = 61;
+constexpr int kSettle = 19200;  // 0.4 s
+float settle_sine[kSettle];     // the 1 kHz sine the curve is measured with, at a peak of 1
+
+// The curve as it was last measured, and the four settings that reach it.
+// It is measured again only when one of them has moved.
+float curve_measured[kCurvePoints];
+float curve_written[kCurvePoints];
+float curve_worst = 0.0f;
+float curve_settings[4];
+bool curve_kept = false;
+
 // The static curve, measured: a steady 1 kHz sine at each level through a
 // device at rest, attack at its shortest, read once the gain has settled.
 void measure_curve() {
-  constexpr int kPoints = 61;
-  constexpr int kSettle = 19200;  // 0.4 s
-  if (!curve.open(kPoints) || !curve_formula.open(kPoints)) return;
+  if (!curve.open(kCurvePoints) || !curve_formula.open(kCurvePoints)) return;
   curve.x0 = curve_formula.x0 = -60.0f;
   curve.x1 = curve_formula.x1 = 0.0f;
-  const float step = kit::kTwoPi * 1000.0f / lab::kSampleRate;
-  float worst = 0.0f;
-  for (int p = 0; p < kPoints; ++p) {
-    const float level_db = -60.0f + static_cast<float>(p);
-    // A sine on both channels reads 3 dB under its peak (ambient_comp.h).
-    const float amplitude = kit::db_to_gain(level_db + 3.0103f);
-    configure(probe, 10.0f, 0.1f, 1.0f, 0.0f, 1.0f);
-    for (int i = 0; i < kSettle; i += 16) {
-      for (int j = 0; j < 16; ++j) {
-        const float x = amplitude * std::sin(step * static_cast<float>(i + j));
-        probe.in_left()[j] = x;
-        probe.in_right()[j] = x;
+  const float settings[4] = {threshold.value, ratio.value, knee.value, sc_low_cut.value};
+  if (!curve_kept || std::memcmp(settings, curve_settings, sizeof settings) != 0) {
+    curve_worst = 0.0f;
+    for (int p = 0; p < kCurvePoints; ++p) {
+      const float level_db = -60.0f + static_cast<float>(p);
+      // A sine on both channels reads 3 dB under its peak (ambient_comp.h).
+      const float amplitude = kit::db_to_gain(level_db + 3.0103f);
+      configure(probe, 10.0f, 0.1f, 1.0f, 0.0f, 1.0f);
+      for (int i = 0; i < kSettle; i += 16) {
+        for (int j = 0; j < 16; ++j) {
+          const float x = amplitude * settle_sine[i + j];
+          probe.in_left()[j] = x;
+          probe.in_right()[j] = x;
+        }
+        probe.process(16);
       }
-      probe.process(16);
+      const float measured = level_db + static_cast<float>(probe.reduction_);
+      const float written = level_db + knee_curve(level_db, threshold.value, knee.value, 1.0f / ratio.value - 1.0f);
+      curve_measured[p] = measured;
+      curve_written[p] = written;
+      const float error = measured > written ? measured - written : written - measured;
+      if (error > curve_worst) curve_worst = error;
     }
-    const float measured = level_db + static_cast<float>(probe.reduction_);
-    const float written = level_db + knee_curve(level_db, threshold.value, knee.value, 1.0f / ratio.value - 1.0f);
-    curve.set(p, measured);
-    curve_formula.set(p, written);
-    const float error = measured > written ? measured - written : written - measured;
-    if (error > worst) worst = error;
+    std::memcpy(curve_settings, settings, sizeof settings);
+    curve_kept = true;
   }
-  curve_error.value = worst;
+  for (int p = 0; p < kCurvePoints; ++p) {
+    curve.set(p, curve_measured[p]);
+    curve_formula.set(p, curve_written[p]);
+  }
+  curve_error.value = curve_worst;
 }
 
 }  // namespace
 
-void lab_setup() {}
+void lab_setup() {
+  const float step = kit::kTwoPi * 1000.0f / lab::kSampleRate;
+  for (int n = 0; n < kSettle; ++n) settle_sine[n] = std::sin(step * static_cast<float>(n));
+}
 
 void lab_render(int frames) {
   (void)frames;
@@ -123,8 +144,8 @@ void lab_render(int frames) {
   float slow = -100.0f;
   float worst = 0.0f;
   bool was_resting = true;
-  level_now_ = -100.0f;
-  target_now_ = 0.0f;
+  float level_now = -100.0f;
+  float target_now = 0.0f;
 
   const int total = lab::total();
   for (int i = 0; i < total; ++i) {
@@ -157,19 +178,21 @@ void lab_render(int frames) {
       } else if (!dying) {
         rebuilt_reduction = wanted + (rebuilt_reduction - wanted) * comp.release_coeff_;
       }
-      level_now_ = level_db;
-      target_now_ = wanted;
+      level_now = level_db;
+      target_now = wanted;
       const float error = static_cast<float>(rebuilt_reduction - comp.reduction_);
       const float distance = error < 0.0f ? -error : error;
       if (i >= lab::frames() && distance > worst) worst = distance;
     }
 
-    const float one_pole = comp.rms_[0].state;
-    level_one.put(i, comp.resting_ || one_pole <= 1.0e-10f ? -100.0f : 10.0f * std::log10(one_pole));
-    level.put(i, level_now_);
-    target.put(i, target_now_);
-    reduction.put(i, static_cast<float>(comp.reduction_));
-    gain.put(i, lab::to_db(comp.gain_));
+    if (i % lab::kControlPeriod == 0) {
+      const float one_pole = comp.rms_[0].state;
+      level_one.put(i, comp.resting_ || one_pole <= 1.0e-10f ? -100.0f : 10.0f * std::log10(one_pole));
+      level.put(i, level_now);
+      target.put(i, target_now);
+      reduction.put(i, static_cast<float>(comp.reduction_));
+      gain.put(i, lab::to_db(comp.gain_));
+    }
   }
   rebuilt.value = worst;
   measure_curve();

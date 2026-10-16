@@ -379,7 +379,7 @@ void picture_rising() {
     // The end fades over 40 ms on half a cosine, slowly enough to leave no mark of its own.
     const int left = kCount - 1 - n;
     const float fade = left < kFade ? 0.5f - 0.5f * std::cos(3.14159265f * static_cast<float>(left) / kFade) : 1.0f;
-    const float x = kToneLevel * fade * static_cast<float>(std::sin(2.0 * 3.14159265358979323846 * phase));
+    const float x = kToneLevel * fade * static_cast<float>(std::sin(2.0 * lab::kPi * phase));
     phase += 10000.0 * (static_cast<double>(n) / kCount) / lab::kSampleRate;
     phase -= std::floor(phase);
     feed(probe, x, x);
@@ -391,7 +391,7 @@ void picture_rising() {
 }  // namespace
 
 void lab_setup() {
-  for (int n = 0; n < kCycle; ++n) wave_[n] = std::sin(2.0 * 3.14159265358979323846 * n / kCycle);
+  for (int n = 0; n < kCycle; ++n) wave_[n] = std::sin(2.0 * lab::kPi * n / kCycle);
 }
 
 void lab_render(int frames) {
@@ -457,8 +457,7 @@ void lab_render(int frames) {
       }
     }
   }
-  rebuilt.value =
-      whole > 0.0 && off / whole > 1.0e-14 ? static_cast<float>(10.0 * std::log10(off / whole)) : lab::kFloorDb;
+  rebuilt.value = whole > 0.0 ? lab::ratio_db(off, whole) : lab::kFloorDb;
 
   measure_transfer();
   draw_shapes();

@@ -102,22 +102,6 @@ float tone_at(int i) {
   return kToneLevel * kit::SineTable::lookup(static_cast<float>(turns) / lab::kSampleRate + 0.25f);
 }
 
-// The power of an impulse response at one frequency: the sum the Fourier
-// transform is, as lab::response_tap works it out.
-double power_at(const float* h, int count, double hz) {
-  const double w = 2.0 * 3.14159265358979323846 * hz / lab::kSampleRate;
-  const double cw = std::cos(w), sw = std::sin(w);
-  double c = 1.0, s = 0.0, re = 0.0, im = 0.0;
-  for (int n = 0; n < count; ++n) {
-    re += h[n] * c;
-    im -= h[n] * s;
-    const double next = c * cw - s * sw;
-    s = s * cw + c * sw;
-    c = next;
-  }
-  return re * re + im * im;
-}
-
 // The filter at rest: an impulse, a step, and the response to frequency.
 void measure_filter() {
   const float fs = lab::kSampleRate;
@@ -159,11 +143,11 @@ void measure_filter() {
   while (taken < kPatience && probe.lowpass(1.0f) < kSixtyThree) ++taken;
   // The cutoff the filter was really given: set_cutoff stops at 0.49 of the rate.
   const double set_hz = kit::clamp(cutoff.value, 0.0f, fs * 0.49f);
-  step_time.value = static_cast<float>(taken - fs / (2.0 * 3.14159265358979323846 * set_hz));
+  step_time.value = static_cast<float>(taken - fs / (2.0 * lab::kPi * set_hz));
 
   // The response to frequency, from the impulse response: sixteen time
   // constants of it, by when it has fallen 139 dB.
-  int count = static_cast<int>(16.0 * fs / (2.0 * 3.14159265358979323846 * set_hz)) + 16;
+  int count = static_cast<int>(16.0 * fs / (2.0 * lab::kPi * set_hz)) + 16;
   count = kit::clamp_int(count, 256, kLongest);
   probe.reset();
   for (int n = 0; n < count; ++n) response_[n] = probe.lowpass(n == 0 ? 1.0f : 0.0f);
@@ -173,10 +157,10 @@ void measure_filter() {
   // the frequency rises; when it has not fallen 3 dB by half the sample rate,
   // half the sample rate is the answer.
   double below = 1.0, above = 0.5 * fs;
-  if (power_at(response_, count, above) < 0.5) {
+  if (lab::fourier_at(response_, count, above).power() < 0.5) {
     for (int k = 0; k < 40; ++k) {
       const double middle = std::sqrt(below * above);
-      if (power_at(response_, count, middle) > 0.5) {
+      if (lab::fourier_at(response_, count, middle).power() > 0.5) {
         below = middle;
       } else {
         above = middle;
@@ -340,12 +324,7 @@ void lab_render(int frames) {
     zipper.put(i, under_left * asked, under_right * asked);
     out_tap.put(i, under_left * gain, under_right * gain);
   }
-  if (split_whole <= 0.0) {
-    split.value = split_apart <= 0.0 ? lab::kFloorDb : 0.0f;
-  } else {
-    const double ratio = split_apart / split_whole;
-    split.value = ratio > 1.0e-14 ? static_cast<float>(10.0 * std::log10(ratio)) : lab::kFloorDb;
-  }
+  split.value = lab::ratio_db(split_apart, split_whole);
 
   measure_filter();
   measure_smoothers();

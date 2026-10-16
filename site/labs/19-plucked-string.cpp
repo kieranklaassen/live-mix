@@ -44,7 +44,6 @@ using String = Guitar::String;
 constexpr int kKey = 1;
 constexpr float kStrike = 0.8f;
 constexpr int kKeyDown = 480;  // the key goes down 10 ms into the loop, so the loop's wrap is silence
-constexpr double kPiD = 3.14159265358979323846;
 
 lab::Control note{"note", "Pitch", "Hz", 82.41f, 880.0f, 220.0f, lab::kLog};
 lab::Control sustain{"sustain", "Sustain", "s", 1.0f, 30.0f, 9.0f, lab::kLog};
@@ -95,7 +94,7 @@ float window_[kWindow];  // a Hann window squared: nothing leaks in from the par
 // The part of x[0 .. kWindow) that turns at `hz`, the window laid on it. The
 // turning is counted from `first` samples earlier, so two windows can be compared.
 void component(const float* x, double hz, int first, double* re, double* im) {
-  const double w = 2.0 * kPiD * hz / lab::kSampleRate;
+  const double w = 2.0 * lab::kPi * hz / lab::kSampleRate;
   const double cw = std::cos(w), sw = std::sin(w);
   double c = std::cos(w * first), s = std::sin(w * first);
   double sum_re = 0.0, sum_im = 0.0;
@@ -126,7 +125,7 @@ double measure_hz(const float* x, int hop, double guess) {
   component(x, guess, 0, &re0, &im0);
   component(x + hop, guess, hop, &re1, &im1);
   const double turned = std::atan2(im1 * re0 - re1 * im0, re1 * re0 + im1 * im0);
-  return guess + turned * lab::kSampleRate / (2.0 * kPiD * hop);
+  return guess + turned * lab::kSampleRate / (2.0 * lab::kPi * hop);
 }
 
 double cents_between(double hz, double reference) { return 1200.0 * std::log2(hz / reference); }
@@ -164,17 +163,20 @@ float newest(const String& s) { return s.buffer_[(s.write_ - 1) & String::kMask]
 // |H| of the loop filter (1 - a) / (1 - a z^-1), as string.h writes it.
 double loss_size(double a, double w) { return (1.0 - a) / std::sqrt(1.0 - 2.0 * a * std::cos(w) + a * a); }
 
+// How far the string's own frequency turns in a sample, in radians.
+double turn_of(const String& s) { return 2.0 * lab::kPi * s.hz_ / s.sample_rate_; }
+
 // The phase delays, in samples, that PluckedString::retune takes off the line:
 // the loop filter's and the stiffness all-passes', at the string's frequency.
 double allpass_delay_of(double a, double w) {
   return 1.0 - 2.0 * std::atan2(a * std::sin(w), 1.0 + a * std::cos(w)) / w;
 }
 double loss_delay_of(const String& s) {
-  const double w = 2.0 * kPiD * s.hz_ / s.sample_rate_;
+  const double w = turn_of(s);
   return std::atan2(s.loss_a_ * std::sin(w), 1.0 - s.loss_a_ * std::cos(w)) / w;
 }
 double stiff_delay_of(const String& s) {
-  const double w = 2.0 * kPiD * s.hz_ / s.sample_rate_;
+  const double w = turn_of(s);
   return s.stiff_stages_ * allpass_delay_of(s.stiff_a_, w);
 }
 
@@ -219,7 +221,7 @@ void filter_curve(const String& s) {
   loss.scale = lab::kLog;
   for (int p = 0; p < kPoints; ++p) {
     const double hz = 20.0 * std::pow(1000.0, static_cast<double>(p) / (kPoints - 1));
-    const double w = 2.0 * kPiD * hz / lab::kSampleRate;
+    const double w = 2.0 * lab::kPi * hz / lab::kSampleRate;
     loss.set(p, static_cast<float>(20.0 * std::log10(s.loss_gain_ * loss_size(s.loss_a_, w))));
   }
 }
@@ -243,7 +245,7 @@ double trip_samples(const String& s, double w) {
 // What a partial at `hz` loses in a second: the loop filter's gain for one
 // trip, as many times as the partial goes round.
 double fall_of(const String& s, double hz) {
-  const double w = 2.0 * kPiD * hz / lab::kSampleRate;
+  const double w = 2.0 * lab::kPi * hz / lab::kSampleRate;
   const double one_trip = -20.0 * std::log10(s.loss_gain_ * loss_size(s.loss_a_, w));
   return one_trip * lab::kSampleRate / trip_samples(s, w);
 }
@@ -307,7 +309,7 @@ void comb_curve(const String& s) {
   comb.x1 = 12000.0f;
   for (int p = 0; p < kPoints; ++p) {
     const double hz = 12000.0 * p / (kPoints - 1);
-    const double size = std::fabs(std::sin(kPiD * hz * s.comb_offset_ / lab::kSampleRate));
+    const double size = std::fabs(std::sin(lab::kPi * hz * s.comb_offset_ / lab::kSampleRate));
     comb.set(p, size > 1.0e-3 ? static_cast<float>(20.0 * std::log10(size)) : -60.0f);
   }
 }
@@ -353,7 +355,7 @@ void tuning_curves() {
 
 void lab_setup() {
   for (int n = 0; n < kWindow; ++n) {
-    const double hann = 0.5 - 0.5 * std::cos(2.0 * kPiD * n / kWindow);
+    const double hann = 0.5 - 0.5 * std::cos(2.0 * lab::kPi * n / kWindow);
     window_[n] = static_cast<float>(hann * hann);
   }
 }
@@ -432,8 +434,12 @@ void lab_render(int frames) {
 
     pluck.put(i, sounding ? voice->exciter.pick_ : 0.0f);
     string_tap.put(i, sounding ? newest(voice->a) : 0.0f);
-    level_one.put(i, level_db(of_first.push(first_alone)));
-    level.put(i, level_db(of_note.push(device_sum)));
+    const float first_power = of_first.push(first_alone);
+    const float note_power = of_note.push(device_sum);
+    if (i % lab::kControlPeriod == 0) {
+      level_one.put(i, level_db(first_power));
+      level.put(i, level_db(note_power));
+    }
     pickup_tap.put(i, device_sum);
     out_tap.put(i, instrument.out_left()[0], instrument.out_right()[0]);
   }
@@ -459,7 +465,7 @@ void lab_render(int frames) {
   partial_curves(s, x + struck, after);
 
   // The loop's length, term by term, as PluckedString::retune adds it up.
-  const double w = 2.0 * kPiD * s.hz_ / s.sample_rate_;
+  const double w = turn_of(s);
   const double line = s.whole_ + allpass_delay_of(s.tune_a_, w);
   loss_pole.value = s.loss_a_;
   loss_gain.value = s.loss_gain_;

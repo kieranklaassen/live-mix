@@ -69,7 +69,6 @@ lab::Check phase_error{"phaseError", "One stage's measured phase against the for
 lab::Check flat{"flat", "The chain alone, furthest from 0 dB at any frequency", "dB"};
 lab::Check null_depth{"nullDepth", "The sum at half mix, at the frequencies where the phase crosses", "dB"};
 
-constexpr double kPi = 3.14159265358979323846;
 constexpr float kUnit = 0.1f;        // the one sample put in: small, so the loop's limiter stays linear
 constexpr int kShort = 16384;        // room for a chain's response
 constexpr int kLong = 32768;         // room for a response that feeds back
@@ -87,28 +86,6 @@ double followed_[kLeadIn + kPoints];
 
 double grid_hz(int p) {
   return kLowHz * std::pow(static_cast<double>(kHighHz) / kLowHz, static_cast<double>(p) / (kPoints - 1));
-}
-
-// The sum the Fourier transform is (lesson 2), at one frequency.
-struct Bin {
-  double re;
-  double im;
-  double power() const { return re * re + im * im; }
-};
-
-Bin fourier_at(const float* h, int count, double hz) {
-  const double w = 2.0 * kPi * hz / lab::kSampleRate;
-  const double cw = std::cos(w), sw = std::sin(w);
-  double c = 1.0, s = 0.0;
-  Bin sum{0.0, 0.0};
-  for (int n = 0; n < count; ++n) {
-    sum.re += h[n] * c;
-    sum.im -= h[n] * s;
-    const double next = c * cw - s * sw;
-    s = s * cw + c * sw;
-    c = next;
-  }
-  return sum;
 }
 
 // One sample into the probe, its oscillator still, and what comes out of its
@@ -140,14 +117,13 @@ int unit_response(float mix_value, float feedback_percent, float* out, int room)
     // Cut short while still ringing: fade the last quarter so the cut adds no ripple.
     const int from = room - room / 4;
     for (int i = from; i < room; ++i) {
-      out[i] *= 0.5f + 0.5f * static_cast<float>(std::cos(kPi * (i - from) / (room - from)));
+      out[i] *= 0.5f + 0.5f * static_cast<float>(std::cos(lab::kPi * (i - from) / (room - from)));
     }
   }
   while (done > 1 && out[done - 1] > -1.0e-9f && out[done - 1] < 1.0e-9f) --done;
   return done;
 }
 
-// A response's level at the curve's frequencies.
 void level_tap(lab::Tap& tap, const float* h, int count) {
   lab::response_tap(tap, h, count, kPoints, kLowHz, kHighHz);
 }
@@ -168,13 +144,13 @@ void measure_stage() {
     if (count > 16 && stage_response_[count] > -1.0e-9f && stage_response_[count] < 1.0e-9f) break;
   }
 
-  const double t = std::tan(kPi * centre.value / lab::kSampleRate);
+  const double t = std::tan(lab::kPi * centre.value / lab::kSampleRate);
   double worst = 0.0;
   for (int p = 0; p < kPoints; ++p) {
     const double hz = grid_hz(p);
-    const Bin bin = fourier_at(stage_response_, count, hz);
-    const double measured = std::atan2(bin.im, bin.re) * 180.0 / kPi;
-    const double written = -2.0 * std::atan(std::tan(kPi * hz / lab::kSampleRate) / t) * 180.0 / kPi;
+    const lab::Bin bin = lab::fourier_at(stage_response_, count, hz);
+    const double measured = std::atan2(bin.im, bin.re) * 180.0 / lab::kPi;
+    const double written = -2.0 * std::atan(std::tan(lab::kPi * hz / lab::kSampleRate) / t) * 180.0 / lab::kPi;
     phase.set(p, static_cast<float>(measured));
     phase_formula.set(p, static_cast<float>(written));
     const double error = measured > written ? measured - written : written - measured;
@@ -202,12 +178,12 @@ void measure_chain() {
   chain_phase.scale = lab::kLog;
   double previous = 0.0;
   for (int p = -kLeadIn; p < kPoints; ++p) {
-    const Bin bin = fourier_at(chain_response_, count, grid_hz(p));
+    const lab::Bin bin = lab::fourier_at(chain_response_, count, grid_hz(p));
     const double wrapped = std::atan2(bin.im, bin.re);
-    const double turned = wrapped + 2.0 * kPi * std::round((previous - wrapped) / (2.0 * kPi));
+    const double turned = wrapped + 2.0 * lab::kPi * std::round((previous - wrapped) / (2.0 * lab::kPi));
     followed_[p + kLeadIn] = turned;
     previous = turned;
-    if (p >= 0) chain_phase.set(p, static_cast<float>(turned * 180.0 / kPi));
+    if (p >= 0) chain_phase.set(p, static_cast<float>(turned * 180.0 / lab::kPi));
   }
 
   // Each odd half turn the phase passes between two points of the curve, found
@@ -217,12 +193,12 @@ void measure_chain() {
   double found[Phaser::kMaxStages];
   int notches = 0;
   for (int p = -kLeadIn + 1; p < kPoints && notches < Phaser::kMaxStages; ++p) {
-    const double target = -(2.0 * notches + 1.0) * kPi;
+    const double target = -(2.0 * notches + 1.0) * lab::kPi;
     if (!(followed_[p + kLeadIn - 1] > target && followed_[p + kLeadIn] <= target)) continue;
     double below = grid_hz(p - 1), above = grid_hz(p);
     for (int step = 0; step < 40; ++step) {
       const double middle = std::sqrt(below * above);
-      if (fourier_at(chain_response_, count, middle).im < 0.0) {
+      if (lab::fourier_at(chain_response_, count, middle).im < 0.0) {
         below = middle;
       } else {
         above = middle;
@@ -241,7 +217,8 @@ void measure_chain() {
     for (int k = 0; k < notches; ++k) {
       if (found[k] < kLowHz || found[k] > kHighHz) continue;
       crossings.set(at++, static_cast<float>(found[k]));
-      const double level = lab::power_to_db(static_cast<float>(fourier_at(half_response_, half_count, found[k]).power()));
+      const lab::Bin at_half = lab::fourier_at(half_response_, half_count, found[k]);
+      const double level = lab::power_to_db(static_cast<float>(at_half.power()));
       if (level > shallowest) shallowest = level;
     }
   }
@@ -283,7 +260,7 @@ void measure_comb() {
   for (int p = 0; p < kCombPoints; ++p) {
     const double hz = kCombTop * p / (kCombPoints - 1);
     // Two samples are all that came out: the Fourier sum has two terms.
-    const double w = 2.0 * kPi * hz / lab::kSampleRate * delay;
+    const double w = 2.0 * lab::kPi * hz / lab::kSampleRate * delay;
     const double re = h[0] + h[delay] * std::cos(w);
     const double im = -h[delay] * std::sin(w);
     comb.set(p, lab::power_to_db(static_cast<float>(re * re + im * im)));
@@ -308,7 +285,7 @@ void picture_tap(const float* x, int count) {
   static bool ready = false;
   if (!ready) {
     fft.init();
-    for (int n = 0; n < kSize; ++n) window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * kPi * n / kSize));
+    for (int n = 0; n < kSize; ++n) window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * lab::kPi * n / kSize));
     ready = true;
   }
   if (count <= 0 || !picture.open(kColumns * kRows)) return;
@@ -358,10 +335,11 @@ void lab_render(int frames) {
     device.process(1);
 
     in_tap.put(i, left, right);
-    lfo.put(i, device.lfo_.value());
-    corner.put(i, device.meter(1));
-    corner_right.put(i, device.meter(2));
-    // The chain's last output, which the device keeps to feed back.
+    if (i % lab::kControlPeriod == 0) {
+      lfo.put(i, device.lfo_.value());
+      corner.put(i, device.meter(1));
+      corner_right.put(i, device.meter(2));
+    }
     const float* all_passed = device.chains_[device.active_].last_out;
     wet.put(i, all_passed[0], all_passed[1]);
     out_tap.put(i, device.out_left()[0], device.out_right()[0]);

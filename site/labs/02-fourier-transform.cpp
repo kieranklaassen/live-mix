@@ -25,7 +25,6 @@ namespace {
 
 constexpr int kMaxSize = 4096;
 constexpr int kProbeSize = 64;
-constexpr double kPi = 3.14159265358979323846;
 
 kit::Fft<64> fft64;
 kit::Fft<256> fft256;
@@ -84,7 +83,6 @@ double window_sum(const float* w, int n) {
   return sum;
 }
 
-// Bins `kept` and above set to nothing, with their mirrors in the upper half.
 template <int N>
 void keep_first(float* re, float* im, int kept) {
   for (int k = kept; k <= N / 2; ++k) {
@@ -105,7 +103,7 @@ void analyse(const kit::Fft<N>& fft) {
   // The frame, the window, and their product.
   for (int n = 0; n < N; ++n) {
     frame_[n] = lab::in_at(0, start + n);
-    window_[n] = hann ? static_cast<float>(0.5 - 0.5 * std::cos(2.0 * kPi * n / N)) : 1.0f;
+    window_[n] = hann ? static_cast<float>(0.5 - 0.5 * std::cos(2.0 * lab::kPi * n / N)) : 1.0f;
     windowed_[n] = frame_[n] * window_[n];
   }
   const double full = 0.5 * window_sum(window_, N);
@@ -125,7 +123,7 @@ void analyse(const kit::Fft<N>& fft) {
 
   // One frequency, by hand: the frame against a cosine and against a sine.
   {
-    const double w = 2.0 * kPi * compare.value / lab::kSampleRate;
+    const double w = 2.0 * lab::kPi * compare.value / lab::kSampleRate;
     // The cosine is drawn as tall as the frame, so the two can be seen together.
     const float tallest = lab::peak(windowed_, N);
     const float height = tallest > 0.0f ? tallest : 1.0f;
@@ -187,7 +185,7 @@ void analyse(const kit::Fft<N>& fft) {
     const int k = kit::clamp_int(static_cast<int>(compare.value * N / lab::kSampleRate + 0.5f), 0, N / 2);
     double sum_re = 0.0, sum_im = 0.0;
     for (int n = 0; n < N; ++n) {
-      const double angle = 2.0 * kPi * k * n / N;
+      const double angle = 2.0 * lab::kPi * k * n / N;
       sum_re += windowed_[n] * std::cos(angle);
       sum_im -= windowed_[n] * std::sin(angle);
     }
@@ -278,8 +276,8 @@ void run_probe() {
   leak_plain.x0 = leak_hann.x0 = 0.0f;
   leak_plain.x1 = leak_hann.x1 = static_cast<float>(N / 2);
   for (int n = 0; n < N; ++n) {
-    x[n] = static_cast<float>(std::sin(2.0 * kPi * probe.value * n / N));
-    w[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * kPi * n / N));
+    x[n] = static_cast<float>(std::sin(2.0 * lab::kPi * probe.value * n / N));
+    w[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * lab::kPi * n / N));
   }
   for (int n = 0; n < 2 * N; ++n) {
     probe_twice.set(n, x[n % N]);

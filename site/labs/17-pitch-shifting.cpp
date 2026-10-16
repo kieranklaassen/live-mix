@@ -92,11 +92,18 @@ struct HeadRead {
   float phase = 2.0f;  // of the head shown; the youngest wins
 };
 
+constexpr float kVoiceBSemitones = 7.0f;  // a fifth above
+
 HeadRead shown[2];
-bool was_active[16];
-float last_phase[16];
-int role_of[16];
+bool was_active[ShiftVoice::kMaxHeads];
+float last_phase[ShiftVoice::kMaxHeads];
+int role_of[ShiftVoice::kMaxHeads];
 int next_role = 0;
+
+// No head sounds. Each keeps the delay it was last shown at.
+void silence_shown() {
+  for (HeadRead& one : shown) one.gain = one.left = one.right = 0.0f;
+}
 
 // The ring at `delay` samples behind where the device's heads count from,
 // by the device's own interpolation (ShiftVoice::render).
@@ -124,8 +131,7 @@ void read_heads(float* sum_left, float* sum_right) {
   const double limit = static_cast<double>(ShiftVoice::kMaxDelay) - base;
   *sum_left = *sum_right = 0.0f;
   shown[0].phase = shown[1].phase = 2.0f;
-  shown[0].gain = shown[1].gain = 0.0f;
-  shown[0].left = shown[0].right = shown[1].left = shown[1].right = 0.0f;
+  silence_shown();
 
   if (voice.sweeping_) {
     // Vintage: one phase for the pair, the second head half a turn on.
@@ -151,10 +157,12 @@ void read_heads(float* sum_left, float* sum_right) {
   // Smooth: every head that sounded in this sample, as it was before the
   // device moved it on. A head that ran out in this sample is still read: it
   // sounded once more, at a gain next to nothing.
-  float window[16], left[16], right[16];
-  double delay[16];
-  float phase[16];
-  bool sounded[16];
+  float window[ShiftVoice::kMaxHeads];
+  float left[ShiftVoice::kMaxHeads];
+  float right[ShiftVoice::kMaxHeads];
+  double delay[ShiftVoice::kMaxHeads];
+  float phase[ShiftVoice::kMaxHeads];
+  bool sounded[ShiftVoice::kMaxHeads];
   float product = 1.0f;
   int joined = 0;
   for (int s = 0; s < ShiftVoice::kMaxHeads; ++s) {
@@ -246,7 +254,7 @@ void measure_fine() {
 void lab_setup() {
   fine_fft.init();
   for (int n = 0; n < kFineSize; ++n) {
-    fine_window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * 3.14159265358979323846 * n / kFineSize));
+    fine_window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * lab::kPi * n / kFineSize));
   }
 }
 
@@ -255,7 +263,7 @@ void lab_render(int frames) {
   using namespace pitch_shifter;
   shifter.init(lab::kSampleRate);
   shifter.set_param(kPitchA, semitones.value);
-  shifter.set_param(kPitchB, 7.0f);
+  shifter.set_param(kPitchB, kVoiceBSemitones);
   shifter.set_param(kLevelB, level_b.value);
   shifter.set_param(kDetune, 0.0f);
   shifter.set_param(kMode, mode.choice() == 1 ? static_cast<float>(kSmooth) : static_cast<float>(kVintage));
@@ -270,7 +278,7 @@ void lab_render(int frames) {
   plain.clear();
   pair_in.reset();
   pair_voice.reset();
-  for (int s = 0; s < 16; ++s) {
+  for (int s = 0; s < ShiftVoice::kMaxHeads; ++s) {
     was_active[s] = false;
     last_phase[s] = 0.0f;
     role_of[s] = 0;
@@ -278,8 +286,6 @@ void lab_render(int frames) {
   next_role = 0;
   shown[0] = shown[1] = HeadRead();
 
-  // The kit's shifter reads 1 sample behind what it is given where the
-  // device's heads read 72 behind the ring: it is fed the ring 71 back.
   const int behind = static_cast<int>(kit::max(ShiftVoice::kMinDelay, ShiftVoice::kFloorSeconds * lab::kSampleRate));
 
   // The first pass of a loop is there so that tails are sounding when the
@@ -290,7 +296,8 @@ void lab_render(int frames) {
   // pass starts began up to a Size before it. So the lab starts the device
   // twice that reach before the pass that is kept, and no earlier.
   const int total = lab::total();
-  const float fastest = kit::max(1.0f, kit::max(kit::semitones_to_ratio(semitones.value), kit::semitones_to_ratio(7.0f)));
+  const float fastest = kit::max(1.0f, kit::max(kit::semitones_to_ratio(semitones.value),
+                                                kit::semitones_to_ratio(kVoiceBSemitones)));
   const int reach = static_cast<int>((size.value * 0.001f * fastest + 0.05f) * lab::kSampleRate);
   const int warm = 2 * reach + 4800;
   const int first = lab::frames() > warm ? lab::frames() - warm : 0;
@@ -328,15 +335,19 @@ void lab_render(int frames) {
         reference += static_cast<double>(voice_left) * voice_left;
       }
     } else {
-      shown[0].gain = shown[1].gain = 0.0f;
-      shown[0].left = shown[0].right = shown[1].left = shown[1].right = 0.0f;
+      silence_shown();
     }
 
+    // The two pairs run on every sample. A level is worked out only on the
+    // one sample in sixteen a control tap keeps; the put is made on every
+    // sample all the same, since the loop can start between two of those and
+    // a tap takes its room on its first put.
+    const bool point = i % lab::kControlPeriod == 0;
     float same, quarter;
     pair_in.process(left, &same, &quarter);
-    level_in.put(i, lab::to_db(std::sqrt(same * same + quarter * quarter)));
+    level_in.put(i, point ? lab::to_db(std::sqrt(same * same + quarter * quarter)) : 0.0f);
     pair_voice.process(voice_left, &same, &quarter);
-    level.put(i, lab::to_db(std::sqrt(same * same + quarter * quarter)));
+    level.put(i, point ? lab::to_db(std::sqrt(same * same + quarter * quarter)) : 0.0f);
 
     in_tap.put(i, left, right);
     ring_tap.put(i, recorded_left, recorded_right);
@@ -351,13 +362,8 @@ void lab_render(int frames) {
     match_tap.put(i, shifter.voice_[0].match_);
   }
 
-  const auto against = [&](double error) {
-    if (reference <= 0.0) return error <= 0.0 ? lab::kFloorDb : 0.0f;
-    const double part = error / reference;
-    return part > 1.0e-14 ? static_cast<float>(10.0 * std::log10(part)) : lab::kFloorDb;
-  };
-  heads_check.value = against(heads_error);
-  kit_check.value = against(kit_error);
+  heads_check.value = lab::ratio_db(heads_error, reference);
+  kit_check.value = lab::ratio_db(kit_error, reference);
   measure_guard();
   measure_fine();
 }

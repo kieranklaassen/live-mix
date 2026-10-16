@@ -151,11 +151,7 @@ struct Distance {
     off += d * d;
     whole += static_cast<double>(real) * static_cast<double>(real);
   }
-  float db() const {
-    if (whole <= 0.0) return off <= 0.0 ? lab::kFloorDb : 0.0f;
-    const double ratio = off / whole;
-    return ratio > 1.0e-14 ? static_cast<float>(10.0 * std::log10(ratio)) : lab::kFloorDb;
-  }
+  float db() const { return lab::ratio_db(off, whole); }
 };
 
 // The device's tape as it lies in memory: the largest sample of every 32, by
@@ -349,6 +345,11 @@ void lab_render(int frames) {
     echo.in_left()[0] = left;
     echo.in_right()[0] = right;
     echo.process(1);
+
+    // The first time round only fills the tape, and no stage of it is worked
+    // out. Its first sample is: a tap takes its room on its first put, and
+    // the order the taps take it in is the order of that sample's puts.
+    if (i > 0 && i < frames) continue;
 
     in_tap.put(i, left, right);
     out_tap.put(i, echo.out_left()[0], echo.out_right()[0]);

@@ -120,8 +120,6 @@ float phase(const float* history, int newest, int p) {
   return y;
 }
 
-float larger(float a, float b) { return a > b ? a : b; }
-
 // What the detector sees of one channel: the sample six back, the largest of
 // the four points between it and the next, and (for the lesson's close view
 // only) the largest of the two samples on either side of that gap.
@@ -133,8 +131,8 @@ struct Seen {
 
 Seen see(const float* history, int newest) {
   Seen seen{magnitude(history[newest - kBack]), 0.0f, 0.0f};
-  for (int p = 0; p < kPhases; ++p) seen.between = larger(seen.between, magnitude(phase(history, newest, p)));
-  for (int k = -1; k <= 2; ++k) seen.around = larger(seen.around, magnitude(history[newest - kBack + k]));
+  for (int p = 0; p < kPhases; ++p) seen.between = kit::max(seen.between, magnitude(phase(history, newest, p)));
+  for (int k = -1; k <= 2; ++k) seen.around = kit::max(seen.around, magnitude(history[newest - kBack + k]));
   return seen;
 }
 
@@ -177,13 +175,13 @@ void measure_curve() {
         probe.in_right()[j] = x;
       }
       probe.process(16);
-      if (i >= kRun - kMeasure) top = larger(top, lab::peak(probe.out_left(), 16));
+      if (i >= kRun - kMeasure) top = kit::max(top, lab::peak(probe.out_left(), 16));
     }
     const float measured = lab::to_db(top);
     const float written = level_db < ceiling.value ? level_db : ceiling.value;
     curve.set(p, measured);
     curve_formula.set(p, written);
-    worst = larger(worst, magnitude(measured - written));
+    worst = kit::max(worst, magnitude(measured - written));
   }
   curve_error.value = worst;
 }
@@ -234,7 +232,7 @@ void draw_click() {
     if (p < 0) continue;
     const int newest = limiter.fir_index_ + kTaps;
     const Seen seen = see(limiter.fir_left_, newest);
-    const float reading = larger(seen.sample, seen.between);
+    const float reading = kit::max(seen.sample, seen.between);
     click_required.set(p, reading > limiter.ceiling_ ? limiter.ceiling_ / reading : 1.0f);
     click_released.set(p, limiter.release_state_);
     click_minimum.set(p, limiter.deque_values_[limiter.deque_head_]);
@@ -255,7 +253,7 @@ void draw_response() {
   for (int row = 0; row < 2; ++row) {
     const float* h = Limiter::kFirCoefficients[row];
     for (int p = 0; p < kPoints; ++p) {
-      const double w = 2.0 * 3.14159265358979323846 * 250.0 * p / lab::kSampleRate;
+      const double w = 2.0 * lab::kPi * 250.0 * p / lab::kSampleRate;
       double re = 0.0, im = 0.0;
       for (int i = 0; i < kTaps; ++i) {
         re += h[i] * std::cos(w * i);
@@ -273,8 +271,8 @@ void lab_setup() {}
 void lab_render(int frames) {
   configure(device, push.value, ceiling.value, release.value);
   Limiter& limiter = device.limiter_;
-  const int look = limiter.box_frames_;    // 72: the look-ahead, and the length of the mean
-  const int window = limiter.min_frames_;  // 73: the length of the minimum
+  const int look = limiter.box_frames_;
+  const int window = limiter.min_frames_;
   latency.value = static_cast<float>(limiter.latencyFrames());
 
   // The second pass, sample by sample, for the close views.
@@ -342,7 +340,7 @@ void lab_render(int frames) {
       // The detector again, from the device's own history and coefficients.
       const int newest = limiter.fir_index_ + kTaps;
       const Seen seen[2] = {see(limiter.fir_left_, newest), see(limiter.fir_right_, newest)};
-      now_peak = larger(larger(seen[0].sample, seen[1].sample), larger(seen[0].between, seen[1].between));
+      now_peak = kit::max(kit::max(seen[0].sample, seen[1].sample), kit::max(seen[0].between, seen[1].between));
       now_required = now_peak > limiter.ceiling_ ? limiter.ceiling_ / now_peak : 1.0f;
 
       if (i >= frames && i < 2 * frames) {
@@ -394,7 +392,7 @@ void lab_render(int frames) {
         for (int k = 0; k < look; ++k) sum += ring_minimum[(n - k) & (kRing - 1)];
         const float own_gain = static_cast<float>(sum / look);
         if (i >= frames && own_gain != limiter.envelope_) {
-          worst = larger(worst, magnitude(lab::to_db(own_gain) - lab::to_db(limiter.envelope_)));
+          worst = kit::max(worst, magnitude(lab::to_db(own_gain) - lab::to_db(limiter.envelope_)));
         }
       }
     }
@@ -407,7 +405,7 @@ void lab_render(int frames) {
     }
     if (i >= frames - 2 * kTaps) {
       const Seen seen[2] = {see(out_history[0], out_index + kTaps), see(out_history[1], out_index + kTaps)};
-      top_out.see(larger(larger(seen[0].sample, seen[1].sample), larger(seen[0].between, seen[1].between)));
+      top_out.see(kit::max(kit::max(seen[0].sample, seen[1].sample), kit::max(seen[0].between, seen[1].between)));
     }
 
     top_peak.see(now_peak);
@@ -455,8 +453,10 @@ void lab_render(int frames) {
     for (lab::Tap* view : views) open_view(*view);
     if (near_ceiling.data) {
       // The channel the peak is on, turned so that the peak points up.
-      const float at_left = larger(magnitude(keep_delayed[0][wrap(centre)]), magnitude(keep_delayed[0][wrap(centre + 1)]));
-      const float at_right = larger(magnitude(keep_delayed[1][wrap(centre)]), magnitude(keep_delayed[1][wrap(centre + 1)]));
+      const float at_left =
+          kit::max(magnitude(keep_delayed[0][wrap(centre)]), magnitude(keep_delayed[0][wrap(centre + 1)]));
+      const float at_right =
+          kit::max(magnitude(keep_delayed[1][wrap(centre)]), magnitude(keep_delayed[1][wrap(centre + 1)]));
       const int c = at_right > at_left ? 1 : 0;
       const float a = keep_delayed[c][wrap(centre)];
       const float b = keep_delayed[c][wrap(centre + 1)];
