@@ -26,6 +26,7 @@ import { CHORD_HARP_DESCRIPTOR, CHORD_HARP_DEVICE } from './chord-harp.gen'
 import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
 import { CLARINET_DESCRIPTOR, CLARINET_DEVICE } from './clarinet.gen'
 import { CLUB_KIT_DESCRIPTOR, CLUB_KIT_DEVICE } from './club-kit.gen'
+import { COLOURED_NOISE_DESCRIPTOR, COLOURED_NOISE_DEVICE } from './coloured-noise.gen'
 import { COMMON_TONES_DESCRIPTOR, COMMON_TONES_DEVICE } from './common-tones.gen'
 import { CONSTELLATION_DESCRIPTOR, CONSTELLATION_DEVICE } from './constellation.gen'
 import { CURRENTS_DESCRIPTOR, CURRENTS_DEVICE } from './currents.gen'
@@ -169,6 +170,7 @@ export * from './chord-harp.gen'
 export * from './chorus.gen'
 export * from './clarinet.gen'
 export * from './club-kit.gen'
+export * from './coloured-noise.gen'
 export * from './common-tones.gen'
 export * from './constellation.gen'
 export * from './currents.gen'
@@ -314,6 +316,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   CHORUS_DESCRIPTOR,
   CLARINET_DESCRIPTOR,
   CLUB_KIT_DESCRIPTOR,
+  COLOURED_NOISE_DESCRIPTOR,
   COMMON_TONES_DESCRIPTOR,
   CONSTELLATION_DESCRIPTOR,
   CURRENTS_DESCRIPTOR,
@@ -460,6 +463,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   CHORUS_DEVICE,
   CLARINET_DEVICE,
   CLUB_KIT_DEVICE,
+  COLOURED_NOISE_DEVICE,
   COMMON_TONES_DEVICE,
   CONSTELLATION_DEVICE,
   CURRENTS_DEVICE,
@@ -613,6 +617,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'chorus', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'clarinet', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'club-kit', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'coloured-noise', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'common-tones', instrument: false, samples: false, zones: false, meters: 72, memoryMb: 8 },
   { id: 'constellation', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 8 },
   { id: 'currents', instrument: false, samples: false, zones: false, meters: 12, memoryMb: 4 },
