@@ -249,4 +249,43 @@ describe('lesson 2: the Fourier transform', () => {
       }
     }
   })
+
+  it('spreads a click ahead of itself in a long frame: cut at 562 Hz in frames of 4,096 it sounds 73 ms early, 43 dB under its peak 20 to 40 ms ahead (claim pre-echo); in frames of 256 it is 4 ms early at most (claim pre-echo-short)', async () => {
+    const fourier = await lab('02-fourier-transform')
+    const at = RATE / 2
+    const source = silence(seconds(1))
+    source.left[at] = 1
+    source.right[at] = 1
+    // Bin 48 of 4,096 and bin 3 of 256 both stand at 562.5 Hz: the same cut, two frame lengths.
+    const long = first(fourier.render(source, { size: 3, keep: 48 }).taps.out)
+    const short = first(fourier.render(source, { size: 1, keep: 3 }).taps.out)
+    const earlyMs = (out: Float32Array) => ((at - out.findIndex((v) => v !== 0)) * 1000) / RATE
+    expect(earlyMs(long)).toBeGreaterThan(72)
+    expect(earlyMs(long)).toBeLessThan(74.5)
+    expect(earlyMs(short)).toBeGreaterThan(3.5)
+    expect(earlyMs(short)).toBeLessThanOrEqual(4)
+    const ahead = gainToDb(rms(long, at - 1920, at - 960) / highest(long.map(Math.abs)))
+    expect(ahead).toBeGreaterThan(-44.5)
+    expect(ahead).toBeLessThan(-41.5)
+  })
+
+  it('rebuilds the frame from bin 0 alone as a flat line at its average', async () => {
+    const fourier = await lab('02-fourier-transform')
+    const out = fourier.render(await benchSource('drums', seconds(4)), { keep: 1 })
+    const flat = first(out.taps.rebuilt)
+    const frame = first(out.taps.windowed)
+    const average = frame.reduce((sum, v) => sum + v, 0) / frame.length
+    expect(highest(flat) - lowest(flat)).toBeLessThan(1e-6)
+    expect(flat[0]).toBeCloseTo(average, 6)
+  })
+
+  it('turns the neighbours of a bin half a turn from it under the Hann window, whose bulk sits half a frame in', async () => {
+    const fourier = await lab('02-fourier-transform')
+    const out = fourier.render(onBin(100, 4096), { position: 0.25 })
+    const angle = first(out.taps.phase)
+    for (const k of [99, 101]) {
+      const apart = angle[k]! - angle[100]!
+      expect(Math.abs(Math.atan2(Math.sin(apart), Math.cos(apart)))).toBeCloseTo(Math.PI, 3)
+    }
+  })
 })
