@@ -119,7 +119,26 @@ export function minMaxPlaced(
 
 const STEPS = [1, 2, 5, 10]
 
-/** Round values for grid lines: about `count` of them on a linear axis, 1-2-5 per decade on a logarithmic one. */
+/** The step `places` along the run 1, 2, 5, 10, 20, 50 and on, in both directions: 0 is 1. */
+const stepAt = (place: number) =>
+  [1, 2, 5][((place % 3) + 3) % 3]! * Math.pow(10, Math.floor(place / 3))
+
+/** The round values of a linear axis that stand a step apart. */
+function steps(axis: Axis, step: number): number[] {
+  const out: number[] = []
+  const start = Math.ceil(axis.min / step - 1e-9) * step
+  for (let value = start; value <= axis.max + step * 1e-9; value += step) {
+    out.push(Math.abs(value) < step * 1e-9 ? 0 : value)
+  }
+  return out
+}
+
+/**
+ * Round values for grid lines: about `count` of them on a linear axis, 1-2-5 per decade on a
+ * logarithmic one. Any range gets three or more: where the step that `count` asks for leaves
+ * fewer (−48 to 48 in fifties holds only 0), the steps are taken finer until there are three,
+ * and a logarithmic axis too short for three of its own is numbered evenly.
+ */
 export function ticks(axis: Axis, count = 5): number[] {
   const out: number[] = []
   // An axis that is not a span of real numbers has no grid: a figure asks for one before its
@@ -135,27 +154,102 @@ export function ticks(axis: Axis, count = 5): number[] {
         if (value >= axis.min * 0.999 && value <= axis.max * 1.001) out.push(value)
       }
     }
-    return out
+    return out.length >= 3 ? out : ticks({ min: axis.min, max: axis.max }, count)
   }
   const span = axis.max - axis.min
   if (!(span > 0)) return [axis.min]
   const rough = span / count
-  const magnitude = Math.pow(10, Math.floor(Math.log10(rough)))
-  const step = (STEPS.find((s) => s * magnitude >= rough) ?? 10) * magnitude
-  const start = Math.ceil(axis.min / step - 1e-9) * step
-  for (let value = start; value <= axis.max + step * 1e-9; value += step) {
-    out.push(Math.abs(value) < step * 1e-9 ? 0 : value)
+  const decade = Math.floor(Math.log10(rough))
+  let place = 3 * decade + STEPS.findIndex((s) => s * Math.pow(10, decade) >= rough)
+  let found = steps(axis, stepAt(place))
+  while (found.length < 3) {
+    place -= 1
+    found = steps(axis, stepAt(place))
   }
-  return out
+  return found
+}
+
+/**
+ * The bottom of an axis that keeps close to what it holds: `lo` rounded down to a round number,
+ * one of steps about a tenth of the way from `lo` to `hi`. A value that is not below `floor` is
+ * not given a bottom below it: nothing is ever drawn there.
+ */
+export function tidyFloor(lo: number, hi: number, floor = -Infinity): number {
+  const span = hi - lo
+  if (!(span > 0)) return lo
+  const decade = Math.floor(Math.log10(span / 10))
+  const step =
+    (STEPS.find((s) => s * Math.pow(10, decade) >= span / 10) ?? 10) * Math.pow(10, decade)
+  const bottom = Math.floor(lo / step + 1e-9) * step + 0
+  return lo >= floor ? Math.max(bottom, floor) : bottom
+}
+
+/**
+ * Where the name of each upright line of a picture is written: beside its line, towards the
+ * side with more room, and in the first row where it runs into no name written before it. `at`
+ * is where a line stands and `wide` how wide its name is, in pixels across a picture `width`
+ * wide. Each name gets its left edge and its row, counted from 0 at the top.
+ */
+export function namePlaces(
+  names: readonly { at: number; wide: number }[],
+  width: number,
+  gap = 5,
+): { left: number; row: number }[] {
+  const rows: { from: number; to: number }[][] = []
+  return names.map(({ at, wide }) => {
+    const left = at > width / 2 ? at - gap - wide : at + gap
+    let row = 0
+    // A name's plate reaches 3 px past its letters, and two plates keep a little apart.
+    while (rows[row]?.some((one) => left < one.to + 8 && left + wide > one.from - 8)) row += 1
+    ;(rows[row] ??= []).push({ from: left, to: left + wide })
+    return { left, row }
+  })
+}
+
+/**
+ * The scale each sound of a strip of lanes is drawn to, by its id: the peak of the loudest, so
+ * that two sounds can be compared by eye. A sound named in `own` is drawn to its own peak, and
+ * is left out of the scale the others share. A scale is never nothing.
+ */
+export function soundPeaks(
+  sounds: readonly { id: string; peak: number }[],
+  own: readonly string[] = [],
+): Record<string, number> {
+  const least = 1e-6
+  const shared = Math.max(
+    least,
+    ...sounds.filter((one) => !own.includes(one.id)).map((one) => one.peak),
+  )
+  return Object.fromEntries(
+    sounds.map((one) => [one.id, own.includes(one.id) ? Math.max(least, one.peak) : shared]),
+  )
 }
 
 /** A number as a figure prints it: 1500 as "1.5k", 0.25 as "0.25", −12 with a real minus sign. */
 export function label(value: number): string {
+  return written(value, 4)
+}
+
+/** A number in so many figures, one fewer above a thousand, as `label` prints it in four. */
+function written(value: number, figures: number): string {
   const size = Math.abs(value)
   let text: string
-  if (size >= 1000) text = `${+(size / 1000).toPrecision(3)}k`
-  else text = `${+size.toPrecision(4)}`
+  if (size >= 1000) text = `${+(size / 1000).toPrecision(figures - 1)}k`
+  else text = `${+size.toPrecision(figures)}`
   return value < 0 ? `−${text}` : text
+}
+
+/**
+ * The numbers of an axis's grid lines as they are printed: each as `label` writes it, and all
+ * in more figures where two of them would otherwise read the same (a millisecond a second into
+ * a loop: 1.0002 and 1.0004 are both "1" in four figures).
+ */
+export function tickLabels(values: readonly number[]): string[] {
+  let out = values.map((value) => written(value, 4))
+  for (let figures = 5; figures <= 9 && new Set(out).size < out.length; figures += 1) {
+    out = values.map((value) => written(value, figures))
+  }
+  return out
 }
 
 /** A value with its unit, as a control or a readout prints it. */

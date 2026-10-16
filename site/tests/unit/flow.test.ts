@@ -375,6 +375,189 @@ describe('a wrapped flow with a feedback path', () => {
   })
 })
 
+/** A place in a picture: a block's box, or the box an adder's words fill. */
+interface Box {
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
+
+/** Whether any stretch of a path runs through the inside of a box. */
+const through = (path: FlowEdge, box: Box) =>
+  path.points.slice(1).some(([x, y], i) => {
+    const [x0, y0] = path.points[i]!
+    return (
+      Math.min(x, x0) < box.right - 0.5 &&
+      Math.max(x, x0) > box.left + 0.5 &&
+      Math.min(y, y0) < box.bottom - 0.5 &&
+      Math.max(y, y0) > box.top + 0.5
+    )
+  })
+
+/** The box the words of an adder fill, as the page draws them: 13 tall, set about their middle. */
+function wordsBox(blocks: FlowBlock[], id: string): Box {
+  const { words } = drawn(blocks, id)
+  const half = Math.max(...words.map((one) => (one.text.length * FLOW.letter) / 2))
+  return {
+    left: words[0]!.x - half,
+    right: words[0]!.x + half,
+    top: Math.min(...words.map((one) => one.y)) - 6.5,
+    bottom: Math.max(...words.map((one) => one.y)) + 6.5,
+  }
+}
+
+describe('a path round a block, beside an adder with its words over its circle', () => {
+  /** A string whose sum is also sent on round the delay and the filter, into the mix. */
+  const LEAVING: FlowBlock[] = [
+    { id: 'pluck', label: 'pluck', shape: 'end' },
+    { id: 'sum', shape: 'sum', from: 'pluck', back: 'filter', tap: 'sidechain' },
+    { id: 'delay', label: 'delay line', from: 'sum' },
+    { id: 'filter', label: 'loop filter', from: 'delay' },
+    { id: 'mix', label: 'mix', from: ['filter', 'sum'] },
+    { id: 'out', label: 'out', shape: 'end', from: 'mix' },
+  ]
+  /** A string whose pluck also goes round a shaper, into the sum from over it. */
+  const ARRIVING: FlowBlock[] = [
+    { id: 'pluck', label: 'pluck', shape: 'end' },
+    { id: 'shape', label: 'shaper', from: 'pluck' },
+    { id: 'sum', shape: 'sum', from: ['shape', 'pluck'], back: 'filter', tap: 'sidechain' },
+    { id: 'delay', label: 'delay line', from: 'sum' },
+    { id: 'filter', label: 'loop filter', from: 'delay' },
+    { id: 'out', label: 'out', shape: 'end', from: 'filter' },
+  ]
+
+  it('leaves the adder past its words, and does not rise through them', () => {
+    const flow = layoutFlow(flowBlocks(LEAVING, taps, 'a lesson'))
+    const { circle, words } = drawn(LEAVING, 'sum')
+    // The words are over the circle, since the feedback comes in under it, and wider than it.
+    expect(words.map((one) => one.text)).toEqual(['Side chain,', 'high-passed'])
+    expect(words[1]!.y + 6.5).toBeLessThan(circle.y - circle.r)
+    const round = edge(flow.edges, 'sum', 'mix')
+    expect(round.kind).toBe('around')
+    const box = wordsBox(LEAVING, 'sum')
+    expect(through(round, box)).toBe(false)
+    // It still starts at the circle's edge, and turns up before the next block.
+    const sum = flow.nodes.find((one) => one.id === 'sum')!
+    const delay = flow.nodes.find((one) => one.id === 'delay')!
+    expect(first(round)).toEqual([sum.x + sum.w / 2, sum.y])
+    expect(round.points[1]![0]).toBeGreaterThan(box.right)
+    expect(round.points[1]![0]).toBeLessThan(delay.x - delay.w / 2)
+    // No path of the picture runs through the words.
+    for (const one of flow.edges) expect(through(one, box), `${one.from}>${one.to}`).toBe(false)
+  })
+
+  it('comes into the adder from over it under its words, which stand over the path', () => {
+    const flow = layoutFlow(flowBlocks(ARRIVING, taps, 'a lesson'))
+    const round = edge(flow.edges, 'pluck', 'sum')
+    expect(round.kind).toBe('around')
+    const sum = flow.nodes.find((one) => one.id === 'sum')!
+    expect(last(round)).toEqual([sum.x, sum.y - sum.h / 2])
+    const box = wordsBox(ARRIVING, 'sum')
+    for (const one of flow.edges) expect(through(one, box), `${one.from}>${one.to}`).toBe(false)
+    // The words are over the circle and over the path that comes down into it, inside the picture.
+    const run = Math.min(...round.points.map(([, y]) => y))
+    expect(box.bottom).toBeLessThanOrEqual(run)
+    expect(box.top).toBeGreaterThanOrEqual(0)
+  })
+
+  it('leaves the words of an adder that no path comes round to where they were', () => {
+    const back = LOOP.map((block) => (block.id === 'sum' ? { ...block, tap: 'level' } : block))
+    const { circle, words } = drawn(back, 'sum')
+    // One line, its middle three quarters of a line over the circle's top.
+    expect(words[0]!.y).toBe(circle.y - circle.r - FLOW.line * 0.75)
+  })
+})
+
+describe('a side row that joins the main path past a block of its own row', () => {
+  /** Two side chains: the slow one joins the main path further along than the fast one stands. */
+  const TWO: FlowBlock[] = [
+    { id: 'in', label: 'in', shape: 'end' },
+    { id: 'split', shape: 'dot', from: 'in' },
+    { id: 'slow', row: 1, from: 'split', label: 'slow level' },
+    { id: 'gain', label: '× gain', from: 'split' },
+    { id: 'fast', row: 1, from: 'gain', label: 'fast level' },
+    { id: 'duck', label: 'duck', from: ['gain', 'fast'] },
+    { id: 'mix', label: 'mix', from: ['duck', 'slow'] },
+    { id: 'out', label: 'out', shape: 'end', from: 'mix' },
+  ]
+  const flow = layoutFlow(flowBlocks(TWO, taps, 'a lesson'))
+  const node = (id: string) => flow.nodes.find((one) => one.id === id)!
+  const boxOf = (id: string): Box => {
+    const one = node(id)
+    return {
+      left: one.x - one.w / 2,
+      right: one.x + one.w / 2,
+      top: one.y - one.h / 2,
+      bottom: one.y + one.h / 2,
+    }
+  }
+
+  it('stands the block between on the row the path would run along', () => {
+    expect(node('fast').y).toBe(node('slow').y)
+    expect(node('fast').x).toBeGreaterThan(node('slow').x)
+    expect(node('fast').x).toBeLessThan(node('mix').x)
+  })
+
+  it('goes round the block between, on the side of the main path, and still into the foot of the block it reaches', () => {
+    const joining = edge(flow.edges, 'slow', 'mix')
+    expect(joining.kind).toBe('join')
+    expect(through(joining, boxOf('fast'))).toBe(false)
+    expect(first(joining)).toEqual([node('slow').x + node('slow').w / 2, node('slow').y])
+    expect(last(joining)).toEqual([node('mix').x, node('mix').y + node('mix').h / 2])
+    // Its run is between the two rows: over the side row's blocks, under the main path's.
+    const run = joining.points.at(-2)![1]
+    expect(run).toBeLessThan(boxOf('fast').top)
+    expect(run).toBeGreaterThan(boxOf('duck').bottom)
+    // And through no other block of the picture.
+    for (const one of flow.nodes) {
+      if (one.id !== 'slow' && one.id !== 'mix') {
+        expect(through(joining, boxOf(one.id)), one.id).toBe(false)
+      }
+    }
+  })
+
+  it('leaves a path with nothing between running along its own row', () => {
+    const joining = edge(flow.edges, 'fast', 'duck')
+    expect(joining.points).toEqual([
+      [node('fast').x + node('fast').w / 2, node('fast').y],
+      [node('duck').x, node('fast').y],
+      [node('duck').x, node('duck').y + node('duck').h / 2],
+    ])
+  })
+
+  it('goes round a block of a row over the main path too, under it', () => {
+    const over = TWO.map((block) => (block.row === 1 ? { ...block, row: -1 } : block))
+    const up = layoutFlow(flowBlocks(over, taps, 'a lesson'))
+    const at = (id: string) => up.nodes.find((one) => one.id === id)!
+    const joining = edge(up.edges, 'slow', 'mix')
+    const fast = at('fast')
+    expect(
+      through(joining, {
+        left: fast.x - fast.w / 2,
+        right: fast.x + fast.w / 2,
+        top: fast.y - fast.h / 2,
+        bottom: fast.y + fast.h / 2,
+      }),
+    ).toBe(false)
+    expect(last(joining)).toEqual([at('mix').x, at('mix').y - at('mix').h / 2])
+    expect(joining.points.at(-2)![1]).toBeGreaterThan(fast.y + fast.h / 2)
+  })
+
+  it('wraps into a narrow column with every path inside the picture', () => {
+    const narrow = wrapFlow(flow, 340)
+    expect(narrow.bands).toBeGreaterThan(1)
+    for (const one of narrow.edges) {
+      for (const [x, y] of one.points) {
+        expect(x).toBeGreaterThanOrEqual(0)
+        expect(x).toBeLessThanOrEqual(narrow.width)
+        expect(y).toBeGreaterThanOrEqual(0)
+        expect(y).toBeLessThanOrEqual(narrow.height)
+      }
+    }
+  })
+})
+
 describe('what stops the build', () => {
   it('a block that names a tap the lab lacks, with the lesson and the taps there are', () => {
     expect(() => flowBlocks([{ id: 'a', tap: 'levle' }], taps, 'compression')).toThrow(

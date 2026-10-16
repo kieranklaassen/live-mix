@@ -24,6 +24,9 @@
 //   kSource  the sound that goes in, before anything is done to it
 //   kEngine  made by the engine's own code outside a device: its TypeScript,
 //            run by the page and handed to the lab (lab::aux below)
+//   kCalled  computed by a function of the engine that the lab calls on its
+//            own, outside a running device: a device's detector run by itself
+//            on every sample of the loop
 //
 // A lab may also carry the lesson's build part: the technique put together a
 // piece at a time, on a path and taps of its own (lab::Build below).
@@ -59,7 +62,7 @@ enum Kind : int {
   kFrames = 4,    // a picture: `columns` columns of `length / columns` rows
 };
 
-enum Origin : int { kDevice = 0, kKit = 1, kLesson = 2, kSource = 3, kEngine = 4 };
+enum Origin : int { kDevice = 0, kKit = 1, kLesson = 2, kSource = 3, kEngine = 4, kCalled = 5 };
 
 enum Scale : int { kLinear = 0, kLog = 1 };
 

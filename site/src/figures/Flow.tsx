@@ -17,10 +17,13 @@ import {
   type FlowSignal,
 } from './flow.ts'
 
-/** What the key calls the two kinds of wire. */
+/**
+ * What the key calls the two kinds of wire. A value may be worked out from the sound (a level)
+ * or set by hand (a fader), so the key says only what both are.
+ */
 const SIGNAL_NAME: Record<FlowSignal, string> = {
   sound: 'sound: what can be heard',
-  value: 'a value worked out from the sound: never heard',
+  value: 'a value: never heard',
 }
 
 const HEAD = 7

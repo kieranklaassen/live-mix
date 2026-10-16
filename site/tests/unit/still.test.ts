@@ -282,6 +282,320 @@ describe('a still of a curve', () => {
   })
 })
 
+describe('a still’s axis titles', () => {
+  /** The pixels a style gives a side, such as `top:21px`. */
+  const side = (style: string, name: string) =>
+    Number(new RegExp(`(?:^|;)${name}:(-?[\\d.]+)px`).exec(style)?.[1] ?? Number.NaN)
+  /** A span of the still's HTML by its text, as its style. */
+  const styleOf = (html: string, text: string) =>
+    new RegExp(`<span style="([^"]*)">${text}</span>`).exec(html)?.[1] ?? ''
+
+  it('stand outside the plotted area: the y title over its top, the x title in the row of numbers', async () => {
+    const picture = await lessonStill(COMPRESSION, { taps: 'in out', view: 'spectrum' })
+    const html = plotHtml(picture)
+    const plot = /<svg [^>]*style="([^"]*)"/.exec(html)![1]!
+    const plotTop = side(plot, 'top')
+    // The y title's row ends above the plotted area: 10 px of type from its top.
+    const y = styleOf(html, 'decibels')
+    expect(side(y, 'left')).toBe(44)
+    expect(side(y, 'top') + 10).toBeLessThanOrEqual(plotTop)
+    // The x title stands at the height of the numbers under the picture, at its right end.
+    const x = styleOf(html, 'hertz')
+    const number = styleOf(html, '100')
+    expect(side(x, 'bottom')).toBe(side(number, 'bottom'))
+    expect(side(x, 'right')).toBe(10)
+    // The plotted area stops 22 px above the still's foot, as it did, and starts under the title.
+    expect(plot).toContain(`height:calc(100% - ${plotTop + 22}px)`)
+  })
+
+  it('leave the plotted area where it was for a picture with no y title', async () => {
+    const html = plotHtml(await lessonStill(COMPRESSION, { taps: 'in out' }))
+    expect(side(/<svg [^>]*style="([^"]*)"/.exec(html)![1]!, 'top')).toBe(8)
+  })
+
+  it('hide a number of the x axis at the widths where it would run into the title', async () => {
+    const picture = await lessonStill(COMPRESSION, { taps: 'in out', view: 'spectrum' })
+    const html = plotHtml(picture)
+    /** Whether a number shows in a still `wide` px wide: its width is 0 where it must not. */
+    const shows = (text: string, wide: number) => {
+      const rule =
+        /max-width:clamp\(0px, calc\(\(\(100% - 54px\) \* ([\d.]+) - ([\d.]+)px\) \* 1000\), 99px\)/.exec(
+          styleOf(html, text),
+        )
+      expect(rule, text).not.toBeNull()
+      expect(styleOf(html, text)).toContain('overflow:hidden')
+      return (wide - 54) * Number(rule![1]) - Number(rule![2]) > 0
+    }
+    /** The same, worked out from where things stand: 6 px a character, 6 px of room. */
+    const clear = (text: string, wide: number) => {
+      const at = picture.x.ticks.find((tick) => tick.text === text)!.at
+      const numberEnd = 44 + at * (wide - 54) + (text.length * 6) / 2
+      const titleStart = wide - 10 - 'hertz'.length * 6
+      return numberEnd < titleStart - 6
+    }
+    for (const wide of [300, 358, 620, 760, 1100]) {
+      for (const { text } of picture.x.ticks)
+        expect(shows(text, wide), text).toBe(clear(text, wide))
+    }
+    // The last number stands where the title does at any width; the one before it only on a phone.
+    expect(shows('20k', 1100)).toBe(false)
+    expect(shows('10k', 358)).toBe(false)
+    expect(shows('10k', 760)).toBe(true)
+    expect(shows('1k', 300)).toBe(true)
+  })
+
+  it('leave the numbers of a picture with no x title as they were', async () => {
+    const html = plotHtml(await lessonStill(COMPRESSION, { taps: 'curve', view: 'curve' }))
+    expect(html).not.toContain('max-width')
+  })
+})
+
+describe('a still of a level', () => {
+  it('starts its axis where the level does, not a whole step of the grid below', async () => {
+    const render = await renderStill({ lab: 'compression', source: 'drums', seconds: 4 })
+    const level = render.result.taps.level!.channels_data[0]!
+    const lowest = level.reduce((least, value) => Math.min(least, value), Infinity)
+    // On the drums the level runs from −63.6 to −16.2 dB: 47 dB, so it is rounded down in fives.
+    expect(lowest).toBeGreaterThan(-65)
+    expect(lowest).toBeLessThan(-60)
+    const picture = await lessonStill(COMPRESSION, { taps: 'level' })
+    const [first, last] = [picture.y.ticks.at(0)!, picture.y.ticks.at(-1)!]
+    // Its numbers are −60 to 0 in twenties; the axis runs on under the first to −65.
+    expect(picture.y.ticks.map((tick) => tick.text)).toEqual(['−60', '−40', '−20', '0'])
+    expect(last.at).toBeCloseTo(1, 9)
+    expect(first.at).toBeCloseTo(5 / 65, 9)
+  })
+
+  it('keeps the bottom it is given', async () => {
+    const picture = await lessonStill(COMPRESSION, { taps: 'level', min: -80 })
+    expect(picture.y.ticks.at(0)).toEqual({ at: 0, text: '−80' })
+  })
+
+  it('leaves a curve on its round axis', async () => {
+    // The gain between two readings, 0.82 to 0.87: its axis starts on a number of its grid.
+    const picture = await lessonStill(COMPRESSION, { taps: 'gainRamped', view: 'curve' })
+    expect(picture.y.ticks.at(0)!.at).toBe(0)
+  })
+})
+
+describe('a still of a spectrum', () => {
+  it('lays its frequencies out evenly when asked, from 0 Hz to its top', async () => {
+    const linear = await lessonStill(COMPRESSION, {
+      taps: 'in',
+      view: 'spectrum',
+      scale: 'linear',
+      top: 4000,
+    })
+    expect(linear.x.ticks.map((tick) => tick.text)).toEqual(['0', '1k', '2k', '3k', '4k'])
+    expect(linear.x.ticks.map((tick) => tick.at)).toEqual([0, 0.25, 0.5, 0.75, 1])
+    expect(linear.x.title).toBe('hertz')
+    // With no top it runs to half the sample rate.
+    const whole = await lessonStill(COMPRESSION, { taps: 'in', view: 'spectrum', scale: 'linear' })
+    expect(whole.x.ticks.at(-1)!.text).toBe('20k')
+    expect(whole.x.ticks.at(-1)!.at).toBeCloseTo(20 / 24, 9)
+    // Its top may be anything above 0 Hz, where a logarithmic axis must start above 20.
+    await expect(
+      lessonStill(COMPRESSION, { taps: 'in', view: 'spectrum', scale: 'linear', top: 15 }),
+    ).resolves.toBeDefined()
+    await expect(
+      lessonStill(COMPRESSION, { taps: 'in', view: 'spectrum', scale: 'linear', top: 0 }),
+    ).rejects.toThrow("compression: a picture's top is 0 Hz: it must be above 0 Hz")
+  })
+
+  it('draws the few points of a short linear stretch as one line through them', async () => {
+    // 1 kHz of a spectrum of 11.72 Hz bins holds 86 of them: a line, not a band.
+    const short = await lessonStill(COMPRESSION, {
+      taps: 'in',
+      view: 'spectrum',
+      scale: 'linear',
+      top: 1000,
+    })
+    expect(short.lines).not.toMatch(/Z"/)
+    expect(short.lines).toContain('fill:none')
+    const points = short.lines.match(/[ML]/g)!.length
+    expect(points).toBeGreaterThanOrEqual(86)
+    expect(points).toBeLessThanOrEqual(89)
+  })
+
+  it('draws two taps as two lines, so that neither is hidden under the other’s band', async () => {
+    const two = await lessonStill(COMPRESSION, { taps: 'in out', view: 'spectrum' })
+    expect(two.lines.match(/<path /g)).toHaveLength(2)
+    expect(two.lines).not.toMatch(/Z"/)
+    expect(two.lines).not.toContain('fill-opacity')
+    expect(two.lines.match(/fill:none/g)).toHaveLength(2)
+    // One tap alone keeps its band: there is nothing for it to hide.
+    const one = await lessonStill(COMPRESSION, { taps: 'in', view: 'spectrum' })
+    expect(one.lines).toMatch(/Z"/)
+  })
+})
+
+describe('a still of a stretch, with a title and stems', () => {
+  it('draws the stretch of a curve asked for, and fits its height to that stretch', async () => {
+    // The gain between two readings: 128 points, standing at 0 to 127 samples.
+    const whole = await lessonStill(COMPRESSION, { taps: 'gainRamped', view: 'curve' })
+    expect(whole.x.ticks.at(0)).toEqual({ at: 0, text: '0' })
+    const stretch = await lessonStill(COMPRESSION, {
+      taps: 'gainRamped',
+      view: 'curve',
+      from: 32,
+      span: 16,
+    })
+    // Samples 32 to 48: the fives among them are numbered, 3, 8 and 13 sixteenths of the way.
+    expect(stretch.x.ticks.map((tick) => tick.text)).toEqual(['35', '40', '45'])
+    expect(stretch.x.ticks.map((tick) => tick.at)).toEqual([3 / 16, 8 / 16, 13 / 16])
+    // From a place to the curve's end, when no span is given.
+    const rest = await lessonStill(COMPRESSION, { taps: 'gainRamped', view: 'curve', from: 100 })
+    expect(rest.x.ticks.at(0)).toEqual({ at: 0, text: '100' })
+    expect(rest.x.ticks.at(-1)!.text).toBe('125')
+    // Sixteen samples of a ramp cover less height than the whole of it: the axis is closer.
+    const height = ({ y }: typeof whole) => {
+      const value = (text: string) => Number(text.replace('−', '-'))
+      const [a, b] = [y.ticks.at(0)!, y.ticks.at(-1)!]
+      return (value(b.text) - value(a.text)) / (b.at - a.at)
+    }
+    expect(height(stretch)).toBeLessThan(height(whole))
+  })
+
+  it('writes the x title it is given, on a curve and against time', async () => {
+    const curve = await lessonStill(COMPRESSION, {
+      taps: 'gainRamped',
+      view: 'curve',
+      xTitle: 'samples',
+    })
+    expect(curve.x.title).toBe('samples')
+    expect(plotHtml(curve)).toContain('>samples</span>')
+    const untitled = await lessonStill(COMPRESSION, { taps: 'gainRamped', view: 'curve' })
+    expect(untitled.x.title).toBe('')
+    const wave = await lessonStill(SAMPLE, { taps: 'in', source: 'sine', xTitle: 'seconds in' })
+    expect(wave.x.title).toBe('seconds in')
+  })
+
+  it('draws a tap as dots on stems, one for each point', async () => {
+    const plain = await lessonStill(COMPRESSION, {
+      taps: 'gainRamped',
+      view: 'curve',
+      from: 32,
+      span: 16,
+    })
+    const stemmed = await lessonStill(COMPRESSION, {
+      taps: 'gainRamped',
+      view: 'curve',
+      from: 32,
+      span: 16,
+      stems: true,
+    })
+    expect(plain.lines).not.toContain('stroke-linecap:round')
+    // Samples 32 to 48, both ends drawn: seventeen stems up from the foot, and seventeen dots.
+    const [stems, dots] = stemmed.lines.match(/<path [^>]*>/g)!
+    expect(stemmed.lines.match(/<path /g)).toHaveLength(2)
+    expect(stems!.match(/M[\d.]+,[\d.]+V[\d.]+/g)).toHaveLength(17)
+    expect(dots!.match(/M[\d.]+,[\d.]+h0/g)).toHaveLength(17)
+    expect(dots).toContain('stroke-linecap:round')
+    expect(stemmed.lines).toContain('var(--sig-out)')
+    expect(plotHtml(stemmed)).not.toMatch(HEX)
+  })
+
+  it('draws stems for the taps named and lines for the rest', async () => {
+    const mixed = await lessonStill(COMPRESSION, {
+      taps: 'gainHeld gainRamped',
+      view: 'curve',
+      from: 32,
+      span: 16,
+      stems: 'gainHeld',
+    })
+    // The held gain as stems and dots, the ramped as one line.
+    const paths = mixed.lines.match(/<path [^>]*>/g)!
+    expect(paths).toHaveLength(3)
+    expect(paths.filter((one) => one.includes('stroke-linecap:round'))).toHaveLength(1)
+    // The line starts a point before the stretch, so that it runs in from the picture's edge.
+    expect(paths.at(-1)).toMatch(/d="M-?[\d.]+,[\d.]+L/)
+  })
+
+  it('draws a stretch of sound as stems too, where its samples are few', async () => {
+    // 1 ms at 48,000 samples a second, both ends drawn: 49 samples.
+    const wave = await lessonStill(SAMPLE, {
+      taps: 'in',
+      source: 'sine',
+      from: 1,
+      span: 0.001,
+      stems: true,
+    })
+    expect(wave.lines.match(/M[\d.]+,[\d.]+V[\d.]+/g)).toHaveLength(49)
+  })
+
+  it('stops the build on stems for a tap the still does not draw, naming the lesson', async () => {
+    await expect(
+      lessonStill(COMPRESSION, {
+        taps: 'gainHeld gainRamped',
+        view: 'curve',
+        stems: 'gainHeld curve',
+      }),
+    ).rejects.toThrow(
+      'compression: a still draws stems for "curve", which is not one of its taps. They are: gainHeld, gainRamped',
+    )
+  })
+
+  it('says what runs across a picture of colour when that is not seconds', async () => {
+    const plain = await lessonStill(FRAMES, { taps: 'picture', view: 'spectrogram' })
+    expect(plain.x.title).toBe('seconds')
+    const named = await lessonStill(FRAMES, {
+      taps: 'picture',
+      view: 'spectrogram',
+      xTitle: 'frames',
+    })
+    expect(named.x.title).toBe('frames')
+    expect(named.note).toMatch(/^Every frame's spectrum: frames across, hertz up, from /)
+    expect(named.lines).toBe(plain.lines)
+  })
+})
+
+describe('a still of a build step', () => {
+  it('is drawn at the step its values give: the built taps as they stand there', async () => {
+    const step = (build: number) =>
+      lessonStill(COMPRESSION, { taps: 'builtLevel', values: { build } })
+    // At the first step the build is a wire and measures nothing: its level lies flat. At the
+    // second it measures, and the lane moves.
+    const flat = (await step(0)).lines.match(/[ML][\d.]+,([\d.]+)/g)!
+    expect(new Set(flat.map((point) => point.split(',')[1])).size).toBe(1)
+    const measured = (await step(1)).lines.match(/[ML][\d.]+,([\d.]+)/g)!
+    expect(new Set(measured.map((point) => point.split(',')[1])).size).toBeGreaterThan(20)
+  })
+
+  it('renders the lab at that step: what the wire lets through is the input', async () => {
+    const wire = await renderStill({
+      lab: 'compression',
+      source: 'drums',
+      seconds: 4,
+      values: { build: 0 },
+    })
+    const [built, input] = [wire.result.taps.built!, wire.result.taps.in!].map(
+      (tap) => tap.channels_data[0]!,
+    )
+    let apart = 0
+    for (let i = 0; i < input!.length; i += 1) {
+      apart = Math.max(apart, Math.abs(built![i]! - input![i]!))
+    }
+    expect(apart).toBeLessThan(1e-6)
+    const whole = await lessonStill(COMPRESSION, { taps: 'built', values: { build: 6, ratio: 10 } })
+    const start = await lessonStill(COMPRESSION, { taps: 'built', values: { build: 0, ratio: 10 } })
+    expect(whole.lines).not.toBe(start.lines)
+  })
+
+  it('stops the build on a step for a lab with no build path, naming the lesson', async () => {
+    await expect(
+      lessonStill(SAMPLE, { taps: 'in', set: 'dry', values: { build: 1 } }, FIXTURES),
+    ).rejects.toThrow('sample: a still is drawn at build step 1, and the lab has no build path.')
+  })
+
+  it('stops the build on a step the lab does not have, naming the lesson', async () => {
+    for (const build of [7, -1, 1.5]) {
+      await expect(lessonStill(COMPRESSION, { taps: 'built', values: { build } })).rejects.toThrow(
+        `compression: a still is drawn at build step ${build}: the lab's steps are the whole numbers 0 to 6.`,
+      )
+    }
+  })
+})
+
 describe('the picture a lesson opens on', () => {
   it('is one still of the two taps on one time axis, when it is given nothing more', async () => {
     const opening = await lessonOpening(COMPRESSION, { input: 'in', output: 'out' })

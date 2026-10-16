@@ -1,14 +1,23 @@
 ---
 // One stage of the engine's device: what it is for, in words and a figure; then its equation,
-// the equation read back, its listing and a way to hear it, each of which a stage may leave out.
+// the equation read back, its listing, what there is to say after them and a way to hear it,
+// each of which a stage may leave out.
 //
 //   <StageBlock tap="sidechain" n={2} title="The detector ignores the lows">
 //     Its purpose, and a figure of it.
 //     <M slot="equation" block t={String.raw`…`} />
 //     <Fragment slot="readback">The equation read back, term by term, against the figure.</Fragment>
 //     <Listing slot="listing" path="…" from="…" to="…" />
+//     <Fragment slot="after">What follows from the code: text set under the listing.</Fragment>
 //     <Fragment slot="listen">Hear what the detector hears</Fragment>
 //   </StageBlock>
+//
+// A stage is set in this order, wherever its slots are written: the title, where the stage
+// comes from, the stage's own text and figures (its children), then `equation`, `readback`,
+// `listing`, `after`, and last the button or the kind of signal. So text that must follow the
+// equation or the listing goes in `after`. An equation written in the stage's own text as a
+// block, <M block t={…} />, is also right: it then stands where it is written, with text
+// before it and after it.
 //
 // `tap` is the lab's tap the stage is read at. Under the title the stage says where it comes
 // from, as the lab says it. A stage whose tap is sound gets a button that plays it, with the
@@ -61,6 +70,11 @@ const NOT_SOUND: Record<Exclude<TapKind, 'audio'>, string> = {
   {Astro.slots.has('listing') && (
     <div class="stage-block-listing">
       <slot name="listing" />
+    </div>
+  )}
+  {Astro.slots.has('after') && (
+    <div class="stage-block-after">
+      <slot name="after" />
     </div>
   )}
   {ref.kind === 'audio' ? (

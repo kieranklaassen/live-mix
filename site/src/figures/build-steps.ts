@@ -18,14 +18,13 @@ export const afterStep = (step: number, count: number): number => (step + 1 < co
 /** Where Back goes: undefined at the first step, which has nothing before it. */
 export const beforeStep = (step: number): number | undefined => (step > 0 ? step - 1 : undefined)
 
-/** A step's name inside a sentence: its capital goes, unless it opens with an abbreviation. */
-const inSentence = (name: string) =>
-  /^[A-Z][a-z ]/.test(name) || name.length === 1 ? name[0]!.toLowerCase() + name.slice(1) : name
-
-/** What Add says: the piece it adds, or, on the last step, that it starts again. */
+/**
+ * What Add says: the piece it adds, named as the lab names it, capitals and all, or, on the last
+ * step, that it starts again.
+ */
 export function addLabel(step: number, names: readonly string[]): string {
   const next = names[step + 1]
-  return next === undefined ? 'Start again' : `Add: ${inSentence(next)}`
+  return next === undefined ? 'Start again' : `Add: ${next}`
 }
 
 /** A step beside the one shown: already built, the one shown, or still to come. */

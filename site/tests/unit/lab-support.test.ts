@@ -283,6 +283,16 @@ interface Faults {
   gainOnBuilt?: boolean
   /** A built lane that is one flat value at every step. */
   mute?: boolean
+  /** The value the build control's first step stands at, where that is not 0. */
+  from?: number
+  /** A fourth choice of the build control, which makes what the third step made. */
+  again?: boolean
+  /**
+   * Two more controls: Mode, off or on, and Tilt, which turns the main path down only while
+   * Mode is on. `dead` leaves Tilt doing nothing in either mode.
+   */
+  moded?: boolean
+  dead?: boolean
 }
 
 const BUILD_STEPS = ['A wire', 'Half as loud', 'And turned over']
@@ -306,6 +316,19 @@ function standIn(faults: Faults = {}): Lab {
     info('built', 'audio', 2, 1),
     info('builtLevel', 'control', 1, 2),
   ]
+  const from = faults.from ?? 0
+  const choices = faults.again ? [...BUILD_STEPS, 'All of it again'] : BUILD_STEPS
+  const ranged = (index: number, id: string, initial: number, names: string[] = []) => ({
+    index,
+    id,
+    name: id,
+    unit: '',
+    min: 0,
+    max: 1,
+    initial,
+    scale: 'linear' as const,
+    choices: names,
+  })
   const data = (index: number, channels: Float32Array[]): TapData => ({
     ...taps[index]!,
     channels_data: channels,
@@ -336,12 +359,13 @@ function standIn(faults: Faults = {}): Lab {
           id: 'build',
           name: 'Build',
           unit: '',
-          min: 0,
-          max: BUILD_STEPS.length - 1,
-          initial: 0,
+          min: from,
+          max: from + choices.length - 1,
+          initial: from,
           scale: 'linear',
-          choices: BUILD_STEPS,
+          choices,
         },
+        ...(faults.moded ? [ranged(2, 'mode', 0, ['Off', 'On']), ranged(3, 'tilt', 0.5)] : []),
       ],
       taps,
       checks: ['builtDifference', 'builtStep', 'builtBound'].map((id, index) => ({
@@ -355,9 +379,11 @@ function standIn(faults: Faults = {}): Lab {
     spectrum: () => new Float32Array(0),
     render(source: Source, values: Values): RenderResult {
       const gain = values.gain ?? 0.5
-      let step = faults.still ? 0 : (values.build ?? 0)
+      let step = faults.still ? 0 : Math.min(2, (values.build ?? from) - from)
       if (faults.idleStep && step === 2) step = 1
-      const main = (faults.gainOnBuilt ? 0.5 : gain) * (faults.leaks && step === 2 ? 0.9 : 1)
+      const tilted = faults.moded && values.mode === 1
+      const tilt = tilted ? 0.9 - (faults.dead ? 0 : 0.5 * (values.tilt ?? 0.5)) : 1
+      const main = (faults.gainOnBuilt ? 0.5 : gain) * (faults.leaks && step === 2 ? 0.9 : 1) * tilt
       const size = [1, 0.5, -0.5][step]! * (faults.gainOnBuilt ? gain : 1)
       const lane = new Float32Array(Math.floor(source.left.length / 16))
       if (!faults.mute && step > 0) lane.forEach((_, p) => (lane[p] = size * source.left[16 * p]!))
@@ -421,6 +447,36 @@ describe('what a build part is held to', () => {
     lab.description.controls.pop()
     expect(() => expectBuild(lab, tone)).toThrow(/no build control/)
   })
+
+  it('takes the number of steps for a build control that does not start at 0', () => {
+    const lab = standIn({ from: 1 })
+    expect(() => expectBuild(lab, tone)).toThrow(
+      /the build control runs from its first step to its last/,
+    )
+    expect(() => expectBuild(lab, tone, {}, { steps: 3 })).not.toThrow()
+  })
+
+  it('takes the number of steps for a build control with a choice after the last step', () => {
+    // The fourth choice makes what the third step made: it is no step of the build.
+    const lab = standIn({ again: true })
+    expect(() => expectBuild(lab, tone)).toThrow(/step 3 \(All of it again\) changes a built tap/)
+    expect(() => expectBuild(lab, tone, {}, { steps: 3 })).not.toThrow()
+  })
+
+  it('still holds every step it was told of, and fails more steps than the control has', () => {
+    expect(() =>
+      expectBuild(standIn({ idleStep: true, again: true }), tone, {}, { steps: 3 }),
+    ).toThrow(/step 2 \(And turned over\) changes a built tap/)
+    expect(() => expectBuild(standIn({ from: 1, leaks: true }), tone, {}, { steps: 3 })).toThrow(
+      /step 2 \(And turned over\) leaves tap out of the main path as it was/,
+    )
+    expect(() => expectBuild(standIn(), tone, {}, { steps: 4 })).toThrow(
+      /the build control has a value for each of the 4 steps/,
+    )
+    expect(() => expectBuild(standIn(), tone, {}, { steps: 1 })).toThrow(
+      /the build has two steps or more/,
+    )
+  })
 })
 
 describe('what every lab is held to, with a build part', () => {
@@ -472,6 +528,34 @@ describe('what every lab is held to, with a build part', () => {
     const result = lab.render(tone, {})
     expect(() => expectSoundLab(lab, tone, result)).toThrow(/tap out loops without a step/)
     expect(() => expectSoundLab(lab, tone, result, { steps: ['out'] })).not.toThrow()
+  })
+
+  it('lets a control that acts in one mode move nothing at the start, when told where it acts', () => {
+    const lab = standIn({ moded: true })
+    const result = lab.render(tone, {})
+    expect(() => expectSoundLab(lab, tone, result)).toThrow(
+      /control tilt changes a tap of the main path/,
+    )
+    expect(() => expectSoundLab(lab, tone, result, { when: { tilt: { mode: 1 } } })).not.toThrow()
+  })
+
+  it('fails such a control where it moves nothing at the settings it was given either', () => {
+    const lab = standIn({ moded: true })
+    const result = lab.render(tone, {})
+    expect(() => expectSoundLab(lab, tone, result, { when: { tilt: { mode: 0 } } })).toThrow(
+      /control tilt changes a tap of the main path with mode at 0/,
+    )
+    const dead = standIn({ moded: true, dead: true })
+    expect(() =>
+      expectSoundLab(dead, tone, dead.render(tone, {}), { when: { tilt: { mode: 1 } } }),
+    ).toThrow(/control tilt changes a tap of the main path with mode at 1/)
+  })
+
+  it('fails a name it was given that is no control of the lab', () => {
+    const lab = standIn({ moded: true })
+    expect(() =>
+      expectSoundLab(lab, tone, lab.render(tone, {}), { when: { tlit: { mode: 1 } } }),
+    ).toThrow(/"tlit" is a control of the lab/)
   })
 
   it('fails a tap that steps at the wrap as it does nowhere else, named or not', () => {

@@ -4,8 +4,8 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { pagePlayer, useLab } from '../lab/page.ts'
-import { EDGE, MONO, drawGrid, plateText, useCanvas } from './canvas.ts'
-import { fromUnit, minMaxPlaced, toUnit, withUnit, type Axis } from './draw.ts'
+import { EDGE, MONO, drawGrid, plateText, topEdge, useCanvas } from './canvas.ts'
+import { fromUnit, minMaxPlaced, namePlaces, toUnit, withUnit, type Axis } from './draw.ts'
 import { ROLE_VAR, type Role } from './roles.ts'
 
 export interface Series {
@@ -26,7 +26,10 @@ export interface Series {
 
 export interface PlotAxis extends Axis {
   unit?: string
-  /** A word or two printed in the corner of the picture. */
+  /**
+   * A word or two for the axis, written outside the plotted area: the x axis's at the right of the
+   * row of numbers under the picture, the y axis's over the picture's top left corner.
+   */
   title?: string
 }
 
@@ -88,37 +91,42 @@ export default function Plot(props: Props) {
   const line = useRef<HTMLDivElement | null>(null)
   const spot = useRef<HTMLDivElement | null>(null)
   const hasData = !waiting && series.some((one) => one.ys && one.ys.length > 0)
+  // The plotted area starts a row lower where the y axis has a title, which stands in that row.
+  const top = topEdge(y.title)
 
   const canvas = useCanvas(
     (context, width, fullHeight, c) => {
       const w = width - EDGE.left - EDGE.right
-      const h = fullHeight - EDGE.top - EDGE.bottom
+      const h = fullHeight - top - EDGE.bottom
       if (w <= 0 || h <= 0) return
       const px = (value: number) => EDGE.left + toUnit(x, value) * w
-      const py = (value: number) => EDGE.top + (1 - toUnit(y, value)) * h
+      const py = (value: number) => top + (1 - toUnit(y, value)) * h
 
-      drawGrid(context, c, w, h, { axis: x, at: px }, { axis: y, at: py })
-      // The axes' titles, in two corners of the picture. They are written after the lines, on a
-      // plate as the label of a dashed line is, so that no line strikes them out.
-      const titles = (write: (text: string, at: number, top: number) => void) => {
-        context.font = MONO
-        context.fillStyle = c.muted
-        context.textBaseline = 'top'
-        context.textAlign = 'left'
-        if (y.title) write(y.title, EDGE.left + 6, EDGE.top + 5)
-        context.textAlign = 'right'
-        context.textBaseline = 'bottom'
-        if (x.title) write(x.title, EDGE.left + w - 6, EDGE.top + h - 4)
-      }
-
-      if (waiting) {
-        titles((text, at, top) => context.fillText(text, at, top))
-        return
-      }
+      // The grid writes the axes' titles too, outside the plotted area: no line can run under one.
+      drawGrid(
+        context,
+        c,
+        w,
+        h,
+        { axis: x, at: px, title: x.title },
+        { axis: y, at: py, title: y.title },
+        top,
+      )
+      if (waiting) return
       context.save()
       context.beginPath()
-      context.rect(EDGE.left, EDGE.top, w, h)
+      context.rect(EDGE.left, top, w, h)
       context.clip()
+
+      // An upright line's name stands beside it, a row lower where it would run into another's.
+      const uprights = marks.filter((mark) => mark.y === undefined && mark.x !== undefined)
+      const places = namePlaces(
+        uprights.map((mark) => ({
+          at: Math.round(px(mark.x!)) + 0.5 - EDGE.left,
+          wide: context.measureText(mark.text).width,
+        })),
+        w,
+      )
 
       // A dashed line's label is written after the lines, so that none runs through it.
       const labels: (() => void)[] = []
@@ -133,19 +141,19 @@ export default function Plot(props: Props) {
           context.stroke()
           labels.push(() => {
             context.textAlign = 'right'
-            context.textBaseline = at - EDGE.top > 16 ? 'bottom' : 'top'
-            plateText(context, c, mark.text, EDGE.left + w - 6, at + (at - EDGE.top > 16 ? -3 : 3))
+            context.textBaseline = at - top > 16 ? 'bottom' : 'top'
+            plateText(context, c, mark.text, EDGE.left + w - 6, at + (at - top > 16 ? -3 : 3))
           })
         } else if (mark.x !== undefined) {
           const at = Math.round(px(mark.x)) + 0.5
-          context.moveTo(at, EDGE.top)
-          context.lineTo(at, EDGE.top + h)
+          context.moveTo(at, top)
+          context.lineTo(at, top + h)
           context.stroke()
-          const left = at - EDGE.left > w / 2
+          const place = places[uprights.indexOf(mark)]!
           labels.push(() => {
-            context.textAlign = left ? 'right' : 'left'
+            context.textAlign = 'left'
             context.textBaseline = 'top'
-            plateText(context, c, mark.text, at + (left ? -5 : 5), EDGE.top + 18)
+            plateText(context, c, mark.text, EDGE.left + place.left, top + 5 + place.row * 15)
           })
         }
         context.setLineDash([])
@@ -253,10 +261,21 @@ export default function Plot(props: Props) {
       context.setLineDash([])
       context.font = MONO
       for (const write of labels) write()
-      titles((text, at, top) => plateText(context, c, text, at, top))
       context.restore()
     },
-    [props.stamp, waiting, x.min, x.max, x.log, y.min, y.max, height, JSON.stringify(marks)],
+    [
+      props.stamp,
+      waiting,
+      x.min,
+      x.max,
+      x.log,
+      x.title,
+      y.min,
+      y.max,
+      y.title,
+      height,
+      JSON.stringify(marks),
+    ],
   )
 
   // The line that moves with the loop.
@@ -282,7 +301,7 @@ export default function Plot(props: Props) {
         return
       }
       const w = box.clientWidth - EDGE.left - EDGE.right
-      const h = box.clientHeight - EDGE.top - EDGE.bottom
+      const h = box.clientHeight - top - EDGE.bottom
       const left = EDGE.left + unit * w
       bar.style.display = 'block'
       bar.style.transform = `translateX(${left}px)`
@@ -290,14 +309,14 @@ export default function Plot(props: Props) {
       const value = dot && first && at !== null ? valueAt(first, at) : undefined
       if (point && value !== undefined) {
         point.style.display = 'block'
-        const top = EDGE.top + (1 - Math.min(1, Math.max(0, toUnit(y, value)))) * h
-        point.style.transform = `translate(${left}px, ${top}px)`
+        const down = top + (1 - Math.min(1, Math.max(0, toUnit(y, value)))) * h
+        point.style.transform = `translate(${left}px, ${down}px)`
       } else if (point) point.style.display = 'none'
     }
     move()
     return () => cancelAnimationFrame(frame)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, hasData, props.stamp, x.min, x.max, y.min, y.max])
+  }, [playing, hasData, props.stamp, x.min, x.max, y.min, y.max, top])
 
   const onMove = (event: PointerEvent<HTMLDivElement>) => {
     const box = event.currentTarget.getBoundingClientRect()
@@ -318,10 +337,16 @@ export default function Plot(props: Props) {
         onPointerLeave={() => setHover(null)}
       >
         <canvas ref={canvas} role="img" aria-label={props.label} />
-        <div ref={line} className="fig-playhead" style={{ display: 'none' }} />
+        <div ref={line} className="fig-playhead" style={{ display: 'none', top }} />
         {dot && <div ref={spot} className="fig-dot" style={{ display: 'none' }} />}
-        {hover !== null && hasData && <div className="fig-hover" style={{ left: hoverLeft }} />}
-        {waiting && <p className="fig-waiting">{waiting}</p>}
+        {hover !== null && hasData && (
+          <div className="fig-hover" style={{ left: hoverLeft, top }} />
+        )}
+        {waiting && (
+          <p className="fig-waiting" style={{ top }}>
+            {waiting}
+          </p>
+        )}
       </div>
       {/* The key: a swatch and a name for each line, the name the lab gives the signal. */}
       <ul className="fig-legend key">

@@ -113,10 +113,12 @@ body:has(.playbar) .site-footer {
   height: 3px;
   display: inline-block;
 }
+/* A dashed line's swatch: dashes of its role's own colour, as the line itself is drawn. The
+   swatch keeps the background its figure gives it, and a mask cuts the dashes out of it. */
 .fig-legend i.dashed {
-  background: none !important;
-  border-top: 2px dashed var(--lm-muted);
-  height: 0;
+  height: 2px;
+  -webkit-mask: repeating-linear-gradient(to right, black 0 5px, transparent 5px 8px);
+  mask: repeating-linear-gradient(to right, black 0 5px, transparent 5px 8px);
 }
 .fig-legend b {
   color: var(--lm-text);

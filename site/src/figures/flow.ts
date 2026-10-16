@@ -54,6 +54,12 @@ export interface FlowNode extends FlowPart {
   h: number
   /** A path comes into the block from under it: its number stands at its corner, and an adder's words over it. */
   fromBelow?: boolean
+  /**
+   * A path that went round a block comes down into this one from over it. An adder's words that
+   * stand over its circle then stand over that path too, so that it does not come down through
+   * them.
+   */
+  fromAbove?: boolean
   /** In a wrapped picture, the band the block stands in, counted from 0. */
   band?: number
 }
@@ -213,14 +219,15 @@ const wordsOf = (part: FlowPart) => part.lines.filter((line) => line !== '')
 /**
  * Where the middle of each line of a block's words stands, from the first line down. A box's
  * words are inside it. An adder's are under its circle, so that they are not struck through by
- * its cross, or over it where a path comes into it from below.
+ * its cross, or over it where a path comes into it from below; and where a path that went
+ * round a block comes down into it as well, over the height that path runs at.
  */
 export function wordsAt(node: FlowNode): number[] {
   const count = node.lines.length
   if (node.shape !== 'sum') {
     return node.lines.map((_, i) => node.y + (i - (count - 1) / 2) * FLOW.line)
   }
-  const clear = node.h / 2 + FLOW.line * 0.75
+  const clear = (node.fromBelow && node.fromAbove ? FLOW.lift : node.h / 2) + FLOW.line * 0.75
   return node.lines.map((_, i) =>
     node.fromBelow ? node.y - clear - (count - 1 - i) * FLOW.line : node.y + clear + i * FLOW.line,
   )
@@ -293,9 +300,13 @@ export function layoutFlow(parts: readonly FlowPart[]): FlowLayout {
   }))
   const node = (id: string) => nodes.find((one) => one.id === id)!
   const right = (one: FlowNode) => one.x + one.w / 2
-  /** Where a wire divides after a block: the block itself when it is a point. */
+  /**
+   * Where a wire divides after a block: the block itself when it is a point, and otherwise half
+   * a gap past it. Past an adder's words too, which reach further than its circle, so that a
+   * path that turns up or down there does not run through them.
+   */
   const tapOff = (one: FlowNode): [number, number] =>
-    one.shape === 'dot' ? [one.x, one.y] : [right(one) + FLOW.gap / 2, one.y]
+    one.shape === 'dot' ? [one.x, one.y] : [one.x + roomOf(one, one.w) / 2 + FLOW.gap / 2, one.y]
   /** A path that turns off after a block begins at the block and runs to where the wire divides. */
   const start = (one: FlowNode): [number, number][] =>
     one.shape === 'dot' ? [tapOff(one)] : [[right(one), one.y], tapOff(one)]
@@ -335,16 +346,33 @@ export function layoutFlow(parts: readonly FlowPart[]): FlowLayout {
       } else if (Math.abs(to.row) < Math.abs(from.row)) {
         // Back into a row nearer the main path: along its own row, then up or down into the block.
         const side = from.y > to.y ? to.h / 2 : -to.h / 2
+        const between = nodes.some(
+          (one) => one.row === from.row && one !== from && one.x > from.x && one.x <= to.x,
+        )
+        if (!between) {
+          edges.push({
+            from: id,
+            to: to.id,
+            kind: 'join',
+            signal,
+            points: [
+              [right(from), from.y],
+              [to.x, from.y],
+              [to.x, to.y + side],
+            ],
+          })
+          continue
+        }
+        // A block of its own row stands in the way: the path goes round it between the two
+        // rows, on the side of the row it is going to, as a path round a block of one row does.
+        const run = from.y + (to.y > from.y ? FLOW.lift : -FLOW.lift)
+        turned.add(id)
         edges.push({
           from: id,
           to: to.id,
           kind: 'join',
           signal,
-          points: [
-            [right(from), from.y],
-            [to.x, from.y],
-            [to.x, to.y + side],
-          ],
+          points: [...start(from), [tapOff(from)[0], run], [to.x, run], [to.x, to.y + side]],
         })
       } else {
         // Out to a row further from the main path: down or up first, then into the block's left.
@@ -378,11 +406,12 @@ export function layoutFlow(parts: readonly FlowPart[]): FlowLayout {
     .filter((one) => edges.filter((edge) => edge.from === one.id).length > 1)
     .map((one) => ({ x: tapOff(one)[0], y: one.y, signal: one.signal }))
 
-  // The blocks a path reaches from under them.
+  // The blocks a path reaches from under them, and those a path round a block comes down into.
   for (const edge of edges) {
     const [, y] = edge.points[edge.points.length - 1]!
     const to = node(edge.to)
     if (y >= to.y + to.h / 2) to.fromBelow = true
+    if (edge.kind === 'around') to.fromAbove = true
   }
 
   // Move everything so the picture starts at its own top left corner, with room round it.

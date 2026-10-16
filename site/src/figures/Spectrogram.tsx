@@ -17,6 +17,11 @@ interface Props {
   rowMax?: number
   /** Only rows up to this frequency are drawn. */
   top?: number
+  /**
+   * What runs across, in a word or two, for a lab that lays its picture out over something that
+   * is not time (a modulator's rate, a place in a sweep). The key says it; "seconds" when left out.
+   */
+  xTitle?: string
   height?: number
   label: string
 }
@@ -28,6 +33,7 @@ export default function Spectrogram({
   rowMin = 0,
   rowMax = SAMPLE_RATE / 2,
   top,
+  xTitle = 'seconds',
   height = 220,
   label,
 }: Props) {
@@ -112,7 +118,7 @@ export default function Spectrogram({
       <ul className="fig-legend key">
         <li>
           <i className="ramp" />
-          {tap.name}: seconds across, hertz up, from {number(min)} dB (the page's colour) to{' '}
+          {tap.name}: {xTitle} across, hertz up, from {number(min)} dB (the page's colour) to{' '}
           {number(max)} dB
         </li>
       </ul>

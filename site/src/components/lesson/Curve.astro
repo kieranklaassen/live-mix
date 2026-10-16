@@ -15,7 +15,8 @@ interface Props {
   xMin?: number
   xMax?: number
   xLog?: boolean
-  stems?: boolean
+  /** Curves drawn as dots on stems: every one, or those of the taps named by id, "frame other". */
+  stems?: boolean | string
   /** Controls drawn as a line across the picture, or up it, by id. */
   lines?: string
   uprights?: string

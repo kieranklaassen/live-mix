@@ -4,6 +4,9 @@
 //   lines={{ builtLevel: 'threshold' }}>Caption.</Lanes>
 // A sound is drawn as its outline, every sound to one scale; a value as a line, in the range
 // `ranges` gives it or one fitted to it. `lines` draws a control's value across a value's lane.
+// `own` names sounds drawn each to its own peak, its range printed beside its name, for a lab
+// where one sound is far larger than the others:
+// <Lanes taps="pluck string out" own="pluck">Caption.</Lanes>
 import Lanes from '../../figures/Lanes.tsx'
 import { tapRefs } from '../../figures/roles.ts'
 import { controlsNamed, pageLab } from '../../lib/lab-info.ts'
@@ -14,12 +17,14 @@ interface Props {
   ranges?: Record<string, [number, number]>
   /** A control drawn as a dashed line across a value's lane: the control's id, by the tap's id. */
   lines?: Record<string, string>
+  /** Sounds drawn each to its own peak, and not to the scale the others share: tap ids, "pluck ring". */
+  own?: string
   from?: number
   span?: number
   /** What the picture shows, for a reader who cannot see it; made from the taps' names when left out. */
   label?: string
 }
-const { taps, ranges = {}, lines = {}, label, ...rest } = Astro.props
+const { taps, ranges = {}, lines = {}, own = '', label, ...rest } = Astro.props
 const { lab, lesson } = pageLab(Astro.locals)
 // Each lane is a picture of its own, so each tap keeps its role's colour.
 const refs = tapRefs(taps, lab.taps, lesson, false)
@@ -46,11 +51,28 @@ for (const [id, control] of Object.entries(lines)) {
   const [found] = controlsNamed(control, lab, lesson)
   if (found) named[id] = [found.id, found.name]
 }
+const alone = own.split(/[\s,]+/).filter(Boolean)
+for (const id of alone) {
+  if (refs.find((one) => one.id === id)?.kind !== 'audio') {
+    const sounds = refs.filter((one) => one.kind === 'audio').map((one) => one.id)
+    throw new Error(
+      `${lesson}: a scale of its own is asked for "${id}", which is not a sound among the lanes. They are: ${sounds.join(', ')}`,
+    )
+  }
+}
 const said = label ?? `${refs.map((tap) => tap.name).join(', ')}, one under another against time`
 ---
 
 <figure class="fig">
-  <Lanes client:visible taps={refs} ranges={ranges} lines={named} label={said} {...rest} />
+  <Lanes
+    client:visible
+    taps={refs}
+    ranges={ranges}
+    lines={named}
+    own={alone}
+    label={said}
+    {...rest}
+  />
   <figcaption>
     <slot />
   </figcaption>

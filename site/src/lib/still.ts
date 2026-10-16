@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import zlib from 'node:zlib'
-import { EDGE } from '../figures/canvas.ts'
+import { DIGIT, EDGE, topEdge } from '../figures/canvas.ts'
 import {
   AUDIBLE,
   label,
@@ -15,13 +15,16 @@ import {
   minMaxPlaced,
   rangeOf,
   roomyAxis,
+  tickLabels,
   ticks,
+  tidyFloor,
   toUnit,
   type Axis,
 } from '../figures/draw.ts'
 import { ROLE_VAR, tapRefs, type Role, type TapRef } from '../figures/roles.ts'
 import { CONTROL_PERIOD, SAMPLE_RATE } from '../lab/rate.ts'
 import { withRoom } from '../lab/room.ts'
+import type { LabDescription } from '../lab/describe.ts'
 import {
   loadLab,
   type Lab,
@@ -31,7 +34,7 @@ import {
   type Values,
 } from '../lab/runner.ts'
 import { NO_SOURCE } from '../lab/sources.ts'
-import { isBuilt } from '../lab/store.ts'
+import { BUILD, isBuilt } from '../lab/store.ts'
 import { labInfo } from './lab-info.ts'
 import {
   checkSettings,
@@ -209,6 +212,21 @@ export interface PictureAsk {
   max?: number
   /** The highest frequency drawn, in hertz, by a spectrum and a spectrogram. Fitted when left out. */
   top?: number
+  /**
+   * How a spectrum lays its frequencies out: in even ratios from 20 Hz (`log`, and when left
+   * out), or evenly from 0 Hz to its `top` (`linear`), where harmonics stand evenly.
+   */
+  scale?: 'log' | 'linear'
+  /**
+   * What runs along the bottom, in a word or two, in place of the view's own word: a curve has
+   * none of its own, and a picture of colour says "seconds".
+   */
+  xTitle?: string
+  /**
+   * Taps drawn as a dot on a stem for each point, for a signal shown sample by sample: every
+   * tap (`true`), or those named by id. Against time and for a curve.
+   */
+  stems?: boolean | readonly string[]
 }
 
 /** How a picture is laid out: how many columns of points it has, and whether its axes are round. */
@@ -229,7 +247,21 @@ interface Line extends KeyLine {
   xLog?: boolean
   /** A further curve of a tap that holds several: drawn, and named in the key by the first. */
   more?: boolean
+  /** Each point as a dot on a stem from zero. */
+  stems?: boolean
+  /** Where the points are many, the line along their tops and not the band they fill. */
+  outline?: boolean
 }
+
+/**
+ * The lowest level a lab writes: `kFloorDb` of site/labs/lab.h, where `to_db` puts silence. A
+ * still of a level does not run its axis below it.
+ */
+const FLOOR_DB = -140
+
+/** Whether a picture draws this tap as stems. */
+const stemmed = (ask: PictureAsk, id: string) =>
+  ask.stems === true || (Array.isArray(ask.stems) && ask.stems.includes(id))
 
 const colour = (role: Role) => `var(${ROLE_VAR[role]})`
 const escape = (text: string) =>
@@ -237,7 +269,11 @@ const escape = (text: string) =>
 const clamp = (unit: number) => Math.min(1, Math.max(0, unit))
 const fixed = (value: number) => String(Math.round(value * 10) / 10)
 
-/** One line as an SVG path: a band from the least to the most of each column where the points are many. */
+/**
+ * One line as SVG: a band from the least to the most of each column where the points are many
+ * (or the line along its top, for a line drawn in `outline`), a line through the points where
+ * they are few, or a stem and a dot for each.
+ */
 function pathOf(line: Line, x: Axis, y: Axis, width: number): string {
   const { ys } = line
   const n = ys.length
@@ -251,19 +287,57 @@ function pathOf(line: Line, x: Axis, y: Axis, width: number): string {
   const py = (value: number) => (1 - clamp(toUnit(y, value))) * HEIGHT
   const stroke = `stroke:${colour(line.role)}`
 
-  if (n > 3 * width) {
-    const ends = minMaxPlaced(ys, (i) => toUnit(x, xOf(i)), width)
+  // Points that stand evenly on an even axis: only those in view count, and are drawn, with one
+  // more at each end so that the line runs off the picture and does not stop short of its edge.
+  let first = 0
+  let last = n - 1
+  if (!x.log && !line.xLog && line.x1 !== line.x0 && n > 1) {
+    const at = (value: number) => ((value - line.x0) / (line.x1 - line.x0)) * (n - 1)
+    const [a, b] = [at(x.min), at(x.max)]
+    first = Math.max(0, Math.floor(Math.min(a, b) + 1e-9) - 1)
+    last = Math.min(n - 1, Math.ceil(Math.max(a, b) - 1e-9) + 1)
+  }
+  const inView = last - first + 1
+  if (inView <= 0) return ''
+
+  if (inView > 3 * width) {
+    const ends = minMaxPlaced(ys, (i) => toUnit(x, xOf(i)), width, first, last + 1)
     const filled: number[] = []
     for (let col = 0; col < width; col += 1) if (!Number.isNaN(ends[2 * col])) filled.push(col)
     if (filled.length === 0) return ''
+    if (line.outline) {
+      const tops = filled.map((col) => `${col + 0.5},${fixed(py(ends[2 * col + 1]!))}`)
+      return `<path d="M${tops.join('L')}" vector-effect="non-scaling-stroke" style="fill:none;${stroke};stroke-width:1.6;stroke-linejoin:round"/>`
+    }
     const tops = filled.map((col) => `${col + 0.5},${Math.round(py(ends[2 * col + 1]!))}`)
     const bottoms = filled.map((col) => `${col + 0.5},${Math.round(py(ends[2 * col]!))}`).reverse()
     return `<path d="M${tops.join('L')}L${bottoms.join('L')}Z" vector-effect="non-scaling-stroke" style="fill:${colour(line.role)};fill-opacity:0.85;${stroke};stroke-width:1"/>`
   }
 
+  if (line.stems) {
+    // A stem from zero, or from the edge of the picture nearest it, to each point in view; and
+    // a dot on its end where the points are few enough to tell apart. A dot is a line of no
+    // length with round ends, which stays round however the picture is stretched.
+    const zero = fixed(py(Math.min(Math.max(0, y.min), y.max)))
+    let stems = ''
+    let dots = ''
+    for (let i = first; i <= last; i += 1) {
+      const value = ys[i]!
+      const unit = toUnit(x, xOf(i))
+      if (!Number.isFinite(value) || !(unit >= -1e-9 && unit <= 1 + 1e-9)) continue
+      const at = fixed(clamp(unit) * width)
+      stems += `M${at},${zero}V${fixed(py(value))}`
+      dots += `M${at},${fixed(py(value))}h0`
+    }
+    if (stems === '') return ''
+    const stalks = `<path d="${stems}" vector-effect="non-scaling-stroke" style="fill:none;${stroke};stroke-width:1"/>`
+    if (inView >= width / 5) return stalks
+    return `${stalks}<path d="${dots}" vector-effect="non-scaling-stroke" style="fill:none;${stroke};stroke-width:4.4;stroke-linecap:round"/>`
+  }
+
   let d = ''
   let pen = false
-  for (let i = 0; i < n; i += 1) {
+  for (let i = first; i <= last; i += 1) {
     const value = ys[i]!
     const at = toUnit(x, xOf(i)) * width
     if (!Number.isFinite(value) || !Number.isFinite(at)) {
@@ -280,7 +354,10 @@ function pathOf(line: Line, x: Axis, y: Axis, width: number): string {
 /** The numbers of an axis, and the grid lines that stand at them. */
 function numbersOf(axis: Axis, count: number, title: string): Numbers {
   return {
-    ticks: ticks(axis, count).map((value) => ({ at: toUnit(axis, value), text: label(value) })),
+    ticks: ticks(axis, count).map((value, index, all) => ({
+      at: toUnit(axis, value),
+      text: tickLabels(all)[index]!,
+    })),
     title,
   }
 }
@@ -388,32 +465,47 @@ function wave(render: StillRender, ask: PictureAsk, layout: Layout, lesson: stri
       ys,
       x0: ((a * step) / SAMPLE_RATE) * scale,
       x1: (((b - 1) * step) / SAMPLE_RATE) * scale,
+      stems: stemmed(ask, tap.id),
     }
   })
   // Sound swings about zero, so zero stays in the middle; a control's value is fitted as it lies.
   const top = Math.max(Math.abs(lo), Math.abs(hi)) || 1
   const fitted = sound ? axisFor(-top, top, layout) : axisFor(lo, hi, layout)
+  // A level in decibels rests on a floor while nothing sounds. Its axis starts where the level
+  // does, at a round number just under its lowest value, and not a whole step of the grid
+  // below that: a level that rests on −120 dB is not drawn on an axis that runs to −200.
+  const levels = !sound && ask.taps.every((tap) => tap.unit === 'dB')
+  if (levels && layout.round && hi > lo) fitted.min = tidyFloor(lo, hi, FLOOR_DB)
   const y = rangeAsked(fitted, ask, lesson)
   const unit = sound ? '' : (ask.taps[0]?.unit ?? '')
-  return finish(lines, x, y, { x: x.title, y: unit }, `${joined(ask.taps)} against time`, layout)
+  const titles = { x: ask.xTitle ?? x.title, y: unit }
+  return finish(lines, x, y, titles, `${joined(ask.taps)} against time`, layout)
 }
 
 /** How much of each frequency: a sound's average spectrum, or a spectrum the lab worked out. */
 function spectrum(render: StillRender, ask: PictureAsk, layout: Layout, lesson: string): Picture {
-  const x = { ...AUDIBLE, max: topAsked(AUDIBLE.max, ask, lesson, AUDIBLE.min) }
+  // In even ratios across the audible band, or evenly from 0 Hz where the picture asks for it.
+  const x: Axis =
+    ask.scale === 'linear'
+      ? { min: 0, max: topAsked(SAMPLE_RATE / 2, ask, lesson) }
+      : { ...AUDIBLE, max: topAsked(AUDIBLE.max, ask, lesson, AUDIBLE.min) }
+  // Two bands lie one over the other where the points are many, and read as one: where there is
+  // more than one tap, each is the line along its top.
+  const outline = ask.taps.length > 1
   let lo = Infinity
   let hi = -Infinity
   const lines: Line[] = ask.taps.map((tap) => {
     const found = render.result.taps[tap.id]
     const line: Line =
       found?.kind === 'audio'
-        ? { ...tap, ys: render.spectrum(tap.id), x0: 0, x1: SAMPLE_RATE / 2 }
+        ? { ...tap, ys: render.spectrum(tap.id), x0: 0, x1: SAMPLE_RATE / 2, outline }
         : {
             ...tap,
             ys: found?.channels_data[0] ?? new Float32Array(0),
             x0: found?.x0 ?? 0,
             x1: found?.x1 ?? 1,
             xLog: found?.log,
+            outline,
           }
     // Only what stands in the band drawn sets the height.
     const n = line.ys.length
@@ -435,18 +527,17 @@ function spectrum(render: StillRender, ask: PictureAsk, layout: Layout, lesson: 
   return finish(lines, x, y, { x: 'hertz', y: 'decibels' }, said, layout)
 }
 
-/** One value against another: the lab says what the first and the last point stand at. */
+/**
+ * One value against another: the lab says what the first and the last point stand at. The
+ * picture may ask for a stretch of the curve, `from` a place along it and `span` long, in the
+ * curve's own unit: its height is then fitted to that stretch.
+ */
 function curve(render: StillRender, ask: PictureAsk, layout: Layout, lesson: string): Picture {
-  let lo = Infinity
-  let hi = -Infinity
   let x0 = Infinity
   let x1 = -Infinity
   const lines: Line[] = ask.taps.flatMap((tap, index) => {
     const found = render.result.taps[tap.id]
     const ys = found?.channels_data[0] ?? new Float32Array(0)
-    const [least, most] = rangeOf(ys)
-    lo = Math.min(lo, least)
-    hi = Math.max(hi, most)
     x0 = Math.min(x0, found?.x0 ?? 0)
     x1 = Math.max(x1, found?.x1 ?? 1)
     const line: Line = {
@@ -457,6 +548,7 @@ function curve(render: StillRender, ask: PictureAsk, layout: Layout, lesson: str
       xLog: found?.log,
       // A curve the lesson wrote to hold the device's against is the dashed one, as in a live figure.
       dashed: tap.origin === 'lesson' && index > 0,
+      stems: stemmed(ask, tap.id),
     }
     // A tap of columns (the lab's `kFrames`) holds a curve a column, each from `x0` to `x1`, as
     // the windows of overlapping frames are: every one is drawn, and the key names the tap once.
@@ -469,10 +561,42 @@ function curve(render: StillRender, ask: PictureAsk, layout: Layout, lesson: str
       more: column > 0,
     }))
   })
-  const x = { min: x0, max: x1, log: lines.every((line) => line.xLog) }
+  const whole = ask.from === undefined && ask.span === undefined
+  const min = ask.from ?? x0
+  const x = {
+    min,
+    max: ask.span === undefined ? x1 : min + ask.span,
+    log: lines.every((line) => line.xLog),
+  }
+  // The height holds every point of the whole curve, or only those of the stretch asked for.
+  let lo = Infinity
+  let hi = -Infinity
+  for (const line of lines) {
+    const n = line.ys.length
+    let [least, most] = rangeOf(line.ys)
+    if (!whole) {
+      least = Infinity
+      most = -Infinity
+      for (let i = 0; i < n; i += 1) {
+        const at =
+          n === 1
+            ? line.x0
+            : line.xLog
+              ? line.x0 * Math.pow(line.x1 / line.x0, i / (n - 1))
+              : line.x0 + ((line.x1 - line.x0) * i) / (n - 1)
+        const value = line.ys[i]!
+        if (at < x.min || at > x.max || !Number.isFinite(value)) continue
+        least = Math.min(least, value)
+        most = Math.max(most, value)
+      }
+    }
+    lo = Math.min(lo, least)
+    hi = Math.max(hi, most)
+  }
+  if (!(hi >= lo)) [lo, hi] = [0, 0]
   const y = rangeAsked(axisFor(lo, hi, layout), ask, lesson)
   const unit = ask.taps[0]?.unit ?? ''
-  return finish(lines, x, y, { x: '', y: unit }, joined(ask.taps), layout)
+  return finish(lines, x, y, { x: ask.xTitle ?? '', y: unit }, joined(ask.taps), layout)
 }
 
 /** A picture of one grey a point, as a PNG in a `data:` address: all an SVG mask needs. */
@@ -584,7 +708,10 @@ function spectrogram(
     `<image href="${greyPng(across, up, grey)}" width="${width}" height="${HEIGHT}" preserveAspectRatio="none"/></mask>` +
     `<rect width="${width}" height="${HEIGHT}" mask="url(#${id}-${name})" style="fill:${colour(role)}"/>`
 
-  const x = numbersOf({ min: from, max: to }, 6, 'seconds')
+  // The lab's helper lays a picture out over time. A lab that lays one out over something else
+  // (a modulator's rate, a place in a sweep) has its lesson say what, as the picture's x title.
+  const along = ask.xTitle ?? 'seconds'
+  const x = numbersOf({ min: from, max: to }, 6, along)
   const y = numbersOf({ min: 0, max: top }, 4, 'hertz')
   return {
     width,
@@ -594,7 +721,7 @@ function spectrogram(
     x,
     y,
     key: [],
-    note: `${tap.name}: seconds across, hertz up, from ${label(min)} dB (the page's colour) to ${label(max)} dB`,
+    note: `${tap.name}: ${along} across, hertz up, from ${label(min)} dB (the page's colour) to ${label(max)} dB`,
     label: `${tap.name}: its spectrum over time`,
   }
 }
@@ -616,34 +743,47 @@ export function drawStill(
  * A lesson's still as HTML: the drawing as inline SVG inside the room a live figure leaves for
  * its numbers, and the numbers set in the page's own type at their real size, however wide the
  * picture is shown.
+ *
+ * An axis's title stands outside the plotted area, as a live figure's does (`drawGrid` in
+ * figures/canvas.ts), so that no line can run under it. The y axis's stands over the picture's
+ * top left corner, in a row the plotted area makes room for. The x axis's stands at the right of
+ * the row of numbers under the picture, and a number that would run into it is not shown.
  */
 export function plotHtml(picture: Picture, height = HEIGHT): string {
-  const inside = `left:${EDGE.left}px;top:${EDGE.top}px;width:calc(100% - ${EDGE.left + EDGE.right}px);height:calc(100% - ${EDGE.top + EDGE.bottom}px)`
+  const top = topEdge(picture.y.title)
+  const inside = `left:${EDGE.left}px;top:${top}px;width:calc(100% - ${EDGE.left + EDGE.right}px);height:calc(100% - ${top + EDGE.bottom}px)`
   const across = (at: number) =>
     `calc(${EDGE.left}px + ${fixed(at * 100)}% - ${fixed(at * (EDGE.left + EDGE.right))}px)`
   const down = (at: number) =>
-    `calc(${EDGE.top}px + ${fixed(at * 100)}% - ${fixed(at * (EDGE.top + EDGE.bottom))}px)`
+    `calc(${top}px + ${fixed(at * 100)}% - ${fixed(at * (top + EDGE.bottom))}px)`
   const ys = picture.y.ticks
     .filter(({ at }) => at >= 0 && at <= 1)
     .map(
       ({ at, text }) =>
         `<span style="position:absolute;right:calc(100% - ${EDGE.left - 6}px);top:${down(1 - at)};transform:translateY(-50%)">${text}</span>`,
     )
+  // How wide the still is shown is not known here, so a number cannot be left out where it
+  // would run into the x title: it is given a width that is nothing at the widths where it
+  // would. Its right end is `at` of the way across the plotted area and half its own width on;
+  // the title starts its own width in from the plotted area's right end; 6 px stay between.
+  const titled = picture.x.title.length * DIGIT
+  const hidden = (at: number, text: string) => {
+    if (!picture.x.title) return ''
+    const room = (text.length * DIGIT) / 2 + titled + 6
+    const share = Math.round((1 - at) * 1e4) / 1e4
+    return `;max-width:clamp(0px, calc(((100% - ${EDGE.left + EDGE.right}px) * ${share} - ${room}px) * 1000), 99px);overflow:hidden`
+  }
   const xs = picture.x.ticks
     .filter(({ at }) => at >= 0 && at <= 1)
     .map(
       ({ at, text }) =>
-        `<span style="position:absolute;left:${across(at)};bottom:${EDGE.bottom - 16}px;transform:translateX(-50%)">${text}</span>`,
+        `<span style="position:absolute;left:${across(at)};bottom:${EDGE.bottom - 16}px;transform:translateX(-50%)${hidden(at, text)}">${text}</span>`,
     )
-  // An axis's title stands over the lines on a plate of the picture's ground, as the label of a
-  // dashed line does in a live figure (figures/canvas.ts), so that no line strikes it out.
-  const plate =
-    'padding:1px 3px 2px;background:color-mix(in srgb, var(--lm-panel) 82%, transparent)'
   const titles = [
     picture.y.title &&
-      `<span style="position:absolute;left:${EDGE.left + 3}px;top:${EDGE.top + 4}px;${plate}">${escape(picture.y.title)}</span>`,
+      `<span style="position:absolute;left:${EDGE.left}px;top:${top - 19}px">${escape(picture.y.title)}</span>`,
     picture.x.title &&
-      `<span style="position:absolute;right:${EDGE.right + 3}px;bottom:${EDGE.bottom + 2}px;${plate}">${escape(picture.x.title)}</span>`,
+      `<span style="position:absolute;right:${EDGE.right}px;bottom:${EDGE.bottom - 16}px">${escape(picture.x.title)}</span>`,
   ]
   return (
     `<div class="still-plot" style="position:relative;height:${height}px">` +
@@ -693,12 +833,40 @@ export interface StillProps {
   max?: number
   /** The highest frequency drawn by a spectrum and a spectrogram, in hertz; fitted when left out. */
   top?: number
+  /** A spectrum's frequencies evenly from 0 Hz to its `top` (`linear`), not in even ratios from 20 Hz. */
+  scale?: 'log' | 'linear'
+  /** What runs along the bottom, in a word or two, in place of the view's own word. */
+  xTitle?: string
+  /** Taps drawn as dots on stems, against time and for a curve: all of them, or those named, "frame other". */
+  stems?: boolean | string
+}
+
+/**
+ * The build step a still is drawn at, when its values give one: `build: 3` is the fourth step,
+ * as the lab counts them. A named set never moves the build step, so `checkSettings` refuses it;
+ * a still is a picture and moves nothing, and this is how one shows a tap of the build path
+ * (an id that begins `built`) as it stands at a step. Stops the build, naming the lesson, on a
+ * step the lab does not have.
+ */
+function stepAsked(step: number, description: LabDescription, lesson: string): void {
+  const control = description.controls.find((one) => one.id === BUILD)
+  if (!control) {
+    throw new Error(
+      `${lesson}: a still is drawn at build step ${step}, and the lab has no build path.`,
+    )
+  }
+  if (!Number.isInteger(step) || step < control.min || step > control.max) {
+    throw new Error(
+      `${lesson}: a still is drawn at build step ${step}: the lab's steps are the whole numbers ${control.min} to ${control.max}.`,
+    )
+  }
 }
 
 /**
  * The picture a `<Still>` of a lesson shows. Stops the build, naming the lesson, on a tap the lab
  * does not have, a set the lesson's file does not have, a control or a value the lab does not
- * take, a source the lesson does not list, and a range or a top that makes no sense.
+ * take, a build step the lab does not have, a source the lesson does not list, stems for a tap
+ * the still does not draw, and a range or a top that makes no sense.
  */
 export async function lessonStill(
   lesson: StillLesson,
@@ -714,20 +882,32 @@ export async function lessonStill(
   const values = { ...named?.values, ...props.values }
   const source = props.source ?? named?.source ?? lesson.data.sources[0]!
   // Held to the lab as a set of the lesson's file is: a still is a set written in the text.
+  // The build step is the one control a set may not name and a still may.
+  const { [BUILD]: step, ...set } = values
   checkSettings(
-    { sets: { 'a still': { label: 'a still', values, source } } },
+    { sets: { 'a still': { label: 'a still', values: set, source } } },
     description,
     lesson.data.sources,
     lesson.id,
   )
+  if (step !== undefined) stepAsked(step, description, lesson.id)
+  const stems =
+    typeof props.stems === 'string' ? props.stems.split(/[\s,]+/).filter(Boolean) : props.stems
+  for (const id of Array.isArray(stems) ? stems : []) {
+    if (!taps.some((tap) => tap.id === id)) {
+      throw new Error(
+        `${lesson.id}: a still draws stems for "${id}", which is not one of its taps. They are: ${taps.map((tap) => tap.id).join(', ')}`,
+      )
+    }
+  }
   const render = await renderStill({
     lab: lesson.data.lab,
     source,
     seconds: lesson.data.seconds,
     values,
   })
-  const { from, span, min, max, top } = props
-  const ask = { taps, view: props.view ?? 'wave', from, span, min, max, top }
+  const { from, span, min, max, top, scale, xTitle } = props
+  const ask = { taps, view: props.view ?? 'wave', from, span, min, max, top, scale, xTitle, stems }
   return drawStill(render, ask, lesson.id)
 }
 
@@ -815,7 +995,11 @@ export async function lessonTile(lesson: StillLesson, dir = SETTINGS_DIR): Promi
       const drawn = entry?.picture ?? { taps: [tap], view: 'wave' as const, from: 0 }
       const description = await labInfo(lab, lesson.id)
       const taps = tapRefs(drawn.taps.join(' '), description.taps, lesson.id)
-      const picture = tileSvg(drawStill(render, { ...drawn, taps }, lesson.id, TILE))
+      // A tile's entry always holds a `from`, 0 when its file gives none: a span of time, which
+      // a curve has none of, so a curve's tile is the whole curve as it always was.
+      const { from: _from, span: _span, ...rest } = drawn
+      const asked = drawn.view === 'curve' ? { ...rest, taps } : { ...drawn, taps }
+      const picture = tileSvg(drawStill(render, asked, lesson.id, TILE))
       const timed = drawn.view === 'wave' || drawn.view === 'spectrogram'
       const time = timed ? { from: drawn.from, span: drawn.span ?? seconds - drawn.from } : null
       return { lab, seconds, values, tap, own: playsItself(lesson), picture, time }

@@ -38,9 +38,10 @@ finding. [Checking one lesson](#checking-one-lesson) says what that script runs.
 ## The rules
 
 1. **The engine's own code runs.** A stage is read from the running device, or computed by the
-   kit class the device is built from, or made by the engine's TypeScript, or written for the
-   lesson. The lab says which (`kDevice`, `kKit`, `kEngine`, `kLesson`, and `kSource` for the
-   sound going in) and the page shows it under each stage. Every stage and every build step
+   kit class the device is built from, or computed by a function of the engine that the lab
+   calls on its own, or made by the engine's TypeScript, or written for the lesson. The lab
+   says which (`kDevice`, `kKit`, `kCalled`, `kEngine`, `kLesson`, and `kSource` for the sound
+   going in) and the page shows it under each stage. Every stage and every build step
    says where it comes from. Nothing written for the lesson is passed off as the engine. Where
    the lab rebuilds part of a device, a check reports how far the rebuild lands from the
    device, on every render: for the build part that is the build path's own comparison
@@ -141,11 +142,21 @@ void lab_render(int frames) {  // every time a control moves
 
 - **A name is read by the reader.** A control's name is its label on the page, and a tap's
   name is what a figure's key and a stage's button call it. Write each as the lesson's text
-  will say it.
+  will say it. A unit that is a word is written in the plural, `"octaves"`: the page writes one
+  of them in the singular, "1 octave", by itself.
+- **The taps are declared in the order of the signal, the device's output last.** The page
+  opens on the last sound tap the lab declares on its main path: that is what the play bar
+  plays first, and what a set that names no `tap` plays. A sound tap declared after the output
+  (a difference, a test tone) would be what the page opens on, so declare it before.
 - **Private state is readable.** Labs are compiled with `-fno-access-control`, so
   `comp.reduction_` compiles. This is how a stage inside a device is read without changing the
   device. A local of a device's function is not state: work it out again from the device's own
   numbers, call it `kLesson`, and add a `Check` that holds it to something the device did store.
+- **A function of the engine called on its own is `kCalled`.** Where the lab calls a function
+  of a device by itself, outside a running device (a limiter's detector run on every sample of
+  the loop), the tap is neither read from the running device nor written for the lesson. Its
+  stage says "Computed by an engine function called on its own":
+  `lab::Tap between{"between", "Peak between the samples", lab::kControl, lab::kCalled, 1, "dB"};`
 - **A loop is rendered twice and a little more.** Run `i` from 0 to `lab::total()`, read the
   source with `lab::in_at(channel, i)` and write taps with `tap.put(i, ...)`. `put` drops the
   first pass, keeps the second and crossfades the rest into the start, so tails wrap and the
@@ -210,7 +221,8 @@ lab::Tap built_gain{"builtGain", "Gain, as built", lab::kControl, lab::kLesson, 
 
 - `lab::Build` makes the control `build`, one choice a step, the first at 0; `build.at()` is
   the step the reader chose. The names between the bars are the steps' names on the page: the
-  row of steps prints them, and the button that adds the next says "Add:" and its name.
+  row of steps prints them, and the button that adds the next says "Add:" and its name, as
+  the lab writes it: "Add: Drive and Output".
 - **`built` is the sound so far**, and it must be sound: it is what "Hear it so far" plays.
   The other built taps (`builtLevel`, `builtGain`) are the lanes the steps draw. A built tap may
   be flat at a step that has not reached it; it must say something at some step.
@@ -260,8 +272,8 @@ or too few) stops the page from building, with the names the lab does have.
   `loops(x, anywhere)` (whether a tap comes round without a step, by its third difference at
   the wrap); `suddenness(changed, reference, at)` (how suddenly an event arrives: near 1 is a
   jump, small is a fade); `onsetMs(x, from, perSecond)` (when a sound speaks).
-- **What every lab is held to:** `expectSoundLab(lab, source, result, { quiet, steps })` and
-  `expectBuild(lab, source)`.
+- **What every lab is held to:** `expectSoundLab(lab, source, result, { quiet, steps, when })`
+  and `expectBuild(lab, source, values, { steps })`.
 - **A number as the lesson writes it:** `expectWritten(measured, written)` and
   `matchesWritten(measured, written)`.
 
@@ -271,12 +283,18 @@ What a lab's test holds, in this order:
   every tap finite and not one flat value, every audio tap looping without a step, every
   control moving at least one tap of the main path. A tap that is rightly flat goes in
   `{ quiet: [...] }`; an audio tap that starts on an event by design (a note, a jump at the
-  loop's first sample) goes in `{ steps: [...] }`.
+  loop's first sample) goes in `{ steps: [...] }`. A control that acts in one mode only, and so
+  moves nothing at the lab's starting values, goes in `when` with the values at which it does
+  act, and must move a tap of the main path there:
+  `expectSoundLab(theLab, source, result, { when: { tilt: { mode: 1 } } })`.
 - The second is `expectBuild(theLab, source, values?)` (`values` turns controls for every step,
   for a piece that does nothing at the lab's starting values): the `build` control has a choice a step; every
   step changes a built tap and leaves the main path as it was; every built tap is finite at
   every step and loops; and at every step the compared step is within the lab's bound of what
-  the engine made.
+  the engine made. A fourth argument gives the number of steps, for a `build` control that
+  does not say it by itself: one that does not start at 0, or one with a choice after the last
+  step that is no step of the build. The steps are then the control's first values, that many:
+  `expectBuild(theLab, source, {}, { steps: 6 })`.
 - **A claim's test** measures the quantity and passes it through the written-number helper
   with the number exactly as the sentence writes it: `expectWritten(ms, '39 ms')`,
   `expectWritten(apart, 'less than 0.001 dB')`, `expectWritten(turn, '19.4°')`. Half of the
@@ -405,6 +423,7 @@ bench:
   params: { threshold: -24, ratio: 4 } # by the device's own control ids (cpp/devices/<id>/device.json)
   as: insert # or send (a device that puts out the wet signal only), or instrument
   note: How these settings differ from the device's defaults, in a sentence.
+  also: [ring] # a lesson about two devices: the others, by id (left out by most lessons)
 sources: [drums, guitar, chords, saw, noise, sine] # the first is what the page opens on
 seconds: 4 # the loop's length, at most 8
 files: # every file of the engine the lesson talks about
@@ -427,7 +446,11 @@ The page adds by itself:
   where the bench is `as: instrument`, and the page's sentence says which. Then the table of
   starting settings beside the device's defaults with its button (where the settings file has
   `defaults`), links to the device's page, its source, its tests and the lab's test, and the
-  list of `files`.
+  list of `files`. A lesson about two devices puts one on the bench and names the other in
+  `bench.also`, a list of device ids: `also: [ring]`. Each is shown after the first device's
+  links, under its name, by the table of its controls (range, where the device starts it and
+  unit) and links to its page and its source. It has no plate of its own, so the `note` need
+  not list its controls.
 - **The play bar**, in reach all the way down, and **tiles for the lessons before and after**.
 
 ### The nine parts
@@ -525,7 +548,8 @@ Those under the new threshold stay as they were.
 **`Uses`** holds **`Use`**: `title`, `set` (a name under `sets`; optional), the slot `picture`
 (a still), and the words as its children. With a `set` the card prints that set's settings in
 words, read from the settings file in the lab's own names and units, and a button that says
-"Hear". Without one it has neither.
+"Hear". Without one it has neither. Cards stand side by side where there is room: four stand
+two and two, and five or six three to a row, in `Uses`, `Ways` and `Faults` alike.
 
 ```mdx
 <Uses>
@@ -625,12 +649,54 @@ once. A spectrogram's tap is columns over time: draw that with `view="spectrogra
 />
 ```
 
+**A stretch of a curve, a title, stems.** A curve takes `from` and `span` as a view against
+time does, in the unit of the curve's own x axis: the stretch drawn, to the curve's end when
+`span` is left out, with its height fitted to that stretch. `xTitle` is a word or two for what
+runs along the bottom, which a curve does not say by itself. It also stands in place of
+"seconds" under a view against time, and under a spectrogram whose lab lays its picture out
+over something that is not time: the key then says that word too. `stems` draws each point as
+a dot on a stem, against time or as a curve, for a stretch short enough to count its samples:
+every tap, or the taps named by id (`stems="rounded"`), the others staying lines.
+
+```mdx
+<Still taps="impulse" view="curve" from={0} span={2} xTitle="milliseconds" stems caption="…" />
+<Still taps="in rounded" from={0.3} span={0.002} stems="rounded" caption="…" />
+<Still taps="fan" view="spectrogram" xTitle="the modulator's rate, hertz" caption="…" />
+```
+
+**A spectrum on an even axis.** `scale="linear"` lays a spectrum's frequencies out evenly from
+0 Hz to its `top`, or to half the sample rate when `top` is left out. Harmonics then stand
+evenly, and lines that fold back do not crowd at the right. Left out, the axis runs in even
+ratios from 20 Hz. A still of two taps or more draws each spectrum as a line, so that neither
+hides under the other; one tap alone is drawn as the band its points fill.
+
+```mdx
+<Still taps="in out" view="spectrum" scale="linear" top={4000} caption="…" />
+```
+
+**A still of a build step.** `values` may hold `build`, the step of the build path counted
+from 0: `values={{ build: 3 }}` is the fourth step, and the still shows the lab as it stands
+there. It is the one control a still may name and a named set may not. It is for a tap whose
+id begins `built`; the taps of the main path do not change with the step. The build stops on
+a step the lab does not have.
+
+```mdx
+<Still taps="in built" values={{ build: 3 }} caption="…" />
+```
+
+**What a still does by itself.** An axis's title stands outside the plotted area, as a live
+figure's does: the y axis's over the top left corner, the x axis's at the right of the row of
+numbers under the picture, where a number that would run into it is left out. A still against
+time of a level in decibels starts its axis at a round number just under the lowest value
+drawn, and never below −140 dB, where the lab puts silence (`kFloorDb` in `labs/lab.h`). Give
+`min` for another bottom.
+
 **`Lanes`** stacks taps on one time axis, a lane each, every lane named beside it: `taps`;
 `ranges` (the bottom and the top of a value's lane, by the tap's id); `lines` (a control drawn
-as a dashed line across a value's lane: the control's id, by the tap's id); `from`, `span`;
-`label` (what the picture shows, for a reader who cannot see it). Its children are the caption.
-It is the picture of a build step and of all the stages at once, for a technique that is seen
-against time.
+as a dashed line across a value's lane: the control's id, by the tap's id); `own` (sounds
+drawn each to its own peak, by tap id); `from`, `span`; `label` (what the picture shows, for a
+reader who cannot see it). Its children are the caption. It is the picture of a build step and
+of all the stages at once, for a technique that is seen against time.
 
 ```mdx
 <Lanes
@@ -642,16 +708,38 @@ against time.
 </Lanes>
 ```
 
+Every sound among the lanes is drawn to the scale of the loudest, so that two can be compared
+by eye. Where one sound is far larger than the others, name it in `own`: it is drawn to its
+own peak, its range is printed with its name as a value's is, and the others share the scale
+of the loudest among themselves.
+
+```mdx
+<Lanes taps="pluck string out" own="pluck">
+  Notice how small the pluck is beside what the string makes of it: read its range by its name.
+</Lanes>
+```
+
+In a figure narrower than 480 pixels, on a phone or in a narrow column, each lane's name stands
+above its lane in one line, with its range at the line's other end. A name too long for the
+line is cut short there, so a tap's name is a few words. The row of numbers under the lanes
+ends with what they count, seconds or milliseconds.
+
 **`Flow`** is the signal-flow picture of part 5: `label` (what it shows, in words) and
 `blocks`, each `{ id, label?, row?, from?, back?, tap?, shape?, n?, signal? }`. `row` 0 is the
 main path, 1 a row under it, −1 a row over it. `from` names the blocks that feed it; `back`
 names blocks further along whose output comes back into it. `tap` is the lab's tap read at the
 block's output: the block is lit while that tap sounds, and is named after it when it has no
 `label`. `shape` is `box`, `end`, `dot` (where a wire divides) or `sum`. `n` is the number of
-the stage that explains the block. `signal` is `sound` or `value`. Its children are the caption.
+the stage that explains the block. `signal` is `sound` or `value`, and the key under the
+picture calls a wire of the second kind "a value: never heard", which fits a level worked out
+from the sound and a fader set by hand alike. Its children are the caption.
 A `sum` that names a `tap` and has no `label` has the tap's name under its circle, or over it
 where a path comes back into it from below: `{ id: 'sum', shape: 'sum', from: 'in', back:
-'filter', tap: 'string' }`.
+'filter', tap: 'string' }`. A path keeps clear of that name: one that turns off after the
+adder turns off past its words. A block on a side row that feeds the main row runs along its
+own row and then into the block it feeds; where another block of its row stands in the way,
+its path goes round that block, between the two rows. A block that nothing feeds stands in the
+first column, so two such blocks go on two rows.
 
 ```mdx
 <Flow
@@ -692,12 +780,30 @@ against the waves through them), `<TurningVectors>` (a frame's bins as vectors t
 filter's phase in half turns), `<GrainCloud>` (each grain as a bead) and `<ConvolverCheck>`
 (the lab's convolution against the browser's own).
 
+A curve's `stems` may name the taps it applies to, by id, and the other curves stay lines:
+
+```mdx
+<Curve taps="frame window" stems="frame" xTitle="milliseconds">
+  Notice each sample of the frame under the window that weighs it.
+</Curve>
+```
+
+What `Wave`, `Trace`, `Curve` and `Spectrum` do by themselves: an axis's title stands outside
+the plotted area, the y axis's over the top left corner and the x axis's at the right of the
+row of numbers, where a number that would run into it is left out, so no line runs under a
+title. The name of an upright line stands beside its line, a row lower where it would run into
+another's. Any range gets at least three numbers along its axis, and numbers that stand close
+together are written in as many figures as tell them apart (1.0002 and 1.0004, not 1 twice).
+Stills and lanes do the same.
+
 **Lines are roles, and a caption names a line by its label.** There are six roles: `in` (the
 source), `out` (the result), `ctl` (a control value), and `alt`, `alt2`, `alt3` for anything
 else. A figure gives roles by what each tap is; say otherwise with
 `taps="levelOnePole:alt level:ctl"`. The two schemes colour the roles differently, so a caption
 never names a colour: it names a line by its label, the tap's name, as the key beside the
-figure prints it. The shape check fails a caption that names a colour.
+figure prints it. The shape check fails a caption that names a colour. A dashed line's swatch
+in the key is dashed too, in its role's colour, so two dashed lines of one figure have two
+swatches.
 
 #### The build
 
@@ -741,11 +847,16 @@ when they come into view.
 
 **`StageBlock`** is one stage of the device: `tap` (the lab's tap the stage is read at),
 `title`, `n` (its number, as the signal-flow picture prints it under its block). Its children
-are the purpose and a figure. Four slots, in the order they are shown, each of which a stage
-may leave out: `equation`, `readback` (the equation read back term by term against the figure),
-`listing`, and `listen` (the words on its button). Under the title the stage says where it
-comes from, as the lab says it. A stage whose tap is sound gets the button; a stage whose tap
-is not says what kind of signal it is.
+are the purpose and a figure. Five slots, each of which a stage may leave out: `equation`,
+`readback` (the equation read back term by term against the figure), `listing`, `after` (text
+that goes on under the listing) and `listen` (the words on its button).
+
+A stage is set in this order, wherever its slots are written: the title; where the stage comes
+from, as the lab says it; the stage's own text and figures; then `equation`, `readback`,
+`listing` and `after`; and last the button, for a stage whose tap is sound, or a line that says
+what kind of signal the tap is. So text that must follow the equation or the listing goes in
+`after`. An equation written in the stage's own text as a block, `<M block t={…} />`, is also
+right: it stands where it is written, with text before it and after it.
 
 ```mdx
 <StageBlock tap="sidechain" n={1} title="The detector ignores the lows">
@@ -754,6 +865,7 @@ is not says what kind of signal it is.
   <M slot="equation" block t={String.raw`\sig{ctl}{L} = 10 \log_{10} \at{measure-level}{p}`} />
   <Fragment slot="readback">Read it against the picture: the level is ten times the logarithm of the power.</Fragment>
   <Listing slot="listing" path="cpp/devices/ambient-comp/ambient_comp.h" from="void step_gain(float power) {" to="const float over = level - threshold_.next();" name="measure" at={{ level: 'const float level = power > kFloorPower' }} />
+  <Fragment slot="after">The floor in that line keeps the logarithm from a power of nothing.</Fragment>
   <Fragment slot="listen">Hear what the detector hears</Fragment>
 </StageBlock>
 ```
@@ -790,7 +902,9 @@ term in the colour of a signal's role (`in`, `out`, `ctl`, `alt`, `alt2`, `alt3`
 of that line in the figures. `\at{pole-step}{term}` links a term to the line of the listing
 `pole` that its `at` gives the key `step`. A line is never linked by its number, which moves
 when the file does: the build refuses `\at{pole-L19}{…}`, and the shape check fails a link
-whose line is not on the page. An unknown role stops the build.
+whose line is not on the page. An unknown role stops the build. A link may stand round a term
+that holds a link of its own, `\at{gain-whole}{\frac{\at{gain-over}{x}}{r}}`: the inner term
+goes to its own line and the rest of the outer term to the outer one's.
 
 ```mdx
 <M block t={String.raw`\sig{out}{y[n]} = \at{pole-step}{a}\,\sig{in}{x[n]}`} />
@@ -823,11 +937,15 @@ stage; its children are its words.
 <Listen tap="out">Hear the output</Listen>
 ```
 
-**`Hear`**: `set`, `label` (what the button says; "Hear" when left out). A card's button
-anywhere in the text: it sets the page to a named set and plays it.
+**`Hear`**: `set`, `label` (what the button says; "Hear" when left out), `show`. A card's
+button anywhere in the text: it sets the page to a named set and plays it. With `show` the
+set's settings are printed after the button, small, in the words a card prints its own in, so
+the numbers its sentence speaks of are on the page and not only in the settings file.
 
 ```mdx
 <Hear set="pump" label="Hear it pump" />
+
+The release is short enough to hear the gaps rise. <Hear set="pump" label="Hear it pump" show />
 ```
 
 #### Numbers and names
@@ -850,6 +968,8 @@ by a typed number.
 
 ```mdx
 The detector's filter is the one of <Lesson id="one-pole" />.
+
+<Lesson id="one-pole" cap /> builds that filter.
 ```
 
 **`Aside`**: `title`. A box beside the run of the text.
@@ -964,8 +1084,11 @@ the tokens of `src/styles/site.css`, never from a colour written in the componen
 prints a key of its lines by name. Controls of the figure's own (a place to look at, a button
 that turns something) go in one element of the class `controls`: the page hides it until
 scripts run, so a page read with scripts off shows no control that would do nothing. An axis's
-title is written after the lines, with `plateText` of `src/figures/canvas.ts`, so that no line
-strikes it out.
+title stands outside the plotted area, where no line can run under it: hand it to `drawGrid`
+of `src/figures/canvas.ts` as the axis's `title`, start the plotted area at `topEdge(title)`
+where the y axis has one, and hand that in as `top`, as `Plot.tsx` does. A label inside the
+plotted area, such as a dashed line's name, is written after the lines with `plateText`, so
+that no line strikes it out.
 
 ## Looking at the page
 

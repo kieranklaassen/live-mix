@@ -2,7 +2,9 @@
 // An equation, set when the site is built: <M t={String.raw`y[n] = x[n] + a\,y[n-1]`} />, and
 // with `block` on a line of its own. Two commands are added to the mathematics:
 // \sig{out}{y[n]} sets a term in the colour of a signal's role (in, out, ctl, alt, alt2, alt3),
-// and \at{filters-L19}{a} links a term to a line of a listing on the page.
+// and \at{pole-step}{a} links a term to the line of the listing `pole` that its `at` gives the
+// key `step`. A link may stand round a term that holds a link of its own, such as a fraction
+// with a linked numerator: the inner term goes to its own line, the rest to the outer one's.
 import { mathsHtml } from '../../lib/maths.ts'
 
 interface Props {

@@ -3,7 +3,7 @@
 // when a typeface arrives.
 
 import { useEffect, useRef, type RefObject } from 'react'
-import { label, ticks, type Axis } from './draw.ts'
+import { tickLabels, ticks, type Axis } from './draw.ts'
 import { ROLE_VAR, type Role } from './roles.ts'
 
 /** The room round a picture for its numbers. */
@@ -16,7 +16,7 @@ export const EDGE = { left: 44, right: 10, top: 8, bottom: 22 }
 export let MONO = '10px monospace'
 
 /** How far one character of a number runs: 10 px of a mono face, where every character is as wide. */
-const DIGIT = 6
+export const DIGIT = 6
 
 export interface Colours {
   role: Record<Role, string>
@@ -165,25 +165,43 @@ export function plateText(
   context.fillText(text, x, y)
 }
 
+/** The room a y axis's title takes above a picture: one row of the picture's type. */
+export const TITLE_ROW = 13
+
+/**
+ * Where a picture's plotted area starts, from the top of its canvas: under the room for its
+ * numbers, and one row lower when its y axis has a title, which stands in that row.
+ */
+export const topEdge = (yTitle?: string): number => EDGE.top + (yTitle ? TITLE_ROW : 0)
+
 /**
  * The grid of a picture and its numbers: a line across at each round value of `y`, a line up at
  * each of `x`, and the frame round them, `w` by `h` inside EDGE. `at` says where a value stands.
  * A number along the bottom that would run into the one before it, or off the picture, is left
  * out; its line is still drawn. Every figure with axes draws its grid here, once.
+ *
+ * An axis's `title` is written outside the plotted area, where no line of the picture can run
+ * under it. The x axis's stands at the right of the row of numbers under the picture, and a
+ * number that would run into it is left out. The y axis's stands over the picture's top left
+ * corner: a figure that gives one starts its plotted area at `topEdge(title)` and hands that in
+ * as `top`, which is EDGE.top when left out.
  */
 export function drawGrid(
   context: CanvasRenderingContext2D,
   c: Colours,
   w: number,
   h: number,
-  x: { axis: Axis; at: (value: number) => number },
-  y: { axis: Axis; at: (value: number) => number },
+  x: { axis: Axis; at: (value: number) => number; title?: string },
+  y: { axis: Axis; at: (value: number) => number; title?: string },
+  top: number = EDGE.top,
 ): void {
   context.font = MONO
   context.lineWidth = 1
   context.textBaseline = 'middle'
   context.textAlign = 'right'
-  for (const value of ticks(y.axis, Math.max(2, Math.round(h / 44)))) {
+  const up = ticks(y.axis, Math.max(2, Math.round(h / 44)))
+  const upText = tickLabels(up)
+  for (const [index, value] of up.entries()) {
     const at = Math.round(y.at(value)) + 0.5
     context.strokeStyle = value === 0 ? c.line : c.grid
     context.beginPath()
@@ -191,26 +209,44 @@ export function drawGrid(
     context.lineTo(EDGE.left + w, at)
     context.stroke()
     context.fillStyle = c.muted
-    context.fillText(label(value), EDGE.left - 6, at)
+    context.fillText(upText[index]!, EDGE.left - 6, at)
   }
   context.textBaseline = 'top'
   context.textAlign = 'center'
+  // The x axis's title takes the right of the row; a number gives way to it.
+  const titleStart = x.title ? EDGE.left + w - context.measureText(x.title).width : Infinity
   let lastLabelEnd = -Infinity
-  for (const value of ticks(x.axis, Math.max(2, Math.round(w / 90)))) {
+  const along = ticks(x.axis, Math.max(2, Math.round(w / 90)))
+  const alongText = tickLabels(along)
+  for (const [index, value] of along.entries()) {
     const at = Math.round(x.at(value)) + 0.5
     context.strokeStyle = c.grid
     context.beginPath()
-    context.moveTo(at, EDGE.top)
-    context.lineTo(at, EDGE.top + h)
+    context.moveTo(at, top)
+    context.lineTo(at, top + h)
     context.stroke()
-    const text = label(value)
+    const text = alongText[index]!
     const half = (text.length * DIGIT) / 2
-    if (at - half > lastLabelEnd + 6 && at + half <= EDGE.left + w + EDGE.right) {
+    if (
+      at - half > lastLabelEnd + 6 &&
+      at + half <= EDGE.left + w + EDGE.right &&
+      at + half < titleStart - 6
+    ) {
       context.fillStyle = c.muted
-      context.fillText(text, at, EDGE.top + h + 6)
+      context.fillText(text, at, top + h + 6)
       lastLabelEnd = at + half
     }
   }
+  context.fillStyle = c.muted
+  if (x.title) {
+    context.textAlign = 'right'
+    context.fillText(x.title, EDGE.left + w, top + h + 6)
+  }
+  if (y.title) {
+    context.textAlign = 'left'
+    context.textBaseline = 'bottom'
+    context.fillText(y.title, EDGE.left, top - 8)
+  }
   context.strokeStyle = c.line
-  context.strokeRect(EDGE.left + 0.5, EDGE.top + 0.5, w - 1, h - 1)
+  context.strokeRect(EDGE.left + 0.5, top + 0.5, w - 1, h - 1)
 }

@@ -74,6 +74,99 @@ describe(String.raw`\at`, () => {
   it('refuses a line by its number, which moves when the file does', () => {
     expect(() => mathsHtml(String.raw`\at{filters-L19}{a}`)).toThrow(/a line by its number/)
   })
+
+  /**
+   * The part of an equation a browser shows: the renderer's HTML without its MathML, and
+   * without the ends of the one or two elements the two are wrapped in.
+   */
+  function shown(html: string): string {
+    const from = html.indexOf('<span class="katex-html"')
+    const wrapped = html.slice(0, from).match(/<span class="katex(-display)?">/g)!.length
+    return html.slice(from, html.length - wrapped * '</span>'.length)
+  }
+
+  /**
+   * The links of a piece of HTML, each as its address and the text in it, read as a browser
+   * reads tags: it throws on a link inside a link, which HTML does not have (a browser ends
+   * the first where the second starts, and whatever the first held is drawn apart), and on a
+   * tag that is closed out of its turn.
+   */
+  function links(html: string): [href: string, text: string][] {
+    const found: [string, string][] = []
+    const open: string[] = []
+    let link: [string, string] | undefined
+    for (const [token, closing, tag, attributes] of html.matchAll(
+      /<(\/?)([a-zA-Z][\w-]*)([^>]*)>|[^<]+/g,
+    )) {
+      if (tag === undefined) {
+        if (link) link[1] += token
+      } else if (attributes!.endsWith('/')) {
+        continue
+      } else if (closing) {
+        if (open.pop() !== tag) throw new Error(`</${tag}> closes a tag that is not open`)
+        if (tag === 'a') link = undefined
+      } else {
+        open.push(tag)
+        if (tag !== 'a') continue
+        if (link) throw new Error(`A link stands inside the link to ${link[0]}`)
+        link = [/href="([^"]*)"/.exec(attributes!)![1]!, '']
+        found.push(link)
+      }
+    }
+    if (open.length > 0) throw new Error(`<${open.at(-1)}> is never closed`)
+    return found
+  }
+
+  it('reads a link inside a link as the fault it is, in the renderer left to itself', () => {
+    const html = katex.renderToString(String.raw`\href{#a}{\frac{\href{#b}{x}}{y}}`, {
+      trust: true,
+      strict: 'ignore',
+    })
+    expect(() => links(shown(html))).toThrow('A link stands inside the link to #a')
+  })
+
+  it('keeps a fraction whole when a link round it holds a term with a link of its own', () => {
+    const html = shown(
+      mathsHtml(String.raw`g = \at{comp-gain}{\frac{\at{comp-over}{x}}{1 + \sig{ctl}{r}}}`, true),
+    )
+    // No link is inside another. The term with a link of its own goes to its own line, and
+    // every other term of the fraction goes to the line the whole fraction was linked to.
+    expect(links(html)).toEqual([
+      ['#comp-gain', '1'],
+      ['#comp-gain', '+'],
+      ['#comp-gain', 'r'],
+      ['#comp-over', 'x'],
+    ])
+    expect(html).toContain('class="mfrac"')
+    expect(html).toContain('class="enclosing sig-ctl"')
+    expect(html).not.toContain(REFUSED)
+  })
+
+  it('does the same three deep, each term going to the nearest link round it', () => {
+    const html = shown(mathsHtml(String.raw`\at{l-a}{p + \frac{\at{l-b}{q \cdot \at{l-c}{s}}}{t}}`))
+    expect(links(html)).toEqual([
+      ['#l-a', 'p'],
+      ['#l-a', '+'],
+      ['#l-a', 't'],
+      ['#l-b', 'q'],
+      ['#l-b', '⋅'],
+      ['#l-c', 's'],
+    ])
+  })
+
+  it('leaves an equation whose links hold no link exactly as the renderer wrote it', () => {
+    const source = String.raw`\frac{\href{#l-a}{x}}{\href{#l-b}{y}} + \href{#l-c}{\frac{1}{z}}`
+    const plain = katex.renderToString(source, {
+      output: 'htmlAndMathml',
+      trust: true,
+      strict: 'ignore',
+    })
+    // The MathML carries the source as it was written, so only what is shown is compared.
+    expect(shown(mathsHtml(source.replaceAll(String.raw`\href{#`, String.raw`\at{`)))).toBe(
+      shown(plain),
+    )
+    expect(links(shown(plain)).map(([href]) => href)).toEqual(['#l-b', '#l-a', '#l-c'])
+  })
 })
 
 describe('a command outside the two', () => {

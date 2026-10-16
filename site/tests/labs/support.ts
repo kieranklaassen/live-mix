@@ -12,6 +12,7 @@ import {
   type RenderResult,
   type Source,
   type TapData,
+  type Values,
 } from '../../src/lab/runner.ts'
 import { benchSource, silence } from '../../src/lib/still.ts'
 
@@ -217,12 +218,17 @@ const isBuilt = (id: string) => id.startsWith('built')
  *
  * `quiet` names taps that are rightly one flat value. `steps` names audio taps that start on an
  * event by design. When the source itself starts on one, every tap is held as those are.
+ *
+ * `when` names controls that rightly move nothing at the lab's starting values, each with the
+ * values at which it does act: `{ when: { tilt: { mode: 1 } } }` for a control that acts in one
+ * mode only. Such a control is not asked to move a tap at the start; it must move one of the
+ * main path at the values given.
  */
 export function expectSoundLab(
   theLab: Lab,
   source: Source,
   result: RenderResult,
-  options: { quiet?: string[]; steps?: string[] } = {},
+  options: { quiet?: string[]; steps?: string[]; when?: Record<string, Values> } = {},
 ) {
   const struck = startsOnAnEvent(source)
   for (const tap of Object.values(result.taps)) {
@@ -241,18 +247,31 @@ export function expectSoundLab(
     }
     if (tap.kind === 'audio') expectLoops(tap, struck || !!options.steps?.includes(tap.id))
   }
+  for (const id of Object.keys(options.when ?? {})) {
+    expect(
+      theLab.description.controls.some((control) => control.id === id),
+      `"${id}" is a control of the lab`,
+    ).toBe(true)
+  }
   for (const control of theLab.description.controls) {
-    const moved = control.initial === control.max ? control.min : control.max
-    const other = theLab.render(source, { [control.id]: moved })
+    // Where the control acts: at the starting values, or at the values the test gives for it.
+    const at = options.when?.[control.id]
+    const from = at ? theLab.render(source, at) : result
+    const start = at?.[control.id] ?? control.initial
+    const moved = start === control.max ? control.min : control.max
+    const other = theLab.render(source, { ...at, [control.id]: moved })
     const building = control.id === 'build'
     const changed = Object.values(other.taps).some(
-      (tap) => isBuilt(tap.id) === building && !same(tap, result.taps[tap.id]),
+      (tap) => isBuilt(tap.id) === building && !same(tap, from.taps[tap.id]),
     )
+    const where = Object.entries(at ?? {})
+      .map(([id, value]) => `${id} at ${value}`)
+      .join(', ')
     expect(
       changed,
       building
         ? 'the build control changes a built tap'
-        : `control ${control.id} changes a tap of the main path`,
+        : `control ${control.id} changes a tap of the main path${where ? ` with ${where}` : ''}`,
     ).toBe(true)
   }
 }
@@ -265,17 +284,39 @@ export function expectSoundLab(
  *
  * `values` turns controls for every step: a piece that does nothing at the lab's starting values
  * (a make-up gain of 0 dB) needs its control turned before its step can change the sound.
+ *
+ * `steps` is the number of steps the build has, for a lab whose `build` control does not say it
+ * by itself: one that does not start at 0, or one with a choice after the last step that is no
+ * step of the build and is not held as one. The steps are then the control's first values, that
+ * many, and the step held to the engine is counted from the first of them. Without it the
+ * control has a choice a step and runs from 0, as lab::Build makes it.
  */
-export function expectBuild(theLab: Lab, source: Source, values: Record<string, number> = {}) {
+export function expectBuild(
+  theLab: Lab,
+  source: Source,
+  values: Record<string, number> = {},
+  options: { steps?: number } = {},
+) {
   const { controls, taps, checks } = theLab.description
   const control = controls.find((one) => one.id === 'build')
   if (!control) throw new Error('The lab has no build control')
-  const steps = control.choices.length
-  expect(steps, 'the build control has a choice a step').toBeGreaterThanOrEqual(2)
-  expect(
-    [control.min, control.max],
-    'the build control runs from its first step to its last',
-  ).toEqual([0, steps - 1])
+  const steps = options.steps ?? control.choices.length
+  if (options.steps === undefined) {
+    expect(steps, 'the build control has a choice a step').toBeGreaterThanOrEqual(2)
+    expect(
+      [control.min, control.max],
+      'the build control runs from its first step to its last',
+    ).toEqual([0, steps - 1])
+  } else {
+    expect(steps, 'the build has two steps or more').toBeGreaterThanOrEqual(2)
+    expect(
+      control.min + steps - 1,
+      `the build control has a value for each of the ${steps} steps`,
+    ).toBeLessThanOrEqual(control.max)
+  }
+  /** What a step is called: its number from 0 and its name, where the control names it. */
+  const called = (step: number) =>
+    control.choices[step] === undefined ? `step ${step}` : `step ${step} (${control.choices[step]})`
   expect(taps.find((tap) => tap.id === 'built')?.kind, 'the tap "built" is the sound so far').toBe(
     'audio',
   )
@@ -287,12 +328,12 @@ export function expectBuild(theLab: Lab, source: Source, values: Record<string, 
   }
 
   const struck = startsOnAnEvent(source)
-  const renders = control.choices.map((_, step) =>
-    theLab.render(source, { ...values, build: step }),
+  const renders = Array.from({ length: steps }, (_, step) =>
+    theLab.render(source, { ...values, build: control.min + step }),
   )
   const said = new Set<string>()
   renders.forEach((result, step) => {
-    const name = `step ${step} (${control.choices[step]})`
+    const name = called(step)
     const compared = result.checks.builtStep!
     expect(
       Number.isInteger(compared) && compared >= 0 && compared < steps,

@@ -12,7 +12,7 @@ import Sounds from '../../components/lesson/Sounds.astro'
 import DeviceBench from '../../figures/DeviceBench.tsx'
 import Mark from '../../figures/Mark.astro'
 import PlayBar from '../../figures/PlayBar.tsx'
-import { catalogueEntry } from '../../lib/devices.ts'
+import { catalogueEntry, paramDefault, paramRange } from '../../lib/devices.ts'
 import { labInfo } from '../../lib/lab-info.ts'
 import { MAP, places } from '../../lib/lesson-map.ts'
 import {
@@ -71,6 +71,9 @@ const bench = data.bench
 const benchRuns =
   bench?.as === 'instrument' ? 'played a short phrase that comes round' : 'on the same loop'
 const devices = data.devices.map((id) => deviceOrThrow(id, 'it names'))
+// A lesson about two devices has one on the bench; the others (`bench.also`) are shown in the
+// last part by their controls and their links, with no plate of their own.
+const also = (bench?.also ?? []).map((id) => deviceOrThrow(id, 'its bench names'))
 
 // The long shape: the nine parts under a hero, as the map and the lesson's own text give them.
 // A lesson that does not carry `long` yet renders below as it always has.
@@ -137,9 +140,9 @@ const labTest = inRepo(`site/tests/labs/${data.lab}.test.ts`)
             <>
               <p>
                 Everything above ran in a lab: the engine's code, stopped at each stage so it could
-                be looked at. Here is{' '}
-                <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a> itself, running
-                live through the engine as an app runs it, {benchRuns}.
+                be looked at. Here is the real device,{' '}
+                <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a>, running live
+                through the engine as an app runs it, {benchRuns}.
               </p>
               {bench.note && <p>{bench.note}</p>}
             </>
@@ -200,6 +203,55 @@ const labTest = inRepo(`site/tests/labs/${data.lab}.test.ts`)
               </a>
             )}
           </div>
+          {also.map((device) => (
+            <>
+              <h3 id={`also-${device.id}`}>{device.name}</h3>
+              <p>
+                This lesson is about <a href={href(`devices/${device.id}/`)}>{device.name}</a> as
+                well. It has no plate here, and its own page has one to try. Its controls, as the
+                library lists them:
+              </p>
+              <div class="device-table" data-device-also={device.id}>
+                <div class="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col">Control</th>
+                        <th scope="col">Range</th>
+                        <th scope="col">The device starts at</th>
+                        <th scope="col">Unit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {device.params.map((param) => (
+                        <tr data-row={param.key}>
+                          <th scope="row">{param.name}</th>
+                          <td>{paramRange(param)}</td>
+                          <td>{paramDefault(param)}</td>
+                          <td>{param.unit}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="lesson-cards device-links">
+                <a class="lesson-card" href={href(`devices/${device.id}/`)}>
+                  <span class="lesson-card-tag">the device's page</span>
+                  <b>Every control, explained</b>
+                  <span>
+                    Its ranges, its defaults and what each control is for, with the device to try by
+                    itself.
+                  </span>
+                </a>
+                <a class="lesson-card" href={sourceUrl(device.source)}>
+                  <span class="lesson-card-tag">{device.source}</span>
+                  <b>Read the source</b>
+                  <span>The device's code, as it stood when this page was built.</span>
+                </a>
+              </div>
+            </>
+          ))}
           <h3 id="in-the-engine">The code this lesson ran and read</h3>
           <ul class="files">
             {data.files.map((file) => (
@@ -312,8 +364,9 @@ const labTest = inRepo(`site/tests/labs/${data.lab}.test.ts`)
             <h2 id="the-real-device">The real device</h2>
             <p>
               Everything above ran in a lab: the engine's code, stopped at each stage so it could be
-              looked at. Here is <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a>{' '}
-              itself, running live through the engine as an app runs it, {benchRuns}.
+              looked at. Here is the real device,{' '}
+              <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a>, running live
+              through the engine as an app runs it, {benchRuns}.
             </p>
             {bench.note && <p>{bench.note}</p>}
             <Mark />

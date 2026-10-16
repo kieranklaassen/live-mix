@@ -93,9 +93,31 @@ export function openingTaps(
   return opening
 }
 
+/**
+ * One of a unit that is a plural word: "octaves" is "octave", "passes" is "pass". A plural word
+ * is four or more small letters that end in an s and hold a vowel, so an abbreviation ("s",
+ * "ms", "Hz", "kbps") and a unit of several words are left as they are, and so is a word that
+ * only ends like one ("gauss"). Undefined for a unit that is not a plural word.
+ */
+function singular(unit: string): string | undefined {
+  if (!/^[a-z]{3,}s$/.test(unit) || !/[aeiouy]/.test(unit) || /(ss|us|is)$/.test(unit)) {
+    return undefined
+  }
+  return /(ss|sh|ch|x)es$/.test(unit) ? unit.slice(0, -2) : unit.slice(0, -1)
+}
+
+/**
+ * A number with a control's unit, as a control and a card print it. Where the unit is a plural
+ * word and the number printed is 1, the unit is written in the singular: "1 octave".
+ */
+export function valueWithUnit(value: number, unit: string): string {
+  const printed = withUnit(value, unit)
+  return printed === withUnit(1, unit) ? withUnit(value, singular(unit) ?? unit) : printed
+}
+
 /** A control's value as the page prints it: the choice's name, or the number with its unit. */
 export function valueInWords(control: ControlInfo, value: number): string {
-  return control.choices[Math.round(value) - control.min] ?? withUnit(value, control.unit)
+  return control.choices[Math.round(value) - control.min] ?? valueWithUnit(value, control.unit)
 }
 
 export interface SetInWords {

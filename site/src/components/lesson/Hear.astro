@@ -2,11 +2,14 @@
 // A card's button: <Hear set="pump" /> sets the page to one of the lesson's named sets
 // (src/content/settings/<lesson>.json) and plays it. It is lit while its card is the one that
 // sounds, and busy from the press until the render that carries the set lands.
+// <Hear set="pump" show /> prints the set's settings after the button, small, in the words a
+// card prints its own in: for a button in a sentence that speaks of the set's numbers.
 import { getEntry } from 'astro:content'
 import Hear from '../../figures/Hear.tsx'
 import Mark from '../../figures/Mark.astro'
 import { countOnPage } from '../../figures/once.ts'
 import { pageLab } from '../../lib/lab-info.ts'
+import { setInWords } from '../../lib/parts.ts'
 import { lessonSettings, setNamed } from '../../lib/settings.ts'
 
 interface Props {
@@ -14,9 +17,11 @@ interface Props {
   set: string
   /** What the button says. */
   label?: string
+  /** Print the set's settings after the button, as a card prints its own. */
+  show?: boolean
 }
-const { set, label = 'Hear' } = Astro.props
-const { lesson } = pageLab(Astro.locals)
+const { set, label = 'Hear', show = false } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
 const entry = await getEntry('lessons', lesson)
 if (!entry) throw new Error(`${lesson}: a card's button was used on a page that is not a lesson's.`)
 const { label: called, ...named } = setNamed(await lessonSettings(entry), set, lesson)
@@ -24,7 +29,27 @@ const { label: called, ...named } = setNamed(await lessonSettings(entry), set, l
 // Two cards may play one set: each is lit by its own press, so each has an id of its own.
 const nth = countOnPage(Astro.locals, `card ${set}`)
 const id = nth === 1 ? set : `${set}-${nth}`
+
+// The set in words, as a card prints it: one run of items with nothing between them, so that
+// the styles alone space them.
+const words = show ? setInWords(lab, named) : undefined
+const shown: { text: string; setting?: string; source?: boolean }[] = words
+  ? [
+      ...words.settings.map((one) => ({ setting: one.id, text: `${one.name} ${one.value}` })),
+      ...(words.settings.length === 0 ? [{ text: "the lesson's starting settings" }] : []),
+      ...(words.source ? [{ source: true, text: `on ${words.source}` }] : []),
+    ]
+  : []
 ---
 
 <Mark />
 <Hear client:visible card={{ id, label: called }} set={named} label={label} />
+{shown.length > 0 && (
+  <span class="hear-settings" data-hear-settings={set}>
+    {shown.map((one) => (
+      <span data-setting={one.setting} data-setting-source={one.source}>
+        {one.text}
+      </span>
+    ))}
+  </span>
+)}

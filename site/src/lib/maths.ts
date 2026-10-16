@@ -41,8 +41,52 @@ function trusted(context: { command: string; class?: string; url?: string }): bo
   )
 }
 
+/**
+ * The renderer's HTML with no link inside a link. `\at{a}{\frac{\at{b}{x}}{y}}` comes out of the
+ * renderer as a link that holds a link, which HTML does not have: a browser ends the outer one
+ * where the inner one starts, and the fraction they held is drawn apart. So a link that holds
+ * another is taken off its term and put on each piece of text in the term that has no nearer
+ * link of its own: the inner term still goes to its own line, and the rest of the outer term
+ * to the outer one's. An equation with no link inside a link comes back as it was.
+ */
+export function unnestLinks(html: string): string {
+  // A link's own tag, with whether it closes and what it carries; any other tag; or text.
+  const tokens = [...html.matchAll(/<(\/?)a\b([^>]*)>|<[^>]*>|[^<]+/g)]
+  // Which links hold another: the ones still open where a link opens.
+  const holds = new Set<number>()
+  const open: number[] = []
+  tokens.forEach(([, closing], index) => {
+    if (closing === undefined) return
+    if (closing) open.pop()
+    else {
+      for (const outer of open) holds.add(outer)
+      open.push(index)
+    }
+  })
+  if (holds.size === 0) return html
+
+  /** The links open at this point, the nearest last: its address, and whether it holds another. */
+  const round: { href: string; split: boolean }[] = []
+  return tokens
+    .map(([token, closing, attributes], index) => {
+      if (!token.startsWith('<')) {
+        const near = round.at(-1)
+        // Text that only keeps a line's height (a space of no width) is nothing to press.
+        return near?.split && /[^\s\u200b]/.test(token)
+          ? `<a href="${near.href}">${token}</a>`
+          : token
+      }
+      if (closing === undefined) return token
+      if (closing) return round.pop()!.split ? '</span>' : token
+      const split = holds.has(index)
+      round.push({ href: /\bhref="([^"]*)"/.exec(attributes!)?.[1] ?? '', split })
+      return split ? `<span${attributes!.replace(/\s*\bhref="[^"]*"/, '')}>` : token
+    })
+    .join('')
+}
+
 export function mathsHtml(t: string, block = false): string {
-  return katex.renderToString(t, {
+  const html = katex.renderToString(t, {
     displayMode: block,
     throwOnError: true,
     output: 'htmlAndMathml',
@@ -52,4 +96,5 @@ export function mathsHtml(t: string, block = false): string {
     // The two commands are extensions of HTML, which the renderer would warn of at each use.
     strict: (code: string) => (code === 'htmlExtension' ? 'ignore' : 'warn'),
   })
+  return unnestLinks(html)
 }

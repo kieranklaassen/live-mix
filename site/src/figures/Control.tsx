@@ -9,8 +9,8 @@
 import { Knob } from '../../../src/react/components/Knob.tsx'
 import { labStore, useLab } from '../lab/page.ts'
 import type { ControlInfo } from '../lab/describe.ts'
+import { valueWithUnit } from '../lib/parts.ts'
 import Choices from './Choices.tsx'
-import { withUnit } from './draw.ts'
 
 /** The knob's width across, in pixels. */
 const SIZE = 40
@@ -58,12 +58,12 @@ export function Control({ control }: { control: ControlInfo }) {
         wheel={false}
         size={SIZE}
         disabled={!ready}
-        format={(shown) => withUnit(shown, control.unit)}
+        format={(shown) => valueWithUnit(shown, control.unit)}
         hideLabel
         hideValue
         onChange={(next) => labStore().setValue(control.id, next)}
       />
-      <output className="dial-value">{withUnit(value, control.unit)}</output>
+      <output className="dial-value">{valueWithUnit(value, control.unit)}</output>
     </div>
   )
 }

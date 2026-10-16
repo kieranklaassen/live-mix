@@ -63,6 +63,11 @@ const lessons = defineCollection({
         /** 'insert' for an effect on the loop, 'send' for a wet-only device, 'instrument' for one that plays. */
         as: z.enum(['insert', 'send', 'instrument']).default('insert'),
         note: z.string().optional(),
+        /**
+         * The lesson's other devices, by id, for a lesson about more than one: the last part
+         * shows each by its controls and its links, with no plate of its own.
+         */
+        also: z.array(z.string()).default([]),
         /** For a device that takes an impulse: the engine's room, by its decay and its seed. */
         impulse: z.object({ seconds: z.number().positive(), seed: z.number().int() }).optional(),
       })

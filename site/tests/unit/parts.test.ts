@@ -8,6 +8,7 @@ import {
   partsIn,
   setInWords,
   valueInWords,
+  valueWithUnit,
 } from '../../src/lib/parts.ts'
 
 const control = (
@@ -155,6 +156,30 @@ describe('a value in words', () => {
   it('is the name of the choice, for a control of a few choices', () => {
     expect(valueInWords(lab.controls[3]!, 0)).toBe('Hold')
     expect(valueInWords(lab.controls[3]!, 1)).toBe('Release')
+  })
+
+  it('is one of a thing in the singular, where the unit is a plural word', () => {
+    const span = control(9, 'span', 'Span', 'octaves', 0, 4, 2)
+    expect(valueInWords(span, 1)).toBe('1 octave')
+    expect(valueInWords(span, 2)).toBe('2 octaves')
+    expect(valueInWords(span, 0)).toBe('0 octaves')
+    expect(valueInWords(span, 0.5)).toBe('0.5 octaves')
+    expect(valueInWords(span, 1.5)).toBe('1.5 octaves')
+    // What is printed as 1 is one of them: a float that is not quite 1 reads "1" too.
+    expect(valueInWords(span, 1.0000001192092896)).toBe('1 octave')
+    expect(valueWithUnit(1, 'samples')).toBe('1 sample')
+    expect(valueWithUnit(1, 'cents')).toBe('1 cent')
+    expect(valueWithUnit(1, 'passes')).toBe('1 pass')
+    expect(valueWithUnit(3, 'passes')).toBe('3 passes')
+  })
+
+  it('leaves a unit that is not a plural word as it is', () => {
+    for (const unit of ['s', 'ms', 'Hz', 'dB', 'st', 'oct', 'bit', 'a second', 'kbps', 'gauss']) {
+      expect(valueWithUnit(1, unit)).toBe(`1 ${unit}`)
+    }
+    expect(valueWithUnit(1, '%')).toBe('1%')
+    expect(valueWithUnit(1, ':1')).toBe('1:1')
+    expect(valueWithUnit(1, '')).toBe('1')
   })
 })
 

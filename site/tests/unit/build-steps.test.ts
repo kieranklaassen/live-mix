@@ -175,10 +175,12 @@ describe('where the steps go', () => {
   })
 
   it('names on Add the piece that comes next, and at the end says it starts again', () => {
-    expect(addLabel(0, NAMES)).toBe('Add: measure the level')
-    expect(addLabel(1, NAMES)).toBe('Add: threshold and ratio')
+    expect(addLabel(0, NAMES)).toBe('Add: Measure the level')
+    expect(addLabel(1, NAMES)).toBe('Add: Threshold and ratio')
     expect(addLabel(2, NAMES)).toBe('Start again')
-    // A name that opens with an abbreviation keeps its capitals.
+    // A piece is named as the lab names it: a control's name inside it keeps its capital, and
+    // so does the piece's own first word.
+    expect(addLabel(0, ['A wire', 'Drive and Output'])).toBe('Add: Drive and Output')
     expect(addLabel(0, ['A wire', 'RMS detector'])).toBe('Add: RMS detector')
   })
 

@@ -79,6 +79,21 @@
   opacity: 0.5;
   cursor: default;
 }
+/* The settings a sentence's button plays, after the button, small, as a card prints its own. */
+.hear-settings {
+  margin-left: 0.75em;
+  font-family: var(--lm-font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.hear-settings > span {
+  display: inline-block;
+}
+.hear-settings > span:not(:last-child)::after {
+  content: '·';
+  margin: 0 0.5em;
+  color: var(--lm-muted);
+}
 .hear:focus-visible,
 .sounds-choices button:focus-visible,
 .dial-choices button:focus-visible,
@@ -293,6 +308,45 @@
   font-size: 0.86rem;
   color: var(--lm-muted);
 }
+/* In a narrow figure (figures/Lanes.tsx says when) each name stands above its lane, in one line,
+   with its range at the line's other end. The names lie over the picture, which leaves a row
+   clear above each lane for them. */
+.lanes[data-names='above'] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.lanes[data-names='above'] > * {
+  grid-area: 1 / 1;
+}
+.lanes[data-names='above'] .lanes-names {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+  font-size: 11px;
+}
+.lanes[data-names='above'] .lanes-names li {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 20px;
+}
+.lanes[data-names='above'] .lanes-name {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lanes[data-names='above'] .lanes-name i {
+  margin-right: 5px;
+  vertical-align: middle;
+  transform: none;
+}
+.lanes[data-names='above'] .lanes-range {
+  flex: none;
+  padding-left: 0;
+  font-size: 10px;
+}
 
 /* ---- the build part ------------------------------------------------------ */
 
@@ -498,7 +552,7 @@
   height: auto;
   margin: 0 auto;
 }
-/* Sound in the colour of the text; a value worked out from it in the colour of a control signal. */
+/* Sound in the colour of the text; a value, worked out or set by hand, in a control signal's. */
 .flow [data-signal='sound'] {
   --flow-ink: var(--lm-text);
 }
@@ -609,12 +663,27 @@
 }
 .stage-block-equation,
 .stage-block-readback,
-.stage-block-listing {
+.stage-block-listing,
+.stage-block-after {
   margin: 16px 0;
+}
+/* Text that goes on under the listing, set as the stage's own text is. */
+.stage-block-after > :last-child {
+  margin-bottom: 0;
 }
 .stage-block-listen,
 .stage-block-kind {
   margin: 16px 0 0;
+}
+
+/* ---- cards: four stand two and two --------------------------------------- */
+
+/* Three columns leave the fourth of four cards alone on a row of its own. A grid of exactly
+   four keeps each column wider than a third of the grid, so at most two fit: two and two where
+   there is room, one under another on a phone. Five or six stand three to a row, as the grid
+   lays them out by itself (lesson.css). */
+.lesson-cards:has(> :nth-child(4):last-child) {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(250px, 34%)), 1fr));
 }
 
 /* ---- the play bar: the way back ------------------------------------------ */

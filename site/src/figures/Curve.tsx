@@ -20,7 +20,11 @@ interface Props {
   xMax?: number
   /** A logarithmic x axis, for a response against frequency. */
   xLog?: boolean
-  stems?: boolean
+  /**
+   * Curves drawn as a dot on a stem for each point: every one (`stems`), or those of the taps
+   * named by id (`stems="frame"`, or a list), the others staying lines.
+   */
+  stems?: boolean | string | readonly string[]
   /** Controls drawn as a line across (`lines`) or up (`uprights`) the picture: [id, name] pairs. */
   lines?: [string, string][]
   uprights?: [string, string][]
@@ -36,6 +40,9 @@ export default function Curve(props: Props) {
   const { taps, lines = [], uprights = [], follow } = props
   const state = useLab()
   const result = state.result
+  const stemmed = (id: string) =>
+    props.stems === true ||
+    (typeof props.stems === 'string' ? props.stems.split(/[\s,]+/) : props.stems || []).includes(id)
   let lo = Infinity
   let hi = -Infinity
   let x0 = Infinity
@@ -59,7 +66,7 @@ export default function Curve(props: Props) {
       x1: found.x1,
       xLog: found.log,
       unit: tap.unit,
-      stems: props.stems,
+      stems: stemmed(tap.id),
       dashed: tap.origin === 'lesson' && taps.length > 1 && tap !== taps[0],
     }
   })

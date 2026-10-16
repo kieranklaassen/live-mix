@@ -6,7 +6,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import Stage from '../../src/figures/Stage.tsx'
 import { tapRefs } from '../../src/figures/roles.ts'
-import type { TapInfo } from '../../src/lab/describe.ts'
+import { describeLab, ORIGINS, ORIGIN_TEXT, type TapInfo } from '../../src/lab/describe.ts'
+import type { LabExports } from '../../src/lab/wasm.ts'
 import { labInfo } from '../../src/lib/lab-info.ts'
 import { checkClaims, claimsIn, holds } from '../../scripts/check-claims.mjs'
 
@@ -84,6 +85,47 @@ describe('a stage', () => {
     expect(html('level')).not.toContain('<button')
     expect(html('level')).toContain('A value over time')
     expect(html('level')).toContain('Written for this lesson')
+  })
+})
+
+describe('where a stage comes from', () => {
+  // The origins in the order site/labs/lab.h numbers them, each with the words the page prints.
+  const WORDS: [name: string, origin: string, words: string][] = [
+    ['kDevice', 'device', 'Read from the running device'],
+    ['kKit', 'kit', "Computed by the engine's kit"],
+    ['kLesson', 'lesson', 'Written for this lesson'],
+    ['kSource', 'source', 'The sound going in'],
+    ['kEngine', 'engine', "Made by the engine's own code"],
+    ['kCalled', 'called', 'Computed by an engine function called on its own'],
+  ]
+
+  it('has the origins lab.h declares, under the numbers it gives them', () => {
+    const header = fs.readFileSync(new URL('../../labs/lab.h', import.meta.url), 'utf8')
+    const [, body] = /enum Origin : int \{([^}]*)\}/.exec(header)!
+    const declared = body!.split(',').map((one) => one.trim().split(/\s*=\s*/))
+    expect(declared).toEqual(WORDS.map(([name], index) => [name, String(index)]))
+    expect(ORIGINS).toEqual(WORDS.map(([, origin]) => origin))
+  })
+
+  it('has words for each, and reads a function called on its own as that and not as the device', () => {
+    expect(ORIGIN_TEXT).toEqual(
+      Object.fromEntries(WORDS.map(([, origin, words]) => [origin, words])),
+    )
+    // A lab of two taps, as its module answers: the first read from the device, the second (5)
+    // a function of the engine that the lab called by itself.
+    const memory = new WebAssembly.Memory({ initial: 1 })
+    const answers: Record<string, unknown> = {
+      memory,
+      lab_tap_count: () => 2,
+      lab_tap_kind: () => 1,
+      lab_tap_origin: (i: number) => [0, 5][i],
+      lab_tap_channels: () => 1,
+    }
+    const exports = new Proxy(answers, {
+      get: (target, name: string) => target[name] ?? (() => 0),
+    }) as unknown as LabExports
+    expect(describeLab(exports).taps.map((tap) => tap.origin)).toEqual(['device', 'called'])
+    expect(ORIGIN_TEXT[describeLab(exports).taps[1]!.origin]).not.toBe(ORIGIN_TEXT.device)
   })
 })
 
