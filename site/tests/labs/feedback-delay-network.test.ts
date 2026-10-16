@@ -10,6 +10,7 @@ import {
   expectBuild,
   expectSoundLab,
   expectWritten,
+  FADE,
   gainToDb,
   lab,
   matchesWritten,
@@ -72,7 +73,7 @@ function decayTime(curve: Curve, from = -5, to = -35): number {
 }
 
 /** Seconds to fall 60 dB, from the energy of an answer in quarter-second windows from `from` to `to` seconds. */
-function lateDecayTime(response: Float32Array, from = 0.5, to = 2): number {
+function lateDecayTime(response: ArrayLike<number>, from = 0.5, to = 2): number {
   const points: [number, number][] = []
   for (let t = from; t + 0.25 <= to + 1e-9; t += 0.25) {
     let sum = 0
@@ -83,11 +84,16 @@ function lateDecayTime(response: Float32Array, from = 0.5, to = 2): number {
   return -60 / slope(points)
 }
 
-/** The value of a curve whose points stand in even ratios from x0 to x1, at `x`. */
+/**
+ * The value of a curve whose points stand in even ratios from x0 to x1, at `x`: on the straight
+ * line between the two points either side of it. The nearest point alone can stand 1.5 % away
+ * in frequency, which at 8 kHz is 0.02 dB of a trip's loss.
+ */
 function atRatio(curve: Curve, x: number): number {
   const data = curve.channels_data[0]!
   const place = (Math.log(x / curve.x0) / Math.log(curve.x1 / curve.x0)) * (data.length - 1)
-  return data[Math.round(place)]!
+  const below = Math.min(Math.max(Math.floor(place), 0), data.length - 2)
+  return data[below]! + (data[below + 1]! - data[below]!) * (place - below)
 }
 
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
@@ -243,6 +249,37 @@ describe('the feedback delay network', () => {
         }
       }
     }
+    // The finished build's two sides against what the device itself puts out. With Mix at 1
+    // the output is the wet signal wherever nothing is going in (where something is, the dry
+    // sound comes through at the cosine of a quarter turn, which a float holds as −0.00000004
+    // and not as nothing), so there the two are compared sample for sample.
+    const quiet = joined(await benchSource('drums', seconds(2)), silence(seconds(2)))
+    for (const source of [await benchSource('clicks', seconds(2)), quiet]) {
+      for (const values of settings) {
+        const out = fdn.render(source, { ...values, mix: 1, build: STEP.guards })
+        const dry = [source.left, source.right]
+        let compared = 0
+        let differing = 0
+        let leak = 0
+        for (const side of [0, 1]) {
+          const built = out.taps.built!.channels_data[side]!
+          const device = out.taps.out!.channels_data[side]!
+          for (let i = FADE; i < built.length; i += 1) {
+            if (dry[side]![i] !== 0) {
+              leak = Math.max(leak, Math.abs(built[i]! - device[i]!))
+              continue
+            }
+            compared += 1
+            if (built[i] !== device[i]) differing += 1
+          }
+        }
+        expect(compared, JSON.stringify(values)).toBeGreaterThan(seconds(3.9))
+        expect(differing, JSON.stringify(values)).toBe(0)
+        // Where the dry sound is not nothing, a trace of it is all that parts the two.
+        expect(leak, JSON.stringify(values)).toBeGreaterThan(0)
+        expectWritten(leak, 'less than 0.000001')
+      }
+    }
   })
 
   it('counts 12 echoes on the left in the first half second of eight lines, where one comb gave 4 (claim build-eight)', async () => {
@@ -337,11 +374,13 @@ describe('the feedback delay network', () => {
     expect(matchesWritten(tallest(STEP.movement), 'less than 1')).toBe(false)
   })
 
-  it("keeps energy in both of the kit's mixing matrices: every column of unit length and at right angles to the others, to within 0.00001 (claim matrix-keeps)", async () => {
+  it("keeps energy in both of the kit's mixing matrices: every column of unit length and at right angles to the others, to within 0.0000001 (claim matrix-keeps)", async () => {
     const fdn = await lab(NAME)
     const { checks } = fdn.render(click(seconds(1)), {})
-    expectWritten(checks.keeps!, 'less than 0.00001')
-    expectWritten(checks.keepsHouseholder!, 'less than 0.00001')
+    // Measured: 0.00000006 for the Hadamard matrix, one step of a float at 1, and 0 for the
+    // Householder.
+    expectWritten(checks.keeps!, 'less than 0.0000001')
+    expectWritten(checks.keepsHouseholder!, 'less than 0.0000001')
   })
 
   it("finds the device's own matrix to be the kit's Hadamard, entry for entry (claim same-matrix)", async () => {
@@ -396,7 +435,7 @@ describe('the feedback delay network', () => {
     expect(Math.abs(10 * Math.log10(whole / fed[0]! ** 2))).toBeLessThan(0.01)
   })
 
-  it('hears nothing from line 1 until 5,223 samples after a click, and from line 8 until 8,477 samples (claim first-out)', async () => {
+  it('hears nothing over −120 dB from line 1 until 5,223 samples after a click, and from line 8 until 8,477 samples (claim first-out)', async () => {
     const fdn = await lab(NAME)
     // A decay so short that the tail of the pass before is over. "Nothing" is under −120 dB:
     // see the residue test below for what is left.
@@ -409,17 +448,24 @@ describe('the feedback delay network', () => {
     expectWritten(first(out.taps.line8!.channels_data[0]!), '8,477 samples')
   })
 
-  it('says nothing for 217.6 ms after a click with Size at 2, and for 54.4 ms with Size at 0.5 (claim late-start)', async () => {
+  it('with the lines still, says nothing over −120 dB for 217.6 ms after a click with Size at 2, and for 54.4 ms with Size at 0.5 (claim late-start)', async () => {
     const fdn = await lab(NAME)
-    const first = (size: number) => {
-      const out = fdn.render(click(seconds(2)), { decay: 0.1, size }).taps.out!.channels_data[0]!
-      return (1000 * out.findIndex((v) => Math.abs(v) > 1e-6)) / RATE
+    const first = (size: number, wander = 0) =>
+      fdn
+        .render(click(seconds(2)), { decay: 0.1, size, wander })
+        .taps.out!.channels_data[0]!.findIndex((v) => Math.abs(v) > 1e-6)
+    expectWritten((1000 * first(2)) / RATE, '217.6 ms')
+    expectWritten((1000 * first(0.5)) / RATE, '54.4 ms')
+    // With the lines moving, as the device always has them, the first sound comes within the
+    // 12 samples of sway of that: a quarter of a millisecond either way.
+    for (const size of [0.5, 2]) {
+      const moving = first(size, 1)
+      expect(moving).not.toBe(first(size))
+      expect(Math.abs(moving - LENGTHS[0]! * size)).toBeLessThanOrEqual(13)
     }
-    expectWritten(first(2), '217.6 ms')
-    expectWritten(first(0.5), '54.4 ms')
   })
 
-  it('holds the sound back 479 samples with the Pre-delay at 10 ms, one short of the 480 samples that 10 ms is (claim predelay-short)', async () => {
+  it('holds the sound back 479 samples with the Pre-delay at 10 ms, one short of the 480 samples that 10 ms is, and one short at 1 ms, 25 ms, 100 ms and 250 ms too (claim predelay-short)', async () => {
     const fdn = await lab(NAME)
     const first = (values: Record<string, number>) =>
       fdn
@@ -428,28 +474,65 @@ describe('the feedback delay network', () => {
     expect(first({})).toBe(0)
     expectWritten(first({ predelay: 10 }), '479 samples')
     expect(seconds(0.01)).toBe(480)
+    // One short at each other setting tried, the longest among them.
+    for (const ms of [1, 25, 100, 250]) {
+      expect(first({ predelay: ms }), `${ms} ms`).toBe(seconds(ms / 1000) - 1)
+    }
     // And the lines hear it that much later.
     const line = fdn.render(click(seconds(2)), { decay: 0.1, predelay: 10 }).taps.line1!
     expect(line.channels_data[0]!.findIndex((v) => Math.abs(v) > 1e-6)).toBe(5223 + 479)
   })
 
-  it('leaves a residue of under 0.0000001 that changes sign every sample when the lines stand still at a whole number of samples, and exact zeros at any other length (claim still-residue)', async () => {
+  it('is left holding 0.00000005 on line 1 after a click with Decay at 0.1 s, its sign changing every sample, when the lines stand still at whole numbers of samples; is still putting it out 7.9 s after the click; holds under 0.000001 after the drums; and holds exact zeros where no length is whole or the lines move (claim still-residue)', async () => {
     const fdn = await lab(NAME)
-    // 1.9 s after the click, long after its tail: not zero, and alternating.
+    // 1.9 s after the click, long after its tail: the same size on every sample, the sign
+    // turned each time.
     const at = seconds(1.9)
-    const still = fdn.render(click(seconds(2)), { decay: 0.1, size: 1 }).taps.line1!
-      .channels_data[0]!
-    for (let i = at; i < at + 100; i += 1) {
-      expect(Math.abs(still[i]!)).toBeGreaterThan(2e-8)
-      expectWritten(Math.abs(still[i]!), 'under 0.0000001')
-      expect(Math.sign(still[i]!)).toBe(-Math.sign(still[i - 1]!))
+    const end = (source: Source, values: Record<string, number>, id = 'line1') =>
+      fdn.render(source, { decay: 0.1, ...values }).taps[id]!.channels_data[0]!
+    const alternates = (x: Float32Array, from: number) => {
+      for (let i = from; i < from + 100; i += 1) {
+        expect(x[i]).toBe(-x[i - 1]!)
+      }
+      return Math.abs(x[from]!)
     }
-    const between = fdn.render(click(seconds(2)), { decay: 0.1, size: 1.01 }).taps.line1!
-      .channels_data[0]!
-    expect(between.subarray(at).every((v) => v === 0)).toBe(true)
-    const moving = fdn.render(click(seconds(2)), { decay: 0.1, wander: 1 }).taps.line1!
-      .channels_data[0]!
-    expect(moving.subarray(at).every((v) => v === 0)).toBe(true)
+    const still = alternates(end(click(seconds(2)), { size: 1 }), at)
+    expectWritten(still, '0.00000005')
+    expectWritten(gainToDb(still), 'under −140 dB')
+    // Size at 2 leaves every length whole too. At 0.5 and at 1.5 the four even lengths are
+    // whole, and the output still carries what those lines hold.
+    expect(alternates(end(click(seconds(2)), { size: 2 }), at)).toBeGreaterThan(1e-8)
+    for (const size of [0.5, 1.5]) {
+      expect(alternates(end(click(seconds(2)), { size }, 'out'), at)).toBeGreaterThan(1e-8)
+    }
+    // It keeps the device awake: 7.9 s after a click, long past the 2 s of exact silence the
+    // device waits for, the output still carries it.
+    const late = alternates(end(click(seconds(8)), { size: 1 }, 'out'), seconds(7.9))
+    expect(late).toBeGreaterThan(1e-8)
+    // After the drums and six seconds of nothing it is of the same order, at two decays.
+    const drums = await benchSource('drums', seconds(2))
+    const after = joined(drums, silence(seconds(6)))
+    for (const decay of [0.1, 0.3]) {
+      const left = alternates(end(after, { decay }), seconds(7.9))
+      expect(left, `Decay at ${decay} s`).toBeGreaterThan(1e-9)
+      expectWritten(left, 'under 0.000001')
+    }
+    // Where no length is a whole number of samples, or the lines move, every line empties.
+    expect(
+      end(click(seconds(2)), { size: 1.01 })
+        .subarray(at)
+        .every((v) => v === 0),
+    ).toBe(true)
+    expect(
+      end(click(seconds(2)), { wander: 1 })
+        .subarray(at)
+        .every((v) => v === 0),
+    ).toBe(true)
+    expect(
+      end(after, { size: 1.01 }, 'out')
+        .subarray(seconds(7.9))
+        .every((v) => v === 0),
+    ).toBe(true)
   })
 
   it('makes one line alone a comb: an echo every 5,223 samples, each 5.78 dB under the last (claim comb-step), gone 60 dB in 1.13 s (claim comb-alone), with a tooth every 9.19 Hz (claim comb-teeth)', async () => {
@@ -521,7 +604,7 @@ describe('the feedback delay network', () => {
     expect((4799 * 5399) / 44100 / 60).toBeGreaterThan(9.7)
   })
 
-  it('multiplies the echoes when the lines are mixed: 117 in the first half second and 1,979 in the second, against 12 and 15 unmixed (claim echo-density)', async () => {
+  it('multiplies the echoes when the lines are mixed: 117 in the first half second and 1,979 in the second (claim echo-density), against 12 and 15 unmixed (claim echo-apart)', async () => {
     const fdn = await lab(NAME)
     const mixed = fdn.render(click(seconds(1)), { matrix: 1 }).checks
     expect(mixed.densityFirst).toBe(117)
@@ -586,6 +669,23 @@ describe('the feedback delay network', () => {
     expectWritten(measured[2]!, '1.77 s')
   })
 
+  it('reads long, not short, by the same fitted line with Size at 2: 1.6 s for 1.5 s set (claim decay-size)', async () => {
+    const fdn = await lab(NAME)
+    const time = decayTime(
+      fdn.render(click(seconds(1)), { decay: 1.5, damping: 0, size: 2 }).taps.decayCurve!,
+    )
+    expectWritten(time, '1.6 s')
+    expect(time).toBeGreaterThan(1.5)
+  })
+
+  it("falls at the rate of 60 dB in 1.48 s, with 1.5 s set, in the band around 500 Hz of the device's answer from half a second after the click on (claim decay-late)", async () => {
+    const fdn = await lab(NAME)
+    const answer = fdn.render(click(seconds(1)), { decay: 1.5, damping: 0 }).taps.answer!
+    // Measured: 1.482 s. The same answer read by the line fitted between 5 dB and 35 dB down
+    // is the 1.34 s of the test above.
+    expectWritten(lateDecayTime(band(answer.channels_data[0]!, 500)), '1.48 s')
+  })
+
   it('decays in 1.46 s as a bare network with one gain for all at 1.5 s, and in 1.50 s with a gain for each line (claim bare-decay)', async () => {
     const fdn = await lab(NAME)
     const one = lateDecayTime(
@@ -600,16 +700,30 @@ describe('the feedback delay network', () => {
     expectWritten(each, '1.50 s')
   })
 
-  it('falls short of a long decay time: 15.7 s measured for 20 s set (claim decay-long)', async () => {
+  it("falls short of a long decay time: with 20 s set, the level of a click's tail falls between 1 s and 7 s after it at the rate of 60 dB in 15.7 s (claim decay-long); around 1 kHz the same tail falls at the rate of 60 dB in 19.2 s and around 8 kHz in 10.8 s (claim decay-long-bands)", async () => {
     const fdn = await lab(NAME)
-    const out = fdn.render(click(seconds(8)), { decay: 20 })
+    const out = fdn.render(click(seconds(8)), { decay: 20, damping: 0 })
     // Eight seconds of every tap fit in the lab's room.
     for (const tap of Object.values(out.taps)) expect(tap.length, tap.id).toBeGreaterThan(0)
-    const level = out.taps.level!.channels_data[0]!
     // The level's fall from 1 s to 7 s after the click, one point every 16 samples.
-    const points: [number, number][] = []
-    for (let i = 3000; i < 21000; i += 1) points.push([i / 3000, level[i]!])
-    expectWritten(-60 / slope(points), '15.7 s')
+    const whole = (level: Float32Array) => {
+      const points: [number, number][] = []
+      for (let i = 3000; i < 21000; i += 1) points.push([i / 3000, level[i]!])
+      return -60 / slope(points)
+    }
+    const twenty = whole(out.taps.level!.channels_data[0]!)
+    expectWritten(twenty, '15.7 s')
+    // The same seven seconds band by band: the middle of the spectrum keeps nearly the time
+    // set, and the top falls far short of it.
+    const tail = out.taps.out!.channels_data[0]!
+    expectWritten(lateDecayTime(band(tail, 1000), 1, 7), '19.2 s')
+    expectWritten(lateDecayTime(band(tail, 8000), 1, 7), '10.8 s')
+    // And less well the longer Decay is: 5 s set comes nearer to 5 s than 20 s set to 20 s.
+    const five = whole(
+      fdn.render(click(seconds(8)), { decay: 5, damping: 0 }).taps.level!.channels_data[0]!,
+    )
+    expect(five).toBeLessThan(5)
+    expect(five / 5).toBeGreaterThan(twenty / 20 + 0.05)
   })
 
   it("works the feedback path out again with the kit's matrix and lands on the device's own state, under −120 dB (claim loop-rebuilt), and the wet signal on its output", async () => {
@@ -623,21 +737,27 @@ describe('the feedback delay network', () => {
     }
   })
 
-  it('loses 9.75 dB a trip at 8 kHz against 5.81 dB at 500 Hz with the damping at 0.4 (claim damping-trip), and a click dies in 0.90 s around 8 kHz against 1.34 s around 500 Hz (claim damping-bands)', async () => {
+  it('loses 9.8 dB a trip at 8 kHz against 5.8 dB at 500 Hz with the damping at 0.4 (claim damping-trip), which foretells a tail of 0.89 s at 8 kHz and of 1.49 s at 500 Hz (claim damping-foretold), and a click dies in 0.90 s around 8 kHz against 1.34 s around 500 Hz (claim damping-bands)', async () => {
     const fdn = await lab(NAME)
     const out = fdn.render(click(seconds(1)), { decay: 1.5, damping: 0.4 })
     const low = atRatio(out.taps.passGain!, 500)
     const high = atRatio(out.taps.passGain!, 8000)
-    expectWritten(-low, '5.81 dB')
-    expectWritten(-high, '9.75 dB')
+    // Measured: 5.811 dB and 9.775 dB. The second stands on the edge between two numbers of
+    // two places, so the lesson writes one.
+    expectWritten(-low, '5.8 dB')
+    expectWritten(-high, '9.8 dB')
+    // What a loss a trip foretells: 60 dB, at that many dB a trip of the mean length.
+    const foretold = (loss: number) => ((60 / loss) * MEAN) / RATE
+    expectWritten(foretold(-low), '1.49 s')
+    expectWritten(foretold(-high), '0.89 s')
     const lowTime = decayTime(out.taps.decayLow!)
     const highTime = decayTime(out.taps.decayHigh!)
     expectWritten(lowTime, '1.34 s')
     expectWritten(highTime, '0.90 s')
-    // What the loss a trip foretells for 8 kHz: 60 dB, at that many dB a trip of the mean length.
-    const foretold = ((60 / -high) * MEAN) / RATE
-    expectWritten(foretold, '0.89 s')
-    expect(Math.abs(highTime - foretold) / foretold).toBeLessThan(0.05)
+    // The high band lands on what was foretold; the low band reads a tenth short of it.
+    expect(Math.abs(highTime - foretold(-high)) / foretold(-high)).toBeLessThan(0.05)
+    expect(lowTime / foretold(-low)).toBeGreaterThan(0.85)
+    expect(lowTime / foretold(-low)).toBeLessThan(0.95)
   })
 
   it('still loses 0.33 dB more a trip at 8 kHz and 2 dB more at 50 Hz than the gain alone, with the damping at 0 (claim damping-off)', async () => {
@@ -665,9 +785,39 @@ describe('the feedback delay network', () => {
       }
     }
     expectWritten(corner, '38 Hz')
-    // Damping does not move it.
-    const damped = fdn.render(click(seconds(1)), { decay: 1.5, damping: 0.4 })
-    expect(atRatio(damped.taps.passGain!, 38) - atRatio(curve, 38)).toBeCloseTo(0, 1)
+    // No control moves it: at that frequency a trip costs the same 3.01 dB more than the gain,
+    // to within 0.01 dB, whatever Decay, Size and Damping say.
+    for (const values of [
+      { decay: 1.5, damping: 0.4 },
+      { decay: 20, damping: 1 },
+      { decay: 0.3, damping: 0.4, size: 2 },
+      { decay: 5, damping: 0.7, size: 0.5 },
+    ]) {
+      const other = fdn.render(click(seconds(1)), values)
+      const cost = other.checks.tripGain! - atRatio(other.taps.passGain!, corner)
+      expect(Math.abs(cost - 3.01), JSON.stringify(values)).toBeLessThan(0.01)
+    }
+  })
+
+  it("loses the bottom of the device's answer sooner than Decay says, whatever Damping says: with 1.5 s set the band around 40 Hz falls at the rate of 60 dB in 0.9 s where the band around 500 Hz takes 1.4 s (claim bass-short)", async () => {
+    const fdn = await lab(NAME)
+    // From half a second to a second and a half after the click, where both bands are well
+    // over the floor.
+    const time = (damping: number, hz: number) =>
+      lateDecayTime(
+        band(
+          fdn.render(click(seconds(1)), { decay: 1.5, damping }).taps.answer!.channels_data[0]!,
+          hz,
+        ),
+        0.5,
+        1.5,
+      )
+    for (const damping of [0, 0.4]) {
+      expectWritten(time(damping, 40), '0.9 s')
+      expectWritten(time(damping, 500), '1.4 s')
+    }
+    // At 1 the damping filter reaches down to 500 Hz too; the bottom is where it was.
+    expectWritten(time(1, 40), '0.9 s')
   })
 
   it('holds a steady 440 Hz sine at a level that moves less than 0.01 dB with the lines still (claim wander-still) and 4.2 dB with them moving (claim wander-moving)', async () => {
@@ -696,7 +846,7 @@ describe('the feedback delay network', () => {
     expect(fdn.render(tone, {}).taps.sway8!.channels_data[0]!.every((v) => v === 0)).toBe(true)
   })
 
-  it('answers two clicks a second apart alike with the lines still, more than 100 dB under the tail, and as differently as two unrelated sounds with them moving, 3 dB over it (claim wander-clicks)', async () => {
+  it('answers two clicks a second apart alike with the lines still and Decay at 0.3 s, more than 100 dB under the tail, and as differently as two unrelated sounds with them moving, 3 dB over it (claim wander-clicks)', async () => {
     const fdn = await lab(NAME)
     const clicks = await benchSource('clicks', seconds(2))
     const apart = (values: Record<string, number>) => {
@@ -733,6 +883,26 @@ describe('the feedback delay network', () => {
       lr += left[i]! * right[i]!
     }
     expectWritten(lr / Math.sqrt(ll * rr), '0.13')
+    // That is one loop at one setting. On the drums too, and with the lines moving, a longer
+    // Decay and a smaller Size, it stays under 0.3.
+    const drums = await benchSource('drums', seconds(2))
+    for (const source of [clicks, drums]) {
+      for (const values of [{}, { wander: 1 }, { decay: 3 }, { size: 0.5 }]) {
+        const [a, b] = fdn.render(source, values).taps.out!.channels_data as [
+          Float32Array,
+          Float32Array,
+        ]
+        let aa = 0
+        let bb = 0
+        let ab = 0
+        for (let i = 0; i < a.length; i += 1) {
+          aa += a[i]! ** 2
+          bb += b[i]! ** 2
+          ab += a[i]! * b[i]!
+        }
+        expectWritten(Math.abs(ab / Math.sqrt(aa * bb)), 'under 0.3')
+      }
+    }
   })
 
   it('is the input, sample for sample, with the mix at 0 (claim mix-zero)', async () => {
