@@ -13,8 +13,9 @@ interface Props {
   /** A curve tap: all of them added. */
   sum: TapRef
   min?: number
+  /** The top of the picture. Left out, it is 1.5, or higher where the lines reach that. */
   max?: number
-  /** A word or two for the time axis. */
+  /** A word or two for the time axis, set under the picture with the numbers. */
   xTitle?: string
   height?: number
   label: string
@@ -24,7 +25,7 @@ export default function OverlappingWindows({
   windows,
   sum,
   min = 0,
-  max = 1.5,
+  max,
   xTitle,
   height = 220,
   label,
@@ -40,6 +41,11 @@ export default function OverlappingWindows({
   const hasData = !waiting && each !== undefined && all !== undefined && columns > 0
   const [lowest, highest] = all && all.length > 0 ? rangeOf(all) : [0, 0]
   const flat = Math.abs(highest - lowest) < 1e-4
+  // The top of the picture, where the lesson gives none: 1.5, which holds a sum of 1 and its
+  // swing at a hop too long, or the next half that leaves a tenth of the picture clear over the
+  // highest point, so that a level sum never lies along the top edge.
+  const tallest = Math.max(highest, each && each.length > 0 ? rangeOf(each)[1] : 0)
+  const top = max ?? Math.max(1.5, Math.ceil((tallest / 0.9) * 2) / 2)
 
   const canvas = useCanvas(
     (context, width, fullHeight, c) => {
@@ -47,17 +53,12 @@ export default function OverlappingWindows({
       const h = fullHeight - EDGE.top - EDGE.bottom
       if (w <= 0 || h <= 0) return
       const x = { min: total?.x0 ?? 0, max: total?.x1 ?? 1 }
-      const y = { min, max }
+      const y = { min, max: top }
       const px = (value: number) => EDGE.left + toUnit(x, value) * w
       const py = (value: number) => EDGE.top + (1 - toUnit(y, value)) * h
 
-      drawGrid(context, c, w, h, { axis: x, at: px }, { axis: y, at: py })
-      if (xTitle) {
-        context.fillStyle = c.muted
-        context.textAlign = 'right'
-        context.textBaseline = 'bottom'
-        context.fillText(xTitle, EDGE.left + w - 6, EDGE.top + h - 4)
-      }
+      // The grid writes the x axis's title in the row of numbers, outside the plotted area.
+      drawGrid(context, c, w, h, { axis: x, at: px, title: xTitle }, { axis: y, at: py })
       if (!hasData || !each || !all) return
 
       context.save()
@@ -100,7 +101,7 @@ export default function OverlappingWindows({
       context.stroke()
       context.restore()
     },
-    [result, waiting, height, min, max],
+    [result, waiting, height, min, top, xTitle],
   )
 
   return (

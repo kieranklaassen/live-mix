@@ -259,7 +259,7 @@ These are places to start. On each, move Shift or Fine after the card and listen
 
 <Part id="build" title="A wire, two copies, a carrier and a sum: a shifter in six steps.">
 
-A frequency shifter is a short program. This part begins with a piece that does nothing and adds five more to it, one at a time. After each piece the pictures are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these pictures and plays "Hear it so far".
+A frequency shifter is a short program. This part begins with a piece that does nothing and adds five more to it, one at a time, in the lab's own source: the code that draws these pictures and plays "Hear it so far".
 
 The numbers in this part were measured on the sine, which is a single partial. With one line going in, what each piece does to a line is plain to see. Choose the sine in the row of sounds while you step through, then go through again on the saw.
 
@@ -428,16 +428,16 @@ Here is how the lab puts the pieces in order, for one sample.
   name="run"
 />
 
-That is a whole frequency shifter in seven small functions, and an eighth that puts them in order. The one in the engine is the same pieces in the same order, written as one loop. Around them it has what a device needs and the build left out: controls that glide when they are moved, and the rest after a silence.
+That is a whole frequency shifter in seven small functions, and an eighth that puts them in order. Around the same pieces the one in the engine has what a device needs and the build left out: controls that glide when they are moved, and the rest after a silence.
 
 </Part>
 
 <Part id="engine" title="The device itself: five stages, read as they run.">
 
-From here on it is the engine's Frequency Shifter. The page runs its C++, compiled for the browser, on the loop, and each figure is read out of the running code at the point the text is talking about. Under its title each stage says where its figure comes from. The device keeps only the sideband its Mode asks for, so the two products and the two sidebands in the pictures of stage 3 are the lab's, made from the device's own pair and carrier, and a check there holds them to what the device wrote. The listings are the engine's source as it stands, with the file and the line numbers.
+From here on it is the engine's Frequency Shifter. The page runs its C++, compiled for the browser, on the loop, and each figure is read out of the running code at the point the text is talking about. Under its title each stage says where its figure comes from, and the listings are the engine's source as it stands, with the file and the line numbers.
 
 <Flow
-  label="The sound going in is added to what comes back round the loop and goes into two chains of all-pass filters. Their two outputs are multiplied by a carrier's cosine and sine and added, which leaves one sideband. That goes on to the mix and the output, and also back through a delay, a filter and a limiter to be added in again. A row over the main path holds the carrier."
+  label="The sound going in is added to what comes back round the loop and goes into two chains of all-pass filters. Their two outputs are multiplied by a carrier's cosine and sine and added, which leaves one sideband. That goes on to the mix and the output, and also back through a delay, a filter and a limiter to be added in again. The carrier is a block that nothing feeds."
   blocks={[
     { id: 'in', tap: 'in', shape: 'end' },
     { id: 'dry', shape: 'dot', from: 'in' },
@@ -451,10 +451,9 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
     { id: 'out', tap: 'out', shape: 'end', from: 'mix' },
   ]}
 >
-  The row along the middle is the sound on its way through. The row over it is the carrier, which
-  listens to nothing: one number that turns. The row under it is the way back: what was made,
-  delayed and darkened, on its way to be shifted again. Press a stage's button below, and notice
-  its block light up here.
+  From Input to Output is the sound on its way through. Carrier listens to nothing: it is one
+  number that turns. "Delay, Tone, limiter" is the way back: what was made, delayed and darkened,
+  on its way to be shifted again. Press a stage's button, and notice its block light up here.
 </Flow>
 
 <StageBlock tap="inPhase" n={1} title="Two chains of all-pass filters, a quarter turn apart">
@@ -508,7 +507,7 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
 
   <Check id="quarterError" />
 
-  The quadrature output is a quarter turn ahead, <Claim id="quarter-turn">less than 0.71° out, from 22 Hz to 23,978 Hz</Claim>, which is all that the page's sample rate can hold but a sliver at each end. Below the band it grows fast: <Claim id="below-band">at 20 Hz the pair is 1.6° from a quarter turn</Claim>.
+  The quadrature output is a quarter turn ahead, <Claim id="quarter-turn">less than 0.71° out, from 22 Hz to 23,978 Hz</Claim>, which is all that the page's sample rate can hold but a sliver at each end. Below the band it grows fast: <Claim id="below-band">at 20 Hz the pair is more than 1.6° from a quarter turn</Claim>.
 
   Those are the lab's measurements, and the band is wider than the one the kit's own comment gives, which is <Src path="cpp/kit/hilbert.h" at="0.002 to 0.498 of the sample rate.">about 0.002 to 0.498 of the sample rate</Src>: at the page's <Src path="site/labs/lab.h" at="constexpr float kSampleRate = 48000.0f;">48,000 samples a second</Src>, 96 Hz to 23,904 Hz. This is how they were made. The lab puts one sample of height 1 through the kit's pair and keeps what each chain answers. From the two answers it works out each chain's phase at a frequency, with the sum of <Lesson id="fourier-transform" />, and it searches the band for the frequency where the two are furthest from a quarter turn apart. The check above shows what the search found. The lab's test then feeds the running device sines at the two ends of the band and at crests of the ripple, and reads the angle between the pair's two outputs. The figure at 20 Hz was read the same way.
 
@@ -650,7 +649,7 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
 </StageBlock>
 
 <StageBlock tap="back" n={4} title="Round the loop: a delay, Tone and a limiter">
-  The device writes the sideband it kept into <Src path="cpp/kit/delay.h" at="class DelayLine {">a delay line</Src> and reads it again one Delay later. On the way back the sound passes a low-pass filter set by Tone, which is the kit's filter of <Lesson id="state-variable-filter" />, and then the kit's limiter. The limiter is <Src path="cpp/kit/math.h" at="if (magnitude <= 0.5f) return x;">exactly linear up to half of full scale</Src>, and bends over above that. Feedback scales what is left, and it is added to the input in front of the pair.
+  This is the fifth piece of the build as the device has it. The sideband it kept is written into <Src path="cpp/kit/delay.h" at="class DelayLine {">a delay line</Src> and read again one Delay later. On the way back it passes Tone's low-pass filter, which is the kit's filter of <Lesson id="state-variable-filter" />, and the limiter. Feedback scales what is left, and it is added to the input in front of the pair.
 
   <Controls ids="feedback delay tone" />
 
@@ -667,9 +666,9 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
   />
 
   <Fragment slot="readback">
-    "Driven" is what goes into the pair, and "back" is this stage's tap: the shifted sound, late, darkened and limited. What comes back has been shifted already, and it goes through the pair and the carrier again. <Claim id="feedback-steps">With Feedback at 0.5, the 440 Hz sine shifted by 100 Hz stacks up lines at 540, 640, 740 and 840 Hz, each under the last: by 6.06 dB, then 6.08 dB, then 6.11 dB</Claim>. Six of those decibels are the half that Feedback takes. The rest is Tone's filter, which every pass goes through once more, and which takes a little more from each line as the lines climb. Feedback stops at <Src path="cpp/devices/freq-shifter/device.json" at={'"max": 0.98,'}>0.98</Src>.
+    "Driven" is what goes into the pair, and "back" is this stage's tap: the shifted sound, late, darkened and limited. What comes back has been shifted already, and it goes through the pair and the carrier again. <Claim id="feedback-steps">With Feedback at 0.5, the 440 Hz sine shifted by 100 Hz stacks up lines at 540, 640, 740 and 840 Hz, each under the last: by 6.06 dB, then 6.08 dB, then 6.11 dB</Claim>. As in the build, six of those decibels are the half that Feedback takes. The rest is Tone's filter, which takes a little more from each line as the lines climb. Feedback stops at <Src path="cpp/devices/freq-shifter/device.json" at={'"max": 0.98,'}>0.98</Src>.
 
-    Two things follow from "shifted again on every pass", and part 6 has a card for each. With a delay of a few milliseconds the copies make a comb, as any short delay with feedback does, and the shift moves the comb's teeth along on every pass, so the comb climbs for as long as the sound lasts. With a long delay the passes arrive apart, as echoes that step up or down.
+    Two things follow from "shifted again on every pass", and part 6 has a card for each: with a delay of a few milliseconds a comb that climbs, and with a long one echoes that step up or down.
 
   </Fragment>
 
@@ -711,7 +710,7 @@ From here on it is the engine's Frequency Shifter. The page runs its C++, compil
 
   <Claim id="beat-crest">With Shift at 0, Fine at 1 Hz and Mix at 0.5, the output rises to 3.0 dB over the sine</Claim> and <Claim id="beat-null">falls to more than 40 dB under it</Claim>, <Claim id="beat-rate">once a second</Claim>.
 
-  A sound of many partials does more. Every partial beats at the same rate, but not at the same moment, because each left the in-phase chain with a different lag: the ramp of stage 1. So the silence arrives at one frequency after another. A notch travels through the spectrum, upwards for a shift up and downwards for a shift down. <Claim id="notch-climbs">At a shift of 0.5 Hz up, the notch that stands at 1,168 Hz reaches 2 kHz 0.32 s later and 4 kHz 0.73 s later</Claim>. The ramp falls through more than two whole turns across the band, as its picture in stage 1 shows, so two or three notches are on their way at once, and as one leaves at the top another is rising from the bottom. The motion does not turn round.
+  A sound of many partials does more. Every partial beats at the same rate, but not at the same moment, because each left the in-phase chain with a different lag: the ramp of stage 1. So the silence arrives at one frequency after another. A notch travels through the spectrum, upwards for a shift up and downwards for a shift down. <Claim id="notch-climbs">At a shift of 0.5 Hz up, the notch that stands at 1,168 Hz reaches 2 kHz 0.3 s later and 4 kHz 0.7 s later</Claim>. The ramp falls through more than two whole turns across the band, as its picture in stage 1 shows, so two or three notches are on their way at once, and as one leaves at the top another is rising from the bottom. The motion does not turn round.
 
   The picture below shows it on whatever is playing. To see it at its plainest, put the page on white noise with a small shift: <Hear set="climb" label="Notches that climb" />
 
@@ -771,7 +770,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     A phaser's notches go up and come back. These go one way for as long as the sound lasts, because the carrier turns one way. After the card, set Mode to Down and they fall. Then bring Fine towards zero and they slow, and at zero they stop where they are.
   </Way>
   <Way title="A spiral" tag="Feedback, with a Delay of a few milliseconds" set="spiral">
-    A short delay with feedback is a comb: a row of peaks at even distances in hertz. Here each trip round the loop also shifts the sound, so the comb's teeth move along on every pass. Listen for a rising that has no top. After the card, lengthen Delay, which draws a comb's teeth closer together, and listen for what that does to the rising.
+    A short delay with feedback is a comb, a row of peaks at even distances in hertz, of the kind <Lesson id="chorus-and-flanging" /> is about. Here each trip round the loop also shifts the sound, so the comb's teeth move along on every pass. Listen for a rising that has no top. After the card, lengthen Delay, which draws a comb's teeth closer together, and listen for what that does to the rising.
   </Way>
   <Way title="Echoes that climb" tag="a long Delay" set="steps">
     With a long delay the passes arrive one after another, and each has been shifted once more than the one before. <Claim id="way-steps">Fed a 440 Hz sine at this card's settings, each echo is 9 Hz higher and 3.1 dB quieter than the last</Claim>. On the guitar, listen for the first echoes coming back a little sharp and the later ones going out of tune with themselves.
@@ -824,10 +823,10 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     The cancelling is exactly as good as the quarter turn. Stage 3 of part 5 has the numbers: how far under the kept sideband the cancelled one is for a test tone, at the crests of the pair's ripple, and below the band, where it is worst. Whether that can be heard under a given sound is for your ear. The place to listen is a single pure tone with a large shift, for a faint second tone on the other side of where the tone stood.
   </Fault>
   <Fault title="Past the top">
-    The same folding happens at the other end, and nothing in the device guards against it. <Claim id="past-top">A sine at 23.6 kHz shifted up by 1 kHz folds back to 23.4 kHz</Claim>: the place it was sent is past the top of what the page's sample rate can hold. Shift stops at <Src path="cpp/devices/freq-shifter/device.json" at={'"max": 1000,'}>1 kHz</Src>, so one pass can fold only the very top of the band. Feedback carries a partial further up on every pass. Every pass also goes through Tone's filter once more, which takes more from a line the higher it has climbed: stage 4 of part 5 measured that on a ladder of four lines.
+    The same folding happens at the other end, where it is the aliasing of <Lesson id="samples-and-aliasing" />, and nothing in the device guards against it. <Claim id="past-top">A sine at 23.6 kHz shifted up by 1 kHz folds back to 23.4 kHz</Claim>: the place it was sent is past the top of what the page's sample rate can hold. Shift stops at <Src path="cpp/devices/freq-shifter/device.json" at={'"max": 1000,'}>1 kHz</Src>, so one pass can fold only the very top of the band. Feedback carries a partial further up on every pass. Every pass also goes through Tone's filter once more, which takes more from a line the higher it has climbed: stage 4 of part 5 measured that on a ladder of four lines.
   </Fault>
   <Fault title="A loop that builds">
-    Going once round the feedback loop, a single sideband comes back no larger than it left, so with Feedback under 1 the loop dies away. Ring at a shift of zero is the exception. Both sidebands land on the partial they came from, the make-up gain goes round with them, and each pass can come back larger than the last. The limiter is what stops it. <Claim id="ring-loop">In Ring, with Shift at 0 and Feedback at 0.98, a sine that peaks at a quarter of full scale builds until what comes back is held at 1.0</Claim>, and <Claim id="ring-loop-out">the output stands at 2.4</Claim> full scales. No card on this page plays that setting. Set by hand it is far louder than anything else here, so lower the page's level first. The cure is to lower Feedback, or to move the shift off zero.
+    Going once round the feedback loop, a single sideband comes back no larger than it left, so with Feedback under 1 the loop dies away. Ring at a shift of zero is the exception. Both sidebands land on the partial they came from, the make-up gain goes round with them, and each pass can come back larger than the last. The limiter is what stops it. <Claim id="ring-loop">In Ring, with Shift at 0 and Feedback at 0.98, a sine that peaks at a quarter of full scale builds until what comes back is held at 1.0</Claim>, and <Claim id="ring-loop-out">the output stands at 2.4</Claim> full scales. No card on this page plays that setting. Set by hand it is far louder than anything else here, and louder still on a fuller sound. The page's player <Src path="site/src/lab/player.ts" at="export const volumeGain = (volume: number) => 0.5 * volume * volume">has room for twice full scale</Src> and no more, so it is clipped in the ear though no picture shows it: lower the page's level first. The cure is to lower Feedback, or to move the shift off zero.
   </Fault>
   <Fault title="What silence does">
     Fed silence, the device puts out <Claim id="silence">exact silence</Claim>. After <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="idle_.reset(sr, kParamMax[kDelay] * 0.001f + 0.2f);">its longest delay and a fifth of a second more</Src> of it, the device <Src path="cpp/devices/freq-shifter/freq_shifter.h" at="if (!idle_.wake(input_present(frames))) {">rests</Src>: the carrier and the LFO stop where they are until sound returns. So a slow drift does not carry on turning through a long gap, and what follows the gap starts from where the carrier stopped.

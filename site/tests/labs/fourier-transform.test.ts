@@ -378,6 +378,24 @@ describe('the Fourier transform', () => {
     expectWritten(-bins[13]!, '49 dB')
   })
 
+  it('fills four bins with a sine half way between two under the Hann window: the next bin out on each side 15.4 dB low and the one beyond it 32 dB low, where the sine on a bin fills three (claim between-hann-four)', async () => {
+    const fourier = await lab(NAME)
+    const between = first(fourier.render(silence(seconds(0.5)), { testSine: 8.5 }).taps.leakHann)
+    expectWritten(-between[7]!, '15.4 dB')
+    expectWritten(-between[10]!, '15.4 dB')
+    expectWritten(-between[6]!, '32 dB')
+    expectWritten(-between[11]!, '32 dB')
+    // The width, counted: the bins within 20 dB of the tallest are four here and three on a bin.
+    const wide = (bins: Float32Array) => {
+      const top = highest(bins)
+      return Array.from(bins).filter((level) => level > top - 20).length
+    }
+    expect(wide(between)).toBe(4)
+    expect(wide(first(fourier.render(silence(seconds(0.5)), { testSine: 8 }).taps.leakHann))).toBe(
+      3,
+    )
+  })
+
   it('loses a click on the first sample of a Hann-windowed frame altogether (claim edge-click)', async () => {
     const fourier = await lab(NAME)
     const out = fourier.render(clickIn(0), { position: 0.25 })

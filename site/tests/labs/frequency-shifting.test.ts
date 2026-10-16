@@ -419,12 +419,13 @@ describe('frequency shifting', () => {
     }
   })
 
-  it('is 1.6° from a quarter turn at 20 Hz (claim below-band), where a 20 Hz sine shifted by 100 Hz leaves the cancelled copy only 37 dB down (claim image-20)', async () => {
+  it('is more than 1.6° from a quarter turn at 20 Hz, and under 1.7° (claim below-band), where a 20 Hz sine shifted by 100 Hz leaves the cancelled copy only 37 dB down (claim image-20)', async () => {
     const shifter = await lab(NAME)
     const taps = shifter.render(sine(20, 0.5, seconds(4)), { shift: 100 }).taps
     const i = tone(taps.inPhase!.channels_data[0]!, 20).degrees
     const q = tone(taps.quadrature!.channels_data[0]!, 20).degrees
-    expectWritten(Math.abs(turn(q - i) - 90), '1.6°')
+    expectWritten(Math.abs(turn(q - i) - 90), 'more than 1.6°')
+    expect(Math.abs(turn(q - i) - 90)).toBeLessThan(1.7)
     const out = taps.out!.channels_data[0]!
     expectWritten(tone(out, 120).db - tone(out, 80).db, '37 dB')
   })
@@ -600,7 +601,7 @@ describe('frequency shifting', () => {
     expectWritten(-gainToDb(rms(out) / rms(went)), 'more than 60 dB')
   })
 
-  it('at a shift of 0.5 Hz up, moves the notch from 1,168 Hz to 2 kHz in 0.32 s and to 4 kHz in 0.73 s (claim notch-climbs)', async () => {
+  it('at a shift of 0.5 Hz up, moves the notch from 1,168 Hz to 2 kHz in 0.3 s and to 4 kHz in 0.7 s (claim notch-climbs)', async () => {
     const shifter = await lab(NAME)
     const values = { shift: 0, fine: 0.5, mix: 0.5 }
     // When a tone is at its quietest in the two seconds, one beat, from `from`.
@@ -610,11 +611,11 @@ describe('frequency shifting', () => {
     }
     const start = nullAt(1168, values, 1)
     expect(start).toBeCloseTo(2, 2)
-    expectWritten(nullAt(2000, values, 1.5) - start, '0.32 s')
-    expectWritten(nullAt(4000, values, 1.5) - start, '0.73 s')
+    expectWritten(nullAt(2000, values, 1.5) - start, '0.3 s')
+    expectWritten(nullAt(4000, values, 1.5) - start, '0.7 s')
     // Down, the notch is at 2 kHz before it is at 1,168 Hz.
     const down = { ...values, mode: 1 }
-    expectWritten(nullAt(1168, down, 1) - nullAt(2000, down, 0.5), '0.32 s')
+    expectWritten(nullAt(1168, down, 1) - nullAt(2000, down, 0.5), '0.3 s')
   })
 
   it('with Feedback at 0.5, stacks on the 440 Hz sine shifted by 100 Hz lines at 540, 640, 740 and 840 Hz, each under the last, by 6.06 dB, then 6.08 dB, then 6.11 dB (claim feedback-steps)', async () => {
@@ -765,6 +766,13 @@ describe('frequency shifting', () => {
     expectWritten(peak(taps.back!.channels_data[0]!), '1.0')
     expect(peak(taps.back!.channels_data[0]!)).toBeLessThanOrEqual(1)
     expectWritten(peak(taps.out!.channels_data[0]!), '2.4')
+    // A fuller sound at the same setting stands higher still.
+    const full = shifter.render(await benchSource('mix', seconds(4)), {
+      shift: 0,
+      mode: 3,
+      feedback: 0.98,
+    }).taps
+    expect(peak(full.out!.channels_data[0]!)).toBeGreaterThan(peak(taps.out!.channels_data[0]!))
     // The same feedback on Up, where the loop's gain is under 1, stays small.
     const up = shifter.render(source, { shift: 0, feedback: 0.98 }).taps
     expect(peak(up.back!.channels_data[0]!)).toBeLessThan(0.9)

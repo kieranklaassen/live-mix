@@ -78,7 +78,7 @@ Hear <Hear set="chord" label="the chord" />, then <Hear set="lower" label="its 1
 
 That is the use of the transform. It moves a sound to a place where its notes stand apart, something is done there, and the sound is brought back.
 
-This lesson is about one such stretch, which from here on is called a frame. It shows what a bin is, why a frame is faded at both ends before it is transformed, and why the way back returns the frame that went in. <Lesson id="short-time-fourier" cap /> then slides the frame along a sound.
+This lesson is about one such stretch, which from here on is called a frame. <Lesson id="short-time-fourier" cap /> then slides the frame along a sound.
 
 The opening picture of this page is a short stretch of the chord going in, and the same stretch rebuilt from the 48 lowest bins of each frame, which is where "Bins kept" starts.
 
@@ -267,7 +267,7 @@ A frame is not a sound until something plays it. "Hear it so far" plays what the
       name="hann"
     />
 
-    A frame that begins and ends at nothing joins itself with no jump. On the sine, the leak ten bins above the peak falls to <Claim id="built-leak-windowed">70 dB under it</Claim>, wherever the frame is cut. Two prices are paid. A peak is now three bins wide where it could have been one, and the ends of the frame count for very little. Part 5 measures the first and part 7 the second.
+    A frame that begins and ends at nothing joins itself with no jump. On the sine, the leak ten bins above the peak falls to <Claim id="built-leak-windowed">70 dB under it</Claim>, wherever the frame is cut. Two prices are paid. A peak now spreads over three or four bins where it could have been one, and the ends of the frame count for very little. Part 5 measures the first and part 7 the second.
 
     <Curve slot="picture" taps="builtFrame" xTitle="milliseconds" height={200}>
       The frame the probes are given. Try "Frame starts at", and notice that the frame swells
@@ -336,7 +336,7 @@ Here are the four pieces where they meet. `run` takes one frame through the piec
   name="run"
 />
 
-The build runs on one frame and adds nothing up across frames. A sound is longer than a frame, and that is the subject of <Lesson id="short-time-fourier" />. Part 5 goes as far as doing it the simplest way that works, so that the result can be heard.
+The build runs on one frame and adds nothing up across frames. A sound is longer than a frame, and stage 8 of part 5 goes as far as adding frame to frame the simplest way that works, so that the result can be heard.
 
 </Part>
 
@@ -361,9 +361,10 @@ Everything from here on is the engine's own code. `kit::Fft` is the transform th
     { id: 'device', row: 1, from: 'frames', tap: 'device', label: 'Out of the device', n: 10 },
   ]}
 >
-  Along the middle a frame goes to its bins and comes back. The rows above work one bin out by
-  hand and read every bin's level and angle. The row below is Spectral Blur, doing the same to
-  frames of its own. Press a stage's button below, and notice its block light up here.
+  From "Cut a frame" to "Frame after frame" a frame goes to its bins and comes back. "One bin by
+  hand" works a single bin out, and Level and Angle read every bin. "The device's frames" and "Out
+  of the device" are Spectral Blur, doing the same to frames of its own. Press a stage's button,
+  and notice its block light up here.
 </Flow>
 
 <StageBlock tap="in" n={1} title="Cut a frame">
@@ -409,7 +410,7 @@ Everything from here on is the engine's own code. `kit::Fft` is the transform th
 
   Exactly on bin 8 the plain sine is in that bin alone: every other bin is <Claim id="on-bin-plain">more than 130 dB down</Claim>. Half way to the next bin it is nowhere in particular. The bins either side of it read <Claim id="between-plain">3.7 dB and 4.1 dB low, bin 13 is only 24 dB down, and no bin of the whole spectrum is under −38 dB</Claim>. This spread is called leakage. It is not noise and not an error of arithmetic. It is the true spectrum of a sine with a break in it every 64 samples.
 
-  Under the window, the sine half way between bins reads <Claim id="between-hann">1.4 dB low either side and 49 dB down at bin 13</Claim>. The price is paid where there was nothing to mend. The sine exactly on a bin, which was one clean point, now fills three: <Claim id="on-bin-hann">its neighbours stand 6.0 dB below it</Claim>. Every window trades these two against each other. The peak gets wider, and in exchange its skirt falls away far faster.
+  Under the window, the sine half way between bins reads <Claim id="between-hann">1.4 dB low either side and 49 dB down at bin 13</Claim>. The price is paid where there was nothing to mend. The sine exactly on a bin, which was one clean point, now fills three: <Claim id="on-bin-hann">its neighbours stand 6.0 dB below it</Claim>. The sine half way between two bins fills four: <Claim id="between-hann-four">the next bin out on each side reads 15.4 dB low, and the one beyond it 32 dB low</Claim>. Every window trades these two against each other. The peak gets wider, and in exchange its skirt falls away far faster.
 
   The loop's own frame is windowed by the same curve.
 
@@ -665,7 +666,7 @@ Everything from here on is the engine's own code. `kit::Fft` is the transform th
 
   <Wave taps="in device:out" from={1.98} span={0.1} fit>
     The loop going in and coming out of Spectral Blur, around the second strum of the chord.
-    Notice that the second line begins later than the first and is otherwise the same.
+    Notice that the second line has the shape of the first and begins later.
   </Wave>
 
   The device folds the division by N into a gain it needs anyway. Its frames overlap, each is windowed twice, and the scale that undoes both is <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kOutputScale = 1.0f / (1.5f * kFrame);">`kOutputScale`</Src>. With nothing altered, what comes out is what went in, with a difference <Claim id="device-wire">more than 130 dB under the sound</Claim>.
@@ -695,8 +696,8 @@ Four stages of this part are sounds, and they share one time axis: the loop goin
 
 <Lanes taps="in out removed device">
   Four sounds over the whole loop. Try "Bins kept" from its lowest to its highest, and notice the
-  second lane fill out as the third empties. Notice that the last lane is the first, a little late, whatever
-  is set.
+  second lane fill out as the third empties. Notice that the last lane has the shape of the first,
+  a little late, whatever is set.
 </Lanes>
 
 The stages that are one frame have no lane here. A frame, its bins and their angles are not one value against time, and each has its own figure above.
@@ -721,7 +722,7 @@ The first five cards set the page and play. The last is a habit, and plays nothi
     The transform answers for every bin at once. For one frequency a single probe will do, and it need not stand on a bin. With "Compare with" on the chord's second string, the frame holds <Claim id="second-string">−26.1 dB of 165 Hz, and −68.5 dB of 140 Hz</Claim>, a frequency between two strings. The card plays the plain chord and sets the probe. Stage 3 of part 5 shows its sums.
   </Way>
   <Way title="Do it to every frame" tag="a device" set="through">
-    One frame is a moment of a sound. A device takes frame after frame, each overlapping the last, and adds the results. The card plays the chord through Spectral Blur with nothing altered: it has been to bins and back for every frame, and it is still the chord. How the frames are laid over one another, and altered on the way, is the subject of <Lesson id="short-time-fourier" />.
+    One frame is a moment of a sound. A device takes frame after frame, each overlapping the last, and adds the results. The card plays the chord through Spectral Blur with nothing altered: it has been to bins and back for every frame, and it is still the chord. <Lesson id="short-time-fourier" cap /> alters the frames on the way.
   </Way>
   <Way title="Pick the frame for the question" tag="Frame length">
     A long frame answers which notes, and a short one answers when. For a chord or a bass line take the longest frame. For drums take a short one. Stage 5 of part 5 is the place to try both on one sound.
@@ -746,7 +747,7 @@ The first five cards set the page and play. The last is a habit, and plays nothi
     The window is nothing at the frame's first sample and close to nothing beside it. A click that falls exactly there is <Claim id="edge-click">multiplied away altogether</Claim>: the bins of that frame are silence. What to do: overlap the frames, so that what one frame barely sees stands in the middle of another. Spectral Blur starts a new frame a quarter of a frame after the last.
   </Fault>
   <Fault title="It is late">
-    A frame cannot be transformed until its last sample has arrived, so anything that works on bins answers at least a frame late. Stage 10 of part 5 measures Spectral Blur's delay. No faster machine shortens it. What to do: use a shorter frame where the delay matters, and otherwise let the host shift the other tracks to meet it. The device states its delay for that purpose, and delays its own plain signal by the same amount, as stage 10 links.
+    Anything that works on bins answers at least a frame late, for the reason stage 10 of part 5 gives beside Spectral Blur's measured delay. No faster machine shortens it. What to do: use a shorter frame where the delay matters, and otherwise let the host shift the other tracks to meet it. The device states its delay for that purpose.
   </Fault>
 </Faults>
 

@@ -176,12 +176,29 @@ describe('the short-time Fourier transform', () => {
     })
   })
 
-  it('hands over the bins the plain transform makes of the windowed frame, to the last digit (claim transformed)', async () => {
+  it('reads a full-scale sine half way between two bins as −1.42 dB on each of them and −15.4 dB on the next bin out either side: four bins within 20 dB of the tallest, where a sine on a bin has three (claim between-bins)', async () => {
+    const stft = await lab(NAME)
+    // Half way between bins 20 and 21 of a frame of 2,048: 480.47 Hz. Read in frames cut at
+    // several moments, since the sine stands at another place in its swing in each.
+    for (const at of [0.3, 0.5, 0.52, 0.71]) {
+      const bins = tap(stft.render(sine((20.5 * RATE) / 2048, 1, seconds(1)), { at }), 'bins')
+      expectWritten(bins[20]!, '−1.42 dB')
+      expectWritten(bins[21]!, '−1.42 dB')
+      expectWritten(bins[19]!, '−15.4 dB')
+      expectWritten(bins[22]!, '−15.4 dB')
+      const top = Math.max(...bins)
+      expect(Array.from(bins).filter((level) => level > top - 20).length).toBe(4)
+    }
+    const on = tap(stft.render(sine((20 * RATE) / 2048, 1, seconds(1)), { at: 0.5 }), 'bins')
+    expect(Array.from(on).filter((level) => level > Math.max(...on) - 20).length).toBe(3)
+  })
+
+  it('hands over the bins the plain transform makes of the windowed frame, the difference at least 140 dB under them, the floor of the reading (claim transformed)', async () => {
     const stft = await lab(NAME)
     const guitar = await benchSource('guitar', seconds(4))
     for (const values of [{}, { size: 0, at: 0.3 }, { size: 3, at: 2.9 }, { size: 1, at: 0 }]) {
-      // −140 dB is where the lab stops counting: the difference is under one part in 10¹⁴.
-      expect(stft.render(guitar, values).checks.transformed).toBe(-140)
+      // −140 dB is where the lab's reading stops: the difference is at least that far under the bins.
+      expectWritten(-stft.render(guitar, values).checks.transformed!, 'at least 140 dB')
     }
   })
 
@@ -391,12 +408,12 @@ describe('the short-time Fourier transform', () => {
     }
   })
 
-  it('stands a band 4.9 dB over its input at the top of its flash (claim flash), and a lone sine 4.7 dB over its own peak (claim sine-swells)', async () => {
+  it('stands a band 4.9 dB over its input at the top of its flash (claim flash), and a lone sine 4.74 dB over its own peak (claim sine-swells)', async () => {
     const stft = await lab(NAME)
     const tone = await benchSource('sine', seconds(4))
     const result = await played(stft, 'lone')
     expectWritten(range(tap(result, 'gains')).hi, '4.9 dB')
-    expectWritten(peakOver(result, 'out', tone), '4.7 dB')
+    expectWritten(peakOver(result, 'out', tone), '4.74 dB')
     // Over the loop the level is the input's.
     expect(Math.abs(levelOver(result, 'out', tone))).toBeLessThan(0.2)
   })
@@ -522,7 +539,7 @@ describe('the short-time Fourier transform', () => {
     }
   })
 
-  it('puts 3 % of the unit sample ahead of it at Depth 0.5 and 21 % at full Depth (claim smear-depth), 5 samples ahead on average at Grain 0 and 62 at Grain 1 (claim smear-grain)', async () => {
+  it('puts 3 % of the unit sample ahead of it at Depth 0.5 and 21 % at full Depth (claim smear-depth), 5 samples ahead on average at Grain 0 and 61.5 at Grain 1 (claim smear-grain)', async () => {
     const stft = await lab(NAME)
     const guitar = await benchSource('guitar', seconds(1))
     // The share of the energy that lies ahead of the sample, and how far ahead it lies on average.
@@ -548,7 +565,7 @@ describe('the short-time Fourier transform', () => {
     // Depth moves how much, and not how far.
     expect(Math.abs(half.samples - full.samples)).toBeLessThan(0.5)
     expectWritten(ahead({ grain: 0 }).samples, '5 samples')
-    expectWritten(ahead({ grain: 1 }).samples, '62 samples')
+    expectWritten(ahead({ grain: 1 }).samples, '61.5 samples')
   })
 
   // ---- a hop too long -------------------------------------------------------------------------
@@ -754,12 +771,12 @@ describe('the short-time Fourier transform', () => {
     }
   })
 
-  it("lifts a lone sine's highest sample 4.7 dB over the input's once its bins are changed (claim built-swell)", async () => {
+  it("lifts a lone sine's highest sample 4.74 dB over the input's once its bins are changed (claim built-swell)", async () => {
     const stft = await lab(NAME)
     const tone = await benchSource('sine', seconds(4))
     const over = (build: number) => peakOver(stft.render(tone, { build }), 'built', tone)
-    expectWritten(over(STEP.change), '4.7 dB')
-    expect(matchesWritten(over(STEP.overlapAdd), '4.7 dB')).toBe(false)
+    expectWritten(over(STEP.change), '4.74 dB')
+    expect(matchesWritten(over(STEP.overlapAdd), '4.74 dB')).toBe(false)
     // The bins that go back are the bins that came, times a gain: lower here, by more than 20 dB.
     const result = stft.render(tone, { build: STEP.change })
     const came = tap(result, 'builtBins')
@@ -849,11 +866,11 @@ describe('the short-time Fourier transform', () => {
     expect(sized.map((result) => result.taps.picture!.columns)).toEqual([1500, 750, 375, 187])
   })
 
-  it('moves every band between 3.4 dB under its input and 2.6 dB over it at half Depth (claim half-depth)', async () => {
+  it('moves every band between 3.4 dB under its input and 2.64 dB over it at half Depth (claim half-depth)', async () => {
     const stft = await lab(NAME)
     const gains = range(tap(await played(stft, 'shade'), 'gains'))
     expectWritten(-gains.lo, '3.4 dB')
-    expectWritten(gains.hi, '2.6 dB')
+    expectWritten(gains.hi, '2.64 dB')
   })
 
   it("starts the page's device table from the device's own defaults: the settings file's defaults, laid over the lab's starting values, are device.json's", async () => {

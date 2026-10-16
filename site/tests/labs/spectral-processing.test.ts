@@ -397,14 +397,14 @@ describe('the spectral processing lab', () => {
     expect(levels(tap(result, 'in'), 0, LOOP).lo).toBeLessThan(-100)
   })
 
-  it('sorts the mix: the tones alone come out 4.2 dB under it and the attacks alone 6.1 dB under it (claim sift-mix)', async () => {
+  it('sorts the mix: the tones alone come out 4.2 dB under it and the attacks alone 6.06 dB under it (claim sift-mix)', async () => {
     const blur = await lab(NAME)
     const under = async (name: string) => {
       const result = await played(blur, name)
       return levelDb(tap(result, 'in')) - levelDb(tap(result, 'sifted'))
     }
     expectWritten(say('mix tones', await under('tones')), '4.2 dB')
-    expectWritten(say('mix attacks', await under('hits')), '6.1 dB')
+    expectWritten(say('mix attacks', await under('hits')), '6.06 dB')
   })
 
   it('holds a guitar note with Sustain: read every tenth of a second from 1.5 s to 3.6 s its level moves less than 0.05 dB while the guitar going in moves over 10 dB (claim note-steady)', async () => {
@@ -906,7 +906,7 @@ describe('the spectral processing lab', () => {
     }
   })
 
-  it('sorts with Sift: the tones keep a sine whole, and of white noise the tones pass 13.2 dB less than went in, the attacks 17.6 dB less and the air 2.3 dB less (claim sift-parts)', async () => {
+  it('sorts with Sift: the tones keep a sine whole, and of white noise the tones pass 13.15 dB less than went in, the attacks 17.55 dB less and the air 2.345 dB less (claim sift-parts)', async () => {
     const blur = await lab(NAME)
     const tone = sine(440, 0.5, LOOP)
     const hiss = noise(0.25, LOOP)
@@ -916,9 +916,9 @@ describe('the spectral processing lab', () => {
     expectWritten(Math.abs(less(tone, 1)), 'less than 0.01 dB')
     expect(less(tone, 2)).toBeGreaterThan(100)
     expect(less(tone, 3)).toBeGreaterThan(100)
-    expectWritten(say('noise in tones', less(hiss, 1)), '13.2 dB')
-    expectWritten(say('noise in attacks', less(hiss, 2)), '17.6 dB')
-    expectWritten(say('noise in air', less(hiss, 3)), '2.3 dB')
+    expectWritten(say('noise in tones', less(hiss, 1)), '13.15 dB')
+    expectWritten(say('noise in attacks', less(hiss, 2)), '17.55 dB')
+    expectWritten(say('noise in air', less(hiss, 3)), '2.345 dB')
   })
 
   it('moves the first moment of a note from the tones to the attacks with Edge', async () => {
@@ -1014,15 +1014,15 @@ describe('the spectral processing lab', () => {
 
   // --- part 7: the faults --------------------------------------------------------------------------
 
-  it('freezes a drum hit by the moment: caught at 0.5 s it stands at −19 dB, at 0.55 s 25 dB lower, and at 0.4 s there is nothing to hold (claim catch-moment)', async () => {
+  it('freezes a drum hit by the moment: caught at 0.5 s it stands at −19.5 dB, at 0.55 s 24.6 dB lower, and at 0.4 s there is nothing to hold (claim catch-moment)', async () => {
     const blur = await lab(NAME)
     const heldAt = async (at: number) =>
       levelDb(tap(await played(blur, 'caughtHit', { at }), 'out'), seconds(2), seconds(3.5))
     // The card plays the first of the three.
     expect(settings.sets.caughtHit!.values!.at).toBe(0.5)
     const onTheHit = await heldAt(0.5)
-    expectWritten(say('hit at 0.5', onTheHit), '−19 dB')
-    expectWritten(say('hit at 0.55', onTheHit - (await heldAt(0.55))), '25 dB')
+    expectWritten(say('hit at 0.5', onTheHit), '−19.5 dB')
+    expectWritten(say('hit at 0.55', onTheHit - (await heldAt(0.55))), '24.6 dB')
     expect(say('hit at 0.4', await heldAt(0.4))).toBeLessThan(-90)
   })
 
@@ -1030,6 +1030,20 @@ describe('the spectral processing lab', () => {
     const blur = await lab(NAME)
     const result = await played(blur, 'loud')
     expectWritten(say('loud', levelDb(tap(result, 'out')) - levelDb(tap(result, 'in'))), '3.0 dB')
+  })
+
+  it('piles the frames of the drums up to peaks 6.2 times full scale with Freeze off, Blur and Shimmer at their tops and Tilt at −6 dB an octave, where the limiter holds the output at 2.0 times (claim pile-up)', async () => {
+    const blur = await lab(NAME)
+    const drums = await benchSource('drums', seconds(4))
+    const values = { freeze: 0, blur: 1, shimmer: 1, tilt: -6 }
+    const result = blur.render(drums, values)
+    expectWritten(say('pile-up, frames', peak(tap(result, 'wet'))), '6.2')
+    // The limiter's ceiling is twice full scale, and the louder side of the output stands on it.
+    const out = Math.max(peak(tap(result, 'out', 0)), peak(tap(result, 'out', 1)))
+    expectWritten(say('pile-up, out', out), '2.0')
+    expect(out).toBeLessThanOrEqual(2)
+    // The build's sound is those frames, before the limiter.
+    expectWritten(peak(tap(blur.render(drums, { ...values, build: STEP.shape }), 'built')), '6.2')
   })
 
   // --- the settings file ---------------------------------------------------------------------------
