@@ -171,7 +171,7 @@ describe('lesson 15: convolution reverb', () => {
 
   it('has 60 dB of its energy behind it 2.7 s into a 3 s room (claim energy-60)', async () => {
     const theLab = await room()
-    const energy = (await theLab.render(click(seconds(4)), {})).taps.energy!
+    const energy = theLab.render(click(seconds(4)), {}).taps.energy!
     const curve = energy.channels_data[0]!
     let k = 0
     while (k < curve.length && curve[k]! > -60) k += 1
@@ -184,7 +184,7 @@ describe('lesson 15: convolution reverb', () => {
 
   it('loses its top as it goes: 5 kHz against 500 Hz, early and late (claim dark-end)', async () => {
     const theLab = await room()
-    const picture = (await theLab.render(click(seconds(4)), {})).taps.picture!
+    const picture = theLab.render(click(seconds(4)), {}).taps.picture!
     const early =
       pictureLevel(picture, 0.05, 0.15, 4500, 5500) - pictureLevel(picture, 0.05, 0.15, 400, 600)
     const late =
