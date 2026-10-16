@@ -67,12 +67,14 @@ lab::Control spread{"spread", "Spread", "", 0.0f, 1.0f, 1.0f};
 // What the lesson starts from: two sines, held, and summed.
 lab::Tap added{"added", "The two sines, added", lab::kAudio, lab::kLesson, 1};
 
-// The pair held steady.
-lab::Tap steady_modulator{"steadyModulator", "Modulator, held", lab::kAudio, lab::kKit, 1};
+// The pair held steady. The carrier is the kit's table sine; the modulator is
+// the device's own operator function (FmGlass::self_modulated), called here
+// outside a running device, and the held tone and the offset are made of it.
+lab::Tap steady_modulator{"steadyModulator", "Modulator, held", lab::kAudio, lab::kCalled, 1};
 lab::Tap steady_carrier{"steadyCarrier", "Carrier, held, index 0", lab::kAudio, lab::kKit, 1};
 lab::Tap uncapped{"uncapped", "Held tone at the index asked for", lab::kAudio, lab::kLesson, 1};
-lab::Tap steady{"steady", "Held tone", lab::kAudio, lab::kKit, 1};
-lab::Tap offset{"offset", "Phase offset", lab::kCurve, lab::kKit, 1, "rad"};
+lab::Tap steady{"steady", "Held tone", lab::kAudio, lab::kCalled, 1};
+lab::Tap offset{"offset", "Phase offset", lab::kCurve, lab::kCalled, 1, "rad"};
 
 // The levels of the carrier's line and of the first three side bands against
 // the index, measured from a pair of the kit's table sines, and the whole

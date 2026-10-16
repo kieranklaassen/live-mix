@@ -58,7 +58,7 @@
     },
     "tick": {
       "label": "A bright tick over a plain note",
-      "values": { "ratio": 11, "index": 1, "decay": 0.15 }
+      "values": { "ratio": 11, "index": 0.5, "decay": 0.15 }
     },
     "linger": {
       "label": "Brightness that lingers",

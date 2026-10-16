@@ -202,11 +202,15 @@ describe('frequency modulation', () => {
     expectWritten(bare - lineAt(heldSpectrum(fm), ON_A_BIN), '81 dB')
   })
 
-  it('holds the level of the held tone the same from an Index of 0 to 8: less than 0.01 dB apart (claim power-same)', async () => {
+  it('holds the level of the held tone the same from an Index of 0 to 8, on a note at 117.19 Hz that is granted all of it: less than 0.01 dB apart (claim power-same)', async () => {
     const fm = await lab('frequency-modulation')
+    // On bin 10. At 468.75 Hz the key scaling grants no more than 5.98 rad, and the last
+    // four steps of the Index would all be one tone.
+    const pitch = 10 * BIN
     const levels: number[] = []
     for (let index = 0; index <= 8; index += 0.5) {
-      const result = fm.render(nothing, { index, pitch: ON_A_BIN })
+      const result = fm.render(nothing, { index, pitch })
+      expect(result.checks.granted).toBeCloseTo(index, 3)
       levels.push(gainToDb(rms(tap(result, 'steady'), 2000, 90_000)))
     }
     expectWritten(Math.max(...levels) - Math.min(...levels), 'less than 0.01 dB')
@@ -277,6 +281,20 @@ describe('frequency modulation', () => {
     const uneven = heldSpectrum(fm)
     for (const multiple of [2, 3, 4, 5, 7])
       expect(lineAt(uneven, multiple * ON_A_BIN) - bare).toBeLessThan(-90)
+    // The ratio moves the lines and leaves their heights, where none lands on another: with the
+    // Index at 2 on a note at 222.66 Hz (bin 19, low enough for every Ratio to be granted it) the
+    // carrier's line stands J0(2) = 0.2239, 13.0 dB, under the bare carrier at every Ratio but
+    // 0.5, 1 and 2, where a side band that comes back from below zero lands on it.
+    const low = 19 * BIN
+    const bareLow = bareCarrier(fm, low)
+    for (let position = 0; position < 12; position += 1) {
+      const result = fm.render(nothing, { ratio: position, pitch: low })
+      expect(result.checks.granted, `Ratio ${position}`).toBeCloseTo(2, 3)
+      const under = bareLow - lineAt(heldSpectrum(fm), low)
+      if ([RATIO.half, RATIO.one, RATIO.two].includes(position))
+        expect(Math.abs(under - 13), `Ratio ${position}`).toBeGreaterThan(0.5)
+      else expect(under, `Ratio ${position}`).toBeCloseTo(13.0, 1)
+    }
   })
 
   // ---- part 3: what it is used on ------------------------------------------------------------
@@ -494,6 +512,12 @@ describe('frequency modulation', () => {
     // The trace of the note's index reaches it at the strike (a point every 16 samples).
     expect(peak(tap(result, 'indexNow'))).toBeGreaterThan(1.98)
     expect(peak(tap(result, 'indexNow'))).toBeLessThanOrEqual(2.0001)
+    // Under 133 Hz the key scaling stands at its upper bound, 1.4: the same Index takes the same
+    // Brightness at 55 Hz and at 110 Hz, and a lower one than at 220 Hz.
+    const low = fm.render(nothing, { pitch: 55 }).checks.brightness!
+    expect(fm.render(nothing, { pitch: 110 }).checks.brightness).toBe(low)
+    expect(low).toBeCloseTo((2 / (8 * 1.4)) ** (2 / 3), 4)
+    expect(low).toBeLessThan(result.checks.brightness!)
   })
 
   it("takes 0.43 s off the modulator's envelope for 60 dB (claim mod-decay) and 1.7 s off the carrier's (claim amp-decay)", async () => {
@@ -504,7 +528,7 @@ describe('frequency modulation', () => {
     expectWritten(fallTime(tap(result, 'ampEnv'), 0.001), '1.7 s')
   })
 
-  it('lands a sine whose frequency is swung 64 dB under the sine whose phase is (claim as-frequency)', async () => {
+  it('leaves the difference between a sine whose frequency is swung and the sine whose phase is pushed 64 dB under that sine (claim as-frequency)', async () => {
     const fm = await lab('frequency-modulation')
     expectWritten(-fm.render(nothing, {}).checks.asFrequency!, '64 dB')
   })
@@ -624,6 +648,21 @@ describe('frequency modulation', () => {
     expect(peak(tap(result, 'pairB'))).toBeCloseTo(peak(tap(result, 'out', 1)), 2)
   })
 
+  it('adds the two carriers in the middle when Detune is 0: from half a second in the note is 3.0 dB stronger at a Spread of 0 than at 1 (claim spread-power)', async () => {
+    const fm = await lab('frequency-modulation')
+    // The power of both channels over the second from half a second in, where the index has died
+    // and each pair is its carrier alone.
+    const power = (spread: number, detune = 0) => {
+      const result = fm.render(nothing, { spread, detune })
+      const from = seconds(0.5)
+      const to = seconds(1.5)
+      const left = rms(tap(result, 'out', 0), from, to)
+      const right = rms(tap(result, 'out', 1), from, to)
+      return gainToDb(Math.sqrt(left * left + right * right))
+    }
+    expectWritten(power(0) - power(1), '3.0 dB')
+  })
+
   it('bends the modulator towards a sawtooth: at full Feedback its second harmonic is 10 dB under its first (claim feedback-saw)', async () => {
     const fm = await lab('frequency-modulation')
     // The starting note moved 1 Hz, to 220.98 Hz, so that its modulator stands on bin 66 (773 Hz).
@@ -635,9 +674,15 @@ describe('frequency modulation', () => {
     fm.render(nothing, { feedback: 0, pitch })
     const plain = heldSpectrum(fm, 'steadyModulator')
     expect(lineAt(plain, 66 * BIN) - lineAt(plain, 132 * BIN)).toBeGreaterThan(100)
+    // Where a bent modulator's harmonics would not fit under the band limit the device
+    // withholds the Feedback: at 878.9 Hz and a Ratio of 14 the modulator stands on bin 1,050
+    // (12.3 kHz), and at full Feedback it is still the table's sine.
+    fm.render(nothing, { feedback: 1, ratio: RATIO.fourteen, pitch: (1050 * BIN) / 14 })
+    const high = heldSpectrum(fm, 'steadyModulator')
+    expect(lineAt(high, 1050 * BIN) - loudestAwayFrom(high, [1050 * BIN])).toBeGreaterThan(100)
   })
 
-  it("works both channels out again from the device's own state: at least 140 dB under the device's, the floor of the measure (claim rebuilt-exact)", async () => {
+  it("works both channels out again from the device's own state: the difference at least 140 dB under the device's output, the floor of the measure (claim rebuilt-exact)", async () => {
     const fm = await lab('frequency-modulation')
     const tried: Record<string, number>[] = [
       {},
@@ -653,14 +698,20 @@ describe('frequency modulation', () => {
 
   // ---- part 6: ways to use it ----------------------------------------------------------------
 
-  it("leaves the tick's carrier 0.5 dB under the bare carrier and puts one pair, at 13 and 15 times the note, 12.8 dB under it (claim way-tick)", async () => {
+  it("leaves the tick's carrier 0.55 dB under the bare carrier on a note at 222.66 Hz, and puts one pair, at 13 and 15 times the note, 12.3 dB under it and the next pair 30 dB under it (claim way-tick)", async () => {
     const fm = await lab('frequency-modulation')
-    const bare = bareCarrier(fm, ON_A_BIN)
-    played(fm, 'tick', { pitch: ON_A_BIN })
+    // On bin 19, 222.66 Hz. At a Ratio of 14 a note at 468.75 Hz is granted less than half of
+    // the card's Index, and its lines would be those of another setting.
+    const pitch = 19 * BIN
+    const bare = bareCarrier(fm, pitch)
+    const result = played(fm, 'tick', { pitch })
+    expect(result.checks.granted).toBeCloseTo(settings.sets.tick!.values!.index!, 3)
     const held = heldSpectrum(fm)
-    expectWritten(bare - lineAt(held, ON_A_BIN), '0.5 dB')
-    expectWritten(bare - lineAt(held, 13 * ON_A_BIN), '12.8 dB')
-    expectWritten(bare - lineAt(held, 15 * ON_A_BIN), '12.8 dB')
+    expectWritten(bare - lineAt(held, pitch), '0.55 dB')
+    expectWritten(bare - lineAt(held, 13 * pitch), '12.3 dB')
+    expectWritten(bare - lineAt(held, 15 * pitch), '12.3 dB')
+    expectWritten(bare - lineAt(held, 27 * pitch), '30 dB')
+    expectWritten(bare - lineAt(held, 29 * pitch), '30 dB')
     // In the note itself the pair is gone a quarter of a second in.
     played(fm, 'tick')
     const later = fm.spectrum('out', 0, 12_000, 8192)
@@ -752,14 +803,16 @@ describe('frequency modulation', () => {
     expect(under('line3')).toBeLessThan(Math.min(under('line0'), under('line1'), under('line2')))
   })
 
-  it('leaves the held tone 1.3 % of its height below centre at a Ratio of 1 with full Feedback, and less than 0.1 % with none (claim dc-offset)', async () => {
+  it('leaves the held tone 1.3 % of its height below centre at a Ratio of 1 and an Index of 2 with full Feedback, and less than 0.1 % with none (claim dc-offset)', async () => {
     const fm = await lab('frequency-modulation')
-    const below = (feedback: number) => {
-      const held = tap(fm.render(nothing, { ratio: RATIO.one, feedback }), 'steady')
+    const below = (feedback: number, index = 2) => {
+      const held = tap(fm.render(nothing, { ratio: RATIO.one, feedback, index }), 'steady')
       return (-100 * mean(held, 2000, 90_000)) / peak(held)
     }
     expectWritten(below(1), '1.3 %')
     expectWritten(Math.abs(below(0)), 'less than 0.1 %')
+    // The size, and the side, go with the index: at 4 rad the tone stands above centre.
+    expect(below(1, 4)).toBeLessThan(-0.5)
   })
 
   // ---- part 9: the device's own defaults -----------------------------------------------------
