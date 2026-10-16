@@ -334,6 +334,17 @@ describe('lesson 6: equalising with biquads', () => {
     expect(lowest(part.taps.clearDepth!.channels_data[0]!)).toBeCloseTo(-4.8, 1)
   })
 
+  it('draws the band that is cut above the line it must pass, and no band above it in plain noise', async () => {
+    const eq = await lab(NAME)
+    const cut = eq.render(toneOnNoise(0.2, 0.16), { ...wire, clear: 1 }).taps
+    expect(at(cut.bandPower!, 1000) - at(cut.bandMargin!, 1000)).toBeGreaterThan(12)
+    expect(at(cut.bandPower!, 400) - at(cut.bandMargin!, 400)).toBeLessThan(0)
+    const plain = eq.render(noise(0.2, seconds(4)), { ...wire, clear: 1 }).taps
+    const heard = plain.bandPower!.channels_data[0]!
+    const line = plain.bandMargin!.channels_data[0]!
+    expect(heard.every((v, p) => v < line[p]!)).toBe(true)
+  })
+
   it('leaves a lone note alone at Clear 1: a sine, a saw and plain noise are cut by exactly 0 dB (claim clear-lone-note)', async () => {
     const eq = await lab(NAME)
     for (const id of ['sine', 'saw', 'noise']) {
@@ -385,5 +396,11 @@ describe('lesson 6: equalising with biquads', () => {
     // With no biquad in circuit there is no floor: the low cut alone goes all the way down.
     const bare = eq.render(short(), { ...wire, lowCut: 500 }).taps
     expect(Math.abs(at(bare.curveDevice!, 44) - at(bare.curveSum!, 44))).toBeLessThan(0.1)
+    // The Low shelf alone makes the floor; Presence and Air alone do not.
+    const lowOnly = eq.render(short(), { ...wire, lowCut: 500, low: 4 }).taps
+    expect(at(lowOnly.curveDevice!, 44)).toBeGreaterThan(-72)
+    expect(at(lowOnly.curveSum!, 44)).toBeLessThan(-79)
+    const highOnly = eq.render(short(), { ...wire, lowCut: 500, presence: 5, air: 3 }).taps
+    expect(Math.abs(at(highOnly.curveDevice!, 44) - at(highOnly.curveSum!, 44))).toBeLessThan(0.3)
   })
 })

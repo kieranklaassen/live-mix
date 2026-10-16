@@ -24,6 +24,9 @@
 //    sum in decibels is held to the curve of an impulse through a second
 //    device ("curveError"). The two part company far down a cut's slope,
 //    where the biquads' rounding shows, so the check looks down to -20 dB.
+//
+// Clear's listener is read too: the power it measured in each band, and (a
+// local of the device, worked out again here) the level a band must pass.
 
 #include "lab.h"
 
@@ -84,6 +87,8 @@ lab::Tap resp_cut_biquad{"respCutBiquad", "The low cut from two biquads", lab::k
 lab::Tap curve_device{"curveDevice", "The device, measured", lab::kCurve, lab::kDevice, 1, "dB"};
 lab::Tap curve_sum{"curveSum", "The bands' curves added", lab::kCurve, lab::kLesson, 1, "dB"};
 
+lab::Tap band_power{"bandPower", "What Clear hears in each band", lab::kCurve, lab::kDevice, 1, "dB"};
+lab::Tap band_margin{"bandMargin", "What a band must rise above", lab::kCurve, lab::kLesson, 1, "dB"};
 lab::Tap clear_depth{"clearDepth", "Clear's deepest cut", lab::kControl, lab::kDevice, 1, "dB"};
 lab::Tap resp_clear{"respClear", "Clear's cuts at their deepest", lab::kCurve, lab::kKit, 1, "dB"};
 
@@ -301,6 +306,15 @@ void lab_render(int frames) {
   double rebuilt_diff = 0.0, rebuilt_ref = 0.0;
   float deepest = 0.0f;
   float deepest_cuts[AmbientEq::kBands] = {};
+  // What Clear's listener measured in the frame where one band stood
+  // furthest above its surroundings: each band's power (the device's own
+  // numbers) and the level it had to pass, which the device works out and
+  // does not keep: the mean power of the bands two to four away on either
+  // side, and 6 dB more (AmbientEq::listen).
+  float most_excess = -1000.0f;
+  float heard_db[AmbientEq::kBands];
+  float margin_db[AmbientEq::kBands];
+  for (int k = 0; k < AmbientEq::kBands; ++k) heard_db[k] = margin_db[k] = lab::kFloorDb;
 
   lab::Tap* after_tone[AmbientEq::kStages] = {&after_low, &after_body, &after_presence, &after_air};
   const int kept_from = lab::frames();
@@ -336,6 +350,32 @@ void lab_render(int frames) {
     if (kept && eq.deepest_ < deepest) {
       deepest = eq.deepest_;
       for (int k = 0; k < AmbientEq::kBands; ++k) deepest_cuts[k] = eq.gain_[k].value;
+    }
+    // The device listens once every 1024 samples, on this one.
+    if (kept && (eq.position_ & (AmbientEq::kHop - 1)) == AmbientEq::kStagger + 1u) {
+      float now_db[AmbientEq::kBands];
+      float pass_db[AmbientEq::kBands];
+      float excess = -1000.0f;
+      for (int k = 0; k < eq.num_bands_; ++k) {
+        float sum = 0.0f;
+        int count = 0;
+        for (int j = k - 4; j <= k + 4; ++j) {
+          if (j < 0 || j >= eq.num_bands_ || (j > k - 2 && j < k + 2)) continue;
+          sum += eq.power_[j];
+          ++count;
+        }
+        now_db[k] = lab::power_to_db(eq.power_[k]);
+        pass_db[k] = lab::power_to_db(AmbientEq::kMarginRatio * sum / static_cast<float>(count));
+        // The two lowest bands have nothing below them and are never cut.
+        if (k >= 2 && eq.power_[k] > 0.0f && now_db[k] - pass_db[k] > excess) excess = now_db[k] - pass_db[k];
+      }
+      if (excess > most_excess) {
+        most_excess = excess;
+        for (int k = 0; k < eq.num_bands_; ++k) {
+          heard_db[k] = now_db[k];
+          margin_db[k] = pass_db[k];
+        }
+      }
     }
     // What the device handed to Clear on this sample: the newest in its ring.
     const uint32_t newest = (eq.position_ - 1u) & AmbientEq::kRingMask;
@@ -442,6 +482,30 @@ void lab_render(int frames) {
   configure(probe, 0.0f);
   curve(curve_device, capture_device(probe));
   curve_error.value = worst_apart(curve_device, curve_sum, -20.0f);
+
+  // The listener's bands as steps against frequency, from the bottom of the
+  // lowest band to the top of the highest (AmbientEq::lay_out_bands).
+  if (eq.num_bands_ > 0 && band_power.open(kPoints) && band_margin.open(kPoints)) {
+    float lo[AmbientEq::kBands], hi[AmbientEq::kBands];
+    for (int k = 0; k < eq.num_bands_; ++k) {
+      const bool half = k < AmbientEq::kHalfOctaveBands;
+      lo[k] = half ? AmbientEq::kFirstEdgeHz * std::exp2(0.5f * static_cast<float>(k))
+                   : AmbientEq::kThirdsFromHz * std::exp2(static_cast<float>(k - AmbientEq::kHalfOctaveBands) / 3.0f);
+      hi[k] = lo[k] * std::exp2(half ? 0.5f : 1.0f / 3.0f);
+    }
+    const float bottom = lo[0];
+    const float top = hi[eq.num_bands_ - 1];
+    band_power.x0 = band_margin.x0 = bottom;
+    band_power.x1 = band_margin.x1 = top;
+    band_power.scale = band_margin.scale = lab::kLog;
+    int k = 0;
+    for (int p = 0; p < kPoints; ++p) {
+      const float hz = bottom * std::pow(top / bottom, static_cast<float>(p) / (kPoints - 1));
+      while (k < eq.num_bands_ - 1 && hz >= hi[k]) ++k;
+      band_power.set(p, heard_db[k]);
+      band_margin.set(p, margin_db[k]);
+    }
+  }
 
   // Clear's cuts at the moment they were deepest, as the device designs them.
   {
