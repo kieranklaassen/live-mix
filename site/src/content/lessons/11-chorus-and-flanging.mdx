@@ -1,7 +1,7 @@
 ---
 title: Chorus and flanging
 order: 11
-summary: A short delay added back to its source cuts a comb of notches into the spectrum, and an oscillator on the delay time sweeps them. Make the delay longer and read it at several moving points, and the same machine thickens a sound by small changes of pitch. This lesson runs the engine's Flanger and Chorus one sample at a time and reads both out as they work.
+summary: A short delay added back to its source cuts a comb of notches into the spectrum, and an oscillator on the delay time sweeps them. Make the delay longer and read it at several moving points, and the same machine turns one sound into several, each a little off pitch. This lesson runs the engine's Flanger and Chorus one sample at a time and reads both out as they work.
 lab: 11-chorus-and-flanging
 devices: [chorus, flanger]
 bench:
@@ -17,6 +17,7 @@ files:
   - cpp/kit/delay.h
   - cpp/kit/lfo.h
   - cpp/kit/math.h
+  - cpp/kit/device.h
 ---
 
 Play a sound and, a few thousandths of a second later, the same sound again, and the two do not simply add up to a louder one. At some frequencies the late copy arrives exactly in step with the first and the two reinforce. At others it arrives exactly out of step, crest on trough, and they cancel. Which frequencies cancel depends only on how late the copy is. The spectrum comes out striped at even distances, like the teeth of a comb, and the thing that does it is called a **comb filter**.
@@ -71,7 +72,7 @@ While the delay is a whole number of samples, measurement and formula agree to <
 
 ### 2. An oscillator moves the delay
 
-A comb that stands still is a tone colour. The effect is in the motion. A slow oscillator <M t="s(t)" />, running between −1 and +1, pushes the read point either side of the Delay setting:
+A comb that stands still is a fixed filter. Flanging is the motion. A slow oscillator <M t="s(t)" />, running between −1 and +1, pushes the read point either side of the Delay setting:
 
 <M block t={String.raw`d(t) = D\,\bigl(1 + 0.95 \cdot \text{depth} \cdot s(t)\bigr)`} />
 
@@ -189,13 +190,13 @@ The Flanger has the second of these only. Its right side reads the same oscillat
 
 **The read point cannot reach zero.** The first notch stands at one over twice the delay, so it could only leave the top of the band if the delay went to nothing. It cannot. The interpolator needs a neighbour on each side, and both devices clamp every read to two samples. With the Flanger at 0.5 ms and full depth the read point stops at <Claim id="shortest-read">0.042 ms</Claim>, where the first notch is at 12 kHz.
 
-**A jump in the delay is a click.** The square, the ramps and Random all jump. Moving a read point at once from one place in the line to another splices two unrelated bits of sound together. So the Flanger passes its oscillator through a one-pole lag of 3 ms (`kLfoLagSeconds`) before it touches the read point: a full jump of the square takes <Claim id="lag">3 ms to cover 63 %</Claim> of the way, and becomes a very quick glide. The Delay and Depth controls of both devices glide over 50 ms for the same reason, where the other controls take 5. A turn of the knob bends the pitch for a moment and does not zip.
+**A jump in the delay is a click.** The square, the ramps and Random all jump. Moving a read point at once from one place in the line to another splices two unrelated bits of sound together. So the Flanger passes its oscillator through a one-pole lag of 3 ms (<Src path="cpp/devices/flanger/flanger.h">`kLfoLagSeconds`</Src>) before it touches the read point: a full jump of the square takes <Claim id="lag">3 ms to cover 63 %</Claim> of the way, and becomes a very quick glide. The Delay and Depth controls of both devices glide over 50 ms (`kGlideSeconds`) for the same reason, where <Src path="cpp/kit/device.h">every other control</Src> takes 5. A turn of the knob bends the pitch for a moment and does not zip.
 
-**Feedback near 1 rings without end.** The range stops at 95 %, where the loop's own gain is already 26 dB. What is fed back passes a limiter (`loop_limit`) that is exactly linear up to full scale and bends over above it, levelling off at twice full scale, so a resonance driven hard saturates and does not run away.
+**Feedback near 1 rings without end.** The range stops at 95 %, where the loop's own gain is already 26 dB. What is fed back passes a limiter (<Src path="cpp/devices/flanger/flanger.h">`loop_limit`</Src>, the same in both devices) that is exactly linear up to full scale and bends over above it, levelling off at twice full scale, so a resonance driven hard saturates and does not run away.
 
 **Reading between samples dulls the copy.** A voice whose read point lies between samples is an interpolation, and interpolation loses a little at the top of the band (lesson 10). On white noise a moving voice of the Chorus comes out <Claim id="between-samples">0.9 dB quieter</Claim> than it went in, and one held on a whole sample loses nothing. It is also why the comb's highest notches are a little shallower than the formula says.
 
-**A chorus held still is a comb.** With no depth, or with the rate so low that nothing seems to move, the Chorus is the filter of stage 1 with its teeth 83 Hz apart, and three coincident voices make it lopsided towards the delayed side. The thickening is the motion.
+**A chorus held still is a comb.** With no depth, or with the rate so low that nothing seems to move, the Chorus is the filter of stage 1 with its teeth 83 Hz apart, and three coincident voices make it lopsided towards the delayed side. What makes it a chorus is the motion.
 
 ## What to try
 
