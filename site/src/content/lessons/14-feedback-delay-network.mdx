@@ -8,7 +8,7 @@ bench:
   device: fdn-reverb
   params: { mix: 1, decay: 1.5, damping: 0, predelayMs: 0, size: 1, breathRate: 0.3, breathDepth: 0 }
   as: insert
-  note: The plate opens where this lesson starts and not on the device's own defaults, which are Mix 0.5, Decay 5 s, Damping 0.4 and a Breath depth of 0.4. One thing cannot be matched. The slow wander of the line lengths has no control on the device, so on the plate it is always moving.
+  note: The plate opens where this lesson starts and not on the device's own defaults, which are Mix 0.5, Decay 5 s, Damping 0.4 and a Breath depth of 0.4. One thing cannot be matched. The slow wander of the line lengths has no control on the device, so on the plate it is always moving. With the Mix at 1 only the reverb is heard, and on the clicks that is quiet, as it is in the lab above, so choose the drums or the guitar to hear it.
 sources: [clicks, drums, guitar, sine, chords, noise]
 seconds: 2
 files:
@@ -27,7 +27,7 @@ The engine's network has eight lines. These are its stages, in the order a sound
 
 <Stages taps="in diffused written line1 line8 out" />
 
-The click goes in and a tail comes out. Because the tail is small beside the click, the picture is in decibels: the level of what goes in, and of what comes out.
+The click goes in and a tail comes out. One sample holds very little energy, so the tail is quiet: at its loudest it is <Claim id="tail-quiet">25 dB under the click</Claim>, and Listen on the output gives a faint rustle. The clicks are here for the pictures. To hear the reverb at a working level, choose the drums or the guitar as the source. Because the tail is small beside the click, the picture is in decibels: the level of what goes in, and of what comes out.
 
 <Controls ids="decay size" />
 
@@ -101,11 +101,11 @@ The lab sends the eight unit vectors through each of the kit's functions, which 
 <Controls ids="matrix" />
 
 <Curve taps="apart:in mixed:out" xMax={1.5} xTitle="seconds" label="A bare network's answer to a click, unmixed and mixed">
-  A bare network of the device's eight lengths, with no diffusers and no filters, sent one click. Grey: each line fed back to itself. Red: the lines mixed. The grey echoes keep to the same few spacings and lose only height. The red ones lose height faster and thicken in number.
+  A bare network of the device's eight lengths, with no diffusers and no filters, sent one click. Grey: each line fed back to itself. Red: the lines mixed as Mixing says, so on None the red covers the grey. The grey echoes keep to the same few spacings and lose only height. The red ones lose height faster and thicken in number.
 </Curve>
 
 <Curve taps="densityApart:in densityMixed:out" xTitle="seconds" yTitle="echoes per ms" label="Echoes arriving per millisecond, unmixed and mixed">
-  Echoes arriving per millisecond, counted in windows of 50 ms on the same two networks with the gain at 1, so that nothing dies. Unmixed (grey) the count never changes. Mixed (red) it climbs for as long as the lab counts. At 48 a millisecond every sample would be an echo.
+  Echoes arriving per millisecond, counted in windows of 50 ms on the same two networks with the gain at 1, so that nothing dies. Unmixed (grey) the count never grows. Mixed (red) it climbs for as long as the lab counts. At 48 a millisecond every sample would be an echo.
 </Curve>
 
 Mixed by the Hadamard matrix, the bare network delivers <Claim id="echo-density">117 echoes in its first half second and 1,979 in the second</Claim>. Unmixed it delivers 12 and 15.
@@ -122,7 +122,7 @@ That is <Src path="cpp/kit/fdn.h">`kit::rt60_gain(delay_samples, rt60_seconds, s
 
 This device takes a shortcut. <Src path="cpp/devices/fdn-reverb/fdn_reverb.h">`feedback_gain_for`</Src> is the same formula applied once, to the mean of the eight lengths (6,935 samples, 144.5 ms, times Size), and the one gain serves all eight lines. At 1.5 s that gain is <Claim id="trip-gain">5.78 dB a trip</Claim>. The code caps it at 0.98, a cap the controls never reach: the longest decay with the smallest size gives <Claim id="gain-cap">0.975</Claim>.
 
-One gain for all means a line alone would decay at its own rate: line 1, the shortest, fed back to itself as in stage 1, is 60 dB down after <Claim id="comb-alone">1.13 s</Claim> when 1.5 s is set, and with a gain from its own length (<Claim id="comb-own">4.35 dB a trip</Claim>) after 1.5 s exactly. The matrix rescues the shortcut. No echo stays in one line: each trip it is shared out over all eight, so every path through the network is made of short lines and long ones alike. The bare network of stage 3 at 1.5 s decays in <Claim id="bare-decay">1.46 s with one gain for all and 1.50 s with a gain for each line</Claim>.
+One gain for all means a line alone would decay at its own rate: line 1, the shortest, fed back to itself as in stage 1, is 60 dB down after <Claim id="comb-alone">1.13 s</Claim> when 1.5 s is set, and with a gain from its own length (<Claim id="comb-own">4.35 dB a trip</Claim>) after 1.5 s exactly. The matrix rescues the shortcut. No echo stays in one line: each trip it is shared out over all eight, so every path through the network is made of short lines and long ones alike. The bare network of stage 3 at 1.5 s decays in <Claim id="bare-decay">1.46 s with one gain for all and 1.50 s with a gain for each line</Claim>. Gain switches the comb of stage 1 and the bare networks of stage 3 between the two laws. The device has only the first, so the curve below does not answer to it.
 
 <Controls ids="decay size gains" />
 
@@ -187,7 +187,7 @@ Three things stand around the network. Before it, the device sums the two input 
 <Controls ids="breathDepth mix" />
 
 <Trace taps="gate" min={0} max={1.05}>
-  The gain the breath puts on the input. At a depth of 0 it is 1 throughout and the network hears everything. Raise the depth and it dips once every three and a third seconds, longer than this loop, so each time round it stands somewhere else.
+  The gain the breath puts on the input. At a depth of 0 it is 1 throughout and the network hears everything. Raise the depth and it dips once every three and a third seconds, longer than this loop, so the picture holds part of one dip, and the step at its left edge is where the loop joins.
 </Trace>
 
 After the network, the output is taken straight from the lines: left is a quarter of the sum of lines 1, 3, 5 and 7, right the same of lines 2, 4, 6 and 8, each through a `tanh`. The two sides share no line, which is what makes the tail wide: on the clicks their correlation is <Claim id="stereo">0.13</Claim>.
@@ -202,7 +202,7 @@ Last, <Src path="cpp/devices/fdn-reverb/fdn_reverb_device.cpp">the device</Src> 
 
 **A decay time that is not the one set.** The formula sets the gain, and everything else in the loop takes a little more. At short settings it hardly shows. At the longest, 20 s, the level of a click's tail between 1 s and 7 s falls at the rate of <Claim id="decay-long">15.7 s</Claim>.
 
-**Growth without limit.** A matrix that keeps energy and a gain under 1 cannot grow. The device adds a second guard: what is written into each line goes through `tanh`, which no value leaves larger than 1. Small values pass almost unchanged, a tenth of full scale losing a third of a percent; a loud input is squeezed a little on every trip.
+**Growth without limit.** A matrix that keeps energy and a gain under 1 cannot grow. The device adds a second guard: what is written into each line goes through `tanh`, which no value leaves larger than 1. Small values pass almost unchanged, a tenth of full scale losing a third of a per cent; a loud input is squeezed a little on every trip.
 
 **A tail that never quite ends.** Numbers too small to matter slow a processor down, so the device sets anything under 1e-15 to zero, and once its output has been exact zeros for two seconds it stops working until sound arrives: silence in gives <Claim id="silence">exact silence</Claim> out. This page's still setting defeats that in one case. At a Size of exactly 1 the lines are read at whole samples, the all-pass read's coefficient is exactly 1, and its pole lies on the unit circle at half the sample rate: a rounding <Claim id="still-residue">residue of about 0.0000001 that changes sign every sample</Claim> is left ringing after a tail. Moving lines, or any other Size, let it die. The device itself is never still.
 

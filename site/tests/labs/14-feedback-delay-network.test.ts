@@ -400,6 +400,17 @@ describe('lesson 14: the feedback delay network', () => {
     expect(out.channels_data[1]!.every((v, i) => v === drums.right[i])).toBe(true)
   })
 
+  it('answers a click with a quiet tail, 25 dB under the click at its loudest (claim tail-quiet)', async () => {
+    const fdn = await lab(NAME)
+    const clicks = await benchSource('clicks', seconds(2))
+    const out = fdn.render(clicks, {}).taps.out!
+    let top = 0
+    for (const data of out.channels_data) for (const v of data) top = Math.max(top, Math.abs(v))
+    // The click itself is 1, full scale.
+    expect(20 * Math.log10(top)).toBeGreaterThan(-25.5)
+    expect(20 * Math.log10(top)).toBeLessThan(-24.5)
+  })
+
   it('answers silence with exact silence (claim silence)', async () => {
     const fdn = await lab(NAME)
     const out = fdn.render(silence(seconds(1)), {})
