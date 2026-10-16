@@ -4,11 +4,13 @@
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { lab, silence as nothing } from '../labs/support.ts'
+import { labInfo } from '../../src/lib/lab-info.ts'
 import {
   benchSource,
   lessonOpening,
   lessonStill,
   lessonTile,
+  openingKey,
   plotHtml,
   renderStill,
   type Numbers,
@@ -26,6 +28,11 @@ const SAMPLE: StillLesson = {
 const COMPRESSION: StillLesson = {
   id: 'compression',
   data: { lab: 'compression', sources: ['drums', 'guitar'], seconds: 4 },
+}
+/** The same lab on a source whose two sides are not one sound. */
+const WIDE: StillLesson = {
+  id: 'wide',
+  data: { lab: 'through', sources: ['pad'], seconds: 4 },
 }
 const FRAMES: StillLesson = {
   id: 'short-time-fourier',
@@ -79,7 +86,7 @@ describe('a lesson’s still', () => {
     ])
     expect(picture.lines).toContain('var(--sig-in)')
     expect(picture.lines).toContain('var(--sig-out)')
-    expect(picture.label).toBe('Input and Output against time')
+    expect(picture.label).toBe('Input and Output against time, the left channel of each')
     const html = plotHtml(picture)
     expect(html).toMatch(/^<div class="still-plot"/)
     expect(html).toContain('<svg ')
@@ -133,7 +140,7 @@ describe('a lesson’s still', () => {
 
   it('draws a spectrum, a curve and a picture of colour', async () => {
     const spectrum = await lessonStill(COMPRESSION, { taps: 'in out', view: 'spectrum' })
-    expect(spectrum.label).toBe('The spectrum of Input and Output')
+    expect(spectrum.label).toBe('The spectrum of Input and Output, the left channel of each')
     expect(spectrum.x.ticks.map((tick) => tick.text)).toEqual(
       '20 50 100 200 500 1k 2k 5k 10k 20k'.split(' '),
     )
@@ -149,7 +156,9 @@ describe('a lesson’s still', () => {
     expect(colour.lines.match(/href="data:image\/png;base64,iVBORw0KGgo/g)).toHaveLength(2)
     expect(colour.lines).toContain('fill:var(--sig-ctl)')
     expect(colour.lines).toContain('fill:var(--sig-out)')
-    expect(colour.note).toMatch(/seconds across, hertz up, from −\d+ dB .* to −\d+ dB$/)
+    expect(colour.note).toMatch(
+      /seconds across, hertz up, from −\d+ dB, the quietest shown, to −\d+ dB, the loudest shown$/,
+    )
     expect(plotHtml(colour)).not.toMatch(HEX)
   })
 
@@ -224,7 +233,7 @@ describe('a still’s ranges', () => {
       top: 4000,
     })
     expect(ends(colour.y)).toEqual([0, 4000])
-    expect(colour.note).toMatch(/from −70 dB .* to −10 dB$/)
+    expect(colour.note).toMatch(/from −70 dB, the quietest shown, to −10 dB, the loudest shown$/)
     const fitted = await lessonStill(FRAMES, { taps: 'picture', view: 'spectrogram' })
     expect(colour.lines).not.toBe(fitted.lines)
   })
@@ -491,6 +500,9 @@ describe('a still of a stretch, with a title and stems', () => {
     expect(stems!.match(/M[\d.]+,[\d.]+V[\d.]+/g)).toHaveLength(17)
     expect(dots!.match(/M[\d.]+,[\d.]+h0/g)).toHaveLength(17)
     expect(dots).toContain('stroke-linecap:round')
+    // A stem is one pixel wide: it is drawn on a whole pixel, so that no two differ in weight.
+    expect(stems).toContain('shape-rendering="crispEdges"')
+    expect(dots).not.toContain('shape-rendering')
     expect(stemmed.lines).toContain('var(--sig-out)')
     expect(plotHtml(stemmed)).not.toMatch(HEX)
   })
@@ -546,6 +558,98 @@ describe('a still of a stretch, with a title and stems', () => {
     expect(named.x.title).toBe('frames')
     expect(named.note).toMatch(/^Every frame's spectrum: frames across, hertz up, from /)
     expect(named.lines).toBe(plain.lines)
+    // The key says what the two ends of its ramp stand for, and names no colour.
+    expect(plain.note).toMatch(/ dB, the quietest shown, to .* dB, the loudest shown$/)
+    expect(plain.note).not.toMatch(/colour/)
+    expect(plain.ramp).toBe(true)
+  })
+})
+
+describe('a still of a sound with two channels', () => {
+  it('says that it draws the left channel, in its label and under its key', async () => {
+    const both = await lessonStill(COMPRESSION, { taps: 'in out' })
+    expect(both.note).toBe('The left channel of each')
+    expect(both.label).toBe('Input and Output against time, the left channel of each')
+    const one = await lessonStill(SAMPLE, { taps: 'in' })
+    expect(one.note).toBe('The left channel')
+    expect(one.label).toBe('The loop, dry against time, the left channel')
+    // A value has one channel: only the sound beside it is named.
+    const mixed = await lessonStill(COMPRESSION, { taps: 'in level' })
+    expect(mixed.note).toBe('The left channel of Input')
+    const spectrum = await lessonStill(SAMPLE, { taps: 'in', view: 'spectrum' })
+    expect(spectrum.note).toBe('The left channel')
+    expect(spectrum.label).toBe('The spectrum of The loop, dry, the left channel')
+  })
+
+  it('says nothing of a sound with one channel, of a value or of a curve', async () => {
+    const mono = await lessonStill(STRING, { taps: 'pluck string' })
+    expect(mono.note).toBeUndefined()
+    expect(mono.label).toBe('The pluck and The string against time')
+    expect((await lessonStill(COMPRESSION, { taps: 'level' })).note).toBeUndefined()
+    const curve = await lessonStill(COMPRESSION, { taps: 'gainRamped', view: 'curve' })
+    expect(curve.note).toBeUndefined()
+  })
+
+  it('draws both channels when asked, each a line of the key', async () => {
+    const left = await lessonStill(WIDE, { taps: 'in' })
+    const both = await lessonStill(WIDE, { taps: 'in', channels: 'both' })
+    expect(both.key).toEqual([
+      { id: 'in', name: 'The loop, dry, left', role: 'in', dashed: undefined },
+      { id: 'in', name: 'The loop, dry, right', role: 'alt', dashed: undefined },
+    ])
+    expect(both.note).toBeUndefined()
+    expect(both.label).toBe('The loop, dry against time, left and right')
+    const paths = both.lines.match(/<path [^>]*>/g)!
+    expect(paths).toHaveLength(2)
+    expect(paths[0]).toContain('var(--sig-in)')
+    expect(paths[1]).toContain('var(--sig-alt)')
+    // The right channel is the tap's second, and the pad's two sides are not one sound.
+    const d = (path: string) => /d="([^"]*)"/.exec(path)![1]
+    expect(d(paths[1]!)).not.toBe(d(paths[0]!))
+    // Both stand on one axis, which holds the larger of the two.
+    expect(both.y.ticks.length).toBeGreaterThan(0)
+    expect(left.key).toEqual([{ id: 'in', name: 'The loop, dry', role: 'in', dashed: undefined }])
+  })
+
+  it('draws both channels of a spectrum too, and one line for a tap of one channel', async () => {
+    const both = await lessonStill(WIDE, { taps: 'in', view: 'spectrum', channels: 'both' })
+    expect(both.key.map((line) => line.name)).toEqual([
+      'The loop, dry, left',
+      'The loop, dry, right',
+    ])
+    expect(both.label).toBe('The spectrum of The loop, dry, left and right')
+    const mono = await lessonStill(STRING, { taps: 'pluck string', channels: 'both' })
+    expect(mono.key.map((line) => line.name)).toEqual(['The pluck', 'The string'])
+    expect(mono.label).toBe('The pluck and The string against time')
+  })
+
+  it('gives each right channel a role no other line has', async () => {
+    const both = await lessonStill(COMPRESSION, { taps: 'in out', channels: 'both' })
+    expect(both.key.map((line) => [line.name, line.role])).toEqual([
+      ['Input, left', 'in'],
+      ['Input, right', 'alt'],
+      ['Output, left', 'out'],
+      ['Output, right', 'alt2'],
+    ])
+  })
+})
+
+describe('a still’s y title', () => {
+  it('is the tap’s unit, or the words it is given in its place', async () => {
+    const plain = await lessonStill(STRING, { taps: 'loss', view: 'curve' })
+    expect(plain.y.title).toBe('dB')
+    const named = await lessonStill(STRING, { taps: 'loss', view: 'curve', yTitle: 'gain' })
+    expect(named.y.title).toBe('gain')
+    expect(plotHtml(named)).toContain('>gain</span>')
+    expect(named.lines).toBe(plain.lines)
+  })
+
+  it('is written over a picture against time as well', async () => {
+    const level = await lessonStill(COMPRESSION, { taps: 'level', yTitle: 'decibels' })
+    expect(level.y.title).toBe('decibels')
+    const sound = await lessonStill(STRING, { taps: 'pluck', yTitle: 'amplitude' })
+    expect(sound.y.title).toBe('amplitude')
+    expect((await lessonStill(STRING, { taps: 'pluck' })).y.title).toBe('')
   })
 })
 
@@ -601,7 +705,7 @@ describe('the picture a lesson opens on', () => {
     const opening = await lessonOpening(COMPRESSION, { input: 'in', output: 'out' })
     expect(opening).toHaveLength(1)
     expect(opening[0]).toEqual(await lessonStill(COMPRESSION, { taps: 'in:in out:out' }))
-    expect(opening[0]!.label).toBe('Input and Output against time')
+    expect(opening[0]!.label).toBe('Input and Output against time, the left channel of each')
   })
 
   it('takes a view, a span of time and its ranges, as a still does', async () => {
@@ -614,7 +718,7 @@ describe('the picture a lesson opens on', () => {
       top: 5000,
     })
     expect(more).toEqual([])
-    expect(spectrum!.label).toBe('The spectrum of Input and Output')
+    expect(spectrum!.label).toBe('The spectrum of Input and Output, the left channel of each')
     expect(spectrum!.x.ticks.at(-1)!.text).toBe('5k')
     expect(spectrum!.y.ticks.map((tick) => tick.text)).toEqual(['−80', '−60', '−40', '−20', '0'])
     const [short] = await lessonOpening(COMPRESSION, {
@@ -633,8 +737,8 @@ describe('the picture a lesson opens on', () => {
       separate: true,
     })
     expect(opening.map((picture) => picture.label)).toEqual([
-      'Input against time',
-      'Output against time',
+      'Input against time, the left channel',
+      'Output against time, the left channel',
     ])
     expect(opening.map((picture) => picture.key)).toEqual([
       [{ id: 'in', name: 'Input', role: 'in', dashed: undefined }],
@@ -654,9 +758,125 @@ describe('the picture a lesson opens on', () => {
     expect(opening[1]!.note).toMatch(/^Every frame's spectrum, of the output: /)
   })
 
+  it('takes a scale, titles, stems and both channels, as a still does', async () => {
+    const [even] = await lessonOpening(COMPRESSION, {
+      input: 'in',
+      output: 'out',
+      view: 'spectrum',
+      scale: 'linear',
+      top: 2000,
+    })
+    expect(even).toEqual(
+      await lessonStill(COMPRESSION, {
+        taps: 'in:in out:out',
+        view: 'spectrum',
+        scale: 'linear',
+        top: 2000,
+      }),
+    )
+    expect(even!.x.ticks.at(0)).toEqual({ at: 0, text: '0' })
+    const [short] = await lessonOpening(COMPRESSION, {
+      input: 'in',
+      output: 'out',
+      from: 1,
+      span: 0.001,
+      stems: 'out',
+      xTitle: 'seconds in',
+      yTitle: 'amplitude',
+    })
+    expect(short!.x.title).toBe('seconds in')
+    expect(short!.y.title).toBe('amplitude')
+    expect(short!.lines.match(/M[\d.]+,[\d.]+V[\d.]+/g)).toHaveLength(49)
+    const [sides] = await lessonOpening(COMPRESSION, {
+      input: 'in',
+      output: 'out',
+      channels: 'both',
+    })
+    expect(sides!.key.map((line) => line.name)).toEqual([
+      'Input, left',
+      'Input, right',
+      'Output, left',
+      'Output, right',
+    ])
+  })
+
   it('stops the build on a tap the lab does not have, naming the lesson', async () => {
     await expect(lessonOpening(COMPRESSION, { input: 'in', output: 'outt' })).rejects.toThrow(
       'compression: the lab has no tap called "outt".',
+    )
+  })
+})
+
+describe('the key of the picture a lesson opens on', () => {
+  it('names each line, with a button for each sound, and says the side once', async () => {
+    const { taps } = await labInfo('compression', 'compression')
+    const props = { input: 'in', output: 'out' }
+    const together = openingKey(await lessonOpening(COMPRESSION, props), props, taps, 'compression')
+    expect(together.map(({ text, hear }) => [text, hear])).toEqual([
+      ['Input', 'in'],
+      ['Output', 'out'],
+      ['The left channel of each', undefined],
+    ])
+    expect(together.map((one) => one.line?.role)).toEqual(['in', 'out', undefined])
+    const apart = { ...props, separate: true }
+    const two = openingKey(await lessonOpening(COMPRESSION, apart), apart, taps, 'compression')
+    expect(two.map(({ text, hear }) => [text, hear])).toEqual([
+      ['Input', 'in'],
+      ['Output', 'out'],
+      ['The left channel of each', undefined],
+    ])
+  })
+
+  it('gives a sound drawn as two lines one button', async () => {
+    const { taps } = await labInfo('compression', 'compression')
+    const props = { input: 'in', output: 'out', channels: 'both' as const }
+    const key = openingKey(await lessonOpening(COMPRESSION, props), props, taps, 'compression')
+    expect(key.map(({ text, hear }) => [text, hear])).toEqual([
+      ['Input, left', 'in'],
+      ['Input, right', undefined],
+      ['Output, left', 'out'],
+      ['Output, right', undefined],
+    ])
+  })
+
+  it('gives a tap that is not sound no button, as before', async () => {
+    const { taps } = await labInfo('short-time-fourier', 'short-time-fourier')
+    const props = { input: 'picture', output: 'pictureOut', view: 'spectrogram' as const }
+    const key = openingKey(await lessonOpening(FRAMES, props), props, taps, 'short-time-fourier')
+    expect(key).toHaveLength(2)
+    expect(key.every((one) => one.ramp === true && one.line === undefined)).toBe(true)
+    expect(key.every((one) => one.hear === undefined)).toBe(true)
+    expect(key[0]!.text).toMatch(/^Every frame's spectrum: /)
+  })
+
+  it('gives a picture of levels the button of the sound it is named', async () => {
+    const { taps } = await labInfo('short-time-fourier', 'short-time-fourier')
+    const props = {
+      input: 'picture',
+      output: 'pictureOut',
+      view: 'spectrogram' as const,
+      hear: ['in', 'out'] as const,
+    }
+    const pictures = await lessonOpening(FRAMES, props)
+    expect(pictures).toEqual(await lessonOpening(FRAMES, { ...props, hear: undefined }))
+    const key = openingKey(pictures, props, taps, 'short-time-fourier')
+    expect(key.map((one) => one.hear)).toEqual(['in', 'out'])
+    expect(key.map((one) => one.ramp)).toEqual([true, true])
+  })
+
+  it('stops the build on a sound to hear that the lab does not have, or that is not sound', async () => {
+    const { taps } = await labInfo('short-time-fourier', 'short-time-fourier')
+    const props = { input: 'picture', output: 'pictureOut', view: 'spectrogram' as const }
+    const pictures = await lessonOpening(FRAMES, props)
+    expect(() =>
+      openingKey(pictures, { ...props, hear: ['in', 'outt'] }, taps, 'short-time-fourier'),
+    ).toThrow(
+      'short-time-fourier: the opening picture is heard by "outt", which is not a tap of the lab.',
+    )
+    expect(() =>
+      openingKey(pictures, { ...props, hear: ['in', 'picture'] }, taps, 'short-time-fourier'),
+    ).toThrow(
+      'short-time-fourier: the opening picture is heard by "picture", which is not sound, so it cannot be listened to.',
     )
   })
 })
@@ -701,6 +921,30 @@ describe('a lesson’s tile', () => {
       time: { from: 0, span: 4 },
     })
     expect(tile.picture).toContain('var(--sig-out)')
+  })
+
+  it('draws its picture with the stems, the scale and the channels its entry asks for', async () => {
+    // 1 ms at 48,000 samples a second, both ends drawn: 49 stems.
+    const stemmed = await lessonTile({ ...SAMPLE, id: 'stemmed' }, FIXTURES)
+    expect(stemmed.picture.match(/M[\d.]+,[\d.]+V[\d.]+/g)).toHaveLength(49)
+    const plain = await lessonTile(SAMPLE, FIXTURES)
+    expect(plain.picture).not.toMatch(/M[\d.]+,[\d.]+V[\d.]+/)
+    const sides = await lessonTile({ ...SAMPLE, id: 'sides' }, FIXTURES)
+    expect(sides.picture).toContain('var(--sig-in)')
+    expect(sides.picture).toContain('var(--sig-alt)')
+    expect(plain.picture).not.toContain('var(--sig-alt)')
+    // The same spectrum up to 2,000 Hz, evenly and in even ratios: not the same line.
+    const even = await lessonTile({ ...SAMPLE, id: 'even' }, FIXTURES)
+    const uneven = await lessonTile({ ...SAMPLE, id: 'uneven' }, FIXTURES)
+    expect(even.picture).not.toBe(uneven.picture)
+    expect(even.time).toBeNull()
+  })
+
+  it('says in its picture’s title what is drawn, and which side of a sound of two channels', async () => {
+    const tile = await lessonTile(SAMPLE, FIXTURES)
+    expect(tile.picture).toContain('<title>The loop, dry against time, the left channel</title>')
+    const sides = await lessonTile({ ...SAMPLE, id: 'sides' }, FIXTURES)
+    expect(sides.picture).toContain('<title>The loop, dry against time, left and right</title>')
   })
 
   it('of a lab that takes no source plays its own notes', async () => {

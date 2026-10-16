@@ -18,6 +18,38 @@ export { resolveSet, type NamedSet, type ResolvedSet }
 /** How a tile's picture draws its taps. */
 export const PICTURE_VIEWS = ['wave', 'spectrum', 'spectrogram', 'curve'] as const
 
+/**
+ * What a picture takes beside its view, its span and its ranges, each with the meaning a still
+ * gives it (lib/still.ts): a spectrum's `scale`, the word under the picture, the taps drawn as
+ * stems (all of them, or those named, "frame other" or a list), and `both` channels of a sound
+ * that has two. The tile's picture and the opening picture take them alike.
+ */
+export const pictureOptions = {
+  scale: z.enum(['log', 'linear']).optional(),
+  xTitle: z.string().min(1).optional(),
+  stems: z.union([z.boolean(), z.string(), z.array(z.string())]).optional(),
+  channels: z.enum(['left', 'both']).optional(),
+}
+
+/**
+ * What the opening picture of a lesson takes beside those: the word over its y axis, and the
+ * sounds its two pictures are of, going in and coming out, where the taps drawn are not sound
+ * themselves (a spectrogram's), so that each has its button to hear it.
+ */
+export const openingOptions = {
+  ...pictureOptions,
+  yTitle: z.string().min(1).optional(),
+  hear: z.tuple([z.string(), z.string()]).optional(),
+}
+
+/** The taps a picture draws as stems, by id: every one (`true`), none, or those named. */
+export function stemsNamed(
+  stems: boolean | string | readonly string[] | undefined,
+): boolean | string[] {
+  if (stems === undefined || typeof stems === 'boolean') return stems ?? false
+  return typeof stems === 'string' ? stems.split(/[\s,]+/).filter(Boolean) : [...stems]
+}
+
 /** Control values by id. A control left out is at the lab's starting value. */
 const values = z.record(z.string(), z.number())
 
@@ -51,6 +83,8 @@ export const settingsSchema = z.strictObject({
         min: z.number().optional(),
         max: z.number().optional(),
         top: z.number().positive().optional(),
+        /** As a still's too: the scale, the x title, the stems and the channels. */
+        ...pictureOptions,
       }),
     })
     .optional(),
@@ -97,7 +131,8 @@ const listed = (ids: string[], what: string) =>
 
 /**
  * Stops the build, naming the lesson and the set, on a control the lab lacks, a value outside
- * its control's range, a tap the lab lacks or cannot play, and a source the lesson does not list.
+ * its control's range, a tap the lab lacks or cannot play, a source the lesson does not list,
+ * and stems for a tap the tile's picture does not draw.
  */
 export function checkSettings(
   settings: LessonSettings,
@@ -154,7 +189,16 @@ export function checkSettings(
 
   if (settings.tile) {
     check(settings.tile, 'the tile')
-    for (const tap of settings.tile.picture.taps) tapNamed(tap, "the tile's picture")
+    const drawn = settings.tile.picture.taps
+    for (const tap of drawn) tapNamed(tap, "the tile's picture")
+    const stems = stemsNamed(settings.tile.picture.stems)
+    for (const id of Array.isArray(stems) ? stems : []) {
+      if (!drawn.includes(id)) {
+        throw new Error(
+          `${lesson}: the tile's picture draws stems for "${id}", which is not one of its taps. They are: ${drawn.join(', ')}`,
+        )
+      }
+    }
   }
   for (const [name, one] of Object.entries(settings.sets)) check(one, `the set "${name}"`)
   if (settings.defaults) check(settings.defaults, "the device's defaults")

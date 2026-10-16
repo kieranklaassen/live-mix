@@ -3,7 +3,7 @@ import { glob } from 'astro/loaders'
 import { z } from 'astro/zod'
 import { docId, EXCLUDED_DIRS } from './lib/doc-routes.ts'
 import { MAP } from './lib/lesson-map.ts'
-import { PICTURE_VIEWS, settingsSchema } from './lib/settings.ts'
+import { openingOptions, PICTURE_VIEWS, settingsSchema } from './lib/settings.ts'
 import { onlyLesson } from '../scripts/site-env.mjs'
 
 // A one-lesson build (scripts/lesson.sh) reads that lesson's text and its settings and no other
@@ -47,6 +47,8 @@ const lessons = defineCollection({
         min: z.number().optional(),
         max: z.number().optional(),
         top: z.number().positive().optional(),
+        /** As a still's too: `scale`, `xTitle`, `yTitle`, `stems`, `channels`; and `hear`. */
+        ...openingOptions,
         separate: z.boolean().optional(),
         caption: z.string().min(1).optional(),
       })

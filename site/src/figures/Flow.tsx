@@ -1,16 +1,16 @@
 // A signal-flow picture: the blocks of a technique and the paths between them, laid out by
 // flow.ts. It is in the page as built, so it reads with scripts off; with them on, the block
 // whose tap is sounding is lit. It is built once for each width of column it may stand in,
-// wrapped onto further bands for a narrow one, and the styles show the one that fits
-// (styles/parts.css): no script measures anything.
+// wrapped onto further bands for a narrow one or turned to run downward (flow.ts, fitFlow), and
+// the styles show the one that fits (styles/parts.css): no script measures anything.
 
 import { useLab } from '../lab/page.ts'
 import {
-  FLOW,
   flowLayouts,
-  footOf,
+  numberAt,
   pathOf,
   wordsAt,
+  wordsPlace,
   type FlowEdge,
   type FlowLayout,
   type FlowPart,
@@ -108,6 +108,8 @@ function Picture({ flow, label, lit }: { flow: FlowLayout; label: string; lit?: 
       ))}
       {flow.nodes.map((node) => {
         const words = wordsAt(node)
+        const set = wordsPlace(node)
+        const number = node.n === undefined ? undefined : numberAt(node)
         return (
           <g
             key={node.id}
@@ -138,22 +140,22 @@ function Picture({ flow, label, lit }: { flow: FlowLayout; label: string; lit?: 
             {node.lines.map((line, i) => (
               <text
                 key={line}
-                x={node.x}
-                // Inside a box; under an adder's circle, or over it (flow.ts, wordsAt).
+                // Inside a box; under an adder's circle, over it or beside it (flow.ts, wordsAt).
+                x={set.x}
                 y={words[i]}
-                textAnchor="middle"
+                textAnchor={set.anchor}
                 dominantBaseline="central"
               >
                 {line}
               </text>
             ))}
-            {node.n !== undefined && (
+            {number && (
               <text
                 className="flow-number"
-                // Under the block's middle, or under its corner where a path comes in there.
-                x={node.fromBelow ? node.x - node.w / 2 : node.x}
-                y={footOf(node) + FLOW.number - 3}
-                textAnchor={node.fromBelow ? 'start' : 'middle'}
+                // Under the block's middle, or clear of a path that is there (flow.ts, numberAt).
+                x={number.x}
+                y={number.y}
+                textAnchor={number.anchor}
               >
                 {node.n}
               </text>
@@ -177,6 +179,12 @@ export default function Flow({ blocks, label }: Props) {
         // The widths of column this layout is for: the styles show it in a column of one of them.
         <div className="flow-scroll" key={fits.join(' ')} data-fits={fits.join(' ')}>
           <Picture flow={flow} label={label} lit={lit} />
+          {/* A caption speaks of the picture's rows: where they stand when it runs downward. */}
+          {flow.down && (
+            <p className="flow-turned">
+              Turned to fit a narrow column: each row runs downward, the top row at the left.
+            </p>
+          )}
         </div>
       ))}
       <ul className="key">

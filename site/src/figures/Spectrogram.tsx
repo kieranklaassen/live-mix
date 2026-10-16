@@ -4,12 +4,12 @@
 import { useLab, waitingText } from '../lab/page.ts'
 import { SAMPLE_RATE } from '../lab/rate.ts'
 import { EDGE, MONO, rgbOf, useCanvas } from './canvas.ts'
-import { label as number, ticks } from './draw.ts'
+import { label as number, levelsKey, ticks } from './draw.ts'
 import type { TapRef } from './roles.ts'
 
 interface Props {
   tap: TapRef
-  /** Decibels drawn as the background and as the brightest colour. */
+  /** Decibels at the two ends of the ramp: the quietest level shown, and the loudest. */
   min?: number
   max?: number
   /** Hertz at the bottom row and the top row of the lab's picture; 0 to half the sample rate when left out. */
@@ -118,8 +118,7 @@ export default function Spectrogram({
       <ul className="fig-legend key">
         <li>
           <i className="ramp" />
-          {tap.name}: {xTitle} across, hertz up, from {number(min)} dB (the page's colour) to{' '}
-          {number(max)} dB
+          {levelsKey(tap.name, xTitle, min, max)}
         </li>
       </ul>
     </div>

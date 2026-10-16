@@ -117,6 +117,43 @@ describe('a lesson’s settings file', () => {
     }
   })
 
+  it('takes what a still takes for a tile’s picture: a scale, an x title, stems and channels', () => {
+    const picture = {
+      taps: ['in', 'out'],
+      view: 'spectrum',
+      scale: 'linear',
+      xTitle: 'hertz, evenly',
+      stems: ['out'],
+      channels: 'both',
+    }
+    expect(settingsSchema.parse({ tile: { tap: 'out', picture } }).tile!.picture).toEqual({
+      ...picture,
+      from: 0,
+    })
+    for (const stems of [true, false, 'out', 'in out', ['in']]) {
+      const tile = { tap: 'out', picture: { ...picture, stems } }
+      expect(settingsSchema.safeParse({ tile }).success, JSON.stringify(stems)).toBe(true)
+    }
+    for (const wrong of [{ scale: 'even' }, { xTitle: '' }, { stems: 3 }, { channels: 'right' }]) {
+      const tile = { tap: 'out', picture: { ...picture, ...wrong } }
+      expect(settingsSchema.safeParse({ tile }).success, JSON.stringify(wrong)).toBe(false)
+    }
+  })
+
+  it('stops the build on stems for a tap the tile’s picture does not draw', () => {
+    const tile = (stems: unknown) =>
+      settingsSchema.parse({
+        tile: { tap: 'out', picture: { taps: ['in', 'out'], view: 'wave', stems } },
+      })
+    expect(() => checkSettings(tile('out'), lab, SOURCES, 'compression')).not.toThrow()
+    expect(() => checkSettings(tile(true), lab, SOURCES, 'compression')).not.toThrow()
+    for (const stems of ['out level', ['level']]) {
+      expect(() => checkSettings(tile(stems), lab, SOURCES, 'compression')).toThrow(
+        'compression: the tile\'s picture draws stems for "level", which is not one of its taps. They are: in, out',
+      )
+    }
+  })
+
   it('is refused when it holds a key the shape does not have', () => {
     expect(settingsSchema.safeParse({ ...whole, cards: {} }).success).toBe(false)
     expect(

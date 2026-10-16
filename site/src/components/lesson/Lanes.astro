@@ -7,6 +7,10 @@
 // `own` names sounds drawn each to its own peak, its range printed beside its name, for a lab
 // where one sound is far larger than the others:
 // <Lanes taps="pluck string out" own="pluck">Caption.</Lanes>
+// A sound of two channels is drawn by its left, and its lane says so; `channels="both"` gives
+// each of its channels a lane, named left and right:
+// <Lanes taps="in out" channels="both">Caption.</Lanes>
+import { leftSaid } from '../../figures/draw.ts'
 import Lanes from '../../figures/Lanes.tsx'
 import { tapRefs } from '../../figures/roles.ts'
 import { controlsNamed, pageLab } from '../../lib/lab-info.ts'
@@ -21,6 +25,8 @@ interface Props {
   own?: string
   from?: number
   span?: number
+  /** `both` gives each channel of a sound that has two a lane of its own; left out, its left. */
+  channels?: 'left' | 'both'
   /** What the picture shows, for a reader who cannot see it; made from the taps' names when left out. */
   label?: string
 }
@@ -60,7 +66,12 @@ for (const id of alone) {
     )
   }
 }
-const said = label ?? `${refs.map((tap) => tap.name).join(', ')}, one under another against time`
+// Which side of a sound of two channels is drawn is part of what the picture shows.
+const twoSided = refs.filter((tap) => tap.kind === 'audio' && tap.channels === 2)
+const side =
+  rest.channels === 'both' ? twoSided.length > 0 && 'left and right' : leftSaid(refs, twoSided)
+const names = refs.map((tap) => tap.name).join(', ')
+const said = label ?? `${names}, one under another against time${side ? `, ${side}` : ''}`
 ---
 
 <figure class="fig">

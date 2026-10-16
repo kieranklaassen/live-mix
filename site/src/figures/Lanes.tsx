@@ -4,7 +4,8 @@
 // as a line in a range of its own. A sound named in `own` is drawn to its own peak, and says
 // its range as a value does, for a lab where one sound is far larger than the others. Each lane
 // is named beside it, as the lab names the signal; in a narrow column the name stands above its
-// lane, in one line, where beside it a long name would run to five.
+// lane, in one line, where beside it a long name would run to five. A sound of two channels is
+// drawn by its left, and its lane says so; with `channels="both"` it has a lane for each.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { pagePlayer, useLab, waitingText } from '../lab/page.ts'
@@ -12,6 +13,7 @@ import { CONTROL_PERIOD, SAMPLE_RATE } from '../lab/rate.ts'
 import { MONO, plateText, useCanvas } from './canvas.ts'
 import {
   label as number,
+  laneRows,
   loopAxis,
   minMaxColumns,
   peakOf,
@@ -21,8 +23,8 @@ import {
   tickLabels,
   ticks,
   toUnit,
-  withUnit,
 } from './draw.ts'
+import { valueWithUnit } from '../lib/parts.ts'
 import { ROLE_VAR, type TapRef } from './roles.ts'
 
 /** A lane's height, the room between two lanes, and the row of numbers under the last. */
@@ -51,6 +53,8 @@ interface Props {
   /** Where the stretch shown starts and how long it is, in seconds. The whole loop when left out. */
   from?: number
   span?: number
+  /** `both` gives each channel of a sound that has two a lane of its own; left out, its left. */
+  channels?: 'left' | 'both'
   label: string
 }
 
@@ -61,6 +65,7 @@ export default function Lanes({
   own = [],
   from = 0,
   span,
+  channels = 'left',
   label,
 }: Props) {
   const state = useLab()
@@ -86,21 +91,28 @@ export default function Lanes({
 
   // What each lane holds, and the range it is drawn in.
   const lanes = useMemo(() => {
-    const found = taps.map((tap) => {
+    const found = laneRows(taps, channels).map((row) => {
+      const { tap } = row
       const data = result?.taps[tap.id]
-      const ys = data?.channels_data[0]
-      if (!data || !ys || ys.length === 0) return { tap }
+      const ys = data?.channels_data[row.channel]
+      if (!data || !ys || ys.length === 0)
+        return { ...row, ys: undefined, a: undefined, b: undefined }
       // A value has a point for every sixteen samples; a sound has one for each.
       const rate = SAMPLE_RATE / (data.kind === 'control' ? CONTROL_PERIOD : 1)
       const a = Math.max(0, Math.floor(from * rate))
       const b = Math.min(ys.length, Math.ceil((from + length) * rate) + 1)
-      return { tap, ys, a, b }
+      return { ...row, ys, a, b }
     })
-    // Every sound to the scale of the loudest of them, but one named in `own` to its own.
+    // Every sound to the scale of the loudest of them, but one named in `own` to its own. The
+    // two channels of one sound share a scale: the larger of their peaks.
+    const loudest = new Map<string, number>()
+    for (const one of found) {
+      if (one.tap.kind !== 'audio') continue
+      const peak = one.ys ? peakOf(one.ys, one.a, one.b) : 0
+      loudest.set(one.tap.id, Math.max(peak, loudest.get(one.tap.id) ?? 0))
+    }
     const peaks = soundPeaks(
-      found
-        .filter((one) => one.tap.kind === 'audio')
-        .map((one) => ({ id: one.tap.id, peak: one.ys ? peakOf(one.ys, one.a, one.b) : 0 })),
+      [...loudest].map(([id, peak]) => ({ id, peak })),
       own,
     )
     return found.map((one) => {
@@ -114,15 +126,15 @@ export default function Lanes({
       return { ...one, ...roomyAxis(lo, hi), ranged: true }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, taps, from, length, JSON.stringify(ranges), own.join(' ')])
+  }, [result, taps, channels, from, length, JSON.stringify(ranges), own.join(' ')])
   const hasData = !waiting && lanes.some((lane) => lane.ys !== undefined)
-  const marks = taps.map((tap) => {
+  const marks = lanes.map(({ tap }) => {
     const line = lines[tap.id]
     const value = line && state.values[line[0]]
     return line && value !== undefined ? { name: line[1], value } : undefined
   })
 
-  const height = taps.length * pitch - GAP + AXIS
+  const height = lanes.length * pitch - GAP + AXIS
   const canvas = useCanvas(
     (context, width, _height, c) => {
       context.font = MONO
@@ -196,7 +208,7 @@ export default function Lanes({
 
       // One row of numbers for all of the lanes. What they count stands at the row's right
       // end, and a number that would run into it is left out.
-      const base = taps.length * pitch - GAP
+      const base = lanes.length * pitch - GAP
       context.fillStyle = c.muted
       context.textBaseline = 'top'
       const titleStart = width - context.measureText(x.title).width
@@ -254,21 +266,24 @@ export default function Lanes({
     >
       {/* The key: every lane named beside it, or above it, in the colour it is drawn in. */}
       <ul className="lanes-names key">
-        {lanes.map((lane) => (
-          <li key={lane.tap.id} style={{ height: lead + LANE }}>
-            <span className="lanes-name">
-              <i style={{ background: `var(${ROLE_VAR[lane.tap.role]})` }} />
-              {lane.tap.name}
-            </span>
-            {lane.ranged && (
-              <span className="lanes-range">
-                {lane.tap.kind === 'audio'
-                  ? ownRange(lane.max)
-                  : `${number(lane.min)} to ${withUnit(lane.max, lane.tap.unit)}`}
+        {lanes.map((lane) => {
+          // Under the name: which side a sound of two channels is drawn by, and a lane's range.
+          const range = !lane.ranged
+            ? undefined
+            : lane.tap.kind === 'audio'
+              ? ownRange(lane.max)
+              : `${number(lane.min)} to ${valueWithUnit(lane.max, lane.tap.unit)}`
+          const under = [lane.side, range].filter(Boolean).join(', ')
+          return (
+            <li key={lane.key} style={{ height: lead + LANE }}>
+              <span className="lanes-name">
+                <i style={{ background: `var(${ROLE_VAR[lane.tap.role]})` }} />
+                {lane.name}
               </span>
-            )}
-          </li>
-        ))}
+              {under && <span className="lanes-range">{under}</span>}
+            </li>
+          )
+        })}
       </ul>
       <div className="lanes-picture" style={{ height }}>
         <canvas ref={canvas} role="img" aria-label={label} />

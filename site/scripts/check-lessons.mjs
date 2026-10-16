@@ -6,7 +6,8 @@
 //
 //   node scripts/check-lessons.mjs [lesson] [folder]     # every lesson of site/dist
 //
-// It also knows which files are a lesson's own, for scripts/lesson.sh and the wording check.
+// It also knows which files are a lesson's own, for scripts/lesson.sh and the wording check,
+// and a lesson's own browser spec where it has one (`--spec <lesson>`).
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -384,6 +385,23 @@ export function packetFiles(lesson, site = SITE) {
   ].filter((file) => fs.existsSync(path.join(site, file)))
 }
 
+/**
+ * The one browser spec of a lesson's own that is not called by its lesson's id: it was named
+ * before the rule, after its technique, and the repository's plans name it so.
+ */
+const NAMED_SPECS = { 'convolution-reverb': 'tests/browser/convolution.spec.ts' }
+
+/**
+ * A lesson's own browser spec, as a path from site/, where it has one: tests/browser/<id>.spec.ts.
+ * It holds what only a browser can measure, and the browser step of scripts/lesson.sh runs it
+ * with the shared spec, on the lesson's own build. Undefined for a lesson with none.
+ */
+export function ownSpec(lesson, site = SITE) {
+  return [`tests/browser/${lesson}.spec.ts`, NAMED_SPECS[lesson]].find(
+    (file) => file && fs.existsSync(path.join(site, file)),
+  )
+}
+
 // Where a tool says the file it could not compile: the C++ compiler, the test runner's
 // transform, the bundler's frame, the framework's compiler, the browser tests' transform.
 const STOPPED_AT = [
@@ -415,7 +433,10 @@ export function blamedOutside(output, lesson, site = SITE) {
     const from = full && path.relative(repo, full)
     return from && !from.startsWith('..') && !from.includes('node_modules') ? from : undefined
   }
-  const own = packetFiles(lesson, site).map((file) => path.relative(repo, path.join(site, file)))
+  // Its browser spec is run with the lesson, so a fault in it is the lesson's to mend too.
+  const own = [...packetFiles(lesson, site), ownSpec(lesson, site)]
+    .filter(Boolean)
+    .map((file) => path.relative(repo, path.join(site, file)))
   const blamed = inRepo(first[1])
   if (!blamed || own.includes(blamed)) return undefined
   const rest = text.slice(first.index + first[0].length)
@@ -430,6 +451,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (first === '--packet') {
     // The lesson's own files, one a line.
     console.log(packetFiles(second).join('\n'))
+  } else if (first === '--spec') {
+    // The lesson's own browser spec, where it has one.
+    const spec = ownSpec(second)
+    if (spec) console.log(spec)
   } else if (first === '--outside') {
     // The file outside the lesson's packet that a failed step's output blames, if it blames one.
     const blamed = blamedOutside(fs.readFileSync(third, 'utf8'), second)

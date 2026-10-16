@@ -7,11 +7,13 @@
 #   lab       its lab, built (site/public/labs/<id>.wasm)
 #   test      its lab test (tests/labs/<id>.test.ts)
 #   tile      the level of its tile on the home map, on every loop the tile takes
-#   build     a site that holds the home page and this lesson, in site/.lesson/<id>/
+#   build     a site that holds the home page and this lesson, in site/.lesson/<id>/, and a
+#             copy of it that is this run's own, which the steps after it read
 #   claims    every claim is held by a test; in a long lesson, with its number as written
 #   wording   no name and no comparison, in its own files and its page
 #   shape     a long lesson holds its packet
-#   browser   its browser tests (tests/browser/lessons.spec.ts), on that build at its own port
+#   browser   its browser tests (tests/browser/lessons.spec.ts, and the lesson's own spec
+#             where it has one: tests/browser/<id>.spec.ts), on that build at the run's own port
 #   map       its tile on the map of that build with scripts off: a link and a drawn picture
 #
 #   bash site/scripts/lesson.sh <id>
@@ -46,9 +48,16 @@ if [ ! -f public/labs/bench.wasm ]; then
 fi
 
 folder=".lesson/$id"
+# This run's own copy of the build: another run of the same lesson builds into the same folder,
+# and would take the pages away from under this run's checks and its browser. The copy goes
+# when the run ends; one left by a run that was killed goes when the next run starts.
+kept=".lesson/.runs/$id.$$"
 log="$(mktemp)"
 ticket=""
-trap 'rm -f "$log" $ticket' EXIT
+trap 'rm -f "$log" $ticket; rm -rf "$kept"' EXIT
+for old in .lesson/.runs/*.*; do
+  [ -d "$old" ] && ! kill -0 "${old##*.}" 2>/dev/null && rm -rf "$old"
+done
 
 # in_turn <ticket>: whether the ticket is the oldest in its line whose owner still runs. A ticket
 # whose owner has gone is taken out of the line.
@@ -120,15 +129,35 @@ step lab heavy bash scripts/build-labs.sh "$id"
 step test heavy npx vitest run --no-file-parallelism "tests/labs/$id.test.ts"
 # The level of its tile on the home map, on every loop the tile takes.
 step tile heavy npx vitest run --no-file-parallelism tests/labs/tiles.test.ts -t "$id:"
-# SITE_PORT is left to the lesson: the build is served at a port that only this lesson has.
-step build build env -u SITE_PORT SITE_ONLY_LESSON="$id" pnpm exec astro build
+# build_site: builds the one-lesson site into site/.lesson/<id>/ and copies it to this run's own
+# folder. Both happen inside the build's slot, which one run holds at a time, so the copy is
+# this run's build and whole.
+build_site() {
+  env -u SITE_PORT -u SITE_FOLDER SITE_ONLY_LESSON="$id" pnpm exec astro build || return
+  rm -rf "$kept" && mkdir -p "$kept" && cp -R "$folder/." "$kept/"
+}
+step build build build_site
 step claims light node scripts/check-claims.mjs "$id"
-step wording light node scripts/check-wording.mjs "$id" "$folder"
-step shape light node scripts/check-lessons.mjs "$id" "$folder"
-step browser heavy env -u SITE_PORT SITE_ONLY_LESSON="$id" LESSONS="$id" \
-  pnpm exec playwright test tests/browser/lessons.spec.ts
+step wording light node scripts/check-wording.mjs "$id" "$kept"
+step shape light node scripts/check-lessons.mjs "$id" "$kept"
+
+# browse <command...>: runs a browser step on this run's copy of the build, served at a port of
+# this run's own. The port is worked out from the lesson and this process and found free as the
+# step starts (scripts/free-port.mjs), and the step starts its own server there and takes none
+# that already answers (playwright.config.ts): two runs of one lesson, here or in another copy
+# of the repository, never look at each other's pages. A port named in SITE_PORT is kept.
+browse() {
+  local port
+  port="${SITE_PORT:-$(node scripts/free-port.mjs "$id" $$)}" || return 1
+  env SITE_PORT="$port" SITE_OWN_SERVER=1 SITE_ONLY_LESSON="$id" SITE_FOLDER="$kept" "$@"
+}
+
+# The lesson's own browser spec, where it has one, is run with the shared one.
+mapfile -t spec < <(node scripts/check-lessons.mjs --spec "$id")
+step browser heavy browse env LESSONS="$id" \
+  pnpm exec playwright test tests/browser/lessons.spec.ts "${spec[@]}"
 # Its tile on the map, as the page is with scripts off: a link and a picture that is drawn.
-step map light env -u SITE_PORT SITE_ONLY_LESSON="$id" \
+step map light browse \
   pnpm exec playwright test tests/browser/home.spec.ts -g 'scripts off\W+/ is the map'
 
 printf '\n%s holds.\n' "$id"

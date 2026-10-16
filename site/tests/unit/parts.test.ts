@@ -7,6 +7,7 @@ import {
   partNamed,
   partsIn,
   setInWords,
+  stageKindWords,
   valueInWords,
   valueWithUnit,
 } from '../../src/lib/parts.ts'
@@ -213,5 +214,47 @@ describe("the lesson's start beside the device's defaults", () => {
       { id: 'release', name: 'Release', lesson: '0.3 s', device: '2 s' },
       { id: 'tails', name: 'Tails', lesson: 'Release', device: 'Hold' },
     ])
+  })
+})
+
+describe('what a stage that is not sound says of itself', () => {
+  const NAMES = [
+    'Gain reduction',
+    'The grain: the piece times the window',
+    'The delayed path alone, measured',
+    "The note's partials",
+    'Bins, level',
+  ]
+  const KINDS = ['control', 'curve', 'spectrum', 'frames'] as const
+
+  it('says what each kind of tap is, as the lab declares the kind', () => {
+    expect(stageKindWords('Gain reduction', 'control')).toBe(
+      '“Gain reduction” is a value that changes over time. It is not sound, so this stage has no button to hear it.',
+    )
+    expect(stageKindWords('The bell', 'curve')).toMatch(
+      /^“The bell” is a curve of one value against another\. /,
+    )
+    expect(stageKindWords('Bins, level', 'spectrum')).toMatch(
+      /^“Bins, level” is a spectrum, a level for each frequency\. /,
+    )
+    // A tap of frames is columns of values: a spectrum over time, the windows of overlapping
+    // frames or anything else a lab lays out so. The words claim no more than that.
+    expect(stageKindWords("The note's partials", 'frames')).toMatch(
+      /^“The note's partials” is a picture made of columns of values\. /,
+    )
+    expect(stageKindWords("The note's partials", 'frames')).not.toMatch(/over time/)
+  })
+
+  it('reads as sentences whatever the tap is called: the name is quoted whole, and the page adds no colon', () => {
+    for (const name of NAMES) {
+      for (const kind of KINDS) {
+        const words = stageKindWords(name, kind)
+        expect(words.startsWith(`“${name}” is a `), words).toBe(true)
+        expect(words.replace(`“${name}”`, '').includes(':'), words).toBe(false)
+        expect(words.endsWith(' It is not sound, so this stage has no button to hear it.')).toBe(
+          true,
+        )
+      }
+    }
   })
 })

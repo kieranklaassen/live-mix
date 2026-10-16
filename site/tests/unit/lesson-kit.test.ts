@@ -4,6 +4,8 @@ import path from 'node:path'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import CheckValue, { CheckValueView } from '../../src/figures/CheckValue.tsx'
+import Hear from '../../src/figures/Hear.tsx'
 import Stage from '../../src/figures/Stage.tsx'
 import { tapRefs } from '../../src/figures/roles.ts'
 import { describeLab, ORIGINS, ORIGIN_TEXT, type TapInfo } from '../../src/lab/describe.ts'
@@ -85,6 +87,78 @@ describe('a stage', () => {
     expect(html('level')).not.toContain('<button')
     expect(html('level')).toContain('A value over time')
     expect(html('level')).toContain('Written for this lesson')
+  })
+})
+
+describe('a check in a sentence', () => {
+  const check = { id: 'rebuilt', name: 'The curve worked out again', unit: 'dB' }
+  const elements = (html: string) => [...html.matchAll(/<([a-z0-9-]+)/g)].map((found) => found[1])
+
+  it('is a span, which a paragraph may hold: no paragraph is set inside the sentence', () => {
+    const html = renderToStaticMarkup(createElement(CheckValue, { check }))
+    expect(html).toMatch(/^<span class="check-inline" data-check="rebuilt"/)
+    expect(elements(html)).toEqual(['span'])
+    // Until a render lands there is no value to print.
+    expect(html).toContain('>…</span>')
+  })
+
+  it('fills with the value of this render, in the check’s unit', () => {
+    const html = (value: number | undefined, unit = 'dB') =>
+      renderToStaticMarkup(createElement(CheckValueView, { check: { ...check, unit }, value }))
+    expect(html(undefined)).toContain('>…</span>')
+    expect(html(-112.3)).toContain('>−112.3 dB</span>')
+    expect(html(-112.3)).not.toContain('…')
+    expect(elements(html(-112.3))).toEqual(['span'])
+    // One of a unit that is a plural word, as a control prints it.
+    expect(html(1, 'samples')).toContain('>1 sample</span>')
+    expect(html(0, '')).toContain('>0</span>')
+  })
+})
+
+/** The declarations of the rule of a stylesheet whose selectors are these, one a line. */
+function ruleOf(css: string, selectors: string): string {
+  const at = css.indexOf(`\n${selectors} {\n`)
+  return at < 0 ? '' : css.slice(at, css.indexOf('\n}', at))
+}
+
+describe('a check and the reader who never scrolls to it', () => {
+  const part = fs.readFileSync(
+    path.join(import.meta.dirname, '../../src/components/lesson/Check.astro'),
+    'utf8',
+  )
+  const islands = [...part.matchAll(/<Check(?:Line|Value) (client:[a-z]+)/g)].map((one) => one[1])
+
+  it('wakes when the page is at rest, in a line and in a sentence, and not when it comes into view', () => {
+    expect(islands).toEqual(['client:idle', 'client:idle'])
+  })
+})
+
+describe('code as it is shown', () => {
+  const css = fs.readFileSync(path.join(import.meta.dirname, '../../src/styles/site.css'), 'utf8')
+  const rule = ruleOf(css, 'code,\nkbd,\npre')
+
+  it('is set letter for letter: the face joins no two marks into one', () => {
+    expect(rule).toContain('font-family: var(--lm-font-mono);')
+    expect(rule).toContain('font-variant-ligatures: none;')
+    // The face draws its joined marks as contextual alternates, so that feature is named too.
+    for (const feature of ['liga', 'clig', 'calt']) expect(rule).toMatch(`'${feature}' 0`)
+  })
+})
+
+describe("a card's button and a sentence's", () => {
+  const card = { id: 'pump', label: 'Pumping' }
+  const html = (inText?: boolean) =>
+    renderToStaticMarkup(createElement(Hear, { card, set: {}, label: 'Hear it', inText }))
+
+  it('are told apart by an attribute: a card has one button that is its own', () => {
+    expect(html()).toContain('data-card="pump"')
+    expect(html()).not.toContain('data-hear')
+    expect(html(true)).toContain('data-hear="pump"')
+    expect(html(true)).not.toContain('data-card')
+  })
+
+  it('are the same button otherwise', () => {
+    expect(html(true).replace('data-hear', 'data-card')).toBe(html())
   })
 })
 

@@ -49,7 +49,7 @@ constexpr int kFadeFrames = 960;       // 20 ms: the crossfade across a loop's w
 constexpr int kControlPeriod = 16;     // samples per point of a control tap
 constexpr int kMaxControls = 32;       // the most a lab may declare of each of the three
 constexpr int kMaxTaps = 64;
-constexpr int kMaxChecks = 16;
+constexpr int kMaxChecks = 32;         // a lab::Build is three of them
 
 // Pi as a double, for the lab's own sums. The kit's kPi is a float.
 constexpr double kPi = 3.14159265358979323846;
@@ -234,6 +234,10 @@ struct Tap {
 struct Check;
 inline Check* g_checks[kMaxChecks];
 inline int g_check_count = 0;
+// Every check a lab declares is counted, the ones past kMaxChecks too. Those are kept in no
+// list and are in no render, so the lab's test asks for this count and fails when it is over
+// the limit, saying both numbers (`lab` in site/tests/labs/support.ts).
+inline int g_checks_declared = 0;
 
 struct Check {
   const char* id;
@@ -241,6 +245,7 @@ struct Check {
   const char* unit;
   float value = 0.0f;
   Check(const char* id_, const char* name_, const char* unit_) : id(id_), name(name_), unit(unit_) {
+    ++g_checks_declared;
     if (g_check_count < kMaxChecks) g_checks[g_check_count++] = this;
   }
 };
@@ -328,8 +333,13 @@ inline float to_db(float gain) { return gain > 1.0e-7f ? 20.0f * std::log10(gain
 inline float power_to_db(float power) { return power > 1.0e-14f ? 10.0f * std::log10(power) : kFloorDb; }
 
 // A sum of squared differences against the sum of squares it is held to, in
-// dB: for the lab that adds the two up as its loop runs. -140 when nothing
-// differs; 0 when there is a difference and nothing to hold it to.
+// dB: for the lab that adds the two up as its loop runs. Its floor is -140:
+// it reads that when nothing differs, and also whenever the difference is
+// 140 dB or more under what it is held to, so a reading of -140 does not say
+// that every sample is the same. A lab or a test that claims "sample for
+// sample" compares the samples (`largestDifference` in
+// site/tests/labs/support.ts). 0 when there is a difference and nothing to
+// hold it to.
 inline float ratio_db(double diff, double ref) {
   if (ref <= 0.0) return diff <= 0.0 ? kFloorDb : 0.0f;
   const double ratio = diff / ref;
@@ -337,7 +347,9 @@ inline float ratio_db(double diff, double ref) {
 }
 
 // The level of `x - y` against the level of `y`, in dB: how well a rebuilt
-// signal matches the one it claims to equal. -140 when they are the same.
+// signal matches the one it claims to equal. -140 is the floor of ratio_db:
+// the two are then 140 dB or more apart in level, which equal samples are and
+// samples a little apart may be too.
 inline float difference_db(const float* x, const float* y, int count) {
   double diff = 0.0, ref = 0.0;
   for (int i = 0; i < count; ++i) {
@@ -607,6 +619,10 @@ const char* lab_check_id(int i) { return lab_check_at(i) ? lab_check_at(i)->id :
 const char* lab_check_name(int i) { return lab_check_at(i) ? lab_check_at(i)->name : ""; }
 const char* lab_check_unit(int i) { return lab_check_at(i) ? lab_check_at(i)->unit : ""; }
 float lab_check_value(int i) { return lab_check_at(i) ? lab_check_at(i)->value : 0.0f; }
+// How many checks the lab's file declares, and the most a lab may: the first is over the
+// second when the file declares too many, and lab_check_count then stops at the limit.
+int lab_check_declared(void) { return lab::g_checks_declared; }
+int lab_check_limit(void) { return lab::kMaxChecks; }
 
 // The spectrum of an audio tap's channel, or of `count` samples of it from
 // `start`: for the page's own looks at a stage (a spectrum of any stage, a

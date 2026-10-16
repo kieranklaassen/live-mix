@@ -81,13 +81,16 @@
 }
 /* The settings a sentence's button plays, after the button, small, as a card prints its own. */
 .hear-settings {
-  margin-left: 0.75em;
+  margin-left: 9px;
   font-family: var(--lm-font-mono);
-  font-size: 12px;
-  line-height: 1.6;
+  /* The space the page's markup holds before the first setting and after the last takes no
+     room: what the sentence writes next, a full stop or a comma, stands against the last one. */
+  font-size: 0;
 }
 .hear-settings > span {
   display: inline-block;
+  font-size: 12px;
+  line-height: 1.6;
 }
 .hear-settings > span:not(:last-child)::after {
   content: '·';
@@ -599,16 +602,35 @@
   font-size: 11px;
   fill: var(--lm-muted);
 }
-/* The block whose signal is the one sounding. */
+/* The block whose signal is the one sounding. Words inside a lit box are set in the page's
+   ground; words that stand on the picture's own ground (bare words at an end of the flow, an
+   adder's beside its circle) keep a colour that shows there, and are set heavier. */
 .flow-block[data-lit] :is(rect, circle) {
   fill: var(--lm-accent);
   stroke: var(--lm-accent);
 }
 .flow-block[data-lit] text:not(.flow-number) {
+  fill: var(--lm-accent);
+  font-weight: 700;
+}
+.flow-block[data-lit][data-shape='box'] text:not(.flow-number) {
   fill: var(--lm-bg);
+  font-weight: inherit;
+}
+.flow-block[data-lit] .flow-plus {
+  stroke: var(--lm-bg);
 }
 .flow-block[data-lit] text.flow-number {
   fill: var(--lm-accent);
+}
+/* Under a picture that runs downward: how the rows a caption speaks of stand in it. */
+.flow-turned {
+  margin: 10px 12px 0;
+  font-family: var(--lm-font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--lm-muted);
+  text-align: center;
 }
 .flow > .key {
   display: flex;

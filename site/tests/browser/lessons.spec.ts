@@ -30,6 +30,39 @@ import {
   wordCount,
 } from './support.ts'
 
+/** The checks of the page that show no number yet, by id. */
+const unfilledChecks = (page: Page) =>
+  page
+    .locator('[data-check]')
+    .evaluateAll((all) =>
+      all.filter((one) => (one.textContent ?? '').includes('…')).map((one) => one.dataset.check),
+    )
+
+/** The listings and block equations wider than their box whose far end cannot be scrolled to. */
+const cutShort = (page: Page) =>
+  page.locator('.listing pre, .math').evaluateAll((boxes) =>
+    boxes
+      .filter((box) => {
+        if (box.scrollWidth <= box.clientWidth) return false
+        box.scrollLeft = box.scrollWidth
+        const reached = box.scrollLeft + box.clientWidth >= box.scrollWidth - 1
+        box.scrollLeft = 0
+        return !reached
+      })
+      .map((box) => (box.textContent ?? '').trim().slice(0, 60)),
+  )
+
+/** The code of the page, in a listing or in a sentence, that is let join two marks into one. */
+const joinedCode = (page: Page) =>
+  page.locator('pre code, :not(pre) > code').evaluateAll((all) =>
+    all
+      .filter((one) => {
+        const style = getComputedStyle(one)
+        return style.fontVariantLigatures !== 'none' || !/"calt" 0/.test(style.fontFeatureSettings)
+      })
+      .map((one) => (one.textContent ?? '').trim().slice(0, 60)),
+  )
+
 /** The cases of a lesson in the long shape: nine parts under a hero. */
 function longCases(lesson: string) {
   test('opens and reads through: the contents lead to every part, a prediction opens, every figure draws, a control moves by the keys and not by the wheel', async ({
@@ -131,8 +164,35 @@ function longCases(lesson: string) {
     await page.setViewportSize({ width: 390, height: 900 })
     await page.goto(`lessons/${lesson}/`)
     await labReady(page)
+
+    // Every number the lab works out is filled before the page is scrolled at all, in a line
+    // of its own or in a sentence: a reader who never comes to it has it too.
+    await expect
+      .poll(() => unfilledChecks(page), { message: 'checks still waiting for their number' })
+      .toEqual([])
+
     await scrollThrough(page)
     await expect(page.locator('[data-figure]:visible:not([data-drawn])')).toHaveCount(0)
+
+    // The key of a card's picture stands in from the card's edge as far as its caption does.
+    const insets = await page.locator('.lesson-card-picture .fig').evaluateAll((figures) =>
+      figures.flatMap((figure) => {
+        const key = figure.querySelector('.fig-legend')
+        const caption = figure.querySelector('figcaption')
+        if (!key || !caption) return []
+        const left = (node: Element) => parseFloat(getComputedStyle(node).paddingLeft)
+        return [{ key: left(key), caption: left(caption) }]
+      }),
+    )
+    for (const inset of insets) {
+      expect(inset.key, "a card picture's key touches the card's edge").toBeGreaterThan(0)
+      expect(inset.key, "a card picture's key and its caption start apart").toBe(inset.caption)
+    }
+
+    // A line of a listing, or an equation, wider than the window is read by scrolling its own
+    // box to its end: none is cut. Code is set letter for letter, with no two marks joined.
+    expect(await cutShort(page), 'boxes whose end cannot be scrolled to').toEqual([])
+    expect(await joinedCode(page), 'code whose face joins marks').toEqual([])
     expect(await overflow(page)).toBe(0)
     await openPlate(page)
     expect(await overflow(page)).toBe(0)

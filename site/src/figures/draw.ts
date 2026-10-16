@@ -207,6 +207,60 @@ export function namePlaces(
 }
 
 /**
+ * A straight line a figure draws across itself or up itself, as the figure is handed it: a
+ * control by id, which the line follows; a fixed number; or a tap by id, whose first point says
+ * where the line stands. Each with the name written beside the line.
+ */
+export type MarkRef =
+  | [control: string, name: string]
+  | [value: number, name: string]
+  | [tap: string, name: string, from: 'tap']
+
+/**
+ * The lines a figure names, "threshold 0.5:Half ceiling", as it can draw them. A name is a
+ * control's id; or a number and what to call it, with a colon between and an underscore for
+ * each space in the name (`24000:Half_the_rate`), for a line that is not a control; or the id
+ * of a tap, where no control has that id. Throws, naming the lesson, on a name that is none of
+ * the three, so a misspelt line stops the build.
+ */
+export function markRefs(
+  names: string | undefined,
+  controls: readonly { id: string; name: string }[],
+  taps: readonly { id: string; name: string }[],
+  lesson = 'the lesson',
+): MarkRef[] {
+  return (names ?? '')
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map((name): MarkRef => {
+      const fixed = /^(-?\d+(?:\.\d+)?):(.+)$/.exec(name)
+      if (fixed) return [Number(fixed[1]), fixed[2]!.replaceAll('_', ' ')]
+      const control = controls.find((one) => one.id === name)
+      if (control) return [control.id, control.name]
+      const tap = taps.find((one) => one.id === name)
+      if (tap) return [tap.id, tap.name, 'tap']
+      throw new Error(
+        `${lesson}: a figure draws a line at "${name}", which is not a control of the lab, a tap of it, or a number with a name ("0.5:Half"). Its controls are: ${controls.map((one) => one.id).join(', ')}. Its taps are: ${taps.map((one) => one.id).join(', ')}`,
+      )
+    })
+}
+
+/**
+ * Where each line stands now, and its name: a control's value as the page has it, a number as
+ * written, a tap's first point as `tapValue` reads it. A line with no value yet is left out.
+ */
+export function markValues(
+  refs: readonly MarkRef[],
+  values: Readonly<Record<string, number>>,
+  tapValue: (id: string) => number | undefined,
+): { value: number; text: string }[] {
+  return refs.flatMap(([from, text, kind]) => {
+    const value = typeof from === 'number' ? from : kind === 'tap' ? tapValue(from) : values[from]
+    return value === undefined ? [] : [{ value, text }]
+  })
+}
+
+/**
  * The scale each sound of a strip of lanes is drawn to, by its id: the peak of the loudest, so
  * that two sounds can be compared by eye. A sound named in `own` is drawn to its own peak, and
  * is left out of the scale the others share. A scale is never nothing.
@@ -256,6 +310,69 @@ export function tickLabels(values: readonly number[]): string[] {
 export function withUnit(value: number, unit: string): string {
   if (!unit) return label(value)
   return unit === '%' || unit.startsWith(':') ? `${label(value)}${unit}` : `${label(value)} ${unit}`
+}
+
+/**
+ * What a picture says of the sounds it draws one side of: `sided` are those of `all` its taps
+ * that hold two channels and are drawn by their left alone. Nothing where there are none.
+ */
+export function leftSaid(
+  all: readonly { name: string }[],
+  sided: readonly { name: string }[],
+): string | undefined {
+  if (sided.length === 0) return undefined
+  if (all.length === 1) return 'the left channel'
+  if (sided.length === all.length) return 'the left channel of each'
+  return `the left channel of ${sided.map((tap) => tap.name).join(' and ')}`
+}
+
+/** One lane of a figure of lanes: a tap, the channel of it drawn, and the name beside the lane. */
+export interface LaneRow<Tap> {
+  tap: Tap
+  channel: number
+  /** Told apart from every other lane, where a tap has two. */
+  key: string
+  name: string
+  /** Said under the name of a sound of two channels drawn by one. */
+  side?: string
+}
+
+/**
+ * The lanes a figure of lanes draws: one a tap, a sound of two channels by its left, which the
+ * lane says; or, where `both` are asked for, a lane for each channel of such a sound, named
+ * left and right.
+ */
+export function laneRows<Tap extends { id: string; name: string; kind: string; channels: number }>(
+  taps: readonly Tap[],
+  channels: 'left' | 'both' = 'left',
+): LaneRow<Tap>[] {
+  return taps.flatMap((tap): LaneRow<Tap>[] => {
+    if (tap.kind !== 'audio' || tap.channels !== 2)
+      return [{ tap, channel: 0, key: tap.id, name: tap.name }]
+    if (channels !== 'both')
+      return [{ tap, channel: 0, key: tap.id, name: tap.name, side: 'left channel' }]
+    return [
+      { tap, channel: 0, key: `${tap.id} left`, name: `${tap.name}, left` },
+      { tap, channel: 1, key: `${tap.id} right`, name: `${tap.name}, right` },
+    ]
+  })
+}
+
+/**
+ * The key of a picture of levels, beside its ramp: what runs across and up, and the level at
+ * each end of the ramp, each named by what it stands for and not by how it is drawn.
+ */
+export function levelsKey(name: string, across: string, min: number, max: number): string {
+  return `${name}: ${across} across, hertz up, from ${label(min)} dB, the quietest shown, to ${label(max)} dB, the loudest shown`
+}
+
+/**
+ * Where a line one pixel wide is drawn so that it fills one column of pixels: the middle of the
+ * pixel its place falls in. A line drawn between two pixels is spread thin over both, so stems
+ * that fall differently differ in weight.
+ */
+export function wholePixel(at: number): number {
+  return Math.floor(at) + 0.5
 }
 
 /** Level in decibels of a linear amplitude, with a floor so silence is a number. */

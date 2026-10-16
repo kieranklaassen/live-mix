@@ -6,11 +6,12 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { checkClaims, numbersIn, testsNaming } from '../../scripts/check-claims.mjs'
+import { checkClaims, numbersIn, statedBy, testsNaming } from '../../scripts/check-claims.mjs'
 import {
   blamedOutside,
   checkLessons,
   FLOORS,
+  ownSpec,
   packetFiles,
   PART_IDS,
   shapeOf,
@@ -325,6 +326,49 @@ describe('check-claims', () => {
     ).toEqual([])
   })
 
+  describe('a claim stated again under its id', () => {
+    const again = (first: string, second: string) =>
+      `${lesson(first)}\nPart 7 comes back to it: <Claim id="back">${second}</Claim>.\n`
+    const held = tested('is back (claim back)', "expectWritten(ms, '39 ms')")
+
+    it('reads what a claim states: its numbers, each with its unit, or its words where it has none', () => {
+      expect(statedBy('about 39 ms, and 0.25 of it')).toBe(statedBy('39 ms later, then 0.25'))
+      expect(statedBy('39 ms')).not.toBe(statedBy('39 s'))
+      expect(statedBy('39 ms')).not.toBe(statedBy('41 ms'))
+      expect(statedBy('on step 16')).not.toBe(statedBy('on step 17'))
+      expect(statedBy('in a straight line')).toBe(statedBy('in  a straight\nline'))
+      expect(statedBy('in a straight line')).not.toBe(statedBy('in a curve'))
+    })
+
+    it('is one claim, held by one test, where both state the same number', () => {
+      expect(claims(again('39 ms', '39 ms'), held)).toEqual({ problems: [], count: 1, lessons: 1 })
+      // Other words round the same number are the same claim.
+      expect(claims(again('39 ms', 'some 39 ms after it'), held).problems).toEqual([])
+      expect(claims(again('in a straight line', 'in a straight line'), held).problems).toEqual([])
+    })
+
+    it('fails where the two state different numbers, saying both', () => {
+      expect(claims(again('39 ms', '41 ms'), held).problems).toEqual([
+        'made-up: the claim "back" is written more than once and does not state the same each time: "39 ms" in one place, "41 ms" in another. A number said again keeps its id; another number takes an id and a test of its own',
+      ])
+      expect(claims(again('in a straight line', 'in a curve'), held).problems).toHaveLength(1)
+    })
+
+    it('still holds each writing to the test: the number said again is the number held', () => {
+      const other = tested('is back (claim back)', "expectWritten(ms, '41 ms')")
+      expect(claims(again('39 ms', '39 ms'), other).problems).toEqual([
+        'made-up: the claim "back" writes "39 ms", and the test that names it does not: write it in the test\'s title, or hold the measurement with expectWritten(measured, \'39 ms\') (tests/labs/made-up.test.ts)',
+      ])
+    })
+
+    it('fails a repeat it cannot read, as it always did', () => {
+      const odd = `${lesson('39 ms')}\nAgain: <Claim id="back" />.\n`
+      expect(claims(odd, held).problems).toEqual([
+        'made-up: the claim "back" is written twice; each claim has its own id',
+      ])
+    })
+  })
+
   it('still fails a claim no test names, and takes one lesson by its id', () => {
     const made = site({
       'src/content/lessons/made-up.mdx': lesson('39 ms'),
@@ -412,6 +456,32 @@ describe("a lesson's own files", () => {
     expect(
       blamedOutside("site/labs/lab.h:12:3: error: unknown type name 'tap'\n", 'one', root),
     ).toBe('site/labs/lab.h')
+  })
+
+  it('may have a browser spec beside them: named by the lesson’s id, or the one named before that rule', () => {
+    const root = made()
+    expect(ownSpec('one', root)).toBeUndefined()
+    fs.writeFileSync(path.join(root, 'tests/browser/one.spec.ts'), '')
+    expect(ownSpec('one', root)).toBe('tests/browser/one.spec.ts')
+    expect(ownSpec('two', root)).toBeUndefined()
+    // The convolution lesson's spec is called after the technique and not after the lesson.
+    expect(ownSpec('convolution-reverb', root)).toBeUndefined()
+    fs.writeFileSync(path.join(root, 'tests/browser/convolution.spec.ts'), '')
+    expect(ownSpec('convolution-reverb', root)).toBe('tests/browser/convolution.spec.ts')
+    expect(ownSpec('one', root)).toBe('tests/browser/one.spec.ts')
+    // In this repository that spec is there, and it is what the browser step is handed.
+    expect(ownSpec('convolution-reverb')).toBe('tests/browser/convolution.spec.ts')
+    expect(ownSpec('compression')).toBeUndefined()
+  })
+
+  it('are blamed for that spec when it cannot be compiled, and not for another lesson’s', () => {
+    const root = made()
+    fs.writeFileSync(path.join(root, 'tests/browser/one.spec.ts'), '')
+    const stopped = `SyntaxError: ${root}/tests/browser/one.spec.ts: Unexpected token (1:17)\n`
+    expect(blamedOutside(stopped, 'one', root)).toBeUndefined()
+    expect(blamedOutside(stopped, 'two', root)).toBe('site/tests/browser/one.spec.ts')
+    // It is run with the lesson and is no part of the packet the other checks read.
+    expect(packetFiles('one', root)).not.toContain('tests/browser/one.spec.ts')
   })
 
   it('are blamed when the fault is in them, or comes from them, or is no fault of compiling', () => {

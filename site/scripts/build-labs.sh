@@ -38,6 +38,7 @@ exports=(
   lab_tap_count lab_tap_id lab_tap_name lab_tap_unit lab_tap_kind lab_tap_origin lab_tap_channels
   lab_tap_data lab_tap_length lab_tap_x0 lab_tap_x1 lab_tap_columns lab_tap_scale
   lab_check_count lab_check_id lab_check_name lab_check_unit lab_check_value
+  lab_check_declared lab_check_limit
   lab_spectrum lab_spectrum_bins
 )
 exported_functions=$(printf ",_%s" "${exports[@]}")

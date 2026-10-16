@@ -1,0 +1,13 @@
+{
+  "tile": {
+    "tap": "in",
+    "picture": {
+      "taps": ["in"],
+      "view": "wave",
+      "from": 1,
+      "span": 0.001,
+      "stems": true,
+      "xTitle": "seconds in"
+    }
+  }
+}

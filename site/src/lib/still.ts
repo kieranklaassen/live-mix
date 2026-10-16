@@ -10,7 +10,8 @@ import zlib from 'node:zlib'
 import { DIGIT, EDGE, topEdge } from '../figures/canvas.ts'
 import {
   AUDIBLE,
-  label,
+  leftSaid,
+  levelsKey,
   loopAxis,
   minMaxPlaced,
   rangeOf,
@@ -21,10 +22,10 @@ import {
   toUnit,
   type Axis,
 } from '../figures/draw.ts'
-import { ROLE_VAR, tapRefs, type Role, type TapRef } from '../figures/roles.ts'
+import { ROLE_VAR, ROLES, tapRefs, type Role, type TapRef } from '../figures/roles.ts'
 import { CONTROL_PERIOD, SAMPLE_RATE } from '../lab/rate.ts'
 import { withRoom } from '../lab/room.ts'
-import type { LabDescription } from '../lab/describe.ts'
+import type { LabDescription, TapInfo } from '../lab/describe.ts'
 import {
   loadLab,
   type Lab,
@@ -42,6 +43,7 @@ import {
   PICTURE_VIEWS,
   setNamed,
   SETTINGS_DIR,
+  stemsNamed,
   type TileEntry,
 } from './settings.ts'
 import { REPO_ROOT } from './site.ts'
@@ -113,8 +115,11 @@ export interface StillAsk {
 /** A lab's render in Node, as the page's worker would have made it. */
 export interface StillRender extends StillAsk {
   result: RenderResult
-  /** The average spectrum of an audio tap of this render, in dB per bin up to half the rate. */
-  spectrum(tap: string): Float32Array
+  /**
+   * The average spectrum of an audio tap of this render, in dB per bin up to half the rate: of
+   * its left channel, or of the channel given, counted from 0.
+   */
+  spectrum(tap: string, channel?: number): Float32Array
 }
 
 /** How many renders are kept: a render holds every tap of a lab, tens of megabytes of samples. */
@@ -144,8 +149,9 @@ export function renderStill(ask: StillAsk): Promise<StillRender> {
       const result = lab.render(source, given, frames)
       last.set(lab, result)
       const spectra = new Map<string, Float32Array>()
-      const spectrum = (tap: string) => {
-        let made = spectra.get(tap)
+      const spectrum = (tap: string, channel = 0) => {
+        const kept = `${channel} ${tap}`
+        let made = spectra.get(kept)
         if (!made) {
           // The lab works a spectrum out of its last render: when it has rendered something
           // else since, it renders this again first.
@@ -153,8 +159,8 @@ export function renderStill(ask: StillAsk): Promise<StillRender> {
             lab.render(source, given, frames)
             last.set(lab, result)
           }
-          made = lab.spectrum(tap)
-          spectra.set(tap, made)
+          made = lab.spectrum(tap, channel)
+          spectra.set(kept, made)
         }
         return made
       }
@@ -192,8 +198,13 @@ export interface Picture {
   x: Numbers
   y: Numbers
   key: KeyLine[]
-  /** Said under the key where the lines alone do not say it: what a picture of colour means. */
+  /**
+   * Said under the key where the lines alone do not say it: what a picture of levels means, or
+   * that a sound of two channels is drawn by its left alone.
+   */
   note?: string
+  /** The note stands beside a ramp of the picture's levels, the quietest shown to the loudest. */
+  ramp?: boolean
   /** What the picture shows, for a reader who cannot see it. */
   label: string
 }
@@ -227,6 +238,17 @@ export interface PictureAsk {
    * tap (`true`), or those named by id. Against time and for a curve.
    */
   stems?: boolean | readonly string[]
+  /**
+   * What stands over the y axis, in a word or two, in place of the tap's own unit: for a curve
+   * or a value whose unit belongs to the other axis. Against time and for a curve.
+   */
+  yTitle?: string
+  /**
+   * Which channels of a sound that has two are drawn, against time and as a spectrum: its left
+   * alone (`left`, and when left out), which the picture then says; or `both`, each a line of
+   * its own that the key names.
+   */
+  channels?: 'left' | 'both'
 }
 
 /** How a picture is laid out: how many columns of points it has, and whether its axes are round. */
@@ -330,7 +352,10 @@ function pathOf(line: Line, x: Axis, y: Axis, width: number): string {
       dots += `M${at},${fixed(py(value))}h0`
     }
     if (stems === '') return ''
-    const stalks = `<path d="${stems}" vector-effect="non-scaling-stroke" style="fill:none;${stroke};stroke-width:1"/>`
+    // A stem is one pixel wide. Drawn with crisp edges it fills one column of pixels wherever
+    // it falls, however the picture is stretched; smoothed, a stem between two columns is
+    // spread thin over both, and the stems of one picture differ in weight.
+    const stalks = `<path d="${stems}" vector-effect="non-scaling-stroke" shape-rendering="crispEdges" style="fill:none;${stroke};stroke-width:1"/>`
     if (inView >= width / 5) return stalks
     return `${stalks}<path d="${dots}" vector-effect="non-scaling-stroke" style="fill:none;${stroke};stroke-width:4.4;stroke-linecap:round"/>`
   }
@@ -418,6 +443,63 @@ function topAsked(fitted: number, ask: PictureAsk, lesson: string, above = 0): n
 
 const joined = (taps: readonly { name: string }[]) => taps.map((tap) => tap.name).join(' and ')
 
+/** One line a picture of sound draws: the tap as the key names it, and the channel it draws. */
+interface Side {
+  tap: TapRef
+  channel: number
+  dashed?: boolean
+}
+
+/**
+ * The lines a picture of sound draws, and what it says of the side it draws. A sound of two
+ * channels is drawn by its left, and the picture says so. Where the picture is asked for both
+ * (`channels: 'both'`), each channel is a line the key names, the right in a role no other line
+ * of the picture has, and dashed in the tap's own once every role is taken.
+ */
+function sidesOf(render: StillRender, ask: PictureAsk): { sides: Side[]; said?: string } {
+  const two = (tap: TapRef) => {
+    const found = render.result.taps[tap.id]
+    return found?.kind === 'audio' && found.channels === 2
+  }
+  if (ask.channels !== 'both') {
+    return {
+      sides: ask.taps.map((tap) => ({ tap, channel: 0 })),
+      said: leftSaid(ask.taps, ask.taps.filter(two)),
+    }
+  }
+  const taken = new Set<Role>(ask.taps.map((tap) => tap.role))
+  const spare: Role[] = ['alt', 'alt2', 'alt3', ...ROLES]
+  const sides = ask.taps.flatMap((tap): Side[] => {
+    if (!two(tap)) return [{ tap, channel: 0 }]
+    const role = spare.find((one) => !taken.has(one))
+    if (role) taken.add(role)
+    return [
+      { tap: { ...tap, name: `${tap.name}, left` }, channel: 0 },
+      {
+        tap: { ...tap, name: `${tap.name}, right`, role: role ?? tap.role },
+        channel: 1,
+        dashed: role ? undefined : true,
+      },
+    ]
+  })
+  return { sides, said: sides.length > ask.taps.length ? 'left and right' : undefined }
+}
+
+const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+/** A picture with what it says of the side it draws: in its label, and under its key for the left alone. */
+function sided(picture: Picture, ask: PictureAsk, said: string | undefined): Picture {
+  if (!said) return picture
+  const label = `${picture.label}, ${said}`
+  if (ask.channels === 'both') return { ...picture, label }
+  return { ...picture, label, note: capital(said) }
+}
+
+/** What a picture of one sound drawn by its left says under its key, and what two such say together. */
+const ONE = [{ name: '' }]
+const LEFT_OF_ONE = capital(leftSaid(ONE, ONE) ?? '')
+const LEFT_OF_EACH = capital(leftSaid([...ONE, ...ONE], [...ONE, ...ONE]) ?? '')
+
 function finish(
   lines: Line[],
   x: Axis,
@@ -449,9 +531,10 @@ function wave(render: StillRender, ask: PictureAsk, layout: Layout, lesson: stri
   let lo = Infinity
   let hi = -Infinity
   let sound = false
-  const lines: Line[] = ask.taps.map((tap) => {
+  const { sides, said } = sidesOf(render, ask)
+  const lines: Line[] = sides.map(({ tap, channel, dashed }) => {
     const found = render.result.taps[tap.id]
-    const data = found?.channels_data[0] ?? new Float32Array(0)
+    const data = found?.channels_data[channel] ?? new Float32Array(0)
     const step = found?.kind === 'control' ? CONTROL_PERIOD : 1
     const a = Math.max(0, Math.floor((from * SAMPLE_RATE) / step))
     const b = Math.min(data.length, Math.ceil(((from + length) * SAMPLE_RATE) / step) + 1)
@@ -462,6 +545,7 @@ function wave(render: StillRender, ask: PictureAsk, layout: Layout, lesson: stri
     sound ||= found?.kind === 'audio'
     return {
       ...tap,
+      ...(dashed ? { dashed } : {}),
       ys,
       x0: ((a * step) / SAMPLE_RATE) * scale,
       x1: (((b - 1) * step) / SAMPLE_RATE) * scale,
@@ -478,8 +562,8 @@ function wave(render: StillRender, ask: PictureAsk, layout: Layout, lesson: stri
   if (levels && layout.round && hi > lo) fitted.min = tidyFloor(lo, hi, FLOOR_DB)
   const y = rangeAsked(fitted, ask, lesson)
   const unit = sound ? '' : (ask.taps[0]?.unit ?? '')
-  const titles = { x: ask.xTitle ?? x.title, y: unit }
-  return finish(lines, x, y, titles, `${joined(ask.taps)} against time`, layout)
+  const titles = { x: ask.xTitle ?? x.title, y: ask.yTitle ?? unit }
+  return sided(finish(lines, x, y, titles, `${joined(ask.taps)} against time`, layout), ask, said)
 }
 
 /** How much of each frequency: a sound's average spectrum, or a spectrum the lab worked out. */
@@ -491,14 +575,22 @@ function spectrum(render: StillRender, ask: PictureAsk, layout: Layout, lesson: 
       : { ...AUDIBLE, max: topAsked(AUDIBLE.max, ask, lesson, AUDIBLE.min) }
   // Two bands lie one over the other where the points are many, and read as one: where there is
   // more than one tap, each is the line along its top.
-  const outline = ask.taps.length > 1
+  const { sides, said } = sidesOf(render, ask)
+  const outline = sides.length > 1
   let lo = Infinity
   let hi = -Infinity
-  const lines: Line[] = ask.taps.map((tap) => {
+  const lines: Line[] = sides.map(({ tap, channel, dashed }) => {
     const found = render.result.taps[tap.id]
     const line: Line =
       found?.kind === 'audio'
-        ? { ...tap, ys: render.spectrum(tap.id), x0: 0, x1: SAMPLE_RATE / 2, outline }
+        ? {
+            ...tap,
+            ...(dashed ? { dashed } : {}),
+            ys: render.spectrum(tap.id, channel),
+            x0: 0,
+            x1: SAMPLE_RATE / 2,
+            outline,
+          }
         : {
             ...tap,
             ys: found?.channels_data[0] ?? new Float32Array(0),
@@ -523,8 +615,8 @@ function spectrum(render: StillRender, ask: PictureAsk, layout: Layout, lesson: 
   if (!(hi >= lo)) [lo, hi] = [-96, 0]
   // The quietest 90 dB under the loudest point are below anything a picture can show.
   const y = rangeAsked(axisFor(Math.max(lo, hi - 90), hi, layout), ask, lesson)
-  const said = `The spectrum of ${joined(ask.taps)}`
-  return finish(lines, x, y, { x: 'hertz', y: 'decibels' }, said, layout)
+  const titled = `The spectrum of ${joined(ask.taps)}`
+  return sided(finish(lines, x, y, { x: 'hertz', y: 'decibels' }, titled, layout), ask, said)
 }
 
 /**
@@ -595,8 +687,8 @@ function curve(render: StillRender, ask: PictureAsk, layout: Layout, lesson: str
   }
   if (!(hi >= lo)) [lo, hi] = [0, 0]
   const y = rangeAsked(axisFor(lo, hi, layout), ask, lesson)
-  const unit = ask.taps[0]?.unit ?? ''
-  return finish(lines, x, y, { x: ask.xTitle ?? '', y: unit }, joined(ask.taps), layout)
+  const titles = { x: ask.xTitle ?? '', y: ask.yTitle ?? ask.taps[0]?.unit ?? '' }
+  return finish(lines, x, y, titles, joined(ask.taps), layout)
 }
 
 /** A picture of one grey a point, as a PNG in a `data:` address: all an SVG mask needs. */
@@ -721,7 +813,8 @@ function spectrogram(
     x,
     y,
     key: [],
-    note: `${tap.name}: ${along} across, hertz up, from ${label(min)} dB (the page's colour) to ${label(max)} dB`,
+    note: levelsKey(tap.name, along, min, max),
+    ramp: true,
     label: `${tap.name}: its spectrum over time`,
   }
 }
@@ -797,11 +890,14 @@ export function plotHtml(picture: Picture, height = HEIGHT): string {
 /** The box a tile's picture is drawn in, and the room left round its lines. */
 const TILE_BOX = { width: 200, height: 72, pad: { x: 6, y: 6 } }
 
-/** A tile's picture: the lines alone, with no numbers. The tile's link says what it is. */
+/**
+ * A tile's picture: the lines alone, with no numbers. The tile's link says what it is; the
+ * picture's title says what is drawn, and which side of a sound of two channels.
+ */
 function tileSvg(picture: Picture): string {
   const { width, height, pad } = TILE_BOX
   return (
-    `<svg viewBox="0 0 ${width} ${height}" aria-hidden="true">` +
+    `<svg viewBox="0 0 ${width} ${height}" aria-hidden="true"><title>${escape(picture.label)}</title>` +
     `<svg x="${pad.x}" y="${pad.y}" width="${width - 2 * pad.x}" height="${height - 2 * pad.y}" viewBox="0 0 ${picture.width} ${picture.height}" preserveAspectRatio="none">` +
     `${picture.lines}</svg></svg>`
   )
@@ -838,7 +934,11 @@ export interface StillProps {
   /** What runs along the bottom, in a word or two, in place of the view's own word. */
   xTitle?: string
   /** Taps drawn as dots on stems, against time and for a curve: all of them, or those named, "frame other". */
-  stems?: boolean | string
+  stems?: boolean | string | readonly string[]
+  /** What stands over the y axis, in place of the tap's unit, against time and for a curve. */
+  yTitle?: string
+  /** `both` draws each channel of a sound that has two; left out, its left, which the picture says. */
+  channels?: 'left' | 'both'
 }
 
 /**
@@ -891,8 +991,7 @@ export async function lessonStill(
     lesson.id,
   )
   if (step !== undefined) stepAsked(step, description, lesson.id)
-  const stems =
-    typeof props.stems === 'string' ? props.stems.split(/[\s,]+/).filter(Boolean) : props.stems
+  const stems = stemsNamed(props.stems)
   for (const id of Array.isArray(stems) ? stems : []) {
     if (!taps.some((tap) => tap.id === id)) {
       throw new Error(
@@ -906,8 +1005,9 @@ export async function lessonStill(
     seconds: lesson.data.seconds,
     values,
   })
-  const { from, span, min, max, top, scale, xTitle } = props
-  const ask = { taps, view: props.view ?? 'wave', from, span, min, max, top, scale, xTitle, stems }
+  const { from, span, min, max, top, scale, xTitle, yTitle, channels } = props
+  const view = props.view ?? 'wave'
+  const ask = { taps, view, from, span, min, max, top, scale, xTitle, yTitle, stems, channels }
   return drawStill(render, ask, lesson.id)
 }
 
@@ -923,8 +1023,19 @@ export interface OpeningProps {
   min?: number
   max?: number
   top?: number
+  /** As a still's too: a spectrum's scale, the words on the two axes, stems, and both channels. */
+  scale?: 'log' | 'linear'
+  xTitle?: string
+  yTitle?: string
+  stems?: boolean | string | readonly string[]
+  channels?: 'left' | 'both'
   /** The two taps apart, one picture above the other, each on a vertical range of its own. */
   separate?: boolean
+  /**
+   * The sounds the two pictures are of, going in and coming out, by tap id, where the taps drawn
+   * are not sound themselves (a spectrogram's): each then has its button to hear it.
+   */
+  hear?: readonly [string, string]
 }
 
 /**
@@ -938,12 +1049,81 @@ export function lessonOpening(
   props: OpeningProps,
   dir = SETTINGS_DIR,
 ): Promise<Picture[]> {
-  const { input, output, separate, ...ask } = props
+  const { input, output, separate, hear: _hear, ...ask } = props
   const taps = [`${input}:in`, `${output}:out`]
   const apart = separate || ask.view === 'spectrogram'
   return Promise.all(
     (apart ? taps : [taps.join(' ')]).map((one) => lessonStill(lesson, { ...ask, taps: one }, dir)),
   )
+}
+
+/** One line of the opening picture's key: a line drawn, or what a picture says of itself. */
+export interface OpeningLine {
+  /** The line drawn, for its swatch; none for a picture's note. */
+  line?: KeyLine
+  /** The note stands beside a ramp of the picture's levels. */
+  ramp?: boolean
+  text: string
+  /** The sound a button beside the words plays, by tap id. */
+  hear?: string
+}
+
+/**
+ * The key of the opening picture: every line drawn, then what each picture says of itself. A
+ * line of a sound has a button to hear it, once for a sound drawn as two lines. A tap that is
+ * not sound is heard by the sound `hear` names for it, going in or coming out; a picture with
+ * no lines (a spectrogram) has that button beside its note. Stops the build, naming the lesson,
+ * on a `hear` that names a tap the lab does not have, or one that is not sound.
+ */
+export function openingKey(
+  pictures: readonly Picture[],
+  props: OpeningProps,
+  taps: readonly TapInfo[],
+  lesson: string,
+): OpeningLine[] {
+  const sound = (id: string) => taps.find((tap) => tap.id === id)?.kind === 'audio'
+  for (const id of props.hear ?? []) {
+    if (!taps.some((tap) => tap.id === id)) {
+      throw new Error(
+        `${lesson}: the opening picture is heard by "${id}", which is not a tap of the lab. It has: ${taps.map((tap) => tap.id).join(', ')}`,
+      )
+    }
+    if (!sound(id)) {
+      throw new Error(
+        `${lesson}: the opening picture is heard by "${id}", which is not sound, so it cannot be listened to.`,
+      )
+    }
+  }
+  /** The sound a tap of the picture is heard by: itself, or the one named for its place. */
+  const heard = (id: string) => {
+    if (sound(id)) return id
+    return id === props.input ? props.hear?.[0] : id === props.output ? props.hear?.[1] : undefined
+  }
+  const given = new Set<string>()
+  const once = (id: string | undefined) => {
+    if (id === undefined || given.has(id)) return undefined
+    given.add(id)
+    return id
+  }
+  const lines: OpeningLine[] = pictures.flatMap((picture) =>
+    picture.key.map((line) => ({ line, text: line.name, hear: once(heard(line.id)) })),
+  )
+  // What the pictures say of themselves. A picture of levels has no lines and is of one tap,
+  // the one going in first and then the one coming out: its button stands beside its note.
+  const said = new Set<string>()
+  pictures.forEach((picture, index) => {
+    if (!picture.note) return
+    if (!picture.ramp) {
+      said.add(picture.note)
+      return
+    }
+    const hear = once(heard([props.input, props.output][index] ?? ''))
+    lines.push({ text: picture.note, ramp: true, ...(hear === undefined ? {} : { hear }) })
+  })
+  // Two pictures that each draw the left of their one sound say so once, of both.
+  const each = pictures.length > 1 && pictures.every((picture) => picture.note === LEFT_OF_ONE)
+  for (const text of each ? [LEFT_OF_EACH] : said) lines.push({ text })
+  return lines
 }
 
 /** A lab that makes its own sound: the lesson lists no source but "nothing goes in". */
@@ -998,7 +1178,8 @@ export async function lessonTile(lesson: StillLesson, dir = SETTINGS_DIR): Promi
       // A tile's entry always holds a `from`, 0 when its file gives none: a span of time, which
       // a curve has none of, so a curve's tile is the whole curve as it always was.
       const { from: _from, span: _span, ...rest } = drawn
-      const asked = drawn.view === 'curve' ? { ...rest, taps } : { ...drawn, taps }
+      const stems = stemsNamed(drawn.stems)
+      const asked = drawn.view === 'curve' ? { ...rest, taps, stems } : { ...drawn, taps, stems }
       const picture = tileSvg(drawStill(render, asked, lesson.id, TILE))
       const timed = drawn.view === 'wave' || drawn.view === 'spectrogram'
       const time = timed ? { from: drawn.from, span: drawn.span ?? seconds - drawn.from } : null

@@ -2,15 +2,20 @@
 // to fail what is broken. Nothing here loads a built lab: the taps are made in this file, as
 // site/labs/lab.h makes them, and the labs are stand-ins written out below.
 
+import fs from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { Lab, RenderResult, TapData, Values } from '../../src/lab/runner.ts'
 import {
   click,
+  differenceDb,
   expectBuild,
+  expectRoomForChecks,
   expectSoundLab,
   expectWritten,
   FADE,
+  gainToDb,
   kinks,
+  largestDifference,
   loops,
   matchesWritten,
   noise,
@@ -209,6 +214,89 @@ describe('the small helpers the lab tests share', () => {
     expect(POINT_RATE).toBe(3000)
     expect(seconds(0.5)).toBe(24000)
     expect(points(0.5)).toBe(1500)
+  })
+})
+
+describe('a gain in decibels', () => {
+  it('has a floor of −180 dB, which silence and anything under a billionth read', () => {
+    expect(gainToDb(1)).toBe(0)
+    expect(gainToDb(0.5)).toBeCloseTo(-6.0206, 4)
+    expect(gainToDb(1e-9)).toBeCloseTo(-180, 9)
+    expect(gainToDb(1e-12)).toBeCloseTo(-180, 9)
+    expect(gainToDb(0)).toBeCloseTo(-180, 9)
+  })
+})
+
+describe('two taps, sample for sample', () => {
+  const tone = sine(440, 0.5, 4800).left
+
+  it('are 0 apart when every sample is the same number, and only then', () => {
+    expect(largestDifference(tone, tone.slice())).toBe(0)
+    const moved = tone.slice()
+    // The next number a sample of this size can be: the smallest difference there is.
+    moved[1000] = Math.fround(moved[1000]! * (1 + 2 ** -23))
+    expect(moved[1000]).not.toBe(tone[1000])
+    expect(largestDifference(tone, moved)).toBe(Math.abs(moved[1000]! - tone[1000]!))
+    expect(largestDifference(moved, tone)).toBe(largestDifference(tone, moved))
+  })
+
+  it('find a difference that a level in decibels reads as its floor', () => {
+    const moved = tone.slice()
+    moved[1000] = Math.fround(moved[1000]! * (1 + 2 ** -23))
+    // One sample a hair off in a tenth of a second of tone: the level of the difference is
+    // under the floor, which is all a reading of the floor says.
+    expect(differenceDb(moved, tone)).toBe(-140)
+    expect(largestDifference(moved, tone)).toBeGreaterThan(0)
+  })
+
+  it('is the largest difference there is, over the stretch asked for', () => {
+    const a = Float32Array.of(0, 0.5, -0.25, 1)
+    const b = Float32Array.of(0, 0.25, 0.25, 1)
+    expect(largestDifference(a, b)).toBe(0.5)
+    expect(largestDifference(a, b, 0, 2)).toBe(0.25)
+    expect(largestDifference(a, b, 3)).toBe(0)
+  })
+
+  it('is no number at all where one tap has a sample the other lacks, or a sample is none', () => {
+    const a = Float32Array.of(0, 0.5, -0.25, 1)
+    expect(largestDifference(a, a.slice(0, 3))).toBe(Infinity)
+    expect(largestDifference(a.slice(0, 3), a)).toBe(Infinity)
+    expect(largestDifference(a, a.slice(0, 3), 0, 3)).toBe(0)
+    expect(largestDifference(a, Float32Array.of(0, NaN, -0.25, 1))).toBeNaN()
+  })
+})
+
+describe('the checks a lab declares', () => {
+  const read = (file: string) => fs.readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8')
+
+  it('fail the lab’s test when there are more than a lab may declare, with both numbers', () => {
+    expect(() => expectRoomForChecks('falling', 33, 32)).toThrow(
+      'site/labs/falling.cpp declares 33 checks, and a lab may declare 32',
+    )
+    expect(() => expectRoomForChecks('falling', 33, 32)).toThrow(
+      'the last one declared is in no render',
+    )
+    expect(() => expectRoomForChecks('falling', 35, 32)).toThrow(
+      'the last 3 declared are in no render',
+    )
+    expect(() => expectRoomForChecks('falling', 32, 32)).not.toThrow()
+    expect(() => expectRoomForChecks('falling', 3, 32)).not.toThrow()
+  })
+
+  it('are counted by lab.h before the limit is looked at, and the count is in every built lab', () => {
+    const header = read('labs/lab.h')
+    expect(header).toMatch(
+      /\+\+g_checks_declared;\s+if \(g_check_count < kMaxChecks\) g_checks\[g_check_count\+\+\] = this;/,
+    )
+    expect(header).toContain(
+      'int lab_check_declared(void) { return lab::g_checks_declared; }\nint lab_check_limit(void) { return lab::kMaxChecks; }',
+    )
+    expect(read('scripts/build-labs.sh')).toMatch(/^\s+lab_check_declared lab_check_limit$/m)
+  })
+
+  it('have the limit the template states', () => {
+    const [, limit] = /constexpr int kMaxChecks = (\d+);/.exec(read('labs/lab.h'))!
+    expect(read('LESSONS.md')).toContain(`64 taps and ${limit} checks`)
   })
 })
 

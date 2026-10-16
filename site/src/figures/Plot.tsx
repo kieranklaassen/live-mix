@@ -5,7 +5,8 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { pagePlayer, useLab } from '../lab/page.ts'
 import { EDGE, MONO, drawGrid, plateText, topEdge, useCanvas } from './canvas.ts'
-import { fromUnit, minMaxPlaced, namePlaces, toUnit, withUnit, type Axis } from './draw.ts'
+import { valueWithUnit } from '../lib/parts.ts'
+import { fromUnit, minMaxPlaced, namePlaces, toUnit, wholePixel, type Axis } from './draw.ts'
 import { ROLE_VAR, type Role } from './roles.ts'
 
 export interface Series {
@@ -220,7 +221,8 @@ export default function Plot(props: Props) {
           const zero = py(Math.min(Math.max(0, y.min), y.max))
           context.lineWidth = 1
           for (let i = first; i <= last; i += 1) {
-            const at = px(xOf(i))
+            // On a whole pixel: a stem between two is spread over both, and reads fainter.
+            const at = wholePixel(px(xOf(i)))
             const top = py(ys[i]!)
             context.beginPath()
             context.moveTo(at, zero)
@@ -359,11 +361,13 @@ export default function Plot(props: Props) {
                 className={one.dashed ? 'dashed' : undefined}
               />
               {one.name}
-              {value !== undefined && <b>{withUnit(value, one.unit ?? y.unit ?? '')}</b>}
+              {value !== undefined && <b>{valueWithUnit(value, one.unit ?? y.unit ?? '')}</b>}
             </li>
           )
         })}
-        {hover !== null && hasData && <li className="at">at {withUnit(hover, x.unit ?? '')}</li>}
+        {hover !== null && hasData && (
+          <li className="at">at {valueWithUnit(hover, x.unit ?? '')}</li>
+        )}
       </ul>
     </div>
   )

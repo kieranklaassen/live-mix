@@ -5,16 +5,19 @@
 //
 // The page places it from the lesson's front matter, `opening: { input: in, output: out }`,
 // which may say more, each as a still takes it: `view`, `from` and `span`, `min`, `max` and
-// `top`. `separate: true` draws the two taps apart, one picture above the other, each on a
-// vertical range of its own, for a lesson whose input is a sliver beside its output; a
-// spectrogram is always drawn so, since a picture of colour holds one tap. `caption` is what to
-// notice. A tap that is not sound has no button.
+// `top`, `scale`, `xTitle` and `yTitle`, `stems` and `channels`. `separate: true` draws the two
+// taps apart, one picture above the other, each on a vertical range of its own, for a lesson
+// whose input is a sliver beside its output; a spectrogram is always drawn so, since a picture
+// of levels holds one tap. `caption` is what to notice. A tap that is not sound has no button
+// of its own: `hear` names the sound each of the two pictures is of, going in and coming out,
+// and each then has its button, as a spectrogram's do here.
 //
 //   opening: { input: in, output: out, view: spectrum, top: 8000, caption: What to notice. }
+//   opening: { input: inPicture, output: outPicture, view: spectrogram, hear: [in, out] }
 import { getEntry } from 'astro:content'
 import { ROLE_VAR } from '../../figures/roles.ts'
 import { pageLab } from '../../lib/lab-info.ts'
-import { lessonOpening, plotHtml, type OpeningProps } from '../../lib/still.ts'
+import { lessonOpening, openingKey, plotHtml, type OpeningProps } from '../../lib/still.ts'
 import Listen from './Listen.astro'
 
 interface Props extends OpeningProps {
@@ -27,7 +30,7 @@ const entry = await getEntry('lessons', lesson)
 if (!entry)
   throw new Error(`${lesson}: an opening picture was used on a page that is not a lesson's.`)
 const pictures = await lessonOpening(entry, asked)
-const sound = (id: string) => lab.taps.find((tap) => tap.id === id)?.kind === 'audio'
+const key = openingKey(pictures, asked, lab.taps, lesson)
 ---
 
 <figure class="fig opening">
@@ -35,19 +38,19 @@ const sound = (id: string) => lab.taps.find((tap) => tap.id === id)?.kind === 'a
     <Fragment set:html={plotHtml(picture)} />
   ))}
   <ul class="fig-legend">
-    {pictures.flatMap((picture) =>
-      picture.key.map((line) => (
-        <li>
+    {key.map(({ line, ramp, text, hear }) => (
+      <li>
+        {line && (
           <i
             style={`background: var(${ROLE_VAR[line.role]})`}
             class={line.dashed ? 'dashed' : undefined}
           />
-          {line.name}
-          {sound(line.id) && <Listen tap={line.id}>Hear it</Listen>}
-        </li>
-      )),
-    )}
-    {pictures.map((picture) => picture.note && <li>{picture.note}</li>)}
+        )}
+        {ramp && <i class="ramp" />}
+        {text}
+        {hear && <Listen tap={hear}>Hear it</Listen>}
+      </li>
+    ))}
   </ul>
   {caption && <figcaption>{caption}</figcaption>}
 </figure>

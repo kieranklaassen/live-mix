@@ -3,8 +3,8 @@
 
 import { useLab, waitingText } from '../lab/page.ts'
 import { CONTROL_PERIOD, SAMPLE_RATE } from '../lab/rate.ts'
-import { AUDIBLE, rangeOf, roomyAxis } from './draw.ts'
-import Plot, { linesAt, uprightsAt, type Mark, type Series } from './Plot.tsx'
+import { AUDIBLE, markValues, rangeOf, roomyAxis, type MarkRef } from './draw.ts'
+import Plot, { type Mark, type Series } from './Plot.tsx'
 import type { TapRef } from './roles.ts'
 
 interface Props {
@@ -25,9 +25,13 @@ interface Props {
    * named by id (`stems="frame"`, or a list), the others staying lines.
    */
   stems?: boolean | string | readonly string[]
-  /** Controls drawn as a line across (`lines`) or up (`uprights`) the picture: [id, name] pairs. */
-  lines?: [string, string][]
-  uprights?: [string, string][]
+  /**
+   * Lines drawn across (`lines`) or up (`uprights`) the picture, each with its name: at a
+   * control's value ([id, name]), at a fixed number ([number, name]) or at the first point of a
+   * tap ([id, name, 'tap']). The wrapper makes them from "threshold 0.5:Half" (draw.ts, markRefs).
+   */
+  lines?: MarkRef[]
+  uprights?: MarkRef[]
   /** A control tap whose value, as the loop plays, is where a dot rides the first curve. */
   follow?: string
   /** Draw the line y = x, for a curve of level out against level in. */
@@ -90,7 +94,11 @@ export default function Curve(props: Props) {
     })
   }
   const auto = roomyAxis(Number.isFinite(lo) ? lo : 0, Number.isFinite(hi) ? hi : 1)
-  const marks: Mark[] = [...linesAt(lines, state.values), ...uprightsAt(uprights, state.values)]
+  const tapValue = (id: string) => result?.taps[id]?.channels_data[0]?.[0]
+  const marks: Mark[] = [
+    ...markValues(lines, state.values, tapValue).map(({ value, text }) => ({ y: value, text })),
+    ...markValues(uprights, state.values, tapValue).map(({ value, text }) => ({ x: value, text })),
+  ]
   const followed = follow ? result?.taps[follow]?.channels_data[0] : undefined
   const cursor = followed
     ? (seconds: number) =>

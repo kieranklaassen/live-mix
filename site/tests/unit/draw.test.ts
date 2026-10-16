@@ -5,6 +5,11 @@ import {
   fromUnit,
   hzToX,
   label,
+  laneRows,
+  leftSaid,
+  levelsKey,
+  markRefs,
+  markValues,
   minMaxColumns,
   minMaxPlaced,
   namePlaces,
@@ -14,6 +19,7 @@ import {
   ticks,
   tidyFloor,
   toUnit,
+  wholePixel,
   withUnit,
 } from '../../src/figures/draw.ts'
 
@@ -280,5 +286,128 @@ describe('the scale of a sound among lanes', () => {
   it('is never nothing, so that silence is a flat line and not a division by zero', () => {
     const quiet = soundPeaks([{ id: 'in', peak: 0 }], ['in'])
     expect(quiet.in).toBeGreaterThan(0)
+  })
+})
+
+describe('the lines a figure draws across itself', () => {
+  const controls = [
+    { id: 'threshold', name: 'Threshold' },
+    { id: 'level', name: 'A control called level' },
+  ]
+  const taps = [
+    { id: 'level', name: 'Level' },
+    { id: 'ceiling', name: 'Ceiling' },
+  ]
+
+  it('takes a control by its id, as before, and names the line after it', () => {
+    expect(markRefs('threshold', controls, taps)).toEqual([['threshold', 'Threshold']])
+    expect(markRefs(undefined, controls, taps)).toEqual([])
+    expect(markRefs('', controls, taps)).toEqual([])
+  })
+
+  it('takes a fixed number with a name, whose underscores are spaces', () => {
+    expect(markRefs('0.5:Half', controls, taps)).toEqual([[0.5, 'Half']])
+    expect(markRefs('-6:Six_under, 24000:Half_the_rate', controls, taps)).toEqual([
+      [-6, 'Six under'],
+      [24000, 'Half the rate'],
+    ])
+  })
+
+  it('takes a tap by its id, where no control has that id', () => {
+    expect(markRefs('threshold 0.5:Half ceiling level', controls, taps)).toEqual([
+      ['threshold', 'Threshold'],
+      [0.5, 'Half'],
+      ['ceiling', 'Ceiling', 'tap'],
+      ['level', 'A control called level'],
+    ])
+  })
+
+  it('stops the build on a name that is none of the three, with the names there are', () => {
+    expect(() => markRefs('treshold', controls, taps, 'compression')).toThrow(
+      /compression: .*"treshold".*threshold, level.*level, ceiling/,
+    )
+    expect(() => markRefs('half:Half', controls, taps, 'compression')).toThrow(/"half:Half"/)
+    expect(() => markRefs('0.5:', controls, taps, 'compression')).toThrow(/"0.5:"/)
+  })
+
+  it("stands each line at its value: a control's now, the number as written, a tap's first point", () => {
+    const refs = markRefs('threshold 0.5:Half ceiling', controls, taps)
+    const tap = (id: string) => (id === 'ceiling' ? -1 : undefined)
+    expect(markValues(refs, { threshold: -24 }, tap)).toEqual([
+      { value: -24, text: 'Threshold' },
+      { value: 0.5, text: 'Half' },
+      { value: -1, text: 'Ceiling' },
+    ])
+    // A control the page has no value for yet, and a tap that has not been rendered, draw nothing.
+    expect(markValues(refs, {}, () => undefined)).toEqual([{ value: 0.5, text: 'Half' }])
+  })
+})
+
+describe('what a picture says of the side it draws', () => {
+  const input = { name: 'Input' }
+  const output = { name: 'Output' }
+  const level = { name: 'Level' }
+
+  it('says nothing where no sound drawn has two channels', () => {
+    expect(leftSaid([input, level], [])).toBeUndefined()
+  })
+
+  it('says the left channel of the one sound, of each, or of those that have two', () => {
+    expect(leftSaid([input], [input])).toBe('the left channel')
+    expect(leftSaid([input, output], [input, output])).toBe('the left channel of each')
+    expect(leftSaid([input, level, output], [input, output])).toBe(
+      'the left channel of Input and Output',
+    )
+  })
+})
+
+describe('the key of a picture of levels', () => {
+  it('names the two ends of its ramp by what they stand for, and names no colour', () => {
+    const key = levelsKey('Output', 'seconds', -90, 0)
+    expect(key).toBe(
+      'Output: seconds across, hertz up, from −90 dB, the quietest shown, to 0 dB, the loudest shown',
+    )
+    expect(key).not.toMatch(/colour/)
+    expect(levelsKey('Output', 'frames', -64, -40)).toMatch(/^Output: frames across, hertz up, /)
+  })
+})
+
+describe('a stem one pixel wide', () => {
+  it('stands on a whole pixel: its middle is half a pixel in, wherever its point falls', () => {
+    expect(wholePixel(10)).toBe(10.5)
+    expect(wholePixel(10.49)).toBe(10.5)
+    expect(wholePixel(10.99)).toBe(10.5)
+    expect(wholePixel(11)).toBe(11.5)
+    expect(wholePixel(0.2)).toBe(0.5)
+  })
+
+  it('moves a point by less than a pixel', () => {
+    for (let at = 0; at < 4; at += 0.07) {
+      expect(Math.abs(wholePixel(at) - at)).toBeLessThanOrEqual(0.5)
+    }
+  })
+})
+
+describe('the lanes of taps', () => {
+  const input = { id: 'in', name: 'Input', kind: 'audio', channels: 2 }
+  const level = { id: 'level', name: 'Level', kind: 'control', channels: 1 }
+  const pluck = { id: 'pluck', name: 'The pluck', kind: 'audio', channels: 1 }
+
+  it('are one a tap, and a sound of two channels says that its lane is its left', () => {
+    expect(laneRows([input, level, pluck])).toEqual([
+      { tap: input, channel: 0, key: 'in', name: 'Input', side: 'left channel' },
+      { tap: level, channel: 0, key: 'level', name: 'Level' },
+      { tap: pluck, channel: 0, key: 'pluck', name: 'The pluck' },
+    ])
+    expect(laneRows([input], 'left')).toEqual(laneRows([input]))
+  })
+
+  it('are one a channel of a sound that has two, when both are asked for', () => {
+    expect(laneRows([input, level, pluck], 'both')).toEqual([
+      { tap: input, channel: 0, key: 'in left', name: 'Input, left' },
+      { tap: input, channel: 1, key: 'in right', name: 'Input, right' },
+      { tap: level, channel: 0, key: 'level', name: 'Level' },
+      { tap: pluck, channel: 0, key: 'pluck', name: 'The pluck' },
+    ])
   })
 })

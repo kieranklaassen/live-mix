@@ -232,7 +232,8 @@ export default function StereoCloud({ taps, built, live = false, label }: Props)
           side
         </text>
       </svg>
-      <ul className="fig-legend key" style={{ paddingLeft: ROOM }}>
+      {/* The key starts where the square does; in a card, where the card's caption does. */}
+      <ul className="fig-legend key" style={{ paddingLeft: `var(--card-key-inset, ${ROOM}px)` }}>
         {taps.map((tap) => (
           <li key={tap.id}>
             <i style={{ background: `var(${ROLE_VAR[tap.role]})` }} />

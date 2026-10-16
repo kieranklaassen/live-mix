@@ -4,7 +4,7 @@
 // the lab's own names and units, so the words cannot drift from the sound. Nothing here needs
 // the framework.
 import { withUnit } from '../figures/draw.ts'
-import type { ControlInfo, LabDescription } from '../lab/describe.ts'
+import type { ControlInfo, LabDescription, TapKind } from '../lab/describe.ts'
 import { NO_SOURCE, SOURCES } from '../lab/sources.ts'
 import { BUILD, type NamedSet } from '../lab/store.ts'
 
@@ -165,4 +165,22 @@ export function defaultsBeside(lab: LabDescription, defaults: NamedSet): Default
       lesson: valueInWords(control, control.initial),
       device: valueInWords(control, values[control.id]!),
     }))
+}
+
+/** What a tap that is not sound is, as site/labs/lab.h declares its kind. */
+const NOT_SOUND: Record<Exclude<TapKind, 'audio'>, string> = {
+  control: 'a value that changes over time',
+  curve: 'a curve of one value against another',
+  spectrum: 'a spectrum, a level for each frequency',
+  // Columns of values: a spectrum over time, or whatever else a lab lays out so.
+  frames: 'a picture made of columns of values',
+}
+
+/**
+ * What a stage whose tap is not sound says where its button would be. The tap's name is quoted
+ * whole, so the sentence reads the same whatever a lab calls the tap, and it has no colon of
+ * its own beside one the name may hold.
+ */
+export function stageKindWords(name: string, kind: Exclude<TapKind, 'audio'>): string {
+  return `“${name}” is ${NOT_SOUND[kind]}. It is not sound, so this stage has no button to hear it.`
 }

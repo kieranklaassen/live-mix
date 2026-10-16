@@ -30,7 +30,8 @@ export default function DeviceBench(props: BenchProps) {
           Open {props.name}
         </button>
         <p className="bench-note">
-          This loads the engine and builds the device. It makes no sound until you press Listen.
+          Opening it loads the engine and builds the device. The device makes no sound until its{' '}
+          {props.as === 'instrument' ? 'Play' : 'Listen'} button is pressed.
         </p>
       </div>
     )

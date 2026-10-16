@@ -120,6 +120,15 @@ body:has(.playbar) .site-footer {
   -webkit-mask: repeating-linear-gradient(to right, black 0 5px, transparent 5px 8px);
   mask: repeating-linear-gradient(to right, black 0 5px, transparent 5px 8px);
 }
+/* The levels of a still spectrogram, the quietest shown to the loudest, as a live one's key
+   has them (styles/parts.css). */
+.fig-legend i.ramp {
+  flex: none;
+  width: 44px;
+  height: 8px;
+  background: linear-gradient(to right, var(--lm-bg), var(--sig-ctl) 60%, var(--sig-out));
+  border: 1px solid var(--rule-soft);
+}
 .fig-legend b {
   color: var(--lm-text);
   font-weight: 500;
@@ -211,6 +220,11 @@ body:has(.playbar) .site-footer {
 .stage-origin[data-origin='lesson']::before {
   background: none;
   border: 1.5px solid var(--lm-muted);
+}
+/* The engine's own function, and not the running device: the device's mark, as a ring. */
+.stage-origin[data-origin='called']::before {
+  background: none;
+  border: 1.5px solid var(--sig-out);
 }
 .stage-kind {
   font-size: 0.68rem;
@@ -340,6 +354,12 @@ input[type='range'] {
   font-family: var(--lm-font-mono);
   font-weight: 500;
 }
+/* A check's value in the run of a sentence (figures/CheckValue.tsx): set as the line's is. */
+.check-inline {
+  font-family: var(--lm-font-mono);
+  font-size: 0.9em;
+  white-space: nowrap;
+}
 .claim {
   border-bottom: 1px dotted var(--lm-dim);
 }
@@ -356,11 +376,22 @@ input[type='range'] {
 .aside .label {
   margin: 0 0 0.3rem;
 }
+/*
+ * A block equation wider than the page is read by scrolling its own box sideways, never the
+ * page. An edge it runs past is shaded, as a listing's is (site.css); the covers are the ground
+ * the equation stands on, which a part with a ground of its own names in --math-ground.
+ */
 .math {
   overflow-x: auto;
   overflow-y: hidden;
   padding: 0.3rem 0;
   margin: 1rem 0;
+  --math-cover: var(--math-ground, var(--lm-bg));
+  background:
+    linear-gradient(to right, var(--math-cover) 30%, transparent) left / 2.4rem 100% no-repeat local,
+    linear-gradient(to left, var(--math-cover) 30%, transparent) right / 2.4rem 100% no-repeat local,
+    linear-gradient(to right, var(--edge-shade), transparent) left / 0.9rem 100% no-repeat scroll,
+    linear-gradient(to left, var(--edge-shade), transparent) right / 0.9rem 100% no-repeat scroll;
 }
 .katex {
   font-size: 1.08em;
@@ -790,6 +821,16 @@ a.lesson-card > span {
 .lesson-card-picture figcaption {
   margin: 0;
   padding: 6px 20px 8px;
+}
+/* The key of a card's picture keeps the caption's inset from the card's edge, at every width:
+   in a narrow window a key elsewhere starts at its figure's edge, which here is the card's. A
+   figure that sets its key's inset itself reads the card's from `--card-key-inset`. */
+.lesson-card-picture {
+  --card-key-inset: 20px;
+}
+.lesson-card-picture .fig-legend {
+  padding-left: var(--card-key-inset);
+  padding-right: var(--card-key-inset);
 }
 a.lesson-card {
   text-decoration: none;

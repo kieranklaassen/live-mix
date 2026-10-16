@@ -27,11 +27,56 @@ export const BIN = SAMPLE_RATE / 4096
 /** The first 20 ms of a looped tap are a crossfade of two passes (kFadeFrames in site/labs/lab.h). */
 export const FADE = 960
 
-/** A lab built by `pnpm labs`. A missing file means the labs were not built first. */
+/**
+ * Fails when a lab's file declares more checks than a lab may (kMaxChecks in site/labs/lab.h).
+ * A check past the limit is kept in no list and is in no render: its test would read nothing,
+ * and its line on the page would never fill.
+ */
+export function expectRoomForChecks(name: string, declared: number, limit: number): void {
+  if (declared <= limit) return
+  const over = declared - limit
+  throw new Error(
+    `site/labs/${name}.cpp declares ${declared} checks, and a lab may declare ${limit} (kMaxChecks in site/labs/lab.h): ` +
+      `the last ${over === 1 ? 'one declared is' : `${over} declared are`} in no render. A lab::Build is three of them.`,
+  )
+}
+
+/**
+ * How many checks a built lab's file declares, and the most it may, as the module itself says.
+ * Undefined for a module built before lab.h counted them.
+ */
+async function checksDeclared(
+  bytes: BufferSource,
+): Promise<{ declared: number; limit: number } | undefined> {
+  const { instance } = await WebAssembly.instantiate(bytes, {})
+  const module = instance.exports as {
+    _initialize?: () => void
+    lab_check_declared?: () => number
+    lab_check_limit?: () => number
+  }
+  if (!module.lab_check_declared || !module.lab_check_limit) return undefined
+  // The module is a reactor: its file-level objects, the checks among them, are built here.
+  module._initialize?.()
+  return { declared: module.lab_check_declared(), limit: module.lab_check_limit() }
+}
+
+/** The labs whose checks have been counted in this run: once a lab is enough. */
+const counted = new Set<string>()
+
+/**
+ * A lab built by `pnpm labs`. A missing file means the labs were not built first. A lab that
+ * declares more checks than it may fails here, so its test fails saying how many it declares
+ * and how many it may.
+ */
 export async function lab(name: string): Promise<Lab> {
   const bytes = await readFile(`${LABS}${name}.wasm`).catch(() => {
     throw new Error(`site/public/labs/${name}.wasm is missing: run \`pnpm labs\` in site/ first.`)
   })
+  if (!counted.has(name)) {
+    const room = await checksDeclared(bytes)
+    if (room) expectRoomForChecks(name, room.declared, room.limit)
+    counted.add(name)
+  }
   return loadLab(bytes)
 }
 
@@ -81,6 +126,10 @@ export function noise(peak: number, frames: number, seed = 1): Source {
 }
 
 export const dbToGain = (db: number) => 10 ** (db / 20)
+/**
+ * A gain in dB. Its floor is −180 dB: a gain of a billionth or less reads −180, and so does
+ * silence, so that silence is a number. (The lab's own `ratio_db` and `to_db` floor at −140.)
+ */
 export const gainToDb = (gain: number) => 20 * Math.log10(Math.max(gain, 1e-9))
 
 export function peak(x: Float32Array): number {
@@ -101,7 +150,11 @@ export function mean(x: Float32Array, from = 0, to = x.length): number {
   return sum / Math.max(1, to - from)
 }
 
-/** The level of `a - b` against the level of `b`, in dB. */
+/**
+ * The level of `a - b` against the level of `b`, in dB. Its floor is −140 dB, as `ratio_db`'s
+ * is in site/labs/lab.h: a reading of −140 says the two are that far apart or further, not
+ * that every sample is the same. `largestDifference` says that.
+ */
 export function differenceDb(a: Float32Array, b: Float32Array): number {
   let diff = 0
   let ref = 0
@@ -110,6 +163,31 @@ export function differenceDb(a: Float32Array, b: Float32Array): number {
     ref += b[i]! ** 2
   }
   return 10 * Math.log10(Math.max(diff / Math.max(ref, 1e-30), 1e-14))
+}
+
+/**
+ * Two taps compared sample for sample: the largest difference between a sample of `a` and the
+ * sample of `b` at the same place, from `from` up to `to`. It is 0 when every sample is the
+ * same number and only then, which no level in decibels can say: for a test that claims
+ * "sample for sample", `expect(largestDifference(built, device)).toBe(0)`.
+ *
+ * Infinity where one of the two has no sample at a place compared, and not a number where a
+ * sample is not one: neither is 0, so neither passes for the same.
+ */
+export function largestDifference(
+  a: Float32Array,
+  b: Float32Array,
+  from = 0,
+  to = Math.max(a.length, b.length),
+): number {
+  if (to > a.length || to > b.length) return Infinity
+  let most = 0
+  for (let i = from; i < to; i += 1) {
+    const apart = Math.abs(a[i]! - b[i]!)
+    if (Number.isNaN(apart)) return NaN
+    if (apart > most) most = apart
+  }
+  return most
 }
 
 /** The least and the most of `x` from `from` up to `to`, and how far apart they are. */

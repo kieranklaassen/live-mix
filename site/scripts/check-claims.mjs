@@ -5,6 +5,10 @@
 // test as written: in its title, or passed to the written-number helper of
 // tests/labs/support.ts, `expectWritten(measured, '39 ms')` or `matchesWritten`.
 //
+// A number said in one part and again in another is written under one id both times, and one
+// test holds it. That holds while both writings state the same: it fails where they state
+// different numbers, each of which is a claim with an id and a test of its own.
+//
 //   node scripts/check-claims.mjs [lesson]
 import fs from 'node:fs'
 import path from 'node:path'
@@ -51,6 +55,20 @@ const NUMBER = new RegExp(
 /** The numbers with a unit that a text writes, as written: "39 ms", "−46.8 dB", "63 %". */
 export function numbersIn(text) {
   return [...text.matchAll(NUMBER)].map((match) => match[0].replace(/\s+/g, ' '))
+}
+
+/** A number as NUMBER reads one, with its unit or with none: "39 ms", and the 16 of "step 16". */
+const ANY_NUMBER = new RegExp(`${NUMBER.source}?`, 'g')
+
+/**
+ * What a claim's words state, for telling two writings of one claim apart: every number in
+ * them as written, each with its unit where it has one. Words that write no number state
+ * themselves.
+ */
+export function statedBy(text) {
+  const plain = text.replace(/\s+/g, ' ').trim()
+  const numbers = [...plain.matchAll(ANY_NUMBER)].map((match) => match[0].replace(/,+$/, ''))
+  return numbers.length > 0 ? numbers.join(', ') : plain
 }
 
 /** Whether `text` writes that number: the same, and not as the end or the start of another. */
@@ -133,8 +151,20 @@ export function checkClaims(site = SITE, lesson) {
     const text = read(path.join(lessons, name))
     const { ids, twice } = claimsIn(text)
     const tests = `${read(path.join(site, 'tests/labs', `${lesson}.test.ts`))}\n${browser}`
-    for (const id of twice)
-      problems.push(`${lesson}: the claim "${id}" is written twice; each claim has its own id`)
+    const written = claimsWritten(text)
+    // A claim written more than once states the same each time.
+    for (const id of twice) {
+      const stated = written.filter((claim) => claim.id === id).map((claim) => statedBy(claim.text))
+      const other = stated.find((one) => one !== stated[0])
+      if (stated.length < 2) {
+        // One of the writings could not be read, so the two cannot be compared.
+        problems.push(`${lesson}: the claim "${id}" is written twice; each claim has its own id`)
+      } else if (other !== undefined) {
+        problems.push(
+          `${lesson}: the claim "${id}" is written more than once and does not state the same each time: "${stated[0]}" in one place, "${other}" in another. A number said again keeps its id; another number takes an id and a test of its own`,
+        )
+      }
+    }
     const unheld = ids.filter((id) => !holds(tests, id))
     for (const id of ids) {
       count += 1
@@ -146,7 +176,12 @@ export function checkClaims(site = SITE, lesson) {
     }
     // A long lesson: the numbers a claim writes are the numbers its test holds.
     if (!/^long:\s*true\s*$/m.test(/^---\n[\s\S]*?\n---/.exec(text)?.[0] ?? '')) continue
-    for (const claim of claimsWritten(text)) {
+    // Of a claim written more than once, the first writing: the others state the same, or
+    // have been named above.
+    const first = written.filter(
+      (claim, index) => written.findIndex((one) => one.id === claim.id) === index,
+    )
+    for (const claim of first) {
       if (unheld.includes(claim.id)) continue
       const held = testsNaming(tests, claim.id).flatMap(({ title, written }) => [title, ...written])
       for (const number of numbersIn(claim.text)) {

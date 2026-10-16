@@ -179,11 +179,17 @@ void lab_render(int frames) {  // every time a control moves
   `difference_db(x, y, count)`, `peak`, `rms`; `ratio_db(diff, ref)` for a lab that adds the
   two sums up as its loop runs; `fourier_at(h, count, hz)` (one frequency of an impulse
   response, as `re` and `im`); `kPi` as a double.
+  `ratio_db` and `difference_db` stop at −140 dB. A reading of −140 dB is that floor: it says
+  the two are at least that far apart in level, not that they are equal sample for sample.
+  That is shown in the lab's test, with `largestDifference` ([The tests](#the-tests)).
   The page can already draw the spectrum of any audio tap, so a spectrum tap is only for
   something that is not a tap of the loop.
-- **Room:** a lab may declare 32 controls, 64 taps and 16 checks. No heap: buffers are
-  file-level arrays or `lab::take(count)` (zeroed, gone at the next render). The arena is 40 MB
-  of floats; an 8 s stereo tap takes 3 MB.
+- **Room:** a lab may declare 32 controls, 64 taps and 32 checks. A `lab::Build` is three of
+  the checks. A check past the thirty-second is in no render, and the lab's test fails as it
+  loads the lab, with both numbers: "site/labs/compression.cpp declares 33 checks, and a lab
+  may declare 32 (kMaxChecks in site/labs/lab.h)". No heap: buffers are file-level arrays or
+  `lab::take(count)` (zeroed, gone at the next render). The arena is 40 MB of floats; an 8 s
+  stereo tap takes 3 MB.
 - **A device with `.cpp` files** names them in a comment the build reads:
   `// lab-sources: cpp/devices/plate-reverb/plate_reverb.cpp`. Leave out its `device_api*.cpp`.
   `// lab-memory-mb: 128` and `// lab-arena-mb: 96` give a lab more room.
@@ -272,6 +278,14 @@ or too few) stops the page from building, with the names the lab does have.
   `loops(x, anywhere)` (whether a tap comes round without a step, by its third difference at
   the wrap); `suddenness(changed, reference, at)` (how suddenly an event arrives: near 1 is a
   jump, small is a fade); `onsetMs(x, from, perSecond)` (when a sound speaks).
+  `gainToDb` stops at −180 dB and `differenceDb` at −140 dB, as the lab's `ratio_db` does: a
+  reading at the floor says how far apart at least, never that two taps are the same.
+- **Sample for sample:** `largestDifference(a, b, from, to)` compares two taps a sample at a
+  time and gives the largest difference between them: 0 when every sample is the same, and
+  only then. `from` and `to` are samples, and the whole of both taps when left out. A claim
+  that says "sample for sample" is held by it:
+  `expect(largestDifference(tap(result, 'built'), tap(result, 'out'))).toBe(0)`, where `tap`
+  is the test's own way to one channel of a tap (`result.taps[id]!.channels_data[0]!`).
 - **What every lab is held to:** `expectSoundLab(lab, source, result, { quiet, steps, when })`
   and `expectBuild(lab, source, values, { steps })`.
 - **A number as the lesson writes it:** `expectWritten(measured, written)` and
@@ -305,6 +319,11 @@ What a lab's test holds, in this order:
   holds: `'brings a tone 12 dB over the threshold at 4:1 out 3 dB over it (claim ratio-4)'`.
   In a long lesson the claims check fails a claim whose written number is not in the test that
   names it, in its title or in a call of the helper.
+- **A number said again keeps its id.** A claim stated in part 2 and again in part 7 is written
+  both times under one id, and one test holds both:
+  `<Claim id="ratio-4">3 dB over</Claim>` there and `<Claim id="ratio-4">3 dB</Claim>` here.
+  The claims check fails an id whose writings do not state the same number with the same unit;
+  another number takes an id and a test of its own.
 - **A build step that states a number** has a test that shows the number moving outside its
   tolerance when the piece is switched off: render at the step before, measure the same
   thing, and expect `matchesWritten` to be false. A number measured on the running device has
@@ -390,6 +409,13 @@ All three keys are optional, and a key the shape does not have is refused.
   `spectrum`, `spectrogram` or `curve`), and the span of time (`from` and `span`, in seconds).
   It takes a still's `min`, `max` and `top` too, each fitted when left out:
   `"picture": { "taps": ["out"], "view": "spectrum", "min": -80, "max": 0, "top": 8000 }`.
+  It takes a still's `scale`, `stems`, `channels` and `xTitle` as well, with the meanings a
+  still gives them: `"picture": { "taps": ["rounded"], "view": "wave", "span": 0.002, "stems": true }`.
+  `stems` is `true`, a list of tap ids or the ids in one string, and the build stops on stems
+  for a tap the picture does not draw. A tile shows no
+  numbers, so `xTitle` changes nothing that is seen there. A sound of two channels is drawn by
+  its left unless the picture says `"channels": "both"`, and the picture's title, which a
+  pointer held over it shows, says what is drawn and which side.
   The picture is drawn on the tile's `source`, or on the lesson's first. It should tell this
   lesson from its neighbours: take the picture the plan's table names for the lesson ("A
   picture it needs") where a tap gives it. A steady tone against time is a solid band, so a
@@ -664,6 +690,24 @@ every tap, or the taps named by id (`stems="rounded"`), the others staying lines
 <Still taps="fan" view="spectrogram" xTitle="the modulator's rate, hertz" caption="…" />
 ```
 
+**A title for the y axis.** Against time and for a curve, the word over the y axis is the unit
+of the first tap. `yTitle` is a word or two in its place, for a curve or a value whose unit
+belongs to the other axis, as `xTitle` is for that one.
+
+```mdx
+<Still taps="shape" view="curve" xTitle="seconds" yTitle="level" caption="…" />
+```
+
+**A sound of two channels.** A still against time and a still of a spectrum draw the left
+channel of a sound that has two, and say so in a line under the key ("The left channel of
+each") and in the picture's label. `channels="both"` draws both: each channel is a line of
+its own, named in the key ("Output, left" and "Output, right"), the right in a role no other
+line of the picture has. A tap of one channel is drawn once either way.
+
+```mdx
+<Still taps="out" channels="both" from={1} span={0.02} caption="…" />
+```
+
 **A spectrum on an even axis.** `scale="linear"` lays a spectrum's frequencies out evenly from
 0 Hz to its `top`, or to half the sample rate when `top` is left out. Harmonics then stand
 evenly, and lines that fold back do not crowd at the right. Left out, the axis runs in even
@@ -689,14 +733,18 @@ figure's does: the y axis's over the top left corner, the x axis's at the right 
 numbers under the picture, where a number that would run into it is left out. A still against
 time of a level in decibels starts its axis at a round number just under the lowest value
 drawn, and never below −140 dB, where the lab puts silence (`kFloorDb` in `labs/lab.h`). Give
-`min` for another bottom.
+`min` for another bottom. A stem is one pixel wide and is drawn on a whole pixel, in a still
+and in a live figure, so the stems of one picture are of one weight. The key of a spectrogram,
+still or live, stands beside a ramp of its levels and names the two ends by what they are:
+"from −90 dB, the quietest shown, to 0 dB, the loudest shown".
 
 **`Lanes`** stacks taps on one time axis, a lane each, every lane named beside it: `taps`;
 `ranges` (the bottom and the top of a value's lane, by the tap's id); `lines` (a control drawn
 as a dashed line across a value's lane: the control's id, by the tap's id); `own` (sounds
-drawn each to its own peak, by tap id); `from`, `span`; `label` (what the picture shows, for a
-reader who cannot see it). Its children are the caption. It is the picture of a build step and
-of all the stages at once, for a technique that is seen against time.
+drawn each to its own peak, by tap id); `from`, `span`; `channels` (`both` for a lane to each
+channel of a sound that has two); `label` (what the picture shows, for a reader who cannot see
+it). Its children are the caption. It is the picture of a build step and of all the stages at
+once, for a technique that is seen against time.
 
 ```mdx
 <Lanes
@@ -719,14 +767,24 @@ of the loudest among themselves.
 </Lanes>
 ```
 
+A sound of two channels is drawn by its left, and its lane says "left channel" under its name.
+`channels="both"` gives each channel a lane of its own, named after the sound with "left" and
+"right", the two on one scale. A value and a sound of one channel keep one lane.
+
+```mdx
+<Lanes taps="in out" channels="both">
+  Notice the two sides of the output part where the two sides of the input lie alike.
+</Lanes>
+```
+
 In a figure narrower than 480 pixels, on a phone or in a narrow column, each lane's name stands
 above its lane in one line, with its range at the line's other end. A name too long for the
 line is cut short there, so a tap's name is a few words. The row of numbers under the lanes
 ends with what they count, seconds or milliseconds.
 
 **`Flow`** is the signal-flow picture of part 5: `label` (what it shows, in words) and
-`blocks`, each `{ id, label?, row?, from?, back?, tap?, shape?, n?, signal? }`. `row` 0 is the
-main path, 1 a row under it, −1 a row over it. `from` names the blocks that feed it; `back`
+`blocks`, each `{ id, label?, row?, column?, from?, back?, tap?, shape?, n?, signal? }`. `row` 0
+is the main path, 1 a row under it, −1 a row over it. `from` names the blocks that feed it; `back`
 names blocks further along whose output comes back into it. `tap` is the lab's tap read at the
 block's output: the block is lit while that tap sounds, and is named after it when it has no
 `label`. `shape` is `box`, `end`, `dot` (where a wire divides) or `sum`. `n` is the number of
@@ -738,8 +796,24 @@ where a path comes back into it from below: `{ id: 'sum', shape: 'sum', from: 'i
 'filter', tap: 'string' }`. A path keeps clear of that name: one that turns off after the
 adder turns off past its words. A block on a side row that feeds the main row runs along its
 own row and then into the block it feeds; where another block of its row stands in the way,
-its path goes round that block, between the two rows. A block that nothing feeds stands in the
-first column, so two such blocks go on two rows.
+its path goes round that block, between the two rows.
+
+A block stands one column after the last block that feeds it, and a block that nothing feeds
+in the first column. `column` says otherwise: the place along the flow, counted from 0 at the
+left, for a side block that should stand under the block it feeds. A block never stands before
+a block that feeds it, so a column too far to the left is moved along; and where the cell of
+its row is taken, a block takes the next free one, so two unfed blocks of one row stand side
+by side and never one on the other:
+`{ id: 'lfo', row: 1, column: 3, label: 'Oscillator', signal: 'value' }`.
+
+What the picture does by itself. A block fed from two rows has a wire from each, and each ends
+at the block: an adder on the main row fed along it and from a side row shows both. Two paths
+that come back into one block run side by side and share no line. An adder that a path comes
+down into from a row over it, while another comes up into it from below, has its name beside
+the path at its right, over the row, where neither crosses it. The number of a stage stands
+under its block and never on its words, for a box, an end and an adder, with a label of one
+line or of two. A block that is lit keeps its name in both schemes, whatever its shape: bare
+words at an end of the flow and an adder's name are set heavier while their block is lit.
 
 ```mdx
 <Flow
@@ -756,11 +830,19 @@ first column, so two such blocks go on two rows.
 </Flow>
 ```
 
-In a narrow column the picture wraps. It is cut between two columns of blocks into bands that
-stand one under another, as a line of text wraps, and a path that crosses a cut runs off the
-end of its band and comes in at the start of the next at the height of its row. The rows stay
-rows, so a caption may still speak of the row along the top and the row under it. It should
-not speak of left and right ends of the whole picture, which a phone does not show as one line.
+In a narrow column the picture is laid out again, and a writer can count on three things at
+every width: every wire can be followed from end to end, no wire runs through a block or over
+a name, and a loop is never cut in two. A flow that is one row, or has a place where one plain
+wire along a row is all that crosses, is cut there into bands that stand one under another, as
+a line of text wraps: the wire runs off the end of its band and comes in at the start of the
+next. A flow with a loop or a side row that no such cut clears runs downward instead: each row
+of the flow is a column of the picture, the top row at the left, each block under the one
+before it, and a wire back runs up one side in a lane of its own. A line under such a picture
+says so ("Turned to fit a narrow column: each row runs downward, the top row at the left"), so
+a caption may still speak of the row along the top and the row under it. It should not speak
+of the left and right ends of the whole picture, or of above and below, which a phone does not
+show as a wide page does. A flow of many rows may still be wider than a phone when turned: it
+then scrolls sideways in its box, whole.
 
 **The live figures** read the lab in the page and draw again when a control moves. Their
 children are the caption.
@@ -785,6 +867,19 @@ A curve's `stems` may name the taps it applies to, by id, and the other curves s
 ```mdx
 <Curve taps="frame window" stems="frame" xTitle="milliseconds">
   Notice each sample of the frame under the window that weighs it.
+</Curve>
+```
+
+A curve's `lines` (level lines) and `uprights` take three kinds of name, in any mix, separated
+by spaces: a control's id, which draws the line at the control's value and names it after the
+control; a fixed number with a name, `0.5:Half`, for a threshold that is not a control, where
+an underscore in the name is a space (`-6:Six_under`); and a tap's id, which draws the line at
+the first value the lab wrote to that tap and names it after the tap. The build stops on a
+name that is none of the three.
+
+```mdx
+<Curve taps="shape" lines="threshold 0.5:Half ceiling" uprights="24000:Half_the_rate">
+  Notice where the curve crosses the line named Half.
 </Curve>
 ```
 
@@ -846,7 +941,8 @@ when they come into view.
 #### The engine's stages
 
 **`StageBlock`** is one stage of the device: `tap` (the lab's tap the stage is read at),
-`title`, `n` (its number, as the signal-flow picture prints it under its block). Its children
+`title`, `n` (its number, as the signal-flow picture prints it under its block), `kind` (the
+stage's own words for what its tap is, where the tap is not sound). Its children
 are the purpose and a figure. Five slots, each of which a stage may leave out: `equation`,
 `readback` (the equation read back term by term against the figure), `listing`, `after` (text
 that goes on under the listing) and `listen` (the words on its button).
@@ -857,6 +953,14 @@ from, as the lab says it; the stage's own text and figures; then `equation`, `re
 what kind of signal the tap is. So text that must follow the equation or the listing goes in
 `after`. An equation written in the stage's own text as a block, `<M block t={…} />`, is also
 right: it stands where it is written, with text before it and after it.
+
+The line for a tap that is not sound is built from the tap's name and its kind as the lab
+declares it: "“Gain reduction” is a value that changes over time. It is not sound, so this
+stage has no button to hear it." A curve is "a curve of one value against another", a spectrum
+"a spectrum, a level for each frequency", and frames "a picture made of columns of values".
+Where that reads badly with the tap's name, or says too little of what the frames hold, the
+stage says it in its own words with `kind`, which stand in place of the built line:
+`<StageBlock tap="grains" n={4} title="…" kind="The grains are drawn as a picture, one column for each grain: there is nothing to hear at this stage.">`.
 
 ```mdx
 <StageBlock tap="sidechain" n={1} title="The detector ignores the lows">
@@ -895,6 +999,11 @@ how many), `at` (lines an equation links to, each under a key, by text on the li
   hyphens. The name is the file's, without its ending, when not given. Two listings on one
   page with one name fail the build, so a lesson that lists a file twice names one of them.
 - A listing is never given by line numbers.
+- A line longer than the page is neither cut nor wrapped: the listing scrolls sideways in its
+  own box, on a phone as on a wide page, and the page itself never does. An edge the lines run
+  past is shaded until the listing is scrolled to that end.
+- Code is set letter for letter, in a listing and in a sentence: `>=`, `!=` and `->` are two
+  marks each, as they are typed, so what is read can be held against the source.
 
 **`M`** is an equation, set when the site is built: `t`, always as `String.raw`, and `block`
 for a line of its own. Two commands are added to the mathematics. `\sig{role}{term}` sets a
@@ -904,7 +1013,9 @@ of that line in the figures. `\at{pole-step}{term}` links a term to the line of 
 when the file does: the build refuses `\at{pole-L19}{…}`, and the shape check fails a link
 whose line is not on the page. An unknown role stops the build. A link may stand round a term
 that holds a link of its own, `\at{gain-whole}{\frac{\at{gain-over}{x}}{r}}`: the inner term
-goes to its own line and the rest of the outer term to the outer one's.
+goes to its own line and the rest of the outer term to the outer one's. A block equation
+wider than a phone is not cut: it scrolls sideways in its own box, as a listing does, with the
+edge it runs past shaded.
 
 ```mdx
 <M block t={String.raw`\sig{out}{y[n]} = \at{pole-step}{a}\,\sig{in}{x[n]}`} />
@@ -942,10 +1053,17 @@ button anywhere in the text: it sets the page to a named set and plays it. With 
 set's settings are printed after the button, small, in the words a card prints its own in, so
 the numbers its sentence speaks of are on the page and not only in the settings file.
 
+Nothing is set after the button, so in a sentence the full stop or the comma written after it
+stands against it. A button written in a card's words is not the card's own: it carries
+`data-hear`, and the card's own button `data-card`, so a card has one button of its own
+whatever its words hold.
+
 ```mdx
 <Hear set="pump" label="Hear it pump" />
 
 The release is short enough to hear the gaps rise. <Hear set="pump" label="Hear it pump" show />
+
+The gaps rise between the hits (<Hear set="pump" label="hear it pump" />), and fall again.
 ```
 
 #### Numbers and names
@@ -956,10 +1074,18 @@ The release is short enough to hear the gaps rise. <Hear set="pump" label="Hear 
 A tone 12 dB over the threshold at 4:1 comes out <Claim id="ratio-4">3 dB over</Claim> it.
 ```
 
-**`Check`**: `id`. A check's value, live, as the lab worked it out on this render.
+**`Check`**: `id`, `inline`. A check's value, live, as the lab worked it out on this render.
+Alone it is a line of its own with the check's name, and stands between two paragraphs: never
+inside a sentence, where the browser would end the paragraph to make room for it. In a
+sentence `inline` gives the value alone, with its unit, and the sentence says what it is. A
+check fills as soon as the lab's first render is in, wherever the page is scrolled; until
+then, and with scripts off, it shows a mark of omission, so no sentence leans on it for a
+number the reader must have (that is a claim).
 
 ```mdx
 <Check id="builtDifference" />
+
+On this render the rebuilt gain and the device's are <Check id="builtDifference" inline /> apart.
 ```
 
 **`Lesson`**: `id`, `cap`. Another lesson by its id, as a link: "lesson 13, Compression", with
@@ -989,6 +1115,8 @@ loop, each fitted:
 
 - `view`, `from`, `span`, `min`, `max` and `top`, each as a still takes it:
   `opening: { input: in, output: out, view: spectrum, min: -80, max: 0, top: 8000 }`.
+- `scale`, `xTitle`, `yTitle`, `stems` and `channels`, each as a still takes it too:
+  `opening: { input: in, output: rounded, from: 0.3, span: 0.002, stems: rounded }`.
 - `separate: true` draws the two taps apart, the input's picture above the output's, each on a
   vertical range of its own, for a lesson whose input is a sliver beside its output:
   `opening: { input: pluck, output: string, separate: true }`. A spectrogram is always drawn
@@ -996,7 +1124,12 @@ loop, each fitted:
 - `caption` is what to notice, under the key:
   `opening: { input: in, output: out, caption: The loud hits come out lower. }`.
 
-A tap that is not sound (a curve, a picture) has no button to hear it.
+A tap that is not sound (a curve, a picture) has no button of its own to hear it. `hear` names
+the sound each of the two pictures is of, going in and then coming out, and each then has its
+button, so that an opening drawn as spectrograms can be heard as one against time can:
+`opening: { input: inPicture, output: outPicture, view: spectrogram, hear: [in, out] }`. The
+build stops on a `hear` that names a tap the lab does not have, or one that is not sound. A
+sound drawn as two lines (`channels: both`) has one button.
 
 ### What is sounding
 
@@ -1114,6 +1247,8 @@ of its taps, controls or sets. For a lesson in the long shape it holds:
 
 - the page opens with no error at 1,280 and 390 pixels, every figure that shows has drawn, and
   nothing sticks out sideways, the device's plate open or shut;
+- every check has its number before the page is scrolled, every listing and block equation
+  wider than a phone scrolls to its end in its own box, and no code is set with joined marks;
 - the contents list names the parts the page has, in order, and a link goes there;
 - each prediction's answer is shut and opens;
 - a control found by its role moves by the keys and the figures draw again, and the wheel over
@@ -1143,11 +1278,15 @@ the first that fails:
 3. the lab's test, and the level of the lesson's tile on every loop the tile takes;
 4. a build of a site that holds that one lesson and the home page, written to
    `site/.lesson/<id>/` and never to `site/dist`. It loads that lesson's text and settings and
-   no other lesson's, so a lesson half written beside it cannot stop it;
+   no other lesson's, so a lesson half written beside it cannot stop it. The run then copies
+   the build to a folder of its own, `site/.lesson/.runs/<id>.<process>/`, and the steps after
+   this one read the copy: another run of the same lesson builds into the same folder, and
+   cannot take the pages from under this one. The copy goes when the run ends;
 5. on that build, the claims check, the wording check and the shape check, each for that
    lesson alone;
-6. the lesson's browser test, on that build served at a port of its own, and the lesson's
-   tile on the map with scripts off: a link, and a picture that is drawn.
+6. the lesson's browser test, and the lesson's own browser spec where it has one, on that
+   build served at a port of the run's own; and the lesson's tile on the map with scripts off:
+   a link, and a picture that is drawn.
 
 It prints one line a step, with its result and how long it took:
 
@@ -1169,12 +1308,28 @@ What it reads from the environment:
   tree share what a build keeps of the lessons' text, and one would write the other's page. A
   lock is let go when its step ends, however it ends.
 - `SITE_ONLY_LESSON` is set by the script itself: it is what makes the build hold one lesson,
-  in `site/.lesson/<id>/`, served at port 4321 plus the lesson's number in the map.
-  `SITE_PORT` overrides the port.
+  in `site/.lesson/<id>/`.
+- `SITE_PORT` names the port the browser steps serve that build at:
+  `SITE_PORT=4555 bash site/scripts/lesson.sh compression`. Left out, each run takes a port of
+  its own, worked out from the lesson and the run's process and found free as the step starts
+  (`scripts/free-port.mjs`), and the browser test starts its own server there and never takes
+  one that already answers (the script sets `SITE_OWN_SERVER` for that). So two runs of one
+  lesson, in one tree or in two copies of the repository, never test each other's pages. The
+  browser test run by hand, without the script, still serves at port 4321 plus the lesson's
+  number in the map and takes a server that answers there.
+- `SITE_FOLDER` names a folder to serve in place of the build's own. The script sets it for
+  its browser steps, to the run's own copy of its build.
 
 The one-lesson build has no docs, devices or search pages and no tiles for the lessons beside
-it, and a mention of another lesson is not a link there. Only
-`tests/browser/lessons.spec.ts` runs on it.
+it, and a mention of another lesson is not a link there. Two specs run on it:
+`tests/browser/lessons.spec.ts`, and the lesson's own where it has one.
+
+**A lesson's own browser spec** is `tests/browser/<id>.spec.ts`: it holds the claims that only
+a browser can measure, opens no page but the lesson's, and is one of the lesson's own files,
+so a failure in it is the lesson's. `lesson.sh` finds it by that name and runs it with the
+shared spec: `tests/browser/plate-reverb.spec.ts` would be the lesson `plate-reverb`'s. One
+spec has another name, kept because other files name it: `tests/browser/convolution.spec.ts`
+is the lesson `convolution-reverb`'s (`NAMED_SPECS` in `scripts/check-lessons.mjs`).
 
 Each check also runs alone: `node scripts/check-claims.mjs [lesson]`,
 `node scripts/check-wording.mjs [lesson] [folder]`,
@@ -1186,7 +1341,8 @@ What the three checks hold:
 
 - **Claims** (`scripts/check-claims.mjs`): every `<Claim id>` is named by a test as
   `claim <id>`, and in a long lesson each number with a unit in a claim's sentence is in that
-  test as written, in its title or in a call of the written-number helper.
+  test as written, in its title or in a call of the written-number helper. An id written more
+  than once states the same number each time.
 - **Wording** (`scripts/check-wording.mjs`): rule 4, in the lesson's sources and in the page as
   built, listings among them.
 - **Shape** (`scripts/check-lessons.mjs`): the nine parts present and in order; the least each
@@ -1196,7 +1352,11 @@ What the three checks hold:
 
 Many lessons are written side by side on one machine and in one working tree. When `SITE_SLOTS`
 names a lock folder, each heavy step waits for one of a few slots there, so the lessons do not
-starve each other; a slot is let go when its command ends for any reason. A step that fails in
+starve each other; a slot is let go when its command ends for any reason. The slots queue in
+the order the runs came: a step waits behind every step that asked for its pool before it, and
+no later one overtakes it. A step's line says how long it waited (`after 640 s in the queue`);
+with many lessons running that can be ten minutes or more, and a waiting run is left to wait.
+A step that fails in
 a file outside the lesson's own (another lesson's figure that does not compile, a shared part)
 ends the script with a code of its own and the file's name: run it again later, and edit
 nothing you do not own.

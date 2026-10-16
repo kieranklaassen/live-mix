@@ -187,6 +187,15 @@ kbd,
 pre {
   font-family: var(--lm-font-mono);
   font-size: 0.86em;
+  /*
+   * Code is shown letter for letter, as it is typed: the face would join `>=`, `!=` and `->`
+   * into one mark each, which cannot be read against the source.
+   */
+  font-variant-ligatures: none;
+  font-feature-settings:
+    'liga' 0,
+    'clig' 0,
+    'calt' 0;
 }
 :not(pre) > code {
   background: var(--lm-sunken);
@@ -498,6 +507,8 @@ pre.mermaid:not([data-processed]) {
   --code-type: #2a665b;
   --code-directive: #44657f;
   --code-mark: #2e6f631a;
+  /* The shade at an edge that a listing or an equation runs past. */
+  --edge-shade: color-mix(in srgb, var(--lm-text) 13%, transparent);
 }
 :root[data-lm-theme='graphite'] {
   --code-bg: var(--lm-panel);
@@ -510,6 +521,7 @@ pre.mermaid:not([data-processed]) {
   --code-type: #7fd0bd;
   --code-directive: #9dbdd6;
   --code-mark: #7fd0bd1f;
+  --edge-shade: #00000066;
 }
 
 /* A listing: lines of a file of the repository, each with its number in the file. */
@@ -523,6 +535,17 @@ pre.mermaid:not([data-processed]) {
 .listing pre {
   margin: 0;
   padding: 0.7rem 0;
+  /*
+   * A line longer than the box is read by scrolling the box sideways, never the page. An edge
+   * the lines run past is shaded, and the shade goes when the listing is scrolled to that end:
+   * the two covers move with the lines and the two shades stay with the box.
+   */
+  background:
+    linear-gradient(to right, var(--lm-panel) 30%, transparent) left / 2.4rem 100% no-repeat local,
+    linear-gradient(to left, var(--lm-panel) 30%, transparent) right / 2.4rem 100% no-repeat local,
+    linear-gradient(to right, var(--edge-shade), transparent) left / 0.9rem 100% no-repeat scroll,
+    linear-gradient(to left, var(--edge-shade), transparent) right / 0.9rem 100% no-repeat scroll,
+    var(--lm-panel) !important;
 }
 /* As wide as its longest line, so a marked line's ground runs the whole way when scrolled. */
 .listing pre > code {

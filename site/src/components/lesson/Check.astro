@@ -1,10 +1,24 @@
 ---
 // A number the lab works out on every render: <Check id="rebuilt" />
+//
+// That is a line of its own, with the check's name: write it between two paragraphs, never
+// inside a sentence, where a browser would end the sentence's paragraph to make room for it.
+// In the run of a sentence the value alone is asked for with `inline`, and the sentence says
+// what it is:
+//
+//   On this render the two are <Check id="rebuilt" inline /> apart.
+//
+// A check wakes as soon as the page is at rest, not when it comes into view as a figure does:
+// its number is words, and a reader who never scrolls to it (a page printed, a page read aloud)
+// has it once the lab's first render is in.
 import CheckLine from '../../figures/CheckLine.tsx'
+import CheckValue from '../../figures/CheckValue.tsx'
 import { pageLab } from '../../lib/lab-info.ts'
 
 interface Props {
   id: string
+  /** The value alone, in the run of a sentence, in place of a line of its own. */
+  inline?: boolean
 }
 const { lab, lesson } = pageLab(Astro.locals)
 const check = lab.checks.find((one) => one.id === Astro.props.id)
@@ -15,4 +29,8 @@ if (!check) {
 const { index: _index, ...rest } = check
 ---
 
-<CheckLine client:visible check={rest} />
+{Astro.props.inline ? (
+  <CheckValue client:idle check={rest} />
+) : (
+  <CheckLine client:idle check={rest} />
+)}

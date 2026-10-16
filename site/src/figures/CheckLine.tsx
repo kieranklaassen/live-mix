@@ -3,7 +3,7 @@
 
 import { useLab } from '../lab/page.ts'
 import type { CheckInfo } from '../lab/describe.ts'
-import { withUnit } from './draw.ts'
+import { valueWithUnit } from '../lib/parts.ts'
 
 export default function CheckLine({ check }: { check: Omit<CheckInfo, 'index'> }) {
   const value = useLab().result?.checks[check.id]
@@ -11,7 +11,7 @@ export default function CheckLine({ check }: { check: Omit<CheckInfo, 'index'> }
     <p className="check" data-check={check.id}>
       <span className="label">Checked on this render</span>
       <span>
-        {check.name}: <b>{value === undefined ? '…' : withUnit(value, check.unit)}</b>
+        {check.name}: <b>{value === undefined ? '…' : valueWithUnit(value, check.unit)}</b>
       </span>
     </p>
   )

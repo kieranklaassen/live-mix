@@ -1,0 +1,6 @@
+{
+  "tile": {
+    "tap": "in",
+    "picture": { "taps": ["in"], "view": "spectrum", "scale": "linear", "top": 2000 }
+  }
+}

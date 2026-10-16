@@ -5,6 +5,9 @@
 // <Still taps="in out" view="spectrum" scale="linear" top={2000} caption="What to notice." />
 // <Still taps="impulse" view="curve" from={0} span={2} xTitle="milliseconds" stems caption="What to notice." />
 // <Still taps="in built" values={{ build: 3 }} caption="The build at its fourth step." />
+// <Still taps="loss" view="curve" xTitle="hertz" yTitle="gain" caption="What to notice." />
+// <Still taps="out" channels="both" caption="The two sides, each a line of the key." />
+// A sound of two channels is drawn by its left, and the picture says so under its key.
 // It is in the page with scripts off and costs the browser nothing. Its lines are in their
 // roles' colours, as a live figure's are. A tap the lab does not have, or a set the lesson's
 // settings file does not have, stops the build, naming the lesson. So does a range that does not
@@ -58,6 +61,16 @@ interface Props {
    * short enough to count its samples: every tap (`stems`), or those named (`stems="frame"`).
    */
   stems?: boolean | string
+  /**
+   * What stands over the y axis, in a word or two, in place of the tap's own unit: for a curve
+   * or a value whose unit belongs to the other axis. Against time and for a curve.
+   */
+  yTitle?: string
+  /**
+   * `both` draws each channel of a sound that has two, against time and as a spectrum, each a
+   * line the key names. Left out, the left alone is drawn, and the picture says so.
+   */
+  channels?: 'left' | 'both'
   /** What to notice in the picture. */
   caption: string
 }
@@ -80,7 +93,12 @@ const picture = await lessonStill(entry, asked)
         {line.name}
       </li>
     ))}
-    {picture.note && <li>{picture.note}</li>}
+    {picture.note && (
+      <li>
+        {picture.ramp && <i class="ramp" />}
+        {picture.note}
+      </li>
+    )}
   </ul>
   <figcaption>{caption}</figcaption>
 </figure>
