@@ -95,7 +95,7 @@ const GRAIN_AT_HIGHEST = 1.8
 /** Space all the way up: how long the light stays, how far it drifts outward, and how much of it spreads. */
 const TRAILS_AT_WIDEST = 0.75
 const PUSH_AT_WIDEST = 0.5
-const SPREAD_AT_WIDEST = 0.5
+const SPREAD_AT_WIDEST = 0.35
 /** Space all the way down: what the piece's own trails keep of their length. */
 const TRAILS_KEPT_AT_DRIEST = 0.3
 /** A part of the filter smaller than this is not drawn. */
