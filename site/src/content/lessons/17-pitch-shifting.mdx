@@ -1,0 +1,230 @@
+---
+title: Pitch shifting
+order: 17
+summary: To raise a sound's pitch without shortening it, read a delay line faster than it is written, with two heads that take turns jumping back. This lesson runs the engine's Pitch Shifter one sample at a time and looks hardest at the place where the two heads meet.
+lab: 17-pitch-shifting
+devices: [pitch-shifter]
+bench:
+  device: pitch-shifter
+  params: { pitchA: 12, pitchB: 7, levelB: 0, mode: 2, size: 60, tone: 18000, spread: 0, mix: 1 }
+  as: insert
+  note: The plate opens where this lesson starts and not on the device's own defaults, which are the Chords mode, the dry sound mixed in half and half, Tone at 9 kHz, voice B an octave below and the two voices spread apart.
+sources: [sine, guitar, saw, drums, chords, clicks, noise]
+seconds: 4
+files:
+  - cpp/devices/pitch-shifter/pitch_shifter.h
+  - cpp/devices/pitch-shifter/ShiftVoice.h
+  - cpp/devices/pitch-shifter/ChordEngine.h
+  - cpp/devices/pitch-shifter/PeakShifter.h
+  - cpp/kit/pitch.h
+  - cpp/kit/delay.h
+  - cpp/kit/math.h
+  - cpp/kit/filters.h
+---
+
+A recording played at twice its speed sounds an octave higher, because every wave goes by in half the time. It is also over in half the time. Pitch and length are one thing seen two ways, both set by how fast the recording is read, and a tape or a turntable cannot change one without the other.
+
+A pitch shifter has to. The oldest way that works on a running signal needs nothing but a delay line (lesson 10). The sound is written into the line at its ordinary speed and read back by a head that moves *faster* than the writing. Reading faster raises the pitch. It also means the head gains on the place where the sound is being written, and it cannot pass it: nothing is there yet. So before it arrives it jumps back and reads again a stretch it has read once already. A jump is a click, so there are **two** heads, half a stretch apart, and each is faded out while it jumps and faded back in while the other one does.
+
+That is the whole method, and its one flaw is in its last step. The output is made of overlapping pieces, and where two pieces overlap they are two different moments of the sound laid on top of each other. Where they agree, nothing is heard. Where they do not, they cancel or beat. Most of this lesson is about that overlap, the *splice*: what it does to a sine, why, and what the engine's Pitch Shifter does about it. These are the stages, in the signal's order. Press Play, then Listen on any stage that is sound.
+
+<Stages taps="in ring delayA gainA headA headB voice out" />
+
+The loop goes in grey and comes out red. It opens on the sine, a 440 Hz tone, shifted up 12 semitones: two red waves for every grey one, and the same length.
+
+<Controls ids="semitones size" />
+
+<Wave taps="in out" from={1} span={0.02}>
+  Twenty milliseconds of the loop before the shifter (grey) and after it (red). Pitch is the interval in semitones, up or down. Size is the length of the stretch each head sweeps before it jumps.
+</Wave>
+
+The Pitch Shifter has four modes. The lesson starts in the one it calls Vintage, which is the method above and nothing more, and turns to Smooth in stage 5. The device's own default is a fourth mode, Chords, which is another technique altogether and is named at the end.
+
+Under each stage is a mark saying where it comes from. *Read from the running device* means the lab reached into the device's state while it ran: its ring of recorded sound, where its heads stand, and its voice, which is what it hands its Tone filter (the filter keeps its three outputs, and they add back up to what went in). *Written for this lesson* marks each head heard alone. The device adds the heads up as it reads them and keeps neither, so the lab reads the ring again at the device's head positions; a check in stage 3 holds the two together.
+
+## Stage by stage
+
+### 1. A ratio, and a recording that can bear it
+
+Musicians count pitch in semitones, twelve to the octave, each the same *ratio* above the last. A shifter needs that ratio: how many samples to read for each one written.
+
+<M block t={String.raw`r = 2^{\,s/12}`} />
+
+Here <M t="s" /> is the interval in semitones. Twelve up is <M t="r = 2" />, twelve down is <M t={String.raw`\tfrac12`} />, and one semitone is 1.0595. In the code it is one line, <Src path="cpp/kit/math.h">`semitones_to_ratio`</Src>, and the device holds the result between a quarter and four, two octaves either way. Multiplying is what keeps a shifted sound in tune with itself: harmonics at 110, 220 and 330 Hz become 220, 440 and 660 Hz, still whole multiples of one note. Adding the same number of hertz to each (lesson 16) would not. Seven semitones is 1.4983, a hair under the 3/2 of a pure fifth, and takes 440 Hz to <Claim id="fifth">659.26 Hz</Claim>.
+
+The interval glides when it is moved: the semitones pass through a 12 ms smoother and the ratio is stepped across every 16 samples (<Src path="cpp/devices/pitch-shifter/pitch_shifter.h">`pitch_shifter.h`</Src>), so a sweep bends and does not step.
+
+A head that reads <M t="r" /> samples for each one written multiplies every frequency in the recording by <M t="r" />. Anything recorded above <M t={String.raw`f_s / 2r`} /> would come out above half the sample rate, which a sampled signal cannot hold: it folds back down as a tone that was never played. So the device low-passes what it records, at
+
+<M block t={String.raw`f_{\text{limit}} = \frac{0.45\, f_s}{\max(1, r)}`} />
+
+with two of <Src path="cpp/kit/filters.h">the kit's `Svf`</Src> in a row, at <M t="Q" /> of 0.5412 and 1.3066: the pair that makes a fourth-order filter with the flattest passband, falling at 24 dB an octave. With two voices the faster one sets the limit. At +12 semitones the recording is <Claim id="band-limit">3 dB down at 10.8 kHz</Claim>; shifting down, or not at all, it is open to <Claim id="band-open">21.6 kHz</Claim>. This is why a wide shift upwards has less top than its source: the highest octave of the result has nothing to be made from.
+
+<Controls ids="semitones" />
+
+<Spectrum taps="guard" min={-72} max={6}>
+  The band limit's response: the device's own two filters, copied as it left them and fed a single sample. Raise the pitch and the corner moves down, an octave for every twelve semitones. At zero and below it stays at the top.
+</Spectrum>
+
+What comes out of the filter is written into the *ring*, <Src path="cpp/devices/pitch-shifter/ShiftVoice.h">a delay line</Src> of 262,144 samples for each channel. Everything after this reads the ring.
+
+### 2. One head, reading faster than the ring is written
+
+A head is a place in the ring, counted as a delay <M t="d" /> behind the newest sample. Every sample, the writing moves on by one and the head by <M t="r" />, so the delay changes by the difference:
+
+<M block t={String.raw`d[n+1] = d[n] + (1 - r)`} />
+
+Above <M t="r = 1" /> the delay shrinks and the head closes on the writing. Below, it grows and the head falls behind. At +12 semitones it comes <Claim id="slope-up">1 ms nearer every millisecond</Claim>; at −12 it falls <Claim id="slope-down">half a millisecond further behind</Claim>. Either way it cannot go on: one way lies sound not yet recorded, the other the end of the ring.
+
+So the head is given a stretch of the ring to sweep, <M t="W" /> long, the Size control, and is sent back to the other end when it reaches one. The device keeps a *phase* <M t={String.raw`\varphi`} /> between 0 and 1 for where the head is in its stretch:
+
+<M block t={String.raw`\varphi[n+1] = \operatorname{frac}\!\Bigl(\varphi[n] + \frac{1 - r}{W}\Bigr), \qquad d = d_0 + \varphi\, W`} />
+
+Taking the fractional part is the jump: it wraps the phase from 0 back to 1 going up and from 1 back to 0 going down. In <Src path="cpp/devices/pitch-shifter/ShiftVoice.h" lines="338-370">`ShiftVoice::sweep`</Src> these are two lines, with <M t="W" /> in samples. <M t="d_0" /> is a floor of 1.5 ms, 72 samples, the closest a head ever comes to the writing. The head stands between two samples nearly all the time, and what it reads there is a cubic through the four samples around it (<Src path="cpp/kit/math.h">`hermite`</Src>, lesson 10).
+
+A sweep takes <M t={String.raw`W / |1 - r|`} />. At +12 semitones and a Size of 60 ms that is <Claim id="sweep-octave">60 ms</Claim>. At one semitone the head creeps, and a sweep takes <Claim id="sweep-semitone">1,009 ms</Claim>: one semitone jumps about once a second, an octave nearly seventeen times.
+
+<Controls ids="semitones size" />
+
+<Trace taps="delayA:alt delayB:alt2" from={1} span={0.3} unit="ms">
+  How far behind the writing each head reads, over 0.3 s. Head A is green and head B is orange. Each ramp is one sweep; each upright is a jump. The slope is the pitch (downhill above zero, uphill below, flat at zero) and the height of the teeth is Size.
+</Trace>
+
+Both heads stay between <Claim id="delay-span">1.5 ms and 61.5 ms</Claim> behind at this Size, and always <Claim id="half-apart">half a window</Claim> from each other.
+
+### 3. Two heads and a crossfade
+
+One head alone would click at every jump: the wave it was reading stops and another, from 60 ms away, starts in the middle. The second head is there to cover for it. Each head's gain is a raised cosine of its own phase,
+
+<M block t={String.raw`g_A = \tfrac12 - \tfrac12\cos 2\pi\varphi, \qquad g_B = \tfrac12 - \tfrac12\cos 2\pi\bigl(\varphi + \tfrac12\bigr) = 1 - g_A`} />
+
+which is zero at both ends of the stretch and one in the middle. A head jumps at the instant its gain is zero, so the jump itself is silent, and because the second head is half a turn ahead the two gains <Claim id="gains-sum">add to one</Claim> at every instant: a steady sound keeps its level, as long as the two heads are playing the same thing.
+
+<Trace taps="gainA:alt gainB:alt2" from={1} span={0.3} min={0} max={1}>
+  The two gains over the same 0.3 s as the figure above. Each head (A green, B orange) is silent exactly where its delay jumps, and at full level half a sweep later.
+</Trace>
+
+<Wave taps="voice:out headA:alt headB:alt2" from={1} span={0.12} fit>
+  The voice (red) and, drawn over it, what each head plays alone (A green, B orange). On the sine each head is a train of bursts, one swelling as the other dies, and their sum looks nearly steady. Nearly: stage 4 measures the dips.
+</Wave>
+
+<Check id="heads" />
+
+That check is the lab's proof that the picture is the device. It reads the ring at the two places the device's state says the heads are, weighs them by the gains above, adds them, and compares the sum with the voice the device made. They agree to <Claim id="heads-rebuilt">better than −120 dB</Claim>, in both modes.
+
+<Check id="kit" />
+
+The kit keeps this method by itself, in twenty lines: <Src path="cpp/kit/pitch.h">`DelayPitchShifter`</Src>. No device uses that class as it stands, and the Pitch Shifter's Vintage mode is the same arithmetic written into its voice. The second check runs the kit's class on what the device recorded and compares: within <Claim id="kit-same">−100 dB</Claim> on the sine and the guitar, and <Claim id="kit-noise">−75 dB</Claim> on noise, where the two round a head's place between samples a little differently and every sample is unlike its neighbour. Switch to Smooth in stage 5 and this check lets go, as it should.
+
+Set the pitch to zero and nothing moves. The phase stands still, one head has a gain of exactly one, and the voice is the recording <Claim id="unison-voice">1,512 samples late, sample for sample</Claim>: the 72 of the floor and half a window of 2,880. The device's output is not quite its input, because the band limit and the Tone filter (a low-pass on the shifted voices, here opened as far as it goes) each turn the phase of the highest frequencies a little. On the guitar the output and the input moved 1,513 samples later differ by <Claim id="unison-out">−30 dB</Claim>.
+
+### 4. The splice
+
+Now the flaw. Feed the heads a sine of frequency <M t="f" />. Each plays the same sine, at <M t="rf" />, but they stand half a window apart in the ring, so one is <M t={String.raw`fW/2`} /> cycles of the recording ahead of the other. They move together, so that offset never changes. When <M t={String.raw`fW/2`} /> is a whole number the two waves coincide and the crossfade is perfect. Otherwise they are out of step by the part left over, an angle <M t={String.raw`\Delta = \pi f W`} />, and the sum of two sines of the same frequency out of step is a smaller sine:
+
+<M block t={String.raw`\bigl|\,g_A + g_B\, e^{\,j\Delta}\bigr| = \sqrt{1 - 2\, g_A\, g_B\,(1 - \cos\Delta)}`} />
+
+It is deepest where the heads cross, with both gains at one half: there the level is <M t={String.raw`|\cos(\Delta/2)|`} />. For 440 Hz and 60 ms the heads are 13.2 cycles apart, a fifth of a cycle out of step, and the formula gives 0.81. The test measures a dip of <Claim id="ripple-depth">1.8 dB</Claim>, <Claim id="ripple-rate">33.3 times a second</Claim>: twice in each sweep, once for each head's turn.
+
+<Controls ids="size semitones" />
+
+<Trace taps="levelIn:in level:out" from={1} span={0.3} min={-24} max={-9} unit="dB">
+  The level of the sine going in (grey) and of the voice (red), read by the lab from a pair of the kit's phase-shifting filters. Every dip is a crossing. Move Size a little: at 59.1 ms the dips are gone, at 61.4 ms they reach the bottom of the picture.
+</Trace>
+
+Those two settings are the two ends. At 59.09 ms the heads are exactly 13 cycles apart and there is <Claim id="window-best">no ripple at all</Claim>. At 61.36 ms they are 13½ apart, opposite, and the voice <Claim id="window-worst">falls silent at every crossing</Claim>. Four per cent of window is the whole distance between a clean octave and a beat.
+
+A level that wobbles is a spectrum with more than one line in it, and here the lines are worth finding, because they are not where one would guess. The delay <M t="d" /> repeats itself every sweep, and with two heads the pattern repeats every half sweep. A sine read through a delay that repeats is that same sine multiplied by something periodic, so its spectrum is lines at the *input's* frequency plus whole multiples of the pattern's rate:
+
+<M block t={String.raw`f_k = f + k\,\frac{2\,|1 - r|}{W}`} />
+
+For the sine at +12 and 60 ms that is 440 Hz plus multiples of 33.3 Hz. The interval asked for, 880 Hz, is not on that grid. The tallest line stands at <Claim id="grid-line">873.3 Hz</Claim>, 13 cents flat of the octave; the next, at 906.7 Hz, is <Claim id="side-band">17.4 dB</Claim> under it; and at 880 Hz itself there is <Claim id="no-octave">nothing</Claim>, more than 90 dB down. The same sum at seven semitones puts the fifth at <Claim id="fifth-grid">655.9 Hz</Claim>, 9 cents under. The method does not shift a tone to the pitch asked for. It builds a comb around it and the nearest teeth are what is heard.
+
+<Spectrum taps="fine" linear fMin={640} fMax={1120} min={-90} max={0}>
+  The voice's spectrum around 880 Hz, from frames eight times as long as the page's other spectra, so that lines 33 Hz apart stand apart. With the sine at +12: a comb, its tallest tooth just under 880 Hz. Shorten Size and the teeth spread; at 59.1 ms one tooth lands on 880 Hz and the others vanish.
+</Spectrum>
+
+The page's ordinary spectrum, at 11.7 Hz to a bin, cannot tell these lines apart, and puts the peak <Claim id="octave-bin">within one bin of 880 Hz</Claim>. A real sound has many partials, and each has its own <M t={String.raw`fW/2`} /> and its own luck. Choose the saw: its harmonics 110 Hz apart sit 3.3, 6.6, 9.9 cycles apart between the heads, so some splice cleanly, the fifth cancels, and every harmonic dips by its own amount at each crossing.
+
+### 5. Choosing where to splice
+
+The plain method jumps to wherever the arithmetic says. The alternative is to look first. In Smooth, each new head starts not at a fixed distance but where the ring *best matches* what the old head is playing, so that at the crossing the two waves lie on top of each other.
+
+<Controls ids="mode" />
+
+A new head starts every half Size and lives for one, fading in over its first half and out over its second, so two are always crossing, as before. When one is due, <Src path="cpp/devices/pitch-shifter/ShiftVoice.h" lines="372-472">`find_splice`</Src> takes 16 ms of the ring around the old head, <M t="x_i" />, and compares it with the same span at each candidate start, <M t={String.raw`y_i(\ell)`} />, for every lag <M t={String.raw`\ell`} /> up to 20 ms behind the nominal one (or up to one Size, if that is shorter):
+
+<M block t={String.raw`\rho(\ell) = \frac{\sum_i w_i\, x_i\, y_i(\ell)}{\sqrt{\sum_i w_i\, x_i^2}\;\sqrt{\sum_i w_i\, y_i(\ell)^2}}`} />
+
+This is a *normalised cross-correlation*: 1 when the two stretches are the same wave, 0 when they have nothing in common, and unmoved by how loud either is. The device works it out on 48 points, not on all 768 samples of the span. The points are weighted by a Hann bell <M t="w_i" /> so that the edges of the span do not decide the answer, and spaced unevenly, because on an even grid a tone at a multiple of the grid's rate looks the same at every lag. A steady tone matches once in every cycle, so a small bias (0.03 across the range) picks the nearest. The winner is refined to a fraction of a sample by the top of a parabola through it and its two neighbours, and the comparison is made on the mean of left and right, so both channels splice at one place and the stereo picture holds.
+
+<Wave taps="voice:out headA:alt headB:alt2" from={1} span={0.03} fit>
+  Thirty milliseconds, with one crossing in them: the voice (red) and, over it, head A (green) and head B (orange). In Vintage, with the sine, the two heads' waves are a fifth of a cycle out of step where they cross, and their sum sags. Switch to Smooth and the green and orange waves rise and fall together all the way through.
+</Wave>
+
+With the sine in Smooth, the voice is <Claim id="smooth-line">one line at 880.0 Hz</Claim> at the level it went in, with every other line <Claim id="smooth-clean">more than 80 dB under it</Claim> and <Claim id="smooth-ripple">no dip</Claim> at the crossings. The figures of stage 4 are a level line and a single tooth. In the delay figure of stage 2 the teeth no longer start at one height: each starts where the search put it.
+
+A search cannot find what is not there. Where the best match is still poor, the two heads cross as strangers, and two unlike sounds crossfaded with gains that add to one *lose power* in the middle: with correlation <M t={String.raw`\rho`} /> between them, the power of the sum is <M t={String.raw`1 - 2 g_A g_B (1 - \rho)`} />, the formula of stage 4 again. Vintage ignores this and loses <Claim id="crossfade-loss">1.3 dB</Claim> of the noise source on average. Smooth divides the pair by the square root of that expression, using the match it found for <M t={String.raw`\rho`} /> and never lifting by more than 6 dB. On the guitar chords <Claim id="lift">Vintage loses 1.6 dB and Smooth comes out within 0.3 dB</Claim> of what was recorded.
+
+<Controls ids="mode" />
+
+<Trace taps="match" min={0} max={1.05}>
+  The match the last search found, across the loop: choose Smooth and the guitar. It drops at each new note, where no earlier stretch resembles the one being played, and recovers as the note rings. The sine holds it at 1 and noise keeps it near a half. In Vintage no search is made and the line stays at 1.
+</Trace>
+
+### 6. The length of the window
+
+Size sets how much of the sound each piece holds, and both ends of its range cost something.
+
+A **short** window splices often. The crossing rate is <M t={String.raw`2|1-r|/W`} />: at +12 and 10 ms, <Claim id="buzz-rate">200 times a second</Claim>. That is no longer a wobble in the level. It is a pitch of its own, and the teeth of the comb stand 200 Hz apart.
+
+A **long** window splices seldom, and replays a lot. The two heads are half a window apart and pass any one moment of the recording at <M t="r" /> times its own speed, so going up, each moment is played about <M t="2r" /> times, <M t={String.raw`W/2r`} /> apart. One click, at +12 and 60 ms, comes out <Claim id="click-copies">four times, 15 ms apart</Claim>. At 400 ms the copies are <Claim id="click-long">100 ms apart</Claim>, far enough to count. Listen to both with the clicks: one is a blur and the other an echo. Going down the opposite happens: each moment is played <M t="2r" /> times on average, which at an octave down is once, so some moments are passed over while both heads are quiet and never heard.
+
+Lining the waves up does not help here. A click has no earlier copy of itself to match, and Smooth plays it <Claim id="click-smooth">four times</Claim> as well.
+
+<Controls ids="size mode semitones" />
+
+<Wave taps="in voice" from={1.99} span={0.08} fit>
+  Choose the clicks. Eighty milliseconds of input (grey) and voice (red): one click goes in at 2 s and several come out. Lengthen Size and they move apart; raise the pitch and there are more of them. With the drums, the hit at 2 s has more than one front.
+</Wave>
+
+The window is also the device's delay. The voice is never less than 1.5 ms behind and never more than a Size beyond that, half a Size on average, and where exactly it is changes all the time.
+
+### 7. Two voices, and the mix
+
+The ring is read, not consumed, so a second pair of heads can read it at another ratio. Voice B is that: its own interval and its own level, added to voice A. On the plate the Spread control then places A to the left and B to the right; the lab keeps both in the middle and fixes B at seven semitones.
+
+Mix crossfades the sound that went in with the voices. Unlike the compressor's mix (lesson 7), the two sides here are different signals, so the device uses an equal-power pair,
+
+<M block t={String.raw`\text{out} = \cos\!\bigl(\tfrac{\pi}{2} m\bigr)\,\text{in} + \sin\!\bigl(\tfrac{\pi}{2} m\bigr)\,\text{voices}`} />
+
+which puts <Claim id="mix-half">each side 3 dB down</Claim> at the half-way point. At zero the output is <Claim id="mix-zero">the input, sample for sample</Claim>. One sine, voice A at +4, voice B raised and the mix at a half, in Smooth, is <Claim id="triad">a major triad</Claim>: 440, 554.4 and 659.3 Hz at one level.
+
+<Controls ids="semitones levelB mix mode" />
+
+<Spectrum taps="in out" linear fMin={0} fMax={1600} min={-72} max={0}>
+  The spectrum of the input (grey) and the output (red), up to 1.6 kHz. Set the pitch to +4, raise voice B and bring the mix to 0.5: with the sine, three lines, a chord from one note.
+</Spectrum>
+
+## What goes wrong
+
+**Flutter.** The crossing rate, <M t={String.raw`2|1-r|/W`} />, is a tremolo when it is slow and a pitch of its own when it is fast, wherever the heads disagree. Smooth removes it from a single steady note. It cannot from a chord: one splice point cannot line up three notes at once, the match falls, and the lift keeps the level but not the phase.
+
+**A pitch that is not quite the pitch.** In Vintage a pure tone lands on the nearest teeth of a comb, up to half a tooth, <M t={String.raw`|1-r|/W`} />, from where it was sent. A longer window makes the teeth finer.
+
+**Doubled attacks.** Every moment is replayed about <M t="2r" /> times going up, in either mode. The drums are the source to hear it on. A shorter window pulls the copies together, at the price of more flutter.
+
+**Dullness and aliasing.** The band limit of stage 1 is what stops a head reading at four times the speed from folding the top of the recording back into the audible range. The price is that two octaves up the recording is <Claim id="band-two-octaves">cut at 5.4 kHz</Claim>.
+
+**A delay that moves.** The voice is between 1.5 ms and a window late, differently at every instant. Mixed with the dry sound that is a comb filter that will not hold still.
+
+**What the other two modes add.** Grain replaces the pair with four overlapping grains at a time and lets Jitter scatter them in time, pitch and place. Chords (<Src path="cpp/devices/pitch-shifter/ChordEngine.h">`ChordEngine.h`</Src>, <Src path="cpp/devices/pitch-shifter/PeakShifter.h">`PeakShifter.h`</Src>) leaves the heads altogether: it takes the spectrum of the ring, frame by frame, and moves each peak to its shifted frequency by itself, so every note of a chord gets its own splice. It answers about 190 ms late, as its header says, which is the price of telling close notes apart.
+
+## What to try
+
+- The sine at +12 in Vintage. Move **Size** slowly between 59 and 62 ms and listen to the tone go from steady to a beat. Then switch to Smooth and move it again.
+- The saw at +12, Vintage, then Smooth. Listen to the colour of the note at the crossings.
+- The guitar at +7, Smooth, **Mix** 0.5: a harmony a fifth above. Then Size at 10 ms and at 300 ms.
+- The drums at +12. Listen for the second front on each hit, and what Size does to it. Then at −12.
+- **Pitch** at +1 with the mix at 0.5: a detune. The voices drift against the dry sound and the splice comes about once a second.
+- On the plate below: raise **Delay** to 300 ms and **Feedback** to 0.5. The voices go back into the ring, so each repeat is shifted again and the echoes climb.
