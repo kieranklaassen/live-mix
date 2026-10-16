@@ -22,6 +22,29 @@
 // worked out again from the device's own band gains and held to the ratio of
 // the bins the device left to the bins the kit made of the same frame
 // ("gainRebuilt").
+//
+// The build part puts the transform together a piece at a time, on a path of
+// its own beside the device (lab::Build in lab.h), at Glimmer's own frame of
+// 2,048 samples. It has five pieces, each a function of `Built` below, in the
+// order the steps add them: one frame cut, transformed by the kit's plain
+// transform, transformed back and laid down where it came from; a window on
+// the way in; a hop of a quarter of a frame; the window a second time and the
+// scale that makes four frames add up to one (overlap and add); and Glimmer's
+// gain on every bin. The path writes the "built" taps and leaves every other
+// tap as it was. Two copies of it run: one at the step the reader chose, which
+// is what the taps show, and one with all five pieces, whose output is compared
+// on every render with what the device's own frames add up to (its Stft's
+// output ring: the "builtDifference" check). The gain for a bin is not built
+// again: it is the device's own, read from its tables frame by frame, as the
+// "gains" picture reads it. A step before the last is the lesson's own: frames
+// with a piece missing, which the kit's class never is. Where the device
+// sleeps through a silence, the build takes silence in with it.
+//
+// One more thing is written for the lesson with the build's pieces: one unit
+// sample through the same frames and the same gains as the second device's,
+// once with the window on the way out ("clickRebuilt" holds that to the
+// device's own frames) and once without it, which is what the second window
+// is there to prevent.
 
 #include "lab.h"
 
@@ -43,6 +66,11 @@ lab::Control depth{"depth", "Depth", "", 0.0f, 1.0f, 1.0f};
 lab::Control rate{"rate", "Rate", "Hz", 0.03f, 12.0f, 1.0f, lab::kLog};
 lab::Control grain{"grain", "Grain", "", 0.0f, 1.0f, 0.7f};
 lab::Control pattern{"pattern", "Pattern", "", 0.0f, 3.0f, 1.0f, lab::kLinear, "Scatter|Upward|Downward|Outward"};
+lab::Control lean{"lean", "Lean", "", -1.0f, 1.0f, 0.0f};
+lab::Control soft{"soft", "Soft", "", 0.0f, 1.0f, 0.75f};
+lab::Control vary{"vary", "Vary", "", 0.0f, 1.0f, 0.0f};
+lab::Control apart{"apart", "Apart", "", 0.0f, 1.0f, 0.0f};
+lab::Control mix{"mix", "Mix", "", 0.0f, 1.0f, 1.0f};
 
 // --- taps --------------------------------------------------------------------------------------
 
@@ -64,6 +92,7 @@ lab::Tap pass{"pass", "How far the output has turned to the dry sound", lab::kCo
 lab::Tap out_tap{"out", "Output", lab::kAudio, lab::kDevice, 2};
 lab::Tap click_wet{"clickWet", "One unit sample through Glimmer's frames", lab::kCurve, lab::kDevice, 1};
 lab::Tap click_out{"clickOut", "And as Glimmer puts it out", lab::kCurve, lab::kDevice, 1};
+lab::Tap click_bare{"clickBare", "The same sample and gains, with no window on the way out", lab::kCurve, lab::kLesson, 1};
 lab::Tap picture_out{"pictureOut", "Every frame's spectrum, of the output", lab::kFrames, lab::kKit, 1, "dB"};
 
 // --- checks ------------------------------------------------------------------------------------
@@ -74,6 +103,17 @@ lab::Check returned{"returned", "What overlap-add returns, late by the latency, 
 lab::Check by_hand{"byHand", "Overlap-add by hand at this hop, against the kit's", "dB"};
 lab::Check gain_rebuilt{"gainRebuilt", "The gain per bin worked out from Glimmer's bands, against what its frames show",
                         "dB"};
+lab::Check click_rebuilt{"clickRebuilt", "One unit sample through the build's frames, against Glimmer's own frames", "dB"};
+
+// --- the build part's taps -----------------------------------------------------------------------
+
+lab::Tap built{"built", "The frames so far, laid back down", lab::kAudio, lab::kLesson, 1};
+lab::Tap built_frame{"builtFrame", "The frame that is transformed", lab::kCurve, lab::kLesson, 1};
+lab::Tap built_bins{"builtBins", "That frame's bins", lab::kSpectrum, lab::kKit, 1, "dB"};
+lab::Tap built_changed{"builtChanged", "The bins as they go back", lab::kSpectrum, lab::kLesson, 1, "dB"};
+lab::Tap built_picture{"builtPicture", "A column for every frame so far", lab::kFrames, lab::kLesson, 1, "dB"};
+lab::Tap built_windows{"builtWindows", "Each frame's share of what comes back", lab::kFrames, lab::kLesson, 1};
+lab::Tap built_window_sum{"builtWindowSum", "The shares added", lab::kCurve, lab::kLesson, 1};
 
 // --- the device, and the kit's frames of its size ------------------------------------------------
 
@@ -86,6 +126,7 @@ float reference_im[DeviceStft::kBins];
 float earlier_re[DeviceStft::kBins];              // and the one before
 float earlier_im[DeviceStft::kBins];
 unsigned char filled[lab::kMaxFrames / 64 + 1];   // which columns of a picture were written
+unsigned char built_filled[lab::kMaxFrames / 64 + 1];  // and of the build part's picture
 
 // Where the frame that ends at sample `end` of the render stands in the loop:
 // the place of its middle, 0 to frames - 1. A frame near the start reaches
@@ -105,16 +146,16 @@ int open_picture(lab::Tap& tap, int hop_samples, int rows) {
   return columns;
 }
 
-void begin_columns(int columns) {
-  for (int c = 0; c < columns; ++c) filled[c] = 0;
+void begin_columns(int columns, unsigned char* written = filled) {
+  for (int c = 0; c < columns; ++c) written[c] = 0;
 }
 
 // The loop's length is not always a whole number of hops: a column no frame
 // fell in takes the one before it.
-void close_columns(lab::Tap& tap, int columns, int rows) {
+void close_columns(lab::Tap& tap, int columns, int rows, const unsigned char* written = filled) {
   if (!tap.data) return;
   for (int c = 0; c < columns; ++c) {
-    if (filled[c]) continue;
+    if (written[c]) continue;
     const int from = c > 0 ? c - 1 : columns - 1;
     for (int k = 0; k < rows; ++k) tap.data[c * rows + k] = tap.data[from * rows + k];
   }
@@ -146,29 +187,30 @@ float picture_db(float power) {
 }
 
 // One column: the level of every bin, in dB where a full-scale sine on a bin reads 0.
-void write_column(lab::Tap& tap, int column, const float* re, const float* im, int rows, float full_scale) {
+void write_column(lab::Tap& tap, int column, const float* re, const float* im, int rows, float full_scale,
+                  unsigned char* written = filled) {
   if (column < 0 || !tap.data) return;
   float* out = tap.data + column * rows;
   const float scale = 1.0f / (full_scale * full_scale);
   for (int k = 0; k < rows; ++k) out[k] = picture_db((re[k] * re[k] + im[k] * im[k]) * scale);
-  filled[column] = 1;
+  written[column] = 1;
 }
 
 // --- Glimmer, one sample at a time --------------------------------------------------------------
 
 // Glimmer's gain for bin k of its left side, as its frame() works it out, from
 // the tables the device keeps.
-float device_gain(int k) {
-  const int j = device.cell_[k];
-  const float under = device.gain_[0][j];
-  return kit::min(Glimmer::kMaxLift,
-                  (under + device.blend_[k] * (device.gain_[0][j + 1] - under)) * (1.0f + device.hump_[k] * device.raise_[j]));
+float gain_of(const Glimmer& glimmer, int k) {
+  const int j = glimmer.cell_[k];
+  const float under = glimmer.gain_[0][j];
+  return kit::min(Glimmer::kMaxLift, (under + glimmer.blend_[k] * (glimmer.gain_[0][j + 1] - under)) *
+                                         (1.0f + glimmer.hump_[k] * glimmer.raise_[j]));
 }
+float device_gain(int k) { return gain_of(device, k); }
 
-// The reader's settings, and the rest of the device set plain: every band
+// The reader's settings. The lesson starts three of them plain: every band
 // flickers as deeply as the next (Lean 0), every flash is as tall as the last
-// (Vary 0), the two sides move as one (Apart 0), and nothing of the dry sound
-// is mixed in but what the attack pass lets round.
+// (Vary 0), and the two sides move as one (Apart 0).
 void configure(Glimmer& glimmer) {
   using namespace glimmer;
   glimmer.init(lab::kSampleRate);
@@ -176,35 +218,183 @@ void configure(Glimmer& glimmer) {
   glimmer.set_param(kRate, rate.value);
   glimmer.set_param(kGrain, grain.value);
   glimmer.set_param(kPattern, static_cast<float>(pattern.choice()));
-  glimmer.set_param(kLean, 0.0f);
-  glimmer.set_param(kVary, 0.0f);
-  glimmer.set_param(kApart, 0.0f);
-  glimmer.set_param(kMix, 1.0f);
+  glimmer.set_param(kLean, lean.value);
+  glimmer.set_param(kSoft, soft.value);
+  glimmer.set_param(kVary, vary.value);
+  glimmer.set_param(kApart, apart.value);
+  glimmer.set_param(kMix, mix.value);
 }
+
+// --- the build part: frames, a piece at a time ---------------------------------------------------
+
+constexpr int kBuildFrame = DeviceStft::kFrame;      // 2,048 samples, as Glimmer's
+constexpr int kBuildHop = DeviceStft::kHop;          // a quarter of it
+constexpr int kBuildBins = DeviceStft::kBins;
+constexpr int kBuildOverlap = DeviceStft::kOverlap;  // frames over any one sample, at that hop
+constexpr int kBuildWait = DeviceStft::kMaxStagger;  // a frame goes out half a hop after it is whole
+constexpr uint32_t kBuildMask = 2 * kBuildFrame - 1;
+
+kit::Fft<kBuildFrame> build_fft;  // the kit's plain transform
+float hann[kBuildFrame];          // the kit's window: its own table, copied in lab_setup
+
+// The transform so far: one function a piece, and run() to take a sample
+// through the pieces there are.
+struct Built {
+  // The pieces, in the order the steps add them.
+  enum Piece : int { kFrame = 0, kWindow, kHops, kOverlapAdd, kChange };
+
+  int pieces = kFrame;
+  float ring[2 * kBuildFrame] = {};  // the last two frames' worth of what came in
+  float sum[2 * kBuildFrame] = {};   // the frames laid back down, waiting to go out
+  float re[kBuildFrame] = {};        // the frame in hand: samples, then bins, then samples again
+  float im[kBuildFrame] = {};
+
+  // One frame: the newest 2,048 samples, cut out as they are.
+  void cut(int i) {
+    for (int n = 0; n < kBuildFrame; ++n) {
+      re[n] = ring[static_cast<uint32_t>(i - kBuildFrame + n) & kBuildMask];
+      im[n] = 0.0f;
+    }
+  }
+
+  // The frame as bins, and the bins as a frame again. The kit's inverse is
+  // unscaled, so the way back divides by the frame's length.
+  void transform() { build_fft.forward(re, im); }
+  void back() {
+    build_fft.inverse(re, im);
+    for (int n = 0; n < kBuildFrame; ++n) re[n] *= 1.0f / kBuildFrame;
+  }
+
+  // Laid back down where it was cut from, a frame and half a hop later, on
+  // top of whatever other frames lie there.
+  void lay(int i) {
+    for (int n = 0; n < kBuildFrame; ++n) sum[static_cast<uint32_t>(i + kBuildWait + n) & kBuildMask] += re[n];
+  }
+
+  // A window: the frame swells from nothing and dies back to nothing.
+  void window() {
+    for (int n = 0; n < kBuildFrame; ++n) re[n] *= hann[n];
+  }
+
+  // Hops: how far the window moves on before the next frame is cut. A whole
+  // frame at first, so the frames lie end to end; then a quarter of one, so
+  // every sample is in four.
+  int hop() const { return pieces >= kHops ? kBuildHop : kBuildFrame; }
+
+  // Overlap and add: the window a second time on the way out, and the scale
+  // that makes the four squared windows over a sample add up to 1.
+  void again() {
+    const float scale = 8.0f / (3.0f * kBuildOverlap);
+    for (int n = 0; n < kBuildFrame; ++n) re[n] *= hann[n] * scale;
+  }
+
+  // Change the bins: each one times a gain. The upper half of the bins
+  // mirrors the lower, and is kept its mirror.
+  void change(const float* gain) {
+    for (int k = 0; k < kBuildBins; ++k) {
+      re[k] *= gain[k];
+      im[k] *= gain[k];
+    }
+    for (int k = 1; k < kBuildFrame / 2; ++k) {
+      re[kBuildFrame - k] = re[k];
+      im[kBuildFrame - k] = -im[k];
+    }
+  }
+
+  // Where a frame stands on its way through run(): what the lab's pictures
+  // of it are taken at.
+  enum Stage : int { kAsCut, kAsBins, kAsChanged };
+
+  // One sample through the pieces built so far, in the order it meets them.
+  // On a sample a frame is cut at, `watch` is shown the frame three times:
+  // as samples, as bins, and as the bins that go back.
+  template <typename Watch>
+  float run(int i, float x, const float* gain, Watch&& watch) {
+    if (i % hop() == 0) {
+      cut(i);
+      if (pieces >= kWindow) window();
+      watch(kAsCut);
+      transform();
+      watch(kAsBins);
+      if (pieces >= kChange) change(gain);
+      watch(kAsChanged);
+      back();
+      if (pieces >= kOverlapAdd) again();
+      lay(i);
+    }
+    return pass(i, x);
+  }
+
+  // One sample into the ring the frames are cut from, and one out of what
+  // the frames have laid down.
+  float pass(int i, float x) {
+    ring[static_cast<uint32_t>(i) & kBuildMask] = DeviceStft::guarded(x);
+    const float y = sum[static_cast<uint32_t>(i) & kBuildMask];
+    sum[static_cast<uint32_t>(i) & kBuildMask] = 0.0f;
+    return y;
+  }
+
+  void start(int pieces_) {
+    pieces = pieces_;
+    for (float& sample : ring) sample = 0.0f;
+    for (float& sample : sum) sample = 0.0f;
+  }
+};
+
+lab::Build build{"One frame|A window|Hops|Overlap and add|Change the bins", Built::kChange, -130.0f,
+                 "The frames as built, all five pieces, against what Glimmer's own frames add up to"};
+
+Built shown;       // at the step the reader chose: what the built taps hold
+Built held;        // with every piece: what is compared with the device
+Built click_whole; // one unit sample through every piece
+Built click_plain; // and with no window on the way out
+float bin_gain[kBuildBins];  // Glimmer's gain for every bin of the frame in hand
 
 // One unit sample into a second device at rest, and the stretch around the
 // moment it comes out, a latency later: the frames' own sum (from the Stft's
-// ring) and the device's output.
+// ring) and the device's output. Beside it the same sample goes through the
+// build's pieces with the second device's gains: every piece, which is held
+// to the device's frames, and every piece but the window on the way out.
 void render_click() {
   constexpr uint32_t kMask = DeviceStft::kMask;
   constexpr int kLatency = DeviceStft::kLatency;
   constexpr int kClickAt = 4480;  // after two frames of silence, and not on a hop
   constexpr int kReach = 1536;    // 32 ms either side of where it comes out
   const int points = 2 * kReach + 1;
-  if (!click_wet.open(points) || !click_out.open(points)) return;
-  click_wet.x0 = click_out.x0 = -1000.0f * kReach / lab::kSampleRate;
-  click_wet.x1 = click_out.x1 = 1000.0f * kReach / lab::kSampleRate;
+  if (!click_wet.open(points) || !click_out.open(points) || !click_bare.open(points)) return;
+  click_wet.x0 = click_out.x0 = click_bare.x0 = -1000.0f * kReach / lab::kSampleRate;
+  click_wet.x1 = click_out.x1 = click_bare.x1 = 1000.0f * kReach / lab::kSampleRate;
+  float* whole = lab::take(points);
   configure(probe);
+  click_whole.start(Built::kChange);
+  click_plain.start(Built::kChange);
   const int first = kClickAt + kLatency - kReach;
   for (int i = 0; i < first + points; ++i) {
     const float sum = probe.stft_[0].output_[probe.stft_[0].position_ & kMask];
-    probe.in_left()[0] = probe.in_right()[0] = i == kClickAt ? 1.0f : 0.0f;
+    const float x = i == kClickAt ? 1.0f : 0.0f;
+    probe.in_left()[0] = probe.in_right()[0] = x;
     probe.process(1);
+    if (i % kBuildHop == 0) {
+      for (int k = 0; k < kBuildBins; ++k) bin_gain[k] = probe.asleep_ ? 1.0f : gain_of(probe, k);
+      // No window on the way out: four windows over a sample add up to 2, so half of each frame.
+      click_plain.cut(i);
+      click_plain.window();
+      click_plain.transform();
+      click_plain.change(bin_gain);
+      click_plain.back();
+      for (float& sample : click_plain.re) sample *= 2.0f / kBuildOverlap;
+      click_plain.lay(i);
+    }
+    const float rebuilt = click_whole.run(i, x, bin_gain, [](int) {});
+    const float bare = click_plain.pass(i, x);
     if (i >= first) {
       click_wet.set(i - first, sum);
       click_out.set(i - first, probe.out_left()[0]);
+      click_bare.set(i - first, bare);
+      if (whole) whole[i - first] = rebuilt;
     }
   }
+  if (whole) click_rebuilt.value = lab::difference_db(whole, click_wet.data, points);
 }
 
 // Runs the device over the loop and leaves its left output in `kept`.
@@ -220,6 +410,22 @@ void render_device(float* kept) {
 
   const int columns = open_picture(gains, kHop, kBins);
   begin_columns(columns);
+
+  // The build part: the chosen step, and the whole build that is held to the device.
+  Built& front = build.at() == build.compared_step ? held : shown;
+  front.start(build.at());
+  held.start(build.compared_step);
+  const int built_columns = open_picture(built_picture, front.hop(), kBuildBins);
+  begin_columns(built_columns, built_filled);
+  const bool pictured = built_frame.open(kBuildFrame) && built_bins.open(kBuildBins) && built_changed.open(kBuildBins);
+  built_bins.x0 = built_changed.x0 = 0.0f;
+  built_bins.x1 = built_changed.x1 = 0.5f * lab::kSampleRate;
+  int wanted = static_cast<int>(at.value * lab::kSampleRate);
+  if (wanted > lab::frames() - 1) wanted = lab::frames() - 1;
+  int nearest = lab::frames();
+  bool chosen = false;  // the frame in hand is the one under "Frame at"
+  double built_apart = 0.0, built_whole = 0.0;
+
   float worst = 0.0f;
   float loudest_hz = 0.0f;
   float turning_hz = 0.0f;
@@ -293,8 +499,54 @@ void render_device(float* kept) {
       }
     }
 
+    // The build part, beside the device, on the same frames with the gains the
+    // device has just worked out. Asleep, the device takes in silence.
+    if (i % kBuildHop == 0) {
+      for (int k = 0; k < kBuildBins; ++k) bin_gain[k] = awake ? device_gain(k) : 1.0f;
+    }
+    const float heard = awake ? left : 0.0f;
+    // The first time round is only there to be dropped, and a frame reaches no
+    // further than a frame and half a hop past where it was cut: until the
+    // frames reach what is kept, the build only takes its samples in.
+    const bool reaches = i >= first_kept - 2 * kBuildFrame;
+    const auto watch = [&](int stage) {
+      if (i < first_kept || i >= 2 * first_kept) return;
+      if (stage == Built::kAsCut) {
+        const int middle = middle_of(i, kBuildFrame);
+        int distance = middle > wanted ? middle - wanted : wanted - middle;
+        if (lab::frames() - distance < distance) distance = lab::frames() - distance;
+        chosen = pictured && distance < nearest;
+        if (!chosen) return;
+        nearest = distance;
+        const float start_seconds = static_cast<float>(middle - kBuildFrame / 2) / lab::kSampleRate;
+        built_frame.x0 = start_seconds;
+        built_frame.x1 = start_seconds + static_cast<float>(kBuildFrame - 1) / lab::kSampleRate;
+        for (int n = 0; n < kBuildFrame; ++n) built_frame.set(n, front.re[n]);
+        return;
+      }
+      if (chosen) {
+        lab::Tap& tap = stage == Built::kAsBins ? built_bins : built_changed;
+        const float scale = 1.0f / (DeviceStft::kFullScale * DeviceStft::kFullScale);
+        for (int k = 0; k < kBuildBins; ++k) {
+          tap.set(k, lab::power_to_db((front.re[k] * front.re[k] + front.im[k] * front.im[k]) * scale));
+        }
+      }
+      if (stage == Built::kAsChanged) {
+        write_column(built_picture, column_of(i, kBuildFrame, front.hop(), built_columns), front.re, front.im,
+                     kBuildBins, DeviceStft::kFullScale, built_filled);
+      }
+    };
+    const float so_far = reaches ? front.run(i, heard, bin_gain, watch) : front.pass(i, heard);
+    float whole = so_far;
+    if (&front != &held) whole = reaches ? held.run(i, heard, bin_gain, [](int) {}) : held.pass(i, heard);
+
     if (kept) kept[i] = device.out_left()[0];
     if (i < first_kept) continue;  // the first time round is only there to be dropped
+    if (i < 2 * first_kept) {
+      built_apart += (static_cast<double>(whole) - wet_left) * (static_cast<double>(whole) - wet_left);
+      built_whole += static_cast<double>(wet_left) * wet_left;
+    }
+    built.put(i, so_far);
     in_tap.put(i, left, right);
     wet.put(i, wet_left, wet_right);
     out_tap.put(i, device.out_left()[0], device.out_right()[0]);
@@ -306,6 +558,36 @@ void render_device(float* kept) {
   }
   close_columns(gains, columns, kBins);
   gain_rebuilt.value = 10.0f * std::log10(1.0f + worst);  // the worst of them, in dB
+  close_columns(built_picture, built_columns, kBuildBins, built_filled);
+  build.difference.value = lab::ratio_db(built_apart, built_whole);
+
+  // Each frame's share of what comes back, over two frames' length of time,
+  // and the shares added: the frames end to end or a hop apart, each as it is
+  // cut, times the window, or times the window twice and the scale.
+  constexpr int kPoints = 512;
+  const int step = 2 * kBuildFrame / kPoints;
+  const int overlap = kBuildFrame / front.hop();
+  const int first = -(overlap - 1);  // the earliest frame that reaches into the stretch
+  const int count = 3 * overlap - 1;
+  if (built_windows.open(count * kPoints) && built_window_sum.open(kPoints)) {
+    built_windows.columns = count;
+    built_windows.x0 = built_window_sum.x0 = 0.0f;
+    built_windows.x1 = built_window_sum.x1 = 1000.0f * static_cast<float>(2 * kBuildFrame - step) / lab::kSampleRate;
+    for (int p = 0; p < kPoints; ++p) {
+      float sum = 0.0f;
+      for (int m = 0; m < count; ++m) {
+        const int n = p * step - (first + m) * front.hop();  // where in frame m this instant is
+        float share = 0.0f;
+        if (n >= 0 && n < kBuildFrame) {
+          share = front.pieces < Built::kWindow ? 1.0f : hann[n];
+          if (front.pieces >= Built::kOverlapAdd) share *= hann[n] * 8.0f / (3.0f * kBuildOverlap);
+        }
+        built_windows.data[m * kPoints + p] = share;
+        sum += share;
+      }
+      built_window_sum.set(p, sum);
+    }
+  }
 }
 
 // --- the kit's frames at the size the reader chose -----------------------------------------------
@@ -482,6 +764,8 @@ void render_frames(Frames<Frame>& f, const float* device_out) {
 
 void lab_setup() {
   reference.init();
+  build_fft.init();
+  for (int n = 0; n < kBuildFrame; ++n) hann[n] = reference.window_[n];
   frames_512.plain.init();
   frames_512.looking.init();
   frames_512.fft.init();

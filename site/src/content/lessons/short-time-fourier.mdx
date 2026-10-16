@@ -1,15 +1,17 @@
 ---
 title: The short-time Fourier transform
 family: spectrum
-summary: A window slides along the sound, each stop is transformed, and the spectra side by side show how the sound changes. This lesson runs the kit's own frames on a loop, adds them back into the sound they came from, and then lets a real device alter them on the way.
+summary: A window slides along the sound, each stop is transformed, and the spectra side by side show how the sound changes. This lesson builds that a piece at a time, adds the frames back into the sound they came from, and then opens up a real device that alters them on the way.
+long: true
+opening: { input: in, output: out }
 lab: short-time-fourier
 devices: [glimmer]
 bench:
   device: glimmer
   params: { depth: 1, rate: 1, grain: 0.7, pattern: 1, lean: 0, vary: 0, apart: 0 }
   as: insert
-  note: The plate opens on the settings this lesson starts from, full Depth on the Upward pattern with Lean, Vary and Apart at 0. The device's own defaults are gentler and less regular (Depth 0.65, Scatter, Lean 0.5, Vary 0.35, Apart 0.5).
-sources: [guitar, chords, drums, noise, sine, saw, sweep, clicks]
+  note: The plate opens on the settings this lesson starts from, full Depth on the Upward pattern with Lean, Vary and Apart at 0, so that every band flickers alike and the pattern can be read. The device's own defaults are gentler and less regular.
+sources: [guitar, chords, pad, drums, bass, mix, noise, sine, saw, sweep, clicks]
 seconds: 4
 files:
   - cpp/kit/stft.h
@@ -17,203 +19,744 @@ files:
   - cpp/devices/glimmer/glimmer.h
 ---
 
-<Lesson id="fourier-transform" cap />, took one stretch of sound and asked which frequencies were in it. The answer had no clock in it. A spectrum of this whole loop says which notes are in there somewhere, and not when, and music is the *when*. The short-time Fourier transform keeps both by asking that question again and again of a short stretch each time: a window slides along the sound in small steps, and every stop gives one spectrum. Side by side they make a picture of the sound, time across and frequency up.
+<Part id="why" title="A wave says when. A spectrum says which notes. A tune is both.">
 
-That is the half that looks. The other half is the way back. Each of those spectra can be turned into samples again, and because the stretches overlap, adding them where they came from gives back the sound that went in. In between, a device may change the spectra: turn a band down, hold it, move it. Whatever it does to them comes out as sound.
+Here is a guitar line, four seconds of picked notes. Suppose you want to know which note is sounding one second in.
 
-Two prices are paid, and both are fixed the moment a frame size is chosen. A stretch cannot be transformed until all of it has arrived, so the sound comes out late by about its length. And a stretch long enough to tell two close frequencies apart is too long to say just when something happened inside it.
+The wave of the loop shows when each note is struck: a tall edge, then a slope as the string dies. It does not show what the note is. Pitch lies in how fast the wave swings, and at this scale the swings are far too close together to see.
 
-<Stages taps="in frame bins picture through gains wet out pictureOut" />
+<Still
+  taps="in"
+  caption="The whole loop against time. Each note begins with a tall edge and dies away. Notice that nothing here says which note is which."
+/>
 
-The first five stages are the kit's own class, `kit::Stft`, at work on the loop with nothing altered. The last four are Glimmer, a device built on that class, which gives every narrow band of the spectrum a slow tremolo of its own. Here is the loop as it goes in and as Glimmer puts it out.
+<Lesson id="fourier-transform" cap /> gave the other view. Take a stretch of sound, ask how much of each frequency is in it, and the answer is a spectrum. Ask it of the whole loop, and every note the guitar played stands in it as a peak with its harmonics above it.
 
-<Controls ids="size depth" />
+<Still
+  taps="in"
+  view="spectrum"
+  caption="The spectrum of the same four seconds. Every note of the line is in here somewhere. Notice that nothing says when any of them sounded, or in what order."
+/>
 
-<Spectrogram tap="picture" top={4000} min={-96} max={-24}>
-  The loop going in: seconds across, hertz up, level as colour from the page's own (quiet) through blue to red (loud). Each picked note is a ladder of harmonics that starts sharply and dies away.
-</Spectrogram>
+So the question has no answer in either picture. The wave has a clock and no pitch. The spectrum has pitch and no clock.
 
-<Spectrogram tap="pictureOut" top={4000} min={-96} max={-24}>
-  The same loop out of Glimmer. Every harmonic is broken into dashes, and the gaps climb. Pull Depth down and the dashes join up again. Frame changes how both pictures are taken, not what Glimmer does.
-</Spectrogram>
+The way out is to stop asking about the whole loop. Cut a short stretch out of it, a few hundredths of a second long, and ask the question of that stretch alone.
 
-Under each stage is a mark saying where it comes from. *Computed by the engine's kit* is `kit::Stft` itself. *Read from the running device* is Glimmer's own state as it runs. *Written for this lesson* marks the few things neither of them keeps, each with a check further down that holds it to something they do keep.
+<Still
+  taps="bins"
+  view="spectrum"
+  caption="The spectrum of one short stretch, taken 1.1 seconds into the loop. One note is sounding there, and the picture holds that note alone: a lowest peak and its harmonics at even steps above it."
+/>
 
-## Stage by stage
+That is one stop. Slide the stretch along a little and ask again, and again, to the end of the loop. Stand each spectrum on end, set them side by side in the order they were taken, and paint each level as a shade.
 
-### 1. A window slides along in hops
+<Still
+  taps="picture"
+  view="spectrogram"
+  caption="Every stretch's spectrum, side by side: seconds across, hertz up. Each note is a ladder of lines that begins all at once and fades from the top down. Notice that this one picture answers both questions."
+/>
 
-A transform needs a stretch of sound with a beginning and an end. The stretch is a *frame* of <M t="N" /> samples, and a new one is taken every <M t="H" /> samples, the *hop*. The kit's hop is a quarter of the frame, so the frames overlap deeply: every sample lies in four of them. Each frame is multiplied by a Hann window before anything else, for the reason <Lesson id="fourier-transform" />, gave. A frame cut off square leaks every partial across the whole spectrum; one that swells from nothing and dies back to nothing does not.
+That picture is a spectrogram, and the method is the short-time Fourier transform. A stretch is called a frame.
 
-<M block t={String.raw`\begin{gathered} x_m[n] = w[n]\,x[mH + n] \\[6pt] w[n] = \tfrac12 - \tfrac12\cos\frac{2\pi n}{N}, \quad n = 0 \ldots N-1 \end{gathered}`} />
+The method gives more than a picture. Each frame's spectrum can be turned back into samples, and because the frames overlap, adding them up where they came from returns the sound that went in. In between, a device can change the spectra: turn one narrow band down and leave the band beside it alone. That is how a device reaches one harmonic of a chord without touching its neighbours. The opening picture of this page is the loop going in and what Glimmer, a device of the engine that works on frames, makes of it.
 
-Here <M t="m" /> counts the frames. In the code there is no array of frames at all. <Src path="cpp/kit/stft.h" lines="205-219">`Stft::process`</Src> takes one sample and gives one back, keeps the last two frames' worth of input in a ring, and every `Hop` samples calls <Src path="cpp/kit/stft.h" lines="312-322">`analyse_frame`</Src>, which reads the newest <M t="N" /> samples out of the ring through the table `window_`. Glimmer's frames are <Src path="cpp/devices/glimmer/glimmer.h" lines="142-143">2,048 samples, taken every 512</Src>: 42.7 ms of sound at 48 kHz.
+Two prices are paid, and both are fixed the moment the length of a frame is chosen. The first is delay: a frame cannot be transformed until all of it has arrived. The second is in the picture itself.
+
+<Predict
+  question="The frame is made eight times longer, from 512 samples to 4,096. What happens to the beginning of each note in the picture?"
+  choices={['It gets sharper', 'It stays as sharp as it was', 'It smears sideways']}
+>
+
+It smears sideways. A frame cannot say where inside itself something happened, so a longer frame means a wider smear. A single sample, the shortest sound there is, shows in <Claim id="click-width">four columns, which cover 10.7 ms at 512 and 85.3 ms at 4,096</Claim>: every frame that holds it.
+
+<Still
+  taps="picture"
+  view="spectrogram"
+  values={{ size: 0 }}
+  from={0.9}
+  span={0.6}
+  caption="Six tenths of a second of the loop at a frame of 512 samples. The note begins on a sharp upright edge. Its harmonics are fat bars."
+/>
+
+<Still
+  taps="picture"
+  view="spectrogram"
+  values={{ size: 3 }}
+  from={0.9}
+  span={0.6}
+  caption="The same six tenths at a frame of 4,096. The harmonics have thinned to lines, and the note's beginning has spread sideways into the note before it."
+/>
+
+The longer frame is not the worse one. It tells close frequencies apart, which the short one cannot. No length does both, and part 5 puts numbers on the trade.
+
+</Predict>
+
+</Part>
+
+<Part id="picture" title="A window slides along the sound, and each stop lays down a column.">
+
+This is the whole method in one picture, and you do the sliding. "Frame at" moves a window one frame long along the loop. The figure shows the spectrum of the stretch under the window: one column of the spectrogram, laid on its side so that it can be read.
 
 <Controls ids="at size" />
 
-<Curve taps="frameRaw:in window:ctl frame:out" xTitle="seconds into the loop" yTitle="sample value" height={240}>
-  One frame of the loop as the kit cut it (grey), the window drawn at the frame's own height (blue), and the two multiplied (dashed red), which is what gets transformed. "Frame at" slides the window along the loop. It moves a hop at a time, since those are the only places a frame begins.
-</Curve>
-
-### 2. Each frame is transformed
-
-Every windowed frame goes through the transform of <Lesson id="fourier-transform" />:
-
-<M block t={String.raw`X_m[k] = \sum_{n=0}^{N-1} x_m[n]\,e^{-2\pi i\,kn/N}`} />
-
-The frame is real, so the upper half of its spectrum mirrors the lower, and only bins 0 to <M t="N/2" /> are kept: 1,025 complex numbers from 2,048 samples (<Src path="cpp/kit/stft.h" lines="157-164">`kBins`</Src>). Bin <M t="k" /> stands at <M t={String.raw`k f_s / N`} />, which is every 23.4 Hz at this size. `analyse_frame` gets them from <Src path="cpp/kit/fft.h" lines="54-89">`Fft::forward_real`</Src>, which does half the work of the full transform for exactly this case, and hands them to the device as two arrays, `re` and `im`, to change in place.
-
-Two conventions matter to anything that reads those arrays. The sum is not divided by anything, so a full-scale sine exactly on a bin reads <M t="N/4" /> there (`kFullScale`): the window lets half its amplitude through, and the mirrored half of the spectrum holds half of that. The figures here are in decibels against that number, and such a sine reads <Claim id="on-a-bin">0 dB on its bin, −6.02 dB in each neighbour and nothing anywhere else</Claim>. A partial is three bins wide before any device has touched it. And each bin's phase is counted from the frame's first sample, which stage 7 needs.
-
 <Spectrum taps="in bins:out" linear fMax={2000} min={-100} max={0}>
-  The spectrum of the whole loop (grey) and of the one frame above (red), up to 2 kHz. The loop holds every note it plays; the frame holds the one note sounding then, and its harmonics. Slide "Frame at" in stage 1 and the red peaks jump from note to note.
+  The spectrum of the whole loop, and of the one frame under the window, up to 2 kHz. Try "Frame
+  at" from one end to the other, and notice the frame's peaks jump from note to note while the
+  loop's stay where they are. Then try Frame longer, and notice the peaks grow thinner.
 </Spectrum>
 
-<Check id="transformed" />
+One thing to check against it. With "Frame at" where it starts, 1.1 seconds in, the three tallest peaks of the frame stand at <Claim id="note-at">328 Hz, 656 Hz and 984 Hz</Claim>. They are evenly spaced because they are harmonics of one string.
 
-The dashed red frame of stage 1 is the lab's own product, because the kit multiplies by the window inside its transform and keeps no copy. The check puts that product through the kit's plain transform and compares it with the bins the kit handed over: they are <Claim id="transformed">the same to the last digit the lab counts</Claim>.
+Every stop of the window gives one such spectrum. Stood on end and set side by side in the order they were taken, the stops are the columns of the picture from part 1.
 
-### 3. The frames side by side
+<Still
+  taps="picture"
+  view="spectrogram"
+  from={0.6}
+  span={1}
+  caption="One second of the loop, a column for every stop of the window. Notice the note that begins just after one second: its three lowest lines are the three peaks of the figure above."
+/>
 
-Stand each frame's spectrum on end, set them in the order they were taken, colour by level, and that is a *spectrogram*. At a frame of 2,048 the loop's four seconds are <Claim id="frames-count">375 frames</Claim>, a column every 10.7 ms. It is the picture at the top of the page, drawn here for its lowest 1.5 kHz so that the rows can be told apart.
+The picture keeps half of what the transform found. Every bin of every frame is a size and a phase, and only the size is painted. The phase matters as soon as the frames are turned back into sound, which is where part 4 begins.
 
-The frame's length sets both grains of the picture at once. Bins are <M t={String.raw`f_s/N`} /> apart, and a frame lasts <M t={String.raw`N/f_s`} /> seconds, so
+</Part>
 
-<M block t={String.raw`\Delta f \cdot T = \frac{f_s}{N}\cdot\frac{N}{f_s} = 1`} />
+<Part id="uses" title="Sounds that hold still take it well. Sounds that strike need help.">
 
-whatever <M t="N" /> is. Halve the spacing of the bins and every frame takes twice as long. No setting escapes that: choosing a frame size is choosing which blur to live with.
+The transform alone changes nothing. What it is used on depends on what is done to the frames before they are added back. On this page that is Glimmer, which turns every narrow band of the spectrum up and down on a slow clock of its own, so that a sound flickers from inside. The cards play it on four kinds of sound. Each picture is the output as a spectrogram, and the gaps in it are where a band has gone dark.
 
-<Controls ids="size" />
+<Uses>
+  <Use title="Held chords" set="held">
+    <Still
+      slot="picture"
+      taps="pictureOut"
+      view="spectrogram"
+      set="held"
+      caption="The held chords out of Glimmer. Each line is one partial, broken into dashes where its band went dark."
+    />
 
-<Spectrogram tap="picture" top={1500} min={-96} max={-24} height={280}>
-  The lowest 1.5 kHz of every frame. At 512 each note begins on a sharp upright edge and its harmonics are fat bars, 93.75 Hz to a row. At 4,096 the bars thin to 11.7 Hz a row and their beginnings blur sideways.
-</Spectrogram>
+    A held chord is the easy case. Its partials stay where they are for seconds, and a steady partial fills only a bin or three of every frame. A gain on those bins moves that partial and nothing else. Nothing in the loop strikes, so the device finds no attack to step round: over the four seconds its pass <Claim id="held-never">never opens</Claim>.
 
-Two measurements put numbers on it. Two tones 30 Hz apart are <Claim id="two-tones">two peaks at a frame of 4,096 and one lump at 2,048 and under</Claim>. And a single unit sample shows in <Claim id="click-width">four columns, which cover 10.7 ms at 512 and 85.3 ms at 4,096</Claim>: every frame that holds it, a frame's length of time in all. Four, because <M t="N/H" /> frames lie over any one sample. The picture keeps only the size of each bin. Its phase, the other half of the number, is not drawn. Stage 7 comes back to it.
+  </Use>
+  <Use title="A picked line" set="picked">
+    <Still
+      slot="picture"
+      taps="pictureOut"
+      view="spectrogram"
+      set="picked"
+      caption="The picked guitar out of Glimmer. The gaps climb from line to line. Each note still begins on a clean edge."
+    />
 
-### 4. Adding the frames back
+    Every picked note begins with an attack, and an attack is what frames do badly, as part 7 shows. Glimmer watches for attacks and lets each one through untouched: on this loop the pass opens <Claim id="picked-pass">16 times</Claim>. Between attacks the ringing strings are steady enough to flicker.
 
-The transform loses nothing. The inverse transform of a frame's bins is the windowed frame again, so the way back to sound is to invert every frame and add each one in where it was cut from. The kit does one thing more before adding: it multiplies the frame by the Hann window a second time (<Src path="cpp/kit/stft.h" lines="391-397">the last loop of `synthesise_frame`</Src>).
+  </Use>
+  <Use title="Noise" set="wash">
+    <Still
+      slot="picture"
+      taps="pictureOut"
+      view="spectrogram"
+      set="wash"
+      caption="White noise out of Glimmer. Noise fills every band, so what shows is the pattern alone: dark bars that climb."
+    />
 
-<M block t={String.raw`y[n] = c \sum_m w[n - mH]\;\hat{x}_m[n - mH]`} />
+    Noise has something in every band at every moment, so it shows the pattern of the flicker and nothing else. It is also the hardest test of level, because every dark band takes something away. The device lifts each band's flashes to pay for its gaps, and the noise comes out <Claim id="level-held">within 0.1 dB of the level it went in at</Claim>.
 
-Here <M t={String.raw`\hat{x}_m`} /> is frame <M t="m" /> after the inverse transform and <M t="c" /> is a scale still to be found. The second window is there for frames that *have* been altered. A change made to the bins does not stay under the frame's taper. In time it spreads round the whole frame, ends included, and a frame that no longer ends at zero would click against its neighbours at every hop. The second window brings the ends back to zero whatever was done in between.
+  </Use>
+  <Use title="Drums" set="hits">
+    <Still
+      slot="picture"
+      taps="pictureOut"
+      view="spectrogram"
+      set="hits"
+      caption="The drums out of Glimmer. Each hit is an upright stripe, whole from bottom to top. Only what rings between the hits is broken up."
+    />
 
-With nothing altered, <M t={String.raw`\hat{x}_m[n - mH] = w[n - mH]\,x[n]`} />, and the sum comes apart:
+    Drums are nearly all attack. The pass opens <Claim id="hits-pass">19 times</Claim> in this pattern, and while it is open the output is the plain sound. What flickers is what lies between the hits: the ring of a drum, the wash of a cymbal. A device on frames has little to hold on to here.
 
-<M block t={String.raw`y[n] = x[n]\cdot c\sum_m w^2[n - mH]`} />
+  </Use>
+</Uses>
 
-So the sound comes back exactly when the *squared* windows of all the frames over a sample add up to the same number at every sample. For the Hann window, <M t={String.raw`w^2[n] = \tfrac38 - \tfrac12\cos\tfrac{2\pi n}{N} + \tfrac18\cos\tfrac{4\pi n}{N}`} />. Add <M t="K = N/H" /> copies of it, each a hop further on. The constant adds up to <M t="3K/8" />. The first cosine cancels from two copies up. The second goes round twice in a frame and needs at least three. A quarter of a frame is therefore the longest hop that is a power of two and works, and there the squared windows add up to <Claim id="hann-squared-sum">1.5, and at an eighth to 3</Claim>. The kit folds all of it into one constant, <Src path="cpp/kit/stft.h" lines="305-307">`kOutputScale`</Src>, which is <M t={String.raw`8/(3K)`} /> to undo the sum, over <M t="N" /> because its inverse transform is unscaled.
+</Part>
 
-<Controls ids="hop size" />
+<Part id="build" title="Five pieces: a frame, a window, hops, overlap and add, a change.">
 
-<OverlappingWindows windows="windows" sum="windowSum" xTitle="milliseconds">
-  Two frames' length of time. Each green curve is one frame's share of the output: its window squared, once for the way in and once for the way out. The red line is all of them added and scaled by 8/(3K). At a quarter hop and at an eighth it is <Claim id="window-sum">flat at 1</Claim>. At a half it <Claim id="half-hop-swing">swings between two thirds and four thirds</Claim>, once every hop.
-</OverlappingWindows>
+The transform is put together here a piece at a time, in the lab's own code, at the frame Glimmer uses: <Src path="cpp/devices/glimmer/glimmer.h" at="using Stft = kit::Stft<2048, 512>;">2,048 samples, a new one every 512</Src>. Each step adds one small function. The sound of every step is real, so press "Hear it so far" as you go. Two of the steps sound wrong, and they are meant to: each is what the next piece is for.
 
-The kit will not build with a hop of half a frame: a <Src path="cpp/kit/stft.h" lines="152-155">`static_assert`</Src> on its template stops it. So the hop on this switch drives the lab's own overlap-add, written by hand: window, window, scale, add. With nothing altered the two transforms undo one another and are left out. At the kit's hops the hand version is the kit's own output: the difference between them lies <Claim id="by-hand">more than 130 dB under the signal</Claim>.
+"Frame at" is the one control until the last step. It picks which frame of the loop the pictures of a single frame show.
 
-<Wave taps="through added" from={1.1} span={0.1} fit>
-  A tenth of a second after overlap-add: the kit's (green) and by hand at the hop chosen above (red). At a quarter and at an eighth red covers green. At a half the red wave swells and shrinks once every hop.
-</Wave>
+<Build>
+  <Step title="One frame" controls="at">
+    Begin with the least that could be called a transform. Wait for 2,048 samples. Cut them out as they are. Turn them into bins, and the bins back into samples. Lay the result down where it was cut from. Then do the same with the next 2,048, so that the frames lie end to end.
 
-<Check id="returned" />
+    <Listing
+      path="site/labs/short-time-fourier.cpp"
+      from="// One frame: the newest 2,048 samples, cut out as they are."
+      to="for (int n = 0; n < kBuildFrame; ++n) sum[static_cast<uint32_t>(i + kBuildWait + n) & kBuildMask] += re[n];"
+      mark={['void cut(int i) {', 'void transform() { build_fft.forward(re, im); }', 'void back() {', 'void lay(int i) {']}
+      name="frame"
+    />
 
-<Check id="byHand" />
+    The transform and its inverse undo one another, so nothing is lost. The loop is <Claim id="end-to-end">93 frames</Claim> long, and what they add up to is the sound that went in, <Claim id="built-wire">2,304 samples late, with the difference between the two more than 130 dB under the sound</Claim>. The delay is the wait for a frame to fill.
 
-At its own hop the kit's frames add back to the input <Claim id="returned">more than 135 dB under it</Claim>, at every frame size on the switch. That is as close to nothing as single-precision arithmetic comes. Unaltered, the whole apparatus is a wire with a delay in it.
+    So far this is a slow wire. The trouble is in what a frame's bins hold. Choose the sine in the row of sounds: one frequency and nothing else. Cut square, the frame begins and ends wherever the wave happens to be. The transform treats a frame as one turn of something that goes round for ever, and the jump from the frame's end back to its beginning is in no sine. It takes every frequency to draw a jump, so the one frequency leaks into all the bins: ten bins from its peak the sine still reads <Claim id="leak-square">only 32 dB under it</Claim>.
 
-### 5. What it costs: latency
+    <Spectrum taps="builtBins" linear fMax={2000} min={-100} max={0}>
+      The bins of the frame under "Frame at", up to 2 kHz. Try the sine, and notice the skirts
+      that spread from its peak across the whole picture.
+    </Spectrum>
 
-The delay is not a weakness of the code. A frame cannot be transformed before its last sample has arrived, and by then its first sample is a whole frame old. The kit begins writing a frame out half a hop after it is transformed:
+    <Curve slot="picture" taps="builtFrame" xTitle="seconds into the loop" yTitle="sample value" height={200}>
+      One frame as it was cut. Try "Frame at", and notice that the frame begins and ends at
+      whatever height the wave had there.
+    </Curve>
 
-<M block t={String.raw`\text{latency} = N + \frac{H}{2}`} />
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the frames laid back down. Notice that the second is the first, a
+      little late.
+    </Lanes>
 
-At a frame of 2,048 a unit sample comes out <Claim id="latency">2,304 samples later</Claim>, which is 48 ms. At the other sizes on the switch it is <Claim id="latency-sizes">576, 1,152 and 4,608 samples</Claim> (<Src path="cpp/kit/stft.h" lines="157-164">`kLatency`</Src>).
+  </Step>
+  <Step title="A window" controls="at">
+    The leak comes from the frame's ends, so take the ends away. Multiply the frame by a curve that starts at nothing, rises to 1 in the middle and falls back to nothing. This one is the Hann window, half a turn of a cosine stood on end, which <Lesson id="fourier-transform" /> used for the same reason.
 
-The half hop is there to even out the load. A stereo device has two of these objects, and left alone both would transform on the same sample: four transforms in one block of audio, none in the next few. <Src path="cpp/kit/stft.h" lines="166-167">`init(stagger)`</Src> lets the second channel do its work half a hop after the first, on the very same frames. The extra half hop of latency is the room for that, and both channels have it so that they stay in step. Glimmer's right side runs this way.
+    <Listing
+      path="site/labs/short-time-fourier.cpp"
+      from="// A window: the frame swells from nothing and dies back to nothing."
+      to="for (int n = 0; n < kBuildFrame; ++n) re[n] *= hann[n];"
+      mark="re[n] *= hann[n];"
+      name="window"
+    />
 
-<Controls ids="size" />
+    A frame that begins and ends at nothing has no jump in it. On the sine, the leak ten bins from the peak falls to <Claim id="leak-windowed">74 dB under it</Claim>. The price is a peak three bins wide where it could have been one.
 
-<Wave taps="in through" from={1.99} span={0.08} fit>
-  The note at two seconds going in (grey) and coming back from overlap-add (red). Red is grey, 48 ms late at a frame of 2,048. Change Frame and the gap follows.
-</Wave>
+    <Spectrum taps="builtBins" linear fMax={2000} min={-100} max={0}>
+      The bins of the windowed frame. Try the sine again, and notice that the skirts are gone:
+      the peak stands on a clean floor.
+    </Spectrum>
 
-A device that mixes its altered sound with the untouched sound has to delay the untouched sound by the same amount, or the two no longer line up. <Src path="cpp/kit/stft.h" lines="223">`Stft::dry()`</Src> returns the input of `kLatency` samples ago straight from the ring the frames are cut from, so the delay costs no memory, and the device's manifest states the number (<Src path="cpp/devices/glimmer/glimmer.h" lines="142-143">`latencySamples`, 2304</Src>) so that a host can line other tracks up with it.
+    The bins are now honest, and the sound is now wrong. Every frame fades in and fades out, and the frames still lie end to end, so the sound falls to nothing at every join. It comes back <Claim id="window-dip">4.3 dB quieter</Claim> than it went in, with a dip to nothing at every join. Hear it.
 
-### 6. Altering the frames
+    <Curve slot="picture" taps="builtFrame" xTitle="seconds into the loop" yTitle="sample value" height={200}>
+      The same frame times the window. Notice that it swells from nothing and dies back to
+      nothing, wherever "Frame at" puts it.
+    </Curve>
 
-So far this has been a careful way of doing nothing. The point of it is the gap between stage 2 and stage 4, where the bins lie in two arrays and a device may do as it likes with them. Glimmer does the simplest thing there is to do: it multiplies each bin by a gain.
+    <OverlappingWindows slot="picture" windows="builtWindows" sum="builtWindowSum" xTitle="milliseconds" height={200}>
+      Two frames' length of time. Each hump is one frame's share of what comes back, and the
+      other line is the shares added. Notice that the sum falls to nothing where two frames meet.
+    </OverlappingWindows>
 
-<M block t={String.raw`Y_m[k] = g_m[k]\,X_m[k]`} />
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the frames laid back down. Notice the second lane pinched to
+      nothing again and again along its length.
+    </Lanes>
 
-In <Src path="cpp/devices/glimmer/glimmer.h" lines="577-587">`Glimmer::frame`</Src> that is `re[k] *= g; im[k] *= g;`. Both parts are scaled alike, so the size of the bin changes and its phase does not.
+  </Step>
+  <Step title="Hops" controls="at">
+    The cure is not to take the window off again. It is to take more frames. Move the window on by a quarter of a frame each time, and every sample falls under four frames: where one is fading out, the next are near their tops. The distance from one frame to the next is the hop.
 
-The craft is in <M t="g" />. Glimmer <Src path="cpp/devices/glimmer/glimmer.h" lines="18-30">lays the spectrum out in bands</Src>, even in hertz at the bottom and even in pitch further up, and gives each band a light that rises and falls on a slow clock of its own. Depth is how dark a band goes between flashes, Rate how often it flashes, Grain how narrow the bands are, Pattern <Src path="cpp/devices/glimmer/glimmer.h" lines="59-64">how the bands' clocks are set against one another</Src>. A band's gain is
+    <Listing
+      path="site/labs/short-time-fourier.cpp"
+      from="// Hops: how far the window moves on before the next frame is cut."
+      to="int hop() const { return pieces >= kHops ? kBuildHop : kBuildFrame; }"
+      mark="int hop() const { return pieces >= kHops ? kBuildHop : kBuildFrame; }"
+      name="hops"
+    />
 
-<M block t={String.raw`\begin{gathered} g_j = L_j\,\bigl(1 - d + d\,m_j\bigr) \\[6pt] L_j = \min\Bigl(2,\; 1\big/\sqrt{\overline{(1 - d + d\,m_j)^2}}\Bigr) \end{gathered}`} />
+    The loop is now <Claim id="hops-frames">375 frames</Claim>, four times as many, and the picture made of their bins has four times as many columns. A frame that overlaps its neighbours shares most of its samples with them, so the extra columns add no new facts. They show the same facts moving in smaller steps.
 
-with <M t="m_j" /> the light, from 0 to 1, <M t="d" /> the depth, and <M t="L_j" /> a lift that pays for the dark: it is chosen so that the band's power, averaged over one cycle of its flicker (the bar), is what went in. A bin between two bands takes a blend of their gains, half a cosine wide, so that <M t="g" /> has no edges across the spectrum. A partial is three bins wide (stage 2), and a gain that jumped from one bin to the next would cut through the middle of it. The gains are worked out once a frame, in <Src path="cpp/devices/glimmer/glimmer.h" lines="481-574">`prepare`</Src>. This lesson sets three of the device's refinements aside so that the picture is plain: every band flickers as deeply as the next (Lean 0), every flash is as tall as the last (Vary 0), and the two sides move as one (Apart 0).
+    Four Hann windows a quarter of a frame apart add up to the same number at every sample, and the number is 2. So the flutter is gone, and the sound comes back <Claim id="hops-double">6.0 dB louder</Claim> than it went in: twice as large, and otherwise right.
 
-<Controls ids="depth rate grain pattern" />
+    <OverlappingWindows slot="picture" windows="builtWindows" sum="builtWindowSum" max={2.2} xTitle="milliseconds" height={200}>
+      Each hump is one frame's share, a quarter of a frame after the last. Notice that four of
+      them lie over every moment, and that their sum is a level line at 2.
+    </OverlappingWindows>
 
-<Spectrogram tap="gains" min={-18} max={6} top={6000}>
-  Glimmer's gain for every bin of every frame, up to 6 kHz. The page's colour is silence and red is the top of a flash. On Upward each band flashes a sixth of a cycle after the band below it, so the light climbs. On Scatter every band keeps its own time.
-</Spectrogram>
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the frames laid back down. Notice that the second lane has the
+      shape of the first again, at twice the height.
+    </Lanes>
 
-<Check id="gainRebuilt" />
+  </Step>
+  <Step title="Overlap and add" controls="at">
+    Halving every frame would put the level right. The engine's kit does something else, and this step does as the kit does: it multiplies each frame by the window a second time, on its way out, and then scales it.
 
-A bin's gain is a local of the device's frame function and is gone when the function returns. The lab works it out again from the band gains the device does keep, and the check holds that to something it did not compute: the size of each bin as the device left it, over the size of the same bin of the same frame as the kit transformed it for the lab. The two agree <Claim id="gain-rebuilt">within 0.001 dB</Claim>. What this does to the loop is the second picture at the top of the page. Three measurements pin it down. With Depth at 0 every gain is 1 and the device is stage 4 with a name on it: its output is the input 2,304 samples late, with the difference between them <Claim id="depth-zero">more than 135 dB under the input</Claim>. At full Depth, white noise, whose bands are all equally full, comes out <Claim id="level-held">within 0.1 dB of the level it went in at</Claim> while each band in turn falls to silence: that is the lift. And at the top of its flash a band stands <Claim id="flash">4.9 dB over its input</Claim>, which is what the lift costs.
+    <Listing
+      path="site/labs/short-time-fourier.cpp"
+      from="// Overlap and add: the window a second time on the way out, and the scale"
+      to="for (int n = 0; n < kBuildFrame; ++n) re[n] *= hann[n] * scale;"
+      mark={['const float scale = 8.0f / (3.0f * kBuildOverlap);', 're[n] *= hann[n] * scale;']}
+      name="again"
+    />
 
-### 7. The phase between frames, and what a gain does to an attack
+    A frame's share of the output is now the window squared: once for the way in, once for the way out. Four squared windows a hop apart add up to a constant as well, a smaller one, and the scale in the listing is what turns it into 1. With that the frames add back to the input, after the same delay as before, <Claim id="built-back">more than 130 dB under it</Claim>. It is also the output of the kit's own class on the same loop, with the difference between the two <Claim id="built-kit">more than 130 dB under the sound</Claim>.
 
-Scaling a bin and leaving its phase alone is a deliberate restraint, and the reason lies in how neighbouring frames agree with one another. Take a steady partial at <M t="b" /> bins' worth of frequency, where <M t="b" /> is rarely a whole number. From one frame to the next, <M t="H" /> samples on, it has turned by
+    As long as nobody touches the bins, the second window buys nothing that a half would not. It is there for the next step. A frame whose bins have been changed does not come back shaped like the window any more: what was changed spreads round the whole frame, ends included. Laid down as it is, such a frame throws sound a long way from where it belongs. The second window pulls the ends back to nothing whatever was done in between. The lab puts one sample through changed frames both ways. With the second window, <Claim id="second-window">nothing further than 21 ms from the sample is over −79 dB; without it, −64 dB</Claim>.
 
-<M block t={String.raw`\Delta\varphi = 2\pi\,b\,\frac{H}{N}`} />
+    <Curve taps="clickWet:alt clickBare:out" min={-0.002} max={0.002} xTitle="milliseconds from the sample's own moment" yTitle="sample value" height={200}>
+      One sample through changed frames, with the second window and without it, magnified until
+      only the far ends fit: the middle runs off the picture. Notice that with the second window
+      the curve has died away well inside the picture's edges, and without it the ripple runs
+      on to them.
+    </Curve>
 
-and the bin it shows in reports that turn in its phase. Four overlapping frames add back to one smooth sine only because each carries the phase of the one before, moved on by exactly this much. A device that scales bins keeps that agreement without thinking about it. One that writes phases of its own has to keep the account itself, bin by bin, or frames cancel where they should add. Keeping it is what a *phase vocoder* does.
+    <OverlappingWindows slot="picture" windows="builtWindows" sum="builtWindowSum" xTitle="milliseconds" height={200}>
+      Each hump is now a window squared, and scaled. Notice that the humps are narrower than in
+      the step before, and that their sum is a level line at 1.
+    </OverlappingWindows>
 
-Read backwards, the same relation says more about a partial than its bin can. The bin <M t="k" /> only says that the partial lies within a bin or so of <M t={String.raw`k f_s/N`} />. The turn says where:
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the frames laid back down. Notice that the two lanes are the same
+      again, the second a little late.
+    </Lanes>
 
-<M block t={String.raw`b = k + \operatorname{princarg}\!\Bigl(\Delta\varphi - 2\pi k\tfrac{H}{N}\Bigr)\cdot\frac{N}{2\pi H}`} />
+  </Step>
+  <Step title="Change the bins" controls="at depth rate grain pattern">
+    Everything so far has been a careful way of doing nothing. The point of it is the moment in the middle, when a frame lies in two arrays as bins and anything may be done to them. The simplest thing to do is to multiply each bin by a gain of its own.
 
-with princarg bringing an angle into ±π. This is <Src path="cpp/kit/stft.h" lines="270-290">`Stft::advance_to_bin`</Src>, and the lab calls it on the loudest bin of every frame.
+    <Listing
+      path="site/labs/short-time-fourier.cpp"
+      from="// Change the bins: each one times a gain."
+      to="im[kBuildFrame - k] = -im[k];"
+      mark={['re[k] *= gain[k];', 'im[k] *= gain[k];']}
+      name="change"
+    />
 
-<Trace taps="loudest:alt turning:out" unit="Hz">
-  The centre of the loudest bin (green), which can only stand on multiples of 23.4 Hz, and the frequency worked out from how far that bin's phase turned since the frame before (red), which can stand anywhere. On the guitar both follow the tune, a few hertz apart. Choose the sine as the source and they separate into two level lines.
-</Trace>
+    The gains used here are Glimmer's, read out of the running device frame by frame. Part 5 opens up how it chooses them, and the four controls that appear with this step are the ones that shape them. With this piece the build is the device's own frames: on every render the lab compares the two, and they differ by <Claim id="built-same">more than 130 dB under the sound</Claim>.
 
-The 440 Hz sine lies between bins 18 and 19. <Claim id="phase-440">Its loudest bin is centred on 445.3 Hz, and the turn of that bin's phase reads 440.0 Hz</Claim>.
+    <Check id="builtDifference" />
 
-Steady partials survive a gain per bin, because a bin or three is all a steady partial is. An attack is the opposite case. One unit sample, inside a frame, is every bin at the same size, with the phases set so that all those sinusoids cancel at every sample of the frame but one. Turn some bins down and leave their neighbours up, and the cancelling fails: what was hidden everywhere in the frame comes out everywhere in the frame. And since a gain turns no phase, it comes out as much before the sample as after it.
+    A gain on a bin is a level change for whatever lives in that bin. A sine lives in one place, so when its band flashes the whole sine swells: its highest sample comes out <Claim id="built-swell">4.7 dB over the input's</Claim>, where the step before returned it unchanged.
 
-<Curve taps="clickWet:alt clickOut:out" xMin={-8} xMax={8} xTitle="milliseconds from the sample's own moment" yTitle="sample value" height={240}>
-  One unit sample put into a second copy of Glimmer at rest, at the settings above, and the 16 ms around the moment it comes out. Green is the sum of the device's altered frames, read out of its Stft's ring. Red is what the device puts out. Raise Grain and the green ripple runs further out both ways.
-</Curve>
+    <Spectrum taps="builtBins builtChanged:out" linear fMax={4000} min={-100} max={0}>
+      One frame's bins as they came from the transform and as they go back. Try "Frame at", and
+      notice which peaks are pushed down and which are lifted in that frame.
+    </Spectrum>
 
-In the frames' sum the sample comes out <Claim id="click-smear">0.77 high, with a fifth of its energy ahead of it and as much behind</Claim>, and the largest sample ahead is <Claim id="click-ahead">14.5 dB under the one that went in</Claim>. Sound ahead of its own attack is the artefact that work on frames is known for.
+    <Spectrogram slot="picture" tap="builtPicture" top={4000} min={-96} max={-24} height={220}>
+      The bins that go back, a column for every frame. Try Depth at 0, and notice the dashes
+      join up into the lines of the sound that went in.
+    </Spectrogram>
 
-Glimmer does not try to mend the frames. It goes round them. It watches its input for attacks (<Src path="cpp/devices/glimmer/glimmer.h" lines="359-385">`next_segment`</Src>: the squared step from sample to sample, summed 64 samples at a time, jumping to three times the largest sum of the 2,048 samples before), and it has the latency in hand: an attack it has just seen will not be heard for another 2,304 samples. So ahead of each one it fades its output across to the delayed dry sound, and back again afterwards, `out = dry + Mix · (1 − pass) · (wet − dry)`. The red curve above is the result: the unit sample comes out <Claim id="click-passed">whole, with nothing ahead of it over −80 dB</Claim>. From <Claim id="attack-dry">21 ms ahead of an attack to 6 ms after it</Claim> the output is the input, sample for sample, 2,304 late: for that long there is no flicker at all, on the attack or on whatever else was sounding under it.
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the changed frames laid back down. Try Grain at 0, and notice the
+      second lane swell and shrink in broad waves.
+    </Lanes>
 
-<Trace taps="pass" min={0} max={1}>
-  How far the device has turned to the dry sound across the loop, where 1 is all dry. Every picked note of the guitar opens the pass. <Claim id="steady-never">The steady sine, saw and noise never do</Claim>.
-</Trace>
+  </Step>
+</Build>
 
-## What goes wrong
+Here are the five pieces where they meet. `run` takes one sample and gives one back, and on a sample where a frame is due it calls the pieces in the order a frame meets them. The three calls to `watch` are where the lab takes its pictures of the frame.
 
-**Latency.** Nothing built on frames answers sooner than a frame. Glimmer's 48 ms has to be made up somewhere, and a host shifts every other track to meet it. The engine's part is to be exact about it: a fixed number, stated in the manifest, with the dry path delayed to match.
+<Listing
+  path="site/labs/short-time-fourier.cpp"
+  from="float run(int i, float x, const float* gain, Watch&& watch) {"
+  to="return pass(i, x);"
+  mark={['if (pieces >= kWindow) window();', 'if (pieces >= kChange) change(gain);', 'if (pieces >= kOverlapAdd) again();']}
+  name="run"
+/>
 
-**Sound ahead of the attack.** Depth sets how much of an attack leaves its place: <Claim id="smear-depth">3 % of the unit sample's energy lies ahead of it at Depth 0.5 and 21 % at full Depth</Claim>. Grain sets how far it goes: <Claim id="smear-grain">5 samples ahead on average at Grain 0 and 62 at Grain 1</Claim>. The engine's answer here is to pass attacks round the frames altogether, and its cost is the flicker missing around every attack.
+The build has no control for the length of the frame or of the hop. Those belong to the next part, where the kit's own class runs at four sizes.
 
-**A hop too long.** When the windows do not add up to a constant, the frames put a tremolo of their own on everything, at the rate of the hop. At a hop of half a frame the output is <Claim id="half-hop-error">wrong by an amount only 12.5 dB under the signal</Claim>, and a steady sine at a frame of 2,048 grows <Claim id="half-hop-sidebands">a side tone 46.9 Hz either side of it, 15.6 dB under it</Claim>. The kit's `static_assert` makes this a mistake that cannot be compiled.
+</Part>
 
-**A sound that lives in one band.** The lift holds a band's level over a whole cycle of its flicker, not from moment to moment. Where many bands sound at once their flashes and gaps average out. A lone 440 Hz sine has nothing to average with, and its highest sample comes out <Claim id="sine-swells">4.7 dB over the input's</Claim> while its level over the loop is unchanged. Anything that alters frames can raise peaks it never meant to.
+<Part id="engine" title="The kit's frames, and a device that alters them.">
 
-## What to try
+Everything from here on is the engine's own code. `kit::Stft` is the class that every device on frames is built on: it cuts, windows, transforms, hands the bins over, and adds the frames back. Glimmer is one such device. The page compiles both and runs your loop through them, and each figure is read out of the running code at the point the text is talking about. Under each stage is a line saying where it comes from: computed by the kit, read from the running device, or written for this lesson, in which case a check holds it to something the engine does keep.
 
-- The guitar, then the chords, with **Frame** at 512 and at 4,096. Watch the picture in stage 3 trade sharp beginnings for thin harmonics.
-- The clicks, and **Frame** from 512 to 4,096: one sample becomes a stripe a whole frame wide, and stage 5's gap grows with it.
-- The sine, **Hop** at a half, and <Listen tap="added">the overlap-add by hand</Listen>. Then back to a quarter.
-- **Depth** at 0. The picture of stage 6 goes flat and <Listen tap="out">the output</Listen> is the input, 48 ms late.
-- The chords with **Pattern** on Scatter, and **Grain** from 1 down to 0. Narrow bands let single harmonics come and go; broad ones move whole regions together.
-- The drums, and the last figure of stage 7, to see where the pass opens.
+<Flow
+  label="The sound is cut into windowed frames, each frame is transformed, every bin is multiplied by a gain, and the frames are transformed back and added. The same sound, delayed, goes round the frames, and a watch for attacks decides how much of each reaches the output."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'split', shape: 'dot', from: 'in' },
+    { id: 'cut', from: 'split', tap: 'frame', label: 'Cut and window', n: 1, signal: 'value' },
+    { id: 'fft', from: 'cut', tap: 'bins', label: 'Transform', n: 2, signal: 'value' },
+    { id: 'picture', row: -1, from: 'fft', tap: 'picture', label: 'Side by side', n: 3, signal: 'value' },
+    { id: 'gain', from: 'fft', tap: 'gains', label: 'Times a gain', n: 6, signal: 'value' },
+    { id: 'back', from: 'gain', tap: 'wet', label: 'Back and add', n: 4 },
+    { id: 'watch', row: 1, from: 'split', tap: 'pass', label: 'Watch for attacks', n: 9, signal: 'value' },
+    { id: 'cross', label: 'Cross-fade', from: ['back', 'split', 'watch'], n: 9 },
+    { id: 'out', tap: 'out', shape: 'end', from: 'cross' },
+  ]}
+>
+  Along the middle the sound becomes frames, then bins, then sound again. The path that goes
+  round the frames carries the same sound, delayed to match. Press a stage's button below, and
+  notice its block light up here.
+</Flow>
+
+<StageBlock tap="frame" n={1} title="A window slides along in hops">
+  A transform needs a stretch of sound with a beginning and an end. The stretch is a frame of <M t="N" /> samples, and a new one is taken every <M t="H" /> samples, the hop. Each frame is multiplied by the Hann window before anything else, for the reason step 2 of the build showed.
+
+  <Controls ids="at size" />
+
+  <Curve taps="frameRaw:in window:ctl frame:out" xTitle="seconds into the loop" yTitle="sample value" height={240}>
+    One frame of the loop as the kit cut it, the window drawn at the frame's own height, and
+    the two multiplied, which is what gets transformed. Try "Frame at", and notice the window
+    slide along the loop a hop at a time, since those are the only places a frame begins.
+  </Curve>
+
+  The picture as a formula, with <M t="m" /> counting the frames:
+
+  <M
+    block
+    t={String.raw`\begin{gathered} \sig{out}{x_m[n]} = \sig{ctl}{w[n]}\;\sig{in}{x[mH + n]} \\[6pt] \sig{ctl}{w[n]} = \tfrac12 - \tfrac12\cos\frac{2\pi n}{N}, \quad n = 0 \ldots N-1 \end{gathered}`}
+  />
+
+  Read it against the picture. <M t="x[mH + n]" /> is the loop, read from where frame <M t="m" /> begins: the line that is cut off square at both ends. <M t="w[n]" /> is the hump, which is 0 at the frame's first sample, 1 in its middle and nearly 0 again at its last. Their product is the third line, which hugs the first in the middle of the frame and shrinks to nothing at the ends.
+
+  In the code there is no array of frames at all. <Src path="cpp/kit/stft.h" at="float process(float x, OnFrame&& on_frame) {">`Stft::process`</Src> takes one sample and gives one back, keeps the last two frames' worth of input in a ring, and every `Hop` samples calls `analyse_frame`, listed here, which reads the newest <M t="N" /> samples out of the ring through the table `window_`. At Glimmer's size a frame lasts <Claim id="frame-length">42.7 ms</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/stft.h"
+    from="// The frame that ended `stagger` samples ago, windowed, into re_ and im_."
+    to="for (int k = 1; k < kHalf; ++k) im_[k] = re_[Frame - k];"
+    mark="fft_.forward_real([input, window, start](int n) { return input[(start + n) & kMask] * window[n]; }, re_);"
+    name="analyse"
+  />
+</StageBlock>
+
+<StageBlock tap="bins" n={2} title="Each frame is transformed">
+  Every windowed frame goes through the transform of <Lesson id="fourier-transform" />. A frame is real, so the upper half of its spectrum mirrors the lower, and only the lower half and the two ends are kept: <Src path="cpp/kit/stft.h" at="static constexpr int kBins = Frame / 2 + 1;">`kBins`</Src>, which is 1,025 complex numbers from 2,048 samples. The kit hands them to the device as two arrays, `re` and `im`, to change in place.
+
+  <Spectrum taps="bins:out" min={-120} max={0}>
+    The bins of the one frame of stage 1, across the whole range of hearing. Try the sine in
+    the row of sounds, and notice how little there is beside its one peak: the window at work.
+  </Spectrum>
+
+  <M block t={String.raw`\sig{out}{X_m[k]} = \sum_{n=0}^{N-1} x_m[n]\,e^{-2\pi i\,kn/N}`} />
+
+  Read it against the picture. <M t="k" /> counts along the bottom: bin <M t="k" /> stands at <M t={String.raw`k f_s / N`} /> hertz, so at this size the bins are <Claim id="bin-spacing">23.4 Hz</Claim> apart. <M t="X_m[k]" /> is one point of the frame's line: how much of that frequency frame <M t="m" /> holds. The sum is the question of the earlier lesson, asked of this frame's samples alone.
+
+  Two conventions matter to anything that reads those arrays. The sum is not divided by anything, so a full-scale sine exactly on a bin reads <Src path="cpp/kit/stft.h" at="static constexpr float kFullScale = 0.25f * Frame;">a quarter of the frame's length</Src> there: the window lets half its amplitude through, and the mirrored half of the spectrum holds half of that. The figures here are in decibels against that number, and such a sine reads <Claim id="on-a-bin">0 dB on its bin, −6.02 dB in each neighbour and nothing anywhere else</Claim>. A partial is three bins wide before any device has touched it. And each bin's phase is counted from the frame's first sample, which stage 7 needs.
+
+  <Check id="transformed" />
+
+  The windowed frame of stage 1 is the lab's own product, because the kit multiplies by the window inside its transform and keeps no copy. The check puts that product through the kit's plain transform and compares it with the bins the kit handed over: they are <Claim id="transformed">the same to the last digit the lab counts</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/stft.h"
+    from="static constexpr int kFrame = Frame;"
+    to="static constexpr float kFullScale = 0.25f * Frame;"
+    name="sizes"
+  />
+</StageBlock>
+
+<StageBlock tap="picture" n={3} title="The frames side by side">
+  Stand each frame's bins on end, set the frames in the order they were taken, shade by level, and that is the spectrogram of part 2. At a frame of 2,048 the loop's four seconds are <Claim id="frames-count">375 frames</Claim>. Here it is for its lowest 1.5 kHz, so that the rows can be told apart.
+
+  <Controls ids="size" />
+
+  <Spectrogram tap="picture" top={1500} min={-96} max={-24} height={280}>
+    The lowest 1.5 kHz of every frame. Try Frame at 512 and at 4,096, and notice the rows: fat
+    bars with sharp beginnings at the short frame, thin lines with blurred beginnings at the
+    long one.
+  </Spectrogram>
+
+  The frame's length sets both grains of the picture at once. Bins are <M t={String.raw`f_s/N`} /> apart, and a frame lasts <M t={String.raw`N/f_s`} /> seconds, so
+
+  <M block t={String.raw`\Delta f \cdot T = \frac{f_s}{N}\cdot\frac{N}{f_s} = 1`} />
+
+  Read it against the picture. <M t={String.raw`\Delta f`} /> is the height of one row and <M t="T" /> is the length of time one frame covers. Their product is 1 whatever <M t="N" /> is: halve the height of the rows and every frame takes twice as long. A row is <Claim id="row-heights">93.75 Hz high at a frame of 512 and 11.7 Hz at 4,096</Claim>. No setting escapes the trade. Choosing a frame is choosing which blur to live with.
+
+  Two measurements put numbers on it. <Claim id="two-tones">Two tones 30 Hz apart are two peaks at a frame of 4,096 and one lump at 2,048 and under</Claim>. And the single sample of part 1 lights four columns at every size, because <M t="N/H" /> frames lie over any one sample: a frame's length of time in all.
+</StageBlock>
+
+<StageBlock tap="added" n={4} title="Adding the frames back">
+  The transform loses nothing. The inverse transform of a frame's bins is the windowed frame again, so the way back to sound is to invert every frame and add each one in where it was cut from. As step 4 of the build showed, the kit multiplies the frame by the window a second time before adding, so that a frame whose bins were changed still ends at nothing.
+
+  <Controls ids="hop size" />
+
+  <OverlappingWindows windows="windows" sum="windowSum" xTitle="milliseconds">
+    Two frames' length of time. Each hump is one frame's share of the output: its window
+    squared, once for the way in and once for the way out. The other line is all of them added
+    and scaled. Try Hop at each of its three settings, and notice whether that line stays level.
+  </OverlappingWindows>
+
+  <M block t={String.raw`y[n] = c \sum_m w[n - mH]\;\hat{x}_m[n - mH]`} />
+
+  Here <M t={String.raw`\hat{x}_m`} /> is frame <M t="m" /> after the inverse transform, and <M t="c" /> is a scale still to be found. With nothing altered, <M t={String.raw`\hat{x}_m[n - mH] = w[n - mH]\,x[n]`} />, and the sum comes apart:
+
+  <M block t={String.raw`y[n] = x[n]\cdot \sig{out}{c\sum_m \sig{alt}{w^2[n - mH]}}`} />
+
+  Read it against the picture. Each <M t={String.raw`\sig{alt}{w^2[n - mH]}`} /> is one hump. The sum over <M t="m" /> adds the humps that lie over the moment <M t="n" />, and with the scale it is the line across the top. The sound comes back exactly when that line is level at 1: then <M t="y[n]" /> is <M t="x[n]" /> and nothing else.
+
+  For the Hann window, <M t={String.raw`w^2[n] = \tfrac38 - \tfrac12\cos\tfrac{2\pi n}{N} + \tfrac18\cos\tfrac{4\pi n}{N}`} />. Add <M t="K = N/H" /> copies of it, each a hop further on. The constant adds up to <M t="3K/8" />. The first cosine cancels from two copies up. The second goes round twice in a frame and needs at least three. A quarter of a frame is therefore the longest hop that is a power of two and works, and there the squared windows add up to <Claim id="hann-squared-sum">1.5, and at an eighth to 3</Claim>. The kit folds all of it into one constant, <Src path="cpp/kit/stft.h" at="static constexpr float kOutputScale = 8.0f / (3.0f * kOverlap * Frame);">`kOutputScale`</Src>, which is <M t={String.raw`8/(3K)`} /> to undo the sum, over <M t="N" /> because its inverse transform is unscaled. At a quarter hop and at an eighth the line is <Claim id="window-sum">flat at 1</Claim>. At a half it <Claim id="half-hop-swing">swings between two thirds and four thirds</Claim>, once every hop.
+
+  The kit will not build with a hop of half a frame: a <Src path="cpp/kit/stft.h" at="static_assert((Hop & (Hop - 1)) == 0 && Hop >= 2 && Hop * 4 <= Frame,">`static_assert`</Src> on its template stops it. So Hop drives the lab's own overlap-add, written by hand: window, window, scale, add. With nothing altered the two transforms undo one another and are left out. At the kit's hops the hand version is the kit's own output: the difference between them lies <Claim id="by-hand">more than 130 dB under the signal</Claim>.
+
+  <Wave taps="through:alt added:out" from={1.1} span={0.1} fit>
+    A tenth of a second after overlap-add: the kit's, and by hand at the hop chosen above. Try
+    Hop at a half, and notice the hand version swell and shrink once every hop while the kit's
+    does not.
+  </Wave>
+
+  <Check id="returned" />
+
+  <Check id="byHand" />
+
+  At its own hop the kit's frames add back to the input <Claim id="returned">more than 135 dB under it</Claim>, at every size Frame offers. That is as close to nothing as single-precision arithmetic comes. Unaltered, the whole apparatus is a wire with a delay in it.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/stft.h"
+    from="// Even samples in the real parts, odd ones in the imaginary."
+    to="output_[(at + 1) & kMask] += zi[m] * kOutputScale * window_[2 * m + 1];"
+    mark={['output_[at & kMask] += zr[m] * kOutputScale * window_[2 * m];', 'output_[(at + 1) & kMask] += zi[m] * kOutputScale * window_[2 * m + 1];']}
+    name="add"
+  />
+  <Fragment slot="listen">Hear the frames added back by hand, at this hop</Fragment>
+</StageBlock>
+
+<StageBlock tap="through" n={5} title="What it costs: the wait">
+  The delay is not a weakness of the code. A frame cannot be transformed before its last sample has arrived, and by then its first sample is a whole frame old. The kit begins writing a frame out half a hop after the frame's last sample.
+
+  <Controls ids="size" />
+
+  <Wave taps="in through:out" from={1.99} span={0.08} fit>
+    The note at two seconds going in, and coming back from overlap-add. Try Frame at each size,
+    and notice the gap between the two follow it.
+  </Wave>
+
+  <M block t={String.raw`\sig{out}{y[n]} = \sig{in}{x\bigl[n - N - \tfrac{H}{2}\bigr]}`} />
+
+  Read it against the picture. The second line is the first, moved to the right by a frame and half a hop. At a frame of 2,048 a single sample comes out <Claim id="latency">2,304 samples later, which is 48 ms</Claim>. At the other sizes Frame offers it is <Claim id="latency-sizes">576, 1,152 and 4,608 samples</Claim>.
+
+  The half hop is there to even out the load. A stereo device has two of these objects, and left alone both would transform on the same sample: four transforms in one block of audio, none in the next few. <Src path="cpp/kit/stft.h" at="void init(int stagger = 0) {">`init(stagger)`</Src> lets the second channel do its work half a hop after the first, on the very same frames. The extra half hop of latency is the room for that, and both channels have it so that they stay in step. Glimmer's right side runs this way.
+
+  A device that mixes its altered sound with the untouched sound has to delay the untouched sound by the same amount, or the two no longer line up. <Src path="cpp/kit/stft.h" at="float dry() const { return input_[(position_ - 1 - kLatency) & kMask]; }">`Stft::dry()`</Src> returns the input of `kLatency` samples ago straight from the ring the frames are cut from, so the delay costs no memory. The device's manifest states the number, <Src path="cpp/devices/glimmer/glimmer.h" at="static constexpr int kLatency = Stft::kLatency;">`latencySamples`</Src>, so that a host can line other tracks up with it.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/stft.h"
+    from="// One sample in, one out. `on_frame(float* re, float* im)` is called first"
+    to="float dry() const { return input_[(position_ - 1 - kLatency) & kMask]; }"
+    mark="float dry() const { return input_[(position_ - 1 - kLatency) & kMask]; }"
+    name="process"
+  />
+  <Fragment slot="listen">Hear the kit's frames added back, nothing altered</Fragment>
+</StageBlock>
+
+<StageBlock tap="gains" n={6} title="Altering the frames: a gain for every bin">
+  Between stage 2 and stage 4 the bins lie in two arrays, and a device may do as it likes with them. Glimmer does the simplest thing there is to do: it multiplies each bin by a gain.
+
+  <Controls ids="depth rate grain pattern" />
+
+  <Spectrogram tap="gains" min={-18} max={6} top={6000}>
+    Glimmer's gain for every bin of every frame, up to 6 kHz: the page's own shade is silence,
+    and the strongest shade is the top of a flash. Try Pattern on Scatter, and notice every
+    band keep its own time where on Upward the light climbs.
+  </Spectrogram>
+
+  <M block t={String.raw`Y_m[k] = \at{gain-L584}{g_m[k]}\,X_m[k]`} />
+
+  Read it against the picture. <M t="g_m[k]" /> is one point of it: column <M t="m" />, row <M t="k" />. In the listing that is `re[k] *= g; im[k] *= g;`. Both parts of the bin are scaled alike, so its size changes and its phase does not.
+
+  The craft is in <M t="g" />. Glimmer lays the spectrum out in bands, even in hertz at the bottom and even in pitch further up, and gives each band a light that rises and falls on a slow clock of its own. Depth is how dark a band goes between flashes, Rate how often it flashes, Grain how narrow the bands are, Pattern how the bands' clocks are set against one another. A band's gain is
+
+  <M
+    block
+    t={String.raw`\begin{gathered} g_j = L_j\,\bigl(1 - d + d\,m_j\bigr) \\[6pt] L_j = \min\Bigl(\at{lift-L517}{2},\; 1\big/\sqrt{\overline{(1 - d + d\,m_j)^2}}\Bigr) \end{gathered}`}
+  />
+
+  with <M t="m_j" /> the light, from 0 to 1, <M t="d" /> the depth, and <M t="L_j" /> a lift that pays for the dark. The bar is an average over one cycle of the flicker: the lift is chosen so that the band's power, averaged over a cycle, is what went in. At the top of its flash a band therefore stands <Claim id="flash">4.9 dB over its input</Claim>, which is what the lift costs.
+
+  <Listing
+    path="cpp/devices/glimmer/glimmer.h"
+    from="const float d = depth * share;"
+    to="swing_[j] = lift * d;"
+    mark="const float lift = kit::min(kMaxLift, 1.0f / std::sqrt(power));"
+    name="lift"
+  />
+
+  A bin between two bands takes a blend of their gains, half a cosine wide, so that <M t="g" /> has no edges across the spectrum. A partial is three bins wide, as stage 2 showed, and a gain that jumped from one bin to the next would cut through the middle of it. This lesson starts with three of the device's refinements set aside so that the picture is plain: every band flickers as deeply as the next (Lean at 0), every flash is as tall as the last (Vary at 0), and the two sides move as one (Apart at 0).
+
+  <Check id="gainRebuilt" />
+
+  A bin's gain is a local of the device's frame function and is gone when the function returns. The lab works it out again from the band gains the device does keep, and the check holds that to something it did not compute: the size of each bin as the device left it, over the size of the same bin of the same frame as the kit transformed it for the lab. The two agree <Claim id="gain-rebuilt">within 0.001 dB</Claim>. And with Depth at 0 every gain is 1 and the device is stage 5 with a name on it: its output is the input 2,304 samples late, with the difference between them <Claim id="depth-zero">more than 135 dB under the input</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/glimmer/glimmer.h"
+    from="// One frame of channel c: every bin times its place between two bands' gains."
+    to="im[k] *= g;"
+    mark={['re[k] *= g;', 'im[k] *= g;']}
+    name="gain"
+  />
+</StageBlock>
+
+<StageBlock tap="turning" n={7} title="The phase between frames">
+  Scaling a bin and leaving its phase alone is a deliberate restraint, and the reason lies in how neighbouring frames agree with one another. Take a steady partial at <M t="b" /> bins' worth of frequency, where <M t="b" /> is rarely a whole number. From one frame to the next, <M t="H" /> samples on, it has turned by
+
+  <M block t={String.raw`\Delta\varphi = 2\pi\,b\,\frac{H}{N}`} />
+
+  and the bin it shows in reports that turn in its phase. Four overlapping frames add back to one smooth sine only because each carries the phase of the one before, moved on by exactly this much. A device that scales bins keeps that agreement without thinking about it. One that writes phases of its own has to keep the account itself, bin by bin, or frames cancel where they should add. Keeping it is what a phase vocoder does.
+
+  Read backwards, the same relation says more about a partial than its bin can. The bin <M t="k" /> only says that the partial lies within a bin or so of <M t={String.raw`k f_s/N`} />. The turn says where:
+
+  <M
+    block
+    t={String.raw`\sig{out}{b} = \sig{alt}{k} + \operatorname{princarg}\!\Bigl(\Delta\varphi - 2\pi k\tfrac{H}{N}\Bigr)\cdot\frac{N}{2\pi H}`}
+  />
+
+  with princarg bringing an angle into ±π. The lab calls the kit's function for this, listed below, on the loudest bin of every frame.
+
+  <Trace taps="loudest:alt turning:out" unit="Hz">
+    The centre of the loudest bin, which can only stand on a bin, and the frequency worked out
+    from how far that bin's phase turned since the frame before, which can stand anywhere. Try
+    the sine in the row of sounds, and notice the two separate into two level lines.
+  </Trace>
+
+  Read the formula against the picture. <M t="k" /> is the line that moves in steps. The second term is the correction: how much further, or less far, the phase turned than a partial at the bin's exact centre would have turned it. The 440 Hz sine lies between two bins. <Claim id="phase-440">Its loudest bin is centred on 445.3 Hz, and the turn of that bin's phase reads 440.0 Hz</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/stft.h"
+    from="static float advance_to_bin(int bin, float advance) {"
+    to="return bin_to_hz(advance_to_bin(bin, advance), sample_rate);"
+    mark="return static_cast<float>(bin) + princarg(advance - own) * (kOverlap / kTwoPi);"
+    name="advance"
+  />
+</StageBlock>
+
+<StageBlock tap="wet" n={8} title="What a gain does to an attack">
+  Steady partials survive a gain per bin, because a bin or three is all a steady partial is. An attack is the opposite case. One single sample, inside a frame, is every bin at the same size, with the phases set so that all those sinusoids cancel at every sample of the frame but one. Turn some bins down and leave their neighbours up, and the cancelling fails: what was hidden everywhere in the frame comes out everywhere in the frame. And since a gain turns no phase, it comes out as much before the sample as after it.
+
+  <Controls ids="depth grain" />
+
+  <Curve taps="clickWet:alt clickOut:out" xMin={-8} xMax={8} xTitle="milliseconds from the sample's own moment" yTitle="sample value" height={240}>
+    One sample of full height put into a second copy of Glimmer at rest, and the 16 ms around
+    the moment it comes out: the sum of the device's altered frames, and what the device puts
+    out. Try Grain higher, and notice the ripple of the frames' sum run further out both ways.
+  </Curve>
+
+  In the frames' sum the sample comes out <Claim id="click-smear">0.77 high, with a fifth of its energy ahead of it and as much behind</Claim>, and the largest sample ahead is <Claim id="click-ahead">14.5 dB under the one that went in</Claim>. Sound ahead of its own attack is the artefact that work on frames is known for. The build's frames, fed the same sample and the same gains, give the same curve: the two differ by <Claim id="click-rebuilt">more than 130 dB under the curve itself</Claim>.
+
+  <Check id="clickRebuilt" />
+
+  <Fragment slot="listen">Hear the altered frames alone, attacks and all</Fragment>
+</StageBlock>
+
+<StageBlock tap="pass" n={9} title="Going round the attacks">
+  Glimmer does not try to mend the frames. It goes round them. It watches its input for attacks, and it has the latency in hand: an attack it has just seen will not be heard for another 2,304 samples. So ahead of each one it fades its output across to the delayed dry sound, and back again afterwards.
+
+  <Trace taps="pass" min={0} max={1}>
+    How far the device has turned to the dry sound across the loop, where 1 is all dry. Try the
+    drums, the pad and the sine in the row of sounds, and notice which of them open the pass.
+  </Trace>
+
+  <M
+    block
+    t={String.raw`\sig{out}{\text{out}} = \text{dry} + \text{Mix}\cdot\bigl(1 - \sig{ctl}{\text{pass}}\bigr)\cdot(\text{wet} - \text{dry})`}
+  />
+
+  Read it against the picture. Where the line is at 0 the device puts out the altered frames, as far as Mix allows. Where the line is at 1 the bracket is 0 and the output is the dry sound alone: the input, 2,304 samples late. In between the two are cross-faded.
+
+  The watch itself is in <Src path="cpp/devices/glimmer/glimmer.h" at="void next_segment(uint32_t q) {">`next_segment`</Src>. It sums the squared step from sample to sample over <Src path="cpp/devices/glimmer/glimmer.h" at="static constexpr int kSegment = 64;">64 samples at a time</Src>, and calls a sum an attack when it is <Src path="cpp/devices/glimmer/glimmer.h" at="static constexpr float kAttackRise = 3.0f;">three times</Src> the largest of the <Src path="cpp/devices/glimmer/glimmer.h" at="static constexpr int kLookSegments = 32;">32 sums before it</Src>. A held note has little step from sample to sample, and a struck one has a great deal.
+
+  The second curve of stage 8 is the result. The single sample comes out <Claim id="click-passed">whole, with nothing ahead of it over −80 dB</Claim>. From <Claim id="attack-dry">21 ms ahead of an attack to 6 ms after it</Claim> the output is the input, sample for sample, 2,304 late: for that long there is no flicker at all, on the attack or on whatever else was sounding under it. <Claim id="steady-never">The steady sine, saw and noise never open the pass</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/glimmer/glimmer.h"
+    from="pass_ += kit::clamp(pass_goal_ - pass_, -1.0f / kPassFall, 1.0f / kPassRise);"
+    to="out[c] = dry + (wet - dry) * mix;"
+    mark={['const float mix = mix_.next() * (1.0f - passing);', 'out[c] = dry + (wet - dry) * mix;']}
+    name="cross"
+  />
+</StageBlock>
+
+<StageBlock tap="out" n={10} title="What comes out">
+  The output is the cross-fade of stage 9: Glimmer's frames where the sound holds still, the plain sound around every attack, and the whole of it 2,304 samples behind the input. Put through the kit's frames once more, as a picture, it can be set beside the spectrogram of stage 3.
+
+  <Spectrogram tap="pictureOut" top={4000} min={-96} max={-24}>
+    The loop out of Glimmer, up to 4 kHz. Every harmonic is broken into dashes, and on Upward
+    the gaps climb. Try Depth lower in stage 6, and notice the dashes join up again.
+  </Spectrogram>
+
+  <Fragment slot="listen">Hear what comes out</Fragment>
+</StageBlock>
+
+### Every stage that has a time axis, at once
+
+Here is the device with its controls live. The lanes are the sound going in, the kit's frames added back with nothing altered, Glimmer's altered frames added back, the pass, and the output.
+
+<Controls ids="depth rate grain pattern lean soft vary apart mix" />
+
+<Lanes taps="in through wet pass out" ranges={{ pass: [0, 1] }}>
+  Five stages on one time axis. Try Depth at 0, and notice the third lane become the second.
+  Try the drums, and notice the pass rise ahead of every hit.
+</Lanes>
+
+The stages that are frames have no lane here. A frame, its bins and the picture made of them are not one value against time, and each has its own figure above.
+
+</Part>
+
+<Part id="ways" title="Five things to do with frames and a gain.">
+
+Each card sets the page and plays. The first four are settings of Glimmer. The fifth is about the pictures, and changes nothing you hear.
+
+<Ways>
+  <Way title="Let single partials come and go" tag="Grain at its top, on Scatter" set="narrow">
+    At the top of Grain a band is <Src path="cpp/devices/glimmer/glimmer.h" at="static constexpr float kFineHz = 47.0f;">47 Hz wide at the bottom of the spectrum</Src>, two bins. Each partial of a chord then has a band nearly to itself. On Scatter they come and go one at a time, each on its own clock, and the chord under them holds its level. Listen for single harmonics stepping forward and back.
+  </Way>
+  <Way title="Move whole regions together" tag="Grain at 0, a slow Rate" set="tide">
+    At the bottom of Grain a band is <Src path="cpp/devices/glimmer/glimmer.h" at="static constexpr float kBroadHz = 120.0f;">120 Hz wide at the bottom</Src> and about an octave wide further up, so a few broad bands cover everything. A whole region of the chord now rises and falls as one. Slowed down, it is less a flicker than a tide. Listen for the brightness of the pad coming and going.
+  </Way>
+  <Way title="Keep some of the plain sound" tag="Depth at a half" set="shade">
+    Depth is how dark a band goes between its flashes. At a half no band goes silent: every band moves between <Claim id="half-depth">3.4 dB under its input and 2.6 dB over it</Claim>. The flicker becomes a sheen on the sound, and much less of each attack is thrown ahead of itself, as part 7 measures.
+  </Way>
+  <Way title="Start where the device starts" tag="Scatter, with Lean, Vary and Apart" set="own">
+    This lesson begins with three refinements turned off so that the pattern can be read. The device itself begins with them on. Lean keeps the lows steadier than the highs. Vary lets some flashes come dim. Apart moves the two sides differently, so the flicker spreads between the speakers. The table in part 9 sets the two starting points side by side.
+  </Way>
+  <Way title="Choose the frame for what you want to see" tag="Frame, for the pictures only">
+    Frame changes how this page's pictures are taken and never what Glimmer does, since the device's frame is fixed in its code. For a picture of drums, where the question is when, take the shortest. For a chord, where the question is which notes, take the longest. Stage 3 of part 5 is the place to try both on one loop.
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Four faults, and what the engine does about each.">
+
+<Faults>
+  <Fault title="Sound ahead of the attack" set="smear">
+    A changed frame spreads an attack over the whole frame, before it as well as after. Depth sets how much of an attack leaves its place: <Claim id="smear-depth">3 % of a single sample's energy lies ahead of it at Depth 0.5 and 21 % at full Depth</Claim>. Grain sets how far it goes: <Claim id="smear-grain">5 samples ahead on average at Grain 0 and 62 at Grain 1</Claim>. This card plays the drums through the frames alone, with nothing passed round them. Listen for a breath before each hit. What to do: lower Depth, or do as Glimmer does and send attacks round the frames. Then <Listen tap="out">hear them passed round</Listen> on the same drums.
+  </Fault>
+  <Fault title="A hop too long" set="halfhop">
+    When the squared windows do not add up to a constant, the frames put a tremolo of their own on everything, at the rate of the hop. With the hop at half a frame the guitar loop comes back <Claim id="half-hop-error">wrong by an amount only 12.5 dB under the signal</Claim>, and a steady sine grows <Claim id="half-hop-sidebands">a side tone 46.9 Hz either side of it, 15.6 dB under it</Claim>. This card plays the sine that way. Listen for a buzz under the tone. What to do: keep the hop to a quarter of the frame or less. The kit's `static_assert` makes this a mistake that cannot be compiled.
+  </Fault>
+  <Fault title="A sound that lives in one band" set="lone">
+    The lift holds a band's level over a whole cycle of its flicker, not from moment to moment. Where many bands sound at once, their flashes and gaps average out. A lone sine has nothing to average with: its highest sample comes out <Claim id="sine-swells">4.7 dB over the input's</Claim> while its level over the loop is unchanged. Anything that alters frames can raise peaks it never meant to. What to do: leave room above a plain sound, lower Depth, or keep such a device for sounds with many partials.
+  </Fault>
+  <Fault title="It is always late">
+    Nothing built on frames answers sooner than a frame. A part played through Glimmer by hand is heard a frame and half a hop after the key went down, and no setting shortens that. What to do: use it on tracks that are already recorded, where a host shifts every other track to meet the delay. The engine's part is to be exact about it: one fixed number, stated in the manifest, with the dry path delayed to match.
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="A longer frame gives a better picture.">
+    It gives thinner rows and wider columns, and the two always trade one for one. The prediction in part 1 shows the same note at two sizes, and stage 3 of part 5 has the measurements: two close tones that only the longest frame tells apart, and a single sample that the longest frame smears widest.
+  </Myth>
+  <Myth says="A spectrogram shows everything that is in the sound.">
+    It shows the size of every bin and throws the phase away, which is half of what the transform found. Stage 7 reads a sine's true frequency from the phase alone, to a tenth of a hertz, where the picture can only say which bin it is in.
+  </Myth>
+  <Myth says="Going into frames and back again loses something.">
+    Unaltered, the frames add back to the input to the last digits a float holds: step 4 of the build measures it, and stage 4 of part 5 measures the kit's own. Every loss on this page comes from what is done to the bins in between.
+  </Myth>
+  <Myth says="A faster computer would shrink the delay.">
+    The wait is for the frame to fill, not for the sums to be done. Stage 5 shows the delay as a frame and half a hop at every size, and it would be the same on any machine. Only a shorter frame shortens it, and a shorter frame has taller rows.
+  </Myth>
+  <Myth says="The window is there to stop clicks where frames join.">
+    On the way in it is there for the bins: step 2 of the build shows the leak of a square cut and what the window does to it. Only the second window, on the way out, is about the joins, and it matters only once the bins have been changed, as step 4 shows.
+  </Myth>
+  <Myth says="More overlap is always better.">
+    With nothing altered, an eighth of a frame returns the input exactly as a quarter does: stage 4 holds both to the kit. It costs <Src path="cpp/kit/stft.h" at="real time a channel at 48 kHz whatever the size (twice that at an eighth),">twice the work</Src>. More overlap earns its cost only in devices that move bins about and need each frame to agree more closely with the last.
+  </Myth>
+</Myths>
+
+</Part>
