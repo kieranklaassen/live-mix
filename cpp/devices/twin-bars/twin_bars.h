@@ -45,10 +45,12 @@
 //   turned down by the root of the count: n keys at full strength add up as
 //   the root of n and one key is never turned down. Overtones are not
 //   counted, so Mallet and Tone mean the same on one key as in a chord.
-//   Sixteen keys at full strength struck on one sample, at the default
-//   Mallet and Tone, stay under the soft clip's knee, where the clip would
+//   Sixteen keys of a chord at full strength struck on one sample, at the
+//   default patch, stay under the soft clip's knee, where the clip would
 //   make tones of its own in each ear; with the hardest mallet and the
 //   brightest Tone they reach it (0.75 of full scale for metal, 0.94 for wood).
+//   Sixteen ids on one pitch pass it at the default patch, and a preset's
+//   Volume is outside the law: WEAK.md has the figures.
 //
 // Bar, Mallet and Scatter are read when a key is struck; the rest are live.
 // The first key after every bar has rung out restarts the control clock and
