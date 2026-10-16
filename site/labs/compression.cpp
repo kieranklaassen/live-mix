@@ -167,7 +167,7 @@ struct Built {
   // for. On each reading it covers a fixed share of the distance: the
   // attack's share when more reduction is asked for, the release's when
   // less. With Tails on Hold the release waits while the sound dies away,
-  // which is while the level is 1.5 dB or more under its own average.
+  // which is while the level is more than 1.5 dB under its own average.
   void follow() {
     slow = flush_denormal(level + (slow - level) * slow_coeff);
     if (slow < level - AmbientComp::kDyingDb) slow = level - AmbientComp::kDyingDb;

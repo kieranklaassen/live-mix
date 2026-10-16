@@ -75,6 +75,39 @@ function quietest(x: Float32Array): number {
   return at
 }
 
+/** The tops of a level's notes: the points that nothing within 120 ms either side stands over. */
+function tops(level: Float32Array): number[] {
+  const near = points(0.12)
+  const found: number[] = []
+  for (let k = 0; k < level.length; k += 1) {
+    const around = range(level, Math.max(0, k - near), Math.min(level.length, k + near))
+    if (level[k]! === around.hi && (found.length === 0 || k - found.at(-1)! > near)) found.push(k)
+  }
+  return found
+}
+
+/** The sample of a tap that stands furthest from zero, from `from` up to `to`. */
+function loudest(x: Float32Array, from = 0, to = x.length): number {
+  let at = from
+  for (let i = from; i < to; i += 1) if (Math.abs(x[i]!) > Math.abs(x[at]!)) at = i
+  return at
+}
+
+/** The gain the device has on one sample, in dB: what came out against what went in. */
+const gainOn = (result: RenderResult, sample: number) =>
+  gainToDb(Math.abs(tap(result, 'out')[sample]! / tap(result, 'in')[sample]!))
+
+/** How much taller the loudest sample of a stretch comes out than the loudest that went in, in dB. */
+function taller(result: RenderResult, fromSeconds: number, toSeconds: number): number {
+  const [from, to] = [seconds(fromSeconds), seconds(toSeconds)]
+  const dry = tap(result, 'in')
+  const wet = tap(result, 'out')
+  return (
+    gainToDb(Math.abs(wet[loudest(wet, from, to)]!)) -
+    gainToDb(Math.abs(dry[loudest(dry, from, to)]!))
+  )
+}
+
 /** The gain the device has on the sound, sample by sample, in dB: the least and the most. */
 function applied(result: RenderResult) {
   const dry = tap(result, 'in')
@@ -125,7 +158,8 @@ describe('compression', () => {
 
   it('brings a tone 12 dB over the threshold at 4:1 out 3 dB over it (claim ratio-4), which the measured curve shows as −21 dB out for −12 dB in (claim curve-reads)', async () => {
     const comp = await lab('compression')
-    const out = comp.render(sineAt(-12, seconds(2)), hard)
+    // At the lesson's starting values, as the sentence says: Threshold −24 dB, Ratio 4.
+    const out = comp.render(sineAt(-12, seconds(2)), {})
     expectWritten(12 + mean(tap(out, 'reduction')), '3 dB')
     // The curve has a point a dB from −60 to 0: the one at −12 dB in, at the starting values.
     const curve = tap(comp.render(sineAt(-12, seconds(0.5)), {}), 'curve')
@@ -172,16 +206,21 @@ describe('compression', () => {
     // And with the tails held, where the release pauses.
     const chords = await benchSource('chords', seconds(4))
     expect(comp.render(chords, { tails: 0, release: 1 }).checks.rebuilt).toBeLessThan(0.001)
-    expect(comp.render(step(-6), { ...hard, attack: 100 }).checks.rebuilt).toBeLessThan(0.1)
+    expect(comp.render(step(-6), { ...hard, attack: 100 }).checks.rebuilt).toBeLessThan(0.001)
   })
 
-  it('takes 39 ms to bring down 63 % of the reduction at the shortest attack (claim attack-floor)', async () => {
+  it('takes 39 ms to bring down 63 % of the reduction at the shortest attack, for a tone 18 dB over the threshold that starts from silence (claim attack-floor)', async () => {
     const comp = await lab('compression')
+    // A tone at −6 dB against a threshold of −24 dB: 18 dB over, 13.5 dB of reduction at 4:1.
     const out = comp.render(step(-6), hard)
     expectWritten(riseMs(tap(out, 'reduction'), -13.5), '39 ms')
+    // The time is the tone's as well as the control's: the level has further to climb to a
+    // threshold it will stand less far over, so a tone 6 dB over takes longer.
+    const nearer = comp.render(step(-18), hard)
+    expect(riseMs(tap(nearer, 'reduction'), -4.5)).toBeGreaterThan(60)
   })
 
-  it('takes 134 ms at an attack of 100 ms: the detector adds its own rise (claim attack-100)', async () => {
+  it('takes 134 ms at an attack of 100 ms for the same tone, 18 dB over the threshold: the detector adds its own rise (claim attack-100)', async () => {
     const comp = await lab('compression')
     const out = comp.render(step(-6), { ...hard, attack: 100 })
     expectWritten(riseMs(tap(out, 'reduction'), -13.5), '134 ms')
@@ -196,6 +235,24 @@ describe('compression', () => {
     const from = one.length - 300
     expectWritten(range(one, from, one.length).span, '0.42 dB')
     expectWritten(range(two, from, two.length).span, '0.02 dB')
+  })
+
+  it('on the saw wave of the bench ripples once a cycle after one pole, 110 times a second, and far less after two: what the still of stage 3 shows', async () => {
+    const comp = await lab('compression')
+    const result = comp.render(await benchSource('saw', seconds(4)), { ratio: 1, scLowCut: 20 })
+    const one = tap(result, 'levelOnePole')
+    const two = tap(result, 'level')
+    // The 60 ms the still shows, from 3 s.
+    const [from, to] = [points(3), points(3.06)]
+    const middle = mean(one, from, to)
+    let crests = 0
+    for (let k = from + 1; k < to; k += 1)
+      if (one[k - 1]! < middle && one[k]! >= middle) crests += 1
+    // A saw at 110 Hz squared repeats 110 times a second, 6.6 times in 60 ms; a sine would
+    // ripple at twice its frequency, 13 times.
+    expect(crests).toBeGreaterThanOrEqual(6)
+    expect(crests).toBeLessThanOrEqual(7)
+    expect(range(two, from, to).span).toBeLessThan(0.1 * range(one, from, to).span)
   })
 
   it("lets a tone at the corner of the detector's high-pass through 3.0 dB down (claim corner-3db) and one an octave under it 12.3 dB down (claim octave-under)", async () => {
@@ -219,11 +276,26 @@ describe('compression', () => {
     expect(drawn.channels_data[0]![at(45)]!).toBeLessThan(-11)
   })
 
-  it('holds the gain down while a chord rings away with Tails on Hold, 20.0 dB down just before the next strike, where on Release it has come back to 0.9 dB (claim tails-hold)', async () => {
+  it('holds the gain down while a chord rings away with Tails on Hold, between 19 dB and 20 dB down all through the loop and 20.0 dB down just before the next strike, where on Release it has come back to 0.9 dB (claim tails-hold)', async () => {
     const comp = await lab('compression')
     const before = points(1.9)
-    expectWritten(-tap(await played(comp, 'evened', { tails: 0 }), 'reduction')[before]!, '20.0 dB')
+    const held = tap(await played(comp, 'evened', { tails: 0 }), 'reduction')
+    expectWritten(-range(held).hi, '19 dB')
+    expectWritten(-range(held).lo, '20 dB')
+    expectWritten(-held[before]!, '20.0 dB')
     expectWritten(-tap(await played(comp, 'evened', { tails: 1 }), 'reduction')[before]!, '0.9 dB')
+  })
+
+  it('with Release at 20 s keeps the gain 19.1 dB down just before the second strike of the chords, and the strike and the end of the ring come out 34.4 dB apart, no closer than the 34 dB they went in (claim way-tail)', async () => {
+    const comp = await lab('compression')
+    const long = await played(comp, 'evened', { release: 20 })
+    expectWritten(-tap(long, 'reduction')[points(1.9)]!, '19.1 dB')
+    expectWritten(range(tap(long, 'meterOut')).span, '34.4 dB')
+    expectWritten(range(tap(long, 'meterIn')).span, '34 dB')
+    // The card's own release, 0.3 s, is what brings them closer: 26.3 dB (claim evened-lift).
+    expect(
+      matchesWritten(range(tap(await played(comp, 'evened'), 'meterOut')).span, '34.4 dB'),
+    ).toBe(false)
   })
 
   it('shows the gain between readings as the device holds its aim and as it ramps: the aim moves once in 16 samples, the ramp on every one, and they meet 16 samples on', async () => {
@@ -333,17 +405,22 @@ describe('compression', () => {
       { threshold: -40, ratio: 10, knee: 0, makeup: 9, mix: 0.4 },
       { scLowCut: 300, attack: 100, makeup: -6, mix: 0.5 },
     ]
-    for (const id of [...LOOPS, 'saw', 'noise', 'clicks']) {
+    // Every loop the page offers, and the bench's clicks.
+    for (const id of [...LOOPS, 'saw', 'noise', 'sine', 'clicks']) {
       const source = await benchSource(id, seconds(4))
       for (const values of tried) {
-        // Whatever step the reader is on, the build with every piece is what is compared.
-        const result = comp.render(source, { ...values, build: id === 'drums' ? 2 : 6 })
+        const result = comp.render(source, { ...values, build: 6 })
         expect(result.checks.builtStep).toBe(6)
         expect(result.checks.builtBound).toBe(-120)
         expect(result.checks.builtDifference).toBeLessThan(-120)
-        if (id === 'drums') continue
         const out = tap(result, 'out')
         expect(tap(result, 'built').every((v, i) => v === out[i])).toBe(true)
+        // Whatever step the reader is on, the build with every piece is what is compared.
+        if (id === 'drums') {
+          const earlier = comp.render(source, { ...values, build: 2 })
+          expect(earlier.checks.builtStep).toBe(6)
+          expect(earlier.checks.builtDifference).toBeLessThan(-120)
+        }
       }
     }
     // A tone after a second of silence: the device rests in the silence and forgets what it
@@ -404,7 +481,7 @@ describe('compression', () => {
     expectWritten(turnedDown(comp, sineAt(-12, seconds(2)), { ...values, build: 3 }), '9.0 dB')
   })
 
-  it('at the fifth step takes 39 ms to bring a tone from silence 63 % of the way down, where the step before took 27 ms: the time the level takes to be read (claim build-times)', async () => {
+  it('at the fifth step takes 39 ms to bring a tone 18 dB over the threshold from silence 63 % of the way down, where the step before took 27 ms: the time the level takes to be read (claim build-times)', async () => {
     const comp = await lab('compression')
     const rise = (values: Record<string, number>) =>
       riseMs(tap(comp.render(step(-6), { ...hard, ...values }), 'builtGain'), -13.5)
@@ -437,6 +514,8 @@ describe('compression', () => {
     expectWritten(turnedDown(comp, tone, { ...values, build: 5 }), '0.0 dB')
     expectWritten(turnedDown(comp, tone, { ...values, build: 4 }), '9.0 dB')
     expect(matchesWritten(turnedDown(comp, tone, { ...values, build: 4 }), '0.0 dB')).toBe(false)
+    // A tone under the threshold and its knee is only lifted: it comes out 9 dB louder.
+    expectWritten(-turnedDown(comp, sineAt(-40, seconds(2)), { ...values, build: 5 }), '9.0 dB')
   })
 
   it('at the seventh step, with Mix at 0.5 and Make-up at 0 dB, leaves that tone 3.4 dB down, where the step before left it 9.0 dB down (claim build-mix)', async () => {
@@ -452,11 +531,21 @@ describe('compression', () => {
   it('on the drums dips the built gain 5.9 dB at the third step and lets it back to 0 dB between hits, and at the fifth dips it 5.7 dB and never lets it back above 0.3 dB down (claim build-drums)', async () => {
     const comp = await lab('compression')
     const drums = await benchSource('drums', seconds(4))
-    const gain = (build: number) => range(tap(comp.render(drums, { build }), 'builtGain'))
+    const built = (values: Record<string, number>) => tap(comp.render(drums, values), 'builtGain')
+    const gain = (build: number) => range(built({ build }))
     expectWritten(-gain(2).lo, '5.9 dB')
     expect(gain(2).hi).toBe(0)
+    // Back at 0 dB before the next hit: within a quarter of a second of its deepest point.
+    const third = built({ build: 2 })
+    const deepest = quietest(third)
+    expect(range(third, deepest, deepest + points(0.25)).hi).toBe(0)
     expectWritten(-gain(4).lo, '5.7 dB')
     expectWritten(-gain(4).hi, '0.3 dB')
+    // The piece out: at the step before, the fourth, both numbers are the third step's again.
+    expect(matchesWritten(-gain(3).lo, '5.7 dB')).toBe(false)
+    expect(matchesWritten(-gain(3).hi, '0.3 dB')).toBe(false)
+    // With Release at its longest the gain stays down across the gaps, as the step's caption says.
+    expect(range(built({ build: 4, release: 20 })).hi).toBeLessThan(-5)
   })
 
   // ---- the named sets: what each card plays, and the number its card states -------------------
@@ -482,11 +571,23 @@ describe('compression', () => {
     expectWritten(level.hi, '−17.7 dB')
     expectWritten(level.lo, '−51.7 dB')
     expectWritten(level.span, '34 dB')
+    // Two chords, two seconds apart: the meter is at its highest a tenth of a second or so after
+    // each strike, and at its lowest just before the second.
+    const meter = tap(await played(comp, 'played'), 'meterIn')
+    const half = points(2)
+    const top = (from: number) => {
+      let at = from
+      for (let k = from; k < from + half; k += 1) if (meter[k]! > meter[at]!) at = k
+      return at
+    }
+    expect(Math.abs(top(half) - top(0) - half)).toBeLessThan(points(0.05))
+    expect(Math.abs(quietest(meter) - half)).toBeLessThan(points(0.05))
   })
 
   it('turned up 10 dB by a fader alone, puts the loudest sample more than 4 dB over full scale and leaves the same 34 dB between loud and quiet (claim fader-over)', async () => {
     const comp = await lab('compression')
     const result = await played(comp, 'fader')
+    expectWritten(levelOf(result, 'out') - levelOf(result, 'in'), '10 dB')
     expectWritten(topOf(result, 'out'), 'more than 4 dB')
     expectWritten(range(tap(result, 'meterOut')).span, '34 dB')
     // A ratio of 1 is a wire: nothing is turned down.
@@ -503,6 +604,10 @@ describe('compression', () => {
     expectWritten(range(coming).hi - range(going).hi, '1.5 dB')
     expectWritten(range(coming).span, '26.3 dB')
     expectWritten(-topOf(result, 'out'), '1 dB')
+    // Between the two the picture's lines cross: half a second after the strike the gain is
+    // still further down than the make-up lifts, and the ring comes out lower than it went in.
+    expect(coming[points(0.5)]!).toBeLessThan(going[points(0.5)]! - 3)
+    expect(coming[points(1.5)]!).toBeGreaterThan(going[points(1.5)]! + 3)
     // The piece out (a ratio of 1) is the fader of the claim before: nothing closer together.
     expect(
       matchesWritten(range(tap(await played(comp, 'fader'), 'meterOut')).span, '26.3 dB'),
@@ -524,6 +629,10 @@ describe('compression', () => {
     const drums = await ridden('drums')
     expectWritten(-drums.lo, '9 dB')
     expectWritten(-drums.hi, 'less than 0.5 dB')
+    // It is not back there before every hit: before the hit at 1 s it is still far down.
+    const riding = tap(await played(comp, 'drums'), 'reduction')
+    expect(riding[points(0.99)]!).toBeLessThan(-5)
+    expect(riding[points(1.99)]!).toBeGreaterThan(-0.5)
     const bass = await ridden('bass')
     expectWritten(-bass.lo, '6.3 dB')
     expectWritten(-bass.hi, '0.8 dB')
@@ -536,6 +645,59 @@ describe('compression', () => {
     const pad = await ridden('pad')
     expectWritten(-pad.lo, '4.6 dB')
     expectWritten(-pad.hi, '4.1 dB')
+  })
+
+  it('on the bass card leans hardest on the loudest notes: their tops went in 5.4 dB apart and come out less than 4 dB apart (claim use-bass-evened)', async () => {
+    const comp = await lab('compression')
+    const result = await played(comp, 'bass')
+    const going = tap(result, 'meterIn')
+    const coming = tap(result, 'meterOut')
+    const reduction = tap(result, 'reduction')
+    const notes = tops(going)
+    expect(notes.length).toBe(10)
+    // A note's top coming out is looked for from 50 ms before its top going in to 100 ms after.
+    const out = notes.map((k) => range(coming, Math.max(0, k - points(0.05)), k + points(0.1)).hi)
+    expectWritten(range(notes.map((k) => going[k]!)).span, '5.4 dB')
+    expectWritten(range(out).span, 'less than 4 dB')
+    // The gain is lowest under the loudest notes: in the half second after the loudest top the
+    // reduction is more than a decibel deeper than it is over the loop as a whole.
+    const loudestTop = notes.reduce((a, b) => (going[b]! > going[a]! ? b : a))
+    expect(mean(reduction, loudestTop, loudestTop + points(0.5))).toBeLessThan(mean(reduction) - 1)
+  })
+
+  it('on the line card takes most off the two notes the player digs into: the two loudest tops are followed by the two deepest dips of the gain', async () => {
+    const comp = await lab('compression')
+    const result = await played(comp, 'line')
+    const going = tap(result, 'meterIn')
+    const reduction = tap(result, 'reduction')
+    const notes = tops(going)
+    const dip = (k: number) => range(reduction, k, Math.min(reduction.length, k + points(0.15))).lo
+    const byLevel = [...notes].sort((a, b) => going[b]! - going[a]!)
+    const byDip = [...notes].sort((a, b) => dip(a) - dip(b))
+    expect(new Set(byDip.slice(0, 2))).toEqual(new Set(byLevel.slice(0, 2)))
+    // And the gain dips at every note: each top is followed by a dip at least 0.5 dB under the
+    // gain's highest point.
+    for (const k of notes) expect(dip(k)).toBeLessThan(range(reduction).hi - 0.5)
+  })
+
+  it('on the drums card lets the hit at 2 s, after the longest gap, out 2.6 dB taller than it went in, and the hit at 1 s, close behind another, 3.6 dB smaller (claim use-drums-fronts)', async () => {
+    const comp = await lab('compression')
+    const result = await played(comp, 'drums')
+    expectWritten(taller(result, 2, 2.25), '2.6 dB')
+    expectWritten(-taller(result, 1, 1.25), '3.6 dB')
+    // What the card's still shows of its two seconds: the hits at the start and at 1 s come out
+    // smaller, the three between and after them taller.
+    expect(taller(result, 0, 0.25)).toBeLessThan(-1)
+    for (const at of [0.5, 0.75, 1.5]) expect(taller(result, at, at + 0.25)).toBeGreaterThan(1)
+    // The front of a hit goes through at the gain the hit before it left: on the loudest sample
+    // of each of those two hits the gain is within 0.1 dB of what it was 2 ms before the hit.
+    const gain = tap(result, 'gain')
+    const makeup = settings.sets.drums!.values!.makeup!
+    for (const at of [1, 2]) {
+      const peak = loudest(tap(result, 'in'), seconds(at), seconds(at + 0.01))
+      const before = gain[points(at - 0.002)]!
+      expect(Math.abs(gainOn(result, peak) - makeup - before)).toBeLessThan(0.1)
+    }
   })
 
   it('with a slower attack lets more of each hit through: the gain dips 9.3 dB at 60 ms and 11.3 dB at 10 ms (claim way-hit)', async () => {
@@ -570,13 +732,28 @@ describe('compression', () => {
     expectWritten(-short.lo, '20.6 dB')
     const long = range(tap(await played(comp, 'pump', { release: 1 }), 'reduction'))
     expectWritten(-long.hi, '10.1 dB')
+    expectWritten(-long.lo, '20.6 dB')
   })
 
-  it('lets the front of a hit through: the loudest sample comes out 0.5 dB lower while the gain goes 11.3 dB down behind it (claim fault-front)', async () => {
+  it('lets the front of a hit through: the gain goes as far as 11.3 dB down, the loudest sample that comes out stands 0.5 dB under the loudest that went in, and the loudest that went in, close behind another hit, comes out 6.4 dB down (claim fault-front)', async () => {
     const comp = await lab('compression')
     const result = await played(comp, 'front')
-    expectWritten(topOf(result, 'in') - topOf(result, 'out'), '0.5 dB')
     expectWritten(-range(tap(result, 'reduction')).lo, '11.3 dB')
+    // The loudest sample coming out is the front of a hit that follows a gap.
+    const through = loudest(tap(result, 'out'))
+    expectWritten(-gainOn(result, through), 'less than 0.5 dB')
+    expectWritten(topOf(result, 'in') - topOf(result, 'out'), '0.5 dB')
+    // The loudest sample going in is the front of another hit, which follows one closely.
+    const met = loudest(tap(result, 'in'))
+    expect(Math.abs(met - through)).toBeGreaterThan(seconds(0.5))
+    expectWritten(-gainOn(result, met), '6.4 dB')
+    // Neither front was turned down by its own hit: 2 ms before each, the gain was already
+    // within 0.1 dB of what the front met.
+    const gain = tap(result, 'gain')
+    for (const sample of [through, met]) {
+      const before = gain[(Math.floor(sample / 16) - 6 + gain.length) % gain.length]!
+      expect(Math.abs(gainOn(result, sample) - before)).toBeLessThan(0.1)
+    }
   })
 
   it('with the threshold under everything never lets go: the gain is never less than 9.0 dB down, and the loudest sample stands 26.8 dB over the level where it stood 18.4 dB over it (claim fault-flat)', async () => {
@@ -585,6 +762,10 @@ describe('compression', () => {
     expectWritten(-range(tap(result, 'reduction')).hi, '9.0 dB')
     expectWritten(crest(result, 'in'), '18.4 dB')
     expectWritten(crest(result, 'out'), '26.8 dB')
+    // The loudest sample coming out is the front of the hit that met the least reduction of the
+    // loop: 9.0 dB down, under 12 dB of make-up.
+    const makeup = settings.sets.flat!.values!.makeup!
+    expectWritten(makeup - gainOn(result, loudest(tap(result, 'out'))), '9.0 dB')
   })
 
   it("starts the page's device table from the device's own defaults: the settings file's defaults, laid over the lab's starting values, are device.json's", async () => {
