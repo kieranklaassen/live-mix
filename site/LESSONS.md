@@ -2,11 +2,11 @@
 
 A lesson is three files with one name, such as `07-compression`:
 
-| File | What it is |
-| --- | --- |
-| `labs/<name>.cpp` | The lab: the engine's own C++ with a tap on every stage. |
-| `tests/labs/<name>.test.ts` | The lab's tests: every number the lesson states is held here. |
-| `src/content/lessons/<name>.mdx` | The lesson: the words, the equations, the figures. |
+| File                             | What it is                                                    |
+| -------------------------------- | ------------------------------------------------------------- |
+| `labs/<name>.cpp`                | The lab: the engine's own C++ with a tap on every stage.      |
+| `tests/labs/<name>.test.ts`      | The lab's tests: every number the lesson states is held here. |
+| `src/content/lessons/<name>.mdx` | The lesson: the words, the equations, the figures.            |
 
 Compression is the pattern. Read its three files before writing another:
 [labs/07-compression.cpp](labs/07-compression.cpp),
@@ -104,7 +104,7 @@ void lab_render(int frames) {  // every time a control moves
   `// lab-memory-mb: 128` and `// lab-arena-mb: 96` give a lab more room.
 - **A stage made by the engine's TypeScript** (the room of lesson 15) is `kEngine`. The page
   runs the engine's function and hands the result to the lab as a second signal: `#define
-  LAB_AUX` ahead of `lab.h`, then `lab::aux(channel)` and `lab::aux_frames()`.
+LAB_AUX` ahead of `lab.h`, then `lab::aux(channel)` and `lab::aux_frames()`.
   `src/lab/room.ts` is the one such hand-over there is.
 - **A lab that plays by itself** (an instrument, an oscillator) ignores `lab::in_at` and its
   lesson names `sources: [none]`. `labs/bench.cpp` shows how notes are played into the
@@ -152,15 +152,15 @@ title: Compression
 order: 7
 summary: One or two sentences, for the index and the page's description.
 lab: 07-compression
-devices: [ambient-comp]          # the device pages that will link here
+devices: [ambient-comp] # the device pages that will link here
 bench:
   device: ambient-comp
-  params: { threshold: -24, ratio: 4 }   # by the device's own control ids (cpp/devices/<id>/device.json)
-  as: insert                     # or send (a device that puts out the wet signal only), or instrument
+  params: { threshold: -24, ratio: 4 } # by the device's own control ids (cpp/devices/<id>/device.json)
+  as: insert # or send (a device that puts out the wet signal only), or instrument
   note: How these settings differ from the device's defaults, in a sentence.
-sources: [drums, guitar, chords, saw, noise, sine]   # the first is what the page opens on
-seconds: 4                       # the loop's length, at most 8
-files:                           # every file of the engine the lesson talks about
+sources: [drums, guitar, chords, saw, noise, sine] # the first is what the page opens on
+seconds: 4 # the loop's length, at most 8
+files: # every file of the engine the lesson talks about
   - cpp/devices/ambient-comp/ambient_comp.h
 ```
 
@@ -183,21 +183,21 @@ real device" (the bench) and the play bar. The lesson writes the rest, in this o
 
 The components, which need no import:
 
-| Component | What it shows |
-| --- | --- |
-| `<Stages taps="in level gain out" />` | The strip of stages, each with a small picture and a Listen button where it is sound. |
-| `<Controls ids="threshold ratio" />` | Sliders (or a switch, for a control with choices). |
-| `<Wave taps="in out" from={1} span={0.05} fit stems>` | Audio taps against time. `from` and `span` in seconds; `fit` scales to the loudest; `stems` draws samples as dots on stems. |
-| `<Trace taps="level reduction" lines="threshold" min={-60} max={0} unit="dB">` | Control taps against time. `lines` draws controls as level lines. |
+| Component                                                                                                                         | What it shows                                                                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<Stages taps="in level gain out" />`                                                                                             | The strip of stages, each with a small picture and a Listen button where it is sound.                                                                                      |
+| `<Controls ids="threshold ratio" />`                                                                                              | Sliders (or a switch, for a control with choices).                                                                                                                         |
+| `<Wave taps="in out" from={1} span={0.05} fit stems>`                                                                             | Audio taps against time. `from` and `span` in seconds; `fit` scales to the loudest; `stems` draws samples as dots on stems.                                                |
+| `<Trace taps="level reduction" lines="threshold" min={-60} max={0} unit="dB">`                                                    | Control taps against time. `lines` draws controls as level lines.                                                                                                          |
 | `<Curve taps="curve" xTitle="..." yTitle="..." min max xMin xMax diagonal stems follow="level" uprights="threshold" lines="...">` | Curve taps, y against x. A tap whose `scale` is `kLog` is drawn on a logarithmic axis. `follow` is a control tap: a dot rides the curve at its value while the loop plays. |
-| `<Spectrum taps="in out" uprights="cutoff" min={-96} max={0} fMin fMax linear>` | The spectrum of audio taps (the page works it out) or of spectrum taps. |
-| `<Spectrogram tap="picture" top={8000} min={-90} max={0}>` | A frames tap: frequency up, time across, level as colour. |
-| `<Check id="rebuilt" />` | A check's value, live. |
-| `<Claim id="x">3 dB</Claim>` | A stated quantity. A test names it. |
-| `<Src path="cpp/kit/filters.h">the kit's `Svf`</Src>` | A link to the file at this commit. `lines="40-62"` for a range. |
-| `<M t={String.raw`y[n] = a\,y[n-1]`} />` | An equation; with `block`, on a line of its own. Always `String.raw`. |
-| `<Listen tap="out">Hear the output</Listen>` | A button in the text. |
-| `<Aside title="...">` | A box beside the run of the text. |
+| `<Spectrum taps="in out" uprights="cutoff" min={-96} max={0} fMin fMax linear>`                                                   | The spectrum of audio taps (the page works it out) or of spectrum taps.                                                                                                    |
+| `<Spectrogram tap="picture" top={8000} min={-90} max={0}>`                                                                        | A frames tap: frequency up, time across, level as colour.                                                                                                                  |
+| `<Check id="rebuilt" />`                                                                                                          | A check's value, live.                                                                                                                                                     |
+| `<Claim id="x">3 dB</Claim>`                                                                                                      | A stated quantity. A test names it.                                                                                                                                        |
+| `<Src path="cpp/kit/filters.h">the kit's `Svf`</Src>`                                                                             | A link to the file at this commit. `lines="40-62"` for a range.                                                                                                            |
+| `<M t={String.raw`y[n] = a\,y[n-1]`} />`                                                                                          | An equation; with `block`, on a line of its own. Always `String.raw`.                                                                                                      |
+| `<Listen tap="out">Hear the output</Listen>`                                                                                      | A button in the text.                                                                                                                                                      |
+| `<Aside title="...">`                                                                                                             | A box beside the run of the text.                                                                                                                                          |
 
 A figure's children are its caption. Write the caption as what to look at and what moving a
 control does to it.
