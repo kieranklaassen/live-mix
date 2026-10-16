@@ -1,10 +1,18 @@
 ---
+import { href } from '../lib/paths'
 import { COMMIT, REPO_URL } from '../lib/site'
+
+// The site hands out the files of its two typefaces, so each one's licence goes with them.
 ---
 
 <footer class="site-footer">
   <div class="inner">
     <span>live-mix is open source, under the MIT licence.</span>
+    <span>
+      The typefaces are under the Open Font License:{' '}
+      <a href={href('licences/sans-typeface.txt')}>the sans</a>,{' '}
+      <a href={href('licences/mono-typeface.txt')}>the mono</a>.
+    </span>
     <span class="spacer"></span>
     <a href={REPO_URL}>Source on GitHub</a>
     <a href={`${REPO_URL}/commit/${COMMIT}`}>

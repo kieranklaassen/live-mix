@@ -1,13 +1,19 @@
-// A canvas that keeps itself sharp and in the theme's colours: drawn at the screen's pixel ratio,
-// and drawn again when its box changes size or the theme changes.
+// A canvas that keeps itself sharp, in the scheme's colours and in the page's type: drawn at the
+// screen's pixel ratio, and drawn again when its box changes size, when the scheme changes and
+// when a typeface arrives.
 
 import { useEffect, useRef, type RefObject } from 'react'
 import { label, ticks, type Axis } from './draw.ts'
 import { ROLE_VAR, type Role } from './roles.ts'
 
-/** The room round a picture for its numbers, and the type they are set in. */
+/** The room round a picture for its numbers. */
 export const EDGE = { left: 44, right: 10, top: 8, bottom: 22 }
-export const MONO = '10px ui-monospace, "SF Mono", Menlo, Consolas, monospace'
+/**
+ * The type a picture's numbers are set in: the page's mono family. A canvas cannot name a CSS
+ * variable, so `colours()` reads the family off the page and sets this before a picture is
+ * drawn. Read it while drawing, never once at the top of a module.
+ */
+export let MONO = '10px monospace'
 
 export interface Colours {
   role: Record<Role, string>
@@ -20,13 +26,17 @@ export interface Colours {
 
 let cached: { theme: string | null; colours: Colours } | undefined
 
-/** The theme's colours as a canvas needs them: the values of the CSS variables right now. */
+/**
+ * The scheme's colours as a canvas needs them: the values of the CSS variables right now. The
+ * mono family is read on the same visit.
+ */
 export function colours(): Colours {
   const root = document.documentElement
   const theme = root.getAttribute('data-lm-theme')
   if (cached && cached.theme === theme) return cached.colours
   const style = getComputedStyle(root)
   const read = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback
+  MONO = `10px ${read('--lm-font-mono', 'monospace')}`
   const role = {} as Record<Role, string>
   for (const [key, name] of Object.entries(ROLE_VAR)) role[key as Role] = read(name, '#888')
   const value: Colours = {
@@ -78,7 +88,8 @@ function paint(canvas: HTMLCanvasElement, draw: Draw): void {
 
 /**
  * A ref for a canvas that `draw` paints, in CSS pixels. Painted again when `deps` change, when
- * the canvas changes size, and when the theme changes.
+ * the canvas changes size, when the scheme changes, and when a typeface has loaded: numbers drawn
+ * before their face arrived are in its stand-in.
  */
 export function useCanvas(
   draw: Draw,
@@ -111,10 +122,12 @@ export function useCanvas(
       attributes: true,
       attributeFilter: ['data-lm-theme'],
     })
+    document.fonts.addEventListener('loadingdone', ask)
     return () => {
       if (frame) cancelAnimationFrame(frame)
       sizes.disconnect()
       theme.disconnect()
+      document.fonts.removeEventListener('loadingdone', ask)
     }
   }, [])
 

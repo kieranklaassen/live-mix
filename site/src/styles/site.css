@@ -1,27 +1,54 @@
 /*
- * The site's own rules. Colours, fonts and radii come from the React kit's tokens
- * (@kieranklaassen/live-mix/react/styles.css), so a page and a device plate on it are one look.
- * What is added here: reading sizes, the page's frame, and one colour per role of a signal.
+ * The site's own rules. Colours and radii come from the React kit's tokens
+ * (@kieranklaassen/live-mix/react/styles.css), so a page and a device plate on it are one look:
+ * the kit's Paper scheme, or its Graphite when the system asks for dark (layouts/Base.astro).
+ * What is added here: the two typefaces, reading sizes, the page's frame and its hairlines, and
+ * one colour per role of a signal.
  */
 @import '@kieranklaassen/live-mix/react/styles.css';
 
 :root {
   --read: 17px;
   --measure: 46rem;
-  --wide: 68rem;
+  --wide: 80rem;
+  --gutter: 40px;
   --gap: 1.5rem;
-  /* One colour per role, in every figure of every lesson. */
-  --sig-in: var(--lm-muted);
-  --sig-out: var(--lm-accent);
-  --sig-ctl: var(--lm-meter-lufs);
-  --sig-alt: var(--lm-brush-ink-1);
-  --sig-alt2: var(--lm-automation);
-  --sig-alt3: var(--lm-note);
+  /*
+   * The hairlines of the frame: a rule under the header, over a section and round a picture, and
+   * a softer one between the cells of a grid. The kit's rule is dark in every scheme; its edge
+   * is that rule on a light ground and a light line on a dark one.
+   */
+  --rule: var(--lm-edge);
+  --rule-soft: var(--lm-grid-line-strong);
+  /*
+   * One colour per role of a signal, in every figure of every lesson: --sig-<role>, for the roles
+   * of src/figures/roles.ts. What goes in is the neutral one. They are fixed here for Paper and
+   * below for Graphite, each far enough from the ground to be read as text and from the other
+   * five to be told apart as a thin line (tests/unit/look.test.ts holds both).
+   */
+  --sig-in: #2b3932;
+  --sig-out: #6e7604;
+  --sig-ctl: #893f22;
+  --sig-alt: #00686a;
+  --sig-alt2: #306bd9;
+  --sig-alt3: #8b3ea5;
   --sig-grid: var(--lm-grid-line-strong);
   color-scheme: light;
 }
-:root[data-lm-theme='dark'] {
+/* The one place that says which schemes are dark ones. */
+:root[data-lm-theme='graphite'] {
+  --sig-in: #a2aca7;
+  --sig-out: #b7be06;
+  --sig-ctl: #fbc592;
+  --sig-alt: #78e9d0;
+  --sig-alt2: #659dfb;
+  --sig-alt3: #dfadfb;
   color-scheme: dark;
+}
+/* The kit names two families and leaves loading them to the page: the site's own are these. */
+[data-lm-theme] {
+  --lm-font: var(--font-sans);
+  --lm-font-mono: var(--font-mono);
 }
 
 *,
@@ -39,6 +66,7 @@ body {
   color: var(--lm-text);
   font-family: var(--lm-font);
   font-size: var(--read);
+  font-weight: 400;
   line-height: 1.6;
   text-rendering: optimizeLegibility;
 }
@@ -55,27 +83,38 @@ a:hover {
   outline: 2px solid var(--lm-focus);
   outline-offset: 2px;
 }
+/* Headings are in the text's own weight: size and tight setting tell them from it. */
 h1,
 h2,
 h3,
 h4 {
-  line-height: 1.2;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 400;
   margin: 2.2em 0 0.6em;
 }
 h1 {
-  font-size: clamp(2rem, 5vw, 3rem);
-  letter-spacing: -0.025em;
-  margin-top: 0;
+  font-size: clamp(2.5rem, 5.5vw, 4rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  margin: 0 0 0.35em;
 }
 h2 {
-  font-size: 1.55rem;
-  padding-top: 0.9rem;
-  border-top: 1px solid var(--lm-border);
+  font-size: clamp(1.8rem, 3.4vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 1.9em 0 0.55em;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--rule);
 }
 h3 {
+  font-size: 1.5rem;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  margin: 1.7em 0 0.5em;
+}
+h4 {
   font-size: 1.15rem;
+  line-height: 1.25;
+  margin: 1.8em 0 0.5em;
 }
 p,
 ul,
@@ -100,37 +139,28 @@ pre {
   font-size: 0.86em;
 }
 :not(pre) > code {
-  background: var(--lm-panel);
-  border: 1px solid var(--lm-border);
+  background: var(--lm-sunken);
+  border: 1px solid var(--rule-soft);
   border-radius: var(--lm-radius);
   padding: 0.05em 0.3em;
   overflow-wrap: anywhere;
 }
 pre {
   background: var(--lm-panel) !important;
-  border: 1px solid var(--lm-border);
+  border: 1px solid var(--rule-soft);
   border-radius: var(--lm-radius);
   padding: 0.9rem 1rem;
   overflow-x: auto;
   line-height: 1.5;
 }
-/* Shiki writes both themes as variables; pick by the page's theme. */
-.astro-code,
-.astro-code span {
-  color: var(--shiki-light);
-}
-[data-lm-theme='dark'] .astro-code,
-[data-lm-theme='dark'] .astro-code span {
-  color: var(--shiki-dark);
-}
 blockquote {
-  border-left: 2px solid var(--lm-accent);
+  border-left: 1px solid var(--lm-text);
   padding: 0.1rem 0 0.1rem 1rem;
   color: var(--lm-muted);
 }
 hr {
   border: 0;
-  border-top: 1px solid var(--lm-border);
+  border-top: 1px solid var(--rule);
   margin: 2.5rem 0;
 }
 img,
@@ -155,22 +185,21 @@ th,
 td {
   text-align: left;
   vertical-align: top;
-  padding: 0.45rem 0.8rem 0.45rem 0;
-  border-bottom: 1px solid var(--lm-border);
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--rule);
 }
 th {
-  font-weight: 600;
+  font-family: var(--lm-font-mono);
+  font-weight: 400;
   color: var(--lm-muted);
-  font-size: 0.85em;
+  font-size: 0.75rem;
   white-space: nowrap;
 }
 
-/* The small upper-case label used over sections, figures and stages. */
+/* The small label in the mono face, used over sections, figures and stages. */
 .label {
   font-family: var(--lm-font-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
   color: var(--lm-muted);
 }
 
@@ -192,59 +221,56 @@ th {
   z-index: 40;
   background: color-mix(in srgb, var(--lm-bg) 88%, transparent);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--lm-border);
+  border-bottom: 1px solid var(--rule);
 }
 .site-header .inner {
   max-width: var(--wide);
   margin: 0 auto;
-  padding: 0 1.25rem;
-  min-height: 3.25rem;
+  padding: 0 var(--gutter);
+  min-height: 60px;
   display: flex;
   align-items: center;
-  gap: 1.25rem;
+  gap: 8px 32px;
   flex-wrap: wrap;
 }
 .wordmark {
   font-family: var(--lm-font-mono);
-  font-weight: 600;
-  font-size: 0.95rem;
-  letter-spacing: -0.01em;
+  font-size: 14px;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 10px;
+  padding: 18px 0;
+  margin-right: auto;
 }
 .wordmark::before {
   content: '';
-  width: 0.6rem;
-  height: 0.6rem;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--lm-accent);
+  background: var(--lm-brush-1);
 }
 .site-nav {
   display: flex;
-  gap: 1.1rem;
-  margin-left: auto;
+  gap: 8px 32px;
   align-items: center;
   flex-wrap: wrap;
 }
+/* The page one is on is in the text's colour, the others are quieter: no line under either. */
 .site-nav a {
-  font-size: 0.9rem;
+  font-size: 15px;
   text-decoration: none;
   color: var(--lm-muted);
-  padding: 0.9rem 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  padding: 18px 0;
 }
 .site-nav a:hover,
 .site-nav a[aria-current='page'] {
   color: var(--lm-text);
-  border-bottom-color: var(--lm-accent);
 }
 main {
   max-width: var(--wide);
   margin: 0 auto;
-  padding: 2.5rem 1.25rem 5rem;
+  padding: 2.5rem var(--gutter) 5rem;
 }
 .prose {
   max-width: var(--measure);
@@ -253,16 +279,16 @@ main {
   margin-top: 0;
 }
 .site-footer {
-  border-top: 1px solid var(--lm-border);
+  border-top: 1px solid var(--rule);
   color: var(--lm-muted);
-  font-size: 0.85rem;
+  font-size: 14px;
 }
 .site-footer .inner {
   max-width: var(--wide);
   margin: 0 auto;
-  padding: 1.5rem 1.25rem 2.5rem;
+  padding: 20px var(--gutter) 40px;
   display: flex;
-  gap: 0.5rem 1.5rem;
+  gap: 8px 28px;
   flex-wrap: wrap;
 }
 .site-footer .spacer {
@@ -272,7 +298,7 @@ main {
 /* Home and index pages */
 .lede {
   font-size: 1.25rem;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--lm-muted);
   max-width: 40rem;
 }
@@ -282,24 +308,24 @@ main {
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  gap: 1px;
-  background: var(--lm-border);
-  border: 1px solid var(--lm-border);
+  border-top: 1px solid var(--rule);
+  border-left: 1px solid var(--rule-soft);
   margin: 2rem 0;
 }
 .card {
-  background: var(--lm-bg);
-  padding: 1.25rem;
+  padding: 18px 20px 22px;
+  border-right: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
   text-decoration: none;
   display: block;
 }
 .card:hover {
-  background: var(--lm-panel);
+  background: var(--lm-sunken);
   color: inherit;
 }
 .card h3 {
-  margin: 0.35rem 0 0.4rem;
-  font-size: 1.1rem;
+  margin: 0.25rem 0 0.4rem;
+  font-size: 1.4rem;
 }
 .card p {
   margin: 0;
@@ -311,11 +337,11 @@ main {
   list-style: none;
   padding: 0;
   margin: 1.5rem 0;
-  border-top: 1px solid var(--lm-border);
+  border-top: 1px solid var(--lm-text);
 }
 .lesson-list li {
   margin: 0;
-  border-bottom: 1px solid var(--lm-border);
+  border-bottom: 1px solid var(--rule);
 }
 .lesson-list a {
   display: grid;
@@ -325,17 +351,17 @@ main {
   text-decoration: none;
 }
 .lesson-list a:hover {
-  background: var(--lm-panel);
+  background: var(--lm-sunken);
   color: inherit;
 }
 .lesson-list .n {
   font-family: var(--lm-font-mono);
-  font-size: 0.8rem;
-  color: var(--lm-accent);
-  padding-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--lm-muted);
+  padding-top: 0.3rem;
 }
 .lesson-list .t {
-  font-weight: 600;
+  font-size: 1.15rem;
 }
 .lesson-list .s {
   grid-column: 2;
@@ -347,8 +373,9 @@ main {
   align-items: center;
   gap: 0.5rem;
   font: inherit;
-  font-size: 0.9rem;
-  padding: 0.5rem 0.9rem;
+  font-size: 15px;
+  min-height: 44px;
+  padding: 0 16px;
   border: 1px solid var(--lm-text);
   border-radius: var(--lm-radius);
   background: var(--lm-text);
@@ -359,12 +386,12 @@ main {
 .button:hover {
   background: var(--lm-accent);
   border-color: var(--lm-accent);
-  color: #fff;
+  color: var(--lm-bg);
 }
 .button.quiet {
   background: transparent;
   color: var(--lm-text);
-  border-color: var(--lm-border);
+  border-color: var(--lm-text);
 }
 .button.quiet:hover {
   border-color: var(--lm-text);
@@ -385,19 +412,124 @@ pre.mermaid:not([data-processed]) {
 @media (max-width: 40rem) {
   :root {
     --read: 16px;
+    --gutter: 20px;
+  }
+  .wordmark {
+    padding: 14px 0 0;
   }
   .site-nav {
-    gap: 0.9rem;
-    margin-left: 0;
+    gap: 20px;
     width: 100%;
     overflow-x: auto;
     flex-wrap: nowrap;
   }
   .site-nav a {
-    padding: 0.5rem 0;
+    padding: 8px 0 12px;
     white-space: nowrap;
   }
   main {
     padding-top: 1.5rem;
   }
 }
+
+/* listing colours */
+/*
+ * The colours of code (src/lib/code-theme.ts), for a lesson's listing and for fenced code in the
+ * docs: first as in the Paper scheme, then as in Graphite. Each is legible on a marked line too.
+ */
+:root {
+  --code-bg: var(--lm-panel);
+  --code-text: var(--lm-text);
+  --code-comment: #526058;
+  --code-keyword: #8a3fa3;
+  --code-number: #9c4a1a;
+  --code-string: #4f642c;
+  --code-function: #1f5568;
+  --code-type: #2a665b;
+  --code-directive: #44657f;
+  --code-mark: #2e6f631a;
+}
+:root[data-lm-theme='graphite'] {
+  --code-bg: var(--lm-panel);
+  --code-text: var(--lm-text);
+  --code-comment: #a9b3ae;
+  --code-keyword: #d9a0e8;
+  --code-number: #f2b872;
+  --code-string: #d3da9c;
+  --code-function: #add5ee;
+  --code-type: #7fd0bd;
+  --code-directive: #9dbdd6;
+  --code-mark: #7fd0bd1f;
+}
+
+/* A listing: lines of a file of the repository, each with its number in the file. */
+.listing figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.9rem;
+  margin-bottom: 0.4rem;
+}
+.listing pre {
+  margin: 0;
+  padding: 0.7rem 0;
+}
+/* As wide as its longest line, so a marked line's ground runs the whole way when scrolled. */
+.listing pre > code {
+  display: block;
+  width: fit-content;
+  min-width: 100%;
+}
+.listing .line {
+  display: inline-block;
+  width: 100%;
+  padding-right: 1rem;
+}
+.listing .ln {
+  display: inline-block;
+  min-width: calc(4ch + 1rem);
+  margin-right: 1.2em;
+  text-align: right;
+  color: var(--code-comment);
+  text-decoration: none;
+  user-select: none;
+}
+.listing .ln:hover {
+  color: var(--lm-accent);
+  text-decoration: underline;
+}
+.listing .line.marked {
+  background: var(--code-mark);
+  box-shadow: inset 2px 0 var(--lm-accent);
+}
+.listing .line.gap {
+  padding-left: calc(4ch + 1rem + 1.2em);
+  color: var(--code-comment);
+  font-style: italic;
+}
+/* The line an equation's term has just led to. */
+.listing .line:target {
+  outline: 1px solid var(--lm-accent);
+  outline-offset: -1px;
+}
+
+/* A term of an equation in the colour of its signal's role: \sig{out}{y} (src/lib/maths.ts). */
+.katex .sig-in {
+  color: var(--sig-in);
+}
+.katex .sig-out {
+  color: var(--sig-out);
+}
+.katex .sig-ctl {
+  color: var(--sig-ctl);
+}
+.katex .sig-alt {
+  color: var(--sig-alt);
+}
+.katex .sig-alt2 {
+  color: var(--sig-alt2);
+}
+.katex .sig-alt3 {
+  color: var(--sig-alt3);
+}
+/* end listing colours */

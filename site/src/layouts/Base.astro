@@ -1,4 +1,5 @@
 ---
+import { Font } from 'astro:assets'
 import '../styles/site.css'
 import Header from '../components/Header.astro'
 import Footer from '../components/Footer.astro'
@@ -13,12 +14,14 @@ interface Props {
 const { title, description, indexed = true } = Astro.props
 const full = title === 'live-mix' ? title : `${title} · live-mix`
 
-// The script in the head runs before paint, so a dark system never sees a light flash. The kit's
-// tokens follow the attribute it sets.
+// The scheme is the kit's Paper, or its Graphite when the system asks for dark. The script in the
+// head decides before paint, so a dark system never sees a light flash, and the kit's tokens
+// follow the attribute it sets. Which schemes are dark ones is said once, by `color-scheme` in
+// site.css: a script that must know reads that, and tests for no scheme's name.
 ---
 
 <!doctype html>
-<html lang="en" class="lm-root" data-lm-theme="light">
+<html lang="en" class="lm-root" data-lm-theme="paper">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -27,11 +30,17 @@ const full = title === 'live-mix' ? title : `${title} · live-mix`
     <meta name="color-scheme" content="light dark" />
     <link rel="sitemap" href={href('sitemap-index.xml')} />
     <link rel="icon" href={href('favicon.svg')} type="image/svg+xml" />
+    {/* The two typefaces, from the site's own packages (astro.config.mjs): --font-sans, --font-mono. */}
+    <Font cssVariable="--font-sans" preload />
+    <Font cssVariable="--font-mono" />
     <script is:inline>
       ;(function () {
         var dark = window.matchMedia('(prefers-color-scheme: dark)')
         function set() {
-          document.documentElement.setAttribute('data-lm-theme', dark.matches ? 'dark' : 'light')
+          document.documentElement.setAttribute(
+            'data-lm-theme',
+            dark.matches ? 'graphite' : 'paper',
+          )
         }
         set()
         dark.addEventListener('change', set)
