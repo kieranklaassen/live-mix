@@ -112,7 +112,7 @@ What is long established about hearing is this. Given two steady tones a few her
 
 The same literature reports the beat only within limits: for tones that are low enough in pitch, and close enough to each other. This page gives no figure for either limit, having measured neither. Where the engine's device gives one, in its notes or by what it does to a key, the lesson says that the figure is the device's.
 
-A good deal more is said about these sounds: that listening to them does something to the listener beyond being heard. The site has measured nothing of that kind and has no instrument that could, so this lesson says nothing about it. Where the engine's own notes speak of what is heard, the lesson says that they are the engine's notes.
+A good deal more is said about these sounds: that listening to them does something to the listener beyond being heard. The site has measured nothing of that kind and has no instrument that could, so this lesson says nothing about it.
 
 So the question this lesson answers is a narrow one, and it can be answered exactly. When a device says it makes a beat between the ears, what is in each channel, and how is it built so that the beat stays out of both?
 
@@ -153,7 +153,7 @@ Check this against the picture. Set Ears to 0.5 and leave Beat where it starts. 
 
 Ears neither makes the beat nor takes it away. It decides how much of the beat is in each ear's signal: none of it at 1, all of it at 0. The sum of the two ears holds the whole beat at every setting.
 
-The loop on this page is four seconds long, and the lab joins its end to its start with a short crossfade. Where the two tones do not come round in four seconds, an ear's wave dips at that join, once in each pass of the loop. The levels of the two ears do not show it, because the meter reads each ear's signal before the loop is cut. That dip belongs to the loop, not to the device.
+One thing that can be heard here belongs to the page's loop and not to the device. Move Beat or Key off a whole number of hertz and an ear's wave may dip where the loop's end is joined to its start. The last card of part 7 says why, and why the levels in this picture do not show it.
 
 </Part>
 
@@ -432,7 +432,7 @@ Here is how the lab puts the pieces in order, for one sample.
   name="built-run"
 />
 
-Steps two and three are worth setting side by side once more. They make the same two tones. In step two a meter on either ear shows a beat, and in step three it shows none. The pulse of step six is a third thing again: one tone, and a level that is switched. The word beat is used for all three. The signals are not alike.
+The word beat is used for what steps two, three and six make. The three signals are not alike.
 
 </Part>
 
@@ -458,8 +458,8 @@ The Binaural keeps its phases and its clock, and the lab reads those. The pair o
     { id: 'out', from: 'sum', tap: 'out', label: 'Output', shape: 'end', n: 7 },
   ]}
 >
-  The row in the middle is the tone. The clock under it is a number that turns, never heard. The
-  bed over it joins after the tones have been divided between the ears. Press a stage's button
+  The blocks from Phase to Ears are the tone. The Half-beat clock is a number that turns, never
+  heard. The bed joins after the tones have been divided between the ears. Press a stage's button
   below, and notice its block light up here.
 </Flow>
 
@@ -505,7 +505,7 @@ The Binaural keeps its phases and its clock, and the lab reads those. The pair o
 </StageBlock>
 
 <StageBlock tap="voice" n={2} title="Warmth: two partials, and a peak that stays put">
-  A sine by itself is one partial and nothing more. Warmth adds the second and the third partial of the key, at <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kSecond = 0.5f;">a half</Src> and <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kThird = 0.25f;">a quarter</Src> of the key's size when Warmth is at 1. This stage is the keys before anything is split: one wave, the same for both ears.
+  Warmth adds the second and the third partial of the key, at <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kSecond = 0.5f;">a half</Src> and <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kThird = 0.25f;">a quarter</Src> of the key's size when Warmth is at 1. This stage is the keys before anything is split: one wave, the same for both ears.
 
   <Controls ids="warmth" />
 
@@ -795,7 +795,7 @@ The third device is the contrast of this lesson. The Isochronic has no pair. It 
     t={String.raw`y = \at{depth-gain}{\bigl(r + (1 - r)\,\sig{ctl}{q}\bigr)}\,x \qquad \at{depth-floor}{r = (1 - D)^2}`}
   />
   <Fragment slot="readback">
-    <M t="q" /> is how far open the gate is, from 0 to 1: the line of the picture. <M t="D" /> is Depth and <M t="r" /> is the level left in the gap. <M t="x" /> is the tone and <M t="y" /> what one ear gets. At Depth 1 the gap is exact silence, and a meter on either ear shows the whole of the pulse. Measured, <Claim id="pulse-gate">the gate goes from 0 to 1 and back 6 times a second, and its mean over the loop is 0.50</Claim>, which is Duty.
+    <M t="q" /> is how far open the gate is, from 0 to 1: the line of the picture. <M t="D" /> is Depth and <M t="r" /> is the level left in the gap. <M t="x" /> is the tone and <M t="y" /> what one ear gets. At Depth 1 the gap is exact silence. Measured, <Claim id="pulse-gate">the gate goes from 0 to 1 and back 6 times a second, and its mean over the loop is 0.50</Claim>, which is Duty.
   </Fragment>
   <Listing
     slot="listing"
@@ -994,7 +994,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     On speakers both tones reach both ears, so each ear is given the sum, and the sum beats in the air. That is the first case of part 1 and step two of the build. It is a beat, and a different one: it is in each ear's signal, where the other is in neither.
   </Myth>
   <Myth says="A pulsed tone at the same rate is the same thing.">
-    A pulse is one tone whose level is switched, and a meter on one ear shows all of it, as step six of the build and stage 9 show. A pair of tones, one to an ear, moves no meter. The two are built differently and their signals are different. Which of them a listener prefers, the page cannot say.
+    A pulse is one tone whose level is switched, and a meter on one ear shows all of it, as step six of the build measured. A pair of tones, one to an ear, moves no meter. The two are built differently and their signals are different. Which of them a listener prefers, the page cannot say.
   </Myth>
   <Myth says="Any two pitches will do.">
     The engine's device does not treat them alike. It folds every key into a range of its own, and it stops splitting a partial above the top of that range, as stages 1 and 2 show. Its notes give hearing as the reason. This page has measured the folding and the splitting, and has not measured the hearing.

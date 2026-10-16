@@ -1,7 +1,7 @@
 ---
-title: 'Stereo: pan, mid and side'
+title: Stereo
 family: space-and-motion
-summary: Two speakers can put a sound anywhere between them, and a widener can make the two channels of a pad differ more than they did. Both are done with a pair of gains. This lesson places one sound with the engine's pan law, takes a pair of channels apart into what they share and where they differ, builds a widener a piece at a time, and then adds the two channels back together to hear what the width cost.
+summary: Two speakers can put a sound anywhere between them, and a widener can make the two channels of a pad differ more than they did. Both are done with a pair of gains. This lesson places one sound with the engine's pan law, takes a pair of channels apart into mid and side, which are what they share and where they differ, builds a widener a piece at a time, and then adds the two channels back together to hear what the width cost.
 long: true
 opening: { input: goingSide, output: outSide, caption: 'Half of the left channel less the right, which is the part of the pad that differs between the two speakers, going into the widener and coming out. The widener has made that part larger, and part 1 says what it took in exchange.' }
 lab: stereo
@@ -78,19 +78,19 @@ Take one sample of a sound that has two channels. Its left value says how far ac
 
 A sound that is the same in both speakers has every dot on the dashed diagonal: as far up as it is across. The guitar in the middle is a straight line there. A sound that is in the left speaker alone lies flat along the line marked "left channel". The pad is a cloud. How far the cloud strays from the diagonal is how much the pad's two channels differ, and that difference is what this lesson calls width.
 
-One number sums the cloud up. Multiply left by right at every sample, add the products up, and divide by the sizes of the two channels. The answer is 1 when the channels are the same, 0 when they have nothing to do with each other, and −1 when one is the other turned upside down. This page calls it how alike the channels are. For the pad it reads <Claim id="pad-alike-in">0.48 going in</Claim>.
+One number sums the cloud up. Multiply left by right at every sample, add the products up, and divide by the sizes of the two channels. The answer is 1 when the channels are the same, 0 when they have nothing to do with each other, and −1 when one is the other turned upside down. Its usual name is the correlation of the two channels, and this page calls it how alike the channels are. For the pad it reads <Claim id="pad-alike-in">0.48 going in</Claim>.
 
 ### Wider
 
-The engine has a widener, and here is the pad through it at the setting this lesson starts from.
+The engine has a widener, and here is the pad coming out of it at the setting this lesson starts from.
 
 <StereoCloud
-  taps="going out"
+  taps="out"
   set="wider"
-  caption="The pad going in and coming out of the widener. The cloud coming out has been stretched across the diagonal, towards the corner marked side and the corner opposite it, and squeezed a little along it."
+  caption="The pad coming out of the widener, to be held against the picture before it. That cloud was longer along the dashed diagonal than across it. This one reaches as far across the diagonal, towards the corner marked side and the corner opposite it, as it does along it."
 />
 
-The cloud is fatter, and the number agrees: <Claim id="pad-alike-out">coming out, left and right are 0.01 alike</Claim>, close to having nothing to do with each other. Compare the two by ear. <Hear set="as-it-is" label="Hear the pad as it comes" /> <Hear set="wider" label="Hear it wider" />
+The cloud has spread across the diagonal, and the number agrees: <Claim id="pad-alike-out">coming out, left and right are 0.01 alike</Claim>, close to having nothing to do with each other. Compare the two by ear. <Hear set="as-it-is" label="Hear the pad as it comes" /> <Hear set="wider" label="Hear it wider" />
 
 <Predict
   question="The widened pad is played on a telephone, which has one speaker: left and right are added together. Beside the pad before it was widened, on the same telephone, is it louder, quieter or the same?"
@@ -151,9 +151,9 @@ Placing and widening are used on different kinds of sound, and one of the four j
   <Use title="A pad that is already wide" set="wider">
     <StereoCloud
       slot="picture"
-      taps="going out"
+      taps="out"
       set="wider"
-      caption="The pad going in and coming out. The cloud is stretched across the diagonal: more of what differs between the speakers, less of what they share."
+      caption="The pad coming out. Going in, it is the first cloud of part 1, which is longer along the dashed diagonal than across it. This cloud reaches as far across the diagonal as along it: more of what differs between the speakers, less of what they share."
     />
 
     This is what a widener is for. The pad has two channels that differ, so there is a side to turn up. At this Width the widener is a bass split and gains: the side of the pad comes out <Claim id="use-pad">2.9 dB</Claim> louder than it went in, and nothing is delayed or copied.
@@ -470,9 +470,10 @@ From here on it is the engine's own code. The page runs the kit's pan law and th
     { id: 'second', row: -1, from: 'split', tap: 'secondOut', label: 'Second widener', n: 9 },
   ]}
 >
-  The row in the middle is the widener's main path, the row under it is the bass, and the row over
-  it holds the two things that are not the widener: the pan law before it and the second widener
-  beside it. Press a stage's button below, and notice its block light up here.
+  The blocks from "Mid, side, two gains" to "Delay on the right" are the widener's main path, and
+  the two Bass blocks are the way the bass takes round it. Pan law and Second widener are the two
+  things that are not the widener: the first comes before it and the second runs beside it. Press a
+  stage's button below, and notice its block light up here.
 </Flow>
 
 <StageBlock tap="placed" n={1} title="The pan law: two gains from one angle">
@@ -496,11 +497,11 @@ From here on it is the engine's own code. The page runs the kit's pan law and th
 
   Read it against the picture. Pan runs from −1 to 1, so <M t={String.raw`\theta`} /> runs from nothing to a quarter of a turn. At the left end the cosine is 1 and the sine is 0: all of the sound goes left. At the right end it is the other way round. In the middle the angle is an eighth of a turn, where cosine and sine are equal, and that is the crossing in the picture. The left speaker then gets <M t={String.raw`g_L\,x`} /> and the right <M t={String.raw`g_R\,x`} />.
 
-  The reason for a cosine and a sine is one line of school geometry:
+  The reason for a cosine and a sine is the circle of step 2 of part 4, in one line:
 
   <M block t={String.raw`\sig{alt}{g_L}^2 + \sig{alt2}{g_R}^2 = \cos^2\theta + \sin^2\theta = 1`} />
 
-  The squares are the powers, so the power of the two speakers together is the power of the sound, wherever Pan stands. Measured on a 1 kHz tone at five places from all the way left to all the way right, the power of the two channels together stays within <Claim id="law-power">less than 0.001 dB</Claim>.
+  Measured on a 1 kHz tone at five places from all the way left to all the way right, the power of the two channels together stays within <Claim id="law-power">less than 0.001 dB</Claim>.
 
   There is a price, and it is paid on one speaker. Add the two gains instead of their squares and the sum is not level at all.
 
@@ -527,7 +528,7 @@ From here on it is the engine's own code. The page runs the kit's pan law and th
 </StageBlock>
 
 <StageBlock tap="bass" n={2} title="The bass is taken out of the way">
-  The widener's first act is to protect the low notes from itself. Each channel goes through a one-pole low-pass, the smallest filter there is and the subject of <Lesson id="one-pole" />. What the filter passes is the bass. What it does not pass is everything else, and only that goes on to be widened.
+  The widener's first act is the split of step 5 of part 4. Each channel goes through a one-pole low-pass, the smallest filter there is and the subject of <Lesson id="one-pole" />. What the filter passes is the bass, and only what it does not pass goes on to be widened.
 
   <Lanes taps="goingLeft bass rest">
     The left channel going in, the bass the device splits off the left channel, and the rest of
@@ -660,7 +661,7 @@ From here on it is the engine's own code. The page runs the kit's pan law and th
     caption="What the widener at Width 1 does to each frequency on the left and on the right, from the same single sample. Neither line is level. Each has peaks well over the line of no change and gaps far under it, and the two sides' peaks and gaps fall in different places."
   />
 
-  That the two sides differ is what the scatter is for. That neither is level is the cost. One measurement of that cost: <Claim id="full-tone">a 1 kHz tone all the way right comes out of the right speaker 10.6 dB louder at Width 1</Claim> than it went in.
+  That the two sides differ is what the scatter is for. That neither is level is the cost. One measurement of that cost: <Claim id="full-tone">a 1 kHz tone all the way right comes out of the right speaker 10.6 dB louder at Width 1</Claim> than it went in. Step 6 of part 4 read 10.5 dB for the same tone, because the build had no delay yet: the delay of stage 6 sets the scattered tone back against the part of it that the bass path carries, and the two then add a little differently.
 
   Width sets how much of this is used. The share is <Src path="cpp/devices/stereo-widener/StereoWidener.cpp" at="decorrelationAmount = (width - 0.75f) * 4.0f;">four times what Width has over 0.75</Src>: none at 0.75 and all of it at 1, where nothing of the channel itself is left.
 
@@ -685,6 +686,18 @@ From here on it is the engine's own code. The page runs the kit's pan law and th
 <StageBlock tap="delayed" n={6} title="A short delay on the right">
   Above a Width of 0.85 the right channel is also blended with itself a moment ago. The moment is <Src path="cpp/devices/stereo-widener/StereoWidener.cpp" at="haasDelaySamples = static_cast<int>(0.0008f * sampleRate);">0.8 ms</Src>, counted in whole samples.
 
+  The page starts Width at 0.75, where this stage does nothing yet. Here is what one sample comes out as at Width 1.
+
+  <Still
+    taps="clickLeft clickRight"
+    view="curve"
+    xTitle="ms after the sample"
+    values={{ width: 1 }}
+    from={0}
+    span={7}
+    caption="One sample on both channels, and the first 7 ms of what comes out on each side at Width 1. Each side is a run of spikes, and the tallest spike of the right stands later than the tallest of the left."
+  />
+
   <Controls ids="width" />
 
   <Curve taps="clickLeft clickRight" xMax={7} xTitle="ms after the sample" yTitle="" height={220}>
@@ -700,7 +713,7 @@ From here on it is the engine's own code. The page runs the kit's pan law and th
 
   <M t="R_s" /> is the right channel after the scatter, <M t="N" /> the delay in samples, and <M t="h" /> the share of the delayed copy, which <Src path="cpp/devices/stereo-widener/StereoWidener.cpp" at="haasAmount = (width - 0.85f) * (1.0f / 0.15f);">climbs from none at a Width of 0.85 to all at 1</Src>. At 1 the first term is gone and the right channel is simply late. Anywhere between, the right is two copies of itself a little apart, which is one more comb on that side alone.
 
-  Together with the scatter, whose waits are longer on the right than on the left, this sets the right behind the left. At Width 1, <Claim id="lag">the largest copy of one sample comes out 2.71 ms late on the left and 4.25 ms late on the right, 74 samples or 1.54 ms apart</Claim>. The bass of stage 2 is not scattered and is not late at all, so at this setting the part of a note that is in the bass path comes out before the largest copy of the rest of it. The names in the listing are the source's own: it calls this delay after the effect of hearing that step 7 of part 4 describes.
+  Together with the scatter, whose waits are longer on the right than on the left, this sets the right behind the left. At Width 1, <Claim id="lag">the largest copy of one sample comes out 2.71 ms late on the left and 4.25 ms late on the right, 74 samples or 1.54 ms apart</Claim>. The bass of stage 2 is not scattered and is not late at all, and the last card of part 7 has what follows from that. The names in the listing are the source's own: it calls this delay after the effect of hearing that step 7 of part 4 describes.
 
   <Listing
     slot="listing"
@@ -850,7 +863,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     <Claim id="smear">At Width 1 the groups of stage 5 are 10.67 ms apart, and on the left the last of them starts 42.67 ms after the sample that made it. The drums come out with their loudest sample 2.2 dB higher</Claim>: each hit arrives as a string of copies that here and there pile up. Keep sounds with sharp fronts at 0.75 or under.
   </Fault>
   <Fault title="Wider is also louder" set="full">
-    Between 0.75 and 1 the scatter's copies pile on, and nothing in the device takes the level back. <Claim id="fault-loud">From Width 0.75 to Width 1 the pad's level rises by 7.3 dB</Claim>. How much depends on the sound: <Claim id="loud-drums">the drums of the card before come out within 0.1 dB of the level they went in at</Claim>. Match the levels before judging the width, so that louder is not taken for wider.
+    Between 0.75 and 1 the scatter's copies pile on, as stage 8 measured. <Claim id="fault-loud">From Width 0.75 to Width 1 the pad's level rises by 7.3 dB</Claim>. How much depends on the sound: <Claim id="loud-drums">the drums of the card before come out within 0.1 dB of the level they went in at</Claim>. Match the levels before judging the width, so that louder is not taken for wider.
   </Fault>
   <Fault title="A sound at the edge crosses over" set="over">
     Stage 4 showed it on a tone. Here it is on the guitar, placed all the way left and widened at 0.75. <Claim id="fault-over">The right speaker, which had nothing, now carries the guitar 7.7 dB under the left, and the two sides are −0.71 alike</Claim>. On headphones, listen for where a sound like that seems to sit. <Claim id="fault-over-one">One speaker gets 1.7 dB less of the guitar than it got of the guitar going in</Claim>. If a sound is already at the edge, keep Width at one half or under for it.

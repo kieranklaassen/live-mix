@@ -496,6 +496,20 @@ describe('the envelopes and LFOs lab', () => {
     expect(Math.abs(range(tap(start, 'sweep')).hi)).toBeLessThan(1e-6)
   })
 
+  it("rings the note's first harmonic past full scale with Resonance at 25 and Cutoff at the note's 220 Hz: the output peaks at 5.6 times full scale, and under full scale at the lesson's own Resonance and Cutoff (claim loud-resonance)", async () => {
+    const theLab = await lab('envelopes-and-lfos')
+    const top = (result: RenderResult) =>
+      Math.max(...result.taps.out!.channels_data.map((channel) => peak(channel)))
+    const ringing = theLab.render(nothing(), { cutoffHz: 220, resonance: 25 })
+    expectWritten(top(ringing), '5.6 times')
+    // The page's player plays at a gain of one half at most: past 2 the ear gets a clipped wave.
+    expect(top(ringing)).toBeGreaterThan(2)
+    // The device's own range: the control's top is the top of the Auto Filter's Resonance.
+    expect(theLab.description.controls.find((control) => control.id === 'resonance')!.max).toBe(25)
+    // Where the lesson starts, the output stays under full scale.
+    expect(top(theLab.render(nothing(), {}))).toBeLessThan(1)
+  })
+
   it("moves the Tremolo's gain between 0.50 and 1.00 at an LFO to level of 0.5, and the gain worked out is the device's (claim gain-span)", async () => {
     const theLab = await lab('envelopes-and-lfos')
     const result = theLab.render(nothing(), { depth: 0.5 })
