@@ -53,7 +53,9 @@
 //   the keys' envelopes, the marks by the gates of the keys whose marks are
 //   ringing), so a chord is as loud as one key and a full pool of eight stays
 //   under the clip's knee. The air is one stereo noise, as loud as one key
-//   whatever the count. The soft clip is a guard only. While the summed
+//   whatever the count. That holds at the default patch: the marks' own
+//   scale and a preset's Volume are outside it, and presets do pass the
+//   knee with a full pool (WEAK.md). While the summed
 //   envelopes stand over 1 the scale makes up for their fall, so a chord let
 //   go together keeps its level for the first tenth of Release or so (five
 //   keys are 6 dB down after 0.18 of it where one key takes 0.10).

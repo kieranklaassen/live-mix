@@ -24,7 +24,8 @@
 //   the same at every setting.
 // - The keys are scaled by 1 / sqrt(max(1, sum of (envelope · gain)²)), so
 //   eight keys at full gain reach the edge of the soft clip's knee at the
-//   default Volume and no further; the clip is a guard only.
+//   default Volume and no further. A preset's Volume is outside that: one
+//   bank preset passes the knee with a full pool on one pitch (WEAK.md).
 //
 // What restarts, and when: at the sample where a key arrives with no voice
 // sounding, the sweep goes back to the lower limit going up, the sine to phase

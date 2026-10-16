@@ -36,7 +36,8 @@
 // - The sum of the voices is divided by the root of the sum of their
 //   envelopes squared (once that is over 1): one key at gain 0.7 peaks near
 //   -18 dBFS at the default Volume and eight at full gain, all in step, reach
-//   the edge of the clip's knee and no further. The clip is a guard only.
+//   the edge of the clip's knee and no further. A preset's Volume and Air
+//   part way are outside that, and presets do pass the knee (WEAK.md).
 // - Keys under 80 Hz sound an octave or more up; every other key where it is.
 // - A key on a pitch that another voice is sounding (a key folded up onto
 //   it, the same key under another id, or the same key struck again) takes

@@ -17,6 +17,8 @@ Nine devices share three kit headers. None is part of `kit.h`: include `kit.h`, 
 
 Call `kit::SineTable::init()` in `init` before the pair or the pulse is used.
 
+`split.set` holds High at least half an octave over Low (a factor of √2) and both under 0.45 of the sample rate, so the band is never narrower than that. Ear Shift and Band Pulse say so in High's description, and their displays draw the edge where it is held.
+
 ## The pair and the ears
 
 A voice owns a carrier phase `c`; the device owns one half-beat phase `h` that turns at half of Beat. The two tones are `hi = sin(2π(c + h))` and `lo = sin(2π(c - h))`, so `hi` is Beat hertz above `lo` on every key and all pairs turn together. Keep both phases in `double`: the phases carry the rate, the sine only has to be clean.
