@@ -63,7 +63,7 @@ The device has five curves, in <Src path="cpp/devices/saturator/Waveshapers.h">`
 - **Soft**, <M t={String.raw`\tanh u`} />: bends from the first, and never quite arrives.
 - **Hard**, <M t={String.raw`\max(-1, \min(1, u))`} />: straight, then flat, with a corner between.
 - **Tube**, <M t={String.raw`\tanh u`} /> above zero and <M t={String.raw`\tanh(1.5u)/1.5`} /> below: the lower half gives way earlier and stops at −⅔.
-- **Tape**, <M t={String.raw`u/\sqrt{1+u^2}`} />: the slowest of the soft ones to arrive. The device follows it with a one-pole low-pass that closes from 16 kHz to 6 kHz as the drive rises.
+- **Tape**, <M t={String.raw`u/\sqrt{1+u^2}`} />: the slowest of the soft ones to arrive. The device follows it with <Src path="cpp/devices/saturator/saturator.h">a one-pole low-pass</Src> that closes from 16 kHz to 6 kHz as the drive rises.
 - **Fold**, a triangle wave in <M t="u" />: past ±1 the curve turns round and comes back.
 
 <Curve taps="soft:out hard:ctl tube:alt tape:alt2 fold:alt3" xTitle="driven sample" yTitle="sample out" min={-1.15} max={1.15} height={280}>
@@ -118,7 +118,7 @@ At the settings this page opens on (Soft, 18 dB), the ninth harmonic of the 5 kH
 
 ### 4. Oversampling: the same curve with room above it
 
-Run the curve at 192 kHz and its harmonics have until 96 kHz before they fold, and what folds lands first in the empty band above the audible one, where a filter can remove it. Only a partial within 24 kHz of a multiple of the higher rate still lands in the sound: for the 5 kHz probe at 4x, the 35th harmonic where it was the 5th. The three paths are side by side in <Src path="cpp/devices/saturator/saturator.h">`run`</Src>.
+Run the curve at 192 kHz and its harmonics have until 96 kHz before they fold, and what folds lands first in the empty band above the audible one, where a filter can remove it. Only a partial within 24 kHz of a multiple of the higher rate still lands in the sound: for the 5 kHz probe at 4x, the 35th harmonic where it was the 5th, and it arrives at 17 kHz <Claim id="fold-high">118 dB under full scale</Claim>. The three paths are side by side in <Src path="cpp/devices/saturator/saturator.h">`run`</Src>.
 
 **Up.** To double the rate, put a zero between every two samples and low-pass at the old half rate. The zeros make a mirror image of the spectrum above 24 kHz; the filter removes it, which is the same as filling in the zeros with the values that belong between. <Src path="cpp/kit/oversample.h">The kit's `Halfband2x`</Src> does this with a *half-band* filter: a low-pass whose corner is exactly a quarter of its own rate, which makes every second coefficient zero and the middle one a half. Of its 63 taps only 16 pairs are multiplied. In `up`, one of each two outputs is the input itself and the other is the sample half way, worked out from the 32 inputs around it.
 
@@ -135,10 +135,10 @@ The outer filter is flat within <Claim id="outer-flat">0.001 dB</Claim> up to 20
 <Controls ids="oversample drive curve" />
 
 <Spectrogram tap="rising" min={-100} max={0} height={260}>
-  A sine rising from nothing to 10 kHz in half a second, through the device as set: time across, frequency up. Each harmonic is a line that climbs. At 1x the lines bounce off the top at 24 kHz and off the bottom, and the picture fills with crossings. At 4x the climbing lines are left, each with a short tail where it passed the filter's slope at the top, and near the end the faint zigzag of harmonics past the twentieth, high enough to fold about 192 kHz.
+  A sine rising from nothing to 10 kHz in half a second, through the device as set: time across, frequency up. Each harmonic is a line that climbs. At 1x the lines bounce off the top at 24 kHz and off the bottom, and the picture fills with crossings. At 4x the climbing lines are left, each with a short tail where it passed the filter's slope at the top, and near the end the faint zigzag of harmonics that climbed all the way to 192 kHz and folded about it.
 </Spectrogram>
 
-A filter that weighs samples on both sides of now has to wait for the later ones. The outer pair costs 31 samples for the trip up and down. The inner pair costs 15 at the doubled rate, and one more is added to make a whole number at the base rate: 8. The device takes those <Claim id="latency">39 samples</Claim> at every setting. It feeds the 2x path 8 samples late and the 1x path 39, so switching never moves the sound, and the dry signal that Mix blends in is delayed once.
+A filter that weighs samples on both sides of now has to wait for the later ones. The outer pair costs 31 samples for the trip up and down. The inner pair costs 15 at the doubled rate, and <Src path="cpp/devices/saturator/saturator.h">one more is added</Src> to make a whole number at the base rate: 8. The device takes those <Claim id="latency">39 samples</Claim> at every setting. It feeds the 2x path 8 samples late and the 1x path 39, so switching never moves the sound, and the dry signal that Mix blends in is delayed once.
 
 <Curve taps="arrival" stems xTitle="samples after the click" yTitle="out" xMin={24} xMax={54} min={-0.3} max={1.1} height={180}>
   One small click through the device as set. At 1x it is one sample, 39 late. Oversampled, the filters leave a little ringing either side of it, the same before as after. The antiderivative of stage 5 turns it into two samples of half the height at 1x.

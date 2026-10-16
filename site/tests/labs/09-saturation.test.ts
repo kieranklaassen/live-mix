@@ -266,6 +266,22 @@ describe('lesson 9: saturation and oversampling', () => {
     expect(peakNear(result.taps.folded1x!, 23_000)).toBeLessThan(-16.7)
   })
 
+  it('leaves below 20 kHz at 4x the harmonics that reach 192 kHz: the 35th of the 5 kHz tone comes back at 17 kHz, 118 dB under full scale (claim fold-high)', async () => {
+    const sat = await lab('09-saturation')
+    const result = sat.render(nothing, { probe: 5000, oversample: X4 })
+    const set = result.taps.foldedSet!
+    // 35 times 5 kHz is 175 kHz, 17 under 192. The 37th, at 185 kHz, lands at 7 kHz, weaker.
+    expect(peakNear(set, 17_000)).toBeGreaterThan(-119.1)
+    expect(peakNear(set, 17_000)).toBeLessThan(-116.1)
+    expect(peakNear(set, 7000)).toBeLessThan(peakNear(set, 17_000) - 4)
+    expect(peakNear(set, 7000)).toBeGreaterThan(-127)
+    // What folded about 48 kHz and about 96 kHz at 1x and landed anywhere else is gone.
+    for (const hz of [1000, 9000, 11_000, 19_000]) {
+      expect(peakNear(result.taps.folded1x!, hz)).toBeGreaterThan(-90)
+      expect(peakNear(set, hz)).toBe(-140)
+    }
+  })
+
   it('has a 63-tap half-band flat within 0.001 dB to 20 kHz (claim outer-flat) and 81 dB down from 27.8 kHz (claim outer-stop)', async () => {
     const sat = await lab('09-saturation')
     const outer = sat.render(nothing, {}).taps.outerResponse!
