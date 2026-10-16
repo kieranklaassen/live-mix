@@ -537,8 +537,7 @@ input[type='range'] {
   max-width: none;
   /*
    * The colour of a part's number, of a card's tag and of the hero's first line: the ink of the
-   * lesson's family where the page's styles give one (--family-ink, with --family for its dot),
-   * and the accent where they do not.
+   * lesson's family (--family-ink in site.css, with --family for its dot).
    */
   --part-ink: var(--family-ink, var(--lm-accent));
 }

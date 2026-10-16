@@ -45,6 +45,47 @@
   --sig-alt3: #dfadfb;
   color-scheme: dark;
 }
+
+/*
+ * A family's colour is one of the kit's brushes: its dot is the brush, and its numbers are the
+ * brush's ink. A row of the map and a lesson's page carry the family as data-family.
+ */
+:root {
+  --family: var(--lm-muted);
+  --family-ink: var(--lm-muted);
+}
+[data-family='signals'] {
+  --family: var(--lm-brush-2);
+  --family-ink: var(--lm-brush-ink-2);
+}
+[data-family='spectrum'] {
+  --family: var(--lm-brush-6);
+  --family-ink: var(--lm-brush-ink-6);
+}
+[data-family='filters'] {
+  --family: var(--lm-brush-1);
+  --family-ink: var(--lm-brush-ink-1);
+}
+[data-family='dynamics'] {
+  --family: var(--lm-brush-5);
+  --family-ink: var(--lm-brush-ink-5);
+}
+[data-family='delays'] {
+  --family: var(--lm-brush-4);
+  --family-ink: var(--lm-brush-ink-4);
+}
+[data-family='rooms'] {
+  --family: var(--lm-brush-3);
+  --family-ink: var(--lm-brush-ink-3);
+}
+[data-family='space-and-motion'] {
+  --family: var(--lm-accent);
+  --family-ink: var(--lm-accent);
+}
+[data-family='synthesis'] {
+  --family: var(--lm-automation);
+  --family-ink: var(--lm-automation);
+}
 /* The kit names two families and leaves loading them to the page: the site's own are these. */
 [data-lm-theme] {
   --lm-font: var(--font-sans);

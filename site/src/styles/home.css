@@ -1,8 +1,8 @@
 /*
  * The home page and the lessons' index: the hero, the loop row, the map of tiles and the small
  * bar a tile's sound brings. Colours and type come from site.css and, through it, the React
- * kit's tokens. A family's colour is one of the kit's brushes: its dot is the brush, and its
- * numbers are the brush's ink.
+ * kit's tokens. A family's colour is set in site.css, for the map's rows and a lesson's page
+ * alike.
  */
 
 /* ---- the hero ----------------------------------------------------------- */
@@ -177,40 +177,6 @@
 .family {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  --family: var(--lm-muted);
-  --family-ink: var(--lm-muted);
-}
-.family[data-family='signals'] {
-  --family: var(--lm-brush-2);
-  --family-ink: var(--lm-brush-ink-2);
-}
-.family[data-family='spectrum'] {
-  --family: var(--lm-brush-6);
-  --family-ink: var(--lm-brush-ink-6);
-}
-.family[data-family='filters'] {
-  --family: var(--lm-brush-1);
-  --family-ink: var(--lm-brush-ink-1);
-}
-.family[data-family='dynamics'] {
-  --family: var(--lm-brush-5);
-  --family-ink: var(--lm-brush-ink-5);
-}
-.family[data-family='delays'] {
-  --family: var(--lm-brush-4);
-  --family-ink: var(--lm-brush-ink-4);
-}
-.family[data-family='rooms'] {
-  --family: var(--lm-brush-3);
-  --family-ink: var(--lm-brush-ink-3);
-}
-.family[data-family='space-and-motion'] {
-  --family: var(--lm-accent);
-  --family-ink: var(--lm-accent);
-}
-.family[data-family='synthesis'] {
-  --family: var(--lm-automation);
-  --family-ink: var(--lm-automation);
 }
 .family-head,
 .tile {
