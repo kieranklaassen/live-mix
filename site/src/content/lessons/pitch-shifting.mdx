@@ -25,6 +25,7 @@ files:
   - cpp/devices/pitch-shifter/PeakShifter.h
   - cpp/devices/pitch-shifter/device.json
   - cpp/kit/pitch.h
+  - cpp/kit/hilbert.h
   - cpp/kit/delay.h
   - cpp/kit/math.h
   - cpp/kit/filters.h
@@ -82,7 +83,7 @@ This is the engine's Pitch Shifter doing it to the line. <Hear set="octave" labe
 
 ### Where it is weak
 
-That is the whole method, and its weak point is its last step. What comes out is made of overlapping pieces, and where two pieces overlap, two different moments of the sound lie one over the other. Before going on, here is a question about the simplest sound there is.
+That is the whole method, and its weak point is its last step. What comes out is made of overlapping pieces, and where two pieces overlap, two different moments of the sound lie one over the other.
 
 <Predict
   question="A steady sine goes through the plain method, an octave up. Both heads are reading the same steady tone, and their two gains add up to one at every instant. What comes out?"
@@ -108,7 +109,7 @@ Listen for the flutter in the tone. <Hear set="wobble" label="Hear the sine, an 
 
 </Predict>
 
-That handing over is called the splice, and most of this lesson is about it: what it does to a tone, why, and what can be done about it.
+That handing over is called the splice.
 
 The engine's Pitch Shifter has four ways of working, which it calls modes. This lesson starts it in the one called Vintage, which is the plain method and nothing more, so that the splice is in plain view. Part 5 then turns to Smooth, which looks at the sound before it splices. The device itself starts in a fourth mode, Chords, which leaves the heads behind altogether. Part 9 sets the lesson's starting settings beside the device's own.
 
@@ -135,7 +136,7 @@ The slope of a ramp is the interval. With Pitch A at +12 a head comes <Claim id=
 
 The height of the teeth is Size, the length of the stretch a head covers before it jumps. A larger Size makes the jumps rarer, and puts the two heads further apart.
 
-The picture cannot show what is heard while a line jumps. That depends on the other head, and on how well the two sounds they are reading agree. The rest of the lesson is about that.
+The picture cannot show what is heard while a line jumps. That depends on the other head, and on how well the two sounds they are reading agree.
 
 </Part>
 
@@ -272,7 +273,7 @@ The first four steps are the lesson's own, a shifter with something missing. Wit
 
   </Step>
   <Step title="A window" controls="pitchA size">
-    The cure for the click is to be silent at the moment of the jump. The head's gain becomes a raised cosine of its place in its stretch: nothing at either end, where it jumps, and 1 in the middle.
+    The cure for the click is to be silent at the moment of the jump. The head's gain becomes a raised cosine of its place in its stretch, the Hann window of <Lesson id="short-time-fourier" />: nothing at either end, where it jumps, and 1 in the middle.
 
     <Claim id="build-window">The largest step between two samples of the sine falls from 0.47 to 0.029 of full scale</Claim>, which is the steepness of the shifted wave itself. The jump can no longer be found in the sound.
 
@@ -364,7 +365,7 @@ Here is how the lab puts the pieces in order, for one sample.
 
 Notice that the heads read before the new sample is written. That is the device's order too, and it is why a head can never read the sample that is arriving.
 
-That is a whole pitch shifter in six small functions. The one in the engine does the same arithmetic in one function, and round it has what a device needs: an interval that glides when it is moved, a second voice, a way back into the ring, and three other ways of placing the heads. The next part opens it.
+That is a whole pitch shifter in six small functions. The one in the engine does the same arithmetic in one function, and round it has what a device needs: an interval that glides when it is moved, a second voice, a way back into the ring, and three other ways of placing the heads.
 
 </Part>
 
@@ -432,7 +433,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 <StageBlock tap="ring" n={2} title="What is recorded: a band limit, then the ring">
   The heads read a memory of the sound, and this stage is what goes into it. The memory is three of the kit's <Src path="cpp/kit/delay.h" at="class DelayLine {">delay lines</Src> written together, the left channel, the right, and the mean of the two, each <Src path="cpp/devices/pitch-shifter/ShiftVoice.h" at="constexpr int kRingSize = 1 << 18;">262,144 samples</Src> long. The mean is there for the splice search of stage 6, which listens to one line so that both channels splice at the same place.
 
-  Before the sound is written it is band-limited, for the reason the last step of the build gave. A head that reads <M t="r" /> times too fast multiplies every frequency in the ring by <M t="r" />. Half the sample rate is the highest frequency sampled sound can hold, so the ring must hold nothing that <M t="r" /> would carry past it. The corner of the low-pass is
+  Before the sound is written it is band-limited, for the reason the last step of the build gave: the ring must hold nothing that a ratio of <M t="r" /> would carry past half the sample rate. The corner of the low-pass is
 
   <M block t={String.raw`f_c = \at{guard-corner}{\frac{0.45\, f_s}{\max(1,\ r)}}`} />
 
@@ -472,7 +473,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   samples behind, and head B at the same with <M t={String.raw`\varphi + \tfrac{1}{2}`} /> in place of <M t={String.raw`\varphi`} />, wrapped round to stay under 1.
 
-  Read the first formula against the picture of part 2. Shifting up, <M t="r" /> is over 1, so the phase falls: the head closes on the present, and when the phase passes 0 it comes round to 1 and the head is a whole stretch back. Shifting down, the phase climbs and wraps the other way. Either way the head gains or loses <M t={String.raw`|1 - r|`} /> samples in each sample, so one pass along the stretch takes <M t={String.raw`W / |1 - r|`} /> samples. A small interval makes long, lazy ramps, and a wide one short, steep ones.
+  Read the first formula against the picture of part 2. Shifting up, <M t="r" /> is over 1, so the phase falls: the head closes on the present, and when the phase passes 0 it comes round to 1 and the head is a whole stretch back. Shifting down, the phase climbs and wraps the other way. Either way the head gains or loses <M t={String.raw`|1 - r|`} /> samples in each sample, so one pass along the stretch takes <M t={String.raw`W / |1 - r|`} /> samples: the ramps that part 2 timed.
 
   <M t="d_0" /> is the floor: the nearest a head ever comes to the present, <Src path="cpp/devices/pitch-shifter/ShiftVoice.h" at="static constexpr float kFloorSeconds = 0.0015f;">1.5 ms</Src>. A head needs a sample or two on each side of the place it reads, and the floor leaves it those.
 
@@ -588,6 +589,8 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     notice the dips deepen and fill in turn as the heads pass in and out of step. Then try the
     guitar, whose notes change, and notice the dips come and go with them.
   </Trace>
+
+  The level in these pictures is no average over a stretch of time, which would smooth a dip away. The lab makes of each sound the kit's <Src path="cpp/kit/hilbert.h" at="class Hilbert {">pair of copies a quarter of a cycle apart</Src>, the pair that <Lesson id="frequency-shifting" /> takes apart, and the level at a sample is the root of the sum of their two squares.
 
   ### What the ear gets: a different pitch
 
@@ -759,6 +762,8 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   The two halves of the blend are not in time with each other. The shifted voice has been through the ring, and it is late by wherever its heads were reading. With no shift at all that is one fixed distance: <Claim id="unison-out">at 0 in Vintage the guitar comes out nearest its input 1,513 samples later, with −30 dB between the two</Claim>. That is the distance of stage 4 and one sample more: the band limit and Tone each hold the sound back by part of a sample, and together that comes nearest to one. They also turn the top of the sound a little, which is why the two are no closer than that. Part 7 comes back to what that lateness does when the two halves are heard together.
 
+  One guard stands before the blend. The voices as placed pass <Src path="cpp/devices/pitch-shifter/pitch_shifter.h" at="wet[c] = 2.0f * kit::soft_clip(0.5f * wet[c]);">a curve</Src> that is a straight line up to full scale and levels off at twice full scale, so no pile of voices and repeats comes out larger than that. <Claim id="wet-limit">On the sine, with Mode at Grain, Jitter at 0, Size at 45 ms, Voice B at 1, both voices at +12 and Feedback at 0.95, the output peaks at more than 1.9 times full scale, and no sample of it passes 2</Claim>. The page's player <Src path="site/src/lab/player.ts" at="export const volumeGain">plays every stage at half its size when the volume is all the way up</Src>, so twice full scale is the most it can play whole. With Mix under 1 a loud sound going in is added on top of the voices, and whatever then passes twice full scale is cut off flat in the ear, though the pictures show it whole.
+
   <Listing
     slot="listing"
     path="cpp/devices/pitch-shifter/pitch_shifter.h"
@@ -812,7 +817,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
 
 <Ways>
   <Way title="Thicken without transposing" tag="no interval, a little Detune, Spread" set="doubler">
-    The commonest use of a pitch shifter changes no note. Two voices a few cents either side of the sound, one to each side, a short Delay behind it. The card is the doubler of part 3. After it, bring Detune down to nothing and listen to the width close up, then take it far up and listen for the point where two voices stop sounding like one thick one and start sounding out of tune.
+    The commonest use of a pitch shifter changes no note. The card is the doubler of part 3. After it, bring Detune down to nothing and listen to the width close up, then take it far up and listen for the point where two voices stop sounding like one thick one and start sounding out of tune.
   </Way>
   <Way title="A chord from one note" tag="two voices, two intervals" set="triad">
     <Still
@@ -882,10 +887,10 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     Size sets how often the heads splice, and a rate of splices is a frequency. When that rate is slow it is heard as flutter. When it is fast enough to be a pitch of its own, the voice has a buzz in it that does not move with the notes. <Claim id="buzz-rate">On this card each head jumps every 10 ms, and with the sine in place of the guitar the level dips 200 times a second</Claim>. The lines of stage 5 are now so far apart that the tallest is nowhere near the octave. Lengthen Size until the buzz slows to a flutter and then to nothing much.
   </Fault>
   <Fault title="Late, in Chords" set="late">
-    Chords has to hear a long frame before it can move it. <Claim id="chords-late">A tone that starts from silence reaches half its height 193 ms after it began in Chords, where Smooth, at +12 and a Size of 60 ms, takes 25 ms</Claim>. The card plays drums through Chords with Mix half way, so each dry hit is followed by its shifted copy about a fifth of a second behind: listen for the two as separate events. A pad has no hits to be late for. On anything with a beat, use Smooth or Grain, or turn Mix all the way up and move the part earlier.
+    Chords answers late, as part 5 said, and this is how late: <Claim id="chords-late">a tone that starts from silence reaches half its height 193 ms after it began in Chords, where Smooth, at +12 and a Size of 60 ms, takes 25 ms</Claim>. The card plays drums through Chords with Mix half way, so each dry hit is followed by its shifted copy about a fifth of a second behind: listen for the two as separate events. A pad has no hits to be late for. On anything with a beat, use Smooth or Grain, or turn Mix all the way up and move the part earlier.
   </Fault>
   <Fault title="Dull, going up">
-    The band limit of stage 2 takes off the top of whatever is shifted up, and the further up, the more it takes. <Claim id="band-two-octaves">At +24 a tone is recorded 3.0 dB down at 5.4 kHz</Claim>, and everything above that is fading fast. After the heads have multiplied it by four the voice reaches as high as it ever did, but it is made of what was the bottom quarter of the sound. That is the method. The step of the build with the band limit shows what would be there in its place.
+    The band limit of stage 2 takes more off the top the further up the shift goes. <Claim id="band-two-octaves">At +24 a tone is recorded 3.0 dB down at 5.4 kHz</Claim>. After the heads have multiplied it by four the voice reaches as high as it ever did, but it is made of what was the bottom quarter of the sound. That is the method, and the last step of the build shows what would be there in its place.
   </Fault>
   <Fault title="Hollow against the dry sound">
     A voice with little or no interval is nearly the dry sound over again, late by wherever its heads are reading, as stage 9 measured. With Mix half way the two add, and a sound added to a late copy of itself is a comb: some frequencies doubled, others cancelled. Because the heads move, the comb moves. That is the sweep of <Lesson id="chorus-and-flanging" />, wanted there and an accident here. Raise Delay until the copy is late enough to be heard as a second voice, which is what the doubler does, or turn Mix all the way up.
@@ -894,26 +899,20 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
 
 </Part>
 
-<Part id="myths" title="Six things that are often said, and what is true.">
+<Part id="myths" title="Four things that are often said, and what is true.">
 
 <Myths>
-  <Myth says="A pitch shifter plays the sound faster.">
-    It reads faster, and then reads again. Speed alone changes pitch and length together, as the fast tape of part 1 showed. The shifter keeps the length by playing every stretch of the sound more than once going up, and by leaving stretches out going down. Part 7 has the cases where the repeats and the gaps can be heard.
-  </Myth>
   <Myth says="An octave up is exactly twice the frequency.">
-    In Smooth, on one steady note, it is. In Vintage the tone comes out as a row of lines counted from the frequency that went in, spaced by Size, and the tallest is the one that happens to lie nearest the octave. Stage 5 has the formula and the measurement. The pitch of the plain method has a little of Size in it.
+    In Smooth, on one steady note, it is. In Vintage the tallest line that comes out stands a few cents to one side of the octave, by an amount that Size sets. Stage 5 has the formula and the measurement.
   </Myth>
   <Myth says="Gains that add up to one keep the level.">
-    They keep it when the two sounds under them are in step. Out of step, two waves add up to less than their heights, and with nothing in common they add in power, which sags in the middle of every crossing. This is the answer to the question of part 1, and stage 6 measures what the noise loses.
+    Only while the two sounds under them are in step. Stage 5 works out the dip of two waves out of step, which is the answer to the question of part 1, and stage 6 measures what noise loses when the two have nothing in common.
   </Myth>
   <Myth says="A longer Size is always cleaner.">
-    It makes the splices rarer, so a held note flutters more slowly. It also puts the readings of each moment further apart in time, so a hit that was smeared becomes a hit that is plainly repeated. The second fault of part 7 measures both ends. Size is a choice between two faults, made for the sound in hand.
+    It makes the splices rarer, and it puts the readings of each moment further apart. The first two faults of part 7 measure the two ends: a slower flutter on a held note, and a hit that is plainly repeated. Size is a choice between two faults, made for the sound in hand.
   </Myth>
   <Myth says="Smooth mends every splice.">
-    Smooth finds the best place to splice, and the best place is only as good as the sound allows. On one note it is nearly perfect. On noise, and where the notes of a chord disagree, the match it finds is far from 1, as stage 6 shows, and what it does then is hold the level steady across a splice where the two heads still disagree. And it reads a hit as many times as Vintage does.
-  </Myth>
-  <Myth says="A shifter set to a third gives a harmony in the key.">
-    It adds the same number of semitones to every note. A harmony in a key needs a major third over some notes and a minor third over others, and nothing in this device knows which note is being played, let alone the key. That is why the uses of part 3 keep to octaves, fifths and fourths for whole lines, and why the chord of part 6 is the same chord on every note.
+    It finds the best place there is, and on noise and on chords stage 6 measures a match far from 1. What Smooth does then is hold the level steady across a splice where the two heads still disagree. And part 7 counts as many copies of a click in Smooth as in Vintage.
   </Myth>
 </Myths>
 

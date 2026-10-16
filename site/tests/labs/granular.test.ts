@@ -784,6 +784,22 @@ describe('granular sound', () => {
     )
   })
 
+  it('can come out past twice full scale: on the drum loop at Size 120 ms and Density 4, with Pitch three tenths of a semitone up and Feedback at 1, the grains’ sum peaks at 2.42 times full scale and the output at 2.33 (claim out-loud)', async () => {
+    const grain = await lab(NAME)
+    const drums = await benchSource('drums', seconds(4))
+    const most = (result: RenderResult, id: string) =>
+      Math.max(...result.taps[id]!.channels_data.map((channel) => peak(channel)))
+    const loud = grain.render(drums, { size: 120, pitch: 0.3, density: 4, feedback: 1 })
+    say('drums, Pitch 0.3, Density 4, Feedback 1:', most(loud, 'grains'), most(loud, 'out'))
+    expectWritten(most(loud, 'grains'), '2.42')
+    expectWritten(most(loud, 'out'), '2.33')
+    // It is the loop that piles the grains up so far: with no Feedback the same grains come out
+    // well under twice full scale.
+    const once = grain.render(drums, { size: 120, pitch: 0.3, density: 4 })
+    expect(most(once, 'out')).toBeLessThan(1.5)
+    expect(matchesWritten(most(once, 'out'), '2.33')).toBe(false)
+  })
+
   it('cannot shift a note with grains shorter than its cycle: on a 55 Hz sine at +12 semitones and Density 4, grains of 10 ms leave less than 1 % of their power within a semitone of 110 Hz and more than 90 % within a semitone of 55 Hz, and grains of 200 ms put more than 90 % within a semitone of 110 Hz, on every one of the eight dice (claim fault-short)', async () => {
     const grain = await lab(NAME)
     const low = sine(55, 0.5, seconds(4))

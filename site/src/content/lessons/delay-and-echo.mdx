@@ -435,10 +435,10 @@ Three of the sounds are read straight out of the device: what it wrote on its ta
     { id: 'out', tap: 'out', shape: 'end', from: 'mix' },
   ]}
 >
-  The row along the middle is the sound on its way through. The row under it is the way back: what
-  the heads read, filtered, on its way to be recorded again. The two rows over it carry no sound: the
-  place the heads read, and over that the speed that follows from it. Press a stage's button below, and
-  notice its block light up here.
+  From Input through Sum, Record and Heads to Mix and Output is the sound on its way through. Loop
+  filters is the way back: what the heads read, filtered, on its way to be recorded again. Two
+  blocks carry no sound: "Time, motor, wow" is the place the heads read, and Tape speed is the
+  speed that follows from it. Press a stage's button, and notice its block light up here.
 </Flow>
 
 <StageBlock tap="delay" n={1} title="Where the head stands: Time, a motor and two wanderings">
@@ -726,6 +726,8 @@ Three of the sounds are read straight out of the device: what it wrote on its ta
 
     Now the loop. A sound of some size goes round at a gain of <M t="g" /> times <M t={String.raw`\tanh(u s)/(u s)`} />. For small sounds that ratio is 1, and it falls as they grow. With Feedback above 1 a quiet repeat comes back larger, and the next larger still, until the ratio has fallen to one over <M t="g" />. The gain round the loop is then 1, and the growing stops. <Claim id="settles">A burst of a 1 kHz tone is left to go round at a Feedback of 1.1 and a Time of 30 ms. In the last second of an 8 s loop its peaks on the tape stand at 0.63 with Drive at 0 and at 0.16 with Drive at 1, each less than 1 % from where it stood the second before</Claim>. The second height is a quarter of the first, because <M t="u" /> is four times as large. On the drums and on the clicks, with Drive at 1 and Feedback at its highest, the largest sample on the tape is <Claim id="ceiling">0.25</Claim>.
 
+    The ceiling is on the tape and not on the sum. With Drive at 0 the tape gives back up to full scale, and Feedback over 1 adds more than that to a sound going in that may be at full scale itself. <Claim id="sum-loud">A 1 kHz tone at full scale, at a Time of 30 ms with Feedback at 1.1 and Drive at 0, makes a sum that peaks at 2.09 times full scale, on a tape that peaks at 0.99 and an output at 1.4</Claim>. The page's player <Src path="site/src/lab/player.ts" at="export const volumeGain">plays every stage at half its size when the volume is all the way up</Src>, so the sum of stage 5, heard through its button at such a setting, is cut off flat in the ear, though the pictures show it whole.
+
     At a Feedback of exactly 1 a trail still dies, slowly. The loop's filters take a little on every trip, even wide open, and the bend takes more from anything loud. For the lab's burst of a 1 kHz tone, which peaks at <Src path="site/labs/delay-and-echo.cpp" at="constexpr float kBurstPeak = 0.1f;">a tenth of full scale</Src>, the 24th repeat is <Claim id="unity">0.7 dB</Claim> under its first.
 
     <Listing
@@ -784,7 +786,7 @@ Three of the sounds are read straight out of the device: what it wrote on its ta
 </StageBlock>
 
 <StageBlock tap="out" n={7} title="The mix">
-  Last, the sound going in and what the heads read are added together, each at a gain that Mix sets. The heads are taken before the loop's filters, so the first repeat is heard exactly as it was recorded.
+  Last, the sound going in and what the heads read are added together, each at a gain that Mix sets.
 
   <Controls ids="mix" />
 
@@ -870,7 +872,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     With Time at its shortest a click comes back <Claim id="fault-buzz">33 times in a second, the first after 1,440 samples</Claim>. Listen for repeats that close running together into a buzz, with a pitch at the rate of the repeats. A delay this short, on anything but a click, is the subject of <Lesson id="chorus-and-flanging" />. For an echo, lengthen Time until the repeats come apart.
   </Fault>
   <Fault title="A click when Time is moved">
-    A head that jumped to a new place would cut from one part of the wave to another in a single sample, and that is a click. This device never jumps: the motor of stage 1 carries the head there. The price is the bend in pitch of stage 2. A delay that must change length without a bend has to fade from one head to another.
+    A head that jumped to a new place would cut from one part of the wave to another in a single sample: the click of step 7 of the build. This device never jumps, since the motor of stage 1 carries the head there, and the price is the bend in pitch of stage 2. A delay that must change length without a bend has to fade from one head to another, which is where <Lesson id="pitch-shifting" /> begins.
   </Fault>
   <Fault title="The top comes and goes">
     A read between two samples loses some of the top, by an amount that depends on where between them it lands, as stage 3 measures. A head that wanders passes through every place in turn, so the top of the repeats rises and falls a little with Wow. It is small with this read and larger with a linear one.
@@ -904,7 +906,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     The two gains are a cosine and a sine, so that the power of the whole holds level. At the middle each is the number of stage 7, well over a half. Turning Mix up from 0 brings the echo in faster than it takes the sound away.
   </Myth>
   <Myth says="A delay line moves its samples along.">
-    Nothing in the ring moves. A sample stays in the slot it was written to until the write index comes round and writes over it. Only two indices advance, and the delay is the distance between them. That is the ring of part 2, and it is why a delay of a second costs no more work than a delay of a millisecond.
+    Nothing in the ring moves. Only two indices advance, and the delay is the distance between them. That is the ring of part 2, and it is why a delay of a second costs no more work than a delay of a millisecond.
   </Myth>
 </Myths>
 

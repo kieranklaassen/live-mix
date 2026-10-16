@@ -572,6 +572,22 @@ describe('delay and echo', () => {
     }
   })
 
+  it('has its ceiling on the tape and not on the sum: a 1 kHz tone at full scale, at a Time of 30 ms with Feedback at 1.1 and Drive at 0, makes a sum that peaks at 2.09 times full scale, on a tape that peaks at 0.99 and an output at 1.4 (claim sum-loud)', async () => {
+    const echo = await lab('delay-and-echo')
+    const tone = sine(1000, 1, seconds(4))
+    const most = (result: RenderResult, id: string) =>
+      Math.max(peak(tap(result, id)), peak(tap(result, id, 1)))
+    const loud = echo.render(tone, { feedback: 1.1, drive: 0, time: 30 })
+    expectWritten(most(loud, 'sum'), '2.09')
+    expectWritten(most(loud, 'tape'), '0.99')
+    expectWritten(most(loud, 'out'), '1.4')
+    // The sum is past twice full scale because Feedback is over 1: under 1, on the same tone,
+    // it is not.
+    const dying = echo.render(tone, { feedback: 0.9, drive: 0, time: 30 })
+    expect(most(dying, 'sum')).toBeLessThan(2)
+    expect(matchesWritten(most(dying, 'sum'), '2.09')).toBe(false)
+  })
+
   it("lets the lab's burst, a tenth of full scale, die slowly at a feedback of exactly 1: its 24th repeat is 0.7 dB under its first (claim unity)", async () => {
     const echo = await lab('delay-and-echo')
     // The lab plays its own burst into the second copy of the device, whatever goes in here.

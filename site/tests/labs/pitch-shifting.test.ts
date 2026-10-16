@@ -786,6 +786,22 @@ describe('pitch shifting', () => {
     expect(lineDb(once, 880) - lineDb(once, 1760)).toBeGreaterThan(60)
   })
 
+  it('holds the voices under twice full scale on their way out: on the sine, in Grain with Jitter at 0, Size at 45 ms, Voice B at 1, both voices at +12 and Feedback at 0.95, the output peaks at more than 1.9 times full scale, and no sample of it passes 2 (claim wet-limit)', async () => {
+    const shifter = await lab('pitch-shifting')
+    const source = await tone()
+    const most = (result: RenderResult) =>
+      Math.max(peak(tap(result, 'out')), peak(tap(result, 'out', 1)))
+    const piled = { mode: GRAIN, jitter: 0, size: 45, pitchA: 12, pitchB: 12, levelB: 1 }
+    const loud = most(shifter.render(source, { ...piled, feedback: 0.95 }))
+    expectWritten(loud, 'more than 1.9')
+    expect(loud).toBeLessThanOrEqual(2)
+    // It is the loop that piles the sound up so far: the same two voices with no Feedback are
+    // under full scale, where the limit is a straight line and does nothing.
+    const plain = most(shifter.render(source, piled))
+    expect(plain).toBeLessThan(1)
+    expect(matchesWritten(plain, 'more than 1.9')).toBe(false)
+  })
+
   it('in Chords brings a tone that starts from silence to half its height 193 ms after it began, where Smooth at +12 and a Size of 60 ms takes 25 ms (claim chords-late)', async () => {
     const shifter = await lab('pitch-shifting')
     const halfMs = (hz: number, mode: number, more: Record<string, number> = {}) => {

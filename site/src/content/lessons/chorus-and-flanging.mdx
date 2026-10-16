@@ -10,6 +10,7 @@ opening:
   top: 4000
   min: -64
   max: -40
+  hear: [in, flanger]
   caption: White noise going in, and the same noise coming out of the Flanger, each as a spectrum over time. The noise holds every frequency at one level, so its picture is even. What comes out has bands of low level cut into it at even distances, and they sink and climb once in the loop.
 lab: chorus-and-flanging
 devices: [flanger, chorus]
@@ -104,7 +105,7 @@ Here are strummed chords with three copies that hold still <Hear set="chordsLate
 
 A short delay that moves, mixed with the sound it was made from, is the whole machine, and it has two settings with names. Kept very short and read once, its comb has a few broad teeth, and the thing to listen for is the comb sliding. That is flanging. The name is from tape: two machines played the same recording, and an engineer slowed one with a finger on the rim of its reel, the flange. Made several times longer and read at two or three places at once, the comb's teeth crowd together, and the thing to listen for is the drift in time and pitch. That is a chorus.
 
-The rest of this lesson builds a flanger a piece at a time, then opens the engine's Flanger and its Chorus. The delay line itself, and how it is read between two samples, belong to <Lesson id="delay-and-echo" />, and are taken as given here.
+The delay line itself, and how it is read between two samples, belong to <Lesson id="delay-and-echo" />, and are taken as given here.
 
 </Part>
 
@@ -172,7 +173,7 @@ Where one becomes the next is for the ear to judge, and no test on this page mea
   caption="The far end, drawn against time: the first six hundredths of a second after a single sample goes in. The sample comes out at once, and its copy follows it."
 />
 
-Notice what the comb's picture leaves out: motion. It shows a delay that holds still, and neither device holds its delay still. The moving is what the next parts add.
+Notice what the comb's picture leaves out: motion. It shows a delay that holds still, and neither device holds its delay still.
 
 </Part>
 
@@ -293,7 +294,7 @@ The first four pieces are the engine's Flanger. The fifth is the step from a fla
 
     The read point does not jump to where the oscillator puts it. On each sample it covers a fixed share of the distance, so it follows a little late, and a shape that jumps becomes a quick glide.
 
-    <Claim id="build-move">At the starting settings the read point now runs from 1.31 ms to 3.69 ms, and a 1 kHz sine comes back from the delay at anything from 998.1 Hz to 1,001.9 Hz. With this piece taken out again the read point stands at 2.5 ms and the sine comes back at 1,000.0 Hz</Claim>. A read point that is falling behind plays the sound slow, and one that is catching up plays it fast. Stage 3 of the next part works out by how much.
+    <Claim id="build-move">At the starting settings the read point now runs from 1.31 ms to 3.69 ms, and a 1 kHz sine comes back from the delay at anything from 998.1 Hz to 1,001.9 Hz. With this piece taken out again the read point stands at 2.5 ms and the sine comes back at 1,000.0 Hz</Claim>. That is the bend part 1 asked for, and stage 3 of the next part works out its size.
 
     Choose the pad in the row of sounds, and listen for a slow wobble of pitch, and for how little of it there is. Nothing has been mixed yet, so there is no comb in this sound and no sweep.
 
@@ -372,7 +373,7 @@ The first four pieces are the engine's Flanger. The fifth is the step from a fla
 
     <Check id="builtDifference" />
 
-    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows when there is no difference at all. On every loop of this page, at each of the five settings the lab's test tries, the build's output and the Flanger's are <Claim id="build-same">the same, sample for sample</Claim>.
+    That reading stops at <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>. It shows that for no difference at all, and for any difference further down than that. So the lab's test compares the two outputs themselves. On every loop of this page, at each of the five settings it tries, the build's output and the Flanger's are <Claim id="build-same">the same, sample for sample</Claim>.
 
     <Curve
       slot="picture"
@@ -445,7 +446,7 @@ Here is how the lab puts the pieces in order, for one sample on each side.
 
 The order matters in one place. The line is read before it is written, so the newest sound a read can reach is the sample written one step earlier, and what is fed back is what was read one step earlier still. That one extra sample in the loop is small, and stage 5 of the next part finds it in a measurement.
 
-That is the whole build in eight small functions. The Flanger in the engine is the first four pieces in the same order, written as one loop. Around them it has what a device needs and the build left out: controls that glide when they are moved, and a sleep when nothing is sounding. The next part opens it.
+That is the whole build in eight small functions. The Flanger in the engine is the first four pieces in the same order, written as one loop. Around them it has what a device needs and the build left out: controls that glide when they are moved, and a sleep when nothing is sounding.
 
 </Part>
 
@@ -469,9 +470,9 @@ The Flanger keeps everything this part needs, so its five stages are read from t
     { id: 'out', tap: 'flanger', shape: 'end', from: 'mix' },
   ]}
 >
-  The row along the top is sound. The row under it carries two numbers and no sound: where the
-  oscillator is, and how far behind the line is read. Press a stage's button below, and notice its
-  block light up here.
+  The Oscillator and the Read point carry two numbers and no sound: where the oscillator is, and
+  how far behind the line is read. Every other block is sound. Press a stage's button, and notice
+  its block light up here.
 </Flow>
 
 The listing is the whole of the Flanger's work on one sample. Its first three lines move the read points of the two sides. The loop under them runs once for each side: it places the read point, reads the line there, writes the new sample into the line with some of the last read added, and mixes. The five stages below take those lines one at a time.
@@ -709,6 +710,8 @@ The listing is the whole of the Flanger's work on one sample. Its first three li
 
   A loop this strong builds a resonance many times the size of the sound that feeds it, so what is fed back passes a limiter. It is exactly linear up to full scale and bends over above it, levelling off at twice full scale. <Claim id="loop-limit">With Feedback at 95 %, a sine at a twentieth of full scale on the comb's first top, 396.7 Hz, comes back along the delayed path 20 times as large, which is the +26 dB measured above. One at half of full scale comes back 4.7 times as large</Claim>, since the limiter holds what the loop adds to it under twice full scale.
 
+  That second sine is 2.35 times full scale on the delayed path, and Mix at its highest sends the delayed path straight out. The page cannot play that: its player <Src path="site/src/lab/player.ts" at="export const volumeGain">plays every stage at half its size when the volume is all the way up</Src>, so a sound past twice full scale is then cut off flat in the ear, though the pictures show it whole.
+
   <Listing
     slot="listing"
     path="cpp/devices/flanger/flanger.h"
@@ -737,8 +740,8 @@ This page has six of the eight as controls. Four of them are named Chorus rate, 
     { id: 'out', tap: 'chorus', shape: 'end', from: 'mix' },
   ]}
 >
-  The same row of sound as the Flanger's, with more than one read. The path that would carry
-  Feedback back into the line is left out, since this page keeps the Chorus's Feedback at nothing.
+  The Flanger's path of sound again, with more than one read. The path that would carry Feedback
+  back into the line is left out, since this page keeps the Chorus's Feedback at nothing.
 </Flow>
 
 <StageBlock tap="voice1Ms" n={6} title="Several read points, evenly round one cycle">
@@ -762,7 +765,7 @@ This page has six of the eight as controls. Four of them are named Chorus rate, 
     at={{ cap: 'kit::min(kMaxDeviationMs, delay_ms - 1.0f)' }}
   />
 
-  At the starting settings each of three voices runs <Claim id="voice-range">from 9.5 ms to 14.5 ms</Claim>, each <Claim id="voices-third">a third of a cycle, 0.417 s</Claim>, ahead of the one before. Two voices stand <Claim id="voices-half">half a cycle, 0.625 s</Claim>, apart. Sines spaced evenly round a cycle add to nothing, so while every voice moves, their delays add to the same <Claim id="voices-sum">36 ms</Claim> at every instant: the group as a whole stays where it is. With Chorus delay at its shortest the cap comes in. There, at full depth, <Claim id="chorus-cap">the sweep is 4 ms either way, from 1.0 ms to 9.0 ms</Claim>.
+  At the starting settings each of three voices runs <Claim id="voice-range">from 9.5 ms to 14.5 ms</Claim>, each <Claim id="voices-third">a third of a cycle, 0.417 s</Claim>, ahead of the one before. Two voices stand <Claim id="voices-half">half a cycle, 0.625 s</Claim>, apart. Sines spaced evenly round a cycle add to nothing, so while every voice moves, their delays add to the same <Claim id="voices-sum">36 ms</Claim> at every instant, as the last step of the build found of its own three. With Chorus delay at its shortest the cap comes in. There, at full depth, <Claim id="chorus-cap">the sweep is 4 ms either way, from 1.0 ms to 9.0 ms</Claim>.
 
   <Check id="rebuilt" />
 
@@ -1006,7 +1009,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     Near the end of its range the loop gives back nearly all that it is given, and every hit sets the comb's note ringing. <Claim id="fault-ring">On this setting, with Feedback at 95 %, a single sample is still coming back more than 0.4 s later at a thousandth of the size of its first return, which is 60 dB under it, wherever in the sweep it goes in</Claim>. The limiter of stage 5 caps how large the ring can grow and does not stop it. Lower Feedback until the ring is shorter than the gap between the hits.
   </Fault>
   <Fault title="A jump in the delay">
-    A read point that jumps splices two bits of sound together, and that is a click. The Flanger keeps it from happening in both places it could. The oscillator's jumps pass through the following of stage 2, and Delay and Depth glide when they are moved. So a quick move of Delay bends the pitch for a moment and does not click. The bend is the price, and it is the lesser fault.
+    A read point that jumps is the click of stage 2, and the Flanger keeps it from happening in both places it could: the oscillator's jumps pass through that stage's following, and Delay and Depth glide when they are moved. So a quick move of Delay bends the pitch for a moment and does not click. The bend is the price, and it is the lesser fault.
   </Fault>
   <Fault title="The copy is duller than the sound">
     Reading between two samples loses a little at the top of the band, and a moving read point is nearly always between two samples. Stage 7 measures the loss on one voice. It is also why the comb of stage 4 parts from its formula a little when Delay is not a whole number of samples. It is small, and it is the cost of a delay that can stand anywhere.

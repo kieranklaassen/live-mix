@@ -99,7 +99,7 @@ One grain alone is a blip of whatever it was cut from. Each has four things of i
   choices={['Sooner than before', 'When it did before', 'Later than before']}
 >
 
-When it did before. A grain that reads twice as fast covers twice its own length of ring, so the device starts it further back by half the extra, and its middle reads the sound that is exactly Time old. Measured on the device, <Claim id="middle">with Time at 350 ms and Size at 100 ms each grain at +12 semitones starts 50 ms further back than Time, and its middle reads what is 350 ms old</Claim>. The pitch changes and the timing does not: <Claim id="octave">a 440 Hz tone comes out at 880 Hz</Claim>. That number is read off one grain looked at alone, counting how often it crosses zero in a second, and the whole output is strongest at that semitone.
+When it did before. A grain that reads twice as fast covers twice its own length of ring, so the device starts it further back by half the extra, and its middle reads the sound that is exactly Time old. Measured on the device, <Claim id="middle">with Time at 350 ms and Size at 100 ms each grain at +12 semitones starts 50 ms further back than Time, and its middle reads what is 350 ms old</Claim>. The pitch changes and the timing does not: <Claim id="octave">a 440 Hz tone comes out at 880 Hz</Claim>. That number is read off one grain looked at alone, counting how often it crosses zero in a second, and the whole output is strongest at that semitone. Here is the line of this part again, <Hear set="octave" label="with its repeat an octave up" />: listen for the answer landing where the plain repeat did.
 
 <GrainCloud
   still
@@ -474,10 +474,10 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     { id: 'level', row: 1, from: 'plan', tap: 'cover', label: 'How loud', n: 7, signal: 'value' },
   ]}
 >
-  The row along the top is sound, and can be heard. The row under it carries numbers about the
-  grains, never sound: what the dice gave, where and when each grain starts, and how loud it is.
-  Stages 2 to 4 take one grain apart and stand inside the block of the grains, and stage 9 is an
-  experiment beside the device. Press a stage's button below, and notice its block light up here.
+  Dice, "Where and when" and "How loud" carry numbers about the grains, never sound: what the
+  dice gave, where and when each grain starts, and how loud it is. Every other block is sound, and
+  can be heard. Stages 2 to 4 take one grain apart and stand inside the Grains block, and stage 9
+  is an experiment beside the device. Press a stage's button, and notice its block light up here.
 </Flow>
 
 <StageBlock tap="recorded" n={1} title="The ring: what is recorded">
@@ -557,7 +557,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   Read it against the picture. At the start <M t={String.raw`\varphi`} /> is 0, the cosine is 1 and the window is nothing. When <M t={String.raw`\varphi`} /> reaches <M t="e" /> the cosine has gone half way round to −1, and the window is 1. After that it stays at 1 until the same distance from the end, where it falls by the same curve run backwards. <M t="e" /> is half of Shape. At a Shape of 1 the two fades meet in the middle with no flat part between them, and the window is one whole smooth bell, the Hann window.
 
-  The device always asks for the full bell. Its reason is in what bells add up to: started at even steps of a half, a third, a quarter of their length, or any whole number of steps to a grain from two up, they sum to a constant, so overlapping grains of one sound can put that sound back together. <Lesson id="short-time-fourier" cap /> shows why that holds and which windows have it. The flat-topped windows are in the kit for other uses, and in this lab for the lesson's own pool. At the least Shape the kit allows, <Src path="cpp/kit/grains.h" at="grain.edge = clamp(shape, 0.02f, 1.0f) * 0.5f;">0.02</Src>, the window is fully open for <Claim id="shape-least">98 %</Claim> of the grain. That is the nearly square piece of part 1.
+  The device always asks for the full bell. Its reason is in what bells add up to: started at even steps of a half, a third, a quarter of their length, or any whole number of steps to a grain from two up, they sum to a constant, so overlapping grains of one sound can put that sound back together. <Lesson id="short-time-fourier" cap /> shows why that holds for the Hann window. The flat-topped windows are in the kit for other uses, and in this lab for the lesson's own pool. At the least Shape the kit allows, <Src path="cpp/kit/grains.h" at="grain.edge = clamp(shape, 0.02f, 1.0f) * 0.5f;">0.02</Src>, the window is fully open for <Claim id="shape-least">98 %</Claim> of the grain. That is the nearly square piece of part 1.
 
   <Listing
     slot="listing"
@@ -802,7 +802,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 </StageBlock>
 
 <StageBlock tap="out" n={10} title="Limit, tone, and round again">
-  The grains' sum goes through three small stages. It is limited by <Src path="cpp/devices/grain-delay/grain_delay.h" at="wet[c] = 2.0f * kit::soft_clip(0.5f * wet[c]);">a curve</Src> that is a straight line for anything under full scale and bends above it, so normal levels pass untouched and no pile-up of grains can run away. It is low-passed at Tone. And it is high-passed at <Src path="cpp/devices/grain-delay/grain_delay.h" at="rumble_[c].set_cutoff(30.0f, sample_rate());">30 Hz</Src>, because a grain that reads slowly can turn a low note into something under hearing that only eats headroom.
+  The grains' sum goes through three small stages. It is limited by <Src path="cpp/devices/grain-delay/grain_delay.h" at="wet[c] = 2.0f * kit::soft_clip(0.5f * wet[c]);">a curve</Src> that is a straight line for anything under full scale and bends above it, levelling off at twice full scale, so normal levels pass untouched and no pile-up of grains can run away. It is low-passed at Tone. And it is high-passed at <Src path="cpp/devices/grain-delay/grain_delay.h" at="rumble_[c].set_cutoff(30.0f, sample_rate());">30 Hz</Src>, because a grain that reads slowly can turn a low note into something under hearing that only eats headroom.
 
   <Controls ids="feedback tone mix" />
 
@@ -831,6 +831,8 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
   Here lp is the low-pass of stage 1 and clip the limit. This one line is what Feedback changes. The grains read what the grains made. A repeat that was shifted an octave is recorded, read by new grains and shifted an octave again. <Claim id="octave-stair">With a short 220 Hz note, Pitch at +12 semitones, Time at 500 ms, Size at 100 ms, Density at 4 and Feedback at 0.5, the first three repeats come back strongest, of every semitone, at 440 Hz, 880 Hz and 1,760 Hz</Claim>. Tone is inside the loop as well, so each trip darkens the sound once more.
 
   How fast the repeats die is Feedback's to say. With Pitch at 0, Density at 2 and the rest as in that measurement, each repeat comes back <Claim id="repeat-level">6.1 dB</Claim> under the one before. Six of that is the half that Feedback multiplies by, and the rest is the filters.
+
+  At its highest, Feedback piles the grains up as far as the limit. The two filters come after the limit, and a peak that the limit flattened can leave them taller than it went in. <Claim id="out-loud">On the drum loop at a Size of 120 ms and a Density of 4, with Pitch three tenths of a semitone up and Feedback at 1, the grains' sum peaks at 2.42 times full scale and the output at 2.33</Claim>. The page's player <Src path="site/src/lab/player.ts" at="export const volumeGain">plays every stage at half its size when the volume is all the way up</Src>, so at such a setting the grains and the output are cut off flat in the ear, though the pictures show them whole.
 
   <Listing
     slot="listing"
