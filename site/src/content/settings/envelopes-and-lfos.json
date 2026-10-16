@@ -198,7 +198,8 @@
   "defaults": {
     "values": {
       "cutoffHz": 1000,
-      "resonance": 0.7071
+      "resonance": 0.7071,
+      "rate": 1
     }
   }
 }

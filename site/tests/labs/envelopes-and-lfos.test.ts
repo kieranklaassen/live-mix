@@ -95,6 +95,31 @@ function longestStill(x: Float32Array): number {
   return longest / POINT_RATE
 }
 
+/**
+ * The samples from the key going down until the kit's level is first at the top, on a render
+ * with LFO to pitch at 0 whose note is over before the next pass begins. The note is the tone
+ * itself only where the level is exactly 1: the first such sample is the top.
+ */
+function topAfter(result: RenderResult): number {
+  const note = tap(result, 'note')
+  const tone = tap(result, 'tone')
+  for (let i = DOWN; i < note.length; i += 1) {
+    if (tone[i] !== 0 && note[i] === tone[i]) return i - DOWN + 1
+  }
+  return NaN
+}
+
+/** The same at an Attack time, the key held past it and the release short. */
+const samplesToTop = (theLab: Lab, attack: number) =>
+  topAfter(theLab.render(nothing(), { attack, hold: 3, release: 0.05, toPitch: 0 }))
+
+/**
+ * Where the arithmetic says a fall towards `sustain` stops in single precision: where one
+ * sample's move, the distance times one less the decay's number, is half the step between two
+ * such numbers near `sustain`. The step is 2^-24 from 0.5 up to 1.
+ */
+const restsAt = (decay: number) => 2 ** -25 / (1 - Math.exp(-Math.log(1000) / (decay * RATE)))
+
 /** The largest difference between two lines, point for point. */
 function apart(a: Float32Array, b: Float32Array, from = 0, to = a.length): number {
   let most = 0
@@ -207,18 +232,32 @@ describe('the envelopes and LFOs lab', () => {
 
   // ---- part 2: four numbers ---------------------------------------------------------------------
 
-  it('reaches the top 0.200 s after the key goes down with Attack at 0.2 s, and in the Attack time at other settings (claim attack-time)', async () => {
+  it('reaches the top 0.200 s after the key goes down with Attack at 0.2 s (claim attack-time)', async () => {
     const theLab = await lab('envelopes-and-lfos')
     const env = tap(theLab.render(nothing(), {}), 'envelope')
-    const after = (x: Float32Array) => (topOf(x) - tick(0)) / POINT_RATE
-    expectWritten(after(env), '0.200 s')
-    expectWritten(env[topOf(env)]!, '1.00')
-    for (const attack of [0.001, 0.05, 1, 2]) {
-      const other = tap(theLab.render(nothing(), { attack, hold: 3 }), 'envelope')
-      // To the nearest point of the line, which is a third of a millisecond, and a thousandth
-      // of the time itself: the kit works the rate out in single precision.
-      expect(Math.abs(after(other) - attack)).toBeLessThanOrEqual(1 / POINT_RATE + 0.001 * attack)
+    expectWritten((topOf(env) - tick(0)) / POINT_RATE, '0.200 s')
+    // The line has a point every 16 samples, so its highest point is a little under the top.
+    expect(env[topOf(env)]!).toBeGreaterThan(0.999)
+    expect(env[topOf(env)]!).toBeLessThanOrEqual(1)
+  })
+
+  it('is at the top 9,602 samples after the key goes down with Attack at 0.2 s, where 9,600 were asked, 45 samples early at 1 s and 98 samples late at 2 s, and within 0.2 % of the Attack time or two samples of it at every setting tried (claim attack-exact)', async () => {
+    const theLab = await lab('envelopes-and-lfos')
+    expectWritten(samplesToTop(theLab, 0.2), '9,602 samples')
+    expect(0.2 * RATE).toBeCloseTo(9600, 3)
+    expectWritten(1 * RATE - samplesToTop(theLab, 1), '45 samples')
+    expectWritten(samplesToTop(theLab, 2) - 2 * RATE, '98 samples')
+    // From the shortest Attack to the longest. The kit works the share out in single precision:
+    // it is right to a part in a few hundred at the longest times, and the top is a whole sample.
+    let furthest = 0
+    for (const attack of [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 0.5, 0.7, 1.3, 1.5, 1.7, 1.85]) {
+      const asked = attack * RATE
+      const off = Math.abs(samplesToTop(theLab, attack) - asked)
+      expect(off, `Attack at ${attack} s`).toBeLessThanOrEqual(Math.max(2, 0.002 * asked))
+      furthest = Math.max(furthest, off / asked)
     }
+    // And the allowance is not idle: somewhere in the range the top is more than 0.1 % out.
+    expect(furthest).toBeGreaterThan(0.001)
   })
 
   it('settles at the Sustain level, 0.5, and stays there for as long as the key is held, whatever the hold (claim sustain-level)', async () => {
@@ -229,6 +268,7 @@ describe('the envelopes and LFOs lab', () => {
       const held = range(env, tick(1), tick(hold))
       expect(held.span).toBe(0)
       expectWritten(held.lo, '0.5')
+      expect(held.lo).toBeCloseTo(0.5, 3)
     }
   })
 
@@ -250,7 +290,9 @@ describe('the envelopes and LFOs lab', () => {
     const rest = env[tick(2) - 1]! - 0.5
     expectWritten(rest, '0.0001')
     // Ten times further from Sustain than the kit's rule for ending the stage, 0.00001.
-    expect(rest).toBeGreaterThan(0.00001)
+    expect(rest / 0.00001).toBeCloseTo(10, 0)
+    // And where the rounding of a single-precision number says it stops.
+    expect(rest / restsAt(0.5)).toBeCloseTo(1, 1)
     expect(new Set(stage).has(STAGE.sustain)).toBe(false)
     expect(stage[tick(2) - 1]).toBe(STAGE.decay)
     // With Sustain at 0 the rule is reached: the stage passes through sustain and the note is over.
@@ -262,6 +304,24 @@ describe('the envelopes and LFOs lab', () => {
     const short = theLab.render(nothing(), { decay: 0.05, sustain: 0.25 })
     expect(tap(short, 'stage')[tick(1)]).toBe(STAGE.sustain)
     expect(tap(short, 'envelope')[tick(1)]).toBe(0.25)
+  })
+
+  it('rests 0.0006 above Sustain with Decay at its longest, 3 s, and further out at each longer Decay tried (claim decay-rests-long)', async () => {
+    const theLab = await lab('envelopes-and-lfos')
+    // Where the level has stopped before the key goes up, and the stage it is in there.
+    const rests = (decay: number) => {
+      const result = theLab.render(nothing(), { decay, hold: 3.5 })
+      const env = tap(result, 'envelope')
+      const up = tick(3.5)
+      expect(range(env, up - points(0.2), up).span, `Decay at ${decay} s has stopped`).toBe(0)
+      expect(tap(result, 'stage')[up - 1], `Decay at ${decay} s`).toBe(STAGE.decay)
+      return env[up - 1]! - 0.5
+    }
+    const longest = rests(3)
+    expectWritten(longest, '0.0006')
+    expect(longest / restsAt(3)).toBeCloseTo(1, 1)
+    expect(rests(0.5)).toBeLessThan(rests(1))
+    expect(rests(1)).toBeLessThan(longest)
   })
 
   it('falls 60.0 dB in the Release time, 0.8 s, and is over 1.25 s after the key is let go from 0.5 (claim release-60)', async () => {
@@ -278,32 +338,51 @@ describe('the envelopes and LFOs lab', () => {
     expectWritten(gainToDb(env[over - 1]!), '−100 dB')
   })
 
-  it('falls 60 dB in the Release time from the top as well, and is cut at −100 dB (the release curves)', async () => {
+  it('passes −60 dB at one Release time from the top, the middle of the curve, and is cut off at −100 dB, at a Release of 0.8 s and at three others (claim release-curve)', async () => {
     const theLab = await lab('envelopes-and-lfos')
-    const result = theLab.render(nothing(), {})
-    const curve = result.taps.releaseDb!
-    const db = curve.channels_data[0]!
-    // The curve runs for two Release times: its middle point stands at one.
-    expect(curve.x1).toBeCloseTo(1.6, 5)
-    expectWritten(db[(db.length - 1) / 2]!, '−60.0 dB')
-    expect(db[db.length - 1]).toBe(-120)
-    // A straight line in dB until it is cut: equal steps of time, equal steps of level.
-    const step = db[1]! - db[0]!
-    for (let p = 2; p <= 150; p += 1) expect(db[p]! - db[p - 1]!).toBeCloseTo(step, 2)
+    for (const release of [0.8, 0.01, 0.1, 3]) {
+      const curve = theLab.render(nothing(), { release }).taps.releaseDb!
+      const db = curve.channels_data[0]!
+      // The curve runs for two Release times: its middle point stands at one.
+      expect(curve.x1).toBeCloseTo(2 * release, 5)
+      const middle = db[(db.length - 1) / 2]!
+      expectWritten(middle, '−60 dB')
+      expect(middle).toBeCloseTo(-60, 1)
+      // A straight line in dB until it is cut: equal steps of time, equal steps of level.
+      expect(db[db.length - 1]).toBe(-120)
+      const cut = firstAt(db, (v) => v === -120)
+      const step = db[1]! - db[0]!
+      for (let p = 2; p < cut; p += 1) expect(db[p]! - db[p - 1]!).toBeCloseTo(step, 2)
+      // Cut off at 100 dB under the top: the last point drawn is above it, and the next point
+      // of the straight line would have stood at it.
+      expect(db[cut - 1]!).toBeGreaterThan(-100)
+      expectWritten(step * cut, '−100 dB')
+      expect(step * cut).toBeCloseTo(-100, 1)
+    }
   })
 
-  it('aims the attack at 1.3 and stops it at 1: the kit follows the curve that runs on to within 0.001 until the top (claim attack-aim)', async () => {
+  it('aims the attack at 1.3 and stops it at 1: with Attack at 0.2 s the kit follows the curve that runs on to within 0.0001 until the top, and to within 0.001 at every Attack from 0.01 s up (claim attack-aim)', async () => {
     const theLab = await lab('envelopes-and-lfos')
     const result = theLab.render(nothing(), {})
     const kit = tap(result, 'attackKit')
     const aim = tap(result, 'attackAim')
     // The curves run for 2.5 Attack times over 241 points: point 96 stands at one.
     const top = 96
-    expectWritten(apart(kit, aim, 0, top), 'less than 0.001')
-    expectWritten(kit[top]!, '1')
+    expectWritten(apart(kit, aim, 0, top), 'less than 0.0001')
+    // The kit is at the top two samples after that point, and stays: the key is held, Sustain is 1.
+    expect(kit[top]!).toBeGreaterThan(0.999)
     expect(range(kit, top + 1).lo).toBe(1)
     // Left to run, the curve passes 1 and closes on 1.3.
     expectWritten(aim[aim.length - 1]!, '1.27')
+    expect(range(aim, top + 1).lo).toBeGreaterThan(1)
+    // At other times too. Under a hundredth of a second the kit's single samples show as steps.
+    for (const attack of [0.01, 0.05, 1, 2]) {
+      const other = theLab.render(nothing(), { attack })
+      expectWritten(
+        apart(tap(other, 'attackKit'), tap(other, 'attackAim'), 0, top),
+        'less than 0.001',
+      )
+    }
   })
 
   it('turns the kit LFO once every 0.200 s at 5 Hz, 20 times in the four seconds of the loop (claim lfo-cycle)', async () => {
@@ -336,29 +415,68 @@ describe('the envelopes and LFOs lab', () => {
     // At half the amount, half the swing.
     const half = tap(theLab.render(nothing(), { lfoAmount: 50 }), 'sweep')
     expectWritten(range(half).hi, '1.5 octaves')
+    // The device keeps the cutoff between 20 Hz and 20 kHz: from a Cutoff of 5 kHz the way up
+    // is two octaves long, and from 100 Hz the way down is 2.32.
+    const high = range(tap(theLab.render(nothing(), { lfoAmount: 100, cutoffHz: 5000 }), 'sweep'))
+    expect(high.hi).toBeCloseTo(Math.log2(20000 / 5000), 3)
+    expect(high.lo).toBeCloseTo(-3, 2)
+    const low = range(tap(theLab.render(nothing(), { lfoAmount: 100, cutoffHz: 100 }), 'sweep'))
+    expect(low.lo).toBeCloseTo(Math.log2(20 / 100), 3)
+    expect(low.hi).toBeCloseTo(3, 2)
   })
 
-  it("keeps the Auto Filter's LFO in step with the kit's: at 100 % the furthest the cutoff stands from three times the kit's wave is 0.07 octaves (claim in-step)", async () => {
+  it("lets the kit's LFO gain on its own Rate: at 5 Hz its phase is 0.004 cycles ahead by the end of the loop, twice as far as at the start, and at 0.25 Hz it falls behind (claim kit-ahead)", async () => {
+    const theLab = await lab('envelopes-and-lfos')
+    // The loop is the lab's second pass: its point p stands 4 s and p points after the LFO was
+    // started at phase 0. How far the kit's phase is ahead of the Rate times that time, in cycles.
+    const ahead = (rate: number, p: number) => {
+      const phase = tap(theLab.render(nothing(), { rate }), 'lfoPhase')
+      const turned = rate * (4 + p / POINT_RATE)
+      const gap = phase[p]! - (turned - Math.floor(turned))
+      return gap - Math.round(gap)
+    }
+    const last = seconds(4) / 16 - 1
+    // The first 20 ms of a looped tap are two passes crossed over: start after them.
+    const first = points(0.02)
+    expectWritten(ahead(5, last), '0.004 cycles')
+    expect(ahead(5, last) / ahead(5, first)).toBeCloseTo(2, 1)
+    expect(ahead(0.25, last)).toBeLessThan(-0.003)
+  })
+
+  it("lets the kit's LFO part from the Auto Filter's: at 100 % the furthest the cutoff stands from three times the kit's wave is under 0.05 octaves in the first second of the loop and 0.07 octaves in the last (claim in-step)", async () => {
     const theLab = await lab('envelopes-and-lfos')
     // Octaves between the cutoff and three times the kit's wave: the most, and how often over 0.1.
-    const drift = (shape: number) => {
+    const drift = (shape: number, from = 0, to = seconds(4) / 16) => {
       const result = theLab.render(nothing(), { lfoAmount: 100, shape })
       const octaves = tap(result, 'sweep')
       const kit = tap(result, 'lfo')
       let most = 0
       let over = 0
-      for (let i = 0; i < kit.length; i += 1) {
+      for (let i = from; i < to; i += 1) {
         const far = Math.abs(octaves[i]! - 3 * kit[i]!)
         most = Math.max(most, far)
         if (far > 0.1) over += 1
       }
-      return { most, over: over / kit.length }
+      return { most, over: over / (to - from) }
     }
+    const whole = points(4)
+    expectWritten(drift(0, points(0.02), points(1)).most, 'under 0.05 octaves')
+    expectWritten(drift(0, whole - points(1), whole).most, '0.07 octaves')
     expectWritten(drift(0).most, '0.07 octaves')
     // The Triangle too. The Square's two waves agree but for the points where one has stepped
     // and the other has not yet.
     expect(drift(1).most).toBeLessThan(0.07)
     expect(drift(2).over).toBeLessThan(0.01)
+  })
+
+  it('keeps the follower at 0.16 over the second before the key goes up, moving by less than 0.002 between the teeth of the wave (claim follower-steady)', async () => {
+    const theLab = await lab('envelopes-and-lfos')
+    const level = range(tap(theLab.render(nothing(), {}), 'follower'), tick(1), tick(2))
+    expectWritten(level.lo, '0.16')
+    expectWritten(level.hi, '0.16')
+    expectWritten(level.span, 'less than 0.002')
+    // It is not standing still either: the saw wave is in it.
+    expect(level.span).toBeGreaterThan(0.0005)
   })
 
   it('reads the follower at 0.206 at its highest on the note that opens its own filter, and lifts the cutoff 0.82 octaves (claim follower-lift)', async () => {
@@ -388,11 +506,16 @@ describe('the envelopes and LFOs lab', () => {
     expect(theLab.render(nothing(), { depth: 1, shape: 2 }).checks.gainRebuilt).toBeLessThan(-100)
   })
 
-  it("holds the Tremolo's LFO still while the device sleeps between notes: 0.63 s of the loop (claim trem-sleeps)", async () => {
+  it("holds the Tremolo's LFO still while the device sleeps between notes: 0.63 s of the loop at the settings the lesson starts from, and not at all under a Release of 1.5 s (claim trem-sleeps)", async () => {
     const theLab = await lab('envelopes-and-lfos')
-    const result = theLab.render(nothing(), { depth: 0.5 })
+    const result = theLab.render(nothing(), {})
     const own = tap(result, 'tremLfo')
     expectWritten(longestStill(own), '0.63 s')
+    // LFO to level has no part in it.
+    expectWritten(longestStill(tap(theLab.render(nothing(), { depth: 0.5 }), 'tremLfo')), '0.63 s')
+    // A note that is still dying when the next begins leaves no silence to sleep in.
+    const ringing = theLab.render(nothing(), { release: 1.5 })
+    expect(longestStill(tap(ringing, 'tremLfo'))).toBeLessThan(0.01)
     // The kit's never stands still for more than a point or two at its turns.
     expect(longestStill(tap(result, 'lfo'))).toBeLessThan(0.01)
     // Awake, it turns at the same rate as the other two.
@@ -419,6 +542,14 @@ describe('the envelopes and LFOs lab', () => {
     expect(still(tap(result, 'sweep'))).toBeGreaterThan(0.9)
     expect(still(tap(result, 'tremLfo'))).toBeLessThan(0.1)
     expect(steepest(tap(result, 'tremLfo'))).toBeLessThan(0.05)
+    // Each draws numbers of its own: the cutoff is seldom at three times the kit's value.
+    const kit = tap(result, 'lfo')
+    const octaves = tap(result, 'sweep')
+    let together = 0
+    for (let i = tick(0.5); i < tick(3); i += 1) {
+      if (Math.abs(octaves[i]! - 3 * kit[i]!) < 0.1) together += 1
+    }
+    expect(together / (tick(3) - tick(0.5))).toBeLessThan(0.05)
   })
 
   it('draws the six shapes of the kit LFO as the lesson says them', async () => {
@@ -558,6 +689,30 @@ describe('the envelopes and LFOs lab', () => {
     expect(over).toBeLessThan(tick(2))
   })
 
+  it('starts the note of the card that speaks at once at 0.002, where the switched tone starts at 0.23, and moves its level by less than 0.01 a sample at either end (claim organ-start)', async () => {
+    const theLab = await lab('envelopes-and-lfos')
+    const result = played(theLab, 'organ')
+    const note = tap(result, 'note')
+    expect(note[DOWN - 1]).toBe(0)
+    expectWritten(Math.abs(note[DOWN]!), '0.002')
+    expectWritten(Math.abs(tap(played(theLab, 'switched'), 'gated')[DOWN]!), '0.23')
+    // The level itself: the note over the tone, wherever the tone is not near zero, and how
+    // far it moves a sample between one such place and the next. The gate moves by 1 in one.
+    const tone = tap(result, 'tone')
+    let most = 0
+    let before = 0
+    let last = DOWN - 1
+    for (let i = DOWN; i < note.length; i += 1) {
+      if (Math.abs(tone[i]!) < 0.05) continue
+      const level = note[i]! / tone[i]!
+      most = Math.max(most, Math.abs(level - before) / (i - last))
+      before = level
+      last = i
+    }
+    expectWritten(most, 'less than 0.01')
+    expect(most).toBeGreaterThan(0.005)
+  })
+
   it('alternates the trill between 207.7 Hz and 233.1 Hz, a semitone either side of 220 Hz (claim trill)', async () => {
     const theLab = await lab('envelopes-and-lfos')
     const hz = tap(played(theLab, 'trill'), 'pitchNow')
@@ -587,17 +742,27 @@ describe('the envelopes and LFOs lab', () => {
 
   it('reaches the top in 48 samples with Attack at its shortest, 0.001 s (claim click-attack)', async () => {
     const theLab = await lab('envelopes-and-lfos')
-    const env = tap(played(theLab, 'click'), 'envelope')
-    expectWritten(sinceDown(env, (v) => v >= 1) * RATE, '48 samples')
+    const result = played(theLab, 'click')
+    // To the sample, and on the line, whose points stand 16 samples apart.
+    expectWritten(topAfter(result), '48 samples')
+    expectWritten(sinceDown(tap(result, 'envelope'), (v) => v >= 1) * RATE, '48 samples')
   })
 
-  it('has the two LFOs of the last fault at one rate and out of step', async () => {
+  it("has the two LFOs of the last fault at one rate and out of step: the Tremolo's wave rises 0.06 s after the cutoff does, an eighth of their cycle (claim apart-offset)", async () => {
     const theLab = await lab('envelopes-and-lfos')
     const result = played(theLab, 'apart')
     const filter = tap(result, 'sweep')
     const trem = tap(result, 'tremLfo')
     expect(cycle(filter, tick(0.5))).toBeCloseTo(0.5, 2)
     expect(cycle(trem, tick(0.5))).toBeCloseTo(0.5, 2)
+    // Each line's first rise through zero from half a second into the note, and how long after
+    // the cutoff's the Tremolo's comes, within one cycle.
+    const rise = (x: Float32Array) => risings(x).find((i) => i >= tick(0.5))! / POINT_RATE
+    const late = (((rise(trem) - rise(filter)) % 0.5) + 0.5) % 0.5
+    expectWritten(late, '0.06 s')
+    expect(late / 0.5).toBeCloseTo(1 / 8, 2)
+    // The device sleeps in this card's loop: that is where its wave fell behind.
+    expect(longestStill(trem)).toBeGreaterThan(0.5)
   })
 
   it("starts the page's device table from the Auto Filter's own defaults: the settings file's defaults are device.json's, and differ from the lab's start", async () => {
@@ -611,9 +776,13 @@ describe('the envelopes and LFOs lab', () => {
     const own = Object.fromEntries(device.params.map((one) => [one.key, one.default]))
     const { values } = resolveSet(theLab.description, { values: settings.defaults!.values })
     // Every control of the lab that is a parameter of the device stands at the device's default.
+    // Four have the device's own ids. Rate and Shape set its LFO Rate and LFO Shape, and the
+    // Shape's first choice is the device's first, the Sine.
     const shared = theLab.description.controls.filter((one) => own[one.id] !== undefined)
     expect(shared.map((one) => one.id)).toEqual(['cutoffHz', 'resonance', 'lfoAmount', 'envAmount'])
     for (const control of shared) expect(values[control.id]).toBe(own[control.id])
+    expect(values.rate).toBe(own.lfoRateHz)
+    expect(values.shape).toBe(own.lfoShape)
     // Only what differs from the lab's start is written down.
     for (const [id, value] of Object.entries(settings.defaults!.values)) {
       expect(theLab.description.controls.find((one) => one.id === id)!.initial).not.toBe(value)

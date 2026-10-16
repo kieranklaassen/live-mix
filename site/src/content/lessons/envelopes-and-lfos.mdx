@@ -27,6 +27,7 @@ bench:
       mix: 1,
     }
   as: insert
+  also: [tremolo]
   note: The plate is fed the lab's note, the tone times the envelope, before the lab's own Auto Filter. It opens with Cutoff and Resonance where this lesson starts them, which is higher than the device starts both, and with LFO Amount at 40 % and LFO Rate at 1 Hz, so that its LFO can be heard at once. The device starts LFO Amount at 0 %. The table below sets the lesson's start beside the device's.
 sources: [none]
 seconds: 4
@@ -40,6 +41,7 @@ files:
   - cpp/devices/string-machine/string_machine.h
   - cpp/devices/tape-echo/tape_echo.h
   - cpp/devices/auto-filter/device.json
+  - cpp/devices/tremolo/device.json
 ---
 
 <Part id="why" title="A tone has no beginning and no end. A note has both.">
@@ -107,7 +109,7 @@ This lesson has one envelope and three LFOs. The envelope and the first LFO are 
   choices={['It carries on up to the top, then falls', 'It falls from where it had got to', 'It drops to zero at once']}
 >
 
-It falls from where it had got to. When the key goes up the envelope leaves whatever it was doing and starts its release from the level it stands at. In the render below the key is let go a quarter of the way through the Attack time, and <Claim id="early">the level has reached 0.40 by then and is never higher</Claim>. It never gets to the top, never falls to the level it would have held, and goes straight from rising to dying away.
+It falls from where it had got to. When the key goes up the envelope leaves whatever it was doing and starts its release from the level it stands at. In the render below the key is let go a quarter of the way through the Attack time, and <Claim id="early">the level has reached 0.40 by then, and that is as high as it gets</Claim>. It never gets to the top, never falls to the level it would have held, and goes straight from rising to dying away.
 
 <Still
   taps="gate envelope"
@@ -116,7 +118,7 @@ It falls from where it had got to. When the key goes up the envelope leaves what
   caption="The start of the loop. The key is down only briefly. The level climbs while it is, turns at the moment the key goes up, and falls away from there."
 />
 
-A quarter of the time gave four tenths of the height, so the rise is not a straight line: it is fastest at the start. Part 5 says why.
+A quarter of the time gave four tenths of the height, so the rise is not a straight line: it is fastest at the start. Part 5 says why. <Hear set="early" label="Hear the key let go early" show />
 
 </Predict>
 
@@ -172,7 +174,7 @@ A setting of the four numbers is a description of an instrument's outline. A set
       caption="The key and the level. The two lines lie almost on each other: the level goes up with the key, stays at the top, and comes down with it."
     />
 
-    An organ pipe is on or off. Its outline is nearly the gate itself, with Sustain at the top so that the decay has nothing to do. The attack and the release are not left at zero. A few thousandths of a second at each end is enough to round off the jump that part 1 measured, and too short to hear as a swell.
+    An organ pipe is on or off. Its outline is nearly the gate itself, with Sustain at the top so that the decay has nothing to do. The attack and the release are not left at zero, and that is enough to take away the jump that part 1 measured. With this card's setting <Claim id="organ-start">the first sample of the note stands at 0.002, where the switched tone's stood at 0.23, and the level moves by less than 0.01 from one sample to the next at either end</Claim>. Listen for whether either end can still be heard as a swell.
 
   </Use>
   <Use title="A pad" set="pad">
@@ -206,7 +208,7 @@ A setting of the four numbers is a description of an instrument's outline. A set
       caption="How far the Auto Filter's cutoff stands from where it is set, in octaves, across the loop. It rises and falls twice in the four seconds, as far above as below."
     />
 
-    Send a slow LFO to the cutoff of a low-pass filter and the sound brightens and darkens in a steady cycle. A little resonance makes the cutoff itself audible as it passes each harmonic of the note. The filter here is the engine's Auto Filter, which has an LFO built in for exactly this. The filter itself is the subject of <Lesson id="state-variable-filter" />.
+    Send a slow LFO to the cutoff of a low-pass filter and the sound brightens and darkens in a steady cycle. With a little resonance, listen for the cutoff itself as it passes each harmonic of the note. The filter here is the engine's Auto Filter, which has an LFO built in for exactly this. The filter itself is the subject of <Lesson id="state-variable-filter" />.
 
   </Use>
 </Uses>
@@ -320,7 +322,7 @@ The first five steps are the kit's envelope and its LFO, written out again a pie
 
     <Check id="builtDifference" />
 
-    The check's scale stops at 140 dB. The lab's test goes further and compares the lines themselves: at every point these lanes draw, in all four shapes, the built level and the built wave are the same numbers as the kit's.
+    The check's scale stops at <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">140 dB</Src>. The lab's test goes further and compares the lines themselves: at every point these lanes draw, in all four shapes, the built level and the built wave are the same numbers as the kit's.
 
     <Lanes slot="picture" taps="builtEnvelope builtLfo built">
       The level, the LFO and the note so far. Try each Shape, and notice the wave change while the
@@ -372,19 +374,20 @@ There is no single device to open this time. The envelope and the LFO are classe
   blocks={[
     { id: 'key', row: -1, tap: 'gate', label: 'Key', n: 1, signal: 'value' },
     { id: 'env', row: -1, from: 'key', tap: 'envelope', label: 'Envelope', n: 2, signal: 'value' },
-    { id: 'lfo', row: 1, tap: 'lfo', label: 'LFO', n: 6, signal: 'value' },
+    { id: 'lfo', row: 1, tap: 'lfo', label: "The kit's LFO", n: 6, signal: 'value' },
     { id: 'osc', from: 'lfo', tap: 'tone', label: 'Tone', n: 7 },
     { id: 'times', from: ['osc', 'env'], tap: 'note', label: 'Times the level', n: 5 },
     { id: 'follow', row: 1, from: 'times', tap: 'follower', label: 'Follower', n: 9, signal: 'value' },
-    { id: 'filter', from: ['times', 'follow'], tap: 'filtered', label: 'Auto Filter', n: 8 },
-    { id: 'gain', row: 2, tap: 'gain', label: 'Its own LFO', n: 10, signal: 'value' },
+    { id: 'filterLfo', row: -2, label: "The filter's LFO", n: 8, signal: 'value' },
+    { id: 'filter', from: ['times', 'follow', 'filterLfo'], tap: 'filtered', label: 'Auto Filter', n: 8 },
+    { id: 'gain', row: 2, tap: 'gain', label: "The Tremolo's LFO", n: 10, signal: 'value' },
     { id: 'trem', from: ['filter', 'gain'], label: 'Tremolo', n: 10 },
     { id: 'out', tap: 'out', shape: 'end', from: 'trem' },
   ]}
 >
   The middle row is sound, and can be heard. The rows over and under it carry numbers that move the
-  sound and are never heard themselves. Press a stage's button below, and notice its block light up
-  here.
+  sound and are never heard themselves. There are three LFOs, and each feeds one block only. Press a
+  stage's button below, and notice its block light up here.
 </Flow>
 
 <StageBlock tap="gate" n={1} title="A key is two calls">
@@ -400,7 +403,7 @@ There is no single device to open this time. The envelope and the LFO are classe
 
   That instrument gives its player Attack and Release only. It fixes the decay at a hundredth of a second and the sustain at the top, which are the second and third numbers of the first line.
 
-  The envelope itself is a small machine that is always in one of five stages: idle, attack, decay, sustain, release. The two calls only change the stage. Everything else happens in the function that is called once for every sample, which the next three stages open.
+  The envelope itself is a small machine that is always in one of <Src path="cpp/kit/env.h" at="enum Stage : int { kIdle = 0, kAttack, kDecay, kSustain, kRelease };">five stages</Src>: idle, attack, decay, sustain, release. The two calls only change the stage. Everything else happens in the function that is called once for every sample, which the next three stages open.
 
   <Lanes taps="gate stage envelope" ranges={{ stage: [0, 4] }}>
     The key, the stage the kit's envelope is in and its level. The stage is a number: 0 idle, 1
@@ -442,9 +445,11 @@ There is no single device to open this time. The envelope and the LFO are classe
 
   <M block t={String.raw`\at{coeffs-attack}{a = 1 - \left(\frac{0.3}{1.3}\right)^{1/N_A}}`} />
 
-  <M t="N_A" /> is the Attack time counted in samples. Read it against the picture. After each sample, the distance to 1.3 is what it was times <M t="1 - a" />. After <M t="N_A" /> samples it has been multiplied by 0.3 over 1.3, and since it began at 1.3 it is now 0.3: the level is 1.3 less 0.3, the top. Measured on the kit, <Claim id="attack-aim">its level and the curve that runs on stay within 0.001 of each other until the top, and left to run the curve stands at 1.27 after two and a half Attack times</Claim>.
+  <M t="N_A" /> is the Attack time counted in samples. Read it against the picture. After each sample, the distance to 1.3 is what it was times <M t="1 - a" />. After <M t="N_A" /> samples it has been multiplied by 0.3 over 1.3, and since it began at 1.3 it is now 0.3: the level is 1.3 less 0.3, the top. Measured on the kit with Attack where the lesson starts it, <Claim id="attack-aim">its level and the curve that runs on stay within 0.0001 of each other until the top, and left to run the curve stands at 1.27 after two and a half Attack times</Claim>.
 
   The part of the curve that is kept is its steep beginning, which is why a quarter of the time gave four tenths of the height in part 1.
+
+  The stop does not fall exactly on the Attack time. The kit works the share out in single precision, and at long times the share is so small that its last digits are lost. Measured to the sample, <Claim id="attack-exact">with Attack at 0.2 s the level is at the top 9,602 samples after the key goes down, where 9,600 were asked; at 1 s it is there 45 samples early, and at 2 s 98 samples late; and at every setting the lab's test tries, from the shortest Attack to the longest, the top comes within 0.2 % of the time asked or within two samples of it</Claim>.
 
   <Listing
     slot="listing"
@@ -477,7 +482,7 @@ There is no single device to open this time. The envelope and the LFO are classe
 
   A distance that shrinks by a ratio never reaches zero, so the kit has a rule to end the stage: when the level is within <Src path="cpp/kit/env.h" at="static constexpr float kIdleLevel = 1.0e-5f;">0.00001</Src> of Sustain it is set there, and the stage becomes sustain, where nothing is worked out at all.
 
-  On this page's note the rule is never reached. The level is a single-precision number, and such numbers stand a fixed small step apart. Close to Sustain, one sample's move becomes smaller than half of that step, and the level rounds back to where it was. Measured on the kit at the settings the lesson starts from, <Claim id="decay-rests">the level comes to rest 0.0001 above Sustain</Claim>, ten times further out than the rule asks, and the envelope is still in its decay stage when the key goes up. Nothing is lost by that. The level has stopped, which is all that sustain means. It is the reason the stage in stage 1's lanes never reads 3.
+  On this page's note the rule is never reached. The level is a single-precision number, and near any one value such numbers stand a fixed small step apart. Close to Sustain, one sample's move becomes smaller than half of that step, and the level rounds back to where it was. Measured on the kit at the settings the lesson starts from, <Claim id="decay-rests">the level comes to rest 0.0001 above Sustain</Claim>, ten times further out than the rule asks, and the envelope is still in its decay stage when the key goes up. A longer Decay moves less on each sample, and so comes to rest further out: with Decay at its longest, 3 s, <Claim id="decay-rests-long">the level rests 0.0006 above Sustain</Claim>. That is the reason the stage in stage 1's lanes never reads 3. The level has stopped, a little above where it was sent, and nothing in the engine asks an envelope whether it has reached its sustain stage: the instruments ask only whether it is <Src path="cpp/kit/env.h" at="bool active() const { return stage_ != kIdle; }">active</Src> and whether it is releasing.
 
   The rule is reached when the numbers near the target are finer. With Sustain at 0 the level runs all the way down, passes the rule, and the note is over while the key is still held.
 
@@ -498,17 +503,18 @@ There is no single device to open this time. The envelope and the LFO are classe
 
   <Curve taps="releaseDb" xTitle="seconds after the key goes up" yTitle="level, dB" min={-125} max={5} height={300}>
     The kit's release from the top, drawn in decibels, over two Release times. Try Release longer,
-    and notice that the line is straight, that it passes −60 dB in the middle of the picture
-    whatever the setting, and that at −100 dB it is cut off and drops to the floor of the picture.
+    and notice that the line is straight, that it stands at the same height in the middle of the
+    picture whatever the setting, and that near the bottom it is cut off and drops to the floor of
+    the picture.
   </Curve>
 
   <M block t={String.raw`\sig{out}{L[n]} = \at{ends-release}{r}\,L[n-1]`} />
 
   <M block t={String.raw`\at{coeffs-release}{r = 1000^{-1/N_R}}`} />
 
-  <M t="r" /> is that one number, sized as the decay's was, and <M t="N_R" /> is the Release time in samples. Multiplying by the same number again and again takes off the same number of decibels each time, so in decibels the fall is a straight line. That is why the picture is drawn in them: against a plain scale the same fall is a curve that seems to finish long before it has. Measured on the note of this page, <Claim id="release-60">the level is 60.0 dB down one Release time after the key is let go, and the note is over 1.25 s after the key goes up, when the level has fallen to −100 dB</Claim>.
+  <M t="r" /> is that one number, sized as the decay's was, and <M t="N_R" /> is the Release time in samples. Multiplying by the same number again and again takes off the same number of decibels each time, so in decibels the fall is a straight line. That is why the picture is drawn in them: against a plain scale the same fall is a curve that seems to finish long before it has. Measured on the note of this page, <Claim id="release-60">the level is 60.0 dB down one Release time after the key is let go, and the note is over 1.25 s after the key goes up, when the level has fallen to −100 dB</Claim>. The curve in the picture starts from the top: <Claim id="release-curve">at each Release the lab's test tries, it passes −60 dB at one Release time, which is the middle of the picture, and is cut off at −100 dB</Claim>.
 
-  The straight line would go on down for ever. The kit stops it: under 0.00001, which is 100 dB below the top, the level is set to 0 and the stage is idle. That matters to more than tidiness. An instrument stops working on a voice whose envelope is idle, and a device with no voice sounding can go to sleep.
+  The straight line would go on down for ever. The kit stops it: under <Src path="cpp/kit/env.h" at="static constexpr float kIdleLevel = 1.0e-5f;">0.00001</Src>, which is 100 dB below the top, the level is set to 0 and the stage is idle. That matters to more than tidiness. An instrument stops working on a voice whose envelope is idle, and a device with no voice sounding can go to sleep.
 
   One line of the listing has two rates in it. A voice that is taken away to play another note is given a <Src path="cpp/kit/env.h" at="// A release that completes in `seconds` regardless of the set time (steals).">fast release</Src> of its own, however long the Release is set.
 
@@ -568,19 +574,20 @@ There is no single device to open this time. The envelope and the LFO are classe
     Shape.
   </Trace>
 
-  <M block t={String.raw`\sig{alt}{\varphi[n]} = \varphi[n-1] + \at{lfo-rate}{\frac{f_L}{f_s}} \pmod 1`} />
+  <M block t={String.raw`\sig{alt}{\varphi[n]} = \varphi[n-1] + \at{lfo-rate}{\frac{f_{\mathrm{lfo}}}{f_s}} \pmod 1`} />
 
-  <M t={String.raw`\varphi`} /> is the phase, <M t="f_L" /> is Rate and <M t="f_s" /> is the sample rate. The phase goes up by the same small step on every sample, and when it passes 1, one is taken off. With Rate where the lesson starts it, the kit's LFO turns <Claim id="lfo-cycle">once every 0.200 s, which is 20 times in the loop</Claim>.
+  <M t={String.raw`\varphi`} /> is the phase, <M t={String.raw`f_{\mathrm{lfo}}`} /> is Rate and <M t="f_s" /> is the sample rate. The phase goes up by the same small step on every sample, and when it passes 1, one is taken off. With Rate where the lesson starts it, the kit's LFO turns <Claim id="lfo-cycle">once every 0.200 s, which is 20 times in the loop</Claim>.
 
-  The wave is a formula of the phase, a different one for each shape. The sine is read from a table. The triangle is two straight lines. With <M t="m" /> for the value of the wave:
+  The wave is a formula of the phase, a different one for each shape. The sine is read from a table. The triangle is <Src path="cpp/kit/lfo.h" at="return phase_ < 0.5f ? 4.0f * phase_ - 1.0f : 3.0f - 4.0f * phase_;">two straight lines</Src>. With <M t="m" /> for the value of the wave:
 
   <M block t={String.raw`\sig{ctl}{m} = \begin{cases} 4\varphi - 1 & \varphi < \tfrac{1}{2} \\[4pt] 3 - 4\varphi & \varphi \ge \tfrac{1}{2} \end{cases}`} />
 
-  The kit has six shapes. Four are drawn from the phase alone.
+  The kit has <Src path="cpp/kit/lfo.h" at="enum Shape : int { kSine = 0, kTriangle, kSawDown, kSquare, kHold, kSmooth, kNumShapes };">six shapes</Src>. Four are drawn from the phase alone.
 
   <Still
     taps="shapeSine:ctl shapeTriangle:alt"
     view="curve"
+    xTitle="cycles"
     min={-1.1}
     max={1.1}
     caption="Four cycles of the kit's Sine and Triangle. The Sine starts at zero on its way up. The Triangle starts at the bottom, so its peaks come a quarter of a cycle after the Sine's."
@@ -589,6 +596,7 @@ There is no single device to open this time. The envelope and the LFO are classe
   <Still
     taps="shapeSaw:ctl shapeSquare:alt"
     view="curve"
+    xTitle="cycles"
     min={-1.1}
     max={1.1}
     caption="Four cycles of the Falling saw and the Square. The saw starts at the top and comes down in a straight line. The Square holds the top for half a cycle and the bottom for the other half."
@@ -599,12 +607,13 @@ There is no single device to open this time. The envelope and the LFO are classe
   <Still
     taps="shapeSteps:ctl shapeGlide:alt"
     view="curve"
+    xTitle="cycles"
     min={-1.1}
     max={1.1}
     caption="Four cycles of the two random shapes. Random steps holds one value for each cycle. Random glide starts each cycle on that value and has reached the next by the cycle's end, with no corner where they join."
   />
 
-  The Shape control of this page offers the four that the kit's LFO and the two devices downstream all have: Sine, Triangle, Square and a random one. The random one is not quite the same in all three: the kit's and the Auto Filter's hold each value for a cycle, and the Tremolo's glides from one to the next.
+  The Shape control of this page offers the four that the kit's LFO and the two devices downstream all have: Sine, Triangle, Square and a random one. Two of the four differ from one oscillator to the next. The Tremolo's Triangle starts at zero on its way up, as <Src path="cpp/devices/tremolo/tremolo.h" at="// all rise through zero at 0 and peak in the first half.">its Sine and its Square do</Src>, where the kit's and the Auto Filter's start at the bottom. And each of the three draws random numbers of its own, so no two agree on the values: the kit's and the Auto Filter's hold each value for a cycle, and the Tremolo's glides from one to the next.
 
   In the engine this class moves things that should never sit still. The tape echo, for one, runs one at <Src path="cpp/devices/tape-echo/tape_echo.h" at="flutter_lfo_.set_rate(7.1f, sr);">7.1 Hz</Src> to make its tape flutter.
 
@@ -648,18 +657,30 @@ There is no single device to open this time. The envelope and the LFO are classe
 <StageBlock tap="filtered" n={8} title="The Auto Filter moves its cutoff with an LFO of its own">
   The note now enters a finished device. The Auto Filter is a resonant filter with two things built in to move its cutoff. The first is an LFO. It is not the kit's class: the device has a phase and a set of shapes of its own, a few lines long, as stage 6 would lead you to expect.
 
+  The lab starts LFO to cutoff at 0 %, as the device does, so the cutoff stands still until that control is moved. Here it is with the control at its highest.
+
+  <Still
+    taps="sweep"
+    values={{ lfoAmount: 100 }}
+    span={1}
+    min={-3.2}
+    max={3.2}
+    caption="The first second of the loop with LFO to cutoff at 100 %. The cutoff swings as far above where Cutoff sets it as below, five times in the second."
+  />
+
   <Controls ids="cutoffHz resonance lfoAmount" />
 
   <Trace taps="sweep" min={-3.2} max={3.2} unit="oct">
     How far the cutoff stands from where Cutoff sets it, in octaves, read from the device as it
-    runs. Try LFO to cutoff from 0 % to 100 %, and notice the swing grow to three octaves each way.
+    runs. The line lies flat while LFO to cutoff is at 0 %. Try it from 0 % to 100 %, and notice
+    the swing grow to three octaves each way.
   </Trace>
 
   <M block t={String.raw`\sig{ctl}{f_c[n]} = F \cdot 2^{\,\at{sweep-octaves}{5\,E\,e[n] \,+\, 3\,A\,w[n]}}`} />
 
-  <M t="F" /> is Cutoff and <M t="f_c" /> is where the cutoff stands on this sample. <M t="A" /> is LFO to cutoff as a fraction, <M t="w" /> is the device's own LFO, and the <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kLfoOctaves = 3.0f;">3</Src> is in octaves: at 100 % the cutoff swings <Claim id="sweep-octaves">3.0 octaves each way</Claim>, from an eighth of Cutoff to eight times it. The other term, with <M t="E" /> and <M t="e" />, belongs to the next stage. As with pitch, the sum is in the exponent, so the two movers add in octaves and the sweep is as wide in pitch below Cutoff as above it.
+  <M t="F" /> is Cutoff and <M t="f_c" /> is where the cutoff stands on this sample. <M t="A" /> is LFO to cutoff as a fraction, <M t="w" /> is the device's own LFO, and the <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kLfoOctaves = 3.0f;">3</Src> is in octaves: at 100 %, with Cutoff where the lesson starts it, the cutoff swings <Claim id="sweep-octaves">3.0 octaves each way</Claim>, from an eighth of Cutoff to eight times it. The device keeps the cutoff between <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kMinCutoffHz = 20.0f;">20 Hz</Src> and <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kMaxCutoffHz = 20000.0f;">20 kHz</Src>, so from a much higher or a much lower Cutoff the swing is cut short at that end. The other term, with <M t="E" /> and <M t="e" />, belongs to the next stage. As with pitch, the sum is in the exponent, so the two movers add in octaves and the sweep is as wide in pitch below Cutoff as above it.
 
-  The device's LFO and the kit's are separate machines that the lab has set to one Rate. They started together and neither is ever reset, so their waves keep in step: with the Sine at 100 %, <Claim id="in-step">the furthest the cutoff stands from three times the kit's wave, anywhere in the loop, is 0.07 octaves</Claim>. That small gap is the two phases drifting, since the kit keeps its phase in single precision and the device keeps its own in double. The Auto Filter takes some care over that: while it is asleep between notes its LFO <Src path="cpp/devices/auto-filter/auto_filter.h" at="// - Asleep, the envelope keeps decaying and the LFO keeps turning on paper:">keeps turning on paper</Src>, and on waking it jumps to where it would have been.
+  The device's LFO and the kit's are separate machines that the lab has set to one Rate and started together. Neither is ever reset, and still they part, slowly. The kit keeps its phase in single precision, so each step it adds is rounded, and its oscillator turns a little faster or slower than its Rate. The device keeps its phase in double precision and holds its Rate. The lab plays the loop twice and shows the second pass. At the Rate the lesson starts from, <Claim id="kit-ahead">the kit's phase is 0.004 cycles ahead of its Rate by the end of the loop, twice as far as at the loop's start</Claim>. So with the Sine at 100 %, <Claim id="in-step">the furthest the cutoff stands from three times the kit's wave is under 0.05 octaves in the first second of the loop and 0.07 octaves in the last</Claim>, and the gap goes on growing for as long as both turn. The Auto Filter takes care to keep its own time: while it is asleep between notes its LFO <Src path="cpp/devices/auto-filter/auto_filter.h" at="// - Asleep, the envelope keeps decaying and the LFO keeps turning on paper:">keeps turning on paper</Src>, and on waking it jumps to where it would have been.
 
   What the filter does to the sound, and why a moving cutoff is safe in this kind of filter, is the subject of <Lesson id="state-variable-filter" />.
 
@@ -689,9 +710,9 @@ There is no single device to open this time. The envelope and the LFO are classe
 
   <M block t={String.raw`k = 1 - \exp\!\left(\frac{-1}{\tau f_s}\right)`} />
 
-  <M t="e" /> is the follower's level and <M t="|y|" /> is the size of the sample coming in, whichever way it points. It is the one-pole again, moving a share <M t="k" /> of the way towards its input on every sample. There are two shares. When the sound is larger than the follower, <M t={String.raw`\tau`} /> is the device's Env Attack, which starts at <Src path="cpp/devices/auto-filter/device.json" at='"key": "envAttackMs"'>10 ms</Src>. When it is smaller, <M t={String.raw`\tau`} /> is Env Release, which starts at <Src path="cpp/devices/auto-filter/device.json" at='"key": "envReleaseMs"'>200 ms</Src>. So it rises quickly with the sound and comes down slowly, and does not fall into the gap between one tooth of the wave and the next.
+  <M t="e" /> is the follower's level and <M t="|y|" /> is the size of the sample coming in, whichever way it points. It is the one-pole again, moving a share <M t="k" /> of the way towards its input on every sample. There are two shares. When the sound is larger than the follower, <M t={String.raw`\tau`} /> is the device's Env Attack, which starts at <Src path="cpp/devices/auto-filter/device.json" at='"key": "envAttackMs"'>10 ms</Src>. When it is smaller, <M t={String.raw`\tau`} /> is Env Release, which starts at <Src path="cpp/devices/auto-filter/device.json" at='"key": "envReleaseMs"'>200 ms</Src>. So it rises quickly with the sound and comes down slowly, and it hardly falls in the gap between one tooth of the wave and the next: on this page's note, at the settings the lesson starts from, <Claim id="follower-steady">the follower stands at 0.16 over the second before the key goes up and moves by less than 0.002</Claim>.
 
-  In the formula of stage 8, <M t="E" /> is Follower to cutoff as a fraction, and the <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kEnvOctaves = 5.0f;">5</Src> is in octaves: a follower at 1 with the amount at 100 % lifts the cutoff five octaves. A follower seldom reads anything like 1. On the card "The note opens its own filter" in part 6, with the amount at 80 %, <Claim id="follower-lift">the follower reaches 0.206 at its highest and the cutoff rises 0.82 octaves</Claim>, which is 0.8 times 5 times 0.206.
+  In the formula of stage 8, <M t="E" /> is Follower to cutoff as a fraction, and the <Src path="cpp/devices/auto-filter/auto_filter.h" at="static constexpr float kEnvOctaves = 5.0f;">5</Src> is in octaves: a follower at 1, which is as high as the device counts it, lifts the cutoff five octaves with the amount at 100 %. On this page it cannot read that high: the tone peaks at <Src path="site/labs/envelopes-and-lfos.cpp" at="constexpr float kToneLevel = 0.4f;">0.4</Src>. On the card "The note opens its own filter" in part 6, with the amount at 80 %, <Claim id="follower-lift">the follower reaches 0.206 at its highest and the cutoff rises 0.82 octaves</Claim>, which is 0.8 times 5 times 0.206.
 
   The same word, attack, and the same word, release, are on a compressor, and they are this stage's kind and not the kind a key plays. There they say how fast a gain follows a level. They do not say how a note begins and ends. <Lesson id="compression" cap /> is about that machine.
 
@@ -710,22 +731,35 @@ There is no single device to open this time. The envelope and the LFO are classe
 <StageBlock tap="out" n={10} title="The Tremolo moves the level with an LFO of its own">
   The last device has a third LFO in it, and sends it to the level. The Tremolo's oscillator is its own code as well: a phase, a shape, and a little smoothing after the shape that neither of the others has.
 
+  The lab runs the device in its Tremolo mode, with Drift and Smooth at 0, where the device starts them at <Src path="cpp/devices/tremolo/device.json" at='"key": "drift"'>0.15</Src> and <Src path="cpp/devices/tremolo/device.json" at='"key": "smooth"'>0.2</Src>, so that its LFO is the plain shape. It starts LFO to level, which the device calls Depth, at 0, where the device starts it at <Src path="cpp/devices/tremolo/device.json" at='"key": "depth"'>0.55</Src>. So the gain lies flat at 1 until that control is moved. Here it is with the control half way.
+
+  <Still
+    taps="tremLfo:alt gain:ctl"
+    values={{ depth: 0.5 }}
+    from={2.5}
+    span={1.5}
+    min={-1.1}
+    max={1.1}
+    caption="The last second and a half of the loop with LFO to level at 0.5. The gain rises and falls with the Tremolo's own LFO, and stays in the upper half of its range. Where both lines lie flat the device is asleep, and its oscillator stands still."
+  />
+
   <Controls ids="depth" />
 
   <Trace taps="tremLfo:alt gain:ctl" min={-1.1} max={1.1}>
     The Tremolo's own LFO, and the gain it puts on the sound. Try LFO to level from 0 to 1, and
-    notice the gain's troughs fall towards zero while its peaks stay at 1.
+    notice the gain's troughs fall towards zero while its peaks stay at 1. The flat stretch at the
+    end of the LFO's line is the device asleep.
   </Trace>
 
   <M block t={String.raw`\sig{ctl}{g[n]} = \at{tremolo-down}{1 - \tfrac{1}{2} D\,\bigl(1 - v[n]\bigr)}`} />
 
-  <M t="g" /> is the gain, <M t="D" /> is LFO to level, which the device calls Depth, and <M t="v" /> is the Tremolo's own LFO. At the top of the wave <M t="v" /> is 1, the bracket is 0 and the gain is 1. At the bottom <M t="v" /> is −1, the bracket is 2 and the gain is <M t="1 - D" />. So this destination only ever turns down. Read from the device with LFO to level at 0.5, the gain moves <Claim id="gain-span">between 0.50 and 1.00</Claim>. The gain in the picture is worked out by the lab from the device's own LFO and Depth, and a check holds it to what the device put out:
+  <M t="g" /> is the gain, <M t="D" /> is LFO to level and <M t="v" /> is the Tremolo's own LFO. At the top of the wave <M t="v" /> is 1, the bracket is 0 and the gain is 1. At the bottom <M t="v" /> is −1, the bracket is 2 and the gain is <M t="1 - D" />. So this destination only ever turns down. Read from the device with LFO to level at 0.5, the gain moves <Claim id="gain-span">between 0.50 and 1.00</Claim>. The gain in the picture is worked out by the lab from the device's own LFO and Depth, and a check holds it to what the device put out:
 
   <Check id="gainRebuilt" />
 
   A slow wave multiplying a sound, and what becomes of it when the wave is no longer slow, is the whole of <Lesson id="tremolo-and-ring-modulation" />, which opens this device stage by stage.
 
-  One thing about it belongs here. The three LFOs of this page are set to one Rate, and only two of them stay in step. The Tremolo goes to sleep when nothing has come in for <Src path="cpp/devices/tremolo/tremolo.h" at="idle_.reset(sr, 0.1f);">a tenth of a second</Src>, and asleep, its oscillator does not turn. On this page's note that is <Claim id="trem-sleeps">0.63 s of every loop</Claim>. So each note meets the Tremolo's wave at a different point from the one before, while it meets the other two where it left them.
+  One thing about it belongs here, and that lesson has it among its faults. The three LFOs of this page are set to one Rate. Two of them turn all the time, and part only by the rounding that stage 8 measured. The third stops. The Tremolo goes to sleep when nothing has come in for <Src path="cpp/devices/tremolo/tremolo.h" at="idle_.reset(sr, 0.1f);">a tenth of a second</Src>, and asleep, its oscillator does not turn. On this page's note, at the settings the lesson starts from, that is <Claim id="trem-sleeps">0.63 s of every loop</Claim>. So after each silence the Tremolo's wave goes on from where it stopped, and not from where the other two have got to. A note that is still dying when the next begins leaves the device no silence to sleep in: with a Release long enough for that, its oscillator turns all the time as well.
 
   <Listing
     slot="listing"
@@ -744,12 +778,13 @@ There is no single device to open this time. The envelope and the LFO are classe
 <Lanes
   taps="gate envelope lfo note sweep filtered gain out"
   ranges={{ sweep: [-3, 3], gain: [0, 1] }}
-  label="Every stage of the page on one time axis: the key, the envelope's level, the LFO, the note, the Auto Filter's cutoff, the filtered note, the Tremolo's gain and the output."
+  label="Every stage of the page on one time axis: the key, the envelope's level, the kit's LFO, the note, the Auto Filter's cutoff, the filtered note, the Tremolo's gain and the output."
 >
   Every stage against the same four seconds. Read down a lane at a time: the key, the level it
-  starts, the LFO that turns whether or not a key is down, the note, how far the cutoff has moved,
-  the note after the filter, the Tremolo's gain and the output. Try LFO to cutoff and LFO to level
-  above zero, and notice the two lanes that were flat begin to move at the Rate of the LFO lane.
+  starts, the kit's LFO that turns whether or not a key is down, the note, how far the cutoff has
+  moved, the note after the filter, the Tremolo's gain and the output. Try LFO to cutoff and LFO to
+  level above zero, and notice the two lanes that were flat begin to move, each by its device's own
+  LFO, at the Rate of the kit's.
 </Lanes>
 
 </Part>
@@ -768,7 +803,7 @@ Most of what is done with an LFO is a choice of three things: how fast, what sha
       caption="The tone's pitch over the first second. It stands at one of two levels and steps straight from one to the other."
     />
 
-    A square wave has two values and nothing between them, so a pitch that follows it has two pitches and nothing between them. With the bend at a hundred cents, a semitone each way, the tone alternates <Claim id="trill">between 207.7 Hz and 233.1 Hz</Claim>: the two notes either side of the key that is held, which is itself never heard. Change the Shape to Sine and the same setting is a wide, seasick vibrato.
+    A square wave has two values and nothing between them, so a pitch that follows it has two pitches and nothing between them. With the bend at a hundred cents, a semitone each way, the tone alternates <Claim id="trill">between 207.7 Hz and 233.1 Hz</Claim>: the two notes either side of the key that is held, which is itself never heard. Change the Shape to Sine and the same setting is a vibrato a semitone wide each way.
 
   </Way>
   <Way title="One sweep a note" tag="an LFO slower than the note" set="slow">
@@ -788,10 +823,10 @@ Most of what is done with an LFO is a choice of three things: how fast, what sha
       taps="sweep"
       set="steps"
       span={2}
-      caption="Two seconds of the cutoff's distance from where it is set. It holds one value for each cycle of the LFO and jumps to another, with no pattern to the heights."
+      caption="Two seconds of the cutoff's distance from where it is set. It holds one value for each cycle of the filter's LFO and jumps to another, with no pattern to the heights."
     />
 
-    The random shape draws one number each cycle and holds it. Sent to the cutoff with the resonance turned up, each cycle picks out a different harmonic of the note, and the result is a run of bright steps that never repeats. The Auto Filter's name for this shape is S&H, for sample and hold.
+    The random shape draws one number each cycle and holds it. Sent to the cutoff with the resonance turned up, each cycle lands the cutoff somewhere else among the harmonics of the note. Listen for a run of bright steps with no pattern in it. On this page the run comes round with the loop. The Auto Filter's name for this shape is S&H, for sample and hold.
 
   </Way>
   <Way title="The note opens its own filter" tag="the follower on the cutoff" set="touch">
@@ -814,7 +849,7 @@ Most of what is done with an LFO is a choice of three things: how fast, what sha
       caption="Two seconds of the gain the Tremolo puts on the note. It runs in straight lines between its top, which is 1, and its bottom."
     />
 
-    Sent to the level, the same slow wave is tremolo. A triangle spends no time at the top or the bottom and turns at a point, so its throb is more marked than a sine's at the same settings. Listen for a pulse slow enough to count, and then try the Rate higher until it no longer is.
+    Sent to the level, the same slow wave is tremolo. A triangle spends no time at the top or the bottom and turns at a point. Listen for a pulse slow enough to count. Change the Shape to Sine and listen for whether the throb is less marked, then try the Rate higher until the pulse can no longer be counted.
 
   </Way>
 </Ways>
@@ -836,7 +871,7 @@ One common use has no card, because nothing in this lab does it: a second envelo
       caption="Thirty milliseconds around the start of a low note. The wave is at its full height almost from its first sample."
     />
 
-    With Attack as short as it goes, the level is at the top <Claim id="click-attack">48 samples</Claim> after the key goes down. That is a small part of one cycle of the low note this card plays, so the outline is nearly the cliff of part 1 again, and the Release at the other end is not much longer. Listen for a tick at each end. Lengthen the Attack and the Release until it goes. Low notes need more than high ones, because their cycles are longer.
+    With Attack as short as it goes, the level is at the top <Claim id="click-attack">48 samples</Claim> after the key goes down. That is a small part of one cycle of the low note this card plays, so the outline is nearly the cliff of part 1 again, and this card's Release is as short as Release goes. Listen for a tick at each end. Lengthen the Attack and the Release until it goes. Low notes need more than high ones, because their cycles are longer.
 
   </Fault>
   <Fault title="A note that never arrives" set="short">
@@ -873,7 +908,7 @@ One common use has no card, because nothing in this lab does it: a second envelo
       caption="Half a second of the tone's pitch. It swings up and down many times, as far each way as the trill of part 6 stepped."
     />
 
-    Speed an LFO up and there comes a point where the ear stops following the pitch up and down, and hears a rougher tone that is not moving at all. That is no longer an LFO's work. A wave fast enough to be a tone, multiplying or bending another, makes new frequencies, and <Lesson id="tremolo-and-ring-modulation" /> follows that all the way. For vibrato, keep the Rate to a few cycles a second and the bend to a fraction of a semitone.
+    Speed an LFO up and listen for the point where the pitch can no longer be followed up and down, and what is left is a rougher tone that does not seem to move. That is no longer an LFO's work. A wave fast enough to be a tone, multiplying or bending another, makes new frequencies, and <Lesson id="tremolo-and-ring-modulation" /> follows that all the way. For vibrato, keep the Rate to a few cycles a second and the bend to a fraction of a semitone.
 
   </Fault>
   <Fault title="Two LFOs at one rate, out of step" set="apart">
@@ -884,7 +919,7 @@ One common use has no card, because nothing in this lab does it: a second envelo
       caption="The cutoff's movement and the Tremolo's own LFO, both at one Rate. Their peaks do not fall together, and the Tremolo's line lies flat for a stretch where the device is asleep."
     />
 
-    Two devices set to the same Rate are two clocks, and nothing makes them agree. On this page the Auto Filter's sweep and the Tremolo's throb start apart and stay apart, because the Tremolo's oscillator stops while the device sleeps. If the two movements are meant to be one gesture, they need one LFO sent to both places, or two that are restarted together. With these two devices, the only cure is to use one of them.
+    Two devices set to the same Rate are two clocks, and nothing makes them agree. In this card's loop <Claim id="apart-offset">the Tremolo's wave rises 0.06 s after the cutoff does, an eighth of their cycle</Claim>, because the Tremolo's oscillator stood still while the device slept and the Auto Filter's kept its time. If the two movements are meant to be one gesture, they need one LFO sent to both places, or two that are restarted together. Neither of these devices has a control that restarts its LFO. What can be done with this pair is to keep the Tremolo awake, on a sound with no silence of <Src path="cpp/devices/tremolo/tremolo.h" at="idle_.reset(sr, 0.1f);">a tenth of a second</Src> in it. <Lesson id="tremolo-and-ring-modulation" cap /> has the same fault on a loop of clicks.
 
   </Fault>
 </Faults>
@@ -898,7 +933,7 @@ One common use has no card, because nothing in this lab does it: a second envelo
     Sustain is a level. The key decides how long the note is held, and the level stands at Sustain for exactly that long. The picture of part 2 shows it: move Sustain and the flat part goes up and down, and it gets no longer.
   </Myth>
   <Myth says="When the Release time is up, the note is silent.">
-    When the Release time is up, the note is 60 dB down, a thousandth of where it was. The kit calls it over at 100 dB under the top, which takes more than half as long again. Stage 4 of part 5 has the measurement.
+    When the Release time is up, the note is 60 dB down, a thousandth of where it was. The kit calls it over at 100 dB under the top. On this page's note that takes more than half as long again, and stage 4 of part 5 has the measurement.
   </Myth>
   <Myth says="Decay is how long the level takes to reach Sustain.">
     It is how long the level takes to get a thousand times closer to Sustain. The stage itself lasts longer, and with Sustain at 0 it runs all the way down to 100 dB under the top. The plucked note of part 3 is over well after its Decay time is up, and stage 3 of part 5 has the measurement for the note of this page.

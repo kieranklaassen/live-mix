@@ -28,10 +28,13 @@
 //
 // Neither device uses kit::Lfo: each has an oscillator of its own. The lab
 // sets all three to one Rate and one Shape. The kit's and the Auto Filter's
-// start together and keep turning. The Tremolo's stands still while the
-// device sleeps between notes, so it is not in step with the other two.
-// "Random" is the one shape the three do not share exactly: the kit's and the
-// Auto Filter's hold a new value each cycle, the Tremolo's glides to it.
+// start together and keep turning; the kit's phase is single precision and
+// parts from the device's by a few thousandths of a cycle over a render. The
+// Tremolo's stands still while the device sleeps between notes, so it falls
+// behind the other two. Two shapes differ among the three. The Tremolo's
+// Triangle starts at zero on its way up, where the other two start at the
+// bottom. In "Random" each draws numbers of its own: the kit's and the Auto
+// Filter's hold a new value each cycle, the Tremolo's glides to it.
 //
 // The lab starts where the technique shows plainly. Auto Filter: lowpass,
 // 12 dB, no Drive, the follower's times at the device's own 10 ms and 200 ms,
@@ -90,8 +93,8 @@ lab::Tap stage_tap{"stage", "The envelope's stage", lab::kControl, lab::kKit};
 lab::Tap note{"note", "The note", lab::kAudio, lab::kLesson};
 lab::Tap gated{"gated", "The switched tone", lab::kAudio, lab::kLesson};
 lab::Tap tone{"tone", "The tone", lab::kAudio, lab::kKit};
-lab::Tap lfo_tap{"lfo", "The LFO", lab::kControl, lab::kKit};
-lab::Tap lfo_phase{"lfoPhase", "The LFO's phase", lab::kControl, lab::kKit, 1, "cycles"};
+lab::Tap lfo_tap{"lfo", "The kit's LFO", lab::kControl, lab::kKit};
+lab::Tap lfo_phase{"lfoPhase", "The phase of the kit's LFO", lab::kControl, lab::kKit, 1, "cycles"};
 lab::Tap pitch_now{"pitchNow", "The tone's pitch", lab::kControl, lab::kLesson, 1, "Hz"};
 lab::Tap follower{"follower", "The filter's follower", lab::kControl, lab::kDevice};
 lab::Tap sweep{"sweep", "How far the cutoff moved", lab::kControl, lab::kDevice, 1, "oct"};
@@ -100,20 +103,21 @@ lab::Tap trem_lfo{"tremLfo", "The Tremolo's own LFO", lab::kControl, lab::kDevic
 lab::Tap gain_tap{"gain", "The Tremolo's gain", lab::kControl, lab::kLesson};
 lab::Tap out_tap{"out", "Output", lab::kAudio, lab::kDevice, 2};
 
-// Each stage of the envelope on its own, against time in seconds.
-lab::Tap attack_kit{"attackKit", "The attack as the kit runs it", lab::kCurve, lab::kKit, 1, "s"};
-lab::Tap attack_aim{"attackAim", "The same curve, left to run on to 1.3", lab::kCurve, lab::kLesson, 1, "s"};
-lab::Tap decay_kit{"decayKit", "The decay from the top to the sustain level", lab::kCurve, lab::kKit, 1, "s"};
-lab::Tap release_kit{"releaseKit", "The release from the top", lab::kCurve, lab::kKit, 1, "s"};
-lab::Tap release_db{"releaseDb", "The release from the top, in dB", lab::kCurve, lab::kKit, 1, "s"};
+// Each stage of the envelope on its own, against time in seconds. A curve's unit is its
+// height's: a level has none.
+lab::Tap attack_kit{"attackKit", "The attack as the kit runs it", lab::kCurve, lab::kKit};
+lab::Tap attack_aim{"attackAim", "The same curve, left to run on to 1.3", lab::kCurve, lab::kLesson};
+lab::Tap decay_kit{"decayKit", "The decay from the top to the sustain level", lab::kCurve, lab::kKit};
+lab::Tap release_kit{"releaseKit", "The release from the top", lab::kCurve, lab::kKit};
+lab::Tap release_db{"releaseDb", "The release from the top, in dB", lab::kCurve, lab::kKit, 1, "dB"};
 
-// The kit's six shapes over four cycles.
-lab::Tap shape_sine{"shapeSine", "Sine", lab::kCurve, lab::kKit, 1, "cycles"};
-lab::Tap shape_triangle{"shapeTriangle", "Triangle", lab::kCurve, lab::kKit, 1, "cycles"};
-lab::Tap shape_saw{"shapeSaw", "Falling saw", lab::kCurve, lab::kKit, 1, "cycles"};
-lab::Tap shape_square{"shapeSquare", "Square", lab::kCurve, lab::kKit, 1, "cycles"};
-lab::Tap shape_steps{"shapeSteps", "Random steps", lab::kCurve, lab::kKit, 1, "cycles"};
-lab::Tap shape_glide{"shapeGlide", "Random glide", lab::kCurve, lab::kKit, 1, "cycles"};
+// The kit's six shapes over four cycles: a wave from -1 to 1 against the cycles turned.
+lab::Tap shape_sine{"shapeSine", "Sine", lab::kCurve, lab::kKit};
+lab::Tap shape_triangle{"shapeTriangle", "Triangle", lab::kCurve, lab::kKit};
+lab::Tap shape_saw{"shapeSaw", "Falling saw", lab::kCurve, lab::kKit};
+lab::Tap shape_square{"shapeSquare", "Square", lab::kCurve, lab::kKit};
+lab::Tap shape_steps{"shapeSteps", "Random steps", lab::kCurve, lab::kKit};
+lab::Tap shape_glide{"shapeGlide", "Random glide", lab::kCurve, lab::kKit};
 
 lab::Check gain_rebuilt{"gainRebuilt", "The filtered note times the worked-out gain, against the Tremolo's output",
                         "dB"};
