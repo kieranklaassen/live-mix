@@ -312,7 +312,77 @@ describe('wavetables and sample playback', () => {
     expectWritten(at(STEP.morph), 'under −120 dB')
     expect(matchesWritten(at(STEP.octave), 'under −120 dB')).toBe(false)
     expectWritten(at(STEP.octave), '−29.8 dB')
+    // The sound says the same as the picture. A step sooner, the build at 0.375 and at 0.5 plays
+    // each of the two frames alone, from the same place in the cycle under the same envelope:
+    // with the piece in, the sound halfway is the mean of those two sounds, and a step sooner
+    // it is not.
+    const sound = (build: number, position: number) =>
+      tap(table.render(nothing(), { build, pitch: 27.5, position }), 'built')
+    const mean = meanOf(sound(STEP.octave, 0.375), sound(STEP.octave, 0.5))
+    expectWritten(differenceDb(sound(STEP.morph, 0.4375), mean), 'under −120 dB')
+    expectWritten(differenceDb(sound(STEP.octave, 0.4375), mean), '−29.8 dB')
   })
+
+  it('is less than 1 dB quieter halfway between two neighbouring frames than on a stored frame, in all five tables; only in Hollow do harmonics stand upside down from one frame to the next; every stored cycle stands at 0.25 RMS and none peaks past 0.95 (claim blend-level)', async () => {
+    const table = await lab('wavetables')
+    // The oscillator over two seconds of the held note, which is 55 cycles at 27.5 Hz, where the
+    // copy read is the fullest.
+    const level = (result: RenderResult) =>
+      gainToDb(rms(tap(result, 'osc'), after(0.5), after(2.5)))
+    /** The harmonics of a stored cycle, as the real and imaginary parts of a transform. */
+    const harmonics = (cycle: Float32Array) => {
+      const re = Float64Array.from(cycle.subarray(0, 2048))
+      const im = new Float64Array(2048)
+      transform(re, im)
+      return { re, im }
+    }
+    const worst: number[] = []
+    const upsideDown: number[] = []
+    for (const set of [0, 1, 2, 3, 4]) {
+      const stored = level(table.render(nothing(), { table: set, position: 0, pitch: 27.5 }))
+      let dip = 0
+      let turned = 0
+      for (let frame = 0; frame < 8; frame += 1) {
+        const result = table.render(nothing(), {
+          table: set,
+          position: (frame + 0.5) / 8,
+          pitch: 27.5,
+        })
+        expect(result.checks.copyRead).toBe(0)
+        dip = Math.max(dip, stored - level(result))
+        // Each stored cycle is at the level the device scales it to, and none comes near the
+        // peak at which the device would turn it down further: all nine of every row pass here.
+        for (const id of ['frameBelow', 'frameAbove']) {
+          const cycle = tap(result, id).subarray(0, 2048)
+          expect(rms(cycle), `table ${set}, ${id} of place ${frame}`).toBeCloseTo(0.25, 5)
+          expect(peak(cycle)).toBeLessThan(0.95)
+        }
+        // A harmonic that stands upside down in the next frame: the two have opposite signs, and
+        // neither is too small to tell (a hundred-millionth of the two cycles' power).
+        const below = harmonics(tap(result, 'frameBelow'))
+        const above = harmonics(tap(result, 'frameAbove'))
+        let power = 0
+        for (let n = 1; n <= 512; n += 1)
+          power += below.re[n]! ** 2 + below.im[n]! ** 2 + above.re[n]! ** 2 + above.im[n]! ** 2
+        for (let n = 1; n <= 512; n += 1) {
+          const along = below.re[n]! * above.re[n]! + below.im[n]! * above.im[n]!
+          const least = Math.min(
+            below.re[n]! ** 2 + below.im[n]! ** 2,
+            above.re[n]! ** 2 + above.im[n]! ** 2,
+          )
+          if (along < 0 && least > 1e-8 * power) turned += 1
+        }
+      }
+      worst.push(dip)
+      upsideDown.push(turned)
+    }
+    for (const dip of worst) expectWritten(dip, 'less than 1 dB')
+    // The largest is in Vowels, and it is not nothing: a blend of two different cycles is quieter.
+    expect(Math.max(...worst)).toBeGreaterThan(0.5)
+    expect(upsideDown.slice(0, 3)).toEqual([0, 0, 0])
+    expect(upsideDown[4]).toBe(0)
+    expect(upsideDown[3]).toBeGreaterThan(100)
+  }, 120_000)
 
   it('is the Wavetable output with every piece in, to under −120 dB on both channels, and not a piece sooner (claim voice)', async () => {
     const table = await lab('wavetables')
@@ -327,6 +397,28 @@ describe('wavetables and sample playback', () => {
     expectWritten(apart(STEP.voice), 'under −120 dB')
     expect(matchesWritten(apart(STEP.morph), 'under −120 dB')).toBe(false)
     expectWritten(table.render(nothing(), {}).checks.builtDifference!, 'under −120 dB')
+    // The check reads −140 dB for any difference more than 140 dB down. The step's picture says
+    // the two are the same, so the samples themselves are compared: where the lab starts, at the
+    // device's own defaults, and with every control of the voice moved.
+    const device = { ...settings.defaults!.values, build: STEP.voice }
+    const moved = {
+      build: STEP.voice,
+      detune: 50,
+      motion: 1,
+      rate: 10,
+      sub: 1,
+      spread: 1,
+      pitch: 1760,
+    }
+    for (const values of [{ build: STEP.voice }, device, moved]) {
+      const result = table.render(nothing(), values)
+      for (const c of [0, 1]) {
+        const built = result.taps.built!.channels_data[c]!
+        const out = result.taps.out!.channels_data[c]!
+        expect(peak(out)).toBeGreaterThan(0.05)
+        expect(built.every((v, i) => v === out[i])).toBe(true)
+      }
+    }
   })
 
   // ---- part 5: inside the engine ---------------------------------------------------------------------
@@ -421,7 +513,7 @@ describe('wavetables and sample playback', () => {
     expectWritten((NEAR * RATE) / 8192, '70 Hz')
   })
 
-  it('runs its second set of voices as the Sampler runs its own, to under −120 dB, on every copy and in every loop mode (claim twin)', async () => {
+  it("runs the Sampler's voices again on the copy the device reads and lands on the Sampler's own sound, to under −120 dB, on every copy and in every loop mode (claim twin)", async () => {
     const table = await lab('wavetables')
     for (const values of [
       {},
@@ -467,12 +559,64 @@ describe('wavetables and sample playback', () => {
     expectWritten(firstPass(tap(plain, 'sampledFull'), tuned(0)), '−104.1 dB')
   })
 
+  it('leaves between −38.6 dB and −40.8 dB off the note from the half-rate copy at every whole Tune from 2 to 7 semitones, and less from the full-rate recording each time, −44.2 dB at 7 semitones being the nearest, and the other way round at 8 semitones; at Tune 2.5 the two are −40.7 dB and −51.7 dB (claim guard-range)', async () => {
+    const table = await lab('wavetables')
+    const at = (tune: number) => {
+      const result = table.render(nothing(), { tune })
+      expect(result.checks.samplerCopy).toBe(1)
+      return {
+        copy: firstPass(tap(result, 'sampled'), tuned(tune)),
+        full: firstPass(tap(result, 'sampledFull'), tuned(tune)),
+      }
+    }
+    const whole = [2, 3, 4, 5, 6, 7].map(at)
+    expectWritten(Math.max(...whole.map((one) => one.copy)), '−38.6 dB')
+    expectWritten(Math.min(...whole.map((one) => one.copy)), '−40.8 dB')
+    // The full-rate read leaves less at each of the six, and comes nearest at 7 semitones.
+    const gaps = whole.map((one) => one.copy - one.full)
+    expect(Math.min(...gaps)).toBeGreaterThan(5)
+    expect(gaps.indexOf(Math.min(...gaps))).toBe(5)
+    expectWritten(whole[5]!.full, '−44.2 dB')
+    // Its figure at 2 semitones is the lowest of the six by far, and half a semitone on it is
+    // 40 dB higher, while the half-rate copy's has not moved: the count, not the read.
+    expect(Math.min(...whole.map((one) => one.full))).toBe(whole[0]!.full)
+    const between = at(2.5)
+    expectWritten(between.copy, '−40.7 dB')
+    expectWritten(between.full, '−51.7 dB')
+    // A semitone further the count turns round: the full-rate recording leaves the more.
+    const eight = at(8)
+    expect(eight.full).toBeGreaterThan(eight.copy)
+  })
+
+  it('stands on a frame of the half-rate copy at every sample with Tune at 12 semitones, so that nothing is read between frames there; at Tune 11 the half-rate copy leaves −39 dB and the full-rate recording −34 dB (claim guard-eleven)', async () => {
+    const table = await lab('wavetables')
+    // The head starts on an even frame and moves two frames a sample: every point of the first
+    // pass is an even frame of the recording, which is a whole frame of the copy at half the rate.
+    const head = tap(played(table, 'shrunk'), 'head')
+    const first = Math.round((DOWN / RATE) * POINT_RATE) + 1
+    for (let i = first; i < first + Math.round(0.6 * POINT_RATE); i += 1) {
+      const frame = head[i]! * RATE
+      expect(Math.abs(frame / 2 - Math.round(frame / 2))).toBeLessThan(0.01)
+      if (i > first) expect((head[i]! - head[i - 1]!) * RATE).toBeCloseTo(32, 1)
+    }
+    const result = table.render(nothing(), { tune: 11 })
+    expect(result.checks.samplerCopy).toBe(1)
+    expectWritten(firstPass(tap(result, 'sampled'), tuned(11)), '−39 dB')
+    expectWritten(firstPass(tap(result, 'sampledFull'), tuned(11)), '−34 dB')
+  })
+
   // ---- part 8: misconceptions ----------------------------------------------------------------------
 
-  it('reads the copy for 880 Hz between its entries −94.6 dB from that copy itself (claim line-fine)', async () => {
+  it('reads the copy of the saw for 880 Hz between its entries −92 dB from that copy itself, where the fullest copy lay −46.4 dB from itself (claim line-fine)', async () => {
     const table = await lab('wavetables')
-    const result = table.render(nothing(), { build: STEP.voice, pitch: 880, position: 0.45 })
-    expectWritten(result.checks.builtError!, '−94.6 dB')
+    const result = table.render(nothing(), { build: STEP.voice, pitch: 880 })
+    expect(result.checks.copyHolds).toBe(16)
+    expectWritten(result.checks.builtError!, '−92 dB')
+    // The fullest copy, read the same way: the figure of step 3.
+    expectWritten(
+      table.render(nothing(), { build: STEP.voice, pitch: 27.5 }).checks.builtError!,
+      '−46.4 dB',
+    )
   })
 
   // ---- the cards -------------------------------------------------------------------------------------

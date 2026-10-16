@@ -12,8 +12,9 @@
 // which Tune then moves.
 //
 // Read from the Wavetable: its stored cycles (the two frames either side of
-// the place in the row), the place in the row, its output, and by the device's
-// own function the copy a key reads at every pitch. Its motion LFO is the
+// the place in the row), the place in the row and its output. Asked of the
+// device's own function, called by itself ("called"): the copy a key reads,
+// at 241 pitches across the Pitch control. Its motion LFO is the
 // kit's sine table read at the device's phase ("kit"), and the two checks on
 // that table are the table against the exact sine.
 // Worked out here from the device's tables and state ("lesson"): the cycle a
@@ -28,11 +29,14 @@
 // from one end of the row to the other while the key is held. It is handed to
 // the device through its own entry points, as a host hands over a file.
 // Read from the Sampler: its output, where its read head stands, and the
-// voices before the tone filter. Worked out here: the same voices read from
-// the full-rate recording, by the device's own `play` on a second set of
-// voices that the lab keeps at copy 0 (the "twin" check holds them to the
-// device's whenever the device reads copy 0 too); and what a read halfway
-// between two frames does to each frequency, from the device's four weights.
+// voices before the tone filter. By the device's own functions, called by
+// themselves ("called"): the same voices read from the full-rate recording.
+// The lab runs every voice again by the device's `play`, once on the copy the
+// device reads (the "twin" check holds that run to the device's own sound on
+// every render) and once on copy 0. And what a read halfway between two frames
+// does to each frequency, from four weights the device's `read` gives. The
+// same curve for a straight line between two frames is worked out here
+// ("lesson").
 //
 // The build path puts the Wavetable's voice together in six pieces, each a
 // few lines of `Reader` and `Built` below: one cycle in a table; a phase that
@@ -123,11 +127,11 @@ lab::Tap read_between{"readBetween", "Between two entries", lab::kCurve, lab::kL
 lab::Tap read_exact{"readExact", "The cycle itself, from its harmonics", lab::kCurve, lab::kLesson, 1};
 
 // The highest harmonic a key holds, at every pitch.
-lab::Tap copy_top{"copyTop", "Top harmonic of the copy read", lab::kCurve, lab::kDevice, 1, "Hz"};
+lab::Tap copy_top{"copyTop", "Top harmonic of the copy read", lab::kCurve, lab::kCalled, 1, "Hz"};
 
 // A read halfway between two frames, against frequency.
 lab::Tap two_point{"twoPoint", "Two neighbours, a straight line", lab::kSpectrum, lab::kLesson, 1, "dB"};
-lab::Tap four_point{"fourPoint", "Four neighbours, the Sampler's weights", lab::kSpectrum, lab::kDevice, 1, "dB"};
+lab::Tap four_point{"fourPoint", "Four neighbours, the Sampler's weights", lab::kSpectrum, lab::kCalled, 1, "dB"};
 
 // The loop, in the lesson's order but for the last: play starts on the last of these.
 lab::Tap naive_tap{"naive", "The full cycle at every pitch", lab::kAudio, lab::kLesson, 1};
@@ -137,7 +141,7 @@ lab::Tap place_tap{"place", "Place in the row", lab::kControl, lab::kDevice, 1};
 lab::Tap lfo_tap{"lfo", "The motion LFO", lab::kControl, lab::kKit, 1};
 lab::Tap recording_tap{"recording", "The recording", lab::kAudio, lab::kDevice, 1};
 lab::Tap head_tap{"head", "The read head", lab::kControl, lab::kDevice, 1, "s"};
-lab::Tap sampled_full{"sampledFull", "Read from the full-rate recording", lab::kAudio, lab::kLesson, 1};
+lab::Tap sampled_full{"sampledFull", "Read from the full-rate recording", lab::kAudio, lab::kCalled, 1};
 lab::Tap sampled{"sampled", "Read from the copy the Sampler chose", lab::kAudio, lab::kDevice, 1};
 lab::Tap sampler_tap{"sampler", "The Sampler's output", lab::kAudio, lab::kDevice, 2};
 lab::Tap sampler_picture{"samplerPicture", "The Sampler's harmonics over the loop", lab::kFrames, lab::kDevice, 1, "dB"};
@@ -148,12 +152,12 @@ lab::Check fits{"fits", "Harmonics of the full cycle that fit under half the rat
 lab::Check copy_read{"copyRead", "The copy the key reads, counted from 0", ""};
 lab::Check copy_holds{"copyHolds", "Harmonics that copy holds", ""};
 lab::Check copy_fade{"copyFade", "How far the read has crossed into the next copy", ""};
-lab::Check table_error{"tableError", "The stored cycle against the sum of its recipe's sines", "dB"};
+lab::Check table_error{"tableError", "The two stored cycles either side of Position, each against the sum of its recipe's sines: the worse", "dB"};
 lab::Check step_error{"stepError", "The full cycle read at the entry below, against the cycle itself", "dB"};
 lab::Check line_error{"lineError", "The full cycle read between entries, against the cycle itself", "dB"};
 lab::Check sine_step{"sineStep", "The kit's sine table read at the entry below, against the exact sine, at worst", "dB"};
 lab::Check sine_line{"sineLine", "The kit's sine table as the kit reads it, against the exact sine, at worst", "dB"};
-lab::Check twin{"twin", "The voices the lab keeps at the full-rate recording, against the Sampler's own", "dB"};
+lab::Check twin{"twin", "The Sampler's voices run again by the lab on the copy the device reads, against the Sampler's own", "dB"};
 lab::Check sampler_copy{"samplerCopy", "The copy of the recording the Sampler's key reads, counted from 0", ""};
 
 // ---------------------------------------------------------------------------
@@ -913,7 +917,8 @@ void lab_render(int frames) {
     read_exact.set(p, static_cast<float>(exact_at(harmonic_re, harmonic_im, kHarmonics, (entry + fraction) / kSize)));
   }
 
-  table_error.value = recipe_error(instrument, instrument.set_, frame);
+  table_error.value = kit::max(recipe_error(instrument, instrument.set_, frame),
+                               recipe_error(instrument, instrument.set_, frame + 1));
   sine_line.value = sine_line_db;
   sine_step.value = sine_step_db;
 
