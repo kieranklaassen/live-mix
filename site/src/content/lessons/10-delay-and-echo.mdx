@@ -104,8 +104,8 @@ Follow one sample round. It is read after <M t="D" /> samples at full size, writ
 
 <Controls ids="feedback" />
 
-<Curve taps="repeatsFormula:ctl repeats:out" xTitle="repeat" yTitle="level, dB" min={-60} max={20}>
-  The level of each repeat against the sound that went in. The red dots are measured: the lab plays a 10 ms burst of 1 kHz through a second copy of the device, at its shortest Time, and measures each repeat as it comes back. The blue line under them is the feedback gain, multiplied once more for each repeat. The bottom of the picture is 60 dB down. Move Feedback: the line tilts and the dots tilt with it.
+<Curve taps="repeats:out repeatsFormula:ctl" xTitle="repeat" yTitle="level, dB" min={-60} max={20}>
+  The level of each repeat against the sound that went in. The red dots are measured: the lab plays a 10 ms burst of 1 kHz through a second copy of the device, at its shortest Time, and measures each repeat as it comes back. The dashed line through them is the feedback gain, multiplied once more for each repeat. The bottom of the picture is 60 dB down. Move Feedback: the dashed line tilts and the dots tilt with it.
 </Curve>
 
 At a Feedback of 0.5 each repeat of that burst is <Claim id="burst-step">6.04 dB</Claim> under the last, and ten repeats on it is <Claim id="t60">60.4 dB down</Claim>. The 0.02 dB a repeat beyond the formula is the loop's filters, which are never quite out of the way.
@@ -154,8 +154,8 @@ Now the loop. Its gain for a sound at some level is <M t="g" /> times the tangen
 
 <Controls ids="feedback drive" />
 
-<Curve taps="repeatsFormula:ctl repeats:out" xTitle="repeat" yTitle="level, dB" min={-60} max={20}>
-  The burst of stage 3 again. Set Feedback to 1.1: the blue line climbs 0.83 dB a repeat for ever, and the measured red dots climb with it and then bend away under it as the burst nears the tape's ceiling. Raise Drive and the ceiling comes down to meet them sooner.
+<Curve taps="repeats:out repeatsFormula:ctl" xTitle="repeat" yTitle="level, dB" min={-60} max={20}>
+  The burst of stage 3 again. Set Feedback to 1.1: the dashed line climbs 0.83 dB a repeat for ever, and the measured red dots start up with it and bend away under it as the burst nears the tape's ceiling. Raise Drive and the ceiling comes down to meet them sooner.
 </Curve>
 
 Left to run for eight seconds at a Feedback of 1.1 and a Time of 30 ms, a burst of 1 kHz settles with its peaks on the tape at <Claim id="settles">0.63 with Drive at 0 and 0.16 with Drive at 1</Claim>, a quarter as high because <M t="d" /> is four times as big. And whatever is played, with Drive at 1 nothing on the tape passes <Claim id="ceiling">0.25</Claim>. At a Feedback of exactly 1 the trail does die in the end, because the filters and the tangent each take a little on every trip: the 24th repeat of the burst is <Claim id="unity">0.7 dB</Claim> under the first.
@@ -173,7 +173,7 @@ A real transport is never steady, and the Tape Echo has two controls for how uns
 <Controls ids="wow flutter nudge" />
 
 <Trace taps="delay" unit="ms">
-  How far back the head reads, in milliseconds, across the loop. With Wow, Flutter and the last control at 0 it is a level line at Time: a steady transport. Raise Wow to 1 and the line wanders by a millisecond or so; add Flutter for the fine ripple on top.
+  How far back the head reads, in milliseconds, across the loop. With Wow, Flutter and the last control at 0 it is a level line at Time: a steady transport. Raise Wow to 1 and the line wanders by a millisecond or so; add Flutter for the fine ripple on top. The short step at the very start is the join of the loop: the drift does not come back to where it began.
 </Trace>
 
 <Trace taps="speed">
@@ -188,7 +188,7 @@ Turning Time is the same thing, larger. If the read point jumped to its new plac
 
 The line can be read in more than one place for the price of another read. The Tape Echo has three heads, at Time, two thirds of Time and one third, and <Src path="cpp/devices/tape-echo/tape_echo.h" lines="155-164">four ways of mixing them</Src>. The sum of the heads is both what you hear and what goes back round, so every head's repeats repeat. With Three chosen and Time at 600 ms, a click comes back <Claim id="three-heads">at 200, 400 and 600 ms</Claim>.
 
-Each side has a tape of its own. Ping pong sends the input to the left tape only and crosses the feedback, so the left tape's echo is recorded on the right and the right's on the left: at 1 the repeats <Claim id="ping-pong">take turns</Claim>, left first.
+Each side has a tape of its own. As Ping pong rises it takes the input off the right tape and crosses the feedback, until at 1 the input goes to the left tape only, the left tape's echo is recorded on the right and the right's on the left: the repeats <Claim id="ping-pong">take turns</Claim>, left first.
 
 Last, Mix sets the balance of the input against the heads with a sine and a cosine, <M t={String.raw`\text{out} = \cos(\tfrac{\pi}{2} m)\,\text{in} + \sin(\tfrac{\pi}{2} m)\,\text{heads}`} />. A sound and its echo are different signals whose powers add, so this crossfade keeps the total power level where a straight one would dip in the middle: at 0.5 each is at <Claim id="mix-half">0.707</Claim>. At 0 the output is <Claim id="mix-zero">the input, sample for sample</Claim>.
 
