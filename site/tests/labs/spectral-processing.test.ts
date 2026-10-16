@@ -208,12 +208,32 @@ describe('the spectral processing lab', () => {
 
   // --- part 1 ------------------------------------------------------------------------------------
 
+  it('plays a chord that is 35 dB down two seconds later, when the next is struck (claim chord-dies)', async () => {
+    const chords = (await benchSource('chords', LOOP)).left
+    // The loudest 50 ms of the first chord are its first, and the last 50 ms before the second.
+    const first = levelDb(chords, 0, seconds(0.05))
+    for (let t = 0.05; t < 2; t += 0.05) {
+      expect(levelDb(chords, seconds(t), seconds(t + 0.05))).toBeLessThan(first)
+    }
+    expectWritten(first - levelDb(chords, seconds(1.95), seconds(2)), '35 dB')
+    // The second chord is struck two seconds after the first: the level jumps back up there.
+    expect(
+      levelDb(chords, seconds(2), seconds(2.05)) - levelDb(chords, seconds(1.95), seconds(2)),
+    ).toBeGreaterThan(30)
+  })
+
   it('repeats a slice of 2,048 samples, which is 42.7 ms long (claim slice)', async () => {
     const blur = await lab(NAME)
     const result = await played(blur, 'loop')
     const x = tap(result, 'looped')
     // From a second in to the loop's end the slice comes round, sample for sample.
     for (let n = seconds(1); n < seconds(3.9) - FRAME; n += 1) expect(x[n]).toBe(x[n + FRAME])
+    // It does not join itself smoothly: once in each turn there is a step from one sample to
+    // the next many times the largest anywhere else in the slice.
+    const steps = Array.from({ length: FRAME }, (_, n) =>
+      Math.abs(x[seconds(1) + n + 1]! - x[seconds(1) + n]!),
+    ).sort((a, b) => b - a)
+    expect(say('slice step', steps[0]!)).toBeGreaterThan(10 * say('next step', steps[1]!))
     expectWritten((FRAME * 1000) / RATE, '42.7 ms')
     expect(FRAME).toBe(2048)
   })
@@ -302,6 +322,20 @@ describe('the spectral processing lab', () => {
     // The bar pictures show the bins up to 1.5 kHz.
     expect(result.taps.held!.x1).toBe(1500)
     expect(tap(result, 'held').length).toBe(65)
+    // "Three tenths of a second in": where "Frame at" starts.
+    expect(blur.description.controls.find((one) => one.id === 'at')!.initial).toBeCloseTo(0.3, 6)
+    // "Two seconds later": with nothing held, the row shown as coming in is the row "Frame at"
+    // picks when it stands two seconds further on.
+    const source = await benchSource('chords', LOOP)
+    const bars = (at: number, id: string) => tap(blur.render(source, { freeze: 0, at }), id)
+    const ahead = bars(0.3, 'later')
+    const there = bars(2.3, 'caught')
+    for (let k = 0; k < ahead.length; k += 1) expect(ahead[k]).toBe(there[k])
+    // Where less than two seconds of the loop are left, it is the loop's last whole frame.
+    const late = bars(3, 'later')
+    const last = bars(4, 'caught')
+    for (let k = 0; k < late.length; k += 1) expect(late[k]).toBe(last[k])
+    expect(Array.from(late)).not.toEqual(Array.from(ahead))
   })
 
   it('holds every bin at exactly the size it had in the frame Freeze caught (claim held-same)', async () => {
@@ -414,16 +448,24 @@ describe('the spectral processing lab', () => {
     expect(matchesWritten(say('split repeats', repeats(STEP.split)), 'more than 120 dB')).toBe(
       false,
     )
+    // Step 3 says the output no longer comes round every hop: with the turn it differs from
+    // itself a hop on by more than the sound's own level.
+    expect(say('turn repeats', repeats(STEP.turn))).toBeLessThan(0)
   })
 
   it("holds the lesson's own frame laid down again to the build's second step, more than 130 dB under the sound (claim stuck-built)", async () => {
     const blur = await lab(NAME)
     for (const source of [await benchSource('chords', LOOP), sine(440, 0.5, LOOP)]) {
-      const result = blur.render(source, { build: STEP.hold })
-      expectWritten(
-        say('stuck vs built', -differenceDb(tap(result, 'stuck'), tap(result, 'built'))),
-        'more than 130 dB',
+      const apart = (build: number) => {
+        const result = blur.render(source, { build })
+        return -differenceDb(tap(result, 'stuck'), tap(result, 'built'))
+      }
+      expectWritten(say('stuck vs built', apart(STEP.hold)), 'more than 130 dB')
+      // With the piece off the build is the sound going on, and nothing like the frame laid down.
+      expect(matchesWritten(say('stuck vs split', apart(STEP.split)), 'more than 130 dB')).toBe(
+        false,
       )
+      expect(apart(STEP.split)).toBeLessThan(3)
     }
   })
 
@@ -446,7 +488,7 @@ describe('the spectral processing lab', () => {
     ).toBe(false)
   })
 
-  it('with the angles smeared, moves the level of the held 440 Hz sine, read every 50 ms from 1.6 s on, over 9 dB; with the piece off, less than 0.01 dB (claim drift-span)', async () => {
+  it('with the angles smeared, moves the level of the held 440 Hz sine, read every 50 ms from 1.6 s on, across a span of 9 dB; with the piece off, less than 0.01 dB (claim drift-span)', async () => {
     const blur = await lab(NAME)
     const tone = sine(440, 0.5, LOOP)
     const span = (build: number) =>
@@ -496,7 +538,7 @@ describe('the spectral processing lab', () => {
     expectWritten(Math.abs(down(STEP.octave)), 'less than 0.01 dB')
   })
 
-  it("is the device's own frames with all seven pieces: the comparison reads −140 dB, the lab's floor (claim built-same)", async () => {
+  it("is the device's own frames with all seven pieces: the comparison reads −140 dB, the lab's floor, and the two are the same sample for sample (claim built-same)", async () => {
     const blur = await lab(NAME)
     for (const [id, values] of [
       ['chords', {}],
@@ -520,20 +562,40 @@ describe('the spectral processing lab', () => {
       expectWritten(say(`built same ${id}`, result.checks.builtDifference!), '−140 dB')
       expect(result.checks.builtDifference).toBe(-140)
       expect(result.checks.builtStep).toBe(STEP.shape)
+      // −140 dB is only the floor of the lab's reading. The samples themselves: the build's
+      // frames added up, beside the device's left channel before its limiter and its mix.
+      const whole = blur.render(await benchSource(id, LOOP), { ...values, build: STEP.shape })
+      const built = tap(whole, 'built')
+      const device = tap(whole, 'wet')
+      let unequal = 0
+      for (let i = 0; i < built.length; i += 1) if (built[i] !== device[i]) unequal += 1
+      expect(unequal, `${id}: samples of the build that are not the device's`).toBe(0)
+      expect(peak(device)).toBeGreaterThan(0.01)
     }
   })
 
   // --- part 5: the engine's stages -----------------------------------------------------------------
 
-  it('reads a full-scale sine that lies on a bin as a bar of 1.00 there and 0.50 on the bin either side (claim on-a-bin)', async () => {
+  it('reads a full-scale sine that lies on a bin as a bar of 1.00 there and 0.50 on the bin either side, and one halfway between two bins as 0.85 on each and 0.17 on the next bin out (claim on-a-bin)', async () => {
     const blur = await lab(NAME)
-    const result = blur.render(sine(19 * BIN_HZ, 1, LOOP), { freeze: 0 })
-    const bars = tap(result, 'caught')
-    expectWritten(bars[19]!, '1.00')
-    expectWritten(bars[18]!, '0.50')
-    expectWritten(bars[20]!, '0.50')
-    expect(bars[17]).toBeLessThan(0.001)
-    expect(bars[21]).toBeLessThan(0.001)
+    const row = (bin: number) =>
+      tap(blur.render(sine(bin * BIN_HZ, 1, LOOP), { freeze: 0 }), 'caught')
+    for (const k of [19, 30, 45]) {
+      const bars = row(k)
+      expectWritten(bars[k]!, '1.00')
+      expectWritten(bars[k - 1]!, '0.50')
+      expectWritten(bars[k + 1]!, '0.50')
+      expect(bars[k - 2]).toBeLessThan(0.001)
+      expect(bars[k + 2]).toBeLessThan(0.001)
+      // Halfway to the next bin: two tall bars and a short one either side of them.
+      const between = row(k + 0.5)
+      expectWritten(between[k]!, '0.85')
+      expectWritten(between[k + 1]!, '0.85')
+      expectWritten(between[k - 1]!, '0.17')
+      expectWritten(between[k + 2]!, '0.17')
+      expect(between[k - 2]).toBeLessThan(0.03)
+      expect(between[k + 3]).toBeLessThan(0.03)
+    }
   })
 
   it('lets a held bin fall 60 dB in 2.5 s at Blur 0.5, which is 24 dB a second, and in 6.9 s at Blur 0.7 (claim blur-times)', async () => {
@@ -590,28 +652,91 @@ describe('the spectral processing lab', () => {
     expect(resolveSet(blur.description, settings.sets.retuned!).source).toBe('chords')
   })
 
-  it('retunes a frozen 440 Hz tone to within 1 Hz of 452 Hz when a 452 Hz tone of the same level is played in afterwards, and leaves it within 1 Hz of 440 Hz when the later tone is 20 dB quieter (claim freeze-retuned)', async () => {
-    const blur = await lab(NAME)
-    // A 440 Hz tone, caught at 0.3 s, and from 1.5 s on a 452 Hz tone in its place.
-    const two = (later: number) => {
-      const left = new Float32Array(LOOP)
-      for (let i = 0; i < LOOP; i += 1) {
-        const t = i / RATE
-        left[i] =
-          t < 1.5
-            ? 0.25 * Math.sin(2 * Math.PI * 440 * t)
-            : 0.25 * later * Math.sin(2 * Math.PI * 452 * t)
-      }
-      return { left, right: left.slice() }
+  /**
+   * One tone, caught at 0.3 s, and from 1.5 s on a second tone in its place, `later` times as
+   * large: what is played into a device that is already holding something.
+   */
+  function tonePair(first: number, second: number, later: number): Source {
+    const left = new Float32Array(LOOP)
+    for (let i = 0; i < LOOP; i += 1) {
+      const t = i / RATE
+      left[i] =
+        t < 1.5
+          ? 0.25 * Math.sin(2 * Math.PI * first * t)
+          : 0.25 * later * Math.sin(2 * Math.PI * second * t)
     }
-    const held = (later: number) =>
-      pitchOf(tap(blur.render(two(later), {}), 'out'), seconds(2.5), seconds(3.9))
-    expectWritten(say('retuned', Math.abs(held(1) - 452)), 'less than 1 Hz')
-    expectWritten(gainToDb(1 / 0.1), '20 dB')
-    expectWritten(say('not retuned', Math.abs(held(0.1) - 440)), 'less than 1 Hz')
+    return { left, right: left.slice() }
+  }
+
+  /** The pairs of stage 4: a caught tone and one played in after it, less than a bin away. */
+  const PAIRS: [number, number, string, string][] = [
+    [440, 452, '440 Hz', '452 Hz'],
+    [440, 430, '440 Hz', '430 Hz'],
+    [220, 233, '220 Hz', '233 Hz'],
+    [330, 349.2, '330 Hz', '349.2 Hz'],
+    [110, 116.5, '110 Hz', '116.5 Hz'],
+    [1000, 1012, '1,000 Hz', '1,012 Hz'],
+  ]
+
+  it('retunes a frozen tone to within 1 Hz of a second tone of the same level played in afterwards: 440 Hz by 452 Hz, 440 Hz by 430 Hz, 220 Hz by 233 Hz, 330 Hz by 349.2 Hz, 110 Hz by 116.5 Hz and 1,000 Hz by 1,012 Hz; leaves each alone when the second is 30 dB quieter; at 20 dB quieter moves one and not another; and leaves 1,000 Hz alone under 1,059.5 Hz (claim freeze-retuned)', async () => {
+    const blur = await lab(NAME)
+    const held = (first: number, second: number, later: number) =>
+      pitchOf(
+        tap(blur.render(tonePair(first, second, later), {}), 'out'),
+        seconds(2.5),
+        seconds(3.9),
+      )
+    const quieter = (db: number) => 10 ** (-db / 20)
+    expectWritten(-gainToDb(quieter(30)), '30 dB')
+    expectWritten(-gainToDb(quieter(20)), '20 dB')
+    for (const [first, second, firstWritten, secondWritten] of PAIRS) {
+      expectWritten(first, firstWritten)
+      expectWritten(second, secondWritten)
+      // Less than a bin apart.
+      expect(Math.abs(second - first)).toBeLessThan(BIN_HZ)
+      expectWritten(
+        say(`retuned ${first} by ${second}`, Math.abs(held(first, second, 1) - second)),
+        'less than 1 Hz',
+      )
+      expectWritten(
+        say(`not retuned ${first}`, Math.abs(held(first, second, quieter(30)) - first)),
+        'less than 1 Hz',
+      )
+    }
+    // In between, a bin at a time: the same 20 dB leave one tone and move another.
+    expectWritten(Math.abs(held(440, 452, quieter(20)) - 440), 'less than 1 Hz')
+    expectWritten(Math.abs(held(1000, 1012, quieter(20)) - 1012), 'less than 1 Hz')
+    // A second tone more than two bins off does nothing, at the same level or twice it.
+    expectWritten(1059.5, '1,059.5 Hz')
+    expect(1059.5 - 1000).toBeGreaterThan(2 * BIN_HZ)
+    expectWritten(Math.abs(held(1000, 1059.5, 1) - 1000), 'less than 1 Hz')
+    expectWritten(Math.abs(held(1000, 1059.5, 2) - 1000), 'less than 1 Hz')
   })
 
-  it('spreads a single sample over 62 ms at Smear 1, its highest point 20.8 dB down and 51 % of its energy ahead of its own moment (claim click-smear)', async () => {
+  it('holds with Sustain, on the same pairs of tones, within 0.01 Hz of the pitch it caught (claim sustain-deaf)', async () => {
+    const blur = await lab(NAME)
+    for (const [first, second] of PAIRS) {
+      for (const later of [1, 2]) {
+        const held = tap(blur.render(tonePair(first, second, later), {}), 'sustained')
+        expectWritten(
+          say(
+            `sustained ${first} under ${second}`,
+            Math.abs(pitchOf(held, seconds(2.5), seconds(3.5)) - first),
+          ),
+          'less than 0.01 Hz',
+        )
+        // And it is still sounding: the same level before the second tone and after.
+        expect(levelDb(held, seconds(2.5), seconds(3.5))).toBeGreaterThan(-20)
+        expect(
+          Math.abs(
+            levelDb(held, seconds(2.5), seconds(3.5)) - levelDb(held, seconds(0.8), seconds(1.4)),
+          ),
+        ).toBeLessThan(0.05)
+      }
+    }
+  })
+
+  it('spreads a single sample over 62 ms at Smear 1, its highest point 20.8 dB down and 51 % of its energy ahead of its own moment, all of its energy within 0.2 dB of what went in (claim click-smear)', async () => {
     const blur = await lab(NAME)
     const at = seconds(1)
     const result = blur.render(click(LOOP, at, 1), { freeze: 0, smear: 1 })
@@ -632,8 +757,8 @@ describe('the spectral processing lab', () => {
     expectWritten(say('click peak', -gainToDb(top)), '20.8 dB')
     expectWritten(say('click length', ((last - first) * 1000) / RATE), '62 ms')
     expectWritten(say('click ahead', (100 * ahead) / energy), '51 %')
-    // Its energy is still all there.
-    expectWritten(Math.abs(10 * Math.log10(energy)), 'less than 0.5 dB')
+    // Its energy is still there: one sample of height 1 went in, an energy of 1.
+    expectWritten(say('click energy', Math.abs(10 * Math.log10(energy))), 'less than 0.2 dB')
     // With Smear at 0 it comes out as it went in, a latency late.
     const plain = tap(blur.render(click(LOOP, at, 1), { freeze: 0 }), 'out')
     expect(plain[at + LATENCY]).toBeCloseTo(1, 5)
@@ -796,6 +921,21 @@ describe('the spectral processing lab', () => {
     expectWritten(say('noise in air', less(hiss, 3)), '2.3 dB')
   })
 
+  it('moves the first moment of a note from the tones to the attacks with Edge', async () => {
+    const blur = await lab(NAME)
+    const note = burst()
+    // The first 30 ms of a note that begins without a click, as the attacks alone keep it.
+    const start = (edge: number) => {
+      const kept = tap(blur.render(note, { keep: 2, edge }), 'sifted')
+      return (
+        levelDb(kept, seconds(0.07) + SIFT_LATENCY, seconds(0.1) + SIFT_LATENCY) -
+        levelDb(note.left, seconds(0.07), seconds(0.1))
+      )
+    }
+    expect(say('edge 0 start', start(0))).toBeLessThan(-60)
+    expect(say('edge 1 start', start(1))).toBeGreaterThan(-6)
+  })
+
   it('with Sift keeping everything is the input 4,352 samples late, more than 130 dB under it (claim sift-sum)', async () => {
     const blur = await lab(NAME)
     for (const id of ['chords', 'mix']) {
@@ -857,7 +997,7 @@ describe('the spectral processing lab', () => {
     )
   })
 
-  it('catches two sines 10 Hz apart at five moments 25 ms apart: Freeze holds them at levels that range over 16 dB, Sustain within 0.1 dB (claim close-tones)', async () => {
+  it('catches two sines 10 Hz apart at five moments 25 ms apart: Freeze holds them at levels that span 16 dB, Sustain within 0.1 dB (claim close-tones)', async () => {
     const blur = await lab(NAME)
     const two = both(sine(440, 0.25, LOOP), sine(450, 0.25, LOOP))
     const frozen: number[] = []
