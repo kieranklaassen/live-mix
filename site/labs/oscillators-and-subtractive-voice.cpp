@@ -31,7 +31,10 @@
 // block's sound from the moment "Look at" names, and the size of each
 // harmonic of the note in the four cycles from that moment; the same two
 // pictures of each of the kit oscillator's four shapes at Pitch; and the
-// kit's oscillator and the output as spectra over the loop.
+// kit's oscillator and the output as spectra over the loop. One more pair
+// follows no control: the spectrum of a pulse at a key far above Pitch's
+// range, made by the kit's oscillator and by the closed-form pulse of the
+// Chord Harp (cpp/devices/chord-harp), which is called here on its own.
 //
 // A second instrument plays beside the first: Dusk (cpp/devices/dusk), three
 // keys of a chord held as long as the bass's one. Read from it: the envelope
@@ -52,9 +55,18 @@
 // with the device's own (the "builtDifference" check). Both take up each loop
 // where the device stands after the pass that is thrown away: the places of
 // its oscillators, and what its filter and its contour still hold.
+//
+// A render has three parts, and only what a moved control reaches is run
+// again. The bass's loop follows the bass's controls and the step of the
+// build; the pad's loop follows the pad's controls, Pitch and "Key held for";
+// what each made is kept (`Kept`, `PadKept`) and written to the taps again
+// on every render. The pictures at the moment looked at are made from what
+// is kept, so "Look at" alone runs neither loop. A render is the same
+// whichever way it came about: what is kept is what the loop would make.
 
 #include "lab.h"
 
+#include "../../cpp/devices/chord-harp/chord_harp.h"
 #include "../../cpp/devices/dusk/dusk.h"
 #include "../../cpp/devices/ladder-bass/ladder_bass.h"
 
@@ -137,11 +149,16 @@ lab::Tap square_parts{"squareHarmonics", "Harmonics of the square", lab::kCurve,
 lab::Tap saw_parts{"sawHarmonics", "Harmonics of the saw", lab::kCurve, lab::kKit, 1, "dB"};
 lab::Tap raw_picture{"rawPicture", "The kit's oscillator alone, over the loop", lab::kFrames, lab::kKit, 1, "dB"};
 lab::Tap out_picture{"outPicture", "The output, over the loop", lab::kFrames, lab::kDevice, 1, "dB"};
+lab::Tap kit_pulse{"kitPulse", "The kit's pulse at 4,186 Hz", lab::kSpectrum, lab::kKit, 1, "dB"};
+lab::Tap whole_pulse{"wholePulse", "A pulse added up from whole harmonics, at 4,186 Hz", lab::kSpectrum, lab::kCalled,
+                     1, "dB"};
 
 lab::Check cutoff_error{"cutoffError", "The cutoff worked out again, against the coefficient the device's filter holds",
                         "%"};
 lab::Check cutoff_now{"cutoffNow", "The filter's cutoff at the moment looked at", "Hz"};
 lab::Check contour_now{"contourNow", "The contour at the moment looked at", ""};
+lab::Check response_top{"responseTop", "The most the filter passes at any one frequency, at the moment looked at",
+                        "dB"};
 lab::Check pad_held{"padHeld", "Voices the pad's three keys hold at once", "voices"};
 
 lab::Tap built{"built", "The voice so far", lab::kAudio, lab::kLesson, 1};
@@ -361,6 +378,7 @@ struct Built {
     contour_level = device.contour_level_;
     striking = device.striking_;
     key_down = device.held_ > 0;
+    corner = tuned();  // for the key the device holds: where the filter stands until the next strike moves it
   }
 };
 
@@ -485,7 +503,18 @@ constexpr int kResponsePoints = 121;
 constexpr float kSmall = 1.0e-4f;
 float ring[kRing];
 float response_kept[kResponsePoints];
+float response_top_kept = 0.0f;
 float response_g = -1.0f, response_feedback = -1.0f;
+
+// The frequency a point of the response stands at: even ratios from 20 Hz to 20 kHz.
+double response_hz(int p) { return 20.0 * std::pow(1000.0, static_cast<double>(p) / (kResponsePoints - 1)); }
+
+// How much of one frequency rang out, as power against what went in.
+double rang(double hz) {
+  // A frequency at the inner rate is a quarter of it at the page's, which is what fourier_at counts in.
+  return lab::fourier_at(ring, kRing, hz * lab::kSampleRate / kInnerRate).power() /
+         (static_cast<double>(kSmall) * kSmall);
+}
 
 void measure_response(float g, float feedback) {
   if (!response.open(kResponsePoints)) return;
@@ -497,19 +526,177 @@ void measure_response(float g, float feedback) {
     probe.g = g;
     probe.resonance = feedback;
     for (int n = 0; n < kRing; ++n) ring[n] = probe.process(n == 0 ? kSmall : 0.0f);
+    int highest = 0;
     for (int p = 0; p < kResponsePoints; ++p) {
-      const double hz = 20.0 * std::pow(1000.0, static_cast<double>(p) / (kResponsePoints - 1));
-      // A frequency at the inner rate is a quarter of it at the page's, which is what fourier_at counts in.
-      const double power = lab::fourier_at(ring, kRing, hz * lab::kSampleRate / kInnerRate).power();
-      response_kept[p] = lab::power_to_db(static_cast<float>(power / (static_cast<double>(kSmall) * kSmall)));
+      response_kept[p] = lab::power_to_db(static_cast<float>(rang(response_hz(p))));
+      if (response_kept[p] > response_kept[highest]) highest = p;
     }
+    // The top of the curve. The points stand a semitone apart, and with Emphasis high the
+    // peak at the cutoff is narrower than that, so the highest point is seldom the top. The
+    // top is looked for between that point's two neighbours, a third of the stretch at a time.
+    double low = response_hz(highest > 0 ? highest - 1 : 0);
+    double high = response_hz(highest < kResponsePoints - 1 ? highest + 1 : highest);
+    double top = rang(response_hz(highest));
+    for (int pass = 0; pass < 12; ++pass) {
+      const double third = std::cbrt(high / low);
+      const double first = rang(low * third), second = rang(low * third * third);
+      if (first < second) {
+        low *= third;
+      } else {
+        high = low * third * third;
+      }
+      top = first > top ? first : top;
+      top = second > top ? second : top;
+    }
+    response_top_kept = lab::power_to_db(static_cast<float>(top));
     response_g = g;
     response_feedback = feedback;
   }
   for (int p = 0; p < kResponsePoints; ++p) response.set(p, response_kept[p]);
+  response_top.value = response_top_kept;
 }
 
-void configure() {
+// A pulse on a key three octaves over the top of Pitch's range (4,186 Hz), made two ways. The kit's
+// oscillator corrects its two jumps, and on a key this high some of what folds back is
+// left. The Chord Harp's pulse adds up the harmonics that fit under its limit and no
+// others (ChordHarp::Pulse, called here on its own with the device's own width, limit and
+// leak). Neither follows a control, so both spectra are made once and kept.
+constexpr float kHighKeyHz = 8.0f * 523.25f;
+constexpr int kHighSettle = 48000;  // the Chord Harp's running sum centres itself in the first second
+constexpr int kHighSamples = 16384;
+float high_wave[kHighSamples];
+float kit_pulse_kept[lab::kSpectrumBins];
+float whole_pulse_kept[lab::kSpectrumBins];
+
+void high_pulses() {
+  const float sr = lab::kSampleRate;
+  const float increment = kHighKeyHz / sr;
+  kit::BlepOsc corrected;
+  corrected.reset(0.0f);
+  for (int n = 0; n < kHighSettle + kHighSamples; ++n) {
+    const float value = kRawLevel * corrected.pulse(increment, ChordHarp::kPulseWidth);
+    if (n >= kHighSettle) high_wave[n - kHighSettle] = value;
+  }
+  lab::spectrum(high_wave, kHighSamples, kit_pulse_kept);
+  ChordHarp::Pulse whole;
+  whole.start(increment, ChordHarp::kPulseWidth, kit::min(ChordHarp::kHarmonicLimitHz, 0.45f * sr) / sr,
+              1.0f - kit::kTwoPi * ChordHarp::kLeakHz / sr);
+  for (int n = 0; n < kHighSettle + kHighSamples; ++n) {
+    const float value = kRawLevel * whole.next();
+    if (n >= kHighSettle) high_wave[n - kHighSettle] = value;
+  }
+  lab::spectrum(high_wave, kHighSamples, whole_pulse_kept);
+}
+
+void spectrum_kept(lab::Tap& tap, const float* kept) {
+  if (!tap.open(lab::kSpectrumBins)) return;
+  tap.x0 = 0.0f;
+  tap.x1 = lab::kSampleRate * 0.5f;
+  for (int k = 0; k < lab::kSpectrumBins; ++k) tap.set(k, kept[k]);
+}
+
+// ---------------------------------------------------------------------------
+// What the two loops made, kept from one render to the next. Each is the
+// second pass and the little more that is crossfaded into its start, a
+// sample or a point at a time, as the loop would hand it to a tap's put().
+
+constexpr int kKeptSamples = lab::kMaxFrames + lab::kFadeFrames;
+constexpr int kKeptPoints = kKeptSamples / lab::kControlPeriod;
+constexpr int kMostCycles = 16384;  // the highest key of the line, for the longest loop: 8,372
+
+// The bass's loop. It follows these and nothing else.
+constexpr int kBassFollows = 15;
+struct Kept {
+  float key[kBassFollows];
+  bool made = false;
+  float raw[kKeptSamples], osc[kKeptSamples], mix[kKeptSamples], filtered[kKeptSamples], out[kKeptSamples],
+      built[kKeptSamples];
+  // A point each 16 samples: the device's contour and cutoff, the coefficient and the
+  // feedback its filter holds, and the level and the cutoff of the voice as built.
+  float contour[kKeptPoints], corner[kKeptPoints], g[kKeptPoints], feedback[kKeptPoints], level[kKeptPoints],
+      built_corner[kKeptPoints];
+  // The samples of the kept pass at which the first oscillator starts a cycle.
+  int cycles[kMostCycles];
+  int cycle_count = 0;
+  float worst = 0.0f;       // the cutoff error
+  float difference = 0.0f;  // the build against the device
+};
+Kept kept;
+
+// The pad's loop. It follows these and nothing else.
+constexpr int kPadFollows = 8;
+struct PadKept {
+  float key[kPadFollows];
+  bool made = false;
+  float left[kKeptSamples], right[kKeptSamples];
+  float envelope[kKeptPoints], corner[kKeptPoints];
+  float held = 0.0f;
+};
+PadKept pad_kept;
+
+// True when `key` already holds `now`; it holds them afterwards either way.
+bool same(float* key, const float* now, int count, bool made) {
+  bool all = made;
+  for (int k = 0; k < count; ++k) {
+    if (key[k] != now[k]) all = false;
+    key[k] = now[k];
+  }
+  return all;
+}
+
+// The pad: three keys of a chord, down with the bass's first key and up after "Key held for".
+void run_pad(int frames) {
+  {
+    using namespace dusk;
+    pad.init(lab::kSampleRate);
+    pad.set_param(kCutoff, pad_cutoff.value);
+    pad.set_param(kEnvelope, pad_envelope.value);
+    pad.set_param(kAttack, pad_attack.value);
+    pad.set_param(kRelease, pad_release.value);
+    pad.set_param(kChorus, pad_chorus.value);
+  }
+  constexpr int kBlock = lab::kControlPeriod;
+  const int total = lab::total();
+  const int pad_up = kKeyDown + whole_blocks(hold.value);
+  Dusk::Voice* pad_voice = nullptr;
+  int most_held = 0;
+  for (int i = 0; i < total; i += kBlock) {
+    const int at = i % frames;
+    if (at == kKeyDown) {
+      for (int k = 0; k < kPadKeys; ++k) {
+        pad.note_on(kPadKey + k, note.value * kit::semitones_to_ratio(static_cast<float>(kPadSemitones[k])),
+                    kPadStrike);
+      }
+      const int first = pad.pool_.find_held(kPadKey);
+      if (first >= 0) pad_voice = &pad.pool_.voices[first];
+    }
+    if (at == pad_up) {
+      for (int k = 0; k < kPadKeys; ++k) pad.note_off(kPadKey + k);
+    }
+    pad.process(kBlock);
+    // The first pass is only there so that the second starts as the tenth would.
+    if (i < frames) continue;
+
+    int holding = 0;
+    for (int v = 0; v < Dusk::kMaxVoices; ++v) {
+      const Dusk::Voice& voice = pad.pool_.voices[v];
+      holding += voice.env.active() && !voice.env.releasing() ? 1 : 0;
+    }
+    if (holding > most_held) most_held = holding;
+    const int point = (i - frames) / kBlock;
+    pad_kept.envelope[point] = pad_voice ? pad_voice->env.level() : 0.0f;
+    pad_kept.corner[point] =
+        pad_voice ? pad.cutoff_hz(*pad_voice, pad_voice->env.level()) : std::exp2(pad.cutoff_octave_.value);
+    for (int j = 0; j < kBlock; ++j) {
+      pad_kept.left[i - frames + j] = pad.out_left()[j];
+      pad_kept.right[i - frames + j] = pad.out_right()[j];
+    }
+  }
+  pad_kept.held = static_cast<float>(most_held);
+}
+
+// The bass, the voice built beside it, and the kit's oscillator alone.
+void run_bass(int frames) {
   {
     using namespace ladder_bass;
     bass.init(lab::kSampleRate);
@@ -523,23 +710,6 @@ void configure() {
     bass.set_param(kDrive, drive.value);
     bass.set_param(kVolume, volume.value);
   }
-  {
-    using namespace dusk;
-    pad.init(lab::kSampleRate);
-    pad.set_param(kCutoff, pad_cutoff.value);
-    pad.set_param(kEnvelope, pad_envelope.value);
-    pad.set_param(kAttack, pad_attack.value);
-    pad.set_param(kRelease, pad_release.value);
-    pad.set_param(kChorus, pad_chorus.value);
-  }
-}
-
-}  // namespace
-
-void lab_setup() {}
-
-void lab_render(int frames) {
-  configure();
   schedule();
   shown.start(build.at());
   held.start(build.compared_step);
@@ -549,27 +719,12 @@ void lab_render(int frames) {
 
   constexpr int kBlock = lab::kControlPeriod;
   const int total = lab::total();
-  // The pad's keys go down with the bass's first key and come up after "Key held for".
-  const int pad_up = kKeyDown + whole_blocks(hold.value);
-  Dusk::Voice* pad_voice = nullptr;
-  int most_held = 0;
-
-  // The moment looked at, in the pass that is kept: the pictures begin where
-  // the first oscillator next starts a cycle.
-  const double hz = note.value;
-  const int two_cycles = static_cast<int>(2.0 * lab::kSampleRate / hz + 0.5);
-  const int four_cycles = static_cast<int>(4.0 * lab::kSampleRate / hz + 0.5);
-  int look_at = kKeyDown + static_cast<int>(look.value * lab::kSampleRate);
-  if (look_at > frames - four_cycles - two_cycles) look_at = frames - four_cycles - two_cycles;
-  if (look_at < 0) look_at = 0;
-  int cycle_at = -1;
-  float look_g = 0.0f, look_feedback = 0.0f;
-
   kit::BlepOsc tone;
   int next_press = 0;
   bool pressed = false;
   double apart = 0.0, whole = 0.0;
   float worst = 0.0f;
+  kept.cycle_count = 0;
 
   for (int i = 0; i < total; i += kBlock) {
     const int at = i % frames;
@@ -600,40 +755,17 @@ void lab_render(int frames) {
       pressed = false;
       ++next_press;
     }
-    if (at == kKeyDown) {
-      for (int k = 0; k < kPadKeys; ++k) {
-        pad.note_on(kPadKey + k, note.value * kit::semitones_to_ratio(static_cast<float>(kPadSemitones[k])),
-                    kPadStrike);
-      }
-      const int first = pad.pool_.find_held(kPadKey);
-      if (first >= 0) pad_voice = &pad.pool_.voices[first];
-    }
-    if (at == pad_up) {
-      for (int k = 0; k < kPadKeys; ++k) pad.note_off(kPadKey + k);
-    }
 
-    pad.process(kBlock);
     if (i < frames) {
       // The first pass is only there so that the second starts as the tenth
-      // would: nothing of it is kept, and the devices run it a block at a time.
+      // would: nothing of it is kept, and the device runs it a block at a time.
       bass.process(kBlock);
       continue;
     }
 
-    int holding = 0;
-    for (int v = 0; v < Dusk::kMaxVoices; ++v) {
-      const Dusk::Voice& voice = pad.pool_.voices[v];
-      holding += voice.env.active() && !voice.env.releasing() ? 1 : 0;
-    }
-    if (holding > most_held) most_held = holding;
-    pad_env.put(i, pad_voice ? pad_voice->env.level() : 0.0f);
-    pad_corner.put(i, pad_voice ? pad.cutoff_hz(*pad_voice, pad_voice->env.level())
-                                : std::exp2(pad.cutoff_octave_.value));
-
     for (int j = 0; j < kBlock; ++j) {
       const int n = i + j;
-      const bool kept = n < 2 * frames;
-      pad_tap.put(n, pad.out_left()[j], pad.out_right()[j]);
+      const int k = n - frames;  // where this sample is kept
 
       // The kit's oscillator by itself: on with the key, off with it.
       float raw = 0.0f;
@@ -645,7 +777,7 @@ void lab_render(int frames) {
                            : which == 2 ? tone.pulse(increment, 0.5f)
                                         : tone.saw(increment));
       }
-      raw_tap.put(n, raw);
+      kept.raw[k] = raw;
 
       // The device: it renders this sample when something sounds or it has not yet fallen asleep.
       const bool awake = bass.contour_level_ > 0.0f || bass.striking_ || !bass.idle_.asleep();
@@ -657,16 +789,16 @@ void lab_render(int frames) {
       const float held_out = held.run();
       const float shown_out = both ? shown.run() : held_out;
       const Built& chosen = both ? shown : held;
-      if (kept && cycle_at < 0 && n - frames >= look_at && held.awake && held.osc_a.phase < phase_before) {
-        cycle_at = n - frames;
+      if (k < frames && held.awake && held.osc_a.phase < phase_before && kept.cycle_count < kMostCycles) {
+        kept.cycles[kept.cycle_count++] = k;
       }
       const double difference = static_cast<double>(held_out) - device_out;
       apart += difference * difference;
       whole += static_cast<double>(device_out) * device_out;
 
-      osc_tap.put(n, held.awake ? osc_down.one(held.alone) : 0.0f);
-      mix_tap.put(n, held.awake ? mix_down.one(held.sum) : 0.0f);
-      filtered_tap.put(n, awake ? bass.dc_.x1 : 0.0f);
+      kept.osc[k] = held.awake ? osc_down.one(held.alone) : 0.0f;
+      kept.mix[k] = held.awake ? mix_down.one(held.sum) : 0.0f;
+      kept.filtered[k] = awake ? bass.dc_.x1 : 0.0f;
 
       // The cutoff as the device works it out, from the numbers it keeps.
       const float tracking = std::sqrt(bass.frequency_ * (1.0f / LadderBass::kPivotHz));
@@ -679,33 +811,94 @@ void lab_render(int frames) {
         const float error = 100.0f * (g > bass.ladder_.g ? g - bass.ladder_.g : bass.ladder_.g - g) / bass.ladder_.g;
         if (error > worst) worst = error;
       }
-      if (kept && n - frames == look_at) {
-        look_g = bass.ladder_.g;
-        look_feedback = bass.ladder_.resonance;
-        cutoff_now.value = kit::min(device_corner, LadderBass::kMaxCutoffHz);
-        contour_now.value = bass.contour_level_;
-      }
       if (j == 0) {
-        contour_tap.put(n, bass.contour_level_);
-        corner_tap.put(n, kit::min(device_corner, LadderBass::kMaxCutoffHz));
-        built_level.put(n, chosen.level);
-        built_corner.put(n, chosen.pieces >= Built::kFilter ? kit::min(chosen.corner, LadderBass::kMaxCutoffHz)
-                                                             : 0.0f);
+        const int point = k / kBlock;
+        kept.contour[point] = bass.contour_level_;
+        kept.corner[point] = kit::min(device_corner, LadderBass::kMaxCutoffHz);
+        kept.g[point] = bass.ladder_.g;
+        kept.feedback[point] = bass.ladder_.resonance;
+        kept.level[point] = chosen.level;
+        kept.built_corner[point] =
+            chosen.pieces >= Built::kFilter ? kit::min(chosen.corner, LadderBass::kMaxCutoffHz) : 0.0f;
       }
-      out_tap.put(n, device_out, bass.out_right()[0]);
-      built.put(n, shown_out);
+      kept.out[k] = device_out;
+      kept.built[k] = shown_out;
     }
   }
-  cutoff_error.value = worst;
-  pad_held.value = static_cast<float>(most_held);
-  build.difference.value = lab::ratio_db(apart, whole);
-  measure_response(look_g, look_feedback);
+  kept.worst = worst;
+  kept.difference = lab::ratio_db(apart, whole);
+}
+
+}  // namespace
+
+void lab_setup() { high_pulses(); }
+
+void lab_render(int frames) {
+  // Only the loop that a moved control reaches is run again.
+  const float bass_now[kBassFollows] = {note.value,     hold.value,    pattern.value, shape.value, wave.value,
+                                     beat.value,     sub.value,     cutoff.value,  emphasis.value, contour.value,
+                                     decay.value,    drive.value,   volume.value,  static_cast<float>(build.at()),
+                                     static_cast<float>(frames)};
+  if (!same(kept.key, bass_now, kBassFollows, kept.made)) run_bass(frames);
+  kept.made = true;
+  const float pad_now[kPadFollows] = {note.value,       hold.value,        pad_cutoff.value, pad_envelope.value,
+                                   pad_attack.value, pad_release.value, pad_chorus.value, static_cast<float>(frames)};
+  if (!same(pad_kept.key, pad_now, kPadFollows, pad_kept.made)) run_pad(frames);
+  pad_kept.made = true;
+
+  // What the loops made goes to the taps as the loops would have put it: the second pass,
+  // and the little more that is crossfaded into its start.
+  constexpr int kBlock = lab::kControlPeriod;
+  const int total = lab::total();
+  for (int n = frames; n < total; ++n) {
+    const int k = n - frames;
+    raw_tap.put(n, kept.raw[k]);
+    pad_tap.put(n, pad_kept.left[k], pad_kept.right[k]);
+    osc_tap.put(n, kept.osc[k]);
+    mix_tap.put(n, kept.mix[k]);
+    filtered_tap.put(n, kept.filtered[k]);
+    out_tap.put(n, kept.out[k], kept.out[k]);  // the device puts the same signal out on both sides
+    built.put(n, kept.built[k]);
+    if (k % kBlock == 0) {
+      const int point = k / kBlock;
+      pad_env.put(n, pad_kept.envelope[point]);
+      pad_corner.put(n, pad_kept.corner[point]);
+      contour_tap.put(n, kept.contour[point]);
+      corner_tap.put(n, kept.corner[point]);
+      built_level.put(n, kept.level[point]);
+      built_corner.put(n, kept.built_corner[point]);
+    }
+  }
+  cutoff_error.value = kept.worst;
+  pad_held.value = pad_kept.held;
+  build.difference.value = kept.difference;
   lab::spectrogram_tap(raw_picture, raw_tap.channel(0), frames);
   lab::spectrogram_tap(out_picture, out_tap.channel(0), frames);
+  spectrum_kept(kit_pulse, kit_pulse_kept);
+  spectrum_kept(whole_pulse, whole_pulse_kept);
 
-  // The pictures at the moment looked at. With no cycle starting after it
-  // (the device asleep), they begin at the moment itself.
-  int from = cycle_at >= 0 ? cycle_at : look_at;
+  // The moment looked at, in the pass that is kept. The filter and the contour are read at
+  // the point that holds it, one in every 16 samples.
+  const double hz = note.value;
+  const int two_cycles = static_cast<int>(2.0 * lab::kSampleRate / hz + 0.5);
+  const int four_cycles = static_cast<int>(4.0 * lab::kSampleRate / hz + 0.5);
+  int look_at = kKeyDown + static_cast<int>(look.value * lab::kSampleRate);
+  if (look_at > frames - four_cycles - two_cycles) look_at = frames - four_cycles - two_cycles;
+  if (look_at < 0) look_at = 0;
+  const int look_point = look_at / kBlock;
+  cutoff_now.value = kept.corner[look_point];
+  contour_now.value = kept.contour[look_point];
+  measure_response(kept.g[look_point], kept.feedback[look_point]);
+
+  // The pictures begin where the first oscillator next starts a cycle. With no cycle
+  // starting after the moment (the device asleep), they begin at the moment itself.
+  int from = look_at;
+  for (int c = 0; c < kept.cycle_count; ++c) {
+    if (kept.cycles[c] >= look_at) {
+      from = kept.cycles[c];
+      break;
+    }
+  }
   if (from > frames - four_cycles) from = frames - four_cycles;
   if (from < 0 || four_cycles > frames) return;
   const float cycles = static_cast<float>(two_cycles * hz / lab::kSampleRate);

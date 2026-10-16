@@ -1,7 +1,8 @@
 // A voice as blocks in a row. Each block is one place along the signal's path, and under its
 // name stand two small pictures of the sound there: two cycles of its wave, and the level of
 // each harmonic of the note as a bar. Read along the row, the pictures say what each block did
-// to the sound that reached it.
+// to the sound that reached it. Beside the name stands the scale the wave is drawn to: the
+// sample value at the top of its picture, and as far under zero at the bottom.
 //
 // The lab hands over both pictures of a block as curve taps: the wave against cycles, and the
 // harmonics in dB against their number. The picture is SVG. The page as built carries it as the
@@ -60,6 +61,9 @@ const LEAST_PEAK = 1e-4
 
 const MONO = { fontFamily: 'var(--lm-font-mono)', fontSize: 10.5, fill: 'var(--lm-muted)' } as const
 
+/** A wave's scale as it is written beside a block's name: two digits that count. */
+const scaleInWords = (peak: number) => `±${Number(peak.toPrecision(2))}`
+
 const peakOf = (ys: ArrayLike<number>) => {
   let most = 0
   for (let i = 0; i < ys.length; i += 1) most = Math.max(most, Math.abs(ys[i]!))
@@ -69,7 +73,7 @@ const peakOf = (ys: ArrayLike<number>) => {
 /** A wave as the points of an SVG line from `LEFT` to `right`, to a scale of `peak`. */
 function waveLine(ys: ArrayLike<number>, peak: number, right: number): string {
   const middle = (WAVE_TOP + WAVE_BOTTOM) / 2
-  const half = (WAVE_BOTTOM - WAVE_TOP) / 2 - 2
+  const half = (WAVE_BOTTOM - WAVE_TOP) / 2
   // More points than pixels says nothing more: a line of at most 360.
   const stride = Math.max(1, Math.ceil(ys.length / 360))
   let d = ''
@@ -160,6 +164,19 @@ export default function VoiceRow({
                   {at === 0 ? '●' : '→'}
                 </span>
                 <span>{block.wave.name}</span>
+                {wave.length > 0 && (
+                  <span
+                    style={{
+                      marginLeft: 'auto',
+                      whiteSpace: 'nowrap',
+                      fontFamily: 'var(--lm-font-mono)',
+                      fontSize: '0.68rem',
+                      color: 'var(--lm-muted)',
+                    }}
+                  >
+                    {scaleInWords(peak)}
+                  </span>
+                )}
               </div>
               <svg
                 viewBox={`0 0 ${sheet} ${HIGH}`}

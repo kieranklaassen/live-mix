@@ -104,6 +104,104 @@ function passes(result: RenderResult, hz: number): number {
   return response[i]! + (response[Math.min(120, i + 1)]! - response[i]!) * (place - i)
 }
 
+/** The largest size a sample of `x` has. */
+const peakOf = (x: Float32Array) => x.reduce((most, v) => Math.max(most, Math.abs(v)), 0)
+
+/** The transform of `re` and `im` in place: a length that is a power of two. */
+function transform(re: Float64Array, im: Float64Array) {
+  const n = re.length
+  for (let i = 1, j = 0; i < n; i += 1) {
+    let bit = n >> 1
+    for (; j & bit; bit >>= 1) j ^= bit
+    j ^= bit
+    if (i < j) {
+      ;[re[i], re[j]] = [re[j]!, re[i]!]
+      ;[im[i], im[j]] = [im[j]!, im[i]!]
+    }
+  }
+  for (let length = 2; length <= n; length <<= 1) {
+    const turn = (-2 * Math.PI) / length
+    for (let i = 0; i < n; i += length) {
+      for (let k = 0; k < length / 2; k += 1) {
+        const wr = Math.cos(turn * k)
+        const wi = Math.sin(turn * k)
+        const a = i + k
+        const b = a + length / 2
+        const xr = re[b]! * wr - im[b]! * wi
+        const xi = re[b]! * wi + im[b]! * wr
+        re[b] = re[a]! - xr
+        im[b] = im[a]! - xi
+        re[a] = re[a]! + xr
+        im[a] = im[a]! + xi
+      }
+    }
+  }
+}
+
+/**
+ * What stands between the harmonics of a note at `hz`: the strongest line under `top` hertz that
+ * is no harmonic, in dB under the first harmonic, and where it stands. The spectrum is of 65,536
+ * samples of `x` from `from`, under a four-term Blackman-Harris window, whose side lobes lie
+ * 92 dB down: a harmonic's own skirt is not taken for a line. A bin counts as a harmonic's when
+ * it is within ten bins and 0.2 % of one.
+ */
+function strongestBetween(x: Float32Array, from: number, hz: number, top = 20000) {
+  const N = 65536
+  const re = new Float64Array(N)
+  const im = new Float64Array(N)
+  for (let n = 0; n < N; n += 1) {
+    const t = (2 * Math.PI * n) / N
+    re[n] =
+      x[from + n]! *
+      (0.35875 - 0.48829 * Math.cos(t) + 0.14128 * Math.cos(2 * t) - 0.01168 * Math.cos(3 * t))
+  }
+  transform(re, im)
+  const size = (bin: number) => gainToDb(Math.hypot(re[bin]!, im[bin]!) / ((0.35875 * N) / 2))
+  const near = Math.round((hz * N) / RATE)
+  let first = -Infinity
+  for (let bin = near - 3; bin <= near + 3; bin += 1) first = Math.max(first, size(bin))
+  let worst = -Infinity
+  let at = 0
+  for (let bin = 8; bin < (top * N) / RATE; bin += 1) {
+    const f = (bin * RATE) / N
+    const k = Math.round(f / hz)
+    if (k >= 1 && Math.abs(f - k * hz) < (10 * RATE) / N + 0.002 * f) continue
+    if (size(bin) > worst) {
+      worst = size(bin)
+      at = f
+    }
+  }
+  return { under: first - worst, at }
+}
+
+/**
+ * What the kit's ladder passes at `hz`, in dB, worked out from its arithmetic and not measured:
+ * four stages H1 = G (1 + z^-1) / (1 - (1 - 2G) z^-1) in a loop with feedback k, H = H1^4 /
+ * (1 + k H1^4), at the rate the device's voice runs at. It leaves out the rounding, which a
+ * very small sample does not reach.
+ */
+function ladderPasses(hz: number, cutoff: number, feedback: number): number {
+  const inner = 4 * RATE
+  const g = Math.tan((Math.PI * cutoff) / inner)
+  const G = g / (1 + g)
+  const w = (2 * Math.PI * hz) / inner
+  type C = [number, number]
+  const mul = (a: C, b: C): C => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]]
+  const div = (a: C, b: C): C => {
+    const d = b[0] * b[0] + b[1] * b[1]
+    return [(a[0] * b[0] + a[1] * b[1]) / d, (a[1] * b[0] - a[0] * b[1]) / d]
+  }
+  const back: C = [Math.cos(w), -Math.sin(w)]
+  const stage = div(
+    [G * (1 + back[0]), G * back[1]],
+    [1 - (1 - 2 * G) * back[0], -(1 - 2 * G) * back[1]],
+  )
+  const two = mul(stage, stage)
+  const four = mul(two, two)
+  const out = div(four, [1 + feedback * four[0], feedback * four[1]])
+  return gainToDb(Math.hypot(out[0], out[1]))
+}
+
 const settings = readSettings(ID)!
 
 /** A named set of the settings file, rendered as the page renders a card. */
@@ -148,7 +246,7 @@ describe('the subtractive voice', () => {
   it('takes the tenth harmonic of the bass from 19 dB under the first at 10 ms to 36 dB under it at 300 ms, the first falling 28.8 dB between (claim voice-moves)', async () => {
     const voice = await lab(ID)
     const out = tap(voice.render(nothing(), {}), 'out')
-    // Four cycles of the note from each moment.
+    // Four cycles of the note from each moment, as the sentence says.
     const cycles = Math.round((4 * RATE) / PITCH)
     expectWritten(below(out, PITCH, 10, 0.01, cycles), '19 dB')
     expectWritten(below(out, PITCH, 10, 0.3, cycles), '36 dB')
@@ -163,9 +261,12 @@ describe('the subtractive voice', () => {
     const result = played(voice, 'closed')
     // The set's Cutoff puts the filter at the note: Cutoff is moved half as far as the key is from its pivot.
     expect(result.checks.cutoffNow!).toBeCloseTo(PITCH, 0)
-    expectWritten(below(tap(result, 'out'), PITCH, 2, 0.5), '22 dB')
-    expectWritten(below(tap(result, 'out'), PITCH, 3, 0.5), 'more than 38 dB')
-    expectWritten(below(tap(result, 'mix'), PITCH, 2, 0.5), '6.3 dB')
+    // At every moment of the held note, not at one: the two oscillators drift, and the levels with them.
+    for (const moment of [0.1, 0.3, 0.5, 0.8, 1.1, 1.4]) {
+      expectWritten(below(tap(result, 'out'), PITCH, 2, moment), 'more than 22 dB')
+      expectWritten(below(tap(result, 'out'), PITCH, 3, moment), 'more than 38 dB')
+      expectWritten(below(tap(result, 'osc'), PITCH, 2, moment), '6.0 dB')
+    }
   })
 
   // ---- part 2: the picture ----------------------------------------------------------------------
@@ -186,12 +287,51 @@ describe('the subtractive voice', () => {
     expectWritten(mixed[31]! - filtered[31]!, 'more than 19 dB')
   })
 
-  it('finds the tenth bar after the filter 17.5 dB lower at 0.3 s than at the starting moment, the first within 0.2 dB (claim row-later)', async () => {
+  it('finds the tenth bar after the filter 17.5 dB lower at 0.3 s than at the starting moment, the first within 0.2 dB, and the tenth bar going into the filter within 0.1 dB (claim row-later)', async () => {
     const voice = await lab(ID)
-    const early = tap(voice.render(nothing(), {}), 'filteredHarmonics')
-    const late = tap(voice.render(nothing(), { look: 0.3 }), 'filteredHarmonics')
+    const start = voice.render(nothing(), {})
+    const later = voice.render(nothing(), { look: 0.3 })
+    const early = tap(start, 'filteredHarmonics')
+    const late = tap(later, 'filteredHarmonics')
     expectWritten(early[9]! - late[9]!, '17.5 dB')
     expectWritten(Math.abs(early[0]! - late[0]!), '0.2 dB')
+    // What goes into the filter has hardly moved: the change is the filter's.
+    expectWritten(
+      Math.abs(tap(start, 'mixHarmonics')[9]! - tap(later, 'mixHarmonics')[9]!),
+      'less than 0.1 dB',
+    )
+    for (let k = 0; k < 32; k += 1)
+      expect(tap(start, 'oscHarmonics')[k]! - tap(later, 'oscHarmonics')[k]!).toBeCloseTo(0, 1)
+  })
+
+  it('leaves the filter where it is with Contour at 0: the cutoff 648 Hz at 0.3 s, 0.6 s and 0.9 s, the first eight bars within 0.3 dB, the thirty-second more than 5 dB off by 0.9 s, and every block empty once the voice sleeps (claim row-still)', async () => {
+    const voice = await lab(ID)
+    const at = (look: number) => voice.render(nothing(), { contour: 0, look })
+    const start = at(0.02)
+    expectWritten(start.checks.cutoffNow!, '648 Hz')
+    for (const look of [0.3, 0.6, 0.9]) {
+      const later = at(look)
+      expectWritten(later.checks.cutoffNow!, '648 Hz')
+      for (let k = 0; k < 8; k += 1) {
+        expectWritten(
+          Math.abs(tap(later, 'filteredHarmonics')[k]! - tap(start, 'filteredHarmonics')[k]!),
+          'less than 0.3 dB',
+        )
+      }
+    }
+    expectWritten(
+      tap(start, 'filteredHarmonics')[31]! - tap(at(0.9), 'filteredHarmonics')[31]!,
+      'more than 5 dB',
+    )
+    // The filter did not do that: the bar that goes into it moved as far.
+    expectWritten(
+      tap(start, 'mixHarmonics')[31]! - tap(at(0.9), 'mixHarmonics')[31]!,
+      'more than 5 dB',
+    )
+    // Once the note has died the voice sleeps, and every bar of every block is at the bottom.
+    const asleep = at(1.5)
+    for (const id of ['oscHarmonics', 'mixHarmonics', 'filteredHarmonics', 'outHarmonics'])
+      expect(range(tap(asleep, id)).hi, id).toBe(-120)
   })
 
   // ---- part 3: uses -----------------------------------------------------------------------------
@@ -202,18 +342,49 @@ describe('the subtractive voice', () => {
     expectWritten(harmonic(out, PITCH / 2, 1, 0.5) - harmonic(out, PITCH, 1, 0.5), '12 dB')
   })
 
-  it("plays the pad's three keys on three voices, the first one's envelope at its top after 0.60 s with its cutoff at 5,945 Hz, 1.5 octaves over its rest (claim use-pad)", async () => {
+  it("plays the pad's three keys on three voices, the first one's envelope at its top after 0.60 s with its cutoff at 5.9 kHz, 1.5 octaves over its rest (claim use-pad)", async () => {
     const voice = await lab(ID)
     const result = played(voice, 'pad')
     expect(result.checks.padHeld).toBe(3)
     const envelope = tap(result, 'padEnv')
     expectWritten((topOf(envelope) * 16 - DOWN) / RATE, '0.60 s')
     const cutoff = tap(result, 'padCorner')
-    expectWritten(range(cutoff).hi, '5,945 Hz')
+    // The tap holds one point in every 16 samples, so its highest point is not quite the top.
+    expectWritten(range(cutoff).hi / 1000, '5.9 kHz')
     // Where the cutoff rests: the same chord with the envelope kept off the filter.
     const rest = range(tap(played(voice, 'pad', { padEnvelope: 0 }), 'padCorner'))
     expect(rest.span).toBe(0)
     expectWritten(Math.log2(range(cutoff).hi / rest.hi), '1.5 octaves')
+  })
+
+  it('lets the contour fall 24.5 dB before the next note of the line where no rest stands between them, the cutoff 0.2 octaves over its rest, and 49 dB after a rest of one step (claim use-line)', async () => {
+    const voice = await lab(ID)
+    const result = played(voice, 'bassline')
+    const contour = tap(result, 'env')
+    const cutoff = tap(result, 'corner')
+    // The line as the lab has it: semitones over Pitch for each of sixteen steps of 11,872 samples.
+    const line = [0, null, 0, 12, null, 0, 10, 12, 0, null, 0, 12, 7, null, 3, null]
+    const note = settings.sets.bassline!.values!.note!
+    let followed = 0
+    let rested = 0
+    for (let step = 1; step < line.length; step += 1) {
+      if (line[step] === null) continue
+      // The point before the one at which the key of this step goes down.
+      const before = (DOWN + step * 11872) / 16 - 1
+      const down = -gainToDb(contour[before]!)
+      const last = line[step - 1]
+      if (last === null) {
+        expectWritten(down, '49 dB')
+        rested += 1
+      } else {
+        expectWritten(down, '24.5 dB')
+        const rest = 500 * Math.sqrt((note * 2 ** (last! / 12)) / 65.40639)
+        expectWritten(Math.log2(cutoff[before]! / rest), '0.2 octaves')
+        followed += 1
+      }
+    }
+    expect(followed).toBe(6)
+    expect(rested).toBe(4)
   })
 
   // ---- part 4: the build ------------------------------------------------------------------------
@@ -230,6 +401,49 @@ describe('the subtractive voice', () => {
     expect(matchesWritten(passing(STEP.oscillator), '1.6')).toBe(false)
   })
 
+  it('doubles the wave with a second oscillator in step: the first and the tenth bar 6.0 dB higher, the largest sample of the two cycles drawn from 0.29 to 0.52, 1.8 times, the shortfall beside the drops and not the clip (claim build-double)', async () => {
+    const voice = await lab(ID)
+    const at = (step: number, volume = 0) => voice.render(nothing(), { build: step, volume })
+    const one = at(STEP.oscillator)
+    const two = at(STEP.second)
+    for (const bar of [1, 10]) {
+      expectWritten(
+        tap(two, 'builtHarmonics')[bar - 1]! - tap(one, 'builtHarmonics')[bar - 1]!,
+        '6.0 dB',
+      )
+    }
+    // The two cycles the picture draws at the moment Look at starts on: the number beside the block's name.
+    const single = tap(one, 'builtWave')
+    const double = tap(two, 'builtWave')
+    expectWritten(peakOf(single), '0.29')
+    expectWritten(peakOf(double), '0.52')
+    expectWritten(peakOf(double) / peakOf(single), '1.8')
+    // Where the shortfall is: within a third of a millisecond of a drop. Everywhere else two is twice one.
+    const drops: number[] = []
+    for (let i = 0; i + 1 < single.length; i += 1)
+      if (single[i]! - single[i + 1]! > 0.2) drops.push(i)
+    // Two cycles hold two drops, and a drop may take two samples.
+    expect(drops.length).toBeGreaterThanOrEqual(2)
+    expect(drops.length).toBeLessThanOrEqual(4)
+    let away = 0
+    let beside = 0
+    for (let i = 0; i < single.length; i += 1) {
+      const apart = Math.abs(double[i]! - 2 * single[i]!)
+      if (drops.some((drop) => Math.abs(i - drop) <= 16)) beside = Math.max(beside, apart)
+      else away = Math.max(away, apart)
+    }
+    expect(away).toBeLessThan(0.005)
+    expect(beside).toBeGreaterThan(0.1)
+    // It is not the last clip: turned down 12 dB, far under the clip, the ratio is the same.
+    expectWritten(
+      peakOf(tap(at(STEP.second, -12), 'builtWave')) /
+        peakOf(tap(at(STEP.oscillator, -12), 'builtWave')),
+      '1.8',
+    )
+    // One oscillator alone is not 0.52: the piece is what made the difference.
+    expect(matchesWritten(peakOf(single), '0.52')).toBe(false)
+  })
+
   it('adds a line an octave under the note, 2.1 dB under the note at Sub 0.5, which is not there a step earlier (claim build-sub)', async () => {
     const voice = await lab(ID)
     const under = (step: number) => {
@@ -241,13 +455,17 @@ describe('the subtractive voice', () => {
     expect(under(STEP.second)).toBeGreaterThan(90)
   })
 
-  it('takes the tenth harmonic from 20.1 dB under the first to 37.6 dB under it when the filter goes in (claim build-filter)', async () => {
+  it('takes the tenth harmonic from 20 dB under the first to 38 dB under it when the filter goes in, at every moment of the held key (claim build-filter)', async () => {
     const voice = await lab(ID)
-    const tenth = (step: number) =>
-      below(tap(voice.render(nothing(), { build: step }), 'built'), PITCH, 10, 0.1)
-    expectWritten(tenth(STEP.sub), '20.1 dB')
-    expectWritten(tenth(STEP.filter), '37.6 dB')
-    expect(matchesWritten(tenth(STEP.sub), '37.6 dB')).toBe(false)
+    const built = (step: number) => tap(voice.render(nothing(), { build: step }), 'built')
+    const without = built(STEP.sub)
+    const filtered = built(STEP.filter)
+    // The key is down for a second, and each reading takes half of one.
+    for (const moment of [0.05, 0.1, 0.2, 0.3, 0.4, 0.45]) {
+      expectWritten(below(without, PITCH, 10, moment), '20 dB')
+      expectWritten(below(filtered, PITCH, 10, moment), '38 dB')
+      expect(matchesWritten(below(without, PITCH, 10, moment), '38 dB')).toBe(false)
+    }
   })
 
   it('brings the level to 1.00 at 2 ms and 60 dB under that 0.600 s later, where the step before holds it until the key comes up (claim build-level)', async () => {
@@ -263,11 +481,12 @@ describe('the subtractive voice', () => {
     expect(matchesWritten(fall(gated, tick(0.002), 60), '0.600 s')).toBe(false)
   })
 
-  it('starts the cutoff at 5,185 Hz, 3.0 octaves over the 648 Hz it rests at, where the step before leaves it at rest (claim build-sweep)', async () => {
+  it('starts the cutoff at 5.2 kHz, 3.0 octaves over the 648 Hz it rests at, where the step before leaves it at rest (claim build-sweep)', async () => {
     const voice = await lab(ID)
     const cutoff = (step: number) => tap(voice.render(nothing(), { build: step }), 'builtCorner')
     const swept = cutoff(STEP.sweep)
-    expectWritten(range(swept).hi, '5,185 Hz')
+    // The tap holds one point in every 16 samples, so its highest point is not quite the top.
+    expectWritten(range(swept).hi / 1000, '5.2 kHz')
     expectWritten(swept[tick(1.5)]!, '648 Hz')
     expectWritten(Math.log2(range(swept).hi / swept[tick(1.5)]!), '3.0 octaves')
     const still = cutoff(STEP.level)
@@ -324,6 +543,73 @@ describe('the subtractive voice', () => {
       expectWritten(under('triangleHarmonics', k), 'more than 90 dB')
       expectWritten(under('squareHarmonics', k), 'more than 90 dB')
     }
+  })
+
+  it("leaves little folded back under 20 kHz on the top key, 523.25 Hz: the kit's saw more than 45 dB under its first harmonic, one oscillator of the bass more than 95 dB under, the output with Drive at 1 more than 70 dB under (claim fold-back)", async () => {
+    const voice = await lab(ID)
+    const top = voice.description.controls.find((one) => one.id === 'note')!.max
+    expectWritten(top, '523.25 Hz')
+    // By hand: the first harmonic over half the rate, at the page's rate and at four times it.
+    const firstOver = (rate: number) => Math.floor(rate / 2 / top) + 1
+    expect(firstOver(RATE)).toBe(46)
+    expect(firstOver(4 * RATE)).toBe(184)
+    // A held note with the filter wide open and no peak on it, read from half a second in.
+    const held = { note: top, hold: 3.5, decay: 10, contour: 0, cutoff: 12000, emphasis: 0 }
+    const from = after(0.5)
+    const clean = voice.render(nothing(), held)
+    // The kit's corrected saw at the page's rate: what is left is small, and it is there.
+    const kit = strongestBetween(tap(clean, 'raw'), from, top)
+    expectWritten(kit.under, 'more than 45 dB')
+    expect(kit.under).toBeLessThan(60)
+    // The bass's oscillator runs at four times the rate before it is brought down.
+    expectWritten(strongestBetween(tap(clean, 'osc'), from, top).under, 'more than 95 dB')
+    expectWritten(strongestBetween(tap(clean, 'out'), from, top).under, 'more than 95 dB')
+    // Pushed as hard as Drive goes, the filter's rounding makes new harmonics, and little of them folds.
+    const pushed = voice.render(nothing(), { ...held, drive: 1 })
+    expectWritten(strongestBetween(tap(pushed, 'out'), from, top).under, 'more than 70 dB')
+    // On the lesson's starting note the kit's saw has more room: its harmonics fold from the 219th.
+    const low = voice.render(nothing(), { ...held, note: PITCH })
+    expectWritten(strongestBetween(tap(low, 'raw'), from, PITCH).under, 'more than 60 dB')
+  })
+
+  it("finds a line under 20 kHz that is no harmonic in the kit's pulse at 4,186 Hz, 34 dB under the first harmonic at 14.5 kHz, and nothing within 85 dB of the first between the harmonics of the pulse added up from whole harmonics (claim pulse-whole)", async () => {
+    const voice = await lab(ID)
+    const result = voice.render(nothing(), {})
+    const key = 8 * 523.25
+    expectWritten(key, '4,186 Hz')
+    // By hand: the eighth harmonic stands over half the rate, and lands this far under the rate.
+    expectWritten((RATE - 8 * key) / 1000, '14.5 kHz')
+    /** The spectrum's bins: 2,049 of them from 0 to half the rate. Peaks, and what is not a harmonic's. */
+    const read = (id: string) => {
+      const bins = tap(result, id)
+      expect(bins.length).toBe(2049)
+      const hzOf = (bin: number) => (bin * RATE) / 2 / (bins.length - 1)
+      const harmonicOf = (hz: number) => Math.round(hz / key)
+      const off = (hz: number) => Math.abs(hz - harmonicOf(hz) * key)
+      let first = -Infinity
+      let between = -Infinity
+      let line = { hz: 0, db: -Infinity }
+      for (let bin = 2; bin < bins.length - 2; bin += 1) {
+        const hz = hzOf(bin)
+        if (Math.abs(hz - key) < 30) first = Math.max(first, bins[bin]!)
+        // Further than 200 Hz from every harmonic: clear of a harmonic's own skirt under the window.
+        if (harmonicOf(hz) >= 1 && off(hz) <= 200) continue
+        between = Math.max(between, bins[bin]!)
+        if (hz < 20000 && bins[bin]! > line.db) line = { hz, db: bins[bin]! }
+      }
+      return { first, between, line }
+    }
+    const corrected = read('kitPulse')
+    expectWritten(corrected.first - corrected.line.db, '34 dB')
+    expectWritten(corrected.line.hz / 1000, '14.5 kHz')
+    const whole = read('wholePulse')
+    expectWritten(whole.first - whole.between, 'more than 85 dB')
+    // The two are one pulse: their first harmonics stand within half a decibel of each other.
+    expect(Math.abs(whole.first - corrected.first)).toBeLessThan(0.5)
+    // Neither follows a control.
+    const moved = voice.render(nothing(), { note: 220, wave: 1, look: 0.5 })
+    expect(Array.from(tap(moved, 'kitPulse'))).toEqual(Array.from(tap(result, 'kitPulse')))
+    expect(Array.from(tap(moved, 'wholePulse'))).toEqual(Array.from(tap(result, 'wholePulse')))
   })
 
   it('lets two oscillators at Beat 0 wander: over a held note the first harmonic of the mix moves less than 0.2 dB and the eighth more than 60 dB (claim mix-drift)', async () => {
@@ -399,37 +685,68 @@ describe('the subtractive voice', () => {
     expectWritten(passes(result, 4000) - passes(result, 8000), '24.0 dB')
   })
 
-  it('pays for Emphasis in the pass band: a tone at 40 Hz comes out 6.8 dB down at 0.3 and 13.2 dB down at 0.9, where the peak stands 21.6 dB over that (claim ladder-emphasis)', async () => {
+  it("pays for Emphasis in the pass band: a tone at 40 Hz comes out 6.8 dB down at 0.3 and 13.2 dB down at 0.9, where the top of the peak stands 24 dB over that and the curve's highest point 3 dB short of the top (claim ladder-emphasis)", async () => {
     const voice = await lab(ID)
     const at = (emphasis: number) =>
       voice.render(nothing(), { emphasis, contour: 0, note: 65.40639 })
     expectWritten(-passes(at(0.3), 40), '6.8 dB')
     const sharp = at(0.9)
     expectWritten(-passes(sharp, 40), '13.2 dB')
-    expectWritten(range(tap(sharp, 'response')).hi - passes(sharp, 40), '21.6 dB')
+    // The top is searched for between the curve's points: the peak is narrower than their spacing.
+    const top = sharp.checks.responseTop!
+    expectWritten(top - passes(sharp, 40), '24 dB')
+    expect(tap(sharp, 'response').length).toBe(121)
+    expectWritten(top - range(tap(sharp, 'response')).hi, '3 dB')
+    // The same from the filter's arithmetic, with nothing measured: the pass band and the top.
+    const feedback = 4 * 0.9
+    let worked = -Infinity
+    for (let hz = 400; hz < 600; hz += 0.05)
+      worked = Math.max(worked, ladderPasses(hz, 500, feedback))
+    expect(Math.abs(top - worked)).toBeLessThan(0.05)
+    expect(Math.abs(passes(sharp, 40) - ladderPasses(40, 500, feedback))).toBeLessThan(0.05)
+    expect(Math.abs(passes(at(0.3), 40) - ladderPasses(40, 500, 4 * 0.3))).toBeLessThan(0.05)
+    // With no peak to miss, the top is a point of the curve.
+    const plain = at(0)
+    expect(plain.checks.responseTop!).toBeCloseTo(range(tap(plain, 'response')).hi, 3)
   })
 
-  it('squares the wave with Drive: the second harmonic goes from 7 dB under the first to more than 26 dB under it (claim drive-square)', async () => {
+  it('squares the wave with Drive: the second harmonic goes from 7 dB under the first to more than 24 dB under it, at every moment of a held note (claim drive-square)', async () => {
     const voice = await lab(ID)
-    const second = (drive: number) =>
-      below(
-        tap(
-          voice.render(nothing(), {
-            drive,
-            contour: 0,
-            decay: 10,
-            hold: 3,
-            cutoff: 12000,
-            emphasis: 0,
-          }),
-          'out',
-        ),
-        PITCH,
-        2,
-        1,
+    const out = (drive: number) =>
+      tap(
+        voice.render(nothing(), {
+          drive,
+          contour: 0,
+          decay: 10,
+          hold: 3,
+          cutoff: 12000,
+          emphasis: 0,
+        }),
+        'out',
       )
-    expectWritten(second(0), '7 dB')
-    expectWritten(second(1), 'more than 26 dB')
+    const clean = out(0)
+    const pushed = out(1)
+    // The two oscillators drift over the note, and the levels with them: every moment is held.
+    for (const moment of [0.1, 0.5, 1, 1.5, 2, 2.4]) {
+      expectWritten(below(clean, PITCH, 2, moment), '7 dB')
+      expectWritten(below(pushed, PITCH, 2, moment), 'more than 24 dB')
+    }
+  })
+
+  it('leaves the last clip idle at the starting settings, where the largest sample of the output is 0.32, and reaches it on two cards (claim clip-idle)', async () => {
+    const voice = await lab(ID)
+    const start = peakOf(tap(voice.render(nothing(), {}), 'out'))
+    expectWritten(start, '0.32')
+    // The kit's soft clip leaves alone what is under half of full scale.
+    expect(start).toBeLessThan(0.5)
+    for (const name of ['wide', 'growl']) {
+      expect(peakOf(tap(played(voice, name), 'out')), name).toBeGreaterThan(0.5)
+    }
+    // No other card reaches it.
+    for (const name of Object.keys(settings.sets)) {
+      if (name === 'wide' || name === 'growl') continue
+      expect(peakOf(tap(played(voice, name), 'out')), name).toBeLessThan(0.5)
+    }
   })
 
   it("brings the pad's envelope to its top 0.60 s after the keys and lets it sink to 0.80 by the time they come up (claim pad-envelope)", async () => {
@@ -447,6 +764,39 @@ describe('the subtractive voice', () => {
   })
 
   // ---- part 6: ways -----------------------------------------------------------------------------
+
+  it('walks a peak down the harmonics with Emphasis high: at 0.4 s, 0.6 s, 0.8 s and 1 s the strongest harmonic from the third up is the seventh, the fifth, the fourth and the fourth, each more than 3 dB over both neighbours and beside the cutoff, and none of the first eight stands out with Emphasis at 0 (claim way-sing)', async () => {
+    const voice = await lab(ID)
+    const note = settings.sets.sing!.values!.note!
+    // Eight cycles of the note from each moment, as the sentence says.
+    const cycles = Math.round((8 * RATE) / note)
+    const read = (result: RenderResult, moment: number) => {
+      const out = tap(result, 'out')
+      const levels = [0]
+      for (let k = 1; k <= 13; k += 1) levels.push(sizeDb(out, note * k, after(moment), cycles))
+      // The cutoff halfway through the stretch that is read.
+      const cutoff = tap(result, 'corner')[Math.round((after(moment) + cycles / 2) / 16)]!
+      return { levels, cutoff }
+    }
+    const sharp = played(voice, 'sing')
+    const plain = played(voice, 'sing', { emphasis: 0 })
+    const moments = [0.4, 0.6, 0.8, 1]
+    const expected = [7, 5, 4, 4]
+    moments.forEach((moment, at) => {
+      const { levels, cutoff } = read(sharp, moment)
+      let strongest = 3
+      for (let k = 3; k <= 12; k += 1) if (levels[k]! > levels[strongest]!) strongest = k
+      expect(strongest, `at ${moment} s`).toBe(expected[at])
+      expectWritten(levels[strongest]! - levels[strongest - 1]!, 'more than 3 dB')
+      expectWritten(levels[strongest]! - levels[strongest + 1]!, 'more than 3 dB')
+      expect(Math.abs(strongest - cutoff / note), `at ${moment} s`).toBeLessThan(1)
+      // With the peak taken away, each harmonic up to the eighth stands under the one below it.
+      // Higher up the two oscillators' drift empties a harmonic now and then (claim mix-drift).
+      const flat = read(plain, moment).levels
+      for (let k = 2; k <= 8; k += 1)
+        expect(flat[k]!, `harmonic ${k} at ${moment} s`).toBeLessThan(flat[k - 1]!)
+    })
+  })
 
   it('makes a pluck of a short Decay: the contour 60 dB down 0.150 s after its top (claim way-pluck)', async () => {
     const voice = await lab(ID)
@@ -489,7 +839,29 @@ describe('the subtractive voice', () => {
   it('all but loses the first harmonic of an oscillator with Wave at 0.42: 31 dB under its second (claim fault-octave)', async () => {
     const voice = await lab(ID)
     const osc = tap(played(voice, 'octave'), 'osc')
-    expectWritten(below(osc, PITCH, 1, 0.5, 24000, 2), '31 dB')
+    for (const moment of [0.2, 0.5, 1, 1.5])
+      expectWritten(below(osc, PITCH, 1, moment, 24000, 2), '31 dB')
+  })
+
+  it("owes that to the way the device's two waves point: with the ramp turned over, the same share of each leaves the first harmonic 12 dB over the second (claim fault-turned)", async () => {
+    const voice = await lab(ID)
+    const share = settings.sets.octave!.values!.wave!
+    const alone = (wave: number) => tap(played(voice, 'octave', { wave }), 'osc')
+    const saw = alone(0)
+    const square = alone(1)
+    const blended = alone(share)
+    // The device's blend is the sum of its two waves, each at its share: sample for sample.
+    const turned = new Float32Array(saw.length)
+    let apart = 0
+    for (let i = 0; i < saw.length; i += 1) {
+      apart = Math.max(apart, Math.abs((1 - share) * saw[i]! + share * square[i]! - blended[i]!))
+      turned[i] = -(1 - share) * saw[i]! + share * square[i]!
+    }
+    expect(apart).toBeLessThan(1e-6)
+    for (const moment of [0.2, 0.5, 1, 1.5]) {
+      expectWritten(-below(turned, PITCH, 1, moment, 24000, 2), '12 dB')
+      expect(matchesWritten(-below(blended, PITCH, 1, moment, 24000, 2), '12 dB')).toBe(false)
+    }
   })
 
   // ---- the settings file ------------------------------------------------------------------------
