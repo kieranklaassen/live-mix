@@ -9,10 +9,6 @@
     }
   },
   "sets": {
-    "one": {
-      "label": "One tone",
-      "tap": "carrier"
-    },
     "air": {
       "label": "Two tones in the air",
       "values": { "ears": 0 }

@@ -14,6 +14,7 @@ import {
   matchesWritten,
   peak,
   POINT_RATE,
+  points,
   range,
   RATE,
   rms,
@@ -71,6 +72,54 @@ function levelAt(x: Float32Array, hz: number): number {
     im -= x[i]! * Math.sin(turn)
   }
   return gainToDb((2 * Math.hypot(re, im)) / x.length)
+}
+
+/**
+ * What is left of a wave once these steady tones are taken out of it, in dB against the whole
+ * wave. Each tone is fitted over the whole loop, in which it must make a whole number of cycles.
+ */
+function restAfter(x: Float32Array, tones: number[]): number {
+  const rest = Float64Array.from(x)
+  for (const hz of tones) {
+    let re = 0
+    let im = 0
+    for (let i = 0; i < x.length; i += 1) {
+      const turn = (2 * Math.PI * hz * i) / RATE
+      re += x[i]! * Math.cos(turn)
+      im += x[i]! * Math.sin(turn)
+    }
+    re *= 2 / x.length
+    im *= 2 / x.length
+    for (let i = 0; i < x.length; i += 1) {
+      const turn = (2 * Math.PI * hz * i) / RATE
+      rest[i]! -= re * Math.cos(turn) + im * Math.sin(turn)
+    }
+  }
+  let left = 0
+  let whole = 0
+  for (let i = 0; i < x.length; i += 1) {
+    left += rest[i]! * rest[i]!
+    whole += x[i]! * x[i]!
+  }
+  return 10 * Math.log10(Math.max(left / whole, 1e-20))
+}
+
+/** The outline of a wave from `from` up to `to`: the largest sample of each cycle of `hz`, least and most, in dB. */
+function outline(
+  x: Float32Array,
+  hz: number,
+  from: number,
+  to: number,
+): { lo: number; hi: number } {
+  const cycle = RATE / hz
+  let lo = Infinity
+  let hi = 0
+  for (let k = 0; from + (k + 1) * cycle <= to; k += 1) {
+    const top = peak(x.subarray(Math.floor(from + k * cycle), Math.floor(from + (k + 1) * cycle)))
+    lo = Math.min(lo, top)
+    hi = Math.max(hi, top)
+  }
+  return { lo: gainToDb(lo), hi: gainToDb(hi) }
 }
 
 /** How many times a second a level tap falls through `under`, counted over the whole loop. */
@@ -165,12 +214,24 @@ describe('the binaural beats lab', () => {
   it("holds the level of each ear's signal still at −18.1 dB: it moves by less than 0.01 dB over the loop (claim apart-steady)", async () => {
     const beats = await lab('binaural-beats')
     const apart = at(beats)
-    const left = level(apart, 'levelLeft')
-    const right = level(apart, 'levelRight')
+    // The whole of each level tap, the loop's own crossfade included.
+    const left = range(tap(apart, 'levelLeft'))
+    const right = range(tap(apart, 'levelRight'))
     expectWritten(left.span, 'less than 0.01 dB')
     expectWritten(right.span, 'less than 0.01 dB')
     expectWritten(left.hi, '−18.1 dB')
     expectWritten(right.hi, '−18.1 dB')
+  })
+
+  it("leaves more than 130 dB under each ear's signal once its one steady tone is taken away (claim apart-rest)", async () => {
+    const beats = await lab('binaural-beats')
+    const apart = at(beats)
+    const left = -restAfter(tap(apart, 'left'), [223])
+    const right = -restAfter(tap(apart, 'right'), [217])
+    expectWritten(left, 'more than 130 dB')
+    expectWritten(right, 'more than 130 dB')
+    // The fit is not blind: with a tone a hertz off taken away, all of the signal is left.
+    expect(restAfter(tap(apart, 'left'), [222])).toBeGreaterThan(-0.01)
   })
 
   it('finds the beat again when the two ears are added: the sum holds 223 Hz and 217 Hz at −21.2 dB each, and its level falls more than 25 dB 6 times a second (claim added-beat)', async () => {
@@ -195,6 +256,32 @@ describe('the binaural beats lab', () => {
       levelAt(tap(apart, id), 3),
     ])
     for (const one of found) expectWritten(one, 'under −120 dB')
+  })
+
+  it('leaves more than 130 dB under the two ears added once their two tones are taken away (claim sum-rest)', async () => {
+    const beats = await lab('binaural-beats')
+    const rest = -restAfter(tap(at(beats), 'mid'), [223, 217])
+    expectWritten(rest, 'more than 130 dB')
+  })
+
+  it("joins the loop with a crossfade that an ear's wave shows and its meter does not: at a Beat of 0.75 Hz, where the tones do not come round, the left ear's outline dips in the first 20 ms and its level line stays still", async () => {
+    const beats = await lab('binaural-beats')
+    const odd = at(beats, { beat: 0.75 })
+    const join = outline(tap(odd, 'left'), 220, 0, FADE)
+    const after = outline(tap(odd, 'left'), 220, FADE, seconds(LOOP))
+    expect(after.hi - after.lo).toBeLessThan(0.01)
+    expect(after.hi - join.lo).toBeGreaterThan(10)
+    expect(range(tap(odd, 'levelLeft')).span).toBeLessThan(0.01)
+    // Where the tones come round, as on every card, the join shows in neither.
+    for (const [name, set] of Object.entries(settings.sets)) {
+      const { values } = resolveSet(beats.description, set)
+      // The cards of the Binaural's steady tones: one key, no bed, Ears at 1.
+      if (values.keys !== 0 || values.bed !== 0 || values.ears !== 1 || values.warmth !== 0)
+        continue
+      const left = tap(played(beats, name), 'left')
+      const whole = outline(left, values.key! + values.beat! / 2, 0, seconds(LOOP))
+      expect(whole.hi - whole.lo, name).toBeLessThan(0.01)
+    }
   })
 
   // ---- part 2: the picture -------------------------------------------------------------------
@@ -252,7 +339,7 @@ describe('the binaural beats lab', () => {
     expectWritten(level(held, 'levelRight').span, 'less than 0.01 dB')
   })
 
-  it('plays a chord of three keys at the level of one, −18.1 dB in an ear, every key split by the same 6 Hz: 223 Hz, 278 Hz and 333 Hz in the left ear and 217 Hz, 272 Hz and 327 Hz in the right, each at −19.9 dB, and the two added fall more than 15 dB 6 times a second (claim use-chord)', async () => {
+  it('plays a chord of three keys at the level of one, −18.1 dB in an ear, every key split by the same 6 Hz: 223 Hz, 278 Hz and 333 Hz in the left ear and 217 Hz, 272 Hz and 327 Hz in the right, each at −19.9 dB, the level of each ear moving by less than 0.01 dB, and the two added fall 19.6 dB 6 times a second (claim use-chord)', async () => {
     const beats = await lab('binaural-beats')
     const chord = played(beats, 'chord')
     const left = tap(chord, 'left')
@@ -266,8 +353,12 @@ describe('the binaural beats lab', () => {
     for (const one of [...lefts, ...rights]) expectWritten(one, '−19.9 dB')
     for (const one of others) expect(one).toBeLessThan(-120)
     expectWritten(whole, '−18.1 dB')
-    expectWritten(swing.span, 'more than 15 dB')
+    expectWritten(level(chord, 'levelLeft').span, 'less than 0.01 dB')
+    expectWritten(level(chord, 'levelRight').span, 'less than 0.01 dB')
+    expectWritten(swing.span, '19.6 dB')
     expect(times).toBe(6)
+    // One key's dip reads deeper on the same meter: its window is a quarter as long.
+    expect(level(at(beats), 'levelMid').span).toBeGreaterThan(swing.span + 5)
   })
 
   it('puts the bed 12 dB under the key with Bed at 0.5, and no sample reaches half of full scale (claim use-bed)', async () => {
@@ -356,6 +447,15 @@ describe('the binaural beats lab', () => {
     ).toBe(false)
   })
 
+  it('sends the same two tones to two places: half of the two ears added, with one tone to each ear, is the signal of the step before, under −120 dB apart (claim build-ears-sum)', async () => {
+    const beats = await lab('binaural-beats')
+    const air = tap(at(beats, { build: 1 }), 'built')
+    const added = tap(at(beats, { build: 2 }), 'builtMid')
+    expectWritten(differenceDb(added, air), 'under −120 dB')
+    // Not a comparison that cannot fail: one ear alone is nothing like the step before.
+    expect(differenceDb(tap(at(beats, { build: 2 }), 'built'), air)).toBeGreaterThan(-10)
+  })
+
   it('takes 3.7 dB off the level with Warmth at 1 and moves the peak by less than 0.01 dB, and with that piece out Warmth does nothing (claim build-warmth)', async () => {
     const beats = await lab('binaural-beats')
     const drop = (build: number) => {
@@ -372,13 +472,27 @@ describe('the binaural beats lab', () => {
     expect(matchesWritten(drop(2).level, '3.7 dB')).toBe(false)
   })
 
-  it('adds a bed as loud as the key at Bed 1, so that the two together are 3.1 dB over the key alone, and with that piece out Bed does nothing (claim build-bed)', async () => {
+  it("moves the tallest point of each cycle of the left ear's wave by 2.0 dB with Warmth at 1, while the meter on that ear moves by less than 0.01 dB, and with that piece out the outline holds (claim build-outline)", async () => {
+    const beats = await lab('binaural-beats')
+    const moved = (build: number) => {
+      const warm = at(beats, { build, warmth: 1 })
+      const wave = tap(warm, 'built')
+      const shape = outline(wave, 220, FADE, wave.length)
+      return { outline: shape.hi - shape.lo, level: range(tap(warm, 'builtLevel')).span }
+    }
+    const withPiece = moved(3)
+    expectWritten(withPiece.outline, '2.0 dB')
+    expectWritten(withPiece.level, 'less than 0.01 dB')
+    expectWritten(moved(2).outline, 'less than 0.01 dB')
+  })
+
+  it('adds a bed as loud as the key at Bed 1, so that the two together are 3.0 dB over the key alone, and with that piece out Bed does nothing (claim build-bed)', async () => {
     const beats = await lab('binaural-beats')
     const rise = (build: number) =>
       loud(tap(at(beats, { build, bed: 1 }), 'built')) - loud(tap(at(beats, { build }), 'built'))
     const withPiece = rise(4)
-    expectWritten(withPiece, '3.1 dB')
-    expect(matchesWritten(rise(3), '3.1 dB')).toBe(false)
+    expectWritten(withPiece, '3.0 dB')
+    expect(matchesWritten(rise(3), '3.0 dB')).toBe(false)
   })
 
   it('builds, with its first five pieces, the Binaural itself: the two are the same, sample for sample (claim build-same)', async () => {
@@ -428,12 +542,27 @@ describe('the binaural beats lab', () => {
   it("turns the Binaural's clock 3 times a second at a Beat of 6 Hz, half of Beat (claim clock-turns)", async () => {
     const beats = await lab('binaural-beats')
     const clock = tap(at(beats), 'clock')
+    // How far the clock moves from one point to the next, wherever it does not come round.
+    let moved = 0
+    let steps = 0
     let wraps = 0
-    for (let i = 1; i < clock.length; i += 1) if (clock[i]! < clock[i - 1]! - 0.5) wraps += 1
+    for (let i = 1; i < clock.length; i += 1) {
+      if (clock[i]! < clock[i - 1]!) {
+        wraps += 1
+      } else {
+        moved += clock[i]! - clock[i - 1]!
+        steps += 1
+      }
+    }
+    const turns = (moved / steps) * POINT_RATE
+    expectWritten(turns, '3.00')
     // The loop ends as the clock comes round, so the last wrap falls on the loop's own.
     expect([11, 12]).toContain(wraps)
     expect(range(clock).lo).toBeGreaterThanOrEqual(0)
     expect(range(clock).hi).toBeLessThan(1)
+    // And at another Beat it turns at half of that one.
+    const other = tap(at(beats, { beat: 10 }), 'clock')
+    expect((other[points(0.3)]! - other[points(0.2)]!) * 10).toBeCloseTo(5, 3)
   })
 
   it('makes the pair 223 Hz and 217 Hz from the one phase and the clock, and half of their sum is the two ears added, under −120 dB apart (claim pair-hz)', async () => {
@@ -518,20 +647,32 @@ describe('the binaural beats lab', () => {
     expectWritten(apart, '3 dB')
   })
 
-  it('reaches the soft clip with Bed at 1: the loudest sample stands at −3.9 dB and less than 0.2 % of the samples of either ear are over half of full scale (claim fault-bed)', async () => {
+  it('reaches the soft clip with Bed at 1: the loudest sample stands at −3.2 dB and less than 0.2 % of the samples of either ear are over half of full scale, where a chord of tones alone stays under it (claim fault-bed)', async () => {
     const beats = await lab('binaural-beats')
     const full = played(beats, 'loud-bed')
     const out = [tap(full, 'out'), tap(full, 'out', 1)]
     const top = gainToDb(Math.max(peak(out[0]!), peak(out[1]!)))
     const over = out.map((x) => (100 * x.filter((v) => Math.abs(v) > 0.5).length) / x.length)
-    expectWritten(top, '−3.9 dB')
+    expectWritten(top, '−3.2 dB')
     for (const share of over) {
       expect(share).toBeGreaterThan(0)
       expectWritten(share, 'less than 0.2 %')
     }
+    // The tones alone: three keys, bare and warm, apart and in the air, low and high.
+    for (const values of [
+      { keys: 1 },
+      { keys: 1, warmth: 1 },
+      { keys: 1, ears: 0 },
+      { keys: 1, key: 80, warmth: 0.5, ears: 0.3 },
+      { keys: 1, key: 1000, warmth: 1 },
+    ] as Record<string, number>[]) {
+      const tones = at(beats, values)
+      const most = Math.max(peak(tap(tones, 'out')), peak(tap(tones, 'out', 1)))
+      expect(most, JSON.stringify(values)).toBeLessThan(0.5)
+    }
   })
 
-  it("draws each ear's one tone in the fine picture: the left ear's line stands highest 3 Hz above the key and the right ear's 3 Hz below it, each at −15.1 dB (claim fine-peaks)", async () => {
+  it("draws each ear's one tone in the fine picture: the left ear's line stands highest 3 Hz above the key and the right ear's 3 Hz below it, each at −15.1 dB, with a point 6.0 dB under on either side of each top and nothing else (claim fine-peaks)", async () => {
     const beats = await lab('binaural-beats')
     const apart = at(beats)
     const highest = (x: Float32Array) => x.indexOf(range(x).hi)
@@ -544,6 +685,24 @@ describe('the binaural beats lab', () => {
     expect(highest(fineRight) - 25).toBe(-3)
     expectWritten(top, '−15.1 dB')
     expectWritten(range(fineRight).hi, '−15.1 dB')
+    // One second under the window draws a steady tone three points wide.
+    for (const [fine, at] of [
+      [fineLeft, 28],
+      [fineRight, 22],
+    ] as [Float32Array, number][]) {
+      expectWritten(fine[at]! - fine[at - 1]!, '6.0 dB')
+      expectWritten(fine[at]! - fine[at + 1]!, '6.0 dB')
+      // Every other point is at the picture's floor.
+      expect(fine.filter((v) => v > -120).length).toBe(3)
+    }
+    // The picture's axis runs 25 Hz either side of the key.
+    expect(apart.taps.fineLeft!.x0).toBe(195)
+    expect(apart.taps.fineLeft!.x1).toBe(245)
+    // A tone between two points (220.5 Hz, at a Beat of 1 Hz) is shared by them and reads low.
+    const between = tap(at(beats, { beat: 1 }), 'fineLeft')
+    expect(Math.abs(between[25]! - between[26]!)).toBeLessThan(0.01)
+    expect(range(between).hi).toBe(Math.max(between[25]!, between[26]!))
+    expect(range(between).hi).toBeLessThan(top - 1)
   })
 
   it("leaves the Ear Shift's level where it found it, less than 0.1 dB away, and at Ears 0 gives both ears one signal that falls more than 25 dB 6 times a second (claim shift-air)", async () => {

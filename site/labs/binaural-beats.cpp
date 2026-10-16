@@ -8,9 +8,11 @@
 //               ear and down in the right ─► shifted
 //   Isochronic  the key's tone ─► × one pulse for both ears ─► pulsed
 //
-// Nothing goes in. The lab presses its keys on the first sample and never
-// lets them go: one key at Key, or three (Key, and the keys a major third and
-// a fifth above it, in the ratios 4 to 5 to 6).
+// Nothing goes in. The lab presses its keys and never lets them go: one key
+// at Key, or three (Key, and the keys a major third and a fifth above it, in
+// the ratios 4 to 5 to 6). It presses them one second before the pass that
+// is kept, not a whole loop before it, since nothing here remembers longer
+// than half a second (kLeadFrames below).
 //
 // Read from the Binaural: its output, each ear by itself, and its half-beat
 // clock. The pair of tones is a local of its sample loop and is not kept, so
@@ -23,11 +25,11 @@
 //
 // The lab has a meter of its own, on each ear and on the two ears added: the
 // mean of the squares over one cycle of the key (four cycles for the chord,
-// which is the chord's own period), taken twice, in dB. It is how the page
-// shows whether a level moves. Two more pictures are not the loop: what each
-// ear holds within 25 Hz of the key, from one second of the output under a
-// Hann window, a frequency at a time, since the page's own spectrum cannot
-// tell two tones 6 Hz apart.
+// which is the chord's own period), taken twice, and written down in dB. It
+// is how the page shows whether a level moves. Two more pictures are not the
+// loop: what each ear holds within 25 Hz of the key, from one second of the
+// output under a Hann window, a frequency at a time, since the page's own
+// spectrum cannot tell two tones 6 Hz apart.
 //
 // The Ear Shift is given the keys' tone with no pair, the same in both ears,
 // at the lab's Beat and Ears. The Isochronic plays Key alone, a bare sine
@@ -93,7 +95,6 @@ lab::Tap level_mid{"levelMid", "Level of the two added", lab::kControl, lab::kLe
 lab::Tap fine_left{"fineLeft", "What the left ear holds", lab::kCurve, lab::kLesson, 1, "dB"};
 lab::Tap fine_right{"fineRight", "What the right ear holds", lab::kCurve, lab::kLesson, 1, "dB"};
 lab::Tap shifted_tap{"shifted", "Ear Shift output", lab::kAudio, lab::kDevice, 2};
-lab::Tap shifted_mid{"shiftedMid", "Ear Shift, the two ears added", lab::kAudio, lab::kLesson, 1};
 lab::Tap level_shifted{"levelShifted", "Level in the Ear Shift's left ear", lab::kControl, lab::kLesson, 1, "dB"};
 lab::Tap level_shifted_mid{"levelShiftedMid", "Level of the Ear Shift's two added", lab::kControl, lab::kLesson, 1,
                            "dB"};
@@ -163,7 +164,10 @@ struct Meter {
     twice.start(samples);
   }
 
-  float read(float x) { return lab::power_to_db(twice.next(once.next(x * x))); }
+  // The mean of the squares, taken twice: asked for at every sample.
+  float read(float x) { return twice.next(once.next(x * x)); }
+  // That mean in dB against full scale: taken where a level is written down.
+  static float db(float mean) { return lab::power_to_db(mean); }
 };
 
 // The sound so far: one function a piece, and run() to make a sample from
@@ -351,21 +355,29 @@ Meter meter_shifted, meter_shifted_mid;
 Meter meter_pulsed, meter_pulsed_mid;
 Meter meter_built, meter_built_mid;
 
+// How long before the pass that is kept the keys are pressed: one second. By
+// then every envelope is up (10 ms at the most), every meter has filled (two
+// of its windows, 0.1 s at the most) and the Ear Shift's filters have run for
+// twice as long as the silence after which the device itself empties them
+// (EarShift::kArriveSeconds). A whole second, so that at a Beat of a whole
+// number of hertz the beat stands at its crest where the loop begins.
+constexpr int kLeadFrames = 48000;
+
 // What one ear holds within 25 Hz of the key: one second of it from the
 // middle of the loop, under a Hann window, at a frequency every hertz. A
-// full-scale sine reads 0 dB.
+// full-scale sine reads 0 dB. One second under that window is two hertz wide
+// at its foot, so one steady tone is a peak three points across: the points
+// a hertz either side of its top stand at half its height, 6 dB under.
 constexpr int kFinePoints = 51;
 constexpr float kFineSpan = 25.0f;
+constexpr int kFineFrames = 48000;
 
-void fine_tap(lab::Tap& tap, const float* x, int frames) {
-  if (!x || !tap.open(kFinePoints)) return;
-  const int count = frames < 48000 ? frames : 48000;
-  const int from = (frames - count) / 2;
+// `hann` is the window, `count` samples of it, laid on `x` from sample `from`.
+void fine_tap(lab::Tap& tap, const float* x, const float* hann, int from, int count) {
+  if (!x || !hann || !tap.open(kFinePoints)) return;
   float* windowed = lab::take(count);
   if (!windowed) return;
-  for (int n = 0; n < count; ++n) {
-    windowed[n] = x[from + n] * static_cast<float>(0.5 - 0.5 * std::cos(2.0 * lab::kPi * n / count));
-  }
+  for (int n = 0; n < count; ++n) windowed[n] = x[from + n] * hann[n];
   tap.x0 = key.value - kFineSpan;
   tap.x1 = key.value + kFineSpan;
   const double full = (count / 4.0) * (count / 4.0);
@@ -419,8 +431,11 @@ void lab_render(int frames) {
                            &meter_pulsed, &meter_pulsed_mid, &meter_built, &meter_built_mid};
   for (Meter* meter : meters) meter->start(window);
 
+  // The keys were pressed above. The first sample made is kLeadFrames before
+  // the pass that is kept, and a tap keeps nothing of what comes before it.
   const int total = lab::total();
-  for (int i = 0; i < total; ++i) {
+  const int lead = frames < kLeadFrames ? frames : kLeadFrames;
+  for (int i = frames - lead; i < total; ++i) {
     // The Binaural's phases as they stand for this sample, before it moves them on.
     const double half_phase = tones.half_beat_.phase;
     const kit::SinCos slow = kit::sin_cos(half_phase);
@@ -482,7 +497,6 @@ void lab_render(int frames) {
     const float shift_right = shifter.out_right()[0];
     const float shift_mid = 0.5f * (shift_left + shift_right);
     shifted_tap.put(i, shift_left, shift_right);
-    shifted_mid.put(i, shift_mid);
     const float loud_shifted = meter_shifted.read(shift_left);
     const float loud_shifted_mid = meter_shifted_mid.read(shift_mid);
 
@@ -521,20 +535,28 @@ void lab_render(int frames) {
 
     if (i % lab::kControlPeriod == 0) {
       clock_tap.put(i, static_cast<float>(half_phase));
-      level_left.put(i, loud_left);
-      level_right.put(i, loud_right);
-      level_mid.put(i, loud_mid);
-      level_shifted.put(i, loud_shifted);
-      level_shifted_mid.put(i, loud_shifted_mid);
+      level_left.put(i, Meter::db(loud_left));
+      level_right.put(i, Meter::db(loud_right));
+      level_mid.put(i, Meter::db(loud_mid));
+      level_shifted.put(i, Meter::db(loud_shifted));
+      level_shifted_mid.put(i, Meter::db(loud_shifted_mid));
       gate_tap.put(i, pulser.ear_[0].gate.open);
-      level_pulsed.put(i, loud_pulsed);
-      level_pulsed_mid.put(i, loud_pulsed_mid);
-      built_level.put(i, loud_built);
-      built_level_mid.put(i, loud_built_mid);
+      level_pulsed.put(i, Meter::db(loud_pulsed));
+      level_pulsed_mid.put(i, Meter::db(loud_pulsed_mid));
+      built_level.put(i, Meter::db(loud_built));
+      built_level_mid.put(i, Meter::db(loud_built_mid));
     }
   }
   build.difference.value = lab::ratio_db(built_apart, built_whole);
   pair_check.value = lab::ratio_db(pair_apart, built_whole);
-  fine_tap(fine_left, left_tap.channel(0), frames);
-  fine_tap(fine_right, right_tap.channel(0), frames);
+  // One window for both ears' fine pictures.
+  const int fine_count = frames < kFineFrames ? frames : kFineFrames;
+  float* hann = lab::take(fine_count);
+  if (hann) {
+    for (int n = 0; n < fine_count; ++n) {
+      hann[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * lab::kPi * n / fine_count));
+    }
+  }
+  fine_tap(fine_left, left_tap.channel(0), hann, (frames - fine_count) / 2, fine_count);
+  fine_tap(fine_right, right_tap.channel(0), hann, (frames - fine_count) / 2, fine_count);
 }
