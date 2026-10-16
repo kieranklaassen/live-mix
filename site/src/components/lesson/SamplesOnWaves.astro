@@ -1,0 +1,46 @@
+---
+// Samples against the continuous waves through them:
+// <SamplesOnWaves waves="wave alias" samples="samples">Caption.</SamplesOnWaves>
+import SamplesOnWaves from '../../figures/SamplesOnWaves.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  /** Curve taps with many points to a sample, drawn as lines. */
+  waves: string
+  /** Curve taps with one point to a sample, drawn as dots on stalks. */
+  samples: string
+  xTitle?: string
+  min?: number
+  max?: number
+  height?: number
+  label?: string
+}
+const { waves, samples, label, ...rest } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+// Named together, so each gets a colour of its own, then told apart again.
+const refs = tapRefs(`${waves} ${samples}`, lab.taps, lesson)
+const lines = waves.split(/[\s,]+/).filter(Boolean).length
+const said =
+  label ??
+  `${refs
+    .slice(lines)
+    .map((tap) => tap.name)
+    .join(' and ')} on ${refs
+    .slice(0, lines)
+    .map((tap) => tap.name)
+    .join(' and ')}`
+---
+
+<figure class="fig">
+  <SamplesOnWaves
+    client:visible
+    waves={refs.slice(0, lines)}
+    samples={refs.slice(lines)}
+    label={said}
+    {...rest}
+  />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

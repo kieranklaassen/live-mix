@@ -1,0 +1,215 @@
+---
+title: Convolution reverb
+order: 15
+summary: A convolution reverb replays a room from its answer to a single click. This lesson takes the room the engine writes from noise, does the convolution itself with the engine's Fourier transform, and holds the result to the browser's own convolver.
+lab: 15-convolution-reverb
+devices: [convolver-reverb]
+bench:
+  device: convolver-reverb
+  as: send
+  params: { wet: 0.35 }
+  impulse: { seconds: 3, seed: 24301 }
+  note: The plate is the engine's Convolver reverb, handed this lesson's room as it starts, three seconds long. Left to itself the device writes another impulse, plain noise under a curve, 2.6 s long. It puts out the reverb only, so the dry loop is mixed back in beside it, as a send would.
+sources: [drums, guitar, chords, clicks, noise, sine]
+seconds: 4
+files:
+  - src/core/tracks/space.ts
+  - src/core/tracks/SpaceRoom.ts
+  - src/core/devices/native/ConvolverReverb.ts
+  - cpp/kit/fft.h
+---
+
+Clap once in a stairwell and listen. What comes back is the stairwell: every wall and every step answering at its own moment and its own strength. That answer to one short sound is the room's _impulse response_, and it holds everything the room does to sound. If you know how a room answers one click, you know how it answers anything, because any sound is a row of clicks of different heights, one for each sample.
+
+Convolution is the arithmetic of that sentence. Every sample of the sound sets off its own copy of the impulse response, scaled by the sample's value and starting at the sample's time, and all the copies are added up. A reverb made this way does not model a room. It replays one.
+
+The engine's room is not a recording. It _writes_ an impulse response from seeded noise, shaped to swell in, die away and dull as it goes. The sum it leaves to the browser, whose convolver does it as the sound plays. This lesson does the sum itself, with the engine's own Fourier transform, and checks on every render that the browser gets the same answer.
+
+<Stages taps="impulse in wet out" />
+
+Press Play, then Listen on the first stage: that is the room alone, the sound of one click in it. Then listen to the loop with the room behind it.
+
+<Controls ids="decay send" />
+
+<Wave taps="in out">
+  The loop dry (grey) and with the room added (red). Between the hits, where the dry loop is nearly silent, the red is the room ringing on.
+</Wave>
+
+Under each stage is a mark saying where it comes from. _Made by the engine's own code_ means the page ran the engine's own function, at this commit, and handed the result to the lab. _Written for this lesson_ means the lab did the work itself; two checks further down hold that work to something else.
+
+## Stage by stage
+
+### 1. The impulse: a room written from noise
+
+Record a real room's answer to a click and you see three things. First nothing, while the sound crosses the room. Then echoes, so many and so close together that they are noise. Then that noise dying away, the top end first, because air and soft surfaces take more out of high frequencies on every bounce.
+
+The engine writes exactly that, a sample at a time, in <Src path="src/core/tracks/space.ts">`spaceImpulseChannel`</Src>. With <M t="N" /> the length of the tail in samples and <M t="n" /> the sample:
+
+<M block t={String.raw`h[n] = \underbrace{\text{noise}[n]}_{\text{echoes}} \;\text{through a low-pass at } f_c[n], \;\times\; \underbrace{\bigl(1 - e^{-3t/t_{\text{swell}}}\bigr)}_{\text{swell}} \;\times\; \underbrace{10^{-3n/N}}_{\text{decay}}`} />
+
+**The noise** comes from a small seeded generator, so the same settings give <Claim id="same-room">the same room, sample for sample</Claim>, every time and on every machine. Left and right start from different seeds. They share a shape and no sample, which is what makes the tail wide.
+
+**The decay** is <M t={String.raw`10^{-3n/N}`} />: it starts at 1 and ends at one thousandth, which is −60 dB. That is how a reverb's length is always given, as the time to fall 60 dB, and it is why the control is that time. A line fitted to the level of this room falls 60 dB in <Claim id="decay-time">2.95 s when the decay is set to 3 s</Claim>.
+
+<Controls ids="decay predelay swell" />
+
+<Wave taps="impulse" fit>
+  The room's impulse response across the loop. It is the picture of an exponential: every half second it is lower by the same factor.
+</Wave>
+
+<Wave taps="impulse" from={0} span={0.2} fit>
+  Its first 200 ms. Nothing for the pre-delay, then the tail swells in. There is no sharp first echo, so a sound sent here sits far away where a wall would put it in a room of its own.
+</Wave>
+
+**The pre-delay** is silence ahead of the tail, 20 ms as the engine sets it. **The swell** is <M t={String.raw`1 - e^{-3t/t_{\text{swell}}}`} />, which is 95 % of the way up after the swell time. The last tenth of the tail is also run down to nothing in a straight line, so the impulse does not end on a step.
+
+A better picture of a decay than the wave itself is how much energy is still to come at each instant: add up the squares from that instant to the end. It falls smoothly where the wave is ragged.
+
+<Curve taps="energy" xTitle="seconds" yTitle="energy still to come, dB" min={-80} max={0}>
+  The energy of the impulse that is still to come, against time. It is straight in decibels because the decay is exponential. The whole of it but one millionth is behind it at 2.7 s.
+</Curve>
+
+By this measure the 3 s room has 60 dB of its energy behind it <Claim id="energy-60">2.7 s in</Claim>: a little sooner than 3 s, because the curve counts what is left and at the end almost nothing is.
+
+**The low-pass** is what makes it a room and not a burst of hiss. It is two one-pole filters in a row (lesson 4), and its cutoff slides as the tail goes on:
+
+<M block t={String.raw`f_c[n] = f_{\text{bright}} \left(\frac{f_{\text{dark}}}{f_{\text{bright}}}\right)^{n/N}`} />
+
+It starts at 7 kHz and ends at 900 Hz, moving by equal ratios in equal times. A closing filter also lets less noise through, which would make the room shorter as well as darker, so each sample is divided by what the filter passes at that cutoff. The colour changes and the level stays on the decay line.
+
+<Controls ids="bright dark" />
+
+<Spectrogram tap="picture" top={12000} min={-110} max={-40}>
+  The impulse's spectrum as it goes: time across, frequency up, level as colour. The top edge of the colour slides down: that is the cutoff closing. Set both controls to the same frequency and the edge is level.
+</Spectrogram>
+
+A tenth of the way in, the level around 5 kHz is <Claim id="dark-end">about 4 dB under the level around 500 Hz; two thirds of the way in it is 17 dB under</Claim>. One more filter thins everything below 160 Hz, so that many sounds sent to the room do not pile up as rumble.
+
+### 2. One click in, the room out
+
+The definition of an impulse response is that it is what comes out when a single sample goes in. That can be checked. A source that is one sample at 1 and silence after it comes out of the lab's convolution as <Claim id="click-returns-impulse">the impulse itself, with a difference more than 120 dB down</Claim>.
+
+Choose **Clicks** as the source to see it. Clicks is one sample twice a bar, so four copies of the impulse come out, one starting at each click, on top of each other. Shorten the decay to half a second and they stand apart.
+
+<Wave taps="in wet" fit>
+  What goes in (grey) and what the room gives back (red). With Clicks as the source, each click sets off the whole impulse.
+</Wave>
+
+### 3. The sum
+
+Two clicks give two copies of the impulse. A click half as high gives a copy half as high. That is all a sound is to a room: a click at every sample, each of its own height. So the output is
+
+<M block t={String.raw`y[n] = \sum_{k=0}^{M-1} h[k]\; x[n-k]`} />
+
+where <M t="x" /> is the sound, <M t="h" /> the impulse and <M t="M" /> its length. Read it for one output sample <M t="n" />: go back through the sound, and for each sample <M t="k" /> steps ago, take what the room is still saying <M t="k" /> samples after a click, <M t="h[k]" />, times how loud that sample was.
+
+Read the other way, every sample of the impulse is one echo: a copy of the _whole sound_, <M t="k" /> samples late and <M t="h[k]" /> times as loud. A three-second impulse is 144,000 echoes. **Impulse used** cuts the impulse short, so the reverb can be built up from its first echoes.
+
+The engine has a setting that makes this plain. **Grain** thins the noise the room is written from, keeping fewer and fewer of its samples, down to <Src path="src/core/tracks/space.ts">120 a second</Src> at 1. The tail turns from a smooth wash into separate echoes.
+
+<Controls ids="grain used" />
+
+<Wave taps="impulse" from={0} span={0.4} fit>
+  The first 400 ms of the part of the impulse in use. Turn Grain to 1 and the noise breaks into single echoes; pull Impulse used down and they go, last first.
+</Wave>
+
+<Wave taps="in wet" fit>
+  The loop (grey) and the room's answer to it (red) with only that much of the impulse. With Grain at 1 and 60 ms in use, the red is the loop a few times over, late and quiet. Let more of the impulse in and the copies fill up into reverb.
+</Wave>
+
+The sum as written is slow. Each output sample costs one multiplication for every sample of the impulse. For this loop, 192,000 samples through a room of 144,960, that is 27.8 billion multiplications a channel. Done live, it is 7 billion a second. Nobody computes a reverb this way.
+
+### 4. The same sum, by multiplying spectra
+
+There is a way round, and it is one of the best reasons to learn the Fourier transform (lesson 2).
+
+Put a pure sine through a room and what comes back is a sine at the same frequency. Louder or quieter, earlier or later, but never another frequency. So a room does one simple thing to each frequency: it multiplies its size by one number and adds another to its phase. Those two numbers, for every frequency, are the transform of the impulse response. Transform the sound as well, and the long sum above becomes one multiplication a bin:
+
+<M block t={String.raw`Y[k] = X[k] \cdot H[k]`} />
+
+The sizes multiply and the phases add. In decibels, the spectrum of the result is the spectrum of the sound _plus_ the spectrum of the room.
+
+<Spectrum taps="in impulse:alt wet:out" min={-120} max={-10}>
+  The spectra of the loop (grey), of the room's impulse (green) and of the loop in the room (red). Where the room's line is level, the red follows the grey. Where it falls away, under 160 Hz and above a few kilohertz, the red sits under the grey by as much.
+</Spectrum>
+
+The lab does it with <Src path="cpp/kit/fft.h">the kit's `Fft`</Src>, in <Src path="site/labs/15-convolution-reverb.cpp">`convolve`</Src>:
+
+1. Write the loop and the impulse into buffers of <M t="N" /> samples, zeros after them. Multiplying transforms of <M t="N" /> points gives a convolution that _wraps_: what runs off the end comes back in at the start. With <M t="N" /> at least as long as the two together, nothing runs off. For a four-second loop <M t="N" /> is 524,288, the power of two that fits.
+2. Transform both, forwards.
+3. Multiply them bin by bin, as complex numbers.
+4. Transform back, and divide by <M t="N" />, because the kit's inverse leaves that to its caller.
+
+That is three transforms of 5 million butterflies each in place of 27.8 billion multiplications. Left and right go through together, as the real and the imaginary part of one signal, which the mirror symmetry of a real signal's transform lets the lab take apart again afterwards.
+
+To see that the short way and the long way agree, the lab also does a stretch small enough to do both ways: the first 2,048 samples of the loop against the first 2,048 of the impulse after its pre-delay.
+
+<Curve taps="direct spectral" xTitle="milliseconds">
+  The sum done term by term (the line) and the product of spectra (dashed). One lies on the other.
+</Curve>
+
+<Check id="sums" />
+
+On the drums, the guitar and noise the two differ by <Claim id="sums-agree">less than −110 dB</Claim>, which is the rounding of 32-bit arithmetic.
+
+One more thing is particular to a loop. What plays here is the loop as it sounds the tenth time round, when the tail of every pass is ringing over the next. For a sound that repeats every <M t="L" /> samples that is the wrapped convolution again, on purpose this time: the lab folds the impulse onto itself every <M t="L" /> samples, convolves once, and folds the answer. Against the sum over a loop that never stops, the result is <Claim id="loop-wraps">the same to below −110 dB</Claim>.
+
+### 5. The browser's convolver, and waiting
+
+The product of spectra has a price. It needs the whole of the sound before it can transform it, so it cannot answer until the block is full. A live convolver cannot wait four seconds.
+
+The way out is to cut the impulse into pieces. The first short piece is convolved in small blocks, so its answer comes at once. Later pieces of the tail use larger and larger transforms, which are cheaper for each sample. They can afford to be late, because the part of the tail they compute is late anyway. This is _partitioned_ convolution, and it is why a convolution reverb can run with no delay at all.
+
+The engine does not do this itself. It hands the impulse to the browser's `ConvolverNode` (<Src path="src/core/tracks/SpaceRoom.ts">`SpaceRoom`</Src>, <Src path="src/core/devices/native/ConvolverReverb.ts">`ConvolverReverb`</Src>) and the device reports a latency of zero. That too can be checked: given an impulse that is a single sample at 1, the browser's convolver returns its input <Claim id="unit-impulse">at the same sample, with a difference below −80 dB</Claim>. And after a sound stops, the room goes on for <Claim id="rings-on">the length of the impulse, less one sample</Claim>.
+
+So there are two convolutions on this page: the lab's, with the kit's transform, and the browser's, which is the one the engine plays through. The page puts the loop and the impulse through the browser's own each time you move a control, and compares.
+
+<ConvolverCheck source="in" impulse="impulse" result="wet" />
+
+In the browser these pages are tested in, the two differ by <Claim id="browser-convolver">less than −80 dB</Claim>; the line above is what yours makes of it.
+
+The engine turns the node's `normalize` off. Left on, the browser rescales every impulse by its own estimate of how loud it is. The engine sets the level itself, as the next stage shows.
+
+### 6. How loud a room is, and the send
+
+How loud should a room come back? There is no single answer, because it depends on the sound. This room is dark: it returns a sound's low mids and little of its top. The engine picks the band where music has its weight, <Src path="src/core/tracks/space.ts">150 Hz to 1,500 Hz</Src>, and scales the impulse so that a steady sound _there_ comes back as loud as it went in.
+
+Measured on the lab's convolution: noise in that band comes back <Claim id="band-as-loud">within 1.5 dB of the level it went in at</Claim>. White noise, most of whose energy is above the band, comes back <Claim id="white-quieter">about 5 dB quieter</Claim>.
+
+A single steady tone is another matter. A room written from noise has a response that is itself ragged, up at one frequency and down at the next. Three sines, at 220, 440 and 1,000 Hz, came back <Claim id="tones-vary">between 4 dB quieter and 6 dB louder</Claim> than they went in. Choose Sine as the source and move the decay a little: the level of the reverb jumps about, because each new length is another draw of the noise. Music never sits on one frequency for long enough to notice.
+
+Last, the room is added to the dry sound:
+
+<M block t={String.raw`\text{out} = \text{in} + g_{\text{send}} \cdot \text{wet}`} />
+
+The dry sound is never turned down. In the engine each clip has its own send level, and each track convolves for itself, ahead of its own strip, so its fader and its effects act on the room as they do on the dry sound. Convolution is linear, so the tracks still sound as if they shared one room.
+
+<Controls ids="send decay" />
+
+<Wave taps="in out" fit>
+  In and out once more, with the height fitted to the louder of the two. Raise the send and the gaps between the hits fill with the room.
+</Wave>
+
+## What goes wrong
+
+**It is frozen.** A convolution replays one answer, exactly, for ever. A real room is never that still, and the reverbs of lessons 13 and 14 keep their delays moving to avoid sounding fixed. A convolver cannot, so the engine moves the sound on the way through: <Src path="src/core/tracks/SpaceRoom.ts">`SpaceRoom`</Src> can push the sound into a saturator on its way in, and can let the tail drift in pitch through a delay after the room whose time two slow sines move. Neither is in this lab.
+
+**Changing the room clicks.** Swap the impulse under a ringing tail and the tail is cut off. The engine does not swap. What is ringing in the old room rings out there, and what is sent from then on goes to the new one.
+
+**Cost grows with length.** The sum as written costs the impulse's length for every sample. Even partitioned, a thirty-second room is real work, and a room for every track multiplies it.
+
+**Latency, if you build it the simple way.** One big transform makes one big wait. The lab can afford it only because the loop is rendered before it is played.
+
+**The level is a choice.** Two impulses of the same peak can differ by 20 dB in how loud they sound. Any convolver that takes impulses from outside has to decide what "as loud" means. The engine's rule is the band above.
+
+**Separate echoes.** With Grain high the room is a few hundred echoes, not a wash, and a sharp sound through it rattles. That is the point of the setting, but it is also what any impulse that is too sparse does.
+
+## What to try
+
+- Drums, the stage **Convolved with the room** alone. Then **Decay** from 0.3 s to 6 s. At 6 s the tail is longer than the loop and each bar rings over the next.
+- **Clicks** as the source, decay 0.5 s: the room's answer to one sample, four times.
+- **Grain** at 1 and **Impulse used** at 60 ms, then let it out slowly to hear a reverb assemble from its first echoes.
+- Set **Top end at the start** and **Top end at the end** both to 7 kHz, then both to 900 Hz. The same decay, a different room.
+- **Pre-delay** at 150 ms on the drums: the room answers after the hit, and the hit stays dry and close.
+- **Noise** as the source and watch the spectra in stage 4: the room's own curve is the gap between the grey line and the blue one.
+- **Sine**, and small moves of the decay: the luck of one frequency in a room made of noise.

@@ -6,7 +6,7 @@ meditation app, an audio tour, a fitness class or a game's dialogue over its
 score. Reduced to the library calls: one engine, one output terminus, a duck
 bus keyed by the voice, a streaming ambience bed, a guide instrument, music
 clips the voice's agent can steer, and the agent API over all of it. The
-README's [adaptive loop](../README.md#an-adaptive-loop-that-crossfades-two-layers-and-ducks-under-a-microphone)
+README's [adaptive loop](../../README.md#an-adaptive-loop-that-crossfades-two-layers-and-ducks-under-a-microphone)
 is the short version; this is the full session. Breathwork Live runs this
 shape in production ([consumer guide](../consumers/breathwork-live.md)).
 
@@ -177,7 +177,7 @@ Without a `document`, the hooks-backed intents and `get_state` are the tool
 list; with a score document (a planner's output, see
 [agent-authored scores](../agent-authored-scores.md)) the whole operation
 vocabulary joins ([agent-api](../concepts/agent-api.md)). The README's
-[narrator example](../README.md#an-ai-narrator-steering-the-mix-through-the-agent-api)
+[narrator example](../../README.md#an-ai-narrator-steering-the-mix-through-the-agent-api)
 is the score-backed variant.
 
 ## 7. Ending, interruptions, tests

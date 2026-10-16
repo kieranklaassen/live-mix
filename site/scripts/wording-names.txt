@@ -1,0 +1,90 @@
+# Names the site's own words do not use: products, brands, makers, artists.
+# One a line, matched as whole words whatever their capitals. A line that starts with ~ is a
+# pattern, for the phrases that set one thing beside another program or machine.
+# The names of mathematics and of textbook structures are not here and stay in the lessons.
+# What the library words itself (a device's descriptor) is shown as it is and is not checked.
+Ableton
+Bitwig
+Cubase
+FL Studio
+Logic Pro
+Pro Tools
+Reaper
+GarageBand
+Audacity
+Max/MSP
+Pure Data
+SuperCollider
+Csound
+Reaktor
+Kontakt
+Native Instruments
+Spectrasonics
+Omnisphere
+FabFilter
+iZotope
+Soundtoys
+Valhalla
+Eventide
+Lexicon
+Strymon
+Electro-Harmonix
+Tube Screamer
+Big Muff
+Ibanez
+Moog
+Minimoog
+Buchla
+Oberheim
+Sequential Circuits
+Prophet-5
+Roland
+Juno-60
+Juno-106
+Jupiter-8
+TR-808
+TR-909
+TB-303
+Korg
+Yamaha
+DX7
+Casio
+Akai
+Kurzweil
+Ensoniq
+Fairlight
+Synclavier
+Mellotron
+Hammond
+Leslie
+Rhodes
+Wurlitzer
+Steinway
+Fender
+Stratocaster
+Telecaster
+Gibson
+Marshall
+Neve
+Teletronix
+LA-2A
+Fairchild
+Pultec
+Urei
+Dolby
+Auto-Tune
+Melodyne
+Brian Eno
+Aphex Twin
+Boards of Canada
+Kraftwerk
+Daft Punk
+Radiohead
+Pink Floyd
+Beatles
+Hendrix
+~\b(?!(?:list|font|border|outline|line|column-rule|text-decoration|text-emphasis|reference)-style\b)[\w-]+-style\b
+~\binspired by\b
+~\bmodell?ed (?:on|after)\b
+~\bemulat\w*
+~\bclone of\b

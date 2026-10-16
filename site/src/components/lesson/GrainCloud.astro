@@ -1,0 +1,37 @@
+---
+// The grains a device started, each a bead where and when it reads: <GrainCloud tap="cloud" from={1} span={1} lines="time">Caption.</GrainCloud>
+import GrainCloud from '../../figures/GrainCloud.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { controlPairs, pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  tap: string
+  from?: number
+  span?: number
+  /** Controls in milliseconds drawn as a level line across the picture, by id. */
+  lines?: string
+  /** Milliseconds behind the write point at the bottom of the picture. */
+  max?: number
+  height?: number
+  label?: string
+}
+const { tap, lines, label, ...rest } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const [ref] = tapRefs(tap, lab.taps, lesson)
+const said =
+  label ??
+  `${ref.name}: time across, and down the picture how far behind the write point each reads`
+---
+
+<figure class="fig">
+  <GrainCloud
+    client:visible
+    tap={ref}
+    lines={controlPairs(lines, lab, lesson)}
+    label={said}
+    {...rest}
+  />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

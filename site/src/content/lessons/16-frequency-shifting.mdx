@@ -1,0 +1,234 @@
+---
+title: Frequency shifting
+order: 16
+summary: A frequency shifter moves every partial of a sound by the same number of hertz, which no filter can do. This lesson builds one from a multiplication, a pair of all-pass chains a quarter turn apart and a turning vector, and reads each part out of the engine's own as it runs.
+lab: 16-frequency-shifting
+devices: [freq-shifter]
+bench:
+  device: freq-shifter
+  params: { shift: 100, fine: 0, mode: 0, feedback: 0, lfoDepth: 0, width: 0, mix: 1 }
+  as: insert
+  note: The plate opens on the bare shift this lesson starts from, 100 Hz up and nothing but the shifted sound. The device's own defaults are a slow drift (shift 0, fine 0.4 Hz, feedback 0.5, LFO depth 0.08, width 0.6, mix 0.5).
+sources: [sine, saw, chords, noise]
+seconds: 4
+files:
+  - cpp/devices/freq-shifter/freq_shifter.h
+  - cpp/devices/freq-shifter/device.json
+  - cpp/kit/hilbert.h
+  - cpp/kit/math.h
+  - cpp/kit/delay.h
+  - cpp/kit/filters.h
+---
+
+Add 100 to every frequency in a sound. A tone at 440 Hz becomes one at 540 Hz, a tone at 1,000 Hz one at 1,100 Hz. That is all a frequency shifter does, and it is stranger than it sounds, because nothing in music works by adding. An octave is a doubling and a fifth is one and a half times: pitch lives in ratios. Move every partial of a note up by the same number of hertz and the ratios between them change, and the partials no longer belong to one note.
+
+No filter can do this. A filter changes how much of each frequency there is; it never moves one. Multiplication does: multiply a sound by a sine wave and every frequency in it splits in two, one copy moved up by the sine's frequency and one moved down. The whole craft of a shifter is in getting rid of one of the two. It makes the split twice, from two versions of the sound and two versions of the sine that are each a quarter of a cycle apart, arranged so that the copies it wants agree and the copies it does not want are equal and opposite. Added together, one copy doubles and the other cancels.
+
+The lab starts as a bare shifter: 100 Hz up, and only the shifted sound comes out. The Frequency Shifter's <Src path="cpp/devices/freq-shifter/device.json">own defaults</Src> are something else, a shift of 0.4 Hz mixed half and half with the dry sound, fed back on itself and swayed by a slow LFO, a slow drift in which the shift itself cannot be seen. Feedback, the LFO, the width and the fine shift start at zero here, and each comes back as a control further down. These are the stages, in the order the signal meets them. Press Play, then Listen on any stage that is sound.
+
+<Stages taps="in inPhase quadrature cosine sine upper lower back out" />
+
+The sine goes in at 440 Hz and comes out at 540 Hz. On this axis, which is linear in hertz, moving the shift slides the red line along by exactly that many hertz.
+
+<Controls ids="shift mode" />
+
+<Spectrum taps="in out" linear fMax={2000} min={-96} max={0}>
+  The spectrum of the loop (grey) and of the output (red), up to 2 kHz. With the sine there is one line, and it moves by the shift. The small bump the same distance on the other side of the grey line is what is left of the copy that was cancelled.
+</Spectrum>
+
+Under each stage is a mark saying where it comes from. *Read from the running device* means the lab reached into the Frequency Shifter's own state while it ran. *Computed by the engine's kit* means a class of the kit did the work, fed from the device's state. *Written for this lesson* means the device never holds that signal, so the lab made it from the device's own numbers; a check in stage 4 holds the two together.
+
+## Stage by stage
+
+### 1. Multiplying by a sine makes two copies
+
+Start with the multiplication on its own. Take one partial of the sound, a cosine at frequency <M t="f" />, and multiply it by a second cosine at <M t="f_c" />, the *carrier*. The identity that turns a product of cosines into a sum is the whole of this stage:
+
+<M block t={String.raw`\begin{aligned} \cos(2\pi f t)\,\cos(2\pi f_c t) = {} & \tfrac12\cos\bigl(2\pi (f - f_c)\,t\bigr) \\ & + \tfrac12\cos\bigl(2\pi (f + f_c)\,t\bigr) \end{aligned}`} />
+
+The frequency <M t="f" /> is gone. In its place are two, <M t={String.raw`f - f_c`} /> and <M t={String.raw`f + f_c`} />, each at half the height. A sound is a sum of such partials (lesson 2) and multiplying a sum multiplies each term, so every partial splits the same way. All the copies that moved down are the *lower side band* and all that moved up are the *upper side band*. This is ring modulation, and it is where every shifter begins.
+
+The lab has a ring modulator of its own, written for this lesson and not part of the device: the input times the cosine of the device's carrier. For the 440 Hz sine and a carrier at 100 Hz its two lines stand at 340 Hz and 540 Hz, each <Claim id="ring-halves">6.0 dB under the line that went in</Claim>, and at 440 Hz itself what is left is <Claim id="ring-original-gone">more than 120 dB down</Claim>.
+
+<Controls ids="shift" />
+
+<Spectrum taps="in ring" linear fMax={2000} min={-96} max={0}>
+  The loop (grey) and the loop times a cosine (red). Each line of the input becomes two, the shift below it and the shift above it, and the line itself disappears. Move the shift and the pair opens and closes around the grey line like a pair of compasses.
+</Spectrum>
+
+Both side bands at once is a sound in its own right (<Listen tap="ring">hear the ring modulator</Listen>), but it is not a shift. To shift, one of them has to go.
+
+### 2. A partner a quarter turn away
+
+There is a second identity, for sines, and it differs from the first by one sign:
+
+<M block t={String.raw`\begin{aligned} \sin(2\pi f t)\,\sin(2\pi f_c t) = {} & \tfrac12\cos\bigl(2\pi (f - f_c)\,t\bigr) \\ & - \tfrac12\cos\bigl(2\pi (f + f_c)\,t\bigr) \end{aligned}`} />
+
+Subtract this product from the first and the lower side band cancels; add them and the upper one does. So a shifter needs two things it does not have yet: the carrier as a sine, and *the sound itself with every cosine in it turned into a sine*.
+
+The first is easy, because an oscillator can make both. The second is the hard part of the whole device. A sine is a cosine a quarter of a cycle late, and a quarter of a cycle is a different length of time at every frequency: 2.5 ms at 100 Hz, 0.57 ms at 440 Hz. No delay will do. What is wanted is a filter that leaves every level alone and turns every phase by exactly a quarter turn, which is the *Hilbert transform*, and it cannot be built: done exactly it needs the whole future of the signal.
+
+The kit sidesteps the problem. It never makes the turned copy of the input. It makes **two** outputs, neither of which is the input, and asks only that they be a quarter turn apart *from each other*. Each output is the input through a chain of all-pass filters (lesson 12), which pass every frequency at full level and change only its phase. This is <Src path="cpp/kit/hilbert.h">`kit::Hilbert`</Src>, and its `process` returns the pair: `in_phase` and `quadrature`.
+
+Each chain is four sections, and each section is one line:
+
+<M block t={String.raw`\begin{aligned} y[n] &= c\,\bigl(x[n] + y[n-2]\bigr) - x[n-2] \\[4pt] H(z) &= \frac{c - z^{-2}}{1 - c\,z^{-2}} \end{aligned}`} />
+
+The top of <M t="H" /> holds the same two numbers as its bottom, in the opposite order, which is what makes its size exactly 1 at every frequency. Its phase falls by a whole turn between 0 Hz and half the sample rate: half a turn on the way up to a quarter of the sample rate, and the same shape mirrored on the way from there to the top, because the section reaches back two samples and so cannot tell a frequency from its mirror image. The one number <M t="c" /> says where the half turn happens: the nearer to 1, the lower. The kit holds eight constants, `kCoeffA` and `kCoeffB`, four for each chain, and squares each to get its <M t="c" />, from 0.162 up to 0.9975. That is the whole pair: eight multiplications a sample, and one sample of delay on the end of the in-phase chain.
+
+<Curve taps="phaseI:alt phaseQ:alt2" xLog xTitle="hertz" yTitle="phase, degrees" height={300}>
+  The phase of each chain against frequency, on a logarithmic axis: the in-phase chain (green) and the quadrature chain (orange). The lab measures these from the impulse responses of the kit's pair. Both fall by more than two whole turns, and all the way down the orange line stays the same distance above the green.
+</Curve>
+
+On a logarithmic axis each section's phase is a smooth step, half a turn high and a few octaves wide. Four steps placed at even ratios wear into a ramp. The second chain's steps are placed midway between the first chain's, so its ramp is the same ramp moved along by half a step, and half of half a turn is the quarter turn. The sample of delay looks after the mirrored half: a delay turns a frequency <M t="f" /> by <M t={String.raw`360^\circ \cdot f / f_s`} />, next to nothing in the bass, 90° at 12 kHz and 180° at the top, and without it the quarter turn would shrink to nothing at 12 kHz and come out the wrong way round above.
+
+Here is the distance between the two lines, with the axis stretched to two degrees either side of 90:
+
+<Curve taps="phaseDifference" xLog min={88} max={92} xTitle="hertz" yTitle="degrees ahead" height={240}>
+  How far the quadrature output is ahead of the in-phase one, measured. It ripples evenly about 90° across the whole audible band and falls away only at the very bottom.
+</Curve>
+
+<Check id="quarterError" />
+
+The quadrature output is ahead by 90°, <Claim id="quarter-turn">to within 0.71° from 22 Hz to 23,978 Hz</Claim>, which is everything but the bottom and the top 22 Hz of what a 48 kHz signal can hold. The kit's header promises less, "about 0.002 to 0.498 of the sample rate", 96 Hz to 23.9 kHz. The error is the same height at every ripple, the mark of a design that spends its error evenly and wastes none. Below the band it grows fast: at 20 Hz the pair is <Claim id="below-band">1.6° off</Claim>.
+
+Now the pair as sound, read from the running device.
+
+<Wave taps="in inPhase:alt quadrature:alt2" from={0.1} span={0.01} fit>
+  Ten milliseconds of the input (grey), the in-phase output (green) and the quadrature output (orange). With the sine, both outputs are the same sine at the same height, a quarter of a cycle apart, the orange one first. Neither lies on the grey: at 440 Hz the orange lands a little ahead of it and the green most of a quarter cycle behind. Choose the saw: neither looks like a saw any more.
+</Wave>
+
+That last point is the price of the trick. At 440 Hz the in-phase output runs <Claim id="lag-440">a turn and 78.5° behind the input</Claim>, and the lag is different at every frequency, so a wave with many partials comes out with all of them out of step and a different shape. Its levels are untouched: each of the saw's first twenty harmonics leaves both chains <Claim id="same-level">within 0.001 dB of the level it went in at</Claim>. Listen to <Listen tap="in">the input</Listen>, <Listen tap="inPhase">the in-phase output</Listen> and <Listen tap="quadrature">the quadrature output</Listen> with the saw and compare them by ear.
+
+There is a way of seeing the pair that makes the rest of the lesson short. Take the two outputs as the across and the up of a point on a page. For a sine the point runs round a circle, once a cycle. The pair has turned a wave, which only goes up and down, into a rotation, which has a direction; and a frequency is how fast the point goes round. Shifting the frequency is turning the point a little faster.
+
+### 3. The turning vector
+
+The carrier is the other rotation: a point going round the unit circle <M t="f_c" /> times a second. The device keeps its angle, in cycles, and steps it every sample:
+
+<M block t={String.raw`\begin{aligned} \varphi[n+1] &= \bigl(\varphi[n] + f_c / f_s\bigr) \bmod 1 \\ f_c &= \text{Shift} + \text{Fine} + \text{LFO} \end{aligned}`} />
+
+This is `carrier_phase_` in <Src path="cpp/devices/freq-shifter/freq_shifter.h" lines="99-106">`process`</Src>. Because the device adds up the frequency and does not compute the angle from the time, the shift can move without the carrier jumping. The angle is a `double`: at a shift of 0.01 Hz the step is two ten-millionths of a cycle, only three or four of the smallest steps a `float` just under 1 can take, and the frequency would come out wrong.
+
+The cosine and the sine of the angle are the vector's across and up. Both come from <Src path="cpp/kit/math.h">the kit's `SineTable`</Src>, 4,096 steps of one cycle read with a straight line between neighbours; `cos_lookup` is the same table read a quarter of a cycle further on. A negative shift runs the angle backwards, and the vector turns the other way.
+
+Shift and Fine are added, and their sum glides to a new value with a time constant of 20 ms, so a jump of hundreds of hertz is a sweep and not a step. The LFO sways the sum by up to 50 Hz either way; its depth is squared first, so the lower half of the control covers the few hertz where slow phasing lives. Its rate stays at the device's default here, 0.08 Hz, one sway in twelve and a half seconds, so across this loop it is a slow slide. Width belongs to this stage too: it turns the *right* channel's carrier ahead of the left's by up to a quarter of a cycle.
+
+<Controls ids="shift fine lfoDepth width" />
+
+<Curve taps="cosineRight:ctl cosine:alt sine:alt2" xTitle="milliseconds" min={-1.1} max={1.1} height={220}>
+  Twenty milliseconds of the carrier: its cosine (green) and its sine (orange), a quarter of a cycle behind. At 100 Hz that is two cycles. Set the shift below zero and the sine turns over while the cosine stays. The third line (blue) is the right channel's cosine: it lies under the green one until Width is raised, then moves ahead of it.
+</Curve>
+
+With Width at 1 and Mode on Up, the right output is <Claim id="width-quarter">90.0° ahead of the left</Claim>, whatever the frequency: the two sides are themselves a pair a quarter turn apart.
+
+### 4. Add or subtract: one side band
+
+Everything is on the table. Call one partial's angle on its way out of the pair <M t={String.raw`\theta`} />, so the in-phase output is <M t={String.raw`I = \cos\theta`} />. The quadrature output is a quarter turn ahead, <M t={String.raw`Q = \cos(\theta + 90^\circ) = -\sin\theta`} />. Multiply each by its half of the carrier, whose angle is <M t={String.raw`\varphi`} />:
+
+<M block t={String.raw`\begin{aligned} I\cos\varphi &= \phantom{-}\cos\theta\cos\varphi \\ &= \phantom{-}\tfrac12\cos(\theta - \varphi) + \tfrac12\cos(\theta + \varphi) \\[4pt] Q\sin\varphi &= -\sin\theta\sin\varphi \\ &= -\tfrac12\cos(\theta - \varphi) + \tfrac12\cos(\theta + \varphi) \end{aligned}`} />
+
+Each product is a ring modulator: two side bands at half height. The upper halves are the same in both. The lower halves are equal and opposite. So
+
+<M block t={String.raw`\begin{aligned} I\cos\varphi + Q\sin\varphi &= \cos(\theta + \varphi) \\ I\cos\varphi - Q\sin\varphi &= \cos(\theta - \varphi) \end{aligned}`} />
+
+and that is the shifter: the sum is the partial with the carrier's angle added to its own, at full height, and the difference is the partial with it taken away. In the device it is one line, `wet = (in_phase * cosine + d * quadrature * sine) * makeup`, where <M t="d" /> is +1 for up and −1 for down.
+
+<Wave taps="productI:alt productQ:alt2 upper:out" from={0.1} span={0.02} fit>
+  Twenty milliseconds, with the sine: the in-phase output times the cosine (green), the quadrature output times the sine (orange), and their sum (red). Each product holds two frequencies at half height, and wobbles as they drift against each other. The sum is one steady sine at 540 Hz, at full height.
+</Wave>
+
+<Spectrum taps="in upper:out lower:ctl" linear fMax={2000} min={-96} max={0}>
+  The input (grey), the sum (red) and the difference (blue). Each is the input moved one way by the shift, with a small bump left on the other side where the cancelling was not quite complete.
+</Spectrum>
+
+<Check id="rebuilt" />
+
+The device keeps only the side band its mode asks for, in the delay line of its feedback path. The lab makes both from the device's own pair and carrier, and the check compares the one the mode chose with what the device wrote. They agree <Claim id="rebuilt-exact">to better than 140 dB</Claim>, the floor of the measure, in every mode and with the feedback up.
+
+The numbers, measured on the device's output. A 1 kHz sine shifted by 100 Hz <Claim id="shift-1k">peaks at 1.1 kHz</Claim> at the level it went in at, and the other copy, at 900 Hz, is <Claim id="image-1k">49.0 dB below it</Claim>. How far down that copy is depends only on how close the pair is to a quarter turn at the frequency going in: an error of <M t={String.raw`\varepsilon`} /> leaves <M t={String.raw`\tan(\varepsilon/2)`} /> of it. At the crests of the ripple in stage 2 that comes to 0.0061, and the copy is <Claim id="image-worst">44.2 dB down</Claim>, the worst it gets anywhere in the band. At 20 Hz, below the band, it is only <Claim id="image-20">37 dB down</Claim>.
+
+**Mode** is four settings of <M t="d" />. Down is −1, and it is the same thing as a negative shift: Down at +100 Hz and Up at −100 Hz give outputs whose difference is <Claim id="down-is-negative">more than 130 dB under either</Claim>. Stereo sends the sum left and the difference right, so the sine comes out <Claim id="stereo-split">at 540 Hz on the left and 340 Hz on the right</Claim>. Ring is <M t="d = 0" />: the second product is dropped, both side bands are back, and a make-up gain of <M t={String.raw`\sqrt2`} /> lifts each to <Claim id="ring-mode">3.0 dB under the input</Claim>, so the two together carry the power of one. Because <M t="d" /> glides between settings with the same 20 ms as the shift, a change of mode passes through the ring sound on its way and does not jump.
+
+### 5. Hertz, not ratios
+
+Choose the saw and set the shift to 50 Hz. The saw is a note at 110 Hz, and what makes it a note is that its partials stand at 110, 220, 330, 440 Hz: whole multiples of one frequency, so the wave repeats 110 times a second and has one pitch.
+
+<Controls ids="shift mode" />
+
+<Spectrum taps="in out" linear fMax={1200} min={-72} max={0}>
+  The loop (grey) and the output (red), up to 1.2 kHz. With the saw, the grey lines are its harmonics, evenly spaced from zero, and the red ones the same partials after the shift: a comb with the same spacing that no longer starts at zero.
+</Spectrum>
+
+After the shift the partials stand at <Claim id="saw-partials">160, 270, 380 and 490 Hz</Claim>, each at the level it had. They are still 110 Hz apart, and they are no longer whole multiples of one frequency: 270 is not twice 160. The wave has stopped repeating 110 times a second. A bell and a struck bar have partials that are not whole multiples either, and that is the family of sound to listen for.
+
+The same number of hertz is also a different musical distance at every frequency. The 50 Hz that lifts the saw's fundamental by six and a half semitones lifts its 25th harmonic, at 2,750 Hz, by a third of one. A pitch shifter (lesson 17) multiplies every frequency by the same ratio, so harmonics stay harmonics and a chord stays a chord. A frequency shifter cannot, and is not trying to. Play the guitar chords through a shift of 30 Hz to hear a chord come apart.
+
+### 6. Small shifts: beating and phasing
+
+Shift by less than the ear can hear as a change of pitch, a hertz or so, and mix the result with the dry sound. The device's mix is an equal-power crossfade, <Src path="cpp/kit/math.h">`equal_power`</Src>:
+
+<M block t={String.raw`\text{out} = \cos\!\bigl(\tfrac{\pi}{2}m\bigr)\,\text{in} + \sin\!\bigl(\tfrac{\pi}{2}m\bigr)\,\text{wet}`} />
+
+At <M t="m = 0.5" /> both are 0.707. For one sine the sum is two tones 1 Hz apart, and two tones that close are heard as one tone whose loudness swells and dies:
+
+<M block t={String.raw`\cos a + \cos b = 2\cos\!\bigl(\tfrac{a-b}{2}\bigr)\cos\!\bigl(\tfrac{a+b}{2}\bigr)`} />
+
+Set Shift to 0, Fine to 1 Hz and Mix to 0.5 with the sine.
+
+<Controls ids="shift fine mix" />
+
+<Wave taps="in out" fit>
+  The whole loop, in (grey) and out (red). With the settings above, the red wave swells past the grey and dies to nothing once a second: the dry sine and the shifted sine drifting in and out of step.
+</Wave>
+
+Measured, the output rises to <Claim id="beat-crest">3.0 dB over the input</Claim> and falls to <Claim id="beat-null">more than 40 dB under it</Claim>, <Claim id="beat-rate">once a second</Claim>.
+
+A sound with many partials does something better. Every partial beats at the same rate, but not at the same moment, because each left the in-phase chain with a different lag: that was the ramp in stage 2. So the silence arrives at one frequency after another, and a notch travels through the spectrum, upwards for a shift up and downwards for a shift down. At a shift of 0.5 Hz the notch that stands at 1,168 Hz reaches 2 kHz <Claim id="notch-climbs">0.32 s later and 4 kHz 0.73 s later</Claim>. The chain's lag runs through several whole turns across the band, the ramp of stage 2, so there are always several notches on their way, and when one leaves at the top the next is already rising from the bottom: the motion never turns round. Choose the noise, with Fine at 0.5 Hz and Mix at 0.5:
+
+<Spectrogram tap="picture" top={6000} min={-70} max={-20} height={260}>
+  The output's spectrum over the loop, up to 6 kHz: time across, frequency up. With the noise and the settings above, bands of quiet, in the page's own colour, climb the picture, each frequency meeting one every two seconds. Switch Mode to Down and they fall.
+</Spectrogram>
+
+With the shift at exactly zero the carrier stands still and so do the notches: the output is the input plus an all-passed copy of itself, and a tone at 1,168 Hz, where the in-phase chain is a turn and a half behind, comes out <Claim id="still-notch">more than 60 dB down</Claim>.
+
+### 7. Feedback: shifted again on every pass
+
+The last part of the device sends what it made back to its own input, late:
+
+<M block t={String.raw`\text{driven} = \text{in} + \text{feedback}\cdot\text{back}`} />
+
+`back` is the wet signal read out of <Src path="cpp/kit/delay.h">a delay line</Src>, 45 ms old by default, through a low-pass filter at 4.5 kHz (<Src path="cpp/kit/filters.h">the kit's `Svf`</Src>) and <Src path="cpp/kit/math.h">`soft_clip`</Src>, a limiter that is exactly linear up to half of full scale and so only acts if the loop builds up. Feedback stops at 0.98.
+
+What comes back has already been shifted, and it goes through the pair and the carrier again. With the sine and a shift of 100 Hz, the first pass is at 540 Hz, the second at 640, the third at 740, each one 45 ms later than the last and quieter by the feedback.
+
+<Controls ids="feedback delay shift fine" />
+
+<Spectrum taps="in out" linear fMax={2000} min={-96} max={0}>
+  The input (grey) and the output (red). Raise Feedback with the sine and a ladder of lines appears above the first, one shift apart, each lower than the one before. Mode Down sends the ladder the other way.
+</Spectrum>
+
+At a feedback of 0.5 each rung is <Claim id="feedback-steps">about 6.1 dB under the last</Claim>: 6.0 for the feedback, and the rest is the low-pass filter, which every pass goes through once more. With a shift of a hertz or two and a delay of a few milliseconds the delayed copies make a comb, as any short delay with feedback does, and the shift moves its teeth on every pass: a comb that climbs without end. With a long delay the passes are heard apart, as echoes that step up or down in pitch.
+
+## What goes wrong
+
+**The other side band never quite goes.** The cancelling is exactly as good as the quarter turn, and that is why the pair's ripple matters at all: 0.7° of error is a copy 44 dB down. Under 22 Hz the error grows and the copy with it, though there is little down there to shift.
+
+**Zero is not off.** A shift of 0 Hz does not give the input back. The carrier stands at cosine 1 and sine 0, and the output is the in-phase output of the pair, <Claim id="zero-shift">to better than 140 dB</Claim>: the same level as the input at every frequency (<Claim id="zero-level">within 0.001 dB</Claim> for a 1 kHz sine) and a different phase (<Claim id="lag-1k">524° behind</Claim> at 1 kHz). For a steady tone that moves where its cycle starts and nothing else. For a click it changes the shape: a single sample of height 1 comes out as a train of samples, the largest of them <Claim id="click-smear">0.79 of the click's height, three samples late</Claim> and upside down, carrying <Claim id="click-energy">the same energy to one part in a million</Claim>. This is also why mixing the dry sound with a wet one at no shift makes notches, as in stage 6.
+
+**Through zero.** Shift a partial down by more than its own frequency and the result is a negative frequency, which a real signal cannot tell from a positive one. The 440 Hz sine shifted down by 500 Hz comes out <Claim id="through-zero">at 60 Hz</Claim>. Low partials fold back up through zero while high ones are still coming down, and the two pass each other.
+
+**Past the top.** The same happens at the other end, and nothing in the device guards against it: a sine at 23.6 kHz shifted up by 1 kHz does not go to 24.6 kHz, which a 48 kHz signal cannot hold, but folds back to <Claim id="past-top">23.4 kHz</Claim>. With a shift of at most 1 kHz only the top kilohertz can fold, above what anyone hears, but feedback carries a partial further up on every pass.
+
+**A loop that builds.** Going once round the feedback loop, a single side band comes back no bigger than it left, so with the feedback under 1 the loop dies away. Ring mode at a shift of zero is the exception: both side bands land on the partial they came from, the make-up gain of <M t={String.raw`\sqrt2`} /> goes round with them, and once the feedback times <M t={String.raw`\sqrt2`} /> passes 1 every pass is bigger than the last. The limiter is what stops it. With the sine, which peaks at 0.25, and the feedback at 0.98, what comes back is held <Claim id="ring-loop">at 1.0</Claim> and the output stands <Claim id="ring-loop-out">at 2.4</Claim>, well over full scale.
+
+**Silence.** With nothing going in, the device's output is <Claim id="silence">exact silence</Claim>, and after 0.7 s of it, the longest delay and a fifth of a second more, <Src path="cpp/devices/freq-shifter/freq_shifter.h" lines="57-58">the device rests</Src>: the carrier and the LFO stop where they are until sound returns.
+
+## What to try
+
+- The saw, and Shift slowly from 0 to 110 Hz. At exactly 110 every partial lands where its neighbour was and the note comes back, without its fundamental.
+- Guitar chords, Shift 0, **Fine** at 0.4 Hz, **Mix** at 0.5: close to the slow phasing the device opens on. Then Mode on Stereo, where the two sides move opposite ways.
+- The same, with **Feedback** at 0.85, **Delay** at 12 ms and Fine at 1.5 Hz: the climbing comb. Mode Down makes it fall.
+- Guitar chords, Shift at 233 Hz, Mix at 0.7. Listen for the metal in each chord.
+- Fine at 9 Hz, Feedback at 0.7, Delay at 420 ms: echoes, each a little higher than the last.
+- The sine, Shift at −500 Hz, and the first picture: the line has gone through zero and come back at 60 Hz.

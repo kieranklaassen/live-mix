@@ -1,0 +1,50 @@
+---
+// A filter's phase against frequency, in half turns:
+// <PhaseTurns taps="chainPhase" oddTurns crossings="crossings">Caption.</PhaseTurns>
+import PhaseTurns from '../../figures/PhaseTurns.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { controlPairs, pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  /** Curve taps holding a phase in degrees. */
+  taps: string
+  /** Phases in degrees to mark with a line across the picture: "-90" or "-90 -180". */
+  levels?: string
+  /** Mark every odd multiple of 180 degrees the first curve reaches. */
+  oddTurns?: boolean
+  /** A curve tap whose values are frequencies in hertz, each marked with a line up the picture. */
+  crossings?: string
+  /** Controls in hertz drawn as an upright line, by id. */
+  uprights?: string
+  height?: number
+  label?: string
+}
+const { taps, levels, crossings, uprights, label, ...rest } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const refs = tapRefs(taps, lab.taps, lesson)
+const marked = crossings ? tapRefs(crossings, lab.taps, lesson)[0]?.id : undefined
+const degrees = (levels ?? '')
+  .split(/[\s,]+/)
+  .filter(Boolean)
+  .map((text) => {
+    const value = Number(text)
+    if (!Number.isFinite(value)) throw new Error(`${lesson}: "${text}" is not a phase in degrees.`)
+    return value
+  })
+const said = label ?? `${refs.map((tap) => tap.name).join(' and ')} against frequency`
+---
+
+<figure class="fig">
+  <PhaseTurns
+    client:visible
+    taps={refs}
+    levels={degrees}
+    crossings={marked}
+    uprights={controlPairs(uprights, lab, lesson)}
+    label={said}
+    {...rest}
+  />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

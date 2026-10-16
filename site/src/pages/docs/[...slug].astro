@@ -1,0 +1,44 @@
+---
+import type { MarkdownHeading } from 'astro'
+import { getCollection, render } from 'astro:content'
+import Base from '../../layouts/Base.astro'
+import DocsSidebar from '../../components/DocsSidebar.astro'
+import Mermaid from '../../components/Mermaid.astro'
+import { docSlug } from '../../lib/doc-routes'
+import { docDescription, docsNav } from '../../lib/docs-nav'
+import '../../styles/docs.css'
+
+export async function getStaticPaths() {
+  const docs = await getCollection('docs')
+  // A page's title is its first heading: the Markdown carries no front matter. The store keeps
+  // each doc's headings beside its HTML, typed as unknown.
+  const titled = docs.map((doc) => {
+    const headings = doc.rendered?.metadata?.headings as MarkdownHeading[] | undefined
+    return { doc, title: headings?.find((heading) => heading.depth === 1)?.text ?? doc.id }
+  })
+  const index = docs.find((doc) => doc.id === 'index')
+  const groups = docsNav(
+    index?.body ?? '',
+    titled.map(({ doc, title }) => ({ id: doc.id, title })),
+  )
+  return titled.map(({ doc, title }) => ({
+    // The index has no slug at all: with `undefined` the route is /docs/ itself.
+    params: { slug: docSlug(doc.id) || undefined },
+    props: { doc, title, groups },
+  }))
+}
+
+const { doc, title, groups } = Astro.props
+const { Content } = await render(doc)
+const drawn = doc.rendered?.html.includes('<pre class="mermaid"') ?? false
+---
+
+<Base title={title} description={docDescription(doc.body ?? '')}>
+  <div class="docs">
+    <DocsSidebar groups={groups} current={doc.id} />
+    <article class="prose docs-page">
+      <Content />
+    </article>
+  </div>
+  {drawn && <Mermaid />}
+</Base>

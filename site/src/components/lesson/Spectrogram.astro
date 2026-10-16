@@ -1,0 +1,28 @@
+---
+// A spectrum as it changes: <Spectrogram tap="frames" top={8000}>Caption.</Spectrogram>
+import Spectrogram from '../../figures/Spectrogram.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  tap: string
+  min?: number
+  max?: number
+  rowMin?: number
+  rowMax?: number
+  top?: number
+  height?: number
+  label?: string
+}
+const { tap, label, ...rest } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const [ref] = tapRefs(tap, lab.taps, lesson)
+const said = label ?? `${ref.name}: its spectrum over time`
+---
+
+<figure class="fig">
+  <Spectrogram client:visible tap={ref} label={said} {...rest} />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

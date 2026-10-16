@@ -1,0 +1,529 @@
+/*
+ * A lesson's page: the figures, the stage strip, the controls, the play bar and the bench.
+ * Colours and type come from site.css and, through it, the React kit's tokens.
+ */
+
+.lesson {
+  max-width: var(--measure);
+  margin: 0 auto;
+  /* Room for the play bar, which stays over the page's foot. */
+  padding-bottom: 2rem;
+}
+.lesson-head h1 {
+  margin-bottom: 0.4em;
+}
+.lesson-head .label a {
+  text-decoration: none;
+}
+.lesson-body > h2 {
+  margin-top: 3rem;
+}
+body:has(.playbar) .site-footer {
+  padding-bottom: 6.5rem;
+}
+
+/* ---- figures ---------------------------------------------------------- */
+
+.fig {
+  margin: 1.6rem 0;
+}
+.fig figcaption {
+  color: var(--lm-muted);
+  font-size: 0.86rem;
+  line-height: 1.45;
+  margin-top: 0.35rem;
+  padding-left: 44px;
+}
+.fig figcaption:empty {
+  display: none;
+}
+.fig-plot {
+  min-width: 0;
+}
+.fig-canvas {
+  position: relative;
+  width: 100%;
+  touch-action: pan-y;
+}
+.fig-canvas canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.fig-playhead,
+.fig-hover {
+  position: absolute;
+  top: 8px;
+  bottom: 22px;
+  left: 0;
+  width: 1px;
+  pointer-events: none;
+}
+.fig-playhead {
+  background: var(--lm-playhead);
+}
+.fig-hover {
+  background: var(--lm-text);
+  opacity: 0.35;
+}
+.fig-dot {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--lm-playhead);
+  border: 2px solid var(--lm-bg);
+  pointer-events: none;
+}
+.fig-waiting {
+  position: absolute;
+  inset: 8px 10px 22px 44px;
+  margin: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--lm-muted);
+  font-size: 0.86rem;
+}
+.fig-legend {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0 0 0 44px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 1rem;
+  font-family: var(--lm-font-mono);
+  font-size: 0.72rem;
+  color: var(--lm-muted);
+  min-height: 1.3rem;
+}
+.fig-legend li {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.fig-legend i {
+  width: 0.9rem;
+  height: 3px;
+  display: inline-block;
+}
+.fig-legend i.dashed {
+  background: none !important;
+  border-top: 2px dashed var(--lm-muted);
+  height: 0;
+}
+.fig-legend b {
+  color: var(--lm-text);
+  font-weight: 500;
+}
+.fig-legend .at {
+  margin-left: auto;
+}
+
+/* ---- the stage strip --------------------------------------------------- */
+
+.stages-wrap {
+  margin: 1.8rem 0;
+}
+.stages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.6rem, 1fr));
+  gap: 0.5rem;
+}
+.stage {
+  margin: 0;
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 0.25rem;
+  padding: 0.5rem 0.55rem 0.55rem;
+  background: var(--lm-panel);
+  border: 1px solid var(--lm-border);
+  border-radius: 3px;
+  min-width: 0;
+}
+.stage[data-sounding] {
+  border-color: var(--lm-accent);
+  box-shadow: inset 0 0 0 1px var(--lm-accent);
+}
+.stage-step {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.45rem;
+  font-family: var(--lm-font-mono);
+  font-size: 0.66rem;
+  color: var(--lm-dim);
+}
+.stage-picture {
+  position: relative;
+  height: 46px;
+  background: var(--lm-bg);
+  border: 1px solid var(--lm-grid-line-strong);
+}
+.stage-picture canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.stage-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.stage-origin {
+  font-size: 0.68rem;
+  line-height: 1.3;
+  color: var(--lm-muted);
+  padding-left: 0.7rem;
+  position: relative;
+}
+.stage-origin::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.32em;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--lm-dim);
+}
+.stage-origin[data-origin='device']::before {
+  background: var(--sig-out);
+}
+.stage-origin[data-origin='kit']::before {
+  background: var(--sig-alt);
+}
+.stage-origin[data-origin='engine']::before {
+  background: var(--sig-ctl);
+}
+.stage-origin[data-origin='lesson']::before {
+  background: none;
+  border: 1.5px solid var(--lm-muted);
+}
+.stage-kind {
+  font-size: 0.68rem;
+  color: var(--lm-dim);
+  font-family: var(--lm-font-mono);
+}
+.stage-listen,
+.listen,
+.control-choices button,
+.control-reset {
+  font: inherit;
+  color: inherit;
+  background: var(--lm-raised);
+  border: 1px solid var(--lm-hairline);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.stage-listen {
+  font-size: 0.76rem;
+  padding: 0.25rem 0.5rem;
+  min-height: 1.9rem;
+}
+.stage-listen:hover:not(:disabled),
+.listen:hover:not(:disabled) {
+  border-color: var(--lm-accent);
+}
+.stage-listen[aria-pressed='true'],
+.listen[aria-pressed='true'] {
+  background: var(--lm-accent);
+  border-color: var(--lm-accent);
+  color: #fff;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.listen {
+  font-size: 0.88em;
+  padding: 0.05rem 0.5rem;
+  white-space: nowrap;
+}
+
+/* ---- controls ---------------------------------------------------------- */
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.35rem 1.4rem;
+  margin: 1rem 0 1.4rem;
+  padding: 0.7rem 0.8rem;
+  background: var(--lm-panel);
+  border: 1px solid var(--lm-border);
+  border-radius: 3px;
+}
+.control {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0 0.5rem;
+  min-width: 0;
+}
+.control-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.control-value {
+  font-family: var(--lm-font-mono);
+  font-size: 0.78rem;
+  color: var(--lm-control-value);
+  text-align: right;
+}
+.control input[type='range'] {
+  grid-column: 1 / 3;
+}
+.control-reset {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  line-height: 1;
+}
+.control-choices {
+  grid-column: 2 / 4;
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  /* Makes up for the last column's and the last row's pull below. */
+  padding: 0 1px 1px 0;
+}
+/* Many choices go onto a second row in a narrow window. Each keeps its whole border and is
+   drawn over its neighbour's by one pixel, so a row that wraps still has a left edge. */
+.control-choices button {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.6rem;
+  min-height: 1.9rem;
+  border-radius: 0;
+  margin: 0 -1px -1px 0;
+}
+.control-choices button[aria-checked='true'] {
+  background: var(--lm-text);
+  border-color: var(--lm-text);
+  color: var(--lm-bg);
+  position: relative;
+}
+input[type='range'] {
+  width: 100%;
+  accent-color: var(--lm-accent);
+  margin: 0.15rem 0;
+  min-height: 1.5rem;
+}
+
+/* ---- the lab's word on itself ------------------------------------------ */
+
+.check {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.8rem;
+  align-items: baseline;
+  margin: 1rem 0;
+  padding: 0.5rem 0.8rem;
+  border-left: 3px solid var(--sig-ctl);
+  background: var(--lm-panel);
+  font-size: 0.86rem;
+}
+.check b {
+  font-family: var(--lm-font-mono);
+  font-weight: 500;
+}
+.claim {
+  border-bottom: 1px dotted var(--lm-dim);
+}
+.aside {
+  margin: 1.4rem 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--lm-border);
+  border-left: 3px solid var(--lm-text);
+  font-size: 0.92rem;
+}
+.aside > :last-child {
+  margin-bottom: 0;
+}
+.aside .label {
+  margin: 0 0 0.3rem;
+}
+.math {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.3rem 0;
+  margin: 1rem 0;
+}
+.katex {
+  font-size: 1.08em;
+}
+.files {
+  font-size: 0.9rem;
+}
+
+/* ---- the play bar ------------------------------------------------------ */
+
+.playbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  padding: 0.5rem max(1rem, calc((100vw - var(--wide)) / 2));
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  background: var(--lm-raised);
+  border-top: 1px solid var(--lm-hairline);
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.06);
+  font-size: 0.8rem;
+}
+.playbar-play {
+  font: inherit;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 5.4rem;
+  min-height: 2.3rem;
+  padding: 0.3rem 0.9rem;
+  color: #fff;
+  background: var(--lm-accent);
+  border: 1px solid var(--lm-accent);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.playbar-play[data-playing] {
+  background: var(--lm-text);
+  border-color: var(--lm-text);
+  color: var(--lm-bg);
+}
+.playbar-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.playbar-field label {
+  font-family: var(--lm-font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--lm-muted);
+}
+.playbar select {
+  font: inherit;
+  color: inherit;
+  background: var(--lm-bg);
+  border: 1px solid var(--lm-hairline);
+  border-radius: 2px;
+  padding: 0.3rem 0.4rem;
+  min-height: 2.1rem;
+  max-width: 13rem;
+}
+.playbar-volume input {
+  width: 6rem;
+}
+.playbar-meter {
+  width: 3.2rem;
+  height: 6px;
+  background: var(--lm-meter-track);
+  overflow: hidden;
+}
+.playbar-meter span {
+  display: block;
+  height: 100%;
+  background: var(--lm-meter);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.playbar-status {
+  margin-left: auto;
+  font-family: var(--lm-font-mono);
+  font-size: 0.68rem;
+  color: var(--lm-muted);
+}
+.playbar-status[data-status='failed'],
+.playbar-message {
+  color: var(--lm-danger);
+}
+
+/* ---- the bench --------------------------------------------------------- */
+
+.bench {
+  margin: 1.2rem 0;
+}
+.bench-bar {
+  margin-bottom: 0.7rem;
+}
+.bench-note {
+  color: var(--lm-muted);
+  font-size: 0.86rem;
+  margin: 0.5rem 0 0;
+}
+/* A plate is as wide as its knobs need: it scrolls in its own box and never widens the page. */
+.bench-plate {
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+  font-size: var(--lm-font-size);
+  line-height: normal;
+}
+.bench button.button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ---- from lesson to lesson --------------------------------------------- */
+
+.lesson-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--lm-border);
+}
+.lesson-nav a {
+  text-decoration: none;
+  font-weight: 600;
+}
+.lesson-nav a[rel='next'] {
+  text-align: right;
+}
+.lesson-nav .label {
+  display: block;
+  font-weight: 400;
+}
+
+@media (max-width: 640px) {
+  .fig figcaption,
+  .fig-legend {
+    padding-left: 0;
+  }
+  .stages {
+    grid-template-columns: repeat(auto-fill, minmax(7.4rem, 1fr));
+  }
+  .playbar {
+    gap: 0.35rem 0.6rem;
+  }
+  .playbar-status,
+  .playbar-meter {
+    display: none;
+  }
+  .playbar select {
+    max-width: 8.2rem;
+  }
+  .playbar-volume input {
+    width: 4.4rem;
+  }
+  body:has(.playbar) .site-footer {
+    padding-bottom: 9rem;
+  }
+}

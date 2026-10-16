@@ -1,0 +1,11 @@
+---
+// A box beside the run of the text: <Aside title="What goes wrong">…</Aside>
+interface Props {
+  title: string
+}
+---
+
+<aside class="aside">
+  <p class="label">{Astro.props.title}</p>
+  <slot />
+</aside>

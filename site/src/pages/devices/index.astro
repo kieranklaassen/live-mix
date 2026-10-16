@@ -1,0 +1,58 @@
+---
+import '../../styles/devices.css'
+import Base from '../../layouts/Base.astro'
+import { catalogue, families } from '../../lib/devices'
+import { href } from '../../lib/paths'
+
+const grouped = families()
+const count = catalogue().length
+---
+
+<Base
+  title="Devices"
+  description="Every instrument and effect the library ships, by family, with each control explained."
+  indexed={false}
+>
+  <div class="prose">
+    <h1>Devices</h1>
+    <p class="lede">
+      The {count} instruments and effects the library ships. Each has a page with what it does,
+      every control, its presets and where its code is.
+    </p>
+  </div>
+
+  <nav aria-label="Families">
+    <ul class="family-nav">
+      {grouped.map((family) => (
+        <li>
+          <a href={`#${family.id}`}>
+            {family.label}
+            <span class="count">{family.devices.length}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+
+  {grouped.map((family) => (
+    <section class="family" aria-labelledby={family.id}>
+      <h2 id={family.id}>
+        {family.label}
+        <span class="count">{family.devices.length}</span>
+      </h2>
+      <ul class="device-list">
+        {family.devices.map((device) => (
+          <li>
+            <a href={href(`devices/${device.id}/`)}>
+              <span class="name">
+                {device.name}
+                {device.experimental && <span class="label">Experimental</span>}
+              </span>
+              <span class="what">{device.description}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+</Base>

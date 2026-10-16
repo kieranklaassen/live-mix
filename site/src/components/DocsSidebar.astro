@@ -1,0 +1,55 @@
+---
+import { docPath } from '../lib/doc-routes'
+import type { NavGroup } from '../lib/docs-nav'
+import { href } from '../lib/paths'
+
+interface Props {
+  groups: NavGroup[]
+  /** The id of the doc being read. */
+  current: string
+}
+const { groups, current } = Astro.props
+const here = (id: string) => (id === current ? 'page' : undefined)
+
+// The menu is written open, so the list is there without scripts, and kept out of the search
+// index, where it would repeat on every page. Its script runs before paint: a narrow screen starts
+// with the list folded, so the page opens on its text; a wide one shows it beside the text, with
+// the page being read scrolled into sight.
+---
+
+<details class="docs-menu" open data-pagefind-ignore>
+  <summary>All docs</summary>
+  <nav class="docs-nav" aria-label="Docs">
+    <a class="docs-nav-top" href={href(docPath('index'))} aria-current={here('index')}>
+      Overview
+    </a>
+    {groups.map((group) => (
+      <>
+        <p class="label">{group.title}</p>
+        <ul>
+          {group.items.map((item) => (
+            <li>
+              <a href={href(docPath(item.id))} aria-current={here(item.id)}>
+                {item.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </>
+    ))}
+  </nav>
+</details>
+<script is:inline>
+  ;(function () {
+    var menu = document.currentScript.previousElementSibling
+    var narrow = window.matchMedia('(max-width: 56em)')
+    function set() {
+      menu.open = !narrow.matches
+    }
+    set()
+    narrow.addEventListener('change', set)
+    var nav = menu.querySelector('nav')
+    var link = nav.querySelector('[aria-current]')
+    if (link) nav.scrollTop = link.offsetTop - nav.clientHeight / 2
+  })()
+</script>

@@ -1,0 +1,106 @@
+/*
+ * The docs' frame: the list of docs beside the text on a wide screen, folded above it on a
+ * narrow one. The breakpoint is also in DocsSidebar.astro's script.
+ */
+.docs {
+  display: grid;
+  grid-template-columns: 14.5rem minmax(0, 1fr);
+  gap: 3rem;
+  align-items: start;
+}
+.docs-page {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+/* A name in a table stays in one piece; a table too wide for that scrolls inside itself. */
+.docs-page :is(td, th) code {
+  overflow-wrap: normal;
+}
+
+.docs-menu {
+  position: sticky;
+  top: 4.5rem;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+.docs-menu > summary {
+  display: none;
+}
+.docs-nav {
+  /* Its own scroll: the list is longer than most screens are tall. */
+  position: relative;
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.5rem;
+}
+.docs-nav ul {
+  list-style: none;
+  margin: 0 0 1.4rem;
+  padding: 0;
+}
+.docs-nav li {
+  margin: 0;
+}
+.docs-nav .label {
+  margin: 0 0 0.4rem;
+}
+.docs-nav a {
+  display: block;
+  padding: 0.3rem 0 0.3rem 0.7rem;
+  border-left: 2px solid var(--lm-border);
+  color: var(--lm-muted);
+  text-decoration: none;
+}
+.docs-nav a:hover {
+  color: var(--lm-text);
+}
+.docs-nav a[aria-current='page'] {
+  color: var(--lm-text);
+  border-left-color: var(--lm-accent);
+  font-weight: 600;
+}
+.docs-nav .docs-nav-top {
+  margin-bottom: 1.4rem;
+}
+
+@media (max-width: 56em) {
+  .docs {
+    display: block;
+  }
+  .docs-menu {
+    position: static;
+    margin-bottom: 1.75rem;
+    border: 1px solid var(--lm-border);
+    border-radius: var(--lm-radius);
+    background: var(--lm-panel);
+  }
+  .docs-menu > summary {
+    display: block;
+    padding: 0.7rem 0.9rem;
+    cursor: pointer;
+    font-family: var(--lm-font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--lm-muted);
+  }
+  .docs-menu > summary::after {
+    content: '+';
+    float: right;
+  }
+  .docs-menu[open] > summary::after {
+    content: '−';
+  }
+  .docs-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+  .docs-nav {
+    max-height: none;
+    padding: 0.4rem 0.9rem 0.2rem;
+    border-top: 1px solid var(--lm-border);
+  }
+  .docs-nav a {
+    padding-block: 0.5rem;
+  }
+}

@@ -1,0 +1,32 @@
+---
+import { href } from '../lib/paths'
+
+const here = Astro.url.pathname
+const links = [
+  { to: 'lessons/', name: 'Lessons' },
+  { to: 'docs/', name: 'Docs' },
+  { to: 'devices/', name: 'Devices' },
+  { to: 'api/', name: 'API' },
+]
+---
+
+<header class="site-header">
+  <div class="inner">
+    <a class="wordmark" href={href()}>
+      live-mix
+    </a>
+    <nav class="site-nav" aria-label="Site">
+      {links.map((link) => (
+        <a href={href(link.to)} aria-current={here.startsWith(href(link.to)) ? 'page' : undefined}>
+          {link.name}
+        </a>
+      ))}
+      <a
+        href={href('search/')}
+        aria-current={here.startsWith(href('search/')) ? 'page' : undefined}
+      >
+        Search
+      </a>
+    </nav>
+  </div>
+</header>

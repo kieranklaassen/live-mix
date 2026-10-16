@@ -1,0 +1,9 @@
+---
+// A quantity the lesson states: <Claim id="ratio-4">3 dB over</Claim>. A test must carry the
+// same id in its name, or `pnpm check` fails (scripts/check-claims.mjs).
+interface Props {
+  id: string
+}
+---
+
+<span class="claim" data-claim={Astro.props.id}><slot /></span>

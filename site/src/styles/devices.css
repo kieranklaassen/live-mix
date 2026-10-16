@@ -1,0 +1,137 @@
+/* The device catalogue: the index by family, and a device's page. Tokens are site.css's. */
+
+/* Index */
+.family-nav {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.family-nav li {
+  margin: 0;
+}
+.family-nav a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+.family-nav a:hover {
+  border-color: var(--lm-accent);
+}
+.count {
+  font-family: var(--lm-font-mono);
+  font-size: 0.72rem;
+  color: var(--lm-muted);
+}
+.family h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+/* Two columns where there is room, one on a phone; a row is never wider than the screen. */
+.device-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: 0 2.5rem;
+}
+.device-list li {
+  margin: 0;
+  border-bottom: 1px solid var(--lm-border);
+}
+.device-list a {
+  display: block;
+  height: 100%;
+  padding: 0.7rem 0.25rem;
+  text-decoration: none;
+}
+.device-list a:hover {
+  background: var(--lm-panel);
+  color: inherit;
+}
+.device-list .name {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-weight: 600;
+}
+.device-list .what {
+  display: block;
+  color: var(--lm-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+/* A device's page */
+.device .crumb a {
+  text-decoration: none;
+}
+.device .lede {
+  max-width: var(--measure);
+}
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.35rem 1.25rem;
+  margin: 1.5rem 0;
+  font-size: 0.92rem;
+}
+.facts dt {
+  color: var(--lm-muted);
+}
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.device .note {
+  max-width: var(--measure);
+  color: var(--lm-muted);
+  font-size: 0.92rem;
+}
+/* Five columns do not fit a phone: the table keeps its width and scrolls inside .table-scroll. */
+.param-table {
+  min-width: 44rem;
+  width: 100%;
+}
+.param-table tbody th,
+.preset-table tbody th {
+  color: var(--lm-text);
+  font-size: 1em;
+}
+.param-table tbody th code {
+  display: block;
+  width: fit-content;
+  margin-top: 0.2rem;
+  font-weight: 400;
+  color: var(--lm-muted);
+}
+.param-table .n {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.param-table .range {
+  min-width: 7rem;
+}
+.param-table .what {
+  min-width: 16rem;
+}
+.preset-table {
+  width: 100%;
+  max-width: var(--measure);
+}
+.preset-table td {
+  color: var(--lm-muted);
+}
+.preset-table tbody th {
+  white-space: normal;
+  min-width: 7rem;
+}

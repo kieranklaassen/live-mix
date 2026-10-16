@@ -1,0 +1,31 @@
+---
+// The windows of overlapping frames and their sum:
+// <OverlappingWindows windows="windows" sum="windowSum" xTitle="milliseconds">Caption.</OverlappingWindows>
+import OverlappingWindows from '../../figures/OverlappingWindows.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  /** A frames tap: a column for each frame's window. */
+  windows: string
+  /** A curve tap: all of them added. */
+  sum: string
+  min?: number
+  max?: number
+  xTitle?: string
+  height?: number
+  label?: string
+}
+const { windows, sum, label, ...rest } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const [family] = tapRefs(`${windows}:alt`, lab.taps, lesson)
+const [total] = tapRefs(`${sum}:out`, lab.taps, lesson)
+const said = label ?? `${family.name}, and ${total.name.toLowerCase()}`
+---
+
+<figure class="fig">
+  <OverlappingWindows client:visible windows={family} sum={total} label={said} {...rest} />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

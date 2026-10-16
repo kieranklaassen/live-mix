@@ -1,0 +1,29 @@
+---
+// Signals against time: <Wave taps="in out" from={1} span={0.05}>Caption.</Wave>
+import Wave from '../../figures/Wave.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  taps: string
+  from?: number
+  span?: number
+  fit?: boolean
+  stems?: boolean
+  channel?: number
+  height?: number
+  /** What the picture shows, for a reader who cannot see it; made from the taps' names when left out. */
+  label?: string
+}
+const { taps, label, ...rest } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const refs = tapRefs(taps, lab.taps, lesson)
+const said = label ?? `${refs.map((tap) => tap.name).join(' and ')} against time`
+---
+
+<figure class="fig">
+  <Wave client:visible taps={refs} label={said} {...rest} />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

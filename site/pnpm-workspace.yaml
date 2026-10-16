@@ -1,0 +1,7 @@
+# The site is a project of its own. This file makes pnpm stop here instead of
+# walking up to the library's workspace, so the site has its own lockfile and
+# the library's install never sees the site's packages (docs/site.md).
+packages:
+  - .
+onlyBuiltDependencies:
+  - esbuild

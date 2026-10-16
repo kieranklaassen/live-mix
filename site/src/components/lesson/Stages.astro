@@ -1,0 +1,16 @@
+---
+// The stages of the technique, in the signal's order: <Stages taps="in sidechain level gain out" />
+import StageStrip from '../../figures/StageStrip.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  taps: string
+}
+const { lab, lesson } = pageLab(Astro.locals)
+const refs = tapRefs(Astro.props.taps, lab.taps, lesson, false)
+---
+
+<div class="stages-wrap">
+  <StageStrip client:load taps={refs} />
+</div>

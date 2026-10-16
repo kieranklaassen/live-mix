@@ -38,6 +38,8 @@ export default tseslint.config(
       '.changeset/**',
       'playground/dist/**',
       'browser-tests/.build/**',
+      // The site is a project of its own, with its own checks (docs/site.md).
+      'site/**',
     ],
   },
   js.configs.recommended,

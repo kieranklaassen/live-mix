@@ -1,0 +1,38 @@
+---
+// How much of each frequency: <Spectrum taps="in out" uprights="cutoff">Caption.</Spectrum>
+import Spectrum from '../../figures/Spectrum.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { controlPairs, pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  taps: string
+  min?: number
+  max?: number
+  fMin?: number
+  fMax?: number
+  linear?: boolean
+  /** Controls in hertz drawn as an upright line, by id. */
+  uprights?: string
+  height?: number
+  label?: string
+}
+const { taps, uprights, label, ...rest } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const refs = tapRefs(taps, lab.taps, lesson)
+const said = label ?? `The spectrum of ${refs.map((tap) => tap.name).join(' and ')}`
+// Read by the play bar when it starts the lab: a spectrum is worked out only of a sound named here.
+const sounds = refs.filter((tap) => tap.kind === 'audio').map((tap) => tap.id)
+---
+
+<figure class="fig" data-spectrum-taps={sounds.length > 0 ? sounds.join(' ') : undefined}>
+  <Spectrum
+    client:visible
+    taps={refs}
+    uprights={controlPairs(uprights, lab, lesson)}
+    label={said}
+    {...rest}
+  />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

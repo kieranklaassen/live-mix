@@ -1,0 +1,49 @@
+---
+// The bins of a frame as vectors that turn and add up to it:
+// <TurningVectors real="real" imag="imag" frame="windowed" rebuilt="rebuilt" count="keep">Caption.</TurningVectors>
+import TurningVectors from '../../figures/TurningVectors.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { controlPairs, pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  /** Curve taps of the bins' real and imaginary parts, bin 0 to bin N/2. */
+  real: string
+  imag: string
+  /** Curve taps of N samples: what the bins were made from, and the same rebuilt from the bins kept. */
+  frame: string
+  rebuilt: string
+  /** The control that says how many bins are kept, by id. */
+  count: string
+  height?: number
+  label?: string
+}
+const { real, imag, frame, rebuilt, count, label, ...rest } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const [realRef, imagRef, frameRef, rebuiltRef] = tapRefs(
+  `${real} ${imag} ${frame}:in ${rebuilt}:out`,
+  lab.taps,
+  lesson,
+)
+const [pair] = controlPairs(count, lab, lesson)
+if (!realRef || !imagRef || !frameRef || !rebuiltRef || !pair) {
+  throw new Error(`${lesson}: <TurningVectors> needs real, imag, frame, rebuilt and count.`)
+}
+const said =
+  label ?? `The bins of ${frameRef.name} as turning vectors, and ${rebuiltRef.name} beside them`
+---
+
+<figure class="fig">
+  <TurningVectors
+    client:visible
+    real={realRef}
+    imag={imagRef}
+    frame={frameRef}
+    rebuilt={rebuiltRef}
+    count={pair}
+    label={said}
+    {...rest}
+  />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

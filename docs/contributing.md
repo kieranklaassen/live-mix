@@ -71,6 +71,7 @@ cpp/
   test/               native parity harnesses
 scripts/              build.mjs, build-wasm.sh, build-faust.sh, test-native.sh, check-pack.mjs, ci-local.sh
 docs/                 this documentation; docs/api is generated
+site/                 the public site (not published with the package): lessons, docs as pages, device pages; its own package.json and lockfile (docs/site.md)
 .changeset/           one entry per PR
 ```
 
@@ -143,6 +144,11 @@ it; `docs/README.md` is the map. Prettier checks Markdown, so run
 files under `examples/readme/`: edit the file, then paste it into the block
 that follows its `<!-- example: … -->` marker — `pnpm typecheck` compiles the
 files against `src/` and `pnpm test` fails when a block and its file differ.
+
+Every file here but `docs/plans/` and `docs/solutions/` is also a page of the
+public site, built from the Markdown where it lies; a link between two docs is
+a link between their pages there. [site.md](./site.md) covers the site, and
+`site/LESSONS.md` how a lesson is written.
 
 ## Releasing
 
