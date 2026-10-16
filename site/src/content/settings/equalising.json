@@ -1,0 +1,143 @@
+{
+  "tile": {
+    "values": { "lowCut": 80, "low": 5, "body": -6, "presence": 6, "air": 4, "highCut": 14000 },
+    "tap": "out",
+    "picture": {
+      "taps": ["respLow", "respBody", "respPresence", "respAir", "curveDevice"],
+      "view": "curve"
+    }
+  },
+  "sets": {
+    "mix": {
+      "label": "The mix as it is",
+      "source": "mix",
+      "tap": "in"
+    },
+    "cutaway": {
+      "label": "Everything under 500 Hz cut away",
+      "values": {
+        "lowCut": 500,
+        "low": 0,
+        "body": 0,
+        "presence": 0,
+        "air": 0,
+        "highCut": 20000
+      },
+      "source": "mix"
+    },
+    "dip": {
+      "label": "One band turned down",
+      "values": { "lowCut": 20, "low": 0, "body": -8, "presence": 0, "air": 0, "highCut": 20000 },
+      "source": "mix"
+    },
+    "drums": {
+      "label": "Drums",
+      "values": { "lowCut": 30, "low": 3, "body": -4, "presence": 3, "air": 4, "highCut": 20000 },
+      "source": "drums"
+    },
+    "bass": {
+      "label": "Bass",
+      "values": { "lowCut": 30, "low": 2, "body": -4, "presence": 4, "air": 0, "highCut": 6000 },
+      "source": "bass"
+    },
+    "chords": {
+      "label": "Strummed guitar",
+      "values": { "lowCut": 100, "low": 0, "body": -4, "presence": 3, "air": 2, "highCut": 20000 },
+      "source": "chords"
+    },
+    "pad": {
+      "label": "A pad at the back",
+      "values": {
+        "lowCut": 120,
+        "low": 0,
+        "body": 0,
+        "presence": -8,
+        "air": -8,
+        "highCut": 6000
+      },
+      "source": "pad"
+    },
+    "whole": {
+      "label": "The whole mix, a little",
+      "values": {
+        "lowCut": 25,
+        "low": 1.5,
+        "body": -1.5,
+        "presence": 0,
+        "air": 2,
+        "highCut": 20000
+      },
+      "source": "mix"
+    },
+    "cutfirst": {
+      "label": "A cut where it was too much",
+      "values": { "lowCut": 20, "low": 0, "body": -5, "presence": 0, "air": 0, "highCut": 20000 },
+      "source": "mix"
+    },
+    "bottom": {
+      "label": "The bottom cleared",
+      "values": { "lowCut": 100, "low": 0, "body": 0, "presence": 0, "air": 0, "highCut": 20000 },
+      "source": "chords"
+    },
+    "find": {
+      "label": "A narrow boost, to search with",
+      "values": { "bellHz": 320, "bellGain": 12, "bellQ": 8 },
+      "source": "chords",
+      "tap": "bell"
+    },
+    "narrow": {
+      "label": "A narrow cut",
+      "values": { "bellHz": 320, "bellGain": -9, "bellQ": 4 },
+      "source": "mix",
+      "tap": "bell"
+    },
+    "ride": {
+      "label": "Clear, all the way up",
+      "values": {
+        "lowCut": 20,
+        "low": 0,
+        "body": 0,
+        "presence": 0,
+        "air": 0,
+        "highCut": 20000,
+        "clear": 1
+      },
+      "source": "pad"
+    },
+    "ring": {
+      "label": "A narrow boost that rings",
+      "values": { "bellHz": 1000, "bellGain": 12, "bellQ": 10 },
+      "source": "clicks",
+      "tap": "bell"
+    },
+    "over": {
+      "label": "Two boosts, over full scale",
+      "values": { "lowCut": 20, "low": 12, "body": 0, "presence": 0, "air": 12, "highCut": 20000 },
+      "source": "mix"
+    },
+    "thin": {
+      "label": "Too much cut away",
+      "values": {
+        "lowCut": 280,
+        "low": 0,
+        "body": 0,
+        "presence": 3,
+        "air": 0,
+        "highCut": 3500
+      },
+      "source": "mix"
+    }
+  },
+  "defaults": {
+    "values": {
+      "lowCut": 20,
+      "low": 0,
+      "body": 0,
+      "presence": 0,
+      "air": 0,
+      "highCut": 20000,
+      "clear": 0.4,
+      "clearTime": 1.5
+    }
+  }
+}

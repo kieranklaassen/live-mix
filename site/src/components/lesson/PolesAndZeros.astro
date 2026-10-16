@@ -1,0 +1,62 @@
+---
+// A filter's zeros and poles on the plane, beside the curve they make:
+// <PolesAndZeros roots="bellRoots" response="bellResponse">Caption.</PolesAndZeros>
+// `roots` is a curve tap of nine values (two zeros and two poles, each as across and up, then
+// b0) and `response` a curve tap of the filter's level in dB against hertz. The picture is drawn
+// when the site is built, at the lab's starting values, so it is in the page with scripts off;
+// once the lab runs it follows the controls, and the reader moves a frequency round the circle.
+import { getEntry } from 'astro:content'
+import PolesAndZeros from '../../figures/PolesAndZeros.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+import { renderStill } from '../../lib/still.ts'
+
+interface Props {
+  /** The curve tap that says where the zeros and the poles stand. */
+  roots: string
+  /** The curve tap of the filter's response. */
+  response: string
+  label?: string
+}
+const { roots, response, label } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const [rootsRef, responseRef] = tapRefs(`${roots} ${response}:out`, lab.taps, lesson)
+if (!rootsRef || !responseRef)
+  throw new Error(`${lesson}: <PolesAndZeros> needs roots and response.`)
+const entry = await getEntry('lessons', lesson)
+if (!entry) throw new Error(`${lesson}: <PolesAndZeros> was used on a page that is not a lesson's.`)
+// The lab at its starting values on the lesson's first source, as the opening picture renders it.
+const { result } = await renderStill({
+  lab: entry.data.lab,
+  source: entry.data.sources[0]!,
+  seconds: entry.data.seconds,
+})
+const where = result.taps[rootsRef.id]
+const curve = result.taps[responseRef.id]
+const rounded = (data: Float32Array | undefined, digits: number) =>
+  Array.from(data ?? [], (value) => Number(value.toFixed(digits)))
+const built = {
+  roots: rounded(where?.channels_data[0], 6),
+  response: rounded(curve?.channels_data[0], 3),
+  x0: curve?.x0 ?? 20,
+  x1: curve?.x1 ?? 20000,
+}
+if (built.roots.length !== 9) {
+  throw new Error(`${lesson}: the tap "${rootsRef.id}" does not hold two zeros, two poles and b0.`)
+}
+const said =
+  label ?? `${rootsRef.name}, and ${responseRef.name.toLowerCase()} as a curve against frequency`
+---
+
+<figure class="fig">
+  <PolesAndZeros
+    client:visible
+    roots={rootsRef}
+    response={responseRef}
+    built={built}
+    label={said}
+  />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

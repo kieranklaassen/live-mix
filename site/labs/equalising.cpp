@@ -5,13 +5,14 @@
 //   in ─► low cut ─► low ─► body ─► presence ─► air ─► high cut ─┬─► Clear's cuts ─► out
 //         two Svf    shelf   bell     bell     shelf   one Svf   └─► (the device listens here)
 //
-// Three things run here.
+// Four things run here.
 //
 // 1. One bell by itself: the kit's Biquad with its frequency, gain and Q free
 //    ("kit"). Its impulse response gives its curve, its phase and its ring.
 //    The same coefficients run as the difference equation is written, four
 //    remembered samples, and a check holds that to the form the kit runs.
-//    Half of the coefficients at a time give the zeros' curve and the poles'.
+//    Half of the coefficients at a time give the zeros' curve and the poles',
+//    and the roots of the two halves are where its zeros and its poles stand.
 //
 // 2. The device, one sample at a time ("device"): its output, the signal it
 //    hands to Clear (it keeps the last 4096 samples of that for its
@@ -25,8 +26,25 @@
 //    device ("curveError"). The two part company far down a cut's slope,
 //    where the biquads' rounding shows, so the check looks down to -20 dB.
 //
+// 4. The build part (lab::Build in lab.h): an equaliser put together a piece
+//    at a time, on a path of its own beside the device. It has five pieces,
+//    in the order the steps add them: one biquad, with the five numbers of a
+//    wire; a bell, which is a recipe for the five numbers, used twice; the
+//    shelves, another recipe, used twice; the cuts, a third recipe, in seven
+//    biquads by now; and the chain as the device runs it, where the cuts are
+//    the kit's state-variable filters and a band that does nothing is not in
+//    circuit. The biquad and the three recipes are written out here
+//    ("lesson"), the same arithmetic in the same order as the kit's. Two
+//    copies of the path run: one at the step the reader chose, which the
+//    "built" taps show, and one with all five pieces, whose output is
+//    compared on every render with the signal the device hands to Clear (the
+//    "builtDifference" check). A step before the last is the lesson's own: an
+//    equaliser with a piece missing, which the device never is.
+//
 // Clear's listener is read too: the power it measured in each band, and (a
 // local of the device, worked out again here) the level a band must pass.
+// How a cut follows what Clear asks for is worked out from the device's own
+// two coefficients.
 
 #include "lab.h"
 
@@ -43,14 +61,12 @@ constexpr int kImpulseMax = 16384;  // 0.34 s: the longest response kept
 constexpr int kPoints = 241;        // of a curve from 20 Hz to 20 kHz
 constexpr int kRingPoints = 2048;   // 42.7 ms of the bell's ring
 constexpr int kOctavePoints = 121;  // of a curve from 3 octaves under a centre to 1 over
-// Clear moves at its quickest here, so that a loop of four seconds shows it;
-// the device's own default is 1.5 s.
-constexpr float kClearSeconds = 0.2f;
+constexpr float kGlideSeconds = 6.0f;  // of a cut asked for and then let go
 float impulse_[kImpulseMax];
 
-lab::Control bell_hz{"bellHz", "Frequency", "Hz", 100.0f, 20000.0f, 1000.0f, lab::kLog};
-lab::Control bell_gain{"bellGain", "Gain", "dB", -12.0f, 12.0f, 6.0f};
-lab::Control bell_q{"bellQ", "Q", "", 0.3f, 10.0f, 2.0f, lab::kLog};
+// The device's own controls, in the device's order. Clear starts at 0, so the
+// plain bands show first, and Clear time at its quickest, so that a loop of
+// four seconds shows it move; the device's own defaults are 0.4 and 1.5 s.
 lab::Control low_cut{"lowCut", "Low cut", "Hz", 20.0f, 500.0f, 40.0f, lab::kLog};
 lab::Control low{"low", "Low", "dB", -12.0f, 12.0f, 4.0f};
 lab::Control body{"body", "Body", "dB", -12.0f, 12.0f, -5.0f};
@@ -58,7 +74,13 @@ lab::Control presence{"presence", "Presence", "dB", -12.0f, 12.0f, 5.0f};
 lab::Control air{"air", "Air", "dB", -12.0f, 12.0f, 3.0f};
 lab::Control high_cut{"highCut", "High cut", "Hz", 1000.0f, 20000.0f, 16000.0f, lab::kLog};
 lab::Control clear{"clear", "Clear", "", 0.0f, 1.0f, 0.0f};
+lab::Control clear_time{"clearTime", "Clear time", "s", 0.2f, 8.0f, 0.2f, lab::kLog};
+// One bell of the kit's, by itself, with nothing fixed.
+lab::Control bell_hz{"bellHz", "Frequency", "Hz", 100.0f, 20000.0f, 1000.0f, lab::kLog};
+lab::Control bell_gain{"bellGain", "Gain", "dB", -12.0f, 12.0f, 6.0f};
+lab::Control bell_q{"bellQ", "Q", "", 0.3f, 10.0f, 2.0f, lab::kLog};
 
+// The output is the last sound of the main path: a card that names no tap plays it.
 lab::Tap in_tap{"in", "Input", lab::kAudio, lab::kSource, 2};
 lab::Tap after_low_cut{"afterLowCut", "After the low cut", lab::kAudio, lab::kKit, 2};
 lab::Tap after_low{"afterLow", "After Low", lab::kAudio, lab::kKit, 2};
@@ -66,13 +88,15 @@ lab::Tap after_body{"afterBody", "After Body", lab::kAudio, lab::kKit, 2};
 lab::Tap after_presence{"afterPresence", "After Presence", lab::kAudio, lab::kKit, 2};
 lab::Tap after_air{"afterAir", "After Air", lab::kAudio, lab::kKit, 2};
 lab::Tap after_high_cut{"afterHighCut", "After the high cut", lab::kAudio, lab::kKit, 2};
-lab::Tap out_tap{"out", "Output", lab::kAudio, lab::kDevice, 2};
 lab::Tap bell_tap{"bell", "Through one bell", lab::kAudio, lab::kKit, 2};
+lab::Tap removed{"removed", "The difference: input less output", lab::kAudio, lab::kLesson, 2};
+lab::Tap out_tap{"out", "Output", lab::kAudio, lab::kDevice, 2};
 
 lab::Tap bell_ring{"bellRing", "What the bell adds to one sample", lab::kCurve, lab::kKit, 1};
 lab::Tap bell_response{"bellResponse", "The bell", lab::kCurve, lab::kKit, 1, "dB"};
 lab::Tap bell_zeros{"bellZeros", "Its zeros alone", lab::kCurve, lab::kLesson, 1, "dB"};
 lab::Tap bell_poles{"bellPoles", "Its poles alone", lab::kCurve, lab::kLesson, 1, "dB"};
+lab::Tap bell_roots{"bellRoots", "Where the bell's zeros and poles stand", lab::kCurve, lab::kLesson, 1};
 lab::Tap bell_phase{"bellPhase", "The bell's phase", lab::kCurve, lab::kKit, 1, "°"};
 lab::Tap bell_at_one{"bellAtOne", "The bell at 1 kHz", lab::kCurve, lab::kKit, 1, "dB"};
 lab::Tap bell_high{"bellHigh", "The same bell at 12 kHz", lab::kCurve, lab::kKit, 1, "dB"};
@@ -91,6 +115,7 @@ lab::Tap band_power{"bandPower", "What Clear hears in each band", lab::kCurve, l
 lab::Tap band_margin{"bandMargin", "What a band must rise above", lab::kCurve, lab::kLesson, 1, "dB"};
 lab::Tap clear_depth{"clearDepth", "Clear's deepest cut", lab::kControl, lab::kDevice, 1, "dB"};
 lab::Tap resp_clear{"respClear", "Clear's cuts at their deepest", lab::kCurve, lab::kKit, 1, "dB"};
+lab::Tap clear_glide{"clearGlide", "A cut asked for, then let go", lab::kCurve, lab::kLesson, 1, "dB"};
 
 lab::Check forms{"forms", "The equation as written against the form the kit runs", "dB"};
 lab::Check pole_radius{"poleRadius", "How far from the centre the bell's poles stand (the circle is 1)", ""};
@@ -100,6 +125,199 @@ lab::Check cut_forms{"cutForms", "How far the low cut from two biquads strays fr
 lab::Check curve_error{"curveError", "The device's measured curve against the bands' curves added, down to −20 dB",
                        "dB"};
 lab::Check rebuilt{"rebuilt", "The chain built from the kit's filters against the device's own signal", "dB"};
+
+lab::Tap built{"built", "The equaliser so far", lab::kAudio, lab::kLesson, 2};
+lab::Tap built_response{"builtResponse", "The curve so far", lab::kCurve, lab::kLesson, 1, "dB"};
+lab::Tap built_before{"builtBefore", "The curve one step back", lab::kCurve, lab::kLesson, 1, "dB"};
+
+// One biquad, as the kit runs it (kit::Biquad::process): five numbers and two
+// memories. Each output is the input times b0, and what the two memories
+// already hold of the samples before it.
+struct Section {
+  float b0 = 1.0f, b1 = 0.0f, b2 = 0.0f, a1 = 0.0f, a2 = 0.0f;  // these five are a wire
+  float z1 = 0.0f, z2 = 0.0f;
+
+  float run(float x) {
+    const float y = b0 * x + z1;
+    z1 = flush_denormal(b1 * x - a1 * y + z2);
+    z2 = flush_denormal(b2 * x - a2 * y);
+    return y;
+  }
+
+  // A recipe gives three numbers for the input and three for the output. The
+  // first of the output's is divided out, so five are left.
+  void set(float nb0, float nb1, float nb2, float na0, float na1, float na2) {
+    const float inverse = 1.0f / na0;
+    b0 = nb0 * inverse;
+    b1 = nb1 * inverse;
+    b2 = nb2 * inverse;
+    a1 = na1 * inverse;
+    a2 = na2 * inverse;
+  }
+
+  // A bell: a centre in hertz, a width as a Q and a gain in dB become the
+  // five numbers (kit::Biquad::set_peak).
+  void bell(float hz, float q, float db) {
+    const float w = kit::kTwoPi * hz / lab::kSampleRate;  // the centre, as an angle
+    const float cosw = std::cos(w);
+    const float alpha = std::sin(w) / (2.0f * q);    // the width
+    const float amp = std::pow(10.0f, db / 40.0f);   // half of the gain: one half goes each way
+    set(1.0f + alpha * amp, -2.0f * cosw, 1.0f - alpha * amp,  // the input's three: up by amp
+        1.0f + alpha / amp, -2.0f * cosw, 1.0f - alpha / amp);  // the output's three: down by amp
+  }
+
+  // A shelf: a corner in hertz and a gain in dB. `side` is 1 for a shelf that
+  // lifts the low end and -1 for one that lifts the high end: the same
+  // recipe with the sign of every cosine turned (kit::Biquad::set_low_shelf
+  // and set_high_shelf).
+  void shelf(float hz, float db, float side) {
+    const float w = kit::kTwoPi * hz / lab::kSampleRate;
+    const float cosw = side * std::cos(w);
+    const float alpha = std::sin(w) / (2.0f * kit::kSqrtHalf);  // the steepest slope with no bump
+    const float amp = std::pow(10.0f, db / 40.0f);
+    const float beta = 2.0f * std::sqrt(amp) * alpha;
+    set(amp * ((amp + 1.0f) - (amp - 1.0f) * cosw + beta),
+        side * 2.0f * amp * ((amp - 1.0f) - (amp + 1.0f) * cosw),
+        amp * ((amp + 1.0f) - (amp - 1.0f) * cosw - beta),
+        (amp + 1.0f) + (amp - 1.0f) * cosw + beta,
+        side * -2.0f * ((amp - 1.0f) + (amp + 1.0f) * cosw),
+        (amp + 1.0f) + (amp - 1.0f) * cosw - beta);
+  }
+
+  // A cut: a corner in hertz and a Q. `side` is 1 for a low cut, which lets
+  // nothing through at 0 Hz, and -1 for a high cut, which lets nothing
+  // through at half the sample rate (kit::Biquad::set_highpass and
+  // set_lowpass).
+  void cut(float hz, float q, float side) {
+    const float w = kit::kTwoPi * hz / lab::kSampleRate;
+    const float cosw = std::cos(w);
+    const float alpha = std::sin(w) / (2.0f * q);
+    const float edge = 1.0f + side * cosw;
+    set(edge * 0.5f, -side * edge, edge * 0.5f,   // the input's three: nothing at one end
+        1.0f + alpha, -2.0f * cosw, 1.0f - alpha);  // the output's three: the bell's, with no gain
+  }
+
+  void wire() {
+    b0 = 1.0f;
+    b1 = b2 = a1 = a2 = 0.0f;
+  }
+  void reset() { z1 = z2 = 0.0f; }
+};
+
+// The equaliser so far: the pieces there are, and through() to take a sample
+// of one channel along them.
+struct Built {
+  // The pieces, in the order the steps add them.
+  enum Piece : int { kBiquad = 0, kBell, kShelves, kCuts, kChain };
+
+  int pieces = kBiquad;
+  Section body_bell[2];      // the one biquad of the first step, and Body from the second
+  Section presence_bell[2];
+  Section low_shelf[2];
+  Section air_shelf[2];
+  Section low_cut_pair[2][2];  // the cuts as biquads, until the chain
+  Section high_cut_one[2];
+  kit::Svf low_cut_svf[2][2];  // the cuts as the device has them
+  kit::Svf high_cut_svf[2];
+  float out[2] = {0.0f, 0.0f};
+
+  // The chain's rule: a band at exactly 0 dB is not in circuit, and neither
+  // is a cut at the end of its range. Before the chain everything runs.
+  bool live(float db) const { return pieces < kChain || db != 0.0f; }
+  bool cutting_low() const { return low_cut.value > ambient_eq::kParamMin[ambient_eq::kLowCut]; }
+  bool cutting_high() const { return high_cut.value < ambient_eq::kParamMax[ambient_eq::kHighCut]; }
+
+  // The low cut: two filters in a row, 24 dB an octave between them. As the
+  // device has it, the kit's state-variable filter does the work. The device
+  // fades a cut in over 5 ms as it comes off its stop; here it is all the
+  // way in, and the sum is written as the device writes it.
+  float cut_low(int c, float x) {
+    if (pieces >= kChain) {
+      if (!cutting_low()) return x;
+      const float cut = low_cut_svf[c][1].highpass(low_cut_svf[c][0].highpass(x));
+      return x + 1.0f * (cut - x);
+    }
+    return pieces >= kCuts ? low_cut_pair[c][1].run(low_cut_pair[c][0].run(x)) : x;
+  }
+
+  // The high cut: one filter, 12 dB an octave.
+  float cut_high(int c, float x) {
+    if (pieces >= kChain) {
+      if (!cutting_high()) return x;
+      const float cut = high_cut_svf[c].lowpass(x);
+      return x + 1.0f * (cut - x);
+    }
+    return pieces >= kCuts ? high_cut_one[c].run(x) : x;
+  }
+
+  // One sample of one channel through the pieces built so far, in the order
+  // the device runs them. Each filter is handed what the one before it made.
+  float through(int c, float x) {
+    x = cut_low(c, x);
+    if (pieces >= kShelves && live(low.value)) x = low_shelf[c].run(x);
+    if (live(body.value)) x = body_bell[c].run(x);
+    if (pieces >= kBell && live(presence.value)) x = presence_bell[c].run(x);
+    if (pieces >= kShelves && live(air.value)) x = air_shelf[c].run(x);
+    return cut_high(c, x);
+  }
+
+  void run(float left, float right) {
+    out[0] = through(0, left);
+    out[1] = through(1, right);
+  }
+
+  // Give every filter there is so far its numbers, from the controls and the
+  // device's own constants.
+  void start(int pieces_) {
+    pieces = pieces_;
+    const float sr = lab::kSampleRate;
+    for (int c = 0; c < 2; ++c) {
+      body_bell[c].wire();
+      if (pieces >= kBell) {
+        body_bell[c].bell(AmbientEq::kBodyHz, AmbientEq::kBellQ, body.value);
+        presence_bell[c].bell(AmbientEq::kPresenceHz, AmbientEq::kBellQ, presence.value);
+      }
+      if (pieces >= kShelves) {
+        low_shelf[c].shelf(AmbientEq::kLowHz, low.value, 1.0f);
+        air_shelf[c].shelf(AmbientEq::kAirHz, air.value, -1.0f);
+      }
+      if (pieces >= kCuts) {
+        low_cut_pair[c][0].cut(low_cut.value, AmbientEq::kLowCutQ[0], 1.0f);
+        low_cut_pair[c][1].cut(low_cut.value, AmbientEq::kLowCutQ[1], 1.0f);
+        high_cut_one[c].cut(high_cut.value, kit::kSqrtHalf, -1.0f);
+      }
+      if (pieces >= kChain) {
+        low_cut_svf[c][0].set(low_cut.value, AmbientEq::kLowCutQ[0], sr);
+        low_cut_svf[c][1].set(low_cut.value, AmbientEq::kLowCutQ[1], sr);
+        high_cut_svf[c].set(high_cut.value, kit::kSqrtHalf, sr);
+      }
+    }
+    rest();
+  }
+
+  // Nothing is sounding: forget what the filters remember, as the device does.
+  void rest() {
+    for (int c = 0; c < 2; ++c) {
+      body_bell[c].reset();
+      presence_bell[c].reset();
+      low_shelf[c].reset();
+      air_shelf[c].reset();
+      low_cut_pair[c][0].reset();
+      low_cut_pair[c][1].reset();
+      high_cut_one[c].reset();
+      low_cut_svf[c][0].reset();
+      low_cut_svf[c][1].reset();
+      high_cut_svf[c].reset();
+    }
+  }
+};
+
+lab::Build build{"One biquad|A bell|The shelves|The cuts|The chain", Built::kChain, -120.0f,
+                 "The equaliser as built, all five pieces, against the signal the device hands to Clear"};
+
+Built shown;   // at the step the reader chose: what the built taps hold
+Built held;    // with every piece: what is compared with the device
+Built struck;  // one sample goes through this one, for a step's curve
 
 void configure(AmbientEq& device, float clear_value) {
   using namespace ambient_eq;
@@ -111,7 +329,7 @@ void configure(AmbientEq& device, float clear_value) {
   device.set_param(kAir, air.value);
   device.set_param(kHighCut, high_cut.value);
   device.set_param(kClear, clear_value);
-  device.set_param(kClearTime, kClearSeconds);
+  device.set_param(kClearTime, clear_time.value);
 }
 
 // A tone stage as the device designs it (AmbientEq::design_tone).
@@ -179,6 +397,12 @@ int capture_device(AmbientEq& device) {
 
 void curve(lab::Tap& tap, int count) { lab::response_tap(tap, impulse_, count, kPoints); }
 
+// The curve of the build with `pieces` of its pieces: one sample through it.
+void built_curve(lab::Tap& tap, int pieces) {
+  struck.start(pieces);
+  curve(tap, capture([](float v) { return struck.through(0, v); }));
+}
+
 // The turn a filter gives each frequency, in degrees, from its impulse
 // response: the angle of the same sum lab::response_tap takes the size of.
 void phase_tap(lab::Tap& tap, const float* h, int count) {
@@ -219,6 +443,24 @@ float worst_apart(const lab::Tap& a, const lab::Tap& b, float floor_db) {
   return worst;
 }
 
+// The two roots of z^2 + p z + q, written as two points (across, up): a pair
+// that mirror each other across the level line when the square root would be
+// of a negative number, and two points on that line when it would not.
+void roots(double p, double q, float* into) {
+  const double under = p * p - 4.0 * q;
+  if (under < 0.0) {
+    const double up = 0.5 * std::sqrt(-under);
+    into[0] = into[2] = static_cast<float>(-0.5 * p);
+    into[1] = static_cast<float>(up);
+    into[3] = static_cast<float>(-up);
+  } else {
+    const double root = std::sqrt(under);
+    into[0] = static_cast<float>(0.5 * (-p + root));
+    into[2] = static_cast<float>(0.5 * (-p - root));
+    into[1] = into[3] = 0.0f;
+  }
+}
+
 // Everything about the one bell that is not the loop.
 void study_bell(const kit::Biquad& designed) {
   kit::Biquad filter;
@@ -255,8 +497,43 @@ void study_bell(const kit::Biquad& designed) {
   const float zeros = designed.b2 / designed.b0;
   zero_radius.value = zeros > 0.0f ? std::sqrt(zeros) : 0.0f;
 
+  // Where they stand: the zeros are the roots of b0 z^2 + b1 z + b2, the
+  // poles the roots of z^2 + a1 z + a2. Nine numbers: two zeros and two
+  // poles, each as (across, up), and then b0.
+  if (bell_roots.open(9)) {
+    float points[8];
+    roots(static_cast<double>(designed.b1) / designed.b0, static_cast<double>(designed.b2) / designed.b0, points);
+    roots(designed.a1, designed.a2, points + 4);
+    bell_roots.x0 = 0.0f;
+    bell_roots.x1 = 8.0f;
+    for (int n = 0; n < 8; ++n) bell_roots.set(n, points[n]);
+    bell_roots.set(8, designed.b0);
+  }
+
   octave_curve(bell_at_one, 1000.0f);
   octave_curve(bell_high, 12000.0f);
+}
+
+// How a cut of Clear's follows what is asked of it (AmbientEq::listen): 12 dB
+// asked for at once and held for half of the picture, then nothing asked.
+// Each frame the cut goes a fixed share of the way to what is asked, a larger
+// share on the way down than on the way back, and within 0.01 dB of nothing
+// it lets go.
+void glide() {
+  const float frames_per_second = lab::kSampleRate / AmbientEq::kHop;
+  const int count = static_cast<int>(kGlideSeconds * frames_per_second) + 1;
+  if (!clear_glide.open(count)) return;
+  clear_glide.x0 = 0.0f;
+  clear_glide.x1 = static_cast<float>(count - 1) / frames_per_second;
+  const float down = kit::time_to_coeff(clear_time.value, frames_per_second);
+  const float back = kit::time_to_coeff(2.0f * clear_time.value, frames_per_second);
+  float cut = 0.0f;
+  for (int n = 0; n < count; ++n) {
+    const float target = 2 * n < count ? -AmbientEq::kMaxExcessDb : 0.0f;
+    cut = target + (cut - target) * (target < cut ? down : back);
+    if (target == 0.0f && cut > -AmbientEq::kLetGoDb) cut = 0.0f;
+    clear_glide.set(n, cut);
+  }
 }
 
 }  // namespace
@@ -291,6 +568,13 @@ void lab_render(int frames) {
     high_cut_filter[c].set(high_cut.value, kit::kSqrtHalf, sr);
     for (int s = 0; s < AmbientEq::kStages; ++s) design_tone(tone[c][s], s, tone_db[s]);
   }
+
+  // --- 4. The build: at the reader's step, and whole -----------------------
+  const bool whole = build.at() == build.compared_step;
+  shown.start(build.at());
+  if (!whole) held.start(build.compared_step);
+  Built& compared = whole ? shown : held;
+  double built_diff = 0.0, built_ref = 0.0;
 
   // --- 2. The device -------------------------------------------------------
   configure(eq, clear.value);
@@ -337,6 +621,7 @@ void lab_render(int frames) {
     eq.in_right()[0] = in[1];
     eq.process(1);
     out_tap.put(i, eq.out_left()[0], eq.out_right()[0]);
+    removed.put(i, in[0] - eq.out_left()[0], in[1] - eq.out_right()[0]);
     clear_depth.put(i, eq.deepest_);
     if (kept && eq.deepest_ < deepest) {
       deepest = eq.deepest_;
@@ -402,7 +687,20 @@ void lab_render(int frames) {
         rebuilt_ref += static_cast<double>(device_tone[c]) * device_tone[c];
       }
     }
-    // Asleep, the device clears its filters; so does the copy.
+
+    // The build: the reader's step to the built tap, the whole one beside the device.
+    shown.run(in[0], in[1]);
+    built.put(i, shown.out[0], shown.out[1]);
+    if (!whole) held.run(in[0], in[1]);
+    if (kept) {
+      for (int c = 0; c < 2; ++c) {
+        const double d = static_cast<double>(compared.out[c]) - device_tone[c];
+        built_diff += d * d;
+        built_ref += static_cast<double>(device_tone[c]) * device_tone[c];
+      }
+    }
+
+    // Asleep, the device clears its filters; so do the copies.
     if (eq.idle_.asleep()) {
       for (int c = 0; c < 2; ++c) {
         low_cut_filter[c][0].reset();
@@ -410,10 +708,18 @@ void lab_render(int frames) {
         high_cut_filter[c].reset();
         for (kit::Biquad& stage : tone[c]) stage.reset();
       }
+      shown.rest();
+      if (!whole) held.rest();
     }
   }
   forms.value = lab::ratio_db(forms_diff, forms_ref);
   rebuilt.value = lab::ratio_db(rebuilt_diff, rebuilt_ref);
+  build.difference.value = lab::ratio_db(built_diff, built_ref);
+
+  // The build's curve at the reader's step and one step back: one sample
+  // through a fresh copy of each. The first step has nothing before it.
+  built_curve(built_response, build.at());
+  built_curve(built_before, build.at() > 0 ? build.at() - 1 : 0);
 
   // --- Each band's curve: one sample through its filter --------------------
   kit::Svf cut_a, cut_b;
@@ -505,4 +811,5 @@ void lab_render(int frames) {
             return v;
           }));
   }
+  glide();
 }
