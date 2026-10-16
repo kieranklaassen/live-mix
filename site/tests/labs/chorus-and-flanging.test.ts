@@ -209,6 +209,30 @@ describe('chorus and flanging', () => {
     expectWritten(notchNear(through, 1000).hz, '996 Hz')
   })
 
+  it('spaces the notches evenly in hertz, as worked by hand from the delay: half a cycle in 2.5 ms is a cycle in 5 ms, which is 200 Hz, and neighbours stand one over the delay, 400 Hz, apart all the way up the measured comb and the noise (claim notch-even)', async () => {
+    const theLab = await lab(NAME)
+    const delay = theLab.description.controls.find((one) => one.id === 'delayMs')!.initial
+    expectWritten(delay, '2.5 ms')
+    expectWritten(2 * delay, '5 ms')
+    expectWritten(1000 / (2 * delay), '200 Hz')
+    expectWritten(1000 / delay, '400 Hz')
+    // The comb as measured on the stopped device: ten notches under 4 kHz, each gap 400 Hz to
+    // within the two points that bound it, and 400 Hz on average.
+    const teeth = notchesOf(theLab.render(silence(seconds(0.1)), {}), 'comb', -10)
+    expect(teeth).toHaveLength(10)
+    for (let k = 1; k < teeth.length; k += 1) {
+      expect(Math.abs(teeth[k]!.hz - teeth[k - 1]!.hz - 400)).toBeLessThanOrEqual(BIN + 0.001)
+    }
+    expectWritten((teeth[9]!.hz - teeth[0]!.hz) / 9, '400 Hz')
+    // And on white noise through it: no gap is narrower or wider than the points allow.
+    theLab.render(await benchSource('noise', seconds(4)), {})
+    const through = theLab.spectrum('still')
+    const found = Array.from({ length: 10 }, (_, k) => notchNear(through, 200 + 400 * k).hz)
+    for (let k = 1; k < found.length; k += 1) {
+      expect(Math.abs(found[k]! - found[k - 1]! - 400)).toBeLessThanOrEqual(2 * BIN + 0.001)
+    }
+  })
+
   it('moves the notches when the delay moves: at 5 ms the first stands at 100 Hz and the rest at its odd multiples, on noise and on the measured comb (claim notch-moves)', async () => {
     const theLab = await lab(NAME)
     const source = await benchSource('noise', seconds(4))
@@ -224,12 +248,15 @@ describe('chorus and flanging', () => {
     teeth.forEach((tooth, k) => expect(Math.abs(tooth.hz - (2 * k + 1) * 100)).toBeLessThan(3))
   })
 
-  it('counts the teeth as the delay grows: one notch under 1 kHz at a delay of 1 ms, twelve at 12 ms and thirty at 30 ms (claim teeth-count)', async () => {
+  it('counts the teeth as the delay grows: one notch under 1 kHz at a delay of 1 ms, found at 501 Hz where the formula puts it at 500 Hz, twelve at 12 ms and thirty at 30 ms (claim teeth-count)', async () => {
     const theLab = await lab(NAME)
     const quiet = silence(seconds(0.1))
     const short = notchesOf(theLab.render(quiet, { delayMs: 1 }), 'teethFlanger', -10)
     expect(short).toHaveLength(1)
     expectWritten(short[0]!.hz, '501 Hz')
+    expectWritten(1000 / (2 * 1), '500 Hz')
+    // One point of that curve is 2.93 Hz, and the notch is found within one of the formula.
+    expect(Math.abs(short[0]!.hz - 500)).toBeLessThan(2.93)
     const medium = notchesOf(theLab.render(quiet, { chorusDelay: 12 }), 'teethChorus', -3)
     expect(medium).toHaveLength(12)
     const long = notchesOf(theLab.render(quiet, { chorusDelay: 30 }), 'teethChorus', -3)
@@ -276,9 +303,18 @@ describe('chorus and flanging', () => {
     }
   })
 
-  it('lands 58 dB under a gain of 1 from the formula when the delay falls between samples, at 2.6 ms (claim comb-error-between)', async () => {
+  it('parts from the formula by 58 dB under a gain of 1 at the furthest when the delay falls between samples, at 2.6 ms, and furthest at the right-hand end of the curve (claim comb-error-between)', async () => {
     const between = await combAt({ delayMs: 2.6 })
     expectWritten(-between.error, '58 dB')
+    // Where they part most: the last tenth of the curve, which runs to 3,996 Hz.
+    const formula = tap(between.out, 'combFormula')
+    let worst = 0
+    for (let k = 1; k < between.curve.length; k += 1) {
+      const apart = (j: number) =>
+        Math.abs(10 ** (between.curve[j]! / 20) - 10 ** (formula[j]! / 20))
+      if (apart(k) > apart(worst)) worst = k
+    }
+    expect(worst).toBeGreaterThan(0.9 * between.curve.length)
   })
 
   // ── Feedback ────────────────────────────────────────────────────────────
@@ -301,14 +337,40 @@ describe('chorus and flanging', () => {
     expectWritten(most.wet[0]!, '+26 dB')
   })
 
-  it('puts the first peak at 1,922 Hz, not 2,000 Hz, at the shortest delay, 0.5 ms, with Feedback at 90 %: the loop is one sample longer than the delay (claim loop-sample)', async () => {
+  it('finds the first peak at 1,922 Hz, not 2,000 Hz, at the shortest delay, 0.5 ms, with Feedback at 90 %: the loop is one sample longer than the delay, 25 samples, which is 1,920 Hz (claim loop-sample)', async () => {
     const short = await combAt({ delayMs: 0.5, feedback: 90 }, 3990)
     // Above 1 kHz, so the peak at 0 Hz is not the one found.
     let top = Math.ceil(1000 / BIN)
     for (let k = top; k * BIN < 3000; k += 1) if (short.curve[k]! > short.curve[top]!) top = k
-    expect(Math.abs(top * BIN - RATE / 25)).toBeLessThanOrEqual(BIN)
+    const loop = 0.5 * (RATE / 1000) + 1
+    expectWritten(loop, '25 samples')
+    expectWritten(RATE / loop, '1,920 Hz')
+    // The nearest point of the curve to that: half a point away at the most.
+    expect(Math.abs(top * BIN - RATE / loop)).toBeLessThanOrEqual(BIN / 2)
     expectWritten(top * BIN, '1,922 Hz')
     expect(matchesWritten(top * BIN, '2,000 Hz')).toBe(false)
+  })
+
+  it("holds a resonance with the loop's limiter: with Feedback at 95 %, a sine at a twentieth of full scale on the comb's first top, 396.7 Hz, comes back along the delayed path 20 times as large, +26 dB, and one at half of full scale 4.7 times as large (claim loop-limit)", async () => {
+    const theLab = await lab(NAME)
+    // The loop is 121 samples long at the starting Delay, and its first top is one cycle in that.
+    const top = RATE / 121
+    expectWritten(top, '396.7 Hz')
+    const back = (size: number) => {
+      const out = theLab.render(sine(top, size, seconds(4)), { feedback: 95, depth: 0 })
+      const settled = range(tap(out, 'flangerWet'), seconds(3))
+      return Math.max(settled.hi, -settled.lo)
+    }
+    const small = back(0.05)
+    expectWritten(small / 0.05, '20')
+    expectWritten(gainToDb(small / 0.05), '+26 dB')
+    const large = back(0.5)
+    expectWritten(large / 0.5, '4.7')
+    // What the loop adds to the sine itself stays under the limiter's ceiling of 2.
+    expect(large - 0.5).toBeLessThan(2)
+    expect(back(0.9) - 0.9).toBeLessThan(2)
+    // Without the limiter the larger sine would have come back at 10.
+    expect(matchesWritten(large / 0.5, '20')).toBe(false)
   })
 
   it('leaves −6.1 dB at the odd multiples with Feedback at −50 % (claim negative-half), a ripple of 1.1 dB under 1 kHz at −62 % (claim negative-flat), and peaks of +13.0 dB there at −90 % (claim negative-peaks)', async () => {
@@ -353,7 +415,7 @@ describe('chorus and flanging', () => {
     expect(furthestApart(tap(together, 'delayMs'), tap(together, 'delayMsRight'))).toBe(0)
   })
 
-  it('sweeps the lowest notch of noise between 136 Hz, where the delay is longest, and 381 Hz, where it is shortest, by the formula, and finds it less than 12 Hz from each (claim sweep-notch)', async () => {
+  it('sweeps the lowest notch of noise between 136 Hz, where the delay is longest, and 381 Hz, where it is shortest, by the formula, and finds it less than 12 Hz from each: 181 Hz above the 200 Hz it rests at, and 64 Hz below (claim sweep-notch)', async () => {
     const theLab = await lab(NAME)
     const source = await benchSource('noise', seconds(4))
     theLab.render(source, {})
@@ -369,7 +431,21 @@ describe('chorus and flanging', () => {
       let lowest = centre - 4
       for (let k = centre - 4; k <= centre + 4; k += 1) if (around[k]! < around[lowest]!) lowest = k
       expectWritten(Math.abs(lowest * BIN - expected), 'less than 12 Hz')
+      // And it is a notch: against the same stretch of the noise going in, it lies 6 dB or more
+      // under the points four either side of it.
+      const before = theLab.spectrum('in', 0, seconds(at - 0.15), seconds(0.3))
+      const change = (k: number) => around[k]! - before[k]!
+      expect(change(lowest)).toBeLessThan(change(lowest - 4) - 6)
+      expect(change(lowest)).toBeLessThan(change(lowest + 4) - 6)
     }
+    const rest = 1000 / (2 * 2.5)
+    expectWritten(rest, '200 Hz')
+    expectWritten(1000 / (2 * 1.3125) - rest, '181 Hz')
+    expectWritten(rest - 1000 / (2 * 3.6875), '64 Hz')
+    // The two delays are the ends of the read point's sweep, as the device used them.
+    const swept = range(tap(theLab.render(source, {}), 'delayMs'))
+    expect(swept.hi).toBeCloseTo(3.6875, 2)
+    expect(swept.lo).toBeCloseTo(1.3125, 2)
   })
 
   it("takes out the saw's odd harmonics with the delay at 4.55 ms: the 110 Hz fundamental more than 50 dB down, 220 Hz and 440 Hz less than 0.1 dB from where they were (claim saw-odd)", async () => {
@@ -445,11 +521,16 @@ describe('chorus and flanging', () => {
     const theLab = await lab(NAME)
     const source = await benchSource('noise', seconds(4))
     const read = tap(theLab.render(source, {}), 'delayMs')
-    let steepest = 0
+    let rising = 0
+    let falling = 0
     for (let i = 1; i < read.length; i += 1) {
-      steepest = Math.max(steepest, Math.abs(read[i]! - read[i - 1]!) / 1000 / POINT)
+      const slope = (read[i]! - read[i - 1]!) / 1000 / POINT
+      rising = Math.max(rising, slope)
+      falling = Math.max(falling, -slope)
     }
-    expectWritten(1200 * Math.log2(1 + steepest), '3.2 cents')
+    // A delay that shrinks plays sharp and one that grows plays flat: at most 3.2 cents each way.
+    expectWritten(1200 * Math.log2(1 + falling), '3.2 cents')
+    expectWritten(1200 * Math.log2(1 - rising), '−3.2 cents')
   })
 
   // ── The Chorus ──────────────────────────────────────────────────────────
@@ -594,23 +675,30 @@ describe('chorus and flanging', () => {
     expectWritten(-against(tap(out, 'chorus'), tap(out, 'in')), '3.4 dB')
   })
 
-  it('gives both sides the same samples at Spread 0 (claim spread-zero) and delayed halves whose correlation is under 0.02 from a Spread of 35 % up (claim spread-apart)', async () => {
+  it('gives both sides the same samples at Spread 0 when the sound going in is the same on both (claim spread-zero), and on such white noise delayed halves whose correlation is under 0.03 from a Spread of 10 % up (claim spread-apart)', async () => {
     const theLab = await lab(NAME)
     const source = monoNoise(seconds(4))
+    const sameOnBoth = (result: RenderResult, id: string) =>
+      tap(result, id, 0).every((v, i) => v === tap(result, id, 1)[i])
     for (const voiceChoice of [0, 1]) {
       const centre = theLab.render(source, { spread: 0, voices: voiceChoice })
-      expect(tap(centre, 'chorus', 0).every((v, i) => v === tap(centre, 'chorus', 1)[i])).toBe(true)
-      for (const amount of [35, 70, 100]) {
+      expect(sameOnBoth(centre, 'chorus')).toBe(true)
+      for (const amount of [10, 20, 35, 70, 100]) {
         const wide = theLab.render(source, { spread: amount, voices: voiceChoice })
+        expect(sameOnBoth(wide, 'chorus')).toBe(false)
         expectWritten(
           Math.abs(correlation(tap(wide, 'chorusWet', 0), tap(wide, 'chorusWet', 1))),
-          'under 0.02',
+          'under 0.03',
         )
       }
     }
+    // The page's own noise differs from side to side, and so does what comes out of it.
+    const stereo = theLab.render(await benchSource('noise', seconds(4)), { spread: 0 })
+    expect(sameOnBoth(stereo, 'in')).toBe(false)
+    expect(sameOnBoth(stereo, 'chorus')).toBe(false)
   })
 
-  it('gives each ear one voice at full Spread with two voices (claim one-each), the right ear a quarter of a cycle, 0.31 s, behind the left (claim two-sides)', async () => {
+  it('gives each ear one voice at full Spread with two voices (claim one-each), the right ear a quarter of a cycle behind the left, 0.31 s at a Chorus rate of 0.8 Hz (claim two-sides)', async () => {
     const theLab = await lab(NAME)
     const source = monoNoise(seconds(4))
     const out = await played(theLab, 'wide')
@@ -625,21 +713,48 @@ describe('chorus and flanging', () => {
     const right = risings(tap(out, 'voice2MsRight'), 12).find((t) => t > left)!
     expectWritten(right - left, '0.31 s')
     expect(right - left).toBeCloseTo(1.25 / 4, 3)
+    const rate = valuesOf(theLab, 'wide').chorusRate!
+    expectWritten(rate, '0.8 Hz')
+    // A quarter of a cycle, at that rate and at another.
+    expect((right - left) * rate).toBeCloseTo(0.25, 3)
+    const faster = theLab.render(source, { ...valuesOf(theLab, 'wide'), chorusRate: 2 })
+    const leftFaster = risings(tap(faster, 'voice1Ms'), 12).find((t) => t > 0.9)!
+    const rightFaster = risings(tap(faster, 'voice2MsRight'), 12).find((t) => t > leftFaster)!
+    expect((rightFaster - leftFaster) * 2).toBeCloseTo(0.25, 2)
+    // The right side is voice 2 and nothing else. The lab keeps one voice alone only for the
+    // left, so this is read with the voices held still, where both are the one delayed sound.
+    const held = theLab.render(source, { ...valuesOf(theLab, 'wide'), chorusDepth: 0 })
+    expect(differenceDb(tap(held, 'chorusWet', 1), tap(held, 'voice', 1))).toBeLessThan(-120)
   })
 
-  it("runs the right side's oscillator 63° ahead at a Spread of 70 %: it rises 0.219 s sooner (claim right-ahead)", async () => {
+  it("runs the right side's oscillator ahead of the left's: at a Spread of 70 % and a Chorus rate of 0.8 Hz the first voice's read point rises through its centre 0.219 s sooner on the right, 63° of the cycle, and at other Spreads and rates the right leads by Spread times a quarter of a cycle (claim right-ahead)", async () => {
     const theLab = await lab(NAME)
     const source = await benchSource('noise', seconds(4))
-    const out = theLab.render(source, {})
-    const left = risings(tap(out, 'voice1Ms'), 12).find((t) => t > 0.9)!
-    const right = risings(tap(out, 'voice1MsRight'), 12).find((t) => t > left - 0.6)!
-    expectWritten(0.7 * 90, '63°')
-    expectWritten(left - right, '0.219 s')
-    expect(left - right).toBeCloseTo((0.7 * 90) / 360 / 0.8, 3)
-    const full = theLab.render(source, { spread: 100 })
-    const leftFull = risings(tap(full, 'voice1Ms'), 12).find((t) => t > 0.9)!
-    const rightFull = risings(tap(full, 'voice1MsRight'), 12).find((t) => t > leftFull - 0.6)!
-    expect(leftFull - rightFull).toBeCloseTo(1.25 / 4, 3)
+    const start = (id: string) => theLab.description.controls.find((one) => one.id === id)!.initial
+    expectWritten(start('spread'), '70 %')
+    expectWritten(start('chorusRate'), '0.8 Hz')
+    /** How much sooner the right side's read point rises through `centre` than the left's, in seconds. */
+    const sooner = (values: Record<string, number>, centre: number, period: number) => {
+      const out = theLab.render(source, values)
+      const left = risings(tap(out, 'voice1Ms'), centre).find((t) => t > 2 * period)!
+      // The right side's last rise at or before the left's: under half a cycle sooner when it leads.
+      const right = risings(tap(out, 'voice1MsRight'), centre)
+        .filter((t) => t <= left)
+        .pop()!
+      return left - right
+    }
+    const lead = sooner({}, 12, 1.25)
+    expectWritten(lead, '0.219 s')
+    expectWritten(lead * 0.8 * 360, '63°')
+    // Were the right side behind by that angle, this would read 297° of the cycle and not 63°.
+    expect(lead * 0.8).toBeLessThan(0.5)
+    for (const [values, centre, rate, spread] of [
+      [{ spread: 100 }, 12, 0.8, 100],
+      [{ spread: 40, chorusRate: 2 }, 12, 2, 40],
+      [{ spread: 55, chorusRate: 1.3, chorusDepth: 90, chorusDelay: 20 }, 20, 1.3, 55],
+    ] as const) {
+      expect(sooner(values, centre, 1 / rate) * rate * 360).toBeCloseTo(0.9 * spread, 0)
+    }
   })
 
   // ── The build, a piece at a time ────────────────────────────────────────
@@ -734,7 +849,7 @@ describe('chorus and flanging', () => {
     expect(Math.max(7.5 - two.lo, two.hi - 7.5)).toBeLessThan(0.001)
   })
 
-  it('scales the sum of the read points at step 5: on white noise with Mix at 1, three that have drifted apart are less than 0.05 dB from the one of the step before, and three held still at Depth 0 are 4.8 dB over it (claim build-level)', async () => {
+  it('scales the sum of the read points at step 5: on white noise with Mix at 1, three that have drifted apart are less than 0.05 dB from the one of the step before, and three held still at Depth 0 are 4.8 dB over what went in, where the step before is less than 0.01 dB from it (claim build-level)', async () => {
     const theLab = await lab(NAME)
     const source = monoNoise(seconds(4))
     const over = (values: Record<string, number>, build: number) => {
@@ -745,11 +860,17 @@ describe('chorus and flanging', () => {
     expectWritten(Math.abs(over({}, 4)), 'less than 0.05 dB')
     expectWritten(Math.abs(over({ voices: 0 }, 4)), 'less than 0.05 dB')
     expectWritten(over({ depth: 0 }, 4), '4.8 dB')
-    // The piece off: one read point is as loud as itself.
-    expect(matchesWritten(over({ depth: 0 }, 3), '4.8 dB')).toBe(false)
+    // Held still, against the sound that went in, with the piece on and with it off.
+    const overInput = (build: number) => {
+      const out = theLab.render(source, { depth: 0, mix: 1, build })
+      return against(tap(out, 'built'), tap(out, 'in'))
+    }
+    expectWritten(overInput(4), '4.8 dB')
+    expect(matchesWritten(overInput(3), '4.8 dB')).toBe(false)
+    expectWritten(Math.abs(overInput(3)), 'less than 0.01 dB')
   })
 
-  it("lands on the engine's Chorus where the two can be set alike: held still at 10 ms with no Spread, the build's fifth step is more than 130 dB under the Chorus's output from it, and moving, its read points stand 0.03 ms from the Chorus's voices at most (claim build-chorus)", async () => {
+  it("lands on the engine's Chorus where the two can be set alike: held still at 10 ms with no Spread, the build's fifth step differs from the Chorus's output by a signal more than 130 dB under it, and moving at 0.8 Hz with a swing of 1.9 ms, its read points stand 0.03 ms from the Chorus's voices at most, though the two sounds are then not the same samples (claim build-chorus)", async () => {
     const theLab = await lab(NAME)
     const alike = { build: 4, delayMs: 10, stereo: 0, chorusDelay: 10, spread: 0 }
     for (const voices of [0, 1]) {
@@ -781,6 +902,17 @@ describe('chorus and flanging', () => {
           ...pairs.map(([built, voice]) => furthestApart(tap(moving, built!), tap(moving, voice!))),
         )
         expectWritten(worst, '0.03 ms')
+        // The setting the sentence names: both swing 1.9 ms about 10 ms, 0.8 times a second.
+        for (const id of ['builtDelay', 'voice1Ms']) {
+          expectWritten(range(tap(moving, id)).span / 2, '1.9 ms')
+          const rises = risings(tap(moving, id), 10)
+          expectWritten(1 / (rises.at(-1)! - rises.at(-2)!), '0.8 Hz')
+        }
+        // The read points are that close and the sounds are still not one: this step is held to
+        // the Chorus by its read points when it moves, and by its samples only when it is still.
+        if (id === 'noise') {
+          expect(differenceDb(tap(moving, 'built'), tap(moving, 'chorus'))).toBeGreaterThan(-20)
+        }
       }
     }
   })
@@ -837,12 +969,16 @@ describe('chorus and flanging', () => {
     expectWritten(-range(tap(out, 'cents1')).lo, '1.6 cents')
   })
 
-  it('on the pad sweeps the read point from 0.97 ms to 7.03 ms along a triangle (claim use-pad)', async () => {
+  it('on the pad sweeps the read point from 0.97 ms to 7.03 ms along a triangle, the longest delay more than seven times the shortest, which carries the lowest notch 2.9 octaves (claim use-pad)', async () => {
     const theLab = await lab(NAME)
     const out = await played(theLab, 'padSweep')
     expect(valuesOf(theLab, 'padSweep').shape).toBe(1)
     expectWritten(range(tap(out, 'delayMs')).lo, '0.97 ms')
     expectWritten(range(tap(out, 'delayMs')).hi, '7.03 ms')
+    const times = range(tap(out, 'delayMs')).hi / range(tap(out, 'delayMs')).lo
+    expect(times).toBeGreaterThan(7)
+    // A notch's frequency goes as one over the delay, so it travels the same ratio.
+    expectWritten(Math.log2(times), '2.9 octaves')
   })
 
   it('on the drums sweeps the read point from 0.50 ms to 2.50 ms (claim use-drums)', async () => {
@@ -927,18 +1063,49 @@ describe('chorus and flanging', () => {
     expectWritten(-range(tap(out, 'cents1')).lo, '295.8 cents')
   })
 
-  it('with Feedback at 95 %, rings on: 0.61 s after a single sample goes in, its returns are still a thousandth of the size of the first, 60 dB under it (claim fault-ring)', async () => {
+  it("held still, takes a pad's harmonics down beside its notches and up on its tops: the one at 129 Hz comes out 8 dB lower than it went in and the one at 164 Hz 2 dB higher (claim fault-stuck)", async () => {
+    const theLab = await lab(NAME)
+    expect(valuesOf(theLab, 'stuck')).toMatchObject({ chorusDepth: 0, chorusDelay: 12 })
+    await played(theLab, 'stuck')
+    const through = theLab.spectrum('chorus')
+    const before = theLab.spectrum('in')
+    const change = (hz: number) => through[Math.round(hz / BIN)]! - before[Math.round(hz / BIN)]!
+    // Both are harmonics of the pad: each stands over the points either side of it.
+    for (const hz of [129, 164]) {
+      const k = Math.round(hz / BIN)
+      expect(before[k]!).toBeGreaterThan(before[k - 1]!)
+      expect(before[k]!).toBeGreaterThan(before[k + 1]!)
+    }
+    expectWritten(-change(129), '8 dB')
+    expectWritten(change(164), '2 dB')
+    // The comb's second notch is at 125 Hz, and the top after it at 167 Hz.
+    expect(Math.abs(129 - 3 / (2 * 0.012))).toBeLessThan(5)
+    expect(Math.abs(164 - 2 / 0.012)).toBeLessThan(5)
+  })
+
+  it('with Feedback at 95 %, rings on: more than 0.4 s after a single sample goes in, wherever in the sweep it goes in, its returns are still a thousandth of the size of the first, 60 dB under it (claim fault-ring)', async () => {
     const theLab = await lab(NAME)
     const values = valuesOf(theLab, 'ringing')
     expect(values.feedback).toBe(95)
-    const out = theLab.render(click(seconds(4), 0, 0.5), values)
-    const wet = tap(out, 'flangerWet')
-    const first = range(wet, 0, 400)
-    const top = Math.max(first.hi, -first.lo)
-    let last = 0
-    for (let i = 0; i < wet.length; i += 1) if (Math.abs(wet[i]!) > top / 1000) last = i
-    expectWritten(last / RATE, '0.61 s')
+    /** How long after a single sample at `at` seconds its returns last stand over a thousandth of the first. */
+    const ring = (at: number) => {
+      const out = theLab.render(click(seconds(4), seconds(at), 0.5), values)
+      const wet = tap(out, 'flangerWet')
+      const first = range(wet, seconds(at), seconds(at) + 400)
+      const top = Math.max(first.hi, -first.lo)
+      let last = seconds(at)
+      for (let i = seconds(at); i < wet.length; i += 1) if (Math.abs(wet[i]!) > top / 1000) last = i
+      return { seconds: last / RATE - at, top }
+    }
+    // The read point moves on this card, so the ring is not one length: every quarter second
+    // of the first three, which is three quarters of the sweep's one cycle and both its ends.
+    const rings = Array.from({ length: 13 }, (_, k) => ring(k / 4).seconds)
+    for (const one of rings) expectWritten(one, 'more than 0.4 s')
+    // It is not one length: the longest is a tenth of a second or more over the shortest.
+    expect(Math.max(...rings) - Math.min(...rings)).toBeGreaterThan(0.1)
+    expect(Math.max(...rings)).toBeLessThan(0.9)
     expectWritten(-gainToDb(1 / 1000), '60 dB')
+    const { top } = ring(0)
     // With Feedback at half, the same returns are gone in a twentieth of a second.
     const half = theLab.render(click(seconds(4), 0, 0.5), { ...values, feedback: 50 })
     const mild = tap(half, 'flangerWet')
