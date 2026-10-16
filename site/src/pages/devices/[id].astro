@@ -2,6 +2,7 @@
 import '../../styles/devices.css'
 import '../../styles/lesson.css'
 import DeviceBench from '../../figures/DeviceBench.tsx'
+import Mark from '../../figures/Mark.astro'
 import PlayBar from '../../figures/PlayBar.tsx'
 import { SOURCES } from '../../lab/sources.ts'
 import Base from '../../layouts/Base.astro'
@@ -81,6 +82,7 @@ const sources = SOURCES.filter((source) =>
             ? 'The device itself, running in the engine in this page, played a short phrase that comes round.'
             : "The device itself, running in the engine in this page, on a loop the engine's own instruments play."}
         </p>
+        <Mark />
         <DeviceBench client:visible device={device.id} name={device.name} params={{}} as={as} />
       </section>
     )}

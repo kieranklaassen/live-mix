@@ -10,6 +10,7 @@ import Opening from '../../components/lesson/Opening.astro'
 import Part from '../../components/lesson/Part.astro'
 import Sounds from '../../components/lesson/Sounds.astro'
 import DeviceBench from '../../figures/DeviceBench.tsx'
+import Mark from '../../figures/Mark.astro'
 import PlayBar from '../../figures/PlayBar.tsx'
 import { catalogueEntry } from '../../lib/devices.ts'
 import { labInfo } from '../../lib/lab-info.ts'
@@ -148,6 +149,7 @@ const labTest = inRepo(`site/tests/labs/${data.lab}.test.ts`)
               <DeviceTable defaults={settings.defaults} />
             </>
           )}
+          {bench && <Mark />}
           {bench && (
             <DeviceBench
               client:visible
@@ -310,6 +312,7 @@ const labTest = inRepo(`site/tests/labs/${data.lab}.test.ts`)
               itself, running live through the engine as an app runs it, on the same loop.
             </p>
             {bench.note && <p>{bench.note}</p>}
+            <Mark />
             <DeviceBench
               client:visible
               device={bench.entry.id}
