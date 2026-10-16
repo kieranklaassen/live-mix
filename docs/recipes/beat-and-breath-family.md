@@ -48,6 +48,10 @@ White noise is one value a sample, so its level in each hertz falls 3 dB when th
 
 `low + band + high` is flat in level and turned in phase: an all-pass of the input, not the input. An effect built on it has no dry path beside it. Guard the input before the split (not a number becomes silence) and call `reset()` if a bad sample got by.
 
+## Room for a full pool
+
+An instrument turns the sum of its keys down by the root of their power once that passes one key's worth (Twin Bars counts each key's two low tones; Coloured Noise has one bed, as loud as its loudest key). Volume follows, and `kit::soft_clip` comes last: exactly linear to 0.5, bent from there to 1. That scale holds a full pool at full gain at or under the knee at the default patch, on a chord and with every id on one pitch, on every device but Twin Bars, whose overtones take sixteen ids on one pitch 2.9 dB over; that is all a harness proves. Two things are not in it: what a device adds beside the scaled keys (Binaural's bed, Isochronic's noise with Air part way, Breath Pacer's marks and air, Twin Bars' overtones) and a preset's Volume. So a preset is never assumed to stay under the knee: it is measured with a full pool at full gain, on a chord and with every id on one pitch. Measured so at 48 kHz, 30 of the family's 142 own presets and 51 of its 180 bank presets pass the knee, some from two or three keys; the figures are in [devices.md](../devices.md#the-beat-and-breath-devices-what-measurement-says-is-weak) and in each device's `WEAK.md`. The clip is a guard that presets do reach, not one that is never met.
+
 ## Checks every harness carries from its first version
 
 - Stepped silences (20 ms steps across fall time plus hold, and one long one) at block sizes 1, 128, 2048 and ragged, each against the 128-frame render to 1e-6, with a control moved inside the silence.
