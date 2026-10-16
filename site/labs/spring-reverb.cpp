@@ -99,13 +99,12 @@ lab::Tap out_tap{"out", "Output", lab::kAudio, lab::kDevice, 2};
 
 // One click through the springs alone.
 lab::Tap chirps{"chirps", "One click through the springs, left side", lab::kFrames, lab::kDevice, 1, "dB"};
-lab::Tap hit_left{"hitLeft", "One click, at the left output", lab::kCurve, lab::kDevice, 1};
-lab::Tap hit_right{"hitRight", "One click, at the right output", lab::kCurve, lab::kDevice, 1};
+lab::Tap hit_left{"hitLeft", "The left output after one click", lab::kCurve, lab::kDevice, 1};
+lab::Tap hit_right{"hitRight", "The right output after one click", lab::kCurve, lab::kDevice, 1};
 
 // The tank by itself.
-lab::Tap held_back{"heldBack", "How long the all-passes hold each frequency back, measured", lab::kCurve,
-                   lab::kDevice, 1, "ms"};
-lab::Tap held_back_formula{"heldBackFormula", "The same, by the formula", lab::kCurve, lab::kLesson, 1, "ms"};
+lab::Tap held_back{"heldBack", "The measured hold of the all-passes", lab::kCurve, lab::kDevice, 1, "ms"};
+lab::Tap held_back_formula{"heldBackFormula", "The hold by the formula", lab::kCurve, lab::kLesson, 1, "ms"};
 lab::Tap fall_low{"fallLow", "Energy still to come, below 1 kHz", lab::kCurve, lab::kDevice, 1, "dB"};
 lab::Tap fall_high{"fallHigh", "Energy still to come, above 2.5 kHz", lab::kCurve, lab::kDevice, 1, "dB"};
 
@@ -455,12 +454,25 @@ void ring(float low_rate, int factor) {
 // in time, of that answer's share at the frequency: the real part of
 // sum(n h[n] e^-jwn) over sum(h[n] e^-jwn).
 constexpr int kHeldPoints = 97;  // 0 Hz to the top of the tank's band, in steps of 50 Hz
-constexpr int kRing = 8192;      // samples of the tank: the all-passes have rung out by here
+constexpr int kRing = 8192;      // samples of the tank: the longest the all-passes are listened to
 
 float held_measured_[kHeldPoints];
 float held_written_[kHeldPoints];
 float held_worst_ = 0.0f;
 float held_for_ = -1.0f;  // the coefficient the last measurement was made at
+
+// True once every all-pass of a tank holds a number the engine itself counts
+// as nothing (flush_denormal). With the loop cut nothing tops them up: left
+// to run they shrink to the smallest numbers a float can hold and stay there,
+// and arithmetic on those is many times slower than on any other.
+bool rung_out(const SpringReverb& device) {
+  for (int m = 0; m < kStages; ++m) {
+    for (int n = 0; n < kCoils; ++n) {
+      if (flush_denormal(device.stage_[m][n]) != 0.0f) return false;
+    }
+  }
+  return true;
+}
 
 void measure_hold() {
   configure(opened, 1.0f);
@@ -471,10 +483,15 @@ void measure_hold() {
     static float h[kRing];
     for (int n = 0; n < kCoils; ++n) opened.spring_[n].gain = 0.0f;  // the loop, cut
     const float feed = opened.spring_[0].feed.value;
-    for (int i = 0; i < kRing; ++i) {
+    // The listening stops when the all-passes have rung out: what would
+    // follow is too small to move any sum below.
+    int listened = 0;
+    while (listened < kRing) {
       float left = 0.0f, right = 0.0f;
-      opened.tank(i == 0 ? 1.0f : 0.0f, &left, &right);
-      h[i] = opened.spring_[0].line.read(1) / feed;
+      opened.tank(listened == 0 ? 1.0f : 0.0f, &left, &right);
+      h[listened] = opened.spring_[0].line.read(1) / feed;
+      ++listened;
+      if (listened % 64 == 0 && rung_out(opened)) break;
     }
     held_worst_ = 0.0f;
     for (int p = 0; p < kHeldPoints; ++p) {
@@ -482,7 +499,7 @@ void measure_hold() {
       const double cw = std::cos(w), sw = std::sin(w);
       double c = 1.0, s = 0.0;
       double re = 0.0, im = 0.0, late_re = 0.0, late_im = 0.0;
-      for (int n = 0; n < kRing; ++n) {
+      for (int n = 0; n < listened; ++n) {
         re += h[n] * c;
         im -= h[n] * s;
         late_re += n * (h[n] * c);

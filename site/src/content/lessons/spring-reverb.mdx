@@ -42,12 +42,12 @@ A close microphone has no tail. An electric guitar has none either: its sound is
 
 Play the sound again a moment later. That is a delay line, the subject of <Lesson id="delay-and-echo" />: a memory that hands back what it was given, some time on.
 
-The picture below is what one delay line does to a click. A click is one sample that stands up from silence. It holds every frequency at once, so in a picture of frequency against time it is an upright stroke. One stroke goes in at the left edge. One stroke comes out, the same shape, later.
+The picture below is what one delay line does to a click. A click is one sample that stands up from silence. It holds every frequency at once, so in a picture of frequency against time it is an upright stroke. The click goes in at the left edge, where the picture starts. One stroke comes out, later and still upright.
 
 <Still
   taps="builtChirps"
   view="spectrogram"
-  caption="One click through a delay line and nothing else. Time runs across and frequency runs up. The click comes out as it went in: one upright stroke, every frequency at the same moment."
+  caption="One click through a delay line and nothing else. Time runs across and frequency runs up. The click comes out as it went in: one upright stroke, all of it at the same moment. The stroke stops short of the top of the picture, and part 2 says why."
 />
 
 That is an echo, and an echo is a copy. Feed the end of the line back into its start and there is a row of copies, evenly spaced. A row of drum hits a fixed time apart is a rattle. It does not sound like a place.
@@ -77,7 +77,7 @@ The low frequencies. In the springs of the engine's device, with the controls wh
   caption="One click through the engine's springs, left side. Each echo is a stroke that leans over to the right. Its foot, the low frequencies, arrives first, and its top trails behind. Each stroke leans further than the one before it, and is fainter."
 />
 
-A click that has been spread like this is no longer a click. The frequencies arrive one after another from low to high, which the ear hears as a quick rising whistle. It is called a chirp. Here is the wave itself:
+A click that has been spread like this is no longer a click. The frequencies arrive one after another from low to high. A sound like that is called a chirp, and the button under the next picture plays one: listen for a quick rising whistle. Here is the wave itself:
 
 <Still
   taps="hitLeft"
@@ -85,13 +85,13 @@ A click that has been spread like this is no longer a click. The frequencies arr
   caption="The same answer as a wave, over the stretch that holds its first three echoes. The bottom edge counts milliseconds. Each echo opens with its tallest swing and thins out into a tail of fine ripple: low frequencies first, high ones after. Each tail is longer than the one before it."
 />
 
-The first sound has the treble pushed up, so that the chirps are easy to hear. <Hear set="click" label="Hear a click through the springs" />
+This sound has Drip at its top, which pushes the treble up so that the chirps are easier to hear. <Hear set="click" label="Hear a click through the springs" />
 
 </Predict>
 
 Open the answer before reading on, because the rest of the lesson leans on it.
 
-Dispersion is what turns a row of copies into a tail. The first echo of a hit is already smeared. The second has been through the spring again and is smeared further. After a few trips the echoes are longer than the gaps between them, they run into one another, and what is left is a wash with a fizz at its top. It is not the sound of a room, and nobody who has heard both would confuse them. It is a sound of its own, and it became part of how an electric guitar is expected to sound.
+Dispersion is what turns a row of copies into a tail. The first echo of a hit is already smeared. The second has been through the spring again and is smeared further. After a few trips the echoes are longer than the gaps between them, they run into one another, and what is left is a wash with a fizz at its top. It is not the sound of a room. It is a sound of its own, and it became part of how an electric guitar is expected to sound.
 
 Here are the drums again with the springs behind them, at the settings the engine's device starts with. The stretch that measured −85 dB now measures <Claim id="sprung-gap">−33 dB</Claim>. <Hear set="sprung" label="Hear the drums with the springs" />
 
@@ -112,7 +112,7 @@ One picture holds most of what a spring reverb does. A single click goes into th
   between the first.
 </Spectrogram>
 
-Check this against the picture. Leave the three controls where the lesson starts them, and find where each stroke meets the bottom edge. <Claim id="strokes">The feet of the first three stand at 24 ms, 65 ms and 106 ms. At 3 kHz the same three strokes have reached 29 ms, 74 ms and 120 ms</Claim>. The bottom edge counts in seconds, so 24 ms is 0.024 on it.
+Check this against the picture. Leave the three controls where the lesson starts them, and find where each stroke meets the bottom edge. <Claim id="strokes">The feet of the first three, measured round 300 Hz, stand at 24 ms, 65 ms and 106 ms. At 3 kHz the same three strokes have reached 29 ms, 74 ms and 120 ms</Claim>. The bottom edge counts in seconds, so 24 ms is 0.024 on it.
 
 Four things can be read off those strokes, and each is a piece of the machine.
 
@@ -122,7 +122,7 @@ Each stroke leans. That is the dispersion: the higher a frequency, the longer th
 
 Each stroke leans further than the last. Every trip adds the same lean again. Measured on this answer, <Claim id="stretch">3 kHz trails 500 Hz by 9.3 ms in the second echo and by 13.9 ms in the third</Claim>, where in the first it trailed by 4.8 ms.
 
-Each stroke is fainter than the last, and the top fades sooner than the foot. Decay sets how much every trip keeps. Above the tops of the strokes there is nothing at all: the tank does not carry the highest frequencies, and stage 2 of part 5 says why, and where it stops.
+Each stroke is fainter than the last, and the top fades sooner than the foot. Decay sets how much every trip keeps. Above the tops of the strokes the picture is empty: the tank does not carry the highest frequencies, and stage 2 of part 5 says why, and where it stops.
 
 Notice what the picture leaves out. It is the answer to one click, and music is not clicks. Every sample of a played sound sets off a row of chirps of its own, and all of those rows are added together. The picture also shows one side only. On Two, where the lesson starts, the left side is one spring and the right side is another, a little shorter. Stage 7 of part 5 sets them side by side.
 
@@ -155,10 +155,10 @@ Each card below shows a sound with what the springs add drawn over it, lists a s
       set="kit"
       from={0}
       span={2}
-      caption="Two seconds of the drum loop, and what the springs add. Each hit is followed by a tail that has died away before the next bar."
+      caption="Two seconds of the drum loop, and what the springs add. Each hit is followed by a tail, and each tail has thinned before the next hit."
     />
 
-    Drum hits have silence between them, and silence is where a tail is heard. Decay is short here, so the tail has gone before the next hit needs the room. Tension is raised, which makes each echo a tight slap and keeps the long sweep away from the cymbals. The quietest fifth of a second between two hits <Claim id="use-kit">stood at −85 dB and now stands at −41 dB</Claim>.
+    Drum hits have silence between them, and silence is where a tail is heard. Decay is short here, so each tail is well on its way down before the next hit needs the room. Tension is raised, which makes each echo a tight slap and keeps the long sweep away from the cymbals. The quietest fifth of a second between two hits <Claim id="use-kit">stood at −85 dB and now stands at −41 dB</Claim>.
 
   </Use>
   <Use title="Strummed chords" set="chords">
@@ -166,7 +166,7 @@ Each card below shows a sound with what the springs add drawn over it, lists a s
       slot="picture"
       taps="in added"
       set="chords"
-      caption="Two chords, each left to ring, and what the springs add. The springs' line swells a moment after each strum and then falls more slowly than the chord does."
+      caption="Two chords, each left to ring, and what the springs add. The springs' line swells a moment after each strum and is still wide when the chord's own line has thinned."
     />
 
     A chord left to ring has a tail of its own, and the springs lengthen it. All three springs are on, Decay is long and Tone is low, which gives a dark wash under the chord. The pre-delay holds the springs back so that the strum is heard clean before the wash begins: <Claim id="use-chords">the foot of the first echo stands at 55 ms, where with no pre-delay it stood at 25 ms</Claim>.
@@ -180,7 +180,7 @@ Each card below shows a sound with what the springs add drawn over it, lists a s
       caption="A pad going in, and what the springs add. Neither line has a sharp edge anywhere: there is no front for the springs to splash on."
     />
 
-    A pad has no fronts, so there is nothing to chirp. What the springs give it is movement. On this card Tension is as high as it goes, which squeezes the chirp into the very top of the tank's band, and Tone is low enough to take that top away. What is left is a slow shimmer. It differs between the two sides, because with three springs each side hears its own.
+    A pad has no fronts, so there is nothing to chirp. What the springs give it is movement. On this card Tension is as high as it goes, which squeezes the chirp into the very top of the tank's band, and Tone is low enough to take that top away. Listen for what is left: a slow movement in the wash. It differs between the two sides, because with three springs each side hears its own.
 
   </Use>
 </Uses>
@@ -227,7 +227,7 @@ Two pictures follow each step. The lanes show the loop that is playing. The pict
   <Step title="A hundred all-passes" controls="tension">
     An all-pass filter lets every frequency through at full level. All it changes is when each one arrives. The smallest all-pass there is remembers one number, and it holds high frequencies back a little longer than low ones. <Lesson id="phasing" cap /> uses a few of the same filters for a different end.
 
-    One of them does nothing an ear could catch. The build puts <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="static constexpr int kStages = 100;">a hundred</Src> in a row ahead of the line, and their delays add up. <Claim id="build-disperse">The part of a click round 3 kHz now arrives 4.8 ms after the part round 500 Hz. Through the line alone the two arrived 0.3 ms apart</Claim>.
+    One of them does very little. The build puts <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="static constexpr int kStages = 100;">a hundred</Src> in a row ahead of the line, and their delays add up. <Claim id="build-disperse">The part of a click round 3 kHz now arrives 4.8 ms after the part round 500 Hz. Through the line alone the two arrived 0.3 ms apart</Claim>, which is the work of the filters on the way into the tank and out of it.
 
     In the listing `held` is the one number a filter remembers, and `a` is its coefficient, the same for all hundred. Tension sets it.
 
@@ -242,8 +242,9 @@ Two pictures follow each step. The lanes show the loop that is playing. The pict
     Listen again, for a short whistle on the front of each hit. There is still one arrival for each hit, and no tail.
 
     <Lanes slot="picture" taps="in built">
-      The sound going in and the sound so far. Notice that each hit of the second lane is lower and
-      wider than it was: the same energy, spread along time.
+      The sound going in and the sound so far. At this scale the second lane looks as it did at
+      step 1: the spread is a few thousandths of a second, too short to see across four seconds. The
+      picture below shows it.
     </Lanes>
 
     <Spectrogram slot="picture" tap="builtChirps" top={5000} min={-100} max={-40} height={200}>
@@ -287,7 +288,7 @@ Two pictures follow each step. The lanes show the loop that is playing. The pict
   <Step title="Damping" controls="tension decay">
     Something is wrong with the last step, though a third of a second of one click is too short to show it. Every trip costs every frequency the same share, and a high frequency takes longer over each trip. So it makes fewer trips in a second, and the top of the tail outlasts the bottom.
 
-    Steel does the opposite. It takes more from a fast vibration than from a slow one. So the build puts a one-pole low-pass, the filter of <Lesson id="one-pole" />, in the way back from the far end. <Claim id="build-damping">The tail round 3 kHz now falls 39.9 dB a second where it fell 21.8 dB a second. Round 600 Hz it falls 24.8 dB a second where it fell 23.6 dB</Claim>.
+    Steel does the opposite. It takes more from a fast vibration than from a slow one. So the build puts a one-pole low-pass, the filter of <Lesson id="one-pole" />, in the way back from the far end. <Claim id="build-damping">The tail of a click round 3 kHz now falls 40 dB a second where it fell 22 dB a second. Round 600 Hz it falls 25 dB a second where it fell 24 dB. Each rate is the level of the tail from 0.2 s to 0.6 s after the click, less its level a second later</Claim>.
 
     The piece is one line. How hard the filter leans on the treble is tied to Decay, so that a short decay is also a dull one. Stage 6 of part 5 has the formula.
 
@@ -316,7 +317,7 @@ Two pictures follow each step. The lanes show the loop that is playing. The pict
 
     The device keeps the loop from settling. It moves the far end of the line, slowly, by up to <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="static constexpr float kDriftSamples = 0.33f;">a third of a sample</Src> either way, so that no two trips are quite the same length. The movement is the sum of three slow sine waves whose rates share no common beat, which the kit calls <Src path="cpp/kit/lfo.h" at="class Drift {">Drift</Src>.
 
-    A third of a sample is very little, and it adds up over the trips. <Claim id="build-drift">Two identical clicks two seconds apart no longer get the same answer. Over the first tenth of a second, the difference between the two answers stands 5.3 dB under the answers themselves. Without this piece it stood more than 100 dB under them. All the while the far end stays less than 0.3 samples from its place</Claim>.
+    A third of a sample is very little, and it adds up over the trips. <Claim id="build-drift">Two identical clicks two seconds apart no longer get the same answer. Over the first tenth of a second, the difference between the two answers stands 5 dB under the answers themselves. Without this piece it stood more than 100 dB under them. All the while the far end stays less than 0.3 samples from its place</Claim>.
 
     <Listing
       path="site/labs/spring-reverb.cpp"
@@ -330,7 +331,7 @@ Two pictures follow each step. The lanes show the loop that is playing. The pict
 
     <Lanes slot="picture" taps="in builtWander built" ranges={{ builtWander: [-0.33, 0.33] }}>
       The sound going in, how far the far end has drifted, in samples, and the sound so far. Notice
-      how slowly the middle lane moves: it crosses its lane only a few times in the whole loop.
+      how slowly the middle lane moves: one dip and one rise in the whole loop.
     </Lanes>
 
   </Step>
@@ -402,14 +403,16 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     { id: 'sum', shape: 'sum', from: 'down', back: 'far' },
     { id: 'all', from: 'sum', label: '100 all-passes', n: 3 },
     { id: 'line', from: 'all', tap: 'pickup', label: 'Line and pickup', n: 4 },
-    { id: 'far', from: 'line', tap: 'returned', label: 'Far end', n: '5, 6' },
-    { id: 'up', row: 1, from: 'line', tap: 'toned', label: 'Up, Tone, level', n: 8 },
-    { id: 'mix', row: 1, from: ['up', 'split'], label: 'Width and mix', n: 9 },
-    { id: 'out', row: 1, tap: 'out', shape: 'end', from: 'mix' },
+    { id: 'far', row: 1, from: 'line', tap: 'returned', label: 'Far end', n: '5, 6' },
+    { id: 'up', from: 'line', tap: 'toned', label: 'Up, Tone, level', n: 8 },
+    { id: 'mix', from: ['up', 'split'], label: 'Width and mix', n: 9 },
+    { id: 'out', tap: 'out', shape: 'end', from: 'mix' },
   ]}
 >
-  The loop in the middle is one spring, and the device has three of them side by side, which is
-  stage 7. Press a stage's button below, and notice its block light up here.
+  The path that passes over the blocks without entering one is the dry sound. The loop that leaves
+  after the pickup for the far end and comes back to the plus sign is one spring, and the device
+  has three of them side by side, which is stage 7. Press a stage's button below, and notice its
+  block light up here.
 </Flow>
 
 <StageBlock tap="driven" n={1} title="The drive circuit: what the tank is given">
@@ -475,7 +478,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 </StageBlock>
 
 <StageBlock tap="lowered" n={2} title="Down to a fifth of the sample rate">
-  The hundred all-passes of each spring are most of what this device costs to run. The dispersion they model also has a top. Above a frequency called the transition frequency a real spring behaves differently, and its pickup gives little back. The device puts that frequency near <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="static constexpr float kTransitionHz = 4600.0f;">4,600 Hz</Src> and uses it to save work: the tank runs at a sample rate just high enough to carry sound up to there, and no higher.
+  The hundred all-passes of each spring are, by the note in the device's own source, <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="// loop is most of the device's cost.">most of what it costs to run</Src>. The dispersion they model also has a top. Above a frequency called the transition frequency a real spring behaves differently, and its pickup gives little back. The device puts that frequency near <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="static constexpr float kTransitionHz = 4600.0f;">4,600 Hz</Src> and uses it to save work: the tank runs at a sample rate just high enough to carry sound up to there, and no higher.
 
   Samples cannot simply be dropped. Anything above half the new rate would fold back down as tones that were not played, which is the aliasing of <Lesson id="samples-and-aliasing" />. So before the tank the sound goes through a steep low-pass: <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="static constexpr int kDownSections = 8;">eight</Src> two-pole sections in a row, with its corner <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="const float corner = 0.8f * 0.5f * low_rate_;">eight tenths of the way</Src> to half the tank's rate. Measured with steady tones, it takes <Claim id="down-corner">3.0 dB from a tone at 3,840 Hz and 32.7 dB from one at 4,800 Hz</Claim>.
 
@@ -483,12 +486,12 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     taps="driven lowered"
     view="spectrum"
     source="noise"
-    caption="White noise leaving the drive circuit, and the same noise on its way into the tank. The second line follows the first up to the corner and then falls away steeply. Nothing above the fall reaches the springs, and so nothing above it comes back."
+    caption="White noise leaving the drive circuit, and the same noise on its way into the tank. The second line follows the first up to the corner and then falls away steeply. Next to nothing above the fall reaches the springs, and so next to nothing above it comes back."
   />
 
   This is why the strokes of part 2 stop where they do. It is also why a spring reverb has no shimmer at the very top: the dry sound has to carry that.
 
-  The rate itself is two lines of the engine. The first is how many samples the tank skips:
+  The rate itself is two lines of the engine. The first is how many of the page's samples go by for each one the tank takes:
 
   <M block t={String.raw`K = \at{rate-factor}{\operatorname{round}\!\left(\frac{f_s}{2 \times 4600}\right)}`} />
 
@@ -614,9 +617,10 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <Trace taps="wander" min={-0.33} max={0.33} unit="samples">
     How far the first spring's far end stands from its place, in samples of the tank, across the
-    loop. Notice how slow it is, and that it does not come back to where it began: the drift does
-    not repeat with the loop.
+    loop. Notice how slow it is: one dip and one rise in the whole loop.
   </Trace>
+
+  The read between two samples first:
 
   <M
     slot="equation"
@@ -631,7 +635,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
     With <M t="d" /> at 1 the coefficient is 0, and <M t="b" /> is simply the sample one place further along. As <M t="d" /> shrinks, <M t={String.raw`\eta`} /> grows and more of the nearer sample is let in. It is an all-pass, so it loses nothing at any frequency, which a plain average of the two samples would.
 
-    The drift is added to <M t="L" /> on every sample of the tank: <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="static constexpr float kDriftSamples = 0.33f;">0.33</Src> of a sample times the kit's slow drift, which stays between about −1 and 1. Each spring drifts at <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="static constexpr float kDriftHz[kSprings] = {0.31f, 0.43f, 0.37f};">a rate of its own</Src>, so they do not move together. Over the four seconds of the drum loop the first spring's far end goes <Claim id="wander-range">0.26 samples one way and 0.30 samples the other</Claim>.
+    The drift is added to <M t="L" /> on every sample of the tank: <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="static constexpr float kDriftSamples = 0.33f;">0.33</Src> of a sample times the kit's slow drift. Its three sine waves are weighted <Src path="cpp/kit/lfo.h" at="static constexpr float kWeights[3] = {0.5f, 0.3f, 0.2f};">0.5, 0.3 and 0.2</Src>, so their sum stays between −1 and 1. Each spring drifts at <Src path="cpp/devices/spring-reverb/spring_reverb.h" at="static constexpr float kDriftHz[kSprings] = {0.31f, 0.43f, 0.37f};">a rate of its own</Src>, so they do not move together. Over the four seconds of the drum loop the first spring's far end goes <Claim id="wander-range">0.26 samples one way and 0.30 samples the other</Claim>.
   </Fragment>
 
   <Listing
@@ -724,9 +728,9 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     name="table"
   />
 
-  On Two the left output is the first spring and the right output is the second, whose round trip is shorter. <Claim id="second-spring">The right side's echoes come 36 ms apart, the first of them at 20.8 ms</Claim>, where the left's first came at 23.8 ms. Two sides that never quite agree are what makes a pair of springs sound wide.
+  On Two the left output is the first spring and the right output is the second, whose round trip is shorter. <Claim id="second-spring">Round 500 Hz the right side's echoes come 36 ms apart, the first of them at 20.8 ms</Claim>, where the left's first came at 23.8 ms. Two sides that differ are what gives a pair of springs its width.
 
-  The feeds fall as springs are added, so that three springs are not three times as loud. They do not fall far enough to make the settings equal. On One the single pickup is shared between the sides, half to each, and <Claim id="one-quieter">a click comes out 3.5 dB quieter on each side than on Two</Claim>.
+  The feeds fall as springs are added, so that three springs are not three times as loud. The settings still differ in level. On One the single pickup is shared between the sides, half to each, and <Claim id="one-quieter">a click comes out 3.5 dB quieter on each side than on Two</Claim>.
 
   <Listing
     slot="listing"
@@ -851,19 +855,19 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
 
 <Ways>
   <Way title="Splash on the attack" tag="Drip up, Tension down" set="splash">
-    Drip sends more treble into the tank, and a slack Tension spreads each echo into a long sweep. Together they make every picked note set off a splash, which is the sound most people mean by a spring. After the card, lower Drip a little at a time and listen for the splash shrinking while the wash behind it stays.
+    Drip sends more treble into the tank, and a slack Tension spreads each echo into a long sweep. Together they make every picked note set off a splash. After the card, lower Drip a little at a time and listen for the splash shrinking while the wash behind it stays.
   </Way>
   <Way title="Slack or taut" tag="Tension, from one end to the other" set="slack">
     Tension decides whether an echo is a sweep or a slap. <Claim id="way-slack">With Tension at 0 the part of the first echo round 3,500 Hz trails the part round 500 Hz by 10.2 ms, and with Tension at 1 by 5.8 ms</Claim>. The card is the slack end on the drums. After it, raise Tension to the top and listen for each sweep closing up.
   </Way>
   <Way title="Keep the note clear" tag="a pre-delay" set="clear">
-    A spring answers at once, and on a busy part its splash lands on top of the note that made it. A pre-delay moves the whole answer later and leaves the front of the note alone. On this card <Claim id="way-clear">the foot of the first echo stands at 104 ms, where without the pre-delay it stood at 24 ms</Claim>. Longer than that and the springs begin to sound like an echo of the part.
+    A spring answers at once, and on a busy part its splash lands on top of the note that made it. A pre-delay moves the whole answer later and leaves the front of the note alone. On this card <Claim id="way-clear">the foot of the first echo stands at 104 ms, where without the pre-delay it stood at 24 ms</Claim>. After the card, lengthen Pre-delay and listen for the point where the springs turn into an echo of the part.
   </Way>
   <Way title="A dark wash" tag="three springs, Tone down, Decay up" set="dark">
-    Tone takes the chirp away and leaves the body of the tail. With all three springs on and a long Decay, what remains is a dark wash that sits under held chords without drawing the ear. After the card, raise Tone and listen for the fizz coming back.
+    Tone takes the chirp away and leaves the body of the tail. With all three springs on and a long Decay, what remains is a dark wash under held chords. After the card, raise Tone and listen for the fizz coming back.
   </Way>
   <Way title="Drive the tank" tag="Drive up" set="driven">
-    Drive flattens the loud moments before they reach the springs, so the tail of a loud hit is no bigger than the tail of a moderate one. On the drums <Claim id="way-driven">the springs add 4.3 dB less than the same card with Drive at 0</Claim>, and what they add is more even from hit to hit. Listen to the tails of the loudest hits against the quietest.
+    Drive flattens the loud moments before they reach the springs, so the tail of a loud hit is no bigger than the tail of a moderate one. On the drums <Claim id="way-driven">the springs add 4.3 dB less than the same card with Drive at 0, and the loud moments lose the most: the loudest tenth of a second of what they add falls 5 dB and the quietest 3 dB</Claim>. Listen to the tails of the loudest hits against the quietest.
   </Way>
   <Way title="Put the springs in the middle" tag="Width at 0" set="narrow">
     Two springs that differ make a wide sound, and wide is not wanted everywhere: on one instrument among many, or where the mix may be heard on a single speaker. With Width at 0 the springs come out <Claim id="way-narrow">the same on both sides, sample for sample</Claim>, and the dry sound keeps whatever width it had.
@@ -882,13 +886,13 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     A single spring has a single round trip, so every hit is followed by echoes at one fixed spacing. On this card the springs are heard alone, on One, and what comes out is <Claim id="fault-flutter">the same on both sides, sample for sample</Claim>. Listen for a quick regular patter behind each hit. More springs with different round trips break the pattern up: put Springs on Three.
   </Fault>
   <Fault title="No top end" set="dull">
-    The tank carries nothing above its band, whatever goes in. <Claim id="fault-dull">Noise comes out of the springs 50 dB lower round 6 kHz than it went in</Claim>. Tone cannot give that back, because it only takes away. This is how the device is made and how a real tank behaves, so the cure is not in the springs: keep Mix under 1 and let the dry sound carry the top.
+    The tank carries next to nothing above its band, whatever goes in. <Claim id="fault-dull">Noise comes out of the springs 50 dB lower round 6 kHz than it went in</Claim>. Tone cannot give that back, because it only takes away. This is how the device is made and how a real tank behaves, so the cure is not in the springs: keep Mix under 1 and let the dry sound carry the top.
   </Fault>
   <Fault title="Low notes that will not stop" set="mud">
     The drive circuit removes only the very lowest bass. Everything above that goes into the tank, and a long Decay keeps it there. A bass line through the springs rings on under the notes that follow, and the notes blur. Shorten Decay, lower Mix, or keep the springs off the bass.
   </Fault>
   <Fault title="Loud and quiet come back alike">
-    With Drive high, the drive circuit has a ceiling, and everything loud is pressed against it. Stage 1 of part 5 measures the ceiling. A part that swings between loud and soft then gets nearly the same amount of spring on both, and its tails no longer follow the playing. Lower Drive, and the springs answer a soft note softly again.
+    With Drive high, the drive circuit has a ceiling, and everything loud is pressed against it. Stage 1 of part 5 measures the ceiling. <Claim id="fault-level">With Drive at 1, a 440 Hz tone that goes in 20 dB under full scale leaves the circuit 21 dB under it, and one at full scale leaves it 17 dB under: 20 dB of playing have become 4 dB</Claim>. The tails of a part that swings between loud and soft then follow the playing far less. Lower Drive, and the springs answer a soft note softly again.
   </Fault>
 </Faults>
 

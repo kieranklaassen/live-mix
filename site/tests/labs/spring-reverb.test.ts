@@ -166,6 +166,8 @@ function quietest(x: Float32Array, length: number): number {
 }
 
 const LOOPS = ['drums', 'guitar', 'chords', 'bass', 'pad', 'mix']
+/** Every sound the lesson's page offers: its `sources`. */
+const PAGE_LOOPS = ['drums', 'guitar', 'chords', 'pad', 'bass', 'mix', 'clicks', 'noise']
 
 describe('the spring reverb lab', () => {
   it('is a sound lab on the drums: every tap says something, every sound loops, every control moves the main path', async () => {
@@ -208,6 +210,12 @@ describe('the spring reverb lab', () => {
     expectWritten(low, '23.8 ms')
     expectWritten(high, '28.6 ms')
     expectWritten(high - low, '4.8 ms')
+    // And every part between them in its turn: the higher, the later.
+    const arrivals = [500, 1000, 1500, 2000, 2500, 3000, 3500].map(
+      (hz) => echoes(left, hz, 1)[0]!.at,
+    )
+    for (let k = 1; k < arrivals.length; k += 1)
+      expect(arrivals[k]!, `part ${k} of ${arrivals.join(', ')}`).toBeGreaterThan(arrivals[k - 1]!)
   })
 
   it('stretches each echo further than the last: 3 kHz trails 500 Hz by 9.3 ms in the second and by 13.9 ms in the third (claim stretch)', async () => {
@@ -341,20 +349,25 @@ describe('the spring reverb lab', () => {
       expect(likeness(heard, first - 240, first - 240 + trip, 480)).toBeLessThan(-0.9)
     })
 
-    it('with damping makes the tail round 3 kHz fall 39.9 dB a second where it fell 21.8 dB a second, and round 600 Hz 24.8 dB a second where it fell 23.6 dB (claim build-damping)', async () => {
+    it('with damping makes the tail of a click round 3 kHz fall 40 dB a second where it fell 22 dB a second, and round 600 Hz 25 dB a second where it fell 24 dB, from its level 0.2 s to 0.6 s after the click to its level a second later (claim build-damping)', async () => {
       const tank = await lab('spring-reverb')
       const before = builtFromClick(tank, 2)
       const after = builtFromClick(tank, 3)
-      expectWritten(fallRate(before, 3000), '21.8 dB')
-      expectWritten(fallRate(after, 3000), '39.9 dB')
-      expectWritten(fallRate(before, 600), '23.6 dB')
-      expectWritten(fallRate(after, 600), '24.8 dB')
+      // Whole decibels: the two stretches hold whole echoes, and a rate read off them moves
+      // by half a decibel a second when they start 20 ms sooner or later.
+      expectWritten(fallRate(before, 3000), '22 dB')
+      expectWritten(fallRate(after, 3000), '40 dB')
+      expectWritten(fallRate(before, 600), '24 dB')
+      expectWritten(fallRate(after, 600), '25 dB')
       // The piece switched off: the step before does not fall at the damped rate.
-      expect(matchesWritten(fallRate(before, 3000), '39.9 dB')).toBe(false)
-      expect(matchesWritten(fallRate(before, 600), '24.8 dB')).toBe(false)
+      expect(matchesWritten(fallRate(before, 3000), '40 dB')).toBe(false)
+      expect(matchesWritten(fallRate(before, 600), '25 dB')).toBe(false)
+      // Without it the top outlasts the bottom, and with it the bottom outlasts the top.
+      expect(fallRate(before, 3000)).toBeLessThan(fallRate(before, 600) - 1)
+      expect(fallRate(after, 3000)).toBeGreaterThan(fallRate(after, 600) + 10)
     })
 
-    it('with drift answers two clicks two seconds apart differently: the difference stands 5.3 dB under the answers in their first tenth of a second, and more than 100 dB under them without it; the far end stays less than 0.3 samples from its place (claim build-drift)', async () => {
+    it('with drift answers two clicks two seconds apart differently: the difference stands 5 dB under the answers in their first tenth of a second, and more than 100 dB under them without it; the far end stays less than 0.3 samples from its place (claim build-drift)', async () => {
       const tank = await lab('spring-reverb')
       const two = oneClick()
       two.left[CLICK_AT + seconds(2)] = 0.1
@@ -365,10 +378,12 @@ describe('the spring reverb lab', () => {
         const second = heard.subarray(CLICK_AT + seconds(2), CLICK_AT + seconds(2.1))
         return -differenceDb(second, first)
       }
-      expectWritten(under(4), '5.3 dB')
+      // A whole decibel: the third echo begins as the tenth of a second ends, and the number
+      // moves by more than a decibel when the stretch is a hundredth of a second longer.
+      expectWritten(under(4), '5 dB')
       // The piece switched off: the step before answers both clicks alike.
       expectWritten(under(3), 'more than 100 dB')
-      expect(matchesWritten(under(3), '5.3 dB')).toBe(false)
+      expect(matchesWritten(under(3), '5 dB')).toBe(false)
       const moved = range(tap(tank.render(two, { build: 4 }), 'builtWander'))
       expectWritten(Math.max(-moved.lo, moved.hi), 'less than 0.3 samples')
       expect(moved.span).toBeGreaterThan(0.3)
@@ -394,7 +409,7 @@ describe('the spring reverb lab', () => {
       expect(tap(before, 'built', 1)).toEqual(tap(before, 'built', 0))
     })
 
-    it('with every piece is the tank of the device, sample for sample, on every loop and at every setting tried (claim build-same)', async () => {
+    it('with every piece is the tank of the device, sample for sample, on every loop of the page and at every setting tried (claim build-same)', async () => {
       const tank = await lab('spring-reverb')
       const tried: Record<string, number>[] = [
         {},
@@ -402,11 +417,12 @@ describe('the spring reverb lab', () => {
         { springs: 2, tension: 1, decay: 6 },
         { mix: 0.3, tone: 3500, drip: 0.4, drive: 0.25, predelay: 80, width: 0.5 },
       ]
-      for (const [k, loop] of LOOPS.entries()) {
+      for (const loop of PAGE_LOOPS) {
         const source = await benchSource(loop, seconds(4))
-        // Every setting on the drums, and one of them in turn on each other loop.
-        for (const values of loop === 'drums' ? tried : [tried[k % tried.length]!]) {
-          for (const build of [0, 5]) {
+        for (const values of tried) {
+          // On the last step the build the reader sees is the one compared. On the drums the
+          // first step too, where a second build with every piece runs beside the one shown.
+          for (const build of loop === 'drums' ? [0, 5] : [5]) {
             const { checks } = tank.render(source, { ...values, build })
             // −140 dB is the floor of the reading: no difference at all.
             expect(checks.builtDifference, `${loop} ${JSON.stringify(values)}`).toBe(-140)
@@ -447,6 +463,8 @@ describe('the spring reverb lab', () => {
       const top = (size: number) =>
         gainToDb(peak(tap(tank.render(sine(440, size, seconds(2)), { drive: 1 }), 'driven')))
       expectWritten(-top(1), '16.9 dB')
+      // However loud: a tone half that size stands at the same ceiling.
+      expectWritten(-top(0.5), '16.9 dB')
       // A tone a tenth the size goes through nearly whole: the ceiling is a ceiling, not a gain.
       expect(-top(0.1)).toBeGreaterThan(20)
       expect(-top(0.1)).toBeLessThan(22)
@@ -504,9 +522,15 @@ describe('the spring reverb lab', () => {
 
     it('lets the far end of the first spring wander between 0.26 samples one way and 0.30 samples the other over the loop (claim wander-range)', async () => {
       const tank = await lab('spring-reverb')
-      const moved = range(tap(tank.render(await benchSource('drums', seconds(4)), {}), 'wander'))
+      const drums = await benchSource('drums', seconds(4))
+      const wander = tap(tank.render(drums, {}), 'wander')
+      const moved = range(wander)
       expectWritten(-moved.lo, '0.26 samples')
       expectWritten(moved.hi, '0.30 samples')
+      // The lane is the kit's oscillator run beside the device, and the build's far end is the
+      // same oscillator. With every piece the build is the device's tank sample for sample
+      // (claim build-same), which it could not be if its far end drifted otherwise.
+      expect(tap(tank.render(drums, { build: 5 }), 'builtWander')).toEqual(wander)
     })
 
     it('with Decay at 2.5 s lets the tank fall 60 dB in 2.4 s below 1 kHz and in 1.9 s above 2.5 kHz (claim fall)', async () => {
@@ -524,7 +548,7 @@ describe('the spring reverb lab', () => {
       expect(likeness(left, first - 240, first - 240 + trip, 480)).toBeLessThan(-0.9)
     })
 
-    it('on Two brings the right side’s echoes 36 ms apart, the first of them at 20.8 ms (claim second-spring)', async () => {
+    it('on Two brings the right side’s echoes 36 ms apart round 500 Hz, the first of them at 20.8 ms (claim second-spring)', async () => {
       const tank = await lab('spring-reverb')
       const found = echoes(tap(answer(tank), 'hitRight'), 500, 2)
       expectWritten(found[0]!.at, '20.8 ms')
@@ -615,11 +639,21 @@ describe('the spring reverb lab', () => {
       expectWritten(foot({ predelay: 0 }), '24 ms')
     })
 
-    it('on the driven card lets the springs add 4.3 dB less than the same card with Drive at 0 (claim way-driven)', async () => {
+    it('on the driven card lets the springs add 4.3 dB less than the same card with Drive at 0, their loudest tenth of a second 5 dB less and their quietest 3 dB less (claim way-driven)', async () => {
       const tank = await lab('spring-reverb')
       const hard = await played(tank, 'driven')
       const clean = await played(tank, 'driven', { drive: 0 })
       expectWritten(levelOfBoth(clean, 'added') - levelOfBoth(hard, 'added'), '4.3 dB')
+      // What the springs add on the left, a tenth of a second at a time from the loop's start.
+      const tenths = (result: RenderResult) => {
+        const x = tap(result, 'added')
+        const levels: number[] = []
+        for (let i = 0; i + seconds(0.1) <= x.length; i += seconds(0.1))
+          levels.push(levelOf(x, i, i + seconds(0.1)))
+        return { loudest: Math.max(...levels), quietest: Math.min(...levels) }
+      }
+      expectWritten(tenths(clean).loudest - tenths(hard).loudest, '5 dB')
+      expectWritten(tenths(clean).quietest - tenths(hard).quietest, '3 dB')
     })
 
     it('on the narrow card puts the same on both sides, sample for sample (claim way-narrow)', async () => {
@@ -649,6 +683,17 @@ describe('the spring reverb lab', () => {
         expectWritten(checks.fallLowTime!, 'at least 2.4 s')
         expectWritten(checks.fallLowTime!, 'at most 2.5 s')
       }
+    })
+
+    it('with Drive at 1 sends a 440 Hz tone that goes in 20 dB under full scale out of the drive circuit 21 dB under it, and one at full scale 17 dB under (claim fault-level)', async () => {
+      const tank = await lab('spring-reverb')
+      const top = (size: number) =>
+        gainToDb(peak(tap(tank.render(sine(440, size, seconds(2)), { drive: 1 }), 'driven')))
+      // Whole decibels: the quieter tone measures 21.24, a hair from the next tenth.
+      expectWritten(-top(0.1), '21 dB')
+      expectWritten(-top(1), '17 dB')
+      // What is left of the 20 dB between the two tones: 4.34.
+      expectWritten(top(1) - top(0.1), '4 dB')
     })
 
     it('renders every named set: its sound is there, finite, and not silent', async () => {
