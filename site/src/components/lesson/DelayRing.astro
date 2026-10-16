@@ -1,0 +1,79 @@
+---
+// A delay line as a ring of slots with a head that writes and a head that reads, one click
+// going round, beside what each head wrote and read against time:
+// <DelayRing slots="ring" write="ringWrite" read="ringRead">Caption.</DelayRing>
+// `slots` is a frames tap, a column a step, that holds every slot after every step; `write` and
+// `read` are curve taps of two rows, the slot the head stood on at each step and its value
+// there. The picture is drawn when the site is built, at the lab's starting values, so it is in
+// the page with scripts off, at the step `start` names; once scripts run the reader steps
+// through it, and once the lab runs it follows the controls.
+import { getEntry } from 'astro:content'
+import DelayRing from '../../figures/DelayRing.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+import { renderStill } from '../../lib/still.ts'
+
+interface Props {
+  /** The frames tap that holds every slot after every step. */
+  slots: string
+  /** The curve taps of the two heads: slot and value, a point a step. */
+  write: string
+  read: string
+  /** The step shown before the reader moves it. */
+  start?: number
+  label?: string
+}
+const { slots, write, read, start, label } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const [slotsRef, writeRef, readRef] = tapRefs(
+  `${slots}:alt ${write}:out ${read}:ctl`,
+  lab.taps,
+  lesson,
+)
+if (!slotsRef || !writeRef || !readRef) {
+  throw new Error(`${lesson}: <DelayRing> needs slots, write and read.`)
+}
+const entry = await getEntry('lessons', lesson)
+if (!entry) throw new Error(`${lesson}: <DelayRing> was used on a page that is not a lesson's.`)
+// The lab at its starting values on the lesson's first source, as the opening picture renders it.
+const { result } = await renderStill({
+  lab: entry.data.lab,
+  source: entry.data.sources[0]!,
+  seconds: entry.data.seconds,
+})
+const held = result.taps[slotsRef.id]
+const wrote = result.taps[writeRef.id]?.channels_data
+const got = result.taps[readRef.id]?.channels_data
+if (!held || held.columns < 2 || !wrote?.[1] || !got?.[1]) {
+  throw new Error(
+    `${lesson}: <DelayRing> needs a frames tap with its columns set and two curve taps of two rows.`,
+  )
+}
+const rounded = (data: Float32Array) => Array.from(data, (value) => Number(value.toFixed(4)))
+const built = {
+  slots: rounded(held.channels_data[0]!),
+  steps: held.columns,
+  writeSlot: rounded(wrote[0]!),
+  written: rounded(wrote[1]),
+  readSlot: rounded(got[0]!),
+  read: rounded(got[1]),
+}
+const said =
+  label ??
+  `A ring of slots with a write head and a read head, and beside it what each head wrote and read at every step`
+---
+
+<figure class="fig">
+  <DelayRing
+    client:visible
+    slots={slotsRef}
+    write={writeRef}
+    read={readRef}
+    built={built}
+    start={start}
+    label={said}
+  />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>
