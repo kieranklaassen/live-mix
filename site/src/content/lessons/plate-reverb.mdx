@@ -1,15 +1,21 @@
 ---
 title: Plate reverb
 family: rooms
-summary: Reverberation is thousands of echoes too close together to hear apart, dying away with the highs first. This lesson follows one sample through the engine's plate, from the four all-pass delays that turn it into a burst to the loop of two halves that keeps the burst ringing.
+summary: Reverberation is thousands of echoes too close together to hear apart, dying away with the highs first. This lesson builds a plate out of delay lines a piece at a time, then opens the engine's own and follows one click through it, from the four all-passes that turn it into a burst to the loop of two halves that keeps the burst ringing.
+long: true
+opening:
+  input: in
+  output: out
+  separate: true
+  caption: A click a second goes in, each one sample long. What the plate makes of them is drawn under them on a scale of its own. Each click is answered by a wash that has all but gone when the next click comes.
 lab: plate-reverb
 devices: [plate-reverb]
 bench:
   device: plate-reverb
   params: { mix: 1, decay: 0.5, damping: 0.3, predelayMs: 20 }
   as: insert
-  note: The plate opens where this lesson starts, on the plate alone (a mix of 1 where the device's own default is 0.35) with a decay of 0.5 where the default is 0.7. Its two moving delays move here, as they always do in the device, which has no control to hold them still. On the clicks the plate is faint here, as it is in the lab; the drums show it at a working level.
-sources: [clicks, drums, guitar, chords, sine]
+  note: The plate opens where this lesson starts, on the plate alone (Mix at 1, where the device's own default is 0.35) and with Decay at 0.5 where the default is 0.7. Its two moving delays move here, as they always do in the device, which has no control to hold them still. The lesson's own figures start with them held still. The table below sets the two side by side.
+sources: [clicks, drums, guitar, chords, pad, bass, mix, sine]
 seconds: 4
 files:
   - cpp/devices/plate-reverb/plate_reverb.h
@@ -19,229 +25,982 @@ files:
   - cpp/common/dsp_util.h
 ---
 
-Clap once in a tiled room. The clap reaches you directly, then again off the nearest wall, then off the others, then off two walls in turn, then three. Within a tenth of a second the copies arrive by the thousand, too close together to tell apart, and what is left is one tail that fades. Every bounce takes a little of the sound away, and more of its high frequencies than of its low ones, so the tail grows duller as it dies. That is reverberation: **echoes, dense, dying away, the highs first**.
+<Part id="why" title="A room answers a clap with thousands of echoes. A delay line answers with a buzz.">
 
-A delay line with some of its output fed back to its input (<Lesson id="delay-and-echo" />) makes echoes that die away, and it is not a reverb. Its echoes come one per trip round the delay and never get any denser. Worse, echoes evenly spaced in time are peaks evenly spaced in frequency: a 5 ms delay with feedback rings at 200 Hz and at every multiple of it. A reverb needs echoes that multiply, at times that never line up, with no frequency favoured.
+Clap once in a tiled room. The clap reaches you directly, then again off the nearest wall, then off the others, then off two walls in turn, then three. Within a tenth of a second the copies arrive by the thousand, too close together to tell apart, and what is left is one tail that fades. Every bounce takes a little of the sound away, and more of its high frequencies than of its low ones, so the tail grows duller as it dies.
 
-The engine's plate gets there in two moves. First the sound goes through four *all-pass delays* in a row. Each turns one sample into a train of echoes and leaves the level of every frequency exactly as it was (<Lesson id="phasing" />, has the all-pass as a filter), and four of them turn one sample into a burst. Then the burst enters the *tank*: two loops, each feeding the other, each with two more all-passes, two long delays and a filter that dulls the sound a little on every pass. The tank is what rings. Nothing is heard from the end of it, because a loop has no end: the two outputs are read from seven places each along its delays.
+That is reverberation, and it comes down to three things. The echoes grow dense. The tail dies away. The highs die first.
 
-These are the stages in the order the signal meets them. The source is a click, one sample once a second, which shows the whole of what a reverb does. Press Play, then Listen on any stage.
+Every reverb has to deliver those three, however it is made. This lesson is the first of four about ways to make one. <Lesson id="feedback-delay-network" cap /> gets there with a bank of delay lines that feed one another, <Lesson id="convolution-reverb" /> by replaying a room from its answer to a single click, and <Lesson id="spring-reverb" /> with a model of a steel spring. Each of them leans on the three properties as they are measured here.
 
-<Stages taps="in predelayed filtered diffused1 diffused2 diffused3 diffused4 tankA damped tankB out" />
+A recorded sound usually has none of them. A microphone a hand's width from a drum hears the drum and little of the room. An instrument plugged straight into a desk was never in a room at all.
 
-The clicks go in grey and the plate's answer comes out red. Decay sets how long each answer lasts, damping how soon its highs go. A click is a faint thing to listen to, and so is its answer: the plate spreads one sample's energy over a second and more, so the answer <Claim id="click-level">peaks at a tenth of the click's height, and its level over the loop is −47 dB</Claim>. That is the plate working, not a fault. Turn the playing level up for the clicks, or choose the drums, where the same settings come out <Claim id="drums-level">26 dB louder</Claim>.
+The simplest sound of that kind is a click: one sample that stands up from silence. It is the clap with nothing after it, and the page opens on a row of them. Here is the row as it went in. <Hear set="click" label="Hear the clicks alone" /> And here it is through the engine's plate reverb. <Hear set="answer" label="Hear the clicks through the plate" />
 
-<Controls ids="decay damping mix" />
+A click is a faint thing to listen to, and so is its answer. The plate spreads the energy of one sample over more than a second, so <Claim id="click-level">the tallest sample of the answer is 0.096 of the click's height, and its level over the loop is −46.8 dB</Claim> against full scale, the largest number a sample can be. Turn the playing level up for the clicks. On the drum loop the same settings come out <Claim id="drums-level">26 dB louder</Claim>.
 
-<Wave taps="in out">
-  Four seconds: a click each second (grey, the full height of the picture) and the plate's answer to each (red). At the starting decay each tail has all but gone when the next click comes. Raise the decay and the tails run into one another. The lab starts with the mix at 1, the plate alone; lower it and the clicks themselves come through in red.
-</Wave>
+So here is the question this lesson answers. What has to be done to one sample to turn it into that wash, with nothing but arithmetic on samples?
 
-Under each stage is a mark saying where it comes from. *Read from the running device* means the lab reached into the Plate Reverb's own state while it ran. The four marked *Written for this lesson* are what the input all-passes put out: the device keeps what each all-pass holds in its delay and not what it hands on, so the lab writes the all-pass's last line again from the same two stored samples, and a check in stage 3 holds the result to what the next stage took in.
+### The obvious answer fails
 
-The lab does two more things that the device alone does not. A second copy of the plate, at the same settings, is given one sample and nothing else: the figures titled *one sample* are its response, and they stay the same whatever source is playing. And the lab holds still two delays that the device keeps moving, so the structure can be seen before the movement. The movement comes back in stage 7.
+Play the sound again a moment later. That is a delay line, the ring of memory of <Lesson id="delay-and-echo" />: it hands back what it was given, some time on. Feed part of what it hands back into its own start and one click becomes a row of echoes, each lower than the last.
 
-## Stage by stage
+The lab runs such a loop beside the plate so that it can be heard and counted. It is a delay of <Src path="site/labs/plate-reverb.cpp" at="constexpr int kCombLength = 229;">229 samples</Src> with <Src path="site/labs/plate-reverb.cpp" at="constexpr float kInputGainA = 0.750f;">three quarters</Src> of its output fed back.
 
-### 1. One channel, a gap, and a filter left open
+<Still
+  taps="hitComb"
+  view="curve"
+  caption="One click through that loop, over 50 ms. The bottom edge counts milliseconds from the click. Each echo is three quarters of the one before, so the row does die away."
+/>
 
-The plate takes one channel in. <Src path="cpp/devices/plate-reverb/plate_reverb_device.cpp">The device</Src> adds left and right and halves the sum, so the reverb is the same wherever a sound sat between the speakers; the width of what comes out is made later, by where the outputs are read. One thing follows from the sum: a sound that is opposite in the two channels adds up to nothing and <Claim id="one-channel">gets no reverb at all</Claim>.
+That row has the second of the three properties. It dies away. Now look at the first.
 
-Then comes the *pre-delay*, a plain delay line of up to 250 ms. In a room the first reflection arrives a little after the direct sound, and later the larger the room. A gap also keeps the front of a note clear of its own tail. The line reads after it writes, so a length of 1 is the sample just written: at 20 ms, which is 960 samples, a sample comes out <Claim id="predelay-one-less">959 samples later</Claim>, and at 0 ms it is not delayed at all.
+<Predict
+  question="The click goes round that loop again and again. As time goes on, how do its echoes stand along the time axis?"
+  choices={[
+    'They crowd closer together, as the echoes of a room do',
+    'They stay the same distance apart',
+    'They drift further apart',
+  ]}
+>
 
-Last before the all-passes is a one-pole low-pass, the *bandwidth* filter:
+They stay the same distance apart. A loop has one length, so it has one spacing. <Claim id="comb-even">The echoes come 229 samples apart, which is every 4.8 ms, for as long as they last, and every 10 ms of the first second holds 2 or 3 of them</Claim>.
 
-<M block t={String.raw`y[n] = (1 - a)\,x[n] + a\,y[n-1]`} />
+The plate's echoes multiply. Counted the same way at its left output, <Claim id="density-grows">there is 1 echo in the first 10 ms after the pre-delay and 105 in the fifth, and from 50 ms on no 10 ms of the first second holds fewer than 118</Claim>.
 
-Each output is mostly the new input and a little of the last output; the larger <M t="a" />, the more of the past is kept and the duller the result. In the code it is <Src path="cpp/common/dsp_util.h">`OnePoleLowpass`</Src>. Here <M t="a" /> is <Src path="cpp/devices/plate-reverb/plate_reverb.h">fixed at 0.0005</Src>, which leaves the filter all but open: it takes <Claim id="bandwidth-loss">0.008 dB</Claim> off a tone at 20 kHz. This is the place where a plate can be told to take in less treble, and this device has no control for it. The same filter with a coefficient that matters is the damping of stage 6.
+<Still
+  taps="densityComb densityOut"
+  view="curve"
+  caption="Echoes counted in each 10 ms after one click, for a second. The bottom edge counts milliseconds. The line of the delay with feedback lies along the bottom at 2 or 3. The line of the plate's output climbs steeply at the start and then stays high."
+/>
 
-<Controls ids="predelay" />
+The lab counts a sample as an echo when it is <Src path="site/labs/plate-reverb.cpp" at="// Echoes in each 10 ms of a response: samples larger than both neighbours and" to="// within 60 dB of the largest sample of the same 10 ms.">larger than both its neighbours and within 60 dB of the largest sample of the same 10 ms</Src>.
 
-<Wave taps="out" from={0} span={0.15} fit>
-  The first 150 ms of the plate's answer to a click, with the clicks as the source. The click is at 0. Nothing answers it until the pre-delay has passed and the sound has reached the first place an output is read, 9 ms further on. Move the pre-delay and the answer slides away from the click. The faint ripple before it is the end of the last click's tail.
-</Wave>
+</Predict>
 
-### 2. The all-pass: echoes that leave the spectrum alone
+Open the answer before reading on. The rest of the lesson is about getting from the flat line to the climbing one.
 
-Start from the delay with feedback of the opening, <M t={String.raw`y[n] = x[n] + g\,y[n-M]`} />. One sample in gives 1, then <M t="g" />, then <M t="g^2" />, one every <M t="M" /> samples. Against frequency it is a comb: where a whole number of cycles fits the delay the echoes add, to <M t={String.raw`1/(1-g)`} />, and half way between they cancel, to <M t={String.raw`1/(1+g)`} />. With the first input all-pass's own numbers, 229 samples and a gain of 0.75, that is <Claim id="comb-peaks">12 dB up and 4.9 dB down, with a peak every 210 Hz</Claim>.
+Echoes that never thicken are bad enough. Echoes that are evenly spaced are worse, because an even spacing is a pitch. Listen for a buzz of one note after every drum hit. <Hear set="comb" label="Hear the drums through one delay with feedback" /> Stage 3 of part 5 measures the note.
 
-The all-pass delay is the same loop with one line added. Some of the input goes straight to the output, upside down:
+### What a reverb is made of, measured
 
-<M block t={String.raw`w[n] = x[n] + g\,w[n-M] \qquad\qquad y[n] = w[n-M] - g\,w[n]`} />
+Here are the three properties as the engine's plate has them, each read off its answer to one click, with the controls where the page opens them.
 
-Here <M t="w" /> is what is written into the delay line, the input plus <M t="g" /> times what the line gives back. The output is what the line gives back, less <M t="g" /> times what was just written. In <Src path="cpp/devices/plate-reverb/plate_reverb.h">`Allpass::process`</Src> these are `delayed`, `feed` and the returned `delayed - gain * feed`, in three lines. One sample in comes out as <M t="-g" /> at once, then as <M t={String.raw`(1-g^2)\,g^{k-1}`} /> after <M t="k" /> trips: <Claim id="allpass-echoes">−0.75, then 0.44, 0.33, 0.25, each 229 samples after the last</Claim>.
+The echoes grow dense. That is the climbing line in the answer to the question above.
 
-That first sample, upside down, is the whole trick. Written as a ratio of what comes out to what goes in at each frequency, the all-pass is
+The tail dies away, and at close to a steady rate. The next picture shows, at each moment after the click, how much of the answer's energy is still to come.
 
-<M block t={String.raw`H(z) = \frac{z^{-M} - g}{1 - g\,z^{-M}}`} />
+<Still
+  taps="decayCurve"
+  view="curve"
+  min={-100}
+  max={0}
+  caption="The energy of the plate's answer that is still to come, in decibels against the whole, over the seconds after one click. After the first instants the line is close to straight: every second takes off nearly the same number of decibels. At its right-hand end it drops away, where the lab stopped listening."
+/>
 
-and for a steady tone, where <M t={String.raw`z^{-M}`} /> is a point on the unit circle, the top and the bottom have the same size: the top is the bottom reflected and turned. So <M t={String.raw`|H| = 1`} /> at every frequency. The echoes are still there, and their energy adds up to that of the one sample that went in, <M t={String.raw`g^2 + (1-g^2)^2(1 + g^2 + g^4 + \dots) = 1`} />. What changes is when each frequency arrives, which is exactly what a reverb wants to change.
+A straight line in decibels means that each stretch of time keeps the same share of what the stretch before it had. The length of a reverb is by custom the time its tail takes to fall 60 dB, to a thousandth of its level. Nobody waits for the whole fall. As rooms are measured, the lab takes <Src path="site/labs/plate-reverb.cpp" at="const float from = time_at(data, length, x0, x1, -5.0f);" to="return from >= 0.0f && to > from ? 3.0f * (to - from) : 0.0f;">the stretch of the line from 5 dB down to 25 dB down and multiplies its time by three</Src>. Read that way, the plate <Claim id="fall-start">falls 60 dB in 1.68 s</Claim>.
 
-<Curve taps="hit1" stems min={-1} max={1} xTitle="ms after the pre-delay" xUnit="ms">
-  One sample through the first input all-pass, its first 50 ms. The first sample out points down, at three quarters of the size of what went in; the echoes after it point up and each is three quarters of the one before.
-</Curve>
+Look again and the line is not quite straight. It starts a little steeper than it goes on, so it takes longer than that to reach 60 dB down. The reason is the third property.
 
-<Curve taps="responseComb:alt responseAllpass:out" min={-12} max={18} xTitle="hertz" xUnit="Hz" yTitle="level out against level in, dB" height={240}>
-  What each does to the level of every frequency, up to 2 kHz. The delay with feedback (green) is a comb, a peak every 210 Hz. The all-pass (red, dashed), with the same delay and the same gain, is the flat line at 0 dB.
-</Curve>
+The highs die first. The lab reads the same fall in <Src path="site/labs/plate-reverb.cpp" at="constexpr int kBands = 13;">thirteen bands</Src>, each an octave wide, from <Src path="site/labs/plate-reverb.cpp" at="constexpr float kBandLowest = 250.0f;">250 Hz</Src> to <Src path="site/labs/plate-reverb.cpp" at="constexpr float kBandHighest = 16000.0f;">16 kHz</Src>.
 
-The red line is measured: it is the spectrum of the echoes in the figure before, against the spectrum of what went in. From 20 Hz to 20 kHz it strays from 0 dB by <Claim id="allpass-flat">less than 0.00001 dB</Claim>.
+<Still
+  taps="fallBands"
+  view="curve"
+  caption="The time the plate's answer takes to fall 60 dB, in seconds, band by band. The bottom edge counts hertz, in even ratios. To the right of the middle the line slopes steadily down: the higher the band, the sooner it has gone."
+/>
 
-### 3. Four in a row: one sample becomes a burst
+<Claim id="fall-bands">The band round 250 Hz takes 2.1 s to fall 60 dB, the band round 4 kHz takes 1.8 s and the band round 16 kHz takes 1.2 s</Claim>. Over the right-hand half of that line, every band falls sooner than the band under it. Over the left-hand half the line wanders by a tenth of a second or so from band to band. So the top of the sound is gone first and the bottom is what is left at the end, falling at its own slower rate, and that is the bend in the line of the picture before.
 
-One all-pass makes a train of echoes, evenly spaced, and that is still too regular. The input diffuser is four in series, so each echo of the first sets off a whole train in the second, each of those a train in the third, and so on. The lengths were chosen at a sample rate of 29,761 Hz; <Src path="cpp/devices/plate-reverb/plate_reverb.cpp">`init`</Src> multiplies each by the running rate over that one and rounds. At 48 kHz that makes <Claim id="input-lengths">229, 173, 611 and 447 samples</Claim>:
+Those are the three, as numbers. Part 4 builds the thing that gives them, and part 5 opens the engine's own.
 
-| All-pass | At 29,761 Hz | At 48 kHz | In time | Gain |
-| --- | --- | --- | --- | --- |
-| 1 | 142 | 229 | 4.8 ms | 0.75 |
-| 2 | 107 | 173 | 3.6 ms | 0.75 |
-| 3 | 379 | 611 | 12.7 ms | 0.625 |
-| 4 | 277 | 447 | 9.3 ms | 0.625 |
+### Why it is called a plate
 
-No two of these lengths share a factor, and that matters. After the first two all-passes there is an echo at every time that is some number of 229s plus some number of 173s. Were the lengths 200 and 300, every such sum would be a multiple of 100: the echoes would pile onto the same few instants, evenly spaced, and an even spacing of 100 samples is a pitch again, at 480 Hz. With no factor in common, two different sums first meet after 229 × 173 = 39,617 samples, 0.83 s, when the echoes are long gone. Until then every echo has an instant to itself.
+The first reverb that fitted into a room smaller than a hall was a thin sheet of steel, hung in a frame, with a driver to shake it and pickups to listen to it. Sound spreads through a sheet in every direction and comes back off every edge, so its echoes are dense almost from the start.
 
-<Curve taps="hit4" stems xTitle="ms after the pre-delay" xUnit="ms">
-  One sample after all four all-passes, its first 50 ms. The few large echoes of the last figure have become many small ones, at uneven times, of both signs.
-</Curve>
+The engine's device is named for that sound and is not built like it. There is no steel in it and no model of steel. It is delay lines, and one small filter used over and over, arranged so that the three properties come out. <Lesson id="spring-reverb" cap /> is the other kind of reverb: arithmetic that follows the physical thing.
 
-To put a number on it, the lab counts echoes: samples larger than both their neighbours and within 60 dB of the largest in the same 10 ms. In the 10 ms that start 30 ms after the sample went in there are <Claim id="density-stages">2 echoes after one all-pass, 23 after two, 47 after three and 96 after four</Claim>. After the fourth the count climbs to <Claim id="density-four">186 in 10 ms</Claim>.
+One note before the build. The lesson starts the device on the plate alone, with a shorter tail than the device's own default, and it holds still two delays that the device keeps moving, so that the structure can be seen before the movement. The dry sound and the movement both come back as controls, and part 9 sets the lesson's starting settings beside the device's.
 
-<Curve taps="density1:in density2:ctl density3:alt density4:alt2 densityOut:out" xMax={200} min={0} max={200} xTitle="ms after the pre-delay" xUnit="ms" yTitle="echoes in 10 ms" height={240}>
-  Echoes in each 10 ms after one sample went in: after one all-pass (grey, flat at 2), two (blue), three (green) and four (brown), each counted for 100 ms, and at the plate's left output (red). Each all-pass has more echoes than the one before it, and has them sooner. The output starts later, because the sound must first reach a place where it is read, and levels off.
-</Curve>
+</Part>
 
-At the output the count settles at <Claim id="density-ceiling">about 150 in every 10 ms</Claim>. That is one sample in three, as many peaks as noise has: there is no room for more. And the diffuser has still changed no level: all four together move no frequency by more than <Claim id="chain-flat">0.00001 dB</Claim>.
+<Part id="picture" title="One click in. A wash that fades from the top down.">
 
-<Check id="rebuilt" />
+One picture holds all three properties. A single click goes into the engine's plate, and the picture shows what comes out of the left side over the next four seconds. Time runs across. Frequency runs up, to 20 kHz at the top edge. The stronger the colour of a place, the more sound there is at that frequency at that moment.
 
-That check is the lab's proof that it has read the all-passes rightly. What each one put out is worked out from its own delay line; what the next stage took in is worked out from the next stage's delay line; the two are <Claim id="rebuilt">more than 120 dB apart</Claim> in level, which is the rounding of the arithmetic.
+<Controls ids="decay damping predelay" />
 
-### 4. The tank: two halves, each feeding the other
-
-The burst now goes into both halves of the tank at once. Each half is the same chain, with its own lengths, and <Src path="cpp/devices/plate-reverb/plate_reverb.cpp">`process`</Src> writes it out line by line:
-
-1. Add the burst to what has just left the *other* half, times the decay.
-2. An all-pass with a gain of −0.7. Its delay is the one that moves (stage 7).
-3. A long delay.
-4. The damping low-pass (stage 6), then times the decay again.
-5. An all-pass with a gain of 0.5.
-6. A second long delay. What leaves it crosses to the other half's step 1.
-
-So the sound goes left half, right half, left half: a figure of eight, with no way out. The <Claim id="tank-lengths">eight lengths</Claim> at 48 kHz:
-
-| In samples | Left half | Right half |
-| --- | --- | --- |
-| Moving all-pass | 1,083.8 (22.6 ms) | 1,464.5 (30.5 ms) |
-| First delay | 7,182 (149.6 ms) | 6,801 (141.7 ms) |
-| All-pass | 2,903 (60.5 ms) | 4,284 (89.3 ms) |
-| Second delay | 6,000 (125.0 ms) | 5,101 (106.3 ms) |
-
-The two halves are deliberately unlike, so the loop does not repeat itself half way round. Once round both takes <Claim id="trip">0.725 s</Claim>, which is far too long to hear as a pitch, and the four all-passes inside the loop smear the burst again on every trip. What entered the right half first reaches the left <Claim id="crossing">11,901 samples later, at 248 ms</Claim>: the right half's two delays and one sample more, because the left half is worked out first and so takes what the right half left on the sample before. (The plain delays, like the pre-delay, read after they write, so each delays by one sample less than its length: <Claim id="one-less">7,181 samples for a length of 7,182</Claim>. The all-passes read first and delay by their full length.)
-
-<Curve taps="hitTank" xTitle="ms after the pre-delay" xUnit="ms" height={240}>
-  One sample, for a second: what goes into the left half's first delay. At 0 the diffuser's burst arrives, through the half's first all-pass. From 248 ms it arrives again, lower and in pieces: this is the burst that entered the right half at the same instant, come round through the right half's delays and all-passes. Raise the decay and later arrivals show, each more spread out than the last.
-</Curve>
-
-The outputs are sums of what the delay lines hold at seven places each. The left output reads four places in the right half and three in the left, the right output the mirror of that, with fixed signs and a gain of 0.6 on each (the list at the end of `process`). Reading at many places adds seven delayed copies of an already dense signal, and reading different places for each side makes two outputs out of one input. Left first sounds <Claim id="first-out">428 samples after the pre-delay and right 568, which are 8.9 and 11.8 ms</Claim>.
-
-<Curve taps="hitLeft:out hitRight:ctl" xTitle="ms after the pre-delay" xUnit="ms">
-  One sample, at the left output (red) and the right (blue), the first 60 ms of each. At first the right is the left again, 2.9 ms late, because each side's first reading is of the same burst going into the other half. From 34 ms the halves' own all-passes give back what they took, at different times, and the two part.
-</Curve>
-
-<Check id="sides" />
-
-That number is the likeness of the two outputs, instant for instant, over the whole response: 1 would be the same signal on both sides, 0 two unrelated ones. The right repeats the left for <Claim id="sides-early">its first 1,083 samples</Claim> and no longer, and over the whole response the likeness stays <Claim id="sides">under 0.01</Claim>. That is where the width of the reverb comes from, though only one channel went in.
-
-### 5. Decay: the gain round the loop
-
-Nothing in the tank loses level except by being told to. The all-passes pass everything, the delays only wait. The loss is the decay control <M t="d" />, a plain multiplication, met twice in each half and so four times in one trip of length <M t="T" />. Each trip the level falls by <M t={String.raw`-20\log_{10} d^4`} /> decibels, and the time to fall 60 dB is as many trips as that takes:
-
-<M block t={String.raw`T_{60} = \frac{60}{-20\log_{10} d^{4}}\;T = \frac{-3\,T}{4\log_{10} d}`} />
-
-The decay time of a reverb is by convention this time to fall 60 dB, to a thousandth of the level. Note what the control is: the gain, not the time. Equal steps of the knob are not equal steps of time, and the time runs away as <M t="d" /> nears 1. The device stops at 0.9999 (<Src path="cpp/devices/plate-reverb/plate_reverb.cpp">`set_decay`</Src>), where the formula gives three and a half hours. The lab's control stops at 0.9 so that its eight seconds of listening can still measure something.
-
-<Controls ids="decay" />
-
-<Curve taps="decayCurve" xMax={4} min={-80} max={0} xTitle="seconds after the sample went in" xUnit="s" yTitle="energy still to come, dB" height={240}>
-  The decay curve of one sample's response: at each instant, how much of the response's energy is still to come, against the whole. It starts at 0 dB, waits for the pre-delay and falls in a nearly straight line, which is what a fixed loss per trip looks like in decibels. A higher decay makes the line less steep.
-</Curve>
-
-<Check id="fall" />
-
-<Check id="fallFormula" />
-
-The measured time is read off that curve the way room acoustics reads it: the time from −5 dB to −25 dB, times three. The top of the curve holds the pre-delay and the first uneven echoes, and the foot bends down where the lab stopped listening, so neither is used. With the damping at 0:
-
-| Decay | By the formula | Measured |
-| --- | --- | --- |
-| 0.3 | <Claim id="formula-03">1.04 s</Claim> | <Claim id="fall-03">1.13 s</Claim> |
-| 0.5 | <Claim id="formula-05">1.81 s</Claim> | <Claim id="fall-05">1.77 s</Claim> |
-| 0.7 | <Claim id="formula-07">3.51 s</Claim> | <Claim id="fall-07">3.31 s</Claim> |
-| 0.9 | <Claim id="formula-09">11.9 s</Claim> | <Claim id="fall-09">10.8 s</Claim> |
-
-The two columns are never more than a tenth apart. They differ because the formula treats the loop as one length. An all-pass holds some frequencies longer than its length and others less, so not every frequency makes the trip in the same time, and the response is a sum of tails with slightly different slopes. At the lab's starting damping the time runs <Claim id="decay-range">from 0.47 s with the decay at 0 to 10.4 s at 0.9</Claim>. The time at 0 is not nothing: with no feedback at all, the diffuser's burst still crosses each half's first delay once and is read on the way.
-
-### 6. Damping: the highs die first
-
-In a room the highs go first, and in the tank they go first because step 4 of each half is the one-pole low-pass of stage 1, with the damping control as its coefficient <M t="a" />. Its gain at a frequency <M t="f" />, with <M t={String.raw`\omega = 2\pi f / f_s`} />, is
-
-<M block t={String.raw`|H(f)| = \frac{1 - a}{\sqrt{1 - 2a\cos\omega + a^{2}}}`} />
-
-which is 1 at the bottom of the spectrum and falls towards <M t={String.raw`(1-a)/(1+a)`} /> at the top. At a damping of 0.3 it is <Claim id="damping-cutoff">3 dB down at 10.6 kHz, and at 0.7 at 2.75 kHz</Claim>. One pass through such a filter is a mild thing. But the sound in the tank passes it twice a trip, trip after trip, so the gain round the loop becomes <M t={String.raw`d^{4}\,|H(f)|^{2}`} /> and every frequency gets a decay time of its own:
-
-<M block t={String.raw`T_{60}(f) = \frac{-3\,T}{\log_{10}\bigl(d^{4}\,|H(f)|^{2}\bigr)}`} />
-
-At a decay of 0.5 and a damping of 0.7 that gives <Claim id="damping-formula">1.8 s at 500 Hz and 1.2 s at 5 kHz</Claim>. The lab measures both, by putting the response through two band-pass filters and reading a decay curve from each.
-
-<Controls ids="damping decay" />
-
-<Spectrogram tap="tail" min={-125} max={-55} top={20000} height={240}>
-  The spectrum of one sample's response over four seconds: time across, frequency up, level as colour. The top of the picture goes dark before the bottom. Raise the damping and it goes dark sooner; at 0 the tail fades at nearly the same rate from top to bottom.
+<Spectrogram tap="tail" min={-120} max={-60} top={20000} height={300}>
+  The plate's answer to one click, whatever loop is playing. Try Decay higher, and notice the colour
+  reach further to the right. Try Damping higher, and notice the top empty sooner while the bottom
+  edge keeps its length.
 </Spectrogram>
 
-<Curve taps="decayLow:ctl decayHigh:out" xMax={4} min={-80} max={0} xTitle="seconds after the sample went in" xUnit="s" yTitle="energy still to come, dB" height={240}>
-  The decay curve again, for two bands of the response: around 500 Hz (blue) and around 5 kHz (red). With the damping at 0 the two lines nearly cover each other. Raise it and the red line steepens while the blue one hardly moves.
-</Curve>
+The colours of the picture run over 60 dB. A place fades into the page when it has fallen about that far, which is the fall a reverb's length is counted by.
 
-<Check id="fallLow" />
+Check this against the picture. Leave the three controls where the page opens them, and find where the colour runs out along the bottom edge and near the top. <Claim id="picture-dark">Round 500 Hz the picture stays within 60 dB of its strongest place for 2.2 s, and round 16 kHz for 1.4 s. With Damping at 0.7 the first is still 2.2 s and the second is 1.0 s</Claim>. The bottom edge counts seconds from the click.
 
-<Check id="fallHigh" />
+Three things can be read off it.
 
-With the damping at 0.7 the band at 5 kHz falls 60 dB in <Claim id="damping-bands">1.27 s, against 1.84 s with no damping; the band at 500 Hz takes 1.86 s against 1.88 s</Claim>. A third of the highs' time is gone and a hundredth of the lows'.
+The left edge is coloured from top to bottom. A click holds every frequency at once, and the plate has let them all through. The filters that make the echoes change no level, and stage 3 of part 5 measures that.
 
-### 7. The delays that move
+The colour fades evenly from left to right. Equal steps of colour take equal times, which is the straight line of part 1 seen from above. Decay sets how steep the fade is.
 
-A tank of fixed delays is a fixed pattern of reinforcement and cancellation. A steady tone held into it comes out at a steady level, which the lab finds <Claim id="still-steady">constant within 0.1 dB</Claim>, but what level depends on exactly where the tone falls in the pattern: with the delays still, a tone at 441 Hz comes out <Claim id="pitch-luck">3.5 dB louder than one at 440 Hz</Claim>. Each note of a tune has its own luck, and has it every time.
+The top fades first. The empty part comes down from the top edge as time goes on. Damping sets how much sooner the top goes than the bottom, and at 0 the edge of the colour is nearly upright.
 
-So the device never lets the pattern stand. The delay of each half's first all-pass is swept by a slow sine:
+Pre-delay moves the whole picture to the right and changes nothing else in it. At 20 ms, where the page opens, the gap is too thin to see on four seconds. Take Pre-delay to its top and it is plain.
 
-<M block t={String.raw`M(t) = M_0 + \tfrac12\,e\,\bigl(1 + \sin 2\pi f t\bigr)`} />
+Notice what the picture leaves out. It is the answer to one click, and music is not clicks. Every sample of a played sound sets off a wash of its own, and all of those washes are added together. The picture also shows one side. The plate takes in one channel and gives back two that differ, and stage 9 of part 5 sets them side by side.
 
-By the constants at the top of <Src path="cpp/devices/plate-reverb/plate_reverb.cpp">the plate's code</Src>, the excursion <M t="e" /> is 12 samples at the reference rate, so each delay grows by up to <Claim id="wobble-range">19.35 samples</Claim> and shrinks back, the left once a second and the right at 0.95 Hz, starting a quarter turn ahead; the two come back into step only every 20 seconds. Since the delay is no longer a whole number of samples, the all-pass reads between two samples by a straight line (`read_interpolated`, the linear interpolation of <Lesson id="delay-and-echo" />). With the delays moving, the same 440 Hz tone drifts through peaks and troughs as the pattern slides under it: its level <Claim id="moving-swings">swings over more than 20 dB</Claim>. No note keeps its luck.
+</Part>
 
-<Controls ids="movement" />
+<Part id="uses" title="Four kinds of sound, and what a plate gives each.">
 
-<Wave taps="in out">
-  Choose the sine as the source. Still, the plate's answer (red) is a band of one height on the tone that went in (grey). Moving, it swells and thins as the pattern drifts. On the clicks the switch changes little that can be seen: the movement is slow against a single echo.
-</Wave>
+What a plate adds is heard in what a sound leaves empty. A drum hit leaves a gap after it, and the tail fills the gap. A held chord leaves none, and the tail lies under the chord and widens it.
 
-## What goes wrong
+Each card below shows a sound with what the plate adds drawn beside it, lists a setting to start from, and plays it. A card's button moves the whole page to its setting, so every figure further down shows it too, and the play bar offers the way back to where you were. The cards let the tank's delays move, as the device's always do.
 
-**A pitch in the tail.** Any regularity in the echoes is a comb, and a comb is a pitch: two delays that share a factor, an all-pass chain too short to break a click up, a loop short enough to hear. The engine's answers are the ones above: lengths with nothing in common, four all-passes before the loop and four inside it, a trip of 0.725 s, and the movement.
+<Uses>
+  <Use title="Drums" set="drums">
+    <Still
+      slot="picture"
+      taps="in added"
+      set="drums"
+      from={0}
+      span={2}
+      caption="Two seconds of the drum loop, and what the plate adds. Each hit is followed by a tail, and each tail has thinned before the next hit."
+    />
 
-**Highs lost that nobody asked for.** Reading between two samples by a straight line is itself a gentle low-pass, and the moving all-passes do it on every pass, still or moving (their lengths at rest, 1,083.8 and 1,464.5, are not whole numbers). So even with the damping at 0 the top of the spectrum goes a little early: 16 kHz falls 60 dB in <Claim id="still-loses-highs">1.74 s where 500 Hz takes 1.98 s</Claim>, both read from the picture in stage 6.
+    Drum hits have silence between them, and silence is where a tail is heard. Decay stays where the lesson starts it, so that each tail is well on its way down before the next hit needs the room. Damping is a little higher, to keep the wash of the cymbals from building up. <Claim id="use-drums">The quietest fifth of a second of the loop stands at −85 dB as played and at −34 dB with the plate</Claim>.
 
-**A tail that never quite ends.** A loop that multiplies by less than 1 gets smaller for ever and never reaches zero, and numbers that small are slow to compute with. Every write to a delay line in <Src path="cpp/devices/plate-reverb/plate_reverb.h">the plate</Src> goes through <Src path="cpp/common/dsp_util.h">`flush_denormal`</Src>, which turns anything under 10⁻¹⁵ into an exact zero, so a tail does end. When the plate has put out nothing but zeros for a second with nothing coming in, <Src path="cpp/devices/plate-reverb/plate_reverb_device.h">the device</Src> stops running it and only keeps the two sweeps turning.
+  </Use>
+  <Use title="A picked guitar" set="guitar">
+    <Still
+      slot="picture"
+      taps="in added"
+      set="guitar"
+      from={0}
+      span={2}
+      caption="Two seconds of the guitar line, and what the plate adds to it. The plate's line fills the dips between the notes, so it is more even than the line that went in."
+    />
 
-**Steps when a control moves.** The device stores mix, decay, damping and pre-delay the moment they are set, with no ramp between the old value and the new. A change of pre-delay moves the place the line is read from, and what was there need not be anything like what was being read.
+    A picked note is a sharp front and a thin ring. A longer Decay carries the ring into the next note, and a longer Pre-delay holds the plate back so that the front is heard clean before the wash begins. Over the loop <Claim id="use-guitar">what the plate adds stands 5.1 dB under the guitar itself</Claim>, both sides counted. Lower Mix for less of it.
 
-**Dry and wet.** The mix is a straight crossfade, the dry signal times one minus the mix plus the plate times the mix. With the mix at 0 the output is <Claim id="mix-zero">the input, sample for sample</Claim>. The dry signal keeps its two channels; only the plate's input is summed to one.
+  </Use>
+  <Use title="Strummed chords" set="chords">
+    <Still
+      slot="picture"
+      taps="in added"
+      set="chords"
+      caption="Two chords, each left to ring, and what the plate adds. The plate's line swells a moment after each strum and is still wide when the chord's own line has thinned."
+    />
 
-## What to try
+    A chord left to ring has a tail of its own, and the plate lengthens it. Decay is high and Damping is raised with it, so the long tail is a dark one and does not hiss over the next strum. At these settings <Claim id="use-chords">the plate's answer to a click falls 60 dB in 5.8 s round 500 Hz and in 3.4 s round 5 kHz</Claim>.
 
-- Clicks, **decay** at 0. This is one pass with no loop at all. Listen along the stages from the first all-pass to the fourth, then bring the decay up.
-- Clicks, **pre-delay** from 0 to 120 ms, and stage 1's figure. The answer comes away from the click.
-- Drums, **damping** from 0 to 0.8. Watch the top of stage 6's picture go dark and the red line of the figure under it steepen.
-- Guitar chords, **decay** at 0.9. Each chord is still ringing when the next one is played.
-- The sine, the tank's delays **Still** and then **Moving**, and stage 7's figure.
-- **Mix** at 0.35, the device's own default, with the drums: the plate under the sound, not in place of it.
+  </Use>
+  <Use title="A pad" set="pad">
+    <Still
+      slot="picture"
+      taps="in added"
+      set="pad"
+      caption="A pad going in, and what the plate adds. Neither line has a sharp edge anywhere, and the plate's line is nearly as tall as the pad's."
+    />
+
+    A pad has no fronts and no gaps, so there is no tail to hear on its own. What the plate gives it is width: one channel goes in and two unlike ones come out, and a long, dark tail keeps them full. Over the loop <Claim id="use-pad">what the plate adds stands 1.6 dB under the pad itself</Claim>. Listen for the sound opening out to the sides.
+
+  </Use>
+</Uses>
+
+These are places to start. The sound a plate is least kind to is a low one that is given a long tail, and part 7 has it.
+
+</Part>
+
+<Part id="build" title="Start with a gap. Add what makes it a plate, a piece at a time.">
+
+The quickest way to understand the plate is to make one. This part begins with a single delay and adds seven pieces to it. After each piece the pictures are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these pictures and plays "Hear it so far".
+
+Two pictures follow most steps. The first is one click through the build so far, so that each piece can be seen doing its work on the simplest sound there is. The second shows the loop that is playing.
+
+The build keeps its memory in the device's own kind of delay line and takes its lengths from the device, so it is the pieces and not a second copy of the numbers. Part 5 says where each number comes from.
+
+<Build>
+  <Step title="One channel and a gap" controls="predelay">
+    A plate takes in one channel. The build adds left and right, halves the sum, writes it into a delay line and reads it back a fixed number of samples behind. That gap is the pre-delay. In a room the first reflection arrives a little after the direct sound, and later the larger the room. A gap also keeps the front of a note clear of its own tail. It can be as long as <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="constexpr float kMaxPredelayMs = 250.0f;">250 ms</Src>.
+
+    The second line of the listing puts the delayed sound through a filter. It is the device's, and the device leaves it all but open: stage 2 of part 5 measures how little it does. It is here so that the finished build is the device, not nearly the device.
+
+    <Listing
+      path="site/labs/plate-reverb.cpp"
+      from="// One channel and a gap: the mean of left and right goes into a ring of"
+      to="return open_filter.process(gap.read(gap_length), bandwidth);"
+      mark="gap.write((in_left + in_right) * 0.5f);"
+      name="wait"
+    />
+
+    Press "Hear it so far". On the clicks, each click is heard once, a moment late. Nothing rings.
+
+    <Curve slot="picture" taps="builtHit" xMax={100} xTitle="ms after the click" height={200}>
+      One click through the build so far. Try Pre-delay, and notice the one upright line move
+      along: the click comes out once, as it went in, later.
+    </Curve>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the sound so far. Notice that the second is the first again, a moment
+      later, and that nothing follows it.
+    </Lanes>
+
+  </Step>
+  <Step title="Four all-passes" controls="predelay">
+    An all-pass is the loop of part 1, a delay with part of its output fed back, and one line more: some of what has just gone in is taken straight off what comes out. That line cancels the buzz. Every frequency leaves at the level it came in at, and all that changes is when each one arrives. <Lesson id="phasing" cap /> is about the same filter with a delay of one sample. Here the delays are hundreds of samples long, and what comes out is a train of echoes. Stage 3 of part 5 goes through its two lines of arithmetic.
+
+    One train is still evenly spaced. So the build puts four all-passes in a row, of four different lengths. Each echo of the first sets off a whole train in the second, each of those a train in the third, and so on.
+
+    <Claim id="build-diffuse">In the 10 ms that start 30 ms after the click arrives there are now 96 echoes, where the step before had one sample and no echo. The tallest sample is 0.22 of the click's height, and the level over the loop is what it was to less than 0.01 dB</Claim>. The click has been spread out along time, and none of it has been lost.
+
+    <Listing
+      path="site/labs/plate-reverb.cpp"
+      from="// An all-pass: a delay with its output fed back, and one line more. Some"
+      to="return delayed - gain * feed;"
+      mark="return delayed - gain * feed;"
+      name="pass"
+    />
+
+    <Listing
+      path="site/labs/plate-reverb.cpp"
+      from="// Four all-passes in a row: each echo of one sets off a train in the next."
+      to="return diffuser_4.pass(x);"
+      name="diffuse"
+    />
+
+    Listen to the clicks again. Each one is now a short rough burst, and it is still over in a tenth of a second.
+
+    <Curve slot="picture" taps="builtHit" xMax={100} xTitle="ms after the click" height={200}>
+      One click through the build so far. Notice that the one upright line of the step before has
+      become a burst of many small ones, pointing both ways, at uneven times.
+    </Curve>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the sound so far. Notice that each click of the second lane is lower
+      and wider than it was: the same energy, spread along time.
+    </Lanes>
+
+  </Step>
+  <Step title="One loop" controls="predelay decay">
+    The burst is dense, and it is gone at once. To make it last, the build sends it round a loop. The loop is an all-pass, a long delay, a second all-pass and a second long delay, and what leaves the last delay is multiplied by Decay and added to what comes in. The device calls such a loop one half of its tank.
+
+    <Claim id="build-loop">The click now comes round again 275 ms after it first arrived, and from 0.5 s to 1 s after the click the sound stands at −65 dB. Without the loop nothing comes round, and that stretch holds under −170 dB</Claim>, which is silence.
+
+    Decay is multiplied in twice on the way round: once inside the half, and once where the sound comes back in. In the first listing, the line that names the damping filter does nothing yet. Its coefficient is 0 until step 5, and with 0 the filter hands on what it is given.
+
+    <Listing
+      path="site/labs/plate-reverb.cpp"
+      from="// Once through the half: an all-pass, a long delay, the damping filter,"
+      to="back = second.read(second_length);"
+      name="half"
+    />
+
+    <Listing
+      path="site/labs/plate-reverb.cpp"
+      from="// One loop: the left half alone. What leaves it comes back in, times Decay."
+      to="void loop(float x) { left.run(x + decay_gain * left.back, decay_gain, dulling); }"
+      mark="void loop(float x)"
+      name="loop"
+    />
+
+    A loop has no end to listen at. Until the build has outputs of its own, "Hear it so far" plays what goes into the half's first long delay.
+
+    A tail does not stop where the page's loop of four seconds does. So the lab plays the loop twice and keeps the second pass. What was still ringing at the end of the first pass lies under the start of the second, as it would if the music had been going round all along. On a loop that holds one click and nothing else, <Claim id="second-pass">with Decay at 0.9 the first 20 ms of the device's output stand at −66 dB, before the plate has answered the click at all. With Decay at 0.5 they stand under −150 dB</Claim>. A tail longer than the loop gets that one extra pass and no more, so at the top of Decay the page plays a little less tail than the device would after minutes of the same music.
+
+    <Curve slot="picture" taps="builtHit" xTitle="ms after the click" height={200}>
+      One click through the build so far, for a second. Notice the burst at the left, and the same
+      burst come round again further along, lower. Try Decay higher, and notice a third and a
+      fourth.
+    </Curve>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the sound so far. Try Decay at its top, and notice the second lane
+      stay tall from one click to the next.
+    </Lanes>
+
+  </Step>
+  <Step title="Two loops, crossed" controls="predelay decay">
+    One loop says the same thing again every trip, and a repeat that long is heard as a repeat. The device has two halves with different lengths, and it crosses them. What leaves the left half goes into the right, and what leaves the right goes into the left. The burst goes into both. A sound that enters one half must pass through both before it meets its own start again, so the path is a figure of eight, twice as long, and the two halves never line up.
+
+    <Claim id="build-cross">What entered the right half reaches the left 248 ms after it arrived. Heard one on each side, the two halves have a likeness of 0.62, where the one loop on both sides had a likeness of 1</Claim>. Likeness is the two sides multiplied together sample by sample and added up, against their sizes: 1 for the same signal on both sides, 0 for two unrelated ones.
+
+    <Listing
+      path="site/labs/plate-reverb.cpp"
+      from="// Two, crossed: each half takes in what left the other."
+      to="right.run(x + decay_gain * left.back, decay_gain, dulling);"
+      mark={[
+        'left.run(x + decay_gain * right.back, decay_gain, dulling);',
+        'right.run(x + decay_gain * left.back, decay_gain, dulling);',
+      ]}
+      name="cross"
+    />
+
+    Listen on the clicks, and then on the drums. The left side now plays one half and the right side the other.
+
+    <Curve slot="picture" taps="builtHit" xTitle="ms after the click" height={200}>
+      One click through the build so far, heard in the left half. Notice that what comes round is
+      no longer the first burst again: it has been through the right half, and it arrives sooner
+      and more spread out.
+    </Curve>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the sound so far. Try Decay from one end to the other, and notice the
+      tails lengthen and shorten.
+    </Lanes>
+
+  </Step>
+  <Step title="Damping" controls="predelay decay damping">
+    So far every trip costs every frequency the same share. A room takes more from the highs. The build puts a small low-pass filter after each half's first long delay, with Damping as its one number. It is the filter of <Lesson id="one-pole" />, and stage 7 of part 5 has its equation.
+
+    One pass through it is mild. The sound passes it twice a trip, trip after trip, and the losses add up. <Claim id="build-damp">With Damping at 0.3, from 1 s to 1.5 s after a click the octave round 8 kHz stands 8.4 dB under the octave round 500 Hz. Without the filter it stands 3.5 dB under</Claim>.
+
+    It stood a little under even before this step. Each half's first all-pass reads between two samples, and that costs a little treble on every pass. Part 7 comes back to it.
+
+    <Listing
+      path="site/labs/plate-reverb.cpp"
+      from="x = moving(x);"
+      to="x *= decay_gain;"
+      mark="x = damping.process(first.read(first_length), dulling);"
+      name="damp"
+    />
+
+    <Spectrum slot="picture" taps="in built" min={-110}>
+      The spectrum of the sound going in and of the sound so far. Try Damping from 0 to 1, and
+      notice the right-hand end of the second line sink while its left-hand end stays.
+    </Spectrum>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the sound so far. Damping changes how the tail sounds far more than
+      how tall it is drawn: listen as you move it.
+    </Lanes>
+
+  </Step>
+  <Step title="Seven places a side" controls="predelay decay damping">
+    The build has been heard at one place in each half. The device listens at seven places for each side, along the delays of both halves. It adds them up with fixed signs and a gain of <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="float out_l = 0.6f * right_delay_1_.read(tap_left_[0]);">0.6</Src> each. Four of the left side's seven are in the right half, and the right side's are the mirror of that.
+
+    Seven delayed copies of a dense sound are denser still. Two different sets of places also make two outputs that are not alike, out of the one channel that went in. <Claim id="build-read">The two sides now have a likeness under 0.01, where a step ago it was 0.63. The left first sounds 428 samples after the gap and the right 568 samples</Claim>. Before this step both sounded the moment the gap ended.
+
+    <Listing
+      path="site/labs/plate-reverb.cpp"
+      from="// The outputs: each side adds up seven places along the delays, four of them"
+      to="l -= kReadGain * left.second.read(place_left[6]);"
+      name="read"
+    />
+
+    The listing is the left side. The right side is the same seven lines with the halves changed over.
+
+    <Curve slot="picture" taps="builtHit" xTitle="ms after the click" height={200}>
+      One click through the build so far, at the left output. Notice that it starts a little later
+      than before, and that there is no single burst any more: the seven places have filled the
+      gaps between the trips.
+    </Curve>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the sound so far. Notice that each tail now falls away smoothly from
+      its start.
+    </Lanes>
+
+  </Step>
+  <Step title="Movement" controls="predelay decay damping movement">
+    A loop of fixed delays reinforces some frequencies and cancels others, and which ones depends on its lengths to the sample. A steady note held into it comes out louder or quieter according to where the note falls in that pattern.
+
+    The device never lets the pattern stand. A slow sine stretches the delay of each half's first all-pass and lets it back, so the pattern slides. This piece is that sine. To see it work, set "The tank's delays" to Moving: the lab starts them on Still, which the device itself has no way to do.
+
+    <Claim id="build-move">With the delays moving, a steady 440 Hz tone comes out of the build with a level that swings over 20.6 dB, and the left half's first delay grows by up to 19.35 samples and shrinks back. Without the piece the level holds within 0.001 dB</Claim>. The swing was read on eight seconds of the tone, a tenth of a second at a time.
+
+    <Listing
+      path="site/labs/plate-reverb.cpp"
+      from="// The half's first all-pass. Its delay is not a whole number of samples,"
+      to="return delayed - kTankGainA * feed;"
+      mark="stretch = sweep > 0.0f ? sweep * (1.0f + std::sin(phase)) * 0.5f : 0.0f;"
+      name="moving"
+    />
+
+    <Lanes slot="picture" taps="in builtSweep built" ranges={{ builtSweep: [0, 20] }}>
+      The sound going in, what the movement adds to the left half's first delay, in samples, and
+      the sound so far. Set the delays to Moving, and notice the middle lane rise and fall once a
+      second.
+    </Lanes>
+
+  </Step>
+  <Step title="Mix" controls="predelay decay damping movement mix">
+    Last, the sound as it went in is put beside the plate. With Mix at 1 the output is the plate alone, and with Mix at 0 it is the dry sound alone. The dry sound keeps its two channels. Only what goes into the plate was added up into one.
+
+    <Listing
+      path="site/labs/plate-reverb.cpp"
+      from="// Mix: the sound as it went in, beside the plate."
+      to="out[1] = in_right * (1.0f - blend) + out[1] * blend;"
+      name="mixed"
+    />
+
+    That is all eight pieces. The steps before this one were the lesson's own: a plate with a piece missing, which the engine's device at no time is. With every piece in place the build does to a sample what the device does, in the same order, and on every render the lab compares the build's two outputs with the device's own.
+
+    <Check id="builtDifference" />
+
+    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows when there is no difference at all. On the clicks and on each of the six loops of music, at each of the three settings the lab's test tries, the build and the device's output are <Claim id="build-same">the same, sample for sample</Claim>.
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the sound so far. Try Mix from 1 down to 0, and notice the second lane
+      turn into the first.
+    </Lanes>
+
+  </Step>
+</Build>
+
+Here is how the lab puts the pieces in order, for one sample.
+
+<Listing
+  path="site/labs/plate-reverb.cpp"
+  from="// One sample through the pieces built so far, in the order it meets them."
+  to="if (pieces >= kMix) mixed(in_left, in_right);"
+  name="run"
+/>
+
+That is a whole plate in a handful of small functions: a gap, four all-passes, two loops that feed each other, a filter, a gain, seven places to listen at on each side, a slow sine and a blend. The one in the engine is the same pieces in the same order, written as one function. The next part opens it.
+
+</Part>
+
+<Part id="engine" title="The engine's own plate, opened up.">
+
+From here on it is the device itself. The page runs the engine's C++, compiled for the browser, on the loop, and each figure is read out of the running code at the point the text is talking about. Under its title each stage says where its figure comes from. The listings are the engine's source as it stands, with the file and the line numbers, so you can go and read around them.
+
+The lab does three things beside the device. A second copy of the plate, at the same settings, is given one sample and nothing else: the figures titled "One sample" are its answer, and they stay the same whatever loop is playing. The lab holds still the two delays that the device keeps moving, until "The tank's delays" is set to Moving. And it works out again what each of the four input all-passes hands on, which the device does not keep. Stage 4 says how that is held to the device.
+
+<Flow
+  label="The sound divides. One copy goes straight to the mix. The other is added up into one channel, delayed, filtered, sent through four all-passes and then round a loop of two halves. Each side of the output is read from seven places in the loop and blended with the first copy."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'split', shape: 'dot', from: 'in' },
+    { id: 'gap', from: 'split', tap: 'predelayed', label: 'One channel, pre-delay', n: 1 },
+    { id: 'band', from: 'gap', tap: 'filtered', label: 'Bandwidth filter', n: 2 },
+    { id: 'first', from: 'band', tap: 'diffused1', label: 'An all-pass', n: 3 },
+    { id: 'four', from: 'first', tap: 'diffused4', label: 'Three more', n: 4 },
+    { id: 'sum', shape: 'sum', from: 'four', back: 'other' },
+    { id: 'moving', from: 'sum', tap: 'tankA', label: 'All-pass, moving', n: '5, 8' },
+    { id: 'damp', from: 'moving', tap: 'damped', label: 'Delay, damping', n: 7 },
+    { id: 'back', from: 'damp', tap: 'crossing', label: 'Decay, all-pass, delay', n: 6 },
+    { id: 'other', row: 1, from: 'back', label: 'The other half' },
+    { id: 'read', from: 'back', label: 'Seven places a side', n: 9 },
+    { id: 'mix', from: ['read', 'split'], label: 'Mix', n: 9 },
+    { id: 'out', tap: 'out', shape: 'end', from: 'mix' },
+  ]}
+>
+  The path that leaves the top row at its start and joins it again at the mix is the dry sound. The
+  loop is drawn as one half in three blocks and the other half as one block under it: the other
+  half is the same chain with lengths of its own, the burst from the all-passes goes into it too,
+  and the seven places of each side are spread over both. Press a stage's button below, and notice
+  its block light up here.
+</Flow>
+
+<StageBlock tap="predelayed" n={1} title="One channel, and a gap">
+  The plate takes in one channel. The device adds left and right and halves the sum, so the reverb is the same wherever a sound sat between the speakers. The width of what comes out is made later, by where the outputs are read. One thing follows from the sum: a sound that is opposite in the two channels adds up to nothing and <Claim id="one-channel">gets no reverb at all</Claim>.
+
+  Then comes the pre-delay, the gap of step 1 of the build. Its length is <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="int samples = static_cast<int>(ms * 0.001f * sample_rate_ + 0.5f);">the time multiplied by the sample rate and rounded</Src>.
+
+  <Controls ids="predelay" />
+
+  <Wave taps="out" from={0} span={0.15} fit>
+    The first 150 ms of the output, on the clicks. A click goes in at the left edge. Try Pre-delay
+    from 0 upwards, and notice the plate's answer slide away from the edge.
+  </Wave>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`p[n] = \at{device-mean}{\tfrac12\,\bigl(\sig{in}{l[n-P]} + \sig{in}{r[n-P]}\bigr)}`}
+  />
+
+  <Fragment slot="readback">
+    <M t="l" /> and <M t="r" /> are the left and the right of the sound going in, and <M t="p" /> is the one channel that goes on to the plate. The half and the sum are one line of the device, in the listing of stage 9, which the equation links to. <M t="P" /> is the gap in samples. The delay line reads after it writes, so a length of one sample is the sample just written, and <M t="P" /> is one less than the length: <Claim id="predelay-one-less">at a pre-delay of 20 ms a sample comes out 959 samples later</Claim>, and at 0 ms it is not delayed at all.
+
+    The first line of the listing writes into the delay line, and the second reads it back and hands it to the filter of stage 2. The four lines at the end are stages 3 and 4.
+  </Fragment>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/plate-reverb/plate_reverb.cpp"
+    from="predelay_.write(in);"
+    to="x = input_diffusion_4_.process(x, kInputDiffusion2);"
+    name="input"
+  />
+  <Fragment slot="listen">Hear the one channel after the gap</Fragment>
+</StageBlock>
+
+<StageBlock tap="filtered" n={2} title="A filter left all but open">
+  Before the all-passes the one channel goes through a small low-pass filter. Each sample that leaves it is mostly the new sample and a little of the last one it put out. The device calls the little its coefficient, and here it is fixed at <Src path="cpp/devices/plate-reverb/plate_reverb.h" at="float bandwidth_coefficient_ = 0.0005f;">0.0005</Src>, which leaves the filter all but open: it takes <Claim id="bandwidth-loss">0.008 dB</Claim> off a tone at 20 kHz.
+
+  This is the place where a plate can be told to take in less treble, and this device has no control for it. The same filter with a coefficient that matters is the damping of stage 7, which sets it as an equation. The whole filter is the one line in the middle of this listing. The call round it, `flush_denormal`, turns a number too small to matter into an exact zero, and part 7 says what that is for.
+
+  <Listing
+    slot="listing"
+    path="cpp/common/dsp_util.h"
+    from="struct OnePoleLowpass {"
+    to="return state;"
+    name="onepole"
+    at={{ step: 'state = flush_denormal(x * (1.0f - coefficient) + state * coefficient);' }}
+  />
+  <Fragment slot="listen">Hear it after the filter</Fragment>
+</StageBlock>
+
+<StageBlock tap="diffused1" n={3} title="The all-pass: echoes that leave every level alone">
+  Start from the loop of part 1, a delay of <M t="M" /> samples with a share <M t="g" /> of its output fed back:
+
+  <M block t={String.raw`c[n] = \sig{in}{x[n]} + g\,c[n-M]`} />
+
+  <M t="x" /> is what goes in and <M t="c" /> what comes out. One sample in gives 1, then <M t="g" />, then <M t="g^2" />, one every <M t="M" /> samples. Against frequency that is a comb. Where a whole number of waves fits the delay the echoes add up, and half way between they cancel. With a delay of 229 samples and a share of three quarters, the lab's loop <Claim id="comb-peaks">lifts some frequencies 12 dB and drops others 4.9 dB, with a peak every 210 Hz</Claim>. That is the buzz of part 1.
+
+  <Still
+    taps="responseComb responseAllpass"
+    view="curve"
+    min={-12}
+    max={18}
+    caption="What each does to the level of every frequency up to 2 kHz, in decibels. The bottom edge counts hertz. The delay with feedback is a row of peaks. The first input all-pass, with the same delay and the same share, is the flat line at 0."
+  />
+
+  The all-pass is the same loop with one line added. The picture under this paragraph is its answer to one sample.
+
+  <Still
+    taps="hit1"
+    view="curve"
+    caption="One sample through the first input all-pass, over 50 ms. The bottom edge counts milliseconds. The first sample out points down, at three quarters of the size of what went in. The echoes after it point up, and each is three quarters of the one before."
+  />
+
+  <M block t={String.raw`w[n] = \at{allpass-feed}{\sig{in}{x[n]} + g\,w[n-M]}`} />
+
+  <M slot="equation" block t={String.raw`\sig{out}{y[n]} = \at{allpass-out}{w[n-M] - g\,w[n]}`} />
+
+  <Fragment slot="readback">
+    Read the two lines against the picture. <M t="w" /> is what is written into the delay line: the sample coming in, plus <M t="g" /> times what the line gives back. So far that is the loop above. <M t="y" /> is what the all-pass hands on: what the line gives back, less <M t="g" /> times what was just written. In the listing <M t="w[n-M]" /> is `delayed`, <M t="w[n]" /> is `feed`, and the last line is <M t="y" />.
+
+    One sample in comes out as <M t="-g" /> at once, because of that last term, and then as <M t={String.raw`(1-g^2)\,g^{k-1}`} /> after <M t="k" /> trips round the line. On the first all-pass of the device that is <Claim id="allpass-echoes">−0.75, then 0.44, 0.33 and 0.25, each 229 samples after the last</Claim>.
+
+    That first sample, upside down, is the whole trick. Written as what comes out against what goes in at each frequency, the all-pass is
+
+    <M block t={String.raw`A(z) = \frac{z^{-M} - g}{1 - g\,z^{-M}}`} />
+
+    where <M t={String.raw`z^{-M}`} /> stands for a delay of <M t="M" /> samples. For a steady tone, <M t={String.raw`z^{-M}`} /> is a point on a circle of radius 1, and then the top and the bottom of the fraction have the same size: one is the other reflected and turned. So the size of <M t="A" /> is 1 at every frequency. The echoes are still there, and their energy adds up to that of the one sample that went in. What has changed is when each frequency arrives, which is exactly what a reverb wants to change.
+
+    The flat line of the first picture is measured, not drawn: it is the spectrum of those echoes against the spectrum of what went in. From 20 Hz to 20 kHz it strays from 0 dB by <Claim id="allpass-flat">less than 0.00001 dB</Claim>.
+
+    <Lesson id="phasing" cap /> has the all-pass as a filter, with a delay of one sample, and what its turning of each frequency does when the result is added back to the sound. Here only its echoes matter.
+  </Fragment>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/plate-reverb/plate_reverb.h"
+    from="struct Allpass {"
+    to="return delayed - gain * feed;"
+    name="allpass"
+    at={{
+      feed: 'const float feed = x + gain * delayed;',
+      out: 'return delayed - gain * feed;',
+    }}
+  />
+  <Fragment slot="listen">Hear it after one all-pass</Fragment>
+</StageBlock>
+
+<StageBlock tap="diffused4" n={4} title="Four in a row: one sample becomes a burst">
+  One all-pass makes a train of echoes, evenly spaced, and that is still too regular. The device puts four in a row, as step 2 of the build did. Their lengths were chosen at a sample rate of <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="constexpr float kReferenceRate = 29761.0f;">29,761 Hz</Src>, where they are <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="constexpr int kInputAp1 = 142;" to="constexpr int kInputAp4 = 277;">142, 107, 379 and 277 samples</Src>. When the device starts it multiplies each by the running rate over that one and rounds, which is the listing of this stage. At the page's <Src path="site/labs/lab.h" at="constexpr float kSampleRate = 48000.0f;">48,000 samples a second</Src> that makes <Claim id="input-lengths">229, 173, 611 and 447 samples</Claim>. The first two feed back <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="constexpr float kInputDiffusion1 = 0.750f;">0.75</Src> of what they hold and the last two <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="constexpr float kInputDiffusion2 = 0.625f;">0.625</Src>.
+
+  No two of the four lengths share a factor, and that matters. After the first two all-passes there is an echo at every time that is some number of the first length plus some number of the second. Had the two lengths shared a factor, those sums would pile onto the same few instants, evenly spaced, and an even spacing is a pitch again. With no factor in common, two different sums cannot land on the same sample until 229 times 173 samples have gone by, which is most of a second and long after the echoes have died. Until then every echo has an instant to itself.
+
+  <Still
+    taps="hit4"
+    view="curve"
+    caption="One sample after all four all-passes, over 50 ms. The bottom edge counts milliseconds. The few tall echoes of the picture in stage 3 have become many small ones, at uneven times, pointing both ways."
+  />
+
+  Counted as in part 1, in the 10 ms that start 30 ms after the sample went in there are <Claim id="density-stages">2 echoes after one all-pass, 23 after two, 47 after three and 96 after four</Claim>. After the fourth the count climbs to <Claim id="density-four">186 in 10 ms</Claim>.
+
+  <Curve
+    taps="density1:in density2:ctl density3:alt density4:alt2 densityOut:out"
+    xMax={200}
+    min={0}
+    max={200}
+    xTitle="ms after the pre-delay"
+    yTitle="echoes in 10 ms"
+    height={260}
+  >
+    Echoes in each 10 ms after one sample went in: after one, two, three and four all-passes, each
+    counted for 100 ms, and at the plate's left output. Notice that each all-pass has more echoes
+    than the one before it and has them sooner. The output starts later, because the sound must
+    first reach a place where it is read, and then levels off.
+  </Curve>
+
+  At the output, with the controls where the page opens them, <Claim id="density-ceiling">the count averages 152 in every 10 ms over the 400 ms from 100 ms on, which is over 15,000 echoes a second</Claim>. That is about one sample in three, as many peaks as noise has, and there is no room for more. Through all of it no level has changed: the four all-passes together move no frequency by <Claim id="chain-flat">as much as 0.00001 dB</Claim>.
+
+  What an all-pass hands on is a value the device works out and does not keep. The lab works it out again from the two samples of the all-pass's own delay line that the device used, and the check holds each result to what the next stage took in, which that stage's delay line gives back.
+
+  <Check id="rebuilt" />
+
+  On the clicks, the drums and the guitar, still and moving, the two are <Claim id="rebuilt">more than 120 dB apart</Claim> in level, which is the rounding of the arithmetic.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/plate-reverb/plate_reverb.cpp"
+    from="const auto scaled = [this](int reference_samples) {"
+    to="input_diffusion_4_.length = scaled(kInputAp4);"
+    name="scaled"
+  />
+  <Fragment slot="listen">Hear it after four all-passes</Fragment>
+</StageBlock>
+
+<StageBlock tap="tankA" n={5} title="The tank: two halves, each feeding the other">
+  The burst now goes into both halves of the tank at once. Each half is the same chain with lengths of its own, and the listing writes the left one out line by line:
+
+  1. Add the burst to what has just left the other half, times Decay.
+  2. An all-pass with a share of <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="constexpr float kDecayDiffusion1 = -0.700f;">−0.7</Src>. Its delay is the one that moves, in stage 8.
+  3. A long delay.
+  4. The damping filter of stage 7, then times Decay again.
+  5. An all-pass with a share of <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="constexpr float kDecayDiffusion2 = 0.500f;">0.5</Src>.
+  6. A second long delay. What leaves it crosses to the other half's first step.
+
+  So the sound goes left half, right half, left half: a figure of eight with no way out. At the page's sample rate the lengths of the four delays of each half are, in the order of that list, <Claim id="tank-lengths">1,083.8, 7,182, 2,903 and 6,000 samples on the left and 1,464.5, 6,801, 4,284 and 5,101 samples on the right</Claim>.
+
+  <Controls ids="decay" />
+
+  <Curve taps="hitTank" xTitle="ms after the pre-delay" height={260}>
+    One sample, for a second: what goes into the left half's first long delay. At 0 the burst of
+    stage 4 arrives, through the half's first all-pass. Further along it arrives again, lower and in
+    pieces: that is the burst that went into the right half at the same instant, come round. Try
+    Decay higher, and notice later arrivals show, each more spread out than the last.
+  </Curve>
+
+  The two halves are unlike on purpose, so the loop does not say the same thing twice in one trip. Once round both takes <Claim id="trip">0.725 s</Claim>, which is far too long to hear as a pitch, and the four all-passes inside the loop smear the burst again on every trip. What entered the right half first reaches the left <Claim id="crossing">11,901 samples later, at 248 ms</Claim>. That is the right half's two long delays and one sample more, because the left half is worked out first and so takes what the right half left on the sample before.
+
+  The plain delays, like the pre-delay, read after they write, so each delays by one sample less than its length: <Claim id="one-less">7,181 samples for a length of 7,182</Claim>. The all-passes read before they write and delay by their full length.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/plate-reverb/plate_reverb.cpp"
+    from="// Figure-8: each half consumes the other half's delayed output."
+    to="left_feedback_ = left_delay_2_.read(left_delay_2_length_);"
+    name="tank"
+    at={{
+      enter: 'float left = x + decay_ * right_feedback_;',
+      decay: 'left *= decay_;',
+    }}
+  />
+  <Fragment slot="listen">Hear what goes into each half's first long delay</Fragment>
+</StageBlock>
+
+<StageBlock tap="crossing" n={6} title="Decay: the gain round the loop">
+  Nothing in the tank loses level except by being told to. The all-passes pass everything, and the delays only wait. The loss is Decay, a plain multiplication, met twice in each half and so four times in one trip.
+
+  <Controls ids="decay" />
+
+  <Curve
+    taps="decayCurve"
+    xMax={4}
+    min={-80}
+    max={0}
+    xTitle="seconds after the sample went in"
+    yTitle="energy still to come, dB"
+    height={260}
+  >
+    The picture of part 1, live: how much of the answer's energy is still to come. Try Decay from one
+    end to the other, and notice the line tilt. It stays close to straight wherever Decay is.
+  </Curve>
+
+  <Check id="fall" />
+
+  <Check id="fallFormula" />
+
+  With <M t="d" /> for Decay and <M t="T" /> for the time once round, each trip multiplies the level by <M t="d^4" />, which takes <M t={String.raw`-20\log_{10} d^4`} /> decibels off it. The time to fall 60 dB is as many trips as that takes:
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`T_{60} = \frac{-3\,T}{4\,\log_{10} \at{tank-decay}{d}}`}
+  />
+
+  <Fragment slot="readback">
+    Read it against the picture. <M t={String.raw`T_{60}`} /> is the time the straight line takes to come down 60 dB. <M t="T" /> is the trip of stage 5. <M t="d" /> is Decay, a number under 1, so its logarithm is below zero and the time comes out above zero. The two lines of the listing in stage 5 that the equation links to are where <M t="d" /> is multiplied in, and the right half has the same two.
+
+    Note what the control is: the gain, not the time. Equal steps of Decay are not equal steps of time, and the time runs away as <M t="d" /> nears 1. The measured time is read off the line as rooms are measured: <Src path="site/labs/plate-reverb.cpp" at="const float from = time_at(data, length, x0, x1, -5.0f);" to="return from >= 0.0f && to > from ? 3.0f * (to - from) : 0.0f;">three times the stretch from 5 dB down to 25 dB down</Src>. The top of the line holds the pre-delay and the first uneven echoes, and its foot bends down where the lab stopped listening, so neither is used. With Damping at 0 and the delays still:
+
+    | Decay | By the formula | Measured |
+    | --- | --- | --- |
+    | 0.3 | <Claim id="formula-03">1.04 s</Claim> | <Claim id="fall-03">1.13 s</Claim> |
+    | 0.5 | <Claim id="formula-05">1.81 s</Claim> | <Claim id="fall-05">1.77 s</Claim> |
+    | 0.7 | <Claim id="formula-07">3.51 s</Claim> | <Claim id="fall-07">3.32 s</Claim> |
+    | 0.9 | <Claim id="formula-09">11.9 s</Claim> | <Claim id="fall-09">10.8 s</Claim> |
+
+    The two columns are within about a tenth of each other in every row. They differ because the formula treats the loop as one length. An all-pass holds some frequencies longer than its length and others less, so not every frequency makes the trip in the same time, and the answer is a sum of tails with slightly different slopes.
+
+    With Damping where the page opens it, the time runs <Claim id="decay-range">from 0.47 s with Decay at 0 to 10.4 s with Decay at 0.9</Claim>. The time at 0 is not nothing. With no way round at all, the burst still crosses each half once and is read on the way.
+
+    The device lets Decay go as high as <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="if (decay > 0.9999f) decay = 0.9999f;">0.9999</Src>, where the formula gives hours. The lab's control stops at 0.9, so that the eight seconds it listens for can still measure something.
+  </Fragment>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/plate-reverb/plate_reverb.cpp"
+    from="void PlateReverb::set_decay(float decay) {"
+    to="decay_ = decay;"
+    name="setdecay"
+  />
+  <Fragment slot="listen">Hear what crosses to the other half</Fragment>
+</StageBlock>
+
+<StageBlock tap="damped" n={7} title="Damping: the highs die first">
+  In a room the highs go first. In the tank they go first because the fourth step of each half is the filter of stage 2 again, this time with Damping as its coefficient.
+
+  <Controls ids="damping decay" />
+
+  <Curve
+    taps="fallBands"
+    xLog
+    min={0}
+    xTitle="frequency, Hz"
+    yTitle="time to fall 60 dB, s"
+    height={260}
+  >
+    The time to fall 60 dB in each of thirteen bands, as in part 1, live. Try Damping from 0 to 1,
+    and notice the right-hand end of the line sink while its left-hand end hardly moves. Try Decay,
+    and notice the whole line rise and fall.
+  </Curve>
+
+  <Check id="fallLow" />
+
+  <Check id="fallHigh" />
+
+  With <M t="u" /> for what leaves the first long delay and <M t="v" /> for what leaves the filter, the filter is one line:
+
+  <M block t={String.raw`v[n] = \at{onepole-step}{(1 - a)\,u[n] + a\,v[n-1]}`} />
+
+  <M t="a" /> is Damping. Each sample out is <M t="1 - a" /> of the new sample and <M t="a" /> of the last sample out. The larger <M t="a" />, the more of the past is kept and the duller the result. <Lesson id="one-pole" cap /> is about this filter. Its gain at a frequency <M t="f" /> is
+
+  <M
+    block
+    t={String.raw`|D(f)| = \frac{1 - a}{\sqrt{1 - 2a\cos\omega + a^{2}}}`}
+  />
+
+  where <M t={String.raw`\omega`} /> is the frequency as an angle, <M t={String.raw`2\pi f / f_s`} />, and <M t="f_s" /> is the sample rate. The gain is 1 at the bottom of the spectrum and falls towards <M t={String.raw`(1-a)/(1+a)`} /> at the top. Measured with steady tones, <Claim id="damping-cutoff">it is 3.0 dB down at 10.6 kHz with Damping at 0.3, and at 2.75 kHz with Damping at 0.7</Claim>.
+
+  One pass through such a filter is a mild thing. The sound in the tank passes it twice a trip, trip after trip. So the gain round the loop becomes <M t={String.raw`d^{4}\,|D(f)|^{2}`} />, and every frequency gets a time of its own:
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`T_{60}(f) = \frac{-3\,T}{\log_{10}\bigl(d^{4}\,|D(f)|^{2}\bigr)}`}
+  />
+
+  <Fragment slot="readback">
+    Read it against the picture. At the left of the line <M t="|D(f)|" /> is close to 1, the equation is that of stage 6, and Damping has almost nothing to say. Towards the right <M t="|D(f)|" /> shrinks, the logarithm grows more negative, and the time shortens. With Decay at 0.5 and Damping at 0.7 the equation gives <Claim id="damping-formula">1.8 s at 500 Hz and 1.2 s at 5 kHz</Claim>.
+
+    The lab measures both, by putting the answer through two band-pass filters and reading a time off each, which are the two readings under the picture. With the delays still, at a Damping of 0.7 <Claim id="damping-bands">the band at 5 kHz falls 60 dB in 1.27 s, against 1.85 s with no damping. The band at 500 Hz takes 1.85 s, against 1.87 s</Claim>. A third of the highs' time is gone and a hundredth of the lows'.
+
+    The device lets Damping go no higher than <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="if (damping > 0.9999f) damping = 0.9999f;">0.9999</Src>. Up there the filter keeps nearly all of its past and lets almost nothing new through, at any frequency. Part 7 has what that does to the tail.
+  </Fragment>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/plate-reverb/plate_reverb.cpp"
+    from="void PlateReverb::set_damping(float damping) {"
+    to="damping_coefficient_ = damping;"
+    name="setdamping"
+  />
+  <Fragment slot="listen">Hear the tank after the damping</Fragment>
+</StageBlock>
+
+<StageBlock tap="wobbleLeft" n={8} title="The delays that move">
+  A tank of fixed delays is a fixed pattern of reinforcement and cancellation. A steady tone held into it comes out at a steady level, which the lab finds <Claim id="still-steady">constant within 0.1 dB</Claim> on a tone of 440 Hz. What that level is depends on exactly where the tone falls in the pattern. With the delays still, a tone at 441 Hz comes out <Claim id="pitch-luck">3.5 dB louder</Claim> than the one at 440 Hz. Each note of a tune has its own luck, and has it every time.
+
+  So the device never lets the pattern stand. The delay of each half's first all-pass is swept by a slow sine.
+
+  <Controls ids="movement" />
+
+  <Trace taps="wobbleLeft wobbleRight" min={0} max={20} unit="samples">
+    What is added to the delay of each half's first all-pass, in samples, across the loop. Set the
+    delays to Moving, and notice the two lines rise and fall, the second a little slower than the
+    first and a quarter of a turn ahead of it.
+  </Trace>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`M(t) = \at{sweep-delay}{M_0 + \tfrac12\,e\,\bigl(1 + \sin 2\pi\nu t\bigr)}`}
+  />
+
+  <Fragment slot="readback">
+    Read it against the picture. <M t="M(t)" /> is the all-pass's delay at the time <M t="t" />, in samples. <M t="M_0" /> is its length at rest, the first of each half's four lengths in stage 5. <M t="e" /> is how far the sweep reaches, and the sine with the 1 beside it runs from 0 to 2, so the delay goes from <M t="M_0" /> up to <M t="M_0 + e" /> and back, and is never shorter than at rest. <M t={String.raw`\nu`} /> is how many times a second it does so.
+
+    The reach is <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="constexpr float kExcursion = 12.0f;">12 samples</Src> at the rate the lengths were chosen at. On the page each delay grows by up to <Claim id="wobble-range">19.35 samples</Claim> and shrinks back, the left <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="constexpr float kLeftLfoHz = 1.00f;">once a second</Src> and the right <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="constexpr float kRightLfoHz = 0.95f;">a little slower</Src>, starting <Src path="cpp/devices/plate-reverb/plate_reverb.cpp" at="right_decay_diffusion_1_.lfo_phase = kTwoPi * 0.25f;">a quarter of a turn ahead</Src>, so the two drift in and out of step.
+
+    The delay is now not a whole number of samples, so the all-pass reads between two samples by a straight line, which is <Src path="cpp/devices/plate-reverb/plate_reverb.h" at="float read_interpolated(float delay) const {">`read_interpolated`</Src>. <Lesson id="delay-and-echo" cap /> has that way of reading, and what it costs.
+
+    With the delays moving, the same 440 Hz tone drifts through peaks and troughs as the pattern slides under it: over eight seconds its level <Claim id="moving-swings">swings over 20.6 dB</Claim>. No note keeps its luck. On music the swings of all the frequencies in a sound even one another out, and what is left is a tail that does not ring on one note.
+  </Fragment>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/plate-reverb/plate_reverb.cpp"
+    from="float PlateReverb::ModulatedAllpass<N>::process(float x, float gain) {"
+    to="return delayed - gain * feed;"
+    name="sweep"
+    at={{
+      delay: 'const float delay = base_length + excursion * (1.0f + std::sin(lfo_phase)) * 0.5f;',
+    }}
+  />
+</StageBlock>
+
+<StageBlock tap="out" n={9} title="Seven places a side, and the mix">
+  A loop has no end, so there is no last stage to listen to. Each side of the output is a sum of what the delay lines hold at seven places. The left side reads four places in the right half and three in the left, and the right side is the mirror of that, with fixed signs and a gain of 0.6 on each, as step 6 of the build did.
+
+  <Still
+    taps="hitLeft hitRight"
+    view="curve"
+    caption="One sample, at the left output and at the right, over the first 60 ms after the pre-delay. The bottom edge counts milliseconds. At first the right is the left again, a little later. Further along the two part."
+  />
+
+  <Check id="sides" />
+
+  The left <Claim id="first-out">first sounds 428 samples after the pre-delay and the right 568 samples after it, which are 8.9 ms and 11.8 ms</Claim>. Each side's first reading is of the same burst going into the other half, so the right repeats the left for <Claim id="sides-early">its first 1,083 samples</Claim>. Then the left half's first all-pass gives back what it took, and the two part for good. The reading above is the likeness of the two sides over the whole answer, as step 4 of the build defined it, and it stays <Claim id="sides">under 0.01</Claim>, still or moving. That is where the width of the plate comes from, though one channel went in.
+
+  <Listing
+    path="cpp/devices/plate-reverb/plate_reverb.cpp"
+    from="float out_l = 0.6f * right_delay_1_.read(tap_left_[0]);"
+    to="out_l -= 0.6f * left_delay_2_.read(tap_left_[6]);"
+    name="places"
+  />
+
+  Then the device blends each side with the dry sound.
+
+  <Controls ids="mix" />
+
+  <Lanes taps="in added out">
+    The sound going in, what the plate adds, and what comes out. Try Mix from 1 down to 0, and
+    notice the middle lane shrink while the last lane turns into the first.
+  </Lanes>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{out}{o_l[n]} = \at{device-gain}{(1 - m)}\,\sig{in}{l[n]} + \at{device-left}{m\,q_l[n]}`}
+  />
+
+  <Fragment slot="readback">
+    <M t="m" /> is Mix, from 0 to 1. <M t="l" /> is the left of the sound going in, as in stage 1, <M t={String.raw`q_l`} /> is the left side of the plate and <M t={String.raw`o_l`} /> is the left output. The right output is the same line with the right of each. The two gains add up to 1, a straight crossfade: <Claim id="mix-half">with Mix at 0.5 the dry sound comes out 6.0 dB down and the plate 6.0 dB down</Claim>. With Mix at 0 the output is <Claim id="mix-zero">the input, sample for sample</Claim>.
+
+    The dry sound keeps its two channels. Only the plate's input is added up into one, on the line the equation of stage 1 links to.
+  </Fragment>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/plate-reverb/plate_reverb_device.cpp"
+    from="const float dry_gain = 1.0f - mix_;"
+    to="out_right_[i] = dry_right * dry_gain + wet_right * mix_;"
+    name="device"
+    at={{
+      gain: 'const float dry_gain = 1.0f - mix_;',
+      mean: 'reverb_.process((dry_left + dry_right) * 0.5f, &wet_left, &wet_right);',
+      left: 'out_left_[i] = dry_left * dry_gain + wet_left * mix_;',
+    }}
+  />
+  <Fragment slot="listen">Hear what comes out</Fragment>
+</StageBlock>
+
+### All nine at once, on your loop
+
+Here is the whole device with every control live. The lanes are read at each stage in turn: the sound going in, the one channel after the gap, the same after the filter, after one all-pass and after four, what goes into each half's first long delay, the tank after the damping, what crosses to the other half, what the movement adds to the left half's delay, and the sound that comes out.
+
+<Controls ids="decay damping predelay movement mix" />
+
+<Lanes
+  taps="in predelayed filtered diffused1 diffused4 tankA damped crossing wobbleLeft out"
+  ranges={{ wobbleLeft: [0, 20] }}
+>
+  Every stage on one time axis. Try any control, and notice which lanes change and which do not:
+  Pre-delay moves every lane from the second down to the right, Decay changes nothing above the
+  tank, and Mix changes only the last.
+</Lanes>
+
+To judge what the plate did, compare three things: <Listen tap="in">what went in</Listen>, <Listen tap="added">what the plate added</Listen>, and <Listen tap="out">what came out</Listen>.
+
+One more thing the device does is in none of these stages. When nothing is coming in and the plate has put out nothing but exact zeros for <Src path="cpp/devices/plate-reverb/plate_reverb_device.h" at="static constexpr float kIdleHoldSeconds = 1.0f;">a second</Src>, the device stops running the plate and <Src path="cpp/devices/plate-reverb/plate_reverb_device.cpp" at="reverb_.advance_modulators(frames);">only keeps the two sweeps turning</Src>, so that they are where they would have been when sound comes back.
+
+</Part>
+
+<Part id="ways" title="Five things people do with a plate.">
+
+Each of these is a habit of working, not a preset. Press "Try it" and the page moves to settings that show the idea, so you can go back up and see what the pictures of part 2 and part 5 are doing.
+
+<Ways>
+  <Way title="Keep the note clear" tag="a longer Pre-delay" set="clear">
+    A plate answers almost at once, and on a busy part its wash lands on top of the note that made it. A longer Pre-delay moves the whole answer later and leaves the front of the note alone. On this card <Claim id="way-clear">the plate first answers a click 88.9 ms after it, where with Pre-delay at 20 ms it answered 28.9 ms after</Claim>. After the card, lengthen Pre-delay further and listen for the point where the plate turns into an echo of the part.
+  </Way>
+  <Way title="A short plate" tag="Decay low" set="short">
+    A short tail thickens a sound without filling the space after it. With Decay at 0.25 and the delays moving, the plate's answer to a click <Claim id="way-short">falls 60 dB in 0.96 s</Claim>. On drums that is enough to give each hit a body and leave the gaps between the hits open. After the card, raise Decay a little at a time and listen for the gaps closing.
+  </Way>
+  <Way title="A bright plate" tag="Damping at 0" set="bright">
+    With no damping the top of the tail lasts nearly as long as the bottom, which is the sound the steel sheet was liked for. On this card the answer to a click <Claim id="way-bright">falls 60 dB in 2.44 s round 5 kHz and in 2.55 s round 500 Hz</Claim>. Listen to the cymbals, whose wash now rings on. After the card, raise Damping and listen for the top closing down while the length of the low end stays.
+  </Way>
+  <Way title="A long dark wash" tag="Decay up, Damping up" set="dark">
+    A long tail that is also bright soon covers what is played over it. Raising Damping with Decay keeps the length where it does least harm, at the bottom. On this card the answer to a click <Claim id="way-dark">falls 60 dB in 7.7 s round 500 Hz and in 2.6 s round 5 kHz</Claim>: the low end rings three times as long as the top. After the card, take Damping back to 0 and listen for the hiss of the strums building up.
+  </Way>
+  <Way title="One plate for several sounds" tag="Mix at 1" set="alone">
+    A plate does not have to sit on one sound. Put one on a path of its own, send a little of several sounds to it, and they all seem to stand in one place. On such a path the dry sound is already in the mix, so the plate puts out the plate alone: with Mix at 1, <Claim id="way-alone">what the plate adds is the output, sample for sample</Claim>. The card plays the drums, the bass and the chords through one plate, and you hear only what would be added to them.
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Seven ways it goes wrong, four of them to hear.">
+
+<Faults>
+  <Fault title="Low notes that will not stop" set="mud">
+    Damping takes the top off the tail and leaves the bottom its full length. Nothing in the device takes the bottom off. A bass line with a long Decay rings on under the notes that follow until the notes blur: on this card <Claim id="fault-mud">what the plate adds stands 1.8 dB over the bass line itself, and the quietest fifth of a second of the loop goes from −42 dB to −23 dB</Claim>. Shorten Decay, lower Mix, or keep the plate off the bass.
+  </Fault>
+  <Fault title="A held tone that swells and fades" set="swell">
+    The movement of stage 8 is there to stop a tone ringing at one fixed level. On a single pure tone, with the plate alone, it does that by moving the level about: on this card a 440 Hz tone <Claim id="fault-swell">swings over 21 dB across the loop, and with the delays still it holds within 0.01 dB</Claim>. The device has no way to hold its delays still. On a sound with many frequencies in it the swings even out. On one bare tone the cure is a lower Mix, so the dry tone carries the level.
+  </Fault>
+  <Fault title="A gap long enough to hear" set="slap">
+    Pre-delay is a gap, and a gap long enough is heard as an echo. On this card the plate <Claim id="fault-slap">first answers a click 259 ms after it</Claim>, and each drum hit is followed by a second, blurred hit a quarter of a second later. If the plate is meant to sit behind the sound, shorten Pre-delay until the two join.
+  </Fault>
+  <Fault title="Damping at the top shuts the loop" set="shut">
+    The damping filter is inside the loop. With Damping at its top the filter keeps nearly all of its own past and lets almost nothing new through, so nothing goes round, whatever Decay says. On this card Decay is at 0.9 and the answer to a click <Claim id="fault-shut">falls 60 dB in 0.49 s, where with Damping at 0.3 it takes 10.1 s</Claim>. What is heard is the one pass of the burst and no tail. For a dark tail stop well short of the top.
+  </Fault>
+  <Fault title="A sound that is opposite on the two sides gets no plate">
+    The device adds left and right before the plate. Whatever is the same on both sides goes in whole, and whatever is opposite on the two sides cancels. Stage 1 of part 5 measures the far case: a tone that is upside down on one side gets no reverb at all. A wide sound keeps the part its two sides share and loses the part in which they differ. Nothing in the device changes that. Where it matters, narrow the sound before the plate.
+  </Fault>
+  <Fault title="Highs lost that nobody asked for">
+    Reading between two samples by a straight line is itself a gentle low-pass, and each half's first all-pass does it on every pass, still or moving, because its length at rest is not a whole number of samples. So even with Damping at 0 the top of the spectrum goes a little early: with the delays still <Claim id="still-loses-highs">the band round 16 kHz falls 60 dB in 1.62 s where the band round 1 kHz takes 1.87 s</Claim>. It is small, and it leans the way a room leans. There is nothing to set: it is how the device is made.
+  </Fault>
+  <Fault title="A step when a control moves">
+    The device takes Mix, Decay, Damping and Pre-delay <Src path="cpp/devices/plate-reverb/plate_reverb_device.cpp" at="void PlateReverbDevice::set_param(PlateReverbParam param, float value) {" to="reverb_.set_predelay_ms(value);">the moment they are set</Src>, with no glide from the old value to the new. A change of Pre-delay moves the place the delay line is read from, and what is there need not be anything like what was being read. Move Pre-delay while a sound is ringing and you may hear a tick. Set it between phrases.
+  </Fault>
+</Faults>
+
+One thing that would go wrong is taken care of. A loop that multiplies by less than 1 gets smaller for ever and never reaches zero, and numbers that small are slow to work with. Every write to a delay line in the plate goes through <Src path="cpp/common/dsp_util.h" at="inline float flush_denormal(float x) {">`flush_denormal`</Src>, which turns anything smaller than <Src path="cpp/common/dsp_util.h" at="constexpr float kDenormalThreshold = 1.0e-15f;">a thousand million millionth</Src> into an exact zero. So a tail does end, and the device can tell that it has, which is how it knows when to rest.
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="A reverb is a lot of echoes, so a delay with its feedback turned up is a reverb.">
+    A delay with feedback has echoes that die away, and it stops there. Its echoes never get any closer together, and evenly spaced echoes are a pitch. The answer to the question of part 1 counts them against the plate's, and stage 3 of part 5 measures the pitch.
+  </Myth>
+  <Myth says="An all-pass does nothing, since it changes no level.">
+    It changes when each frequency arrives. One all-pass turns a click into a train of echoes, and four turn it into a burst, with every frequency still at the level it came in at. Steps 1 and 2 of the build show the click before and after, and stage 3 of part 5 has the measurement.
+  </Myth>
+  <Myth says="Decay is the length of the reverb in seconds.">
+    Decay is a gain: what the sound keeps each time it is multiplied on its way round the loop. The time comes from the gain through a logarithm, so equal steps of Decay are not equal steps of time. The table in stage 6 of part 5 has the time at four settings.
+  </Myth>
+  <Myth says="With Decay at 0 there is no reverb.">
+    With Decay at 0 nothing goes round the loop, and the burst still crosses each half once and is read at seven places on the way. Stage 6 of part 5 measures that as a tail of nearly half a second.
+  </Myth>
+  <Myth says="Damping is a tone control on the reverb.">
+    A tone control would change the brightness of the whole tail by one amount. Damping is inside the loop, so it acts again on every trip: the start of the tail is hardly changed and the end of it is changed a great deal. What it shortens is the time the highs last, as the picture of part 2 and the line of stage 7 show.
+  </Myth>
+  <Myth says="A stereo reverb keeps the left and right of what goes in.">
+    This one takes in the sum of the two sides, as stage 1 of part 5 shows. The two sides that come out are made inside the plate, by reading different places for each, and stage 9 measures how unlike they are. A sound placed hard to one side gets a plate that is as wide as any other's.
+  </Myth>
+</Myths>
+
+</Part>

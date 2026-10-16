@@ -10,6 +10,8 @@
 //                                          out, left and right: seven points of the halves' delays each
 //
 // lab-sources: cpp/devices/plate-reverb/plate_reverb.cpp cpp/devices/plate-reverb/plate_reverb_device.cpp
+// lab-memory-mb: 96
+// lab-arena-mb: 64
 //
 // Read from the device: what leaves the pre-delay and the bandwidth filter, and
 // in each half of the tank what goes into its two delays, what the damping
@@ -21,18 +23,42 @@
 // on, which is a local of process(). The lab takes the two samples of the
 // all-pass's delay that the device itself used and writes the same line,
 // `delayed - gain * feed`. The "rebuilt" check holds each result to what the
-// next stage took in, which that stage's own delay gives back.
+// next stage took in, which that stage's own delay gives back. "What the plate
+// adds" is the output less the dry sound the device mixed in.
 //
 // A second plate (`struck`) is given one sample and nothing more, at the same
 // settings, so its response can be drawn whatever source plays: the echoes
 // after each all-pass and in the tank, how many there are in each 10 ms, how
-// the energy dies away as a whole and in two bands, and the tail's spectrum
-// over time. The response of the input stages does not depend on any control,
-// so it is measured once, in lab_setup.
+// the energy dies away as a whole and in two bands, how long each of thirteen
+// bands takes to fall 60 dB, and the tail's spectrum over time. The response
+// of the input stages does not depend on any control, so it is measured once,
+// in lab_setup.
 //
 // The device has no control over the movement of the tank's two delays. The
 // lab holds them still by setting their excursion to nothing after init, and
-// gives the movement back as a switch.
+// gives the movement back as a control.
+//
+// Beside the plate runs the thing a plate is not: one delay with its output
+// fed back, of the first input all-pass's length and gain. It is the lesson's
+// own, and is there to be heard and counted against.
+//
+// The build part puts a plate together a piece at a time, on a path of its
+// own beside the device (lab::Build in lab.h). It has eight pieces, each a
+// function of `Built` below, in the order the steps add them: one channel and
+// a gap; four all-passes; one loop; a second loop, crossed with the first;
+// damping; the seven places each side is read at; the movement; the mix. The
+// path writes the "built" taps and leaves every other tap as it was. The
+// build's memory is the device's own kind of ring (PlateReverb::DelayBuffer)
+// and its lengths are read from the device once the device has set them, so
+// the build is the pieces and not a second copy of the numbers. Two copies of
+// it run: one at the step the reader chose, which is what the taps show, and
+// one with all eight pieces, whose output is compared on every render with the
+// device's own output (the "builtDifference" check). With all eight the build
+// does to a sample what the device does, in the same order, so the two are the
+// same sample for sample. A step before the last is the lesson's own: a plate
+// with a piece missing, which the device never is. Before the loop the chosen
+// step is given one click and nothing more, for the picture of one click
+// thickening.
 
 #include "lab.h"
 
@@ -45,12 +71,13 @@ namespace {
 PlateReverbDevice plate;  // the loop goes through this one
 PlateReverb struck;       // this one is given a single sample
 
-// The gains of the all-passes the lab works out again. plate_reverb.cpp keeps
-// them in its unnamed namespace, out of reach, so they are written again
-// here; a wrong one fails "rebuilt".
+// The gains the lab writes again. plate_reverb.cpp keeps them in its unnamed
+// namespace, out of reach: a wrong one fails "rebuilt" or "builtDifference".
 constexpr float kInputGainA = 0.750f;   // input all-passes 1 and 2
 constexpr float kInputGainB = 0.625f;   // input all-passes 3 and 4
 constexpr float kTankGainA = -0.700f;   // each half's first all-pass, the one whose delay moves
+constexpr float kTankGainB = 0.500f;    // each half's second all-pass
+constexpr float kReadGain = 0.6f;       // each of the seven places an output is read at
 
 constexpr int kRate = 48000;
 constexpr int kWindow = 480;            // 10 ms: the stretch echoes are counted in
@@ -71,6 +98,12 @@ constexpr float kCombTop = 2000.0f;
 constexpr int kRung = 12288;             // by here one all-pass, or the delay with feedback, is 120 dB down
 constexpr int kCombLength = 229;        // the first input all-pass's length, for a like-for-like echo
 constexpr float kCombGain = kInputGainA;
+constexpr int kCombRing = 256;          // the memory of the delay with feedback that runs on the loop
+constexpr int kBands = 13;              // 250 Hz to 16 kHz, half an octave apart
+constexpr float kBandLowest = 250.0f;
+constexpr float kBandHighest = 16000.0f;
+constexpr int kBandFrame = 1024;        // 21 ms: the stretch a band's level is read over,
+constexpr int kBandHop = 512;           //   read again every 11 ms
 
 lab::Control decay{"decay", "Decay", "", 0.0f, 0.9f, 0.5f};
 lab::Control damping{"damping", "Damping", "", 0.0f, 1.0f, 0.3f};
@@ -80,6 +113,7 @@ lab::Control mix{"mix", "Mix", "", 0.0f, 1.0f, 1.0f};
 
 // The loop, stage by stage.
 lab::Tap in_tap{"in", "Input", lab::kAudio, lab::kSource, 2};
+lab::Tap combed{"combed", "One delay with its output fed back", lab::kAudio, lab::kLesson, 1};
 lab::Tap predelayed{"predelayed", "One channel, after the pre-delay", lab::kAudio, lab::kDevice, 1};
 lab::Tap filtered{"filtered", "After the bandwidth filter", lab::kAudio, lab::kDevice, 1};
 lab::Tap diffused1{"diffused1", "After one all-pass", lab::kAudio, lab::kLesson, 1};
@@ -90,6 +124,7 @@ lab::Tap tank_a{"tankA", "In the tank, after each half's first all-pass", lab::k
 lab::Tap damped{"damped", "In the tank, after the delay and the damping", lab::kAudio, lab::kDevice, 2};
 lab::Tap tank_b{"tankB", "In the tank, after each half's second all-pass", lab::kAudio, lab::kDevice, 2};
 lab::Tap crossing{"crossing", "Crossing to the other half", lab::kAudio, lab::kDevice, 2};
+lab::Tap added{"added", "What the plate adds: the output less the dry sound", lab::kAudio, lab::kLesson, 2};
 lab::Tap out_tap{"out", "Output", lab::kAudio, lab::kDevice, 2};
 lab::Tap wobble_left{"wobbleLeft", "Left half: added to the first all-pass's delay", lab::kControl, lab::kLesson, 1,
                      "samples"};
@@ -97,6 +132,7 @@ lab::Tap wobble_right{"wobbleRight", "Right half: added to the first all-pass's 
                       "samples"};
 
 // One sample in: the response of the stages.
+lab::Tap hit_comb{"hitComb", "One sample, through one delay with feedback", lab::kCurve, lab::kLesson, 1};
 lab::Tap hit1{"hit1", "One sample, after one all-pass", lab::kCurve, lab::kLesson, 1};  // x: ms after the pre-delay
 lab::Tap hit2{"hit2", "One sample, after two all-passes", lab::kCurve, lab::kLesson, 1};
 lab::Tap hit3{"hit3", "One sample, after three all-passes", lab::kCurve, lab::kLesson, 1};
@@ -106,6 +142,7 @@ lab::Tap hit_left{"hitLeft", "One sample, at the left output", lab::kCurve, lab:
 lab::Tap hit_right{"hitRight", "One sample, at the right output", lab::kCurve, lab::kDevice, 1};
 
 // How many echoes in each 10 ms of those responses.
+lab::Tap density_comb{"densityComb", "Echoes of one delay with feedback", lab::kCurve, lab::kLesson, 1, "in 10 ms"};
 lab::Tap density1{"density1", "Echoes after one all-pass", lab::kCurve, lab::kLesson, 1, "in 10 ms"};
 lab::Tap density2{"density2", "Echoes after two all-passes", lab::kCurve, lab::kLesson, 1, "in 10 ms"};
 lab::Tap density3{"density3", "Echoes after three all-passes", lab::kCurve, lab::kLesson, 1, "in 10 ms"};
@@ -121,6 +158,7 @@ lab::Tap response_allpass{"responseAllpass", "The first input all-pass", lab::kC
 lab::Tap decay_curve{"decayCurve", "Energy still to come", lab::kCurve, lab::kDevice, 1, "dB"};
 lab::Tap decay_low{"decayLow", "Energy still to come, around 500 Hz", lab::kCurve, lab::kDevice, 1, "dB"};
 lab::Tap decay_high{"decayHigh", "Energy still to come, around 5 kHz", lab::kCurve, lab::kDevice, 1, "dB"};
+lab::Tap fall_bands{"fallBands", "Time to fall 60 dB, at each frequency", lab::kCurve, lab::kDevice, 1, "s"};
 lab::Tap tail{"tail", "The response", lab::kFrames, lab::kDevice, 1, "dB"};
 
 // The device's delay lengths as it set them at init, in samples: the four
@@ -140,15 +178,248 @@ lab::Check fall_low{"fallLow", "Time to fall 60 dB around 500 Hz", "s"};
 lab::Check fall_high{"fallHigh", "Time to fall 60 dB around 5 kHz", "s"};
 lab::Check sides{"sides", "How alike left and right are (1 the same, 0 unrelated)", ""};
 
+// The build part's taps.
+lab::Tap built{"built", "The plate so far", lab::kAudio, lab::kLesson, 2};
+lab::Tap built_hit{"builtHit", "One click through the plate so far, left side", lab::kCurve, lab::kLesson, 1};
+lab::Tap built_sweep{"builtSweep", "Added to the left half's first delay, as built", lab::kControl, lab::kLesson, 1,
+                     "samples"};
+
+// The plate so far: one function a piece, and run() to take a sample through
+// the pieces there are.
+struct Built {
+  // The pieces, in the order the steps add them.
+  enum Piece : int { kGap = 0, kDiffuse, kLoop, kCross, kDamp, kRead, kMove, kMix };
+
+  // An all-pass delay, on the device's own kind of ring.
+  template <int N>
+  struct Diffuser {
+    PlateReverb::DelayBuffer<N> ring;
+    int length = 1;
+    float gain = 0.0f;
+
+    // An all-pass: a delay with its output fed back, and one line more. Some
+    // of what has just gone in is taken straight off what comes out.
+    float pass(float x) {
+      const float delayed = ring.read(length);
+      const float feed = x + gain * delayed;
+      ring.write(feed);
+      return delayed - gain * feed;
+    }
+  };
+
+  // One half of the tank.
+  struct Half {
+    PlateReverb::DelayBuffer<4096> swept;  // the first all-pass's ring
+    float rest = 1.0f;     // that all-pass's delay at rest, in samples: not a whole number
+    float sweep = 0.0f;    // how far the movement stretches it, in samples
+    float phase = 0.0f;    // where the movement is in its turn
+    float turn = 0.0f;     // how far it turns in one sample
+    float stretch = 0.0f;  // what the movement adds to the delay on this sample
+    PlateReverb::DelayBuffer<16384> first;
+    int first_length = 1;
+    OnePoleLowpass damping;
+    Diffuser<16384> second_allpass;
+    PlateReverb::DelayBuffer<16384> second;
+    int second_length = 1;
+    float heard = 0.0f;    // what goes into the first delay: where a half is heard before it has outputs
+    float back = 0.0f;     // what leaves the second delay
+
+    // The half's first all-pass. Its delay is not a whole number of samples,
+    // so it reads between two samples. Movement: a slow sine stretches the
+    // delay by up to `sweep` samples and lets it back. (With no sweep the
+    // sine is not asked for: nothing times anything is nothing.)
+    float moving(float x) {
+      phase += turn;
+      if (phase >= kit::kTwoPi) phase -= kit::kTwoPi;
+      stretch = sweep > 0.0f ? sweep * (1.0f + std::sin(phase)) * 0.5f : 0.0f;
+      const float delayed = swept.read_interpolated(rest + stretch);
+      const float feed = x + kTankGainA * delayed;
+      swept.write(feed);
+      return delayed - kTankGainA * feed;
+    }
+
+    // Once through the half: an all-pass, a long delay, the damping filter,
+    // times the decay, a second all-pass and a second long delay.
+    void run(float x, float decay_gain, float dulling) {
+      x = moving(x);
+      heard = x;
+      first.write(x);
+      x = damping.process(first.read(first_length), dulling);
+      x *= decay_gain;
+      x = second_allpass.pass(x);
+      second.write(x);
+      back = second.read(second_length);
+    }
+  };
+
+  int pieces = kGap;
+  float decay_gain = 0.5f;  // Decay
+  float dulling = 0.0f;     // Damping, once the damping is in; before it, 0, which is no filter
+  float blend = 1.0f;       // Mix
+  float bandwidth = 0.0f;   // the device's fixed coefficient for the filter after the gap
+
+  PlateReverb::DelayBuffer<32768> gap;
+  int gap_length = 1;
+  OnePoleLowpass open_filter;
+  Diffuser<512> diffuser_1;
+  Diffuser<512> diffuser_2;
+  Diffuser<2048> diffuser_3;
+  Diffuser<1024> diffuser_4;
+  Half left;
+  Half right;
+  int place_left[7] = {};
+  int place_right[7] = {};
+  float out[2] = {0.0f, 0.0f};
+
+  // One channel and a gap: the mean of left and right goes into a ring of
+  // memory and is read back gap_length samples behind. The filter after it is
+  // the device's bandwidth filter, which the device keeps all but open.
+  float wait(float in_left, float in_right) {
+    gap.write((in_left + in_right) * 0.5f);
+    return open_filter.process(gap.read(gap_length), bandwidth);
+  }
+
+  // Four all-passes in a row: each echo of one sets off a train in the next.
+  float diffuse(float x) {
+    x = diffuser_1.pass(x);
+    x = diffuser_2.pass(x);
+    x = diffuser_3.pass(x);
+    return diffuser_4.pass(x);
+  }
+
+  // One loop: the left half alone. What leaves it comes back in, times Decay.
+  void loop(float x) { left.run(x + decay_gain * left.back, decay_gain, dulling); }
+
+  // Two, crossed: each half takes in what left the other.
+  void cross(float x) {
+    left.run(x + decay_gain * right.back, decay_gain, dulling);
+    right.run(x + decay_gain * left.back, decay_gain, dulling);
+  }
+
+  // The outputs: each side adds up seven places along the delays, four of them
+  // in the other half, each at a fixed gain and with a fixed sign.
+  void read() {
+    float l = kReadGain * right.first.read(place_left[0]);
+    l += kReadGain * right.first.read(place_left[1]);
+    l -= kReadGain * right.second_allpass.ring.read(place_left[2]);
+    l += kReadGain * right.second.read(place_left[3]);
+    l -= kReadGain * left.first.read(place_left[4]);
+    l -= kReadGain * left.second_allpass.ring.read(place_left[5]);
+    l -= kReadGain * left.second.read(place_left[6]);
+    float r = kReadGain * left.first.read(place_right[0]);
+    r += kReadGain * left.first.read(place_right[1]);
+    r -= kReadGain * left.second_allpass.ring.read(place_right[2]);
+    r += kReadGain * left.second.read(place_right[3]);
+    r -= kReadGain * right.first.read(place_right[4]);
+    r -= kReadGain * right.second_allpass.ring.read(place_right[5]);
+    r -= kReadGain * right.second.read(place_right[6]);
+    out[0] = l;
+    out[1] = r;
+  }
+
+  // Mix: the sound as it went in, beside the plate.
+  void mixed(float in_left, float in_right) {
+    out[0] = in_left * (1.0f - blend) + out[0] * blend;
+    out[1] = in_right * (1.0f - blend) + out[1] * blend;
+  }
+
+  // One sample through the pieces built so far, in the order it meets them.
+  // Until a piece gives the plate outputs of its own, it is heard where the
+  // sound has got to: after the gap, after the all-passes, then inside a half.
+  // Reading the outputs changes nothing inside the plate, so on a sample that
+  // nobody will hear (`listened` false) they are not read.
+  void run(float in_left, float in_right, bool listened = true) {
+    float x = wait(in_left, in_right);
+    if (pieces >= kDiffuse) x = diffuse(x);
+    out[0] = out[1] = x;
+    if (pieces < kLoop) return;
+    if (pieces >= kCross) cross(x);
+    else loop(x);
+    out[0] = left.heard;
+    out[1] = pieces >= kCross ? right.heard : left.heard;
+    if (!listened) return;
+    if (pieces >= kRead) read();
+    if (pieces >= kMix) mixed(in_left, in_right);
+  }
+
+  template <int N>
+  static void set(Diffuser<N>& stage, int length, float gain) {
+    stage.ring.clear();
+    stage.length = length;
+    stage.gain = gain;
+  }
+
+  // A half takes its lengths, and where its movement stands, from the device's.
+  void set(Half& half, const PlateReverb::ModulatedAllpass<4096>& first_allpass, int first_length,
+           int allpass_length, int second_length, float swing) {
+    half.swept.clear();
+    half.rest = first_allpass.base_length;
+    half.sweep = pieces >= kMove ? swing : 0.0f;
+    half.phase = first_allpass.lfo_phase;
+    half.turn = first_allpass.lfo_increment;
+    half.stretch = 0.0f;
+    half.first.clear();
+    half.first_length = first_length;
+    half.damping.state = 0.0f;
+    set(half.second_allpass, allpass_length, kTankGainB);
+    half.second.clear();
+    half.second_length = second_length;
+    half.heard = 0.0f;
+    half.back = 0.0f;
+  }
+
+  // The lengths and the settings are the device's own, read from it once it
+  // has been set up and before it has run. `swing` is how far the device
+  // sweeps its two delays, or nothing while the lab holds them still.
+  void start(int pieces_, const PlateReverb& device, float blend_, float swing) {
+    pieces = pieces_;
+    decay_gain = device.decay_;
+    dulling = pieces >= kDamp ? device.damping_coefficient_ : 0.0f;
+    blend = blend_;
+    bandwidth = device.bandwidth_coefficient_;
+    gap.clear();
+    gap_length = device.predelay_samples_;
+    open_filter.state = 0.0f;
+    set(diffuser_1, device.input_diffusion_1_.length, kInputGainA);
+    set(diffuser_2, device.input_diffusion_2_.length, kInputGainA);
+    set(diffuser_3, device.input_diffusion_3_.length, kInputGainB);
+    set(diffuser_4, device.input_diffusion_4_.length, kInputGainB);
+    set(left, device.left_decay_diffusion_1_, device.left_delay_1_length_, device.left_ap_2_length_,
+        device.left_delay_2_length_, swing);
+    set(right, device.right_decay_diffusion_1_, device.right_delay_1_length_, device.right_ap_2_length_,
+        device.right_delay_2_length_, swing);
+    for (int k = 0; k < 7; ++k) {
+      place_left[k] = device.tap_left_[k];
+      place_right[k] = device.tap_right_[k];
+    }
+    out[0] = out[1] = 0.0f;
+  }
+};
+
+lab::Build build{"One channel and a gap|Four all-passes|One loop|Two loops, crossed|Damping|Seven places a side|"
+                 "Movement|Mix",
+                 Built::kMix, -120.0f, "The plate as built, all eight pieces, against the device's own output"};
+
+Built shown;  // at the step the reader chose: what the built taps hold
+Built held;   // with every piece: what is compared with the device
+
 // What lab_setup measured, kept for every render.
 float chain_hit_[4][kHit];
 float chain_density_[4][kInputWindows];
+float comb_hit_[kHit];
+float comb_density_[kTankHit / kWindow];
 float response_comb_[kCombPoints];
 float response_allpass_[kCombPoints];
 float flat_one_ = 0.0f;
 float flat_ = 0.0f;
 float bandwidth_loss_ = 0.0f;
 float chain_stage_[5][kChain];  // the filter's output, then each all-pass's
+
+// The delay with feedback that runs on the loop, and the frames a band's
+// level is read in.
+float comb_ring_[kCombRing];
+kit::Fft<kBandFrame> band_fft_;
+float band_window_[kBandFrame];
 
 // What an all-pass put out on the sample the device has just processed.
 // plate_reverb.h: delayed = read(length); feed = x + gain * delayed;
@@ -269,27 +540,32 @@ void measure_input_stages() {
 
   // For the picture, the first all-pass beside one delay of the same length
   // with the same gain fed back round it and nothing else,
-  // y[n] = x[n] + g y[n - M], both at even steps up to 2 kHz.
-  static float comb[kRung];
+  // y[n] = x[n] + g y[n - M], both at even steps up to 2 kHz. The delay with
+  // feedback is kept for a second, to be drawn and to have its echoes counted
+  // as the plate's are.
+  static float comb[kTankHit];
   static float before[kCombPoints];
-  for (int i = 0; i < kRung; ++i) {
+  for (int i = 0; i < kTankHit; ++i) {
     comb[i] = (i == 0 ? 1.0f : 0.0f) + (i >= kCombLength ? kCombGain * comb[i - kCombLength] : 0.0f);
   }
+  for (int i = 0; i < kHit; ++i) comb_hit_[i] = i < kHitLead ? 0.0f : comb[i - kHitLead];
+  count_echoes(comb, kTankHit, comb_density_, kTankHit / kWindow);
   level_at_even_steps(comb, kRung, response_comb_);
   level_at_even_steps(chain_stage_[0], 64, before);  // the bandwidth filter is done in a few samples
   level_at_even_steps(chain_stage_[1], kRung, response_allpass_);
   for (int p = 0; p < kCombPoints; ++p) response_allpass_[p] -= before[p];
 }
 
-// When a decay curve first stands at `level` dB, in seconds. Negative when it never does.
-float time_at(const lab::Tap& curve, float level) {
-  if (!curve.data || curve.length < 2) return -1.0f;
-  const float step = (curve.x1 - curve.x0) / static_cast<float>(curve.length - 1);
-  for (int p = 1; p < curve.length; ++p) {
-    if (curve.data[p] <= level) {
-      const float above = curve.data[p - 1];
-      const float part = above > curve.data[p] ? (above - level) / (above - curve.data[p]) : 0.0f;
-      return curve.x0 + (static_cast<float>(p - 1) + part) * step;
+// When a decay curve of `length` points from `x0` to `x1` seconds first stands
+// at `level` dB, in seconds. Negative when it never does.
+float time_at(const float* data, int length, float x0, float x1, float level) {
+  if (!data || length < 2) return -1.0f;
+  const float step = (x1 - x0) / static_cast<float>(length - 1);
+  for (int p = 1; p < length; ++p) {
+    if (data[p] <= level) {
+      const float above = data[p - 1];
+      const float part = above > data[p] ? (above - level) / (above - data[p]) : 0.0f;
+      return x0 + (static_cast<float>(p - 1) + part) * step;
     }
   }
   return -1.0f;
@@ -299,10 +575,63 @@ float time_at(const lab::Tap& curve, float level) {
 // time from -5 dB to -25 dB. The first 5 dB hold the pre-delay and the first
 // uneven echoes, and the foot of the curve bends down where the listening
 // stopped, so neither is used.
-float fall_time(const lab::Tap& curve) {
-  const float from = time_at(curve, -5.0f);
-  const float to = time_at(curve, -25.0f);
+float fall_time(const float* data, int length, float x0, float x1) {
+  const float from = time_at(data, length, x0, x1, -5.0f);
+  const float to = time_at(data, length, x0, x1, -25.0f);
   return from >= 0.0f && to > from ? 3.0f * (to - from) : 0.0f;
+}
+
+float fall_time(const lab::Tap& curve) { return fall_time(curve.data, curve.length, curve.x0, curve.x1); }
+
+// How long each of thirteen bands of a response takes to fall 60 dB. The
+// response is read in frames of 21 ms, each through the kit's transform; a
+// band is the bins within half an octave of its middle, so each is an octave
+// wide and overlaps its neighbours; and each band's energy still to come is
+// read as the whole response's is, three times its time from -5 dB to -25 dB.
+void measure_bands(const float* h, int count) {
+  const int frames = (count - kBandFrame) / kBandHop + 1;
+  if (frames < 8 || !fall_bands.open(kBands)) return;
+  fall_bands.x0 = kBandLowest;
+  fall_bands.x1 = kBandHighest;
+  fall_bands.scale = lab::kLog;
+  float* energy = lab::take(frames * kBands);
+  float* ahead = lab::take(frames);
+  if (!energy || !ahead) return;
+
+  static float re[kBandFrame];
+  static float im[kBandFrame];
+  int low[kBands], high[kBands];
+  const double bin = lab::kSampleRate / static_cast<double>(kBandFrame);
+  for (int b = 0; b < kBands; ++b) {
+    const double middle = kBandLowest * std::pow(2.0, 0.5 * b);
+    low[b] = static_cast<int>(middle / std::sqrt(2.0) / bin + 0.5);
+    high[b] = static_cast<int>(middle * std::sqrt(2.0) / bin + 0.5);
+    if (high[b] > kBandFrame / 2) high[b] = kBandFrame / 2;
+  }
+  for (int f = 0; f < frames; ++f) {
+    const float* x = h + f * kBandHop;
+    for (int n = 0; n < kBandFrame; ++n) {
+      re[n] = x[n] * band_window_[n];
+      im[n] = 0.0f;
+    }
+    band_fft_.forward(re, im);
+    for (int b = 0; b < kBands; ++b) {
+      double sum = 0.0;
+      for (int k = low[b]; k <= high[b]; ++k) sum += static_cast<double>(re[k]) * re[k] + static_cast<double>(im[k]) * im[k];
+      energy[f * kBands + b] = static_cast<float>(sum);
+    }
+  }
+  const float last = static_cast<float>((frames - 1) * kBandHop) / lab::kSampleRate;
+  for (int b = 0; b < kBands; ++b) {
+    double total = 0.0;
+    for (int f = 0; f < frames; ++f) total += energy[f * kBands + b];
+    double coming = 0.0;
+    for (int f = frames - 1; f >= 0; --f) {
+      coming += energy[f * kBands + b];
+      ahead[f] = total > 0.0 ? lab::power_to_db(static_cast<float>(coming / total)) : lab::kFloorDb;
+    }
+    fall_bands.data[b] = fall_time(ahead, frames, 0.0f, last);
+  }
 }
 
 // One sample into the second plate, at the lab's settings.
@@ -392,6 +721,7 @@ void strike() {
   fall.value = fall_time(decay_curve);
   fall_low.value = fall_time(decay_low);
   fall_high.value = fall_time(decay_high);
+  measure_bands(left, listen);
   lab::spectrogram_tap(tail, left, kPicture, 200, false);
 
   if (lengths.open(12)) {
@@ -409,24 +739,59 @@ void strike() {
   }
 }
 
+// One click through the plate so far, and the second that follows it. The
+// click goes in at 0: the picture counts its time from there, the gap included.
+void strike_built(const PlateReverb& device, float swing) {
+  if (!built_hit.open(kTankHit)) return;
+  built_hit.x0 = 0.0f;
+  built_hit.x1 = span_ms(kTankHit);
+  shown.start(build.at(), device, mix.value, swing);
+  for (int i = 0; i < kTankHit; ++i) {
+    const float x = i == 0 ? 1.0f : 0.0f;
+    shown.run(x, x);
+    built_hit.data[i] = shown.out[0];
+  }
+}
+
 }  // namespace
 
-void lab_setup() { measure_input_stages(); }
+void lab_setup() {
+  band_fft_.init();
+  for (int n = 0; n < kBandFrame; ++n) {
+    band_window_[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * lab::kPi * n / kBandFrame));
+  }
+  measure_input_stages();
+}
 
 void lab_render(int frames) {
-  (void)frames;
   plate.init(lab::kSampleRate);
   plate.set_param(PlateReverbParam::kMix, mix.value);
   plate.set_param(PlateReverbParam::kDecay, decay.value);
   plate.set_param(PlateReverbParam::kDamping, damping.value);
   plate.set_param(PlateReverbParam::kPredelayMs, predelay.value);
   PlateReverb& reverb = plate.reverb_;
+  // How far the device sweeps the tank's two delays, before the lab holds them still.
+  const float swing = movement.on() ? reverb.left_decay_diffusion_1_.excursion : 0.0f;
   if (!movement.on()) hold_still(reverb);
+
+  // The build part: one click through the chosen step, then the chosen step
+  // on the loop, and the whole build that is held to the device. When the
+  // reader is on the last step the two are one.
+  strike_built(reverb, swing);
+  shown.start(build.at(), reverb, mix.value, swing);
+  const bool both = build.at() != build.compared_step;
+  if (both) held.start(build.compared_step, reverb, mix.value, swing);
+  const Built& compared = both ? held : shown;
+  double built_apart = 0.0, built_whole = 0.0;
+
+  for (int k = 0; k < kCombRing; ++k) comb_ring_[k] = 0.0f;
+  int comb_at = 0;
 
   // Each all-pass's output, worked out, against what the next stage took in.
   double apart[4] = {0.0, 0.0, 0.0, 0.0};
   double whole[4] = {0.0, 0.0, 0.0, 0.0};
 
+  const float dry = 1.0f - plate.mix();
   const int total = lab::total();
   for (int i = 0; i < total; ++i) {
     const float left = lab::in_at(0, i);
@@ -435,8 +800,26 @@ void lab_render(int frames) {
     plate.in_right()[0] = right;
     const float crossed_before = reverb.right_feedback_;
     plate.process(1);
+    const float out_left = plate.out_left()[0];
+    const float out_right = plate.out_right()[0];
 
-    if (i < lab::frames()) continue;  // a tap keeps the second pass and what follows it
+    // One delay with its output fed back: c[n] = x[n] + g c[n - M].
+    const float rung = flush_denormal(0.5f * (left + right) +
+                                      kCombGain * comb_ring_[(comb_at - kCombLength) & (kCombRing - 1)]);
+    comb_ring_[comb_at] = rung;
+    comb_at = (comb_at + 1) & (kCombRing - 1);
+
+    // The first time round the loop nothing of the build is kept or compared.
+    shown.run(left, right, i >= frames);
+    if (both) held.run(left, right, i >= frames);
+
+    if (i < frames) continue;  // a tap keeps the second pass and what follows it
+
+    const double apart_left = static_cast<double>(compared.out[0]) - out_left;
+    const double apart_right = static_cast<double>(compared.out[1]) - out_right;
+    built_apart += apart_left * apart_left + apart_right * apart_right;
+    built_whole += static_cast<double>(out_left) * out_left + static_cast<double>(out_right) * out_right;
+    built.put(i, shown.out[0], shown.out[1]);
 
     const float out1 = allpass_out(reverb.input_diffusion_1_, kInputGainA);
     const float out2 = allpass_out(reverb.input_diffusion_2_, kInputGainA);
@@ -444,6 +827,7 @@ void lab_render(int frames) {
     const float out4 = allpass_out(reverb.input_diffusion_4_, kInputGainB);
 
     in_tap.put(i, left, right);
+    combed.put(i, rung);
     predelayed.put(i, reverb.predelay_.read(reverb.predelay_samples_));
     filtered.put(i, reverb.input_lowpass_.state);
     diffused1.put(i, out1);
@@ -454,10 +838,12 @@ void lab_render(int frames) {
     damped.put(i, reverb.left_damping_.state, reverb.right_damping_.state);
     tank_b.put(i, reverb.left_delay_2_.read(1), reverb.right_delay_2_.read(1));
     crossing.put(i, reverb.left_feedback_, reverb.right_feedback_);
-    out_tap.put(i, plate.out_left()[0], plate.out_right()[0]);
+    added.put(i, out_left - dry * left, out_right - dry * right);
+    out_tap.put(i, out_left, out_right);
     if (i % lab::kControlPeriod == 0) {
       wobble_left.put(i, delay_now(reverb.left_decay_diffusion_1_) - reverb.left_decay_diffusion_1_.base_length);
       wobble_right.put(i, delay_now(reverb.right_decay_diffusion_1_) - reverb.right_decay_diffusion_1_.base_length);
+      built_sweep.put(i, shown.left.stretch);
     }
 
     if (!plate.asleep()) {
@@ -485,6 +871,7 @@ void lab_render(int frames) {
     if (db > worst) worst = db;
   }
   rebuilt.value = worst;
+  build.difference.value = lab::ratio_db(built_apart, built_whole);
 
   // What lab_setup measured of the input stages.
   const float hit_lead_ms = 1000.0f * static_cast<float>(kHitLead) / lab::kSampleRate;
@@ -494,6 +881,8 @@ void lab_render(int frames) {
     copy_curve(*hits[s], chain_hit_[s], kHit, -hit_lead_ms, span_ms(kHit) - hit_lead_ms);
     copy_curve(*densities[s], chain_density_[s], kInputWindows, 0.0f, 10.0f * static_cast<float>(kInputWindows - 1));
   }
+  copy_curve(hit_comb, comb_hit_, kHit, -hit_lead_ms, span_ms(kHit) - hit_lead_ms);
+  copy_curve(density_comb, comb_density_, kTankHit / kWindow, 0.0f, 10.0f * static_cast<float>(kTankHit / kWindow - 1));
   copy_curve(response_comb, response_comb_, kCombPoints, 0.0f, kCombTop);
   copy_curve(response_allpass, response_allpass_, kCombPoints, 0.0f, kCombTop);
   flat_one.value = flat_one_;

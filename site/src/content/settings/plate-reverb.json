@@ -1,0 +1,96 @@
+{
+  "tile": {
+    "values": { "mix": 0.35, "decay": 0.7, "movement": 1 },
+    "tap": "out",
+    "picture": { "taps": ["hit1", "hit4"], "view": "curve" }
+  },
+  "sets": {
+    "click": {
+      "label": "The clicks as they went in",
+      "source": "clicks",
+      "tap": "in"
+    },
+    "answer": {
+      "label": "The clicks through the plate",
+      "source": "clicks"
+    },
+    "comb": {
+      "label": "One delay with its output fed back",
+      "source": "drums",
+      "tap": "combed"
+    },
+    "plate": {
+      "label": "The drums with the plate behind them",
+      "values": { "mix": 0.35, "decay": 0.7, "movement": 1 },
+      "source": "drums"
+    },
+    "drums": {
+      "label": "Drums",
+      "values": { "mix": 0.3, "damping": 0.4, "movement": 1 },
+      "source": "drums"
+    },
+    "guitar": {
+      "label": "A picked guitar",
+      "values": { "mix": 0.35, "decay": 0.7, "predelay": 40, "movement": 1 },
+      "source": "guitar"
+    },
+    "chords": {
+      "label": "Strummed chords",
+      "values": { "mix": 0.4, "decay": 0.8, "damping": 0.5, "movement": 1 },
+      "source": "chords"
+    },
+    "pad": {
+      "label": "A pad",
+      "values": { "mix": 0.5, "decay": 0.85, "damping": 0.6, "movement": 1 },
+      "source": "pad"
+    },
+    "clear": {
+      "label": "The plate kept clear of the note",
+      "values": { "mix": 0.35, "decay": 0.7, "predelay": 80, "movement": 1 },
+      "source": "guitar"
+    },
+    "short": {
+      "label": "A short plate",
+      "values": { "mix": 0.35, "decay": 0.25, "movement": 1 },
+      "source": "drums"
+    },
+    "bright": {
+      "label": "A bright plate",
+      "values": { "mix": 0.3, "decay": 0.6, "damping": 0, "movement": 1 },
+      "source": "drums"
+    },
+    "dark": {
+      "label": "A long dark wash",
+      "values": { "mix": 0.45, "decay": 0.85, "damping": 0.7, "movement": 1 },
+      "source": "chords"
+    },
+    "alone": {
+      "label": "The plate alone, for several sounds",
+      "values": { "mix": 1, "decay": 0.7, "movement": 1 },
+      "source": "mix"
+    },
+    "mud": {
+      "label": "A bass line left to ring",
+      "values": { "mix": 0.5, "decay": 0.9, "movement": 1 },
+      "source": "bass"
+    },
+    "swell": {
+      "label": "A held tone that swells and fades",
+      "values": { "movement": 1 },
+      "source": "sine"
+    },
+    "slap": {
+      "label": "A gap long enough to hear",
+      "values": { "mix": 0.5, "predelay": 250, "movement": 1 },
+      "source": "drums"
+    },
+    "shut": {
+      "label": "Damping at the top",
+      "values": { "decay": 0.9, "damping": 1, "movement": 1 },
+      "source": "drums"
+    }
+  },
+  "defaults": {
+    "values": { "mix": 0.35, "decay": 0.7, "movement": 1 }
+  }
+}
