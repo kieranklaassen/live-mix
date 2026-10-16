@@ -37,7 +37,7 @@
     },
     "bass": {
       "label": "Bass",
-      "values": { "curve": 2, "driveDb": 18, "bias": 0.3, "outputDb": -9, "dcBlock": 1 },
+      "values": { "curve": 2, "driveDb": 18, "bias": -0.3, "outputDb": -9, "dcBlock": 1 },
       "source": "bass"
     },
     "drums": {

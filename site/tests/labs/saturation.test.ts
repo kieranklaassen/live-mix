@@ -91,6 +91,9 @@ const nothing = silence(seconds(0.1))
 /** A sine 12 dB under full scale, as the page's own, at a frequency that fits the loop exactly. */
 const tone = (length = 1) => sine(1000, 0.25, seconds(length))
 
+/** The lab's probe tone at 5 kHz, as a loop: a sine 6 dB under full scale. */
+const probeTone = () => sine(5000, 0.5, seconds(1))
+
 /** Two sines of one height, 100 Hz apart: the smallest chord there is. */
 function twoTones(): Source {
   const frames = seconds(1)
@@ -117,10 +120,14 @@ async function played(sat: Lab, name: string, changed: Record<string, number> = 
 }
 
 const tap = (result: RenderResult, id: string) => result.taps[id]!.channels_data[0]!
-/** A tap's level over the loop, in dB against full scale. */
-const levelOf = (result: RenderResult, id: string) => gainToDb(rms(tap(result, id)))
-/** A tap's loudest sample, in dB against full scale. */
-const topOf = (result: RenderResult, id: string) => gainToDb(peak(tap(result, id)))
+/** A tap's level over the loop, both channels, in dB against full scale. */
+const levelOf = (result: RenderResult, id: string) => {
+  const channels = result.taps[id]!.channels_data
+  return gainToDb(Math.hypot(...channels.map((data) => rms(data))) / Math.sqrt(channels.length))
+}
+/** A tap's loudest sample on either channel, in dB against full scale. */
+const topOf = (result: RenderResult, id: string) =>
+  gainToDb(Math.max(...result.taps[id]!.channels_data.map((data) => peak(data))))
 /** How far the loudest sample stands over the level of the whole. */
 const crest = (result: RenderResult, id: string) => topOf(result, id) - levelOf(result, id)
 
@@ -159,12 +166,13 @@ describe('saturation and oversampling', () => {
 
   // ---- part 1: why ---------------------------------------------------------------------------
 
-  it('brings the guitar line out denser: its loudest sample stood 17.1 dB over its level and comes out 8.4 dB over it, the level more than 6 dB higher and the loudest sample 2.0 dB lower (claim guitar-dense)', async () => {
+  it('brings the guitar line out denser: its loudest sample stood 17.1 dB over its level and comes out 8.4 dB over it, the level more than 6.5 dB higher and the loudest sample 2.0 dB lower (claim guitar-dense)', async () => {
     const sat = await lab('saturation')
     const result = await played(sat, 'bent')
     expectWritten(crest(result, 'in'), '17.1 dB')
     expectWritten(crest(result, 'out'), '8.4 dB')
-    expectWritten(levelOf(result, 'out') - levelOf(result, 'in'), 'more than 6 dB')
+    expectWritten(levelOf(result, 'out') - levelOf(result, 'in'), 'more than 6.5 dB')
+    expect(levelOf(result, 'out') - levelOf(result, 'in')).toBeLessThan(7)
     expectWritten(topOf(result, 'in') - topOf(result, 'out'), '2.0 dB')
     // The card that plays the line as it was plays the input, untouched.
     const dry = await played(sat, 'played')
@@ -179,6 +187,8 @@ describe('saturation and oversampling', () => {
     expectWritten(-over(out, 440, 3), '15.5 dB')
     expectWritten(-over(out, 440, 5), '28 dB')
     expectWritten(-over(out, 440, 7), '41 dB')
+    // The even ones are missing from what comes out.
+    for (const k of [2, 4, 6, 8]) expect(over(out, 440, k)).toBeLessThan(-120)
     // Going in, it had none: every one of them is more than 120 dB under.
     const dry = tap(result, 'in')
     for (const k of [2, 3, 5, 7]) expect(over(dry, 440, k)).toBeLessThan(-120)
@@ -208,6 +218,11 @@ describe('saturation and oversampling', () => {
     expect(peakNear(higher, 3000)).toBeLessThan(-80)
     // 6 kHz divides 48 kHz: every folded partial is on a multiple of 6 kHz.
     expect(sat.render(nothing, { probe: 6000, oversample: X1 }).checks.alias1x).toBe(-140)
+    // For a low note the one line of code is nearly enough: what folds of a tone near 1 kHz
+    // lies more than 60 dB under what folds of the 5 kHz tone.
+    const low = sat.render(nothing, { probe: 1010, oversample: X1 }).checks.alias1x!
+    expect(low).toBeGreaterThan(-140)
+    expect(low).toBeLessThan(sat.render(nothing, { probe: 5000 }).checks.alias1x! - 60)
   })
 
   it('on the rising sine, has at 1x a sound 24 dB under the whole that 4x does not have: what folded (claim sweep-folded)', async () => {
@@ -240,6 +255,22 @@ describe('saturation and oversampling', () => {
   })
 
   // ---- part 5: the engine, stage by stage ----------------------------------------------------
+
+  it('draws five curves that leave zero along the diagonal and stay between −1 and 1', async () => {
+    const sat = await lab('saturation')
+    const result = sat.render(nothing, {})
+    for (const id of ['soft', 'hard', 'tube', 'tape', 'fold']) {
+      const curve = result.taps[id]!
+      const data = curve.channels_data[0]!
+      const middle = (data.length - 1) / 2
+      const step = (curve.x1 - curve.x0) / (data.length - 1)
+      expect(data[middle], id).toBe(0)
+      expect(Math.abs((data[middle + 1]! - data[middle - 1]!) / (2 * step) - 1), id).toBeLessThan(
+        0.001,
+      )
+      expect(peak(data), id).toBeLessThanOrEqual(1)
+    }
+  })
 
   it('passes a quiet sine at low drive as the input doubled, 60 dB under it on the Soft curve (claim low-drive) and 38.5 dB on Tape (claim tape-null)', async () => {
     const sat = await lab('saturation')
@@ -296,13 +327,15 @@ describe('saturation and oversampling', () => {
     expect(Math.abs(mean(x))).toBeLessThan(1e-6)
   })
 
-  it('puts out exact silence for silence on every curve with a bias set (claim silence)', async () => {
+  it('puts out exact silence for silence on every curve, at four settings of Bias (claim silence)', async () => {
     const sat = await lab('saturation')
     for (const curve of [SOFT, HARD, TUBE, TAPE, FOLD]) {
       for (const adaa of [0, 1]) {
-        const quiet = sat.render(silence(seconds(0.5)), { curve, adaa, bias: 0.5 })
-        expect(tap(quiet, 'shaped').every((v) => v === 0)).toBe(true)
-        expect(tap(quiet, 'out').every((v) => v === 0)).toBe(true)
+        for (const bias of [-1, -0.3, 0.5, 1]) {
+          const quiet = sat.render(silence(seconds(0.5)), { curve, adaa, bias })
+          expect(tap(quiet, 'shaped').every((v) => v === 0)).toBe(true)
+          expect(tap(quiet, 'out').every((v) => v === 0)).toBe(true)
+        }
       }
     }
   })
@@ -370,19 +403,30 @@ describe('saturation and oversampling', () => {
     expectWritten(both.aliasDrop!, '40 dB')
   })
 
-  it('still brings the fifth harmonic of the 5 kHz tone back at 23 kHz at 4x, 30 dB under full scale where 1x has it 18 dB under: it sits on the slope of the filter (claim slope)', async () => {
+  it('still brings the fifth harmonic of the 5 kHz tone back at 23 kHz at 4x, 30 dB under full scale where 1x has it 17 dB under: it sits on the slope of the filter (claim slope)', async () => {
     const sat = await lab('saturation')
-    const result = sat.render(nothing, { probe: 5000, oversample: X4 })
-    expectWritten(-peakNear(result.taps.foldedSet!, 23_000), '30 dB')
-    expectWritten(-peakNear(result.taps.folded1x!, 23_000), '18 dB')
+    // 23 kHz lies between two points of the lab's spectrum, which reads such a partial up to
+    // 1.4 dB low. So the probe tone is played as the loop, and the partial is read off the wave.
+    const result = sat.render(probeTone(), { oversample: X4 })
+    expectWritten(-harmonicDb(tap(result, 'shaped'), 23_000, 1), '30 dB')
+    expectWritten(-harmonicDb(tap(result, 'shaped1x'), 23_000, 1), '17 dB')
+    // The lab's own picture of it shows a peak there, at both rates.
+    const spectra = sat.render(nothing, { probe: 5000, oversample: X4 }).taps
+    expect(peakNear(spectra.foldedSet!, 23_000)).toBeGreaterThan(-32)
+    expect(peakNear(spectra.folded1x!, 23_000)).toBeGreaterThan(-19)
   })
 
-  it('leaves below 20 kHz at 4x the harmonics that reach 192 kHz: the 35th of the 5 kHz tone comes back at 17 kHz, 118 dB under full scale (claim fold-high)', async () => {
+  it('leaves below 20 kHz at 4x the harmonics that fold about 192 kHz: the 35th of the 5 kHz tone, asked for at 175 kHz, comes back at 17 kHz, 117 dB under full scale (claim fold-high)', async () => {
     const sat = await lab('saturation')
     const result = sat.render(nothing, { probe: 5000, oversample: X4 })
     const set = result.taps.foldedSet!
-    // 35 times 5 kHz is 175 kHz, 17 under 192. The 37th, at 185 kHz, lands at 7 kHz, weaker.
-    expectWritten(-peakNear(set, 17_000), '118 dB')
+    // 35 times 5 kHz is 175 kHz, 17 under 192. Read off the wave, as the fifth harmonic is above:
+    // 17 kHz lies between two points of the spectrum.
+    const wave = tap(sat.render(probeTone(), { oversample: X4 }), 'shaped')
+    expectWritten(-harmonicDb(wave, 17_000, 1), '117 dB')
+    // The 37th, at 185 kHz, lands at 7 kHz, weaker.
+    expect(harmonicDb(wave, 7000, 1)).toBeLessThan(harmonicDb(wave, 17_000, 1) - 4)
+    expect(Math.abs(peakNear(set, 17_000) - harmonicDb(wave, 17_000, 1))).toBeLessThan(1.5)
     expect(peakNear(set, 7000)).toBeLessThan(peakNear(set, 17_000) - 4)
     expect(peakNear(set, 7000)).toBeGreaterThan(-127)
     // What folded about 48 kHz and about 96 kHz at 1x and landed anywhere else is gone.
@@ -392,26 +436,29 @@ describe('saturation and oversampling', () => {
     }
   })
 
-  it('has a 63-tap half-band flat within less than 0.001 dB to 20 kHz (claim outer-flat) and more than 81 dB down from 27.8 kHz (claim outer-stop)', async () => {
+  it('has a 63-tap half-band flat within less than 0.001 dB to 20 kHz (claim outer-flat) and more than 80 dB down from 27.84 kHz on up (claim outer-stop)', async () => {
     const sat = await lab('saturation')
     const outer = sat.render(nothing, {}).taps.outerResponse!
     const [low, high] = span(outer, (hz) => hz <= 20_000)
     expectWritten(Math.max(-low, high), 'less than 0.001 dB')
-    // 0.58 of 48 kHz, as oversample.h has it.
+    // 0.58 of 48 kHz, as oversample.h has it. The bound is the top of the tallest ripple of the
+    // stop band, the first, which stands near 28.1 kHz and is 400 Hz wide: the lab draws the
+    // curve finely enough to stand within 0.1 dB of its top.
     const [, stop] = span(outer, (hz) => hz >= 27_840)
-    expectWritten(-stop, 'more than 81 dB')
-    expect(stop).toBeGreaterThan(-82.5)
+    expectWritten(-stop, 'more than 80 dB')
+    expect(stop).toBeGreaterThan(-81)
+    expect(Math.abs(at(outer, 28_102) + 80.84)).toBeLessThan(0.1)
     // A half-band passes half the amplitude at a quarter of its rate.
     expect(Math.abs(at(outer, 24_000) + 6.02)).toBeLessThan(0.1)
   })
 
-  it('has a 31-tap half-band more than 98 dB down from 68 kHz (claim inner-stop), flat to 27.8 kHz', async () => {
+  it('has a 31-tap half-band more than 98 dB down from 68 kHz on up (claim inner-stop), flat to 27.8 kHz', async () => {
     const sat = await lab('saturation')
     const inner = sat.render(nothing, {}).taps.innerResponse!
-    // 0.355 of 192 kHz, as saturator.h has it.
-    const [, stop] = span(inner, (hz) => hz >= 68_160)
+    // A little under 0.355 of 192 kHz, where saturator.h has it shut.
+    const [, stop] = span(inner, (hz) => hz >= 68_000)
     expectWritten(-stop, 'more than 98 dB')
-    expect(stop).toBeGreaterThan(-99.5)
+    expect(stop).toBeGreaterThan(-99)
     const [low, high] = span(inner, (hz) => hz <= 27_840)
     expect(low).toBeGreaterThan(-0.001)
     expect(high).toBeLessThan(0.001)
@@ -508,13 +555,12 @@ describe('saturation and oversampling', () => {
     }
   })
 
-  it('at a mix of one half brings the third harmonic of a 1 kHz tone out 6.0 dB lower and the fundamental less than 2 dB lower (claim mix-half)', async () => {
+  it('at a mix of one half brings the third harmonic of a 1 kHz tone out 6.0 dB lower and the fundamental 1.8 dB lower (claim mix-half)', async () => {
     const sat = await lab('saturation')
     const whole = tap(sat.render(tone(), {}), 'out')
     const half = tap(sat.render(tone(), { mix: 0.5 }), 'out')
     expectWritten(harmonicDb(whole, 1000, 3) - harmonicDb(half, 1000, 3), '6.0 dB')
-    expectWritten(harmonicDb(whole, 1000, 1) - harmonicDb(half, 1000, 1), 'less than 2 dB')
-    expect(harmonicDb(whole, 1000, 1) - harmonicDb(half, 1000, 1)).toBeGreaterThan(1)
+    expectWritten(harmonicDb(whole, 1000, 1) - harmonicDb(half, 1000, 1), '1.8 dB')
   })
 
   it('has a meter of its own on the input and on the output, and takes away what its difference tap says', async () => {
@@ -551,9 +597,12 @@ describe('saturation and oversampling', () => {
         const result = sat.render(source, { ...values, build: 6 })
         expect(result.checks.builtStep).toBe(6)
         expect(result.checks.builtBound).toBe(-120)
-        expect(result.checks.builtDifference).toBeLessThan(-120)
-        const out = tap(result, 'out')
-        expect(tap(result, 'built').every((v, i) => v === out[i])).toBe(true)
+        // No difference at all: the check reads its floor, and each channel is the device's.
+        expect(result.checks.builtDifference).toBe(-140)
+        for (const c of [0, 1]) {
+          const out = result.taps.out!.channels_data[c]!
+          expect(result.taps.built!.channels_data[c]!.every((v, i) => v === out[i])).toBe(true)
+        }
         // Whatever step the reader is on, the build with every piece is what is compared.
         if (id === 'guitar') {
           const earlier = sat.render(source, { ...values, build: 2 })
@@ -584,7 +633,7 @@ describe('saturation and oversampling', () => {
     expect(Math.abs(levelOf(result, 'in') - levelOf(result, 'built'))).toBeLessThan(0.1)
   })
 
-  it('at the second step, with Drive at 18 dB and Output at −9 dB, brings the guitar out more than 6 dB higher in level with its loudest sample 2.0 dB lower, where the step before changed the level by less than 0.1 dB (claim build-drive)', async () => {
+  it('at the second step, with Drive at 18 dB and Output at −9 dB, brings the guitar out more than 6.5 dB higher in level with its loudest sample 2.0 dB lower, where the step before changed the level by less than 0.1 dB (claim build-drive)', async () => {
     const sat = await lab('saturation')
     const guitar = await benchSource('guitar', seconds(2))
     const lifted = (build: number) => {
@@ -594,11 +643,11 @@ describe('saturation and oversampling', () => {
         top: topOf(result, 'in') - topOf(result, 'built'),
       }
     }
-    expectWritten(lifted(1).level, 'more than 6 dB')
+    expectWritten(lifted(1).level, 'more than 6.5 dB')
     expectWritten(lifted(1).top, '2.0 dB')
     // The piece out: the step before leaves the level where it was and the top less far down.
     expectWritten(Math.abs(lifted(0).level), 'less than 0.1 dB')
-    expect(matchesWritten(lifted(0).level, 'more than 6 dB')).toBe(false)
+    expect(matchesWritten(lifted(0).level, 'more than 6.5 dB')).toBe(false)
     expect(matchesWritten(lifted(0).top, '2.0 dB')).toBe(false)
     // The picture of the step: a level held at 0.25 comes out of the build at 0.34, which is
     // the 0.96 of the curve times the Output.
@@ -713,23 +762,39 @@ describe('saturation and oversampling', () => {
     }
   })
 
-  it('states what each card of part 3 does to the height of its sound over its level: 17.1 dB to 12.2 dB on the line (claim use-lead), 17.4 dB to 10.8 dB on the bass (claim use-bass), 19.2 dB to 14.1 dB on the drums with the loudest sample 2.0 dB lower (claim use-drums), more than 17 dB to 14.0 dB on the mix with the level 3.6 dB and the loudest sample 0.1 dB higher (claim use-mix)', async () => {
+  it('states what each card of part 3 does to the height of its sound over its level: 17.1 dB to 12.2 dB on the line (claim use-lead), 17.4 dB to 11.5 dB on the bass (claim use-bass), 19.4 dB to 14.1 dB on the drums with the loudest sample more than 2.2 dB lower (claim use-drums), more than 17.5 dB to 14.0 dB on the mix with the level 3.6 dB and the loudest sample 0.1 dB higher (claim use-mix)', async () => {
     const sat = await lab('saturation')
     const lead = await played(sat, 'lead')
     expectWritten(crest(lead, 'in'), '17.1 dB')
     expectWritten(crest(lead, 'out'), '12.2 dB')
     const bass = await played(sat, 'bass')
     expectWritten(crest(bass, 'in'), '17.4 dB')
-    expectWritten(crest(bass, 'out'), '10.8 dB')
+    expectWritten(crest(bass, 'out'), '11.5 dB')
     const drums = await played(sat, 'drums')
-    expectWritten(crest(drums, 'in'), '19.2 dB')
+    expectWritten(crest(drums, 'in'), '19.4 dB')
     expectWritten(crest(drums, 'out'), '14.1 dB')
-    expectWritten(topOf(drums, 'in') - topOf(drums, 'out'), '2.0 dB')
+    expectWritten(topOf(drums, 'in') - topOf(drums, 'out'), 'more than 2.2 dB')
+    expect(topOf(drums, 'in') - topOf(drums, 'out')).toBeLessThan(2.5)
     const bus = await played(sat, 'bus')
-    expectWritten(crest(bus, 'in'), 'more than 17 dB')
+    expectWritten(crest(bus, 'in'), 'more than 17.5 dB')
+    expect(crest(bus, 'in')).toBeLessThan(17.8)
     expectWritten(crest(bus, 'out'), '14.0 dB')
     expectWritten(levelOf(bus, 'out') - levelOf(bus, 'in'), '3.6 dB')
     expectWritten(topOf(bus, 'out') - topOf(bus, 'in'), '0.1 dB')
+  })
+
+  it("leans the bass card's curve the way Tube leans: on a 100 Hz tone a quarter of full scale its Bias brings the second harmonic 8 dB nearer the fundamental than Bias at 0 leaves it (claim use-bass-lean)", async () => {
+    const sat = await lab('saturation')
+    const { values } = resolveSet(sat.description, settings.sets.bass!)
+    const second = (peakSize: number, bias: number) =>
+      over(tap(sat.render(sine(100, peakSize, seconds(1)), { ...values, bias }), 'shaped'), 100, 2)
+    expectWritten(second(0.25, values.bias!) - second(0.25, 0), '8 dB')
+    // Louder and quieter than that, the lean still adds to Tube's own.
+    for (const size of [0.4, 0.1, 0.02]) {
+      expect(second(size, values.bias!) - second(size, 0)).toBeGreaterThan(6)
+    }
+    // The other way, Bias works against Tube on a loud note: the harmonic falls.
+    expect(second(0.25, -values.bias!)).toBeLessThan(second(0.25, 0) - 3)
   })
 
   it('folds a plain tone into another: with Drive at 18 dB the third harmonic stands 1.9 dB over the fundamental, at 20 dB 25.6 dB over it, and at 12 dB, where the tone stays under the fold, every harmonic is more than 120 dB under (claim use-fold)', async () => {
@@ -747,12 +812,13 @@ describe('saturation and oversampling', () => {
     expectWritten(topOf(result, 'in') - topOf(result, 'out'), '8.6 dB')
   })
 
-  it('blended under the drums at a mix of 0.3, leaves the loudest sample 1.2 dB lower and standing 15.8 dB over the level where it stood 19.2 dB over it; the bent copy alone stands 9.4 dB over its level (claim way-under)', async () => {
+  it('blended under the drums at a mix of 0.3, leaves the loudest sample more than 1.2 dB lower and standing 16.0 dB over the level where it stood 19.4 dB over it; the bent copy alone stands 9.4 dB over its level (claim way-under)', async () => {
     const sat = await lab('saturation')
     const result = await played(sat, 'under')
-    expectWritten(topOf(result, 'in') - topOf(result, 'out'), '1.2 dB')
-    expectWritten(crest(result, 'in'), '19.2 dB')
-    expectWritten(crest(result, 'out'), '15.8 dB')
+    expectWritten(topOf(result, 'in') - topOf(result, 'out'), 'more than 1.2 dB')
+    expect(topOf(result, 'in') - topOf(result, 'out')).toBeLessThan(1.5)
+    expectWritten(crest(result, 'in'), '19.4 dB')
+    expectWritten(crest(result, 'out'), '16.0 dB')
     expectWritten(crest(await played(sat, 'under', { mix: 1 }), 'out'), '9.4 dB')
   })
 
@@ -786,12 +852,13 @@ describe('saturation and oversampling', () => {
     expect(peak(tap(four, 'shaped1x'))).toBe(1)
   })
 
-  it('peaks 2.4 dB over on the drums at 36 dB of drive through the Hard curve at 4x (claim overshoot-drums)', async () => {
+  it('peaks more than 2.7 dB over on the drums at 36 dB of drive through the Hard curve at 4x (claim overshoot-drums)', async () => {
     const sat = await lab('saturation')
     const drums = await benchSource('drums', seconds(2))
     const four = sat.render(drums, { curve: HARD, driveDb: 36, oversample: X4 })
-    expectWritten(topOf(four, 'shaped'), '2.4 dB')
-    expect(peak(tap(four, 'shaped1x'))).toBe(1)
+    expectWritten(topOf(four, 'shaped'), 'more than 2.7 dB')
+    expect(topOf(four, 'shaped')).toBeLessThan(3)
+    expect(topOf(four, 'shaped1x')).toBe(0)
   })
 
   it('puts its tile inside the band on every loop: between −36 dB and −5 dB at the settings the tile plays', async () => {

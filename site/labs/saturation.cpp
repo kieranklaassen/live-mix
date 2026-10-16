@@ -454,9 +454,10 @@ void draw_shapes() {
 // the way up. `up` puts out twice the filter's taps (the gain that makes up
 // for the zeros between samples), so half of that is the filter itself.
 // response_tap counts in hertz at 48 kHz; these run at 96 and at 192 kHz, so
-// the same points stand at twice and at four times the frequency.
+// the same points stand at twice and at four times the frequency. The points
+// are close enough to stand on the top of the narrowest ripple of a stop band.
 void measure_filters() {
-  constexpr int kPoints = 721;
+  constexpr int kPoints = 2881;
   float* h = lab::take(128);
   float* g = lab::take(64);
   if (!h || !g) return;
