@@ -36,7 +36,9 @@ jobs:
       - uses: actions/checkout@v7
 
       # The site's address is whatever the repository's Pages settings say it is, so a domain
-      # set there needs no change here. A pull request builds for the default address.
+      # set there needs no change here. A pull request builds for the default address. Only a 404
+      # means Pages is off: any other failure to read the settings fails the run, so a deploy is
+      # never skipped in silence.
       - name: Read the Pages settings
         id: pages
         env:
@@ -45,7 +47,7 @@ jobs:
           set -euo pipefail
           publish=false
           if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
-            if pages=$(gh api "repos/$GITHUB_REPOSITORY/pages" 2>/dev/null); then
+            if pages=$(gh api "repos/$GITHUB_REPOSITORY/pages" 2>"$RUNNER_TEMP/pages.err"); then
               url=$(jq -r '.html_url' <<<"$pages")
               kind=$(jq -r '.build_type' <<<"$pages")
               origin=$(sed -E 's|^(https?://[^/]+).*$|\1|' <<<"$url")
@@ -58,8 +60,12 @@ jobs:
               else
                 echo "::notice::Pages is on, but its source is not GitHub Actions, so nothing is published. Settings, Pages, Source: GitHub Actions (docs/site.md)."
               fi
-            else
+            elif grep -q 'HTTP 404' "$RUNNER_TEMP/pages.err"; then
               echo "::notice::Pages is not switched on for this repository, so nothing is published. Settings, Pages, Source: GitHub Actions (docs/site.md)."
+            else
+              cat "$RUNNER_TEMP/pages.err" >&2
+              echo "::error::The Pages settings could not be read, so nothing was published. Run the workflow again."
+              exit 1
             fi
           fi
           echo "publish=$publish" >>"$GITHUB_OUTPUT"
