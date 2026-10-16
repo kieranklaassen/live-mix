@@ -1,0 +1,217 @@
+---
+title: The feedback delay network
+order: 14
+summary: Eight delay lines of unlike lengths, each fed back through a matrix that spreads it over all eight. This lesson runs the engine's network one sample at a time, reads the lines out of it, and measures how its echoes multiply and how long they take to die.
+lab: 14-feedback-delay-network
+devices: [fdn-reverb]
+bench:
+  device: fdn-reverb
+  params: { mix: 1, decay: 1.5, damping: 0, predelayMs: 0, size: 1, breathRate: 0.3, breathDepth: 0 }
+  as: insert
+  note: The plate opens where this lesson starts and not on the device's own defaults, which are Mix 0.5, Decay 5 s, Damping 0.4 and a Breath depth of 0.4. One thing cannot be matched. The slow wander of the line lengths has no control on the device, so on the plate it is always moving.
+sources: [clicks, drums, guitar, sine, chords, noise]
+seconds: 2
+files:
+  - cpp/devices/fdn-reverb/fdn_reverb.h
+  - cpp/devices/fdn-reverb/fdn_reverb_device.h
+  - cpp/devices/fdn-reverb/fdn_reverb_device.cpp
+  - cpp/kit/fdn.h
+  - cpp/kit/delay.h
+---
+
+A delay line whose output is fed back into its input is the simplest thing that keeps a sound alive: one echo, then a quieter one, then a quieter one still, all the same distance apart. A room does not sound like that. Its echoes arrive at no regular distance and there are more of them every moment, until they are too many to tell apart and the ear hears a smooth tail.
+
+A _feedback delay network_ gets from the one to the other with two ideas. The first is to run several lines side by side, with lengths that have nothing to do with each other, so that their echoes never fall into step. The second is to stop feeding each line back into itself. Every line's output is shared out over the inputs of all the lines, so an echo that has been round once comes back as eight, and those as sixty-four. The sharing is done by a matrix, and nearly everything in this lesson follows from what kind of matrix it has to be.
+
+The engine's network has eight lines. These are its stages, in the order a sound meets them. The source is a click, one sample long, once a second: whatever comes out is the network's answer to a single instant.
+
+<Stages taps="in diffused written line1 line8 out" />
+
+The click goes in and a tail comes out. Because the tail is small beside the click, the picture is in decibels: the level of what goes in, and of what comes out.
+
+<Controls ids="decay size" />
+
+<Trace taps="levelIn:in level:out" min={-110} max={-20} unit="dB">
+  The level of the input (grey) and of the output (red). Each click is over at once; the grey slope is only the meter letting go. The red line starts late, because nothing comes out until the shortest line has been travelled. Then it falls, burst by burst at first, along a straight line. A straight line in decibels is a tail that loses the same fraction every moment. Decay sets its slope: 60 dB in that many seconds.
+</Trace>
+
+Two things the device does by default are switched off here, so that the network shows by itself: the _breath_, which opens and closes the input, and the slow wander of the line lengths. Both come back as controls in stages 6 and 7.
+
+## Stage by stage
+
+### 1. One line, fed back
+
+A delay line holds the last <M t="M" /> samples and gives back the one that went in <M t="M" /> samples ago (lesson 10). Feed its output back into its input through a gain <M t="g" /> and you have a _comb_:
+
+<M block t={String.raw`y[n] = x[n-M] + g\,y[n-M]`} />
+
+A click comes out <M t="M" /> samples later, again at <M t="2M" /> times <M t="g" />, again at <M t="3M" /> times <M t="g^2" />. The name comes from its spectrum, which has a tooth at every frequency that fits a whole number of cycles into the line: every multiple of <M t={String.raw`f_s / M`} />. A short line is a pitch. The engine's lines are long. The shortest is 5,223 samples at 48 kHz, so its teeth are <Claim id="comb-teeth">9.19 Hz apart</Claim>: nine repeats a second, a rhythm and not a note.
+
+<Controls ids="decay size" />
+
+<Curve taps="comb" xMax={1} xTitle="seconds" label="One line alone: its answer to a click, against time">
+  The first second of line 1 alone, fed back to itself and sent one click. Every echo is the same distance from the last and the same fraction of it. Size moves the echoes apart; Decay changes how much each keeps.
+</Curve>
+
+This comb is not the device. It is written for the lesson from <Src path="cpp/kit/delay.h">the kit's `DelayLine`</Src>, with the device's own length and gain. With Decay at 1.5 s each echo is <Claim id="comb-step">5.78 dB under the last</Claim>. Stage 4 says where that number comes from.
+
+### 2. Eight lines of unlike lengths
+
+One comb sounds like one comb however long it rings. The network runs eight, and the whole craft is in the choice of their lengths. The device keeps them as constants in <Src path="cpp/devices/fdn-reverb/fdn_reverb.h">`init`</Src>, in samples at 44.1 kHz, and scales them to the running rate:
+
+| Line | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| At 44.1 kHz | 4,799 | 5,399 | 5,801 | 6,199 | 6,599 | 6,997 | 7,393 | 7,789 |
+| At 48 kHz | 5,223 | 5,876 | 6,314 | 6,747 | 7,182 | 7,615 | 8,046 | 8,477 |
+
+At 48 kHz that is <Claim id="lengths-48k">108.8 ms to 176.6 ms</Claim>, the longest 1.6 times the shortest. Size multiplies all eight.
+
+The lengths must not share factors, and the reason is plain arithmetic. Two lines of lengths <M t="a" /> and <M t="b" /> both deliver an echo at every common multiple of <M t="a" /> and <M t="b" />. Echoes that land on the same samples again and again are not filling the gaps between the others, and the tail is thinner and more regular than eight lines should make it. If the lengths share no factor, the first common multiple is their product, which for the two shortest at 44.1 kHz is nearly ten minutes away. The eight reference lengths are all primes.
+
+Scaling spoils that a little, and it is worth knowing. The device cuts each scaled length to a whole number, and at 48 kHz the results are no longer prime: four are even, and lines 4 and 8 share a factor of 173. The first pair of lines to bring an echo round together does so after <Claim id="shared-factors">6.9 s</Claim>, by which time a tail of ordinary length has gone. What matters in practice is that no two lengths stand in a simple ratio, such as 2:1 or 3:2, which would line echoes up from the second trip on.
+
+<Wave taps="diffused:in line1:alt line8:out" from={0} span={0.25} fit>
+  The first quarter second after a click, inside the running device. Grey is what is fed to all eight lines at once: the click after the device's four all-pass diffusers (lesson 13) have smeared it. Green is the output of line 1 and red of line 8: the same burst, each line's length later.
+</Wave>
+
+The line outputs are read from the device's own state. Line 1 says nothing until <Claim id="first-out">5,223 samples after the click</Claim> and line 8 nothing until 8,477.
+
+### 3. The mixing matrix
+
+Left to themselves, eight lines are eight combs playing at once: eight echoes per trip, for ever. The network takes the eight outputs as a vector <M t={String.raw`\mathbf v`} />, multiplies it by a matrix <M t="A" />, and writes the result back into the eight inputs:
+
+<M block t={String.raw`\mathbf v[n] = \bigl(y_1[n],\dots,y_8[n]\bigr), \qquad \text{line } i \text{ is written } \; x[n] + g\,\bigl(A\,\mathbf v[n]\bigr)_i`} />
+
+If <M t="A" /> has no zeros in it, every line's echo is handed to all eight lines, and each of those hands it on to eight more.
+
+Not any matrix will do. The lines store whatever is written into them and give it back later, so if <M t="A" /> could make its output larger than its input, round after round, the network would grow without limit. The safe choice is a matrix that _keeps energy_: the sum of the squares going in equals the sum of the squares coming out, for every input. That holds exactly when every column has length one and every two columns are at right angles. Such a matrix only turns the vector. The loop's loss is then set by <M t="g" /> alone, and <M t="g" /> can be chosen for the decay time without a thought for the matrix.
+
+The kit offers two, in <Src path="cpp/kit/fdn.h">`fdn.h`</Src>. The device uses the _Hadamard_ matrix, which is built by doubling:
+
+<M block t={String.raw`H_2 = \frac{1}{\sqrt2}\begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}, \qquad H_{2N} = \frac{1}{\sqrt2}\begin{pmatrix} H_N & H_N \\ H_N & -H_N \end{pmatrix}, \qquad H_4 = \frac12\begin{pmatrix} 1 & 1 & 1 & 1 \\ 1 & -1 & 1 & -1 \\ 1 & 1 & -1 & -1 \\ 1 & -1 & -1 & 1 \end{pmatrix}`} />
+
+Every entry of <M t="H_8" /> is plus or minus <M t={String.raw`1/\sqrt8`} />, about 0.354: each line gives every line an equal share, and only the signs differ. The doubling is also how it is computed. A general 8 by 8 matrix costs 64 multiplications and 56 additions per sample. `kit::hadamard` takes sums and differences of pairs, then of pairs of those, then again: three passes of eight, 24 additions and subtractions, and one multiplication per line for the scale. The device writes the same three passes out by hand in `hadamard8`, and the lab finds its matrix to be <Claim id="same-matrix">the kit's, entry for entry</Claim>.
+
+The other is the _Householder_ matrix, <M t={String.raw`I - \tfrac{2}{N}\mathbf 1\mathbf 1^{\mathsf T}`} />: subtract a quarter of the sum of all eight from each. A line keeps three quarters of itself and gives a quarter, sign flipped, to each of the others. It costs one sum and eight subtractions.
+
+The lab sends the eight unit vectors through each of the kit's functions, which gives the matrix a column at a time, and measures the columns. Both keep energy <Claim id="matrix-keeps">to within 0.00001</Claim>.
+
+<Check id="keeps" />
+
+<Controls ids="matrix" />
+
+<Curve taps="apart:in mixed:out" xMax={1.5} xTitle="seconds" label="A bare network's answer to a click, unmixed and mixed">
+  A bare network of the device's eight lengths, with no diffusers and no filters, sent one click. Grey: each line fed back to itself. Red: the lines mixed. The grey echoes keep to the same few spacings and lose only height. The red ones lose height faster and thicken in number.
+</Curve>
+
+<Curve taps="densityApart:in densityMixed:out" xTitle="seconds" yTitle="echoes per ms" label="Echoes arriving per millisecond, unmixed and mixed">
+  Echoes arriving per millisecond, counted in windows of 50 ms on the same two networks with the gain at 1, so that nothing dies. Unmixed (grey) the count never changes. Mixed (red) it climbs for as long as the lab counts. At 48 a millisecond every sample would be an echo.
+</Curve>
+
+Mixed by the Hadamard matrix, the bare network delivers <Claim id="echo-density">117 echoes in its first half second and 1,979 in the second</Claim>. Unmixed it delivers 12 and 15.
+
+That growth is real but slow, because the lines are long: the first half second is still sparse enough to hear as separate taps. This is why the device does not feed the click to the network raw. Its four all-pass diffusers turn each sample into a burst before the lines ever see it, as the green and red traces in stage 2 show.
+
+### 4. The gain that sets the decay time
+
+Reverberation time is given as the time to fall 60 dB. A sound in a loop of <M t="M" /> samples makes <M t={String.raw`T f_s / M`} /> trips in <M t="T" /> seconds and is multiplied by <M t="g" /> on each. Ask for the product to be one thousandth:
+
+<M block t={String.raw`g^{\,T f_s / M} = 10^{-3} \quad\Longrightarrow\quad g = 10^{-3M/(T f_s)}`} />
+
+That is <Src path="cpp/kit/fdn.h">`kit::rt60_gain(delay_samples, rt60_seconds, sample_rate)`</Src>, term for term. A longer line gets a smaller gain, because it makes fewer trips and must lose more on each. Give every line the gain of its own length and all eight lose the same number of decibels a second, whatever the matrix does.
+
+This device takes a shortcut. <Src path="cpp/devices/fdn-reverb/fdn_reverb.h">`feedback_gain_for`</Src> is the same formula applied once, to the mean of the eight lengths (6,935 samples, 144.5 ms, times Size), and the one gain serves all eight lines. At 1.5 s that gain is <Claim id="trip-gain">5.78 dB a trip</Claim>. The code caps it at 0.98, a cap the controls never reach: the longest decay with the smallest size gives <Claim id="gain-cap">0.975</Claim>.
+
+One gain for all means a line alone would decay at its own rate: line 1, the shortest, fed back to itself as in stage 1, is 60 dB down after <Claim id="comb-alone">1.13 s</Claim> when 1.5 s is set, and with a gain from its own length (<Claim id="comb-own">4.35 dB a trip</Claim>) after 1.5 s exactly. The matrix rescues the shortcut. No echo stays in one line: each trip it is shared out over all eight, so every path through the network is made of short lines and long ones alike. The bare network of stage 3 at 1.5 s decays in <Claim id="bare-decay">1.46 s with one gain for all and 1.50 s with a gain for each line</Claim>.
+
+<Controls ids="decay size gains" />
+
+<Curve taps="decayCurve:out decayWanted:in" min={-80} max={0} xTitle="seconds" yTitle="dB" label="The device's energy decay curve, against the slope that was set">
+  How the device's answer to one click dies away: at each instant, the energy still to come, as a fraction of the whole. The dashed line is the slope Decay asks for. The red curve is flat until the first line delivers, then follows the slope down, a little steeper.
+</Curve>
+
+<Check id="tripGain" />
+
+With the damping at 0 the device's tail measures <Claim id="decay-set">0.97 s for 1 s set, 1.34 s for 1.5 s and 1.77 s for 2 s</Claim>, each from a line fitted to that curve between 5 and 35 dB down. That is within 15 % and always short. The shortcut above accounts for 0.04 s of it at 1.5 s. The rest belongs to two filters that sit in the loop, which the next stage is about.
+
+The lab checks that it has read the loop correctly. On every sample it takes the eight line outputs from the device, mixes them with the kit's `hadamard`, multiplies by the gain from the formula, adds the diffused input, runs the damping filter, and compares with the filter state the device stored. The two agree to <Claim id="loop-rebuilt">under −120 dB</Claim>.
+
+<Check id="loop" />
+
+### 5. Damping
+
+In a room the highs die first: air and soft surfaces take more from them on every reflection. The network copies that by putting a one-pole low-pass (lesson 4) in each line's feedback:
+
+<M block t={String.raw`s_i[n] = (1-a)\,\bigl(x[n] + g\,(A\mathbf v)_i\bigr) + a\,s_i[n-1], \qquad a = e^{-2\pi f_c / f_s}, \qquad f_c = 20\,\text{kHz}\cdot\bigl(\tfrac{1}{20}\bigr)^{d}`} />
+
+Damping, <M t="d" />, slides the cutoff from 20 kHz at 0 to 1 kHz at 1; the device's default of 0.4 is about 6 kHz. The filter is passed once per trip, so its effect compounds: the gain of a trip is now <M t={String.raw`g\,|H(f)|`} />, a different number at every frequency, and the decay time follows it frequency by frequency.
+
+After the low-pass comes a DC blocker, <M t={String.raw`y[n] = s[n] - s[n-1] + 0.995\,y[n-1]`} />, a high-pass with its corner near 38 Hz. Its job is to stop a constant offset from circulating for ever. Its price is paid by the lowest octaves.
+
+<Controls ids="damping decay" />
+
+<Curve taps="passGain" xLog xMin={20} xMax={20000} min={-24} max={0} xTitle="Hz" yTitle="dB a trip" label="The gain of one trip round the loop, against frequency">
+  The gain of one trip round the loop at each frequency: the gain, the damping filter and the DC blocker, as the device's code writes them, sent one click. The flat middle is the gain of stage 4. Damping pulls the right-hand side down. The left-hand side falls whatever is set.
+</Curve>
+
+With the damping at 0.4 a trip costs <Claim id="damping-trip">9.75 dB at 8 kHz against 5.81 dB at 500 Hz</Claim>. Sixty decibels at 9.75 a trip, each trip 144.5 ms, is 0.89 s. Measured on the device, the band around 8 kHz dies in <Claim id="damping-bands">0.90 s and the band around 500 Hz in 1.34 s</Claim>.
+
+<Spectrogram tap="picture" top={16000} min={-115} max={-45}>
+  The spectrum of the device's answer to one click, over two seconds. With the damping at 0 the picture fades at nearly the same rate from top to bottom. Raise it and the top goes dark first.
+</Spectrogram>
+
+<Curve taps="decayLow:alt decayHigh:out" min={-80} max={0} xTitle="seconds" yTitle="dB" label="The energy decay curve around 500 Hz and around 8 kHz">
+  The same decay curve as in stage 4, taken in two narrow bands of the response: around 500 Hz (green) and around 8 kHz (red). At a damping of 0 they fall together. Raise it and the red curve steepens while the green one stays.
+</Curve>
+
+Damping at 0 is not "no filter". The low-pass still stands at 20 kHz, under the 24 kHz the sample rate allows, and the DC blocker is always there: a trip loses <Claim id="damping-off">0.33 dB more at 8 kHz and 2 dB more at 50 Hz</Claim> than the gain alone. A click holds every frequency, so its tail is shorter than the middle of the spectrum would be by itself.
+
+### 6. Moving the lengths
+
+A network whose lengths never change has a fixed set of resonances, as many as there are samples in its lines: some 55,000 here. A steady note sits on some and between others, and it stays there. The complaint usually made of a network that stands still is a ring in its long tails.
+
+The device's answer is to keep the lengths moving. Each line is read 12 samples either side of its length, on a sine of its own: line 1 at 0.30 Hz, each next line 0.07 Hz faster, up to 0.79 Hz for line 8, and each starting an eighth of a cycle after the last. No resonance stays where it was for long. A read between two samples needs interpolation, and the device uses a first-order all-pass, <M t={String.raw`y[n] = x_1 + c\,(x_0 - y[n-1])`} /> with <M t={String.raw`c = (1-\phi)/(1+\phi)`} /> for a fraction <M t={String.raw`\phi`} />, where <M t="x_0" /> and <M t="x_1" /> are the stored samples either side of the place read. Linear interpolation would be a small low-pass, paid on every trip like the damping. The all-pass keeps every frequency's level.
+
+<Controls ids="wander" />
+
+<Trace taps="level" unit="dB">
+  The level of the output again, to its own scale. Choose the sine as the source. With the lines still the level is a flat line. Set Wander to Moving and it drifts up and down as the resonances slide past the note.
+</Trace>
+
+That picture is the trade. With the lines still, a 440 Hz sine comes out at a level that moves <Claim id="wander-still">0.01 dB</Claim> across the loop. Moving, it wanders over <Claim id="wander-moving">4.2 dB</Claim>. A moving length is also a small change of pitch: at 0.79 Hz and 12 samples the read slides by at most 60 samples a second, about 2 cents. And the network is no longer one fixed response. With the lines still, two clicks a second apart get the same answer <Claim id="wander-clicks">to 100 dB under the tail; moving, the two answers differ as much as two unrelated sounds do</Claim>. Every picture of "the response" on this page is therefore taken with the lines still, or is a snapshot.
+
+### 7. The breath, the output and the mix
+
+Three things stand around the network. Before it, the device sums the two input channels to one and multiplies by its _breath_, a slow gate of its own: <M t={String.raw`1 - D\,\bigl(1 - (\tfrac12 + \tfrac12\sin 2\pi\theta)\bigr)`} />, with <M t="D" /> the depth and <M t={String.raw`\theta`} /> a phase that turns at the breath rate, 0.3 Hz here. The input swells and fades while the tail already in the lines rings on. At the device's default depth of 0.4 the gate moves <Claim id="breath">between 0.6 and 1</Claim>.
+
+<Controls ids="breathDepth mix" />
+
+<Trace taps="gate" min={0} max={1.05}>
+  The gain the breath puts on the input. At a depth of 0 it is 1 throughout and the network hears everything. Raise the depth and it dips once every three and a third seconds, longer than this loop, so each time round it stands somewhere else.
+</Trace>
+
+After the network, the output is taken straight from the lines: left is a quarter of the sum of lines 1, 3, 5 and 7, right the same of lines 2, 4, 6 and 8, each through a `tanh`. The two sides share no line, which is what makes the tail wide: on the clicks their correlation is <Claim id="stereo">0.13</Claim>.
+
+Last, <Src path="cpp/devices/fdn-reverb/fdn_reverb_device.cpp">the device</Src> mixes dry and wet with equal power, <M t={String.raw`\text{dry}\cdot\cos(m\pi/2) + \text{wet}\cdot\sin(m\pi/2)`} />. The two are unrelated signals, so their powers add, and this law keeps the sum level across the fader. At a mix of 0 the output is <Claim id="mix-zero">the input, sample for sample</Claim>.
+
+## What goes wrong
+
+**A ring.** Too few lines, lengths in simple ratios, or no mixing, and the echoes stay regular. Set Mixing to None and look at stage 3: that is eight combs, each with its own repeat. The cures are the ones this device takes: lengths with no common factor, a matrix with no zeros, and lengths that move.
+
+**A slow start.** Long lines give a long, even tail and a sparse beginning. With lines of 109 ms and more, the bare network of stage 3 is still far from full a second after the click. The diffusers in front are there for that, and a larger Size makes the gap before the first burst plain.
+
+**A decay time that is not the one set.** The formula sets the gain, and everything else in the loop takes a little more. At short settings it hardly shows. At the longest, 20 s, the level of a click's tail between 1 s and 7 s falls at the rate of <Claim id="decay-long">15.7 s</Claim>.
+
+**Growth without limit.** A matrix that keeps energy and a gain under 1 cannot grow. The device adds a second guard: what is written into each line goes through `tanh`, which no value leaves larger than 1. Small values pass almost unchanged, a tenth of full scale losing a third of a percent; a loud input is squeezed a little on every trip.
+
+**A tail that never quite ends.** Numbers too small to matter slow a processor down, so the device sets anything under 1e-15 to zero, and once its output has been exact zeros for two seconds it stops working until sound arrives: silence in gives <Claim id="silence">exact silence</Claim> out. This page's still setting defeats that in one case. At a Size of exactly 1 the lines are read at whole samples, the all-pass read's coefficient is exactly 1, and its pole lies on the unit circle at half the sample rate: a rounding <Claim id="still-residue">residue of about 0.0000001 that changes sign every sample</Claim> is left ringing after a tail. Moving lines, or any other Size, let it die. The device itself is never still.
+
+## What to try
+
+- Clicks, **Mixing** on None and then Hadamard, with the two figures of stage 3 in view: eight combs, then a tail.
+- Clicks, **Decay** from 0.5 s to 5 s. The red slope in the first figure tilts; the first burst stays where it is, because Decay does not move the lines.
+- Clicks, **Size** from 0.5 to 2. The first burst comes later and the bursts stand further apart, while the slope keeps to the decay time.
+- Drums, **Damping** from 0 to 1, with the spectrogram in view. Listen for the hats leaving the tail before the kick does.
+- The sine, **Wander** on Still and then Moving, and the level in stage 6.
+- Guitar, **Breath depth** at 0.6 and **Mix** at 0.5: the notes go in and out of the room while the room rings on.
+- **Gain** on "One per line" with Mixing on None. Every comb in stage 3 now takes the same time to die, and the kit's formula is doing what it was written for.
