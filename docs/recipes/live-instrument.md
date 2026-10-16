@@ -4,7 +4,7 @@ A performer paints clips onto a looping timeline, plays a synth from a MIDI
 keyboard, plugs in a guitar and monitors it through the same mix, and maps
 knobs to anything — the shape of a live performance tool, a looper or a
 small DAW. The README's
-[Faust device example](../README.md#a-faust-device-on-an-insert-modulated-by-an-lfo)
+[Faust device example](../../README.md#a-faust-device-on-an-insert-modulated-by-an-lfo)
 is the insert-and-modulate part on its own; this is the whole instrument.
 ambient-live runs this shape ([consumer guide](../consumers/ambient-live.md)).
 

@@ -12,6 +12,9 @@ generated from the eight public entries and lives in CI, not in git.
   six type-checked examples.
 - [React](./react.md) — the headless hooks, the styled kit, and the
   `playground/` app (`pnpm playground`), with its browser smoke test.
+- [The site](./site.md) — the lessons on the signal processing the engine
+  uses, these docs as pages and a page for every device: how it is built,
+  checked and published.
 
 ## Concepts
 

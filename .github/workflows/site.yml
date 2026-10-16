@@ -1,0 +1,127 @@
+name: Site
+
+# Builds the public site (site/) and holds it to its checks; on main, publishes it to GitHub
+# Pages when Pages is switched on for the repository (docs/site.md).
+
+on:
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'cpp/**'
+      - 'src/**'
+      - 'docs/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'typedoc.json'
+      - '.github/workflows/site.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  pages: read
+
+jobs:
+  build:
+    name: Labs, tests, build, links, browser tests
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.pages.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # The site's address is whatever the repository's Pages settings say it is, so a domain
+      # set there needs no change here. A pull request builds for the default address.
+      - name: Read the Pages settings
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          publish=false
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            if pages=$(gh api "repos/$GITHUB_REPOSITORY/pages" 2>/dev/null); then
+              url=$(jq -r '.html_url' <<<"$pages")
+              kind=$(jq -r '.build_type' <<<"$pages")
+              origin=$(sed -E 's|^(https?://[^/]+).*$|\1|' <<<"$url")
+              base=$(sed -E 's|^https?://[^/]+||; s|/+$||' <<<"$url")
+              echo "SITE_URL=$origin" >>"$GITHUB_ENV"
+              echo "SITE_BASE=${base:-/}" >>"$GITHUB_ENV"
+              if [ "$kind" = "workflow" ]; then
+                publish=true
+                echo "::notice::Publishing to $url"
+              else
+                echo "::notice::Pages is on, but its source is not GitHub Actions, so nothing is published. Settings, Pages, Source: GitHub Actions (docs/site.md)."
+              fi
+            else
+              echo "::notice::Pages is not switched on for this repository, so nothing is published. Settings, Pages, Source: GitHub Actions (docs/site.md)."
+            fi
+          fi
+          echo "publish=$publish" >>"$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            site/pnpm-lock.yaml
+
+      # The device benches run the library as it is built here, and the API reference is the
+      # repository's own TypeDoc.
+      - name: Install and build the library
+        run: pnpm install --frozen-lockfile && pnpm build
+
+      - name: Install the site's packages
+        run: pnpm -C site install --frozen-lockfile
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          # Keep in sync with EMSDK_VERSION in site/scripts/build-labs.sh and scripts/build-wasm.sh.
+          version: 4.0.15
+          actions-cache-folder: emsdk-cache
+
+      - name: Install Chromium
+        run: pnpm -C site exec playwright install --with-deps chromium
+
+      # One script, the same one a contributor runs: labs, format, types, unit and lab tests,
+      # wording, build, claims, links, browser tests on the site as built.
+      - name: Check the site
+        run: bash site/scripts/check.sh
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: site-test-output
+          path: site/test-results
+          if-no-files-found: ignore
+
+      - uses: actions/upload-pages-artifact@v5
+        if: steps.pages.outputs.publish == 'true'
+        with:
+          path: site/dist
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: build
+    if: needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
