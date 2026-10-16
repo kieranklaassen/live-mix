@@ -72,11 +72,11 @@ test.describe('the visuals, in a real browser', () => {
     await page.goto('/browser-tests/harness/visuals.html')
     await page.waitForFunction(() => window.visualsHarness !== undefined)
     const none = { soft: 0, dim: 0, thin: 0, spread: 0 }
-    const seen = async (filter: typeof none) => {
-      const both = await page.evaluate(
-        (asked) => window.visualsHarness.filtered('dot-globe', asked),
+    const seen = async (filter: typeof none, style = 'dot-globe') => {
+      const both = await page.evaluate(([id, asked]) => window.visualsHarness.filtered(id, asked), [
+        style,
         filter,
-      )
+      ] as const)
       if (!both) throw new Error('the style was never drawn')
       expectPicture(both.plain, 'the frame as it is')
       return both
@@ -98,24 +98,29 @@ test.describe('the visuals, in a real browser', () => {
     expect(dim.filtered.mean / dim.plain.mean, 'dim darkens by what is asked').toBeGreaterThan(0.6)
     expect(dim.filtered.mean / dim.plain.mean, 'dim darkens by what is asked').toBeLessThan(0.7)
 
-    const thin = await seen({ ...none, thin: 0.8 })
-    expect(thin.filtered.mean, 'thin takes light away').toBeLessThan(thin.plain.mean)
+    // Thin is looked at on a style with broad light to take: it loses more of its light than of its fine
+    // detail, which a picture that is only dimmed does not.
+    const thin = await seen({ ...none, thin: 0.8 }, 'pin-relief')
+    const light = thin.filtered.mean / thin.plain.mean
+    const fine = thin.filtered.detail / thin.plain.detail
+    expect(light, 'thin takes the broad light away').toBeLessThan(0.75)
+    expect(fine, 'and less of the fine detail than of the light').toBeGreaterThan(light + 0.03)
     expect(thin.filtered.lit, 'thin leaves a picture').toBeGreaterThan(0.01)
 
     const spread = await seen({ ...none, spread: 0.5 })
     expect(spread.filtered.mean, 'spread adds light').toBeGreaterThan(spread.plain.mean)
 
-    // Under Trails the stage keeps what it showed. The filter is not in what it keeps, so the picture settles.
-    const means = await page.evaluate(
-      (asked) => window.visualsHarness.repainted('dot-globe', asked, 30),
-      { ...none, soft: 0.85, dim: 0.35 },
+    // Under Trails the stage keeps what it showed. The filter is not in what it keeps: after thirty filtered
+    // paintings, one painting without the filter is the picture a screen that never had one shows.
+    const kept = await page.evaluate(
+      (asked) => window.visualsHarness.kept('dot-globe', asked, 30),
+      { ...none, soft: 0.85, dim: 0.35, spread: 0.5 },
     )
-    if (!means) throw new Error('the style was never drawn')
-    expect(means[29]).toBeGreaterThan(1)
-    expect(
-      Math.abs(means[29] - means[4]) / means[4],
-      'the thirtieth painting is as lit as the fifth',
-    ).toBeLessThan(0.02)
+    if (!kept) throw new Error('the style was never drawn')
+    expect(kept.never.mean).toBeGreaterThan(1)
+    expect(kept.under.detail, 'the filter was on the picture').toBeLessThan(kept.never.detail * 0.7)
+    expect(kept.after.mean, 'and none of it stayed: the light').toBeCloseTo(kept.never.mean, 3)
+    expect(kept.after.detail, 'and the detail').toBeCloseTo(kept.never.detail, 3)
 
     // The barest a performance leaves a new visual: one sound in, Tone all the way down.
     expectPicture(

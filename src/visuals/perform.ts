@@ -15,9 +15,12 @@ import type { VisualFrame, VisualLayer } from './frame'
 
 /** Where a performance stands, as its host reads it. A share is 0 to 1, and 1 with the piece as composed. */
 export interface PerformReading {
-  /** How much of the sounds that can leave are left in by hand and by the scene in play. */
+  /**
+   * How much of what the Energy dial lets through is left in by hand and by the scene in play. A sound that
+   * Energy holds out is not counted a second time, so the two shares multiplied are how full the piece stands.
+   */
   rides: number
-  /** How much of them the Energy dial lets through. */
+  /** How much of the sounds that can leave the Energy dial lets through. */
   ladder: number
   /** How long the move that was made last takes, in seconds. */
   overSec: number

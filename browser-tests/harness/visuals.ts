@@ -186,17 +186,32 @@ const harness = {
     }
   },
 
-  /** How bright a filtered frame under Trails is after each of so many paintings of it on one screen. */
-  async repainted(style: string, filter: VisualFilter, times: number): Promise<number[] | null> {
+  /**
+   * What Trails keeps of a filtered picture. One frame under Trails is painted so many times with a filter and
+   * then once without (`under`, then `after`), and as often on a screen of its own with no filter at all
+   * (`never`). Where the filter is not in what the stage keeps, the two screens end on the same picture.
+   */
+  async kept(
+    style: string,
+    filter: VisualFilter,
+    times: number,
+  ): Promise<{ under: Measured; after: Measured; never: Measured } | null> {
     const frame = await still(style, 'trails')
     if (!frame) return null
-    const { context, stage } = screen()
-    const means: number[] = []
+    const one = screen()
+    const other = screen()
     for (let time = 0; time < times; time++) {
-      stage.paint(context, { ...frame, filter }, 1)
-      means.push(measure(context).mean)
+      one.stage.paint(one.context, { ...frame, filter }, 1)
+      other.stage.paint(other.context, frame, 1)
     }
-    return means
+    const under = measure(one.context)
+    one.stage.paint(one.context, frame, 1)
+    other.stage.paint(other.context, frame, 1)
+    return {
+      under: { drawn: true, ...under },
+      after: { drawn: true, ...measure(one.context) },
+      never: { drawn: true, ...measure(other.context) },
+    }
   },
 
   /** A piece's picture with a performance over it: the dials where they are put, and what the host reads. */
