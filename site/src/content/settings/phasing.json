@@ -1,0 +1,101 @@
+{
+  "tile": {
+    "values": { "feedback": 40, "tone": 300 },
+    "tap": "out",
+    "picture": { "taps": ["toneIn", "toneCopy", "toneSum"], "view": "curve" }
+  },
+  "sets": {
+    "held": {
+      "label": "The pad as played",
+      "source": "pad",
+      "tap": "in"
+    },
+    "copy": {
+      "label": "The all-passed copy alone",
+      "values": { "mix": 1 },
+      "source": "pad"
+    },
+    "stopped": {
+      "label": "Pad and copy mixed, standing still",
+      "values": { "depth": 0 },
+      "source": "pad"
+    },
+    "swept": {
+      "label": "Pad and copy mixed, and swept",
+      "source": "pad"
+    },
+    "strings": {
+      "label": "A held pad",
+      "values": { "stages": 1, "spread": 30, "feedback": 40, "stereo": 90 },
+      "source": "pad"
+    },
+    "strum": {
+      "label": "Strummed chords",
+      "values": { "stages": 1, "centerHz": 500, "feedback": 70, "rate": 0.5 },
+      "source": "chords"
+    },
+    "line": {
+      "label": "A line played by hand",
+      "values": { "centerHz": 500, "feedback": 70, "rate": 1, "depth": 50 },
+      "source": "guitar"
+    },
+    "hiss": {
+      "label": "Noise",
+      "values": { "stages": 2, "depth": 80 },
+      "source": "noise"
+    },
+    "wide": {
+      "label": "A slow, wide sweep",
+      "values": { "depth": 100 },
+      "source": "pad"
+    },
+    "vowel": {
+      "label": "Peaks between the notches",
+      "values": { "feedback": 80 },
+      "source": "pad"
+    },
+    "inverted": {
+      "label": "Peaks where the notches were",
+      "values": { "feedback": -75 },
+      "source": "pad"
+    },
+    "across": {
+      "label": "One side ahead of the other",
+      "values": { "stereo": 90 },
+      "source": "pad"
+    },
+    "steps": {
+      "label": "Stepping, not gliding",
+      "values": { "shape": 5, "rate": 2 },
+      "source": "pad"
+    },
+    "dense": {
+      "label": "Twelve stages, spread out",
+      "values": { "stages": 4, "spread": 100, "depth": 100 },
+      "source": "pad"
+    },
+    "rings": {
+      "label": "A loop that rings",
+      "values": { "feedback": 95 },
+      "source": "drums"
+    },
+    "top": {
+      "label": "Swept off the top",
+      "values": { "centerHz": 5000, "depth": 100 },
+      "source": "noise"
+    }
+  },
+  "defaults": {
+    "values": {
+      "stages": 1,
+      "centerHz": 800,
+      "spread": 30,
+      "feedback": 40,
+      "rate": 0.3,
+      "depth": 60,
+      "shape": 0,
+      "stereo": 90,
+      "mix": 0.5
+    }
+  }
+}
