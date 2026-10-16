@@ -104,6 +104,44 @@ function swing(phasing: Lab, lo: number, hi: number) {
   return range(apart)
 }
 
+/**
+ * The level of any signal in a band of frequencies over a stretch of it, in dB, as the lab's own
+ * `spectrum` reads a tap: Hann frames of 4,096 samples, half overlapped. For a signal that is no
+ * tap of the lab, such as the sum of an output's two sides.
+ */
+function bandOf(x: Float32Array, from: number, count: number, lo: number, hi: number): number {
+  const size = 4096
+  let sum = 0
+  let frames = 0
+  for (let start = from; start + size <= from + count; start += size / 2) {
+    frames += 1
+    for (let k = Math.ceil(lo / BIN); k <= Math.floor(hi / BIN); k += 1) {
+      const w = (2 * Math.PI * k) / size
+      let re = 0
+      let im = 0
+      for (let n = 0; n < size; n += 1) {
+        const v = x[start + n]! * (0.5 - 0.5 * Math.cos((2 * Math.PI * n) / size))
+        re += v * Math.cos(w * n)
+        im -= v * Math.sin(w * n)
+      }
+      sum += re * re + im * im
+    }
+  }
+  return 10 * Math.log10(sum / frames / (size / 4) ** 2 + 1e-30)
+}
+
+/** The settings the two claims of "sample for sample" are tried at. */
+const TRIED: Record<string, number>[] = [
+  {},
+  { feedback: 40 },
+  { stages: 1, spread: 30, feedback: 40, rate: 0.3, stereo: 90 },
+  { stages: 4, spread: 100, feedback: 95, depth: 100, stereo: 180 },
+  { feedback: -95, shape: 4, rate: 2 },
+  { shape: 5, rate: 3, stereo: 90, mix: 0.8 },
+  { centerHz: 5000, depth: 100, shape: 2 },
+  { centerHz: 100, depth: 100, shape: 3, stages: 2, spread: 50, feedback: 70 },
+]
+
 /** The four octaves the pad has most of its sound in. */
 const OCTAVES: [number, number][] = [
   [200, 400],
@@ -395,13 +433,13 @@ describe('phasing', () => {
     expect(peak(tap(phasing.render(pad, { build: 1 }), 'builtResponse'))).toBeLessThan(0.001)
   })
 
-  it('at the third step brings a tone at the first notch out more than 90 dB down, where the step before left it within 0.01 dB (claim build-sum)', async () => {
+  it('at the third step brings a tone at the first notch out more than 130 dB down, where the step before left it within 0.01 dB (claim build-sum)', async () => {
     const phasing = await lab(NAME)
     const hz = notchHz(800, 4, 1)
     const down = (build: number) => -toneLevel(phasing, hz, { build }, 'built')
-    expectWritten(down(2), 'more than 90 dB')
+    expectWritten(down(2), 'more than 130 dB')
     // The piece off: the chain alone.
-    expect(matchesWritten(down(1), 'more than 90 dB')).toBe(false)
+    expect(matchesWritten(down(1), 'more than 130 dB')).toBe(false)
     expectWritten(Math.abs(down(1)), 'less than 0.01 dB')
     // The step's two curves are this step and the one before it.
     const pad = await benchSource('pad', seconds(1))
@@ -445,6 +483,11 @@ describe('phasing', () => {
     // The piece off: the Feedback control is there and nothing reads it.
     expect(matchesWritten(top(3), '2.5 dB')).toBe(false)
     expectWritten(top(3), '0.0 dB')
+    // The top stands between the two notches, and not above them.
+    const curve = tap(phasing.render(pad, { build: 4, feedback: 40 }), 'builtResponse')
+    const where = curveHz(curve.indexOf(Math.max(...curve)), curve.length)
+    expect(where).toBeGreaterThan(notchHz(800, 4, 1))
+    expect(where).toBeLessThan(notchHz(800, 4, 2))
     // The built curve is the device's own response at the same setting.
     const whole = phasing.render(pad, { build: 4, feedback: 40, depth: 0 })
     const built = tap(whole, 'builtResponse')
@@ -454,19 +497,10 @@ describe('phasing', () => {
 
   it('makes, with all five pieces, what the device makes, sample for sample, on every loop and at every setting tried, and after a silence (claim build-same)', async () => {
     const phasing = await lab(NAME)
-    const tried: Record<string, number>[] = [
-      {},
-      { feedback: 40 },
-      { stages: 1, spread: 30, feedback: 40, rate: 0.3, stereo: 90 },
-      { stages: 4, spread: 100, feedback: 95, depth: 100, stereo: 180 },
-      { feedback: -95, shape: 4, rate: 2 },
-      { shape: 5, rate: 3, stereo: 90, mix: 0.8 },
-      { centerHz: 5000, depth: 100, shape: 2 },
-      { centerHz: 100, depth: 100, shape: 3, stages: 2, spread: 50, feedback: 70 },
-    ]
+    expect(TRIED.length).toBe(8)
     for (const id of ['pad', 'chords', 'drums', 'guitar', 'mix', 'noise']) {
       const source = await benchSource(id, seconds(4))
-      for (const values of tried) {
+      for (const values of TRIED) {
         const out = phasing.render(source, { ...values, build: 4 })
         expect(out.checks.builtDifference, id).toBeLessThanOrEqual(out.checks.builtBound!)
         for (const channel of [0, 1]) {
@@ -565,11 +599,23 @@ describe('phasing', () => {
     )
   })
 
-  it('brings a tone at the corner out of four stages as it went in, −360° on: what is left between the two is more than 100 dB under the tone (claim whole-turn)', async () => {
+  it('counts the turn of four stages at 800 Hz as a delay that grows less at every step up the spectrum, from 1.59 ms at 50 Hz to 0.19 ms at 10 kHz (claim high-delay)', async () => {
+    const phasing = await lab(NAME)
+    const noise = await benchSource('noise', seconds(1))
+    const turn = tap(phasing.render(noise, still), 'chainPhase')
+    // A turn of so many degrees is that many 360ths of one cycle of the tone.
+    const ms = (hz: number) => (-at(turn, hz) / 360 / hz) * 1000
+    expectWritten(ms(50), '1.59 ms')
+    expectWritten(ms(10_000), '0.19 ms')
+    const delays = Array.from(turn, (v, i) => -v / curveHz(i, turn.length))
+    expect(delays.every((delay, i) => i === 0 || delay < delays[i - 1]!)).toBe(true)
+  })
+
+  it('brings a tone at the corner out of four stages as it went in, −360° on: what is left between the two is more than 130 dB under the tone (claim whole-turn)', async () => {
     const phasing = await lab(NAME)
     const out = phasing.render(sine(800, 0.5, seconds(2)), still)
     expectWritten(at(tap(out, 'chainPhase'), 800), '−360°')
-    expectWritten(-differenceDb(tap(out, 'wet'), tap(out, 'in')), 'more than 100 dB')
+    expectWritten(-differenceDb(tap(out, 'wet'), tap(out, 'in')), 'more than 130 dB')
   })
 
   it('has half as many notches as stages when the oscillator is still (claim notch-count)', async () => {
@@ -623,10 +669,10 @@ describe('phasing', () => {
     expectWritten(worst, 'less than 0.01 Hz')
   })
 
-  it('brings a tone at the first notch out more than 90 dB down (claim notch-null), and one a hundredth higher only 37 dB down (claim notch-side)', async () => {
+  it('brings a tone at the first notch out more than 130 dB down (claim notch-null), and one a hundredth higher only 37 dB down (claim notch-side)', async () => {
     const phasing = await lab(NAME)
-    expectWritten(-toneLevel(phasing, notchHz(800, 4, 1), still), 'more than 90 dB')
-    expectWritten(-toneLevel(phasing, notchHz(800, 4, 2), still), 'more than 90 dB')
+    expectWritten(-toneLevel(phasing, notchHz(800, 4, 1), still), 'more than 130 dB')
+    expectWritten(-toneLevel(phasing, notchHz(800, 4, 2), still), 'more than 130 dB')
     expectWritten(-toneLevel(phasing, notchHz(800, 4, 1) * 1.01, still), '37 dB')
   })
 
@@ -635,7 +681,12 @@ describe('phasing', () => {
     const noise = await benchSource('noise', seconds(1))
     for (const stages of [0, 1, 2, 3, 4]) {
       for (const spread of [0, 30, 100]) {
-        expectWritten(phasing.render(noise, { stages, spread }).checks.nullDepth!, 'under −100 dB')
+        for (const centerHz of [100, 800, 5000]) {
+          expectWritten(
+            phasing.render(noise, { stages, spread, centerHz }).checks.nullDepth!,
+            'under −100 dB',
+          )
+        }
       }
     }
   })
@@ -655,12 +706,26 @@ describe('phasing', () => {
     expect(tap(wet, 'out').every((v, i) => Math.abs(v - allPassed[i]!) < 1e-6)).toBe(true)
   })
 
-  it('is the input, sample for sample, at a mix of 0 (claim mix-zero)', async () => {
+  it('is the input, sample for sample, at a mix of 0, on three loops, on both sides and at each of the eight settings of the other controls tried (claim mix-zero)', async () => {
     const phasing = await lab(NAME)
-    const noise = await benchSource('noise', seconds(2))
-    const out = phasing.render(noise, { mix: 0, feedback: 95, stages: 4 })
+    for (const id of ['pad', 'drums', 'noise']) {
+      const source = await benchSource(id, seconds(4))
+      for (const values of TRIED) {
+        const out = phasing.render(source, { ...values, mix: 0 })
+        for (const channel of [0, 1]) {
+          const dry = tap(out, 'in', channel)
+          expect(
+            tap(out, 'out', channel).every((v, i) => v === dry[i]),
+            `${id} ${JSON.stringify(values)}`,
+          ).toBe(true)
+        }
+      }
+    }
+    // The comparison can fail: a hundredth of the copy let in is not the input.
+    const noise = await benchSource('noise', seconds(1))
+    const out = phasing.render(noise, { mix: 0.01 })
     const dry = tap(out, 'in')
-    expect(tap(out, 'out').every((v, i) => v === dry[i])).toBe(true)
+    expect(tap(out, 'out').every((v, i) => v === dry[i])).toBe(false)
   })
 
   it("stands the comb's notches 667 Hz apart, eighteen of them under 12 kHz (claim comb-even), where four stages have two, the second 5.8 times the first (claim notch-ratio)", async () => {
@@ -726,7 +791,7 @@ describe('phasing', () => {
     expectWritten(at100.hi, '4,525 Hz')
   })
 
-  it('sweeps the first notch through a 331.5 Hz tone twice a cycle, more than 30 dB down each time the corner passes 800 Hz, and less than 2 dB down between (claim sweep-null)', async () => {
+  it('sweeps the first notch through a 331.5 Hz tone twice a cycle, more than 40 dB down each time the corner passes 800 Hz, and less than 2 dB down at the top of the sweep and at the bottom (claim sweep-null)', async () => {
     const phasing = await lab(NAME)
     const tone = sine(331.5, 0.5, seconds(4))
     const out = phasing.render(tone, {})
@@ -735,15 +800,19 @@ describe('phasing', () => {
     const dips = dipsOf(levels)
     expect(dips.length).toBe(2)
     for (const k of dips) {
-      expectWritten(-levels[k]!, 'more than 30 dB')
+      expectWritten(-levels[k]!, 'more than 40 dB')
       // The corner in the middle of that stretch: 800 Hz, within 3 %.
       const there = corner[Math.round(((k + 0.5) * 480) / 16) % corner.length]! / 800
       expect(there).toBeGreaterThan(0.97)
       expect(there).toBeLessThan(1.03)
     }
-    // Between the two, with the corner at either end of its sweep.
+    // With the corner at the top of its sweep, one second in, and at the bottom, three seconds in.
+    expect(corner[3000]! / range(corner).hi).toBeCloseTo(1, 3)
+    expect(corner[9000]! / range(corner).lo).toBeCloseTo(1, 3)
     expectWritten(Math.abs(levels[100]!), 'less than 2 dB')
     expectWritten(Math.abs(levels[300]!), 'less than 2 dB')
+    // Not everywhere between the two: for a good part of the loop the tone is further down.
+    expect(levels.filter((level) => level < -2).length).toBeGreaterThan(100)
   })
 
   it('lets the corner cover 63 % of a jump of the square wave, in octaves, in 3 ms (claim sweep-lag)', async () => {
@@ -839,11 +908,14 @@ describe('phasing', () => {
     expectWritten(Math.max(...levels), '+1.7 dB')
   })
 
-  it('brings a quiet tone at the peak up 19.9 times at a feedback of 95 % (claim loop-gain) and holds a full-scale one to 3.4 times (claim loop-limit)', async () => {
+  it('brings a quiet tone at the lower peak, 780 Hz, up 20.0 times at a feedback of 95 % (claim loop-gain) and holds a full-scale one to 3.4 times (claim loop-limit)', async () => {
     const phasing = await lab(NAME)
-    const quiet = phasing.render(sine(781, 0.01, seconds(2)), { ...still, feedback: 95 })
-    expectWritten(peak(tap(quiet, 'wet')) / 0.01, '19.9 times')
-    const loud = phasing.render(sine(781, 1, seconds(2)), { ...still, feedback: 95 })
+    // The peak is where the search of claim feedback-95 finds it.
+    const hz = extremes(struck(phasing, { feedback: 95 }), 1)[0]![0]
+    expectWritten(hz, '780 Hz')
+    const quiet = phasing.render(sine(780, 0.01, seconds(2)), { ...still, feedback: 95 })
+    expectWritten(peak(tap(quiet, 'wet')) / 0.01, '20.0 times')
+    const loud = phasing.render(sine(780, 1, seconds(2)), { ...still, feedback: 95 })
     expectWritten(peak(tap(loud, 'wet')), '3.4 times')
   })
 
@@ -860,7 +932,7 @@ describe('phasing', () => {
 
   // ---- part 6: ways to use it -------------------------------------------------------------------
 
-  it('lifts peaks of 9.5 dB between the notches at a feedback of 80 %, oscillator still (claim way-vowel)', async () => {
+  it('lifts a peak of 9.5 dB between the notches and one of 9.1 dB above them at a feedback of 80 %, oscillator still (claim way-vowel)', async () => {
     const phasing = await lab(NAME)
     expect(settings.sets.vowel!.values).toEqual({ feedback: 80 })
     const tops = extremes(struck(phasing, { feedback: 80 }), 1)
@@ -868,21 +940,22 @@ describe('phasing', () => {
     expectWritten(tops[0]![1], '9.5 dB')
     expect(tops[0]![0]).toBeGreaterThan(770)
     expect(tops[0]![0]).toBeLessThan(800)
+    expectWritten(tops[1]![1], '9.1 dB')
+    expect(tops[1]![0]).toBeGreaterThan(notchHz(800, 4, 2))
   })
 
-  it('keeps every one of four octaves of the pad less than 3 dB from where it went in at a feedback of −75 %, where no feedback takes one more than 11 dB down (claim way-inverted)', async () => {
+  it('keeps every one of four octaves of the pad less than 3 dB from where it went in at a feedback of −75 %, where no feedback takes one more than 14 dB down, and still moves each of them by more than 3 dB across the loop (claim way-inverted)', async () => {
     const phasing = await lab(NAME)
-    const furthest = async (name: string) => {
+    const octaves = async (name: string) => {
       await played(phasing, name)
-      let worst = 0
-      for (const [lo, hi] of OCTAVES) {
-        const { lo: least, hi: most } = swing(phasing, lo, hi)
-        worst = Math.max(worst, -least, most)
-      }
-      return worst
+      return OCTAVES.map(([lo, hi]) => swing(phasing, lo, hi))
     }
-    expectWritten(await furthest('inverted'), 'less than 3 dB')
-    expectWritten(await furthest('swept'), 'more than 11 dB')
+    const furthest = (swings: { lo: number; hi: number }[]) =>
+      Math.max(...swings.map((one) => Math.max(-one.lo, one.hi)))
+    const inverted = await octaves('inverted')
+    expectWritten(furthest(inverted), 'less than 3 dB')
+    expectWritten(Math.min(...inverted.map((one) => one.span)), 'more than 3 dB')
+    expectWritten(furthest(await octaves('swept')), 'more than 14 dB')
   })
 
   it('holds the corner on eight values in the four seconds with Shape on Random and Rate at 2 Hz (claim way-steps)', async () => {
@@ -938,6 +1011,35 @@ describe('phasing', () => {
     expect(top / (5000 * 2 ** 2.5)).toBeCloseTo(1, 3)
   })
 
+  it('reads a corner over the limit of the stages, 21.6 kHz, for 0.72 s of every cycle of a full sweep from 5 kHz (claim parked), and holds a tone at 18.42 kHz, on the lower notch of stages standing at that limit, more than 80 dB down all that time but for its first and last hundredth of a second (claim parked-tone)', async () => {
+    const phasing = await lab(NAME)
+    const limit = 0.45 * RATE
+    expectWritten(limit / 1000, '21.6 kHz')
+    const hz = notchHz(limit, 4, 1)
+    expectWritten(hz / 1000, '18.42 kHz')
+    const { values } = resolveSet(phasing.description, settings.sets.top!)
+    const out = phasing.render(sine(hz, 0.5, seconds(4)), values)
+    const corner = tap(out, 'corner')
+    const over = Array.from(corner, (v) => v > limit)
+    const first = over.indexOf(true)
+    const last = over.lastIndexOf(true)
+    const points = over.filter(Boolean).length
+    // One unbroken stretch of the four-second cycle.
+    expect(points).toBe(last - first + 1)
+    expectWritten(points / POINT_RATE, '0.72 s')
+    // The stretches of 10 ms that lie in it with 10 ms to spare at either end: a point of the
+    // corner is 16 samples, so 30 of them are one stretch.
+    const levels = stretches(tap(out, 'out'))
+    const inside = levels.filter((_, k) => (k - 1) * 30 >= first && (k + 2) * 30 <= last)
+    expect(inside.length).toBeGreaterThan(65)
+    expectWritten(-Math.max(...inside), 'more than 80 dB')
+    // The same tone outside that time comes through: the notch is elsewhere.
+    expect(Math.max(...levels)).toBeGreaterThan(-3)
+    // At a Depth of 60 % the corner never reaches the limit.
+    const lower = tap(phasing.render(sine(hz, 0.5, seconds(4)), { ...values, depth: 60 }), 'corner')
+    expect(Math.max(...lower)).toBeLessThan(limit)
+  })
+
   it('dips a 331.5 Hz tone 43 dB on each side at a stereo offset of 90°, and only 8.3 dB in the sum of the two sides (claim fault-mono)', async () => {
     const phasing = await lab(NAME)
     const tone = sine(331.5, 0.5, seconds(4))
@@ -955,6 +1057,34 @@ describe('phasing', () => {
     // With no offset the sum is either side.
     const together = deepest(0)
     expect(together[2]!).toBeCloseTo(together[0]!, 3)
+  })
+
+  it('takes the octave from 800 Hz to 1,600 Hz of the pad between 0.6 dB and 11.2 dB down on the left side at a stereo offset of 90°, and between 2.4 dB and 9.8 dB down in the sum of the two sides (claim fault-mono-pad)', async () => {
+    const phasing = await lab(NAME)
+    const out = await played(phasing, 'across')
+    expect(settings.sets.across!.values).toEqual({ stereo: 90 })
+    const left = swing(phasing, 800, 1600)
+    expectWritten(-left.hi, '0.6 dB')
+    expectWritten(-left.lo, '11.2 dB')
+    // The sum of the two sides is no tap of the lab, so its band is read here, slice by slice as
+    // `swing` reads the left side.
+    const summed = (id: string) => {
+      const right = tap(out, id, 1)
+      return tap(out, id, 0).map((v, i) => 0.5 * (v + right[i]!))
+    }
+    const apart = (after: Float32Array, before: Float32Array) => {
+      const levels: number[] = []
+      for (let from = 0; from + 8192 <= seconds(4); from += 8192)
+        levels.push(bandOf(after, from, 8192, 800, 1600) - bandOf(before, from, 8192, 800, 1600))
+      return range(levels)
+    }
+    const mono = apart(summed('out'), summed('in'))
+    expectWritten(-mono.hi, '2.4 dB')
+    expectWritten(-mono.lo, '9.8 dB')
+    // The reading made here is the lab's own: on the left side alone the two agree.
+    const again = apart(tap(out, 'out'), tap(out, 'in'))
+    expect(again.lo).toBeCloseTo(left.lo, 3)
+    expect(again.hi).toBeCloseTo(left.hi, 3)
   })
 
   // ---- part 8: what is often said ---------------------------------------------------------------

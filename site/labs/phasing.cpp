@@ -77,7 +77,7 @@ lab::Tap wet{"wet", "The all-passed copy", lab::kAudio, lab::kDevice, 2};
 lab::Tap out_tap{"out", "Output", lab::kAudio, lab::kDevice, 2};
 lab::Tap picture{"picture", "The output", lab::kFrames, lab::kDevice, 1, "dB"};
 
-lab::Tap phase{"phase", "Phase of one stage", lab::kCurve, lab::kKit, 1, "°"};
+lab::Tap phase{"phase", "Phase of one stage", lab::kCurve, lab::kCalled, 1, "°"};
 lab::Tap phase_formula{"phaseFormula", "The phase as written", lab::kCurve, lab::kLesson, 1, "°"};
 lab::Tap chain_phase{"chainPhase", "Phase of the whole chain", lab::kCurve, lab::kDevice, 1, "°"};
 lab::Tap crossings{"crossings", "Where the phase crosses an odd half turn", lab::kCurve, lab::kDevice, 1, "Hz"};
