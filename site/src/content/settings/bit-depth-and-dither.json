@@ -1,0 +1,113 @@
+{
+  "tile": {
+    "values": { "bits": 4 },
+    "tap": "rounded",
+    "source": "sine",
+    "picture": {
+      "taps": ["error", "ditheredError"],
+      "view": "spectrum",
+      "min": -100,
+      "max": -20
+    }
+  },
+  "sets": {
+    "played": {
+      "label": "The chords as played",
+      "source": "chords",
+      "tap": "in"
+    },
+    "ring": {
+      "label": "The chords in 6 bits",
+      "values": { "bits": 6 },
+      "source": "chords",
+      "tap": "rounded"
+    },
+    "ringError": {
+      "label": "What the rounding added",
+      "values": { "bits": 6 },
+      "source": "chords",
+      "tap": "error"
+    },
+    "ringDithered": {
+      "label": "The chords in 6 bits, with dither",
+      "values": { "bits": 6 },
+      "source": "chords",
+      "tap": "dithered"
+    },
+    "small": {
+      "label": "A tone a quarter of a step tall",
+      "values": { "level": -30, "bits": 6 },
+      "source": "sine",
+      "tap": "rounded"
+    },
+    "smallDithered": {
+      "label": "The same tone, with dither",
+      "values": { "level": -30, "bits": 6 },
+      "source": "sine",
+      "tap": "dithered"
+    },
+    "tail": {
+      "label": "A ring that dies away",
+      "values": { "bits": 8 },
+      "source": "chords",
+      "tap": "dithered"
+    },
+    "gaps": {
+      "label": "Hits with silence between",
+      "values": { "bits": 8 },
+      "source": "drums",
+      "tap": "dithered"
+    },
+    "quiet": {
+      "label": "A quiet pad",
+      "values": { "level": -24, "bits": 8 },
+      "source": "pad",
+      "tap": "dithered"
+    },
+    "master": {
+      "label": "A whole mix in 16 bits",
+      "values": { "bits": 16 },
+      "source": "mix",
+      "tap": "dithered"
+    },
+    "grit": {
+      "label": "The steps as a sound",
+      "values": { "bits": 5, "rate": 12000 },
+      "source": "drums",
+      "tap": "rounded"
+    },
+    "low": {
+      "label": "Low on the stair",
+      "values": { "level": -24, "bits": 8 },
+      "source": "guitar",
+      "tap": "rounded"
+    },
+    "mulaw": {
+      "label": "Low on the stair, on Mu-law",
+      "values": { "level": -24, "bits": 8, "companding": 1 },
+      "source": "guitar",
+      "tap": "rounded"
+    },
+    "lifted": {
+      "label": "The hiss moved upwards",
+      "values": { "bits": 8 },
+      "source": "chords",
+      "tap": "shaped"
+    },
+    "stair": {
+      "label": "A sine on a coarse stair",
+      "values": { "bits": 4 },
+      "source": "sine",
+      "tap": "rounded"
+    },
+    "hiss": {
+      "label": "Hiss where there was silence",
+      "values": { "bits": 6 },
+      "source": "drums",
+      "tap": "dithered"
+    }
+  },
+  "defaults": {
+    "values": { "bits": 12, "companding": 0, "rate": 9000 }
+  }
+}
