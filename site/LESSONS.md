@@ -214,6 +214,9 @@ lab::Tap built_gain{"builtGain", "Gain, as built", lab::kControl, lab::kLesson, 
 - **`built` is the sound so far**, and it must be sound: it is what "Hear it so far" plays.
   The other built taps (`builtLevel`, `builtGain`) are the lanes the steps draw. A built tap may
   be flat at a step that has not reached it; it must say something at some step.
+- **A built tap may be a curve.** Where a technique is seen over frequency and not against time
+  (a chain of filters), the build path writes a `kCurve` tap whose id begins `built`, such as
+  `builtResponse`, and the step's picture is a `Curve` of it.
 - **One step is compared with the engine.** The second argument names it, counted from 0: the
   last step that builds the engine's own code again. The third is the most the difference may
   be, in dB, below 0: a bound you measure and state. The fourth says what is compared with
@@ -276,7 +279,8 @@ What a lab's test holds, in this order:
   the engine made.
 - **A claim's test** measures the quantity and passes it through the written-number helper
   with the number exactly as the sentence writes it: `expectWritten(ms, '39 ms')`,
-  `expectWritten(apart, 'less than 0.001 dB')`. Half of the last written digit is allowed
+  `expectWritten(apart, 'less than 0.001 dB')`, `expectWritten(turn, '19.4°')`. Half of the
+  last written digit is allowed
   (39.4 is "39 ms", 39.6 is not), or the right side of a stated bound ("less than", "under",
   "at most", "more than", "over", "at least"). A measurement that supports fewer digits is
   written with fewer. Its title says what it holds in plain words and ends with the claim it
@@ -366,6 +370,8 @@ All three keys are optional, and a key the shape does not have is refused.
 - **`tile`** is the lesson's tile on the home map: the `values` and the `tap` its button plays
   on the loop the map's row picks, and its `picture`: the `taps` drawn, the `view` (`wave`,
   `spectrum`, `spectrogram` or `curve`), and the span of time (`from` and `span`, in seconds).
+  It takes a still's `min`, `max` and `top` too, each fitted when left out:
+  `"picture": { "taps": ["out"], "view": "spectrum", "min": -80, "max": 0, "top": 8000 }`.
   The picture is drawn on the tile's `source`, or on the lesson's first. It should tell this
   lesson from its neighbours: take the picture the plan's table names for the lesson ("A
   picture it needs") where a tap gives it. A steady tone against time is a solid band, so a
@@ -391,7 +397,7 @@ title: Compression
 family: dynamics # the family the map puts it in, by the family's id there
 summary: One or two sentences. The standfirst under the title, and the page's description.
 long: true # the long shape: the nine parts under a hero
-opening: { input: in, output: out } # the taps of the opening picture
+opening: { input: in, output: out } # the taps of the opening picture, and how it is drawn
 lab: compression
 devices: [ambient-comp] # the device pages that will link here
 bench:
@@ -415,7 +421,8 @@ The page adds by itself:
 - **The row of sounds** the lesson can be heard on, bound to the same source as the play bar.
 - **The opening picture:** the sound going in and what comes out on one time axis, at the lab's
   starting values on the first source, with a key and a button to hear each. It counts as one
-  of the lesson's figures.
+  of the lesson's figures. `opening` may say more, each optional
+  ([The opening picture](#the-opening-picture)).
 - **Part 9, the real device:** the device's plate on the same loop, the table of starting
   settings beside the device's defaults with its button (where the settings file has
   `defaults`), links to the device's page, its source, its tests and the lab's test, and the
@@ -428,18 +435,18 @@ The lesson writes parts 1 to 8, in this order, each as `<Part id="…" title="�
 the part its number and its name; the title is the lesson's own headline for it. The build
 stops on a part out of order, written twice or unknown, and on `device`, which the page adds.
 
-| Part                                | `id`      | Holds at least                                                                                                                                                                                                                 |
-| ----------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1 Why you need it                   | `why`     | a concrete sound and a question about it; the problem shown failing before the fix; two stills; one prediction                                                                                                                 |
-| 2 What it does, in one picture      | `picture` | one live figure, at most three controls, one sentence the reader can check against it                                                                                                                                          |
-| 3 What you use it on                | `uses`    | three cards, each a still, why, starting settings and a card that plays them                                                                                                                                                   |
-| 4 Build one, a piece at a time      | `build`   | four steps, each with its purpose, the lines it adds from the lab's build path, lanes and the controls so far; across the steps at least one stated number, held by a claim's test and by the test that switches its piece off |
-| 5 Inside the engine, stage by stage | `engine`  | a signal-flow picture; every stage of the device, each as below; then all the stages at once                                                                                                                                   |
-| The tile                            |           | its setting, the tap it plays, and a still that tells this lesson from its neighbours, taken from "A picture it needs" where a tap gives it ([The settings file](#the-settings-file))                                          |
-| 6 Ways to use it                    | `ways`    | four cards, each with settings to try                                                                                                                                                                                          |
-| 7 What goes wrong                   | `wrong`   | three faults, two of them heard through a card, each with what to do about it                                                                                                                                                  |
-| 8 Common misconceptions             | `myths`   | four statements people make, each with what is true and where the page shows it                                                                                                                                                |
-| 9 The real device                   | `device`  | the device's plate; where the lab's controls are the device's parameters, the lesson's starting settings beside the device's defaults with a button; links to the device's page, source and tests                              |
+| Part                                | `id`      | Holds at least                                                                                                                                                                                                                                          |
+| ----------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 Why you need it                   | `why`     | a concrete sound and a question about it; the problem shown failing before the fix; two stills; one prediction                                                                                                                                          |
+| 2 What it does, in one picture      | `picture` | one live figure, at most three controls, one sentence the reader can check against it                                                                                                                                                                   |
+| 3 What you use it on                | `uses`    | three cards, each a still, why, starting settings and a card that plays them                                                                                                                                                                            |
+| 4 Build one, a piece at a time      | `build`   | four steps, each with its purpose, the lines it adds from the lab's build path, a picture of the signal so far and the controls so far; across the steps at least one stated number, held by a claim's test and by the test that switches its piece off |
+| 5 Inside the engine, stage by stage | `engine`  | a signal-flow picture; every stage of the device, each as below; then all the stages at once                                                                                                                                                            |
+| The tile                            |           | its setting, the tap it plays, and a still that tells this lesson from its neighbours, taken from "A picture it needs" where a tap gives it ([The settings file](#the-settings-file))                                                                   |
+| 6 Ways to use it                    | `ways`    | four cards, each with settings to try                                                                                                                                                                                                                   |
+| 7 What goes wrong                   | `wrong`   | three faults, two of them heard through a card, each with what to do about it                                                                                                                                                                           |
+| 8 Common misconceptions             | `myths`   | four statements people make, each with what is true and where the page shows it                                                                                                                                                                         |
+| 9 The real device                   | `device`  | the device's plate; where the lab's controls are the device's parameters, the lesson's starting settings beside the device's defaults with a button; links to the device's page, source and tests                                                       |
 
 **The whole lesson:** 3,500 words or more, twelve figures (counting live figures and stills,
 the opening picture among them), four listings and six equations counted across the lesson,
@@ -460,8 +467,11 @@ pictures of every step are rendered by the lab.
 **A stage of part 5** has its purpose in words and a figure or a listing of the real source;
 its equation, set as mathematics with its terms coloured as the figure's lines are, where the
 stage is arithmetic; and a way to hear it where its tap is sound. A stage whose tap is not
-sound says what kind of signal it is, which the page does by itself. "All the stages at once"
-is one figure of every stage on one time axis: `<Lanes>` of the stages' taps.
+sound says what kind of signal it is, which the page does by itself.
+
+**"All the stages at once"** closes part 5 with one figure of every stage. For a device that
+works in time it is `<Lanes>` of the stages' taps on one time axis. For a chain of filters it
+is one `<Curve>` over frequency, with a line for every stage's response.
 
 **A figure** carries a key of its lines by name, which the page prints from the lab's own
 names. A live figure's caption says what to try and what to notice; a still's says what to
@@ -528,26 +538,37 @@ words, read from the settings file in the lab's own names and units, and a butto
 ```
 
 **`Ways`** holds **`Way`**: `title`, `tag` (a few words over the title: what the idea turns
-on; optional), `set` (optional). Its button says "Try it".
+on; optional), `set` (optional), and the slot `picture` (a still, laid out as a use card's;
+optional). Its button says "Try it".
 
 ```mdx
 <Ways>
   <Way title="Let the hit through" tag="a slow attack" set="hit">
+    <Still slot="picture" taps="in out" set="hit" caption="The front of each hit stands clear." />
+
     With a long attack the front of each hit has passed before the gain arrives.
+
   </Way>
 </Ways>
 ```
 
-**`Faults`** holds **`Fault`**: `title`, `set` (optional). Its button says "Hear it". The
-words say what happens and what to do about it.
+**`Faults`** holds **`Fault`**: `title`, `set` (optional), and the slot `picture` (a still, as
+a use card's; optional). Its button says "Hear it". The words say what happens and what to do
+about it.
 
 ```mdx
 <Faults>
   <Fault title="Pumping" set="pump">
+    <Still slot="picture" taps="in out" set="pump" caption="The gaps between the hits rise." />
+
     The gain dives on each hit and rushes back in the gap. Lengthen the release.
+
   </Fault>
 </Faults>
 ```
+
+A way card or a fault card without a picture is its words alone, and the floors of parts 6 and
+7 count cards, not pictures.
 
 **`Myths`** holds **`Myth`**: `says` (the statement people make). Its children say what is
 true and where the page shows it.
@@ -568,17 +589,47 @@ and a caption, there with scripts off, and free for the browser. `taps` ("in out
 role, "in level:alt"); `set` (a named set; left out, the lab's starting values); `values`
 (control values laid over the set's); `source` (left out, the set's, and then the lesson's
 first); `view` (`wave` when left out, `spectrum`, `spectrogram` or `curve`); `from` and `span`
-(seconds); `caption` (what to notice). A still fits its own ranges.
+(seconds); `caption` (what to notice).
 
 ```mdx
 <Still taps="in out" set="pump" from={1} span={2} caption="The gaps between the hits rise." />
+```
+
+A still fits its own ranges unless it is given them. `min` and `max` are the vertical range,
+in the view's own unit: decibels for a spectrum and for the levels of a spectrogram, the
+curve's unit for a curve, amplitude for a wave. `top` is the highest frequency drawn, in
+hertz, by a spectrum and a spectrogram. Each is fitted when left out. The build stops, naming
+the lesson, on a `min` that is not below the `max` and on a `top` that is not above 0 (20 for
+a spectrum, which starts there) or is above 24,000, half the sample rate.
+
+```mdx
+<Still taps="in out" view="spectrum" min={-80} max={0} top={8000} caption="The highs fall away." />
+```
+
+**Comparing two stills.** Two stills that are meant to be read against each other are given
+the same `min`, `max` and `top`. Each still otherwise fits itself, so a quiet sound and a loud
+one fill their pictures alike, and a spectrogram shows only as high as it finds something:
+the eye then compares two scales and not two sounds.
+
+A still of a curve draws every curve of a tap that holds several. A tap the lab writes as
+columns (`kFrames`, with `columns` set) whose columns are curves from `x0` to `x1`, such as
+the window of each overlapping frame, is drawn a line a column, and the key names the tap
+once. A spectrogram's tap is columns over time: draw that with `view="spectrogram"`.
+
+```mdx
+<Still
+  taps="windows windowSum"
+  view="curve"
+  caption="Each frame's window, and what they add up to."
+/>
 ```
 
 **`Lanes`** stacks taps on one time axis, a lane each, every lane named beside it: `taps`;
 `ranges` (the bottom and the top of a value's lane, by the tap's id); `lines` (a control drawn
 as a dashed line across a value's lane: the control's id, by the tap's id); `from`, `span`;
 `label` (what the picture shows, for a reader who cannot see it). Its children are the caption.
-It is the picture of a build step, and of all the stages at once.
+It is the picture of a build step and of all the stages at once, for a technique that is seen
+against time.
 
 ```mdx
 <Lanes
@@ -597,6 +648,9 @@ names blocks further along whose output comes back into it. `tap` is the lab's t
 block's output: the block is lit while that tap sounds, and is named after it when it has no
 `label`. `shape` is `box`, `end`, `dot` (where a wire divides) or `sum`. `n` is the number of
 the stage that explains the block. `signal` is `sound` or `value`. Its children are the caption.
+A `sum` that names a `tap` and has no `label` has the tap's name under its circle, or over it
+where a path comes back into it from below: `{ id: 'sum', shape: 'sum', from: 'in', back:
+'filter', tap: 'string' }`.
 
 ```mdx
 <Flow
@@ -612,6 +666,12 @@ the stage that explains the block. `signal` is `sound` or `value`. Its children 
   The side path never reaches the output. Press a stage's button below, and notice its block light.
 </Flow>
 ```
+
+In a narrow column the picture wraps. It is cut between two columns of blocks into bands that
+stand one under another, as a line of text wraps, and a path that crosses a cut runs off the
+end of its band and comes in at the start of the next at the height of its row. The rows stay
+rows, so a caption may still speak of the row along the top and the row under it. It should
+not speak of left and right ends of the whole picture, which a phone does not show as one line.
 
 **The live figures** read the lab in the page and draw again when a control moves. Their
 children are the caption.
@@ -645,7 +705,9 @@ the build fails. `Build` takes `tap` (the built sound to play, when the build pa
 than one). `Step` takes `title` and `controls` (the lab's controls that exist by this step, by
 id; a step with none says there is nothing to set yet). A step's children are what the piece
 is for and its listing, with the new lines marked; its slot `picture` is the figure of the
-signal so far, or several. The text up to the first listing stands beside the picture; the
+signal so far, or several: lanes against time, or a curve over frequency where the build
+path's taps are curves (`<Curve slot="picture" taps="builtResponse" xLog>`). The text up to
+the first listing stands beside the picture; the
 listing, and anything the step writes after it, runs the step's whole width, so write the
 purpose first and the listing after it. Every step is in the page as built, in order; once the
 lab is ready one shows at a time, with Back, Add and "Hear it so far". A step's controls wake
@@ -798,6 +860,23 @@ The detector's filter is the one of <Lesson id="one-pole" />.
 The page places `Sounds`, `Opening` and `DeviceTable` itself. `Stages`, the strip of the
 lessons not yet rewritten, is not used in a long lesson.
 
+#### The opening picture
+
+The page draws it from the front matter's `opening`. `input` and `output` are the two taps.
+The rest is optional, and left out the picture is the two taps against time over the whole
+loop, each fitted:
+
+- `view`, `from`, `span`, `min`, `max` and `top`, each as a still takes it:
+  `opening: { input: in, output: out, view: spectrum, min: -80, max: 0, top: 8000 }`.
+- `separate: true` draws the two taps apart, the input's picture above the output's, each on a
+  vertical range of its own, for a lesson whose input is a sliver beside its output:
+  `opening: { input: pluck, output: string, separate: true }`. A spectrogram is always drawn
+  so, since a picture of colour holds one tap.
+- `caption` is what to notice, under the key:
+  `opening: { input: in, output: out, caption: The loud hits come out lower. }`.
+
+A tap that is not sound (a curve, a picture) has no button to hear it.
+
 ### What is sounding
 
 The page's store names what is sounding, and the cards follow these rules. Write the text so
@@ -881,7 +960,11 @@ from: a figure reads the lab through `useLab()`, draws on a canvas through `useC
 follows the scheme) or with `Plot`, and marks its root `data-figure` and, once drawn,
 `data-drawn`. It takes its colours from the roles (`ROLE_VAR` in `src/figures/roles.ts`) and
 the tokens of `src/styles/site.css`, never from a colour written in the component, and it
-prints a key of its lines by name.
+prints a key of its lines by name. Controls of the figure's own (a place to look at, a button
+that turns something) go in one element of the class `controls`: the page hides it until
+scripts run, so a page read with scripts off shows no control that would do nothing. An axis's
+title is written after the lines, with `plateText` of `src/figures/canvas.ts`, so that no line
+strikes it out.
 
 ## Looking at the page
 
@@ -957,8 +1040,9 @@ names. On 3, change nothing and run again later: someone else's file is half wri
 What it reads from the environment:
 
 - `SITE_SLOTS` names a folder of locks shared by everyone working in one tree. With it the
-  heavy steps (lab, test, build, browser) run one at a time, or as many as `SITE_HEAVY_SLOTS`
-  says, and the others two at a time. A
+  heavy steps (lab, test, tile, browser) run one at a time, or as many as `SITE_HEAVY_SLOTS`
+  says, and the others two at a time. The build runs one at a time always: two builds in one
+  tree share what a build keeps of the lessons' text, and one would write the other's page. A
   lock is let go when its step ends, however it ends.
 - `SITE_ONLY_LESSON` is set by the script itself: it is what makes the build hold one lesson,
   in `site/.lesson/<id>/`, served at port 4321 plus the lesson's number in the map.
