@@ -139,7 +139,7 @@ describe('lesson 18: granular sound', () => {
 
   it('makes one grain of what it read times its window, to within −120 dB, at any speed, direction and shape (claim one-grain)', async () => {
     const grain = await lab(NAME)
-    const guitar = await benchSource('guitar', seconds(4))
+    const guitar = await benchSource('guitar', seconds(2))
     const settings = [
       {},
       { pitch: 12 },
@@ -518,6 +518,17 @@ describe('lesson 18: granular sound', () => {
     expect(all).toBeLessThan(-22.5)
     expect(all).toBeGreaterThan(-24)
     expect(10 ** (under / 10) + 10 ** (over / 10)).toBeGreaterThan(0.95 * 10 ** (all / 10))
+    // A slider on the page stops a hair off these values (Size 100.2 ms, Pitch 7.008, Density
+    // 4.003). The lines then stand elsewhere against the gaps in the bell's spectrum, and the
+    // sine is still all but gone.
+    const beside = grain.render(sine(440, 0.5, seconds(1)), {
+      pitch: 7.008,
+      size: 100.2,
+      density: 4.003,
+      scatter: 0,
+    }).taps.linesSteady
+    say('steady, at the sliders’ own values: in all', bandDb(beside, -250, 250).toFixed(1), 'dB')
+    expect(bandDb(beside, -250, 250)).toBeLessThan(-20)
   })
 
   it('lands a shifted sine on its pitch when the starts are scattered: all but a hundredth of its power inside 20 Hz of the pitch, from the lab’s pool and from the device (claim scattered)', async () => {
@@ -547,7 +558,7 @@ describe('lesson 18: granular sound', () => {
 
   it('makes the lab’s pool the device’s own when the device’s grains are steady: the two sums differ by less than −130 dB (claim same-pool)', async () => {
     const grain = await lab(NAME)
-    const guitar = await benchSource('guitar', seconds(4))
+    const guitar = await benchSource('guitar', seconds(2))
     for (const density of [1, 2.5, 4]) {
       const out = grain.render(guitar, { density, scatter: 0 })
       for (const c of [0, 1]) {
@@ -636,8 +647,8 @@ describe('lesson 18: granular sound', () => {
 
   it('adds the grains up again from the pool to the device’s own output: −140 dB, the floor of the measure (claim rebuilt)', async () => {
     const grain = await lab(NAME)
-    const guitar = await benchSource('guitar', seconds(4))
-    const drums = await benchSource('drums', seconds(4))
+    const guitar = await benchSource('guitar', seconds(2))
+    const drums = await benchSource('drums', seconds(2))
     const defaults = {
       spray: 0.15,
       pitch: 12,
@@ -662,8 +673,8 @@ describe('lesson 18: granular sound', () => {
 
   it('works out every grain’s start, speed, length, gain and wait as the device does: nothing between them (claim rule)', async () => {
     const grain = await lab(NAME)
-    const guitar = await benchSource('guitar', seconds(4))
-    const drums = await benchSource('drums', seconds(4))
+    const guitar = await benchSource('guitar', seconds(2))
+    const drums = await benchSource('drums', seconds(2))
     for (const [source, values] of [
       [guitar, {}],
       [

@@ -100,8 +100,8 @@ The pool adds every sounding grain into one output. With no pitch change and no 
 
 <Controls ids="density" />
 
-<Trace taps="cover" from={1} span={1} min={0} max={2}>
-  The windows of all sounding grains, each times its gain, added up over the same second as the cloud above. At Density 1 it is a row of bells that touch the floor. From 2 it is a flat line at 1. Between whole numbers it ripples.
+<Trace taps="cover" from={1} span={1} min={0}>
+  The windows of all sounding grains, each times its gain, added up over the same second as the cloud above. With Pitch at 0: at Density 1 it is a row of bells that touch the floor, from 2 a flat line at 1, and between whole numbers it ripples. Move Pitch and the grains no longer start in step, so the sum heaves.
 </Trace>
 
 Hann bells have a property that makes them the usual window for this work: spaced evenly, <M t="D" /> to a grain's length, they add up to a constant,
@@ -114,7 +114,7 @@ Why 1.63 and not 1? Because the device holds the *level* steady as Density moves
 
 <M block t={String.raw`g = \frac{\sqrt2}{\sqrt{P}}, \qquad P = c\,P_{\text{same}} + (1-c)\,P_{\text{apart}}, \qquad P_{\text{same}} = \frac{D^2}{4}\bigl(1 + 2\rho^2\bigr), \quad P_{\text{apart}} = \frac{3D}{8}`} />
 
-These are <Src path="cpp/devices/grain-delay/grain_delay.h" lines="228-255">`coherent_power`, `scattered_power` and `coherence`</Src>. The <M t={String.raw`\rho`} /> is the ripple of the windows' sum, one half at Density 1 and nothing at 2 and above, which is where 1.63 comes from: <M t={String.raw`1/\sqrt{3/8}`} />. The <M t={String.raw`\sqrt2`} /> undoes the 3 dB that the pool's constant-power pan takes off a grain at the centre. And <M t="c" /> is the device's guess, between 0 and 1, at how alike overlapping grains are: 1 with Pitch at 0, no sprays and no Reverse, falling quickly as any of them moves. On white noise the grains' sum stays <Claim id="level-holds">within 0.2 dB of the recording's level</Claim> from Density 1 to 8, at Pitch 0 and at an octave up.
+These are <Src path="cpp/devices/grain-delay/grain_delay.h" lines="228-255">`coherent_power`, `scattered_power` and `coherence`</Src>. The <M t={String.raw`\rho`} /> is the ripple of the windows' sum, one half at Density 1 and nothing at any whole Density from 2 up, which is where 1.63 comes from: <M t={String.raw`1/\sqrt{3/8}`} />. The <M t={String.raw`\sqrt2`} /> undoes the 3 dB that the pool's constant-power pan takes off a grain at the centre. And <M t="c" /> is the device's guess, between 0 and 1, at how alike overlapping grains are: 1 with Pitch at 0, no sprays and no Reverse, falling quickly as any of them moves. On white noise the grains' sum stays <Claim id="level-holds">within 0.2 dB of the recording's level</Claim> from Density 1 to 8, at Pitch 0 and at an octave up.
 
 ### 5. Where each grain reads, and how fast: Time, Spray and Pitch
 
@@ -135,7 +135,7 @@ With Spray at 0.5 the grains read from between <Claim id="spray-reach">350 and 6
 <Controls ids="pitch pitchSpray reverse" />
 
 <GrainCloud tap="cloud" from={1} span={0.6} lines="time">
-  Six tenths of a second of the same cloud. A grain at the recording's speed lies level. One that reads faster climbs towards the write point as it sounds, one that reads slower sinks, and a reversed one dives. Whatever the slope, each bead crosses the dashed line at its middle.
+  Six tenths of a second of the same cloud. A grain at the recording's speed lies level. One that reads faster climbs towards the write point as it sounds, one that reads slower sinks, and a reversed one dives. With Spray at 0, each bead crosses the dashed line at its middle, whatever its slope.
 </GrainCloud>
 
 At +12 semitones and a Size of 100 ms a grain reads at <Claim id="middle">twice the speed and starts 50 ms further back than Time</Claim>, 400 ms behind at a Time of 350 ms, and ends at 300. Through the whole device a 440 Hz sine at +12 comes out with its strongest line at <Claim id="octave">880 Hz</Claim>. Reverse is the share of grains that read backwards. A reversed grain starts nearer the write point and runs away from it at <M t="1 + r" /> times the speed of time.
@@ -151,7 +151,7 @@ Move on by one wait, <M t={String.raw`t \to t + T`} />, and every term becomes i
 <Controls ids="scatter size density pitch" />
 
 <Curve taps="linesSteady:ctl linesDevice:out" xTitle="hertz from the shifted pitch" yTitle="dB against the sine" min={-80} max={6} height={260}>
-  The spectrum of a 1 kHz sine made into grains, 250 Hz either side of the pitch it is shifted to: the lab's pool by its Scatter (blue) and the device (red). At Pitch 0 the two are the same. For the comb, set Pitch near 7, Size near 100 ms and Density to 4, then raise Scatter.
+  The spectrum of a 1 kHz sine made into grains, 250 Hz either side of the pitch it is shifted to: the lab's pool by its Scatter (blue) and the device (red). At Pitch 0 the two are the same. For the comb, set Pitch near 7, Size near 100 ms and Density to 4, then raise Scatter. The sliders will not stop on those values exactly, and a hair either way moves the lines against the gaps in the bell's spectrum, so the blue curve keeps far under the red one at a height of its own.
 </Curve>
 
 With Pitch at 0, Size at 20 ms and Density at 1, there are 50 grains a second and the sine comes out as <Claim id="three-lines">three lines: itself, and one 50 Hz either side, 6 dB under it</Claim>. Those two are the row of bells, which is a cosine at 50 Hz, multiplying the sine. At Density 2 the bells sum to one and the side lines are gone: what is left beside the sine is <Claim id="no-lines">55 dB under it</Claim>.
@@ -188,7 +188,7 @@ Spread throws each grain to a random place between left and right, by constant-p
 
 ## What goes wrong
 
-**Aliasing.** A grain read at twice the speed doubles every frequency in it, and anything above a quarter of the sample rate would land above half of it and fold back down (lesson 1). The device does not filter each grain. It low-passes what it *records*, with a filter that follows the fastest upward speed in use, at <M t={String.raw`0.45 f_s / r`} />.
+**Aliasing.** A grain read at twice the speed doubles every frequency in it, and anything above a quarter of the sample rate would land above half of it and fold back down (lesson 1). The device does not filter each grain. It low-passes what it *records*, with <Src path="cpp/devices/grain-delay/grain_delay.h" lines="296-311">a filter</Src> that follows the fastest upward speed in use, at <M t={String.raw`0.45 f_s / r`} />.
 
 <Controls ids="pitch" />
 
@@ -204,7 +204,7 @@ At +12 semitones the recording is <Claim id="guard">3 dB down at 10.8 kHz and 10
 
 **Running out of grains.** The pool holds 20 and a grain that finds it full is dropped without a word. The device stays clear of that: at Density 8 with every wait scattered, the most that sounded at once in the loop was <Claim id="most-grains">11 of the 20</Claim>.
 
-**Old sound after a silence.** After enough silence the device goes to sleep, and it remembers where on the ring it woke. A grain that reaches back past that point reads silence, so the first note after a pause never brings back a piece of the last one.
+**Old sound after a silence.** After enough silence the device goes to sleep, and <Src path="cpp/devices/grain-delay/grain_delay.h" lines="106-115">when it wakes</Src> it remembers where on the ring it woke. A grain that reaches back past that point reads silence, so the first note after a pause never brings back a piece of the last one.
 
 ## What to try
 
