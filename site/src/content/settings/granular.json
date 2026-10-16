@@ -1,0 +1,181 @@
+{
+  "tile": {
+    "values": {
+      "time": 350,
+      "spray": 0.3,
+      "pitch": 12,
+      "pitchSpray": 0.08,
+      "density": 4,
+      "feedback": 0.45,
+      "tone": 6000,
+      "spread": 0.6,
+      "mix": 0.5
+    },
+    "tap": "out",
+    "picture": { "taps": ["piece", "bell", "grain"], "view": "curve" }
+  },
+  "sets": {
+    "dry": {
+      "label": "The line as played",
+      "source": "guitar",
+      "tap": "in"
+    },
+    "echo": {
+      "label": "One plain repeat",
+      "values": { "density": 2, "mix": 0.5 },
+      "source": "guitar"
+    },
+    "cut": {
+      "label": "Pieces cut out with hard edges",
+      "values": { "pitch": 12, "size": 60, "density": 2, "shape": 0.02, "scatter": 1 },
+      "source": "guitar",
+      "tap": "steady"
+    },
+    "windowed": {
+      "label": "The same pieces, each under a window",
+      "values": { "pitch": 12, "size": 60, "density": 2, "scatter": 1 },
+      "source": "guitar",
+      "tap": "steady"
+    },
+    "octave": {
+      "label": "The repeat an octave up",
+      "values": { "pitch": 12, "density": 4, "mix": 0.5 },
+      "source": "guitar"
+    },
+    "climb": {
+      "label": "Repeats that climb",
+      "values": {
+        "time": 350,
+        "spray": 0.15,
+        "pitch": 12,
+        "pitchSpray": 0.08,
+        "density": 4,
+        "feedback": 0.45,
+        "tone": 6000,
+        "spread": 0.6,
+        "mix": 0.35
+      },
+      "source": "guitar"
+    },
+    "wash": {
+      "label": "A wash behind held chords",
+      "values": {
+        "time": 200,
+        "spray": 0.8,
+        "pitchSpray": 0.15,
+        "size": 300,
+        "density": 6,
+        "feedback": 0.5,
+        "tone": 5000,
+        "spread": 1,
+        "mix": 0.6
+      },
+      "source": "pad"
+    },
+    "shatter": {
+      "label": "Drums, thrown about",
+      "values": {
+        "time": 60,
+        "spray": 0.45,
+        "size": 40,
+        "density": 3,
+        "feedback": 0.3,
+        "spread": 0.9,
+        "mix": 0.5
+      },
+      "source": "drums"
+    },
+    "under": {
+      "label": "An octave under the bass",
+      "values": { "time": 30, "pitch": -12, "size": 100, "density": 4, "tone": 3000, "mix": 0.5 },
+      "source": "bass"
+    },
+    "fifth": {
+      "label": "Repeats a fifth apart",
+      "values": {
+        "time": 375,
+        "pitch": 7,
+        "size": 100,
+        "density": 4,
+        "feedback": 0.55,
+        "tone": 8000,
+        "mix": 0.4
+      },
+      "source": "guitar"
+    },
+    "smear": {
+      "label": "Long grains, piled up",
+      "values": {
+        "time": 300,
+        "spray": 0.6,
+        "size": 500,
+        "density": 8,
+        "feedback": 0.7,
+        "tone": 4000,
+        "spread": 0.8,
+        "mix": 0.7
+      },
+      "source": "chords"
+    },
+    "rattle": {
+      "label": "Grains short enough to hum",
+      "values": { "time": 120, "size": 20, "mix": 0.6 },
+      "source": "chords"
+    },
+    "back": {
+      "label": "Every answer backwards",
+      "values": { "time": 500, "size": 400, "density": 2, "reverse": 1, "mix": 0.5 },
+      "source": "guitar"
+    },
+    "wide": {
+      "label": "One sound, spread from side to side",
+      "values": { "time": 40, "spray": 0.2, "size": 80, "density": 6, "spread": 1, "mix": 0.5 },
+      "source": "mix"
+    },
+    "single": {
+      "label": "Grains you can count",
+      "values": {},
+      "source": "pad"
+    },
+    "closed": {
+      "label": "The gaps closed",
+      "values": { "density": 2 },
+      "source": "pad"
+    },
+    "locked": {
+      "label": "Steady starts: the note locks to the grain rate",
+      "values": { "pitch": 7, "size": 100, "density": 4 },
+      "source": "sine",
+      "tap": "steady"
+    },
+    "unlocked": {
+      "label": "Scattered starts: the note lands on its pitch",
+      "values": { "pitch": 7, "size": 100, "density": 4, "scatter": 1 },
+      "source": "sine",
+      "tap": "steady"
+    },
+    "floor": {
+      "label": "A Time the grains cannot keep",
+      "values": { "time": 10, "pitch": 12, "size": 500, "density": 2, "mix": 0.5 },
+      "source": "guitar"
+    },
+    "dip": {
+      "label": "Bright sound, a hair off pitch",
+      "values": { "pitch": 0.02, "density": 4 },
+      "source": "noise"
+    }
+  },
+  "defaults": {
+    "values": {
+      "time": 350,
+      "spray": 0.15,
+      "pitch": 12,
+      "pitchSpray": 0.08,
+      "density": 4,
+      "feedback": 0.45,
+      "tone": 6000,
+      "spread": 0.6,
+      "mix": 0.35
+    }
+  }
+}

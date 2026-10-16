@@ -1,11 +1,25 @@
 ---
-// The grains a device started, each a bead where and when it reads: <GrainCloud tap="cloud" from={1} span={1} lines="time">Caption.</GrainCloud>
-import GrainCloud from '../../figures/GrainCloud.tsx'
+// The grains a pool started, as beads under the recording they read:
+// <GrainCloud tap="cloud" wave="recorded" from={0.5} span={1.5} lines="time">Caption.</GrainCloud>
+// `tap` is a frames tap of six rows, a column a grain (figures/GrainCloud.tsx says which);
+// `wave` is a sound tap drawn along the top, with a dot where each grain reads it. The picture
+// is drawn when the site is built, so it is in the page with scripts off: at the lab's starting
+// values, or at a `set` of the lesson's settings file with `values` laid over it, on `source`.
+// Once the lab runs it follows the controls. With `still` it stays as built, and with `compact`
+// it is small: the two together are a card's picture,
+// <GrainCloud slot="picture" still compact tap="cloud" wave="recorded" set="wash">Caption.</GrainCloud>
+import { getEntry } from 'astro:content'
+import GrainCloud, { WAVE_COLUMNS, type BuiltCloud } from '../../figures/GrainCloud.tsx'
+import { minMaxColumns } from '../../figures/draw.ts'
 import { tapRefs } from '../../figures/roles.ts'
 import { controlPairs, pageLab } from '../../lib/lab-info.ts'
+import { lessonSettings, setNamed } from '../../lib/settings.ts'
+import { renderStill } from '../../lib/still.ts'
 
 interface Props {
   tap: string
+  /** A sound tap drawn along the top as the recording the grains read. */
+  wave?: string
   from?: number
   span?: number
   /** Controls in milliseconds drawn as a level line across the picture, by id. */
@@ -13,24 +27,89 @@ interface Props {
   /** Milliseconds behind the write point at the bottom of the picture. */
   max?: number
   height?: number
+  /** A small picture, for a card. */
+  compact?: boolean
+  /** The picture as built, and no more: it does not follow the lab. */
+  still?: boolean
+  /** What the picture is built at: a set of the lesson's settings file, values laid over it, a source. */
+  set?: string
+  values?: Record<string, number>
+  source?: string
   label?: string
 }
-const { tap, lines, label, ...rest } = Astro.props
+const {
+  tap,
+  wave,
+  lines,
+  label,
+  set,
+  values,
+  source,
+  still = false,
+  compact = false,
+  ...rest
+} = Astro.props
 const { lab, lesson } = pageLab(Astro.locals)
-const [ref] = tapRefs(tap, lab.taps, lesson)
+const [ref, waveRef] = tapRefs(wave ? `${tap}:out ${wave}:in` : `${tap}:out`, lab.taps, lesson)
+if (!ref) throw new Error(`${lesson}: <GrainCloud> needs a tap.`)
+const entry = await getEntry('lessons', lesson)
+if (!entry) throw new Error(`${lesson}: <GrainCloud> was used on a page that is not a lesson's.`)
+
+const named = set === undefined ? undefined : setNamed(await lessonSettings(entry), set, lesson)
+const given = { ...named?.values, ...values }
+const played = source ?? named?.source ?? entry.data.sources[0]!
+const { result } = await renderStill({
+  lab: entry.data.lab,
+  source: played,
+  seconds: entry.data.seconds,
+  values: given,
+})
+const held = result.taps[ref.id]
+if (!held || held.columns < 1) {
+  throw new Error(
+    `${lesson}: <GrainCloud tap="${tap}"> has no grains at the values it is built at.`,
+  )
+}
+const ROWS = 6
+const seconds = result.frames / 48000
+const from = rest.from ?? 0
+const length = rest.span ?? seconds - from
+const all = held.channels_data[0]!
+const kept: number[] = []
+let deepest = 0
+for (let g = 0; g < held.columns; g += 1) {
+  const [start, lasts, behind, rate] = all.subarray(g * ROWS, g * ROWS + 4)
+  deepest = Math.max(deepest, behind!, behind! - (rate! - 1) * lasts! * 1000)
+  if (start! + lasts! < from || start! > from + length) continue
+  for (let r = 0; r < ROWS; r += 1) kept.push(Number(all[g * ROWS + r]!.toFixed(4)))
+}
+const sound = waveRef ? result.taps[waveRef.id]?.channels_data[0] : undefined
+const pairs = controlPairs(lines, lab, lesson)
+const built: BuiltCloud = {
+  grains: kept,
+  count: held.columns,
+  seconds,
+  deepest: Number(deepest.toFixed(2)),
+  wave: sound
+    ? Array.from(minMaxColumns(sound, from * 48000, (from + length) * 48000, WAVE_COLUMNS), (v) =>
+        Number.isFinite(v) ? Number(v.toFixed(3)) : 0,
+      )
+    : undefined,
+  lines: pairs.map(([id, name]) => ({
+    y: given[id] ?? lab.controls.find((control) => control.id === id)!.initial,
+    text: name,
+  })),
+}
 const said =
   label ??
-  `${ref.name}: time across, and down the picture how far behind the write point each reads`
+  `${ref.name}: time across, and down the picture how far behind the write point each reads${
+    waveRef ? `; along the top, ${waveRef.name.toLowerCase()}` : ''
+  }`
+const props = { tap: ref, wave: waveRef, lines: pairs, label: said, built, compact, ...rest }
 ---
 
 <figure class="fig">
-  <GrainCloud
-    client:visible
-    tap={ref}
-    lines={controlPairs(lines, lab, lesson)}
-    label={said}
-    {...rest}
-  />
+  {still ? <GrainCloud {...props} still /> : <GrainCloud client:visible {...props} />}
   <figcaption>
     <slot />
   </figcaption>
