@@ -126,11 +126,14 @@ const groups = [
   async function showMore(group: Group) {
     const mine = turn
     const next = group.found.slice(group.shown, group.shown + PAGE)
+    // Off for the wait: a second click would ask for these same rows and skip the ten after.
+    group.more.disabled = true
     const pages = await Promise.all(next.map((result) => result.data()))
     if (mine !== turn) return
     group.shown += pages.length
     group.list.append(...pages.map(row))
     group.more.hidden = group.shown >= group.found.length
+    group.more.disabled = false
   }
 
   function show(group: Group, found: Result[]) {
@@ -138,6 +141,8 @@ const groups = [
     group.shown = 0
     group.list.replaceChildren()
     group.more.hidden = true
+    // An answer that was dropped left the button off.
+    group.more.disabled = false
     group.count.textContent = String(found.length)
     group.section.hidden = found.length === 0
   }
