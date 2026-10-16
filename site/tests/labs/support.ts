@@ -13,6 +13,7 @@ import {
   type Source,
   type TapData,
 } from '../../src/lab/runner.ts'
+import { benchSource, silence } from '../../src/lib/still.ts'
 
 const LABS = fileURLToPath(new URL('../../public/labs/', import.meta.url))
 
@@ -40,28 +41,9 @@ export const seconds = (s: number) => Math.round(s * SAMPLE_RATE)
 /** The point of a control tap that stands at a time in seconds. */
 export const points = (s: number) => Math.round(s * POINT_RATE)
 
-let bench: Promise<Lab> | undefined
-const played = new Map<number, RenderResult>()
-
-/**
- * A source as the page plays it: a loop or a test signal from the bench (site/labs/bench.cpp),
- * by its id in site/src/lab/sources.ts. This is what a lesson's lab is fed in the browser.
- */
-export async function benchSource(id: string, frames: number): Promise<Source> {
-  bench ??= lab('bench')
-  let result = played.get(frames)
-  if (!result) {
-    result = (await bench).render(silence(frames), {}, frames)
-    played.set(frames, result)
-  }
-  const tap = result.taps[id]
-  if (!tap) throw new Error(`The bench plays no source called ${id}`)
-  return { left: tap.channels_data[0]!, right: tap.channels_data[1] ?? tap.channels_data[0]! }
-}
-
-export function silence(frames: number): Source {
-  return { left: new Float32Array(frames), right: new Float32Array(frames) }
-}
+// The Node render of a bench source is the site's own (src/lib/still.ts): a still in a built
+// page and a test are fed the same samples.
+export { benchSource, silence }
 
 /** Silence with one sample of `size` on both channels, `at` samples in. */
 export function click(frames: number, at = 0, size = 1): Source {

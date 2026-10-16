@@ -1,0 +1,35 @@
+---
+// The picture a lesson opens on: the sound going in and what comes out on one time axis, as a
+// still at the lab's starting values on the lesson's first source, with a key that names each
+// line and a button to hear each. <Opening input="in" output="out" />
+import { getEntry } from 'astro:content'
+import { ROLE_VAR } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+import { lessonStill, plotHtml } from '../../lib/still.ts'
+import Listen from './Listen.astro'
+
+interface Props {
+  /** The tap of the sound going in, and the tap of what comes out, by id. */
+  input: string
+  output: string
+}
+const { input, output } = Astro.props
+const { lesson } = pageLab(Astro.locals)
+const entry = await getEntry('lessons', lesson)
+if (!entry)
+  throw new Error(`${lesson}: an opening picture was used on a page that is not a lesson's.`)
+const picture = await lessonStill(entry, { taps: `${input}:in ${output}:out` })
+---
+
+<figure class="fig opening">
+  <Fragment set:html={plotHtml(picture)} />
+  <ul class="fig-legend">
+    {picture.key.map((line) => (
+      <li>
+        <i style={`background: var(${ROLE_VAR[line.role]})`} />
+        {line.name}
+        <Listen tap={line.id}>Hear it</Listen>
+      </li>
+    ))}
+  </ul>
+</figure>

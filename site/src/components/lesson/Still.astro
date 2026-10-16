@@ -1,0 +1,51 @@
+---
+// A picture rendered from the lab when the site is built, as inline SVG with a key and a caption:
+// <Still taps="in out" set="pump" view="wave" from={1} span={2} caption="What to notice." />
+// It is in the page with scripts off and costs the browser nothing. Its lines are in their
+// roles' colours, as a live figure's are. A tap the lab does not have, or a set the lesson's
+// settings file does not have, stops the build, naming the lesson.
+import { getEntry } from 'astro:content'
+import { ROLE_VAR } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+import { lessonStill, plotHtml, type PictureView } from '../../lib/still.ts'
+
+interface Props {
+  /** The taps drawn, "in out" or "in level:alt", in the order they are drawn. */
+  taps: string
+  /** A set of the lesson's settings file, by name. Left out, the lab's starting values. */
+  set?: string
+  /** Control values by id, laid over the set's. */
+  values?: Record<string, number>
+  /** One of the lesson's sources. Left out, the set's, and then the lesson's first. */
+  source?: string
+  /** `wave` (against time) when left out; `spectrum`, `spectrogram` or `curve`. */
+  view?: PictureView
+  /** The span of time drawn, in seconds: where it starts, and its length (to the loop's end when left out). */
+  from?: number
+  span?: number
+  /** What to notice in the picture. */
+  caption: string
+}
+const { caption, ...asked } = Astro.props
+const { lesson } = pageLab(Astro.locals)
+const entry = await getEntry('lessons', lesson)
+if (!entry) throw new Error(`${lesson}: a still was used on a page that is not a lesson's.`)
+const picture = await lessonStill(entry, asked)
+---
+
+<figure class="fig still">
+  <Fragment set:html={plotHtml(picture)} />
+  <ul class="fig-legend">
+    {picture.key.map((line) => (
+      <li>
+        <i
+          style={`background: var(${ROLE_VAR[line.role]})`}
+          class={line.dashed ? 'dashed' : undefined}
+        />
+        {line.name}
+      </li>
+    ))}
+    {picture.note && <li>{picture.note}</li>}
+  </ul>
+  <figcaption>{caption}</figcaption>
+</figure>
