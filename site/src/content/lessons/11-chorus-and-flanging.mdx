@@ -1,0 +1,207 @@
+---
+title: Chorus and flanging
+order: 11
+summary: A short delay added back to its source cuts a comb of notches into the spectrum, and an oscillator on the delay time sweeps them. Make the delay longer and read it at several moving points, and the same machine thickens a sound by small changes of pitch. This lesson runs the engine's Flanger and Chorus one sample at a time and reads both out as they work.
+lab: 11-chorus-and-flanging
+devices: [chorus, flanger]
+bench:
+  device: chorus
+  params: { voices: 1, rate: 0.8, depth: 50, delayMs: 12, spread: 70, feedback: 0, hpHz: 20, mix: 0.5 }
+  note: The plate opens on the Chorus's own defaults, which are also where this lesson's chorus starts, so nothing differs. The Flanger of the first three stages is a device of its own, with a page of its own.
+sources: [noise, saw, chords]
+seconds: 4
+files:
+  - cpp/devices/flanger/flanger.h
+  - cpp/devices/flanger/mod_lfo.h
+  - cpp/devices/chorus/chorus.h
+  - cpp/kit/delay.h
+  - cpp/kit/lfo.h
+  - cpp/kit/math.h
+---
+
+Play a sound and, a few thousandths of a second later, the same sound again, and the two do not simply add up to a louder one. At some frequencies the late copy arrives exactly in step with the first and the two reinforce. At others it arrives exactly out of step, crest on trough, and they cancel. Which frequencies cancel depends only on how late the copy is. The spectrum comes out striped at even distances, like the teeth of a comb, and the thing that does it is called a **comb filter**.
+
+Everything else in this lesson is that comb put to use. **Flanging** is a comb whose delay is moved slowly back and forth by an oscillator, so the stripes slide up and down the spectrum. A **chorus** is the same delay made about five times longer and read at two or three moving points at once. Its stripes stand too close together to follow as a sweep, and the other thing a moving read point does comes forward instead: it plays the sound back a little sharp, then a little flat.
+
+The delay line itself, reading it between samples and feeding it back are lesson 10's. This lesson takes them as given and looks at what a _short, moving_ delay does. The stages below are the Flanger's first and then the Chorus's. Press Play, then Listen on any stage that is sound.
+
+<Stages taps="in still lfo delayMs flangerWet flanger flangerPicture voice1Ms voice chorusWet chorus" />
+
+Start with nothing moving. White noise holds every frequency at the same level, so whatever a filter takes out shows as a hole. Here it goes into a Flanger whose sweep has been stopped. Move the delay and count the notches.
+
+<Controls ids="delay" />
+
+<Spectrum taps="in still" linear fMax={4000} min={-80} max={-35}>
+  The spectrum of the noise (grey) and of the noise mixed with a copy of itself 2.5 ms late (red), on a linear frequency axis. The notches stand evenly, 400 Hz apart. A longer delay packs them closer and a shorter one spreads them out.
+</Spectrum>
+
+Under each stage is a mark saying where it comes from. The Flanger keeps everything this lesson needs, so its stages are _read from the running device_. The Chorus keeps its delay line and its oscillator but throws away what each voice read, so the lab reads the voices again out of the Chorus's own line; those stages are _written for this lesson_, and a check in stage 4 holds them to the output the device wrote.
+
+## Stage by stage
+
+### 1. A copy, a moment late: the comb
+
+The whole filter is one line. With <M t="D" /> the delay in samples and <M t="m" /> the mix,
+
+<M block t={String.raw`y[n] = (1-m)\,x[n] + m\,x[n-D]`} />
+
+In the code that is `out[c] = in[c] + (wet - in[c]) * mix` in <Src path="cpp/devices/flanger/flanger.h">`Flanger::process`</Src>, where `wet` is what <Src path="cpp/kit/delay.h">the kit's `DelayLine`</Src> read. To see what it does to one frequency, put a sine through it. A delay leaves a sine's size alone and turns its phase, by <M t={String.raw`\omega D`} /> radians, where <M t={String.raw`\omega = 2\pi f / f_s`} /> is the sine's own turn per sample. So at each frequency the output is the input times
+
+<M block t={String.raw`H(\omega) = (1-m) + m\,e^{-j\omega D}, \qquad |H(\omega)|^2 = (1-m)^2 + m^2 + 2m(1-m)\cos\omega D`} />
+
+The cosine is the comb. Where <M t={String.raw`\omega D`} /> is a whole number of turns the copy is in step and the gain is 1. Where it is half a turn off, the copy is the input upside down and the gain is <M t={String.raw`|1-2m|`} />. With <M t={String.raw`\tau = D / f_s`} /> the delay in seconds, those places are
+
+<M block t={String.raw`\text{peaks at } f = \frac{k}{\tau}, \qquad \text{notches at } f = \frac{2k+1}{2\tau}, \qquad k = 0, 1, 2, \dots`} />
+
+The first notch is the frequency whose half period is the delay, and the rest are its odd multiples, on up without end. At 2.5 ms that is 200 Hz, 600 Hz, 1,000 Hz. Measured on the noise above, the first three fall at <Claim id="notch-first">199 Hz, 598 Hz and 996 Hz</Claim>, each within one 11.7 Hz bin of the analysis. Set the delay to 5 ms and they stand at <Claim id="notch-moves">the odd multiples of 100 Hz</Claim>.
+
+How deep a notch is depends on the mix alone. At equal parts the two cancel completely and the formula becomes <M t={String.raw`|H| = |\cos \pi f \tau|`} />. A 200 Hz sine through the stopped Flanger comes out <Claim id="notch-depth">more than 120 dB down</Claim>, which is the floor of the arithmetic, and a 400 Hz sine comes out <Claim id="tooth-top">as it went in</Claim>. Away from equal parts the cancelling is partial: at a mix of 0.25 the notch is <Claim id="notch-quarter">6.0 dB deep</Claim>, since <M t={String.raw`1 - 2 \times 0.25`} /> is one half. At a mix of 1 there is <Claim id="mix-one">no comb at all</Claim>, only a delay, because the notches need both signals. That is why the device's mix is a plain linear crossfade that starts at 0.5, and why turning a flanger all the way to its delayed side removes the flanging.
+
+A comb at equal parts takes out as much as it leaves: white noise comes through it with half its power, <Claim id="comb-power">3.0 dB down</Claim>.
+
+<Controls ids="delay mix" />
+
+<Curve taps="comb:out combFormula:ctl" xTitle="hertz" yTitle="gain, dB" min={-36} max={6} height={260}>
+  The comb's gain against frequency. Red is measured: the lab puts a single sample into a Flanger with its sweep stopped and transforms everything that comes out. Dashed blue is the formula above. Both are drawn every 11.7 Hz, so a notch shows only as deep as the nearest point happens to land in it. Turn the mix away from 0.5 and the notches fill from the bottom.
+</Curve>
+
+<Check id="combError" />
+
+While the delay is a whole number of samples, measurement and formula agree to <Claim id="comb-error">better than −120 dB</Claim> against a gain of 1. Between samples the device reads its line by interpolation (lesson 10), which is not quite a pure delay at the top of the band, and the two part a little: at 2.6 ms they are about <Claim id="comb-error-between">58 dB under a gain of 1</Claim> apart. The check shows it live as you drag.
+
+### 2. An oscillator moves the delay
+
+A comb that stands still is a tone colour. The effect is in the motion. A slow oscillator <M t="s(t)" />, running between −1 and +1, pushes the read point either side of the Delay setting:
+
+<M block t={String.raw`d(t) = D\,\bigl(1 + 0.95 \cdot \text{depth} \cdot s(t)\bigr)`} />
+
+Depth is a share of the delay itself, and the 0.95 (`kDepthScale`) keeps the read point from ever arriving at zero. At the starting settings, 2.5 ms and 50 %, the read point runs <Claim id="depth-half">from 1.31 ms to 3.69 ms</Claim>. At full depth it runs <Claim id="depth-full">from 0.125 ms to 4.875 ms</Claim>, the longest delay 39 times the shortest.
+
+The oscillator is <Src path="cpp/devices/flanger/mod_lfo.h">`ModLfo`</Src>, the Flanger's own. (The kit has a general one in <Src path="cpp/kit/lfo.h">lfo.h</Src>; neither device here uses it.) It is a phase that climbs from 0 to 1 once a cycle and a shape read off the phase: a sine from <Src path="cpp/kit/math.h">the kit's table</Src>; a triangle, `1 - 4·|phase - 0.5|`; a ramp up, `2·phase - 1`, and its mirror; a square; and Random, one new value held for each cycle. The phase is a double, because at 0.01 Hz and 96 kHz its step per sample is under two steps of a float near 1, far too coarse to count a cycle with. Nothing the sound does resets it. The oscillator runs free, even while the device sleeps through a silence.
+
+Rate starts at 0.25 Hz, one sweep in four seconds, which is the length of this loop.
+
+<Controls ids="rate depth shape" />
+
+<Trace taps="delayMs" lines="delay" unit="ms">
+  The delay the Flanger's left side reads at, across the loop, with the Delay setting as the dashed line. Depth sets how far it swings, Rate how often, Shape the path it takes.
+</Trace>
+
+Every notch follows the read point, at <M t={String.raw`f_k(t) = (2k+1) / 2d(t)`} />. That is one over the delay, so the motion in frequency is not the oscillator's shape. While the delay shortens the notches rise faster and faster and fan apart; while it lengthens they sink and close up.
+
+<Spectrogram tap="flangerPicture" top={4000} min={-64} max={-40}>
+  The Flanger's output over the loop: time across, frequency up, level as colour. With noise going in, the bands of blue and of the page's own colour are the notches. They lie low and close together where the trace above is high, and climb and spread where it is low.
+</Spectrogram>
+
+Measured on the noise, the lowest band runs <Claim id="sweep-notch">between 136 Hz, where the delay is longest, and 381 Hz, where it is shortest</Claim>.
+
+A moving read point also replays the sound at a slightly different speed, which stage 5 works out. In the Flanger it is slight: at the starting settings the delayed copy is never more than <Claim id="flanger-cents">3.2 cents</Claim> off pitch. <Listen tap="flangerWet">Hear the delayed copy alone</Listen> and there is no sweep in it at all. The comb exists only in the sum.
+
+### 3. Feedback sharpens the teeth
+
+Feed some of the delayed copy back into the line, and every trip round adds another, later copy. The Flanger writes <M t={String.raw`x[n] + g \cdot \text{wet}[n-1]`} /> into its line, where <M t="g" /> is the Feedback setting, from −0.95 to +0.95. The copy it feeds back is the one it read on the sample before (`last_wet_`), so the loop is one sample longer than the delay, and the response becomes
+
+<M block t={String.raw`H(\omega) = (1-m) + \frac{m\,e^{-j\omega D}}{1 - g\,e^{-j\omega (D+1)}}`} />
+
+The denominator is lesson 10's geometric series, summed. Where a trip round the loop is a whole number of turns it shrinks to <M t="1-g" /> and the delayed path grows to <M t={String.raw`1/(1-g)`} /> times its size. Half way between it is <M t="1+g" /> and the path shrinks. With positive feedback the loud places are the comb's own peaks, and at a mix of 0.5 the two extremes are
+
+<M block t={String.raw`\text{peak} = \frac{2-g}{2(1-g)}, \qquad \text{trough} = \frac{g}{2(1+g)}`} />
+
+At 50 % feedback the peaks stand at <Claim id="feedback-peak">+3.5 dB</Claim>. The price is paid in the notches. The delayed path is now weaker there than the dry signal, the two no longer cancel, and the notch that went to nothing is only <Claim id="feedback-trough">−15.6 dB</Claim>. Feedback does not deepen a comb. It turns broad humps and needle notches into needle peaks and broad valleys. At the top of the range, 95 %, the delayed path alone reaches <Claim id="loop-26">+26 dB</Claim> and the sum <Claim id="feedback-95">+20.4 dB</Claim>.
+
+The sign matters. Negative feedback turns each trip upside down, so the loop reinforces where a trip is _half_ a turn: the odd multiples, exactly where the dry signal and the copy cancel. The two effects pull against each other. At −50 % the old notches are filled to <Claim id="negative-half">−6.1 dB</Claim>. Near −62 % they meet, and below 1 kHz there is <Claim id="negative-flat">about 1 dB of ripple</Claim> where a comb with no feedback has notches to nothing. (With the extra sample left out, the formula has the same size at every frequency when <M t={String.raw`1 + |g| = 1/|g|`} />, which is <M t={String.raw`|g| = 0.618`} />.) Past that the loop wins and the odd multiples become the peaks: <Claim id="negative-peaks">+13.0 dB</Claim> at −90 %.
+
+<Controls ids="feedback mix delay" />
+
+<Curve taps="combWet:alt comb:out" xTitle="hertz" yTitle="gain, dB" min={-24} max={30} height={280}>
+  Measured as before: the delayed path by itself (green) and its sum with the dry signal (red). With no feedback the green line is flat at 0 dB and all the shape is in the sum. Raise the feedback and green grows peaks at the multiples of 400 Hz, and red rides up on them. Take it below zero and the green peaks move to where the red notches are.
+</Curve>
+
+The extra sample in the loop is small, and plain to measure where the delay is short. At 0.5 ms the delay is 24 samples and the loop 25, and the first peak stands at <Claim id="loop-sample">1,922 Hz</Claim>, not at 2,000 Hz.
+
+### 4. The chorus: a longer delay, read by several voices
+
+The Chorus is the same drawing with three changes. Its delay runs from 5 to 30 ms and starts at 12, where the Flanger's runs from 0.5 to 10. Its sweep is a distance and not a share: Depth times 5 ms (`kMaxDeviationMs`), or times the delay less 1 ms where that is smaller. And its line is read by two or three **voices** at once, each a read point of its own:
+
+<M block t={String.raw`d_v(t) = D + A \sin 2\pi\!\left(f t + \frac{v}{N}\right), \qquad A = \text{depth} \cdot \min(5\ \text{ms},\ D - 1\ \text{ms})`} />
+
+Here <M t="N" /> is the number of voices and <M t="v" /> counts them from 0. One oscillator serves them all, and it is a sine only: <Src path="cpp/devices/chorus/chorus.h">the device</Src> looks up one sine and one cosine of its phase per sample and turns the pair by each voice's angle, so three voices on two sides cost two look-ups, not six. At the starting settings each of three voices runs <Claim id="voice-range">from 9.5 ms to 14.5 ms</Claim>, each <Claim id="voices-third">a third of a cycle, 0.417 s</Claim>, ahead of the one before. Two voices stand <Claim id="voices-half">half a cycle</Claim> apart. Sines spaced evenly round a cycle add to nothing, so while every voice moves, their delays add to the same <Claim id="voices-sum">36 ms</Claim> at every instant: the group as a whole stays put. With the delay at its shortest the cap comes in, and at 5 ms and full depth the sweep is <Claim id="chorus-cap">4 ms either way</Claim>.
+
+<Controls ids="voices chorusDelay chorusDepth chorusRate" />
+
+<Trace taps="voice1Ms:ctl voice2Ms:alt voice3Ms:alt2" unit="ms">
+  How far behind the present each voice reads on the left side: voice 1 (blue), voice 2 (green), voice 3 (orange). With two voices the third line lies flat on the delay, since nothing reads there.
+</Trace>
+
+<Check id="rebuilt" />
+
+The Chorus does not keep what its voices read, so the lab reads the device's line again at these points, with the same interpolator (<Src path="cpp/kit/delay.h">`read_hermite`</Src>), and sums the voices the way stage 6 describes. The result is the Chorus's own output <Claim id="rebuilt">to the last bit</Claim>.
+
+Each voice still makes a comb with the dry signal. But at 12 ms the teeth are 83 Hz apart, where the Flanger's at 2.5 ms were 400 Hz apart, and there are three combs moving three ways. Set the depth to 0 for a moment and the voices fall on top of one another: one comb, held still, with notches <Claim id="chorus-teeth">83 Hz apart, the first at 42 Hz</Claim>.
+
+<Controls ids="chorusDepth chorusDelay" />
+
+<Spectrum taps="in chorus" linear fMax={1000} min={-62} max={-38}>
+  The bottom 1,000 Hz of the noise (grey) and of the Chorus's output (red). With Chorus depth at 0 there is one comb with twelve teeth in this span. With the depth up, three combs slide over one another and the average across the loop is ragged, with no tooth left standing.
+</Spectrum>
+
+### 5. A moving delay is a change of pitch
+
+A voice puts out <M t={String.raw`y(t) = x\bigl(t - d(t)\bigr)`} />. While the delay grows, the read point is falling behind: it gets through less than a second of sound in each second, and everything it reads comes out slow and flat. While the delay shrinks it is catching up, and the sound comes out fast and sharp. The speed is
+
+<M block t={String.raw`r(t) = 1 - \frac{\mathrm{d}}{\mathrm{d}t}\,d(t), \qquad \text{cents} = 1200 \log_2 r`} />
+
+It does not depend on how long the delay is, only on how fast it is changing. A cent is a hundredth of a semitone. For a sine sweep the slope is steepest as the delay passes its centre:
+
+<M block t={String.raw`\max \left| \frac{\mathrm{d}d}{\mathrm{d}t} \right| = 2\pi f A`} />
+
+At the Chorus's starting settings that is <M t={String.raw`2\pi \times 0.8\ \text{Hz} \times 2.5\ \text{ms} = 0.0126`} />, a speed 1.26 % off. Read from the slope of the delay the device used, each voice goes <Claim id="chorus-cents">21.6 cents sharp and 21.9 cents flat</Claim>; the two differ because the logarithm is not even about 1. And measured from the sound itself, a 1 kHz sine comes back from one voice at anything <Claim id="chorus-cents-heard">from 987.4 Hz to 1,012.6 Hz</Claim>, counted from its zero crossings. Rate and depth multiply, so doubling either doubles the bend.
+
+<Controls ids="chorusRate chorusDepth" />
+
+<Trace taps="cents1:ctl cents2:alt cents3:alt2" unit="cents">
+  The pitch of each voice against the input's, in cents: voice 1 (blue), voice 2 (green), voice 3 (orange). Each is furthest out where its delay, in the figure of stage 4, crosses the centre, and in tune where its delay turns round. At any instant one voice is sharp while another is flat.
+</Trace>
+
+Three copies, none in tune with the input or with each other for long, is what several players on one part are. Choose the saw, then <Listen tap="voice">hear one voice alone</Listen>, which is a slow vibrato, and <Listen tap="chorusWet">the three together</Listen>.
+
+### 6. The sum, and two sides
+
+The voices are added, scaled, and crossfaded with the input, on each side <M t="c" />:
+
+<M block t={String.raw`\text{wet}_c[n] = \frac{1}{\sqrt N} \sum_{v} p_{v,c}\; x_c\bigl[n - d_{v,c}\bigr], \qquad \text{out}_c = x_c + m\,(\text{wet}_c - x_c)`} />
+
+The scale is <M t={String.raw`1/\sqrt N`} /> and not <M t="1/N" /> because voices that have drifted apart are different signals, and different signals add in power. On white noise, three voices at the starting depth sum to the level of one, <Claim id="apart">within 0.05 dB</Claim>. With the depth at 0 the three are one signal and add in size: <Claim id="together">4.8 dB over one</Claim>. The linear mix dips for the same reason. Dry noise and delayed noise are different signals too, and at a mix of 0.5 the output is <Claim id="mix-dip">3.4 dB under the input</Claim>.
+
+Spread makes the two sides differ, in two ways at once. It pans the voices, the first towards the left and the last towards the right, with a middle one staying in the centre. The gains <M t={String.raw`p_{v,c}`} /> are equal-power: <M t={String.raw`\sqrt2\cos\theta_v`} /> on the left and <M t={String.raw`\sqrt2\sin\theta_v`} /> on the right, with <M t={String.raw`\theta_v`} /> running from 45° less Spread × 45° to 45° more. And it runs the right side's oscillator ahead of the left's by Spread × 90°, so that even a centred voice reads a different point on each side. At 70 % the right side is 63° ahead, and rises through the centre <Claim id="right-ahead">0.219 s sooner</Claim>.
+
+With two voices and full spread <Claim id="one-each">each ear gets one voice to itself</Claim>, the first on the left and the second on the right. The second voice is half a cycle from the first and the right side's oscillator a quarter of a cycle ahead, so the two do not simply mirror each other: the right ear's read point follows the left's <Claim id="two-sides">a quarter of a cycle, 0.31 s, behind</Claim>, and when one copy is furthest off pitch the other is in tune. At Spread 0 both sides get <Claim id="spread-zero">the same samples</Claim>. On white noise, at 35 % and above, the delayed halves of the two sides <Claim id="spread-apart">share nothing</Claim>: their correlation is under 0.02.
+
+<Controls ids="spread voices chorusMix" />
+
+<Trace taps="voice1Ms:ctl voice1MsRight:out voice2MsRight:alt" unit="ms">
+  Voice 1's read point on the left (blue) and on the right (red), and voice 2's on the right (green). At Spread 0 red lies under blue. Turn it up and red pulls ahead, to a quarter of a cycle at 100 %. With two voices at full spread, blue is all the left ear gets of the delayed sound and green all the right ear gets.
+</Trace>
+
+The Flanger has the second of these only. Its right side reads the same oscillator a set angle ahead, 90° to start with, and the lab leaves that where the device puts it.
+
+## What goes wrong
+
+**The read point cannot reach zero.** The first notch stands at one over twice the delay, so it could only leave the top of the band if the delay went to nothing. It cannot. The interpolator needs a neighbour on each side, and both devices clamp every read to two samples. With the Flanger at 0.5 ms and full depth the read point stops at <Claim id="shortest-read">0.042 ms</Claim>, where the first notch is at 12 kHz.
+
+**A jump in the delay is a click.** The square, the ramps and Random all jump. Moving a read point at once from one place in the line to another splices two unrelated bits of sound together. So the Flanger passes its oscillator through a one-pole lag of 3 ms (`kLfoLagSeconds`) before it touches the read point: a full jump of the square takes <Claim id="lag">3 ms to cover 63 %</Claim> of the way, and becomes a very quick glide. The Delay and Depth controls of both devices glide over 50 ms for the same reason, where the other controls take 5. A turn of the knob bends the pitch for a moment and does not zip.
+
+**Feedback near 1 rings without end.** The range stops at 95 %, where the loop's own gain is already 26 dB. What is fed back passes a limiter (`loop_limit`) that is exactly linear up to full scale and bends over above it, levelling off at twice full scale, so a resonance driven hard saturates and does not run away.
+
+**Reading between samples dulls the copy.** A voice whose read point lies between samples is an interpolation, and interpolation loses a little at the top of the band (lesson 10). On white noise a moving voice of the Chorus comes out <Claim id="between-samples">0.9 dB quieter</Claim> than it went in, and one held on a whole sample loses nothing. It is also why the comb's highest notches are a little shallower than the formula says.
+
+**A chorus held still is a comb.** With no depth, or with the rate so low that nothing seems to move, the Chorus is the filter of stage 1 with its teeth 83 Hz apart, and three coincident voices make it lopsided towards the delayed side. The thickening is the motion.
+
+## What to try
+
+- Noise, and the first figure. Drag **Delay** from end to end and watch the comb open and close. Then <Listen tap="still">hear the comb held still</Listen>.
+- Noise, **Depth** at 100 %. The bands in the picture of stage 2 now climb out of the top. Add **Feedback** at 80 %, then at −80 %.
+- The saw, **Depth** at 0 and **Delay** near 4.55 ms, on the stage held still. The notches now fall on 110 Hz and its odd multiples, where the saw's odd harmonics are: the fundamental comes out <Claim id="saw-odd">more than 50 dB down</Claim>, and the harmonics at 220 Hz and 440 Hz untouched.
+- **Mix** at 1 on the Flanger. The sweep goes, and what is left is the delayed copy with its 3 cents of wobble.
+- Guitar chords through the Chorus with two **Voices** and **Spread** at 100 %, then at 0.
+- **Chorus rate** at 5 Hz and **Chorus depth** at 100 %, and read the bend off the figure of stage 5.
