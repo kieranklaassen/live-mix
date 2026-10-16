@@ -142,6 +142,8 @@ export const PLATE_PALETTES = {
   'wind-harp': { plate: '#f7f26a', ink: '#2a2a06', accent: '#1560a8' },
   afterglow: { plate: '#f26a1b', ink: '#2a0d00', accent: '#0b2a6b' },
   feedback: { plate: '#e0241b', ink: '#fff5ef', accent: '#1a0503' },
+  'twin-bars': { plate: '#9a7600', ink: '#151000', accent: '#fff6d6' },
+  'still-point': { plate: '#9f6fb4', ink: '#1a0822', accent: '#fff7d6' },
   canon: { plate: '#a8061b', ink: '#fff5ee', accent: '#ffbf80' },
   'overtone-singer': { plate: '#fcff99', ink: '#1e1f04', accent: '#c8321a' },
   breath: { plate: '#63abf6', ink: '#06163a', accent: '#700c3a' },
@@ -173,6 +175,13 @@ export const PLATE_PALETTES = {
   howl: { plate: '#fc60c8', ink: '#1a0212', accent: '#0c0ca0' },
   lift: { plate: '#d0fc6c', ink: '#142005', accent: '#6a1280' },
   vessel: { plate: '#00f6ff', ink: '#03222b', accent: '#b02a00' },
+  binaural: { plate: '#5b7fa6', ink: '#06101c', accent: '#fff4d6' },
+  'band-pulse': { plate: '#c56b91', ink: '#220818', accent: '#fffbe8' },
+  isochronic: { plate: '#35a03f', ink: '#04160a', accent: '#fffbe8' },
+  'ear-shift': { plate: '#6b5cff', ink: '#0a0730', accent: '#fff3b8' },
+  'winding-down': { plate: '#a27e90', ink: '#1c0a14', accent: '#fffbe8' },
+  'breath-pacer': { plate: '#60aeb2', ink: '#041a1c', accent: '#7a1030' },
+  'coloured-noise': { plate: '#b5503e', ink: '#fff5e9', accent: '#0d1540' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

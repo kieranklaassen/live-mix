@@ -105,6 +105,9 @@ native_test() {
 # list is written by scripts/gen-devices.mjs from cpp/devices/*/device.json.
 native_test kit_test cpp/test/kit_test.cpp
 native_test stft_test cpp/test/stft_test.cpp
+native_test beat_test cpp/test/beat_test.cpp
+native_test colour_test cpp/test/colour_test.cpp
+native_test band_test cpp/test/band_test.cpp
 
 source scripts/devices.gen.sh
 test_generated_devices

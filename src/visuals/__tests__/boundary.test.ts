@@ -26,6 +26,7 @@ const PLAIN = [
   'frame.ts',
   'model.ts',
   'palettes.ts',
+  'perform.ts',
   'styles.ts',
 ]
 
@@ -42,6 +43,7 @@ describe('the visuals entry', () => {
       'line.ts',
       'model.ts',
       'palettes.ts',
+      'perform.ts',
       'picture.ts',
       'rig.ts',
       'shader-sources.ts',

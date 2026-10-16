@@ -44,6 +44,53 @@ export function outShare(frame: Pick<DisplayFrame, 'signal' | 'powered'>, floorD
   return Number.isFinite(db) ? clamp(1 - db / floorDb, 0, 1) : 0
 }
 
+/** The level's bar moves only when the level has moved by this share of its scale (1.2 dB). */
+const LEVEL_STEP = 0.02
+/** The foot of the level's scale, dB under full scale. */
+const LEVEL_FLOOR_DB = -60
+
+/** What `meanOutShare` keeps from one frame to the next. */
+export interface HeardLevel {
+  /** The mean squares of the sound that came out in the time the level is taken over, each with the time it stands for. */
+  heard: { at: number; square: number; dt: number }[]
+  /** The level the foot shows, as a share of its scale. */
+  shown: number
+}
+
+/**
+ * The level that comes out, taken over the last `seconds`, as a share of a
+ * scale from 60 dB under full scale up to it. Each frame's reading stands for
+ * the time since the frame before it, and the mean is taken over the whole
+ * `seconds`, so time with nothing read counts as silence and a level that
+ * pulses is read as its mean. What it gives moves only when the level has
+ * moved by a step, and to the two ends of the scale.
+ */
+export function meanOutShare(
+  state: HeardLevel,
+  frame: Pick<DisplayFrame, 'signal' | 'powered' | 'now' | 'dt'>,
+  seconds: number,
+): number {
+  const rms = frame.powered && frame.signal ? frame.signal.output.rms : NaN
+  if (!Number.isFinite(rms) || !(frame.dt >= 0) || frame.dt > seconds) {
+    state.heard = []
+    state.shown = 0
+  } else {
+    if (frame.dt > 0) state.heard.push({ at: frame.now, square: rms * rms, dt: frame.dt })
+    const from = frame.now - seconds
+    state.heard = state.heard.filter((one) => one.at > from && one.at <= frame.now)
+    let sum = 0
+    for (const one of state.heard) sum += one.square * Math.min(one.dt, one.at - from)
+    const mean = sum / seconds
+    const db = mean > 1e-12 ? 10 * Math.log10(mean) : LEVEL_FLOOR_DB
+    const share = clamp(1 - db / LEVEL_FLOOR_DB, 0, 1)
+    // The bar moves when the level has moved by a step, and to its ends.
+    const end = share <= 0 || share >= 1
+    if (Math.abs(share - state.shown) > LEVEL_STEP || (end && share !== state.shown))
+      state.shown = share
+  }
+  return state.shown
+}
+
 /**
  * The foot of an instrument's display: a bar across the box, as thick as it is
  * given, that fills from the middle outwards with the level coming out. It is

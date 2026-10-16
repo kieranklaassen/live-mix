@@ -1899,6 +1899,8 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'wind-harp': { ...PLATE_PALETTES['wind-harp'], finish: 'linen', cap: 'dot' },
   afterglow: { ...PLATE_PALETTES.afterglow, finish: 'fade', cap: 'skirt' },
   feedback: { ...PLATE_PALETTES.feedback, finish: 'hammered', cap: 'pointer' },
+  'twin-bars': { ...PLATE_PALETTES['twin-bars'], finish: 'brushed', cap: 'disc' },
+  'still-point': { ...PLATE_PALETTES['still-point'], finish: 'fade', cap: 'dot' },
   canon: { ...PLATE_PALETTES.canon, finish: 'grain', cap: 'pointer' },
   'overtone-singer': {
     ...PLATE_PALETTES['overtone-singer'],
@@ -1935,6 +1937,13 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   howl: { ...PLATE_PALETTES.howl, finish: 'gloss', cap: 'pointer' },
   lift: { ...PLATE_PALETTES.lift, finish: 'matte', cap: 'skirt' },
   vessel: { ...PLATE_PALETTES.vessel, finish: 'gloss', cap: 'disc' },
+  binaural: { ...PLATE_PALETTES.binaural, finish: 'matte', cap: 'dot' },
+  'band-pulse': { ...PLATE_PALETTES['band-pulse'], finish: 'brushed', cap: 'skirt' },
+  isochronic: { ...PLATE_PALETTES.isochronic, finish: 'brushed', cap: 'pointer' },
+  'ear-shift': { ...PLATE_PALETTES['ear-shift'], finish: 'fade', cap: 'dot' },
+  'winding-down': { ...PLATE_PALETTES['winding-down'], finish: 'linen', cap: 'pointer' },
+  'breath-pacer': { ...PLATE_PALETTES['breath-pacer'], finish: 'fade', cap: 'dot' },
+  'coloured-noise': { ...PLATE_PALETTES['coloured-noise'], finish: 'speckle', cap: 'dot' },
 }
 
 /**

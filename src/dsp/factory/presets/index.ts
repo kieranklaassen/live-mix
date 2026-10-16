@@ -7,12 +7,15 @@ import { ACOUSTIC_GUITAR_PRESETS } from './acoustic-guitar'
 import { AFTERGLOW_PRESETS } from './afterglow'
 import { ATMOSPHERE_PRESETS } from './atmosphere'
 import { AURORA_PRESETS } from './aurora'
+import { BINAURAL_PRESETS } from './binaural'
 import { BOWED_STRING_PRESETS } from './bowed-string'
+import { BREATH_PACER_PRESETS } from './breath-pacer'
 import { CHAMBER_STRINGS_PRESETS } from './chamber-strings'
 import { CHOIR_PRESETS } from './choir'
 import { CHORD_HARP_PRESETS } from './chord-harp'
 import { CLARINET_PRESETS } from './clarinet'
 import { CLUB_KIT_PRESETS } from './club-kit'
+import { COLOURED_NOISE_PRESETS } from './coloured-noise'
 import { DRONE_PRESETS } from './drone'
 import { DROPLETS_PRESETS } from './droplets'
 import { DRUM_KIT_PRESETS } from './drum-kit'
@@ -32,6 +35,7 @@ import { HANDPAN_PRESETS } from './handpan'
 import { HARP_PRESETS } from './harp'
 import { HORNS_PRESETS } from './horns'
 import { ICE_PRESETS } from './ice'
+import { ISOCHRONIC_PRESETS } from './isochronic'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
 import { MAGNET_PIANO_PRESETS } from './magnet-piano'
 import { MALLETS_PRESETS } from './mallets'
@@ -45,6 +49,7 @@ import { REWIND_PRESETS } from './rewind'
 import { SAMPLER_PRESETS } from './sampler'
 import { SHORTWAVE_PRESETS } from './shortwave'
 import { STAIRCASE_PRESETS } from './staircase'
+import { STILL_POINT_PRESETS } from './still-point'
 import { STRING_BASS_PRESETS } from './string-bass'
 import { STRING_MACHINE_PRESETS } from './string-machine'
 import { SUB_BASS_PRESETS } from './sub-bass'
@@ -52,6 +57,7 @@ import { TANPURA_PRESETS } from './tanpura'
 import { TAPE_ORCHESTRA_PRESETS } from './tape-orchestra'
 import { THESIS_PRESETS } from './thesis'
 import { TINE_PIANO_PRESETS } from './tine-piano'
+import { TWIN_BARS_PRESETS } from './twin-bars'
 import { WAVETABLE_PRESETS } from './wavetable'
 import { WEST_COAST_PRESETS } from './west-coast'
 import { WIND_HARP_PRESETS } from './wind-harp'
@@ -114,4 +120,10 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...WIND_HARP_PRESETS,
   ...AFTERGLOW_PRESETS,
   ...FEEDBACK_PRESETS,
+  ...BINAURAL_PRESETS,
+  ...TWIN_BARS_PRESETS,
+  ...ISOCHRONIC_PRESETS,
+  ...STILL_POINT_PRESETS,
+  ...BREATH_PACER_PRESETS,
+  ...COLOURED_NOISE_PRESETS,
 ]

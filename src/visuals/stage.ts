@@ -1,13 +1,15 @@
 // Paints a frame of the visuals onto a canvas.
 //
 // What paints adds its light to what is there; what bends works on what was painted before it. The picture is
-// finished on a canvas of its own and film grain is laid over the copy that is shown, so that Trails, which keeps
-// what was on the screen a while, never drags old grain along.
+// finished on a canvas of its own. The filter a performance asks for and the film grain are laid over the copy that
+// is shown, so that Trails, which keeps what was on the screen a while, never drags old grain along and never
+// filters what was filtered the frame before.
 //
 // Browser only.
 
 import type { VisualFrame } from './frame'
 import { have } from './have'
+import type { VisualFilter } from './perform'
 import { visualRig } from './rig'
 
 /** A style is never drawn wider than this; a larger screen is given it enlarged. */
@@ -84,12 +86,83 @@ function grainOver(
   context.restore()
 }
 
+// The filter. The finished picture is blurred once, by drawing it at half the size again and again and then back
+// up, and that one copy serves every part: mixed in it softens, added it spreads the light, and inverted and
+// multiplied in it takes from each point the broad light around it. No pixel is read back.
+/** About how many pixels across the picture is at its smallest: the blur is as wide as a sixtieth of the picture. */
+const BLUR_ACROSS = 64
+const MOST_HALVINGS = 6
+
+function copyTo(to: HTMLCanvasElement, from: HTMLCanvasElement): void {
+  const toContext = pen(to)
+  toContext.globalCompositeOperation = 'copy'
+  toContext.drawImage(from, 0, 0, to.width, to.height)
+  toContext.globalCompositeOperation = 'source-over'
+}
+
+function filterOver(
+  context: CanvasRenderingContext2D,
+  clean: HTMLCanvasElement,
+  halves: HTMLCanvasElement[],
+  filter: VisualFilter,
+): void {
+  const width = context.canvas.width
+  const height = context.canvas.height
+  const steps = Math.min(
+    MOST_HALVINGS,
+    Math.max(1, Math.round(Math.log2(Math.max(1, width / BLUR_ACROSS)))),
+  )
+  while (halves.length < steps) halves.push(document.createElement('canvas'))
+  for (let step = 0; step < steps; step++) {
+    const half = halves[step]
+    const halfWidth = Math.max(1, Math.round(width / 2 ** (step + 1)))
+    const halfHeight = Math.max(1, Math.round(height / 2 ** (step + 1)))
+    if (half.width !== halfWidth || half.height !== halfHeight) {
+      half.width = halfWidth
+      half.height = halfHeight
+    }
+    copyTo(half, step === 0 ? clean : halves[step - 1])
+  }
+  for (let step = steps - 1; step > 0; step--) copyTo(halves[step - 1], halves[step])
+  const blurred = halves[0]
+
+  context.save()
+  if (filter.soft > 0) {
+    context.globalAlpha = clamp01(filter.soft)
+    context.drawImage(blurred, 0, 0, width, height)
+  }
+  if (filter.spread > 0) {
+    context.globalCompositeOperation = 'lighter'
+    context.globalAlpha = clamp01(filter.spread)
+    context.drawImage(blurred, 0, 0, width, height)
+    context.globalCompositeOperation = 'source-over'
+  }
+  if (filter.dim > 0) {
+    context.globalAlpha = clamp01(filter.dim)
+    context.fillStyle = '#000'
+    context.fillRect(0, 0, width, height)
+  }
+  if (filter.thin > 0) {
+    const blurredContext = pen(blurred)
+    blurredContext.globalCompositeOperation = 'difference'
+    blurredContext.fillStyle = '#fff'
+    blurredContext.fillRect(0, 0, blurred.width, blurred.height)
+    blurredContext.globalCompositeOperation = 'source-over'
+    context.globalCompositeOperation = 'multiply'
+    context.globalAlpha = clamp01(filter.thin)
+    context.drawImage(blurred, 0, 0, width, height)
+  }
+  context.restore()
+}
+
 /** A stage of its own for each screen: it remembers what that screen showed, for Trails. */
 export function createStage(): Stage {
   const layer = document.createElement('canvas')
   const sum = document.createElement('canvas')
   const before = document.createElement('canvas')
   const clean = document.createElement('canvas')
+  /** The picture at half the size, a quarter and so on, made the first time a frame has a filter. */
+  const halves: HTMLCanvasElement[] = []
   return {
     paint(context, frame, scale) {
       const width = context.canvas.width
@@ -220,6 +293,7 @@ export function createStage(): Stage {
       context.globalCompositeOperation = 'copy'
       context.drawImage(clean, 0, 0)
       context.globalCompositeOperation = 'source-over'
+      if (frame.filter) filterOver(context, clean, halves, frame.filter)
       // More grain, on the timeline, can ask for more than the piece has, for its stretch.
       const rough = Math.max(frame.grain, grain)
       // A small picture is a large one seen from further off, where grain is finer: it gets less of it.

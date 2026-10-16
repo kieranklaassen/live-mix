@@ -163,7 +163,11 @@ same evening. A hand always wins over a rule that has not been drawn yet.
 **Events.** `bar` and `beat` are reported up to the lookahead before they
 fall, with `at`, the audio-clock time. A host that draws or moves something
 on the beat schedules against `at`; one that only wants to know uses them as
-they come. `scene`, `ride`, `dial` and `cue` carry the time the change begins.
+they come. `scene`, `ride`, `dial` and `cue` carry the time the change begins,
+and the first three carry `seconds`, how long the move takes as the sound
+makes it: a scene's morph at the tempo and the speed the transport runs at, a
+dial's glide, a reset's time, 0 for a cut. A picture that follows the
+performance moves over the same time.
 
 ## Wiring it to a host
 

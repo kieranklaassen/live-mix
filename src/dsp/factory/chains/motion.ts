@@ -636,4 +636,370 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'around', preset: 'Slow circle' },
     ],
   },
+  {
+    id: 'slow-wave-in-a-nave',
+    name: 'Slow wave in a nave',
+    category: 'motion',
+    description:
+      'A cathedral tail whose middle swells and sinks 48 times a minute, while the bass and the air above 2.5 kHz stay level.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'band-pulse', preset: 'One up, one down', params: { rate: 0.8, depth: 0.7 } },
+    ],
+  },
+  {
+    id: 'four-a-second-apart',
+    name: 'Four a second, apart',
+    category: 'motion',
+    description:
+      'Four soft pulses a second on the middle band, the right side a quarter of a pulse behind the left, widened by a slow chorus.',
+    effects: [
+      { deviceId: 'band-pulse', preset: 'Four a second', params: { depth: 0.6, offset: 90 } },
+      { deviceId: 'chorus', preset: 'Subtle widener' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'six-a-second-plate',
+    name: 'Six a second in a plate',
+    category: 'motion',
+    description:
+      'Six pulses a second on the band from 150 Hz to 1.5 kHz, each a soft swell, and a plate that rings through the gaps.',
+    effects: [
+      { deviceId: 'band-pulse', preset: 'Six a second' },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
+  {
+    id: 'ten-a-second-room',
+    name: 'Ten a second, room',
+    category: 'motion',
+    description:
+      'A small room, then ten pulses a second on everything from 200 Hz to 2 kHz, so the room flutters with the notes.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Room' },
+      { deviceId: 'band-pulse', preset: 'Ten a second' },
+    ],
+  },
+  {
+    id: 'fourteen-on-strings',
+    name: 'Fourteen on strings',
+    category: 'motion',
+    description:
+      'Each chord is caught and held as a string pad, and its low middle flutters fourteen times a second under a still top.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings' },
+      { deviceId: 'band-pulse', preset: 'Fourteen a second' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2 } },
+    ],
+  },
+  {
+    id: 'eighteen-in-a-hall',
+    name: 'Eighteen in a hall',
+    category: 'motion',
+    description:
+      'A hall, then the band from 200 Hz to 1 kHz pulsed eighteen times a second at half depth, the tail with the notes.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'band-pulse', preset: 'Sixteen mid band', params: { rate: 18, depth: 0.5 } },
+    ],
+  },
+  {
+    id: 'forty-smooth-warm',
+    name: 'Forty smooth, warm',
+    category: 'motion',
+    description:
+      'A warm preamp, then forty smooth pulses a second from 100 Hz to 4 kHz: an even roughness on every note, in a small plate.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Warm glue', params: { output: 1 } },
+      { deviceId: 'band-pulse', preset: 'Forty, smooth' },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.15 } },
+    ],
+  },
+  {
+    id: 'forty-ticks-over-bass',
+    name: 'Forty ticks over bass',
+    category: 'motion',
+    description:
+      'From 300 Hz to 3 kHz the sound comes in forty short ticks a second, a buzz over a bass that is left whole, held by a limiter.',
+    effects: [
+      { deviceId: 'band-pulse', preset: 'Forty ticks' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'sixteenths-in-time',
+    name: 'Sixteenths in time',
+    category: 'motion',
+    description:
+      'Eight pulses a second, the sixteenth notes of a piece at 120 beats a minute, with a clean echo on every beat.',
+    effects: [
+      { deviceId: 'band-pulse', preset: 'Eight a second', params: { depth: 0.8, edge: 8 } },
+      { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 500, mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'sixty-six-a-minute',
+    name: 'Sixty six a minute',
+    category: 'motion',
+    description:
+      'Held chords whose low middle sounds for a fifth of each beat, 66 beats a minute, a soft swell and a long gap, in a hall.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Sustain pedal' },
+      { deviceId: 'band-pulse', preset: 'Seventy a minute', params: { rate: 1.1 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'hall-a-hertz-apart',
+    name: 'Hall a hertz apart',
+    category: 'motion',
+    description:
+      'A hall, then all of it from 60 Hz to 2 kHz a hertz apart between the ears, so notes and tail beat once a second; headphones.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'ear-shift', preset: 'One, wide band', params: { ears: 0.7 } },
+    ],
+  },
+  {
+    id: 'pad-six-apart',
+    name: 'Pad six apart',
+    category: 'motion',
+    description:
+      'Each chord is held as a string pad that beats six times a second between the ears; on speakers it pulses in the air.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings' },
+      { deviceId: 'ear-shift', preset: 'Six a second', params: { ears: 0.8, high: 2000 } },
+    ],
+  },
+  {
+    id: 'second-rank',
+    name: 'Second rank',
+    category: 'motion',
+    description:
+      'Organ stops on every note and a slow wave through them, three in two seconds, as two ranks a little apart make, in a cathedral.',
+    effects: [
+      { deviceId: 'stops', preset: 'Principal chorus' },
+      { deviceId: 'ear-shift', preset: 'Slow wave' },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
+  {
+    id: 'spring-ten-a-second',
+    name: 'Spring ten a second',
+    category: 'motion',
+    description:
+      'A spring tank, then all of it from 60 Hz to 2 kHz pulsing ten times a second in the air, the same on speakers as on headphones.',
+    effects: [
+      { deviceId: 'spring-reverb', preset: 'Two spring tank' },
+      { deviceId: 'ear-shift', preset: 'Ten in the air', params: { low: 60, high: 2000 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
+  {
+    id: 'two-beats-an-echo',
+    name: 'Two beats an echo',
+    category: 'motion',
+    description:
+      'Echoes half a second apart and four hertz between the ears: the beat comes round twice to an echo, in time at 120 beats a minute.',
+    effects: [
+      {
+        deviceId: 'analog-delay',
+        preset: 'Clean echo',
+        params: { time: 500, feedback: 0.45 },
+      },
+      { deviceId: 'ear-shift', preset: 'Six a second', params: { beat: 4, ears: 0.8, high: 2000 } },
+    ],
+  },
+  {
+    id: 'dull-and-three-apart',
+    name: 'Dull and three apart',
+    category: 'motion',
+    description:
+      'A low pass at 700 Hz, then all that is left three hertz apart between the ears: the whole sound beats, not a band of it; headphones.',
+    effects: [
+      {
+        deviceId: 'auto-filter',
+        preset: 'Init',
+        params: { slope: 1, cutoffHz: 700 },
+      },
+      { deviceId: 'ear-shift', preset: 'Six a second', params: { beat: 3, ears: 0.8, high: 2000 } },
+    ],
+  },
+  {
+    id: 'pad-pulsing-at-four',
+    name: 'Pad pulsing at four',
+    category: 'motion',
+    description:
+      'A string pad swells in behind the notes and all of it from 60 Hz to 2 kHz pulses four times a second in the air, in a plate.',
+    effects: [
+      { deviceId: 'pad-follower', preset: 'String pad' },
+      { deviceId: 'ear-shift', preset: 'Four in the air', params: { low: 60 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.2 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 4.5 } },
+    ],
+  },
+  {
+    id: 'beat-into-a-plate',
+    name: 'Beat into a plate',
+    category: 'motion',
+    description:
+      'Two hertz between the ears and a little room noise, then a plate that sums the sides: in its tail the beat is a faint pulse in the air.',
+    effects: [
+      { deviceId: 'ear-shift', preset: 'Six a second', params: { beat: 2, ears: 0.7, high: 2000 } },
+      { deviceId: 'noise-floor', preset: 'Empty room', params: { level: -40 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'eight-half-in-the-air',
+    name: 'Eight, half in the air',
+    category: 'motion',
+    description:
+      'A warm preamp, then eight a second, half between the ears and half in the air: each ear dips 6 dB and the two together pulse to silence.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Warm glue', params: { output: -1.5 } },
+      { deviceId: 'ear-shift', preset: 'Eight, half air', params: { high: 2000 } },
+    ],
+  },
+  {
+    id: 'bowed-half-a-hertz',
+    name: 'Bowed, half a hertz',
+    category: 'motion',
+    description:
+      'Each note fades in like a bow stroke and beats between the ears once every two seconds, from 60 Hz to 2 kHz; headphones.',
+    effects: [
+      { deviceId: 'swell', preset: 'Slow bow' },
+      { deviceId: 'ear-shift', preset: 'Slow turn', params: { ears: 0.6, high: 2000 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 7 } },
+    ],
+  },
+  {
+    id: 'four-slowing-in-a-hall',
+    name: 'Four slowing in a hall',
+    category: 'motion',
+    description:
+      'Four layers of one pulse, each twice as fast as the next, seem to slow for ever, halving every twenty seconds, in a hall.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Four slowing' },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 4 } },
+    ],
+  },
+  {
+    id: 'five-layers-on-strings',
+    name: 'Five layers on strings',
+    category: 'motion',
+    description:
+      'Each chord is held as a string pad under a weave of five pulses at half depth, all halving their pace every thirty seconds.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings' },
+      { deviceId: 'winding-down', preset: 'Five layers', params: { halving: 30 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'losing-pace-held',
+    name: 'Losing pace, held',
+    category: 'motion',
+    description:
+      'Held chords pulse 72 times a minute, and the pulse seems to lose half its pace every minute and a half, in a hall.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Sustain pedal' },
+      { deviceId: 'winding-down', preset: 'Losing pace' },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 1.5 } },
+    ],
+  },
+  {
+    id: 'three-a-second-sliding',
+    name: 'Three a second, sliding',
+    category: 'motion',
+    description:
+      'Three pulses a second that seem to slow, the right side a quarter of a pulse behind the left, and all under 400 Hz kept in the middle.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Three slowing', params: { depth: 0.8, offset: 90 } },
+      { deviceId: 'spread', preset: 'Firm bass', params: { output: 4 } },
+    ],
+  },
+  {
+    id: 'six-a-second-slowing',
+    name: 'Six a second, slowing',
+    category: 'motion',
+    description:
+      'Six pulses a second at half depth, with three and twelve beside them, all sliding down an octave every thirty seconds in a short room.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Six a second' },
+      { deviceId: 'fdn-reverb', preset: 'Short ambience' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
+  {
+    id: 'eight-a-second-rising',
+    name: 'Eight a second, rising',
+    category: 'motion',
+    description:
+      'A small room, then eight pulses a second that seem to quicken for ever: each fades as it doubles and a slower one takes over.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Room' },
+      { deviceId: 'winding-down', preset: 'Eight quickening' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
+  {
+    id: 'eighths-slowing-in-time',
+    name: 'Eighths slowing in time',
+    category: 'motion',
+    description:
+      'At 120 beats a minute: eighth notes that seem to halve their pace every eight bars, with a clean echo a dotted quarter behind.',
+    effects: [
+      {
+        deviceId: 'winding-down',
+        preset: 'Four slowing',
+        params: { halving: 16, layers: 3, depth: 0.8, edge: 10 },
+      },
+      { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 750, mix: 0.3 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'slowing-without-end',
+    name: 'Slowing without end',
+    category: 'motion',
+    description:
+      'Five layers of a deep pulse halve their pace every eight seconds, each fading out below as a quicker one fades in above, on a dark plate.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Ever slower' },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.3 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 5 } },
+    ],
+  },
+  {
+    id: 'quickening-without-end',
+    name: 'Quickening without end',
+    category: 'motion',
+    description:
+      'Five layers of a deep pulse double their pace every eight seconds, the quickest fading out as a slow one fades in, in a bright hall.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Ever quicker' },
+      { deviceId: 'hall-reverb', preset: 'Bright hall', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 4 } },
+    ],
+  },
+  {
+    id: 'two-crossing-in-a-cloud',
+    name: 'Two crossing in a cloud',
+    category: 'motion',
+    description:
+      'One deep pulse crosses over to its double every ten seconds, swelling about a decibel once each time, blurred by a short cloud.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Two crossing' },
+      { deviceId: 'fog', preset: 'Short blur' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
 ]

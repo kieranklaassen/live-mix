@@ -12,10 +12,13 @@ import {
   emptyVisualSet,
   receiveVisuals,
   sendVisuals,
+  setVisualGrain,
   showVisuals,
   visualsReady,
   type DeskReading,
   type FollowedStroke,
+  type PerformReading,
+  type VisualFilter,
   type VisualFrame,
   type VisualSet,
 } from '@kieranklaassen/live-mix/visuals'
@@ -38,6 +41,8 @@ export interface Measured {
   lit: number
   /** How far its pixels differ from one another, as the standard deviation of their brightness. */
   spread: number
+  /** How far a pixel differs from the one beside it on average, 0 to 255: the fine detail of the picture. */
+  detail: number
 }
 
 function measure(context: CanvasRenderingContext2D): Omit<Measured, 'drawn'> {
@@ -46,14 +51,24 @@ function measure(context: CanvasRenderingContext2D): Omit<Measured, 'drawn'> {
   let sum = 0
   let squares = 0
   let lit = 0
+  let steps = 0
+  let before = 0
   for (let at = 0; at < data.length; at += 4) {
     const bright = (data[at] + data[at + 1] + data[at + 2]) / 3
     sum += bright
     squares += bright * bright
     if (Math.max(data[at], data[at + 1], data[at + 2]) > 12) lit += 1
+    // Not across the edge of the picture, where one row ends and the next starts.
+    if ((at / 4) % WIDTH !== 0) steps += Math.abs(bright - before)
+    before = bright
   }
   const mean = sum / count
-  return { mean, lit: lit / count, spread: Math.sqrt(Math.max(0, squares / count - mean * mean)) }
+  return {
+    mean,
+    lit: lit / count,
+    spread: Math.sqrt(Math.max(0, squares / count - mean * mean)),
+    detail: steps / (count - HEIGHT),
+  }
 }
 
 /** Three strokes that sound for the whole of the piece: a drone at the back, a pad in the middle, a melody in front. */
@@ -97,16 +112,11 @@ const nextFrame = (): Promise<void> => new Promise((resolve) => setTimeout(resol
 
 /** Paints frames of `frameAt` until the picture draws, then looks at a few more and measures the brightest. */
 async function look(frameAt: (nowMs: number) => VisualFrame): Promise<Measured> {
-  const canvas = document.createElement('canvas')
-  canvas.width = WIDTH
-  canvas.height = HEIGHT
-  const context = canvas.getContext('2d', { willReadFrequently: true })
-  if (!context) throw new Error('no 2D context')
-  const stage = createStage()
+  const { context, stage } = screen()
   let now = 1000
   let waited = 0
   while (stage.paint(context, frameAt(now), 1)) {
-    if (++waited > WAIT_FRAMES) return { drawn: false, mean: 0, lit: 0, spread: 0 }
+    if (++waited > WAIT_FRAMES) return { drawn: false, mean: 0, lit: 0, spread: 0, detail: 0 }
     now += FRAME_MS
     await nextFrame()
   }
@@ -132,8 +142,93 @@ function seenOn(canvas: HTMLCanvasElement): Measured {
   return { drawn: seen.lit > 0, ...seen }
 }
 
+/** A canvas of the size every picture here is measured at, with a stage of its own. */
+function screen() {
+  const canvas = document.createElement('canvas')
+  canvas.width = WIDTH
+  canvas.height = HEIGHT
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (!context) throw new Error('no 2D context')
+  return { context, stage: createStage() }
+}
+
+/** One frame of a piece with that style and no grain, once the style draws: the same frame for every screen. */
+async function still(style: string, bend: string | null): Promise<VisualFrame | null> {
+  let set = setVisualGrain(addVisual(emptyVisualSet(), style).set, 0)
+  if (bend !== null) set = addVisual(set, bend).set
+  const desk = new VisualDesk(() => reading(set, 4000))
+  const { context, stage } = screen()
+  let waited = 0
+  while (stage.paint(context, desk.frame(4000), 1)) {
+    if (++waited > WAIT_FRAMES) return null
+    await nextFrame()
+  }
+  return desk.frame(4000)
+}
+
 const harness = {
   ready: (): boolean => visualsReady(),
+
+  /** The same frame of one style painted as it is and with a filter, each on a screen of its own. */
+  async filtered(
+    style: string,
+    filter: VisualFilter,
+  ): Promise<{ plain: Measured; filtered: Measured } | null> {
+    const frame = await still(style, null)
+    if (!frame) return null
+    const plain = screen()
+    const other = screen()
+    plain.stage.paint(plain.context, frame, 1)
+    other.stage.paint(other.context, { ...frame, filter }, 1)
+    return {
+      plain: { drawn: true, ...measure(plain.context) },
+      filtered: { drawn: true, ...measure(other.context) },
+    }
+  },
+
+  /**
+   * What Trails keeps of a filtered picture. One frame under Trails is painted so many times with a filter and
+   * then once without (`under`, then `after`), and as often on a screen of its own with no filter at all
+   * (`never`). Where the filter is not in what the stage keeps, the two screens end on the same picture.
+   */
+  async kept(
+    style: string,
+    filter: VisualFilter,
+    times: number,
+  ): Promise<{ under: Measured; after: Measured; never: Measured } | null> {
+    const frame = await still(style, 'trails')
+    if (!frame) return null
+    const one = screen()
+    const other = screen()
+    for (let time = 0; time < times; time++) {
+      one.stage.paint(one.context, { ...frame, filter }, 1)
+      other.stage.paint(other.context, frame, 1)
+    }
+    const under = measure(one.context)
+    one.stage.paint(one.context, frame, 1)
+    other.stage.paint(other.context, frame, 1)
+    return {
+      under: { drawn: true, ...under },
+      after: { drawn: true, ...measure(one.context) },
+      never: { drawn: true, ...measure(other.context) },
+    }
+  },
+
+  /** A piece's picture with a performance over it: the dials where they are put, and what the host reads. */
+  async performed(
+    style: string,
+    perform: PerformReading,
+    dials: { energy: number; space: number; tone: number },
+  ): Promise<Measured> {
+    const set = addVisual(emptyVisualSet(), style).set
+    let now = 0
+    const desk = new VisualDesk(() => ({ ...reading(set, now), ...dials, perform }))
+    return look((nowMs) => {
+      now = nowMs
+      return desk.frame(nowMs)
+    })
+  },
+
   styles: (): string[] => VISUAL_STYLES.map((style) => style.id),
   bends: (): string[] => VISUAL_BENDS.map((bend) => bend.id),
 
@@ -169,7 +264,7 @@ const harness = {
       now = nowMs
       return desk.frame(nowMs)
     })
-    if (!stop) return { started: false, drawn: false, mean: 0, lit: 0, spread: 0 }
+    if (!stop) return { started: false, drawn: false, mean: 0, lit: 0, spread: 0, detail: 0 }
     await new Promise((resolve) => setTimeout(resolve, forMs))
     stop()
     return { started: true, ...seenOn(canvas) }
@@ -205,6 +300,7 @@ const harness = {
         mean: 0,
         lit: 0,
         spread: 0,
+        detail: 0,
       }
     }
     await new Promise((resolve) => setTimeout(resolve, forMs))

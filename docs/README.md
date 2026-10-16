@@ -34,6 +34,7 @@ the reference documents.
 | [Live input and ducking](./concepts/live-input.md)                | Pass-through tracks, monitoring latency, the two duckers, recording a take                                                              |
 | [Samples, memory and streaming](./concepts/samples-and-memory.md) | The sample store's budget and holds, streaming beds through media elements, the iPhone story                                            |
 | [Rendering and export](./concepts/render.md)                      | Offline render equals live; stems; score bounces; WAV; recorders as taps; the golden layers                                             |
+| [Beats and pulses](./concepts/beats-and-pulses.md)                | The nine beat and breath devices by technique; what research has and has not found; where a two-ear beat survives in a mix; cautions    |
 
 ## Recipes
 
