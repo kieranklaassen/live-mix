@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { decodeWav, encodeWav, readWavInfo } from '../../../src/core/render/encode.ts'
 import type { Lab, RenderResult } from '../../src/lab/runner.ts'
 import { readSettings, resolveSet } from '../../src/lib/settings.ts'
 import {
@@ -179,6 +180,10 @@ describe('bit depth and dither', () => {
     expectWritten(range(tap(result, 'errorLevel')).span, '12.4 dB')
     expectWritten(range(tap(result, 'ditheredLevel')).span, '0.6 dB')
     expectWritten(levelOf(result, 'ditheredError'), '−36.1 dB')
+    // It is higher than the error of plain rounding at its highest.
+    expect(range(tap(result, 'ditheredLevel')).lo).toBeGreaterThan(
+      range(tap(result, 'errorLevel')).hi + 3,
+    )
     // From 1.5 s on the rounded output is silence, so the error is the chord itself, turned over.
     const [error, level] = [tap(result, 'errorLevel'), tap(result, 'inLevel')]
     // The meter still remembers a little of the error from before the output stopped.
@@ -204,14 +209,18 @@ describe('bit depth and dither', () => {
     expect(peak(tap(await played(theLab, 'small', { level: -24 }), 'rounded'))).toBeGreaterThan(0)
   })
 
-  it('with dither brings that tone out at −42 dB, less than 0.1 dB from where it went in, in a hiss that reads −35.6 dB (claim small-kept)', async () => {
+  it('with dither brings that tone out with its peaks at −42 dB, less than 0.1 dB from where they went in, a level of −45 dB, in a hiss whose level reads −36.1 dB (claim small-kept)', async () => {
     const theLab = await lab(NAME)
     const result = await played(theLab, 'smallDithered')
     const [went, came] = [tone(tap(result, 'in'), 440), tone(tap(result, 'dithered'), 440)]
     expectWritten(went, '−42 dB')
     expectWritten(came, '−42 dB')
     expectWritten(Math.abs(came - went), 'less than 0.1 dB')
-    expectWritten(levelOf(result, 'dithered'), '−35.6 dB')
+    // The tone's level, as every level on the page is read: 3 dB under its peaks.
+    expectWritten(levelOf(result, 'in'), '−45 dB')
+    // The hiss is what came out less what went in. The tone is no part of it.
+    expectWritten(levelOf(result, 'ditheredError'), '−36.1 dB')
+    expect(tone(tap(result, 'ditheredError'), 440)).toBeLessThan(came - 20)
   })
 
   // ---- part 2: the stair ----------------------------------------------------------------------
@@ -299,6 +308,11 @@ describe('bit depth and dither', () => {
     expect([...new Set(built(3))].sort()).toEqual([0.28125, 0.3125, 0.34375])
     expectWritten(mean(built(3)), '0.3001')
     expect(matchesWritten(mean(built(2)), '0.3001')).toBe(false)
+    // The nearest level is written most often, the next nearest less often, the third least.
+    const share = (value: number) => built(3).filter((v) => v === value).length / seconds(1)
+    expect(share(0.3125)).toBeGreaterThan(share(0.28125))
+    expect(share(0.28125)).toBeGreaterThan(share(0.34375))
+    expect(share(0.34375)).toBeGreaterThan(0)
     // The engine's own quantiser, on the main path, does the same.
     expectWritten(mean(tap(theLab.render(level, {}), 'dithered')), '0.3001')
   })
@@ -331,7 +345,7 @@ describe('bit depth and dither', () => {
     expect(mean(tap(theLab.render(level, { build: 4 }), 'built'))).toBeCloseTo(0.3, 5)
   })
 
-  it("with rounding and dither is the engine's own 16-bit store at the store's step: the fourth step is the one compared, the bound is −120 dB, and the two are the same sample for sample (claim build-same)", async () => {
+  it("with rounding and dither is the engine's own 16-bit store at the store's step: the fourth step is the one compared, the bound is −120 dB, and the two differ on 0 samples (claim build-same)", async () => {
     const theLab = await lab(NAME)
     const tried: Record<string, number>[] = [
       {},
@@ -345,8 +359,10 @@ describe('bit depth and dither', () => {
         const result = theLab.render(source, values)
         expect(result.checks.builtStep).toBe(3)
         expect(result.checks.builtBound).toBe(-120)
-        // −140 dB is the floor of the reading: no difference at all.
+        // −140 dB is the floor of the reading: a difference more than 140 dB down, or none.
         expect(result.checks.builtDifference).toBe(-140)
+        // So the lab counts the samples on which the two are not the same number.
+        expectWritten(result.checks.storeApart!, '0')
       }
     }
     // The main path's `dithered` is that store too, with one of its steps standing for one of
@@ -401,6 +417,17 @@ describe('bit depth and dither', () => {
     expectWritten(readAt(result, 'stairs', 1), '1')
   })
 
+  it("bends a level over the top in the device's input stage before the stair gets it: a steady 1.25 comes out of the running device at 6 bits as 1.0625 (claim device-top)", async () => {
+    const theLab = await lab(NAME)
+    const out = tap(theLab.render(steady(1.25, seconds(1)), {}), 'rounded')
+    expectWritten(out[0]!, '1.0625')
+    expect(out.every((v) => v === out[0])).toBe(true)
+    // Full scale itself goes through as it is.
+    expect(tap(theLab.render(steady(1, seconds(1)), {}), 'rounded').every((v) => v === 1)).toBe(
+      true,
+    )
+  })
+
   it('measures the error of plain rounding on white noise at 6 bits at −40.9 dB (claim error-size), and with dither at −36.1 dB, 4.8 dB more (claim dither-cost)', async () => {
     const theLab = await lab(NAME)
     const result = theLab.render(await loop('noise'), {})
@@ -412,6 +439,11 @@ describe('bit depth and dither', () => {
       0.05,
     )
     expect(Math.abs(levelOf(result, 'ditheredError') - gainToDb(2 ** -6))).toBeLessThan(0.05)
+    // The cost is the same at other numbers of bits, on a sound that crosses many treads.
+    for (const bits of [4, 8, 12, 16]) {
+      const other = theLab.render(await loop('noise'), { bits })
+      expectWritten(levelOf(other, 'ditheredError') - levelOf(other, 'error'), '4.8 dB')
+    }
   })
 
   it('gains 6.0 dB for each bit: a full-scale sine at 997 Hz stands 38.1 dB over the error at 6 bits, 50.0 dB at 8 bits and 98.1 dB at 16 bits (claim six-a-bit)', async () => {
@@ -436,8 +468,12 @@ describe('bit depth and dither', () => {
     const harmonic = (n: number) => tone(out, 440 * n)
     expectWritten(harmonic(11), '−31.1 dB')
     expectWritten(harmonic(1) - harmonic(11), '19.4 dB')
-    // No odd harmonic up to the 21st is stronger, and the even ones are not there at all.
-    for (let n = 3; n <= 21; n += 2) expect(harmonic(n)).toBeLessThanOrEqual(harmonic(11))
+    // The loop repeats every fortieth of a second, so every line it can hold stands on a multiple
+    // of 40 Hz, the harmonics that fold back among them. None but the tone is stronger.
+    for (let hz = 40; hz < RATE / 2; hz += 40) {
+      if (hz !== 440 && hz !== 4840) expect(tone(out, hz), `${hz} Hz`).toBeLessThan(harmonic(11))
+    }
+    // The even harmonics are not there at all.
     for (const n of [2, 4, 6]) expect(harmonic(n)).toBeLessThan(-90)
   })
 
@@ -447,6 +483,13 @@ describe('bit depth and dither', () => {
     const drop = tone(tap(result, 'rounded'), 4840) - tone(tap(result, 'dithered'), 4840)
     expectWritten(drop, 'more than 35 dB')
     expectWritten(bins(theLab, 'ditheredError').span, '3.4 dB')
+    // Nothing stands out of the hiss there: the output holds no more at 4,840 Hz than at the
+    // strongest of forty frequencies beside it, 7 Hz apart, where no harmonic can fall.
+    let beside = -Infinity
+    for (let k = -20; k <= 20; k += 1) {
+      if (k !== 0) beside = Math.max(beside, tone(tap(result, 'dithered'), 4840 + 7 * k))
+    }
+    expect(tone(tap(result, 'dithered'), 4840)).toBeLessThan(beside)
     // Without dither the same bins are spread over far more.
     expect(bins(theLab, 'error').span).toBeGreaterThan(60)
   })
@@ -489,14 +532,19 @@ describe('bit depth and dither', () => {
     expect(plain(0.296875)).toBe(2 ** -6)
   })
 
-  it("works the store's dither out again and finds its answer the nearest step on 0 samples (claim dither-held), and reads the store's own floor at −90.3 dB (claim store-floor)", async () => {
+  it("works the store's dither out again and finds its answer not the nearest step on 0 samples (claim dither-held), and reads the store's own floor at −90.3 dB, as the page's error with dither reads at 15 bits (claim store-floor)", async () => {
     const theLab = await lab(NAME)
-    for (const id of [...LOOPS, 'sine', 'noise']) {
+    for (const id of [...LOOPS, 'sine', 'saw', 'noise']) {
       for (const values of [{}, { bits: 16 }, { bits: 4, level: -30 }]) {
         const result = theLab.render(await loop(id), values)
         expectWritten(result.checks.ditherHeld!, '0')
         expectWritten(result.checks.storeFloor!, '−90.3 dB')
       }
+      // The store's step is the page's step at 15 bits, to one part in 32,767.
+      expectWritten(
+        levelOf(theLab.render(await loop(id), { bits: 15 }), 'ditheredError'),
+        '−90.3 dB',
+      )
     }
   })
 
@@ -510,6 +558,16 @@ describe('bit depth and dither', () => {
     const small = await played(theLab, 'smallDithered')
     expect(Math.abs(tone(tap(small, 'shaped'), 440) - tone(tap(small, 'in'), 440))).toBeLessThan(
       0.1,
+    )
+    // The card that plays the shaped sound, at 8 bits: more error than dither alone over the
+    // whole band, less of it below 4 kHz and more above 12 kHz.
+    const lifted = await played(theLab, 'lifted')
+    expect(levelOf(lifted, 'shapedError')).toBeGreaterThan(levelOf(lifted, 'ditheredError') + 2.5)
+    expect(band(theLab, 'shapedError', 20, 4000)).toBeLessThan(
+      band(theLab, 'ditheredError', 20, 4000) - 9,
+    )
+    expect(band(theLab, 'shapedError', 12000, 24000)).toBeGreaterThan(
+      band(theLab, 'ditheredError', 12000, 24000) + 4,
     )
   })
 
@@ -534,15 +592,17 @@ describe('bit depth and dither', () => {
     }
   })
 
-  it('on the tail card holds the error with dither between −48.4 dB and −47.8 dB while the chord falls to −51.4 dB at 1.95 s, under it (claim use-tail)', async () => {
+  it('on the tail card holds the error with dither between −48.4 dB and −47.8 dB while the chord falls to −51.4 dB at 1.95 s, under it, and its strongest partial there comes out less than 1 dB from its size (claim use-tail)', async () => {
     const theLab = await lab(NAME)
     const result = await played(theLab, 'tail')
     const hiss = range(tap(result, 'ditheredLevel'))
     expectWritten(hiss.lo, '−48.4 dB')
     expectWritten(hiss.hi, '−47.8 dB')
     expectWritten(tap(result, 'inLevel')[points(1.95)]!, '−51.4 dB')
+    // The second ring passes under the hiss too, at the loop's end.
+    expect(tap(result, 'inLevel')[points(3.99)]!).toBeLessThan(hiss.lo)
     // And the chord is still in what comes out: its strongest partial there, found in the input,
-    // is in the dithered output at the same size to within 1 dB.
+    // is in the dithered output at the same size.
     const from = seconds(1.5)
     const to = seconds(1.95)
     const [went, came] = [
@@ -551,7 +611,9 @@ describe('bit depth and dither', () => {
     ]
     let best = 80
     for (let hz = 80; hz <= 1000; hz += 1) if (tone(went, hz) > tone(went, best)) best = hz
-    expect(Math.abs(tone(came, best) - tone(went, best))).toBeLessThan(1)
+    expectWritten(Math.abs(tone(came, best) - tone(went, best)), 'less than 1 dB')
+    // It is a partial and not the hiss: it stands well over the hiss in that band.
+    expect(tone(came, best)).toBeGreaterThan(tone(came, best + 7) + 10)
   })
 
   it('on the gaps card finds the longest gap of the drums exact silence for 236 ms when rounded alone at 8 bits, and a hiss at −48.2 dB there with dither (claim use-gaps)', async () => {
@@ -565,11 +627,23 @@ describe('bit depth and dither', () => {
     )
   })
 
-  it('on the quiet card, with Level in at −24 dB at 8 bits, writes a pad whose largest sample is 2.9 steps tall on 8 values, with 55 % of the samples exactly zero, and the pad stands 7.2 dB over the error (claim use-quiet)', async () => {
+  it('on the quiet card, with Level in at −24 dB at 8 bits, writes a pad whose largest sample is 2.9 steps tall on 7 levels, three either side of zero, with 55 % of the samples exactly zero, and the pad stands 7.2 dB over the error (claim use-quiet)', async () => {
     const theLab = await lab(NAME)
     const result = await played(theLab, 'quiet')
     expectWritten(peak(tap(result, 'in')) / 2 ** -7, '2.9')
-    expectWritten(valuesOf(tap(result, 'rounded')), '8')
+    // Counted as levels of the stair. The device's output can stand the last digit of a float
+    // off a level, which a count of different floats would take for a level of its own.
+    const step = 2 ** -7
+    const levels = new Set<number>()
+    let off = 0
+    for (const v of tap(result, 'rounded')) {
+      const level = Math.round(v / step)
+      levels.add(level)
+      off = Math.max(off, Math.abs(v - level * step))
+    }
+    expectWritten(levels.size, '7')
+    expect([...levels].sort((a, b) => a - b)).toEqual([-3, -2, -1, 0, 1, 2, 3])
+    expect(off).toBeLessThan(step * 1e-6)
     expectWritten(zeroShare(tap(result, 'rounded')), '55 %')
     expectWritten(over(result), '7.2 dB')
   })
@@ -617,10 +691,48 @@ describe('bit depth and dither', () => {
     expect([...new Set(tap(quiet, 'dithered'))].sort()).toEqual([-0.03125, 0, 0.03125])
   })
 
-  it('finds the error of plain rounding already steady on a sound many steps tall: on the chords at 12 bits its level holds within 0.5 dB (claim myth-steady)', async () => {
+  it('finds the error of plain rounding already steady on a sound many steps tall: on the chords at 12 bits its level holds within 0.5 dB, and the level of the error with dither within 0.6 dB (claim myth-steady)', async () => {
     const theLab = await lab(NAME)
     const result = await played(theLab, 'ring', { bits: 12 })
     expectWritten(range(tap(result, 'errorLevel')).span, '0.5 dB')
+    expectWritten(range(tap(result, 'ditheredLevel')).span, '0.6 dB')
+  })
+
+  it("reads the engine's file writer: 16 bits unless asked for more, one rounding and no dither, so that the end of a fade under half a step is written as exact silence (claim file-fade)", () => {
+    // A 440 Hz tone that dies away over a second, from a hundredth of full scale to a millionth.
+    const fade = new Float32Array(RATE)
+    for (let i = 0; i < RATE; i += 1) {
+      fade[i] = 0.01 * 10 ** ((-4 * i) / RATE) * Math.sin((2 * Math.PI * 440 * i) / RATE)
+    }
+    const audio = { channels: [fade], sampleRate: RATE }
+    const file = encodeWav(audio)
+    expect(readWavInfo(file).bitDepth).toBe(16)
+    expect(readWavInfo(file).format).toBe('pcm')
+    // Each sample is the nearest whole number of 32,767ths, and nothing is added first: the
+    // numbers in the file are the rounding of the float, and the same every time.
+    const written = new Int16Array(file, readWavInfo(file).dataOffset, RATE)
+    expect(written.every((code, i) => code === Math.round(fade[i]! * 32767))).toBe(true)
+    expect(new Uint8Array(encodeWav(audio))).toEqual(new Uint8Array(file))
+    // Half a step of that file. Every sample of the fade under it is written as zero, and from
+    // the last sample over it to the end the file is exact silence while the fade goes on.
+    const half = 0.5 / 32767
+    const back = decodeWav(file).channels[0]!
+    let last = RATE - 1
+    while (Math.abs(fade[last]!) < half) last -= 1
+    expect(last).toBeLessThan(RATE - seconds(0.2))
+    expect(back.subarray(last + 1).every((v) => v === 0)).toBe(true)
+    expect(peak(fade.subarray(last + 1))).toBeGreaterThan(0)
+    expect(fade.every((v, i) => Math.abs(v) >= half || back[i] === 0)).toBe(true)
+    // Asked for 24 bits it writes them, with the same plain rounding; asked for 32, floats.
+    const fine = encodeWav(audio, { bitDepth: 24 })
+    expect(readWavInfo(fine).bitDepth).toBe(24)
+    expect(
+      decodeWav(fine).channels[0]!.every(
+        (v, i) => v === Math.fround(Math.round(fade[i]! * 8388607) / 8388608),
+      ),
+    ).toBe(true)
+    expect(readWavInfo(encodeWav(audio, { bitDepth: 32 })).format).toBe('float')
+    expect(decodeWav(encodeWav(audio, { bitDepth: 32 })).channels[0]).toEqual(fade)
   })
 
   it("starts the page's device table from the device's own defaults: the settings file's defaults are device.json's for the three controls the lab takes from the device", async () => {

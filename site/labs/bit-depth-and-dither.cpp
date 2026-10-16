@@ -15,13 +15,16 @@
 //   the first three do nothing, and the last two are no drive and all of the
 //   converted sound. The device reports 129 samples of latency; it is fed
 //   that much early, as a host does, so every tap lines up.
+//
+// Computed by a function of the engine that the lab calls on its own:
 // - `stairs` is that device's own quantiser function, called on a ramp.
 // - `dithered` is the quantiser of the 16-bit store of the device Echo Memory
 //   (cpp/devices/echo-memory/memory_store.h), the one place in the engine
-//   that dithers. Its step is fixed at 2 / 32767, so the lab turns the sound
-//   up on the way in and down by as much on the way out, so that one step of
-//   the store stands for one step of Bits. The dither and the rounding are
-//   the store's.
+//   that dithers. That device does not run here: the lab calls the function
+//   that writes its store. Its step is fixed at 2 / 32767, so the lab turns
+//   the sound up on the way in and down by as much on the way out, so that
+//   one step of the store stands for one step of Bits. The dither and the
+//   rounding are the store's.
 //
 // Written for the lesson:
 // - the errors (each output less the input) and their levels;
@@ -38,7 +41,8 @@
 // error; add dither; shape the noise. Two copies of it run. One is at the
 // step the reader chose and at the page's Bits, and is what the built taps
 // hold. The other stops at the dither and runs at the store's own step: its
-// output is compared on every render with a second store's ("builtDifference").
+// output is compared on every render with a second store's ("builtDifference"),
+// and the samples on which the two differ are counted ("storeApart").
 // The last piece is the lesson's own and has nothing in the engine to be
 // held to. The build's rounding is also held to Vintage Digital's own
 // rounding function on every sample (the "rounding" check).
@@ -46,7 +50,8 @@
 // One thing is done for the loop's sake: where the kept pass starts and where
 // it ends, every generator is seated again and the shaper forgets its last
 // error, so the 20 ms that are crossfaded across the wrap are the same noise
-// twice and the hiss does not dip there.
+// twice and the hiss does not dip there. The kept pass therefore starts as a
+// store does that has just been cleared.
 
 #include "lab.h"
 
@@ -80,14 +85,14 @@ lab::Control rate{"rate", "Rate", "Hz", 1000.0f, 48000.0f, 48000.0f, lab::kLog};
 
 lab::Tap in_tap{"in", "Input", lab::kAudio, lab::kSource, 2};
 lab::Tap in_level{"inLevel", "Level of the input", lab::kControl, lab::kLesson, 1, "dB"};
-lab::Tap stairs{"stairs", "Level out against level in", lab::kCurve, lab::kDevice, 1};
+lab::Tap stairs{"stairs", "Level out against level in", lab::kCurve, lab::kCalled, 1};
 lab::Tap stairs_error{"stairsError", "Error against level in", lab::kCurve, lab::kLesson, 1};
 lab::Tap dither_one{"ditherOne", "One random number", lab::kCurve, lab::kLesson, 1};
 lab::Tap dither_spread{"ditherSpread", "One random number less another", lab::kCurve, lab::kLesson, 1};
 lab::Tap dither_tap{"dither", "The dither alone", lab::kAudio, lab::kLesson, 2};
 lab::Tap dithered_error{"ditheredError", "Error with dither", lab::kAudio, lab::kLesson, 2};
 lab::Tap dithered_level{"ditheredLevel", "Level of the error with dither", lab::kControl, lab::kLesson, 1, "dB"};
-lab::Tap dithered{"dithered", "Rounded with dither", lab::kAudio, lab::kDevice, 2};
+lab::Tap dithered{"dithered", "Rounded with dither", lab::kAudio, lab::kCalled, 2};
 lab::Tap shaped_error{"shapedError", "Error with dither, shaped", lab::kAudio, lab::kLesson, 2};
 lab::Tap shaped_level{"shapedLevel", "Level of the shaped error", lab::kControl, lab::kLesson, 1, "dB"};
 lab::Tap shaped{"shaped", "Rounded with dither and shaping", lab::kAudio, lab::kLesson, 2};
@@ -102,6 +107,10 @@ lab::Check dither_held{"ditherHeld",
                        "dither worked out again",
                        ""};
 lab::Check store_floor{"storeFloor", "The error of the engine's store at its own step, against full scale", "dB"};
+lab::Check store_apart{"storeApart",
+                       "Samples on which the build's rounding and dither, at the store's own step, are not the "
+                       "store's answer",
+                       ""};
 
 lab::Tap built{"built", "The quantiser so far", lab::kAudio, lab::kLesson, 2};
 lab::Tap built_error{"builtError", "Error, as built", lab::kAudio, lab::kLesson, 2};
@@ -279,6 +288,7 @@ void lab_render(int frames) {
   double store_error = 0.0;
   double kept = 0.0;
   int unheld = 0;
+  int apart_samples = 0;
 
   const int start = frames > kRunIn ? frames - kRunIn : 0;
   const int total = lab::total();
@@ -324,6 +334,7 @@ void lab_render(int frames) {
       shaper.run(c, x[c]);
       if (keeps) {
         const double apart = static_cast<double>(held.out[c]) - stored;
+        if (held.out[c] != stored) ++apart_samples;
         built_apart += apart * apart;
         built_whole += static_cast<double>(stored) * stored;
         const double off = static_cast<double>(stored) - x[c];
@@ -358,6 +369,7 @@ void lab_render(int frames) {
   rounding.value = lab::ratio_db(rounding_apart, rounding_whole);
   build.difference.value = lab::ratio_db(built_apart, built_whole);
   dither_held.value = static_cast<float>(unheld);
+  store_apart.value = static_cast<float>(apart_samples);
   store_floor.value = kept > 0.0 ? lab::power_to_db(static_cast<float>(store_error / kept)) : lab::kFloorDb;
 
   spread_tap(dither_one, spread_one, drawn);
