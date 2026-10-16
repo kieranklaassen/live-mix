@@ -1,0 +1,145 @@
+{
+  "tile": {
+    "tap": "ring",
+    "picture": { "taps": ["fan"], "view": "spectrogram" }
+  },
+  "sets": {
+    "held": {
+      "label": "The chords as held",
+      "source": "pad",
+      "tap": "in"
+    },
+    "switched": {
+      "label": "Switched on and off",
+      "values": { "rate": 4, "shape": 2 },
+      "source": "pad",
+      "tap": "unslewed"
+    },
+    "swayed": {
+      "label": "Ridden up and down",
+      "values": { "rate": 4, "depth": 0.75 },
+      "source": "pad",
+      "tap": "tremolo"
+    },
+    "toneSlow": {
+      "label": "One tone, a slow wave",
+      "values": { "frequency": 4 },
+      "source": "sine",
+      "tap": "ring"
+    },
+    "toneFast": {
+      "label": "One tone, the wave at 100 Hz",
+      "values": { "frequency": 100 },
+      "source": "sine",
+      "tap": "ring"
+    },
+    "organ": {
+      "label": "A held chord, pulsing",
+      "values": { "rate": 5.5, "depth": 0.6, "smooth": 0.2 },
+      "source": "pad",
+      "tap": "tremolo"
+    },
+    "strum": {
+      "label": "A ringing guitar, shaking",
+      "values": { "rate": 6, "depth": 0.8, "shape": 1 },
+      "source": "chords",
+      "tap": "tremolo"
+    },
+    "chop": {
+      "label": "Chopped into sixteenths",
+      "values": { "rate": 8, "shape": 2, "smooth": 0.12 },
+      "source": "pad",
+      "tap": "tremolo"
+    },
+    "ears": {
+      "label": "From ear to ear",
+      "values": { "rate": 2, "phase": 180 },
+      "source": "guitar",
+      "tap": "tremolo"
+    },
+    "bell": {
+      "label": "Bells out of plain notes",
+      "values": {
+        "frequency": 261.63,
+        "ringDrift": 0.25,
+        "lowCut": 150,
+        "tone": 7000,
+        "width": 0.5,
+        "ringMix": 0.4
+      },
+      "source": "guitar",
+      "tap": "ring"
+    },
+    "clang": {
+      "label": "Drums turned to metal",
+      "values": { "frequency": 62, "wave": 2, "lowCut": 150, "tone": 5000, "ringMix": 1 },
+      "source": "drums",
+      "tap": "ring"
+    },
+    "intime": {
+      "label": "In time with the bar",
+      "values": { "rate": 4, "depth": 0.6, "shape": 1 },
+      "source": "mix",
+      "tap": "tremolo"
+    },
+    "shimmer": {
+      "label": "Harmonic: dark to bright",
+      "values": { "mode": 2, "rate": 3.4, "depth": 0.85, "drift": 0.2, "smooth": 0.2 },
+      "source": "pad",
+      "tap": "tremolo"
+    },
+    "pan": {
+      "label": "Pan: side to side",
+      "values": { "mode": 1, "rate": 0.5, "depth": 0.8, "smooth": 0.3 },
+      "source": "guitar",
+      "tap": "tremolo"
+    },
+    "halo": {
+      "label": "A halo over a pad",
+      "values": {
+        "frequency": 523.25,
+        "ringDrift": 0.4,
+        "tone": 5000,
+        "width": 0.8,
+        "ringMix": 0.12
+      },
+      "source": "pad",
+      "tap": "ring"
+    },
+    "sides": {
+      "label": "A slow carrier, wide",
+      "values": { "frequency": 0.5, "width": 1, "ringMix": 1 },
+      "source": "pad",
+      "tap": "ring"
+    },
+    "gong": {
+      "label": "Two carriers, a fifth apart",
+      "values": {
+        "frequency": 130.81,
+        "second": 1,
+        "ringDrift": 0.3,
+        "lowCut": 60,
+        "tone": 2500,
+        "width": 0.3,
+        "ringMix": 0.45
+      },
+      "source": "guitar",
+      "tap": "ring"
+    },
+    "sour": {
+      "label": "The chord is gone",
+      "values": { "frequency": 100, "ringMix": 1 },
+      "source": "chords",
+      "tap": "ring"
+    },
+    "buzz": {
+      "label": "A square, too fast",
+      "values": { "rate": 20, "shape": 2 },
+      "source": "pad",
+      "tap": "tremolo"
+    }
+  },
+  "defaults": {
+    "values": { "depth": 0.55, "drift": 0.15, "smooth": 0.2 }
+  }
+}

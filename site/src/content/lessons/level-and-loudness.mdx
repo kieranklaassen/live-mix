@@ -1,0 +1,912 @@
+---
+title: Level and loudness
+family: signals
+summary: A sound has a height, an average size and a loudness, and they are three different numbers. This lesson says what a decibel is, builds a meter a piece at a time until it reads loudness, then finds each of its readings in the engine's own code.
+opening:
+  input: tone
+  output: out
+  from: 0
+  span: 2
+  caption: Two seconds of each. The tone and the hits of the drums reach the same height. The tone is at that height all the time, and the drums only for a moment at each hit.
+lab: level-and-loudness
+devices: [utility, ambient-comp, ambient-limiter]
+bench:
+  device: utility
+  params: { gainDb: -6 }
+  as: insert
+  note: The plate is the engine's channel fader, the device called Utility. It opens with Gain at −6 dB, which is half the height, where the device starts by itself at 0 dB. Its Pan, Width and Polarity are left as they start. The meters of this lesson are not on the plate. They live inside two other devices and in the library's own meter, and part 5 says where.
+sources: [drums, pad, bass, chords, mix, guitar, noise, sine, clicks]
+seconds: 4
+files:
+  - src/core/devices/native/Utility.ts
+  - src/core/devices/native/units.ts
+  - cpp/kit/math.h
+  - cpp/kit/filters.h
+  - cpp/devices/ambient-limiter/ambient_limiter.h
+  - cpp/devices/true-peak-limiter/true_peak_limiter.h
+  - cpp/devices/ambient-comp/ambient_comp.h
+  - src/core/analysis/loudness.ts
+---
+
+<Part id="why" title="Two sounds can be equally tall and nowhere near equally loud.">
+
+The picture at the top of this page holds two sounds. One is a drum loop. The other is a steady tone, which the page makes so that its tallest sample is exactly as tall as the tallest sample of the drums. A meter that shows the top of the wave cannot tell them apart. Measured over the whole loop, <Claim id="equal-peaks">the tallest samples of the two are less than 0.01 dB apart, and the average size of the tone is 15.7 dB over that of the drums</Claim>. The unit is the decibel, and part 2 says exactly what it is. Until then, read a bigger number as a bigger difference.
+
+Turn your own volume down first, because the tone's level is far over that of the drums. Then listen to <Listen tap="tone">the tone</Listen> and to <Listen tap="out">the drums</Listen>.
+
+The reason is in the picture. A drum hit is a spike. It is at its height for an instant, and it has all but gone before the next one comes. The tone stands at its full height from the first sample to the last. An ear does not judge a sound by its single tallest moment. It answers to how much sound arrives over a stretch of time.
+
+The question this lesson answers is which number, read off a sound, says how loud it is. Answering it needs the unit all such numbers are written in, so the lesson also says what a decibel is, once and plainly. Two later lessons lean on that: <Lesson id="compression" />, and <Lesson id="limiting" />.
+
+### The obvious answer fails
+
+Two loops are meant for one piece of music: the drums, and a held pad. They should sit at the same loudness. The obvious way to match them is to look at the waves and bring both to the same height. On this page a control called Set by does that when it is on Peak: the page measures the loop and sets its fader so that the tallest sample stands at <Src path="site/labs/level-and-loudness.cpp" at="constexpr float kPeakAim = 0.5f;">half of full scale</Src>, the largest number a sample can be.
+
+<Still
+  taps="out"
+  set="tallDrums"
+  min={-0.6}
+  max={0.6}
+  caption="The drums, set by their peak. The hits reach half of full scale, and between the hits the wave is close to nothing."
+/>
+
+<Still
+  taps="out"
+  set="tallPad"
+  min={-0.6}
+  max={0.6}
+  caption="The pad, set by its peak, on the same scale. It reaches the same height and is near that height for most of the loop."
+/>
+
+Listen to the two, one after the other. First <Hear set="tallDrums" label="hear the drums, set by peak" />, then <Hear set="tallPad" label="hear the pad, set by peak" />.
+
+<Predict
+  question="The drums and the pad now reach exactly the same height. Which of the two does a loudness meter read higher?"
+  choices={['The drums', 'The pad', 'Neither: they are equally tall']}
+>
+
+The pad, and by a wide margin. <Claim id="by-peak">Set by Peak, the tallest samples of the drums and the pad are less than 0.01 dB apart, both at −6.02 dB against full scale. The pad still reads 6.0 dB higher in average size, and 6.8 LU higher on the loudness meter</Claim>. An LU is a loudness unit, and one of them is one decibel.
+
+The two pictures below draw the peak and the average size of each loop as lines against time, on one scale. The page calls the average size the level.
+
+<Still
+  taps="peak level"
+  set="tallDrums"
+  min={-60}
+  max={0}
+  caption="The drums, set by peak. The peak leaps up at each hit and soon lets go. The level rises after each hit, stays well under the top of it, and sags in every gap."
+/>
+
+<Still
+  taps="peak level"
+  set="tallPad"
+  min={-60}
+  max={0}
+  caption="The pad, set by peak, on the same scale. The two lines run close together all the way along: the pad is near its own height most of the time."
+/>
+
+</Predict>
+
+### What the fix measures
+
+A loudness meter is built to answer to what an ear answers to. It averages the sound over time. It counts the frequencies an ear hears well for more than the ones it hears badly. It leaves out the stretches where nothing is playing. Parts 4 and 5 build and open every one of those.
+
+With Set by on Loudness, the page sets each loop's fader from that reading. <Claim id="by-loudness">Both loops then read −20.0 LUFS, and the tallest sample of the drums stands 6.8 dB over the tallest sample of the pad</Claim>. LUFS is the loudness meter's scale, and part 2 comes back to its name. Compare the two again: <Hear set="evenDrums" label="hear the drums, set by loudness" /> and <Hear set="evenPad" label="hear the pad, set by loudness" />.
+
+Whether they now sound equally loud is for your ears to say. A meter's job is to get close enough that a small move of a fader finishes the work.
+
+### The height still matters
+
+None of this makes the peak a useless number. Sound in a computer has a top. A sample cannot be larger than full scale, and a wave that tries to go over it is cut off flat, which is distortion.
+
+So a sound has two numbers that matter and they answer different questions. The loudness says how it will be heard. The peak says whether it fits under that top. Matched for loudness, the drums of this page need that much more room over their heads than the pad does. Mixing is, in good part, the work of keeping both numbers where they should be, and the two lessons named above are about the tools for it.
+
+### Four readings and a fader
+
+The page has one loop playing through one fader, and four readings of what comes out.
+
+- **Peak** is the tallest sample of the last moments.
+- **The peak between the samples** is the tallest point of the smooth wave that the samples stand for, which can lie between two of them. Its usual name is the true peak, and <Lesson id="limiting" /> calls it that.
+- **Level** is the average size of the wave over a stretch of time. Step 2 of part 4 builds it, and gives it its short name, RMS.
+- **Loudness** is a level taken after the sound has been weighted the way an ear weights it, with the silences left out.
+
+The Fader is a gain, counted in decibels. Set by lets one of the readings set it. Beside the loop runs the tone of the opening picture, always exactly as tall as what comes out, so that every picture has two sounds with equal peaks to compare.
+
+The Fader goes up to <Src path="site/labs/level-and-loudness.cpp" at={'lab::Control fader{"fader", "Fader"'}>12 dB</Src>, which is enough to push a loop over the top: <Claim id="fader-top">with the Fader at 12 dB the tallest sample of the drums stands 8.2 dB over full scale</Claim>. The readings and the pictures go on counting up there. The page's player does not. With its volume full up it <Src path="site/src/lab/player.ts" at="export const volumeGain = (volume: number) => 0.5 * volume * volume">plays at half gain</Src>, which leaves room for a wave twice as tall as full scale, and a wave taller than that is cut off flat in your ear, though not in the pictures.
+
+</Part>
+
+<Part id="picture" title="One fader, marked twice: in decibels, and in what it multiplies by.">
+
+A fader does one thing: it multiplies every sample by the same number. The picture below is a fader's scale laid on its side. Along the bottom it is marked in decibels. Along the top it is marked with the number each of those decibels multiplies by. The two sounds of the opening stand on it, a row each. A bar reaches as far as the sound's level, and a tick stands at its tallest sample.
+
+<Controls ids="fader setBy toneHz" />
+
+<FaderScale
+  rows={[
+    { tap: 'out:out', peak: 'samplePeak', level: 'loopLevel', loudness: 'loopLoudness' },
+    { tap: 'tone:in', peak: 'tonePeak', level: 'toneLevel', loudness: 'toneLoudness' },
+  ]}
+  gain="gain"
+>
+  The loop that is playing and the tone, measured over the whole loop. The ticks stand one over the
+  other, because the two are equally tall. The bars end far apart. Try Fader at −6 dB, and notice
+  both bars and both ticks move 6 dB to the left, with the distance between them unchanged.
+  The marker on the top edge is the gain.
+</FaderScale>
+
+Check this against the picture. Put Fader at −6 dB. The marker now stands under the mark for times 0.5 on the top edge, and the table under the picture gives the gain as a number to multiply by. Measured on the drums, <Claim id="minus-six">with the Fader at −6 dB the output is 0.501 times as tall</Claim> as with it at 0 dB, and <Claim id="six-all">each of the four readings, the tallest sample, the tallest point of the wave, the level and the loudness, is lower by 6.00 dB</Claim>. A fader moves every reading by the same amount, and the amount is the number on the fader. Only far down its travel does the loudness stop following, where the meter takes what is left for silence, as step 6 of part 4 explains.
+
+Now try Set by. On Peak the ticks jump to −6 dB, whatever loop is playing. On Level and on Loudness it is the bar of the loop, or the loudness in the table, that is brought to a fixed place, and the tick lands wherever it must. The tone follows the loop's tallest sample every time.
+
+### What a decibel is
+
+A decibel is a way of writing how many times bigger one thing is than another. It is not an amount of sound. It is a ratio, and it is written so that multiplying becomes adding.
+
+Start from the Fader. Raise it by 6 dB and the sound is twice as tall. Raise it by 6 dB again and it is twice as tall again, which is four times. Measured on the drums, <Claim id="plus-six">a Fader at 6 dB makes the output 1.995 times as tall, and at 12 dB 3.98 times</Claim>. Going down, each 20 dB is a tenth: <Claim id="minus-twenty">at −20 dB the output is 0.100 times as tall, and at −40 dB 0.0100 times</Claim>. Equal steps of the Fader are equal multiplications.
+
+<Curve
+  taps="law"
+  uprights="fader"
+  xTitle="Fader, dB"
+  yTitle="times"
+  min={0}
+  max={4}
+  height={300}
+>
+  The number the Fader multiplies by, at each of its decibels, worked out by the kit's own
+  function. Try Fader at 6 dB and then at 12 dB, and notice the dashed line meet the curve at 2 and
+  then at about 4. Each 6 dB to the right doubles the height of the curve.
+</Curve>
+
+Here is the rule that the curve draws, with <M t="a" /> and <M t="b" /> any two heights and <M t="d" /> the decibels between them.
+
+<M block t={String.raw`d = 20 \log_{10} \frac{a}{b}`} />
+
+Read it from the inside out. <M t="a/b" /> is how many times as tall <M t="a" /> is as <M t="b" />. The logarithm counts tens: it is 1 when that ratio is ten, 2 when it is a hundred and 3 when it is a thousand. It is 0 when the two are equal, and it goes below zero when <M t="a" /> is the smaller. The 20 in front sets the size of the unit, so that ten times as tall is 20 dB. Twice as tall comes out as 6.02 dB, which everyone calls 6.
+
+The Fader uses the same rule the other way round. Its setting <M t="F" /> is a number of decibels, and the sound is multiplied by the gain <M t="g" /> that those decibels stand for.
+
+<M block t={String.raw`g = \at{kit-gain}{10^{F/20}}`} />
+
+Every 20 dB in <M t="F" /> adds one to the power of ten, so it multiplies <M t="g" /> by ten. The engine's kit has both directions as one line each, and the curve above is drawn with the first of them. It multiplies by 0.05 where the formula divides by 20, which is the same thing.
+
+<Listing
+  path="cpp/kit/math.h"
+  from="inline float db_to_gain(float db)"
+  to="inline float gain_to_db(float gain)"
+  name="kit"
+  at={{ gain: 'inline float db_to_gain(float db)', db: 'inline float gain_to_db(float gain)' }}
+/>
+
+### Decibels add where gains multiply
+
+This is why sound is counted this way. Two gains one after the other multiply: half of a half is a quarter. In decibels the same two gains add: −6 and −6 is −12. A chain of ten devices is ten multiplications, and in decibels it is a sum that can be done in the head. When a compressor turns a sound down by 9 dB and a gain after it turns it up by 9 dB, the two cancel exactly, and nobody has to work out a product.
+
+There is a second reason, and it is one to hear. Press Play, move the Fader from −24 dB to −18 dB, and then from −6 dB to 0 dB. Each move doubles the height of the sound. As heights, the second move is eight times as large as the first. Judge for yourself whether it sounds eight times as large, or whether the two steps seem much alike. A scale in decibels gives equal room to equal ratios, and that is the scale a meter is marked in.
+
+### Nought decibels is not silence
+
+A gain of 0 dB is a ratio of one. It multiplies by 1 and changes nothing. That is why a fader's resting place is marked 0, and why the Fader of this page starts there.
+
+Silence is a gain of zero, and no number of decibels reaches it. Each 20 dB down is another tenth, and a tenth of something is never nothing. A real fader has to cheat at the bottom of its travel. The engine's channel fader goes down to <Src path="src/core/devices/native/Utility.ts" at="min: -60,">−60 dB</Src>, which is a thousandth, and at that last position it is shut: it multiplies by zero. The Fader of this page does the same. Try it at its lowest, and notice the table say so.
+
+### A decibel always compares with something
+
+By itself, "12 dB" says how far apart two things are. That is all a fader, a gain or a difference between two readings needs.
+
+When a number in decibels describes one sound, something fixed has to stand in for the other. For samples in a computer that fixed thing is full scale, the largest number a sample can be. A height written as decibels against full scale is 0 for a sample at the very top and negative for everything else. Its short name is dBFS. On this page, every peak and every level is written that way, and that is why they are all below zero.
+
+The loudness meter's readings are in LUFS, which stands for loudness units against full scale. It is the same decibel and the same reference. The different name is a warning that the sound was weighted before it was measured, so the reading is not the level and should not be compared with one. A difference between two loudness readings is written in LU, loudness units, and one LU is one dB: move a fader by 1 dB and the loudness moves by 1 LU.
+
+### Twenty for heights, ten for powers
+
+One more thing explains a number that would otherwise look like a mistake. Some formulas on this page have 10 in front of the logarithm where the one above has 20.
+
+The power of a sound goes with the square of its height: twice as tall is four times the power. A level meter works with squares, as part 4 shows, so what it holds is a power. The logarithm of a square is twice the logarithm, and the 10 makes up for it.
+
+<M block t={String.raw`10 \log_{10} \frac{a^2}{b^2} = 20 \log_{10} \frac{a}{b}`} />
+
+Both sides are the same number of decibels. Use 20 for anything that multiplies a sample, such as a height or a gain. Use 10 for anything that is already a square, such as a power or an average of squares. Then a decibel means one thing whichever was measured.
+
+</Part>
+
+<Part id="uses" title="Four kinds of sound, and what the readings make of each.">
+
+The four readings fall differently on different kinds of sound, and the distances between them say what kind of sound it is. Each card below takes one loop, sets it by its loudness and plays it. <Claim id="even">All five loops that this page sets that way read −20.0 LUFS</Claim>, so the cards can be compared with each other by ear. A card's button moves the whole page to its setting, and the play bar offers the way back.
+
+What differs is the height each loop needs to get there. <Claim id="even-peaks">Set by loudness, the tallest sample of the five lies between −9.6 dB, which is the pad, and −2.7 dB, which is the mix</Claim>.
+
+<Uses>
+  <Use title="Drums" set="evenDrums">
+    <Still
+      slot="picture"
+      taps="peak level"
+      set="evenDrums"
+      min={-60}
+      max={0}
+      caption="The drums, set by loudness. The peak stands far over the level at every hit, and the level sags in each gap."
+    />
+
+    Hits are tall and short, with little between them. The peak and the level of such a sound are a long way apart, and that distance has a name, the crest. At the page's starting values <Claim id="crest">the tallest sample of the drums stands 18.7 dB over their level, and the tallest sample of the pad 12.7 dB over its own</Claim>. On drums the peak is the reading to watch for whether the sound fits, and it says little about how loud the kit will seem.
+
+  </Use>
+  <Use title="A held pad" set="evenPad">
+    <Still
+      slot="picture"
+      taps="peak level"
+      set="evenPad"
+      min={-60}
+      max={0}
+      caption="The pad, set by loudness, on the same scale. The two lines lie close together and hardly move."
+    />
+
+    A pad is near its own height nearly all the time, so its peak and its level run side by side. Brought to the loudness of the other loops, its tallest sample is the lowest of the five. A sound like this can be turned up a long way before it reaches the top, and a meter that shows only peaks makes it look quieter than it will seem.
+
+  </Use>
+  <Use title="Bass" set="evenBass">
+    <Still
+      slot="picture"
+      taps="out weighted"
+      set="evenBass"
+      view="spectrum"
+      min={-80}
+      max={-10}
+      top={1000}
+      caption="The bass as it comes out, and as the loudness meter hears it. At the low end the second line runs under the first: the meter counts the lowest notes for less."
+    />
+
+    Low notes carry a great deal of level for the loudness they seem to have. The loudness meter turns the lows down before it measures, as stage 7 of part 5 shows, so a bass line reads lower in loudness than its level suggests. Set by Level instead, <Claim id="bass-pad">the bass and the pad come out less than 0.01 dB apart in level, and the bass reads 2.2 LU under the pad</Claim>. Set by its loudness, a bass therefore comes out with more level than a pad does.
+
+  </Use>
+  <Use title="Chords left to ring" set="evenChords">
+    <Still
+      slot="picture"
+      taps="momentary gate"
+      set="evenChords"
+      min={-60}
+      max={-10}
+      caption="The loudness of each 400 ms of the chords, and the gate under it. Each strum starts high and rings down, and before the next strum the ring has fallen under the gate."
+    />
+
+    A strummed chord is loud for a moment and then rings away for a long time. Averaged over the loop, the long quiet tail drags the number down, as if the strum itself had been quieter. The loudness meter cuts the loop into short blocks and leaves out those that fall far under the rest. <Claim id="chords-gate">The gate leaves out 42 blocks of the chords, and the loudness then reads 3.3 LU over the plain average of every block. Of the drums it leaves out 8 blocks, and of the pad 0</Claim>.
+
+  </Use>
+</Uses>
+
+</Part>
+
+<Part id="build" title="Start with the tallest sample. Add one piece. Listen. Add the next.">
+
+This part makes a meter. It begins with the simplest reading there is and adds five pieces to it, one at a time. At every step the meter so far sets the fader, as Set by does, so each step can be heard: "Hear it so far" plays the loop at the gain that step's meter gives it. The lanes are drawn again at every step from what has been built, and the listings are the lab's own source, the code that draws these lanes.
+
+The first steps are wrong on purpose. Each one is put right by the piece that follows.
+
+<Build>
+  <Step title="The tallest sample">
+    A sample is a number, and its height is how far it lies from zero, on either side. The peak of a stretch of sound is the height of its tallest sample. Nothing about a sound is easier to measure.
+
+    <M block t={String.raw`x_{\text{peak}} = \max_{n} \bigl|\sig{in}{x[n]}\bigr|`} />
+
+    <M t="x[n]" /> is sample number <M t="n" /> of the sound. The upright bars take away its sign, and the maximum runs over every sample of the stretch. In the listing that is two lines: the height of the taller channel, and a comparison that keeps it if it is the tallest so far.
+
+    <Listing
+      path="site/labs/level-and-loudness.cpp"
+      from="// Peak: a sample's height is how far it lies from zero"
+      to="if (height > tallest) tallest = height; }"
+      name="look"
+    />
+
+    The meter so far sets the fader from that one number. The gain is the height that is wanted over the height that was found.
+
+    <Listing
+      path="site/labs/level-and-loudness.cpp"
+      from="// The gain that brings a reading to its aim: a ratio for heights"
+      to="float gain_for_peak(const Whole& whole) { return whole.peak > 0.0f ? kPeakAim / whole.peak : 1.0f; }"
+      name="aim"
+    />
+
+    Press "Hear it so far" on the drums and then on the pad, from the row of sounds. This is the failed match of part 1: equally tall, and far apart on the loudness meter.
+
+    <Lanes slot="picture" taps="in builtPeak built" ranges={{ builtPeak: [0, 1] }}>
+      The loop, the tallest sample of each tenth of a second, and the loop as this step sets it.
+      Try another loop from the row of sounds, and notice the last lane come out at the same
+      height whatever went in.
+    </Lanes>
+
+  </Step>
+  <Step title="Mean square over a window" controls="window">
+    One tall sample says nothing about its neighbours. The next piece asks how big the wave is on average. A plain average will not do, because a wave swings above and below zero by equal amounts and its plain average is nothing. So each sample is squared first, which makes it positive, the squares are averaged, and the square root of the average brings the answer back to the size of a sample. That is the root of the mean of the squares, called RMS for short.
+
+    <M
+      block
+      t={String.raw`x_{\text{rms}} = \sqrt{\frac{1}{N} \sum_{k=0}^{N-1} \sig{in}{x[n-k]}^{2}}`}
+    />
+
+    <M t="N" /> is the number of samples in the window, and the sum runs back over the last <M t="N" /> of them from sample <M t="n" />. Window sets how long that is. The listing does not add the window up afresh at every sample. It keeps the sum, adds the newest square and takes away the one that has just left.
+
+    <Listing
+      path="site/labs/level-and-loudness.cpp"
+      from="void add(float left, float right) {"
+      to="mean = sum > 0.0 ? sum / length : 0.0; }"
+      mark="sum += square - squares[at];"
+      name="window"
+    />
+
+    The fader is now set from the mean square of the whole loop, and the aim is the mean square of <Src path="site/labs/level-and-loudness.cpp" at="constexpr float kMeanSquareAim = 0.005f;">a sine one tenth of full scale tall</Src>.
+
+    <Listing
+      path="site/labs/level-and-loudness.cpp"
+      from="float gain_for_level(const Whole& whole) {"
+      to="return whole.mean_square > 0.0f ? std::sqrt(kMeanSquareAim / whole.mean_square) : 1.0f; }"
+      name="aim-level"
+    />
+
+    Set by this step, <Claim id="built-level">the drums and the pad come out at one level, less than 0.01 dB apart. With the piece taken out again, set by the tallest sample alone, they come out 6.0 dB apart</Claim>. Listen to the two again, and judge whether they are closer than they were.
+
+    <Lanes
+      slot="picture"
+      taps="in builtPeak builtRms built"
+      ranges={{ builtPeak: [0, 0.8], builtRms: [0, 0.2] }}
+    >
+      The tallest sample of each tenth of a second, and the root of the mean square on a scale four
+      times finer. Try Window at 10 ms and then at 3 s, and notice the third lane go from following
+      every hit to lying almost flat.
+    </Lanes>
+
+  </Step>
+  <Step title="Decibels" controls="window fader">
+    The two readings are heights, between 0 and 1, and that is an awkward scale. The end of a hit's ring is a small fraction of the height of the hit, and on a scale of heights the ring is a line lying on the floor. This piece writes every reading as decibels against full scale, by the rule of part 2, and with decibels comes a fader marked in them.
+
+    <Listing
+      path="site/labs/level-and-loudness.cpp"
+      from="// Decibels: twenty times the logarithm of a height"
+      to="static float times(float db) { return std::pow(10.0f, db / 20.0f); }"
+      name="decibels"
+    />
+
+    The first function turns a height into decibels. A height of nothing has no logarithm, so anything under a hundred-thousandth of full scale is given a fixed <Src path="site/labs/level-and-loudness.cpp" at="constexpr float kSilentDb = -100.0f;">−100 dB</Src> and called silence. The second function is the fader: decibels back into a number to multiply by. On the pad, <Claim id="built-fader">a Fader at −6 dB makes the built sound 0.501 times as tall</Claim>. A step earlier there was no Fader to move, and the same setting changes nothing.
+
+    <Lanes
+      slot="picture"
+      taps="in builtPeakDb builtLevel built"
+      ranges={{ builtPeakDb: [-60, 0], builtLevel: [-60, 0] }}
+    >
+      The same two readings as the step before, now in decibels. Try Fader at −12 dB, and notice
+      both lines move down by 12 dB while their shapes stay as they were.
+    </Lanes>
+
+  </Step>
+  <Step title="Peaks between the samples" controls="window fader">
+    The samples are not the sound. A converter turns them back into the one smooth wave that passes through all of them, and between two samples that wave can stand higher than either. A peak reading that looks only at samples can therefore be too low. This piece works the wave out at <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr int kFirPhases = 4;">four places</Src> for each sample, from the <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr int kFirTaps = 12;">twelve samples</Src> around them, and takes the tallest of what it finds. Each of the four places is a sum of the twelve samples, each multiplied by a weight, and the four rows of weights are the engine's own table.
+
+    <Listing
+      path="site/labs/level-and-loudness.cpp"
+      from="float look(float l, float r) {"
+      to="return wave; }"
+      mark={['point_left += weights[n] * left[newest - n];', 'point_right += weights[n] * right[newest - n];']}
+      name="between"
+    />
+
+    A tone at a quarter of the sample rate shows what it is for. Caught an eighth of a turn in, every one of its samples lands at the same height, well under its crests. <Claim id="built-over">On a 12,000 Hz tone caught that way, this step reads the wave 3.055 dB over its samples</Claim>, and with the piece taken out the lane reads nothing over them.
+
+    This is the step that is held to the engine. On every render the lab runs the engine's own detector on the same built sound and compares the two readings, sample by sample.
+
+    <Check id="builtDifference" />
+
+    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows when the two differ by nothing, and when they differ by anything more than 140 dB under the reading.
+
+    <Lanes slot="picture" taps="in builtPeakDb builtOver built" ranges={{ builtPeakDb: [-60, 0] }}>
+      The peak of the samples, and how far the wave stood over its samples in each tenth of a
+      second. Try the noise from the row of sounds, and notice the third lane rise: noise has more
+      between its samples than drums do.
+    </Lanes>
+
+  </Step>
+  <Step title="Frequency weighting" controls="window fader">
+    An ear is not equally sensitive at every frequency. It hears the middle of the range well and the very low notes poorly. A level meter treats all frequencies alike, so it reads a deep bass note and a note in the middle as equal when they do not seem so. This piece puts two filters in front of the squares: one that lifts the upper frequencies a little and one that turns the lowest down. The sound itself is not filtered. Only the copy that is measured is.
+
+    From this step on the build is the lesson's own code and no longer the engine's. The engine measures loudness in TypeScript only, which this page cannot run as a piece of the build. Stages 7 to 9 of part 5 show that code, and say how closely the lab's follows it.
+
+    <Listing
+      path="site/labs/level-and-loudness.cpp"
+      from="// Frequency weighting: the shelf lifts what is above it"
+      to="heard[1] = highpass[1].process(shelf[1].process(right)); }"
+      name="weigh"
+    />
+
+    The filtered copy is then squared and averaged, not over a window that slides one sample at a time but over blocks of <Src path="site/labs/level-and-loudness.cpp" at="static constexpr int kBlockTenths = 4;">400 ms</Src> that start every <Src path="site/labs/level-and-loudness.cpp" at="constexpr int kTenth = 4800;">tenth of a second</Src>, which is how a loudness meter counts.
+
+    <Listing
+      path="site/labs/level-and-loudness.cpp"
+      from="// The blocks: the two channels' squares added"
+      to="plain = units(all_sum / all_count); return true; }"
+      name="collect"
+    />
+
+    The fader is now set from the weighted reading of the whole loop. A sound the meter hears as less is turned up further. <Claim id="built-weight">A 100 Hz tone comes out of this step 1.8 dB taller than a 1 kHz tone that went in at the same height. A step earlier the two come out less than 0.01 dB apart</Claim>.
+
+    <Lanes
+      slot="picture"
+      taps="in builtLevel builtMomentary built"
+      ranges={{ builtLevel: [-60, 0], builtMomentary: [-60, 0] }}
+    >
+      The level over the window, and the weighted level of the last 400 ms, which moves in steps of
+      a tenth of a second. Try the bass from the row of sounds, go back one step and forward again,
+      and notice the last lane grow: the meter now counts the low notes for less, so it turns the
+      bass up further.
+    </Lanes>
+
+  </Step>
+  <Step title="Gating" controls="window fader silence">
+    The last piece is about what to leave out. A piece of music with a long rest in it is not quieter while it plays, and an average over everything says it is. So the blocks are sorted. A block under <Src path="site/labs/level-and-loudness.cpp" at="static constexpr double kAbsoluteGate = -70.0;">−70 LUFS</Src> is silence and is dropped. The rest are averaged, a line is drawn <Src path="site/labs/level-and-loudness.cpp" at="static constexpr double kRelativeGate = -10.0;">10 LU</Src> under that average, and only the blocks over the line are averaged for the answer. The line is the gate. This piece too is written for the lesson, after the library's meter.
+
+    <Listing
+      path="site/labs/level-and-loudness.cpp"
+      from="// Gating: a block of silence is not part of the piece."
+      to="gated = kept > 0 ? units(sum / kept) : kSilentDb; }"
+      mark="if (units(blocks[n]) > threshold) {"
+      name="gate"
+    />
+
+    Silence mutes the end of the loop, to give the gate something to do. <Claim id="built-gate">With half of the pad silenced, this step turns it up 0.3 dB further than the whole pad. Without the gate, a step earlier, it is turned up 2.84 dB further</Claim>: the plain average took the rest for a quieter sound and made up for it.
+
+    The gate does not ignore the rest entirely. A block that lies half over the edge of the silence is quieter than its neighbours and can still pass, which is where what remains comes from.
+
+    <Lanes
+      slot="picture"
+      taps="built builtMomentary builtGate builtLoudness"
+      ranges={{ builtMomentary: [-70, 0], builtGate: [-70, 0], builtLoudness: [-70, 0] }}
+    >
+      The loop as this step sets it, the weighted level of each block, the gate, and the loudness so
+      far. Try Silence at 50 %, and notice the second lane fall away in the muted half while the
+      last lane stays where it was.
+    </Lanes>
+
+  </Step>
+</Build>
+
+Here is how the lab puts the pieces in order, for one sample.
+
+<Listing
+  path="site/labs/level-and-loudness.cpp"
+  from="// One sample through the pieces built so far."
+  to="tallest = wave_tallest = samples_tallest = 0.0f; count = 0; } }"
+  name="run"
+/>
+
+That is a loudness meter in six small pieces. Only the fourth is the engine's own arithmetic written out again. The engine has the others too, in other shapes and in other places.
+
+</Part>
+
+<Part id="engine" title="The engine's own readings, each where it lives.">
+
+The engine has no device called a meter. Its measuring is done in four places, and this part visits each of them. The page runs the engine's C++, compiled for the browser, on the loop, and under its title each stage says where its figure comes from.
+
+The fader is a device called Utility. The peak is the detector of the Ambient Limiter, read out of the running device. The peak between the samples is the detector of the limiter which that device ends in, and the lab calls it by itself, outside the device it belongs to. The level is the detector of the Ambient Compressor, taken from the number the running device stores. Loudness is measured by the library's own meter, which is written in TypeScript and not in the C++ that this page runs. So the weighting, the blocks and the gate are written for this lesson, with the kit's own filter and the coefficients the library's meter works out, and the lab's test holds each of them to the library's meter on the same sound. The listings of those three stages are the library's TypeScript as it stands.
+
+<Flow
+  label="The loop is multiplied by the gain and goes out. Five copies of what goes out are measured: one for the wave between the samples, one for the tallest sample of the last 40 ms, one for the level through two smoothing filters, one for the level over a window, and one that is weighted, averaged in blocks and gated to give the loudness."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end', n: 1 },
+    { id: 'fader', label: 'Fader', from: 'in', n: 2 },
+    { id: 'wave', row: -2, from: 'fader', tap: 'truePeak', label: 'Between\nsamples', n: 4, signal: 'value' },
+    { id: 'hold', row: -1, from: 'fader', tap: 'peak', label: 'Peak hold', n: 3, signal: 'value' },
+    { id: 'out', tap: 'out', shape: 'end', from: 'fader' },
+    { id: 'level', row: 1, from: 'fader', tap: 'level', label: 'Squares, two poles', n: 5, signal: 'value' },
+    { id: 'window', row: 2, from: 'fader', tap: 'windowed', label: 'Squares, a window', n: 6, signal: 'value' },
+    { id: 'weigh', row: 3, from: 'fader', tap: 'weighted', label: 'Weighting', n: 7 },
+    { id: 'blocks', row: 3, from: 'weigh', tap: 'momentary', label: 'Blocks of 400 ms', n: 8, signal: 'value' },
+    { id: 'gate', row: 3, from: 'blocks', tap: 'loudness', label: 'The gate', n: 9, signal: 'value' },
+  ]}
+>
+  The loop, the Fader and the output are sound, and can be heard. Every other block carries numbers
+  about the sound, except Weighting, the copy of stage 7, which is sound too. Press the button of
+  a stage, and notice its block light up here.
+</Flow>
+
+<StageBlock tap="in" n={1} title="The loop, and where Silence cuts it">
+  Everything on this page is measured on one loop, four seconds of it, played round and round. The lab plays the loop through twice from rest and keeps the second pass, so that every reading has had the whole loop behind it, as it would on a loop that never stops.
+
+  Silence acts here, before the fader and before any meter. It mutes the end of the loop, as much of it as the control says, with <Src path="site/labs/level-and-loudness.cpp" at="constexpr int kEdge = 480;">10 ms</Src> of fade at each edge of the gap so that the cut itself is not a click. This stage's button plays the loop as it arrives, before Silence and before the fader.
+
+  <Listing
+    slot="listing"
+    path="site/labs/level-and-loudness.cpp"
+    from="// The part of the loop that sounds: 1, and 0 over the last"
+    to="(left + 1) / kEdge); return 0.0f; }"
+    name="sounding"
+  />
+  <Fragment slot="listen">Hear the loop as it goes in</Fragment>
+</StageBlock>
+
+<StageBlock tap="out" n={2} title="The fader is one multiplication">
+  The engine's fader is the device called Utility, and its Gain runs from <Src path="src/core/devices/native/Utility.ts" at="min: -60,">−60 dB</Src> to <Src path="src/core/devices/native/Utility.ts" at="max: 12,">12 dB</Src>, as this page's Fader does. It turns its decibels into a number to multiply by with <Src path="src/core/devices/native/units.ts" at="return Math.pow(10, db / 20)">the formula of part 2</Src>, and the listing is the one line that shuts it at the bottom of its travel.
+
+  The device does its multiplying on the browser's own gain, so it has no C++ for the page to run. The lab's fader is the kit's function from part 2 with the same rule at the bottom, and the plate in part 9 is the device itself.
+
+  Set by is this page's own and not the engine's. It measures the loop once, before it plays, and works out the gain that brings the chosen reading to a fixed place: the tallest sample to half of full scale, the level to that of a sine a tenth of full scale tall, or the loudness to <Src path="site/labs/level-and-loudness.cpp" at="constexpr float kLoudnessAim = -20.0f;">−20 LUFS</Src>. The Fader's decibels are then added on top.
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{out}{y[n]} = \at{fader-gain}{g}\;\sig{in}{x[n]}`}
+  />
+  <Fragment slot="readback">
+    <M t="x[n]" /> is a sample of the loop and <M t="y[n]" /> the same sample coming out. <M t="g" /> is the gain of part 2, ten to the power of a twentieth of the Fader's decibels, except at the bottom of the travel, where the listing makes it 0.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="src/core/devices/native/Utility.ts"
+    from="export function utilityGain(gainDb: number): number {"
+    to="return gainDb <= UTILITY_PARAMS.gainDb.min ? 0 : dbToGain(gainDb)"
+    name="fader"
+    at={{ gain: 'return gainDb <= UTILITY_PARAMS.gainDb.min' }}
+  />
+  <Fragment slot="listen">Hear what comes out</Fragment>
+</StageBlock>
+
+<StageBlock tap="peak" n={3} title="The tallest sample of the last 40 ms">
+  The height of one sample is not a reading anyone can use. It changes 48,000 times a second, and a hit is over before a meter drawn on a screen has shown it. So a peak detector holds. The one in the Ambient Limiter reports the largest sample of the last <Src path="cpp/devices/ambient-limiter/ambient_limiter.h" at="static constexpr float kHoldSeconds = 0.04f;">40 ms</Src>: a hit reads at once, and goes on reading for that long after it has passed.
+
+  <Lanes taps="out peak" ranges={{ peak: [-48, 0] }} from={0} span={0.5}>
+    The first half second of what comes out, and the peak. On the drums, notice the reading step
+    up at the instant of a hit, stay there for 40 ms, and only then let go.
+  </Lanes>
+
+  The device does not keep every sample of those 40 ms. It cuts the time into <Src path="cpp/devices/ambient-limiter/ambient_limiter.h" at="static constexpr int kSlices = 32;">32 slices</Src>, remembers the largest sample of each, and reports the largest of the slices and of the one still being filled. The hold is therefore between 40 ms and one slice more, as the listing's own comment says.
+
+  The Ambient Limiter uses this reading to steer the slow gains that stand in front of its limiter. This page only reads it.
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{ctl}{P[n]} = \at{hold-level}{\max_{0 \le k < K}}\,\bigl|\sig{out}{y[n-k]}\bigr|`}
+  />
+  <Fragment slot="readback">
+    <M t="P[n]" /> is the peak at sample <M t="n" />, and <M t="k" /> counts back from it. <M t="K" /> is the number of samples the hold lasts, 1,920 of them at the page's rate of <Src path="site/labs/lab.h" at="constexpr float kSampleRate = 48000.0f;">48,000 samples a second</Src>. For two channels, <M t="y" /> is the taller of the two samples.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/ambient-limiter/ambient_limiter.h"
+    from="// Peak hold: the largest magnitude of the last"
+    to="float level() const { return kit::max(filling, older); }"
+    skip={['void set(float seconds, float sample_rate) {', 'count = 0; index = 0; }']}
+    name="hold"
+    at={{ fill: 'if (magnitude > filling) filling = magnitude;', level: 'float level() const' }}
+  />
+</StageBlock>
+
+<StageBlock tap="truePeak" n={4} title="The wave between the samples">
+  Step 4 of the build worked the wave between the samples out at four places for each sample. This stage is the engine's code for the same sum: the detector of the limiter that the Ambient Limiter ends in. The lab calls that detector by itself on what comes out, and keeps the largest of its readings over 40 ms with a second copy of the hold of stage 3.
+
+  The picture below is the tone of this page, drawn twice: as its samples, and as the wave that runs through them.
+
+  <Controls ids="toneHz" />
+
+  <SamplesOnWaves waves="toneWave" samples="toneSamples" xTitle="samples">
+    The first 24 samples of the tone and the wave through them. Try Tone at its highest, 12,000
+    Hz, and notice every sample land at one height, well under the crests of the wave.
+  </SamplesOnWaves>
+
+  At that setting the tone is a quarter of the sample rate, four samples to a cycle, and the page starts it <Src path="site/labs/level-and-loudness.cpp" at="const double start = 0.25 * lab::kPi;">an eighth of a turn in</Src>, so no sample ever lands on a crest. <Claim id="between-tone">At 12,000 Hz the tone stands 3.055 dB over its own samples, which are all one height: the tallest sample of the tone and its level are less than 0.01 dB apart</Claim>. Every sample of a sine caught that way lies at its crest divided by the square root of two, so the true distance is 3.01 dB. Four places and twelve samples make an estimate, and here it is a little generous.
+
+  Music is rarely that extreme, and noise is worse than most music.
+
+  <Trace taps="between" min={0} max={6} unit="dB">
+    How far the wave stands over its samples, on whichever loop is playing. Try the noise from the
+    row of sounds, and notice the line rise well clear of where the drums leave it.
+  </Trace>
+
+  Over the whole loop, <Claim id="between-noise">the white noise of the row of sounds stands 4.9 dB over its tallest sample, and the drum loop 0.14 dB</Claim>. A sound whose samples all sit under full scale can still be a wave that goes over it, which is the subject of <Lesson id="limiting" />. Why the wave between the samples is settled by the samples at all is the subject of <Lesson id="samples-and-aliasing" />.
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{alt}{w_q[n]} = \at{detect-sum}{\sum_{k=0}^{11} h_q[k]\;\sig{out}{y[n-k]}}`}
+  />
+  <Fragment slot="readback">
+    <M t="w_q[n]" /> is the wave at one of the four places, and <M t="q" /> says which, from 0 to 3. <M t="h_q[k]" /> is the weight that place gives to the sample <M t="k" /> back, one of the <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr int kFirTaps = 12;">twelve</Src> in its row. The reading is the tallest of the four places and of the sample they lie around, which is the one <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr int kInterpolatorDelay = 6;">six back</Src>. The library's own meter uses the same table of weights, and the lab's test holds this reading to that meter's on the same sound.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="float detect(float left, float right) {"
+    to="if (yr > peak) peak = yr; } return peak; }"
+    name="detect"
+    at={{ sum: 'yl += h[i] * fir_left_[newest - i];' }}
+  />
+</StageBlock>
+
+<StageBlock tap="level" n={5} title="Level: the squares, smoothed twice">
+  This is the detector of the Ambient Compressor, the reading that device's threshold is compared with. <Lesson id="compression" cap /> follows it from here into the gain. It begins as step 2 of the build did, by squaring. For each sample it takes the mean of the two channels' squares.
+
+  <M
+    block
+    t={String.raw`s[n] = \tfrac{1}{2}\bigl(\sig{out}{y_l[n]}^{2} + \sig{out}{y_r[n]}^{2}\bigr)`}
+  />
+
+  <M t="y_l" /> and <M t="y_r" /> are the left and the right sample, and <M t="s[n]" /> is their mean square. What follows is where it parts from the build. The device does not average over a window. It runs <M t="s" /> through a smoothing filter, which on each sample moves a fixed share of the way from where it was to the new value.
+
+  <M block t={String.raw`u[n] = s[n] + \at{pole-step}{c\,\bigl(u[n-1] - s[n]\bigr)}`} />
+
+  <M t="u[n]" /> is the smoothed value and <M t="c" /> the share of the old distance that is left, a number just under 1. A filter of this kind never forgets a sample outright. Each one fades, and the device sets the fading to <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="static constexpr float kRmsSeconds = 0.03f;">30 ms</Src>. It is the one-pole filter of <Lesson id="one-pole" />, and the kit has it in one line.
+
+  <Listing
+    path="cpp/kit/filters.h"
+    from="// One-pole lowpass, y += (1 - a)(x - y)"
+    to="state = flush_denormal(x + (state - x) * a); return state; }"
+    name="pole"
+    at={{ step: 'state = flush_denormal(x + (state - x) * a);' }}
+  />
+
+  The device uses two of them, one after the other. The second does to <M t="u" /> what the first did to <M t="s" />, and its output is called <M t="v" /> here. One filter alone lets the wave's own swing through as a ripple: <Claim id="one-pole">on a 100 Hz tone, what the device's first filter holds moves by 0.23 dB</Claim>. After the second, <Claim id="two-poles">the reading on a 100 Hz tone moves by less than 0.01 dB</Claim>.
+
+  <Trace taps="peak level" min={-60} max={0} unit="dB">
+    The peak of stage 3 and the level, on whichever loop is playing. Try the sine from the row of
+    sounds, and notice the level settle a fixed distance under the peak and stay there.
+  </Trace>
+
+  That fixed distance comes from the sine and not from the detector. The mean of a sine's squares is half the square of its height, and half a power is 3.01 dB down. So <Claim id="sine-level">the tone of this page at 1 kHz reads 3.01 dB under its own tallest sample over the whole loop, and the sine of the row of sounds, at 440 Hz, reads 3.01 dB under its tallest sample on this detector</Claim>. A tallest sample stands for the crest only when a sample lands on a crest or close to one, which the tone of stage 4 at 12,000 Hz was made not to do. Music reads a good deal further under its peak than that, and how much further is the crest of part 3.
+
+  Three things about this detector are particular to the device. It averages the two channels where a loudness meter adds them. It has a high-pass filter in front, which the compressor calls Ignore below and which this page sets as low as it goes. And after <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="static constexpr float kRestSeconds = 0.5f;">half a second</Src> of silence the device rests, and the reading goes to its floor of <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="static constexpr float kFloorDb = -100.0f;">−100 dB</Src>.
+
+  The device stores the smoothed power and works the decibels out in passing, once every <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="static constexpr int kControlPeriod = 16;">16 samples</Src>, without keeping them. The lab takes them again from the stored power with the device's own line. To show that it has read the device rightly, it also runs them through the slow follower the device keeps and compares the result with what the device stored.
+
+  <Check id="levelRebuilt" />
+
+  On the six loops of music, the noise and the sine, at the page's starting values, the two are <Claim id="level-rebuilt">less than 0.001 dB</Claim> apart.
+
+  <Listing
+    path="cpp/devices/ambient-comp/ambient_comp.h"
+    from="void step_gain(float power) {"
+    to="const float level = power > kFloorPower ? 10.0f * std::log10(power) : kFloorDb;"
+    name="reading"
+    at={{ level: 'const float level = power > kFloorPower' }}
+  />
+
+  <M slot="equation" block t={String.raw`\sig{alt}{L} = \at{reading-level}{10 \log_{10} v}`} />
+  <Fragment slot="readback">
+    <M t="L" /> is the level in decibels against full scale, and <M t="v" /> the power out of the second filter. Ten, and not twenty, because <M t="v" /> is an average of squares.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/ambient-comp/ambient_comp.h"
+    from="const float left = sidechain_[0].highpass(in[0]);"
+    to="if (clock_.tick()) step_gain(power);"
+    name="detector"
+  />
+</StageBlock>
+
+<StageBlock tap="windowed" n={6} title="Level over a window of any length">
+  The two filters of stage 5 fix the time the level is averaged over. How long to average is a choice, and it changes what the reading means. So the lab keeps a second level beside the compressor's: the mean square of step 2 of the build, over a window whose length is the Window control.
+
+  <Controls ids="window" />
+
+  <Trace taps="level windowed" min={-60} max={0} unit="dB">
+    The compressor's level, and the level over the window. Try Window at 3 s, and notice the second
+    line go nearly flat. Then try it at 10 ms, and notice it leap at every hit, higher than the
+    first line reaches.
+  </Trace>
+
+  A long window gives one steady number for a whole phrase. <Claim id="window-long">Over 3 s the reading of the drum loop moves by 1.3 dB all the way round, and over 400 ms it moves by 24.9 dB</Claim>. A short window follows each hit, and a window that is too short stops measuring the sound and starts drawing the wave. <Claim id="window-short">With a window of 1 ms a 100 Hz tone reads a level that swings by 13.7 dB. With a window of 10 ms, which is one whole cycle of that tone, it swings by less than 0.01 dB</Claim>.
+
+  The library's meter has two windows of its own: <Src path="src/core/analysis/loudness.ts" at="export const MOMENTARY_WINDOW_SECONDS = 0.4">400 ms</Src> for the loudness of the moment and <Src path="src/core/analysis/loudness.ts" at="export const SHORT_TERM_WINDOW_SECONDS = 3">3 s</Src> for the loudness of a phrase. Window reaches both.
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{alt}{W[n]} = 10 \log_{10} \Bigl( \frac{1}{N} \sum_{k=0}^{N-1} s[n-k] \Bigr)`}
+  />
+  <Fragment slot="readback">
+    <M t="W[n]" /> is the level over the window at sample <M t="n" />. Inside the brackets is the plain average of the last <M t="N" /> values of <M t="s" />, the mean square of stage 5: every sample in the window counts the same, and a sample that leaves it stops counting at once.
+  </Fragment>
+</StageBlock>
+
+<StageBlock tap="weighted" n={7} title="Weighting: the meter is given an ear">
+  The loudness meter puts two filters in front of its squares, the two of step 5 of the build. The first is a shelf that lifts everything above about <Src path="src/core/analysis/loudness.ts" at="const SHELF_F0 = 1681.974450955533">1,682 Hz</Src> by <Src path="src/core/analysis/loudness.ts" at="const SHELF_GAIN_DB = 3.999843853973347">4 dB</Src>, which stands for what a head does to the sound that reaches it. The second is a high-pass at <Src path="src/core/analysis/loudness.ts" at="const HIGHPASS_F0 = 38.13547087602444">38 Hz</Src>, which stands for how little an ear makes of the lowest notes.
+
+  <Controls ids="toneHz" />
+
+  <Spectrum taps="weighting" uprights="toneHz" min={-30} max={6}>
+    What the two filters do to each frequency, measured by sending a single sample through them.
+    Try Tone at 50 Hz, and notice the dashed line meet the curve well under 0 dB: a tone down
+    there counts for less than its level.
+  </Spectrum>
+
+  The tone of this page is measured with the same meter, so the curve can be checked with it. Tone moves its frequency and leaves its height alone.
+
+  <Check id="toneLevel" />
+
+  <Check id="toneLoudness" />
+
+  <Claim id="weight-low">For one level, a tone reads 1.8 LU lower at 100 Hz than at 1 kHz, 4.6 LU lower at 50 Hz and 9.0 LU lower at 30 Hz</Claim>, <Claim id="weight-high">and 3.3 LU higher at 4 kHz</Claim>. This is why the bass of part 3 needed more level than the pad to read the same loudness.
+
+  The listing is the library's meter: each channel through the shelf and then the high-pass, and the squares of what comes out added up. The lab's copy runs the same two filters as the kit's <Src path="cpp/kit/filters.h" at="struct Biquad {">two-pole filter</Src>, the kind that <Lesson id="equalising" /> is about. The kit works in shorter numbers than the library does, so the two are not the same to the last digit: on the six loops of music and on the noise, the difference between them lies <Claim id="weighting-held">at least 77 dB</Claim> under the sound, on either channel.
+
+  <Listing
+    slot="listing"
+    path="src/core/analysis/loudness.ts"
+    from="const kl = this.highpassL.process(this.shelfL.process(l))"
+    to="hopSum += kl * kl + kr * kr"
+    name="weighted"
+  />
+  <Fragment slot="listen">Hear what the loudness meter hears</Fragment>
+</StageBlock>
+
+<StageBlock tap="momentary" n={8} title="Blocks of 400 ms">
+  The weighted sound is squared, and the squares of the two channels are added. The meter then averages them over a block <Src path="src/core/analysis/loudness.ts" at="export const MOMENTARY_WINDOW_SECONDS = 0.4">400 ms</Src> long, and starts a new block every <Src path="src/core/analysis/loudness.ts" at="export const GATING_HOP_SECONDS = 0.1">tenth of a second</Src>, so that each block shares three quarters of itself with the one before.
+
+  <Lanes taps="weighted momentary" ranges={{ momentary: [-60, 0] }}>
+    What the loudness meter hears, and the loudness of the last 400 ms. Notice the second lane move
+    in steps, one for each tenth of a second, and trail a little behind the hits it measures.
+  </Lanes>
+
+  Written out, with <M t="z_l" /> and <M t="z_r" /> the weighted samples of the two channels and <M t="B_j" /> the mean square of block number <M t="j" />:
+
+  <M
+    block
+    t={String.raw`B_j = \operatorname*{mean}_{n \,\in\, \text{block } j} \bigl( z_l[n]^{2} + z_r[n]^{2} \bigr)`}
+  />
+
+  The reading of a block is that mean square in decibels, with a small fixed number taken off.
+
+  <Listing
+    path="src/core/analysis/loudness.ts"
+    from="export function loudnessFromMeanSquare(meanSquare: number): number {"
+    to="return LOUDNESS_OFFSET_LU + 10 * Math.log10(meanSquare)"
+    name="units"
+    at={{ offset: 'return LOUDNESS_OFFSET_LU + 10 * Math.log10(meanSquare)' }}
+  />
+
+  The offset, <Src path="src/core/analysis/loudness.ts" at="export const LOUDNESS_OFFSET_LU = -0.691">−0.691</Src>, undoes the lift the shelf gives a tone at 1 kHz, so that the scale has a fixed point that is easy to remember. <Claim id="reference">A 1 kHz sine 0.1 tall on both channels reads −20.0 LUFS. Its tallest sample is at −20.00 dB against full scale, and its level is −23.01 dB</Claim>. The level is 3.01 dB under the peak, as stage 5 measured on a sine. The loudness is back at the peak because this meter adds the two channels where the level averaged them, and two equal channels added are twice the power of their average, which is 3.01 dB more.
+
+  The listing is what the library does when a tenth of a second is complete. It does not keep a list of blocks. It sorts each block into a bin by its loudness, <Src path="src/core/analysis/loudness.ts" at="const HISTOGRAM_LU_PER_BIN = 0.01">a hundredth of a unit</Src> wide, so that an hour of music costs it no more memory than a second. The lane of this stage is the lab's own count of the same blocks, written for the lesson. <Claim id="blocks-held">On each of the six loops of music, after every tenth of a second, it is less than 0.001 LU from what the library's meter reads</Claim>.
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{ctl}{M_j} = \at{units-offset}{-0.691 + 10 \log_{10} B_j}`}
+  />
+  <Fragment slot="readback">
+    <M t="M_j" /> is the loudness of block <M t="j" />, in LUFS. Ten, because <M t="B_j" /> is an average of squares.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="src/core/analysis/loudness.ts"
+    from="private completeHop(meanSquare: number): void {"
+    to="this.gatedPower += block"
+    name="hop"
+  />
+</StageBlock>
+
+<StageBlock tap="loudness" n={9} title="The gate">
+  One number for a whole piece of music is an average of its blocks, and the last question is which blocks. The meter leaves out silence, and then leaves out whatever is far quieter than the rest, as step 6 of the build did.
+
+  <Controls ids="silence" />
+
+  <Trace taps="momentary gate loudness" min={-70} max={0} unit="LUFS">
+    The loudness of each block, the gate, and the loudness so far. Try Silence at 50 %, and notice
+    the first line fall under the gate in the muted half of the loop. Then read how far the
+    loudness so far has moved.
+  </Trace>
+
+  <Claim id="pause">With half of the pad silenced, its level over the loop falls by 2.9 dB and the average of every block by 2.84 LU. Its gated loudness falls by 0.3 LU</Claim>. Half the sound is half the power, which is 3 dB, and the two plain averages report nearly all of it. The gate reports a tenth of it.
+
+  The reading is called the loudness so far because the gate is not fixed. Each new block moves the average, the average moves the gate, and a block that passed a moment ago can be left out now. The lab hears the loop twice from rest, and the loudness in the tables of this page is the reading at the end.
+
+  The lab's gate is the lesson's own code and the listing is the library's. On the six loops of music at the page's starting values, and on three more renders with Silence, Set by and the Fader moved, the two loudness readings are <Claim id="loudness-held">less than 0.001 LU</Claim> apart.
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{alt}{\Gamma} = -0.691 + 10 \log_{10} \Bigl( \operatorname*{mean}_{j \,\in\, J} B_j \Bigr) \at{integrated-line}{{}- 10}`}
+  />
+  <Fragment slot="readback">
+    <M t={String.raw`\Gamma`} /> is the gate. <M t="J" /> is the set of blocks that read over <Src path="src/core/analysis/loudness.ts" at="export const ABSOLUTE_GATE_LUFS = -70">−70 LUFS</Src>, and the mean inside the brackets runs over those alone. The gate stands <Src path="src/core/analysis/loudness.ts" at="export const RELATIVE_GATE_LU = -10">10 LU</Src> under their average. The loudness is the same sum once more, over the blocks of <M t="J" /> that read over <M t={String.raw`\Gamma`} />.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="src/core/analysis/loudness.ts"
+    from="get integrated(): number {"
+    to="return count === 0 ? -Infinity : loudnessFromMeanSquare(power / count)"
+    name="integrated"
+    at={{ line: 'const threshold = ungated + RELATIVE_GATE_LU' }}
+  />
+</StageBlock>
+
+### All nine at once, on your loop
+
+Here is everything with every control live. The lanes are read at each stage in turn: the loop, what comes out of the fader, the peak, the peak between the samples, the compressor's level, the level over the window, what the loudness meter hears, the loudness of each block, and the loudness so far.
+
+<Controls ids="fader setBy toneHz window silence" />
+
+<Lanes
+  taps="in out peak truePeak level windowed weighted momentary loudness"
+  ranges={{
+    peak: [-60, 0],
+    truePeak: [-60, 0],
+    level: [-60, 0],
+    windowed: [-60, 0],
+    momentary: [-70, 0],
+    loudness: [-70, 0],
+  }}
+>
+  Every stage on one time axis. Try Fader, and notice every lane under the first move together.
+  Then try Window, and notice one lane change and no other.
+</Lanes>
+
+To judge a reading, listen to what it was taken from: <Listen tap="in">the loop</Listen>, <Listen tap="out">what comes out</Listen>, <Listen tap="weighted">what the loudness meter hears</Listen>, and <Listen tap="tone">the tone that is as tall as the output</Listen>.
+
+</Part>
+
+<Part id="ways" title="Five things people do with these readings.">
+
+Each of these is a habit of working, and "Try it" moves the page to settings that show it.
+
+<Ways>
+  <Way title="Compare at equal loudness" tag="Set by on Loudness" set="evenMix">
+    Before deciding which of two versions of a sound is the better one, bring both to the same loudness. A louder version is easily taken for a better one, and a change that only made things louder can pass for an improvement. After the card, pick another loop from the row of sounds: Set by brings each of them to the same reading, so what is left to hear is the sound and not its size.
+  </Way>
+  <Way title="Read the gap between peak and level" tag="Set by on Level" set="gap">
+    The distance from the level up to the tallest sample says how much of a sound is hits. <Claim id="gap">Set by Level, the drums come out with their tallest sample at −4.3 dB and their level at −23.0 dB</Claim>, which leaves little room over the hits for turning the loop up. A compressor or a limiter makes that gap smaller, and reading it before and after says how much either has done. After the card, pick the pad and compare the two rows of the scale in part 2.
+  </Way>
+  <Way title="Pick the window for the question" tag="Window at 3 s" set="slow">
+    A reading is an answer to a question about some stretch of time. For "how loud is this phrase", average over seconds. For "how hard is this hit", average over a few hundredths of a second. After the card, go to stage 6 and bring Window down from 3 s, and stop where the line begins to follow the hits and no longer the phrase.
+  </Way>
+  <Way title="Leave room over the samples" tag="Set by on Peak, on noise" set="hiss">
+    A sound whose samples reach the top has no room left for the wave between them. <Claim id="hiss">With noise set by its peak, the samples reach −6.02 dB and the wave between them reaches −1.1 dB</Claim>, nearly 5 dB higher. When a sound is brought close to full scale, read the peak between the samples and leave room over it. The engine's own limiter starts with its ceiling at <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr float kDefaultCeilingDb = -1.0f;">−1 dB</Src>. After the card, raise Fader by 2 dB and read the two peaks in the lanes of part 5.
+  </Way>
+  <Way title="Check a meter with a tone" tag="Tone at 1 kHz" set="evenDrums">
+    A meter can be tested with a sound whose readings are known beforehand. For a sine at 1 kHz on both channels, the level is 3.01 dB under the tallest sample and the loudness in LUFS equals the tallest sample in decibels against full scale, as stages 5 and 8 measured. After the card, read the tone's row of the scale in part 2 against that, then move Tone and watch the loudness leave the peak while the level hardly moves.
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Five ways it goes wrong, three of them to hear.">
+
+<Faults>
+  <Fault title="Matched by peak" set="tallPad">
+    Two sounds are brought to the same height and one of them reads far louder. It is the failed match of part 1, where the pad came out well over the drums on the loudness meter with not a hundredth of a decibel between their peaks. Match by loudness, and then check the peak.
+  </Fault>
+  <Fault title="An average that counts the rests" set="restsLevel">
+    A sound with a rest in it reads lower on a plain average than it does while it plays, and a gain set from that reading is too high. <Claim id="rests">The pad with half of it silenced is turned up 2.9 dB further when it is set by its level, and 0.3 dB further when it is set by its loudness</Claim>. Listen to the card: the pad is the same pad as before, and it comes back turned up further. For anything with rests in it, use a reading that has a gate.
+  </Fault>
+  <Fault title="A long tail read as quiet" set="ringing">
+    The same fault without any silence. Chords that ring away spend most of their time far under their own strum, and a plain average is pulled down by all of that time. <Claim id="ringing">Set by Level, the chords come out at −17.8 LUFS, with their tallest sample at −1.2 dB</Claim>. That is more than 2 LU over the loudness the cards of part 3 share, and a little over a decibel from full scale. The gate of stage 9 is the cure here too, since the blocks of the tail fall under it.
+  </Fault>
+  <Fault title="Over full scale between the samples">
+    Every sample is under full scale and the output can still distort, because the wave a converter makes from the samples goes over. A peak reading taken from samples cannot see it. Stage 4 measured the distance: almost nothing on the drums, several decibels on noise. Read the peak between the samples whenever a sound is close to the top, and where it has to be held there, use the limiter of <Lesson id="limiting" />.
+  </Fault>
+  <Fault title="A window shorter than the wave">
+    A level taken over less than one cycle of the lowest note goes up and down with the wave, and anything steered by it shakes at that rate. Stage 6 measured it on a 100 Hz tone: a window of one cycle held still, and a window a tenth as long swung by many decibels. Make the window at least as long as a cycle of the lowest note that matters, or smooth the reading twice as the compressor of stage 5 does.
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="Nought decibels is silence.">
+    A gain of 0 dB multiplies by one and changes nothing. On a meter, 0 dB against full scale is the loudest a sample can be. Silence has no number of decibels at all, and the Fader of part 2 has to be shut at the bottom of its travel to reach it.
+  </Myth>
+  <Myth says="A decibel is a unit of loudness.">
+    A decibel is a ratio. It says how many times bigger one thing is than another, and it needs to be told what the other thing is. The same unit counts the gain of a fader, a height against full scale and a reading of the loudness meter, and part 2 sets the three beside each other.
+  </Myth>
+  <Myth says="Twice the decibels is twice the sound.">
+    Decibels add where sizes multiply. Going from 6 dB to 12 dB on the Fader does not double anything a second time over: each 6 dB is one doubling, so the curve of part 2 reads about 2 at the first and about 4 at the second. And −12 dB is not twice as quiet as −6 dB by any measure. It is a quarter of the height where −6 dB is a half.
+  </Myth>
+  <Myth says="The meter with the tall bars shows how loud it is.">
+    A peak meter shows how close the tallest sample is to the top. Part 1 set two loops to the same peak and the loudness meter read them far apart. The opening picture is the short form of it: a tone and a drum loop that are equally tall.
+  </Myth>
+  <Myth says="If no sample is over full scale, nothing is over.">
+    The wave between the samples can stand higher than any of them. The tone of stage 4, at its highest setting, stands over every one of its own samples by the distance that stage measured, and the lane of that stage shows how far noise goes.
+  </Myth>
+  <Myth says="Equal levels are equally loud.">
+    Level counts every frequency alike and takes its average over everything, rests included. Loudness does neither. In part 3 a bass and a pad at one level read apart on the loudness meter, and in part 7 a pad with a rest in it is turned up too far by its level and nearly rightly by its loudness.
+  </Myth>
+</Myths>
+
+</Part>

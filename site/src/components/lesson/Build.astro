@@ -1,0 +1,53 @@
+---
+// The build part: the technique put together a piece at a time, on the lab's build path.
+//
+//   <Build>
+//     <Step title="Start with a wire">
+//       What the piece is for.
+//       <Listing path="site/labs/compression.cpp" from="…" to="…" name="wire" />
+//       <Lanes slot="picture" taps="in built" />
+//     </Step>
+//     <Step title="Teach it to measure" controls="scLowCut">…</Step>
+//   </Build>
+//
+// One <Step> for each step of the lab's build control, in its order. Every step is in the page
+// as built, so they read in order with scripts off; once the lab is ready one shows at a time,
+// with Back, Add and "Hear it so far". `tap` names the built sound to play when the build path
+// writes more than one.
+import Build from '../../figures/Build.tsx'
+import Mark from '../../figures/Mark.astro'
+import { buildControl, builtSound } from '../../figures/build-steps.ts'
+import { startOnPage } from '../../figures/once.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  tap?: string
+}
+const { lab, lesson } = pageLab(Astro.locals)
+const control = buildControl(lab)
+if (!control) {
+  throw new Error(
+    `${lesson}: it has a build part, and its lab has no build path (lab::Build in labs/lab.h).`,
+  )
+}
+const sound = builtSound(lab, Astro.props.tap, lesson)
+
+// The steps are counted in what they rendered to, before the page is: a lesson's text renders a
+// part's children before the part, a page of components the part first, so a count kept while
+// they render would hold in one and not the other. The steps after this part number from one.
+startOnPage(Astro.locals, 'step')
+const steps = await Astro.slots.render('default')
+startOnPage(Astro.locals, 'step')
+const written = steps.split('<article class="build-step"').length - 1
+if (written !== control.choices.length) {
+  throw new Error(
+    `${lesson}: its build part has ${written} <Step>, and its lab's build path has ${control.choices.length}: ${control.choices.join(', ')}`,
+  )
+}
+---
+
+<section class="build" data-build>
+  <Mark />
+  <Build client:load names={control.choices} tap={{ id: sound.id, name: sound.name }} />
+  <div class="build-steps" set:html={steps} />
+</section>

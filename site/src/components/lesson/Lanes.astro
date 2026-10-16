@@ -1,0 +1,90 @@
+---
+// Taps stacked on one time axis, a lane each, every lane named beside it:
+// <Lanes taps="in builtLevel builtGain built" ranges={{ builtLevel: [-60, 0] }}
+//   lines={{ builtLevel: 'threshold' }}>Caption.</Lanes>
+// A sound is drawn as its outline, every sound to one scale; a value as a line, in the range
+// `ranges` gives it or one fitted to it. `lines` draws a control's value across a value's lane.
+// `own` names sounds drawn each to its own peak, its range printed beside its name, for a lab
+// where one sound is far larger than the others:
+// <Lanes taps="pluck string out" own="pluck">Caption.</Lanes>
+// A sound of two channels is drawn by its left, and its lane says so; `channels="both"` gives
+// each of its channels a lane, named left and right:
+// <Lanes taps="in out" channels="both">Caption.</Lanes>
+import { leftSaid } from '../../figures/draw.ts'
+import Lanes from '../../figures/Lanes.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { controlsNamed, pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  taps: string
+  /** The bottom and the top of a value's lane, by the tap's id. */
+  ranges?: Record<string, [number, number]>
+  /** A control drawn as a dashed line across a value's lane: the control's id, by the tap's id. */
+  lines?: Record<string, string>
+  /** Sounds drawn each to its own peak, and not to the scale the others share: tap ids, "pluck ring". */
+  own?: string
+  from?: number
+  span?: number
+  /** `both` gives each channel of a sound that has two a lane of its own; left out, its left. */
+  channels?: 'left' | 'both'
+  /** What the picture shows, for a reader who cannot see it; made from the taps' names when left out. */
+  label?: string
+}
+const { taps, ranges = {}, lines = {}, own = '', label, ...rest } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+// Each lane is a picture of its own, so each tap keeps its role's colour.
+const refs = tapRefs(taps, lab.taps, lesson, false)
+for (const ref of refs) {
+  if (ref.kind !== 'audio' && ref.kind !== 'control') {
+    throw new Error(
+      `${lesson}: "${ref.id}" is neither a sound nor a value over time, so it has no lane.`,
+    )
+  }
+}
+const shown = (id: string, what: string) => {
+  const ref = refs.find((one) => one.id === id)
+  if (!ref || ref.kind !== 'control') {
+    const values = refs.filter((one) => one.kind === 'control').map((one) => one.id)
+    throw new Error(
+      `${lesson}: ${what} names "${id}", which is not a value among the lanes. They are: ${values.join(', ')}`,
+    )
+  }
+}
+for (const id of Object.keys(ranges)) shown(id, 'a range of the lanes')
+const named: Record<string, [string, string]> = {}
+for (const [id, control] of Object.entries(lines)) {
+  shown(id, 'a line across the lanes')
+  const [found] = controlsNamed(control, lab, lesson)
+  if (found) named[id] = [found.id, found.name]
+}
+const alone = own.split(/[\s,]+/).filter(Boolean)
+for (const id of alone) {
+  if (refs.find((one) => one.id === id)?.kind !== 'audio') {
+    const sounds = refs.filter((one) => one.kind === 'audio').map((one) => one.id)
+    throw new Error(
+      `${lesson}: a scale of its own is asked for "${id}", which is not a sound among the lanes. They are: ${sounds.join(', ')}`,
+    )
+  }
+}
+// Which side of a sound of two channels is drawn is part of what the picture shows.
+const twoSided = refs.filter((tap) => tap.kind === 'audio' && tap.channels === 2)
+const side =
+  rest.channels === 'both' ? twoSided.length > 0 && 'left and right' : leftSaid(refs, twoSided)
+const names = refs.map((tap) => tap.name).join(', ')
+const said = label ?? `${names}, one under another against time${side ? `, ${side}` : ''}`
+---
+
+<figure class="fig">
+  <Lanes
+    client:visible
+    taps={refs}
+    ranges={ranges}
+    lines={named}
+    own={alone}
+    label={said}
+    {...rest}
+  />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

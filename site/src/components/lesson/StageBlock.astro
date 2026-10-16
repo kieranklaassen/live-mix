@@ -1,0 +1,88 @@
+---
+// One stage of the engine's device: what it is for, in words and a figure; then its equation,
+// the equation read back, its listing, what there is to say after them and a way to hear it,
+// each of which a stage may leave out.
+//
+//   <StageBlock tap="sidechain" n={2} title="The detector ignores the lows">
+//     Its purpose, and a figure of it.
+//     <M slot="equation" block t={String.raw`…`} />
+//     <Fragment slot="readback">The equation read back, term by term, against the figure.</Fragment>
+//     <Listing slot="listing" path="…" from="…" to="…" />
+//     <Fragment slot="after">What follows from the code: text set under the listing.</Fragment>
+//     <Fragment slot="listen">Hear what the detector hears</Fragment>
+//   </StageBlock>
+//
+// A stage is set in this order, wherever its slots are written: the title, where the stage
+// comes from, the stage's own text and figures (its children), then `equation`, `readback`,
+// `listing`, `after`, and last the button or the kind of signal. So text that must follow the
+// equation or the listing goes in `after`. An equation written in the stage's own text as a
+// block, <M block t={…} />, is also right: it then stands where it is written, with text
+// before it and after it.
+//
+// `tap` is the lab's tap the stage is read at. Under the title the stage says where it comes
+// from, as the lab says it. A stage whose tap is sound gets a button that plays it, with the
+// words of `listen` or, with none, "Hear this stage"; a stage whose tap is not sound says what kind
+// of signal it is, in the page's words (stageKindWords in src/lib/parts.ts) or, with `kind`,
+// in the stage's own:
+//
+//   <StageBlock tap="partials" n={4} title="…" kind="The note's partials, a spectrum for each moment. They are drawn, not heard.">
+import Listen from '../../figures/Listen.tsx'
+import Mark from '../../figures/Mark.astro'
+import { tapRefs } from '../../figures/roles.ts'
+import { ORIGIN_TEXT } from '../../lab/describe.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+import { stageKindWords } from '../../lib/parts.ts'
+
+interface Props {
+  tap: string
+  title: string
+  /** The stage's number, as the signal-flow picture prints it under the stage's block. */
+  n?: number | string
+  /** What a stage that is not sound says of its tap, in place of the page's own sentence. */
+  kind?: string
+}
+const { tap, title, n, kind } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const [ref] = tapRefs(tap, lab.taps, lesson)
+---
+
+<section class="stage-block" data-stage-block={ref.id}>
+  <h3>
+    {n !== undefined && <span class="stage-block-n">{n}</span>}
+    {title}
+  </h3>
+  <p class="stage-block-origin" data-origin={ref.origin}>
+    {ORIGIN_TEXT[ref.origin]}
+  </p>
+  <slot />
+  {Astro.slots.has('equation') && (
+    <div class="stage-block-equation">
+      <slot name="equation" />
+    </div>
+  )}
+  {Astro.slots.has('readback') && (
+    <div class="stage-block-readback">
+      <slot name="readback" />
+    </div>
+  )}
+  {Astro.slots.has('listing') && (
+    <div class="stage-block-listing">
+      <slot name="listing" />
+    </div>
+  )}
+  {Astro.slots.has('after') && (
+    <div class="stage-block-after">
+      <slot name="after" />
+    </div>
+  )}
+  {ref.kind === 'audio' ? (
+    <p class="stage-block-listen">
+      <Mark />
+      <Listen client:visible tap={ref.id} block>
+        <slot name="listen">Hear this stage</slot>
+      </Listen>
+    </p>
+  ) : (
+    <p class="stage-block-kind">{kind ?? stageKindWords(ref.name, ref.kind)}</p>
+  )}
+</section>

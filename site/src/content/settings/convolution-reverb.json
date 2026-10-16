@@ -1,0 +1,101 @@
+{
+  "tile": {
+    "values": { "decay": 1.5 },
+    "tap": "out",
+    "picture": { "taps": ["stampOne", "stampTwo", "stampThree"], "view": "wave" }
+  },
+  "sets": {
+    "dry": {
+      "label": "The drums as played",
+      "source": "drums",
+      "tap": "in"
+    },
+    "echoes": {
+      "label": "Ten echoes",
+      "values": { "grain": 1, "used": 100, "send": 0 },
+      "source": "drums"
+    },
+    "hall": {
+      "label": "The drums in the room",
+      "source": "drums"
+    },
+    "click": {
+      "label": "One sample, four times a loop",
+      "values": { "decay": 0.6 },
+      "source": "clicks",
+      "tap": "wet"
+    },
+    "drumroom": {
+      "label": "Drums in a short room",
+      "values": { "decay": 1.2, "predelay": 10, "send": -10 },
+      "source": "drums"
+    },
+    "line": {
+      "label": "A picked line set back",
+      "values": { "decay": 2.5, "predelay": 60, "send": -8 },
+      "source": "guitar"
+    },
+    "wash": {
+      "label": "A pad into a long dark room",
+      "values": { "decay": 6, "dark": 600, "swell": 200, "send": -3 },
+      "source": "pad"
+    },
+    "small": {
+      "label": "Chords in a small bright room",
+      "values": {
+        "decay": 0.5,
+        "predelay": 5,
+        "swell": 0,
+        "bright": 12000,
+        "dark": 5000,
+        "send": -6
+      },
+      "source": "chords"
+    },
+    "pre": {
+      "label": "The room held back",
+      "values": { "predelay": 120, "send": -6 },
+      "source": "drums"
+    },
+    "darker": {
+      "label": "Darker, and as long",
+      "values": { "bright": 2000, "dark": 400, "send": -6 },
+      "source": "guitar"
+    },
+    "grainy": {
+      "label": "A tail of separate echoes",
+      "values": { "decay": 1.5, "grain": 0.9, "send": -6 },
+      "source": "guitar"
+    },
+    "cutroom": {
+      "label": "A room cut short",
+      "values": { "used": 300, "send": 0 },
+      "source": "drums"
+    },
+    "bloom": {
+      "label": "A slow swell",
+      "values": { "swell": 200, "send": -3 },
+      "source": "chords"
+    },
+    "far": {
+      "label": "More room than sound",
+      "values": { "send": 6 },
+      "source": "guitar"
+    },
+    "mud": {
+      "label": "Too long and too loud",
+      "values": { "decay": 6, "send": 0 },
+      "source": "mix"
+    },
+    "rattle": {
+      "label": "A sparse room on sharp hits",
+      "values": { "grain": 1, "send": -3 },
+      "source": "drums"
+    },
+    "cuttail": {
+      "label": "The tail cut off",
+      "values": { "used": 500, "send": -3 },
+      "source": "drums"
+    }
+  }
+}

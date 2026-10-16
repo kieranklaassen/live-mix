@@ -1,0 +1,912 @@
+---
+title: Delay and echo
+family: delays
+summary: A delay line remembers the last few seconds of sound, and an echo is that memory fed back into itself. This lesson says why a sound needs to answer itself, builds an echo a piece at a time, then opens the engine's Tape Echo and reads its loop out of it as it works.
+opening:
+  input: in
+  output: out
+  caption: Each click going in is followed by its repeats coming out, a fixed time apart and smaller each time.
+lab: delay-and-echo
+devices: [tape-echo]
+bench:
+  device: tape-echo
+  params: { time: 250, feedback: 0.5, heads: 0, wow: 0, flutter: 0, drive: 0, lowCut: 20, highCut: 16000, spread: 0, mix: 0.5 }
+  note: The plate opens where this lesson starts, on a plain echo with a steady transport, open filters and no drive, not on the device's own defaults.
+sources: [clicks, guitar, drums, chords, pad, bass, mix, sine]
+seconds: 4
+files:
+  - cpp/devices/tape-echo/tape_echo.h
+  - cpp/kit/delay.h
+  - cpp/kit/math.h
+  - cpp/kit/filters.h
+  - cpp/kit/smooth.h
+  - cpp/kit/lfo.h
+  - cpp/kit/idle.h
+---
+
+<Part id="why" title="A sound that answers itself needs a memory.">
+
+A guitar line is picked one note at a time. Each note starts loud and fades until the next one is picked.
+
+<Still
+  taps="in"
+  set="dry"
+  caption="Four seconds of the picked line. Every note starts tall and falls away, and the next one starts before it has gone."
+/>
+
+Listen to it first. <Hear set="dry" label="Hear the line as played" />
+
+Played across a valley, or at the foot of a stairwell, the same line comes back from the far wall a moment later and quieter, and then again from further off. That answer does two things a player can use. It fills the gaps between the notes with the notes themselves. And it sets a second rhythm against the first, because the answer arrives at its own time and not at the player's.
+
+How does a program make a sound answer itself, later and quieter, again and again?
+
+It has to remember. To play now what was played a quarter of a second ago, a program must still have it: every sample of the last quarter of a second, kept in the order they came. That store is called a delay line. Each sample period it takes one new sample in, and hands back the one it was given a fixed time before.
+
+### One copy is not an echo
+
+The obvious answer is to keep the sound and play it once more, late. This page opens on the plainest sound there is for watching that happen: a click, which is <Src path="site/labs/bench.cpp" at="clicks.set(i, i % kBar == 0">one sample at full scale, twice a bar</Src>, and at this bench's tempo <Src path="site/labs/bench.cpp" at="// The tempo is 120: a bar is two seconds">a bar is two seconds</Src>. One sample shows exactly what is done to it.
+
+<Still
+  taps="in heads"
+  set="once"
+  source="clicks"
+  from={0}
+  span={2}
+  min={-0.25}
+  max={1}
+  caption="Two seconds of the click going in and of what the delay line gives back. Each click has one copy behind it, and then nothing until the next click."
+/>
+
+The page starts Time at <Src path="site/labs/delay-and-echo.cpp" at={'lab::Control time{"time", "Time", "ms"'}>250 ms</Src>, and the lab runs at <Src path="site/labs/lab.h" at="constexpr float kSampleRate = 48000.0f;">48,000 samples a second</Src>. With Feedback at 0, a click <Claim id="returns">comes back once, 12,000 samples later, and nothing follows it</Claim>.
+
+A wall does more than that, because the sound that comes back from it goes out again and comes back again. One copy has no trail. On the guitar it is a doubling of each note, and it stops there. <Hear set="once" label="Hear the line played once more" />
+
+### So the copy is copied
+
+The fix is to record the copy as well. Some of what the delay line gives back is sent into the delay line again, beside the new sound. The copy is then copied in its turn, and that copy too, each one smaller than the last by the same factor. The factor is called Feedback.
+
+<Still
+  taps="in heads"
+  set="trail"
+  source="clicks"
+  from={0}
+  span={2}
+  min={-0.25}
+  max={1}
+  caption="The same two seconds with Feedback raised. Each click is now followed by a row of copies, evenly spaced, each smaller than the one before it."
+/>
+
+Now the guitar has its answer. <Hear set="trail" label="Hear the line with a trail" />
+
+<Predict
+  question="Feedback is at 0.5, so each repeat goes round again at half the size of the last. How many times must a sound go round before it is 60 dB down, a thousandth of the size it began at?"
+  choices={['About 6 times', 'About 10 times', 'About 20 times', 'It never gets there']}
+>
+
+About ten times. Halving a size takes 6 dB from it, and decibels add where sizes multiply, so ten halvings take 60 dB.
+
+The device agrees. A short burst of a 1 kHz tone is played through it at a Feedback of 0.5 and each repeat is measured as it comes back. Ten trips after its first repeat, the burst is <Claim id="t60">60.4 dB</Claim> down.
+
+<Still
+  taps="repeats repeatsFormula"
+  view="curve"
+  values={{ feedback: 0.5 }}
+  min={-70}
+  max={0}
+  caption="The level of each repeat of the burst, in decibels against the burst that went in, with the number of the repeat along the bottom. The measured repeats and the feedback gain multiplied once more each time fall together, and pass 60 dB down at the eleventh repeat."
+/>
+
+A trail has no length of its own. It is a number of trips, and each trip takes one Time. So the same Feedback gives a trail four times as long when Time is four times as long.
+
+</Predict>
+
+Memory and feedback are the whole of the idea. The rest of this lesson is about what else is in the loop. A filter in it makes each repeat duller than the last. A ceiling in it decides what happens when the repeats are asked to grow and not to die. And a memory that is read at a place which moves bends the pitch of everything in it.
+
+The engine's echo is written as a tape machine: a loop of tape, a head that records, and heads further along that play. In its code the tape is a delay line, recording is a write and playing is a read. This lesson uses both sets of words. It starts the device as a plain echo, with a steady transport, a straight tape and filters as open as they go, so that each stage is easy to see. Each of those comes back as a control where its stage is opened, and part 9 puts the lesson's settings beside the device's own.
+
+</Part>
+
+<Part id="picture" title="A ring of slots, a head that writes and a head that reads.">
+
+A delay line is a row of slots, each holding one sample, and two places in the row. The write head is where the next sample goes in. The read head is where a sample is taken out. Every sample period the read head hands back what its slot holds, the write head puts the new sample in its slot, and both step on by one slot.
+
+Nothing in the row ever moves. A sample stays in the slot it was written to, and the heads walk past it. When the write head steps off the last slot it comes round to the first, and writes over the oldest sample there is. That is why the row is drawn as a ring. A ring of sixteen slots remembers the last sixteen samples and no more.
+
+The delay is the distance between the two heads. A read head that stands five slots behind the write head is reading what the write head wrote five steps ago. A delay time is no more than that: a distance in slots, which is a time in samples. A ring has one write head. It can have as many read heads as are wanted, each at its own distance, because reading changes nothing in the ring.
+
+The picture below is the kit's own delay line, <Src path="site/labs/delay-and-echo.cpp" at="constexpr int kRingSlots = 16;">sixteen slots long</Src> so that all of it can be seen. One click of size 1 is written at step 0. On every step the read head reads, and the write head writes Feedback times what was read.
+
+<Controls ids="ringBack feedback" />
+
+<DelayRing slots="ring" write="ringWrite" read="ringRead" start={10}>
+  On the ring, each slot's bar is what the slot holds after the step shown. W marks the slot just
+  written and R the slot just read. With the ring is the same run against time: what each head
+  wrote and read at every step, with a dashed line at the step shown. Press "To the start" first,
+  then "On a step" a few times, and notice that the bars stay in their slots while the two letters
+  go round. Then try the read head further behind, and notice the repeats move apart.
+</DelayRing>
+
+Check this against the picture. Leave the read head 5 slots behind and Feedback at 0.5, and go on from the start to step 5. R stands on slot 0, where the click lies: the click is read <Claim id="ring-returns">5 samples after it was written, and is written again at 0.5</Claim>, into slot 5. On step 10, the step the picture opens on, R stands on slot 5 and that copy is read in its turn, and W writes it again at 0.25, into slot 10. <Claim id="ring-round">On step 16 the write head is back on slot 0</Claim> and writes over the click. The ring kept it for sixteen samples, and has no slot for a seventeenth.
+
+Two things in this picture carry the rest of the lesson. The trail of an echo is one sound going round a ring, losing a little on each trip. And the time between its repeats is nothing in the sound at all: it is how far apart two heads stand.
+
+The engine's ring is the same thing at another size: <Src path="cpp/devices/tape-echo/tape_echo.h" at="static constexpr int kTapeSize = 262144;">262,144 slots</Src> for each side, enough for several seconds. Stage 6 of part 5 draws all of it.
+
+The three lessons after this one stand on this ring, and each writes to it just as this one does. They differ in where they read. A chorus, in <Lesson id="chorus-and-flanging" />, reads at a distance that sways. A pitch shifter, in <Lesson id="pitch-shifting" />, reads at a distance that keeps growing or shrinking. A granular player, in <Lesson id="granular" />, reads many short pieces of the ring at once.
+
+</Part>
+
+<Part id="uses" title="Four kinds of sound, four different echoes.">
+
+The same loop does different work depending on what goes into it and how the repeats are timed against it. Each card below shows a sound with an echo that suits it, lists the setting, and plays it. A card's button moves the whole page to its setting, so every figure further down shows it too, and the play bar offers the way back to where you were.
+
+<Uses>
+  <Use title="A picked line" set="line">
+    <Still
+      slot="picture"
+      taps="in heads"
+      set="line"
+      from={0}
+      span={1}
+      caption="One second of the guitar and of what the heads read. Each note's echo begins between two notes of the line, not on top of one."
+    />
+
+    The guitar of this loop is <Src path="site/labs/bench.cpp" at="// A minor, F, C, G: one chord a bar, picked low to high in eighths.">picked in eighths</Src>, two of the bench's <Src path="site/labs/bench.cpp" at="constexpr int kStep = 6000;">sixteenths of 6,000 samples</Src> to a note. Time on this card is three of those sixteenths. So every echo falls half way between two notes. Listen for a line with twice as many notes in it. Over the loop the echoes come out <Claim id="use-line">3.8 dB under the line</Claim> itself: present, and behind it.
+
+  </Use>
+  <Use title="Drums" set="slap">
+    <Still
+      slot="picture"
+      taps="in heads"
+      set="slap"
+      from={0}
+      span={1}
+      caption="One second of the drums and of what the heads read: every hit once more, close behind itself, and no trail."
+    />
+
+    With Feedback at 0 there is one repeat and nothing after it. This one is set close behind its hit: listen for whether it thickens the hit or answers it. In the output the repeats stand <Claim id="use-slap">6.1 dB under the drums</Claim>. After the card, lengthen Time a little at a time, and listen for the point where the repeat comes apart from the hit and starts to be a rhythm of its own.
+
+  </Use>
+  <Use title="Held chords" set="wash">
+    <Still
+      slot="picture"
+      taps="repeat1 repeat2 repeat3 repeat5"
+      set="wash"
+      view="spectrum"
+      min={-60}
+      max={6}
+      caption="One sample through the loop at this setting: the spectrum of its first, second, third and fifth repeat. The first is flat. Each one after it has lost more at both ends of the picture than in the middle, and most at the top."
+    />
+
+    A long Time and a high Feedback under held chords make a trail that outlasts each chord and lies under the next. The loop's filters keep it from piling up. At this setting each trip costs <Claim id="use-wash">3.4 dB at 1 kHz and 12.6 dB at 4 kHz</Claim>, so the older a repeat is, the less of its top is left. A little Wow keeps the head, and so the pitch of the trail, from standing still.
+
+  </Use>
+  <Use title="Bass" set="low">
+    <Still
+      slot="picture"
+      taps="repeat1 repeat2 repeat3 repeat5"
+      set="low"
+      view="spectrum"
+      min={-60}
+      max={6}
+      caption="One sample through the loop at this setting: the spectrum of its first, second, third and fifth repeat. The first is flat. Each one after it has lost far more at the low end of the picture than in the middle."
+    />
+
+    The repeats of a bass line are low notes laid over the low notes that come after them. Raising Low cut takes the lows out of what goes round again: a trip costs <Claim id="use-low">18.6 dB at 100 Hz and 7.3 dB at 1 kHz</Claim>. The first repeat keeps all its lows, because the filters stand in the path back to the tape and not in the path to the output. Listen for the later repeats thinning to the pluck at the front of each note.
+
+  </Use>
+</Uses>
+
+These are places to start. In each of them the Time is chosen against the rhythm of the part, and the filters against its register.
+
+</Part>
+
+<Part id="build" title="Start with a ring. Add one piece. Listen. Add the next.">
+
+This part begins with a ring that only records and adds seven pieces to it, one at a time. After each piece the pictures are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these pictures and plays "Hear it so far".
+
+Every step before the last is the lesson's own: an echo with a piece missing, which the engine's device never is. One thing in the early steps is there only for safety, and step 3 says what.
+
+<Build>
+  <Step title="A ring of memory">
+    This is the ring of part 2 at full size, one for each side, with as many slots as the engine's device has. Each new sample goes into the slot the write index points at, and the index steps on. The number of slots is a power of two, so coming round from the last slot to the first is a single AND with one less than that number.
+
+    Nothing reads the ring yet, so what goes in comes out. Press "Hear it so far": it is the loop, untouched.
+
+    <Listing
+      path="site/labs/delay-and-echo.cpp"
+      from="// A ring of memory: the newest sample goes into the slot the write index"
+      to="write = (write + 1) & kMask; }"
+      name="ring"
+    />
+
+    <Lanes slot="picture" taps="in builtTape built">
+      The sound going in, what is written on the ring, and the sound so far. Notice that all three
+      are the same: the ring only records.
+    </Lanes>
+
+  </Step>
+  <Step title="A read head" controls="time mix">
+    A head now reads the slot that lies Time behind the write index, and what it reads is mixed with the sound going in. That is one line of code, because nothing in the ring has to move.
+
+    <Claim id="build-head">With Time at 250 ms a click comes back 12,000 samples later. At the step before, nothing comes back at all</Claim>.
+
+    Time is rounded to a whole number of slots here. Step 4 mends that.
+
+    <Listing
+      path="site/labs/delay-and-echo.cpp"
+      from="// A read head: the sample that went in `back` samples ago lies `back` slots"
+      to="float read(int side, int back) const { return slots[side][(write - back) & kMask]; }"
+      mark="float read(int side, int back) const"
+      name="head"
+    />
+
+    <Lanes slot="picture" taps="in builtHeads built">
+      The sound going in, what the head reads from the ring, and the two mixed. Try Time longer, and
+      notice the copy move further behind the sound it copies.
+    </Lanes>
+
+  </Step>
+  <Step title="Feedback" controls="time feedback mix">
+    What the head reads is now added to the sound going in before it is recorded, turned down by Feedback. Each copy is copied in its turn. <Claim id="build-feedback">At a Feedback of 0.5 the second repeat of a click is 6.0 dB under the first. At the step before there was no second repeat</Claim>.
+
+    A loop that feeds itself can grow without end. Until step 6 gives it a proper ceiling, the build cuts whatever it records off flat at full scale, the largest number a sample can be. That is the lesson's own stopgap, and the engine's device does not have it.
+
+    <Listing
+      path="site/labs/delay-and-echo.cpp"
+      from="// Feedback: some of what the head reads is recorded again beside the input."
+      to="float fed_back(float in, float echo) const { return in + feedback.value * echo; }"
+      mark="float fed_back(float in, float echo) const"
+      name="feedback"
+    />
+
+    <Lanes slot="picture" taps="in builtHeads builtTape built">
+      What the head reads, and what is written on the ring: the sound going in with the repeats
+      beside it. Try Feedback higher, and notice the row of repeats grow longer.
+    </Lanes>
+
+  </Step>
+  <Step title="Between samples" controls="time feedback mix">
+    So far the head could only stand on a slot, and few times are a whole number of slots. <Claim id="build-between">With Time at 100.01 ms the head belongs 4,800.48 samples behind, which is between two slots. A click now comes back as four samples whose centre is 4,800.48 samples late. At the step before it came back as one sample, 4,800 late</Claim>.
+
+    This piece takes the two slots on each side of the place it wants and puts a smooth curve through the four. Stage 3 of part 5 opens that curve up. It matters most from step 7 on, when the head is moving and is almost never on a slot.
+
+    <Listing
+      path="site/labs/delay-and-echo.cpp"
+      from="// Reading between samples: a delay of 4,800.48 samples lands between two"
+      to="read(side, whole + 2), fraction); }"
+      mark="return kit::hermite(read(side, whole - 1)"
+      name="between"
+    />
+
+    <Curve
+      slot="picture"
+      taps="builtKernel"
+      xTitle="samples from the stored one"
+      min={-0.2}
+      max={1.2}
+      height={220}
+    >
+      One stored sample of size 1, read by the echo so far at every place from three samples on one
+      side of it to three on the other. Try going back a step, and notice the curve turn into a box:
+      without this piece a read takes the nearest slot whole.
+    </Curve>
+
+  </Step>
+  <Step title="Filters in the loop" controls="time feedback highCut lowCut mix">
+    A wall gives back less of the top of a sound than of its middle, so an echo in the world comes back duller than it left, and duller again each time round. This piece puts a low-pass and then a high-pass between the head and the sum. They stand in the path back to the ring and not in the path to the output. So the first repeat is untouched, the second has been filtered once and the third twice.
+
+    <Claim id="build-filters">With High cut at 4.5 kHz and Low cut at 120 Hz, a 20 ms burst of a 4.5 kHz tone comes back 10.5 dB down on its second repeat. At the step before it came back 6.0 dB down</Claim>, which is the Feedback of 0.5 and nothing else.
+
+    Both filters start as open as they go, so little changes until High cut comes down.
+
+    <Listing
+      path="site/labs/delay-and-echo.cpp"
+      from="// Filters in the loop: what the head reads goes through a low-pass and then"
+      to="return low_cut_filter[side].highpass(high_cut_filter[side].lowpass(echo)); }"
+      mark="return low_cut_filter[side].highpass"
+      name="filters"
+    />
+
+    <Lanes slot="picture" taps="in builtHeads builtBack built">
+      What the head reads, and the same after the filters, on its way back to the ring. Try High
+      cut lower, and notice the second of those lanes shrink against the first, and the later
+      repeats shrink with it.
+    </Lanes>
+
+  </Step>
+  <Step title="A soft ceiling" controls="time feedback highCut lowCut drive mix">
+    Feedback on this device goes past 1, so that a trail can be made to build and not die. Something then has to stop it. The stopgap of step 3 cut the sum off flat, which puts a corner into the wave every time it is reached. This piece replaces it with a curve that is a straight line for a small sum and bends over towards a level it cannot pass. A quiet sound is recorded as it comes, and a loud one is leaned on.
+
+    <Claim id="build-ceiling">At a Feedback of 1.1 and a Time of 30 ms, a burst of a 1 kHz tone grows until the ceiling holds it: in the last second of an 8 s loop its peaks on the ring stand at 0.63. At the step before they stood at 1.00, cut flat</Claim>.
+
+    The curve bends a little even well below its ceiling, so this piece changes every loud sample that is recorded. Stage 6 of part 5 measures how much.
+
+    <Listing
+      path="site/labs/delay-and-echo.cpp"
+      from="// A ceiling where the sum is recorded. Without one, the lesson cuts the"
+      to="float bent(float sent) const { return flush_denormal(kit::fast_tanh(sent * hit) / hit); }"
+      mark="float bent(float sent) const"
+      name="ceiling"
+    />
+
+    <Lanes slot="picture" taps="in builtTape built">
+      The sound going in and what is written on the ring. Try Feedback at its highest, and notice
+      the repeats on the ring grow and then hold their height. Then try Drive higher, and notice
+      them hold lower down.
+    </Lanes>
+
+  </Step>
+  <Step title="An unsteady transport" controls="time feedback highCut lowCut drive wow flutter nudge mix">
+    Until now the head jumped to its new place whenever Time moved. A jump in the place that is read is a jump in the wave, and a jump in a wave is a click. So Time is now followed by a motor, a smoother with a lag of <Src path="cpp/devices/tape-echo/tape_echo.h" at="static constexpr float kMotorLagSeconds = 0.12f;">120 ms</Src>.
+
+    <Claim id="build-motor">When Time is lengthened by 60 ms, the head has gone 63 % of the way 120 ms later. At the step before it went 100 % of the way at once</Claim>.
+
+    While the head is on its way it reads the ring faster or slower than the ring was written, and everything it reads is bent in pitch. The same piece adds two more wanderings of the head: Wow, which is slow, and Flutter, which is fast and fine. Stages 1 and 2 of part 5 measure all three.
+
+    <Listing
+      path="site/labs/delay-and-echo.cpp"
+      from="// A transport that is never steady: Time is followed by a motor, a"
+      to="return motor.next() + wobble * lab::kSampleRate; }"
+      mark="return motor.next() + wobble"
+      name="transport"
+    />
+
+    <Lanes slot="picture" taps="in builtDelay built">
+      How far behind the head stands, between the sound going in and the sound so far. It is a level
+      line while the transport is steady. Try "Move Time half way through, by" above 0, and notice
+      the line bend upwards half way along and settle, where a jump would be a step. Then try Wow at
+      its highest, and notice the line wander.
+    </Lanes>
+
+  </Step>
+  <Step title="More heads, two sides" controls="time feedback heads highCut lowCut drive wow flutter nudge spread mix">
+    A ring can be read in more than one place for the price of another read. This piece reads at Time, at two thirds of Time and at a third of it, and Heads picks which of the three are heard. <Claim id="build-heads">With Heads on Three and Time at 600 ms a click comes back at 200 ms, 400 ms and 600 ms. At the step before it came back at 600 ms only</Claim>.
+
+    <Listing
+      path="site/labs/delay-and-echo.cpp"
+      from="// More heads: the ring is read at Time, at two thirds of it and at a third"
+      to="return echo; }"
+      mark="echo += gains[h] * between"
+      name="heads"
+    />
+
+    Each side has had a ring of its own since step 1. Ping pong now crosses what the two record: as it rises, the sound going in leaves the right side's ring, and each side records more of the other side's echo and less of its own.
+
+    <Listing
+      path="site/labs/delay-and-echo.cpp"
+      from="// Two sides: as Ping pong rises the input leaves the right side's ring, and"
+      to="feedback.value * kit::lerp(back_now[1], back_now[0], spread.value); }"
+      name="sides"
+    />
+
+    That is all eight pieces. With every one in place the build does to a sample what the engine's device does, in the same order, with the kit's own filters, drifts and smoother, and the lab compares the two outputs on every render. Two things the build is told and does not work out. Its drifts start from the same seeds as the device's, or the two would wander differently. And when the device goes to sleep after a silence, the build sleeps with it.
+
+    <Check id="builtDifference" />
+
+    That reading stops at <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>. It shows that for no difference at all, and for any difference further down than that. So the lab's test compares the two outputs themselves. On the clicks, the drums, the guitar and the held chords, at each of the settings it tries, what the build puts out and what the device puts out are <Claim id="build-same">the same, sample for sample</Claim>.
+
+    <Lanes slot="picture" taps="in builtHeads builtRight built">
+      What is read from the left side's ring and from the right side's. Try Heads on Three, and
+      notice each repeat become three. Then try Ping pong at its highest, and notice the two rings
+      take the repeats in turn.
+    </Lanes>
+
+  </Step>
+</Build>
+
+Here is how the lab puts the pieces in order, for one sample. It reads before it writes: the heads take their samples from the ring, the filters and the sum make what goes back, the ceiling shapes it, and only then is the new sample recorded.
+
+<Listing
+  path="site/labs/delay-and-echo.cpp"
+  from="// One sample through the pieces built so far, in the order it meets them."
+  to="idle.settle(loudest, 1); }"
+  name="run"
+/>
+
+That is a whole echo in a handful of small functions. The one in the engine is the same pieces in the same order, written as one loop. Around them it has what a device needs and the build left out: controls that glide when they are moved, and filters that are set afresh as their controls move.
+
+</Part>
+
+<Part id="engine" title="The engine's own echo, opened up.">
+
+From here on it is the device itself. The page runs the engine's C++, compiled for the browser, on the loop, one sample at a time, and each figure is read out of the running code at the point the text is talking about. Under its title each stage says where its figure comes from.
+
+Three of the sounds are read straight out of the device: what it wrote on its tape, what came back from its loop filters, and its output. Two it works out and throws away. What the heads read is one of them, so the lab reads the device's tape again with the kit's own read, at the device's own read point. The sum that goes to the tape is the other, and the lab adds it up again from the device's own numbers. Two checks hold both to the device on every render. On the drums, at the starting settings and again with every control at work, each reads <Claim id="rebuilt">−140 dB</Claim>, which is the floor of the scale: whatever difference there is lies more than 140 dB under the device's own signal.
+
+<Check id="heads" />
+
+<Check id="record" />
+
+<Flow
+  label="The sound going in is added to what comes back round the loop, recorded on the tape under a soft ceiling, and read by the heads. What the heads read goes on to the mix and the output, and also back through the loop's filters to be added in again. A row over the main path works out where the heads read, and the row over that works out the speed of the tape from it."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'dry', shape: 'dot', from: 'in' },
+    { id: 'sum', shape: 'sum', from: 'dry', back: 'filters', tap: 'sum', label: 'Sum', n: 5 },
+    { id: 'tape', from: 'sum', tap: 'tape', label: 'Record', n: 6 },
+    { id: 'time', row: -1, tap: 'delay', label: 'Time, motor, wow', n: 1, signal: 'value' },
+    { id: 'speed', row: -2, from: 'time', tap: 'speed', label: 'Tape speed', n: 2, signal: 'value' },
+    { id: 'heads', from: ['tape', 'time'], tap: 'heads', label: 'Heads', n: 3 },
+    { id: 'split', shape: 'dot', from: 'heads' },
+    { id: 'filters', row: 1, from: 'split', tap: 'back', label: 'Loop filters', n: 4 },
+    { id: 'mix', from: ['split', 'dry'], label: 'Mix', n: 7 },
+    { id: 'out', tap: 'out', shape: 'end', from: 'mix' },
+  ]}
+>
+  From Input through Sum, Record and Heads to Mix and Output is the sound on its way through. Loop
+  filters is the way back: what the heads read, filtered, on its way to be recorded again. Two
+  blocks carry no sound: "Time, motor, wow" is the place the heads read, and Tape speed is the
+  speed that follows from it. Press a stage's button, and notice its block light up here.
+</Flow>
+
+<StageBlock tap="delay" n={1} title="Where the head stands: Time, a motor and two wanderings">
+  The first thing the device does for a sample is work out how far behind the write index its Time head should read. The answer is a number of samples, and it is hardly ever a whole one. It has three parts.
+
+  Time does not jump when it is turned. It is followed by a smoother with a time constant of <Src path="cpp/devices/tape-echo/tape_echo.h" at="static constexpr float kMotorLagSeconds = 0.12f;">120 ms</Src>, where the device's other controls have one of <Src path="cpp/kit/device.h" at="static constexpr float kSmoothingSeconds = 0.005f;">5 ms</Src>. It is a motor that takes a moment to change speed.
+
+  On top of that come two wanderings of the head, each a length of time scaled by its control. Wow is up to <Src path="cpp/devices/tape-echo/tape_echo.h" at="static constexpr float kWowSeconds = 0.0016f;">1.6 ms</Src> of a slow drift: <Src path="cpp/kit/lfo.h" at="static constexpr float kWeights[3] = {0.5f, 0.3f, 0.2f};">three sines</Src> around <Src path="cpp/devices/tape-echo/tape_echo.h" at="wow_drift_.set_rate(0.5f, sr);">half a hertz</Src> whose rates do not divide into one another, so the pattern does not come round. Flutter is up to <Src path="cpp/devices/tape-echo/tape_echo.h" at="static constexpr float kFlutterSeconds = 0.00007f;">0.07 ms</Src> of something faster: <Src path="cpp/devices/tape-echo/tape_echo.h" at="(0.7f * flutter_lfo_.next(kit::Lfo::kSine) + 0.3f * flutter_drift_.next());">seven parts of a sine to three of a drift</Src>, the sine at <Src path="cpp/devices/tape-echo/tape_echo.h" at="flutter_lfo_.set_rate(7.1f, sr);">7.1 Hz</Src> and the drift around <Src path="cpp/devices/tape-echo/tape_echo.h" at="flutter_drift_.set_rate(1.9f, sr);">1.9 Hz</Src>. Both controls start at 0 in this lesson, which is a steady transport.
+
+  <Controls ids="time wow flutter nudge" />
+
+  <Trace taps="delay" unit="ms">
+    How far back the Time head reads, across the loop. With Wow, Flutter and the last control at 0
+    it is a level line at Time. Try Wow at its highest, and notice the line wander. Then try the
+    last control above 0, and notice the line bend upwards half way along and settle.
+  </Trace>
+
+  The last of those controls is the lesson's own. Half way through the loop it turns Time by the amount it shows, and at the start of the loop it turns it back. Each turn follows the motor's curve.
+
+  <Still
+    taps="delay"
+    values={{ nudge: 60 }}
+    caption="The same line with the last control at 60 ms. At the start of the loop Time is turned back and the line falls to where it was. Half way along Time is turned longer and the line bends up to the new place. Neither turn is a step."
+  />
+
+  <M slot="equation" block t={String.raw`\sig{ctl}{T(t)} = T_1 - \Delta\,\exp(-t/\tau)`} />
+  <Fragment slot="readback">
+    Read it against the picture. <M t="T(t)" /> is how far back the head reads, as a time, <M t="t" /> seconds after Time was turned. <M t="T_1" /> is the new Time, <M t={String.raw`\Delta`} /> is how far it was turned, counted as positive for longer, and <M t={String.raw`\tau`} /> is the motor's time constant. At the moment of the turn the exponential is 1, and the head still stands at the old place. After that it closes the distance by the same share in every equal stretch of time, which is the bend in the line. It never jumps. In the listing the wanderings are added first as a time, `wobble`, and <M t={String.raw`\at{wobble-base}{\text{the place read}}`} /> is the motor's value plus that time in samples.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/tape-echo/tape_echo.h"
+    from="const float wobble = wow_.next() * kWowSeconds * wow_drift_.next() +"
+    to="const float base = time_.next() + wobble * sample_rate();"
+    name="wobble"
+    at={{ base: 'const float base = time_.next() + wobble * sample_rate();' }}
+  />
+</StageBlock>
+
+<StageBlock tap="speed" n={2} title="A head that moves bends the pitch">
+  A head that is moving along the tape passes it at another speed than the one it was recorded at, and that changes the pitch of everything the head reads. The device keeps that speed as a meter, and the lab reads it. At 1 the transport is steady.
+
+  <Controls ids="wow flutter nudge" />
+
+  <Trace taps="speed">
+    The tape's speed past the head, from the device's own meter. Above 1 the repeats play sharp, and
+    below it flat. Try Wow at its highest, and notice that this line swings furthest where the line
+    of stage 1 is steepest, not where it is highest.
+  </Trace>
+
+  <Still
+    taps="speed"
+    values={{ nudge: 60 }}
+    caption="The same meter with the last control at 60 ms, so that Time is lengthened half way along and turned back at the start. Half way along the speed drops at once to 0.5 and climbs back to 1 as the motor settles. At the start it stands at 1.5 and falls back."
+  />
+
+  To see why, put a sine of frequency <M t="f" /> into a delay whose length <M t="T" /> changes with time. What comes out at the time <M t="t" /> is what went in at <M t="t - T(t)" />, so its phase is <M t={String.raw`2\pi f\,(t - T(t))`} />. Frequency is how fast phase advances.
+
+  <M slot="equation" block t={String.raw`f_{\text{out}} = f\,\bigl(\sig{ctl}{1 - T'(t)}\bigr)`} />
+  <Fragment slot="readback">
+    <M t="T'(t)" /> is the rate at which the delay is changing: seconds of delay gained in each second that passes. Only that rate is in it. While the delay grows, the head falls behind the write index, and what it reads plays slow and flat. While the delay shrinks, the head catches up and the sound plays fast and sharp. A delay that holds still changes no pitch, however long it is. The bracket is the speed of the tape past the head, and it is the number the meter keeps: <M t={String.raw`\at{meter-speed}{\text{one less the step of the place read}}`} /> from one sample to the next.
+
+    As a musical distance, the bend is
+
+    <M block t={String.raw`\text{cents} = 1200\,\log_2\bigl(1 - T'(t)\bigr)`} />
+
+    Turning Time is the large case. By the motor's curve of stage 1, a turn of <M t={String.raw`\Delta`} /> starts the speed at <M t={String.raw`1 - \Delta/\tau`} />, and the speed comes back to 1 as the motor settles. <Claim id="motor">Lengthen Time by 60 ms and the tape drops at once to 0.5 of its speed</Claim>, an octave down. Lengthen it by as much as the motor's time constant and the tape stands still for an instant. Lengthen it by more and it runs backwards. Shorten it and the tape speeds up.
+
+    The wanderings are the small case. Neither comes round, so how far each is seen to go depends on the stretch it is watched over. The figures here were read off the device's meter by the lab's test over the second pass of an eight-second loop, which is the device's ninth second to its sixteenth. Over that stretch Wow at 1 moves the place read by as much as <Claim id="wow-range">1.45 ms, and the pitch between 6.5 cents flat and 7.8 cents sharp</Claim>. Flutter at 1 moves it by only <Claim id="flutter-range">0.07 ms, and the pitch between 4.2 cents flat and 4.1 cents sharp</Claim>. That is a twentieth of the distance for more than half of the bend, because it is the rate that counts and Flutter is the faster of the two. Another stretch gives other extremes, and the page's own four-second loop is one.
+
+    Each wandering is added as a time and not as a share of Time, so the bend does not depend on Time. The lab's test reads the meter with Time at its shortest, at its longest and at two places between, and the readings are <Claim id="same-wobble">the same, point for point</Claim>. A long echo does not waver more than a short one.
+
+    To hold the formula to the sound, a test plays a 1 kHz sine through the wandering head and counts its zero crossings as it comes back. The pitch it finds is <Claim id="pitch-formula">less than 0.1 cent</Claim> from what the meter says.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/tape-echo/tape_echo.h"
+    from="float meter(int index) const {"
+    to="if (index == 1) return idle_.asleep() ? 1.0f : 1.0f - (time_step_ + wobble_step_ * sr);"
+    name="meter"
+    at={{ speed: 'if (index == 1) return idle_.asleep()' }}
+  />
+</StageBlock>
+
+<StageBlock tap="heads" n={3} title="The heads read between samples">
+  With the place worked out, the device reads the tape there. The place is almost never a slot: step 4 of the build met a Time that falls between two, and a head that moves passes through every place between two slots on its way. So a read has to make up a value between the samples it has.
+
+  The cheap way is a straight line between the two nearest samples, a linear read. The better way looks at four, two on each side, and puts a cubic through the middle two whose slope at each is set by the samples either side of it. A cubic made that way is a Hermite cubic, and the kit calls the read by that name. The clearest way to see what each does is to store one sample and read all round it.
+
+  <Controls ids="fraction" />
+
+  <Curve
+    taps="kernelLinear:alt kernelHermite:out"
+    uprights="fraction"
+    xTitle="samples from the stored one"
+    min={-0.2}
+    max={1.2}
+  >
+    One stored sample of size 1, read by the kit's line at every place from three samples on one
+    side of it to three on the other. Read linearly it is a triangle: a sample counts only towards
+    reads less than one slot away. Read by the cubic it reaches two slots each way and dips below
+    zero.
+    The dashed line is Between samples. The height of a curve there, and at whole steps either side
+    of there, is what that read multiplies its samples by. Try it at either end, and notice that
+    only one sample is left with any weight.
+  </Curve>
+
+  The cubic is worked out from three numbers.
+
+  <M
+    block
+    t={String.raw`\begin{aligned} c_1 &= \tfrac12\,(v_1 - v_{-1}) \\ c_2 &= v_{-1} - \tfrac52\,v_0 + 2\,v_1 - \tfrac12\,v_2 \\ c_3 &= \tfrac12\,(v_2 - v_{-1}) + \tfrac32\,(v_0 - v_1) \end{aligned}`}
+  />
+
+  <M
+    block
+    t={String.raw`\sig{out}{p(\mu)} = \at{hermite-curve}{\bigl((c_3\,\mu + c_2)\,\mu + c_1\bigr)\,\mu + v_0}`}
+  />
+
+  The read lands between the samples <M t="v_0" /> and <M t="v_1" />, a fraction <M t={String.raw`\mu`} /> of the way from the first to the second, and <M t="v_{-1}" /> and <M t="v_2" /> are their outer neighbours. The listing calls the four `ym1`, `y0`, `y1` and `y2`, and the fraction `t`. At a fraction of 0 only <M t="v_0" /> is left, which is the read on a slot. <M t="c_1" /> is the slope at <M t="v_0" />, taken from the samples either side of it. The other two bend the curve so that it arrives at <M t="v_1" /> with the slope that the samples round <M t="v_1" /> ask for.
+
+  <Listing
+    path="cpp/kit/math.h"
+    from="inline float hermite(float ym1, float y0, float y1, float y2, float t) {"
+    to="return ((c3 * t + c2) * t + c1) * t + y0;"
+    name="hermite"
+    at={{ curve: 'return ((c3 * t + c2) * t + c1) * t + y0;' }}
+  />
+
+  Half way between two samples the straight line takes a half of each neighbour. The cubic takes <M t={String.raw`-\tfrac1{16},\ \tfrac9{16},\ \tfrac9{16},\ -\tfrac1{16}`} /> of the four round it. The device reads by the cubic: when Time ends in half a sample it turns one sample into four, <Claim id="device-hermite">−0.06, 0.56, 0.56 and −0.06 of it</Claim>.
+
+  Either way a sample has become a weighted sum of its neighbours, and a weighted sum of neighbours is a filter. Averaging smooths, so the filter is a low-pass, and how much it takes depends on where between the samples the read lands.
+
+  <Spectrum taps="responseLinear:alt responseHermite:out" min={-12} max={3}>
+    What each read does to each frequency, as a delay of a few samples and the fraction that Between
+    samples shows: the lab puts one sample through the kit's line and takes the response. Try
+    Between samples at either end, and notice both lines lie flat on 0 dB: a read on a slot loses
+    nothing. Half way is the worst there is.
+  </Spectrum>
+
+  Half way, the linear read is the mean of two neighbours, whose gain at a frequency <M t="f" /> and a sample rate <M t="f_s" /> is
+
+  <M block t={String.raw`\sig{alt}{|H_{\text{line}}(f)|} = \cos\Bigl(\frac{\pi f}{f_s}\Bigr)`} />
+
+  The linear read loses <Claim id="linear-half">2.0 dB at 10 kHz and 11.7 dB at 20 kHz</Claim>. The Hermite read loses <Claim id="hermite-half">0.5 dB at 10 kHz and 8.4 dB at 20 kHz</Claim>. Neither is flat, which is why the top of a sound read by a moving head comes and goes a little. The cubic costs two more samples and a few multiplications, and at 10 kHz it loses about a quarter as much.
+
+  The tape can be read in more than one place. The device has three heads, <Src path="cpp/devices/tape-echo/tape_echo.h" at="static constexpr float kHeadRatio[kNumHeads] = {1.0f, 2.0f / 3.0f, 1.0f / 3.0f};">at Time, at two thirds of it and at a third</Src>, and Heads picks one of <Src path="cpp/devices/tape-echo/tape_echo.h" at="static constexpr float kHeadGains[4][kNumHeads] = {">four mixes of them</Src>. With Three chosen and Time at 600 ms, a click comes back <Claim id="three-heads">at 200 ms, 400 ms and 600 ms</Claim>. The sum of the heads is both what is heard and what goes back round, so every head's repeats repeat.
+
+  <Still
+    taps="in heads"
+    source="clicks"
+    values={{ heads: 2, time: 600, feedback: 0, mix: 1 }}
+    from={0}
+    span={1}
+    min={-0.25}
+    max={1}
+    caption="One click and what three heads read of it, at the setting of the sentence above: three copies, a third of Time apart, the last a little taller than the two before it."
+  />
+
+  No head reads closer than <Src path="cpp/devices/tape-echo/tape_echo.h" at="const float delay = kit::clamp(base * kHeadRatio[h], 4.0f, max_delay);">4 samples</Src> behind the write index, because the cubic needs a sample on the near side of the place it reads.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/tape-echo/tape_echo.h"
+    from="float echo[2] = {0.0f, 0.0f};"
+    to="echo[1] += gain * tape_[1].read_hermite(delay); }"
+    name="heads-read"
+  />
+  <Fragment slot="listen">Hear what the heads read</Fragment>
+</StageBlock>
+
+<StageBlock tap="back" n={4} title="Filters in the loop">
+  What the heads read goes two ways. One copy goes on to the output as it is. The other goes back towards the tape, and on its way it passes a low-pass and then a high-pass. The filters are inside the loop, and that is the whole point of them: the second repeat has been through them once, and the fifth four times.
+
+  <Controls ids="highCut lowCut feedback" />
+
+  <Spectrum
+    taps="repeat1:in repeat2:alt repeat3:ctl repeat5:out"
+    uprights="lowCut highCut"
+    min={-60}
+    max={6}
+  >
+    One sample through the loop: the spectrum of its first, second, third and fifth repeat, measured
+    on a second copy of the device at its shortest Time. The first is flat. Try High cut lower and
+    Low cut higher, and notice the later repeats fall away at both ends, each by as much again as
+    the one before it, while the first stays flat.
+  </Spectrum>
+
+  High cut is the kit's state-variable filter, the subject of <Lesson id="state-variable-filter" />, as a low-pass. The device sets its resonance to <Src path="cpp/devices/tape-echo/tape_echo.h" at="high_cut_[c].set(param(kHighCut), 0.6f, sr);">0.6</Src>, a little under the flattest setting, so that there is no bump at the corner for the loop to feed on. Low cut is the one-pole filter of <Lesson id="one-pole" />, as a high-pass. Both are set afresh from their controls <Src path="cpp/devices/tape-echo/tape_echo.h" at="filter_clock_.reset(16);">every 16 samples</Src>.
+
+  <M slot="equation" block t={String.raw`S(f) = 20\,\log_{10}\bigl(g\,|H(f)|\bigr)`} />
+  <Fragment slot="readback">
+    <M t="S(f)" /> is the step in decibels from one repeat to the next at the frequency <M t="f" />. <M t="g" /> is Feedback, and <M t={String.raw`|H(f)|`} /> is the gain of the two filters together at that frequency. Where the filters pass everything the step is Feedback's alone, the same at every frequency. Where they cut, the step is larger, and it is taken again on every trip. That is why the lines in the picture fan out towards both ends.
+
+    The device itself starts High cut at <Src path="cpp/devices/tape-echo/device.json" at={'"default": 4500,'}>4.5 kHz</Src> and Low cut at <Src path="cpp/devices/tape-echo/device.json" at={'"default": 120,'}>120 Hz</Src>. There, at a Feedback of 0.5, a trip round the loop costs <Claim id="trip-1k">6.3 dB at 1 kHz</Claim>, <Claim id="trip-corner">10.5 dB at 4.5 kHz</Claim>, where a low-pass of this resonance passes six tenths of what it is given, and <Claim id="trip-9k">20.6 dB at 9 kHz</Claim>. At those steps what a sound has at 9 kHz is 60 dB down after three trips, and what it has at 1 kHz takes ten.
+
+    Even wide open, High cut stops at <Src path="cpp/devices/tape-echo/device.json" at={'"max": 16000,'}>16 kHz</Src>, and a click has as much in every hertz above that as in every hertz below. One sample loses <Claim id="click-step">8.4 dB on its first trip and less on each trip after, 6.2 dB by the eleventh</Claim>, as there is less of it left up there to lose. A filter also takes time to answer. Each trip through the open filters leaves the click's peak about half a sample later, and the eighth repeat peaks <Claim id="late">4 samples late</Claim>. The loop is a little longer than the tape.
+
+    <Check id="loop" />
+
+    That check makes the loop again from the kit's parts. It takes what the device's heads read, runs it through the kit's two filters and the Feedback gain, records it under the ceiling of stage 6, and compares the result with what the heads read one trip later. At every Feedback, filter setting and Drive that the lab's test tries, the check reads <Claim id="loop-rebuilt">−140 dB</Claim>, the floor of its scale: whatever difference there is lies more than 140 dB under the repeats themselves.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/tape-echo/tape_echo.h"
+    from="float back[2];"
+    to="back[c] = low_cut_[c].highpass(high_cut_[c].lowpass(echo[c])); }"
+    name="back"
+  />
+  <Fragment slot="listen">Hear what goes back to the tape</Fragment>
+</StageBlock>
+
+<StageBlock tap="sum" n={5} title="Feedback: what was read is recorded again">
+  The filtered copy is multiplied by Feedback and added to the sound going in. That sum is what the tape is given. Without it the device would be the single copy of part 1.
+
+  <Controls ids="feedback" />
+
+  <Curve taps="repeats:out repeatsFormula:ctl" xTitle="repeat" yTitle="level, dB" min={-60} max={20}>
+    The level of each repeat of a short burst of a 1 kHz tone, against the burst that went in,
+    measured on the second copy of the device, and the level that Feedback alone would give it. The
+    bottom of the picture is 60 dB down. Try Feedback higher, and notice both lines tilt together
+    until, near the top of its range, the measured one bends away under the other.
+  </Curve>
+
+  <M slot="equation" block t={String.raw`s[n] = x[n] + \at{sum-left}{g\,q[n]}`} />
+  <Fragment slot="readback">
+    <M t="x[n]" /> is the sample going in, <M t="q[n]" /> is what comes back from the filters of stage 4, <M t="g" /> is Feedback and <M t="s[n]" /> is the sum sent to the tape.
+
+    Follow one sound round, with the filters out of the way and the head <M t="d" /> samples behind. It is read after <M t="d" /> samples at full size and recorded again at <M t="g" /> times that. It is read again after <M t="2d" /> and recorded at <M t="g^2" />. What the heads read, <M t="e[n]" />, is every earlier trip added up:
+
+    <M block t={String.raw`e[n] = \sum_{k \ge 1} g^{\,k-1}\,x[n - k\,d]`} />
+
+    The repeat numbered <M t="k" /> is the sound <M t="k" /> times <M t="d" /> samples late and <M t={String.raw`g^{\,k-1}`} /> times as large. Each repeat is the last one times <M t="g" />. That is a geometric series, and in decibels it is the same step down every time, the straight line of the picture. At a Feedback of 0.5 each repeat of the burst is <Claim id="burst-step">6.04 dB</Claim> under the last. Feedback alone would give a hair less. The hair is the loop's filters, which even wide open are never quite out of the way.
+
+    Each side has a tape of its own, and Ping pong decides what each records. As it rises it takes the sound going in off the right side's tape and crosses the feedback. At its highest the input goes to the left tape only, the left tape's echo is recorded on the right and the right's on the left. The repeats then <Claim id="ping-pong">take turns, left first</Claim>.
+
+    <Controls ids="spread" />
+
+    <Wave taps="heads" span={1.5} height={130} label="What the left side's heads read, against time">
+      A second and a half of what the heads read on the left side.
+    </Wave>
+
+    <Wave
+      taps="heads"
+      channel={1}
+      span={1.5}
+      height={130}
+      label="What the right side's heads read, against time"
+    >
+      The same on the right side. Try Ping pong at its highest, and notice the right side stay silent
+      until the left side's first repeat has crossed over.
+    </Wave>
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/tape-echo/tape_echo.h"
+    from="const float drive = 1.0f + 3.0f * drive_.next();"
+    to="in[1] * (1.0f - spread) + feedback * kit::lerp(back[1], back[0], spread);"
+    name="sum"
+    at={{ left: 'const float record_left = in[0] + feedback', drive: 'const float drive = 1.0f + 3.0f * drive_.next();' }}
+  />
+  <Fragment slot="listen">Hear what is sent to the tape</Fragment>
+</StageBlock>
+
+<StageBlock tap="tape" n={6} title="Recording, under a soft ceiling">
+  The sum is not recorded as it comes. At a Feedback of 1 the series of stage 5 never dies, and above 1 each repeat is larger than the last. This device lets Feedback go to <Src path="cpp/devices/tape-echo/device.json" at={'"max": 1.1,'}>1.1</Src> on purpose, so that a trail can be made to build, and it puts a soft ceiling where the sum is recorded.
+
+  <Controls ids="drive feedback" />
+
+  <Curve taps="saturate" diagonal xTitle="sent to the tape" yTitle="recorded" min={0} max={1.25}>
+    What the record path writes against what it was sent, as sample values, with the diagonal of a
+    tape that records everything as it comes. Near zero the two lie together. Try Drive higher, and
+    notice the line bend away sooner, towards a lower ceiling.
+  </Curve>
+
+  <M slot="equation" block t={String.raw`\sig{out}{r} = \at{record-write}{\frac{\tanh(u\,s)}{u}}`} />
+  <Fragment slot="readback">
+    <M t="s" /> is the sum of stage 5 and <M t="r" /> is what is recorded. <M t="u" /> is how hard the tape is driven:
+
+    <M block t={String.raw`\at{sum-drive}{u = 1 + 3 \times \text{Drive}}`} />
+
+    For a small sum the hyperbolic tangent is a straight line of slope 1, and dividing by <M t="u" /> puts back what multiplying by it took. So a quiet sound is recorded at the level it arrived. A loud one is not. The tangent never passes 1, so nothing on the tape passes one over <M t="u" />. The engine uses a quotient of two polynomials in place of the tangent, which reaches exactly 1 where its input is <Src path="cpp/kit/math.h" at="x = clamp(x, -3.0f, 3.0f);">3</Src> and is held there.
+
+    The bend starts early. Even with Drive at 0, a full-scale click goes on to the tape at <Claim id="tape-click">0.778, which is 2.2 dB down</Claim>. That is why the first repeat in the picture the page opens on is shorter than the click that made it.
+
+    Now the loop. A sound of some size goes round at a gain of <M t="g" /> times <M t={String.raw`\tanh(u s)/(u s)`} />. For small sounds that ratio is 1, and it falls as they grow. With Feedback above 1 a quiet repeat comes back larger, and the next larger still, until the ratio has fallen to one over <M t="g" />. The gain round the loop is then 1, and the growing stops. <Claim id="settles">A burst of a 1 kHz tone is left to go round at a Feedback of 1.1 and a Time of 30 ms. In the last second of an 8 s loop its peaks on the tape stand at 0.63 with Drive at 0 and at 0.16 with Drive at 1, each less than 1 % from where it stood the second before</Claim>. The second height is a quarter of the first, because <M t="u" /> is four times as large. On the drums and on the clicks, with Drive at 1 and Feedback at its highest, the largest sample on the tape is <Claim id="ceiling">0.25</Claim>.
+
+    The ceiling is on the tape and not on the sum. With Drive at 0 the tape gives back up to full scale, and Feedback over 1 adds more than that to a sound going in that may be at full scale itself. <Claim id="sum-loud">A 1 kHz tone at full scale, at a Time of 30 ms with Feedback at 1.1 and Drive at 0, makes a sum that peaks at 2.09 times full scale, on a tape that peaks at 0.99 and an output at 1.4</Claim>. The page's player <Src path="site/src/lab/player.ts" at="export const volumeGain">plays every stage at half its size when the volume is all the way up</Src>, so the sum of stage 5, heard through its button at such a setting, is cut off flat in the ear, though the pictures show it whole.
+
+    At a Feedback of exactly 1 a trail still dies, slowly. The loop's filters take a little on every trip, even wide open, and the bend takes more from anything loud. For the lab's burst of a 1 kHz tone, which peaks at <Src path="site/labs/delay-and-echo.cpp" at="constexpr float kBurstPeak = 0.1f;">a tenth of full scale</Src>, the 24th repeat is <Claim id="unity">0.7 dB</Claim> under its first.
+
+    <Listing
+      path="cpp/kit/math.h"
+      from="inline float fast_tanh(float x) {"
+      to="return x * (27.0f + x2) / (27.0f + 9.0f * x2);"
+      name="tanh"
+    />
+
+    The tape itself is the ring of part 2, the kit's delay line. Writing is two lines and reading is one.
+
+    <M block t={String.raw`b[w] \leftarrow \sig{out}{r}, \qquad w \leftarrow (w + 1) \mathbin{\&} (N - 1)`} />
+
+    <M block t={String.raw`\text{read}(d) = b\bigl[(w - d) \mathbin{\&} (N - 1)\bigr]`} />
+
+    <M t="b" /> is the ring of <M t="N" /> slots, <M t="w" /> is the write index and <M t="d" /> is a delay in whole samples. <M t="N" /> is a power of two, which the kit's line insists on when it is compiled. So coming round is one AND with <M t="N - 1" />: a write index that steps off the end lands on slot 0, and a read that reaches back past slot 0 lands at the far end. The device reads before it writes, so the shortest delay is one sample.
+
+    <Listing
+      path="cpp/kit/delay.h"
+      from="class DelayLine {"
+      to="float read(int delay) const { return buffer_[(write_ - delay) & kMask]; }"
+      skip={['// The longest delay a fractional read can ask for.', 'static constexpr float max_delay()']}
+      name="line"
+    />
+
+    <Controls ids="time" />
+
+    <Curve
+      taps="memory:alt writeAt:out readAt:ctl"
+      xTitle="slot"
+      min={-1}
+      max={1}
+      xMin={0}
+      xMax={262144}
+    >
+      The left side's tape as it lies in memory when the render stops, from its first slot to its
+      last. One upright line is the write index, where the next sample will go, and the other is where
+      the Time head reads. Just behind the write index lies the newest sound. Just ahead of it lies
+      the oldest, about to be written over. Try Time longer, and notice the read index move away from
+      the write index while nothing on the tape is touched.
+    </Curve>
+
+    Each side holds <Claim id="tape-seconds">5.46 s</Claim> of sound at the page's sample rate, and Time uses at most <Src path="cpp/devices/tape-echo/device.json" at={'"max": 2000,'}>two of them</Src>. The rest is there because the size was <Src path="cpp/devices/tape-echo/tape_echo.h" at="// 2 s at 96 kHz plus wow headroom.">chosen for twice this sample rate</Src>.
+
+    <Check id="record" />
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/tape-echo/tape_echo.h"
+    from="tape_[0].write(flush_denormal(kit::fast_tanh(record_left * drive) / drive));"
+    to="tape_[1].write(flush_denormal(kit::fast_tanh(record_right * drive) / drive));"
+    name="record"
+    at={{ write: 'tape_[0].write(flush_denormal(kit::fast_tanh(record_left * drive) / drive));' }}
+  />
+  <Fragment slot="listen">Hear what is on the tape</Fragment>
+</StageBlock>
+
+<StageBlock tap="out" n={7} title="The mix">
+  Last, the sound going in and what the heads read are added together, each at a gain that Mix sets.
+
+  <Controls ids="mix" />
+
+  <Wave taps="in out" span={1}>
+    One second of the sound going in and of the output. Try Mix at 0, and notice the output lie on
+    the input. Then try it at its highest, and notice that only the repeats are left.
+  </Wave>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\at{mix-left}{\sig{out}{y} = \cos\bigl(\tfrac{\pi}{2}\,m\bigr)\,\sig{in}{x} + \sin\bigl(\tfrac{\pi}{2}\,m\bigr)\,e}`}
+  />
+  <Fragment slot="readback">
+    <M t="x" /> is a sample going in, <M t="e" /> is what the heads read, <M t="m" /> is Mix and <M t="y" /> is the sample that comes out. A sound and its echo are different signals, so it is their powers that add. The squares of a cosine and a sine add to 1, which keeps the power of the whole level across the range of Mix, where a straight crossfade would dip in the middle. At a Mix of 0.5 each of the two is at <Claim id="mix-half">0.707</Claim>, not at a half. At 0 the output is <Claim id="mix-zero">the input, sample for sample</Claim>.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/tape-echo/tape_echo.h"
+    from="float dry_gain, wet_gain;"
+    to="out_right_[i] = in[1] * dry_gain + echo[1] * wet_gain;"
+    name="mix"
+    at={{ left: 'out_left_[i] = in[0] * dry_gain + echo[0] * wet_gain;' }}
+  />
+  <Fragment slot="listen">Hear what comes out</Fragment>
+</StageBlock>
+
+### All seven at once, on your loop
+
+Here is the whole device with every control live. The lanes are read at each stage in turn: the sound going in, where the head stands, the tape's speed, what the heads read, what comes back from the filters, the sum, what is recorded, and the output.
+
+<Controls ids="time feedback heads wow flutter drive lowCut highCut spread mix nudge" />
+
+<Lanes taps="in delay speed heads back sum tape out">
+  Every stage on one time axis. Try any control, and notice which lanes change and which do not:
+  Mix changes only the last, and Wow changes every lane from the second down.
+</Lanes>
+
+To judge what an echo adds, compare three things: <Listen tap="in">what went in</Listen>, <Listen tap="heads">what the heads read</Listen> by itself, and <Listen tap="out">the two mixed</Listen>.
+
+</Part>
+
+<Part id="ways" title="Seven things people do with an echo.">
+
+Each of these is a habit of working, not a preset. Press "Try it" and the page moves to a setting that shows the idea, so you can go back up and see what the stages of part 5 are doing with it.
+
+<Ways>
+  <Way title="On the beat" tag="Time at one note of the part" set="eighths">
+    Set Time to the length of one note of the part and every echo lands on the note after it. Nothing new is added to the rhythm: each note carries a little of the one before. Compare the first card of part 3, where the echo falls between the notes. After the card, move Time a little off the note and listen to the echo come apart from the playing.
+  </Way>
+  <Way title="Darker each time" tag="High cut low, Feedback high" set="dark">
+    With High cut open a long trail keeps its top on every repeat. Lower High cut and each repeat comes back with less top than the last. On this card a trip round the loop costs <Claim id="way-dark">3 dB at 1 kHz and 15.3 dB at 4 kHz</Claim>, so what a note has at 1 kHz goes on for many repeats while what it has at 4 kHz is 60 dB down in four. After the card, raise High cut and listen for the repeats coming forward.
+  </Way>
+  <Way title="From side to side" tag="Ping pong at its highest" set="sides">
+    With Ping pong at its highest each hit is answered on the left, then on the right, then on the left again. The two waves of stage 5 show the turns. It widens a part that stands in the middle without moving the part itself. After the card, bring Ping pong half way down and notice the repeats close in towards the middle.
+  </Way>
+  <Way title="Three heads" tag="Heads at Three, Feedback low" set="three">
+    Three heads make a small rhythm out of one hit. On this card a click comes back <Claim id="way-three">at 250 ms, 500 ms and 750 ms</Claim>. At the bench's tempo those are an eighth, a quarter and a dotted quarter after it. Feedback is kept low, because the sum of all three heads goes round again and a high setting fills every gap. After the card, try the other choices of Heads.
+  </Way>
+  <Way title="A worn transport" tag="Wow and Flutter up, Drive up, High cut low" set="worn">
+    Wow and Flutter make every repeat a little out of tune with the playing, differently each time. On this card the repeats move <Claim id="way-worn">between 8.7 cents flat and 6.8 cents sharp</Claim> over the loop. Against chords that hold still, listen for a slow shimmer. Drive takes the peaks off the trail and a low High cut takes its top. After the card, take Wow and Flutter to 0 and notice how fixed the same trail sounds.
+  </Way>
+  <Way title="A trail that builds" tag="Feedback over 1, Drive at its highest" set="swell">
+    Above a Feedback of 1 each repeat is recorded louder than the last, and the trail swells until the ceiling of stage 6 holds it. With Drive at its highest the ceiling is low, so the swell stays under the playing. On this card <Claim id="way-swell">the heads read 3.0 dB more than the line going in, and the largest sample on the tape is 0.25</Claim>. The trail is held at that height and cannot run away. After the card, bring Feedback under 1 and listen to it drain.
+  </Way>
+  <Way title="Turn Time while it plays" tag="Time, moved half way through the loop" set="dive">
+    Half way through the loop this card shortens Time. The motor of stage 1 follows, the head races along the tape, and everything already recorded is read fast. <Claim id="way-dive">The tape starts at 2.67 times its speed, 17 semitones up</Claim>, and falls back to pitch as the motor settles. At the start of the loop Time is turned back, by more than the motor's time constant: the tape runs backwards for a moment, stops, and comes up to pitch from below. After the card, watch the two traces of stages 1 and 2 while it plays.
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Six ways it goes wrong, three of them to hear.">
+
+<Faults>
+  <Fault title="A trail that takes over" set="runaway">
+    Feedback above 1 with little Drive lets the trail grow until the ceiling stops it, and with little Drive the ceiling is high. On the drums <Claim id="fault-runaway">the heads read 7.0 dB more than the drums going in, and the largest sample on the tape is 0.52</Claim>. Every hit is still going round, bent by the ceiling, at a level over the drums themselves. The cure is Feedback under 1. If the swell is wanted, raise Drive and lower Mix, as the sixth card of part 6 does.
+  </Fault>
+  <Fault title="The echo buries the part" set="mud">
+    A busy sound, a high Feedback, filters wide open and Mix at a half. Each repeat keeps all of its lows and lands off the beat. In the output <Claim id="fault-mud">the echoes stand 4.5 dB over the mix itself</Claim>. Take them in this order: lower Mix, then lower Feedback, then raise Low cut, then set Time to a note of the part.
+  </Fault>
+  <Fault title="Too short to be an echo" set="buzz">
+    With Time at its shortest a click comes back <Claim id="fault-buzz">33 times in a second, the first after 1,440 samples</Claim>. Listen for repeats that close running together into a buzz, with a pitch at the rate of the repeats. A delay this short, on anything but a click, is the subject of <Lesson id="chorus-and-flanging" />. For an echo, lengthen Time until the repeats come apart.
+  </Fault>
+  <Fault title="A click when Time is moved">
+    A head that jumped to a new place would cut from one part of the wave to another in a single sample: the click of step 7 of the build. This device never jumps, since the motor of stage 1 carries the head there, and the price is the bend in pitch of stage 2. A delay that must change length without a bend has to fade from one head to another, which is where <Lesson id="pitch-shifting" /> begins.
+  </Fault>
+  <Fault title="The top comes and goes">
+    A read between two samples loses some of the top, by an amount that depends on where between them it lands, as stage 3 measures. A head that wanders passes through every place in turn, so the top of the repeats rises and falls a little with Wow. It is small with this read and larger with a linear one.
+  </Fault>
+  <Fault title="A trail that never quite ends">
+    A loop with a gain under 1 gets smaller for ever and never arrives at nothing. A processor slows down on numbers that small, and a device that never rests costs time while it plays silence. This one does two things about it. What it records is <Src path="cpp/common/dsp_util.h" at="return (x > -kDenormalThreshold && x < kDenormalThreshold) ? 0.0f : x;">set to exactly zero</Src> once it is too small to matter. And once nothing is going in and its output has stayed under <Src path="cpp/kit/idle.h" at="static constexpr float kFloor = 1.0e-7f;">a ten-millionth of full scale</Src> for <Src path="cpp/devices/tape-echo/tape_echo.h" at="idle_.reset(sr, kParamMax[kTime] * 0.001f + 0.5f);">the longest Time and half a second more</Src>, it sleeps: it stops working and puts out exact zeros. Fed silence from the start, it leaves <Claim id="silence">nothing on the tape and exact silence coming out</Claim>.
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Seven things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="An echo is the same sound, played again.">
+    Each repeat is a recording of a recording. On every trip it passes the loop's filters, the ceiling and a read between samples. The spectra of stage 4 and the full-scale click of stage 6 show how much a single trip changes. Only the first repeat of a quiet sound is close to a copy.
+  </Myth>
+  <Myth says="Half the Feedback, half the trail.">
+    Feedback sets the step from one repeat to the next, and the step is in decibels. At a Feedback of 0.75 a burst loses <Claim id="myth-feedback">2.5 dB</Claim> a repeat, where at 0.5 it loses the step of stage 5. So that trail takes well over twice as many repeats to fall as far. Near the top of the range a small turn changes the length a great deal.
+  </Myth>
+  <Myth says="Feedback at 1 repeats for ever, and above 1 it blows up.">
+    Neither, in this device. At exactly 1 the filters and the bend of the ceiling still take a little on every trip, and stage 6 has the number. Above 1 the trail grows only until the ceiling holds it. A loop with no ceiling and no filters would do both.
+  </Myth>
+  <Myth says="A longer echo wavers more.">
+    Wow and Flutter move the head by a length of time that does not depend on Time, and the bend in pitch comes from how fast the head moves. Stage 2 measures the same bend at a short Time and at a long one.
+  </Myth>
+  <Myth says="Turning Time only changes the spacing of the repeats.">
+    While Time is moving, the head is moving along the tape, and everything it reads changes pitch. The spacing is new only once the motor has settled. Stage 2 has the size of it, and the last card of part 6 plays it.
+  </Myth>
+  <Myth says="Mix at one half is half of each.">
+    The two gains are a cosine and a sine, so that the power of the whole holds level. At the middle each is the number of stage 7, well over a half. Turning Mix up from 0 brings the echo in faster than it takes the sound away.
+  </Myth>
+  <Myth says="A delay line moves its samples along.">
+    Nothing in the ring moves. Only two indices advance, and the delay is the distance between them. That is the ring of part 2, and it is why a delay of a second costs no more work than a delay of a millisecond.
+  </Myth>
+</Myths>
+
+</Part>

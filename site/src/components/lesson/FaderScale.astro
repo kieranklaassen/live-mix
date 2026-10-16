@@ -1,0 +1,91 @@
+---
+// A fader's scale marked in gain and in decibels, with the sounds the lab measured standing on
+// it, a row each: a bar as far as the sound's level and a tick at its tallest sample.
+// <FaderScale rows={[{ tap: 'out', peak: 'samplePeak', level: 'loopLevel', loudness: 'loopLoudness' }]}
+//   gain="gain">Caption.</FaderScale>
+// `tap` is a sound of the lab; `peak`, `level`, `loudness` and `gain` are checks of the lab, in
+// decibels. The loudness is printed under the picture and not drawn.
+import FaderScale from '../../figures/FaderScale.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  rows: { tap: string; peak: string; level: string; loudness?: string }[]
+  /** The check that holds the gain the output is multiplied by, in dB. */
+  gain: string
+  /** The decibels at the left and the right edge of the scale. */
+  min?: number
+  max?: number
+  height?: number
+  label?: string
+}
+const { rows, gain, label, ...rest } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const checkNamed = (id: string) => {
+  const found = lab.checks.find((one) => one.id === id)
+  if (!found) {
+    const known = lab.checks.map((one) => one.id).join(', ')
+    throw new Error(`${lesson}: the lab has no check called "${id}". It has: ${known}`)
+  }
+  return found
+}
+// Named together, so each sound gets a colour of its own.
+const refs = tapRefs(rows.map((row) => row.tap).join(' '), lab.taps, lesson)
+const drawn = rows.map((row, index) => {
+  for (const id of [row.peak, row.level, row.loudness]) if (id) checkNamed(id)
+  return { ...row, tap: refs[index]! }
+})
+const gainName = checkNamed(gain).name
+const said =
+  label ??
+  `${refs.map((tap) => tap.name).join(' and ')} on one scale, marked in decibels and in gain`
+---
+
+<figure class="fig">
+  <FaderScale client:visible rows={drawn} gain={gain} gainName={gainName} label={said} {...rest} />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>
+
+<style is:global>
+  /* The numbers under the scale: a small table in the type of a figure's key. */
+  .fader-scale-numbers {
+    margin: 0.5rem 0 0 44px;
+    padding: 0;
+    width: calc(100% - 44px);
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-family: var(--lm-font-mono);
+    font-size: 0.72rem;
+    color: var(--lm-muted);
+  }
+  .fader-scale-numbers th,
+  .fader-scale-numbers td {
+    padding: 0.2rem 0.4rem 0.2rem 0;
+    overflow-wrap: anywhere;
+    /* The site's own heading cells do not wrap; these must, in a narrow column. */
+    white-space: normal;
+    font-size: inherit;
+    text-align: left;
+    vertical-align: top;
+    font-weight: 400;
+    border-top: 1px solid var(--rule-soft);
+  }
+  .fader-scale-numbers thead th {
+    border-top: 0;
+  }
+  .fader-scale-numbers td {
+    color: var(--lm-text);
+  }
+  @media (max-width: 640px) {
+    .fader-scale-numbers {
+      margin-left: 0;
+      width: 100%;
+    }
+  }
+  /* The names take the widest column; the three numbers share the rest. */
+  .fader-scale-numbers th:first-child {
+    width: 34%;
+  }
+</style>

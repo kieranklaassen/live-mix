@@ -1,0 +1,93 @@
+{
+  "tile": {
+    "values": { "push": 12, "ceiling": -1, "release": 100 },
+    "tap": "out",
+    "picture": { "taps": ["nearDelayed", "nearOut", "nearGain"], "view": "curve" }
+  },
+  "sets": {
+    "played": {
+      "label": "The drums as played",
+      "source": "drums",
+      "tap": "in"
+    },
+    "clipped": {
+      "label": "Turned up 12 dB and cut off at the ceiling",
+      "values": { "push": 12, "ceiling": -1 },
+      "source": "drums",
+      "tap": "clipOnly"
+    },
+    "limited": {
+      "label": "Turned up 12 dB and limited",
+      "values": { "push": 12, "ceiling": -1, "release": 100 },
+      "source": "drums"
+    },
+    "bassClipped": {
+      "label": "The bass, turned up and cut off",
+      "values": { "push": 12, "ceiling": -1 },
+      "source": "bass",
+      "tap": "clipOnly"
+    },
+    "drums": {
+      "label": "Drums",
+      "values": { "push": 12, "ceiling": -1, "release": 100 },
+      "source": "drums"
+    },
+    "bass": {
+      "label": "Bass",
+      "values": { "push": 12, "ceiling": -1, "release": 400 },
+      "source": "bass"
+    },
+    "mix": {
+      "label": "The whole mix",
+      "values": { "push": 9, "ceiling": -1, "release": 300 },
+      "source": "mix"
+    },
+    "guard": {
+      "label": "A ceiling that is never reached",
+      "values": { "push": 6, "ceiling": -1 },
+      "source": "pad"
+    },
+    "safety": {
+      "label": "A ceiling with nothing over it",
+      "values": { "push": 0, "ceiling": -1 },
+      "source": "mix"
+    },
+    "room": {
+      "label": "Room left above the ceiling",
+      "values": { "push": 9, "ceiling": -2, "release": 300 },
+      "source": "mix"
+    },
+    "taken": {
+      "label": "What was taken away",
+      "values": { "push": 12, "ceiling": -1, "release": 100 },
+      "source": "drums",
+      "tap": "removed"
+    },
+    "alone": {
+      "label": "A held sound, the limiter alone",
+      "values": { "push": 12, "ceiling": -7, "release": 100 },
+      "source": "pad"
+    },
+    "ridden": {
+      "label": "A held sound, a slow gain first",
+      "values": { "push": 12, "ceiling": -7, "ride": 1 },
+      "source": "pad",
+      "tap": "ambient"
+    },
+    "bent": {
+      "label": "A short release on a low note",
+      "values": { "push": 12, "ceiling": -7, "release": 10 },
+      "source": "saw"
+    },
+    "ducked": {
+      "label": "A long release",
+      "values": { "push": 18, "ceiling": -1, "release": 2000 },
+      "source": "drums"
+    },
+    "flat": {
+      "label": "Pushed too far",
+      "values": { "push": 24, "ceiling": -1, "release": 100 },
+      "source": "drums"
+    }
+  }
+}

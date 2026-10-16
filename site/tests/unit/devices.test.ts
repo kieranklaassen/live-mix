@@ -140,8 +140,8 @@ describe('a descriptor with nothing said', () => {
 
 describe('the lessons of a device', () => {
   const lessons = [
-    { id: 'b', title: 'Second', order: 2, devices: ['plate-reverb', 'filter'] },
-    { id: 'a', title: 'First', order: 1, devices: ['plate-reverb'] },
+    { id: 'b', title: 'Second', number: 2, devices: ['plate-reverb', 'filter'] },
+    { id: 'a', title: 'First', number: 1, devices: ['plate-reverb'] },
   ]
 
   it('are the ones whose frontmatter names it, in course order', () => {

@@ -24,6 +24,12 @@
 //   kSource  the sound that goes in, before anything is done to it
 //   kEngine  made by the engine's own code outside a device: its TypeScript,
 //            run by the page and handed to the lab (lab::aux below)
+//   kCalled  computed by a function of the engine that the lab calls on its
+//            own, outside a running device: a device's detector run by itself
+//            on every sample of the loop
+//
+// A lab may also carry the lesson's build part: the technique put together a
+// piece at a time, on a path and taps of its own (lab::Build below).
 //
 // Labs are built by site/scripts/build-labs.sh with the flags the library's
 // own devices are built with, plus -fno-access-control so a lab can read a
@@ -41,9 +47,9 @@ constexpr float kSampleRate = 48000.0f;
 constexpr int kMaxFrames = 8 * 48000;
 constexpr int kFadeFrames = 960;       // 20 ms: the crossfade across a loop's wrap
 constexpr int kControlPeriod = 16;     // samples per point of a control tap
-constexpr int kMaxControls = 32;       // the most a lab may declare of each of the three
-constexpr int kMaxTaps = 48;
-constexpr int kMaxChecks = 16;
+constexpr int kMaxControls = 32;       // the most a lab may declare of each of the three:
+constexpr int kMaxTaps = 64;           // a lab::Build is one of the controls and three of
+constexpr int kMaxChecks = 32;         // the checks
 
 // Pi as a double, for the lab's own sums. The kit's kPi is a float.
 constexpr double kPi = 3.14159265358979323846;
@@ -56,7 +62,7 @@ enum Kind : int {
   kFrames = 4,    // a picture: `columns` columns of `length / columns` rows
 };
 
-enum Origin : int { kDevice = 0, kKit = 1, kLesson = 2, kSource = 3, kEngine = 4 };
+enum Origin : int { kDevice = 0, kKit = 1, kLesson = 2, kSource = 3, kEngine = 4, kCalled = 5 };
 
 enum Scale : int { kLinear = 0, kLog = 1 };
 
@@ -120,6 +126,11 @@ inline int aux_frames() { return g_aux_frames; }
 struct Control;
 inline Control* g_controls[kMaxControls];
 inline int g_control_count = 0;
+// Every control, tap and check a lab declares is counted, the ones past its limit too. Those are
+// kept in no list: no page can set such a control, and such a tap or check is in no render. So
+// the lab's test asks for the three counts as it loads the lab and fails when one is over its
+// limit, saying both numbers (`lab` in site/tests/labs/support.ts).
+inline int g_controls_declared = 0;
 
 struct Control {
   const char* id;
@@ -137,6 +148,7 @@ struct Control {
           int scale_ = kLinear, const char* choices_ = "")
       : id(id_), name(name_), unit(unit_), min(min_), max(max_), initial(initial_), scale(scale_),
         choices(choices_), value(initial_) {
+    ++g_controls_declared;
     if (g_control_count < kMaxControls) g_controls[g_control_count++] = this;
   }
 
@@ -154,6 +166,7 @@ struct Control {
 struct Tap;
 inline Tap* g_taps[kMaxTaps];
 inline int g_tap_count = 0;
+inline int g_taps_declared = 0;
 
 struct Tap {
   const char* id;
@@ -171,6 +184,7 @@ struct Tap {
 
   Tap(const char* id_, const char* name_, int kind_, int origin_, int channels_ = 1, const char* unit_ = "")
       : id(id_), name(name_), kind(kind_), origin(origin_), channels(channels_ == 2 ? 2 : 1), unit(unit_) {
+    ++g_taps_declared;
     if (g_tap_count < kMaxTaps) g_taps[g_tap_count++] = this;
   }
 
@@ -228,6 +242,7 @@ struct Tap {
 struct Check;
 inline Check* g_checks[kMaxChecks];
 inline int g_check_count = 0;
+inline int g_checks_declared = 0;
 
 struct Check {
   const char* id;
@@ -235,7 +250,80 @@ struct Check {
   const char* unit;
   float value = 0.0f;
   Check(const char* id_, const char* name_, const char* unit_) : id(id_), name(name_), unit(unit_) {
+    ++g_checks_declared;
     if (g_check_count < kMaxChecks) g_checks[g_check_count++] = this;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// The build part: the technique put together a piece at a time, for the part
+// of a lesson where the reader adds one piece at each step. It runs on a path
+// of its own beside the lab's main one and writes taps of its own, whose ids
+// begin "built": "built" is the sound so far, and the others ("builtLevel",
+// "builtGain") are the lanes a step draws. The main path and its taps never
+// change with the step. A lab that has a build part declares it once:
+//
+//   lab::Build build{"A wire|Measure the level|Threshold and ratio", 1, -100.0f,
+//                    "The level the build measures, against the device's own detector"};
+//
+// which is one control and three checks:
+//
+//   build            the control: one choice a step, the first step at 0.
+//                    build.at() is the step chosen.
+//   builtStep        the step that is held to the engine, counted from 0: the
+//                    last one that builds the engine's own code again. A step
+//                    after it is written for the lesson and held by a test of
+//                    its own, so a lab whose later pieces the engine does not
+//                    have names an earlier step here.
+//   builtDifference  how far that step lands from what the engine itself made
+//                    (a device's output or state, or a kit class), as a level
+//                    in dB against it: lab::difference_db or lab::ratio_db.
+//                    The lab works it out on every render, whichever step is
+//                    chosen, and writes it to build.difference.value. Left
+//                    unwritten it reads 0 dB, which no bound allows.
+//   builtBound       the most builtDifference may be, in dB: below 0.
+//
+// The page shows the three beside the step, and expectBuild
+// (site/tests/labs/support.ts) holds every lab that has a build part to them.
+
+struct Build;
+inline Build* g_build = nullptr;
+
+struct Build {
+  Control step;
+  Check difference;
+  Check compared;
+  Check bound;
+  int compared_step;
+  float bound_db;
+
+  // `choices` names the steps, as a switch's positions are named. `against`
+  // says what is compared with what, for the page.
+  Build(const char* choices, int compared_step_, float bound_db_, const char* against)
+      : step("build", "Build", "", 0.0f, static_cast<float>(count(choices) - 1), 0.0f, kLinear, choices),
+        difference("builtDifference", against, "dB"),
+        compared("builtStep", "The step that is held to the engine", ""),
+        bound("builtBound", "The most the difference may be", "dB"),
+        compared_step(compared_step_),
+        bound_db(bound_db_) {
+    g_build = this;
+  }
+
+  int at() const { return step.choice(); }
+
+  // Before every render: the two checks that do not change, and a difference
+  // that is the worst there is until the lab has written its own.
+  void begin() {
+    compared.value = static_cast<float>(compared_step);
+    bound.value = bound_db;
+    difference.value = 0.0f;
+  }
+
+ private:
+  static int count(const char* choices) {
+    int steps = 1;
+    for (const char* c = choices; *c; ++c) steps += *c == '|' ? 1 : 0;
+    return steps;
   }
 };
 
@@ -250,8 +338,13 @@ inline float to_db(float gain) { return gain > 1.0e-7f ? 20.0f * std::log10(gain
 inline float power_to_db(float power) { return power > 1.0e-14f ? 10.0f * std::log10(power) : kFloorDb; }
 
 // A sum of squared differences against the sum of squares it is held to, in
-// dB: for the lab that adds the two up as its loop runs. -140 when nothing
-// differs; 0 when there is a difference and nothing to hold it to.
+// dB: for the lab that adds the two up as its loop runs. Its floor is -140:
+// it reads that when nothing differs, and also whenever the difference is
+// 140 dB or more under what it is held to, so a reading of -140 does not say
+// that every sample is the same. A lab or a test that claims "sample for
+// sample" compares the samples (`largestDifference` in
+// site/tests/labs/support.ts). 0 when there is a difference and nothing to
+// hold it to.
 inline float ratio_db(double diff, double ref) {
   if (ref <= 0.0) return diff <= 0.0 ? kFloorDb : 0.0f;
   const double ratio = diff / ref;
@@ -259,7 +352,9 @@ inline float ratio_db(double diff, double ref) {
 }
 
 // The level of `x - y` against the level of `y`, in dB: how well a rebuilt
-// signal matches the one it claims to equal. -140 when they are the same.
+// signal matches the one it claims to equal. -140 is the floor of ratio_db:
+// the two are then 140 dB or more apart in level, which equal samples are and
+// samples a little apart may be too.
 inline float difference_db(const float* x, const float* y, int count) {
   double diff = 0.0, ref = 0.0;
   for (int i = 0; i < count; ++i) {
@@ -342,8 +437,8 @@ inline void spectrum_tap(Tap& tap, const float* x, int count) {
   spectrum(x, count, tap.data);
 }
 
-// The sum the Fourier transform is (lesson 2), of `count` samples at one
-// frequency in hertz: what an impulse response `h` does to that frequency.
+// The sum the Fourier transform is (the lesson on it), of `count` samples at
+// one frequency in hertz: what an impulse response `h` does to that frequency.
 // The angle of (re, im) is the phase, power() the level squared.
 struct Bin {
   double re;
@@ -389,7 +484,12 @@ inline void response_tap(Tap& tap, const float* h, int count, int points = 241, 
 // kit, in dB where a full-scale sine reads 0. Rows are the 513 bins from 0 Hz
 // to half the sample rate, 46.9 Hz apart; point (column, row) is at
 // data[column * 513 + row]. With `loops`, a frame near the end reads on from
-// the start, as the loop does.
+// the start, as the loop does. Without it the sound stops at `count`, and a
+// frame that would run past there starts early enough to end on the last
+// sample: no frame is filled out with silence, which would cut a sound that
+// is still going part of the way through its window and draw the cut as a
+// stripe up the picture's right edge. Only a sound shorter than one frame is
+// filled out.
 constexpr int kPictureSize = 1024;
 constexpr int kPictureRows = kPictureSize / 2 + 1;
 
@@ -412,7 +512,8 @@ inline void spectrogram_tap(Tap& tap, const float* x, int count, int columns = 2
   tap.x1 = static_cast<float>(count) / kSampleRate;
   const double full = (kPictureSize / 4.0) * (kPictureSize / 4.0);
   for (int c = 0; c < columns; ++c) {
-    const int start = static_cast<int>(static_cast<long long>(c) * count / columns);
+    int start = static_cast<int>(static_cast<long long>(c) * count / columns);
+    if (!loops && start + kPictureSize > count) start = count > kPictureSize ? count - kPictureSize : 0;
     for (int n = 0; n < kPictureSize; ++n) {
       int i = start + n;
       if (i >= count) i = loops ? i % count : -1;
@@ -494,6 +595,14 @@ int lab_control_scale(int i) { return lab_control_at(i) ? lab_control_at(i)->sca
 void lab_set(int i, float value) {
   if (lab_control_at(i)) lab_control_at(i)->set(value);
 }
+// How many controls the lab's file declares, and the most a lab may: the first is over the
+// second when the file declares too many, and lab_control_count then stops at the limit. The
+// taps and the checks have the same two each. Exported by name here: the checks' two are in
+// the list of scripts/build-labs.sh, which was written before a control or a tap was counted.
+__attribute__((export_name("lab_control_declared"))) int lab_control_declared(void) {
+  return lab::g_controls_declared;
+}
+__attribute__((export_name("lab_control_limit"))) int lab_control_limit(void) { return lab::kMaxControls; }
 
 void lab_run(int frames) {
   lab_init();
@@ -504,6 +613,7 @@ void lab_run(int frames) {
   lab::g_arena_used = 0;
   for (int i = 0; i < lab::g_tap_count; ++i) lab::g_taps[i]->clear();
   for (int i = 0; i < lab::g_check_count; ++i) lab::g_checks[i]->value = 0.0f;
+  if (lab::g_build) lab::g_build->begin();
   if (frames > 0) lab_render(frames);
 }
 
@@ -521,6 +631,8 @@ float lab_tap_x0(int i) { return lab_tap_at(i) ? lab_tap_at(i)->x0 : 0.0f; }
 float lab_tap_x1(int i) { return lab_tap_at(i) ? lab_tap_at(i)->x1 : 0.0f; }
 int lab_tap_columns(int i) { return lab_tap_at(i) ? lab_tap_at(i)->columns : 0; }
 int lab_tap_scale(int i) { return lab_tap_at(i) ? lab_tap_at(i)->scale : 0; }
+__attribute__((export_name("lab_tap_declared"))) int lab_tap_declared(void) { return lab::g_taps_declared; }
+__attribute__((export_name("lab_tap_limit"))) int lab_tap_limit(void) { return lab::kMaxTaps; }
 
 int lab_check_count(void) { return lab::g_check_count; }
 static lab::Check* lab_check_at(int i) { return i >= 0 && i < lab::g_check_count ? lab::g_checks[i] : nullptr; }
@@ -528,6 +640,8 @@ const char* lab_check_id(int i) { return lab_check_at(i) ? lab_check_at(i)->id :
 const char* lab_check_name(int i) { return lab_check_at(i) ? lab_check_at(i)->name : ""; }
 const char* lab_check_unit(int i) { return lab_check_at(i) ? lab_check_at(i)->unit : ""; }
 float lab_check_value(int i) { return lab_check_at(i) ? lab_check_at(i)->value : 0.0f; }
+int lab_check_declared(void) { return lab::g_checks_declared; }
+int lab_check_limit(void) { return lab::kMaxChecks; }
 
 // The spectrum of an audio tap's channel, or of `count` samples of it from
 // `start`: for the page's own looks at a stage (a spectrum of any stage, a

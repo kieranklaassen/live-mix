@@ -24,6 +24,21 @@ export const SOURCES: SourceInfo[] = [
     name: 'Guitar chords',
     about: 'The Guitar strummed, a chord a bar, left to ring.',
   },
+  {
+    id: 'bass',
+    name: 'Bass',
+    about: 'A bass line on the Ladder Bass: low notes one at a time, each struck and left to die.',
+  },
+  {
+    id: 'pad',
+    name: 'Pad',
+    about: 'The same chords held on Dusk, a bar each: slow swells with no sharp edge.',
+  },
+  {
+    id: 'mix',
+    name: 'Mix',
+    about: 'The drums, the bass and the guitar chords together: several sounds on one bus.',
+  },
   { id: 'sine', name: 'Sine', about: 'One frequency, 440 Hz: the simplest sound there is.' },
   { id: 'saw', name: 'Saw', about: 'A saw wave at 110 Hz: every harmonic, falling in level.' },
   { id: 'noise', name: 'Noise', about: 'White noise: every frequency at once, at the same level.' },

@@ -1,0 +1,98 @@
+{
+  "tile": {
+    "values": { "width": 0.9 },
+    "tap": "out",
+    "picture": { "taps": ["cloudIn", "cloudOut"], "view": "curve" }
+  },
+  "sets": {
+    "as-it-is": {
+      "label": "The pad as it comes",
+      "source": "pad",
+      "tap": "going"
+    },
+    "wider": {
+      "label": "The pad, wider",
+      "values": { "width": 0.75 },
+      "source": "pad"
+    },
+    "gentle": {
+      "label": "The pad, a little wider",
+      "values": { "width": 0.65 },
+      "source": "pad"
+    },
+    "tucked": {
+      "label": "The pad, pulled in",
+      "values": { "width": 0.25 },
+      "source": "pad"
+    },
+    "zero": {
+      "label": "The pad at no width",
+      "values": { "width": 0 },
+      "source": "pad"
+    },
+    "full": {
+      "label": "The pad at full width",
+      "values": { "width": 1 },
+      "source": "pad"
+    },
+    "full-one": {
+      "label": "The pad at full width, on one speaker",
+      "values": { "width": 1 },
+      "source": "pad",
+      "tap": "mono"
+    },
+    "middle": {
+      "label": "The guitar in the middle",
+      "values": { "feed": 1, "pan": 0 },
+      "source": "guitar",
+      "tap": "placed"
+    },
+    "placed": {
+      "label": "The guitar, halfway to the left",
+      "values": { "feed": 1, "pan": -0.5 },
+      "source": "guitar",
+      "tap": "placed"
+    },
+    "pushed": {
+      "label": "The guitar, placed and then widened",
+      "values": { "feed": 1, "pan": -0.5, "width": 0.75 },
+      "source": "guitar"
+    },
+    "over": {
+      "label": "The guitar hard left, then widened",
+      "values": { "feed": 1, "pan": -1, "width": 0.75 },
+      "source": "guitar"
+    },
+    "made": {
+      "label": "A strum in mono, made wide",
+      "values": { "width": 0.9 },
+      "source": "chords"
+    },
+    "made-one": {
+      "label": "The wide strum on one speaker",
+      "values": { "width": 0.9 },
+      "source": "chords",
+      "tap": "mono"
+    },
+    "second": {
+      "label": "The strum through the second widener",
+      "values": { "width": 0.9 },
+      "source": "chords",
+      "tap": "secondOut"
+    },
+    "second-one": {
+      "label": "The second widener on one speaker",
+      "values": { "width": 0.9 },
+      "source": "chords",
+      "tap": "secondMono"
+    },
+    "smear": {
+      "label": "Drums at full width",
+      "values": { "width": 1 },
+      "source": "drums"
+    }
+  },
+  "defaults": {
+    "values": { "width": 0.5 }
+  }
+}

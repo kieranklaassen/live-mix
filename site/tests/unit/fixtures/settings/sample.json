@@ -1,0 +1,9 @@
+{
+  "tile": {
+    "tap": "in",
+    "picture": { "taps": ["in"], "view": "wave", "span": 2 }
+  },
+  "sets": {
+    "dry": { "label": "the loop, dry", "source": "sine", "tap": "in" }
+  }
+}

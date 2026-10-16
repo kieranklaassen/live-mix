@@ -1,0 +1,16 @@
+---
+// Something people say of the technique, and what is true:
+// <Myth says="A ratio of 4 means four times quieter.">What is true, and where the page shows it.</Myth>
+interface Props {
+  says: string
+}
+---
+
+<div class="myth">
+  <p class="myth-says">
+    <q>{Astro.props.says}</q>
+  </p>
+  <div class="myth-true">
+    <slot />
+  </div>
+</div>

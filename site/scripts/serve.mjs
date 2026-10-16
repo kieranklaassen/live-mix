@@ -3,14 +3,15 @@
 //
 //   node scripts/serve.mjs [port]        # http://localhost:4321/live-mix/
 //
-// The base path is SITE_BASE, '/live-mix' when unset: the same variable the build reads.
+// The base path is SITE_BASE, '/live-mix' when unset: the same variable the build reads. With
+// SITE_ONLY_LESSON set it serves that lesson's own build (site/.lesson/<id>) at that lesson's port.
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { basePath as base, sitePort } from './site-env.mjs'
+import { basePath as base, siteFolder, sitePort } from './site-env.mjs'
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../dist')
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', siteFolder)
 const port = Number(process.argv[2] ?? sitePort)
 
 const TYPES = {
@@ -51,4 +52,4 @@ const server = http.createServer((request, response) => {
   fs.createReadStream(file).pipe(response)
 })
 
-server.listen(port, () => console.log(`site/dist at http://localhost:${port}${base}/`))
+server.listen(port, () => console.log(`site/${siteFolder} at http://localhost:${port}${base}/`))

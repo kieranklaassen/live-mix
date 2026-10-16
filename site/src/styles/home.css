@@ -1,0 +1,458 @@
+/*
+ * The home page and the lessons' index: the hero, the loop row, the map of tiles and the small
+ * bar a tile's sound brings. Colours and type come from site.css and, through it, the React
+ * kit's tokens. A family's colour is set in site.css, for the map's rows and a lesson's page
+ * alike.
+ */
+
+/* ---- the hero ----------------------------------------------------------- */
+
+.home-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 28px 60px;
+  padding: 32px 0 48px;
+}
+.home-hero-title {
+  flex: 999 1 520px;
+  min-width: 0;
+}
+.home-hero-title .label {
+  margin: 0;
+  font-size: 13px;
+}
+.home-hero h1 {
+  margin: 12px 0 0;
+  font-size: clamp(52px, 8vw, 104px);
+  line-height: 0.96;
+}
+.home-hero-words {
+  flex: 1 1 360px;
+  min-width: 0;
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.home-hero-words p {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.45;
+  color: var(--lm-muted);
+}
+/* The two ways in stand as one block: the first filled, the second its outline. */
+.home-hero-words .home-hero-ways {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 16px;
+  color: var(--lm-text);
+}
+.home-hero-ways a {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 1px solid var(--lm-text);
+  text-decoration: none;
+}
+.home-hero-ways a:first-child {
+  background: var(--lm-text);
+  color: var(--lm-bg);
+}
+.home-hero-ways a + a {
+  border-left: 0;
+}
+.home-hero-ways a:hover {
+  background: var(--lm-accent);
+  border-color: var(--lm-accent);
+  color: var(--lm-bg);
+}
+
+/* ---- the loop row ------------------------------------------------------- */
+
+.loops {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.loops legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  padding: 0 0 8px;
+  font-size: 15px;
+}
+.loops-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  border-top: 1px solid var(--rule);
+  border-left: 1px solid var(--rule-soft);
+}
+.loop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 10px;
+  border-right: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+/* The choice itself is the whole cell: its input is there for the keyboard and is not drawn. */
+.loop input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.loop-picture > svg {
+  display: block;
+  width: 100%;
+  height: 40px;
+}
+.loop-name {
+  font-family: var(--lm-font-mono);
+  font-size: 12px;
+  color: var(--lm-muted);
+}
+.loop-name::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  border: 1px solid var(--lm-muted);
+  border-radius: 50%;
+}
+.loop:hover {
+  background: var(--lm-sunken);
+}
+.loop:has(input:checked) {
+  background: var(--lm-clip-active);
+}
+.loop:has(input:checked) .loop-name {
+  color: var(--lm-text);
+}
+.loop:has(input:checked) .loop-name::before {
+  background: var(--lm-text);
+  border-color: var(--lm-text);
+}
+.loop:has(input:focus-visible) {
+  outline: 2px solid var(--lm-focus);
+  outline-offset: -2px;
+}
+
+/* ---- the map ------------------------------------------------------------ */
+
+.map-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 28px;
+  padding: 64px 0 20px;
+}
+.map-head h1,
+.map-head h2 {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 40px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.map-head p {
+  margin: 0;
+  font-size: 16px;
+  color: var(--lm-muted);
+}
+.map {
+  border-top: 1px solid var(--rule);
+  border-left: 1px solid var(--rule-soft);
+}
+/* A family is one row where there is room for it: its name, then its four lessons. */
+.family {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+.family-head,
+.tile {
+  border-right: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.family-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 16px 20px;
+}
+.family-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--lm-font-mono);
+  font-size: 12px;
+  color: var(--family-ink);
+}
+.family-range::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--family);
+}
+.family-head h3 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+.family-head p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--lm-muted);
+}
+/* The list is there for its meaning; its tiles are cells of the family's row. */
+.tiles {
+  display: contents;
+  list-style: none;
+}
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.tile a {
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+}
+.tile-picture {
+  position: relative;
+  display: block;
+  aspect-ratio: 200 / 72;
+  background: var(--lm-sunken);
+}
+.tile-picture > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.tile-words {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px 16px;
+}
+.tile-no {
+  font-family: var(--lm-font-mono);
+  font-size: 12px;
+  color: var(--family-ink);
+}
+.tile-title {
+  font-size: 19px;
+  line-height: 1.2;
+}
+.tile-line,
+.tile-failed {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--lm-muted);
+}
+/* A lesson nobody has written yet: its place in the map, and nothing to open or to hear. */
+.tile-unwritten .tile-picture {
+  background: none;
+  border-bottom: 1px dashed var(--rule-soft);
+}
+.tile-unwritten .tile-title {
+  color: var(--lm-muted);
+}
+
+/* What the island adds to a tile: its button, and a line when it did not load. */
+.tile-play {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.tile-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--family-ink);
+  cursor: pointer;
+}
+.tile-button svg {
+  /* A ground of its own, so the mark is read over whatever the picture draws there. */
+  box-sizing: content-box;
+  padding: 8px;
+  background: color-mix(in srgb, var(--lm-bg) 88%, transparent);
+  border-radius: var(--lm-radius);
+}
+.tile-button path {
+  fill: currentColor;
+}
+.tile-button:hover {
+  color: var(--lm-accent);
+}
+.tile-note:not(:empty) {
+  display: block;
+  margin-top: -10px;
+  padding: 0 14px 16px;
+}
+.tile-failed {
+  color: var(--lm-text);
+}
+.tile[data-state='sounding'] .tile-picture,
+.tile[data-state='loading'] .tile-picture {
+  background: var(--lm-clip-active);
+}
+/*
+ * The line that crosses a sounding tile's picture. Its lines are drawn with 3% of room at each
+ * side (lib/still.ts), so the line runs over the 94% between: --at is how far, 0 to 1.
+ */
+.tile-head {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(3% + var(--at, 0) * 94%);
+  width: 1px;
+  background: var(--lm-playhead);
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tile[data-state='loading'] .tile-button svg {
+    animation: tile-loading 0.9s ease-in-out infinite alternate;
+  }
+}
+@keyframes tile-loading {
+  to {
+    opacity: 0.25;
+  }
+}
+
+/* The home page's cards, under the map. */
+.home .cards {
+  margin: 56px 0 0;
+}
+
+/* ---- the small bar ------------------------------------------------------ */
+
+/* Said for a screen reader; the tile's own line is what the eye reads. */
+.tiles-said {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.tilebar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  /* In line with the page's text: the frame's gutter, inside its width on a wide window. */
+  padding: 0.5rem max(var(--gutter), calc((100vw - var(--wide)) / 2 + var(--gutter)));
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  background: var(--lm-raised);
+  border-top: 1px solid var(--rule);
+  font-size: 0.8rem;
+}
+.tilebar-stop {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.3rem;
+  padding: 0.3rem 0.9rem;
+  color: var(--lm-bg);
+  background: var(--lm-text);
+  border: 1px solid var(--lm-text);
+  border-radius: var(--lm-radius);
+  cursor: pointer;
+}
+.tilebar-stop:disabled {
+  color: var(--lm-muted);
+  background: none;
+  border-color: var(--rule-soft);
+  cursor: default;
+}
+.tilebar-what {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+.tilebar-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.tilebar-level label {
+  font-family: var(--lm-font-mono);
+  font-size: 0.75rem;
+  color: var(--lm-muted);
+}
+.tilebar-level input {
+  width: 6rem;
+}
+.tilebar .playbar-meter {
+  width: 3.2rem;
+  height: 6px;
+  background: var(--lm-meter-track);
+  overflow: hidden;
+}
+.tilebar .playbar-meter span {
+  display: block;
+  height: 100%;
+  background: var(--lm-meter);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+/* Room under the page's foot for the bar, which stays over it. */
+body:has(.tilebar) .site-footer {
+  padding-bottom: 4.5rem;
+}
+
+@media (max-width: 40rem) {
+  .home-hero {
+    padding-top: 12px;
+  }
+  .map-head {
+    padding-top: 44px;
+  }
+  .map-head h1,
+  .map-head h2 {
+    font-size: 32px;
+  }
+  .loops-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* In one column a lesson not yet written keeps no empty box for a picture it does not have. */
+  .tile-unwritten .tile-picture {
+    display: none;
+  }
+  .loop {
+    padding: 10px 10px 8px;
+  }
+  .tilebar-level input {
+    width: 4.5rem;
+  }
+  body:has(.tilebar) .site-footer {
+    padding-bottom: 7rem;
+  }
+}

@@ -1,0 +1,19 @@
+---
+// Another lesson, named in the text: <Lesson id="compression" /> prints "lesson 13,
+// Compression" as a link, with the number and the title the map gives (src/content/families.json),
+// so a lesson put in or moved changes no sentence. `cap` where it starts one: "Lesson 13, …".
+// A lesson the map lists and nobody has written yet is printed without the link.
+import { getCollection } from 'astro:content'
+import { lessonPath, mention } from '../../lib/lesson-map.ts'
+import { href } from '../../lib/paths.ts'
+
+interface Props {
+  id: string
+  cap?: boolean
+}
+const { id, cap = false } = Astro.props
+const words = mention(id, cap, Astro.locals.lesson)
+const written = (await getCollection('lessons')).some((lesson) => lesson.id === id)
+---
+
+{written ? <a href={href(lessonPath(id))}>{words}</a> : words}

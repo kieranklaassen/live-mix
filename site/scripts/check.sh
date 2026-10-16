@@ -39,6 +39,9 @@ pnpm build
 step "Every claim is held by a test"
 node scripts/check-claims.mjs
 
+step "Every lesson holds its packet"
+node scripts/check-lessons.mjs
+
 step "Wording, with the pages as built"
 node scripts/check-wording.mjs
 

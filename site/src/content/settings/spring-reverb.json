@@ -1,0 +1,96 @@
+{
+  "tile": {
+    "values": { "mix": 0.5, "tone": 4500, "drip": 0.6 },
+    "tap": "out",
+    "picture": { "taps": ["chirps"], "view": "spectrogram", "from": 0, "span": 0.3 }
+  },
+  "sets": {
+    "dry": {
+      "label": "The drums as played",
+      "source": "drums",
+      "tap": "in"
+    },
+    "sprung": {
+      "label": "The drums with the springs behind them",
+      "values": { "mix": 0.3, "tone": 3500, "drip": 0.4, "drive": 0.25 },
+      "source": "drums"
+    },
+    "click": {
+      "label": "One click through the springs",
+      "values": { "drip": 1 },
+      "source": "clicks"
+    },
+    "guitar": {
+      "label": "A picked guitar",
+      "values": { "mix": 0.35, "decay": 2, "tone": 4000, "drip": 0.6, "drive": 0.25 },
+      "source": "guitar"
+    },
+    "kit": {
+      "label": "Drums",
+      "values": { "mix": 0.25, "decay": 1.2, "tension": 0.7, "tone": 3000, "drip": 0.3 },
+      "source": "drums"
+    },
+    "chords": {
+      "label": "Strummed chords",
+      "values": { "mix": 0.4, "decay": 4.5, "springs": 2, "tone": 2500, "predelay": 30 },
+      "source": "chords"
+    },
+    "pad": {
+      "label": "A pad",
+      "values": { "mix": 0.3, "decay": 3, "tension": 1, "springs": 2, "tone": 2000 },
+      "source": "pad"
+    },
+    "splash": {
+      "label": "Splash on the attack",
+      "values": { "mix": 0.4, "tension": 0.3, "drip": 1 },
+      "source": "guitar"
+    },
+    "slack": {
+      "label": "Slack springs",
+      "values": { "mix": 0.6, "tension": 0, "drip": 0.5 },
+      "source": "drums"
+    },
+    "clear": {
+      "label": "The springs kept clear of the note",
+      "values": { "mix": 0.35, "drip": 0.4, "predelay": 80 },
+      "source": "guitar"
+    },
+    "dark": {
+      "label": "A dark wash",
+      "values": { "mix": 0.45, "decay": 5, "springs": 2, "tone": 1200 },
+      "source": "chords"
+    },
+    "driven": {
+      "label": "The tank driven hard",
+      "values": { "mix": 0.5, "drive": 1 },
+      "source": "drums"
+    },
+    "narrow": {
+      "label": "The springs in the middle",
+      "values": { "mix": 0.4, "width": 0 },
+      "source": "guitar"
+    },
+    "boing": {
+      "label": "Every hit answered by a chirp",
+      "values": { "mix": 0.6, "tension": 0, "drip": 1 },
+      "source": "drums"
+    },
+    "flutter": {
+      "label": "One spring alone",
+      "values": { "decay": 1.5, "springs": 0 },
+      "source": "drums"
+    },
+    "dull": {
+      "label": "Noise through the springs",
+      "source": "noise"
+    },
+    "mud": {
+      "label": "A bass line left to ring",
+      "values": { "mix": 0.5, "decay": 5 },
+      "source": "bass"
+    }
+  },
+  "defaults": {
+    "values": { "mix": 0.3, "tone": 3500, "drip": 0.4, "drive": 0.25 }
+  }
+}

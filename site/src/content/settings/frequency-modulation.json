@@ -1,0 +1,92 @@
+{
+  "tile": {
+    "values": { "pitch": 440, "index": 2.6, "decay": 1, "detune": 5, "spread": 0.6 },
+    "tap": "out",
+    "picture": { "taps": ["growth"], "view": "spectrogram", "top": 12000 }
+  },
+  "sets": {
+    "note": {
+      "label": "The struck note"
+    },
+    "plain": {
+      "label": "One sine, struck",
+      "values": { "index": 0 }
+    },
+    "added": {
+      "label": "Two sines, added",
+      "tap": "added"
+    },
+    "held": {
+      "label": "The held tone",
+      "tap": "steady"
+    },
+    "hollow": {
+      "label": "The carrier's line gone",
+      "values": { "index": 2.405 },
+      "tap": "steady"
+    },
+    "bell": {
+      "label": "A bell",
+      "values": { "pitch": 440, "index": 2.6, "decay": 1, "detune": 5, "spread": 0.6 }
+    },
+    "tine": {
+      "label": "A struck tine",
+      "values": { "ratio": 1, "index": 1.5, "decay": 0.5, "detune": 4, "spread": 0.5 }
+    },
+    "bass": {
+      "label": "A bass note",
+      "values": {
+        "pitch": 82.41,
+        "ratio": 1,
+        "index": 3.5,
+        "decay": 0.25,
+        "feedback": 0.5,
+        "spread": 0
+      }
+    },
+    "reed": {
+      "label": "A hollow held tone",
+      "values": { "ratio": 3, "index": 1.5, "decay": 1, "attack": 0.05, "sustain": 1 }
+    },
+    "swell": {
+      "label": "A swell",
+      "values": { "ratio": 1, "index": 4, "decay": 1.5, "attack": 0.6, "sustain": 0.8 }
+    },
+    "clang": {
+      "label": "A ratio that fits no harmonic",
+      "values": { "pitch": 330, "ratio": 4, "index": 3, "decay": 1.2 }
+    },
+    "tick": {
+      "label": "A bright tick over a plain note",
+      "values": { "ratio": 11, "index": 0.5, "decay": 0.15 }
+    },
+    "linger": {
+      "label": "Brightness that lingers",
+      "values": { "index": 3, "decay": 2.5 }
+    },
+    "edge": {
+      "label": "A modulator with an edge",
+      "values": { "ratio": 1, "feedback": 1 }
+    },
+    "apart": {
+      "label": "Two pairs a little apart",
+      "values": { "decay": 2, "detune": 12, "spread": 0.6 }
+    },
+    "fold": {
+      "label": "Lines folding back",
+      "values": { "ratio": 11, "index": 8 },
+      "tap": "uncapped"
+    },
+    "harsh": {
+      "label": "Too much index",
+      "values": { "pitch": 110, "ratio": 4, "index": 8 }
+    },
+    "high": {
+      "label": "A high note, gone dull",
+      "values": { "pitch": 1760, "index": 8 }
+    }
+  },
+  "defaults": {
+    "values": { "index": 2.6335, "decay": 2.5, "feedback": 0.1, "detune": 5, "spread": 0.6 }
+  }
+}

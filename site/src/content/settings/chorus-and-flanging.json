@@ -1,0 +1,209 @@
+{
+  "tile": {
+    "values": {
+      "depth": 90,
+      "feedback": 50
+    },
+    "source": "noise",
+    "tap": "flanger",
+    "picture": {
+      "taps": ["flangerPicture"],
+      "view": "spectrogram",
+      "top": 3000
+    }
+  },
+  "sets": {
+    "plain": {
+      "label": "The saw as it is",
+      "source": "saw",
+      "tap": "in"
+    },
+    "late": {
+      "label": "The saw with a copy 4.55 ms late",
+      "values": {
+        "delayMs": 4.55,
+        "depth": 0
+      },
+      "source": "saw"
+    },
+    "chordsLate": {
+      "label": "The chords with copies 12 ms late, held still",
+      "values": {
+        "chorusDepth": 0
+      },
+      "source": "chords",
+      "tap": "chorus"
+    },
+    "chordsMoving": {
+      "label": "The chords with copies that move",
+      "source": "chords",
+      "tap": "chorus"
+    },
+    "tickNear": {
+      "label": "A single sample, its copy as near as the Chorus puts it",
+      "values": {
+        "chorusDelay": 5,
+        "chorusDepth": 0
+      },
+      "source": "clicks",
+      "tap": "chorus"
+    },
+    "tickFar": {
+      "label": "A single sample, its copy as far as the Chorus puts it",
+      "values": {
+        "chorusDelay": 30,
+        "chorusDepth": 0
+      },
+      "source": "clicks",
+      "tap": "chorus"
+    },
+    "strum": {
+      "label": "Strummed chords, three voices",
+      "values": {
+        "chorusRate": 0.6,
+        "chorusDepth": 40,
+        "chorusDelay": 14,
+        "spread": 80
+      },
+      "source": "chords",
+      "tap": "chorus"
+    },
+    "line": {
+      "label": "A picked line, doubled",
+      "values": {
+        "voices": 0,
+        "chorusRate": 0.25,
+        "chorusDepth": 12,
+        "chorusDelay": 30,
+        "spread": 100
+      },
+      "source": "guitar",
+      "tap": "chorus"
+    },
+    "padSweep": {
+      "label": "A pad, swept slowly",
+      "values": {
+        "delayMs": 4,
+        "depth": 80,
+        "feedback": 40,
+        "shape": 1
+      },
+      "source": "pad"
+    },
+    "drumJet": {
+      "label": "Drums, a hard sweep",
+      "values": {
+        "delayMs": 1.5,
+        "depth": 70,
+        "feedback": 60
+      },
+      "source": "drums"
+    },
+    "mixSweep": {
+      "label": "The whole mix, one sweep",
+      "values": {
+        "depth": 90,
+        "feedback": 30,
+        "stereo": 0
+      },
+      "source": "mix"
+    },
+    "jet": {
+      "label": "The jet",
+      "values": {
+        "delayMs": 1,
+        "depth": 100,
+        "feedback": 70
+      },
+      "source": "noise"
+    },
+    "hollow": {
+      "label": "Hollow: feedback turned over",
+      "values": {
+        "delayMs": 1.5,
+        "rate": 0.4,
+        "feedback": -90,
+        "stereo": 60
+      },
+      "source": "pad"
+    },
+    "tuned": {
+      "label": "A comb tuned to a note",
+      "values": {
+        "delayMs": 2.25,
+        "depth": 0,
+        "feedback": 90,
+        "mix": 0.3
+      },
+      "source": "drums"
+    },
+    "vibrato": {
+      "label": "Vibrato: one voice alone",
+      "values": {
+        "chorusRate": 5.5,
+        "chorusDepth": 12,
+        "chorusDelay": 6
+      },
+      "source": "guitar",
+      "tap": "voice"
+    },
+    "wide": {
+      "label": "One voice to each side",
+      "values": {
+        "voices": 0,
+        "spread": 100
+      },
+      "source": "chords",
+      "tap": "chorus"
+    },
+    "faint": {
+      "label": "A little, under the mix",
+      "values": {
+        "delayMs": 1,
+        "rate": 0.15,
+        "depth": 60,
+        "stereo": 180,
+        "mix": 0.2
+      },
+      "source": "mix"
+    },
+    "allWet": {
+      "label": "Mix all the way up",
+      "values": {
+        "mix": 1
+      },
+      "source": "noise"
+    },
+    "seasick": {
+      "label": "Too fast and too deep",
+      "values": {
+        "chorusRate": 5,
+        "chorusDepth": 100
+      },
+      "source": "chords",
+      "tap": "chorus"
+    },
+    "ringing": {
+      "label": "Feedback at the top",
+      "values": {
+        "delayMs": 5,
+        "depth": 20,
+        "feedback": 95
+      },
+      "source": "drums"
+    },
+    "stuck": {
+      "label": "A chorus that does not move",
+      "values": {
+        "chorusDepth": 0
+      },
+      "source": "pad",
+      "tap": "chorus"
+    }
+  },
+  "defaults": {
+    "values": {
+      "feedback": 30
+    }
+  }
+}

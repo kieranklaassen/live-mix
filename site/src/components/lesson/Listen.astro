@@ -1,6 +1,7 @@
 ---
 // A button in the text that plays one stage: <Listen tap="out">Hear the output</Listen>
 import Listen from '../../figures/Listen.tsx'
+import Mark from '../../figures/Mark.astro'
 import { tapRefs } from '../../figures/roles.ts'
 import { pageLab } from '../../lib/lab-info.ts'
 
@@ -13,6 +14,7 @@ if (ref.kind !== 'audio')
   throw new Error(`${lesson}: "${ref.id}" is not sound, so it cannot be listened to.`)
 ---
 
+<Mark />
 <Listen client:visible tap={ref.id}>
   <slot>{ref.name}</slot>
 </Listen>

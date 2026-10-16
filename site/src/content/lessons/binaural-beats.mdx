@@ -1,0 +1,1006 @@
+---
+title: Binaural beats
+family: space-and-motion
+summary: Two steady tones a few hertz apart swell and fade when they are added. Give one to each ear and neither signal swells at all. This lesson measures both cases, builds the engine's Binaural a piece at a time, opens it and its two neighbours, and keeps what the signals hold apart from what a listener is said to hear.
+opening:
+  input: mid
+  output: left
+  separate: true
+  from: 1
+  span: 0.5
+  caption: Half a second of one held key. The two ears' signals added together swell and fade, and their outline closes to nothing between the swells. The left ear's signal by itself is one tone, and its outline is level from end to end.
+lab: binaural-beats
+devices: [binaural, ear-shift, isochronic]
+bench:
+  device: binaural
+  params: { beat: 6, ears: 1, layout: 0, warmth: 0, bed: 0, colour: 0.6, attack: 0.01 }
+  as: instrument
+  also: [ear-shift, isochronic]
+  note: The plate opens as the lab is set, not as the device starts. Warmth is at 0 (the device's own is 0.3), so that each ear is one sine, and Attack is at 10 ms (1.5 s). The plate plays a phrase where the lab holds one key. The table below sets the lab's start beside the device's.
+sources: [none]
+seconds: 4
+files:
+  - cpp/devices/binaural/binaural.h
+  - cpp/devices/binaural/device.json
+  - cpp/devices/ear-shift/ear_shift.h
+  - cpp/devices/ear-shift/device.json
+  - cpp/devices/isochronic/isochronic.h
+  - cpp/kit/beat.h
+  - cpp/kit/colour.h
+  - cpp/kit/math.h
+---
+
+<Part id="why" title="Two tones a few hertz apart beat. Where they meet decides where the beat is.">
+
+One string is tuned against another by ear. While the two are a little apart, the sound of both together swells and fades, slowly when they are close and quickly when they are not. That swelling is a beat, and it is one of the oldest measuring tools in music.
+
+The lab on this page makes a beat with two sine tones around one held key. It starts the key at <Src path="site/labs/binaural-beats.cpp" at={'lab::Control key{"key", "Key", "Hz"'}>220 Hz</Src> and Beat, the distance between the two tones, at <Src path="site/labs/binaural-beats.cpp" at={'lab::Control beat{"beat", "Beat", "Hz"'}>6 Hz</Src>. Half of Beat goes above the key and half below. Nothing goes into this lab. It presses its own key before the loop begins and holds it, so every sound on the page is a steady one.
+
+<Still
+  taps="high:alt low:alt2"
+  from={1}
+  span={0.0834}
+  caption="A twelfth of a second of the higher tone and the lower tone. At the start of the picture the two rise and fall together. By its end the higher one has gained half a cycle, and each rises where the other falls."
+/>
+
+That picture is the whole cause of a beat. Where the two tones move together they add to twice one tone. Where they move against each other they add to nothing. They drift from the one state to the other and back, over and over, because one of them is a little faster.
+
+### In the air, the two tones add
+
+Play both tones from one loudspeaker, or put both into both sides of a pair of headphones, and each ear is given their sum. With Ears at 0 the lab does that. Measured on that render, <Claim id="air-beat">each ear's signal holds both tones, 223 Hz and 217 Hz, at −21.2 dB each, and its level falls more than 25 dB and comes back 6 times a second</Claim>. The two ears' signals are <Claim id="air-alike">the same, sample for sample</Claim>.
+
+<Still
+  taps="left"
+  set="air"
+  from={1}
+  span={0.5}
+  caption="Half a second of the left ear's signal with both tones in it. Its outline closes to nothing and opens again, three times in the picture."
+/>
+
+Listen to it on anything: speakers will do. <Hear set="air" label="Hear two tones in the air" />
+
+The reason is one line of trigonometry. Write <M t="f" /> for the key, <M t="b" /> for Beat, both in hertz, and <M t="t" /> for time in seconds:
+
+<M
+  block
+  t={String.raw`\begin{gathered} \sig{alt}{\sin 2\pi\bigl(f + \tfrac{b}{2}\bigr)t} + \sig{alt2}{\sin 2\pi\bigl(f - \tfrac{b}{2}\bigr)t} \\[6pt] = \sig{out}{2\cos(\pi b t)\,\sin(2\pi f t)} \end{gathered}`}
+/>
+
+Read it against the pictures. Before the equals sign are the two tones of the first picture. After it is one tone at the key, multiplied by a slow cosine, and the cosine is the outline of the second picture. The cosine turns at half of <M t="b" /> and passes through zero twice in each turn, so the outline closes <M t="b" /> times a second. This is the multiplication of <Lesson id="tremolo-and-ring-modulation" /> read backwards. There a tone times a slow wave came out as two tones, a sum and a difference. Here two tones go in, and what comes out is a tone times a slow wave.
+
+This beat is in the sound. A microphone in the room would record it and a meter on the wire shows it. It is there for one ear as much as for two.
+
+### One tone to each ear
+
+Now keep the two tones apart. The higher one goes into the left side of a pair of headphones and the lower one into the right, and nothing of either goes into the other side. With Ears at 1, where this lesson starts, the lab does that. They are the same two tones as before. They no longer meet in any wire.
+
+<Predict
+  question="Each ear's signal now holds one of the two tones and nothing of the other. The page's meter is put on the left ear's signal. What does it show?"
+  choices={[
+    'The level swells and fades 6 times a second, as before',
+    'The level swells and fades, but less deeply',
+    'The level holds still',
+  ]}
+>
+
+It holds still. Measured at the lab's starting values, <Claim id="apart-tones">the left ear's signal is one tone at 223 Hz and the right ear's is one tone at 217 Hz, each at −15.1 dB</Claim>. <Claim id="apart-steady">The meter on each ear reads −18.1 dB, and over the whole loop it moves by less than 0.01 dB</Claim>. Those two levels are one fact told twice: the first is the height of the tone's peaks, and the meter reads the mean of the squares, which for a sine stands <Src path="site/labs/binaural-beats.cpp" at="// reads -3 dB.">3 dB under its peak</Src>.
+
+Nothing of the other tone has leaked across. <Claim id="apart-nothing">In the left ear's signal the lab finds under −120 dB at 217 Hz, where the right ear's tone is, and under −120 dB at 220 Hz, the key itself</Claim>. The right ear's signal has as little of the left ear's tone. Nor is anything else in either: <Claim id="apart-rest">with its one steady tone taken away, what is left of each ear's signal is more than 130 dB under it</Claim>.
+
+<Still
+  taps="levelLeft:alt levelRight:alt2 levelMid:out"
+  set="apart"
+  from={1}
+  span={1}
+  min={-60}
+  max={-10}
+  caption="One second of three levels. The level in the left ear and the level in the right ear lie on each other in one flat line. The level of the two added dips six times, as deeply as the tones in the air did."
+/>
+
+The third line of that picture is the lab adding the two ears' signals itself, sample by sample, and halving the result. <Claim id="added-beat">That sum holds both tones again, 223 Hz and 217 Hz at −21.2 dB each, and its level falls more than 25 dB, 6 times a second</Claim>. The sum is what one speaker would play from this recording. It is also close to what the air of a room does to a pair of speakers, since both speakers reach both ears.
+
+Two buttons, then. The first wants headphones. The second plays one signal, the same in both speakers. <Hear set="apart" label="Hear one tone to each ear" /> <Hear set="folded" label="Hear the two ears added" />
+
+</Predict>
+
+### What this page can measure, and what it cannot
+
+A meter reads a signal. This page can say what each channel holds to a fraction of a decibel, and every number on it about a signal has a test behind it. It cannot say what a listener hears. No test on this site listens.
+
+What is long established about hearing is this. Given two steady tones a few hertz apart, one to each ear, listeners report a slow beat, or a slow movement of the tone inside the head, at the rate of the difference between the tones. It was described in the nineteenth century, and it is in the textbooks of hearing under the name binaural beat. The usual account is that it comes from the part of hearing that compares the two ears' signals to tell where a sound is, which is here given two tones that slip steadily past each other. That is a statement about people, taken from the literature of hearing. This page repeats it and has not measured it.
+
+The same literature reports the beat only within limits: for tones that are low enough in pitch, and close enough to each other. This page gives no figure for either limit, having measured neither. Where the engine's device gives one, in its notes or by what it does to a key, the lesson says that the figure is the device's.
+
+A good deal more is said about these sounds: that listening to them does something to the listener beyond being heard. The site has measured nothing of that kind and has no instrument that could, so this lesson says nothing about it.
+
+So the question this lesson answers is a narrow one, and it can be answered exactly. When a device says it makes a beat between the ears, what is in each channel, and how is it built so that the beat stays out of both?
+
+</Part>
+
+<Part id="picture" title="Three levels: the left ear, the right ear, and the two added.">
+
+One picture holds the idea. It draws the page's meter on three signals at once: the left ear's, the right ear's, and half of their sum.
+
+The meter is the lab's own. It squares each sample, takes the mean of the squares over <Src path="site/labs/binaural-beats.cpp" at="const int window = static_cast<int>(lab::kSampleRate / key_hz(0) + 0.5f)">one cycle of the key</Src>, takes the mean of those means over one more cycle, and reads the result in decibels. Write <M t="s[n]" /> for sample <M t="n" /> of a signal, <M t="N" /> for the number of samples in one cycle of the key, <M t="p" /> for the first mean and <M t="m" /> for the meter's reading:
+
+<M
+  block
+  t={String.raw`\begin{gathered} p[n] = \frac{1}{N}\sum_{j=0}^{N-1} s[n-j]^2 \\[6pt] m[n] = \at{meter-db}{10\log_{10}}\Bigl(\at{meter-read}{\frac{1}{N}\sum_{j=0}^{N-1} p[n-j]}\Bigr) \end{gathered}`}
+/>
+
+One cycle is long enough to average the wave's own swing away, and short enough to follow a beat of a few hertz. So a level that moves in this picture is a level that moves.
+
+What the meter cannot do is reach the bottom of a dip. Where two tones cancel, it is still averaging the cycles on either side, so it reads a deep dip and not silence. That is why this page says of such a dip that the level falls by more than so many decibels. Where it gives a figure, as for the chord of part 3, the figure is what the meter reads.
+
+<Listing
+  path="site/labs/binaural-beats.cpp"
+  from="// The mean of the last `window` values, kept as a running sum."
+  to="static float db(float mean) { return lab::power_to_db(mean); }"
+  name="meter"
+  at={{ read: 'float read(float x)', db: 'static float db(float mean)' }}
+/>
+
+<Controls ids="beat ears" />
+
+<Trace taps="levelLeft:alt levelRight:alt2 levelMid:out" min={-60} max={-10} unit="dB" from={1} span={1}>
+  One second of the three levels. The two ears' lines lie on each other, flat. Try Ears from 1
+  down to 0, and notice them fall into the dips of the third. Try Beat, and notice the dips of the
+  third line crowd together or spread out, while the flat lines stay flat.
+</Trace>
+
+Check this against the picture. Set Ears to 0.5 and leave Beat where it starts. <Claim id="half-ears">The level of each ear now swings by 6.0 dB</Claim>, and the line of the two added has not moved: <Claim id="ears-mid">the sum at Ears 0.5, and at 0, is under −120 dB from the sum at Ears 1</Claim>.
+
+Ears neither makes the beat nor takes it away. It decides how much of the beat is in each ear's signal: none of it at 1, all of it at 0. The sum of the two ears holds the whole beat at every setting.
+
+One thing that can be heard here belongs to the page's loop and not to the device. Move Beat or Key off a whole number of hertz and an ear's wave may dip where the loop's end is joined to its start. The last card of part 7 says why, and why the levels in this picture do not show it.
+
+</Part>
+
+<Part id="uses" title="A held key, a chord, a bed under them, any sound at all, and a pulse.">
+
+The engine has three devices in this family, and between them they cover five jobs. Each card below shows what its setting does to the signals, lists the setting, and plays it. A card's button moves the whole page to its setting, so every figure further down shows it too, and the play bar offers the way back to where you were. The first three cards want headphones. Without them both tones reach both ears, and what each ear is given is the sum of part 1.
+
+<Uses>
+  <Use title="One held key" set="held">
+    <Still
+      slot="picture"
+      taps="levelLeft:alt levelRight:alt2 levelMid:out"
+      set="held"
+      from={1}
+      span={1}
+      min={-60}
+      max={-10}
+      caption="The level in each ear and the level of the two added, with Warmth in. The two ears' lines lie on each other and are still flat."
+    />
+
+    This is one key with Warmth at the device's own setting, so that every control of the Binaural on this page stands where the device starts it. Warmth adds two partials over the key, and each of them is split between the ears by the same number of hertz as the key. <Claim id="use-held">The left ear holds 223 Hz, 443 Hz and 663 Hz and the right ear 217 Hz, 437 Hz and 657 Hz, and the level of each ear moves by less than 0.01 dB</Claim>.
+
+  </Use>
+  <Use title="A chord" set="chord">
+    <Still
+      slot="picture"
+      taps="mid"
+      set="chord"
+      from={1}
+      span={0.5}
+      caption="Half a second of the two ears added, for a chord of three keys. All three keys swell and close together."
+    />
+
+    Every key's pair is made with one clock, so a chord beats as one. <Claim id="use-chord">Three keys come out at the level of one, −18.1 dB in an ear. The left ear holds 223 Hz, 278 Hz and 333 Hz and the right ear 217 Hz, 272 Hz and 327 Hz, each at −19.9 dB, the level of each ear moves by less than 0.01 dB, and the two ears added fall 19.6 dB, 6 times a second</Claim>. The meter reads that dip shallower than one key's for a reason of its own: for a chord it averages over four cycles of the lowest key, which is the chord's period, and a longer window fills more of a narrow dip. The three keys still close together, as the picture shows.
+
+  </Use>
+  <Use title="Tones over a bed" set="bedded">
+    <Still
+      slot="picture"
+      taps="left"
+      set="bedded"
+      view="spectrum"
+      min={-110}
+      max={-10}
+      caption="The left ear's signal as a spectrum. One line stands at the tone, and under it the bed's noise slopes away towards the highs."
+    />
+
+    Bed adds a noise under the tones, a different one in each ear. <Claim id="use-bed">With Bed at 0.5 the noise is 12 dB under the key, and no sample of the output reaches half of full scale</Claim>. Colour slopes the noise from flat towards the lows.
+
+  </Use>
+  <Use title="Any sound, through the Ear Shift" set="shifted">
+    <Still
+      slot="picture"
+      taps="levelShifted:alt levelShiftedMid:out"
+      set="shifted"
+      from={1}
+      span={1}
+      min={-60}
+      max={-10}
+      caption="The level in the Ear Shift's left ear, and the level of its two ears added. The first is flat and the second dips, as the Binaural's do."
+    />
+
+    The Ear Shift is an effect. It takes a sound that is the same in both ears and moves a band of it up in the left ear and down in the right. The lab feeds it the key's own tone. <Claim id="use-shift">A plain tone at 220 Hz comes out at 223 Hz in the left ear and 217 Hz in the right. What is left of the other ear's tone is more than 60 dB under, and of the tone as it went in, more than 40 dB under</Claim>.
+
+  </Use>
+  <Use title="A pulse, for speakers" set="pulse">
+    <Still
+      slot="picture"
+      taps="pulsed"
+      set="pulse"
+      from={1}
+      span={0.5}
+      caption="Half a second of the Isochronic's left ear. One tone is on and then off, with a short fade at each end of every pulse."
+    />
+
+    The Isochronic does not use two tones at all. It plays one, and turns it on and off. <Claim id="use-pulse">Its level goes between −18.1 dB and exact silence, 6 times a second</Claim>, and the two ears are the same, so it does on a speaker what it does on headphones.
+
+  </Use>
+</Uses>
+
+The cards differ in one thing above all. On the first two and the fourth, the meter on each ear holds still, to within the fractions of a decibel their cards give. On the third it moves only as the bed's noise moves it. On the last, the meter on an ear shows the whole of the pulse.
+
+A device that moves a sound about in the ordinary way stands with the pulse in this. The cabinet of <Lesson id="rotary-speaker" /> changes the level of each channel as it turns, and a meter on one channel shows it.
+
+</Part>
+
+<Part id="build" title="One tone, then two, then one to each ear.">
+
+This part puts the Binaural together in five pieces and then sets a sixth against it. After each piece the lanes are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these lanes and plays "Hear it so far".
+
+The lanes are the same at every step: the left ear's signal, the right ear's, the two added, and the meter on the left ear and on the sum.
+
+<Build>
+  <Step title="One tone" controls="key keys">
+    A sine tone comes from a phase: a number that counts cycles and goes round from 0 to 1 once for every cycle of the key. Each sample it moves on by the key's frequency over the sample rate, and the tone is its sine.
+
+    <Claim id="build-tone">The tone is at 220 Hz. The meter reads −18.1 dB and moves by less than 0.01 dB</Claim>. Both ears get the same tone. Keys gives the build one key or a chord of three.
+
+    <Listing
+      path="site/labs/binaural-beats.cpp"
+      from="// One tone: a phase that goes round once for every cycle of the key"
+      to="return turn;"
+      mark="carrier[v] = kit::wrap_phase(carrier[v] + increment[v]);"
+      name="built-tone"
+    />
+
+    The cosine of the same phase is read with the sine. Nothing uses it yet. The next piece does.
+
+    <Lanes
+      slot="picture"
+      taps="built builtRight builtMid builtLevel builtLevelMid"
+      ranges={{ builtLevel: [-60, -10], builtLevelMid: [-60, -10] }}
+      from={1}
+      span={1}
+    >
+      One second of the build so far. That is too long to show single cycles, so each wave is
+      drawn as a band from its lowest point to its highest. Try Key, and notice the bands keep
+      their height: every lane is level.
+    </Lanes>
+
+  </Step>
+  <Step title="Two tones in the air" controls="key keys beat">
+    The second tone is not made by a second oscillator. A second phase turns slowly, at half of Beat, and the rule for the sine of a sum turns the key's sine and cosine into two tones: the key plus half of Beat and the key less half of Beat. Both tones go to both ears, half of each.
+
+    <Claim id="build-air">The meter now falls more than 25 dB and comes back, 6 times a second</Claim>. With this piece taken out again it does not move.
+
+    <Listing
+      path="site/labs/binaural-beats.cpp"
+      from="// Two tones: the key plus half of Beat and the key less half of Beat."
+      to="*lo = together - apart;"
+      mark={['*hi = together + apart;', '*lo = together - apart;']}
+      name="built-two"
+    />
+
+    <Listing
+      path="site/labs/binaural-beats.cpp"
+      from="// In the air: both tones reach both ears, half of each."
+      to="out[1] = 0.5f * hi + 0.5f * lo;"
+      name="built-air"
+    />
+
+    This is the beat of part 1, made on purpose. Press "Hear it so far" on speakers or on headphones: the two channels are the same, so it needs neither in particular.
+
+    <Lanes
+      slot="picture"
+      taps="built builtRight builtMid builtLevel builtLevelMid"
+      ranges={{ builtLevel: [-60, -10], builtLevelMid: [-60, -10] }}
+      from={1}
+      span={1}
+    >
+      Both ears' outlines now close and open together, and both levels dip. Try Beat, and notice
+      the number of dips in the second change.
+    </Lanes>
+
+  </Step>
+  <Step title="One tone to each ear" controls="key keys beat ears">
+    Now the two tones are sent to different places. Ears says how much of its own tone an ear gets and how much of the other's. At 1 an ear gets all of its own and none of the other. At 0 it gets half of each, which is the step before.
+
+    <Claim id="build-ears">The meter on the left ear moves by less than 0.01 dB, and the two ears added still fall more than 25 dB</Claim>. With this piece taken out again the left ear's level swings as it did. The left ear's tone is the higher of the two.
+
+    <Listing
+      path="site/labs/binaural-beats.cpp"
+      from="// One tone to each ear. Ears says how much of its own tone an ear gets"
+      to="out[1] = other * hi + same * lo;"
+      mark={['out[0] = same * hi + other * lo;', 'out[1] = other * hi + same * lo;']}
+      name="built-ears"
+    />
+
+    Nothing was added to the sound and nothing was taken from it. The two tones are made by the same lines as in the step before, and <Claim id="build-ears-sum">half of the two ears added is the signal of the step before, under −120 dB apart</Claim>. Only where the tones go has changed, and the beat has left both ears' signals and stayed in their sum.
+
+    <Lanes
+      slot="picture"
+      taps="built builtRight builtMid builtLevel builtLevelMid"
+      ranges={{ builtLevel: [-60, -10], builtLevelMid: [-60, -10] }}
+      from={1}
+      span={1}
+    >
+      The two ears' outlines are level again and the level of the left ear is flat, while the two
+      added still close and open. Try Ears lower, and notice the dips come back into the ears.
+    </Lanes>
+
+  </Step>
+  <Step title="Warmth" controls="key keys beat ears warmth">
+    A bare sine has one partial. Warmth adds the second and third partials of the key, worked out from the sine and cosine the build already has, with no further sine. Each partial is put through the same pair, so it is split by the same number of hertz as the key, unless it lies above <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kSplitTopHz = 1000.0f;">1 kHz</Src>, where it is left the same in both ears.
+
+    The whole is then scaled so that its highest peak stays where the bare sine's was. <Claim id="build-warmth">With Warmth at 1 the level falls by 3.7 dB and the peak moves by less than 0.01 dB</Claim>. With this piece taken out again Warmth does nothing.
+
+    One thing does move in an ear now, and it is the shape of the wave. The left ear's partials stand at 223 Hz, 443 Hz and 663 Hz, which are not whole multiples of one frequency, so they slip against each other and the wave changes shape as they go. <Claim id="build-outline">With Warmth at 1 the tallest point of each cycle of the left ear's wave moves by 2.0 dB, while the meter on that ear moves by less than 0.01 dB</Claim>. The power in the ear holds. Its outline does not.
+
+    <Listing
+      path="site/labs/binaural-beats.cpp"
+      from="// Warmth: the second and third partials of a key, from its sine and cosine"
+      to="*whole += third * three.s;"
+      mark={['const kit::SinCos two =', 'const kit::SinCos three =']}
+      name="built-warm"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="built builtRight builtMid builtLevel builtLevelMid"
+      ranges={{ builtLevel: [-60, -10], builtLevelMid: [-60, -10] }}
+      from={1}
+      span={1}
+    >
+      Warmth starts at 0, so the lanes are as they were. Try it from 0 to 1, and notice the level
+      of the left ear step down a little and stay flat, while each ear's outline begins to ripple
+      and its tallest point stays where it was.
+    </Lanes>
+
+  </Step>
+  <Step title="The bed" controls="key keys beat ears warmth bed colour">
+    The last piece of the Binaural is a noise under the tones. There are two noises, one for each ear, with nothing in common, and each goes through a filter that slopes it by Colour. Bed is squared on its way to a gain.
+
+    <Claim id="build-bed">With Bed at 1 the noise is as loud as the key, and the two together come out 3.0 dB over the key alone</Claim>. With this piece taken out again Bed does nothing.
+
+    <Listing
+      path="site/labs/binaural-beats.cpp"
+      from="// The bed: two unlike noises, one to an ear, coloured and added under the"
+      to="out[1] += bed_out[1];"
+      name="built-bed"
+    />
+
+    That is every piece of the device. The steps before this one were the lesson's own: a Binaural with a piece missing, which the engine's device at no time is. With all five in place the build does to a sample what the device does, in the same order, and the lab compares the two outputs on every render.
+
+    <Check id="builtDifference" />
+
+    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, and it shows that when there is no difference at all, and also for any difference more than 140 dB under the output. So that reading cannot say that two signals are the same, and the lab's test compares the samples themselves. At each of the settings it tries, with one key and with a chord, the build and the device are <Claim id="build-same">the same, sample for sample</Claim>.
+
+    <Lanes
+      slot="picture"
+      taps="built builtRight builtMid builtLevel builtLevelMid"
+      ranges={{ builtLevel: [-60, -10], builtLevelMid: [-60, -10] }}
+      from={1}
+      span={1}
+    >
+      Bed starts at 0, so the lanes are as they were. Try it higher, and notice the dips in the
+      level of the two added fill up from the bottom: the noise does not beat, so it stands where
+      the tones have cancelled.
+    </Lanes>
+
+  </Step>
+  <Step title="A pulse, for contrast" controls="key beat duty edge depth offset">
+    This step is no part of the Binaural. It takes everything away again but the one tone of the first step, and turns that tone on and off Beat times a second. It is written for the lesson, to stand beside the beat between the ears.
+
+    <Claim id="build-pulse">The meter on an ear now goes between −18.1 dB and exact silence, 6 times a second</Claim>. This time the movement is in each ear's signal, and a meter on one ear shows all of it. The lab's test holds this step to the engine's Isochronic, and the two are the same, sample for sample.
+
+    <Listing
+      path="site/labs/binaural-beats.cpp"
+      from="// A pulse, for contrast: the one tone of the first piece"
+      to="out[1] = level * (gap + (1.0f - gap) * open_right);"
+      skip={['if (right_waits) {', 'right_waits = false; } }']}
+      mark={['out[0] = level * (gap + (1.0f - gap) * open_left);', 'out[1] = level * (gap + (1.0f - gap) * open_right);']}
+      name="built-pulse"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="built builtRight builtMid builtLevel builtLevelMid"
+      ranges={{ builtLevel: [-140, -10], builtLevelMid: [-140, -10] }}
+      from={1}
+      span={1}
+    >
+      Every lane now switches on and off. Try Offset at its highest, and notice the two ears take
+      turns while the two added stop switching.
+    </Lanes>
+
+  </Step>
+</Build>
+
+Here is how the lab puts the pieces in order, for one sample.
+
+<Listing
+  path="site/labs/binaural-beats.cpp"
+  from="// One sample from the pieces built so far, in the order it meets them."
+  to="out[1] = kit::soft_clip(out[1]);"
+  name="built-run"
+/>
+
+The word beat is used for what steps two, three and six make. The three signals are not alike.
+
+</Part>
+
+<Part id="engine" title="The engine's Binaural opened, and its two neighbours.">
+
+From here on it is the devices themselves. The page runs the engine's C++, compiled for the browser, with the lab's key held, and each figure is read out of the running code or worked out from its numbers. Under its title each stage says which.
+
+The Binaural keeps its phases and its clock, and the lab reads those. The pair of tones it makes from them lives for one sample inside its loop and is not kept. So the lab makes the pair again from the device's own phases with the same sums, and a check holds the result, put through stage 5 and added to the bed, to the device's output on every render.
+
+<Check id="pair" />
+
+<Flow
+  label="A key becomes a phase and then a tone with its partials. One slow clock turns that tone into a pair of tones, the pair is divided between the two ears, a bed of noise is added, and the result goes out through a guard."
+  blocks={[
+    { id: 'key', label: 'A key', shape: 'end' },
+    { id: 'phase', from: 'key', tap: 'carrier', label: 'Phase', n: 1 },
+    { id: 'warm', from: 'phase', tap: 'voice', label: 'Warmth', n: 2 },
+    { id: 'clock', row: 1, tap: 'clock', label: 'Half-beat clock', n: 3, signal: 'value' },
+    { id: 'pair', from: ['warm', 'clock'], tap: 'high', label: 'The pair', n: 4 },
+    { id: 'ears', from: 'pair', tap: 'left', label: 'Ears', n: 5 },
+    { id: 'bed', row: -1, tap: 'bedOnly', label: 'The bed', n: 6 },
+    { id: 'sum', shape: 'sum', from: ['ears', 'bed'] },
+    { id: 'out', from: 'sum', tap: 'out', label: 'Output', shape: 'end', n: 7 },
+  ]}
+>
+  The blocks from Phase to Ears are the tone. The Half-beat clock is a number that turns, never
+  heard. The bed joins after the tones have been divided between the ears. Press a stage's button
+  below, and notice its block light up here.
+</Flow>
+
+<StageBlock tap="carrier" n={1} title="A key becomes a phase">
+  A key arrives as a frequency. The device first brings it by octaves into the range it works in, from <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kLowHz = 80.0f;">80 Hz</Src> to <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kHighHz = 1000.0f;">1 kHz</Src>. Its notes give the reason: that is <Src path="cpp/devices/binaural/binaural.h" at="A key is folded by octaves into 80 Hz to 1 kHz">where a beat between the ears works</Src>. That is a statement about hearing, and it is the device's. The lab's Key runs over the same range, so one key by itself is not folded on this page. The upper keys of a chord are, where Key is high enough to carry them past the top: each comes down an octave.
+
+  <Listing
+    path="cpp/devices/binaural/binaural.h"
+    from="static float fold(float hz) {"
+    to="return hz;"
+    name="fold"
+  />
+
+  Then the key becomes a phase, as in the first step of the build.
+
+  <Controls ids="key keys" />
+
+  <Wave taps="carrier:in" from={1} span={0.02} fit>
+    Twenty milliseconds of the key's tone. Try Key, and notice the cycles crowd or spread while
+    the height stays where it is.
+  </Wave>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\begin{gathered} \sig{in}{x[n]} = \sin 2\pi\,c[n] \\[6pt] c[n+1] = \at{phase-step}{c[n] + \frac{f}{f_s}} \bmod 1 \end{gathered}`}
+  />
+  <Fragment slot="readback">
+    <M t="c" /> is the phase, counted in cycles, <M t="f" /> is the key in hertz and <M t="f_s" /> is the sample rate. Each sample the phase moves on by the part of a cycle that one sample is worth, and drops back by 1 when it passes 1. The phase is kept in double precision. The kit's notes say why: <Src path="cpp/kit/beat.h" at="drift by about a beat an hour">two phases in single precision, a few hertz apart, drift by about a beat an hour</Src>, and a beat that wanders is the one thing this device may not have.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/binaural/binaural.h"
+    from="const kit::SinCos turn = kit::sin_cos(voice.carrier);"
+    to="voice.carrier = kit::wrap_phase(voice.carrier + voice.increment);"
+    name="phase"
+    at={{ step: 'voice.carrier = kit::wrap_phase(voice.carrier + voice.increment);' }}
+  />
+  <Fragment slot="after">
+    One key at full strength peaks at <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kVoiceAmp = 0.175f;">0.175 of full scale</Src>, which is the height part 1 measured in each ear.
+  </Fragment>
+  <Fragment slot="listen">Hear the key's tone</Fragment>
+</StageBlock>
+
+<StageBlock tap="voice" n={2} title="Warmth: two partials, and a peak that stays put">
+  Warmth adds the second and the third partial of the key, at <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kSecond = 0.5f;">a half</Src> and <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kThird = 0.25f;">a quarter</Src> of the key's size when Warmth is at 1. This stage is the keys before anything is split: one wave, the same for both ears.
+
+  <Controls ids="warmth" />
+
+  <Wave taps="carrier:in voice:out" from={1} span={0.02} fit>
+    The key's tone, and the keys with Warmth, before the pair. With Warmth at 0 the two are one
+    line. Try Warmth from 0 to 1, and notice the second wave lean and grow a shoulder while its
+    highest point comes no higher than the first's.
+  </Wave>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\begin{gathered} \sig{out}{v} = \frac{\at{warm-first}{\sin\theta} + W\,\at{warm-second}{a_2 \sin 2\theta} + W\,\at{warm-third}{a_3 \sin 3\theta}}{\at{norm-scale}{1 + W(a_2 + a_3)}} \\[6pt] \theta = 2\pi c \end{gathered}`}
+  />
+  <Fragment slot="readback">
+    <M t="W" /> is Warmth, and <M t="a_2" /> and <M t="a_3" /> are the sizes of the two partials. The bottom of the fraction is the most the three terms on top can add up to, so the peak cannot pass the bare sine's however the partials line up. The price is paid in level. Measured in an ear at the lab's Key, <Claim id="warm-level">Warmth at 1 lowers the level by 3.7 dB and Warmth at 0.3, the device's own, by 1.6 dB, and the peak is less than 0.01 dB from where it was</Claim>.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/binaural/binaural.h"
+    from="split_s += amp * turn.s;"
+    to="whole += amp * third * three.s;"
+    name="warm"
+    at={{
+      first: 'split_s += amp * turn.s;',
+      second: 'split_s += amp * second * two.s;',
+      third: 'split_s += amp * third * three.s;',
+    }}
+  />
+  <Fragment slot="after">
+    The listing gathers each key into one of two places. What will be split between the ears goes into a sine and a cosine, `split_s` and `split_c`. A partial above <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kSplitTopHz = 1000.0f;">1 kHz</Src> goes into `whole`, and stays the same in both ears.
+
+    A higher key shows both. <Claim id="warm-split">With the key at 440 Hz and Warmth at 1, the left ear holds 443 Hz at −20.0 dB and 883 Hz at −26.0 dB, the right ear 437 Hz and 877 Hz at the same levels, and both ears hold 1,320 Hz at −32.0 dB</Claim>. The second partial is split by the same number of hertz as the key. The third is too high, and is not split. It does not cancel when the ears are added, so the sum beats less deeply: <Claim id="warm-whole">with that key the two ears added dip 13.2 dB, where a key at 220 Hz dips more than 25 dB, and with neither key does the level of an ear move by 0.01 dB</Claim>.
+
+    The scaling is one line further down the loop. It also divides by the root of the number of keys held, which is why the chord of part 3 came out at the level of one key.
+
+    <Listing
+      path="cpp/devices/binaural/binaural.h"
+      from="// One level for any number of keys, and a peak that does not move with"
+      to="right = (right + whole) * norm;"
+      name="norm"
+      at={{ scale: 'const float norm = kVoiceAmp' }}
+    />
+  </Fragment>
+  <Fragment slot="listen">Hear the keys before the pair</Fragment>
+</StageBlock>
+
+<StageBlock tap="clock" n={3} title="One slow clock for every key">
+  The beat is kept by one phase that the device owns. It turns at half of Beat, and every key's pair is made with it, so all the pairs turn together and a chord beats as one.
+
+  <Controls ids="beat" />
+
+  <Trace taps="clock" min={0} max={1} unit="cycles" from={0} span={1}>
+    The first second of the clock. Try Beat higher, and notice the ramps steepen and multiply.
+  </Trace>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{ctl}{h[n+1]} = \sig{ctl}{h[n]} + \at{clock-rate}{\frac{b}{2 f_s}} \bmod 1`}
+  />
+  <Fragment slot="readback">
+    <M t="h" /> is the clock's phase in cycles and <M t="b" /> is Beat. The step is half of Beat over the sample rate, so <Claim id="clock-turns">at a Beat of 6 Hz the clock goes round 3 times a second</Claim>. The half is there because the two tones stand half of Beat either side of the key.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/binaural/binaural.h"
+    from="const double rate = glide_.step();"
+    to="quarter_beat_.step(0.5 * half_step_);"
+    name="clock"
+    at={{ rate: 'half_step_ = kit::SlowClock::increment(0.5 * rate, sr);' }}
+  />
+  <Fragment slot="after">
+    Two things in that listing are not used on this page. `glide_` moves Beat slowly towards Target when Glide is above 0, and the lab leaves Glide at 0. The second clock, at a quarter of Beat, serves the Cross setting of Layout, which gives each ear two tones. The lab stays on Pair.
+
+    The clock's own step is more careful than a plain sum. What each addition rounds away is kept and given back at the next, so the phase does not creep however long a key is held.
+
+    <Listing
+      path="cpp/kit/beat.h"
+      from="// On by one sample. Read `phase` first: it is this sample's."
+      to="if (!(carry > -1.0 && carry < 1.0)) carry = 0.0;"
+      name="slow"
+    />
+  </Fragment>
+</StageBlock>
+
+<StageBlock tap="high" n={4} title="The pair: two tones from one phase and the clock">
+  This is the centre of the device. It has a tone at the key, as a sine and a cosine, and a clock at half of Beat. It needs a tone half of Beat above the key and one half of Beat below. The rule for the sine of a sum gives both at once.
+
+  <Controls ids="beat" />
+
+  <Wave taps="high:alt low:alt2" from={1} span={0.0834} fit>
+    The higher tone and the lower tone, from where they move together to where they are opposed.
+    Try Beat higher, and notice them fall out of step sooner.
+  </Wave>
+
+  <Fragment slot="equation">
+    <M
+      block
+      t={String.raw`\begin{gathered} \sig{alt}{u} = \sin 2\pi(c + h) \\[4pt] = \at{pair-sum}{\sin 2\pi c\,\cos 2\pi h + \cos 2\pi c\,\sin 2\pi h} \end{gathered}`}
+    />
+    <M
+      block
+      t={String.raw`\begin{gathered} \sig{alt2}{d} = \sin 2\pi(c - h) \\[4pt] = \at{pair-sum}{\sin 2\pi c\,\cos 2\pi h - \cos 2\pi c\,\sin 2\pi h} \end{gathered}`}
+    />
+  </Fragment>
+  <Fragment slot="readback">
+    <M t="u" /> is the higher tone and <M t="d" /> the lower. The phase <M t="c + h" /> moves on each sample by the key's step plus the clock's, so <M t="u" /> is a tone at the key plus half of Beat. The last line of each uses only the sine and cosine of the key's phase and of the clock's, which the device has already, and the two tones share their two products. Measured, <Claim id="pair-hz">the pair stands at 223 Hz and 217 Hz, and half of its sum is the two ears added, under −120 dB apart</Claim>.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/beat.h"
+    from="inline TonePair tone_pair(SinCos carrier, SinCos half_beat) {"
+    to="return {together + apart, together - apart};"
+    name="pair"
+    at={{ sum: 'return {together + apart, together - apart};' }}
+  />
+  <Fragment slot="after">
+    The same four lines serve a chord. Both sums are linear in the key's sine and cosine, so the device adds up the sines of all its keys, and their cosines, and makes the pair once for the lot. The other tone has a button too: <Listen tap="low">hear the lower tone</Listen>.
+  </Fragment>
+  <Fragment slot="listen">Hear the higher tone</Fragment>
+</StageBlock>
+
+<StageBlock tap="left" n={5} title="Ears: which tone goes where">
+  The pair is two signals, and there are two ears. Ears decides how the one is laid on the other. At 1 the left ear gets the higher tone alone and the right ear the lower. Below 1 each ear gets some of the other's tone as well.
+
+  <Controls ids="ears beat" />
+
+  <Curve taps="fineLeft:alt fineRight:alt2" xTitle="hertz" yTitle="level, dB" min={-120} max={0} height={300}>
+    What each ear's signal holds close to the key, read from one second of it. Try Ears at
+    0, and notice each line gain the other's peak. Try Beat, and notice the two peaks move apart
+    or together about the key.
+  </Curve>
+
+  That picture is the lab's own, and it is not the loop. The page's ordinary spectrum cannot tell two tones this close, so the lab measures <Src path="site/labs/binaural-beats.cpp" at="constexpr int kFinePoints = 51;">one frequency for every hertz</Src>, as far as <Src path="site/labs/binaural-beats.cpp" at="constexpr float kFineSpan = 25.0f;">25 Hz either side of the key</Src>. At the lab's starting values, <Claim id="fine-peaks">the left ear's line stands highest 3 Hz above the key and the right ear's 3 Hz below it, each at −15.1 dB, with a point 6.0 dB under on either side of each top</Claim>. Those side points are the edges of the same tone as one second can draw it, not two more tones: a second of signal cannot place a tone more finely than that. A tone that falls between two of the picture's points, as it does at a Beat of an odd number of hertz, is shared by the points beside it and is drawn lower than it stands.
+
+  <Fragment slot="equation">
+    <M
+      block
+      t={String.raw`\begin{gathered} \sig{alt}{L} = \alpha\,u + \beta\,d \qquad \sig{alt2}{R} = \beta\,u + \alpha\,d \\[6pt] \at{ears-gains}{\alpha = \frac{1 + e}{2} \qquad \beta = \frac{1 - e}{2}} \end{gathered}`}
+    />
+    <M
+      block
+      t={String.raw`\begin{gathered} \sig{out}{M} = \frac{L + R}{2} = \frac{u + d}{2} \\[6pt] S = \frac{L - R}{2} = e\,\frac{u - d}{2} \end{gathered}`}
+    />
+  </Fragment>
+  <Fragment slot="readback">
+    <M t="e" /> is Ears, <M t="L" /> and <M t="R" /> are the two ears' signals, and <M t={String.raw`\alpha`} /> and <M t={String.raw`\beta`} /> are how much an ear gets of its own tone and of the other's. The second pair of lines takes the two ears apart into what they share, <M t="M" />, and where they differ, <M t="S" />, as <Lesson id="stereo" /> does for any pair of channels. <M t="M" /> has no <M t="e" /> in it. That is the measurement of part 2: the sum does not move with Ears. <M t="S" /> is scaled by <M t="e" /> and nothing else, so <Claim id="ears-side">at Ears 0.5 what differs between the ears is 6.0 dB under what they share, and at 0.25 it is 12.0 dB under</Claim>.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/kit/beat.h"
+    from="inline EarGains ear_gains(float ears) {"
+    to="*right = gains.other * hi + gains.same * lo;"
+    name="ears"
+    at={{ gains: 'return {0.5f + 0.5f * e, 0.5f - 0.5f * e};' }}
+  />
+  <Fragment slot="listen">Hear the left ear's signal by itself</Fragment>
+</StageBlock>
+
+<StageBlock tap="bedOnly" n={6} title="The bed: two noises, one for each ear">
+  Under the tones the device can lay a noise. It makes two, from two streams of random numbers that have nothing in common, and gives one to each ear. Ears does not narrow them.
+
+  <Still
+    taps="bedOnly"
+    values={{ bed: 1 }}
+    view="spectrum"
+    min={-80}
+    max={-20}
+    caption="The left ear's bed with Bed at 1 and Colour where it starts. The noise falls steadily from the lows to the highs."
+  />
+
+  <Controls ids="bed colour" />
+
+  <Trace taps="levelLeft:alt levelMid:out" min={-60} max={-10} unit="dB" from={1} span={1}>
+    The level in the left ear and the level of the two added. Bed starts at 0. Try it higher, and
+    notice the first line rise a little and grow ragged with the noise, while the dips of the
+    second fill from the bottom: the noise does not beat.
+  </Trace>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{alt}{L} \leftarrow \sig{alt}{L} + \at{bedset-gain}{B^2 g_b}\,A\,\nu_L \qquad \sig{alt2}{R} \leftarrow \sig{alt2}{R} + \at{bedset-gain}{B^2 g_b}\,A\,\nu_R`}
+  />
+  <Fragment slot="readback">
+    <M t="B" /> is Bed, and it is squared, so the lower half of its travel is quiet. <M t={String.raw`\nu_L`} /> and <M t={String.raw`\nu_R`} /> are the two coloured noises. <M t="A" /> is the strength of the loudest key that is sounding, so that there is no noise before a key or after the last one has died away. <M t="g_b" /> is <Src path="cpp/devices/binaural/binaural.h" at="static constexpr float kBedLevel = 0.625f;">0.625</Src>, chosen so that the noise at Bed 1 has <Src path="cpp/devices/binaural/binaural.h" at="a key at full gain: the RMS of one bare tone of kVoiceAmp, 0.125.">the level of one bare key</Src>. Measured, <Claim id="bed-square">the bed at Bed 1 is less than 0.2 dB from the level of the key in each ear, and at Bed 0.5 it is 12.0 dB quieter</Claim>. The two ears' noises are unlike: <Claim id="bed-unlike">the one less the other is 3 dB over either</Claim>, which is what two signals with nothing in common give.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/binaural/binaural.h"
+    from="const float bed = bed_.next();"
+    to="right += gate * colour_filter_[1].process(noise_[1].bipolar());"
+    name="bed"
+  />
+  <Fragment slot="after">
+    The square is taken once, where the control is set:
+
+    <Listing
+      path="cpp/devices/binaural/binaural.h"
+      from="case kBed:"
+      to="bed_.set(value * value * kBedLevel, primed());"
+      name="bedset"
+      at={{ gain: 'bed_.set(value * value * kBedLevel, primed());' }}
+    />
+
+    Colour runs the noise through a chain of gentle filters, <Src path="cpp/kit/colour.h" at="// How. Seven first-order sections in series, each a pole and a zero.">seven small sections</Src>, each a relative of the filter that <Lesson id="one-pole" /> builds, which slope it from flat at 0 to steeply falling at 1. Bed starts at 0 here, so the button below plays nothing until Bed is raised.
+  </Fragment>
+  <Fragment slot="listen">Hear the bed alone</Fragment>
+</StageBlock>
+
+<StageBlock tap="out" n={7} title="Volume, and a guard that should have nothing to do">
+  Last come Volume, which the lab leaves where the device starts it, and a soft clip. The clip passes a sample unchanged while it is no larger than <Src path="cpp/kit/math.h" at="if (magnitude <= 0.5f) return x;">half of full scale</Src>, and bends anything larger so that it cannot pass full scale.
+
+  It is a guard, and the device is scaled so that tones alone do not reach it. The reason matters to this lesson. A clip bends a wave, and a bent wave holds tones that were not played. The device's notes put it in a line: in its knee the clip <Src path="cpp/devices/binaural/binaural.h" at="its knee it would make difference tones inside each ear.">would make difference tones inside each ear</Src>. The whole design keeps the two tones from meeting in one signal, and a guard that worked on them would undo a little of that.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/binaural/binaural.h"
+    from="const float volume = volume_.next();"
+    to="out_right_[i] = kit::soft_clip(right * volume);"
+    name="out"
+  />
+  <Fragment slot="after">
+    <Listing
+      path="cpp/kit/math.h"
+      from="inline float soft_clip(float x) {"
+      to="return x < 0.0f ? -shaped : shaped;"
+      name="clip"
+    />
+
+    The bed is added before the guard and is not counted in the scaling. Part 7 turns it all the way up.
+  </Fragment>
+  <Fragment slot="listen">Hear the Binaural's output</Fragment>
+</StageBlock>
+
+### The same split, for a sound that already exists
+
+The Binaural makes its own tones. The Ear Shift is an effect: it does the same thing to a band of whatever is played into it. The lab plays it the keys of stage 2, with no pair, the same in both ears.
+
+<StageBlock tap="shifted" n={8} title="The Ear Shift: a band moved up in one ear and down in the other">
+  A sound that already exists has no phase to read a cosine from. So the Ear Shift makes one. It puts the band through a pair of filters whose two outputs are the same sound a quarter of a cycle apart at every frequency, which is the subject of <Lesson id="frequency-shifting" />. With those two in the places of the sine and the cosine, the sums of stage 4 move the whole band up in one ear and down in the other.
+
+  <Controls ids="low high ears" />
+
+  <Trace taps="levelShifted:alt levelShiftedMid:out" min={-60} max={-10} unit="dB" from={1} span={1}>
+    The level in the Ear Shift's left ear, and the level of its two ears added. Try Low up towards
+    the key, and notice the flat line begin to waver as the tone comes to the edge of the band.
+  </Trace>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\begin{gathered} \sig{alt}{L} = I_r + \at{shift-sum}{I_b \cos\varphi + e\,Q_b \sin\varphi} \\[4pt] \sig{alt2}{R} = I_r + \at{shift-sum}{I_b \cos\varphi - e\,Q_b \sin\varphi} \\[4pt] \varphi = 2\pi h \end{gathered}`}
+  />
+  <Fragment slot="readback">
+    <M t="I_b" /> and <M t="Q_b" /> are the band's two copies, a quarter of a cycle apart. <M t="I_r" /> is the rest of the sound, below Low and above High, which is not moved. <M t={String.raw`\varphi`} /> is the angle of a clock that turns at half of Beat, as in stage 3. The plus moves the band up by half of Beat and the minus moves it down by as much, and Ears scales the term that tells the two ears apart, as in stage 5. Measured on the lab's tone, <Claim id="shift-steady">the level of the left ear moves by less than 0.2 dB</Claim>. <Claim id="shift-air">The level that comes out is less than 0.1 dB from the level that went in, and at Ears 0 both ears get one signal, whose level falls more than 25 dB, 6 times a second</Claim>.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/ear-shift/ear_shift.h"
+    from="const kit::Bands parts = split_[c].process(in[c]);"
+    to="out[c] = rest_i + (c == 0 ? together + apart : together - apart);"
+    name="shift"
+    at={{ sum: 'out[c] = rest_i + (c == 0 ? together + apart : together - apart);' }}
+  />
+  <Fragment slot="listen">Hear the Ear Shift's output</Fragment>
+</StageBlock>
+
+### One tone, and a gate
+
+The third device is the contrast of this lesson. The Isochronic has no pair. It plays a tone, and opens and shuts a gate on it. That is the tremolo of <Lesson id="tremolo-and-ring-modulation" />, a sound multiplied by a slow wave, with a pulse for the wave.
+
+<StageBlock tap="gate" n={9} title="The Isochronic: a level that is switched">
+  One clock turns at the rate of the pulse, which the lab sets to Beat. A shape is read off its phase: a rise, a top, a fall and a gap. Duty is the share of each turn that is on, Edge is how long the rise and the fall take, Depth is how far down the gap goes, and Offset makes the right ear read the same clock later.
+
+  <Controls ids="duty edge depth offset" />
+
+  <Trace taps="gate" min={0} max={1} from={1} span={0.5}>
+    Half a second of the left ear's gate. Try Edge longer, and notice the corners round. Try Duty,
+    and notice the tops widen while the count of pulses stays.
+  </Trace>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`y = \at{depth-gain}{\bigl(r + (1 - r)\,\sig{ctl}{q}\bigr)}\,x \qquad \at{depth-floor}{r = (1 - D)^2}`}
+  />
+  <Fragment slot="readback">
+    <M t="q" /> is how far open the gate is, from 0 to 1: the line of the picture. <M t="D" /> is Depth and <M t="r" /> is the level left in the gap. <M t="x" /> is the tone and <M t="y" /> what one ear gets. At Depth 1 the gap is exact silence. Measured, <Claim id="pulse-gate">the gate goes from 0 to 1 and back 6 times a second, and its mean over the loop is 0.50</Claim>, which is Duty.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/isochronic/isochronic.h"
+    from="const double right_phase = kit::wrap_phase(pulse_.phase - static_cast<double>(offset_.next()));"
+    to="pulse_.step(step);"
+    name="gate"
+  />
+  <Fragment slot="after">
+    <Listing
+      path="cpp/kit/beat.h"
+      from="// The gap's level for a Depth in 0..1: (1 - Depth)²."
+      to="inline float pulse_gain(float open, float floor) { return floor + (1.0f - floor) * open; }"
+      name="depth"
+      at={{ floor: 'return (1.0f - d) * (1.0f - d);', gain: 'inline float pulse_gain(float open, float floor)' }}
+    />
+
+    The tone under the gate is made as stage 1 makes it. The Isochronic has a Warmth of its own, which the lab turns all the way down, so the tone stays a bare sine wherever this page's Warmth is set. <Listen tap="pulsed">Hear the Isochronic</Listen>
+  </Fragment>
+</StageBlock>
+
+### All the stages at once
+
+Here is the Binaural with every control live, read at each stage in turn: the key's tone, the keys with Warmth, the clock, the pair, each ear, the two added with the meter on an ear and on the sum, and what goes out.
+
+<Controls ids="key keys beat ears warmth bed colour" />
+
+<Lanes
+  taps="carrier voice clock high low left right mid levelLeft levelMid out"
+  ranges={{ clock: [0, 1], levelLeft: [-60, -10], levelMid: [-60, -10] }}
+  from={1}
+  span={0.5}
+>
+  Every stage on one time axis. Try Ears, and notice which lanes change: nothing above the left
+  ear moves, and the lane of the two added does not move either.
+</Lanes>
+
+To judge what the three devices do, compare them on headphones and then on a speaker: <Listen tap="out">the Binaural</Listen>, <Listen tap="mid">its two ears added</Listen>, <Listen tap="shifted">the Ear Shift</Listen> and <Listen tap="pulsed">the pulse</Listen>.
+
+</Part>
+
+<Part id="ways" title="Five places to start.">
+
+Each of these is a habit of working, not a preset. Press "Try it" and the page moves to settings that show the idea, so you can go back up and see what the levels are doing.
+
+<Ways>
+  <Way title="A slow turn" tag="Beat near its lowest" set="slow">
+    <Still
+      slot="picture"
+      taps="levelLeft:alt levelMid:out"
+      set="slow"
+      min={-70}
+      max={-10}
+      caption="The whole loop. The level in the left ear is flat. The level of the two added dips once in each second."
+    />
+
+    Bring the two tones close. <Claim id="way-slow">With Beat at 1 Hz the ears hold 220.5 Hz and 219.5 Hz</Claim>, half a hertz either side of the key, and their sum dips once a second. After the card, lower Beat further and watch the dips of part 2's picture spread out.
+
+  </Way>
+  <Way title="A fast beat" tag="Beat at its highest" set="fast">
+    <Still
+      slot="picture"
+      taps="levelLeft:alt levelMid:out"
+      set="fast"
+      from={1}
+      span={0.25}
+      min={-40}
+      max={-10}
+      caption="A quarter of a second. The level of the two added now ripples quickly, and the level in the left ear is still flat."
+    />
+
+    Push the tones far apart. <Claim id="way-fast">With Beat at 40 Hz the ears hold 240 Hz and 200 Hz, the level of each ear moves by less than 0.1 dB, and the two added dip 40 times a second</Claim>. The meter's line no longer reaches far down into each dip, because its two windows are now a good part of the time between dips. The signals do at this rate what they did at the slow one, and by the equation of part 1 the sum still closes to nothing. What a listener makes of it is another matter: the device's notes say that <Src path="cpp/devices/binaural/device.json" at="Heard between the ears alone, the beat fades above about 30 hertz.">heard between the ears alone, the beat fades above about 30 hertz</Src>. That is their statement about hearing, and this page has not tested it.
+
+  </Way>
+  <Way title="Some of the beat in the air" tag="Ears part of the way" set="halfway">
+    <Still
+      slot="picture"
+      taps="levelLeft:alt levelRight:alt2 levelMid:out"
+      set="halfway"
+      from={1}
+      span={1}
+      min={-60}
+      max={-10}
+      caption="With Ears half way, the two ears' levels rise and fall a little, together, over the deep dips of the two added."
+    />
+
+    For a sound that will be heard on speakers as well as on headphones, give each ear some of the other's tone. Each ear's signal then carries a part of the beat by itself, the swing that part 2 measured. After the card, move Ears and listen to one side of a pair of headphones only: at 1 that side's signal is a steady tone.
+
+  </Way>
+  <Way title="Left, then right" tag="Offset at its highest" set="turns">
+    <Still
+      slot="picture"
+      taps="pulsed pulsedMid"
+      set="turns"
+      from={1}
+      span={0.5}
+      caption="The Isochronic's left ear, and its two ears added. The left ear switches on and off. The two added do not."
+    />
+
+    The Isochronic's two ears can take turns. Offset sets the right ear's pulse behind the left's, and at its highest the right ear is on exactly while the left is off. Each ear still falls silent between its pulses. Part 7 says what this costs on a speaker.
+
+  </Way>
+  <Way title="A softer pulse" tag="less Depth, a longer Edge" set="soft">
+    <Still
+      slot="picture"
+      taps="pulsed"
+      set="soft"
+      from={1}
+      span={0.5}
+      caption="Half a second of a soft pulse. The tone does not stop between pulses. It drops, and comes back by a slow curve."
+    />
+
+    A pulse need not go all the way to silence, and it need not arrive quickly. <Claim id="way-soft">With Depth at 0.5 the tone is left 12.0 dB down between pulses</Claim>, which is the square in stage 9's equation: a half of the way down, squared, leaves a quarter.
+
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Five ways it goes wrong, four of them to hear.">
+
+<Faults>
+  <Fault title="The two channels get added" set="folded">
+    <Still
+      slot="picture"
+      taps="mid"
+      set="folded"
+      from={1}
+      span={0.5}
+      caption="Half a second of the two ears added. The outline closes and opens: the beat is in this signal."
+    />
+
+    A phone's one speaker, a bus set to mono, a reverb fed from both sides: each adds the two channels, and the sum of the two tones beats at full depth whatever Ears says, as parts 1 and 2 measured. Nothing after the sum can take it out again. If the beat is to stay out of the signal, the two channels have to stay apart all the way to the headphones. If the sound will be added anyway, choose that on purpose: Ears at 0 does it outright.
+
+  </Fault>
+  <Fault title="A note on the edge of the band" set="edge">
+    <Still
+      slot="picture"
+      taps="levelShifted"
+      set="edge"
+      from={1}
+      span={1}
+      min={-70}
+      max={-10}
+      caption="The level in the Ear Shift's left ear for a tone that sits on the top edge of the band. It falls away and comes back three times in the second."
+    />
+
+    The Ear Shift moves a band and leaves the rest. A note on the band's edge is half in and half out, so each ear gets it both moved and unmoved, and those two beat inside the one ear. <Claim id="fault-edge">With High at 440 Hz and a tone at 440 Hz, the level of an ear falls more than 30 dB, 3 times a second, which is half of Beat. With High an octave above the tone it moves less than 1.5 dB</Claim>. Keep the notes that matter well inside the band. Low starts at <Src path="cpp/devices/ear-shift/device.json" at={'"default": 60,'}>60 Hz</Src>, as low as it goes, for that reason.
+
+  </Fault>
+  <Fault title="The bed reaches the guard" set="loud-bed">
+    <Still
+      slot="picture"
+      taps="left"
+      set="loud-bed"
+      from={1}
+      span={0.5}
+      caption="Half a second of the left ear with Bed all the way up. The tone is buried in the noise, and the tallest spikes of the noise stand well over the tone's height."
+    />
+
+    The device is scaled for its tones, and the bed is added on top. <Claim id="fault-bed">With Bed at 1 the loudest sample of the loop stands at −3.2 dB, and less than 0.2 % of the samples in either ear are over half of full scale</Claim>, where the soft clip of stage 7 begins to bend them. It is a small share. The tones alone stay under the guard, a chord of three included, so it is the bed that reaches it. Lower Bed, or lower Volume on the device.
+
+  </Fault>
+  <Fault title="Turns that cancel" set="cancel">
+    <Still
+      slot="picture"
+      taps="levelPulsed levelPulsedMid"
+      set="cancel"
+      from={1}
+      span={1}
+      min={-140}
+      max={-10}
+      caption="The level in the Isochronic's left ear, and the level of its two ears added, with the ears taking turns. The first switches between sound and silence. The second is one flat line."
+    />
+
+    The way card that made the ears take turns has a price. Add the two ears and one is always fading in exactly as the other fades out. <Claim id="fault-turns">With Offset at 180° the two ears added hold at −24.1 dB and move by less than 0.01 dB</Claim>: on one speaker the pulse is gone, and what is left is a steady tone at half strength. Keep Offset lower, or move Duty away from a half, for a sound that may be added.
+
+  </Fault>
+  <Fault title="A loop that does not come round">
+    This one is the page's, not the device's. The lab plays four seconds and joins the end to the start with a short crossfade. Where the two tones do not come round in that time, the crossfade passes through a moment where the end and the start disagree, and each ear's wave dips there, once in every pass of the loop. Listen for a short dip in a tone that should be steady. The meters on the ears do not show it: they read the signal before the loop is cut. A held key on the device itself has no loop and no such dip. Every card on this page is set where the tones come round. Move Beat or Key by hand and the dip may come, and a whole number of hertz on both takes it away again.
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what the signals show.">
+
+<Myths>
+  <Myth says="The beat is in the recording.">
+    With one tone to each ear, neither channel beats. The meter on each ear holds still to a hundredth of a decibel, as the answer in part 1 shows, and each channel holds one tone. The beat is in the recording only once the two channels are added.
+  </Myth>
+  <Myth says="There is a low tone at the rate of the beat in there.">
+    No signal on this page holds a tone at the rate of the beat. <Claim id="no-six">At 6 Hz, and at 3 Hz, the lab finds under −120 dB in the left ear, in the right ear and in the two added</Claim>. Even the sum, which beats, is two tones near the key and nothing else: <Claim id="sum-rest">with those two taken away, what is left of it is more than 130 dB under it</Claim>. A beat is a level that moves, not a low tone.
+  </Myth>
+  <Myth says="It works the same on speakers.">
+    On speakers both tones reach both ears, so each ear is given the sum, and the sum beats in the air. That is the first case of part 1 and step two of the build. It is a beat, and a different one: it is in each ear's signal, where the other is in neither.
+  </Myth>
+  <Myth says="A pulsed tone at the same rate is the same thing.">
+    A pulse is one tone whose level is switched, and a meter on one ear shows all of it, as step six of the build measured. A pair of tones, one to an ear, moves no meter. The two are built differently and their signals are different. Which of them a listener prefers, the page cannot say.
+  </Myth>
+  <Myth says="Any two pitches will do.">
+    The engine's device does not treat them alike. It folds every key into a range of its own, and it stops splitting a partial above the top of that range, as stages 1 and 2 show. Its notes give hearing as the reason. This page has measured the folding and the splitting, and has not measured the hearing.
+  </Myth>
+  <Myth says="It is known what these sounds do to the person who listens.">
+    Not from anything on this site. What the site can show is what each channel holds: two steady tones, a few hertz apart, kept apart. That a listener given them reports a beat is long established in the study of hearing, and part 1 repeats it without having measured it. What listening does to a listener beyond that is a question for people who measure listeners. No test here does, and this lesson says nothing about it.
+  </Myth>
+</Myths>
+
+</Part>

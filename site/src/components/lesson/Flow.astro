@@ -1,0 +1,51 @@
+---
+// A signal-flow picture: the blocks of the technique and the paths between them.
+//
+//   <Flow label="The sound splits: one copy is multiplied by a gain, the other works that gain out."
+//     blocks={[
+//       { id: 'in', label: 'in', shape: 'end', tap: 'in' },
+//       { id: 'split', shape: 'dot', from: 'in' },
+//       { id: 'hp', row: 1, from: 'split', tap: 'sidechain', label: 'high-pass', n: 2 },
+//       { id: 'level', row: 1, from: 'hp', tap: 'level', n: 3 },
+//       { id: 'gain', label: '× gain', from: ['split', 'level'], n: 6 },
+//       { id: 'out', label: 'out', shape: 'end', from: 'gain', tap: 'out' },
+//     ]}>Caption.</Flow>
+//
+// A block names its row (0, the main path, when left out; 1 a row under it) and what feeds it
+// (`from`). A row that leaves the main path and comes back is drawn as a side row; a block fed
+// by one that is not the block before it on its row is reached by a path round the blocks
+// between; and `back` names a block further along whose output comes back: feedback, drawn
+// against the flow. A block that names a `tap` is lit while that tap sounds, and is named after
+// it when it has no `label`: an adder (`shape: 'sum'`) has that name under its circle, or over
+// it where a path comes into it from below. A tap the lab does not have stops the build.
+//
+// A block stands one column after the last of what feeds it. `column` puts it further along,
+// counted from 0, for a side block that is to stand under the block it belongs with:
+//   { id: 'lfo', row: 1, column: 3, label: 'oscillator' }
+// Two blocks of one row never stand in one cell: the second stands in the next column.
+//
+// In a column too narrow for the picture it wraps: it is cut into bands that stand one under
+// another, and a path that crosses a cut goes on in the next band at the height of its row
+// (figures/flow.ts, fitFlow). It is cut only where one plain path crosses, so a loop and a side
+// row are never cut in two. A picture that cannot be cut so runs downward: each row is a column,
+// the top row at the left, every path in one piece, and a line under the picture says so. A
+// caption may speak of the row along the top and the row under it.
+import Flow from '../../figures/Flow.tsx'
+import { flowBlocks, type FlowBlock } from '../../figures/flow.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  blocks: FlowBlock[]
+  /** What the picture shows, for a reader who cannot see it. */
+  label: string
+}
+const { lab, lesson } = pageLab(Astro.locals)
+const parts = flowBlocks(Astro.props.blocks, lab.taps, lesson)
+---
+
+<figure class="fig">
+  <Flow client:visible blocks={parts} label={Astro.props.label} />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

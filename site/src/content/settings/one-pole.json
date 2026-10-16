@@ -1,0 +1,83 @@
+{
+  "tile": {
+    "values": { "cutoff": 500 },
+    "tap": "low",
+    "picture": { "taps": ["chaseTarget", "chase"], "view": "curve" }
+  },
+  "sets": {
+    "arrives": {
+      "label": "The fader as it arrives",
+      "tap": "zipper"
+    },
+    "often": {
+      "label": "Two hundred values a second",
+      "values": { "updates": 200 },
+      "tap": "zipper"
+    },
+    "glided": {
+      "label": "The fader, smoothed",
+      "tap": "out"
+    },
+    "kick": {
+      "label": "Drums, the top taken off",
+      "values": { "cutoff": 250 },
+      "source": "drums",
+      "tap": "low"
+    },
+    "thin": {
+      "label": "A mix, the bottom taken out",
+      "values": { "cutoff": 300 },
+      "source": "mix",
+      "tap": "high"
+    },
+    "bands": {
+      "label": "The low band inside the Tremolo",
+      "values": { "cutoff": 700 },
+      "source": "chords",
+      "tap": "deviceLow"
+    },
+    "soften": {
+      "label": "The edge taken off a saw",
+      "values": { "cutoff": 3000 },
+      "source": "saw",
+      "tap": "low"
+    },
+    "removed": {
+      "label": "Only what the filter removes",
+      "source": "drums",
+      "tap": "high"
+    },
+    "swell": {
+      "label": "A chopped pad with soft edges",
+      "values": { "updates": 2, "smoothing": 20, "rides": 1 },
+      "source": "pad",
+      "tap": "out"
+    },
+    "fine": {
+      "label": "More values, and smoothing",
+      "values": { "updates": 200 },
+      "tap": "out"
+    },
+    "zipper": {
+      "label": "Zipper noise",
+      "values": { "smoothing": 0 },
+      "tap": "out"
+    },
+    "stairs": {
+      "label": "Stairs with soft corners",
+      "values": { "updates": 4 },
+      "tap": "out"
+    },
+    "late": {
+      "label": "A fader that arrives late",
+      "values": { "updates": 200, "smoothing": 20 },
+      "tap": "out"
+    },
+    "gentle": {
+      "label": "One pole is not a wall",
+      "values": { "cutoff": 200 },
+      "source": "drums",
+      "tap": "low"
+    }
+  }
+}

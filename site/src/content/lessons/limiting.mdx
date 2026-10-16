@@ -1,0 +1,1007 @@
+---
+title: Limiting and true peaks
+family: dynamics
+summary: A limiter promises that nothing comes out above a ceiling. Keeping the promise means knowing how high the wave stands between its samples, and knowing about every peak before it arrives. This lesson says why anyone needs one, builds one a piece at a time, then opens the engine's own and reads the gain out of it as it is made.
+opening: { input: pushed, output: out }
+lab: limiting
+devices: [ambient-limiter]
+bench:
+  device: ambient-limiter
+  params: { ceiling: -1, gain: 12, ride: 0 }
+  as: insert
+  note: The Ambient Limiter is the device the library ships this limiter in, and its controls are not this lesson's. The end of part 5 goes through them one by one. The plate opens with Ride at 0, where the device starts it at 1, so that only the limiter is at work, and with Gain, which is this lesson's Push, at 12 dB as the lesson opens, where the device starts it at 0 dB. The plate's Release belongs to the slow gain and moves nothing while Ride is at 0.
+sources: [drums, bass, mix, pad, chords, guitar, saw, noise, sine, clicks]
+seconds: 4
+files:
+  - cpp/devices/true-peak-limiter/true_peak_limiter.h
+  - cpp/devices/true-peak-limiter/true_peak_limiter_device.h
+  - cpp/devices/true-peak-limiter/true_peak_limiter_device.cpp
+  - cpp/devices/ambient-limiter/ambient_limiter.h
+  - cpp/devices/ambient-limiter/device.json
+  - cpp/devices/ambient-limiter/params.gen.h
+  - src/core/analysis/loudness.ts
+---
+
+<Part id="why" title="Sound has a top, and loud music wants to sit right under it.">
+
+A drum loop is hits and the spaces between them. The hits are tall and short, and the spaces are nearly empty. Over the four seconds of the loop on this page the highest sample stands <Claim id="crest">18.7 dB</Claim> above the loop's level, which is its mean power. For most of the loop the sound is nowhere near its own top.
+
+Listen to it first. <Hear set="played" label="Hear the drums as played" />
+
+Digital sound has a top that nothing passes. A sample is a number, and the largest number a converter or a file can carry is called full scale. Levels are counted down from it in decibels, so full scale is 0 dB and everything else is below. How loud a sound seems follows its level, not its highest sample: <Lesson id="level-and-loudness" /> measures both. So this loop, whose level lies so far under its hits, sounds quiet beside music whose level sits closer to the top.
+
+The question of this lesson is how to turn a sound up by more than the room there is above its highest peak.
+
+### The obvious answers fail
+
+Turn it up anyway. A gain multiplies every sample by one number, so the spaces come up and the hits come up by exactly as much. On this page that gain is called Push. With Push where the page starts it, the highest sample of the drums stands <Claim id="over-full">8.2 dB over full scale</Claim>.
+
+<Still
+  taps="pushed:in clipOnly:out"
+  set="clipped"
+  caption="Four seconds of the drums, turned up, and the same sound cut off at the ceiling. The numbers at the side count in full scales. The hits of Pushed pass 2. The cut-off copy stops just under 1, and everything of a hit that stood above that is gone."
+/>
+
+A converter has no number for a sample over full scale. Whatever passes the top is cut off flat, which is called clipping. This page plays every stage <Src path="site/src/lab/player.ts" at="With the volume at its starting place the stages play 12 dB under full scale.">with room above full scale</Src>, 12 dB of it where the page's volume starts, so Pushed can be heard here unharmed. That room is not endless. <Src path="site/src/lab/player.ts" at="export const volumeGain = (volume: number) => 0.5 * volume * volume">With the volume all the way up the page plays at half height</Src>, and a sound past twice full scale, as the tallest hits of Pushed are, is then cut off on its way to your ears. So is Pushed with Push near the top of its range, where the volume starts. The pictures show neither. Nothing outside this page is so forgiving. The stage called "Pushed, and cut off at the ceiling" is what would come out. <Hear set="clipped" label="Hear it turned up and cut off" />
+
+A wave with its top cut off is a different wave. The flat part has corners, and corners are made of frequencies that were never played. A drum hit is a burst of noise a few thousandths of a second long, and whether the cut can be told on it is for your ear: the button above plays it. Try a note that holds as well. Step 2 of part 4 measures the damage on a low tone, and this button plays the bass line turned up and cut off. <Hear set="bassClipped" label="Hear the bass turned up and cut off" />
+
+<Still
+  view="curve"
+  taps="nearDelayed:in nearClipped:out nearCeiling:alt"
+  set="clipped"
+  caption="The loudest hit of the loop, five thousandths of a second of it, with the highest crest at 0. Delayed is the pushed sound on its way out. Wherever it stands over the Ceiling line, the cut-off copy runs flat along it. The crests that gave the hit its shape are all one height now."
+/>
+
+The second answer is the compressor of <Lesson id="compression" />, a device that turns loud parts down by itself. It fails here for a reason that lesson gives a whole fault to. A compressor measures a level over a stretch of time and then moves its gain, so the front of every hit has gone through before the gain arrives. That suits a device whose job is to shape a sound. A top that must not be passed needs three things a compressor does not have: the height of the wave itself and not its average, a gain that takes off exactly what stands over, and that gain already down when the peak arrives.
+
+### A gain that is there first
+
+A device with those three things is a limiter. It makes the sound wait a moment, and works out its gain from the copy that has not waited. So the gain is always a little ahead of the sound it is put on. When a peak is on its way, the gain slides down to meet it, holds while it passes, and climbs back afterwards. The level it will not let anything pass is called the ceiling.
+
+<Still
+  view="curve"
+  taps="nearDelayed:in nearOut:out nearCeiling:alt"
+  set="limited"
+  caption="The same hit through the engine's limiter. Output has the crests of Delayed, one for one, and each is smaller. Its highest point touches the Ceiling line, and nothing in it is flat."
+/>
+
+Compare it with the two before. <Hear set="limited" label="Hear it turned up and limited" />
+
+<Predict
+  question="The drums are turned up by the Push the page starts with, and limited to the ceiling it starts with. How much louder does the whole loop come out?"
+  choices={[
+    'By all of the Push: a gain is a gain',
+    'By about half of it',
+    'No louder: the ceiling takes back what the Push gave',
+  ]}
+>
+
+By about half of it. Measured over the loop, the drums come out <Claim id="louder">6.1 dB</Claim> higher in mean power than they went in, and their highest sample comes out <Claim id="peak-rise">2.8 dB</Claim> higher.
+
+The spaces between the hits got all of the Push. The hits got only what room there was under the ceiling, and the limiter took the rest back. So the loop is louder, and its hits stand less far above it than they did. That trade is what a limiter is for, and it is also what it costs.
+
+<Still
+  taps="gain"
+  set="limited"
+  caption="The gain the limiter puts on the drums over the four seconds, in decibels. It dives at each hit, deepest at the loudest ones, and climbs back in the space after. It only ever turns down."
+/>
+
+</Predict>
+
+The limiter on this page is the one the engine puts on its own master bus. Part 5 opens it, and part 9 shows the device the library ships it in, where a second, slower gain stands in front of it.
+
+</Part>
+
+<Part id="picture" title="The gain is down before the peak comes out.">
+
+The idea is in one picture: five thousandths of a second around the largest peak of the loop, drawn a point a sample. Time 0 is the sample that peak comes out on.
+
+Delayed is the sound on its way to the output, already turned up by Push. Gain is the number each sample of it is multiplied by: at 1 nothing changes, and at one half a sample comes out half its height. Output is the two multiplied together, and Ceiling is the height it may not pass.
+
+<Controls ids="push ceiling release" />
+
+<Curve
+  taps="nearDelayed:in nearOut:out nearGain:ctl nearCeiling:alt"
+  xTitle="milliseconds from the peak coming out"
+  height={340}
+>
+  The largest peak of the loop, turned so that it points up. Try Push lower, and notice the Gain
+  line lift towards 1 and Output grow towards Delayed until the two are one line. Then try Release
+  at its longest, and notice Gain begin the picture lower: it has not come back from the hit before
+  this one.
+</Curve>
+
+Check this against the picture, on the drums with the three controls where the page starts them. At 0, <Claim id="picture-reads">Delayed stands just over 2.56 and Gain at 0.34, and Output, which is the one times the other, at 0.88: just under the Ceiling line at 0.89</Claim>. Gain is at its lowest exactly there.
+
+Now look to the left of the peak. <Claim id="dips-first">The hit begins to come out 1.4 ms before its highest crest. By then Gain has already fallen from 0.89 to 0.61</Claim>, while Delayed was still lying flat. The gain began to move for a sound that had not yet reached the output. Nothing in the compressor of <Lesson id="compression" /> does that.
+
+Choose the clicks in the row of sounds for the same thing with nothing in the way. A click is one sample with silence either side. Gain leaves its resting place <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr float kLookaheadSeconds = 0.0015f;">1.5 ms</Src> before the click comes out, walks down a straight line, touches bottom as the click passes, and turns back.
+
+The picture does not say how the limiter knew the peak was coming, how it knew the height of a wave that it only has samples of, or why the line down is straight. Those are parts 4 and 5.
+
+</Part>
+
+<Part id="uses" title="Four kinds of sound, and what a ceiling does to each.">
+
+A limiter does one thing, so its controls are few. Push decides how much of the sound meets the ceiling. Ceiling decides where the top is. Release decides how long the gain takes to come back after a peak. What changes from sound to sound is how often the gain is asked to move, and how far.
+
+Each card below shows a sound and what a sensible setting does to it, lists that setting, and plays it. A card's button moves the whole page to its setting, so every figure further down shows it too, and the play bar offers the way back to where you were.
+
+<Uses>
+  <Use title="Drums" set="drums">
+    <Still
+      slot="picture"
+      taps="pushed:in out"
+      set="drums"
+      from={0}
+      span={2}
+      caption="Two seconds of the loop. The tall hits of Pushed stand above Output, which stops at the ceiling. In the quiet spaces the two are too close to tell apart."
+    />
+
+    Hits are what a limiter is made for: tall, short, and far apart. The loudest hit of this loop is turned down <Claim id="deepest">9.3 dB</Claim> and the others by less. In the widest spaces the gain comes nearly all the way back: <Claim id="use-drums">at its highest it is less than 0.1 dB down, and it is more than 1 dB down for 50 % of the loop</Claim>. A release near a tenth of a second gets it that far in those spaces without snapping back.
+
+  </Use>
+  <Use title="Bass" set="bass">
+    <Still
+      slot="picture"
+      taps="gain"
+      set="bass"
+      caption="The gain on the bass line over the loop, in decibels. It drops as each note is struck and has not come all the way back when the next one arrives."
+    />
+
+    A bass note is over the ceiling for as long as it sounds strong, not for an instant, and one cycle of it lasts many thousandths of a second. A gain that hurried back between two crests of the same note would bend the note, which is the first fault of part 7. So the release is longer here. At 400 ms the gain moves <Claim id="use-bass">between 0.66 dB and 6.1 dB down</Claim> and is not at rest anywhere in the loop.
+
+  </Use>
+  <Use title="The whole mix" set="mix">
+    <Still
+      slot="picture"
+      taps="pushed:in out"
+      set="mix"
+      caption="Four seconds of a whole mix. At its loudest moments Pushed stands above Output. Between them the two lie close together."
+    />
+
+    This is where a limiter usually lives: last, across everything. The peaks of a mix are the moments when several things land at once, and they are few. Here the loudest of them loses <Claim id="use-mix">5.8 dB, and the loop comes out 6.5 dB louder</Claim> than it went in. Push is lower than on the drums alone, because every dip of the gain is now a dip in the bass and the chords as well.
+
+  </Use>
+  <Use title="A sound that stays under" set="guard">
+    <Still
+      slot="picture"
+      taps="pushed:in out"
+      set="guard"
+      caption="A held pad, pushed a little. Only one line shows: Output lies on Pushed, because nothing reached the ceiling."
+    />
+
+    A limiter with nothing to limit does nothing at all, and that is its commonest job: a guard at the end of a chain, there for the peak nobody expected. On this pad <Claim id="use-guard">the gain is exactly 0 dB all through the loop, and what comes out is what was pushed in, 77 samples late</Claim>. It costs that delay and nothing else.
+
+  </Use>
+</Uses>
+
+These are places to start. With a limiter the question is rarely which setting, and nearly always how much Push.
+
+</Part>
+
+<Part id="build" title="Start with a gain. Add one piece. Listen. Add the next.">
+
+The quickest way to understand a limiter is to make one. This part begins with a gain and adds six pieces to it, one at a time. After each piece the lanes are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these lanes and plays "Hear it so far".
+
+Most of the steps on the way are wrong on purpose. Each keeps every sample under the ceiling and breaks something else, and what it breaks is the reason for the piece after it.
+
+<Build>
+  <Step title="Turn it up" controls="push">
+    A limiter is nearly always used to make something louder, so the build starts with the gain that does it. Push is marked in decibels, and a sound is turned up by multiplying every sample by one number. The first function turns the one into the other.
+
+    Nothing else is done yet: what goes in comes out bigger. Press "Hear it so far". It is the loop, louder, and only the room this page keeps above full scale lets it through whole.
+
+    <Listing
+      path="site/labs/limiting.cpp"
+      from="// Turn it up: Push is in decibels"
+      to="static float as_gain(float db) { return std::pow(10.0f, db / 20.0f); }"
+      name="push"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="in builtPeak built"
+      ranges={{ builtPeak: [-30, 12] }}
+      lines={{ builtPeak: 'ceiling' }}
+    >
+      The sound going in, the height of the highest sample so far with Ceiling across it, and the
+      sound so far. Try Push lower, and notice the tops of the second lane sink until none stands
+      over the dashed line.
+    </Lanes>
+
+  </Step>
+  <Step title="Cut off what is over" controls="push ceiling">
+    The bluntest way to keep a promise about height: any sample over the ceiling is replaced by the ceiling. With Push and Ceiling where the page starts them, <Claim id="built-clip">the highest sample of the drums stood 8.2 dB over full scale at the step before, and stands at −1.0 dB now</Claim>, which is the ceiling. The promise is kept.
+
+    The cost is the shape of the wave. <Claim id="clip-tone">A steady 100 Hz tone that stands 6 dB over the ceiling comes out with every crest flat, and the part of what comes out that is not the tone lies only 12.7 dB under it</Claim>. With this piece taken out again there is nothing in the output but the tone.
+
+    <Listing
+      path="site/labs/limiting.cpp"
+      from="// Clip: whatever stands over the ceiling"
+      to="if (x < -top) return -top; return x; }"
+      name="clip"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="in builtPeak built"
+      ranges={{ builtPeak: [-30, 12] }}
+      lines={{ builtPeak: 'ceiling' }}
+    >
+      The same lanes. The tops of the second lane now lie along the dashed line. Try Ceiling lower,
+      and notice them follow it down while the sound so far shrinks to fit under it.
+    </Lanes>
+
+  </Step>
+  <Step title="Work out the gain that would do it" controls="push ceiling">
+    A clip changes samples one by one. A limiter changes a gain, and the first thing it needs is the right gain for a peak. For a peak over the ceiling that is the ceiling divided by the peak: the number that puts it on the ceiling exactly. For a peak under the ceiling it is 1.
+
+    One gain goes on both channels, decided by whichever is higher, so the sound does not lean to one side when one side is limited. <Claim id="built-gain">For the tone of the step before, the gain now dips 6.0 dB</Claim> at every crest, where the step before had no gain to move.
+
+    And nothing sounds better for it. A gain worked out afresh at every sample, from that sample alone, takes each sample that is over down to the ceiling and leaves every other as it was. On a sound that is the same in both channels, <Claim id="gain-is-clip">it makes the wave the clip made, and what is not the tone is still 12.7 dB under it</Claim>. The gain is the right idea with no memory.
+
+    <Listing
+      path="site/labs/limiting.cpp"
+      from="// The gain needed: for a peak over the ceiling"
+      to="float needed(float peak) const { return peak > top ? top / peak : 1.0f; }"
+      name="needed"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="in builtPeak builtGain built"
+      ranges={{ builtPeak: [-30, 12], builtGain: [-24, 0] }}
+      lines={{ builtPeak: 'ceiling' }}
+    >
+      A new lane: the gain the build puts on the sound, in decibels. It dips at each hit and is back
+      at once. Try Push higher, and notice the dips deepen by as much as the tops of the second
+      lane would have risen.
+    </Lanes>
+
+    <Curve
+      slot="picture"
+      taps="builtClickGain:ctl builtClickOut:out"
+      xTitle="milliseconds from the click going in"
+      min={0}
+      max={1.1}
+      height={220}
+    >
+      One click four times as high as the ceiling, through the build so far: the gain, and what
+      comes out. Notice the gain drop to a quarter on the sample the click goes in, and stand at 1
+      again on the next.
+    </Curve>
+
+  </Step>
+  <Step title="Down at once, back slowly" controls="push ceiling release">
+    Now the gain gets a memory, of one kind. It may fall as fast as a peak asks. It must climb back slowly: on each sample it covers a fixed share of what is left of the way to 1, and Release <Src path="site/labs/limiting.cpp" at="share = 1.0f - std::exp">sets the share</Src>. A peak that asks for less than the climbing value takes it down in one step.
+
+    So the gain stays down from one crest of a tone to the next, and the crests are no longer flattened one by one. The whole tone is turned down instead. <Claim id="built-release">At a Release of 100 ms, what is not the tone now lies 37.3 dB under it, where the step before left it 12.7 dB under</Claim>.
+
+    <Listing
+      path="site/labs/limiting.cpp"
+      from="// Release: down at once, back slowly."
+      to="if (asked < released) released = asked; return released; }"
+      mark="released += (1.0f - released) * share;"
+      name="release"
+    />
+
+    One thing is still wrong, and the click shows it. The gain falls on the very sample the click goes through. For a click that is in time. For a wave it means the gain falls only as each new, higher sample arrives. <Claim id="built-late">On the way up to every crest of the tone, the samples are still pressed flat against the ceiling</Claim>.
+
+    <Lanes
+      slot="picture"
+      taps="in builtPeak builtGain built"
+      ranges={{ builtPeak: [-30, 12], builtGain: [-24, 0] }}
+      lines={{ builtPeak: 'ceiling' }}
+    >
+      The gain now takes its time coming back. Try Release at its longest, and notice the gain
+      stay down from one hit to the next, and the sound so far come out smaller all the way along.
+    </Lanes>
+
+    <Curve
+      slot="picture"
+      taps="builtClickGain:ctl builtClickOut:out"
+      xTitle="milliseconds from the click going in"
+      min={0}
+      max={1.1}
+      height={220}
+    >
+      The same click. The gain still drops on the sample the click goes in, and now climbs back
+      along a curve. Try Release shorter, and notice the climb steepen.
+    </Curve>
+
+  </Step>
+  <Step title="Make the sound wait, and hold the gain for it" controls="push ceiling release">
+    Two small pieces that only make sense together. The sound goes into a ring of memory and comes out <Src path="site/labs/limiting.cpp" at="static constexpr int kLook = 72;">72 samples</Src> later, while the gain goes on being worked out from the sound as it arrives. So the gain knows about a peak that long before the peak comes out.
+
+    Alone, that would do harm: the gain would dip for a peak that is still waiting, and be on its way back up when the peak came out. So the second piece holds it. The gain put on the sound is the lowest of the last <Src path="site/labs/limiting.cpp" at="static constexpr int kWindow = kLook + 1;">73</Src> values. A dip one sample long becomes a floor that lasts from the moment a peak is seen until that peak has come out.
+
+    <Claim id="built-hold">The gain is now down 72 samples before a click comes out</Claim>, where the step before had it down only on the sample itself. But look how it gets there: <Claim id="built-cliff">it drops by 75 % of full gain in a single sample</Claim>. Whatever is sounding at that instant is cut to a quarter at a stroke. A step in the gain is a click of its own, and this build has just added one in front of every peak.
+
+    <Listing
+      path="site/labs/limiting.cpp"
+      from="// Look ahead: the sound waits in a ring"
+      to="for (float one : recent) lowest = kit::min(lowest, one); return lowest; }"
+      mark="then[c] = line[c][(line_at - wait) & (kLine - 1)];"
+      name="hold"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="in builtPeak builtGain built"
+      ranges={{ builtPeak: [-30, 12], builtGain: [-24, 0] }}
+      lines={{ builtPeak: 'ceiling' }}
+    >
+      Over four seconds the lanes look as they did, because the wait is far shorter than a point
+      of this picture. The click under it is where to look.
+    </Lanes>
+
+    <Curve
+      slot="picture"
+      taps="builtClickGain:ctl builtClickOut:out"
+      xTitle="milliseconds from the click going in"
+      min={0}
+      max={1.1}
+      height={220}
+    >
+      The click now comes out later than it went in, and the gain is already down and waiting for
+      it. Notice the gain fall in one step at 0, where nothing is coming out yet.
+    </Curve>
+
+  </Step>
+  <Step title="Turn the cliff into a slope" controls="push ceiling release">
+    The cure for a step is an average. The gain put on the sound becomes the mean of the last 72 floors. When the floor drops, one more of the 72 is low at each sample, so the mean walks down a straight line and arrives exactly as the peak does.
+
+    That slope is the limiter's attack. It has no control of its own, because its length is the wait. <Claim id="built-ramp">The gain now moves by at most 1.04 % of full gain in one sample, where the step before moved 75 % at once</Claim>.
+
+    <Listing
+      path="site/labs/limiting.cpp"
+      from="// Ramp: the mean of the last 72 of those floors."
+      to="return mean > 1.0f ? 1.0f : mean; }"
+      mark="sum += static_cast<double>(lowest) - static_cast<double>(floors[floors_at]);"
+      name="ramp"
+    />
+
+    The mean is not added up afresh at every sample. A running sum takes in the newcomer and gives up the value that leaves, which is the same number for far less work.
+
+    <Lanes
+      slot="picture"
+      taps="in builtPeak builtGain built"
+      ranges={{ builtPeak: [-30, 12], builtGain: [-24, 0] }}
+      lines={{ builtPeak: 'ceiling' }}
+    >
+      The lanes of the step before, unchanged to the eye. Listen instead: press "Hear it so far",
+      go back a step and press it again.
+    </Lanes>
+
+    <Curve
+      slot="picture"
+      taps="builtClickGain:ctl builtClickOut:out"
+      xTitle="milliseconds from the click going in"
+      min={0}
+      max={1.1}
+      height={220}
+    >
+      The gain now walks down a straight line from the moment the click goes in, and reaches the
+      bottom on the sample the click comes out. This is the picture of part 2.
+    </Curve>
+
+  </Step>
+  <Step title="Read the wave between the samples" controls="push ceiling release">
+    Everything so far has measured samples. The sound is not its samples. A converter turns them back into the one smooth wave that passes through all of them, and between two samples that wave can stand higher than either. A limiter that reads only samples can keep every sample under the ceiling and still send out a wave that goes over it.
+
+    The last piece puts the height of the wave in place of the height of the sample. It works out four points in each gap, each a weighted sum of the twelve samples around the gap, with weights from the engine's own table, and takes the largest. Stage 2 of the next part opens it up.
+
+    <Claim id="built-between">A 12 kHz tone sampled 45 degrees off its crests, under a ceiling 2 dB above every one of its samples, is now turned down 1.045 dB</Claim>. The step before left it alone: by its samples, nothing was over. The reading is about a gap that lies six samples back, so the sound has to wait a little longer: <Claim id="built-delay">a click now comes out 77 samples after it went in, where the step before took 72 samples</Claim>.
+
+    <Listing
+      path="site/labs/limiting.cpp"
+      from="// Peaks between samples: the height of the wave"
+      to="peak = kit::max(peak, kit::max(std::fabs(between_left), std::fabs(between_right))); } return peak; }"
+      mark="between_left += h[i] * history[0][newest - i];"
+      name="between"
+    />
+
+    That is all seven pieces. The steps before this one were the lesson's own: a limiter with a piece missing, which the engine's device at no time is. With every piece in place the build does to a sample what the device does, in the same order, and the lab compares the two outputs on every render.
+
+    <Check id="builtDifference" />
+
+    That reading goes no lower than <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which it shows for any difference more than 140 dB under the sound, so by itself it does not say the two are equal. The lab's test compares the samples. On every loop it tries, at each of its settings, the build and the device are <Claim id="build-same">the same, sample for sample</Claim>.
+
+    <Lanes
+      slot="picture"
+      taps="in builtPeak builtGain built"
+      ranges={{ builtPeak: [-30, 12], builtGain: [-24, 0] }}
+      lines={{ builtPeak: 'ceiling' }}
+    >
+      The finished build. The tops of the second lane now stop a hair under the dashed line: the
+      wave between the samples is what touches it. Try the noise from the row of sounds, and notice
+      how much further under the line the samples have to stay.
+    </Lanes>
+
+    <Curve
+      slot="picture"
+      taps="builtClickGain:ctl builtClickOut:out"
+      xTitle="milliseconds from the click going in"
+      min={0}
+      max={1.1}
+      height={220}
+    >
+      The click comes out a few samples later than at the step before, and the slope starts a few
+      samples later to match. Its shape is unchanged.
+    </Curve>
+
+  </Step>
+</Build>
+
+The lab puts the pieces in this order, for one sample.
+
+<Listing
+  path="site/labs/limiting.cpp"
+  from="// One sample through the pieces built so far"
+  to="out[c] = pieces >= kClip ? clip(sound[c] * gain) : sound[c]; }"
+  name="run"
+/>
+
+The clip of step 2 is still there at the end, after the gain. Once the gain does the work the clip has nothing left to cut, and stage 8 of the next part counts how often it acts. The engine's limiter is these pieces in this order, written as one function. Around them it has what a device needs and the build left out: controls that glide when they are moved, a faster way to find the lowest of a window, and a rest after silence.
+
+</Part>
+
+<Part id="engine" title="The engine's own limiter, opened up.">
+
+From here on it is the device itself: <Src path="cpp/devices/true-peak-limiter/true_peak_limiter_device.h">the limiter of the engine's master bus</Src>, compiled for the browser and run on the loop one sample at a time. Each figure is read out of the running code at the point the text is talking about, and under its title each stage says where its figure comes from.
+
+Two of the stages say they were written for the lesson. The detector's reading and the gain that reading asks for are worked out and thrown away inside one call of the limiter, so the lab works them out again from the device's own memory of the last twelve samples and its own table. Stage 6 has the check that holds them to what the device did keep.
+
+<Flow
+  label="The pushed sound divides in two. One copy waits in a delay and is then multiplied by a gain and clipped. The other is measured for its true peak, turned into the gain that peak asks for, released, held at its lowest and averaged to make that gain."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'push', label: 'Push', from: 'in', tap: 'pushed', n: 1 },
+    { id: 'split', shape: 'dot', from: 'push' },
+    { id: 'peak', row: 1, from: 'split', tap: 'peak', label: 'True peak', n: 2, signal: 'value' },
+    { id: 'need', row: 1, from: 'peak', tap: 'required', label: 'Gain needed', n: 3, signal: 'value' },
+    { id: 'release', row: 1, from: 'need', tap: 'released', label: 'Release', n: 4, signal: 'value' },
+    { id: 'low', row: 1, from: 'release', tap: 'minimum', label: 'Lowest', n: 5, signal: 'value' },
+    { id: 'mean', row: 1, from: 'low', tap: 'gain', label: 'Mean', n: 6, signal: 'value' },
+    { id: 'delay', label: 'Delay', from: 'split', tap: 'delayed', n: 7 },
+    { id: 'times', label: 'Times the gain, clip', from: ['delay', 'mean'], n: 8 },
+    { id: 'out', tap: 'out', shape: 'end', from: 'times' },
+  ]}
+>
+  Push, Delay and Times the gain, clip are sound, and can be heard. The five blocks from True peak
+  to Mean carry numbers about the sound: a height, then four versions of a gain. Press a stage's
+  button below, and notice its block light up here.
+</Flow>
+
+<StageBlock tap="pushed" n={1} title="Push comes first">
+  Push is the device's input gain, and it acts before the sound divides. Both copies are the pushed sound, so the detector measures what the ceiling will have to hold.
+
+  When Push or Ceiling is moved while sound is running, the device glides to the new value over <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr float kSmoothingSeconds = 0.005f;">5 ms</Src>, so that a move of a control is not a click.
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{in}{x_p[n]} = \at{input-times}{10^{P/20}}\;x[n]`}
+  />
+  <Fragment slot="readback">
+    <M t="x" /> is a sample going in and <M t="x_p" /> the same sample pushed. <M t="P" /> is Push in decibels. The twenty is there because the number multiplies an amplitude: every twenty decibels of Push is ten times the height.
+  </Fragment>
+  <Listing
+    slot="listing"
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="const float in_left = left * input_gain_;"
+    to="const float in_right = right * input_gain_;"
+    at={{ times: 'const float in_left = left * input_gain_;' }}
+    name="input"
+  />
+  <Fragment slot="listen">Hear the sound pushed</Fragment>
+</StageBlock>
+
+<StageBlock tap="peak" n={2} title="How high is the wave? The peaks between the samples">
+  The last step of the build said why samples are not enough: the wave a converter makes of them can stand higher between two samples than either. That wave is the one smooth curve through all of them that holds nothing above half the sample rate, and <Lesson id="samples-and-aliasing" /> shows why the samples settle it. Its height is called the true peak.
+
+  The plainest case is a sine at a quarter of the sample rate, which gets four samples to a cycle. Sampled on its crests, the samples reach its full height. Sampled half way between a crest and a zero crossing, every sample lands at the same lower height, and all the crests fall in the gaps: the wave stands <Claim id="quarter-rate">3.01 dB</Claim> over every sample of it.
+
+  <Curve taps="toneBetween:out toneSamples:in" xTitle="samples" min={-1.2} max={1.2} height={260}>
+    A sine at a quarter of the sample rate, caught between its crests. The line called The samples
+    joins the samples, which sit at its corners. Between the samples is the wave in the gaps, four
+    points to each, worked out by the device's own filter. Notice it reach 1 where no sample does.
+  </Curve>
+
+  The device cannot rebuild the whole wave for every sample, and does not need to. It estimates <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr int kFirPhases = 4;">four points</Src> in each gap. A test on that tone finds them <Claim id="eighths">an eighth, three eighths, five eighths and seven eighths of the way across</Claim>. Each is a weighted sum of the <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr int kFirTaps = 12;">twelve samples</Src> around the gap.
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{out}{p_k[n]} = \at{detect-sum}{\sum_{i=0}^{11} h_k[i]\;\sig{in}{x_p[n-i]}}, \qquad k = 0 \ldots 3`}
+  />
+  <Fragment slot="readback">
+    Read it against the picture. <M t="x_p" /> are the samples, the corners of the line called The samples. <M t="p_k" /> is one of the four points that the line called Between the samples has in the gap, and <M t="h_k" /> is the row of twelve weights that makes it. Each row is a short, tapered piece of the sinc function, the curve that rebuilds a smooth wave from its samples, read off at one of the four places. The reading the stage hands on is the largest size among the four points and <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="float peak = std::fabs(fir_left_[newest - kInterpolatorDelay]);">the sample at the start of the gap</Src>, on either channel.
+  </Fragment>
+
+  The table is the one that the international standard for loudness meters prints for measuring true peak. <Src path="src/core/analysis/loudness.ts" at="export class TruePeakDetector {">The engine's own meter</Src> uses the same one, so the limiter and the meter agree on what a true peak is. The listing is the first of its four rows: the twelve weights of one of the two points nearest a sample.
+
+  <Listing
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="static constexpr float kFirCoefficients[kFirPhases][kFirTaps] = {"
+    to="0.014892578125f, -0.00830078125f},"
+    name="table"
+  />
+
+  The twelve samples are centred <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr int kInterpolatorDelay = 6;">six back</Src>, so the reading at any step is about a gap that began six samples ago: the detector is late, and stage 5 has to make up for it. It also reads both channels and returns one number, the larger, so one gain serves both sides. A loud left turns a quiet right down <Claim id="linked">by exactly as much</Claim>.
+
+  The detector reads the tone of the picture <Claim id="detector-reads">3.055 dB over its samples</Claim>, a shade more than is there. <Claim id="unseen">Under a ceiling 2 dB above every sample of the tone, the limiter still turns it down 1.045 dB</Claim>. That tone is not the worst a signal can do. Twelve samples of size 1, with their signs chosen to line up with a row of the table, read <Claim id="worst-case">6.12 dB over</Claim>.
+
+  <Curve taps="between:out samples:in" xTitle="samples either side of the gap" height={260}>
+    The place in the pushed loop where the wave stands furthest over the samples around it. Try the
+    noise from the row of sounds, and notice the wave between the samples leave the corners far
+    behind. Then try the sine, which is so slow against the sample rate that the two lines agree.
+  </Curve>
+
+  <Check id="overshoot" />
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="float detect(float left, float right) {"
+    to="return peak; }"
+    at={{ sum: 'yl += h[i] * fir_left_[newest - i];' }}
+    name="detect"
+  />
+</StageBlock>
+
+<StageBlock tap="required" n={3} title="How far down? Exactly as far as it is over">
+  The detector gives a height and the ceiling is a height. If the reading is over, the gain that puts that peak on the ceiling is the one divided by the other. If not, the gain is 1.
+
+  <Controls ids="ceiling" />
+
+  <Curve
+    taps="curve:out curveFormula:alt"
+    diagonal
+    uprights="ceiling"
+    xTitle="peak in, dB"
+    yTitle="peak out, dB"
+    min={-24}
+    max={12}
+    height={300}
+  >
+    Peak out against peak in, measured: the lab plays a steady tone at each level through a second
+    copy of the device and reads the highest sample that comes out. The curve as written is the
+    formula under this picture. Try Ceiling lower, and notice the corner slide down the diagonal.
+  </Curve>
+
+  <Check id="curveError" />
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{alt}{g_{\text{req}}[n]} = \at{required-ratio}{\min\!\left(1,\ \frac{c}{\sig{out}{p[n]}}\right)}`}
+  />
+  <Fragment slot="readback">
+    <M t="p" /> is the reading of stage 2 and <M t="c" /> the ceiling, both as plain heights. Under the corner of the picture <M t="p" /> is less than <M t="c" />, the fraction is more than 1, and the smaller of the two is 1: the diagonal. Over it the fraction wins, and a peak twice the ceiling asks for a gain of one half. In decibels that is one decibel off for every decibel over, which is the flat part of the line.
+  </Fragment>
+
+  <Claim id="at-the-ceiling">A 1 kHz tone 12 dB over the ceiling comes out within 0.01 dB of it</Claim>, and on the side under it. The measured curve stays <Claim id="curve-error">within 0.01 dB</Claim> of the formula everywhere.
+
+  This stage works on the height of the wave at one instant, with no averaging at all. What it leaves out, as the curve of any such device does, is time. It says where the gain must be. It does not say when, and when is the rest of the device.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="const float true_peak = detect(in_left, in_right);"
+    to="const float required = true_peak > ceiling_ ? ceiling_ / true_peak : 1.0f;"
+    at={{ ratio: 'const float required = true_peak > ceiling_' }}
+    name="required"
+  />
+</StageBlock>
+
+<StageBlock tap="released" n={4} title="The release: down at once, back slowly">
+  If the gain were simply what each peak asks for, it would dive and spring back inside every cycle. That is step 3 of the build, and it made the wave a clip makes. So the gain is allowed to fall at once and made to come back slowly.
+
+  <Controls ids="release" />
+
+  <Trace taps="required:alt released:ctl" min={-24} max={0} unit="dB">
+    What each peak asks for, and the same after the release. The first is back at 0 dB the instant
+    a peak has passed. The second drops with it and then climbs. Try Release longer, and notice
+    the second line stay down from one hit to the next.
+  </Trace>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{ctl}{r[n]} = \min\bigl(\at{recover-fall}{\sig{alt}{g_{\text{req}}[n]}},\ \at{recover-back}{\sig{ctl}{r[n-1]} + k\,(1 - \sig{ctl}{r[n-1]})}\bigr)`}
+  />
+  <Fragment slot="readback">
+    The second term in the brackets is the climb: each sample the gain closes the share <M t="k" /> of the distance left to 1, so it rises fast at first and ever more slowly. The first term is the fall: when a new peak asks for less than the climbing value, the smaller wins and the gain drops to it in one sample. In the picture those are the two things the second line does.
+  </Fragment>
+
+  How fast the gain climbs is one number, <M t="k" />: the share of what is left of the way to 1 that it covers in a sample. It comes from the Release control:
+
+  <M block t={String.raw`\at{coefficient-k}{k = 1 - e^{-1/(\tau f_s)}}`} />
+
+  <M t={String.raw`\tau`} /> is Release as a time and <M t="f_s" /> the sample rate, <Src path="site/labs/lab.h" at="constexpr float kSampleRate = 48000.0f;">48,000 samples a second</Src> on this page. After a time <M t={String.raw`\tau`} /> such a climb has covered the share <M t={String.raw`1 - e^{-1}`} /> of the way back. <Claim id="release-100">Measured after a single click at a Release of 100 ms, the gain is 63 % of the way back 101 ms after its lowest point</Claim>: the time constant, and the short hold of the next stage.
+
+  <Listing
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="void setReleaseMs(float ms) {"
+    to="release_coefficient_ = 1.0f - std::exp(-1.0f / (seconds * sample_rate_)); }"
+    at={{ k: 'release_coefficient_ = 1.0f - std::exp' }}
+    name="coefficient"
+  />
+
+  The climb never quite arrives. <Claim id="rests-short">At a Release of 100 ms the gain comes to rest 0.00124 dB</Claim> under no change at all, where one more step is smaller than the device's numbers can add. The device <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="bool settled() const {">allows for it</Src>: to know whether it has come to rest it asks whether a step still moves the value, not whether the value is 1.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="// Release: instant down, exponential up."
+    to="if (required < release_state_) release_state_ = required;"
+    at={{
+      back: 'release_state_ += (1.0f - release_state_) * release_coefficient_;',
+      fall: 'if (required < release_state_) release_state_ = required;',
+    }}
+    name="recover"
+  />
+</StageBlock>
+
+<StageBlock tap="minimum" n={5} title="Looking ahead: the lowest of the window">
+  The gain of stage 4 still falls only when a peak is seen, and the detector sees it six samples late. The cure is to make the sound wait, which is stage 7, and to use the wait. The device uses it in two steps, and this is the first: hold the gain down for the whole wait.
+
+  The lengths are set when the device is prepared, from a look-ahead of <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr float kLookaheadSeconds = 0.0015f;">1.5 ms</Src>. At this page's sample rate that is <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="int box_frames_ = 72;">72 samples</Src> for the mean of the next stage, one more for this window, and five more than the look-ahead for the delay.
+
+  <Listing
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="box_frames_ = lookahead;"
+    to="delay_frames_ = lookahead + kInterpolatorDelay - 1;"
+    at={{
+      box: 'box_frames_ = lookahead;',
+      window: 'min_frames_ = lookahead + 1;',
+      delay: 'delay_frames_ = lookahead + kInterpolatorDelay - 1;',
+    }}
+    name="sizes"
+  />
+
+  <Controls ids="release" />
+
+  <Curve
+    taps="clickRequired:alt clickReleased:ctl clickMinimum:alt2"
+    xTitle="milliseconds from the click coming out"
+    yTitle="gain"
+    min={0}
+    max={1.1}
+    height={280}
+  >
+    One click four times as high as the ceiling, through a second copy of the device, a point a
+    sample. The gain the click asks for is a quarter while the detector sees it, and 1 again after.
+    With Release where the page starts it the other two lines lie almost on each other, because the
+    climb back is so slow. Try Release at its shortest, and notice the released gain climb from the
+    moment it drops while the lowest in the window stays flat until the click has gone out.
+  </Curve>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{alt2}{m[n]} = \min_{\at{sizes-window}{0 \le i \le L}} \sig{ctl}{r[n-i]}`}
+  />
+  <Fragment slot="readback">
+    <M t="r" /> is the released gain of stage 4 and <M t="L" /> the look-ahead in samples. <M t="m" /> is the lowest value <M t="r" /> has had over the window: <M t="i" /> counts back from the newest value to the one <M t="L" /> samples old, which makes <M t="L + 1" /> of them. In the picture, a dip of <M t="r" /> a sample or two long becomes a flat floor of <M t="m" />, which begins the moment the click is seen and ends when it has gone out.
+  </Fragment>
+
+  A single click's dip is held for exactly <Claim id="held-73">73 samples</Claim>.
+
+  The build found its lowest by looking at all the values each time. The device does not. It keeps a short queue of candidates in rising order, drops from the back any that a new value undercuts and from the front any that have left the window, and the lowest is always at the head.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="float pushMinimum(float value) {"
+    to="return deque_values_[deque_head_]; }"
+    name="minimum"
+  />
+</StageBlock>
+
+<StageBlock tap="gain" n={6} title="The attack is a ramp: the mean of the floors">
+  A floor that begins with a cliff is no better than a late gain, as step 5 of the build showed. The second use of the wait turns the cliff into a slope by averaging.
+
+  <Curve
+    taps="clickMinimum:alt2 clickGain:out"
+    xTitle="milliseconds from the click coming out"
+    yTitle="gain"
+    min={0}
+    max={1.1}
+    height={280}
+  >
+    The same click: the lowest in the window, and its mean, which is the gain the device multiplies
+    by. Notice the gain start down the moment the floor drops, walk a straight line, and reach the
+    bottom at 0, the sample the click comes out on.
+  </Curve>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{out}{s[n]} = \at{mean-mean}{\frac{1}{L}\sum_{i=0}^{L-1} \sig{alt2}{m[n-i]}}`}
+  />
+  <Fragment slot="readback">
+    <M t="m" /> is the floor of stage 5 and <M t="s" /> the gain put on the sound. When <M t="m" /> steps down, one more of the <M t="L" /> terms of the sum is low at each sample, so <M t="s" /> walks down a straight line and gets there in <M t="L" /> samples. That is the slope in the picture.
+  </Fragment>
+
+  For a single click the gain starts down <Claim id="ramp-72">72 samples</Claim> before the click comes out, falls <Claim id="ramp-straight">in a straight line</Claim>, and is at its lowest <Claim id="bottom-on-peak">on the sample the click comes out and on the next one</Claim>.
+
+  The three lengths are chosen together, and it takes a little counting to see why. Call the step at which the detector reads a peak <M t="j" />. That reading is about the gap after sample <M t="j - 6" />, which comes out at step <M t="n = j - 6 + D" />, where <M t="D" /> is the delay. The promise needs the gain at both ends of that gap, <M t="s[n]" /> and <M t="s[n+1]" />, to be no more than the peak asked for. Between them those two means are made of <M t="L + 1" /> floors, from <M t="m[n-L+1]" /> to <M t="m[n+1]" />. The released value <M t="r[j]" /> is inside <M t="L + 1" /> floors too, from <M t="m[j]" /> to <M t="m[j+L]" />, because each floor looks back that far. The two runs are the same run when <M t="n - L + 1 = j" />:
+
+  <M block t={String.raw`\at{sizes-delay}{D = L + 5}`} />
+
+  That is why the window is one longer than the mean, and why the delay is the look-ahead and five more.
+
+  A loop is less tidy than a click. A hit builds over several crests, each higher than the last, and each asks for a little less gain. These are the same three gains around the largest peak of the loop.
+
+  <Curve
+    taps="nearReleased:ctl nearMinimum:alt2 nearGain:out"
+    xTitle="milliseconds from the peak coming out"
+    yTitle="gain"
+    height={280}
+  >
+    The released gain and the lowest in the window step down together each time a higher crest is
+    seen. The gain the device uses is the line that slopes: it reaches the lowest floor at 0, as the
+    peak comes out. Try Release at its shortest, and notice the first two lines come apart.
+  </Curve>
+
+  <Check id="rebuilt" />
+
+  That check is the lab's proof that the last three stages are read rightly. It takes its own reading of the device's memory, runs the release, the lowest of the window and the mean as the three equations write them, with no queue and no running sum, and compares the result with the gain the device stored. On the drums, the noise, the clicks and the chords there is <Claim id="rebuilt-zero">no difference at all</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="// Box average over the last box_frames_ minima: the attack ramp."
+    to="envelope_ = gain;"
+    at={{ mean: 'float gain = static_cast<float>(box_sum_ / box_frames_);' }}
+    name="mean"
+  />
+</StageBlock>
+
+<StageBlock tap="delayed" n={7} title="The sound waits">
+  This is the copy of the sound that is heard. It is written into a ring of memory and read back a fixed number of samples later, unchanged. Everything the five blocks from True peak to Mean worked out was worked out from the sound as it arrived, so by the time a peak is read back here, its gain has been ready for the length of the ramp.
+
+  <Curve
+    taps="nearPushed:in nearDelayed:alt nearOut:out nearCeiling:alt2"
+    xTitle="milliseconds from the peak coming out"
+    height={280}
+  >
+    The sound around the largest peak of the loop: as it goes in, the same wave as it leaves the
+    delay, and what comes out. Notice the first line reach its peak to the left of 0, by the length
+    of the wait, and the second reach it at 0.
+  </Curve>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{alt}{x_d[n]} = \at{delay-read}{\sig{in}{x_p[n - D]}}`}
+  />
+  <Fragment slot="readback">
+    <M t="x_p" /> is the pushed sound of stage 1, <M t="x_d" /> the same sound <M t="D" /> samples later. In the picture they are one shape, drawn twice.
+  </Fragment>
+
+  The delay is the price of a gain that is there first. A click goes in and comes out <Claim id="delay-77">77 samples</Claim> later, and the device reports that number, so that whatever plays it can hold every other sound back by as much.
+
+  <Check id="latency" />
+
+  Where nothing is over the ceiling the gain is exactly 1, and the output is <Claim id="under-unchanged">the input 77 samples late, sample for sample</Claim>. Taken away from each other they leave exact silence.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="// Delay line: write now, read D samples back."
+    to="if (++write_index_ == kDelayCapacity) write_index_ = 0;"
+    at={{ read: 'int read_index = write_index_ - delay_frames_;' }}
+    name="delay"
+  />
+  <Fragment slot="listen">Hear the sound after the wait</Fragment>
+</StageBlock>
+
+<StageBlock tap="out" n={8} title="Times the gain, and one last clip">
+  The last line multiplies the delayed sound by the gain, and then clips the result at the ceiling. The clip is a guard on the samples for what the gain cannot cover: a ceiling being turned down while a gain worked out for the old one is still in the window, and the odd product that rounding leaves one step of the arithmetic over.
+
+  <Trace taps="peak:in outPeak:out" lines="ceiling" min={-30} max={12} unit="dB">
+    The true peak going in and coming out, both read by the device's four points, with Ceiling
+    across them. Try Push from one end to the other, and notice the first line cross the dashed
+    line further and further while the second comes up to it and stops.
+  </Trace>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{out}{y[n]} = \at{apply-clip}{\operatorname{clip}_c\bigl(\sig{alt}{x_d[n]}\cdot s[n]\bigr)}`}
+  />
+  <Fragment slot="readback">
+    <M t="x_d" /> is the delayed sound of stage 7 and <M t="s" /> the gain of stage 6. The clip leaves anything between the ceiling and its mirror below zero alone, and cuts the rest off there.
+  </Fragment>
+
+  On the drums as the page starts them the clip changes <Claim id="clip-idle">no sample</Claim>. With Push at its highest it changes <Claim id="clip-rounding">one, by less than a millionth of a decibel</Claim>. The gain has already done the work.
+
+  <Check id="clipped" />
+
+  <Check id="clipDepth" />
+
+  Read by the engine's meter, the true peak of the drums comes out <Claim id="ceiling-held">within 0.01 dB</Claim> of the ceiling.
+
+  The device adds one thing of its own around the limiter. When the gain is at rest and <Src path="cpp/devices/true-peak-limiter/true_peak_limiter_device.h" at="static constexpr float kIdleHoldSeconds = 0.05f;">a twentieth of a second</Src> of silence has gone through, <Src path="cpp/devices/true-peak-limiter/true_peak_limiter_device.cpp" at="if (!idle_.wake(excited)) {">it stops running the limiter</Src> and writes zeros until sound comes back.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/true-peak-limiter/true_peak_limiter.h"
+    from="left = clip(delayed_left * gain);"
+    to="right = clip(delayed_right * gain);"
+    at={{ clip: 'left = clip(delayed_left * gain);' }}
+    name="apply"
+  />
+  <Fragment slot="listen">Hear what comes out</Fragment>
+</StageBlock>
+
+### All eight at once, on your loop
+
+The lanes below are the whole device with its three controls live, read at each stage in turn: the sound going in, the same pushed, the true peak, the gain that peak asks for, that gain after the release, its lowest in the window, the mean that is put on the sound, the sound after the wait, and what comes out.
+
+<Controls ids="push ceiling release" />
+
+<Lanes
+  taps="in pushed peak required released minimum gain delayed out"
+  ranges={{
+    peak: [-30, 12],
+    required: [-24, 0],
+    released: [-24, 0],
+    minimum: [-24, 0],
+    gain: [-24, 0],
+  }}
+  lines={{ peak: 'ceiling' }}
+>
+  Every stage on one time axis. Try any control, and notice which lanes change and which do not.
+  Push changes every lane but the first. Ceiling and Release leave the sound after the wait as it
+  was: they change the gains, from the fourth lane down or the fifth, and what comes out.
+</Lanes>
+
+To judge what a limiter did, compare three things: <Listen tap="delayed">what went in, pushed and delayed</Listen>, <Listen tap="out">what came out</Listen>, and <Listen tap="removed">what was taken away</Listen>, which is the first less the second.
+
+### The same limiter, with a slow gain in front
+
+The library does not ship this limiter by itself. It ships it as the last stage of the <Src path="cpp/devices/ambient-limiter/ambient_limiter.h">Ambient Limiter</Src>, the device at the end of this page, which runs here beside the limiter on the same loop, at the same Push, and at the same Ceiling as far down as its own goes.
+
+In front of the limiter that device puts a second gain, a slow one, called the ride. It watches the highest sample of the last <Src path="cpp/devices/ambient-limiter/ambient_limiter.h" at="static constexpr float kHoldSeconds = 0.04f;">40 ms</Src>. When that stands over a line <Src path="cpp/devices/ambient-limiter/ambient_limiter.h" at="static constexpr float kMarginDb = 0.5f;">0.5 dB</Src> under the ceiling, the ride turns the sound down towards the line with a time constant of <Src path="cpp/devices/ambient-limiter/ambient_limiter.h" at="static constexpr float kDownSeconds = 0.25f;">a quarter of a second</Src>, and lets it back over <Src path="cpp/devices/ambient-limiter/device.json" at={'"default": 1.5,'}>a second and a half</Src>. A sound that stays over the ceiling is ridden down and stays down. The limiter behind it, with its release fixed at <Src path="cpp/devices/ambient-limiter/ambient_limiter.h" at="static constexpr float kWallReleaseMs = 80.0f;">80 ms</Src>, is left with the moments the ride was too slow for.
+
+<Controls ids="ride" />
+
+<Trace taps="gain:alt rideGain:ctl wallGain:out" min={-24} max={0} unit="dB">
+  Three gains on one loop: the gain of this lesson's limiter working alone, and the two gains
+  inside the Ambient Limiter, its slow gain in front and its own limiter behind. Try Ride at 0,
+  and notice the slow gain lie flat at 0 dB while the limiter behind it takes everything.
+</Trace>
+
+On the drums with Push where the page starts it, <Claim id="ambient-drums">the slow gain stays between 3.1 dB and 4.96 dB down, its limiter is left 6.2 dB to take at the deepest, and the loop comes out 1.2 dB quieter than through the limiter alone</Claim>. <Listen tap="ambient">Hear it through the Ambient Limiter</Listen>, and then <Listen tap="out">through the limiter alone</Listen>.
+
+Ride at 0 takes the slow gain out: <Src path="cpp/devices/ambient-limiter/ambient_limiter.h" at="const float wanted = over > 0.0f ? -over * param(kRide) : 0.0f;">what it asks for is the over times Ride</Src>. What is left is this lesson's limiter. With this page's Release at 80 ms to match, <Claim id="ambient-same">the two outputs are the same on the drums, sample for sample</Claim>.
+
+The device's controls are not this page's, and the plate at the end of the page has five of its own. Gain is this page's Push, <Src path="cpp/devices/ambient-limiter/params.gen.h" at="//    1  gain: -12..24 dB, default 0">with the same reach, and starts at 0 dB</Src>. Ride <Src path="cpp/devices/ambient-limiter/params.gen.h" at="//    3  ride: 0..1, default 1">starts at 1</Src>. Release is the slow gain's, <Src path="cpp/devices/ambient-limiter/params.gen.h" at="//    2  release: 0.2..10 s, default 1.5">counted in seconds</Src>: <Src path="cpp/devices/ambient-limiter/ambient_limiter.h" at="up_coeff_ = kit::time_to_coeff(value, sample_rate() / kControlPeriod);">it sets how fast the slow gain lets go</Src>, so with Ride at 0 it has nothing to move. This page's Release is the limiter's own, which the device fixes and gives no control. Auto gain <Src path="cpp/devices/ambient-limiter/params.gen.h" at="//    4  autoGain: 0..24 dB, default 0">starts at 0 dB, which is off</Src>, and this page leaves it there.
+
+Ceiling <Src path="cpp/devices/ambient-limiter/params.gen.h" at="//    0  ceiling: -12..0 dBTP, default -1">stops at −12 dB</Src> on the device, where this page's <Src path="site/labs/limiting.cpp" at={'lab::Control ceiling{"ceiling", "Ceiling", "dB", -20.0f, 0.0f, -1.0f};'}>goes on down to −20 dB</Src>, as far as <Src path="cpp/devices/true-peak-limiter/true_peak_limiter_device.h" at="static constexpr float kMinCeilingDb = -20.0f;">the limiter alone allows</Src>. Below −12 dB the two part: <Claim id="ambient-ceiling">with this page's Ceiling at −20 dB, the engine's meter reads the drums at −20.0 dB out of the limiter alone and at −12.0 dB out of the Ambient Limiter</Claim>.
+
+<Listing
+  path="cpp/devices/ambient-limiter/ambient_limiter.h"
+  from="hold_.process(kit::max(std::fabs(left), std::fabs(right)));"
+  to="wall_.process(left, right);"
+  name="ambient"
+/>
+
+</Part>
+
+<Part id="ways" title="Six things people do with a ceiling.">
+
+Each of these is a habit of working, not a preset. Press "Try it" and the page moves to settings that show the idea, so you can go back up and see what the gain is doing.
+
+<Ways>
+  <Way title="Put it last, and hope it does nothing" tag="no Push at all" set="safety">
+    At the end of a chain, with nothing pushed into it, a limiter is a guard against the peak nobody planned. On the mix <Claim id="way-safety">the highest sample stands 4.2 dB under full scale. With Push at 0 dB, and still at 3 dB, the gain is exactly 0 dB all through the loop. At 4 dB the deepest dip is 0.8 dB</Claim>. After the card, raise Push until the Gain lane of part 5 first moves. That is how much room the mix had.
+  </Way>
+  <Way title="Make it louder, a little at a time" tag="Push" set="mix">
+    Every decibel of Push past the first peak is taken off the peaks and nowhere else. The first few are nearly free, because the tallest peaks are few and short. Each one after costs more, because the gain is down for more of the time. After the card, raise Push a decibel at a time and listen for the hits to stop standing out. Then go back two.
+  </Way>
+  <Way title="Leave room above the ceiling" tag="Ceiling, a little lower" set="room">
+    The ceiling is held on the device's own ruler, and part 7 shows a finer ruler reading a little more. Whatever comes after the limiter can add to that: the Ambient Limiter's own notes on Ceiling say to <Src path="cpp/devices/ambient-limiter/device.json" at="Lower it to leave headroom">lower it to leave headroom for whatever comes after</Src>. <Claim id="way-room">With Ceiling at −2 dB the engine's meter reads the mix within 0.01 dB of it, and a finer ruler finds the highest point of the wave 1.8 dB under full scale</Claim>.
+  </Way>
+  <Way title="Give low sounds a longer release" tag="Release" set="bass">
+    The gain should stay down for longer than one cycle of the lowest note, or it moves inside the note and bends it. On a bass line, or on a mix with a bass in it, start with Release several times longer than for drums alone. After the card, shorten Release and listen to the notes for a buzz that nobody played.
+  </Way>
+  <Way title="Listen to what is taken away" tag="the difference" set="taken">
+    The card plays only the part the limiter removed: the delayed sound less the output. <Claim id="way-taken">On the drums with Push at 6 dB, that part is 11.9 dB quieter than what is let through. At 12 dB the two are as loud as each other, within 0.3 dB</Claim>. A few ticks at the top of each hit are the price of a little loudness. When the taken part starts to sound like the music, a good deal of the music is being taken.
+  </Way>
+  <Way title="Let a slow gain take what stays loud" tag="Ride" set="ridden">
+    A held sound pushed far over the ceiling keeps a limiter at work the whole time, and its gain is forever falling and climbing. A slow gain in front can sit still instead. <Claim id="way-ridden">On this pad the limiter alone moves its gain through 7.7 dB. With the slow gain in front, the slow gain stays between 7.74 dB and 9.2 dB down, and the limiter behind it goes no deeper than 1.4 dB</Claim>. The card plays the pad through the Ambient Limiter. For the same pad through the limiter alone: <Hear set="alone" label="Hear the limiter alone" />
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Five ways it goes wrong, three of them to hear.">
+
+<Faults>
+  <Fault title="A short release bends low notes" set="bent">
+    The window of stage 5 holds the gain down for a millisecond and a half, and one cycle of a low note lasts far longer. With a short release the gain climbs back between one crest and the next and is knocked down again, once or twice in every cycle. A gain that moves inside a cycle changes the shape of the wave, and the note grows harmonics. <Claim id="fault-bent">On the saw wave the gain swings 4.2 dB in every cycle at a Release of 10 ms, and 0.5 dB at 400 ms</Claim>. On a plain tone, <Claim id="low-10">55 Hz and 7 dB over the ceiling, it swings 3.0 dB inside each half cycle at 10 ms</Claim> and <Claim id="low-100">0.57 dB at 100 ms</Claim>. Lengthen Release until the gain lies still across a note, or let a slow gain take the note, as the last card of part 6 does.
+  </Fault>
+  <Fault title="A long release ducks" set="ducked">
+    The other way round, a long release leaves the gain down long after the peak that asked for it, and everything quiet that follows a loud hit is turned down with it. <Claim id="fault-ducked">With Release at 2 s the gain on these drums is at least 7.7 dB down all through the loop, and the loop comes out 4.6 dB louder than it went in. At 100 ms it comes out 8.5 dB louder</Claim>. The limiter has become a fader that somebody pulled down. Shorten Release until the gain gets home between hits. When a sound is pushed hard there is no release that avoids both this fault and the one before, and the cure is less Push.
+  </Fault>
+  <Fault title="Pushed too far" set="flat">
+    Every decibel of Push past the ceiling comes off the peaks, so the hits lose their height against everything around them. <Claim id="fault-flat">With Push at 24 dB the highest sample of the drums comes out 11.0 dB over their level, where it went in 18.7 dB over it. The gain is at least 0.4 dB down all through the loop, and what is taken away is more than 11 dB louder than what is let through</Claim>. It is louder, and there is nothing left for it to be loud against. Turn your own volume down to match the level of the loop as played before deciding the Push helped.
+  </Fault>
+  <Fault title="The ruler is an estimate">
+    Four points to a gap can miss a crest that falls between them, and a sum of twelve samples cannot follow the wave all the way to half the sample rate. So a finer ruler than the device's own can read the output a little over the ceiling. The section under these cards measures how much. The cure is room: the device starts its ceiling at <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="static constexpr float kDefaultCeilingDb = -1.0f;">−1 dB</Src> and not at full scale, and the last decibel is there for what the estimate misses.
+  </Fault>
+  <Fault title="It is late, and how late depends on the sample rate">
+    Everything comes out of a limiter later than it went in, by the delay of stage 7. Played beside a sound that did not go through it, the two are out of step unless the other is held back by as much, which is why the device reports its delay. The look-ahead is a time, so the delay in samples is not one number: the limiter's notes give it as <Src path="cpp/devices/true-peak-limiter/true_peak_limiter.h" at="// the latency follows the sample rate: 71, 77 and 149 samples at 44.1, 48">71, 77 and 149 samples at 44.1, 48 and 96 kHz</Src>. The Ambient Limiter <Src path="cpp/devices/ambient-limiter/ambient_limiter.h" at="static constexpr int kLookahead = 72;">fixes the look-ahead in samples</Src> instead, so its delay is the same at every rate.
+  </Fault>
+</Faults>
+
+<Still
+  taps="gain"
+  set="bent"
+  from={2}
+  span={0.05}
+  caption="A twentieth of a second of the gain on the saw wave at the short release, in decibels. It is knocked down and climbs back once in every cycle of the note: the gain has the note's own frequency in it."
+/>
+
+<Still
+  taps="gain"
+  set="ducked"
+  caption="The gain on the drums at the long release, over the four seconds. Each hit knocks it down, and the next arrives while it is still climbing. The scale at the side stops short of 0 dB: the gain does not get home anywhere in the loop."
+/>
+
+### The ruler, close to
+
+The detector's four points are each a small filter, and a filter does not treat every frequency alike. This picture is how much of a steady tone each pair of points keeps, against the tone's frequency.
+
+<Curve
+  taps="responseInner:out responseOuter:alt"
+  xTitle="frequency, kHz"
+  yTitle="dB"
+  min={-10}
+  max={2}
+  height={260}
+>
+  How much of a tone the detector's points keep. The points in the middle of the gap are where
+  crests hide, and the points nearest a sample hardly differ from the sample. Notice both lines lie
+  level across nearly the whole picture, and the first fall away at its right edge.
+</Curve>
+
+The two points in the middle of the gap <Claim id="inner-22k">keep a tone within 0.3 dB up to 20 kHz and have lost 3.0 dB of it at 22 kHz</Claim>. The two nearest a sample <Claim id="outer-22k">have lost 0.5 dB</Claim> there. Music has little up there, and noise has as much there as anywhere.
+
+The gain is also moving while a peak goes by. So even the device's own ruler, laid on the output, reads the limited drums <Claim id="own-ruler-over">0.001 dB</Claim> over the ceiling: by then each of its twelve samples has been turned down by a slightly different gain.
+
+A finer ruler finds more. The lab's test has one that owes the device nothing: a sinc that reaches <Src path="site/tests/labs/limiting.test.ts" at="const half = 32">thirty-two samples either side</Src>, read at as many points to the sample as asked. On the limited drums it reads <Claim id="sharper-ruler-4">0.14 dB over the ceiling</Claim> at four points to the sample and <Claim id="sharper-ruler-16">0.166 dB</Claim> at sixteen. White noise is the hard case: <Claim id="noise-over">pushed 12 dB it reads 1.8 dB over the ceiling on that ruler, while the engine's meter reads it within 0.01 dB of the ceiling</Claim>.
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="A limiter is a compressor with its ratio at infinity.">
+    Of the curve that is true: the line of stage 3 is flat above the ceiling, as such a compressor's would be above its threshold. The curve is the small part. The gain of the compressor of <Lesson id="compression" /> arrives after the front of a hit, as part 1 said. A limiter reads the height of the wave at one instant and has its gain down first. The picture of part 2 is the difference.
+  </Myth>
+  <Myth says="If no sample is over the ceiling, nothing is over.">
+    Stage 2 has a tone whose every sample is well under the ceiling and whose wave is over it, and the limiter turns it down. A device that only watched samples would let it through, and the converter after it would be asked for a height it does not have.
+  </Myth>
+  <Myth says="A true-peak limiter means no meter will ever read over.">
+    It means the device's own ruler will not, and that ruler is four points to a gap. The section at the end of part 7 lays finer rulers on the same output and reads more, most of all on noise. That is what the room above the ceiling is for.
+  </Myth>
+  <Myth says="A limiter makes things louder.">
+    It only turns down: <Claim id="only-down">the gain in the answer to part 1's question has no point above 0 dB</Claim>. The loudness comes from Push, and the limiter's part is to take back whatever of the Push would have gone through the ceiling. On the drums of part 1 it took back about half.
+  </Myth>
+  <Myth says="Look-ahead means it reacts before the sound happens.">
+    Nothing sees the future. The sound is made to wait, and the gain is worked out from the copy that did not. The gain is early only against a sound that is late, and stage 7 measures how late. Everything else that plays alongside has to wait as long.
+  </Myth>
+  <Myth says="It only touches the peaks.">
+    There is one gain, and it is on everything. While it is down for a peak, whatever else is sounding at that moment is down with it, on both channels, and it stays down for as long as the release takes. <Claim id="mostly-down">On the drums as the page starts them the gain is more than 0.1 dB down for 90 % of the loop</Claim>. The peaks decide the gain. They are not the only thing it is put on.
+  </Myth>
+</Myths>
+
+</Part>

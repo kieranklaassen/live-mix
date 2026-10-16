@@ -1,0 +1,1022 @@
+---
+title: Modal synthesis
+family: synthesis
+summary: A struck bar rings at a handful of frequencies that are not whole multiples of one another, and each of them dies at its own speed. This lesson makes each one from a single number that turns and shrinks, builds a bar in seven pieces, then opens the engine's Bells and reads every mode as it rings.
+opening:
+  input: pulse
+  output: out
+  separate: true
+  caption: The mallet's push is over before the bar has swung once. The four seconds under it are the bar, ringing by itself.
+lab: modal-synthesis
+devices: [modal-bells, twin-bars]
+bench:
+  device: modal-bells
+  params: { material: 3, decay: 3, hardness: 0.8, position: 0, detune: 0, volume: 0 }
+  as: instrument
+  note: The plate opens as the lab is set, not as the device starts. Material is at Bar (the device's own is Singing bowl), Decay at 3 s (12 s), Hardness at 0.8 (0.45), Position at 0, the end of the bar (0.15), Detune at 0 Hz (1 Hz) and Volume at 0 dB (−9 dB). The plate plays a phrase where the lab plays one note.
+  also: [twin-bars]
+sources: [none]
+seconds: 4
+files:
+  - cpp/devices/modal-bells/modal_bells.h
+  - cpp/devices/twin-bars/twin_bars.h
+  - cpp/kit/math.h
+---
+
+<Part id="why" title="A bar rings at frequencies that no string has.">
+
+A metal bar is struck once with a mallet and left alone. The mallet touches it for a moment. The note that follows lasts for seconds, and in all that time nobody does anything to the bar. The picture above shows both, as the engine's Bells makes them: the mallet's push is the sliver at the left of its own picture, and everything in the picture under it is the bar by itself.
+
+Nothing goes into this lesson's lab. It presses one key <Src path="site/labs/modal-synthesis.cpp" at="constexpr int kKeyDown = 480;">10 ms into the loop</Src>, holds it for the time that Key held for sets, and every sound and picture on this page is read out of the engine while that one note rings.
+
+Listen to the note for what is in it. <Hear set="bar" label="Hear the bar" /> Listen for a knock at the start, for a clear low pitch under it, and for higher tones over that pitch which do not sound like part of it and which are gone before the low one is.
+
+Those tones have an exact description. A steady sound is a sum of sine waves, each at one frequency, and each of them is called a partial. <Lesson id="fourier-transform" cap /> is about taking a sound apart into them. In the picture below time runs across and frequency runs up, and each level line is one partial of the bar.
+
+<Still
+  taps="partials"
+  view="spectrogram"
+  top={6000}
+  min={-110}
+  max={-20}
+  caption="The bar's partials over the four seconds of the loop. All of them begin at the strike. Notice two things: the lines do not stand at even steps, and the higher a line stands, the sooner it ends."
+/>
+
+Both of those can be measured. In a second of the output, <Claim id="bar-partials">the lowest partial stands at 220.0 Hz, the next at 606.5 Hz and the one after it at 1,188.9 Hz</Claim>. The first is the note, the lab's starting <Src path="site/labs/modal-synthesis.cpp" at='lab::Control note{"note", "Pitch"'>Pitch</Src>. The others are <Src path="cpp/devices/modal-bells/modal_bells.h" at="{2.757f, 0.36f, 2, 0, +0.8f, 0.1f}">2.757</Src> and <Src path="cpp/devices/modal-bells/modal_bells.h" at="{5.404f, 0.24f, 3, 0, +1.2f, 0.0f}">5.404</Src> times the note, where a string's would be twice and three times it. And they do not last alike: measured over the half second that starts a tenth of a second after the strike, <Claim id="high-first">the lowest falls at 20.0 dB a second and the sixth at 64.5 dB a second</Claim>.
+
+How do you make a note whose partials stand at awkward ratios to one another, and die each at a speed of its own?
+
+### The obvious answer fails
+
+<Lesson id="plucked-string" cap /> made a string from a loop of memory one period long. Whatever is in such a loop comes past again once a period. That is its strength, and here it is the trouble. A wave that repeats exactly every period can only hold partials that fit a whole number of times into that period: the note, twice the note, three times the note. A partial at 2.757 times the note does not fit, so a plain loop cannot hold it. That lesson's stiff string has filters in its loop that move the partials a little sharp of whole multiples, and that is a long way short of 2.757.
+
+To hear what that costs, the lab keeps a second bar beside the real one. It has the same number of partials, each dying as fast as the bar's, with their places changed: they are moved onto the ladder of whole multiples in order, the second to twice the note, the third to three times it.
+
+<Still
+  taps="whole"
+  view="spectrum"
+  scale="linear"
+  top={2000}
+  min={-110}
+  max={-20}
+  caption="The average spectrum of the second bar up to 2 kHz, with frequency running across on an even scale. Notice seven peaks at even steps, where the lines of the picture before stood further apart the higher they went."
+/>
+
+Measured, <Claim id="whole-partials">its second partial stands at 440.0 Hz and its third at 660.0 Hz</Claim>. <Hear set="whole" label="Hear the whole multiples" /> Listen for whether it is still a bar. Each partial dies at the rate it had in the bar. The upper ones are louder than they were, for two reasons that part 5 comes to: a partial that stands lower takes more of the mallet's push, and this second bar is added up without the device's gains for its two sides. So listen to what the partials do together, and not to how bright the sound is.
+
+Here are twenty milliseconds of each wave, a fifth of a second after the strike.
+
+<Still
+  taps="whole"
+  from={0.21}
+  span={0.02}
+  min={-0.4}
+  max={0.4}
+  caption="The whole multiples. Notice one shape, a little over four of them, each the same as the last but for being slightly smaller."
+/>
+
+<Still
+  taps="out"
+  from={0.21}
+  span={0.02}
+  min={-0.4}
+  max={0.4}
+  caption="The bar, over the same twenty milliseconds. Notice that no stretch of it is a copy of the stretch before: the partials slide against one another and the shape never comes round."
+/>
+
+A sound whose shape never comes round cannot be kept in a loop, and it cannot be one wave read over and over from a table either (<Lesson id="wavetables" />). <Lesson id="frequency-modulation" cap /> reached partials at ratios like these by letting one sine wave push the phase of another, which sets where the partials stand and gives no partial a decay of its own. A bar needs another kind of machine.
+
+### What a bar does instead
+
+A string is a path, and a wave runs along it and back. A bar is a stiff body, and it does not work that way. It can bend in several patterns, each of which it holds for as long as it is left alone: one long bow from end to end, an S with a still point in the middle, a shape with three bends, and so on. Each pattern is called a mode.
+
+Every mode swings at a frequency of its own, set by how stiff and how heavy the bar is over the length of one bend. Short bends are much stiffer than long ones, which is why the frequencies climb faster than whole multiples do. Every mode also loses its energy at a rate of its own, the short bends soonest. And each has places along the bar that it keeps still.
+
+Strike the bar and it moves in all of its modes at once. From then on each one swings and dies as if the others were not there, and the sound is all of them added together.
+
+That is a recipe. Keep one resonator for each mode, tuned to that mode's frequency and given that mode's decay. Push all of them at once with something shaped like a mallet. Add them up. It is called modal synthesis, and the rest of this lesson is those three sentences made exact.
+
+A resonator is nothing new. It is a filter that rings: the band-pass of <Lesson id="state-variable-filter" /> and the bell-shaped band of <Lesson id="equalising" />, with the peak made so narrow that a single click sets it ringing for seconds at the peak's own frequency.
+
+<Predict
+  question="The mallet lands on the exact middle of the bar instead of on its end. What happens to the note?"
+  choices={['Every mode gets a little louder', 'Every second mode goes missing', 'The note drops by an octave']}
+>
+
+Every second mode goes missing. A push can only start a mode at a place where that mode moves. The second, fourth and sixth modes of a bar are the patterns that bend one way on one side of the middle and the other way on the other, so the middle is a place each of them keeps still, and a mallet that lands there cannot start them.
+
+<Still
+  taps="partials"
+  view="spectrogram"
+  set="middle"
+  top={6000}
+  min={-110}
+  max={-20}
+  caption="The bar struck at its middle, to the same scales as the first picture. Notice that the second, fourth and sixth lines are not there, and that the others are."
+/>
+
+Struck there, <Claim id="middle">the second partial stands more than 100 dB under where it stood, and the lowest mode starts 3.0 dB higher</Claim>, because the middle is where its one long bow moves most. <Hear set="middle" label="Hear it struck at the middle" show />
+
+</Predict>
+
+The engine's instrument for all of this is called Bells, and its file is <Src path="cpp/devices/modal-bells/modal_bells.h" />. The lesson starts it a little differently from the way it starts by itself, so that the technique shows plainly: it plays a plain bar, its paired modes are tuned alike, it is struck at its very end with a hard mallet, and its Decay is short enough to watch. Part 9 puts the two sets of starting values side by side.
+
+</Part>
+
+<Part id="picture" title="Six modes, each dying at its own speed, and the one sound they add up to.">
+
+The upper six lanes of the picture below are the first six modes of the bar, each read out of the device as it rings. The lane at the bottom is the output: those modes, and the one above them, added together.
+
+Each mode is a plain sine wave that starts at the strike and gets smaller. Nothing else ever happens to it. The lanes differ in two ways only: how fast the wave inside them swings, which at this scale is too fine to see, and how soon the lane narrows to nothing.
+
+<Controls ids="decay damping position" />
+
+<Lanes
+  taps="mode1 mode2 mode3 mode4 mode5 mode6 out"
+  own="mode1 mode2 mode3 mode4 mode5 mode6"
+  label="The first six modes of the bar against time, a lane each, and under them the output they add up to."
+>
+  The six modes and the output. Each mode is drawn to its own height, which is printed by its
+  name, so that the small ones can be seen at all. Notice each lane narrow sooner than the one
+  over it. Try Damping from one end to the other, and notice Mode 1 stay as it is
+  while the lanes under it shorten or stretch.
+</Lanes>
+
+A wave that shrinks by the same share every second falls by the same number of decibels every second, so on a scale of decibels each mode is a straight line. The same six modes are drawn that way below, as the level of each against time.
+
+<Trace
+  taps="level1 level2 level3 level4 level5 level6"
+  min={-120}
+  max={0}
+  unit="dB"
+  label="The level of each of the first six modes against time."
+>
+  The level of each mode, read from the device. Notice six straight lines that start near one
+  another and fan out, the highest mode's the steepest. Try Decay, and notice the whole fan tilt
+  together. Try Position at its upper end, and notice three of the lines drop to the floor.
+</Trace>
+
+Leave the three controls where the lesson starts them and read the lines half a second after the strike: <Claim id="half-second">Mode 1 stands at −25 dB and Mode 6 at −72 dB</Claim>.
+
+Decay is the time the lowest mode takes to <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kSixtyDb = 6.907755279f;">fall 60 dB</Src>, which is to a thousandth of its size. The lesson starts it at <Src path="site/labs/modal-synthesis.cpp" at='lab::Control decay{"decay", "Decay"'>3 s</Src>, and that gives the rate part 1 measured for the lowest mode. Double it, and <Claim id="decay-six">with Decay at 6 s Mode 1 falls at 10.0 dB a second</Claim>.
+
+Damping sets how much sooner the upper modes die than the lowest. It is the difference between metal and wood. A steel bar loses a little energy on every swing whatever the swing's length, so its high modes ring on for a long time. Wood soaks up fast swings, and a wooden bar is a knock with a short hum after it. Measured over the same stretch as part 1's rates, <Claim id="damping-ends">from 0.1 s to 0.6 s after the strike Mode 2 falls at 20.7 dB a second with Damping at 0 and at 90.3 dB a second with Damping at 1, while Mode 1 falls at 20.0 dB a second at both</Claim>.
+
+The pictures leave things out. They do not say where the six frequencies come from, or what starts the modes, or why some start larger than others. They show one side of a sound that has two. Those are the pieces the rest of the lesson adds.
+
+</Part>
+
+<Part id="uses" title="Anything that is struck once and then rings.">
+
+Modal synthesis suits whatever is hit, plucked or rubbed and then left to itself: bars, bells, bowls, glasses, gongs, the tines of a thumb piano. All of them are stiff bodies with a few strong modes at ratios that belong to their shape. It does not suit a string, which has dozens of modes at whole multiples and is made far more cheaply by the loop of <Lesson id="plucked-string" />, or a voice or a horn, where air is blown through for as long as the note lasts. It does not suit the steel plate or the spring of a reverb either. Those are bodies with modes too many and too close together to keep a resonator for each, and the engine makes them from delay lines (<Lesson id="plate-reverb" />, <Lesson id="spring-reverb" />).
+
+The engine's Bells has <Src path="cpp/devices/modal-bells/modal_bells.h" at="enum Material : int { kBell = 0, kBowl, kVibraphone, kBar, kKalimba, kGlass, kGong, kNumMaterials };">seven materials</Src>, and a material is only a table: for each mode its ratio to the note, how strongly a strike starts it, and a number or two for its shape. Each card below plays one note of one material, lists the settings that make it, and shows what to look for. A card's button moves the whole page to its settings, so every figure further down shows that note too, and the play bar offers the way back to where you were.
+
+<Uses>
+  <Use title="A bar" set="bar">
+    <Still
+      slot="picture"
+      taps="out"
+      set="bar"
+      view="spectrum"
+      scale="linear"
+      top={6000}
+      min={-110}
+      max={-20}
+      caption="The bar's average spectrum on an even scale of frequency. Notice seven peaks, each further from the last than the last was from the one before it."
+    />
+
+    This is the lesson's starting note: a plain bar of even thickness, free at both ends, the bar of a glockenspiel or of a music box's comb. Its table has <Src path="cpp/devices/modal-bells/modal_bells.h" at="{kFreeBar, 11, 1.0f, {{1.0f, 0.60f, 1, 0, +0.5f, 0.6f},">eleven entries at seven ratios</Src>, the highest of them <Src path="cpp/devices/modal-bells/modal_bells.h" at="{24.81f, 0.08f, 7, 0, 0.0f, 0.0f}}},">24.81 times the note</Src>. Measured, <Claim id="use-bar">the highest partial stands at 5,458 Hz</Claim>. Those ratios are a law of bending and not a choice, so every plain bar has them, whatever it is made of and however long it is.
+
+  </Use>
+  <Use title="A church bell" set="bell">
+    <Still
+      slot="picture"
+      taps="out"
+      set="bell"
+      view="spectrum"
+      scale="linear"
+      top={2000}
+      min={-110}
+      max={-20}
+      caption="The bell's average spectrum up to 2 kHz, on an even scale. Notice how many peaks crowd the bottom, and that one of them stands under the note itself."
+    />
+
+    A bell is cast and then turned on a lathe until its lowest modes land on notes. The engine's table follows <Src path="cpp/devices/modal-bells/modal_bells.h" at="// Church bell: hum, prime, tierce, quint, nominal, then the upper partials.">the usual tuning</Src>: a hum an octave under the note, the note, a minor third over it, a fifth, an octave. Measured on this card's note, <Claim id="use-bell">there is a partial at 110.0 Hz and one at 264.0 Hz</Claim>: an octave under the key, and a minor third over it. That minor third is inside every single note the bell plays. Listen for it on this card.
+
+  </Use>
+  <Use title="A singing bowl" set="bowl">
+    <Still
+      slot="picture"
+      taps="level"
+      set="bowl"
+      caption="The level of the bowl's note over the loop. Notice it sink and come back, over and over, on its way down."
+    />
+
+    This card is close to the way Bells starts by itself. A bowl is round, and a round thing has each of its modes twice: the same pattern can sit two ways round the rim. No bowl is perfectly even, so the two copies differ slightly in pitch and drift in and out of step. Here they are set 1 Hz apart, and <Claim id="use-bowl">the level of the note dips 1.0 s apart</Claim>. Stage 6 of part 5 shows where the two copies go.
+
+  </Use>
+  <Use title="A plucked tine" set="tine">
+    <Still
+      slot="picture"
+      taps="level1 level2"
+      set="tine"
+      caption="The levels of the tine's first two modes. Notice the second fall more than twice as steeply as the first, so the two lines draw apart for as long as the note lasts."
+    />
+
+    A tine is a bar held fast at one end, as on a thumb piano. Clamping one end pushes the second mode far up: <Claim id="use-tine">it stands at 1,378 Hz, more than six times the note, and falls at 107 dB a second where the first mode falls at 40 dB a second</Claim>. So the note is a click with a pitch in it, and then less and less of anything but the first mode. The settings here are a short Decay and a high Damping to match.
+
+  </Use>
+</Uses>
+
+The other three materials are the same machine with other tables: a bar whose underside has been carved until its modes stand at <Src path="cpp/devices/modal-bells/modal_bells.h" at="// Vibraphone: the bar is cut so its modes sit at 1 : 4 : 10.">1 : 4 : 10</Src>, the <Src path="cpp/devices/modal-bells/modal_bells.h" at="// Glass: the rim modes of a wineglass.">rim of a glass</Src>, and <Src path="cpp/devices/modal-bells/modal_bells.h" at="// Gong: a free circular plate; a = nodal diameters, b = nodal circles.">a round plate</Src>. This page has no card for the glass or the plate: choose them with Material, in stage 3 of part 5. Part 6 comes back to the first of the three.
+
+</Part>
+
+<Part id="build" title="Start with one number that turns. Add six pieces.">
+
+This part starts with a single resonator and adds six pieces to it, one at a time. After each piece the picture is drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these pictures and plays "Hear it so far".
+
+Some of the steps are wrong on purpose, so that what is missing can be heard before the next piece supplies it.
+
+<Build>
+  <Step title="One resonator" controls="note decay">
+    A mode needs to remember two things: how far along its swing it is, and how large the swing is. One number with two parts holds both. Think of it as a point on a sheet of paper, with the centre of the sheet as nothing. Its distance from the centre is the size of the swing, and its direction from the centre is the place in the swing.
+
+    On every sample the point is turned about the centre by a small fixed angle, and pulled in by a small fixed share. The angle sets the pitch: a larger angle goes round more often in a second. The share sets the decay. The sound is how far the point stands above or below the centre, so a point going round at a steady rate draws a sine wave.
+
+    To start it, something has to knock the point off the centre. For now that is one sample holding the whole of the device's push.
+
+    Press "Hear it so far". It is one pure tone that dies away: <Claim id="built-one">it rings at 220.0 Hz and falls at 20.0 dB a second</Claim>, which is the starting Decay doing what part 2 said it does.
+
+    <Listing
+      path="site/labs/modal-synthesis.cpp"
+      from="void set_mode(int k, float hz, float seconds) {"
+      to="step_im[k] = radius * std::sin(w);"
+      name="set-mode"
+    />
+
+    <Listing
+      path="site/labs/modal-synthesis.cpp"
+      from="// One resonator: a number with two parts, turned and shrunk a little."
+      to="re[k] = turned;"
+      name="resonator"
+    />
+
+    The first listing turns a frequency and a decay time into the angle and the share, held together as `step_re` and `step_im`. The second is the turn itself: two multiplications and an addition for each part, on every sample. The lines that pick between `like` and the build's own numbers are for the last step, and until then they take the build's own.
+
+    <Lanes
+      slot="picture"
+      taps="builtPush built builtLow"
+      own="builtPush"
+      ranges={{ builtLow: [-120, 0] }}
+    >
+      The one-sample push, the sound so far, and the level of the mode. Notice the level's line
+      is straight from the strike to the loop's end. Try Decay, and notice the line tilt.
+    </Lanes>
+
+  </Step>
+  <Step title="A mallet" controls="note decay hardness">
+    Nothing real delivers a push in one sample. A mallet's head squashes against the bar and springs back, so the push rises smoothly, falls smoothly, and takes a little time over it. The build now makes that shape: one hump of a cosine wave, lifted so that it starts and ends at nothing, with a little noise on it. A soft mallet stays longer and a hard one leaves sooner, and Hardness sets which.
+
+    <Claim id="built-mallet">The push now lasts 16 samples, where the step before gave it all in one</Claim>. Without its noise the whole of it would add up to what the one sample held, so it is lower as well as longer.
+
+    <Listing
+      path="site/labs/modal-synthesis.cpp"
+      from="// The mallet's push for this sample: a raised cosine with a little noise on it."
+      to="return value;"
+      name="mallet-push"
+    />
+
+    One mode at the note's own frequency hardly hears the difference, because the push is still far shorter than one of its swings. The mallet starts to matter with the next piece.
+
+    <Lanes slot="picture" taps="builtPush built" own="builtPush" from={0.0098} span={0.002}>
+      The push, and the mode beginning its first swing, over two milliseconds. Notice the hump,
+      and the noise on it. Try Hardness lower, and notice the hump grow longer and lower.
+    </Lanes>
+
+  </Step>
+  <Step title="Several modes" controls="note decay hardness">
+    A bar has more than one mode, so the build now keeps one resonator for every entry in the device's table for the bar, and pushes all of them with the same mallet. The simplest guess at where to tune them is the one a string would suggest: the second at twice the note, the third at three times it.
+
+    <Claim id="built-several">A second partial now stands at 440.0 Hz</Claim>, where the step before had nothing.
+
+    <Listing
+      path="site/labs/modal-synthesis.cpp"
+      from="int number = 0;  // of the mode among those that differ in pitch, from 1"
+      to="float ratio = lowest * static_cast<float>(number);"
+      name="several"
+    />
+
+    Press "Hear it so far". These are the places part 1's second bar had its partials. Listen for whether it is a bar yet.
+
+    <Spectrum slot="picture" taps="built" linear fMax={6000} min={-110} max={-10}>
+      The average spectrum of the sound so far, on an even scale of frequency. Notice seven
+      peaks at even steps. Try Pitch, and notice the steps stay even.
+    </Spectrum>
+
+  </Step>
+  <Step title="Their ratios" controls="note decay hardness material">
+    The second piece of knowledge about a bar is where its modes really stand, and that is one line: take each mode's ratio from the table. Nothing else in the build changes.
+
+    <Claim id="built-ratios">The second partial moves to 606.5 Hz</Claim>, and nothing is left at twice the note.
+
+    <Listing
+      path="site/labs/modal-synthesis.cpp"
+      from="// Their ratios: where the material's table puts them."
+      to="if (step >= kRatios && !whole) ratio = mode.ratio;"
+      name="ratios"
+    />
+
+    Go back a step and forward again, and listen for what the ratios alone do. All that changed is six numbers: the ratios of the modes above the first.
+
+    <Spectrum slot="picture" taps="built" linear fMax={6000} min={-110} max={-10}>
+      The same spectrum with the table's ratios. Notice the peaks move apart as they rise. Try
+      Material, and notice a different set of peaks for each.
+    </Spectrum>
+
+  </Step>
+  <Step title="A decay for each" controls="note decay hardness material damping">
+    So far every mode dies at the speed of the lowest. In a real bar the short bends lose their energy soonest. The build now gives each mode a decay time of its own: Decay, divided by a number that grows with the mode's ratio to the lowest. Damping sets how fast it grows.
+
+    <Claim id="built-decays">Measured from 50 ms to 300 ms after the strike, Mode 3 now falls at 31.1 dB a second and Mode 6 at 64.5 dB a second, where both fell at 20.0 dB a second</Claim>.
+
+    <Listing
+      path="site/labs/modal-synthesis.cpp"
+      from="// A decay for each: the higher a mode stands over the lowest, the sooner it dies."
+      to="set_mode(k, like.frequency * ratio, seconds);"
+      name="decays"
+    />
+
+    <Lanes
+      slot="picture"
+      taps="built builtLow builtMid builtHigh"
+      ranges={{ builtLow: [-120, 0], builtMid: [-120, 0], builtHigh: [-120, 0] }}
+    >
+      The sound so far and the levels of three of its modes. Notice the three lines fall at three
+      slopes. Go back a step, and notice them fall as one. Try Damping, and notice the lower two
+      lanes steepen while the first stays.
+    </Lanes>
+
+  </Step>
+  <Step title="Where it is struck" controls="note decay hardness material damping position">
+    Until now every mode was given the same push. A real strike is not so even. Each mode takes a share of the push that depends on two things: how readily that mode is started at all, which the table gives as a level, and how far that mode moves at the place where the mallet lands. The second is the mode's shape, and Position reads it.
+
+    <Listing
+      path="site/labs/modal-synthesis.cpp"
+      from="// Every mode pushed alike, the two halves of a pair sharing one push."
+      to="strike[k] = table.gain * mode.level * ModalBells::weight(table.family, mode.a, mode.b, position.value);"
+      name="where"
+    />
+
+    With the mallet at the end of the bar, <Claim id="built-where">50 ms after the strike Mode 6 stands 27 dB under Mode 1, where the step before had it 7 dB under</Claim>. Go back a step and forward again, and listen for the upper modes stepping back behind the note.
+
+    <Curve
+      slot="picture"
+      taps="shape1 shape2 shape3 shape4"
+      uprights="position"
+      xTitle="Position, from the end to the middle"
+      yTitle="how far the mode moves"
+    >
+      The shapes of the first four modes along half the bar, worked out by the device's own
+      function. The upright line is the mallet. Try Position, and read off each curve where the
+      line crosses it: a curve that passes through nothing there is a mode the strike leaves out.
+    </Curve>
+
+    <Lanes
+      slot="picture"
+      taps="built builtLow builtMid builtHigh"
+      ranges={{ builtLow: [-120, 0], builtMid: [-120, 0], builtHigh: [-120, 0] }}
+    >
+      The sound so far and the same three levels. Notice where each line starts. Try Position at
+      its upper end, and notice the line of Mode 6 fall to the floor while Mode 3 stays.
+    </Lanes>
+
+  </Step>
+  <Step title="Pairs and two sides" controls="note decay hardness material damping position detune spread volume">
+    Two things are left. The lowest four ratios of the bar are in the table twice, as pairs that Detune can set a little apart, and so far each pair has rung as one. And the sound has had one side, where the device has two: every mode has a gain for the left and a gain for the right.
+
+    Up to here the build has worked everything out for itself, from the device's table of modes and its constants. With this piece it stops working those numbers out. It takes each mode's turn, its share of the push and its two gains from the device as it runs, and goes on doing the arithmetic with them in its own lines. Then it does the last two things the device does to the sum: Volume, and a soft clip.
+
+    <Listing
+      path="site/labs/modal-synthesis.cpp"
+      from="// Pairs and two sides: each mode has a gain for the left and one for the right."
+      to="right = kit::soft_clip(right * volume_now);"
+      name="sides"
+    />
+
+    With this piece the build does what the device does. A test of this lesson compares the two sample by sample: at the starting settings and at every named setting of this page, <Claim id="built-exact">all 192,000 samples of the loop are the same number in the build and in the device, on each side, where the lab would allow a difference of −120 dB</Claim>.
+
+    <Check id="builtDifference" />
+
+    The lab works that check out on every render, as the level of the difference against the level of the output. <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src> is the lowest it can read, so by itself it says only that the difference lies more than 140 dB under the output. The count of samples is what says they are the same.
+
+    <Lanes slot="picture" taps="built out levelLeft levelRight" ranges={{ levelLeft: [-120, 0], levelRight: [-120, 0] }}>
+      The bank as built, the device's output, and the level of the output on each side. Notice
+      the first two lanes are the same. Try Detune a little above nothing with Spread at its
+      upper end, and notice the two levels take turns.
+    </Lanes>
+
+  </Step>
+</Build>
+
+Here is the whole bank for one sample, with every piece in its place.
+
+<Listing
+  path="site/labs/modal-synthesis.cpp"
+  from="void run(const Voice& like, float volume_now) {"
+  to="right = kit::soft_clip(right * volume_now);"
+  name="run"
+/>
+
+The engine's is the same arithmetic in the same order. What the build left out is where its numbers come from: the table, the mallet's length, the shapes, the law that turns Decay into a time for each mode, and what a held key and a released one do. The next part opens the engine and reads those.
+
+</Part>
+
+<Part id="engine" title="The engine's own bells, opened up.">
+
+Everything from here on is the device itself: Bells, as it is set up and run for one note. Under each stage's title is a line that says where its figure comes from: read from the running device, computed by an engine function called on its own, or written for this lesson. The listings are the engine's source as it stands, with the file and the line numbers, so you can go and read around them.
+
+<Flow
+  label="The mallet's push is weighted for each mode by where the bar is struck and goes into the bank of modes. Each mode rings by itself. The modes are added twice, once for each side, each with a gain of its own, and the sum goes through Volume and a soft clip to the output. Under that row, the held key sets each mode's decay, which feeds the bank."
+  blocks={[
+    { id: 'mallet', tap: 'pulse', label: 'Mallet', shape: 'end', n: 1 },
+    { id: 'weights', label: 'Where it is struck', from: 'mallet', n: 3 },
+    { id: 'bank', tap: 'mode1', label: 'The modes', from: ['weights', 'decay'], n: 4 },
+    { id: 'sides', tap: 'sum', label: 'Two gains, added', from: 'bank', n: 6 },
+    { id: 'clip', label: 'Volume, soft clip', from: 'sides', n: 9 },
+    { id: 'out', tap: 'out', label: 'Output', shape: 'end', from: 'clip' },
+    { id: 'key', row: 1, label: 'The key', shape: 'end', signal: 'value' },
+    { id: 'decay', row: 1, from: 'key', label: 'Each mode\'s decay', n: 5, signal: 'value' },
+  ]}
+>
+  The row along the top runs from the mallet to the output. The row under it carries no sound: it
+  sets how fast each mode shrinks, from Decay and Damping (stage 5), from Sustain while the key
+  is down (stage 7) and from Release once it is up (stage 8). Press a stage's button below, and
+  notice its block light up here.
+</Flow>
+
+The lab starts the note at <Src path="site/labs/modal-synthesis.cpp" at='lab::Control note{"note", "Pitch"'>220 Hz</Src>, struck <Src path="site/labs/modal-synthesis.cpp" at="constexpr float kStrike = 0.8f;">at 0.8 of full strength</Src>, and runs at <Src path="site/labs/lab.h" at="constexpr float kSampleRate = 48000.0f;">48,000 samples a second</Src>. The numbers measured below are for that note unless they say otherwise.
+
+<StageBlock tap="pulse" n={1} title="The mallet: one short push">
+  A bank of resonators with nothing put into it stays silent, so every note starts with the mallet: the hump of step 2 of the build. A shape with no corner in it has little energy at high frequencies, which is what a soft thing hitting a hard thing is like.
+
+  <Controls ids="hardness note" />
+
+  <Wave taps="pulse:alt" from={0.0095} span={0.004} fit stems>
+    The push, four milliseconds round it, a dot for each sample. Try Hardness at each end, and
+    notice the hump stretch to a long low swell or shrink to a few tall samples. Try Pitch, and
+    notice the hump keep its length as a share of the note's period.
+  </Wave>
+
+  The length of the push is worked out first, as a share of the note's own period:
+
+  <M
+    block
+    t={String.raw`\at{strike-periods}{q_0 = q_{\text{soft}} \Bigl(\frac{q_{\text{hard}}}{q_{\text{soft}}}\Bigr)^{H^2} (1.5 - \gamma)}`}
+  />
+
+  <M block t={String.raw`\at{strike-length}{L = q_0\,\frac{f_s}{f_0}}`} />
+
+  <M t={String.raw`q_0`} /> is the push's length in periods of the note. <M t={String.raw`q_{\text{soft}}`} /> is the softest mallet's, <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kSoftPulse = 0.9f;">0.9 of a period</Src>, and <M t={String.raw`q_{\text{hard}}`} /> the hardest's, <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kHardPulse = 0.03f;">0.03 of one</Src>. <M t="H" /> is Hardness, squared so that the middle of its range is a medium mallet. <M t={String.raw`\gamma`} /> is how hard the key was struck, from nothing to 1: a harder blow is a shorter touch. <M t="L" /> is the length in samples, with <M t={String.raw`f_s`} /> the sample rate and <M t={String.raw`f_0`} /> the note's frequency. Because the length is a share of the period, the same mallet starts the same partials on a low key as on a high one. It is kept to <Src path="cpp/devices/modal-bells/modal_bells.h" at="const float length = kit::clamp(periods * sr / voice.frequency, 2.0f, kLongestPulse * sr);">at least two samples</Src> and <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kLongestPulse = 0.008f;">at most 8 ms</Src>.
+
+  Then the push itself, for each of its samples:
+
+  <M
+    block
+    t={String.raw`\sig{alt}{p[n]} = G\,\at{mallet-window}{\Bigl(\tfrac{1}{2} - \tfrac{1}{2}\cos\frac{2\pi\,(n + \frac{1}{2})}{L}\Bigr)}\,\at{mallet-noise}{\bigl(1 + \nu\,\varepsilon[n]\bigr)}`}
+  />
+
+  <M t="p" /> is the push and <M t="n" /> counts its samples from the strike. The first bracket is the hump: nothing at the start, 1 half way, nothing at the end. <M t={String.raw`\varepsilon`} /> is noise between −1 and 1, a new value on every sample, and <M t={String.raw`\nu`} /> is how much of it there is, <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kPulseNoise = 0.5f;">a half</Src>. The noise is the roughness of the picture's hump, and stage 2 says what it is for. <M t="G" /> is the push's height, and the device <Src path="cpp/devices/modal-bells/modal_bells.h" at="voice.pulse_gain = kStrikeLevel * hit * 2.0f * voice.pulse_step;">divides it by the length</Src>, so that the hump covers the same area however long it is: a long push is low and a short one tall.
+
+  <Check id="pulseSamples" />
+
+  <Claim id="pulse-length">The push is 15.6 samples long at the starting Hardness, 69 samples at the device's own 0.45 and between 137 and 138 samples at 0</Claim>.
+
+  The push is a local of the device's, which keeps no copy of it. So the lab works it out again from the device's own phase and height and a copy of its noise, and a check holds the result to the device: put through the first line of stage 4, it must land on the device's own first mode. The check reads the level of the difference against the level of the mode, and −140 dB is the lowest it can read: it says that the difference lies more than 140 dB under the mode.
+
+  <Check id="pulseAgain" />
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/modal-bells/modal_bells.h"
+    from="const float hardness = param(kHardness);"
+    to="voice.pulse_gain = kStrikeLevel * hit * 2.0f * voice.pulse_step;"
+    name="strike"
+    at={{ periods: 'const float periods = kSoftPulse', length: 'const float length = kit::clamp(' }}
+  />
+  <Listing
+    slot="listing"
+    path="cpp/devices/modal-bells/modal_bells.h"
+    from="const float window = 0.5f - 0.5f * kit::SineTable::cos_lookup(voice.pulse + 0.5f * voice.pulse_step);"
+    to="voice.pulse += voice.pulse_step;"
+    name="mallet"
+    at={{ window: 'const float window = 0.5f', noise: 'pulse[i] = voice.pulse_gain * window' }}
+  />
+  <Fragment slot="listen">Hear the push by itself</Fragment>
+</StageBlock>
+
+<StageBlock tap="mallet" n={2} title="What a push leaves in a mode">
+  The length of the push decides which modes it starts. A push much shorter than one swing of a mode is as good as a tap, and the mode takes all of it. A push that lasts a whole swing is another matter. The mode goes once round while it is being pushed, so the second half of the push arrives when the mode is moving the other way and undoes part of the first.
+
+  <Controls ids="hardness note" />
+
+  <Curve taps="mallet:alt" xLog xTitle="hertz" yTitle="dB" uprights="note" min={-80} max={3}>
+    How much of a smooth push of the mallet's length ends up in a mode, by the mode's frequency.
+    The upright line is the note. Notice the curve lie flat at the left, roll off, and then fall
+    in lobes with deep gaps between them. Try Hardness lower, and notice the roll-off slide down
+    towards the note.
+  </Curve>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{alt}{M(q)} = \at{response-whole}{\left|\frac{\sin \pi q}{\pi q\,(1 - q^2)}\right|}`}
+  />
+  <M slot="equation" block t={String.raw`q = \frac{f\,L}{f_s}`} />
+
+  <Fragment slot="readback">
+    Read it against the picture. <M t="q" /> is the length of the push counted in swings of the mode: the mode's frequency <M t="f" /> times the push's <M t="L" /> samples, over the sample rate. <M t="M" /> is the share of the push the mode is left with. For a very short push the fraction is 1, the flat part at the left. At <M t="q = 1" /> it is a half. At every whole number from 2 up, the sine on top is nothing and the mode is left with nothing at all: those are the gaps.
+  </Fragment>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/twin-bars/twin_bars.h"
+    from="static float response(float periods) {"
+    to="return std::fabs(std::sin(kit::kPi * periods) / (kit::kPi * periods * spare));"
+    name="response"
+    at={{ whole: 'return std::fabs(' }}
+  />
+
+  <Fragment slot="after">
+    The function is the engine's, from its second instrument of this kind, Twin Bars, and the lab calls it by itself to draw the curve. At the lab's starting settings <Claim id="mallet-half">the push lasts one swing of a mode at 3,079 Hz, where the curve reads −6.0 dB, and the curve lies less than 0.01 dB from the formula wherever it stands above −80 dB</Claim>, which is where <Src path="site/labs/modal-synthesis.cpp" at="kit::max(lab::to_db(TwinBars::response(">the lab stops drawing it</Src>.
+
+    Bells does not use the formula. It lets the push run into every mode, sample by sample, and each mode keeps what the formula says and a little more: its share of the noise. That is what the noise is for. A mode that falls in one of the gaps would otherwise be missing from every note at that Hardness, and <Src path="cpp/devices/modal-bells/modal_bells.h" at="//   same partials on every key. A little noise rides on it so no mode sits">the noise makes sure that none is</Src>.
+
+    On the device, the softest mallet takes most of the top away and little of the bottom. A twentieth of a second after the strike, <Claim id="soft-mallet">Mode 2 stands 26 dB lower than at the starting Hardness, and Mode 1 2.8 dB lower</Claim>. <Hear set="soft" label="Hear the softest mallet" show />
+  </Fragment>
+</StageBlock>
+
+<StageBlock tap="shape1" n={3} title="Where it is struck: each mode's shape">
+  Step 6 of the build gave each mode a share of the push. The device works that share out once, at the strike, as a weight with three parts: a gain for the material as a whole, the level the table gives that mode, and the mode's shape read at the place where the mallet lands.
+
+  <Controls ids="position material" />
+
+  <Curve
+    taps="shape1 shape2 shape3 shape4"
+    uprights="position"
+    xTitle="Position, from the end to the middle"
+    yTitle="how far the mode moves"
+  >
+    The shapes of the first four modes of the material, from its edge to its middle. The upright
+    line is the mallet. Try Position, and notice which curves the line crosses near nothing.
+    Try Material, and notice that a bar, a tine, a plate and a bell each have shapes of another
+    kind.
+  </Curve>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\at{weights-strike}{s_k = m\,\ell_k\,w_k(x)}`}
+  />
+  <M
+    slot="equation"
+    block
+    t={String.raw`w_k(x) = \begin{cases} \cos\theta_k & k \text{ odd} \\ \sin\theta_k & k \text{ even} \end{cases}`}
+  />
+  <M
+    slot="equation"
+    block
+    t={String.raw`\at{weight-angle}{\theta_k = \bigl(k + \tfrac{1}{2}\bigr)\,\pi\,\frac{x - 1}{2}}`}
+  />
+
+  <Fragment slot="readback">
+    Read it against the picture. <M t={String.raw`s_k`} /> is the share of the push that mode <M t="k" /> is given. <M t="m" /> is the material's gain and <M t={String.raw`\ell_k`} /> the mode's level from the table. <M t={String.raw`w_k(x)`} /> is the curve of mode <M t="k" /> in the picture, read at <M t="x" />, which is Position: 0 at the end of the bar and 1 at its middle. For a bar the curve is a piece of a sine wave with <M t={String.raw`k + \tfrac{1}{2}`} /> half waves between the ends, so each mode has one more bend than the last. The odd modes take the cosine and are the same on both sides of the middle. The even ones take the sine, which is nothing at the middle.
+  </Fragment>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/modal-bells/modal_bells.h"
+    from="// Bar: an uncut free bar (chimes, glockenspiel, music box comb)."
+    to="{24.81f, 0.08f, 7, 0, 0.0f, 0.0f}}},"
+    name="bar-table"
+  />
+  <Listing
+    slot="listing"
+    path="cpp/devices/modal-bells/modal_bells.h"
+    from="static float weight(int family, float a, float b, float position) {"
+    to="return (static_cast<int>(a) & 1) ? std::cos(angle) : std::sin(angle);"
+    name="weight"
+    at={{ angle: 'const float angle = (a + 0.5f)' }}
+  />
+  <Listing
+    slot="listing"
+    path="cpp/devices/modal-bells/modal_bells.h"
+    from="const float position = param(kPosition);"
+    to="voice.rub[k] = mode.rub;"
+    name="weights"
+    at={{ strike: 'voice.strike[k] = modes.gain' }}
+  />
+
+  <Fragment slot="after">
+    The first listing is the bar's whole table. Each entry holds <Src path="cpp/devices/modal-bells/modal_bells.h" at="float ratio, level, a, b, mate, rub;">six numbers</Src>: the mode's ratio to the note, its level, two numbers for its shape, of which a bar uses the first as the mode's number, its share of Detune, and how well it answers to rubbing. A ratio that stands twice is a pair, and stage 6 is about those.
+
+    Measured on the curves, <Claim id="shape-node">every mode's shape is 0.707 in size at the end of the bar, and Mode 1's passes through nothing at a Position of 0.333</Claim>. The first is why the lesson strikes the bar at its end: no mode is left out there, and all are weighted alike. The second is a place to avoid, and part 7 strikes it. The prediction of part 1 was the right-hand edge of this picture.
+
+    These shapes are a sketch. They are <Src path="cpp/devices/modal-bells/modal_bells.h" at="//   and the kalimba tine these are the bending shapes of a free and a" to="//   clamped bar without their end corrections; for the plate, modes with">the bending shapes of a bar without the corrections its free ends need</Src>, so the still points of a real bar lie a little further in. For a bell, a bowl or a glass, Position is not a place at all but <Src path="cpp/devices/modal-bells/modal_bells.h" at="//   it is a voicing (striking further from the rim thins the upper modes).">a voicing</Src>: further from the rim, the upper modes get less.
+  </Fragment>
+</StageBlock>
+
+<StageBlock tap="mode1" n={4} title="One mode: a number that turns and shrinks">
+  This is the resonator of the build's first step, and it is three lines. Each mode is a point with two parts, <M t={String.raw`u_k`} /> and <M t={String.raw`v_k`} />.
+
+  <Wave taps="pulse:alt mode1:out" from={0.009} span={0.02} fit>
+    The push, and Mode 1 as the device holds it, over the first twenty milliseconds. Notice
+    the mode start from nothing and begin to swing as the push ends: all the push does is set
+    it going. From there on nothing feeds it.
+  </Wave>
+
+  <M
+    block
+    t={String.raw`u_k[n] = \at{mode-turned}{r_k\bigl(\cos\omega_k\,u_k[n-1] - \sin\omega_k\,v_k[n-1]\bigr) + s_k\,\sig{alt}{p[n]}}`}
+  />
+
+  <M
+    block
+    t={String.raw`\sig{out}{v_k[n]} = \at{mode-other}{r_k\bigl(\sin\omega_k\,u_k[n-1] + \cos\omega_k\,v_k[n-1]\bigr)}`}
+  />
+
+  Read it against the picture. The two brackets are a turn: they move the point through the angle <M t={String.raw`\omega_k`} /> about the centre without changing its distance from it. <M t={String.raw`r_k`} /> is a number a little under 1 that then pulls it in. <M t={String.raw`s_k\,p[n]`} /> is the push with the weight of stage 3, and it goes into the first part only. The sound is the second part, <M t={String.raw`v_k`} />, which is why the mode in the picture starts from nothing: <Src path="cpp/devices/modal-bells/modal_bells.h" at="// The push goes in on the real side and the sound is the imaginary" to="// side, so a mode answers a pulse from zero, as a displacement does.">a bar that is pushed gathers speed first and moves after</Src>. In the code the turn and the pull are multiplied together once, ahead of time, into `step_re` and `step_im`.
+
+  The angle comes from the mode's frequency:
+
+  <M block t={String.raw`\at{tune-hz}{f_k = f_0\,\rho_k^{\,\lambda} + \mu_k\,\Delta}`} />
+
+  <M block t={String.raw`\at{tune-w}{\omega_k = \frac{2\pi f_k}{f_s}}`} />
+
+  <M t={String.raw`\rho_k`} /> is the mode's ratio from the table. <M t={String.raw`\lambda`} /> is Stretch, which is 1 unless the ratios are to be pulled apart or pushed together. <M t={String.raw`\Delta`} /> is Detune in hertz and <M t={String.raw`\mu_k`} /> the mode's share of it, with one sign for one half of a pair and the other sign for the other. <M t={String.raw`\omega_k`} /> is the turn for one sample, as a part of a full circle of <M t={String.raw`2\pi`} />.
+
+  A resonator is usually built another way, as a filter that remembers its last two outputs (<Lesson id="equalising" />). That form is cheaper. This one costs twice as much and <Src path="cpp/devices/modal-bells/modal_bells.h" at="//   costs twice a two-pole resonator, and buys three things used here: the" to="//   and stable down to 20 Hz in single precision.">buys three things</Src>. The size of the swing is there to be read at any moment, as the point's distance from the centre: the level lines of part 2 are exactly that, with no measuring. The angle and the share can be changed while the mode rings, and nothing clicks. And it stays in tune on the lowest notes, where the other form runs short of digits.
+
+  <Check id="modeCount" />
+
+  The device plays up to <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr int kMaxVoices = 12;">12 notes at once</Src>, each with up to <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr int kSlots = 16;">16 modes</Src>. <Listen tap="mode6">Hear Mode 6 alone</Listen>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/modal-bells/modal_bells.h"
+    from="// The push goes in on the real side and the sound is the imaginary"
+    to="pulse[i]; im = step_re * im + step_im * re; re = turned; out_left[i] += gain_left * im; out_right[i] += gain_right * im;"
+    name="mode"
+    at={{
+      turned: 'const float turned = step_re * re - step_im * im + in * pulse[i];',
+      other: 'im = step_re * im + step_im * re;',
+      left: 'out_left[i] += gain_left * im;',
+    }}
+  />
+  <Fragment slot="listen">Hear Mode 1 alone</Fragment>
+</StageBlock>
+
+<StageBlock tap="level1" n={5} title="A decay for each mode">
+  How fast each mode is pulled in is worked out when the note starts, and again whenever a control that bears on it moves. One rule serves every material: the lowest mode rings for Decay seconds, and each mode above it rings for less, by how far its frequency stands over the lowest.
+
+  <Controls ids="decay damping" />
+
+  <Trace taps="level1 level2 level3 level4 level5 level6" min={-120} max={0} unit="dB">
+    The level of each of the first six modes, which is the length of its number, read from the
+    device. Notice that each line is straight, and that the slopes grow from the first mode to
+    the sixth. Try Damping at nothing, and notice the fan close up. Try it at its upper end, and
+    notice every line but the first fall almost straight down.
+  </Trace>
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\at{tune-law}{T_k = \frac{T}{1 + d\,\bigl((\rho_k / \rho_1)^{\lambda} - 1\bigr)}}`}
+  />
+  <M slot="equation" block t={String.raw`\at{tune-extra}{d = d_0\,c^{\,D}}`} />
+  <M slot="equation" block t={String.raw`\at{tune-radius}{r_k = 10^{-3 / (T_k\,f_s)}}`} />
+
+  <Fragment slot="readback">
+    Read it against the picture. <M t="T" /> is Decay and <M t={String.raw`T_k`} /> the time mode <M t="k" /> takes to fall to a thousandth of its size. <M t={String.raw`\rho_1`} /> is the lowest ratio in the table, and <M t={String.raw`\lambda`} /> is stage 4's Stretch, which is 1 here. For the lowest mode the bracket is nothing and <M t={String.raw`T_1`} /> is Decay itself. For the others the bracket is how many times the lowest ratio the mode stands above it, so the time shortens steadily with frequency. <M t="d" /> says how steeply, and <M t="D" /> is Damping: <M t={String.raw`d_0`} /> is <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kLeastDamping = 0.02f;">0.02</Src>, for metal, and <M t="c" /> is <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kDampingSpan = 100.0f;">100</Src>, so at the upper end of Damping <M t="d" /> is <Src path="cpp/devices/modal-bells/modal_bells.h" at="//   2 (wood) with `damping`.">2, for wood</Src>. The last line turns a time into the share <M t={String.raw`r_k`} /> of stage 4: after <M t={String.raw`T_k f_s`} /> samples the mode has been multiplied by <M t={String.raw`r_k`} /> that many times, and has come down by three powers of ten.
+  </Fragment>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/modal-bells/modal_bells.h"
+    from="const float extra = kLeastDamping * std::pow(kDampingSpan, param(kDamping));"
+    to="voice.step_im[k] = voice.radius[k] * voice.turn_im[k];"
+    name="tune"
+    at={{
+      extra: 'const float extra = kLeastDamping',
+      limit: 'voice.released && release > 0.001f ? kChokeSeconds',
+      hz: 'const float hz = voice.frequency * ratio + detune * mode.mate;',
+      law: 'float seconds = decay / (',
+      shorter: 'if (limit > 0.0f) seconds = kit::min(seconds, limit);',
+      w: 'const float w = kit::kTwoPi * hz / sr;',
+      radius: 'voice.radius[k] = std::exp(',
+    }}
+  />
+
+  <Fragment slot="after">
+    Measured on the device at the starting settings, <Claim id="fall-law">from 0.1 s to 0.6 s after the strike Modes 1 to 4 fall at 20.0, 24.44, 31.1 and 40.0 dB a second and Mode 6 at 64.5 dB a second, and each of the six lies less than 0.02 dB a second from what the three lines above give</Claim>.
+  </Fragment>
+</StageBlock>
+
+<StageBlock tap="sum" n={6} title="Two gains for each mode, and the sum">
+  The modes are added twice, once for the left side and once for the right, and each mode has a gain for each. That is all the stereo there is: no mode is delayed or filtered on its way out.
+
+  <M block t={String.raw`\sig{out}{y_L[n]} = \sum_k \at{mode-left}{a_k\,v_k[n]}`} />
+
+  <M block t={String.raw`y_R[n] = \sum_k b_k\,v_k[n]`} />
+
+  <M t={String.raw`a_k`} /> and <M t={String.raw`b_k`} /> are the two gains of mode <M t="k" />, and <M t={String.raw`y_L`} /> and <M t={String.raw`y_R`} /> are the two sums.
+
+  What the gains are depends on whether the mode is single or one of a pair. Round things ring in pairs, as the bowl of part 3 did, and the table marks the pairs. One half of each pair <Src path="cpp/devices/modal-bells/modal_bells.h" at="float left = kit::kSqrtHalf, right = kit::kSqrtHalf;">stays in the middle</Src>, equal on both sides. Spread moves the other half out to one side, and then on past it:
+
+  <M block t={String.raw`\at{gains-turn}{\psi = 0.8 \cdot \tfrac{\pi}{2} \cdot W}`} />
+
+  <M block t={String.raw`\at{gains-near}{a_k = \tfrac{1}{\sqrt{2}}\,(\cos\psi + \sin\psi)}`} />
+
+  <M block t={String.raw`\at{gains-far}{b_k = \tfrac{1}{\sqrt{2}}\,(\cos\psi - \sin\psi)}`} />
+
+  <M t="W" /> is Spread, and the 0.8 is <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kFarSide = 0.8f;">how far past its side the half may go</Src>. At nothing, <M t={String.raw`\psi`} /> is nothing, the two gains are equal and the half sits in the middle with its partner. As Spread rises, <M t={String.raw`a_k`} /> grows and <M t={String.raw`b_k`} /> shrinks. Past a certain Spread the cosine is smaller than the sine, <M t={String.raw`b_k`} /> goes below nothing, and the far side hears that half upside down. The pairs lean to the left and to the right by turns. The modes that are single are <Src path="cpp/devices/modal-bells/modal_bells.h" at="kit::pan_gains(((k & 1) ? 0.8f : -0.8f) * spread, &left, &right);">placed left and right by turns</Src>.
+
+  <Controls ids="detune spread" />
+
+  <Trace taps="levelLeft:out levelRight:alt" min={-90} max={0} unit="dB">
+    The level of the output on each side. Notice that at the starting settings the two lines
+    fall together, the left a little above the right. Try Detune a little above nothing, and
+    notice each line dip in turn while the other is up. Try Spread at nothing, and notice
+    one line.
+  </Trace>
+
+  Measured half a second after the strike, <Claim id="sides">the left side stands 3.6 dB over the right at the starting Spread and 5.6 dB over it with Spread at its upper end, and with Spread at nothing all 192,000 samples of the left side are the same number as the right's</Claim>.
+
+  Now set the two halves of each pair a little apart with Detune. They drift in and out of step. When they are in step the left side, which hears their sum, is loud. When they are out of step the right side, which hears one less the other, is loud. So <Src path="cpp/devices/modal-bells/modal_bells.h" at="// different signs). So left hears the sum where right hears the" to="// difference, and a beating bowl turns between the speakers.">the beat turns between the sides</Src> and is never a plain rise and fall of the whole sound. <Claim id="turns">With the halves 1 Hz apart, Spread at its upper end and a long Decay, the right side stands 7 dB over the left half a second after the strike, and the left 8 dB over the right a second after it</Claim>. <Hear set="turning" label="Hear the beat turn" show />
+
+  Brightness <Src path="cpp/devices/modal-bells/modal_bells.h" at="const float level = std::pow(mode.ratio, tilt);">raises or lowers each mode by a power of its ratio</Src>, so it tilts the whole set about the note, and changes nothing about how the modes ring.
+
+  <Check id="rebuilt" />
+
+  The lab adds the modes up again from the device's own gains, and that sum is this stage's sound. At the starting settings <Claim id="sum-exact">all 192,000 samples of the sum are the same number as the device's output, on each side</Claim>, because there Volume is at 0 dB and stage 9's clip does nothing. The check above puts the sum through Volume and the clip first, and its −140 dB says that the difference lies more than 140 dB under the output.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/modal-bells/modal_bells.h"
+    from="const float tilt = kTilt * (param(kBrightness) - 0.5f);"
+    to="const float level = std::pow(mode.ratio, tilt);"
+    name="gains"
+    at={{ turn: 'const float turn = kFarSide', near: 'const float near =', far: 'const float far =' }}
+  />
+  <Fragment slot="listen">Hear the modes added</Fragment>
+</StageBlock>
+
+<StageBlock tap="level" n={7} title="Rubbing: a mode held at a level">
+  A bowl can be struck, and it can also be rubbed round its rim, as a glass can under a wet finger. Then the note does not die, because the hand keeps feeding it. Sustain is that hand. While the key is down, the modes that answer to rubbing are made to grow until each reaches a level of its own, and are held there.
+
+  The device does it without adding anything to the mode. <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr int kChunk = 32;">Every 32 samples</Src> it reads how large each rubbed mode is, and if the mode is under its level it sets that mode's share for the next 32 samples a little above 1. A mode multiplied by more than 1 on every sample grows, at its own frequency and from wherever it is in its swing.
+
+  <Controls ids="sustain hold" />
+
+  <Trace taps="level1:out level3:alt level:ctl" min={-90} max={0} unit="dB">
+    The levels of Mode 1 and Mode 3 and of the whole note. Try Sustain at its upper end, and
+    notice Mode 1 climb to a level and stay on it until the key goes up, while Mode 3 falls as
+    it did before. Try Key held for shorter, and notice where the level lets go.
+  </Trace>
+
+  <M slot="equation" block t={String.raw`\at{rub-target}{\hat{A}_k = h_k\,\beta\,S\,\sigma}`} />
+  <M
+    slot="equation"
+    block
+    t={String.raw`\at{rub-radius}{r_k = 1 + \eta\,\min\Bigl(\frac{\hat{A}_k - A_k}{A_k},\ 4\Bigr)}`}
+  />
+
+  <Fragment slot="readback">
+    Read it against the picture. <M t={String.raw`A_k`} /> is the size of the mode now, the distance of its point from the centre, and <M t={String.raw`\hat{A}_k`} /> is the level it is rubbed towards. <M t={String.raw`h_k`} /> is how well the mode answers to rubbing, from the table: <Src path="cpp/devices/modal-bells/modal_bells.h" at="{kFreeBar, 11, 1.0f, {{1.0f, 0.60f, 1, 0, +0.5f, 0.6f},">0.6 for the first entry of the bar</Src> and nothing from its third ratio up, which is why Mode 3's line is unmoved. <M t={String.raw`\beta`} /> is <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kRubLevel = 0.4f;">0.4</Src>, <M t="S" /> is Sustain, and <M t={String.raw`\sigma`} /> grows with how hard the key was struck: it is <Src path="cpp/devices/modal-bells/modal_bells.h" at="voice.strength = 0.25f + 0.75f * gain;">a quarter, and three quarters of the strike's strength</Src>, the <M t={String.raw`\gamma`} /> of stage 1. The second line is the share while the mode is short of its level. The fraction is how far short it is, as a part of its own size, and no more than 4. <M t={String.raw`\eta`} /> makes the growth slow: it is one over the number of samples in <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kRubSeconds = 0.3f;">0.3 s</Src>. The nearer the mode comes to its level the nearer the share comes to 1, so it arrives without overshooting.
+  </Fragment>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/modal-bells/modal_bells.h"
+    from="const bool rubbing = !voice.released && sustain > 0.0f;"
+    to="radius = 1.0f + kit::min((target - amplitude) / amplitude, 4.0f) * pump_step_;"
+    name="rub"
+    at={{ target: 'const float target = voice.rub[k] * rub_level;', radius: 'radius = 1.0f + kit::min(' }}
+  />
+
+  <Fragment slot="after">
+    The push that makes a mode grow is the mode itself, so <Src path="cpp/devices/modal-bells/modal_bells.h" at="// one at or over it is left to ring. The level is reached and held" to="// without knowing the mode's phase, because the push is the mode itself.">nothing has to know where the mode is in its swing</Src>. A mode that lies quite still has nothing to multiply, so the device first <Src path="cpp/devices/modal-bells/modal_bells.h" at="if (amplitude < 1.0e-4f * target) {">sets it a ten-thousandth of the way</Src>. And as Sustain comes up the mallet goes away: its push is <Src path="cpp/devices/modal-bells/modal_bells.h" at="const float hit = gain * (0.3f + 0.7f * gain) * (1.0f - 0.9f * sustain * sustain);">scaled down with the square of Sustain</Src>, to a tenth at the top.
+
+    <Claim id="rub-holds">With Sustain at its upper end, Mode 1 stands at −13.8 dB at 2.9 s after the strike and has moved less than 0.1 dB since 1.5 s, the mallet's push is 20 dB smaller, and Mode 3 still falls at 31.1 dB a second</Claim>.
+  </Fragment>
+</StageBlock>
+
+<StageBlock tap="partials" n={8} title="Key up: a hand on the bar">
+  A bar on a frame rings on when the mallet has gone, and a player who wants it short lays a hand on it. Release is that hand. When the key goes up nothing is faded. Every mode is given a limit to its decay time instead, and a mode whose own time is longer than the limit takes the limit.
+
+  <Controls ids="hold release" />
+
+  <Spectrogram tap="partials" top={6000} min={-110} max={-20}>
+    The partials of the note over the loop. Try a shorter Key held for with Release at its upper
+    end, and notice every line stop together as the key goes up. Try Release half way, and notice only
+    the lowest lines shorten: the upper ones were dying faster than the limit already.
+  </Spectrogram>
+
+  <M slot="equation" block t={String.raw`\at{tune-limit}{T_{\text{up}} = \tau\,\chi^{\,1 - R}}`} />
+  <M
+    slot="equation"
+    block
+    t={String.raw`\at{tune-shorter}{T_k \leftarrow \min\bigl(T_k,\ T_{\text{up}}\bigr)}`}
+  />
+
+  <Fragment slot="readback">
+    Read it against the picture. <M t="R" /> is Release and <M t={String.raw`T_{\text{up}}`} /> the longest any mode may ring once the key is up. <M t={String.raw`\tau`} /> is <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kChokeSeconds = 0.1f;">0.1 s</Src>, the limit with Release at its upper end, and <M t={String.raw`\chi`} /> is <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kChokeSpan = 400.0f;">400</Src>, so each step down in Release lengthens the limit by the same ratio. The second line is stage 5's time for each mode, cut to the limit. The listing is stage 5's: the limit is worked out above its loop and applied inside it. With Release at nothing <Src path="cpp/devices/modal-bells/modal_bells.h" at="// A released key damps every mode to `release` at most; 0 leaves it ringing.">there is no limit</Src>, and the key going up changes nothing.
+  </Fragment>
+
+  <Fragment slot="after">
+    Measured with the key held for a second, <Claim id="choke">with Release at its upper end Mode 1 falls at 600 dB a second from 20 ms to 70 ms after key up. With Release half way it falls at 30 dB a second. At the lesson's starting Release it keeps its 20.0 dB a second</Claim>, because the limit there is longer than the mode's own time. <Hear set="stopped" label="Hear the key stop it" show />
+  </Fragment>
+</StageBlock>
+
+<StageBlock tap="out" n={9} title="Volume, and a clip that an ordinary note never meets">
+  All the notes that are sounding are added, the sum is multiplied by Volume, and each side goes through a soft clip. The clip is a safety net for an instrument that can stack a dozen notes, and it is built to stay out of the way.
+
+  <Controls ids="volume brightness" />
+
+  <Wave taps="sum:alt out:out" from={0.009} span={0.012} fit>
+    The modes added, before Volume, and the output, over the first twelve milliseconds. Notice
+    that at the starting settings one line hides the other, because the two are the same. Try
+    Volume at its upper end with Brightness up, and notice the output stand above the sum where
+    the wave is small, and flatten where it nears full scale.
+  </Wave>
+
+  <M
+    block
+    t={String.raw`C(z) = \begin{cases} \at{clip-through}{z} & |z| \le \tfrac{1}{2} \\ \at{clip-knee}{\pm\bigl(\tfrac{1}{2} + \tfrac{1}{2}\tanh\bigl(2\,|z| - 1\bigr)\bigr)} & \text{otherwise} \end{cases}`}
+  />
+
+  <M block t={String.raw`\sig{out}{o_L[n]} = \at{output-left}{C\bigl(V\,y_L[n]\bigr)}`} />
+
+  <M t="C" /> is the clip and <M t="z" /> whatever goes into it. Up to half of full scale it does nothing at all: what goes in comes out, to the last digit. Above that it bends smoothly, with the sign of <M t="z" />, and <Src path="cpp/kit/math.h" at="// up to ±0.5, then a smooth knee that lands on ±1. Unlike a bare tanh it">lands on full scale</Src> however large the sum. <M t="V" /> is Volume as a gain, <Src path="cpp/devices/modal-bells/modal_bells.h" at="volume_.set_time(0.02f, sr);">smoothed over 20 ms</Src> so that moving it makes no step, and <M t={String.raw`o_L`} /> is the left side of the output. The right side is the same with <M t={String.raw`y_R`} />.
+
+  The engine does not work out a textbook tanh. It uses <Src path="cpp/kit/math.h" at="// Rational tanh: within 2.5 % of tanh over [-3, 3], monotonic, clamps at ±1.">a quick stand-in</Src> that reaches 1 and stays there, so what goes into the clip at twice full scale or more comes out at full scale exactly. <Claim id="clip-lands">With the settings of part 7's loud card and Position at its upper end, every sample that goes in at twice full scale or more comes out at 1 exactly, and no sample comes out larger</Claim>.
+
+  At the lesson's starting settings the sum stays under half of full scale, which is why stage 6 could find it equal to the output. Part 7's loud card is a note that does not.
+
+  The sound of stage 6 is the sum before the clip, and it can be larger than the page can play. With Material at Gong and Brightness at 1 it peaks at more than twice full scale. The page's player plays at half, so it clips that sound in what you hear and not in the pictures. The output never passes full scale.
+
+  When every mode of a note has shrunk below <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kSilence = 1.0e-6f;">a millionth of full scale</Src> the note is retired, and when no note is left <Src path="cpp/devices/modal-bells/modal_bells.h" at="// The instrument sleeps when every mode has rung out below -120 dB.">the instrument sleeps</Src>.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/modal-bells/modal_bells.h"
+    from="const float volume = volume_.next();"
+    to="out_right_[done + i] = kit::soft_clip(right[i] * volume);"
+    name="output"
+    at={{ left: 'out_left_[done + i] = kit::soft_clip(left[i] * volume);' }}
+  />
+  <Listing
+    slot="listing"
+    path="cpp/kit/math.h"
+    from="inline float soft_clip(float x) {"
+    to="return x < 0.0f ? -shaped : shaped;"
+    name="clip"
+    at={{ through: 'if (magnitude <= 0.5f) return x;', knee: 'const float shaped = 0.5f + 0.5f * fast_tanh(' }}
+  />
+  <Fragment slot="listen">Hear the output</Fragment>
+</StageBlock>
+
+<StageBlock tap="twin" n={10} title="A second instrument: two bars, a Beat apart">
+  The engine has a second instrument made of the same resonator, Twin Bars, in <Src path="cpp/devices/twin-bars/twin_bars.h" />. The lab plays the same key on it beside Bells. It keeps <Src path="cpp/devices/twin-bars/twin_bars.h" at="static constexpr int kModes = 4;">up to four modes</Src> to a bar and strikes two bars for every key, and it tunes every mode of the second bar a fixed number of hertz above the same mode of the first. That number is Beat.
+
+  <Controls ids="beat note" />
+
+  <Trace taps="twinLevel" min={-90} max={0} unit="dB">
+    The level of the two bars together. Notice it dip at even steps on its way down. Try Beat,
+    and notice the dips move apart or together. Try Pitch, and notice they stay where they are.
+  </Trace>
+
+  <M
+    block
+    t={String.raw`\at{twins-hz}{f_k^{\pm} = f_0\,\rho_k \pm \tfrac{1}{2} B}`}
+  />
+
+  <M
+    block
+    t={String.raw`\sin\bigl(2\pi (f - \tfrac{1}{2}B)\,t\bigr) + \sin\bigl(2\pi (f + \tfrac{1}{2}B)\,t\bigr) = 2\cos(\pi B\,t)\,\sin(2\pi f\,t)`}
+  />
+
+  <M t="B" /> is Beat, and <M t={String.raw`f_k^{-}`} /> and <M t={String.raw`f_k^{+}`} /> are mode <M t="k" /> of the first bar and of the second: half of Beat under where the mode should stand, and half over. The second line is why that is heard as a beat. Its left side is the two tones, with <M t="f" /> for the frequency between them and <M t="t" /> for time in seconds. Its right side is the same sound written another way: one tone at <M t="f" />, times a slow wave that takes it through nothing <M t="B" /> times a second.
+
+  Bells widens its pairs as the modes rise, so its upper partials beat faster than its lowest. Twin Bars adds the same number of hertz to every mode, so the whole note swells and sinks at one rate, on a low key as on a high one. Measured on the lab's note, <Claim id="twin-apart">the two bars' lowest modes ring at 218.0 Hz and 222.0 Hz, and their level dips 0.25 s apart at the starting Beat of 4 Hz. With Beat at 1 Hz it dips 1.0 s apart</Claim>.
+
+  Each side of this instrument <Src path="cpp/devices/twin-bars/twin_bars.h" at="//   every device of the family: kit::to_ears (cpp/kit/beat.h) splits the two">hears mostly one bar</Src>. On speakers the two meet in the air and beat there. On headphones they meet only in the listener, which is the subject of <Lesson id="binaural-beats" />.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/twin-bars/twin_bars.h"
+    from="const double half = 0.5 * static_cast<double>(beat_.value);"
+    to="const double omega = 2.0 * 3.14159265358979323846 * hz / sr;"
+    name="twins"
+    at={{ hz: 'const double hz = static_cast<double>(voice.frequency)' }}
+  />
+  <Fragment slot="listen">Hear the two bars</Fragment>
+</StageBlock>
+
+### All the stages at once
+
+<Controls ids="sustain hold" />
+
+<Lanes
+  taps="pulse mode1 mode3 mode6 level1 level6 sum level out"
+  own="pulse mode1 mode3 mode6"
+  ranges={{ level1: [-120, 0], level6: [-120, 0], level: [-120, 0] }}
+>
+  Every stage that is a signal over time, on one time axis. Notice that the push is over before
+  anything else has begun to fall: all that follows is the bank ringing down, the high modes
+  first. Try Sustain at its upper end, and notice the lanes of Mode 1 and of the note's level
+  hold until the key goes up.
+</Lanes>
+
+</Part>
+
+<Part id="ways" title="Six things players do with these controls.">
+
+Each of these is a habit of playing, not a preset. Press "Try it" and the page moves to settings that show the idea, so you can go back up to the engine and see what the mallet, the decays and the two sides are doing.
+
+<Ways>
+  <Way title="Take a soft mallet" tag="Hardness at nothing" set="soft">
+    Stage 2 measured this card: a long push leaves the low modes nearly whole and takes the high ones away. What is left is mostly the lowest mode, and the upper modes, which are what tells one material from another, stand far under it. Players use it for a line that should sit under other things. After the card, bring Hardness up a little at a time and listen for the upper modes coming back one by one.
+  </Way>
+  <Way title="Tune the bar" tag="a table with its modes at whole multiples" set="tuned">
+    A maker of real bars cuts an arch under each one, which lowers the first mode more than the others, and goes on cutting until the upper modes land on notes. The device has a table for a bar tuned so. <Claim id="way-tuned">Its second partial stands at 880.0 Hz and its third at 2,200.0 Hz</Claim>, four times and ten times the note: two octaves, and a third above three. The bar still dies as a bar does, high modes first, but its second and third partials are now notes that a chord on the same key may hold. After the card, go back to the plain bar and play the same key.
+  </Way>
+  <Way title="Rub the rim" tag="Sustain at its upper end, on the bowl" set="rubbed">
+    Stage 7's hand, on the material it suits best. The mallet is nearly gone, so the note has no knock at its front, and the lowest pair of modes climbs to its level and stays. <Claim id="way-rubbed">Mode 1 stands at −13.8 dB at 2.9 s after the strike, and the level of the note dips 1.0 s apart from 0.5 s on</Claim>, because the two halves of the pair are held at once and go on beating for as long as the key is down. Listen for a drone with a slow pulse in it. After the card, let the key go earlier with Key held for and listen to the bowl ring on by itself.
+  </Way>
+  <Way title="Let a pair turn" tag="a little Detune, Spread at its upper end" set="turning">
+    Stage 6 measured this card, where the beat of each pair turns between the sides. Nothing is being panned. On a long note the movement is slow and wide, and it is different for every pair, since the upper pairs are further apart and turn faster. Only an ear can say how much is right. After the card, bring Spread down and notice the turning become a swelling in the middle.
+  </Way>
+  <Way title="Stretch the ratios" tag="Stretch above 1" set="stretched">
+    Stretch raises every ratio to a power, so it leaves the note where it is and moves all the other modes, the high ones furthest. <Claim id="way-stretched">With Stretch at 1.3 the bar's second partial stands at 822 Hz and its third at 1,972 Hz</Claim>, each well above where part 1 found it. Listen for whether it is still a bar. Below 1 it goes the other way and the modes crowd down towards the note. After the card, move Stretch a little at a time and listen to the partials move apart.
+  </Way>
+  <Way title="Stop it with the key" tag="Release at its upper end, a short key" set="stopped">
+    Stage 8's hand on the bar. A note that would ring for seconds is cut to the length of the key, so in fast playing each note is out of the way before the next. Stage 8 has the rate at which this card's note falls. It also changes what Decay is for, since a long Decay with a quick Release gives a note that loses little of its level while the key is down and stops when it is let go. After the card, try Release half way and listen to the low modes being shortened while the high ones die as they did.
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Seven ways it goes wrong, three of them to hear.">
+
+<Faults>
+  <Fault title="Struck where the note stands still" set="node">
+    Every mode has places on the bar that do not move, and a mode struck there is not struck. For most modes that is useful, and it is what Position is for. For Mode 1 it takes the note itself away. Its still point is a third of the way along, and <Claim id="fault-node">with Position at 0.333 Mode 1 starts 59 dB lower than at the end of the bar</Claim>. That figure is how near 0.333 comes to a third: a Position nearer still takes the mode lower. Listen for a sound that has a clang and no pitch under it: the upper modes are all there, and the one the key was named for is not. Move Position a little either way and the note comes back.
+  </Fault>
+  <Fault title="A wobble" set="wobble">
+    A little Detune is the slow life of a bowl. A lot of it is two notes heard to be out of tune. <Claim id="fault-wobble">With Detune at 6 Hz the level of the note dips 0.17 s apart</Claim>, and the upper pairs beat faster still. On one note that is a flutter. On a chord every note flutters at once, at rates that have nothing to do with the music. Bring Detune down until the movement is felt more than heard.
+  </Fault>
+  <Fault title="More than the output can hold" set="hot">
+    Stage 9's clip does nothing to an ordinary note, and that makes it easy to forget. A hard mallet with Brightness up puts a tall spike at the front of the note, and Volume at its upper end doubles it. <Claim id="clipped">With Volume at +6 dB what goes into the clip peaks 6.0 dB over full scale, and the output's largest sample is 0.0 dB</Claim>: the clip has bent the front of the note to fit. Listen for a knock that is duller than the mallet should make it. Once the ring has fallen under the knee it passes untouched, so only the front of the note is changed. Bring Volume down, and make the part louder later in the chain.
+  </Fault>
+  <Fault title="A mode above the band">
+    A mode's frequency is the note times a ratio, and the bar's highest ratio is <Src path="cpp/devices/modal-bells/modal_bells.h" at="{24.81f, 0.08f, 7, 0, 0.0f, 0.0f}}},">nearly 25</Src>. On a high key that product passes the top of what the sample rate can hold, where a resonator would ring at some other, wrong frequency. The device therefore <Src path="cpp/devices/modal-bells/modal_bells.h" at="if (hz >= kTopOfBand * sr || hz < 5.0f) {">leaves out any mode</Src> above <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr float kTopOfBand = 0.45f;">0.45 of the sample rate</Src>. Nothing wrong is heard, but a high note has fewer modes than a low one.
+  </Fault>
+  <Fault title="The same key, struck again">
+    A bar that is struck while it still rings does not start again from rest. The new push adds to what is there, and whether a mode grows or shrinks depends on where it was in its swing when the mallet arrived. The device does the same: <Src path="cpp/devices/modal-bells/modal_bells.h" at="// The same key while its note still rings: strike those modes again.">it strikes the modes that are already ringing</Src>, and clears nothing. Two quick strikes of one key are therefore never quite alike, which is right for a bar and surprising to anyone who expects the same sound twice.
+  </Fault>
+  <Fault title="A thirteenth note">
+    Long notes pile up. The device keeps <Src path="cpp/devices/modal-bells/modal_bells.h" at="static constexpr int kMaxVoices = 12;">twelve notes</Src> going at once, and a bell with a long Decay can still be ringing many bars after its key. When a thirteenth is asked for, one of the twelve is taken. It is faded out over <Src path="cpp/devices/modal-bells/modal_bells.h" at="steal_step_ = 1.0f / (0.002f * sr);">2 ms</Src> first, so there is no click, but a note that was ringing is gone. If long tails are being cut off, shorten Decay or raise Release.
+  </Fault>
+  <Fault title="Numbers too small to hold">
+    A mode that shrinks for long enough reaches numbers so small that a processor handles them very slowly, as the tail of a string's loop does (<Lesson id="plucked-string" />). When a mode's size falls <Src path="cpp/devices/modal-bells/modal_bells.h" at="} else if (power < 1.0e-24f) {">under a floor</Src> the device sets both of its parts to nothing. Nothing is heard of it. Without it, a quiet tail would cost more to compute than a loud note.
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="A bell's partials are harmonics.">
+    Harmonics are whole multiples of the note, and they belong to things that are stretched or blown: strings and pipes. A bar, a bell, a bowl and a plate are stiff, and their modes stand at ratios that their shape decides. Part 1 measured the bar's beside the whole multiples, and has a button for each to hear them by.
+  </Myth>
+  <Myth says="It plays back a recording of a bar.">
+    Nothing is recorded. Each mode is two numbers, turned and shrunk on every sample, and the note is their sum. That is why the mallet, the place of the strike and the length of the ring can change from one note to the next, and why step 7 of the build could arrive at the device's own signal from a few dozen lines.
+  </Myth>
+  <Myth says="Decay is a fade on the output.">
+    A fade turns every partial down together. Decay sets how long the lowest mode rings, and Damping sets how much sooner each higher mode dies, so the sound changes as it falls: bright at the strike, and one low tone at the end. The picture of part 2 shows the six lines parting. A fade would keep them level with each other.
+  </Myth>
+  <Myth says="A harder mallet only makes the note louder.">
+    Hardness sets how long the push lasts, and stage 2 showed what follows. A short push reaches modes that a long one leaves alone. A harder mallet makes a brighter note, and a louder one mostly because there is more in it. Loudness has its own path, through how hard the key is struck.
+  </Myth>
+  <Myth says="A real sound needs hundreds of modes.">
+    A real bar has modes without end, but few of them are heard: the high ones die soonest and the mallet never reached most of them. The device's largest table has sixteen entries and its bar has eleven, and Twin Bars makes a whole instrument from four to a bar. What matters is that the few are in the right places and die at the right rates.
+  </Myth>
+  <Myth says="Each mode is an oscillator that the key turns on.">
+    An oscillator makes its wave whether anything feeds it or not, and has to be given a level and told when to stop. A mode is a filter that rings. It is silent until something pushes it, it rings at a size the push decides, and it dies by itself. Strike it again while it rings and the two pushes add or cancel, as the fault in part 7 says. No oscillator does that.
+  </Myth>
+</Myths>
+
+</Part>

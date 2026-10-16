@@ -4,12 +4,12 @@
 import { useLab, waitingText } from '../lab/page.ts'
 import { SAMPLE_RATE } from '../lab/rate.ts'
 import { EDGE, MONO, rgbOf, useCanvas } from './canvas.ts'
-import { label as number, ticks } from './draw.ts'
+import { label as number, levelsKey, ticks } from './draw.ts'
 import type { TapRef } from './roles.ts'
 
 interface Props {
   tap: TapRef
-  /** Decibels drawn as the background and as the brightest colour. */
+  /** Decibels at the two ends of the ramp: the quietest level shown, and the loudest. */
   min?: number
   max?: number
   /** Hertz at the bottom row and the top row of the lab's picture; 0 to half the sample rate when left out. */
@@ -17,6 +17,11 @@ interface Props {
   rowMax?: number
   /** Only rows up to this frequency are drawn. */
   top?: number
+  /**
+   * What runs across, in a word or two, for a lab that lays its picture out over something that
+   * is not time (a modulator's rate, a place in a sweep). The key says it; "seconds" when left out.
+   */
+  xTitle?: string
   height?: number
   label: string
 }
@@ -28,6 +33,7 @@ export default function Spectrogram({
   rowMin = 0,
   rowMax = SAMPLE_RATE / 2,
   top,
+  xTitle = 'seconds',
   height = 220,
   label,
 }: Props) {
@@ -109,10 +115,10 @@ export default function Spectrogram({
         <canvas ref={canvas} role="img" aria-label={label} />
         {waiting && <p className="fig-waiting">{waiting}</p>}
       </div>
-      <ul className="fig-legend">
+      <ul className="fig-legend key">
         <li>
-          {tap.name}: seconds across, hertz up, from {number(min)} dB (the page's colour) to{' '}
-          {number(max)} dB
+          <i className="ramp" />
+          {levelsKey(tap.name, xTitle, min, max)}
         </li>
       </ul>
     </div>

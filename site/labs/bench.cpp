@@ -8,6 +8,9 @@
 //   drums    a two-bar pattern on the Drum Kit (cpp/devices/drum-kit)
 //   guitar   a picked line on the Guitar (cpp/devices/guitar)
 //   chords   the same guitar, strummed and left to ring
+//   bass     the roots of the same chords on the Ladder Bass (cpp/devices/ladder-bass)
+//   pad      the same chords held on Dusk (cpp/devices/dusk), a bar each
+//   mix      the drums, the bass and the guitar chords together
 //   sine     440 Hz, 12 dB under full scale (kit::SineOsc)
 //   saw      110 Hz, band-limited (kit::BlepOsc)
 //   noise    white noise (kit::Noise)
@@ -19,7 +22,9 @@
 #include "lab.h"
 
 #include "../../cpp/devices/drum-kit/drum_kit.h"
+#include "../../cpp/devices/dusk/dusk.h"
 #include "../../cpp/devices/guitar/guitar.h"
+#include "../../cpp/devices/ladder-bass/ladder_bass.h"
 
 using namespace livemix;
 
@@ -27,10 +32,15 @@ namespace {
 
 DrumKit drums_device;
 Guitar guitar_device;
+LadderBass bass_device;
+Dusk pad_device;
 
 lab::Tap drums{"drums", "Drums", lab::kAudio, lab::kSource, 2};
 lab::Tap guitar_tap{"guitar", "Guitar", lab::kAudio, lab::kSource, 2};
 lab::Tap chords{"chords", "Guitar chords", lab::kAudio, lab::kSource, 2};
+lab::Tap bass{"bass", "Bass", lab::kAudio, lab::kSource, 2};
+lab::Tap pad{"pad", "Pad", lab::kAudio, lab::kSource, 2};
+lab::Tap mix{"mix", "Mix", lab::kAudio, lab::kSource, 2};
 lab::Tap sine{"sine", "Sine, 440 Hz", lab::kAudio, lab::kSource, 2};
 lab::Tap saw{"saw", "Saw, 110 Hz", lab::kAudio, lab::kSource, 2};
 lab::Tap noise{"noise", "White noise", lab::kAudio, lab::kSource, 2};
@@ -76,6 +86,35 @@ constexpr float kChord[4][4] = {
     {130.81f, 164.81f, 196.00f, 261.63f},
     {98.00f, 146.83f, 196.00f, 246.94f},
 };
+
+// The bass plays the root of each bar's chord, under the guitar: one note at a
+// time, with the kick on the first and third beats and off it between them.
+constexpr float kRoot[4] = {55.00f, 43.65f, 65.41f, 49.00f};  // A, F, C, G
+
+struct BassNote {
+  int step;     // sixteenths from the start of the bar
+  float ratio;  // against the bar's root: 2 is its octave, 1.4983 its fifth
+  int steps;    // how long the key is held
+  float gain;
+};
+
+constexpr BassNote kBassLine[] = {
+    {0, 1.0f, 3, 0.9f},  {3, 1.0f, 2, 0.6f},     {6, 2.0f, 1, 0.6f},  {7, 1.0f, 1, 0.7f},
+    {8, 1.0f, 3, 0.85f}, {11, 1.4983f, 2, 0.6f}, {14, 2.0f, 2, 0.65f},
+};
+
+// The pad holds each bar's chord, the root under three notes of the octave above the guitar's.
+constexpr float kPadChord[4][4] = {
+    {110.00f, 220.00f, 261.63f, 329.63f},
+    {87.31f, 220.00f, 261.63f, 349.23f},
+    {130.81f, 196.00f, 261.63f, 329.63f},
+    {98.00f, 196.00f, 246.94f, 293.66f},
+};
+
+// What each loop is worth in the mix.
+constexpr float kMixDrums = 0.75f;
+constexpr float kMixBass = 0.6f;
+constexpr float kMixChords = 0.75f;
 
 void render_drums() {
   using namespace drum_kit;
@@ -125,6 +164,71 @@ void render_guitar(bool strummed) {
   }
 }
 
+void render_bass() {
+  using namespace ladder_bass;
+  bass_device.init(lab::kSampleRate);
+  bass_device.set_param(kGlide, 0.0f);  // every note starts on its pitch
+  bass_device.set_param(kVolume, 2.0f);
+  const int total = lab::total();
+  for (int i = 0; i < total; i += kBlock) {
+    const int at = i % lab::frames();
+    if (at % kStep == 0) {
+      const int step = (at / kStep) % 16;
+      const int bar = (at / kBar) % 4;
+      // Each key has an id of its own: its place in the line. Keys go up before the next goes down.
+      int id = 0;
+      for (const BassNote& note : kBassLine) {
+        if ((note.step + note.steps) % 16 == step) bass_device.note_off(id);
+        ++id;
+      }
+      id = 0;
+      for (const BassNote& note : kBassLine) {
+        if (note.step == step) bass_device.note_on(id, kRoot[bar] * note.ratio, note.gain);
+        ++id;
+      }
+    }
+    bass_device.process(kBlock);
+    for (int j = 0; j < kBlock; ++j) bass.put(i + j, bass_device.out_left()[j], bass_device.out_right()[j]);
+  }
+}
+
+void render_pad() {
+  using namespace dusk;
+  pad_device.init(lab::kSampleRate);
+  pad_device.set_param(kAttack, 0.4f);
+  pad_device.set_param(kRelease, 1.2f);
+  pad_device.set_param(kVolume, -5.0f);
+  const int total = lab::total();
+  int held = -1;  // the bar whose chord is down
+  for (int i = 0; i < total; i += kBlock) {
+    const int at = i % lab::frames();
+    if (at % kBar == 0) {
+      const int bar = (at / kBar) % 4;
+      // A key's id is its bar and its place in the chord, so no id is down twice.
+      if (held >= 0) {
+        for (int n = 0; n < 4; ++n) pad_device.note_off(4 * held + n);
+      }
+      for (int n = 0; n < 4; ++n) pad_device.note_on(4 * bar + n, kPadChord[bar][n], 0.7f);
+      held = bar;
+    }
+    pad_device.process(kBlock);
+    for (int j = 0; j < kBlock; ++j) pad.put(i + j, pad_device.out_left()[j], pad_device.out_right()[j]);
+  }
+}
+
+// The mix is the three loops as they were just rendered, added up: the same
+// drums, bass and chords a lesson can hear one at a time.
+void render_mix(int frames) {
+  if (!drums.data || !bass.data || !chords.data || !mix.open(frames)) return;
+  for (int c = 0; c < 2; ++c) {
+    const float* d = drums.channel(c);
+    const float* b = bass.channel(c);
+    const float* g = chords.channel(c);
+    float* out = mix.channel(c);
+    for (int i = 0; i < frames; ++i) out[i] = kMixDrums * d[i] + kMixBass * b[i] + kMixChords * g[i];
+  }
+}
+
 void render_signals(int frames) {
   if (!sine.open(frames) || !saw.open(frames) || !noise.open(frames) || !clicks.open(frames) ||
       !sweep.open(frames)) {
@@ -143,12 +247,13 @@ void render_signals(int frames) {
   const double duration = static_cast<double>(frames) / lab::kSampleRate;
   const int edge = 480;  // 10 ms in and out, so the wrap from 20 kHz back to 20 Hz is silent
   for (int i = 0; i < frames; ++i) {
-    // Both run a whole number of cycles a second. Seated again each second, the
-    // small errors of adding a step 48,000 times do not pile up into a step at the wrap.
-    if (i % 48000 == 0) {
-      sine_osc.reset();
-      saw_osc.reset();
-    }
+    // Both run a whole number of cycles a second. The saw is seated again each
+    // second, on its own drop, so the small errors of adding a step 48,000 times
+    // do not pile up into a step at the wrap. The sine has no drop to hide a
+    // seating under: it is put on its exact phase at every sample, worked out
+    // in whole numbers, and the kit's oscillator reads its table there.
+    if (i % 48000 == 0) saw_osc.reset();
+    sine_osc.reset(static_cast<float>((static_cast<long long>(i) * 440) % 48000) / 48000.0f);
     sine.set(i, level * sine_osc.next(sine_step));
     saw.set(i, level * saw_osc.saw(saw_step));
     const float n = 0.25f * noise_source.white();
@@ -171,5 +276,8 @@ void lab_render(int frames) {
   render_drums();
   render_guitar(false);
   render_guitar(true);
+  render_bass();
+  render_pad();
+  render_mix(frames);
   render_signals(frames);
 }

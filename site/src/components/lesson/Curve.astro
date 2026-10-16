@@ -1,8 +1,13 @@
 ---
 // One value against another: <Curve taps="curve" xTitle="level in, dB" yTitle="level out, dB" diagonal follow="level">Caption.</Curve>
+// `lines` and `uprights` draw a dashed line across the picture or up it, named beside it: at a
+// control's value by the control's id, at a fixed number with a name ("0.5:Half", an underscore
+// for each space in the name), or at the first point of a tap by its id:
+// <Curve taps="curve" lines="threshold -6:Six_under" uprights="24000:Half_the_rate">Caption.</Curve>
 import Curve from '../../figures/Curve.tsx'
+import { markRefs } from '../../figures/draw.ts'
 import { tapRefs } from '../../figures/roles.ts'
-import { controlPairs, pageLab } from '../../lib/lab-info.ts'
+import { pageLab } from '../../lib/lab-info.ts'
 
 interface Props {
   taps: string
@@ -15,8 +20,12 @@ interface Props {
   xMin?: number
   xMax?: number
   xLog?: boolean
-  stems?: boolean
-  /** Controls drawn as a line across the picture, or up it, by id. */
+  /** Curves drawn as dots on stems: every one, or those of the taps named by id, "frame other". */
+  stems?: boolean | string
+  /**
+   * Lines across the picture, or up it: a control by id, a number with a name ("0.5:Half"), or
+   * a tap by id, whose first point is where the line stands.
+   */
   lines?: string
   uprights?: string
   /** A control tap whose value, as the loop plays, is where a dot rides the first curve. */
@@ -36,8 +45,8 @@ const said = label ?? refs.map((tap) => tap.name).join(' and ')
   <Curve
     client:visible
     taps={refs}
-    lines={controlPairs(lines, lab, lesson)}
-    uprights={controlPairs(uprights, lab, lesson)}
+    lines={markRefs(lines, lab.controls, lab.taps, lesson)}
+    uprights={markRefs(uprights, lab.controls, lab.taps, lesson)}
     follow={follow}
     label={said}
     {...rest}

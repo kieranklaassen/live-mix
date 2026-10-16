@@ -1,0 +1,107 @@
+{
+  "tile": {
+    "tap": "out",
+    "picture": { "taps": ["rising1x"], "view": "spectrogram" }
+  },
+  "sets": {
+    "played": {
+      "label": "The guitar line as played",
+      "source": "guitar",
+      "tap": "in"
+    },
+    "bent": {
+      "label": "The guitar line through the curve",
+      "values": { "curve": 0, "driveDb": 18, "outputDb": -9 },
+      "source": "guitar"
+    },
+    "sweep1x": {
+      "label": "A rising sine at 1x",
+      "values": { "driveDb": 18, "oversample": 0 },
+      "source": "sweep"
+    },
+    "sweep4x": {
+      "label": "A rising sine at 4x",
+      "values": { "driveDb": 18, "oversample": 2 },
+      "source": "sweep"
+    },
+    "sweepFolded": {
+      "label": "Only what folded",
+      "values": { "driveDb": 18, "oversample": 2 },
+      "source": "sweep",
+      "tap": "foldedSound"
+    },
+    "lead": {
+      "label": "A guitar line",
+      "values": { "curve": 2, "driveDb": 15, "toneDb": 2, "outputDb": -9, "dcBlock": 1 },
+      "source": "guitar"
+    },
+    "bass": {
+      "label": "Bass",
+      "values": { "curve": 2, "driveDb": 18, "bias": -0.3, "outputDb": -9, "dcBlock": 1 },
+      "source": "bass"
+    },
+    "drums": {
+      "label": "Drums",
+      "values": { "curve": 0, "driveDb": 12, "outputDb": -6 },
+      "source": "drums"
+    },
+    "bus": {
+      "label": "The whole mix",
+      "values": { "curve": 3, "driveDb": 9, "outputDb": -4 },
+      "source": "mix"
+    },
+    "folded": {
+      "label": "A plain tone, folded",
+      "values": { "curve": 4, "driveDb": 18, "outputDb": -9 },
+      "source": "sine"
+    },
+    "matched": {
+      "label": "Matched in level",
+      "values": { "driveDb": 18, "outputDb": -15.6 },
+      "source": "guitar"
+    },
+    "under": {
+      "label": "Blended under the sound",
+      "values": { "curve": 1, "driveDb": 30, "outputDb": -9, "mix": 0.3 },
+      "source": "drums"
+    },
+    "lean": {
+      "label": "Leaned to one side",
+      "values": { "driveDb": 18, "bias": 0.3, "dcBlock": 1 },
+      "source": "sine"
+    },
+    "tilted": {
+      "label": "Darkened after the curve",
+      "values": { "curve": 1, "driveDb": 24, "toneDb": -6, "outputDb": -15 },
+      "source": "guitar"
+    },
+    "clean": {
+      "label": "A clean clip",
+      "values": { "curve": 1, "driveDb": 18, "oversample": 2, "adaa": 1 },
+      "source": "sweep"
+    },
+    "alias": {
+      "label": "Folding",
+      "values": { "curve": 1, "driveDb": 18, "oversample": 0 },
+      "source": "sweep"
+    },
+    "hardest": {
+      "label": "More drive than the cure reaches",
+      "values": { "driveDb": 36, "outputDb": -9, "oversample": 2 },
+      "source": "sweep"
+    },
+    "chord": {
+      "label": "A chord, driven hard",
+      "values": { "curve": 1, "driveDb": 30, "outputDb": -9 },
+      "source": "chords"
+    },
+    "over": {
+      "label": "Over the ceiling",
+      "values": { "curve": 1, "driveDb": 18, "oversample": 2 },
+      "source": "saw"
+    }
+  },
+  "defaults": {
+    "values": { "driveDb": 6, "outputDb": 0, "dcBlock": 1 }
+  }
+}

@@ -1,0 +1,53 @@
+---
+// Lines of a file of the repository, read when the site is built, coloured, numbered as the
+// file numbers them and linked to the source at the commit built:
+//
+//   <Listing path="cpp/kit/filters.h" from="struct OnePole {" to="return x - lowpass(x); } };"
+//     mark="state = flush_denormal" skip={['void set_cutoff', 'void reset()']} name="pole"
+//     at={{ coeff: 'coeff = 1.0f - std::exp' }} />
+//
+// `from` and `to` are text on the first and the last line; `mark` is text on a line to mark as
+// new, or a list of them; `skip` is a range to leave out, shown as one line that says how many;
+// `at` gives lines a key each, by text on the line. The build fails on a text the file does not
+// hold once. A keyed line has the id <name>-<key>, which \at{pole-coeff}{…} in an equation links
+// to; the name is the file's, without its ending, when not given.
+import { Code } from 'astro:components'
+import { codeTheme } from '../../lib/code-theme.ts'
+import { listingOf } from '../../lib/listing.ts'
+
+interface Props {
+  path: string
+  from: string
+  to: string
+  mark?: string | string[]
+  skip?: [from: string, to: string]
+  at?: Record<string, string>
+  name?: string
+}
+const { path: file, from, to, mark, skip, at, name } = Astro.props
+const listing = listingOf(
+  { file, from, to, mark, skip, at, name },
+  Astro.locals,
+  Astro.locals.lesson,
+)
+const { first, last } = listing.lines
+---
+
+{/* Kept out of the search: thirty-two lessons of source would drown the lessons' own words. */}
+<figure class="listing" data-pagefind-ignore>
+  <figcaption>
+    <a class="src" href={listing.href}>
+      <code>{file}</code>
+    </a>
+    <span class="label">
+      lines {first} to {last}
+    </span>
+  </figcaption>
+  <Code
+    code={listing.source}
+    lang={listing.lang}
+    theme={codeTheme}
+    wrap={null}
+    transformers={[listing.transformer]}
+  />
+</figure>

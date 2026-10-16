@@ -1,0 +1,99 @@
+---
+// Left against right as a cloud of dots, one dot a sample: left across and right up.
+// <StereoCloud taps="going out" live>Caption.</StereoCloud>
+// <StereoCloud slot="picture" taps="going out" set="wide" caption="What to notice." />
+// `taps` are sound taps of two channels, drawn in that order. `set`, `values` and `source` say
+// what is rendered, as a still's do: a set of the lesson's settings file, control values laid
+// over it, and one of the lesson's sources. The picture is drawn when the site is built, so it is
+// in the page with scripts off. With `live` it then follows the lab as the reader moves its
+// controls, and shows where the loop is while it plays; without it the picture stays as built,
+// which is what a card's picture does. In a step of the build part, `step` is that step's number
+// from 0, so that the picture as built is the build at that step:
+// <StereoCloud slot="picture" taps="built" live step={3}>Caption.</StereoCloud>
+import { getEntry } from 'astro:content'
+import StereoCloud, { cloudDots, reachOf, type BuiltCloud } from '../../figures/StereoCloud.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+import { checkSettings, lessonSettings, setNamed } from '../../lib/settings.ts'
+import { renderStill } from '../../lib/still.ts'
+
+interface Props {
+  /** The taps drawn, "going out" or "going:in out", each a sound of two channels. */
+  taps: string
+  /** A set of the lesson's settings file, by name. Left out, the lab's starting values. */
+  set?: string
+  /** Control values by id, laid over the set's. */
+  values?: Record<string, number>
+  /** One of the lesson's sources. Left out, the set's, and then the lesson's first. */
+  source?: string
+  /** Follow the running lab. A live picture is drawn at the lab's starting values. */
+  live?: boolean
+  /** The step of the build the picture is built at, from 0, for a picture of a built tap. */
+  step?: number
+  /** What to notice, where the figure has no children (a card's picture). */
+  caption?: string
+  label?: string
+}
+const { taps, set, values: over, source: asked, live = false, step, caption, label } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const refs = tapRefs(taps, lab.taps, lesson)
+for (const tap of refs) {
+  if (tap.kind !== 'audio' || tap.channels !== 2) {
+    throw new Error(`${lesson}: <StereoCloud> draws sound of two channels, and "${tap.id}" is not.`)
+  }
+}
+if (live && (set !== undefined || over !== undefined || asked !== undefined)) {
+  throw new Error(
+    `${lesson}: a live <StereoCloud> follows the page, and takes no set, values or source.`,
+  )
+}
+const entry = await getEntry('lessons', lesson)
+if (!entry) throw new Error(`${lesson}: <StereoCloud> was used on a page that is not a lesson's.`)
+const named = set === undefined ? undefined : setNamed(await lessonSettings(entry), set, lesson)
+const values = { ...named?.values, ...over }
+const source = asked ?? named?.source ?? entry.data.sources[0]!
+// Held to the lab as a set of the lesson's file is, as a still is.
+checkSettings(
+  { sets: { 'a cloud': { label: 'a cloud', values, source } } },
+  lab,
+  entry.data.sources,
+  lesson,
+)
+const steps = lab.controls.find((control) => control.id === 'build')?.choices.length ?? 0
+if (step !== undefined && !(Number.isInteger(step) && step >= 0 && step < steps)) {
+  throw new Error(`${lesson}: <StereoCloud step={${step}}> is not a step of the lab's build.`)
+}
+const { result } = await renderStill({
+  lab: entry.data.lab,
+  source,
+  seconds: entry.data.seconds,
+  values: step === undefined ? values : { ...values, build: step },
+})
+const dots: BuiltCloud['dots'] = {}
+for (const tap of refs) {
+  const data = result.taps[tap.id]?.channels_data
+  dots[tap.id] = data?.[0] && data[1] ? cloudDots(data[0], data[1]) : []
+}
+const reach = reachOf(Object.values(dots))
+const built: BuiltCloud = {
+  reach: Number(reach.toPrecision(4)),
+  dots: Object.fromEntries(
+    Object.entries(dots).map(([id, one]) => [id, one.map((value) => Number(value.toFixed(4)))]),
+  ),
+}
+const said =
+  label ??
+  `${refs.map((tap) => tap.name).join(' and ')}: the right channel against the left, a dot a sample`
+---
+
+<figure class="fig">
+  {live ? (
+    <StereoCloud client:visible taps={refs} built={built} live label={said} />
+  ) : (
+    <StereoCloud taps={refs} built={built} label={said} />
+  )}
+  <figcaption>
+    {caption}
+    <slot />
+  </figcaption>
+</figure>

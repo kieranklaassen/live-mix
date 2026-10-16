@@ -28,8 +28,19 @@ permissions:
 
 jobs:
   build:
-    name: Labs, tests, build, links, browser tests
+    name: Labs, tests, build, links, browser tests (half ${{ matrix.shard }} of 2)
     runs-on: ubuntu-latest
+    # A run that hangs is ended here, and not after the six hours a job is given.
+    timeout-minutes: 45
+    # The browser tests are the long part, so they run in two halves on two machines
+    # (SITE_SHARD, site/scripts/site-env.mjs). Each machine does everything before them too:
+    # its half runs on the site as built there.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    env:
+      SITE_SHARD: ${{ matrix.shard }}/2
     outputs:
       publish: ${{ steps.pages.outputs.publish }}
     steps:
@@ -103,12 +114,13 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: site-test-output
+          name: site-test-output-${{ matrix.shard }}
           path: site/test-results
           if-no-files-found: ignore
 
+      # Both machines build the same site; one of them hands it on.
       - uses: actions/upload-pages-artifact@v5
-        if: steps.pages.outputs.publish == 'true'
+        if: steps.pages.outputs.publish == 'true' && matrix.shard == 1
         with:
           path: site/dist
 

@@ -1,0 +1,57 @@
+---
+// One step of a build part (Build.astro): what the piece is for and the lines it adds, then the
+// picture of the signal so far and the controls that exist so far.
+//
+//   <Step title="Draw a line, and lean on what crosses it" controls="threshold ratio">
+//     What the piece is for.
+//     <Listing path="…" from="…" to="…" mark="…" name="curve" />
+//     <Lanes slot="picture" taps="in builtLevel builtGain built" />
+//   </Step>
+//
+// The text and the listing, with its new lines marked, are the step's own words. `picture` is
+// the figure of the signal so far: lanes, or any other figure, or several. `controls` lists the
+// lab's controls that exist by this step, by id; a step with none says there is nothing to set
+// yet. The text up to the first listing stands beside the picture; the listing, and what the
+// step writes after it, runs the step's whole width, since a line of source is wider than half.
+import Controls from '../../figures/Control.tsx'
+import { buildControl } from '../../figures/build-steps.ts'
+import { countOnPage, sinceStartOnPage } from '../../figures/once.ts'
+import { controlsNamed, pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  title: string
+  controls?: string
+}
+const { title, controls = '' } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const sofar = controlsNamed(controls, lab, lesson)
+// Its number among the steps of its build part, and how many the lab's build path has.
+countOnPage(Astro.locals, 'step')
+const n = sinceStartOnPage(Astro.locals, 'step')
+const of = buildControl(lab)?.choices.length
+const count = of === undefined ? `Step ${n}` : `Step ${n} of ${of}`
+const words = await Astro.slots.render('default')
+const cut = words.indexOf('<figure class="listing"')
+const beside = cut < 0 ? words : words.slice(0, cut)
+const below = cut < 0 ? '' : words.slice(cut)
+---
+
+<article class="build-step" data-step>
+  <div class="build-text">
+    <p class="build-count">{count}</p>
+    <h3 data-step-title tabindex="-1">
+      {title}
+    </h3>
+    <Fragment set:html={beside} />
+  </div>
+  <div class="build-side">
+    <slot name="picture" />
+    {sofar.length > 0 ? (
+      <Controls client:visible controls={sofar} />
+    ) : (
+      <p class="build-nothing">No controls yet: there is nothing to set.</p>
+    )}
+  </div>
+  {below && <div class="build-source" set:html={below} />}
+  <div class="build-nav" data-step-nav />
+</article>

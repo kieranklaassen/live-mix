@@ -1,23 +1,46 @@
 ---
 import 'katex/dist/katex.min.css'
 import '../../styles/lesson.css'
+import fs from 'node:fs'
+import path from 'node:path'
 import { render } from 'astro:content'
 import Base from '../../layouts/Base.astro'
+import DeviceTable from '../../components/lesson/DeviceTable.astro'
+import Opening from '../../components/lesson/Opening.astro'
+import Part from '../../components/lesson/Part.astro'
+import Sounds from '../../components/lesson/Sounds.astro'
 import DeviceBench from '../../figures/DeviceBench.tsx'
+import Mark from '../../figures/Mark.astro'
 import PlayBar from '../../figures/PlayBar.tsx'
-import { catalogueEntry } from '../../lib/devices.ts'
+import { catalogueEntry, paramDefault, paramRange } from '../../lib/devices.ts'
 import { labInfo } from '../../lib/lab-info.ts'
+import { MAP, places } from '../../lib/lesson-map.ts'
 import {
   lessonComponents,
   lessonPath,
   lessonSources,
   lessonsInOrder,
+  placeOf,
+  twoDigits,
   type Lesson,
 } from '../../lib/lessons.ts'
+import {
+  DEVICE_PART,
+  benchFeed,
+  defaultsBeside,
+  labsOwnRows,
+  openingTaps,
+  partNamed,
+  partsIn,
+  ranWords,
+  tableWords,
+} from '../../lib/parts.ts'
 import { href } from '../../lib/paths.ts'
-import { sourceUrl } from '../../lib/site.ts'
+import { lessonSettings } from '../../lib/settings.ts'
+import { REPO_ROOT, sourceUrl } from '../../lib/site.ts'
 
 export async function getStaticPaths() {
+  // Before and after are the neighbours that are written, in the map's order.
   const lessons = await lessonsInOrder()
   return lessons.map((lesson, index) => ({
     params: { slug: lesson.id },
@@ -53,66 +76,98 @@ const deviceOrThrow = (id: string, named: 'its bench names' | 'it names') => {
 const bench = data.bench
   ? { ...data.bench, entry: deviceOrThrow(data.bench.device, 'its bench names') }
   : undefined
+// What the bench's device is fed, in words: the loop the page plays, a phrase of the bench's own
+// for an instrument, or the lab's own sound in a lesson that plays no loop.
+const benchRuns = bench && benchFeed(lab, data.sources, bench.as)
 const devices = data.devices.map((id) => deviceOrThrow(id, 'it names'))
+// A lesson about two devices has one on the bench; the others (`bench.also`) are shown in the
+// last part by their controls and their links, with no plate of their own.
+const also = (bench?.also ?? []).map((id) => deviceOrThrow(id, 'its bench names'))
+
+// The nine parts under a hero, as the map and the lesson's own text give them.
+const place = placeOf(lesson.id)
+const parts = [...partsIn(lesson.body ?? '', lesson.id), partNamed(DEVICE_PART, lesson.id)]
+const settings = await lessonSettings(lesson)
+const opening = data.opening && openingTaps(lab, data.opening, lesson.id)
+// The sentence above the table of the two starts: it says the lab's controls are the device's
+// own only where every row answers to a parameter the library lists for the device.
+const defaults = bench && settings?.defaults
+const tableSays =
+  bench &&
+  defaults &&
+  tableWords(defaultsBeside(lab, defaults), labsOwnRows(lab, defaults, bench.entry.params))
+// Where the bench's device is tested, apart from the lesson, and where the lesson's own numbers
+// are held, in its lab's test and in a browser test of its own where it has one: each is linked
+// only where the file is there.
+const inRepo = (file: string) => (fs.existsSync(path.join(REPO_ROOT, file)) ? file : undefined)
+const deviceTest = bench && inRepo(`cpp/test/${bench.entry.id.replaceAll('-', '_')}_test.cpp`)
+const labTest = inRepo(`site/tests/labs/${data.lab}.test.ts`)
+const browserTest = inRepo(`site/tests/browser/${lesson.id}.spec.ts`)
 ---
 
 <Base title={data.title} description={data.summary}>
-  <article class="lesson" data-lesson={lesson.id}>
-    <header class="lesson-head">
-      <p class="label">
-        <a href={href('lessons/')}>Lessons</a> · {String(data.order).padStart(2, '0')}
-      </p>
-      <h1>{data.title}</h1>
-      <p class="lede">{data.summary}</p>
+  <article class="lesson" data-lesson={lesson.id} data-family={data.family}>
+    <header class="lesson-hero">
+      <div class="lesson-hero-title">
+        <p class="lesson-kicker">
+          {twoDigits(place.number)} · {place.familyName.toLowerCase()} · lesson {place.inFamily} of{' '}
+          {place.ofFamily} in its family
+        </p>
+        <h1>{data.title}</h1>
+        <p class="lesson-standfirst">{data.summary}</p>
+      </div>
+      <nav class="lesson-contents" aria-label="In this lesson">
+        <p class="label">in this lesson</p>
+        <ol>
+          {parts.map((part) => (
+            <li>
+              <a href={`#${part.id}`}>
+                <span class="n">{part.number}</span>
+                {part.name}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </nav>
     </header>
     <noscript>
       <p class="aside">
-        The figures on this page are drawn, and the sound made, by running the engine's code in your
-        browser. With scripts off the text and the captions are all here, and the pictures are not.
+        The live figures on this page are drawn, and the sound made, by running the engine's code in
+        your browser. With scripts off the text, the equations, the listings, the still pictures,
+        every step of the build and the answer to each prediction are all here; the live figures,
+        the controls and the sound are not.
       </p>
     </noscript>
+    <div class="lesson-opening">
+      <Sounds />
+      {opening && data.opening && <Opening {...data.opening} />}
+    </div>
 
-    <div class="prose lesson-body">
+    <div class="lesson-body">
       <Content components={lessonComponents} />
 
-      <h2 id="in-the-engine">In the engine</h2>
-      <p>The code this lesson ran and read, as it stood when this page was built:</p>
-      <ul class="files">
-        {data.files.map((file) => (
-          <li>
-            <a href={sourceUrl(file)}>
-              <code>{file}</code>
-            </a>
-          </li>
-        ))}
-        <li>
-          <a href={sourceUrl(`site/labs/${data.lab}.cpp`)}>
-            <code>site/labs/{data.lab}.cpp</code>
-          </a>
-          , the lab that put the taps on it
-        </li>
-      </ul>
-      {devices.length > 0 && (
-        <p>
-          Devices built on it:
-          {devices.map((device, index) => (
-            <Fragment>
-              {index > 0 ? ', ' : ' '}
-              <a href={href(`devices/${device.id}/`)}>{device.name}</a>
-            </Fragment>
-          ))}
-        </p>
-      )}
-
-      {bench && (
-        <>
-          <h2 id="the-real-device">The real device</h2>
-          <p>
-            Everything above ran in a lab: the engine's code, stopped at each stage so it could be
-            looked at. Here is <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a>{' '}
-            itself, running live through the engine as an app runs it, on the same loop.
-          </p>
-          {bench.note && <p>{bench.note}</p>}
+      <Part
+        id={DEVICE_PART}
+        title={bench?.entry.name ?? devices[0]?.name ?? "The engine's own code"}
+      >
+        {bench && (
+          <>
+            <p>
+              {ranWords(data.written)} Here is the real device,{' '}
+              <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a>, running live
+              through the engine as an app runs it, {benchRuns}.
+            </p>
+            {bench.note && <p>{bench.note}</p>}
+          </>
+        )}
+        {defaults && (
+          <>
+            <p>{tableSays}</p>
+            <DeviceTable defaults={defaults} />
+          </>
+        )}
+        {bench && <Mark />}
+        {bench && (
           <DeviceBench
             client:visible
             device={bench.entry.id}
@@ -121,26 +176,158 @@ const devices = data.devices.map((id) => deviceOrThrow(id, 'it names'))
             as={bench.as}
             impulse={bench.impulse}
           />
-        </>
-      )}
+        )}
+        <div class="lesson-cards device-links">
+          {bench && (
+            <>
+              <a class="lesson-card" href={href(`devices/${bench.entry.id}/`)}>
+                <span class="lesson-card-tag">the device's page</span>
+                <b>Every control, explained</b>
+                <span>
+                  Its ranges, its defaults and what each control is for, with the device to try by
+                  itself.
+                </span>
+              </a>
+              <a class="lesson-card" href={sourceUrl(bench.entry.source)}>
+                <span class="lesson-card-tag">{bench.entry.source}</span>
+                <b>Read the source</b>
+                <span>The device's code, as it stood when this page was built.</span>
+              </a>
+            </>
+          )}
+          {deviceTest && (
+            <a class="lesson-card" href={sourceUrl(deviceTest)}>
+              <span class="lesson-card-tag">{deviceTest}</span>
+              <b>The device's own tests</b>
+              <span>What the engine holds the device to, apart from this lesson.</span>
+            </a>
+          )}
+          {labTest && (
+            <a class="lesson-card" href={sourceUrl(labTest)}>
+              <span class="lesson-card-tag">{labTest}</span>
+              <b>Where the numbers come from</b>
+              <span>
+                {browserTest
+                  ? 'Each quantity this lesson measured on its lab is held by a test of the lab, which fails when the number stops being true.'
+                  : 'Each quantity this lesson measured is held by a test of its lab, which fails when the number stops being true.'}
+              </span>
+            </a>
+          )}
+          {browserTest && (
+            <a class="lesson-card" href={sourceUrl(browserTest)}>
+              <span class="lesson-card-tag">{browserTest}</span>
+              <b>What only a browser can measure</b>
+              <span>
+                The quantities this lesson measured in the browser itself are held by a test that
+                runs there, on this page as it is built.
+              </span>
+            </a>
+          )}
+        </div>
+        {also.map((device) => (
+          <>
+            <h3 id={`also-${device.id}`}>{device.name}</h3>
+            <p>
+              This lesson is about <a href={href(`devices/${device.id}/`)}>{device.name}</a> as
+              well. It has no plate here, and its own page has one to try. Its controls, as the
+              library lists them:
+            </p>
+            <div class="device-table" data-device-also={device.id}>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Control</th>
+                      <th scope="col">Range</th>
+                      <th scope="col">The device starts at</th>
+                      <th scope="col">Unit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {device.params.map((param) => (
+                      <tr data-row={param.key}>
+                        <th scope="row">{param.name}</th>
+                        <td>{paramRange(param)}</td>
+                        <td>{paramDefault(param)}</td>
+                        <td>{param.unit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="lesson-cards device-links">
+              <a class="lesson-card" href={href(`devices/${device.id}/`)}>
+                <span class="lesson-card-tag">the device's page</span>
+                <b>Every control, explained</b>
+                <span>
+                  Its ranges, its defaults and what each control is for, with the device to try by
+                  itself.
+                </span>
+              </a>
+              <a class="lesson-card" href={sourceUrl(device.source)}>
+                <span class="lesson-card-tag">{device.source}</span>
+                <b>Read the source</b>
+                <span>The device's code, as it stood when this page was built.</span>
+              </a>
+            </div>
+          </>
+        ))}
+        <h3 id="in-the-engine">The code this lesson ran and read</h3>
+        <ul class="files">
+          {data.files.map((file) => (
+            <li>
+              <a href={sourceUrl(file)}>
+                <code>{file}</code>
+              </a>
+            </li>
+          ))}
+          <li>
+            <a href={sourceUrl(`site/labs/${data.lab}.cpp`)}>
+              <code>site/labs/{data.lab}.cpp</code>
+            </a>
+            , the lab that put the taps on it
+          </li>
+        </ul>
+        {devices.length > 0 && (
+          <p>
+            Devices built on it:
+            {devices.map((device, index) => (
+              <Fragment>
+                {index > 0 ? ', ' : ' '}
+                <a href={href(`devices/${device.id}/`)}>{device.name}</a>
+              </Fragment>
+            ))}
+          </p>
+        )}
+      </Part>
     </div>
 
-    <nav class="lesson-nav" aria-label="Lessons">
-      {prev ? (
-        <a href={href(lessonPath(prev.id))} rel="prev">
-          <span class="label">Before</span>
-          {prev.data.title}
+    <nav class="lesson-tiles" aria-label="Lessons">
+      {prev && (
+        <a class="lesson-tile" href={href(lessonPath(prev.id))} rel="prev">
+          <span class="label">
+            before · {twoDigits(placeOf(prev.id).number)} ·{' '}
+            {placeOf(prev.id).familyName.toLowerCase()}
+          </span>
+          <span class="t">{prev.data.title}</span>
         </a>
-      ) : (
-        <span />
       )}
-      {next ? (
-        <a href={href(lessonPath(next.id))} rel="next">
-          <span class="label">Next</span>
-          {next.data.title}
+      <a class="lesson-tile" href={href('lessons/')}>
+        <span class="label">the map</span>
+        <span class="t">All the lessons</span>
+        <span class="s">
+          {places().length} lessons in {MAP.length} families
+        </span>
+      </a>
+      {next && (
+        <a class="lesson-tile" href={href(lessonPath(next.id))} rel="next">
+          <span class="label">
+            next · {twoDigits(placeOf(next.id).number)} ·{' '}
+            {placeOf(next.id).familyName.toLowerCase()}
+          </span>
+          <span class="t">{next.data.title}</span>
         </a>
-      ) : (
-        <span />
       )}
     </nav>
   </article>

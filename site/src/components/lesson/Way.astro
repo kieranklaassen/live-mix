@@ -1,0 +1,55 @@
+---
+// One habit of working with the technique, with settings to try, in words read from the same
+// named set the card's button plays (src/content/settings/<lesson>.json):
+// <Way title="Let the hit through" tag="a slow attack" set="hit">What it does and why.</Way>
+// A card with no `set` has no settings and no button. A card may carry a picture, as a use
+// card does, over its words:
+// <Way title="Let the hit through" set="hit">
+//   <Still slot="picture" taps="in out" set="hit" caption="…" />
+//   What it does and why.
+// </Way>
+import { getEntry } from 'astro:content'
+import Hear from './Hear.astro'
+import { pageLab } from '../../lib/lab-info.ts'
+import { setInWords } from '../../lib/parts.ts'
+import { lessonSettings, setNamed } from '../../lib/settings.ts'
+
+interface Props {
+  title: string
+  /** A few words over the title: what the idea turns on. */
+  tag?: string
+  /** A name under `sets` in the lesson's settings file. */
+  set?: string
+}
+const { title, tag, set } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const entry = set ? await getEntry('lessons', lesson) : undefined
+const words = set && entry && setInWords(lab, setNamed(await lessonSettings(entry), set, lesson))
+---
+
+<article class="lesson-card way" data-set={set}>
+  {Astro.slots.has('picture') && (
+    <div class="lesson-card-picture">
+      <slot name="picture" />
+    </div>
+  )}
+  <div class="lesson-card-text">
+    {tag && <p class="lesson-card-tag">{tag}</p>}
+    <h3>{title}</h3>
+    <slot />
+    {words && (
+      <ul class="lesson-card-settings" aria-label="Settings to try">
+        {words.settings.map((one) => (
+          <li data-setting={one.id}>{`${one.name} ${one.value}`}</li>
+        ))}
+        {words.settings.length === 0 && <li>the lesson's starting settings</li>}
+        {words.source && <li data-setting-source>{`on ${words.source}`}</li>}
+      </ul>
+    )}
+    {set && (
+      <p class="lesson-card-hear">
+        <Hear set={set} label="Try it" card />
+      </p>
+    )}
+  </div>
+</article>

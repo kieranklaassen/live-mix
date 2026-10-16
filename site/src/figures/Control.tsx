@@ -1,88 +1,76 @@
-// The lab's controls, as sliders and switches. Moving one renders the lab again.
+// The lab's controls. A ranged one is the kit's knob, the control the real device's plate has:
+// dragged sideways, stepped by the arrow keys, sent to an end by Home and End, put back by a
+// double click, and deaf to the wheel, so that scrolling a long page never moves one. A control
+// of a few choices is a group of choices. Moving either renders the lab again.
 
+// The knob is read from the kit's own file. The kit's built module is one file, so taking the
+// knob from it would bring every lesson page all of it, plate and timeline included, before
+// anything shows; this file brings the knob alone.
+import { Knob } from '../../../src/react/components/Knob.tsx'
 import { labStore, useLab } from '../lab/page.ts'
 import type { ControlInfo } from '../lab/describe.ts'
-import { fromUnit, toUnit, withUnit, type Axis } from './draw.ts'
+import { valueWithUnit } from '../lib/parts.ts'
+import Choices from './Choices.tsx'
 
-const STEPS = 1000
-
-const axisOf = (control: ControlInfo): Axis => ({
-  min: control.min,
-  max: control.max,
-  log: control.scale === 'log',
-})
-const toSlider = (control: ControlInfo, value: number) => toUnit(axisOf(control), value) * STEPS
-const fromSlider = (control: ControlInfo, place: number) => fromUnit(axisOf(control), place / STEPS)
+/** The knob's width across, in pixels. */
+const SIZE = 40
 
 export function Control({ control }: { control: ControlInfo }) {
   const state = useLab()
   const value = state.values[control.id] ?? control.initial
   const ready = state.status === 'ready'
-  const moved = Math.abs(value - control.initial) > 1e-9
   const name = `control-${control.id}`
 
   if (control.choices.length > 0) {
     return (
-      <div className="control" role="radiogroup" aria-labelledby={name} data-control={control.id}>
-        <span className="control-name" id={name}>
+      <div className="dial dial-switch" data-control={control.id}>
+        <span className="dial-name" id={name}>
           {control.name}
         </span>
-        <span className="control-choices">
-          {control.choices.map((choice, index) => (
-            <button
-              key={choice}
-              type="button"
-              role="radio"
-              aria-checked={Math.round(value) === control.min + index}
-              disabled={!ready}
-              onClick={() => labStore().setValue(control.id, control.min + index)}
-            >
-              {choice}
-            </button>
-          ))}
-        </span>
+        <Choices
+          className="dial-choices"
+          labelledBy={name}
+          choices={control.choices.map((choice, index) => ({
+            value: control.min + index,
+            name: choice,
+          }))}
+          value={Math.round(value)}
+          disabled={!ready}
+          onChoose={(chosen) => labStore().setValue(control.id, Number(chosen))}
+        />
       </div>
     )
   }
 
   return (
-    <div className="control" data-control={control.id}>
-      <label className="control-name" htmlFor={name}>
+    <div className="dial" data-control={control.id}>
+      <span className="dial-name" aria-hidden="true">
         {control.name}
-      </label>
-      <output className="control-value" htmlFor={name}>
-        {withUnit(value, control.unit)}
-      </output>
-      <input
-        id={name}
-        type="range"
-        min={0}
-        max={STEPS}
-        step={1}
-        value={Math.round(toSlider(control, value))}
+      </span>
+      <Knob
+        label={control.name}
+        value={value}
+        defaultValue={control.initial}
+        min={control.min}
+        max={control.max}
+        taper={control.scale === 'log' ? 'log' : 'linear'}
+        axis="horizontal"
+        wheel={false}
+        size={SIZE}
         disabled={!ready}
-        aria-valuetext={withUnit(value, control.unit)}
-        onChange={(event) =>
-          labStore().setValue(control.id, fromSlider(control, Number(event.target.value)))
-        }
+        format={(shown) => valueWithUnit(shown, control.unit)}
+        hideLabel
+        hideValue
+        onChange={(next) => labStore().setValue(control.id, next)}
       />
-      <button
-        type="button"
-        className="control-reset"
-        disabled={!moved}
-        aria-label={`Put ${control.name} back to ${withUnit(control.initial, control.unit)}`}
-        title={`Back to ${withUnit(control.initial, control.unit)}`}
-        onClick={() => labStore().setValue(control.id, control.initial)}
-      >
-        ↺
-      </button>
+      <output className="dial-value">{valueWithUnit(value, control.unit)}</output>
     </div>
   )
 }
 
 export default function Controls({ controls }: { controls: ControlInfo[] }) {
   return (
-    <div className="controls">
+    <div className="dials">
       {controls.map((control) => (
         <Control key={control.id} control={control} />
       ))}

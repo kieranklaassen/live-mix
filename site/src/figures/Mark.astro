@@ -1,0 +1,13 @@
+---
+// Says to the page's styles that scripts run here. The buttons and controls that need the lab
+// are hidden until a script marks the page (styles/parts.css), so a page read with scripts off
+// shows none that would do nothing. Every part that has such a button carries this, and only
+// the first on a page writes the script: it runs as the page is read, before anything is drawn.
+import { countOnPage } from './once.ts'
+
+const first = countOnPage(Astro.locals, 'mark') === 1
+---
+
+{first && <script is:inline>
+  document.documentElement.setAttribute('data-lab', '')
+</script>}

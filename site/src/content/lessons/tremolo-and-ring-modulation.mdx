@@ -1,0 +1,1071 @@
+---
+title: Tremolo and ring modulation
+family: dynamics
+summary: Multiply a sound by a slow wave and it pulses. Speed the wave up and the pulse turns into notes that nobody played. This lesson builds both from one multiplication, then opens the engine's Tremolo and its Ring and reads every stage out of them as they work.
+opening: { input: in, output: tremolo }
+lab: tremolo-and-ring-modulation
+devices: [tremolo, ring]
+bench:
+  device: tremolo
+  params: { mode: 0, rate: 4.5, depth: 1, shape: 0, phase: 0, crossover: 700, drift: 0, smooth: 0, mix: 1 }
+  note: >-
+    The plate opens on the settings this lesson starts from. They are deeper and plainer than the device's own defaults, with no drift on the rate and no extra smoothing, so that each stage is easy to see. The table below sets the two side by side. The plate calls Tremolo Drift and Tremolo Mix by the device's own names for them, Drift and Mix. The Ring has no plate here, and its controls are listed after the links. The lab holds its Tune on Free, so it has no control for Root, Octave, Fine or Tune, and it calls the Ring's Drift and Mix by the names Ring Drift and Ring Mix. This lesson starts the Ring plainer than the device starts itself, with Frequency at a hundred hertz, no drift, no width, both filters wide open and Ring Mix half way. The card “Bells out of plain notes” in part 3 plays the device's own starting settings.
+  also: [ring]
+sources: [pad, chords, guitar, bass, drums, mix, sine, saw, noise]
+seconds: 4
+files:
+  - cpp/devices/tremolo/tremolo.h
+  - cpp/devices/ring/ring.h
+  - cpp/devices/ring/ring_waves.h
+  - cpp/kit/math.h
+  - cpp/kit/idle.h
+  - cpp/devices/tremolo/device.json
+  - cpp/devices/ring/device.json
+---
+
+<Part id="why" title="A held sound stands still. Something has to move it.">
+
+A pad holds a chord for a whole bar. Once the chord has swelled up, nothing in it starts and nothing stops. The fingers are down, the notes go on, and the bar passes with no beat in it.
+
+<Still
+  taps="in"
+  set="held"
+  caption="Four seconds of the pad: two chords, a bar each. Each swells once and then holds. Nothing in the picture marks a beat."
+/>
+
+Listen to it first. <Hear set="held" label="Hear the pad as held" />
+
+A piano player who wants the chord to pulse can play it again and again. A held sound cannot be played again without stopping it. So this lesson starts from one question: how do you give a held sound a pulse while the fingers stay down?
+
+### The obvious answer fails
+
+Turn it on and off. A gain that is 1 for half of each cycle and 0 for the other half lets the chord through and then shuts it out, over and over. The card below does that to the pad.
+
+<Still
+  taps="in unslewed"
+  set="switched"
+  from={1}
+  span={0.5}
+  caption="Half a second of the pad, and the same half second let through and shut out. Where the gate shuts, the wave is cut off at whatever height it had reached and falls straight to nothing."
+/>
+
+Each of those straight falls is a jump in the wave, and a jump is a click. Measured on that render, on both sides, <Claim id="switch-jump">the largest jump from one sample to the next is 8.1 dB larger than any in the pad as played</Claim>. The clicks belong to the gate and not to the chord: any sound cut off part of the way through its wave jumps like this. <Hear set="switched" label="Hear it switched on and off" />
+
+So the pulse is there, and with it a tick at every edge that nobody asked for.
+
+### Ride it instead
+
+The cure is to stop jumping. Let the gain go down and come back up along a smooth wave, the way a hand would ride a volume control up and down. Now the gain is never in two places at once, and the wave of the sound is never cut.
+
+<Still
+  taps="in tremolo"
+  set="swayed"
+  caption="The pad, and the pad with its level ridden up and down by a smooth wave. The outline of the sound now rises and falls in even bumps, and no edge in it is straight."
+/>
+
+On that render <Claim id="ridden">the gain moves between 0.25 and 1.00, a swing of 12.0 dB, and no jump between two samples is larger than the largest in the pad itself</Claim>. <Hear set="swayed" label="Hear it ridden up and down" />
+
+That is tremolo: a sound multiplied by a slow wave. Electric organs and guitar amplifiers have long had it built in, with a circuit doing the riding so that the player's hands are free. The idea has two numbers in it. One says how fast the wave goes. The other says how far down it takes the sound.
+
+### One multiplication
+
+Look at what the two cards have in common. In both, each sample of the sound is multiplied by a number, and the number changes as time passes. The gate's number jumped. The tremolo's number followed a wave. Nothing else was done to the sound.
+
+That leaves a great deal of room. The wave can be any shape. It can be at a different point of its cycle in each ear. And it can go at any speed. The next question is about speed, and the answer is the second half of this lesson.
+
+<Predict
+  question="A steady tone at 440 Hz is multiplied by a wave that rises and falls 4 times a second, and it pulses. Now the wave is sped up to 100 times a second. What comes out?"
+  choices={[
+    'A pulse too fast to count',
+    'The same tone, sounding rough',
+    'Three steady tones, two of them new',
+  ]}
+>
+
+Three steady tones. The two cards below play the tone through the engine's Ring with Ring Mix half way, where the Ring adds the tone as it went in to the multiplied sound. With the wave at 100 times a second, the tone comes out as <Claim id="pred-lines">three: 340 Hz and 540 Hz, each 6.0 dB under the tone that went in, and 440 Hz itself, 3.0 dB under</Claim>. Neither of the two new tones was played, and neither is a note of the first one's scale. They stand a hundred hertz to either side of it.
+
+<Still
+  taps="in ring"
+  set="toneFast"
+  view="spectrum"
+  caption="How much of each frequency there is in the tone going in, and in what comes out with the wave at 100 times a second. One peak goes in. Three come out: the same one, a little lower, with a new one close on each side."
+/>
+
+Listen to the two. <Hear set="toneSlow" label="Hear the wave at 4 a second" /> <Hear set="toneFast" label="Hear the wave at 100 a second" />
+
+The surprise is that the slow case was doing the same thing all along. Measured on the slow card, <Claim id="pred-slow">the tone at 440 Hz has a line at 436 Hz and a line at 444 Hz beside it, each 6.0 dB under it</Claim>. Three tones four hertz apart are too close for an ear to tell apart. It hears one tone, and it hears the three drift in and out of step as that tone getting louder and quieter.
+
+<Controls ids="frequency" />
+
+<Spectrum taps="in ring" fMin={100} fMax={1000} linear min={-90} max={0}>
+  The spectrum of what goes in and of what comes out of the engine's Ring. Press one of the two
+  buttons above first, so that the page is on the tone. Then try Frequency from its lowest upwards,
+  and notice the one peak grow two shoulders that walk away from it, each as far as Frequency says.
+</Spectrum>
+
+</Predict>
+
+Multiplying by a fast wave is called ring modulation, and the wave is then called the carrier. The engine has a device for each end of the range: the Tremolo, whose wave stops at <Src path="cpp/devices/tremolo/device.json" at={'"max": 20,'}>20 Hz</Src>, and the Ring, whose carrier goes up to <Src path="cpp/devices/ring/device.json" at={'"max": 4000,'}>4,000 Hz</Src>. This lesson runs both on the same loop.
+
+</Part>
+
+<Part id="picture" title="One tone, and a wave that speeds up.">
+
+One picture holds the whole road from tremolo to ring modulation. The lab makes a steady tone of its own, at <Src path="site/labs/tremolo-and-ring-modulation.cpp" at="constexpr float kToneHz = 880.0f;">880 Hz</Src>, and plays it through a second copy of the engine's Ring. While it plays, that Ring's Frequency climbs from <Src path="site/labs/tremolo-and-ring-modulation.cpp" at="constexpr float kSweepFromHz = 1.0f;">1 Hz</Src> to <Src path="site/labs/tremolo-and-ring-modulation.cpp" at="constexpr float kSweepToHz = 660.0f;">660 Hz</Src>, by the same ratio in every instant, and then holds. Time runs across the picture. Frequency runs up it. Where there is sound at a frequency, the picture is marked.
+
+<Controls ids="ringMix wave" />
+
+<Spectrogram tap="fan" top={2400} min={-80} max={-10} height={320}>
+  The tone's spectrum over the four seconds, read from the engine's Ring. On the left there is one
+  line, and it blinks: the tone is getting louder and quieter. Further right the one line opens into
+  three. Try Ring Mix at 1, and notice the middle line go out once the three have parted. Try Wave
+  on Soft square, and notice fainter lines fan out beyond the first two.
+</Spectrogram>
+
+The same picture can be heard: <Listen tap="sweep">hear the tone with its wave speeding up</Listen>. It starts as a tone that pulses, slowly and then faster. The pulse turns into a rough flutter. Then the flutter is gone and three steady tones are left, two of them still moving apart. Where one of those turns into the next is for an ear to judge, and it is worth listening for.
+
+Check this against the picture. At the right-hand edge, where the Frequency has stopped climbing, there are three lines: <Claim id="fan-lines">at 220 Hz, at 880 Hz and at 1,540 Hz, the outer two each 3.0 dB under the middle one</Claim>. The middle line is the tone itself. The lower one is the tone's frequency less the carrier's, and the upper one is the two added. These two are called sidebands, and that is the whole rule: the sum and the difference.
+
+The middle line is there only because the lesson starts Ring Mix half way, where the Ring adds the tone as it went in to the ringing sound. With Ring Mix at 1 the ringing sound is heard alone, and <Claim id="fan-middle">the middle line is more than 50 dB under the other two</Claim>.
+
+<Still
+  taps="fan"
+  view="spectrogram"
+  values={{ ringMix: 1 }}
+  top={2400}
+  min={-80}
+  max={-10}
+  caption="The same four seconds with Ring Mix at 1. One line blinks on the left and divides into two, and once they have parted there is nothing left between them: the tone that went in is not in what comes out."
+/>
+
+The picture leaves one thing out. It shows a single tone, and music is never a single tone. A guitar note is a stack of tones, and a chord is several stacks. Every one of them is split in the same way, each into its own sum and its own difference, and the results do not line up into a chord of any kind. That is where the sound of ring modulation comes from, and part 3 has it on real loops.
+
+</Part>
+
+<Part id="uses" title="Four pulses and two kinds of metal.">
+
+The slow wave and the fast one are used on different sounds for different reasons. The first four cards are the Tremolo, and the last two are the Ring. Each shows a sound and what a sensible setting does to it, lists that setting, and plays it. A card's button moves the whole page to its setting, so every figure further down shows it too, and the play bar offers the way back to where you were.
+
+<Uses>
+  <Use title="A held chord" set="organ">
+    <Still
+      slot="picture"
+      taps="in tremolo"
+      set="organ"
+      from={1}
+      span={1.5}
+      caption="A second and a half of the pad going in and coming out. The outline has grown even bumps, and it never closes: some of the chord is there all the time."
+    />
+
+    This is the plainest use. A held chord gets a gentle pulse, deep enough to feel and not deep enough to break the chord up. On this card <Claim id="use-organ">the gain moves between 0.405 and 0.995, a swing of 7.8 dB</Claim>. The top is a little short of 1 because Smooth is up, and a rounded wave does not quite reach its own peak.
+
+  </Use>
+  <Use title="A guitar left to ring" set="strum">
+    <Still
+      slot="picture"
+      taps="in tremolo"
+      set="strum"
+      from={0}
+      span={1}
+      caption="The first second of a strummed chord, going in and coming out. The strike is still the tallest thing. After it the sound coming out falls inside the outline of the sound going in at even gaps, and comes back up to it each time."
+    />
+
+    A strummed chord dies away by itself, and a tremolo on it shakes the dying ring. The triangle goes up and down at one speed with no rest at either end. Listen for a busier shake than the sine gives. Here <Claim id="use-strum">the gain moves through 13.5 dB</Claim> on every cycle.
+
+  </Use>
+  <Use title="A pad cut into notes" set="chop">
+    <Still
+      slot="picture"
+      taps="in tremolo"
+      set="chop"
+      from={1}
+      span={0.5}
+      caption="Half a second of the pad, and the same half second chopped by a square. The sound is let through in blocks with gaps between them, and the ends of each block are rounded off."
+    />
+
+    With a square the gain is fully open or fully shut, and a held chord becomes a row of short notes. This is the gate of part 1 done properly. The device rounds each edge so that it does not click, and Smooth rounds it further: with this card's settings <Claim id="use-chop">each closing takes 7.4 ms, where with Smooth at 0 it takes 3.4 ms</Claim>. Both are measured as the time the gain takes to fall from nine tenths of the way open to one tenth.
+
+  </Use>
+  <Use title="A line that crosses the room" set="ears">
+    <Still
+      slot="picture"
+      taps="gain gainRight"
+      set="ears"
+      caption="The gain on the left side and the gain on the right, across the loop. When one is at its top the other is at its bottom."
+    />
+
+    Stereo Phase sets the right side's wave ahead of the left side's. At half a cycle the two are opposite: as the left side fades, the right side swells. <Claim id="use-ears">At every moment the two gains add up to 1.00</Claim>, so what one side gives up the other takes, and the line seems to walk from one ear to the other and back.
+
+  </Use>
+  <Use title="Bells out of plain notes" set="bell">
+    <Still
+      slot="picture"
+      taps="in wet"
+      set="bell"
+      view="spectrum"
+      top={2000}
+      min={-90}
+      max={-20}
+      caption="The spectrum of a picked guitar line, and of the ringing sound the Ring makes from it. Between the marks for 200 Hz and 1,000 Hz the second line has peaks where the first has dips: these are tones the guitar did not play."
+    />
+
+    A carrier tuned to a note of the key puts its sums and differences where part 2 said. Some land on notes of the key and many do not, and a stack of tones that are not evenly spaced is what a bell has. These are the settings the device itself starts with, with the carrier on middle C. The ringing sound is blended under the line, and the whole comes out <Claim id="use-bell">0.1 dB quieter</Claim> than it went in.
+
+  </Use>
+  <Use title="Drums turned to metal" set="clang">
+    <Still
+      slot="picture"
+      taps="in ring"
+      set="clang"
+      from={0}
+      span={1}
+      caption="One second of the drums going in and coming out. The hits fall at the same moments. Their shapes have changed: none has the outline of the hit that went in."
+    />
+
+    A drum hit is mostly noise with a pitch somewhere in it. Multiplied by a low carrier with the dry sound taken out, the pitch moves to places no drum has. Listen for the hit turning hard and metallic. The timing is untouched, because a multiplication takes no time. Here the drums come out <Claim id="use-clang">4.1 dB quieter: the multiplying takes 0.24 dB and the two filters the rest</Claim>.
+
+  </Use>
+</Uses>
+
+These are places to start. On the Tremolo the two that matter are how fast and how deep. On the Ring it is where the carrier sits against the notes being played, and how much of the plain sound is left beside it.
+
+</Part>
+
+<Part id="build" title="Start with a wire. Multiply it by something.">
+
+The quickest way to understand the two devices is to make them. This part begins with something that does nothing and adds five pieces to it, one at a time. The first three pieces make the engine's tremolo. The last two take the same wave up to audio rate, where it becomes a ring modulator. After each piece the lanes are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these lanes and plays "Hear it so far".
+
+The build is easiest to follow on a held sound. The pad is a good choice, and so is the steady tone in the row of sounds at the top of the page.
+
+<Build>
+  <Step title="Start with a wire">
+    What goes in comes out. In the code each side is multiplied by a number called `gain`, and the number is 1. Every piece after this one is a way of moving that number.
+
+    Press "Hear it so far". It is the loop, untouched.
+
+    <Listing
+      path="site/labs/tremolo-and-ring-modulation.cpp"
+      from="// A wire: what goes in comes out, times one number a side"
+      to="out[1] = right * gain[1]; }"
+      name="wire"
+    />
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the sound so far. Notice that they are the same.
+    </Lanes>
+
+  </Step>
+  <Step title="Multiply by a slow wave" controls="rate">
+    Now the number moves. A counter called the phase runs from 0 to 1 once in every cycle and starts again. The sine of the phase swings between −1 and 1, which will not do as a gain: half the time it is negative. So the sine is halved and lifted by a half, and then it runs from 0 to 1.
+
+    <M
+      block
+      t={String.raw`\sig{ctl}{g(t)} = \at{slow-half}{\tfrac{1}{2} + \tfrac{1}{2}\sin(2\pi f t)}`}
+    />
+
+    Here <M t="g" /> is the gain, <M t="t" /> is time in seconds and <M t="f" /> is Rate, the number of cycles in a second. At the top of the wave the gain is 1 and the sound is as it was. At the bottom the gain is 0 and there is silence.
+
+    <Listing
+      path="site/labs/tremolo-and-ring-modulation.cpp"
+      from="// A slow wave: the phase goes from 0 to 1 once a cycle"
+      to="float slow(float at) const { return 0.5f + 0.5f * kit::SineTable::lookup(at); }"
+      mark="float slow(float at) const"
+      at={{ half: 'float slow(float at) const' }}
+      name="slow"
+    />
+
+    The phase is moved on by a fixed step with every sample: the frequency divided by the sample rate.
+
+    <Listing
+      path="site/labs/tremolo-and-ring-modulation.cpp"
+      from="// The phase moves on by frequency / sample rate each sample"
+      to="walk[2] = rng.bipolar(); } }"
+      mark="phase += step;"
+      name="turn"
+    />
+
+    This piece only turns down, so the sound gets quieter overall. A steady tone now comes out <Claim id="build-slow">4.26 dB quieter</Claim> than it went in, where through the wire it came out exactly as loud.
+
+    <Lanes slot="picture" taps="in builtGain built" ranges={{ builtGain: [0, 1] }}>
+      The sound going in, the gain so far and the sound so far. Try Rate lower, and notice the bumps
+      in the gain lane spread out, and the outline of the sound follow them.
+    </Lanes>
+
+  </Step>
+  <Step title="Depth and shape" controls="rate depth shape smooth">
+    A gain that always falls to silence is too much for most music. Depth says how far down the bottom of the wave goes. The wave is kept as it came, from −1 to 1, and called <M t="m" />. Depth is <M t="d" />.
+
+    <M
+      block
+      t={String.raw`\sig{ctl}{g} = \at{dipped-law}{1 - \tfrac{d}{2}\,(1 - m)}`}
+    />
+
+    At the top of the wave <M t="m" /> is 1, the bracket is 0 and the gain is 1, whatever Depth says. At the bottom <M t="m" /> is −1, the bracket is 2 and the gain is 1 less Depth. With Depth at 1 this is the step before, exactly. With Depth at 0.5 the gain no longer reaches silence: <Claim id="build-depth">at its lowest it is 0.50, which is 6.0 dB down</Claim>.
+
+    <Listing
+      path="site/labs/tremolo-and-ring-modulation.cpp"
+      from="// Depth: how far the gain falls at the bottom of the wave."
+      to="return 1.0f - half * (1.0f - m); }"
+      mark="return 1.0f - half * (1.0f - m);"
+      at={{ law: 'return 1.0f - half * (1.0f - m);' }}
+      name="dipped"
+    />
+
+    The wave need not be a sine. Shape picks one of four: a sine, a triangle, a square, and a random walk that glides to a new level in every cycle.
+
+    <Listing
+      path="site/labs/tremolo-and-ring-modulation.cpp"
+      from="// Shape: the wave at `at` cycles, -1 to 1."
+      to="return kit::SineTable::lookup(at); } }"
+      name="shaped"
+    />
+
+    The square is the gate of part 1, and by itself it would click in the same way. So the wave passes through a slew before it is used: two small smoothers, one after the other, each of which moves a share of the way towards its input on every sample. A jump goes in and a quick slide comes out. With Shape on Square and Rate at 4 Hz, the gain now takes <Claim id="build-slew">3.4 ms</Claim> to fall from nine tenths of the way open to one tenth. Smooth makes the slide longer.
+
+    <Listing
+      path="site/labs/tremolo-and-ring-modulation.cpp"
+      from="// The slew: two one-pole smoothers, one after the other."
+      to="return slew_b[side]; }"
+      mark={['slew_a[side] = raw + (slew_a[side] - raw) * slew_coeff;', 'slew_b[side] = slew_a[side] + (slew_b[side] - slew_a[side]) * slew_coeff;']}
+      name="slewed"
+    />
+
+    <Lanes slot="picture" taps="in builtGain built" ranges={{ builtGain: [0, 1] }}>
+      The same lanes as the step before. Try Depth at a half, and notice the gain stop half way
+      down. Then try Shape on Square, and notice the gain lane turn into blocks.
+    </Lanes>
+
+  </Step>
+  <Step title="A phase between the ears" controls="rate depth shape smooth phase">
+    So far both sides get one gain. This piece lets the right side read the wave further on in its cycle than the left side does. Stereo Phase says how much further, in degrees: a whole cycle is 360.
+
+    <Listing
+      path="site/labs/tremolo-and-ring-modulation.cpp"
+      from="// A phase between the ears: the right side reads the wave further on."
+      to="const float where[2] = {at, at + ahead};"
+      mark="const float ahead = pieces >= kEars"
+      name="ears"
+    />
+
+    Stereo Phase starts at 0, where this piece is in place and does nothing. Turn it up and the two sides part. With it at 180 and Shape on Sine, the right side is at its top when the left is at its bottom, and <Claim id="build-ears">the two gains add up to 1.00 at every moment</Claim>. Without this piece they rise and fall together, and their sum goes from nothing to 2.
+
+    That is the whole of the engine's tremolo. Every step so far was the lesson's own way of writing it, and from this step on the lab compares what the build has made with the device itself: a second Tremolo of the engine, held to these four pieces, with its other modes, its drift and its mix left out.
+
+    <Check id="builtDifference" />
+
+    On every loop of this page and at each of the settings the lab's test tries, the reading is <Claim id="build-same">−140 dB</Claim>. That is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">the lowest it can show</Src>: whatever the build and the device differ by lies more than 140 dB under the sound.
+
+    <Lanes
+      slot="picture"
+      taps="in builtGain builtGainRight built"
+      ranges={{ builtGain: [0, 1], builtGainRight: [0, 1] }}
+    >
+      The gain on the left side and the gain on the right. Try Stereo Phase at its highest, and
+      notice the two gain lanes become mirror pictures of each other.
+    </Lanes>
+
+  </Step>
+  <Step title="Let the wave up to audio rate" controls="frequency depth phase">
+    The tremolo's Rate stops at a speed where the ear still hears a pulse. This piece takes the limit away. The wave is the same sine and the gain is the same law, but the wave now turns at Frequency, which starts at the hundred hertz of part 1's question, and the slew is left out: a slew made to round a slow wave wears a fast one down, the more so the faster it turns.
+
+    <Listing
+      path="site/labs/tremolo-and-ring-modulation.cpp"
+      from="// Audio rate: the same sine, turning at Frequency, with no slew."
+      to="gain[side] = pieces >= kNoOffset ? ringing(m) : dipped(m); }"
+      mark="const float m = kit::SineTable::lookup(where[side]);"
+      name="fast"
+    />
+
+    No device of the engine does this: its Tremolo is kept slow, and its Ring is built another way. So this step and the next are the lesson's own, and the lab's test holds them by what they measure.
+
+    The pulse is gone. With Frequency where it starts and Depth at 1, a steady tone at 440 Hz now comes out as <Claim id="build-fast">three: new tones at 340 Hz and 540 Hz, each 12.04 dB under the tone that went in, and the tone itself at 440 Hz, 6.0 dB under</Claim>. One rule of school trigonometry says why. The product of two sines is two cosines, one at the difference of their frequencies and one at the sum:
+
+    <M
+      block
+      t={String.raw`\sin\alpha\,\sin\beta = \tfrac{1}{2}\cos(\alpha - \beta) - \tfrac{1}{2}\cos(\alpha + \beta)`}
+    />
+
+    Put the tone in for <M t={String.raw`\alpha`} /> and the wave in for <M t={String.raw`\beta`} />. With Depth at 1 the gain is a half, plus half of the wave. The half lets the tone through at half its size. The half of the wave multiplies the tone and makes the two new ones, each a quarter of the tone's size. A half and a quarter, written in decibels, are the two numbers just measured.
+
+    <Lanes
+      slot="picture"
+      taps="in builtGain built"
+      ranges={{ builtGain: [0, 1] }}
+      from={1}
+      span={0.05}
+    >
+      A twentieth of a second, close up. The gain now goes up and down many times in the space of
+      one bump of the step before. Try Frequency lower, and notice the waves of the gain spread
+      out. Press "Hear it so far" as you go, and listen for the pulse coming back.
+    </Lanes>
+
+  </Step>
+  <Step title="Take away the offset" controls="frequency phase">
+    The half that lifted the wave is what lets the tone itself through. Take it away and the gain is the wave alone, swinging from below zero to above it. A negative gain turns the sound upside down, which changes neither how loud it is nor which frequencies are in it. What matters is that the gain now averages to nothing. Like the step before, this one is the lesson's own: the listing is the lab's code, and no device of the engine is run to make it.
+
+    <M block t={String.raw`\sig{out}{y(t)} = \at{ringing-root}{\sqrt{2}\,\sin(2\pi f_c t)}\;\sig{in}{x(t)}`} />
+
+    <M t="x" /> is the sound going in, <M t="y" /> the sound coming out and <M t="f_c" /> the Frequency of the wave, which from here on is called the carrier. The square root of two is there for loudness. A sine of that height has a mean square of 1, so on average the multiplying takes nothing away and adds nothing.
+
+    <Listing
+      path="site/labs/tremolo-and-ring-modulation.cpp"
+      from="// No offset: the gain is the wave alone"
+      to="float ringing(float m) const { return kSqrt2 * m; }"
+      mark="float ringing(float m) const"
+      at={{ root: 'float ringing(float m) const' }}
+      name="ringing"
+    />
+
+    Now <Claim id="build-ring">the two new tones stand 3.0 dB under the tone that went in, and the tone itself is more than 100 dB under it. The whole comes out 0.0 dB quieter</Claim>: as loud as it went in, and with nothing of the original left in it. That is a ring modulator. The engine's Ring, run beside the build with its Ring Mix at 1, gives the same two tones at the same heights: the build and the device are <Claim id="build-ring-device">less than 0.001 dB apart at 340 Hz and at 540 Hz</Claim>.
+
+    <Lanes
+      slot="picture"
+      taps="in builtGain built"
+      ranges={{ builtGain: [-1.5, 1.5] }}
+      from={1}
+      span={0.05}
+    >
+      The same twentieth of a second. The gain now crosses zero twice in every cycle, and the sound
+      so far no longer has the outline of the sound going in. Try Frequency lower, and notice the
+      sound so far shrink to nothing wherever the gain passes through zero.
+    </Lanes>
+
+  </Step>
+</Build>
+
+Here is how the lab puts the pieces in order, for one sample.
+
+<Listing
+  path="site/labs/tremolo-and-ring-modulation.cpp"
+  from="// One sample through the pieces built so far."
+  to="turn(); } wire(left, right); }"
+  name="run"
+/>
+
+Six small functions, and one line that all of them come down to: the sound times a number. The two devices of the engine do the same multiplication. Around it each has what the build left out: the Tremolo has three more things its wave can move, and the Ring has shapes for its carrier, filters after it and a careful way of mixing.
+
+</Part>
+
+<Part id="engine" title="The engine's Tremolo and its Ring, opened up.">
+
+From here on it is the two devices themselves. The page runs the engine's C++, compiled for the browser, on the loop, and each figure is read out of the running code at the point the text is talking about. Under its title each stage says where its figure comes from. Some values a device works out and does not keep: the shape before the slew, the gain, the carrier's own value. The lab works those out again from the device's own numbers, and two checks, one for each device, say how far that working lands from what the device wrote. The listings are the engine's source as it stands, with the file and the line numbers, so you can go and read around them.
+
+### The Tremolo
+
+<Flow
+  label="The Tremolo. An oscillator, a shape, a slew and Depth work out a gain. The sound is multiplied by it, in one of four ways, and blended with the sound as it went in."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'osc', row: 1, tap: 'lfoPhase', label: 'Oscillator', n: 1, signal: 'value' },
+    { id: 'shape', row: 1, from: 'osc', tap: 'raw', label: 'Shape', n: 2, signal: 'value' },
+    { id: 'slew', row: 1, from: 'shape', tap: 'lfo', label: 'Slew', n: 3, signal: 'value' },
+    { id: 'depth', row: 1, from: 'slew', tap: 'gain', label: 'Depth', n: 4, signal: 'value' },
+    { id: 'times', label: 'Times the gain', from: ['in', 'depth'], n: 6 },
+    { id: 'mix', label: 'Mix', from: ['times', 'in'], n: 7 },
+    { id: 'out', tap: 'tremolo', shape: 'end', from: 'mix' },
+  ]}
+>
+  The blocks from the sound going in to the one that comes out are sound. The four from Oscillator
+  to Depth never carry sound: they begin at an oscillator that listens to nothing, and carry one
+  number that changes slowly. Stage 7's button plays the Tremolo: press it, and notice the last
+  block light up here.
+</Flow>
+
+<StageBlock tap="lfoPhase" n={1} title="An oscillator that only counts">
+  The oscillator is the counter of the build's second step. It holds one number, the phase, which goes up by a small fixed step with every sample and starts again when it reaches 1. Slow oscillators, and what else one can be put to, have a lesson of their own further on, <Lesson id="envelopes-and-lfos" />.
+
+  <Controls ids="rate drift" />
+
+  <Trace taps="lfoPhase" min={0} max={1}>
+    The phase across the loop, as the device's own meter reads it: a row of ramps, one for each
+    cycle. Try Rate higher, and notice the ramps crowd together. Try Tremolo Drift at 1, and notice
+    that they are no longer all the same width.
+  </Trace>
+
+  <M
+    block
+    t={String.raw`\sig{ctl}{\varphi[n]} = \at{osc-step}{\sig{ctl}{\varphi[n-1]}} + \at{rate-inc}{\frac{f}{f_s}}`}
+  />
+
+  Read it against the picture. <M t={String.raw`\varphi`} /> is the phase and <M t="n" /> counts samples. <M t="f" /> is Rate and <M t="f_s" /> is the sample rate, so the step is the share of a cycle that passes in one sample: the slope of each ramp. A higher Rate is a steeper ramp and more ramps to the loop. Tremolo Drift leans on <M t="f" /> with a slow wander, by up to <Src path="cpp/devices/tremolo/tremolo.h" at="static constexpr float kDriftAmount = 0.25f;">a quarter</Src> either way, so that no two cycles are quite the same length. The device starts it at a little; this lesson starts it at none.
+
+  <Listing
+    path="cpp/devices/tremolo/tremolo.h"
+    from="// The oscillator, once per channel."
+    to="walk_[2] = rng_.bipolar(); }"
+    at={{ step: 'phase_ += increment_;' }}
+    name="osc"
+  />
+
+  The step itself is worked out a little less often, <Src path="cpp/devices/tremolo/tremolo.h" at="static constexpr int kControlPeriod = 16;">once every sixteen samples</Src>, from Rate and the drift:
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/tremolo/tremolo.h"
+    from="const float rate = param(kRate);"
+    to="increment_ = static_cast<double>(drifted) / sr;"
+    at={{ inc: 'increment_ = static_cast<double>(drifted) / sr;' }}
+    name="rate"
+  />
+</StageBlock>
+
+<StageBlock tap="raw" n={2} title="Four shapes">
+  The phase is a ramp, and a ramp is not what anyone wants to hear a level follow. So the phase is turned into a wave that swings between −1 and 1. Shape picks which.
+
+  <Controls ids="shape" />
+
+  <Trace taps="raw" min={-1.1} max={1.1}>
+    The shape before the slew, worked out again by the lab from the device's own function at the
+    device's own phase. Try each Shape in turn. Notice that Sine, Triangle and Square all pass
+    upwards through the middle where a cycle begins, and that Random does not repeat.
+  </Trace>
+
+  The sine is the smoothest pulse. The triangle moves at one speed and turns sharply. The square is on or off. Random is a different thing: at the start of each cycle it picks a new level by chance and glides to it over the cycle, along half a cosine, so that it leaves one level flat and arrives at the next one flat.
+
+  <M
+    slot="equation"
+    block
+    t={String.raw`\sig{ctl}{m} = \at{wave-glide}{a + (b - a)\left(\tfrac{1}{2} - \tfrac{1}{2}\cos(\pi\varphi)\right)}`}
+  />
+  <Fragment slot="readback">
+    This is Random's line. <M t="a" /> is the level it is leaving and <M t="b" /> the level it is going to. As the phase <M t={String.raw`\varphi`} /> goes from 0 to 1 the bracket goes from 0 to 1, slowly at both ends and fastest in the middle, so <M t="m" /> slides from <M t="a" /> to <M t="b" /> with no corner at either end. In the picture that is each of Random's curved steps.
+  </Fragment>
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/tremolo/tremolo.h"
+    from="float wave(float phase) const {"
+    to="return kit::SineTable::lookup(phase); } }"
+    at={{ glide: 'return from + (to - from) * (0.5f - 0.5f * kit::SineTable::cos_lookup(0.5f * phase));' }}
+    name="wave"
+  />
+</StageBlock>
+
+<StageBlock tap="lfo" n={3} title="The slew takes the corners off">
+  A square jumps from 1 to −1 between two samples, and a gain that followed it would click as the gate of part 1 did. The device never lets that happen. Whatever the shape, it goes through the slew of the build's third step before anything uses it: two smoothers in a row, each the filter of <Lesson id="one-pole" />.
+
+  <Controls ids="shape smooth" />
+
+  <Trace taps="raw:alt lfo:ctl" min={-1.1} max={1.1} from={1} span={0.5}>
+    Half a second of the shape before the slew and of the modulator after it, which is the
+    device's own meter. Try Shape on Square, then raise Smooth, and notice the second line lean
+    further and further behind the corners of the first.
+  </Trace>
+
+  <Still
+    taps="raw:alt lfo:ctl"
+    values={{ rate: 4, shape: 2, smooth: 0.2 }}
+    from={1}
+    span={0.5}
+    caption="The same half second with Shape on Square, Rate at 4 Hz and Smooth a fifth of the way up. The first line has square corners. The second leaves each corner late and curves into the next level."
+  />
+
+  <M
+    block
+    t={String.raw`\sig{ctl}{m[n]} = \at{slew-second}{s[n] + r\,\bigl(\sig{ctl}{m[n-1]} - s[n]\bigr)}`}
+  />
+
+  <M t="s" /> is the output of the first smoother, which is the same line with the raw shape in the place of <M t="s" /> and <M t="s" /> in the place of <M t="m" />. Each line says: take the input, and add back a share <M t="r" /> of how far the old output stood from it. With <M t="r" /> at 0 the output is the input. With <M t="r" /> near 1 the output hardly moves. Two in a row give a slide that starts gently as well as ending gently, which one alone does not.
+
+  <Listing
+    path="cpp/devices/tremolo/tremolo.h"
+    from="slew_a_[c] = raw[c] + (slew_a_[c] - raw[c]) * slew_coeff_;"
+    to="m[c] = slew_b_[c];"
+    at={{ second: 'slew_b_[c] = slew_a_[c] + (slew_b_[c] - slew_a_[c]) * slew_coeff_;' }}
+    name="slew"
+  />
+
+  The share <M t="r" /> comes from a time. The device gives each smoother a time constant <M t={String.raw`\tau`} />, and the kit turns a time constant into a share:
+
+  <M block t={String.raw`\at{coeff-exp}{r = e^{-1/(\tau f_s)}}`} />
+
+  <Listing
+    path="cpp/kit/math.h"
+    from="// A time constant as a one-pole coefficient"
+    to="return std::exp(-1.0f / (seconds * sample_rate)); }"
+    at={{ exp: 'return std::exp(-1.0f / (seconds * sample_rate));' }}
+    name="coeff"
+  />
+
+  The time has two parts. It is never less than <Src path="cpp/devices/tremolo/tremolo.h" at="static constexpr float kMinSlewSeconds = 0.001f;">a thousandth of a second</Src>, which is what keeps the square from clicking. Smooth adds to that a share of the wave's own period, up to <Src path="cpp/devices/tremolo/tremolo.h" at="static constexpr float kSmoothPeriods = 0.08f;">0.08 of it</Src>, so that the same setting rounds a slow wave and a fast one alike.
+
+  <M block t={String.raw`\at{slewtime-tau}{\tau = 0.001 + 0.08\,\frac{S}{f}}`} />
+
+  <M t="S" /> is Smooth, from 0 to 1, and <M t="f" /> is Rate, so one over <M t="f" /> is the period.
+
+  <Listing
+    path="cpp/devices/tremolo/tremolo.h"
+    from="const float slew_seconds = kMinSlewSeconds + param(kSmooth) * kSmoothPeriods / rate;"
+    to="slew_coeff_ = kit::time_to_coeff(slew_seconds, sr); }"
+    at={{ tau: 'const float slew_seconds = kMinSlewSeconds' }}
+    name="slewtime"
+  />
+
+  Measured on the running device with a steady sound going in, Shape on Square and Rate at 4 Hz, each fall of the gain from nine tenths of the way open to one tenth takes <Claim id="slew-fall">3.4 ms with Smooth at 0, 16.8 ms at 0.2 and 71 ms at 1</Claim>. To hear what the slew is for, compare <Listen tap="unslewed">the tremolo with the slew left out</Listen>, which the lab makes for this purpose, with <Listen tap="tremolo">the device's own</Listen>, with Shape on Square.
+</StageBlock>
+
+<StageBlock tap="gain" n={4} title="Depth turns the wave into a gain">
+  The modulator swings between −1 and 1. A gain for a tremolo should sit at 1 when nothing is wanted and dip from there. Depth makes the one into the other, and it is the law of the build's third step.
+
+  <Controls ids="depth" />
+
+  <Trace taps="lfo:alt gain:ctl" min={-1.1} max={1.1}>
+    The modulator and the gain made from it. Try Depth from 1 down to 0, and notice the bottoms of
+    the gain line rise while its tops stay at 1: this device only turns down.
+  </Trace>
+
+  <M
+    block
+    t={String.raw`\sig{ctl}{g} = \at{depth-down}{1 - \tfrac{d}{2}\,\bigl(1 - \sig{alt}{m}\bigr)}`}
+  />
+
+  Read it against the two lines. The build read this law at its two ends: at the top of the modulator <M t="m" /> the gain is 1, and at its bottom the gain is 1 less the Depth <M t="d" />. In between, the gain follows the modulator's shape, squeezed into the room Depth leaves it. At the device's own Depth of 0.55, <Claim id="depth-055">the gain at its lowest is 0.45, which is 6.9 dB down</Claim>.
+
+  <Listing
+    path="cpp/devices/tremolo/tremolo.h"
+    from="const float down = 1.0f - half * (1.0f - m[c]);"
+    to="float wet = w_tremolo * x * down + w_pan * x * pan[c];"
+    at={{ down: 'const float down = 1.0f - half * (1.0f - m[c]);' }}
+    name="depth"
+  />
+
+  Part 1 found that a slow multiplication already makes new tones, too close to the old one to be heard apart. The law above says how large they are. Put a tone of height <M t="A" /> and frequency <M t="f_0" /> through a sine tremolo of rate <M t="f" />, and use the rule for a product of two sines:
+
+  <M
+    block
+    t={String.raw`\begin{aligned} \sig{out}{y} = {} & \bigl(1 - \tfrac{d}{2}\bigr)\,A \sin(2\pi f_0 t) \\ & + \tfrac{d}{4}\,A \cos\bigl(2\pi (f_0 - f)\, t\bigr) \\ & - \tfrac{d}{4}\,A \cos\bigl(2\pi (f_0 + f)\, t\bigr) \end{aligned}`}
+  />
+
+  The first line is the tone itself, turned down a little. The other two lines are two more tones, one <M t="f" /> below it and one <M t="f" /> above. With Depth at 1 the first has half the tone's height and each of the others a quarter. Measured on the device with Rate at 5 Hz and Depth at 1, a tone at 440 Hz comes out with <Claim id="trem-lines">lines at 435 Hz and 445 Hz, each 6.0 dB under the line at 440 Hz</Claim>.
+</StageBlock>
+
+<StageBlock tap="gainRight" n={5} title="A phase between the ears">
+  The device works the shape out twice, once for each side, as the build's fourth step did: the right side reads it at the phase plus an offset, which is Stereo Phase's degrees <Src path="cpp/devices/tremolo/tremolo.h" at="offset_.set(value * (1.0f / 360.0f), primed());">divided by 360</Src> to give a share of a cycle. Each side then has its own slew and its own gain. The two lines of the oscillator's listing in stage 1 that call `wave` are the whole of it.
+
+  <Controls ids="phase" />
+
+  <Trace taps="gain gainRight" min={0} max={1.05}>
+    The gain on the left side and the gain on the right. Try Stereo Phase from 0 upwards, and
+    notice the second line slide to the left of the first: it is reading further on in the wave.
+  </Trace>
+
+  At 0 the two sides move together and the sound pulses in the middle. At a quarter of a cycle one side leads the other: with Rate at 5 Hz, <Claim id="ears-quarter">the right side's gain peaks 50 ms before the left's</Claim>, a quarter of the cycle's length. At half a cycle the sides are opposite, as on the fourth card of part 3.
+</StageBlock>
+
+<StageBlock tap="lows" n={6} title="Three more things the wave can move">
+  Everything up to here made one slow number for each side. Mode picks what that number does. On Tremolo it is the gain of stage 4. The other three modes use the same modulator in other ways, and the device <Src path="cpp/devices/tremolo/tremolo.h" at="for (kit::Smoother& weight : weight_) weight.set_time(0.02f, sr);">fades from one mode to the next</Src> over a few hundredths of a second, so that changing Mode does not click.
+
+  <Controls ids="mode crossover depth" />
+
+  <Trace taps="gain gainRight gainHigh:alt" min={0} max={1.5}>
+    The gain on each side, and the gain Harmonic puts on the highs, which lies flat at 1 in every
+    other mode. Try each Mode. On Pan, notice the two sides cross. On Harmonic, notice the third
+    line mirror the first. On Vibrato, notice all three lie flat: nothing is being turned down.
+  </Trace>
+
+  **Pan** moves the sound between the sides. The modulator sets an angle, and the two sides get the cosine and the sine of it:
+
+  <M
+    block
+    t={String.raw`\theta = \at{modes-angle}{\tfrac{\pi}{4}\,\bigl(1 + d\,m\bigr)}`}
+  />
+
+  <M
+    block
+    t={String.raw`\sig{ctl}{g_L} = \at{modes-left}{\sqrt{2}\,\cos\theta}`}
+  />
+
+  <M
+    block
+    t={String.raw`\sig{ctl}{g_R} = \at{modes-right}{\sqrt{2}\,\sin\theta}`}
+  />
+
+  With the modulator in the middle the angle is an eighth of a turn, both gains are 1, and the sound is as it went in. As the modulator swings, one gain grows as the other shrinks. The squares of a cosine and a sine of one angle always add up to 1, so the power of the two sides together does not move: <Claim id="pan-power">the squares of the two gains add up to 2.00 at every moment</Claim>, which is what two gains of 1 add up to. A pair of gains chosen this way is where <Lesson id="stereo" />, further on, begins. Stereo Phase has no part in this mode. The code writes the angle in cycles, which is why its line has an eighth where the formula has a quarter of <M t={String.raw`\pi`} />.
+
+  **Harmonic** divides the sound into lows and highs with one small filter at Crossover. The lows get the gain of stage 4. The highs get the same law with the modulator turned over, so they are up when the lows are down. With Depth at 1, <Claim id="harmonic-sum">the two gains add up to 1.00 at every moment</Claim>. The level moves much less than in Tremolo mode, and the tone rocks between dark and bright. This stage's button plays the low band by itself.
+
+  **Vibrato** does not touch the level at all. It writes the sound into a short delay line and reads it back at a distance that the modulator swings. While the distance is shrinking the sound is read faster than it was written, and its pitch goes up; while the distance grows, the pitch goes down. The swing is sized so that Depth at 1 bends the pitch by <Src path="cpp/devices/tremolo/tremolo.h" at="static constexpr float kVibratoBend = 0.02f;">a fiftieth</Src> either way. Measured with Rate at 5 Hz, <Claim id="vibrato-bend">a tone of 1,000 Hz moves between 980 Hz and 1,020 Hz, and its level is 0.0 dB from where it was</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/tremolo/tremolo.h"
+    from="float pan[2] = {1.0f, 1.0f};"
+    to="out[c] = wet; }"
+    at={{
+      angle: 'const float angle = (depth * m[0] + 1.0f) * 0.125f;',
+      left: 'pan[0] = 1.41421356f * kit::SineTable::cos_lookup(angle);',
+      right: 'pan[1] = 1.41421356f * kit::SineTable::lookup(angle);',
+    }}
+    name="modes"
+  />
+  <Fragment slot="listen">Hear the low band Harmonic splits off</Fragment>
+</StageBlock>
+
+<StageBlock tap="tremolo" n={7} title="Mix, as a straight blend">
+  Last, the device blends what the mode made with the sound as it went in. Tremolo Mix at 1 is all of the first, and at 0 all of the second.
+
+  <Controls ids="mix" />
+
+  <M
+    block
+    t={String.raw`\sig{out}{y} = \at{tremmix-blend}{\sig{in}{x} + k\,\bigl(w - \sig{in}{x}\bigr)}`}
+  />
+
+  <M t="x" /> is a sample going in, <M t="w" /> the same sample as the mode left it, and <M t="k" /> is Tremolo Mix. The blend is a straight line between the two. That is the right law here because the two are the same sound at different gains, so they add like numbers. With Depth at 1 and Tremolo Mix at 0.5, <Claim id="mix-linear">the gain at its lowest is 0.50</Claim>: half way between silence and the sound as it was.
+
+  <Listing
+    path="cpp/devices/tremolo/tremolo.h"
+    from="const float mix = mix_.next();"
+    to="out_right_[i] = in[1] + (out[1] - in[1]) * mix;"
+    at={{ blend: 'out_left_[i] = in[0] + (out[0] - in[0]) * mix;' }}
+    name="tremmix"
+  />
+
+  The check below is the lab's proof that it has read this device rightly. On every sample it takes the device's phase, works the shape, the slew, the gain of whichever mode is on and the mix out again, and compares the result with what the device wrote.
+
+  <Check id="tremoloRebuilt" />
+
+  <Fragment slot="listen">Hear the Tremolo</Fragment>
+</StageBlock>
+
+### The Ring
+
+The Ring is the build's last step with a device's care taken over it. Its carrier is normally tuned to a note: the device <Src path="cpp/devices/ring/ring.h" at="return kit::midi_to_hz(static_cast<float>(12 * (octave + 1) + root));">works a frequency out</Src> from a root and an octave, so that the carrier is in the key of the music. It can also be set straight in hertz, and that is how the lab holds it, so that Frequency on this page is the carrier and nothing else. The note controls are left out.
+
+<Flow
+  label="The Ring. The sound divides. One copy is multiplied by a carrier that runs by itself, then filtered. The other goes straight to the mix, where the two are blended."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'split', shape: 'dot', from: 'in' },
+    { id: 'carrier', row: 1, tap: 'carrierHz', label: 'Carrier', n: 8, signal: 'value' },
+    { id: 'wave', row: 1, from: 'carrier', tap: 'zoomCarrier', label: 'Wave', n: 10, signal: 'value' },
+    { id: 'times', label: 'Times the carrier', from: ['split', 'wave'], tap: 'product', n: 9 },
+    { id: 'filters', label: 'Low Cut, Tone', from: 'times', tap: 'wet', n: 11 },
+    { id: 'mix', label: 'Ring Mix', from: ['filters', 'split'], n: 12 },
+    { id: 'out', tap: 'ring', shape: 'end', from: 'mix' },
+  ]}
+>
+  The blocks from the sound going in to the one that comes out are sound. Carrier and Wave listen
+  to nothing and are never heard by themselves: only their product with the sound is. Press a
+  stage's button, and notice its block light up here.
+</Flow>
+
+<StageBlock tap="carrierHz" n={8} title="A carrier that runs free">
+  The carrier is an oscillator of the same kind as the Tremolo's: a phase that steps on with every sample. It is far faster, and there may be two of them. The step is the carrier's frequency over the sample rate, and the second carrier's step is the first one's times a ratio.
+
+  <Controls ids="frequency ringDrift" />
+
+  <Trace taps="carrierHz" unit="Hz">
+    The carrier's frequency across the loop, as the device's own meter reads it. With Ring Drift
+    at 0 it is one flat line at Frequency. Try Ring Drift at 1, and notice the line begin to
+    wander.
+  </Trace>
+
+  <M
+    block
+    t={String.raw`\sig{ctl}{\varphi[n]} = \sig{ctl}{\varphi[n-1]} + \at{carrier-turn}{\frac{f_c}{f_s}}`}
+  />
+
+  <M t="f_c" /> is the carrier's frequency and <M t="f_s" /> the sample rate. The device keeps the phase at twice the usual precision, and adds the step to it on every sample whatever is done to the pitch, so a change of pitch bends the wave and never breaks it.
+
+  <Listing
+    path="cpp/devices/ring/ring.h"
+    from="const float ratio = ratio_.next();"
+    to="phase_[1] += static_cast<double>(hz * ratio) * inverse_sr;"
+    at={{ turn: 'phase_[0] += static_cast<double>(hz) * inverse_sr;' }}
+    name="carrier"
+  />
+
+  Ring Drift leans on the carrier's frequency with a slow wander, by up to <Src path="cpp/devices/ring/ring.h" at="static constexpr float kDriftCents = 50.0f;">50 cents</Src> either way at its top, which is half a semitone. Every sum and difference moves with it, so the ringing sound is never quite still. Measured with Ring Drift at 1 and Frequency at 100 Hz, over a loop with no silence in it, the carrier <Claim id="drift-range">wanders between 97.8 Hz and 100.34 Hz</Claim>.
+
+  The carrier does not start again with each note. It runs on through silence too. The device stops working after <Src path="cpp/devices/ring/ring.h" at="static constexpr float kHoldSeconds = 0.3f;">0.3 s</Src> with nothing coming in, and counts the samples it rests. With the first sample that sounds, it turns the carrier on by the time it rested, in one step, so the carrier is where it would have been had it never stopped.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/ring/ring.h"
+    from="void catch_up() {"
+    to="phase_[1] += turned * static_cast<double>(ratio_.target);"
+    name="catchup"
+  />
+</StageBlock>
+
+<StageBlock tap="product" n={9} title="Times the carrier">
+  This is the device. Each sample going in is multiplied by the carrier's value at that instant. Nothing is remembered and nothing is delayed.
+
+  <Controls ids="frequency" />
+
+  <Curve taps="zoomIn zoomCarrier:ctl zoomProduct:out" xTitle="milliseconds" yTitle="height">
+    A fiftieth of a second of the loop, taken where the sound going in is largest: the input, the
+    carrier, and the two multiplied. Notice that the product is zero wherever either of the others
+    is, and upside down wherever the carrier is under the middle. Try Frequency lower, and notice
+    the carrier's waves spread out.
+  </Curve>
+
+  <M
+    block
+    t={String.raw`\sig{out}{y(t)} = \at{times-product}{\sig{in}{x(t)}\;\sig{ctl}{c(t)}}`}
+  />
+
+  <Listing
+    path="cpp/devices/ring/ring.h"
+    from="const float phase = c == 0 ? where[k] : where[k] + offset;"
+    to="float ringing = x[c] * shape(level[k], cut_[k], phase);"
+    at={{ product: 'float ringing = x[c] * shape(level[k], cut_[k], phase);' }}
+    name="times"
+  />
+
+  <M t="x" /> is the sound going in, <M t="c" /> the carrier and <M t="y" /> the product. In the code the carrier's value is what `shape` gives back, and the `c` in square brackets counts the two sides. For Wave on Sine:
+
+  <M block t={String.raw`\sig{ctl}{c(t)} = \at{shape-sine}{\sqrt{2}\,\sin(2\pi f_c t)}`} />
+
+  That is the carrier of the build's last step, the square root of two tall for the reason given there. Now let the input be one tone of height <M t="A" /> at frequency <M t="f_0" />. The rule for a product of two sines turns the product into a sum:
+
+  <M
+    block
+    t={String.raw`\begin{aligned} \sig{out}{y(t)} = {} & \frac{A}{\sqrt{2}}\,\cos\bigl(2\pi (f_0 - f_c)\,t\bigr) \\[4pt] & - \frac{A}{\sqrt{2}}\,\cos\bigl(2\pi (f_0 + f_c)\,t\bigr) \end{aligned}`}
+  />
+
+  Read it term by term. There are two tones on the right and neither is at <M t="f_0" />. One is at the difference of the two frequencies and one at their sum. Each has the input's height divided by the square root of two, and two tones of that height carry between them the power of the one that went in. Measured on the device with Ring Mix at 1, a tone at 440 Hz against a carrier at 100 Hz comes out as <Claim id="ring-lines">two, at 340 Hz and 540 Hz, each 3.0 dB under it. The tone at 440 Hz is more than 100 dB under where it went in, and the whole comes out less than 0.001 dB from the level it went in</Claim>.
+
+  A real sound is many tones at once, and the multiplication does this to each of them separately. A note's own tones stand at one, two, three times its lowest. Add the same number of hertz to each, or take it away, and they are no longer whole multiples of the lowest of them, as the tones of a bell are not. Listen for the one note turning into a cluster. <Lesson id="frequency-shifting" /> made this product twice over, to keep the sums and cancel the differences.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/ring/ring.h"
+    from="static float shape(const float* weight, const Cut& cut, float phase) {"
+    to="return m; }"
+    at={{ sine: 'if (weight[kWaveSine] > 0.0f) m += weight[kWaveSine] * kSqrt2 * kit::SineTable::lookup(phase);' }}
+    name="shape"
+  />
+  <Fragment slot="listen">Hear the input times the carrier</Fragment>
+</StageBlock>
+
+<StageBlock tap="zoomCarrier" n={10} title="Carriers that are not sines">
+  A carrier of another shape is a sine with harmonics on top: more sines, at three and five times its frequency and so on. Each of them multiplies the sound too, and each makes its own sum and difference. So a richer carrier makes a denser result.
+
+  <Controls ids="wave frequency" />
+
+  <Curve taps="zoomCarrier:ctl" xTitle="milliseconds" yTitle="height">
+    The carrier by itself over the same fiftieth of a second. Try each Wave, and notice the
+    Triangle's straight sides, the Soft square's flat tops, and the Diode's flat stretch each time
+    it crosses the middle.
+  </Curve>
+
+  Measured with Ring Mix at 1, a tone at 440 Hz at half of full scale and the carrier at 100 Hz, the carrier's third harmonic adds a pair at 140 Hz and 740 Hz. That pair stands <Claim id="ring-shapes">19.1 dB under the first pair for Triangle, 12.56 dB for Soft square and 19.3 dB for Diode, which also comes out 1 dB quieter</Claim> than it went in. The sine has no such pair.
+
+  The Soft square is a sine pushed towards a square, with a number <M t={String.raw`\epsilon`} /> that says how soft the corners stay. Its shape is:
+
+  <M
+    block
+    t={String.raw`\sig{ctl}{c} \propto \at{ideal-soft}{\frac{\sin(2\pi\varphi)}{\sqrt{\sin^2(2\pi\varphi) + \epsilon^2}}}`}
+  />
+
+  <M t={String.raw`\varphi`} /> is the carrier's phase, counted in cycles, and <M t={String.raw`\epsilon`} /> is <Src path="cpp/devices/ring/ring_waves.h" at="static constexpr float kSoft = 0.3f;">0.3</Src>. The device <Src path="cpp/devices/ring/ring_waves.h" at="const double scale = 1.0 / std::sqrt(power);">scales each shape</Src> so that its mean square is 1, as the sine's is. Where the sine is large against <M t={String.raw`\epsilon`} />, the fraction is close to 1 or −1: the flat tops. Where the sine passes through zero, the fraction passes through zero with it, steeply but not at once. The Diode is the oldest of these shapes. The first ring modulators were a ring of four diodes between two transformers, and that circuit gave the technique its name. A diode lets nothing through until the voltage across it is high enough, so the carrier it makes is shut for a moment at each crossing.
+
+  Harmonics bring a danger. A sum that lands above half the sample rate cannot be stored, and comes back down as a tone at a wrong frequency, which <Lesson id="samples-and-aliasing" /> showed. So the device keeps each shape as a set of tables, each with fewer harmonics than the last, as the voice of <Lesson id="wavetables" /> does, and reads the one whose highest harmonic is still under <Src path="cpp/devices/ring/ring.h" at="static constexpr float kBandLimit = 1.0f / 6.0f;">a sixth of the sample rate</Src>. The higher the carrier, the plainer its shape.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/ring/ring_waves.h"
+    from="static double ideal(int shape, double phase) {"
+    to="(s + f) / std::sqrt((s + f) * (s + f) + k * k)); } } }"
+    at={{ soft: 'return s / std::sqrt(s * s + static_cast<double>(kSoft) * kSoft);' }}
+    name="ideal"
+  />
+</StageBlock>
+
+<StageBlock tap="wet" n={11} title="Low Cut and Tone, on the ringing sound only">
+  Sums go high and differences go low, and both can go further than the music wants. Two filters follow the multiplication. Low Cut takes away what lies under it, and Tone takes away what lies over it. They work on the ringing sound alone, so the plain sound beside it keeps all of its own lows and highs.
+
+  <Controls ids="lowCut tone" />
+
+  <Spectrum taps="product:alt wet:out" min={-100} max={0}>
+    The spectrum of the product and of the same sound after the two filters. Try Low Cut higher
+    and Tone lower, and notice the second line fall away from the first at each end while the
+    middle stays where it was.
+  </Spectrum>
+
+  <Still
+    taps="product:alt wet:out"
+    view="spectrum"
+    values={{ lowCut: 300, tone: 2000 }}
+    min={-100}
+    max={0}
+    caption="The pad's product and the same sound after the filters, with Low Cut raised to 300 Hz and Tone lowered to 2,000 Hz. The second line lies on the first in the middle and falls under it at both ends."
+  />
+
+  Each filter is of the second order: past its corner it falls twice as steeply as the smallest filter there is, the one of <Lesson id="one-pole" />, and it has <Src path="cpp/devices/ring/ring.h" at="low_cut_[c].set(low_hz, kit::kSqrtHalf, sr);">no bump at the corner</Src>. For Low Cut, write <M t="u" /> for a frequency counted in corners, so that <M t="u" /> is 1 at the corner and 2 an octave over it. The share of a tone's power that Low Cut lets through is:
+
+  <M block t={String.raw`|H|^2 = \at{filters-cut}{\frac{u^4}{1 + u^4}}`} />
+
+  Far above the corner the fraction is close to 1 and nothing is lost. At the corner it is one half. An octave under the corner the top is a sixteenth and the line is falling fast. The case that matters most is a note close to the carrier's own pitch. Their difference is then a few hertz, or none at all: a slow heave under the music, or a steady push to one side, neither of which can be heard and both of which use up room. Measured with Ring Mix at 1 and a tone at 110 Hz against a carrier at 100 Hz, the difference tone at 10 Hz comes out <Claim id="ring-low-cut">12.3 dB lower than it was made with Low Cut at 20 Hz, and 47 dB lower with it at 150 Hz</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/ring/ring.h"
+    from="wet = tone_[c].lowpass(low_cut_[c].highpass(wet));"
+    to="out[c] = x[c] * dry_gain + wet * wet_gain;"
+    at={{
+      cut: 'wet = tone_[c].lowpass(low_cut_[c].highpass(wet));',
+      sum: 'out[c] = x[c] * dry_gain + wet * wet_gain;',
+    }}
+    name="filters"
+  />
+  <Fragment slot="listen">Hear the ringing sound, filtered</Fragment>
+</StageBlock>
+
+<StageBlock tap="ring" n={12} title="Ring Mix, and three refinements">
+  The last line of the listing above is the mix: the sound as it went in times one gain, plus the ringing sound times another. The Tremolo blended along a straight line, because its two sounds were the same sound. Here they are not alike at all, and two unlike sounds add in power. So the two gains are the cosine and the sine of one angle, whose squares always add up to 1.
+
+  <Controls ids="ringMix width second" />
+
+  <M block t={String.raw`g_{\text{dry}} = \at{power-dry}{\cos\bigl(\tfrac{\pi}{2}\,q\bigr)}`} />
+
+  <M block t={String.raw`g_{\text{wet}} = \at{power-wet}{\sin\bigl(\tfrac{\pi}{2}\,q\bigr)}`} />
+
+  <M t="q" /> is Ring Mix. At 0 the angle is nothing: the dry gain is 1 and the wet gain 0. At 1 it is the other way round. Half way, both are one over the square root of two. Measured there, with a tone at 440 Hz and the carrier at 100 Hz, <Claim id="ring-mix">the tone comes out 3.0 dB under what went in, the two new tones 6.0 dB under, and the whole less than 0.001 dB from the level it went in</Claim>. Ring Mix changes what the sound is made of and leaves how loud it is alone.
+
+  <Listing
+    path="cpp/kit/math.h"
+    from="// Equal-power dry/wet gains for mix in [0, 1]."
+    to="*wet_gain = std::sin(angle); }"
+    at={{ dry: '*dry_gain = std::cos(angle);', wet: '*wet_gain = std::sin(angle);' }}
+    name="power"
+  />
+
+  **A slow carrier.** All of that holds for a carrier fast enough to be heard as new tones. Slow the carrier down and the ear hears a tremolo again, and for a tremolo this law is wrong: where the carrier is at its crest, the dry sound and the ringing sound are the same sound and add in height, and the swells stand over the input. So the device changes law by degrees. From <Src path="cpp/devices/ring/ring.h" at="static constexpr float kFastHz = 16.0f;">16 Hz</Src> down to <Src path="cpp/devices/ring/ring.h" at="static constexpr float kSlowHz = 4.0f;">4 Hz</Src> it crosses over to the Tremolo's own: a straight blend, and a carrier whose crest is 1.
+
+  <M block t={String.raw`\sigma = \at{slowlaw-share}{\frac{16 - f_c}{16 - 4}}`} />
+
+  <M t={String.raw`\sigma`} /> is how much of the carrier is treated as a tremolo, held between 0 and 1: all of it at the lower frequency and under, none of it from the upper one up. Measured on a tone at 440 Hz with Ring Mix half way, <Claim id="ring-slow">at 2 Hz the largest sample comes out 0.0 dB over the largest that went in, and at 100 Hz 4.6 dB over</Claim>. At 100 Hz the level is what went in, as measured above, and only the crests are taller: part 7 comes back to them.
+
+  <Listing
+    path="cpp/devices/ring/ring.h"
+    from="// How much of a carrier at `hz` is a tremolo: 1 at 4 Hz and under, 0 from"
+    to="static float slow(float hz) {"
+    at={{ share: 'static float slow(float hz) {' }}
+    name="slowlaw"
+  />
+
+  **Width.** Width turns the right side's carrier on by up to <Src path="cpp/devices/ring/ring.h" at="const float offset = width_.next() * 0.25f;">a quarter of a cycle</Src>. The two sides then carry the same tones, each a quarter of a cycle apart from its twin. Listen for the sound spreading between the speakers. At Width 1 the two sides are as loud as each other, and <Claim id="ring-width">3.0 dB quieter summed to one speaker</Claim> than either is alone.
+
+  **Second.** A second carrier can run beside the first, a fifth above it, an octave above or an octave below. The first is given a gain of <Src path="cpp/devices/ring/ring.h" at="static constexpr float kFirstGain = 0.8f;">0.8</Src> and the second <Src path="cpp/devices/ring/ring.h" at="static constexpr float kSecondGain = 0.6f;">0.6</Src>, whose squares add up to 1, so the level holds. With Second on Octave and the carrier at 100 Hz, the tone at 440 Hz gets <Claim id="ring-second">a second pair, at 240 Hz and 640 Hz, 2.5 dB under the first pair</Claim>.
+
+  The check below is the lab's proof that it has read this device rightly. On every sample it takes the device's phases, works the carrier, the product, the two filters and the mix out again, and compares the result with what the device wrote.
+
+  <Check id="ringRebuilt" />
+
+  On every loop of this page, in each mode of the Tremolo and with each wave of the Ring, at the settings the lab's test tries, both checks read <Claim id="rebuilt-same">−140 dB</Claim>, the lowest they can show: whatever the lab's working and the device differ by lies more than 140 dB under the sound.
+
+  <Fragment slot="listen">Hear the Ring</Fragment>
+</StageBlock>
+
+### All twelve at once, on your loop
+
+Here are both devices with every control live. The lanes are read at each stage in turn. First the Tremolo: the sound going in, where the oscillator is in its cycle, the shape, the modulator after the slew, the gain on each side, the low band, and what comes out.
+
+<Controls ids="mode rate depth shape phase crossover drift smooth mix" />
+
+<Lanes
+  taps="in lfoPhase raw lfo gain gainRight lows tremolo"
+  ranges={{ lfoPhase: [0, 1], raw: [-1.1, 1.1], lfo: [-1.1, 1.1], gain: [0, 1.5], gainRight: [0, 1.5] }}
+>
+  Every stage of the Tremolo on one time axis. Try any control, and notice which lanes change and
+  which do not: Shape changes the shape, the modulator, the two gains and the last lane, and
+  leaves the low band as it was. Tremolo Mix changes only the gains and the last.
+</Lanes>
+
+Then the Ring: the sound going in, the carrier's frequency, the product, the ringing sound after its filters, and what comes out.
+
+<Controls ids="frequency wave second ringDrift lowCut tone width ringMix" />
+
+<Lanes taps="in carrierHz product wet ring">
+  Every stage of the Ring on one time axis. Try Frequency at its lowest, and notice the product
+  turn from a solid band into separate swells. Try Ring Mix at 0, and notice the last lane become
+  the first.
+</Lanes>
+
+To judge what either device did, compare three things: <Listen tap="in">what went in</Listen>, <Listen tap="tremolo">what the Tremolo made of it</Listen>, and <Listen tap="ring">what the Ring made of it</Listen>.
+
+</Part>
+
+<Part id="ways" title="Six things people do with a wave and a multiplication.">
+
+Each of these is a habit of working, not a preset. Press "Try it" and the page moves to settings that show the idea, so you can go back up and see what the gain or the carrier is doing.
+
+<Ways>
+  <Way title="Lock the pulse to the song" tag="Rate from the tempo" set="intime">
+    A pulse can be made to land on the beat. The rate that fits is the tempo in beats a minute, divided by sixty to give beats a second, times the number of pulses wanted in a beat.
+
+    <M block t={String.raw`f = \frac{T}{60}\,p`} />
+
+    <M t="f" /> is Rate, <M t="T" /> the tempo and <M t="p" /> the pulses in a beat. The loops on this page are <Src path="site/labs/bench.cpp" at="// The tempo is 120: a bar is two seconds, so a four-second loop is two bars.">two beats to the second</Src>, so this card's Rate gives two pulses to a beat: on the mix, <Claim id="way-intime">the gain dips 16 times in the 4 s of the loop</Claim>. After the card, halve Rate and listen for the pulse falling on every beat.
+  </Way>
+  <Way title="Move the tone, not the level" tag="Harmonic" set="shimmer">
+    A deep tremolo on a pad can sound like the pad cutting out. Harmonic keeps the pad there and rocks its tone: when the lows are down the highs are up. Measured in short windows against the level going in, <Claim id="way-shimmer">the level travels 6.3 dB on this card, where Tremolo at the same settings travels 15.9 dB</Claim>. After the card, move Crossover and listen for where the rocking sits.
+  </Way>
+  <Way title="Walk it across the room" tag="Pan, slowly" set="pan">
+    A slow Pan gives a line somewhere to go without changing how loud it is. On this card <Claim id="way-pan">each side travels 15.2 dB while the two together travel less than 0.001 dB</Claim>. Depth below 1 keeps the line from going all the way to either side.
+  </Way>
+  <Way title="A halo over a pad" tag="a little Ring, tuned high" set="halo">
+    The Ring need not take a sound over. A carrier an octave above the chord, blended in at a low Ring Mix with some drift and width, puts a faint shimmer of new tones over a pad: the level comes out <Claim id="way-halo">less than 0.1 dB from where it was</Claim>. After the card, raise Ring Mix a little at a time and listen for the point where the chord starts to sour.
+  </Way>
+  <Way title="A tremolo through zero" tag="the Ring, very slow, wide" set="sides">
+    Below its slow limit the Ring is a tremolo whose gain passes through zero and out the other side. With Width at 1 the two sides do this a quarter of a cycle apart, so one is silent when the other is full. On this card <Claim id="way-sides">each side travels 30 dB while the two together travel 2.1 dB</Claim>: a pan that crosses twice in every cycle of the carrier.
+  </Way>
+  <Way title="Two carriers for a gong" tag="Second on Fifth" set="gong">
+    One carrier gives each tone two new ones. Two carriers give it four, and this card has a low carrier with a second one a fifth above it. Listen for a picked note coming out close to struck metal. Tone is set low on this card, which takes the top off the cluster. After the card, try Second on each of its choices and listen to how the cluster changes.
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Six ways it goes wrong, three of them to hear.">
+
+<Faults>
+  <Fault title="Clicks at every edge" set="switched">
+    A gain that jumps cuts the wave, and the cut is a click. The card plays the tremolo with its slew left out, a sound the lab makes for this purpose, on a square: the gate of part 1. The device itself cannot do this, because its slew is always there. If a square still sounds too hard at the edges, raise Smooth.
+  </Fault>
+  <Fault title="A fast square is a buzz" set="buzz">
+    At the top of Rate a square is no longer heard as on and off. It is a tone of its own, with harmonics, laid over the music. Measured with a tone at 440 Hz on this card's settings, the Tremolo puts <Claim id="fault-buzz">lines at 420 Hz and 460 Hz, between 4.0 dB and 4.1 dB under it, and at 380 Hz and 500 Hz, between 14.6 dB and 14.7 dB under it</Claim>. That is a ring modulator with a rough carrier and no control over it. Lower Rate, or change Shape to Sine, which has one pair of lines and no more.
+  </Fault>
+  <Fault title="The chord is gone" set="sour">
+    With Ring Mix at 1 nothing of the played notes is left, and what replaces them has no reason to be in the key. A chord goes in and a clang comes out. This is the sound when it is wanted. When it is not, lower Ring Mix so that the chord is heard beside the ringing sound, or put the carrier on a note of the chord: the device's own way of setting it, by root and octave, is there for this.
+  </Fault>
+  <Fault title="Taller than it went in">
+    With Ring Mix part of the way up, the plain sound and the ringing sound add. The level does not rise, but the crests do: stage 12 measured it on a tone. On the mix, with the settings this lesson starts from, the Ring <Claim id="fault-peaks">stands the tallest sample 3.8 dB taller while the level moves less than 0.5 dB</Claim>. A sound that came in just under full scale goes over it. Leave room before the Ring, or turn down after it.
+  </Fault>
+  <Fault title="Gone in one speaker">
+    Stereo Phase at half a cycle moves the sound from side to side, and the two gains add up to a steady 1. Sum the two sides, as a phone or a club system may, and the movement cancels. Measured on a tone that is the same on both sides, with Rate at 5 Hz, <Claim id="fault-mono">the lines beside the tone are more than 100 dB under it and the tone is 6.0 dB down</Claim>: a steady, quieter tone, with no tremolo in it at all. Keep Stereo Phase well short of the top if the pulse has to survive.
+  </Fault>
+  <Fault title="The pulse stops in a silence">
+    The Tremolo <Src path="cpp/kit/idle.h" at="bool wake(bool excited) {">rests</Src> when nothing comes in, after <Src path="cpp/devices/tremolo/tremolo.h" at="idle_.reset(sr, 0.1f);">a tenth of a second</Src>, and while it rests its oscillator stands still. On a loop of single clicks a second apart it <Claim id="fault-sleep">turns for 10 % of the loop</Claim>. So after a gap the pulse picks up where it stopped, and not where the beat is: a tremolo set to the tempo can come back out of step. On a loop with no silence in it the oscillator turns all the time. So where the pulse has to stay on the beat, put the Tremolo on a sound that does not stop: a rest shorter than the tenth of a second does not put it to sleep. The Ring is built otherwise: stage 8 showed it counting its rest and catching up.
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="Tremolo is a wobble in pitch.">
+    Tremolo is a change of level. A change of pitch is vibrato. The two names have been swapped on instruments and amplifiers for as long as there have been both, which is where the confusion comes from. The engine's device has both under one name, and stage 6 measures them apart: on Vibrato the pitch moves and the level does not.
+  </Myth>
+  <Myth says="A tremolo only changes the volume, so it adds nothing to the sound.">
+    Any gain that moves adds tones. A slow one adds them so close to the original that the ear cannot hear them apart, and hears a level moving. Stage 4 has the measurement: two lines, five hertz to either side of the tone.
+  </Myth>
+  <Myth says="Tremolo and ring modulation are two different effects.">
+    They are one multiplication at two speeds, and the picture of part 2 shows one turning into the other with no line between them. The engine's Ring makes the same point in its code: under its slow limit it uses the Tremolo's law, as stage 12 shows.
+  </Myth>
+  <Myth says="A ring modulator shifts the pitch.">
+    A pitch shifter multiplies every frequency by one number, so a note's tones stay evenly spaced and it is still a note. A ring modulator adds and subtracts one number of hertz, and gives two results for every tone. Stage 9 has the formula and the measurement.
+  </Myth>
+  <Myth says="More Depth makes it louder.">
+    The Tremolo only turns down. Its gain is 1 at the top of the wave and less everywhere else, so the deeper it goes the quieter the whole becomes: the build's second step measured a steady tone coming out quieter with the wave on it than without.
+  </Myth>
+  <Myth says="It is called a ring modulator because it makes things ring.">
+    The name is the circuit's. The first ones were four diodes joined in a ring, and stage 10 has the engine's version of what that ring does to a carrier. That the result often sounds like a bell is chance.
+  </Myth>
+</Myths>
+
+</Part>

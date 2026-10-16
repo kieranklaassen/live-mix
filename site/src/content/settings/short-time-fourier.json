@@ -1,0 +1,99 @@
+{
+  "tile": {
+    "values": {},
+    "tap": "out",
+    "picture": {
+      "taps": ["picture"],
+      "view": "spectrogram",
+      "from": 0.9,
+      "span": 1.3
+    }
+  },
+  "sets": {
+    "held": {
+      "label": "Held chords, each band in its own time",
+      "values": {
+        "pattern": 0
+      },
+      "source": "pad"
+    },
+    "picked": {
+      "label": "A picked line, the light climbing",
+      "source": "guitar"
+    },
+    "wash": {
+      "label": "Noise, the pattern alone",
+      "values": {
+        "grain": 0.3
+      },
+      "source": "noise"
+    },
+    "hits": {
+      "label": "Drums, mostly passed round",
+      "source": "drums"
+    },
+    "narrow": {
+      "label": "Narrow bands",
+      "values": {
+        "pattern": 0,
+        "grain": 1
+      },
+      "source": "chords"
+    },
+    "tide": {
+      "label": "Broad bands, slowly",
+      "values": {
+        "grain": 0,
+        "rate": 0.25
+      },
+      "source": "pad"
+    },
+    "shade": {
+      "label": "Half Depth",
+      "values": {
+        "depth": 0.5
+      },
+      "source": "guitar"
+    },
+    "own": {
+      "label": "The device's own settings",
+      "values": {
+        "depth": 0.65,
+        "pattern": 0,
+        "lean": 0.5,
+        "vary": 0.35,
+        "apart": 0.5
+      },
+      "source": "mix"
+    },
+    "smear": {
+      "label": "The frames alone, attacks and all",
+      "values": {
+        "grain": 1
+      },
+      "source": "drums",
+      "tap": "wet"
+    },
+    "halfhop": {
+      "label": "A hop of half a frame",
+      "values": {
+        "hop": 0
+      },
+      "source": "sine",
+      "tap": "added"
+    },
+    "lone": {
+      "label": "A lone sine",
+      "source": "sine"
+    }
+  },
+  "defaults": {
+    "values": {
+      "depth": 0.65,
+      "pattern": 0,
+      "lean": 0.5,
+      "vary": 0.35,
+      "apart": 0.5
+    }
+  }
+}

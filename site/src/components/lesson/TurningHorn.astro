@@ -1,0 +1,88 @@
+---
+// A horn turning past two microphones, seen from above, beside what a microphone hears of it
+// against time, a row a value on one time axis:
+// <TurningHorn horn="hornAngle" drum="drumAngle" rows="pitch loudness side" mics="mics">Caption.</TurningHorn>
+// `horn` and `drum` are control taps, where each rotor points in turns; `rows` are the control
+// taps drawn against time; `mics` is a curve tap of two points, where the two microphones stand
+// in turns from the front. The picture is drawn when the site is built, at the lab's starting
+// values on the lesson's first source, so it is in the page with scripts off, at the instant
+// `start` names in seconds; once scripts run the reader moves the instant, and once the lab runs
+// it follows the controls and, while the loop plays, the loop.
+import { getEntry } from 'astro:content'
+import TurningHorn, { thinned, type BuiltTurn } from '../../figures/TurningHorn.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+import { renderStill } from '../../lib/still.ts'
+
+interface Props {
+  /** The control taps of the two rotors' angles, in turns. */
+  horn: string
+  drum: string
+  /** The control taps drawn against time: "pitch loudness side". */
+  rows: string
+  /** The curve tap of two points that says where the microphones stand. */
+  mics: string
+  /** The instant shown before the reader moves it, in seconds. */
+  start?: number
+  label?: string
+}
+const { horn, drum, rows, mics, start, label } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const [hornRef, drumRef, micsRef] = tapRefs(`${horn}:ctl ${drum}:alt3 ${mics}:in`, lab.taps, lesson)
+const rowRefs = tapRefs(rows, lab.taps, lesson).map((tap, at) => ({
+  ...tap,
+  role: (['alt', 'out', 'alt2', 'in'] as const)[at % 4]!,
+}))
+if (!hornRef || !drumRef || !micsRef || rowRefs.length === 0) {
+  throw new Error(`${lesson}: <TurningHorn> needs horn, drum, rows and mics.`)
+}
+for (const tap of [hornRef, drumRef, ...rowRefs]) {
+  if (tap.kind !== 'control') {
+    throw new Error(
+      `${lesson}: <TurningHorn> draws values against time, and "${tap.id}" is not one.`,
+    )
+  }
+}
+const entry = await getEntry('lessons', lesson)
+if (!entry) throw new Error(`${lesson}: <TurningHorn> was used on a page that is not a lesson's.`)
+// The lab at its starting values on the lesson's first source, as the opening picture renders it.
+const { result } = await renderStill({
+  lab: entry.data.lab,
+  source: entry.data.sources[0]!,
+  seconds: entry.data.seconds,
+})
+const data = (id: string) => result.taps[id]?.channels_data[0]
+const stand = data(micsRef.id)
+if (!data(hornRef.id)?.length || !data(drumRef.id)?.length || !stand || stand.length < 2) {
+  throw new Error(
+    `${lesson}: <TurningHorn> needs two angles the lab wrote and a tap of two points.`,
+  )
+}
+const rounded = (values: number[]) => values.map((value) => Number(value.toFixed(3)))
+const built: BuiltTurn = {
+  seconds: entry.data.seconds,
+  horn: rounded(thinned(data(hornRef.id)!)),
+  drum: rounded(thinned(data(drumRef.id)!)),
+  rows: Object.fromEntries(rowRefs.map((tap) => [tap.id, rounded(thinned(data(tap.id) ?? []))])),
+  mic: Number(stand[1]!.toFixed(4)),
+}
+const said =
+  label ??
+  `A horn seen from above, turning past two microphones, beside ${rowRefs.map((tap) => tap.name).join(', ')} against time`
+---
+
+<figure class="fig">
+  <TurningHorn
+    client:visible
+    horn={hornRef}
+    drum={drumRef}
+    rows={rowRefs}
+    mics={micsRef}
+    built={built}
+    start={start}
+    label={said}
+  />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

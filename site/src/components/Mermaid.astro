@@ -17,12 +17,12 @@
       block.removeAttribute('data-processed')
       block.textContent = source
     }
-    // The page's own colours, so a diagram is one look with the text around it in either theme.
+    // The page's own colours, so a diagram is one look with the text around it in either scheme.
     mermaid.initialize({
       startOnLoad: false,
       theme: 'base',
       themeVariables: {
-        darkMode: root.dataset.lmTheme === 'dark',
+        darkMode: style.colorScheme === 'dark',
         background: token('--lm-bg'),
         primaryColor: token('--lm-panel'),
         primaryTextColor: token('--lm-text'),
@@ -51,10 +51,8 @@
 </script>
 
 <style is:global>
-  /* The library names its text boxes `label` too; the site's small upper-case label is not meant for them. */
+  /* The library names its text boxes `label` too; the site's small mono label is not meant for them. */
   pre.mermaid .label {
     font-size: inherit;
-    letter-spacing: normal;
-    text-transform: none;
   }
 </style>

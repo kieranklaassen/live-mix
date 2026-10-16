@@ -1,5 +1,6 @@
 node_modules
 dist
+.lesson
 .astro
 public/labs
 test-results

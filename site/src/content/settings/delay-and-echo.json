@@ -1,0 +1,148 @@
+{
+  "tile": {
+    "values": { "time": 375, "feedback": 0.55, "highCut": 4500, "lowCut": 120, "mix": 0.35 },
+    "source": "clicks",
+    "tap": "out",
+    "picture": { "taps": ["in", "heads"], "view": "wave", "from": 0, "span": 2 }
+  },
+  "sets": {
+    "dry": {
+      "label": "The line as played",
+      "source": "guitar",
+      "tap": "in"
+    },
+    "once": {
+      "label": "Played once more",
+      "values": { "feedback": 0, "mix": 0.4 },
+      "source": "guitar"
+    },
+    "trail": {
+      "label": "Fed back: a trail",
+      "values": { "feedback": 0.5, "mix": 0.4 },
+      "source": "guitar"
+    },
+    "line": {
+      "label": "A picked line, answered between its notes",
+      "values": { "time": 375, "feedback": 0.4, "highCut": 4500, "lowCut": 120, "mix": 0.35 },
+      "source": "guitar"
+    },
+    "slap": {
+      "label": "Drums, with one close repeat",
+      "values": { "time": 110, "feedback": 0, "highCut": 6000, "lowCut": 120, "mix": 0.3 },
+      "source": "drums"
+    },
+    "wash": {
+      "label": "Held chords, with a long dark trail",
+      "values": {
+        "time": 500,
+        "feedback": 0.75,
+        "highCut": 2500,
+        "lowCut": 200,
+        "wow": 0.3,
+        "flutter": 0.15,
+        "drive": 0.3,
+        "spread": 0.5,
+        "mix": 0.4
+      },
+      "source": "pad"
+    },
+    "low": {
+      "label": "A bass line, its lows kept out of the loop",
+      "values": { "time": 375, "feedback": 0.5, "highCut": 3000, "lowCut": 400, "mix": 0.3 },
+      "source": "bass"
+    },
+    "eighths": {
+      "label": "On the beat",
+      "values": { "time": 250, "feedback": 0.45, "highCut": 4500, "lowCut": 120, "mix": 0.35 },
+      "source": "guitar"
+    },
+    "dark": {
+      "label": "Darker each time round",
+      "values": { "time": 375, "feedback": 0.8, "highCut": 2000, "lowCut": 120, "mix": 0.4 },
+      "source": "guitar"
+    },
+    "sides": {
+      "label": "From side to side",
+      "values": {
+        "time": 375,
+        "feedback": 0.6,
+        "highCut": 4500,
+        "lowCut": 120,
+        "spread": 1,
+        "mix": 0.4
+      },
+      "source": "drums"
+    },
+    "three": {
+      "label": "Three heads",
+      "values": {
+        "time": 750,
+        "feedback": 0.3,
+        "heads": 2,
+        "highCut": 4500,
+        "lowCut": 120,
+        "mix": 0.4
+      },
+      "source": "drums"
+    },
+    "worn": {
+      "label": "Worn tape",
+      "values": {
+        "time": 500,
+        "feedback": 0.6,
+        "wow": 0.8,
+        "flutter": 0.6,
+        "drive": 0.7,
+        "highCut": 2200,
+        "lowCut": 220,
+        "mix": 0.45
+      },
+      "source": "chords"
+    },
+    "swell": {
+      "label": "Left to build",
+      "values": {
+        "time": 375,
+        "feedback": 1.1,
+        "drive": 1,
+        "highCut": 3000,
+        "lowCut": 200,
+        "mix": 0.3
+      },
+      "source": "guitar"
+    },
+    "dive": {
+      "label": "Time, turned while it plays",
+      "values": { "time": 500, "feedback": 0.7, "nudge": -200, "mix": 0.5 },
+      "source": "chords"
+    },
+    "runaway": {
+      "label": "A loop that gains",
+      "values": { "feedback": 1.1, "drive": 0.3, "mix": 0.3 },
+      "source": "drums"
+    },
+    "mud": {
+      "label": "Too much, off the beat",
+      "values": { "time": 330, "feedback": 0.85, "mix": 0.5 },
+      "source": "mix"
+    },
+    "buzz": {
+      "label": "A Time too short to hear as repeats",
+      "values": { "time": 30, "feedback": 0.9, "mix": 0.5 },
+      "source": "clicks"
+    }
+  },
+  "defaults": {
+    "values": {
+      "time": 380,
+      "feedback": 0.45,
+      "wow": 0.25,
+      "flutter": 0.15,
+      "drive": 0.3,
+      "lowCut": 120,
+      "highCut": 4500,
+      "spread": 0.3,
+      "mix": 0.35
+    }
+  }
+}

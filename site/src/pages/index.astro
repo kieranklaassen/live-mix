@@ -1,74 +1,191 @@
 ---
+// The home page: the map of the lessons, family by family, four tiles a row. Everything here is
+// in the page as built: each tile is a link with its number, its title and a picture rendered
+// from the lesson's lab (lib/still.ts), and the loop row is a group of choices. One island
+// (figures/TileMap.tsx) adds the play buttons and the small bar. The lessons' index
+// (pages/lessons/index.astro) is this page as `home={false}`: the map without the hero.
+import '../styles/home.css'
+import TileMap from '../figures/TileMap.tsx'
+import { SOURCES } from '../lab/sources.ts'
+import { LOOPS, type Tile } from '../lab/tiles.ts'
 import Base from '../layouts/Base.astro'
-import { lessonPath, lessonsInOrder } from '../lib/lessons'
-import { href } from '../lib/paths'
+import { lessonMap, lessonPath, twoDigits } from '../lib/lessons.ts'
+import { href } from '../lib/paths.ts'
+import { lessonTile, sourcePicture, type LessonTile } from '../lib/still.ts'
 
-const lessons = await lessonsInOrder()
+interface Props {
+  /** The hero and the ways into the rest of the site. Without them the page is the lessons' index. */
+  home?: boolean
+  title?: string
+  description?: string
+}
+const {
+  home = true,
+  title = 'live-mix',
+  description = 'An audio engine for the browser, its documentation, and lessons on how the sound is made.',
+} = Astro.props
+
+/** One line on each family, under its name. */
+const ABOUT: Record<string, string> = {
+  signals: 'What a sound is, once it is numbers.',
+  spectrum: 'The same sound, seen as frequencies.',
+  filters: 'Turning some frequencies down and others up.',
+  dynamics: 'Level, and the things that change it.',
+  delays: 'A memory of the sound, played back.',
+  rooms: 'Thousands of echoes, made cheaply.',
+  'space-and-motion': 'Left, right, and things that move.',
+  synthesis: 'Sound from nothing but arithmetic.',
+}
+
+const families = await lessonMap()
+// A lesson that is written has a lab, and so a tile that plays and a picture.
+const built = new Map<string, LessonTile>()
+for (const place of families.flatMap((family) => family.lessons)) {
+  if (place.lesson) built.set(place.id, await lessonTile(place.lesson))
+}
+const tiles: Tile[] = families
+  .flatMap((family) => family.lessons)
+  .flatMap((place) => {
+    const tile = built.get(place.id)
+    if (!tile) return []
+    const { lab, seconds, values, tap, own } = tile
+    return [
+      { id: place.id, title: place.title, number: place.number, lab, seconds, values, tap, own },
+    ]
+  })
+
+const loops = await Promise.all(
+  LOOPS.map(async (id) => ({
+    id,
+    name: SOURCES.find((source) => source.id === id)?.name ?? id,
+    picture: await sourcePicture(id),
+  })),
+)
+const Heading = home ? 'h2' : 'h1'
 ---
 
-<Base
-  title="live-mix"
-  description="An audio engine for the browser, its documentation, and lessons on how the sound is made."
-  indexed={false}
->
-  <section class="hero">
-    <p class="label">An audio engine for the browser</p>
-    <h1>Hear how the sound is made.</h1>
-    <p class="lede">
-      live-mix is a mixing engine with a library of instruments and effects, written in C++ and
-      TypeScript. This site documents all of it, and teaches the signal processing underneath by
-      running the engine's own code in the page, one stage at a time.
-    </p>
-    <p>
-      <a class="button" href={href('lessons/')}>
-        Start the lessons
-      </a>
-      <a class="button quiet" href={href('docs/getting-started/')}>
-        Use the library
-      </a>
-    </p>
-  </section>
+<Base title={title} description={description} indexed={false}>
+  <div class="home">
+    {home && (
+      <section class="home-hero">
+        <div class="home-hero-title">
+          <p class="label">an audio engine for the browser</p>
+          <h1>Hear how the sound is made.</h1>
+        </div>
+        <div class="home-hero-words">
+          <p>
+            live-mix is a mixing engine with a library of instruments and effects. This site
+            documents all of it, and teaches the signal processing underneath by running the
+            engine's own code in the page, one stage at a time.
+          </p>
+          <p class="home-hero-ways">
+            <a href="#lessons">Start the lessons</a>
+            <a href={href('docs/getting-started/')}>Use the library</a>
+          </p>
+        </div>
+      </section>
+    )}
 
-  <div class="cards">
-    <a class="card" href={href('lessons/')}>
-      <span class="label">Learn</span>
-      <h3>Lessons</h3>
-      <p>
-        The Fourier transform, compression, convolution and more. A loop goes in, and you see and
-        hear what every stage does to it.
-      </p>
-    </a>
-    <a class="card" href={href('docs/')}>
-      <span class="label">Build</span>
-      <h3>Docs</h3>
-      <p>The engine, tracks, devices, the session, the React kit, and how to add a device.</p>
-    </a>
-    <a class="card" href={href('devices/')}>
-      <span class="label">Browse</span>
-      <h3>Devices</h3>
-      <p>Every instrument and effect, with each control explained, to try in the page.</p>
-    </a>
-    <a class="card" href={href('api/')}>
-      <span class="label">Look up</span>
-      <h3>API</h3>
-      <p>Every exported class, function and type, generated from the source.</p>
-    </a>
-  </div>
-
-  {lessons.length > 0 && (
-    <section>
-      <h2>The lessons</h2>
-      <ol class="lesson-list">
-        {lessons.map((lesson) => (
-          <li>
-            <a href={href(lessonPath(lesson.id))}>
-              <span class="n">{String(lesson.data.order).padStart(2, '0')}</span>
-              <span class="t">{lesson.data.title}</span>
-              <span class="s">{lesson.data.summary}</span>
-            </a>
-          </li>
+    <fieldset class="loops" data-loops>
+      <legend>
+        A loop goes in
+        <span class="label">
+          pick the sound the lessons play; the triangle on a lesson plays it through that part of
+          the engine
+        </span>
+      </legend>
+      <div class="loops-row">
+        {loops.map((loop, index) => (
+          <label class="loop">
+            <input type="radio" name="loop" value={loop.id} checked={index === 0} />
+            <span class="loop-picture" set:html={loop.picture} />
+            <span class="loop-name">{loop.name}</span>
+          </label>
         ))}
-      </ol>
-    </section>
-  )}
+      </div>
+    </fieldset>
+    {/* The row picks what a tile's button plays: with scripts off there are no buttons. */}
+    <noscript>
+      <style is:inline>
+        .loops {
+          display: none;
+        }
+      </style>
+    </noscript>
+
+    <div class="map-head" id="lessons">
+      <Heading>Thirty-two lessons</Heading>
+      <p>Eight families, four lessons each. Read along a row to go deep into one.</p>
+    </div>
+
+    <div class="map">
+      {families.map((family) => (
+        <section class="family" data-family={family.id} aria-labelledby={`family-${family.id}`}>
+          <header class="family-head">
+            <span class="family-range">
+              {twoDigits(family.lessons[0]?.number ?? 0)} to{' '}
+              {twoDigits(family.lessons.at(-1)?.number ?? 0)}
+            </span>
+            <h3 id={`family-${family.id}`}>{family.name}</h3>
+            {ABOUT[family.id] && <p>{ABOUT[family.id]}</p>}
+          </header>
+          <ol class="tiles">
+            {family.lessons.map((place) => {
+              const tile = built.get(place.id)
+              return tile ? (
+                <li class="tile" data-tile={place.id}>
+                  <a href={href(lessonPath(place.id))}>
+                    <span
+                      class="tile-picture"
+                      data-time={tile.time ? `${tile.time.from} ${tile.time.span}` : undefined}
+                      set:html={tile.picture}
+                    />
+                    <span class="tile-words">
+                      <span class="tile-no">{twoDigits(place.number)}</span>
+                      <span class="tile-title">{place.title}</span>
+                      {tile.own && (
+                        <span class="tile-line">It plays its own notes and takes no loop.</span>
+                      )}
+                    </span>
+                  </a>
+                  <span class="tile-note" />
+                  <span class="tile-play" />
+                </li>
+              ) : (
+                <li class="tile tile-unwritten">
+                  <span class="tile-picture" />
+                  <span class="tile-words">
+                    <span class="tile-no">{twoDigits(place.number)}</span>
+                    <span class="tile-title">{place.title}</span>
+                    <span class="tile-line">Not yet written.</span>
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
+        </section>
+      ))}
+    </div>
+
+    {home && (
+      <div class="cards">
+        <a class="card" href={href('docs/')}>
+          <span class="label">build</span>
+          <h3>Docs</h3>
+          <p>The engine, tracks, devices, the session, the React kit, and how to add a device.</p>
+        </a>
+        <a class="card" href={href('devices/')}>
+          <span class="label">browse</span>
+          <h3>Devices</h3>
+          <p>Every instrument and effect, with each control explained, to try in the page.</p>
+        </a>
+        <a class="card" href={href('api/')}>
+          <span class="label">look up</span>
+          <h3>API</h3>
+          <p>Every exported class, function and type, generated from the source.</p>
+        </a>
+      </div>
+    )}
+  </div>
+  <TileMap client:load tiles={tiles} loops={loops.map(({ id, name }) => ({ id, name }))} />
 </Base>

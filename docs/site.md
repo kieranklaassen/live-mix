@@ -1,31 +1,45 @@
 # The site
 
-`site/` is the library's public site: about twenty lessons on the signal
+`site/` is the library's public site: thirty-two lessons on the signal
 processing the engine uses, this documentation as pages, a page for every
 device, the API reference and a search over all of it. It is a project of its
 own inside the repository, with its own `package.json` and lockfile, so
 installing the library never installs the site's packages.
 
-In a lesson a loop runs through the engine's own C++ in the page. The lesson
-shows the signal at every stage, plays each stage, redraws when a control
-moves, and ends with the real device behind its own plate on the same loop.
+The home page is the map of the lessons: eight families of four, each lesson
+a tile with a picture drawn from its lab and a button that plays it.
+
+A lesson is a long read in nine parts: why the technique is needed, what it
+does in one picture, what it is used on, the technique built a piece at a
+time, the engine's own device stage by stage with set mathematics and
+listings of the real source, ways to use it, what goes wrong, what people get
+wrong about it, and the real device behind its own plate. All the way down a
+loop runs through the engine's own C++ in the page: the lesson shows the
+signal at every stage, plays each stage, redraws when a control moves, and
+its cards set the page to named settings and play them. With scripts off the
+text, the equations, the listings, the still pictures, every step of the
+build and the answer to each prediction are still there.
 
 ## What is where
 
-| Path                         | What it is                                                                                     |
-| ---------------------------- | ---------------------------------------------------------------------------------------------- |
-| `site/src/content/lessons/`  | The lessons, one `.mdx` each                                                                   |
-| `site/labs/`                 | One C++ file a lesson: the engine's code with a tap on every stage, built to WebAssembly       |
-| `site/tests/labs/`           | One test file a lesson: every quantity the lesson states, measured on the lab in Node          |
-| `site/tests/browser/`        | The site as built, in a headless browser: every lesson, the docs, the devices, the search      |
-| `site/src/pages/docs/`       | `docs/*.md` as pages. The Markdown stays where it is and is not copied                         |
-| `site/src/pages/devices/`    | A page a device, written from the library's own descriptors                                    |
-| `site/scripts/`              | The labs build, the API copy, the checks, a server for the build, `look.mjs` for a look at one |
-| `.github/workflows/site.yml` | Builds and checks the site; on `main`, publishes it                                            |
+| Path                             | What it is                                                                                            |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `site/src/content/lessons/`      | The lessons, one `.mdx` each                                                                          |
+| `site/src/content/settings/`     | One `.json` a lesson: its tile on the map, the sets its cards play, the device's defaults             |
+| `site/src/content/families.json` | The map of the lessons: eight families of four, by id and title. A lesson's number is its place there |
+| `site/labs/`                     | One C++ file a lesson: the engine's code with a tap on every stage, built to WebAssembly              |
+| `site/tests/labs/`               | One test file a lesson: every quantity the lesson states, measured on the lab in Node                 |
+| `site/tests/unit/`               | The parts the lessons share, tried on small cases made for the purpose                                |
+| `site/tests/browser/`            | The site as built, in a headless browser: the map, every lesson, the docs, the devices, the search    |
+| `site/src/pages/docs/`           | `docs/*.md` as pages. The Markdown stays where it is and is not copied                                |
+| `site/src/pages/devices/`        | A page a device, written from the library's own descriptors                                           |
+| `site/scripts/`                  | The labs build, the API copy, the checks, `lesson.sh` for one lesson, a server, `look.mjs` for a look |
+| `.github/workflows/site.yml`     | Builds and checks the site; on `main`, publishes it                                                   |
 
 [site/LESSONS.md](../site/LESSONS.md) is the guide to writing a lesson: the
-three files, the rules a lesson keeps, the lab's interface, the components a
-lesson is written with.
+four files, the rules a lesson keeps, the lab's interface, the nine parts and
+what each holds at least, the components a lesson is written with, and how
+one lesson is checked alone.
 
 ## Building it
 
@@ -41,7 +55,7 @@ pnpm dev                          # http://localhost:4321/live-mix/
 ```
 
 The labs are built, never committed, so a lesson always runs the engine as it
-is at that commit. `pnpm labs 07-compression` builds one.
+is at that commit. `pnpm labs compression` builds one.
 
 ```sh
 pnpm build                        # pages, then the API reference, then the search index
@@ -52,8 +66,16 @@ bash scripts/check.sh --root      # and once more, built as for a domain's root
 
 `check.sh` builds the labs, checks format and types, runs the unit and lab
 tests, checks the wording, builds, checks that every claim in a lesson is held
-by a test, follows every link inside the build, and runs the browser tests on
-the build.
+by a test with its number as written, that every lesson holds its nine parts
+and what each must hold, and the wording of the pages as built, follows every
+link inside the build, and runs the browser tests on the build.
+
+A whole build stops on a lesson the map lists that has no file, or no tile
+entry in its settings file, and on a lesson's file the map does not list.
+
+`bash scripts/lesson.sh <id>` checks one lesson alone, with a build that
+holds that lesson and the home page and nothing else
+([site/LESSONS.md](../site/LESSONS.md), "Checking one lesson").
 
 The site's address comes from two variables the build reads: `SITE_URL` (the
 origin, `https://kieranklaassen.github.io` when unset) and `SITE_BASE` (the
@@ -121,34 +143,49 @@ in. Nothing here was checked on a person's machine, and nobody has listened to
 any of it.
 
 **Measured in Node, on the labs.** Each lesson's lab is the engine's C++
-compiled to WebAssembly, and `pnpm test` runs it: 583 tests. Every quantity a
-lesson states (574 of them across the twenty lessons) is the title of a test
-that measures it, and `check-claims.mjs` fails a lesson whose stated quantity
-no test holds. These are measurements of the samples the code puts out: a
-level in dB, a frequency, a time, a difference between two signals.
+compiled to WebAssembly, and `pnpm test` runs it with the tests of the shared
+parts: 2,184 tests. Every quantity a lesson states as measured
+(1,575 of them across the thirty-two lessons) is named by a test that
+measures it, and `check-claims.mjs` fails a lesson whose stated quantity no
+test holds, or whose number as written is not in that test. These are
+measurements of the samples the code puts out: a level in dB, a frequency, a
+time, a difference between two signals. Each lab also reports, on every
+render, how far the step of its build that rebuilds the engine's code lands
+from what the engine itself made, and its test holds that to a stated bound.
 
-**Seen in a headless Chromium, on the site as built.** 113 browser tests: each
-lesson opens with no error, every figure draws, moving a control renders again
-and changes a picture, Play makes the meter move, every stage that is sound
-can be chosen, the real device opens behind its plate and sound passes through
-it, and the page fits a window 390 and 1280 px wide. The docs index and a link
-between two docs, a lesson with JavaScript off, a device page for an effect
-and for an instrument, and the search are covered the same way. "Sound" here
-means the page's meter read above nothing: a number, not a judgement.
+**Seen in a headless Chromium, on the site as built.** 246
+browser tests. The map shows a link and a drawn picture for every lesson with
+scripts off, and with them a tile's button loads that lesson's lab and sound
+passes. Each lesson opens with no error at 1,280 and 390 px, every figure
+draws and nothing sticks out sideways; a listing or an equation wider than
+the window scrolls in its own box, by the keys too; the contents list leads
+to its parts; a prediction's answer is shut and opens; a control moves by the
+keys and the figures draw again; Play makes the meter move and every stage
+that is sound can be heard; a card plays its set and is the only one lit, and
+"back" restores what the reader had; the build shows a step at a time and
+sounds; the real device opens behind its plate and sound passes through it;
+and with JavaScript off the text, the equations, the listings, the stills and
+every build step are on the page with no button that would do nothing. The
+docs index and a link between two docs, a device page for an effect and for
+an instrument, and the search are covered the same way. "Sound" here means
+the page's meter read above nothing: a number, not a judgement.
 
 **Read, not run.** Every link inside the build is followed by
-`check-links.mjs` (96,909 on the day), and the pages' wording is read against
-a list of names by `check-wording.mjs`. Links out of the site are counted and
-not fetched.
+`check-links.mjs` (100,542 links across 4,033 pages on the day: 255 of the site and 3,778 of the API reference). The pages'
+wording is read against a list of names by `check-wording.mjs`, and
+`check-lessons.mjs` counts what each lesson's page holds against the floors
+of its nine parts. Links out of the site are counted and not fetched.
 
 **Not checked.**
 
-- How any lesson sounds. Whether a loop is pleasant, whether a stage is loud
-  enough beside the next, whether the click-free crossfade at a loop's end is
-  click-free to an ear: nobody has heard them.
-- How any picture reads to a person. The figures were looked at as
-  screenshots while each lesson was written, at two widths.
-- Firefox and Safari, and any phone. Only Chromium has opened the site.
+- How any lesson sounds. No person has heard any of it in this work: whether
+  a loop is pleasant, whether a stage is loud enough beside the next, whether
+  the click-free crossfade at a loop's end is click-free to an ear.
+- Whether a lesson reads well and teaches. The figures were looked at as
+  screenshots while each lesson was written, at two widths; no reader has
+  been through one.
+- Firefox and Safari, and any phone. They have not been tried: only a
+  headless Chromium on Linux has opened the site.
 - The deploy job. It cannot run before Pages is switched on; its first run on
   `main` is its test.
 - A build for a domain's root is made and its links are followed

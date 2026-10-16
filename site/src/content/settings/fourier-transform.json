@@ -1,0 +1,138 @@
+{
+  "tile": {
+    "values": {
+      "size": 2,
+      "keep": 12
+    },
+    "source": "saw",
+    "tap": "out",
+    "picture": {
+      "taps": ["windowed", "rebuilt"],
+      "view": "curve"
+    }
+  },
+  "sets": {
+    "chord": {
+      "label": "The chord as played",
+      "source": "chords",
+      "tap": "in"
+    },
+    "lower": {
+      "label": "The 16 lowest bins",
+      "values": {
+        "keep": 16
+      },
+      "source": "chords",
+      "tap": "out"
+    },
+    "upper": {
+      "label": "All the other bins",
+      "values": {
+        "keep": 16
+      },
+      "source": "chords",
+      "tap": "removed"
+    },
+    "held": {
+      "label": "A held chord, its fundamentals",
+      "values": {
+        "keep": 30
+      },
+      "source": "chords",
+      "tap": "out"
+    },
+    "hit": {
+      "label": "A drum hit, in short frames",
+      "values": {
+        "position": 0.4995,
+        "size": 1,
+        "keep": 12
+      },
+      "source": "drums",
+      "tap": "out"
+    },
+    "hiss": {
+      "label": "Noise, its lowest 400 bins",
+      "values": {
+        "keep": 400
+      },
+      "source": "noise",
+      "tap": "out"
+    },
+    "lows": {
+      "label": "A bass line, its lowest 12 bins",
+      "values": {
+        "keep": 12
+      },
+      "source": "bass",
+      "tap": "out"
+    },
+    "wall": {
+      "label": "Everything under the cut",
+      "source": "mix",
+      "tap": "out"
+    },
+    "rest": {
+      "label": "Everything over the cut",
+      "source": "mix",
+      "tap": "removed"
+    },
+    "inplace": {
+      "label": "The same cut in short frames",
+      "values": {
+        "size": 1,
+        "keep": 3
+      },
+      "source": "drums",
+      "tap": "out"
+    },
+    "second": {
+      "label": "The chord, compared with its second string",
+      "values": {
+        "compare": 165
+      },
+      "source": "chords",
+      "tap": "in"
+    },
+    "through": {
+      "label": "Through Spectral Blur, nothing altered",
+      "source": "chords",
+      "tap": "device"
+    },
+    "bare": {
+      "label": "A rising sine, cut with no window",
+      "values": {
+        "window": 0
+      },
+      "source": "sweep",
+      "tap": "out"
+    },
+    "early": {
+      "label": "Clicks through long frames",
+      "values": {
+        "position": 0.98
+      },
+      "source": "clicks",
+      "tap": "out"
+    },
+    "blunt": {
+      "label": "The chord cut in short frames",
+      "values": {
+        "size": 1,
+        "keep": 2
+      },
+      "source": "chords",
+      "tap": "out"
+    },
+    "short": {
+      "label": "Clicks through short frames",
+      "values": {
+        "position": 0.98,
+        "size": 1,
+        "keep": 3
+      },
+      "source": "clicks",
+      "tap": "out"
+    }
+  }
+}

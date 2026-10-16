@@ -1,39 +1,10 @@
 ---
-import Base from '../../layouts/Base.astro'
-import { lessonPath, lessonsInOrder } from '../../lib/lessons.ts'
-import { href } from '../../lib/paths.ts'
-
-const lessons = await lessonsInOrder()
+// The lessons' index: the home page's map of the lessons, without the hero.
+import LessonMap from '../index.astro'
 ---
 
-<Base
+<LessonMap
+  home={false}
   title="Lessons"
   description="How the sound is made: each lesson runs one technique of the engine in the page, stage by stage."
-  indexed={false}
->
-  <div class="prose">
-    <p class="label">Lessons</p>
-    <h1>How the sound is made</h1>
-    <p class="lede">
-      Each lesson takes one technique the engine uses and runs it here, in the page, on a loop you
-      can change. The signal is shown at every stage, each stage can be heard, and the controls that
-      matter can be turned. What runs is the engine's own code, not a copy of it written for
-      teaching.
-    </p>
-  </div>
-  {lessons.length > 0 ? (
-    <ol class="lesson-list">
-      {lessons.map((lesson) => (
-        <li>
-          <a href={href(lessonPath(lesson.id))}>
-            <span class="n">{String(lesson.data.order).padStart(2, '0')}</span>
-            <span class="t">{lesson.data.title}</span>
-            <span class="s">{lesson.data.summary}</span>
-          </a>
-        </li>
-      ))}
-    </ol>
-  ) : (
-    <p>No lesson is written yet.</p>
-  )}
-</Base>
+/>

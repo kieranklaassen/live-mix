@@ -1,0 +1,64 @@
+{
+  "tile": {
+    "tap": "sweep",
+    "picture": { "taps": ["sweepPicture"], "view": "spectrogram" }
+  },
+  "sets": {
+    "rising": {
+      "label": "A sine asked to rise",
+      "tap": "sweep"
+    },
+    "naive": {
+      "label": "The naive saw",
+      "tap": "naive"
+    },
+    "kit": {
+      "label": "A high note, the kit's way",
+      "tap": "saw"
+    },
+    "low": {
+      "label": "A low note, the naive way",
+      "values": { "note": 110 },
+      "tap": "naive"
+    },
+    "moving": {
+      "label": "A note that moves, the naive way",
+      "values": { "note": 880, "glide": 2 },
+      "tap": "naive"
+    },
+    "pure": {
+      "label": "A pure tone",
+      "values": { "freq": 12000 },
+      "tap": "sine"
+    },
+    "promise": {
+      "label": "A bright note kept low",
+      "values": { "note": 440 },
+      "tap": "saw"
+    },
+    "watched": {
+      "label": "The kit's saw, moving",
+      "values": { "note": 880, "glide": 2 },
+      "tap": "saw"
+    },
+    "soft": {
+      "label": "A shape with softer edges",
+      "tap": "triangle"
+    },
+    "grit": {
+      "label": "The folds as a sound",
+      "values": { "note": 1760, "glide": 2 },
+      "tap": "naive"
+    },
+    "hidden": {
+      "label": "Folds that hide",
+      "values": { "note": 4000 },
+      "tap": "naive"
+    },
+    "thicket": {
+      "label": "A thicket of folds",
+      "values": { "note": 3800 },
+      "tap": "naive"
+    }
+  }
+}

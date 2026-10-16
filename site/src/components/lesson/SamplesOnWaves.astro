@@ -1,9 +1,13 @@
 ---
 // Samples against the continuous waves through them:
 // <SamplesOnWaves waves="wave alias" samples="samples">Caption.</SamplesOnWaves>
+// With `spectrum`, a sound's spectrum stands beside them on an even axis that runs to the sample
+// rate, with an upright at half the rate and one at each control `uprights` names, each with
+// its name beside it:
+// <SamplesOnWaves waves="wave alias" samples="samples" spectrum="sine" uprights="freq">…
 import SamplesOnWaves from '../../figures/SamplesOnWaves.tsx'
 import { tapRefs } from '../../figures/roles.ts'
-import { pageLab } from '../../lib/lab-info.ts'
+import { controlPairs, pageLab } from '../../lib/lab-info.ts'
 
 interface Props {
   /** Curve taps with many points to a sample, drawn as lines. */
@@ -15,8 +19,12 @@ interface Props {
   max?: number
   height?: number
   label?: string
+  /** A sound whose spectrum is drawn beside the samples, by id. */
+  spectrum?: string
+  /** Controls in hertz drawn as an upright line in the spectrum, by id. */
+  uprights?: string
 }
-const { waves, samples, label, ...rest } = Astro.props
+const { waves, samples, label, spectrum, uprights, ...rest } = Astro.props
 const { lab, lesson } = pageLab(Astro.locals)
 // Named together, so each gets a colour of its own, then told apart again.
 const refs = tapRefs(`${waves} ${samples}`, lab.taps, lesson)
@@ -30,17 +38,38 @@ const said =
     .slice(0, lines)
     .map((tap) => tap.name)
     .join(' and ')}`
+// The spectrum's line takes its own role: the sound that comes out.
+const [sound] = spectrum ? tapRefs(`${spectrum}:out`, lab.taps, lesson) : []
+if (sound && sound.kind !== 'audio') {
+  throw new Error(`${lesson}: "${sound.id}" is not sound, so the page works out no spectrum of it.`)
+}
 ---
 
-<figure class="fig">
+{/* Read by the play bar when it starts the lab: a spectrum is worked out only of a sound named here. */}
+<figure class="fig" data-spectrum-taps={sound?.id}>
   <SamplesOnWaves
     client:visible
     waves={refs.slice(0, lines)}
     samples={refs.slice(lines)}
     label={said}
+    spectrum={sound}
+    uprights={spectrum ? controlPairs(uprights, lab, lesson) : undefined}
     {...rest}
   />
   <figcaption>
     <slot />
   </figcaption>
 </figure>
+
+<style is:global>
+  /* The samples and the spectrum side by side where there is room for two, one under the other where there is not. */
+  .samples-beside-spectrum {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    gap: 0.75rem 1.25rem;
+    align-items: start;
+  }
+  .samples-beside-spectrum > * {
+    min-width: 0;
+  }
+</style>

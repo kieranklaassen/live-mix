@@ -1,5 +1,7 @@
-// One colour per role of a signal, the same in every figure of every lesson: what goes in is
-// grey, what comes out is the accent, a control signal is blue, and what lies between is green.
+// One colour per role of a signal, the same in every figure of every lesson: what goes in, what
+// comes out, a control signal, and up to three more that lie between. The colours themselves are
+// in styles/site.css, one set for each scheme, so a figure and a caption name a line by its
+// role or its label and never by a colour.
 
 import type { TapInfo } from '../lab/describe.ts'
 

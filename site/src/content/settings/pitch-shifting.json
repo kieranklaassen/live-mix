@@ -1,0 +1,139 @@
+{
+  "tile": {
+    "values": { "mix": 0.5 },
+    "tap": "out",
+    "picture": { "taps": ["seamA", "seamB", "seamVoice"], "view": "curve" }
+  },
+  "sets": {
+    "played": {
+      "label": "The guitar line as played",
+      "source": "guitar",
+      "tap": "in"
+    },
+    "tape": {
+      "label": "The recording read at twice the speed",
+      "source": "guitar",
+      "tap": "tape"
+    },
+    "octave": {
+      "label": "An octave up, the same length",
+      "values": { "mode": 0 },
+      "source": "guitar"
+    },
+    "wobble": {
+      "label": "The sine, an octave up by the plain method",
+      "source": "sine"
+    },
+    "below": {
+      "label": "An octave below the line",
+      "values": { "pitchA": -12, "mode": 0, "size": 90, "tone": 5000, "mix": 0.5 },
+      "source": "guitar"
+    },
+    "harmony": {
+      "label": "A fifth above the line",
+      "values": { "pitchA": 7, "mode": 0, "tone": 9000, "mix": 0.4 },
+      "source": "guitar"
+    },
+    "doubler": {
+      "label": "Two voices a few cents apart",
+      "values": {
+        "pitchA": 0,
+        "pitchB": 0,
+        "levelB": 1,
+        "detune": 9,
+        "mode": 0,
+        "jitter": 0.2,
+        "delay": 14,
+        "tone": 12000,
+        "spread": 1,
+        "mix": 0.5
+      },
+      "source": "chords"
+    },
+    "steps": {
+      "label": "Repeats that climb an octave each",
+      "values": {
+        "pitchA": 12,
+        "mode": 0,
+        "delay": 330,
+        "feedback": 0.55,
+        "tone": 7000,
+        "mix": 0.4
+      },
+      "source": "guitar"
+    },
+    "octaves": {
+      "label": "An octave above and below a pad",
+      "values": {
+        "pitchA": 12,
+        "pitchB": -12,
+        "levelB": 0.8,
+        "mode": 3,
+        "tone": 8000,
+        "spread": 0.6,
+        "mix": 0.45
+      },
+      "source": "pad"
+    },
+    "triad": {
+      "label": "A chord from one note",
+      "values": { "pitchA": 4, "pitchB": 7, "levelB": 1, "mode": 0, "mix": 0.5 },
+      "source": "sine"
+    },
+    "shimmer": {
+      "label": "A cloud above the chords",
+      "values": {
+        "pitchA": 12,
+        "pitchB": 19,
+        "levelB": 0.4,
+        "mode": 1,
+        "size": 45,
+        "jitter": 0.45,
+        "delay": 40,
+        "feedback": 0.35,
+        "tone": 8000,
+        "spread": 0.8,
+        "mix": 0.4
+      },
+      "source": "chords"
+    },
+    "chordsMode": {
+      "label": "Chords, a fifth up, in Chords",
+      "values": { "pitchA": 7, "mode": 3, "tone": 9000 },
+      "source": "chords"
+    },
+    "chordsSmooth": {
+      "label": "Chords, a fifth up, in Smooth",
+      "values": { "pitchA": 7, "mode": 0, "tone": 9000 },
+      "source": "chords"
+    },
+    "tight": {
+      "label": "Drums an octave up, Size short",
+      "values": { "mode": 0, "size": 20 },
+      "source": "drums"
+    },
+    "flutter": {
+      "label": "A beat where the heads disagree",
+      "values": { "size": 61.36 },
+      "source": "sine"
+    },
+    "doubled": {
+      "label": "Every hit more than once",
+      "values": { "size": 200 },
+      "source": "drums"
+    },
+    "buzz": {
+      "label": "A window short enough to buzz",
+      "values": { "size": 10 },
+      "source": "guitar"
+    },
+    "late": {
+      "label": "Chords, arriving late",
+      "values": { "mode": 3, "mix": 0.5 },
+      "source": "drums"
+    }
+  },
+  "defaults": {
+    "values": { "mode": 3, "tone": 9000, "spread": 0.5, "mix": 0.5 }
+  }
+}

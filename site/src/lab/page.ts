@@ -19,6 +19,14 @@ import {
 } from './store.ts'
 import type { WorkerReply, WorkerRequest } from './worker.ts'
 
+/** A worker that renders labs (worker.ts). A page has one: the lesson's lab store, or the home map's tiles. */
+export const labWorker = (): Worker =>
+  new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
+
+/** Where a built lab is served from, by its name. */
+export const labUrl = (lab: string): string =>
+  new URL(`${BASE}/labs/${lab}.wasm`, location.href).href
+
 function workerRenderer(): Renderer {
   let worker: Worker | undefined
   let seq = 0
@@ -31,7 +39,7 @@ function workerRenderer(): Renderer {
     load(config) {
       return new Promise((resolve, reject) => {
         loaded = { resolve, reject }
-        worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })
+        worker = labWorker()
         worker.onerror = (event) => {
           const error = new Error(event.message || 'The lab stopped.')
           loaded?.reject(error)
@@ -47,11 +55,10 @@ function workerRenderer(): Renderer {
             waiting.delete(reply.seq)
           }
         }
-        const labs = new URL(`${BASE}/labs/`, location.href).href
         send({
           type: 'init',
-          labUrl: `${labs}${config.lab}.wasm`,
-          benchUrl: `${labs}bench.wasm`,
+          labUrl: labUrl(config.lab),
+          benchUrl: labUrl('bench'),
           frames: Math.round(config.seconds * SAMPLE_RATE),
           spectra: config.spectra ?? [],
         })
@@ -80,13 +87,15 @@ export function pagePlayer(): Player {
 
 export function labStore(): LabStore {
   // The player makes its context on the first play, inside a click, where a browser lets one
-  // start. A volume set before then makes the player and no context, and the play starts at it.
+  // start; a card, whose sound starts later on its render, makes it in its press. A volume set
+  // before then makes the player and no context, and the play starts at it.
   store ??= createLabStore(workerRenderer(), {
     play: (tap) => pagePlayer().play(tap),
     update: (tap) => pagePlayer().update(tap),
     bench: (source) => pagePlayer().bench(source),
     stop: () => player?.stop(),
     setVolume: (volume) => pagePlayer().setVolume(volume),
+    wake: () => pagePlayer().wake(),
   })
   return store
 }
