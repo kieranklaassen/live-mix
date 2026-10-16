@@ -1,14 +1,16 @@
 ---
 title: The plucked string
 family: synthesis
-summary: A delay line as long as one period of a note, fed back on itself through a gentle low-pass, is a string. This lesson plucks the Guitar's own string and reads the wave going round inside it.
+summary: A delay line one period long, fed back on itself through a gentle low-pass, is a string. This lesson says why a fade cannot do the job, builds a string from a burst of noise in eight pieces, then opens the Guitar's own and reads the wave going round inside it.
+long: true
+opening: { input: pluck, output: string }
 lab: plucked-string
 devices: [guitar, acoustic-guitar, harp, pedal-steel, string-bass]
 bench:
   device: guitar
   params: { pickup: 0.85, position: 0.14, hardness: 0.55, sustain: 9, shimmer: 0, strum: 0, volume: 6 }
   as: instrument
-  note: The plate opens as the lab is set, not as the device starts. Shimmer is at 0 (the device's own is 0.3 Hz), Strum at 0 ms (18 ms) and Volume at +6 dB (−6 dB). The plate plays a phrase where the lab plays one note, and each of its plucks differs a little from the last, which the lab switches off.
+  note: The plate opens as the lab is set, not as the device starts. Shimmer is at 0 (the device's own is 0.3 Hz), Strum at 0 ms (18 ms) and Volume at +6 dB (−6 dB). The plate plays a phrase where the lab plays one note, and each of its plucks differs a little from the last, which the lab turns off.
 sources: [none]
 seconds: 4
 files:
@@ -18,201 +20,949 @@ files:
   - cpp/common/dsp_util.h
 ---
 
-A guitar string is held at both ends. Pull it aside and let go, and the kink you made splits in two: one half runs towards the bridge, the other towards the nut. Each reaches its end, is turned upside down and sent back, crosses the other, is turned over again at the far end, and arrives where it began, the right way up. Then it makes the same journey again. The time of one round trip is one period of the note: a string sounding 220 Hz sends its wave round 220 times a second.
+<Part id="why" title="A string does not fade. It loses its partials one at a time.">
 
-That is a loop with a delay in it, and a delay is something a computer has (<Lesson id="delay-and-echo" />): a line of memory that gives back what went into it a fixed number of samples ago. Make the line as long as one period, send what comes out of it straight back in, and whatever shape was put in comes past again and again, once a period. Nothing has to oscillate. The line only remembers.
+A guitar string is picked once and left alone. The pick touches it for a few thousandths of a second. The note that follows lasts for seconds, and in all that time nobody does anything to the string. The picture above shows both, as the engine's Guitar makes them: the pluck is the spike at the left edge, and everything after it is the string by itself.
 
-Two more things make it a string. Something has to put the first shape in: the **pluck**. And each trip has to cost a little, more at high frequencies than at low, as the ends and the air cost a real string: a gentle **low-pass in the loop**. The shape goes round, a little smaller and a little rounder every time. The engine's string is `kit::PluckedString`, and its Guitar plays two of them for every note. These are the stages of one note; press Play, then Listen on any stage that is sound.
+Nothing goes into this lesson's lab. It presses one key <Src path="site/labs/plucked-string.cpp" at="constexpr int kKeyDown = 480;">10 ms into the loop</Src>, holds it for the time that Key held for sets, and every sound and picture on this page is read out of the Guitar while that one note rings.
 
-<Stages taps="pluck lineStart string partials pickup out" />
+Listen to the note for what changes in it. <Hear set="alone" label="Hear the string" /> It begins bright, with a snap. A second later it is rounder. At the end it is close to a plain hum. The note gets quieter, and its colour changes while it does.
 
-Nothing goes into this lab. It presses one key 10 ms into the loop and lets it go three seconds later, and every figure is read out of the Guitar while that note rings. The string shown is the first of the note's two. Change the pitch and the note's length here, and the rest of the page follows.
+That change has an exact description. A steady note is a sum of sine waves: one at the note's own frequency, the fundamental, and others near twice, three times, four times that frequency and so on up. Each of those is a partial, and <Lesson id="fourier-transform" /> is about taking a sound apart into them. In the picture below, time runs across and frequency runs up, and each level line is one partial of the string.
 
-<Controls ids="note sustain" />
+<Still
+  taps="partials"
+  view="spectrogram"
+  caption="The string's partials over the four seconds of the loop. All of them begin at the pluck. The higher a line stands, the sooner it fades out."
+/>
 
-<Wave taps="string" fit>
-  The string over the whole loop. The pluck is the spike at the left; what follows is the same wave going round, losing a little on every trip, until the key is let go. A longer Sustain makes each trip cost less.
-</Wave>
+Measured on that note, the tenth partial <Claim id="darkens">starts 22 dB under the fundamental and is 75 dB under it half a second later</Claim>. The fundamental has hardly moved in that half second. The top of the note has gone.
 
-## Stage by stage
+So here is the question this lesson answers. How do you make a note in which every partial dies at its own speed, the high ones first, without keeping a separate fade for each of them?
 
-### 1. The pluck
+### The obvious answer fails
 
-A loop with nothing in it stays silent, so the note starts with a burst put into the line. The oldest way is to fill the line with noise, which holds every partial at once. The kit's burst is shaped: <Src path="cpp/kit/string.h" lines="342-400">`PluckExciter`</Src> sends one sample through two one-pole low-passes (<Lesson id="one-pole" />), and adds a little noise for the scrape of the pick.
+Take a wave that is as bright as the pluck and turn it down over time. An oscillator makes the wave (<Lesson id="oscillators-and-subtractive-voice" />) and one fade turns it down. Here it is: a saw wave at the same pitch, which has every partial, under a fade that falls exactly as fast as the string's fundamental does.
 
-<M block t={String.raw`x[0] = \tfrac12 A\,P,\qquad b[n] = x[n] + a_b\,(b[n-1] - x[n]),\qquad e[n] = b[n] + a_p\,(e[n-1] - b[n])`} />
+<Still
+  taps="fixedPartials"
+  view="spectrogram"
+  caption="The fixed wave under its one fade, over the same four seconds. Each partial starts a little weaker than the one below it and all fall at one rate, so they leave the picture along a straight slope. In the string's picture the top was gone almost at once. Notice the axis, too: it runs twice as high here, because the top stays."
+/>
 
-<M t="A" /> is how hard the key was struck and <M t="P" /> is the period in samples, so a long string gets a bigger kick and every note starts about as loud. The two coefficients are <M t={String.raw`a = e^{-2\pi f / f_s}`} /> for two corner frequencies. The first corner is the note itself: above it the burst falls 6 dB an octave, which is how the partials of an ideal plucked string fall, the <M t="n" />th at <M t="1/n" />. The second corner is the pick, and <Src path="cpp/devices/guitar/guitar.h" lines="496-500">the Guitar sets it from Hardness</Src>: <M t={String.raw`300 \cdot 32^{h}`} /> Hz times 0.3 plus the strength of the stroke. At this lab's stroke of 0.8 that runs from 330 Hz, the flesh of a thumb, to 10.6 kHz, a stiff plectrum. Hardness also sets how much noise there is, and the noise dies with a time constant of 2 ms.
+Measured, <Claim id="fixed-together">the tenth partial of the fixed wave falls at 17.1 dB a second, and so does its fundamental</Claim>. A fade multiplies the whole wave by one number, so it cannot take more from one partial than from another. The wave ends as bright as it began, only smaller. <Hear set="fixed" label="Hear the fixed wave fade" /> Listen for the moment it turns round and soft, as the string did. It does not come.
 
-<Controls ids="hardness" />
+A second fade could be added, on a filter that closes as the note dies. That is nearer, and it is how a synthesiser imitates a string from the outside: two fades, each with times to set, describing a result. A real string has no fades. It gets the same result from the way it moves.
 
-<Wave taps="pluck" from={0.009} span={0.008} fit>
-  The pluck, eight milliseconds of it: one sample's kick, rounded by the two low-passes. Turn Hardness up and it rises faster and higher, with noise on its back; turn it down and it is a slow, soft bump.
-</Wave>
+### What a string does instead
 
-At the starting settings the pluck is <Claim id="pluck-shape">at its highest 8 samples after it starts, half gone after 36, and under a hundredth of its height after 4.2 ms</Claim>. That is shorter than one period of the note, 4.5 ms: the whole pluck is in the line before its front has come round.
+Pull a string aside and let go, and the kink you made does not stay where it is. It splits in two, and each half runs along the string to an end. The end is fixed, so the kink is turned upside down there and sent back. It crosses the string, is turned over again at the far end, and arrives where it began, the right way up. Then it makes the same journey again.
 
-### 2. The line: one trip is one period
+The time of one round trip is one period of the note. A string that sounds the A below middle C sends its shape round 220 times a second.
 
-The string is <Src path="cpp/kit/string.h" lines="134-166">`tick`</Src>, and it is short. Each sample it reads what the line was given <M t="N" /> samples ago, passes that through the loop's filters, adds the pluck, writes the sum back into the line, and returns it:
+Each trip costs a little. The ends give, the air drags, the string resists being bent. Sharp corners in the shape cost more than gentle curves, and sharp corners are what high partials are. So the shape comes round a little smaller and a little rounder every time. Nothing decides that the high partials should die first. They pay more for each trip, and every partial makes the same number of trips.
 
-<M block t={String.raw`y[n] = e[n] + \bigl(\text{loop filters}\bigr)\bigl\{\,y[n - N]\,\bigr\}`} />
+### A loop with a delay in it
 
-The line is `buffer_`, <Src path="cpp/devices/guitar/guitar.h" lines="79">4,096 samples</Src> of memory with a write head, `write_`, that goes round it. With no filters and no pluck, <M t={String.raw`y[n] = y[n-N]`} />: the output repeats every <M t="N" /> samples, a note of <M t={String.raw`f_s / N`} /> hertz. At 220 Hz the period is <M t={String.raw`48000 / 220 = 218.18`} /> samples.
+A shape that goes away and comes back later is a delay, and a computer has delays (<Lesson id="delay-and-echo" />): a line of memory that gives back what was put into it a fixed number of samples ago. Make the line as long as one period. Send what comes out of it back in, through a filter that takes a little off the top. Whatever shape is put in then comes past again and again, once a period, a little rounder each time.
 
-<Wave taps="string:out pluck:alt" from={0.009} span={0.03} fit>
-  The pluck (green) happens once. The string (red) is the pluck, and then what the loop makes of it every 4.5 ms: the pluck upside down, which stage 6 explains, then the pluck the right way up, a little rounder each time.
-</Wave>
+That is the whole technique, and textbooks call it the Karplus-Strong string. There is no oscillator in it and no recording of a string. The line only remembers its last period.
 
-The lab also reads the line itself, lengthways, as if the string were laid out on the page. The wave in it moves to the right, one sample a sample; what leaves at the right edge goes through the filters and comes back in at the left.
+<Predict
+  question="A delay line one period long is filled with random noise, a hiss with no pitch at all, and left to go round through a gentle low-pass. What comes out?"
+  choices={['A hiss that fades away', 'A note with a clear pitch', 'A hiss that never ends']}
+>
 
-<Controls ids="trips position" />
+A note with a clear pitch. Whatever is in the line comes past once a period, and anything that repeats at a steady rate is heard as a pitch at that rate. The noise decides only how much of each partial the note begins with. The length of the line decides the pitch.
 
-<Curve taps="lineStart:in lineLater:out" xTitle="samples from the write head" yTitle="what the line holds">
-  The line a moment after the pluck (grey), before anything has come round: the pluck, and ahead of it a second pluck upside down, which stage 6 explains. In red, the line a whole number of trips later. The shape is still there, rounder and smaller, and the ripples that have run ahead of it are the work of stage 4. Move "Look again after" to follow it.
+<Still
+  taps="burst plain"
+  from={0}
+  span={0.06}
+  caption="The first sixty milliseconds. The noise goes in once, for one period. What follows it is that period again and again, each copy a little rounder than the one before."
+/>
+
+The lab has a plain string for this: the kit's own loop with nothing in it but the low-pass, fed one period of noise. Measured over a second of its sound, <Claim id="noise-pitch">it stands less than 0.001 cents from 220 Hz</Claim>, the lab's starting Pitch. A cent is a hundredth of a semitone. <Hear set="noise" label="Hear noise become a note" />
+
+</Predict>
+
+The engine's string is a class called `kit::PluckedString`, and its Guitar plays two of them for every note. The lesson starts the Guitar a little differently from the way it starts by itself, so that the technique shows plainly: the two strings of the note are tuned alike, and every pluck is the same as the last. Part 9 puts the two sets of starting values side by side.
+
+</Part>
+
+<Part id="picture" title="One period of noise, going round, smoother each pass.">
+
+One picture holds the technique. It is one period of the plain string's sound, laid out sample by sample, at two moments. The first moment is when the last of the noise has gone in. The second is a whole number of trips later, and Look again after sets how many.
+
+Read it like this. The jagged line is what was put in. The other line is what the loop has made of it. Both are the same stretch of line, so a bump in one stands over the same bump in the other.
+
+<Controls ids="trips sustain note" />
+
+<Curve
+  taps="plainStart:in plainLater:out"
+  xTitle="samples back from the newest"
+  yTitle="what the string put out"
+  height={320}
+>
+  One period of the plain string as the noise went in, and the same period some trips later. Try
+  Look again after from 2 trips upwards, and notice the later line lose its teeth long before it
+  loses its height.
 </Curve>
 
-The second pluck stands <Claim id="pick-34">34 samples</Claim> ahead of the first here. Rounding is easy to put a number on: the steepest step between two neighbouring samples of the line is <Claim id="smoother">0.66 just after the pluck and 0.11 twenty trips later</Claim>.
+Here is a sentence to check against the picture. Leave the three controls where the lesson starts them, and count how often the later line passes through zero. <Claim id="noise-crossings">It crosses 8 times, where the noise it began as crosses 106 times</Claim>.
 
-### 3. The loop filter: high partials die first
+In those twenty trips <Claim id="noise-shrinks">the largest sample of the period falls from 0.83 to 0.19, and the steepest step between two neighbouring samples from 1.26 to 0.028</Claim>. The height is still nearly a quarter of what it was. The steepness is a forty-fifth. A low-pass takes most from whatever changes fastest, and the loop puts the line through the same low-pass once every trip.
 
-A loop that gives back exactly what it was given rings for ever, and every partial with it. The simplest low-pass there is, the average of two neighbouring samples, would do, and would give whatever decay it gave. The kit's is a one-pole low-pass and a gain, two lines of `tick`:
+Sustain sets how much each trip costs. With a longer Sustain the later line keeps its teeth for more trips. Pitch sets how long the period is: a higher note has fewer samples across the picture, and makes more trips in a second, which is why a high string dies sooner than a low one at the same setting.
 
-<M block t={String.raw`s[n] = x[n] + a\,(s[n-1] - x[n]),\qquad y[n] = g\,s[n] \qquad\Longrightarrow\qquad \bigl|H(\omega)\bigr| = \frac{g\,(1-a)}{\sqrt{1 - 2a\cos\omega + a^2}}`} />
+Notice what the picture leaves out. It says nothing about whether the note is in tune, and a loop with a filter in it is not in tune by itself. It starts from noise, where a player starts with a pick at one place on the string. And it is one string, where the Guitar has two for each note. Those are the pieces the rest of the lesson adds.
 
-<M t="a" /> (`loss_a_`) says how much more the highs lose than the lows, and <M t="g" /> (`loss_gain_`) is what every frequency loses. Neither is a control. A device asks for two decay times with `set_decay`, how long the fundamental should take to fall 60 dB and how long a partial near some high frequency should, and <Src path="cpp/kit/string.h" lines="215-242">`design`</Src> solves for the pair. A partial that falls 60 dB in <M t="T" /> seconds while going round <M t="f" /> times a second must come back from each trip at <M t={String.raw`10^{-3/(fT)}`} /> of its size. `design` works that out for both times, finds by 24 halvings the <M t="a" /> whose response has the right ratio between the two frequencies, and sets <M t="g" /> to put the fundamental where it should be.
+</Part>
 
-The Guitar's Sustain is <Src path="cpp/devices/guitar/guitar.h" lines="113-116">the time at 110 Hz</Src>. A note at 220 Hz gets 0.71 of it, the first of its two strings 0.55 of that, 3.5 s at the starting Sustain of 9 s; and near 3 kHz this string is <Src path="cpp/devices/guitar/guitar.h" lines="265-267">asked to die in 0.08 of the fundamental's time</Src>. For that the kit solves <Claim id="filter-220">a pole of 0.453 and a gain of 0.9917: one trip costs 0.08 dB at the note and 8.3 dB at 20 kHz</Claim>.
+<Part id="uses" title="Any string that is struck and then left alone.">
 
-<Controls ids="sustain note" />
+A loop like this suits every instrument whose player gives the string energy once and then waits: a guitar, a bass, a harp, a harpsichord. In the engine it is inside the Guitar, the acoustic guitar, the harp, the pedal steel and the string bass. It does not suit a bowed string, where the bow keeps feeding the string for as long as the note lasts.
 
-<Curve taps="loss" xLog xTitle="hertz" yTitle="dB, one trip">
-  What one trip round the loop costs at each frequency, from the string's own pole and gain. It looks like nothing: a fraction of a decibel below 1 kHz. But the string makes the trip hundreds of times a second.
-</Curve>
+Each card below plays one note of the engine's Guitar, lists the settings that make it, and shows what to look for. A card's button moves the whole page to its settings, so every figure further down shows that note too, and the play bar offers the way back to where you were.
 
-So the fall of a partial is the cost of one trip times the trips it makes in a second. With <M t={String.raw`\omega_k`} /> the partial's frequency and <M t={String.raw`T_k`} /> the time one trip takes it:
+<Uses>
+  <Use title="A picked note" set="picked">
+    <Still
+      slot="picture"
+      taps="out"
+      set="picked"
+      from={0}
+      span={0.5}
+      caption="The first half second of the output. The pick's spike stands well over the body of the note that follows it."
+    />
 
-<M block t={String.raw`\text{fall}_k = \frac{-20\log_{10}\bigl|H(\omega_k)\bigr|}{T_k}\ \text{dB a second}, \qquad T_{60,k} = \frac{60}{\text{fall}_k}`} />
+    This is the lesson's starting note, a guitar's middle register picked with a firm plectrum. A plucked string is mostly attack. Here the loudest sample of the output stands <Claim id="use-picked">16 dB</Claim> over the level of the note from a tenth to six tenths of a second after the pick.
 
-In a plain loop every trip takes one period, <M t={String.raw`T_k = 1/f_0`} />. Here the filters in the loop hold high frequencies a little less long than low ones, so the lab works <M t={String.raw`T_k`} /> out from the line's length and each filter's delay at that frequency. Then it measures: the size of each partial of the string in two windows 50 ms apart.
+  </Use>
+  <Use title="A low string" set="low">
+    <Still
+      slot="picture"
+      taps="level"
+      set="low"
+      caption="The level of the low note at the pickup over the loop. It falls slowly, and the key is let go before it has fallen far."
+    />
 
-<Curve taps="decayMeasured:out decayFormula:ctl" xTitle="partial" yTitle="dB lost a second" min={0}>
-  How fast each partial falls. The red dots are measured on the string as it rings; the dashed line is the formula above with the string's own pole and gain. A partial that is gone before the second window is not measured, so a short Sustain or a high note shows fewer dots.
-</Curve>
+    Low strings ring long, and a bass line or the bottom of a chord needs that. The period is long, so the wave makes few trips in a second and pays for few. With a softer pick and the pickup by the neck, the fundamental of this string falls at <Claim id="use-low">6.7 dB a second</Claim>.
 
-<Check id="decayError" />
+  </Use>
+  <Use title="A high string" set="high">
+    <Still
+      slot="picture"
+      taps="level"
+      set="high"
+      caption="The level of the high note at the pickup. With the same Sustain as the picked note it falls far more steeply."
+    />
 
-The fundamental falls <Claim id="fall-first">17.1 dB a second</Claim>, which is 60 dB in the 3.5 s asked for. The tenth partial falls <Claim id="fall-tenth">130 dB a second</Claim>: it is 60 dB down in under half a second. Across the sixteen partials the measurement and the formula agree to <Claim id="fall-formula">within 0.01 %</Claim>. This is the whole character of a plucked string: every note begins with all its partials and ends as little more than its fundamental.
+    High notes are short on a real neck, and the Guitar keeps that: it <Src path="cpp/devices/guitar/guitar.h" at="return sustain * kit::clamp(std::sqrt(110.0f / hz), 0.2f, 1.4f);">shortens the ring as the note rises</Src>, with the square root of its frequency. Two octaves above the picked note, at the same Sustain, the fundamental falls at <Claim id="use-high">34 dB a second</Claim>. Melodies up here sound plucked however long the key is held.
 
-<Spectrogram tap="partials" top={6000} min={-100} max={0} height={260}>
-  The string's spectrum over the loop: time across, frequency up. Each level line is a partial. All of them start at the pluck; the higher a line is, the sooner it fades into the page.
-</Spectrogram>
+  </Use>
+  <Use title="A muted note" set="muted">
+    <Still
+      slot="picture"
+      taps="out"
+      set="muted"
+      from={0}
+      span={0.6}
+      caption="The output with the key let go a quarter of a second in. The note does not stop dead: it dies quickly, as a string under a finger does."
+    />
 
-### 4. Stiffness: partials that are not quite harmonics
+    Short notes are stopped by the player, and the stop is part of the sound. When the key goes up the Guitar lays a finger on the string, and <Claim id="use-muted">a tenth of a second later the note is 50 dB down</Claim>. Stage 8 of part 5 shows how: the loop is made to lose more, and the output is never faded.
 
-A real string resists bending, and the shorter the wave the more it resists, so high partials travel faster than low ones and sound sharp of whole multiples. The kit copies this with a short chain of first-order all-pass filters in the loop (<Src path="cpp/kit/string.h" lines="244-276">the second half of `design`</Src>). An all-pass passes every frequency at full size and only delays it, and these delay the lows longer than the highs. The law they are fitted to puts partial <M t="n" /> at
+  </Use>
+</Uses>
 
-<M block t={String.raw`f_n = n\,f_0\,\sqrt{\frac{1 + B\,n^2}{1 + B}}`} />
+These are places to start. Every one of them is the same loop with other numbers in it.
 
-where <M t="B" /> is the string's inharmonicity. The Guitar <Src path="cpp/devices/guitar/guitar.h" lines="262-264">gives its six open strings</Src> <M t="B" /> from <M t={String.raw`10^{-4}`} /> on the low E to <M t={String.raw`2.5\times10^{-5}`} /> on the high one, and raises it with the square of the fret's shortening. It uses two all-passes on the three wound strings and one on the plain ones, and one filter can only follow the law so far up.
+</Part>
 
-<Curve taps="stretchMeasured:out stretchLaw:ctl" xTitle="partial" yTitle="cents above a whole multiple" min={0}>
-  Where each partial of the string stands, in cents above the whole multiple of the note: measured (red dots) and by the law (dashed). They agree low down and part company higher up.
-</Curve>
+<Part id="build" title="Start with a hiss. Add one piece. Listen. Add the next.">
 
-The tenth partial of this note stands <Claim id="stretch-tenth">6.3 cents above ten times the fundamental; the law says 6.5</Claim>. In the line this is the ripple that runs ahead of the main shape in stage 2's figure.
+The quickest way to understand the string is to make one. This part starts with a burst of noise and adds seven pieces to it, one at a time. After each piece the picture is drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these pictures and plays "Hear it so far".
 
-### 5. Tuning: the line is shorter than the period
+The build takes its numbers from the device as it runs: how much the filter keeps, how long the line is. It then does the arithmetic with them in its own lines. Where the numbers come from is the subject of part 5.
 
-Here is the trap in building a string from a delay. The note's period is the time of one trip round the *whole* loop, and the line is not the whole loop. The loop filter delays what passes through it, and so do the stiffness filters. A line one period long would make a loop longer than a period, and the note would be flat.
+Some of the steps are wrong on purpose. Hearing what is missing is how the next piece earns its place.
 
-So <Src path="cpp/kit/string.h" lines="280-299">`retune`</Src> works out the delay of everything else at the note's own frequency, and takes it off:
+<Build>
+  <Step title="A burst of noise" controls="note">
+    Something has to be in the line before anything can go round it. The oldest choice is noise, because noise holds every partial at once and takes no thought. The build makes as many samples of it as the note's period is long, the same ones every time. It then takes their average out of them, so that the burst pushes as far one way as the other.
 
-<M block t={String.raw`N = P - D_{\text{loss}} - D_{\text{stiff}}, \qquad D_{\text{loss}} = \frac{1}{\omega}\arctan\frac{a\sin\omega}{1 - a\cos\omega}`} />
+    Press "Hear it so far". It is a tick of hiss, over in one period, with no pitch.
 
-<Check id="lossDelay" />
-<Check id="stiffDelay" />
-<Check id="lineLength" />
+    <Listing
+      path="site/labs/plucked-string.cpp"
+      from="void make_burst(float period) {"
+      to="for (int k = 0; k < burst_length; ++k) burst_[k] -= mean;"
+      name="burst"
+    />
 
-At 220 Hz the loop filter holds the fundamental for <Claim id="delays-220">0.83 samples and the stiffness filter for 5.29, which leaves 212.06 for the line</Claim>, and the three make the 218.18 of the period. A line can only be a whole number of samples long, though, and 212.06 is not one. The kit keeps 211 in the line and makes the remaining 1.06 with one more all-pass, <M t={String.raw`(a_t + z^{-1})/(1 + a_t z^{-1})`} />, whose coefficient is chosen so that its delay at the fundamental is exactly the remainder <M t="r" />:
+    <Lanes slot="picture" taps="builtPluck built" from={0} span={0.06}>
+      What goes into the loop and the sound so far, sixty milliseconds of each. Notice that they
+      are the same, and that nothing follows the burst. Try Pitch lower, and notice the burst grow
+      longer: it is always one period long.
+    </Lanes>
 
-<M block t={String.raw`a_t = \frac{\sin\bigl((1 - r)\,\omega/2\bigr)}{\sin\bigl((1 + r)\,\omega/2\bigr)}, \qquad 0.5 \le r < 1.5`} />
+  </Step>
+  <Step title="A delay loop" controls="note hold">
+    Now the burst is written into a line of memory. On each sample the build reads what the line was given one trip ago, and writes it back in beside whatever is new. One trip is the note's period to the nearest whole sample.
 
-The remainder is kept between half a sample and one and a half, never near zero, because an all-pass asked for a very short delay rings on its own for a long time. Being an all-pass, it takes nothing off any frequency, so the decay times of stage 3 are untouched. Reading between samples by interpolation (<Lesson id="delay-and-echo" />) is in the kit as well (<Src path="cpp/kit/string.h" lines="28-32">`Tuning::Interpolated`</Src>, a four-point read that glides to each new pitch in a millisecond) for strings whose pitch slides; it costs a little of the top on high notes, and the Guitar does not use it.
+    <Listing
+      path="site/labs/plucked-string.cpp"
+      from="// The delay loop: what was written one trip ago comes back."
+      to="if (step < kLoss && finger) y *= kFinger;"
+      name="read"
+    />
 
-<Check id="loopError" />
-<Check id="cents" />
+    <Listing
+      path="site/labs/plucked-string.cpp"
+      from="y += pluck;"
+      to="line[write] = y;"
+      name="write"
+    />
 
-The first check is arithmetic: line, all-pass and filters add up to one period <Claim id="loop-adds-up">within 0.0001 of a sample</Claim>. The second is a measurement of the ringing string. Found between the bins of a transform one second long, the fundamental of this note is <Claim id="in-tune">0.0005 cents from 220 Hz on the string and 0.01 cents at the device's output</Claim>. To see what the two corrections are worth, the lab has a second Guitar pluck every note from the low E to the A three octaves and a fourth above it, measures each, and works out where two simpler loops would have put it.
+    The burst comes past again and again, and that is already a note. It is wrong in two ways that can be measured.
 
-<Curve taps="tuneWhole:ctl tuneFlat:alt tuneKit:out" xLog xTitle="the note, hertz" yTitle="cents from the note" min={-100} max={25}>
-  Each dot is a note of the neck. Red, measured: the string as the kit tunes it. Green: a line one whole period long, with the filters' delay forgotten. Blue: the filters' delay taken off but the line rounded to whole samples. The steps in the green line are where the note moves to the next string, which has a different stiffness.
-</Curve>
+    The copies are exact. <Claim id="built-forever">Two seconds on, the level is less than 0.01 dB from where it was</Claim>: nothing in the loop loses anything, and the note would never end. For now the build stops it at key up with a finger of its own, which <Src path="site/labs/plucked-string.cpp" at="constexpr float kFinger = 0.9f;">keeps nine tenths of each trip</Src>.
 
-The kit's string is <Claim id="tuned-everywhere">within 0.02 cents at every one of the 42 notes</Claim>. A line of whole samples would be <Claim id="whole-samples">as much as 12.7 cents out</Claim>, sharp or flat by the luck of the note and worse the higher it is, because one sample is a bigger share of a short period. A line one period long would be <Claim id="period-long">48 cents flat at 220 Hz, half a semitone, and never better than 30</Claim>.
+    And a whole number of samples is not the period. The note is <Claim id="built-sharp">1.4 cents sharp</Claim>.
 
-### 6. Where the pick lands
+    <Lanes slot="picture" taps="builtPluck built" from={0} span={0.06}>
+      The burst, and the sound so far. Notice the same jagged period repeat, copy after copy,
+      with nothing lost. Try Key held for shorter, and listen for the build's finger stopping
+      the note.
+    </Lanes>
 
-Pluck a string a fifth of the way along and it has no fifth partial, no tenth, no fifteenth: each of those has a still point there, and a pluck at a still point cannot start it. In the loop this is a comb on the pluck. <Src path="cpp/kit/string.h" lines="160-164">`tick`</Src> puts the pluck into the line twice: once at the write head, and once upside down <M t="M" /> samples further along, where it will be read <M t="M" /> samples sooner. That second pluck is the half of the kink that ran to the bridge and came back turned over. Going round a loop of <M t="P" /> samples, the two cancel for any partial that fits a whole number of waves into <M t="M" />, and partial <M t="k" /> comes out at
+  </Step>
+  <Step title="The loss filter" controls="note hold sustain">
+    A real string loses a little on every trip, and more from its sharp corners than from its slow curves. The build puts a low-pass in the loop. Each sample that comes back is moved only part of the way from the filter's last value towards the new one, and the result is multiplied by a gain a little under one. The part and the gain are the device's own numbers for this note. Stage 3 of part 5 shows how Sustain becomes them.
 
-<M block t={String.raw`\bigl|\,2\sin(\pi k M / P)\,\bigr|, \qquad M = \operatorname{round}(q\,P)`} />
+    <Listing
+      path="site/labs/plucked-string.cpp"
+      from="// The loss filter: a low-pass of one pole, then a gain a little under one."
+      to="y = like.loss_gain_ * lowpass;"
+      name="lossy"
+    />
 
-of its size, where <M t="q" /> is the pick's place as a fraction of the string. The two plucks also add up to nothing, so the comb takes the pluck's steady push, its 0 Hz, out of the loop with it.
+    Now the note dies, and it darkens as it dies. <Claim id="built-loss">The level falls 20 dB between half a second and a second and a half after the burst</Claim>, where the step before lost nothing. The build's finger has gone too. At key up the device raises the loss in its own loop, and the build reads the same numbers.
 
-The Guitar's Position is a fraction of the *open* string, because a player's hand stays over the body while the fretting finger shortens the string. On a fretted note the pick is therefore further along what is left: <M t="q" /> is <Src path="cpp/devices/guitar/guitar.h" lines="111">Position times the note's frequency over the open string's</Src>. This lab's 220 Hz is the second fret of the G string, and a Position of 0.14 becomes a <M t="q" /> of 0.157, the 34 samples of stage 2.
+    The filter is also a small delay. It holds the fundamental back by part of a sample, so one trip round the loop now takes longer than the line is long, and the note is <Claim id="built-loss-flat">5.1 cents flat</Claim>.
 
-<Controls ids="position note hardness" />
+    <Lanes slot="picture" taps="built builtLevel" ranges={{ builtLevel: [-100, 0] }}>
+      The sound so far over the whole loop, and its level. Notice the level's line slope down
+      where the step before held it flat. Try Sustain shorter, and notice the slope steepen.
+    </Lanes>
 
-<Spectrum taps="early:out comb:ctl" linear fMax={6000} min={-80} max={6}>
-  The string's spectrum in the 85 ms after the pluck (red), and the comb's formula (blue). Where the blue line dives, the partial under it is missing or weak. Hardness tilts the whole red picture: a soft pick leaves the upper partials out from the start.
-</Spectrum>
+  </Step>
+  <Step title="Stiffness" controls="note hold sustain">
+    A steel string resists bending, and the shorter the wave the more it resists. So short waves travel along it faster than long ones, and its high partials stand a little sharp of whole multiples of the fundamental. The build copies this with all-pass filters. An all-pass passes every frequency at full size and only delays it, and these delay the lows longer than the highs.
 
-Set Pitch to 110 Hz, the open A string, and Position to 0.2. The second pluck is then <Claim id="pick-fifth">87 samples ahead in a loop of 436, a fifth, and the fifth partial stands 41 dB under the fourth</Claim>. The tenth goes with it.
+    <Listing
+      path="site/labs/plucked-string.cpp"
+      from="// Stiffness: all-passes that hold the low partials back longer than the high."
+      to="stiff_out[s] = out; y = out; } }"
+      name="stiff"
+    />
 
-### 7. After the string
+    The partials are now spread as the device's are. But these filters hold the fundamental back by several samples, and nothing has made room for them. <Claim id="built-flat">The note is 46.5 cents flat</Claim>, close to half a semitone. Go back a step and forward again to hear the pitch drop.
 
-The kit's string ends there. A device has to turn it into an instrument, and the Guitar's additions are worth knowing because each is a small technique of its own.
+    <Check id="builtCents" />
 
-**Two strings for one note.** A real string swings up and down and side to side at once, at very slightly different pitches. The Guitar runs two loops for each note, tuned half the Shimmer rate under and over it. <Src path="cpp/devices/guitar/guitar.h" lines="272-276">The first is heard at 0.72</Src> and dies in 0.55 of the time; the second is heard at 0.34 and rings for all of it. Together the note falls quickly, then slowly: <Claim id="two-slopes">16.6 dB a second early on and 11.7 later, where the first string alone keeps to 18 or more</Claim>. This lab starts with Shimmer at 0. At 0.3 Hz the first string is tuned to <Claim id="shimmer-apart">219.85 Hz</Claim> and the two drift in and out of step, partial <M t="k" /> beating <M t="k" /> times as fast as the fundamental; the note dips <Claim id="beat">up to 6 dB</Claim> under its in-tune self.
+    <Spectrum
+      slot="picture"
+      taps="plain built"
+      linear
+      fMin={1000}
+      fMax={2400}
+      min={-110}
+      max={-20}
+    >
+      The plain string of part 2, which is in tune, and the string so far, from the fifth
+      partial to the tenth. Notice each peak of the string so far standing to the left of its
+      partner: every partial is flat.
+    </Spectrum>
 
-**Key up is a finger on the string.** When the key is let go, the output is not faded. Over about 10 ms the string's two decay times are <Src path="cpp/devices/guitar/guitar.h" lines="284-287">walked down to 0.14 s and 0.035 s</Src>, `design` runs at each step, and the loop itself loses the note: it falls at about <Claim id="damped">450 dB a second</Claim>, highs first, as it does under a finger.
+  </Step>
+  <Step title="Fine tuning" controls="note hold sustain">
+    The period of the note is the time of one trip round the whole loop, and the line is only part of the loop. So the line has to be shorter than the period by exactly what the filters add. The device works that out at the fundamental, and the answer is not a whole number of samples. It keeps the whole samples in the line, and makes up the fraction with one more all-pass.
 
-<Controls ids="shimmer hold" />
+    <Listing
+      path="site/labs/plucked-string.cpp"
+      from="// Fine tuning: the line is cut to whole samples, and one all-pass is the rest."
+      to="tune_out = out; y = out;"
+      name="tuned"
+    />
 
-<Trace taps="levelOne:alt level:out" min={-100} max={0} unit="dB">
-  The level of the note at the pickup (red) and of its first string alone (green), each averaged over one period. The red line bends where the second string takes over. Raise Shimmer to see the beats; shorten "Key held for" to move the drop.
-</Trace>
+    The length of the line is the first line of the loop, which now takes the device's number:
 
-**The pickup is another comb.** A pickup hears the string at one point, so it cannot hear a partial that is still there. The Guitar's output is each string minus itself a fraction of a period earlier (`tap`, a read between two samples), and that fraction follows the fret as the pick's does. Then come a little second harmonic for loud notes, a <Src path="cpp/kit/filters.h">DC blocker</Src> at 15 Hz, the pickup's resonant low-pass (Tone), a soft amplifier, a mid scoop, <Src path="cpp/devices/guitar/guitar.h" lines="136-149">a speaker</Src> that passes little below 85 Hz or above 5 kHz, and a soft clip. The output is the same on both sides: <Claim id="mono">mono</Claim>.
+    <Listing
+      path="site/labs/plucked-string.cpp"
+      from="if (step >= kLoop) {"
+      to="y = line[(write - trip) & String::kMask];"
+      mark="const int trip = step >= kTune"
+      name="cut"
+    />
 
-<Check id="rebuilt" />
+    <Claim id="built-tuned">The note is now less than 0.001 cents from where it should be</Claim>. With this piece taken out again it is back where the step before left it.
 
-The lab works the pickup's signal out from the two strings by <Src path="cpp/devices/guitar/guitar.h" lines="557-592">the device's own lines</Src> and compares it with what the device handed to its DC blocker. The two are <Claim id="rebuilt-exact">the same, sample for sample</Claim>.
+    <Check id="builtCents" />
 
-<Controls ids="pickup" />
+    <Spectrum
+      slot="picture"
+      taps="plain built"
+      linear
+      fMin={1000}
+      fMax={2400}
+      min={-110}
+      max={-20}
+    >
+      The same two spectra as the step before. Notice the peaks now stand together. Try Pitch
+      anywhere, and notice that they stay together.
+    </Spectrum>
 
-<Spectrum taps="string:alt pickup:ctl out:out" linear fMax={6000} min={-110} max={0}>
-  The average spectrum of the string (green), of the note at the pickup (blue) and of the output (red). The pickup's comb cuts its own set of partials, different for every Pickup setting and every fret; the speaker takes off what is left above 5 kHz.
-</Spectrum>
+  </Step>
+  <Step title="A shaped pluck" controls="note hold sustain hardness">
+    Noise was the easy thing to put in the line. A pick is not noise. It pushes the string aside one way and lets go. So what the build puts in now is one tall sample, rounded by two low-passes, with a little noise on it for the scrape of the pick. The first low-pass sits at the note itself and gives the pluck its long slope. The second is the pick: a soft one rounds the corner more than a hard one, and Hardness sets it.
 
-## What goes wrong
+    <Listing
+      path="site/labs/plucked-string.cpp"
+      from="// A shaped pluck: the tall sample falls away at the note's own frequency,"
+      to="return pick; }"
+      name="shaped"
+    />
 
-**A note that falls between two samples.** This is stage 5. A string built without its two corrections is in tune low down and sour high up. The kit's string <Src path="cpp/kit/string.h" lines="93">will not play above an eighth of the sample rate</Src>, where the line is down to a handful of samples.
+    The noise spread its energy evenly over the partials, and most of them die at once. The pluck puts most of its energy low, where it lasts. Half a second on, the note is <Claim id="built-pluck">19.6 dB louder</Claim> than the noise left it.
 
-**Only the fundamental is tuned.** The delays that `retune` takes off are the filters' delays at the fundamental. At other frequencies they differ, which is wanted from the stiffness filters and is a side effect of the loop filter. With Sustain at 1 s the loop filter is heavy enough to hold the fifth partial <Claim id="loss-sharpens">8 cents sharp, where stiffness alone would put it under 2</Claim>. A short, dull note is also a slightly stretched one.
+    <Lanes slot="picture" taps="builtPluck built" from={0} span={0.05}>
+      The pluck, and the sound so far. Notice the pluck come round once a period, a little
+      rounder each time. Try Hardness at each end, and notice the pluck's corner sharpen and
+      soften.
+    </Lanes>
 
-**A push that never leaves.** The pluck is one-sided, so it has a mean, and a loop passes 0 Hz better than anything. Left alone the string would carry an offset for as long as it rang. The kit <Src path="cpp/kit/string.h" lines="197-199">holds the loop's gain to 0.99999 at most</Src> so that it cannot grow, the pick's comb cancels the pluck's mean, and a device that plucks without the comb puts a DC blocker after its strings. The Guitar does both.
+  </Step>
+  <Step title="Pick position" controls="note hold sustain hardness position">
+    Pluck a string at its middle and it sounds hollow. Pluck it by the bridge and it sounds thin and bright. A partial that has a still point where the pick lands cannot be started by it.
 
-**Numbers too small to hold.** A dying loop multiplies smaller and smaller numbers for ever, and the smallest ones are slow for a processor to handle. Every state in the loop goes through <Src path="cpp/common/dsp_util.h">`flush_denormal`</Src>, which sets it to exactly zero once it is beyond hearing.
+    In the loop this takes one line. The same pluck is written a second time, upside down, a little further round the line. That second pluck is the half of the kink that ran to the bridge and came back turned over. A partial that fits a whole number of waves between the two plucks is cancelled.
 
-**A pick on a moving string.** Writing a new pluck into a line that still rings would stack one note on another. The Guitar <Src path="cpp/devices/guitar/guitar.h" lines="288-289">fades the old note out over 8 ms</Src> (3 ms when it takes the string for another pitch), clears the line and plucks afresh.
+    <Listing
+      path="site/labs/plucked-string.cpp"
+      from="// Pick position: the same pluck, upside down, a little further round."
+      to="line[(write - like.comb_offset_) & String::kMask] -= pluck; }"
+      name="placed"
+    />
 
-## What to try
+    At the starting settings the two plucks stand close to two whole waves of the thirteenth partial apart, and a third of a wave of the second. Adding this piece <Claim id="built-comb">takes 12.8 dB off the thirteenth partial and adds 4.4 dB to the second</Claim>.
 
-- Sweep **Pitch** from 82 Hz to 880 Hz with the line's figure in view. The line shortens, the measured pitch stays at zero cents.
-- **Sustain** at 1 s, then 30 s, and the picture of the partials: the same fan of lines, closed or opened.
-- **Hardness** at 0 and at 1. Listen to the pluck stage on its own, then to the string.
-- Pitch 110 Hz, **Pick position** 0.2, then 0.35: count which partials the comb removes.
-- **Look again after** from 2 trips to 200. The grey and red lines start nearly alike and end as a spike and a slow swell.
-- **Shimmer** at 0.3 Hz, then 1.5 Hz, with the key held for all four seconds.
-- **Key held for** 0.25 s: a stopped note. Then compare the string stage with the output.
+    <Curve
+      slot="picture"
+      taps="builtStart:in builtLater:out"
+      xTitle="samples back from the newest"
+      yTitle="what the line holds"
+      min={-3}
+      max={2}
+    >
+      The built line just after the pluck, and some trips later. Notice the pluck, and beside it
+      the same pluck upside down. Try Pick position, and notice the two move apart and together.
+    </Curve>
+
+  </Step>
+  <Step title="Two strings and a pickup" controls="note hold sustain hardness position shimmer pickup">
+    The last piece makes the string into one note of the Guitar. A real string swings two ways at once, up and down and side to side, and the two swings die at different speeds. So the build runs a second loop beside the first, with the device's numbers for its second string.
+
+    And an electric guitar is heard through a pickup, which sits under one point of the string and cannot hear a partial that is still there. That is one more subtraction: each string, less itself a little earlier.
+
+    <Listing
+      path="site/labs/plucked-string.cpp"
+      from="// Two strings and a pickup: the second string, and each string less"
+      to="return x * gain;"
+      name="pair"
+    />
+
+    With this piece the build is the device. On every render the lab compares it with the signal the device hands on from its pickup, from the pick onward. <Claim id="built-exact">The two are the same, sample for sample, where the lab would allow a difference of −120 dB</Claim>.
+
+    <Check id="builtDifference" />
+
+    <Lanes slot="picture" taps="built builtLevel" ranges={{ builtLevel: [-100, 0] }}>
+      The note as built over the whole loop, and its level. Notice the level's line bend: it
+      falls quickly at first and then more slowly, as the second string takes over. Try Shimmer
+      above zero, and notice the line ripple.
+    </Lanes>
+
+  </Step>
+</Build>
+
+Here is the whole loop for one sample, with every piece in its place.
+
+<Listing
+  path="site/labs/plucked-string.cpp"
+  from="float round(float pluck, const String& like, int step, bool finger) {"
+  to="write = (write + 1) & String::kMask; return y; }"
+  name="round"
+/>
+
+That is a string in forty lines. The one in the engine is the same arithmetic in the same order. What the build left out is the harder half: working out the numbers it borrowed. The next part opens the engine's string and does that.
+
+</Part>
+
+<Part id="engine" title="The engine's own string, opened up.">
+
+Everything from here on is the device itself: `kit::PluckedString`, as the Guitar sets it up and runs it. The page compiles the engine's C++ and plays one note through it, and each figure is read out of the running code at the point the text is talking about. The listings are the engine's source as it stands, with the file and the line numbers, so you can go and read around them.
+
+<Flow
+  label="The pluck passes the pick's comb and is added into a loop. What leaves the adder is the string's sound. It also goes down into the delay line, through the loss filter, the stiffness filters and the tuning filter, and back into the adder one period later. The string's sound goes on through the pickup, the amplifier and the speaker to the output."
+  blocks={[
+    { id: 'pluck', tap: 'pluck', label: 'Pluck', shape: 'end', n: 1 },
+    { id: 'comb', label: 'Pick position', from: 'pluck', n: 6 },
+    { id: 'sum', shape: 'sum', from: 'comb', back: 'tune', tap: 'string', label: '' },
+    { id: 'line', row: 1, from: 'sum', label: 'Delay line', n: 2 },
+    { id: 'loss', row: 1, from: 'line', label: 'Loss filter', n: 3 },
+    { id: 'stiff', row: 1, from: 'loss', label: 'Stiffness', n: 4 },
+    { id: 'tune', row: 1, from: 'stiff', label: 'Tuning', n: 5 },
+    { id: 'pickup', from: 'sum', tap: 'pickup', label: 'Two strings, pickup', n: 7 },
+    { id: 'amp', from: 'pickup', label: 'Amplifier, speaker', n: 10 },
+    { id: 'out', from: 'amp', tap: 'out', label: 'Output', shape: 'end' },
+  ]}
+>
+  The row along the top runs once, from the pluck to the output. The row under it is the loop:
+  what leaves the adder goes down into the delay line, through three filters and back up into the
+  adder, one trip a period. Press a stage's button below, and notice its block light up here.
+</Flow>
+
+The lab starts the note at <Src path="site/labs/plucked-string.cpp" at='lab::Control note{"note", "Pitch"'>220 Hz</Src>, struck <Src path="site/labs/plucked-string.cpp" at="constexpr float kStrike = 0.8f;">at 0.8 of full strength</Src>, and runs at <Src path="site/labs/lab.h" at="constexpr float kSampleRate = 48000.0f;">48,000 samples a second</Src>. The numbers measured below are for that note unless they say otherwise.
+
+<StageBlock tap="pluck" n={1} title="The pluck: one tall sample, rounded twice">
+  A loop with nothing in it stays silent, so every note starts with something put into the line. The kit's `PluckExciter` makes it. One sample is sent through two one-pole low-passes, the filter of <Lesson id="one-pole" />, and a little noise is added for the scrape of the pick.
+
+  <Controls ids="hardness" />
+
+  <Wave taps="pluck:alt" from={0.009} span={0.008} fit>
+    The pluck, eight milliseconds of it. Try Hardness at each end, and notice the pluck rise
+    faster and higher with noise on its back, or slow to a soft bump.
+  </Wave>
+
+  <M
+    block
+    t={String.raw`x[0] = \tfrac{1}{2} A P`}
+  />
+
+  <M
+    block
+    t={String.raw`b[n] = x[n] + \at{next-body}{a_b}\,\bigl(b[n-1] - x[n]\bigr)`}
+  />
+
+  <M
+    block
+    t={String.raw`\sig{alt}{e[n]} = b[n] + \at{next-pick}{a_p}\,\bigl(\sig{alt}{e[n-1]} - b[n]\bigr)`}
+  />
+
+  Read it against the picture. <M t="x" /> is one sample tall and then nothing. <M t="A" /> is how hard the key was struck and <M t="P" /> is the period in samples, so a long string gets a bigger kick and every note starts about as loud. <M t="b" /> is the kick after the first low-pass, whose corner is the note itself: it gives the long slope down the right of the picture, and it makes the pluck's partials fall in proportion to their number, <Src path="cpp/kit/string.h" at="gives the 1/n fall of an ideal">as an ideal pluck's do</Src>. <M t="e" /> is the pluck, after the second low-pass, which rounds the corner at the left.
+
+  The second low-pass is the pick. The Guitar <Src path="cpp/devices/guitar/guitar.h" at="const float pick_hz = 300.0f * std::pow(32.0f, hardness) * (0.3f + gain) * edge;">sets its corner from Hardness and from how hard the key was struck</Src>, so a soft stroke is darker and not only quieter. Hardness also sets how much noise there is, and the noise <Src path="cpp/kit/string.h" at="noise_decay_ = time_to_coeff(0.002f, sample_rate);">dies away with a time constant of 2 ms</Src>.
+
+  Measured at the starting settings, the pluck is <Claim id="pluck-shape">at its highest 8 samples after it starts, half gone after 36 samples, and under a hundredth of its height from 4.2 ms on</Claim>. That is less than one period of the note. The whole pluck is in the line before its front has come round.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/string.h"
+    from="float next(Rng& rng) {"
+    to="return pick_; }"
+    name="next"
+    at={{ body: 'body_ = x + (body_ - x) * body_a_;', pick: 'pick_ = body_ + (pick_ - body_) * pick_a_;' }}
+  />
+  <Fragment slot="listen">Hear the pluck by itself</Fragment>
+</StageBlock>
+
+<StageBlock tap="lineStart" n={2} title="The line: one trip is one period">
+  The string is one short function, `tick`. On each sample it reads what the line was given <M t="N" /> samples ago, passes that through the loop's filters, adds the pluck, writes the sum back into the line and returns it.
+
+  <Wave taps="pluck:alt string:out" from={0.009} span={0.03} fit>
+    The pluck happens once. The string is the pluck, and then what the loop makes of it once a
+    period: first the pluck upside down, which stage 6 explains, then the pluck the right way up,
+    a little rounder each time. Try Pitch, and notice the copies move closer together or further
+    apart.
+  </Wave>
+
+  <M
+    block
+    t={String.raw`\sig{out}{y[n]} = \sig{alt}{e[n]} + F\bigl\{\,\at{tick-read}{\sig{out}{y[n - N]}}\,\bigr\}`}
+  />
+
+  <M t="y" /> is the string's sound and <M t="e" /> the pluck. <M t="F" /> stands for the three filters of the loop, which stages 3 to 5 take one at a time. Take the filters and the pluck away and the equation says <M t={String.raw`y[n] = y[n-N]`} />: the sound repeats every <M t="N" /> samples, which is a note of <M t={String.raw`f_s / N`} /> hertz, where <M t="f_s" /> is the sample rate.
+
+  The line is `buffer_`, <Src path="cpp/devices/guitar/guitar.h" at="using String = kit::PluckedString<4096>;">4,096 samples</Src> of memory with a write head that goes round it. <Listen tap="string">Hear the string before the pickup</Listen>
+
+  The lab also reads the line itself, lengthways, as if the string were laid out on the page. The wave in it moves to the right, one sample a sample. What leaves at the right edge goes through the filters and comes back in at the left.
+
+  <Controls ids="trips position" />
+
+  <Curve
+    taps="lineStart:in lineLater:out"
+    xTitle="samples from the write head"
+    yTitle="what the line holds"
+    min={-3}
+    max={2}
+  >
+    The line a moment after the pluck, before anything has come round, and the same line a whole
+    number of trips later. Notice the shape is still there, rounder and smaller, with ripples
+    that have run ahead of it: those are the work of stage 4. Try Look again after, and follow
+    it.
+  </Curve>
+
+  The first line of the picture holds two plucks, one of them upside down. The second stands <Claim id="pick-34">34 samples</Claim> ahead of the first, and stage 6 says why it is there. The rounding can be given a number, as it was for the noise of part 2: in twenty trips the steepest step between two neighbouring samples of the line <Claim id="smoother">falls from 0.655 to 0.114</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/string.h"
+    from="float tick(float excitation) {"
+    to="write_ = (write_ + 1) & kMask; return y; }"
+    skip={['delay_ += (delay_target_ - delay_) * glide_;', 'buffer_[(write_ - whole - 1) & kMask], buffer_[(write_ - whole - 2) & kMask], fraction);']}
+    name="tick"
+    at={{ read: 'x = buffer_[(write_ - whole_) & kMask];', loss: 'loss_state_ = flush_denormal(', gain: 'float y = loss_gain_ * loss_state_;' }}
+  />
+</StageBlock>
+
+<StageBlock tap="decayMeasured" n={3} title="The loss filter: high partials pay more">
+  A loop that gives back exactly what it was given rings for ever, as step 2 of the build did. Something in the loop has to take a little away, and more from the top than from the bottom. The kit uses the smallest low-pass there is and a gain: two lines of `tick`.
+
+  <Controls ids="sustain note" />
+
+  <Curve taps="loss:alt" xLog xTitle="hertz" yTitle="dB, one trip">
+    What one trip round the loop costs at each frequency, worked out from the string's own pole
+    and gain. Notice how little it is: a small part of a decibel where most partials live. Try
+    Sustain shorter, and notice the whole line sink.
+  </Curve>
+
+  <M
+    block
+    t={String.raw`s[n] = x[n] + \at{tick-loss}{a}\,\bigl(s[n-1] - x[n]\bigr)`}
+  />
+
+  <M
+    block
+    t={String.raw`y[n] = \at{tick-gain}{g}\,s[n]`}
+  />
+
+  <M
+    block
+    t={String.raw`\sig{alt}{\bigl|H(\omega)\bigr|} = \frac{g\,(1 - a)}{\sqrt{1 - 2a\cos\omega + a^2}}`}
+  />
+
+  Here <M t="x" /> is what the line gave back, <M t="s" /> is the filter's memory and <M t="y" /> is what goes on round the loop. <M t="a" /> says how much of the old value is kept: the larger it is, the more the highs lose against the lows. <M t="g" /> is what every frequency loses alike. The last line is the picture above: the size at which a partial comes back from one trip, where <M t={String.raw`\omega`} /> is how far the partial turns in one sample.
+
+  Neither <M t="a" /> nor <M t="g" /> is a control. A device asks for two times with `set_decay`: how long the fundamental should take to <Src path="cpp/kit/string.h" at="How long the string rings, to -60 dB">fall 60 dB</Src>, and how long a partial near some high frequency should. A partial that goes round <M t="f" /> times a second and is to take <M t="T" /> seconds over it must come back from each trip at
+
+  <M block t={String.raw`\at{design-trip}{r = 10^{-3/(f\,T)}}`} />
+
+  of its size. `design` works that out for both times, searches for the <M t="a" /> whose curve has the right ratio between the two frequencies, and then sets <M t="g" /> so that the fundamental comes out right.
+
+  The Guitar's Sustain is <Src path="cpp/devices/guitar/guitar.h" at="// Seconds for the tail of a held note at `hz` to fall 60 dB.">the time for the whole note</Src>. The first of its two strings is given <Src path="cpp/devices/guitar/guitar.h" at="static constexpr float kFirstDecay = 0.55f;">0.55 of that</Src>, and near <Src path="cpp/devices/guitar/guitar.h" at="static constexpr float kHighHz = 3000.0f;">3 kHz</Src> each string is asked to die in <Src path="cpp/devices/guitar/guitar.h" at="static constexpr float kStringHighDecay[kStrings]">a small share of the fundamental's time</Src>. For the starting note the kit solves <Claim id="filter-220">a pole of 0.453 and a gain of 0.9917: one trip costs 0.08 dB at the note and 8.3 dB at 20 kHz</Claim>.
+
+  So the fall of a partial is the cost of one trip, times the trips it makes in a second:
+
+  <M
+    block
+    t={String.raw`\sig{ctl}{\text{fall}_k} = \frac{-20 \log_{10} \bigl|H(\omega_k)\bigr|}{T_k} \ \text{dB a second}`}
+  />
+
+  <M t={String.raw`T_k`} /> is the time one trip takes partial <M t="k" />. In a plain loop every trip takes one period. Here the filters hold high frequencies a little less long than low ones, so the lab works <M t={String.raw`T_k`} /> out from the line's length and each filter's delay at that frequency. Then it measures: the size of each partial of the string in two windows <Src path="site/labs/plucked-string.cpp" at="constexpr int kLookApart = 2400;">50 ms apart</Src>.
+
+  <Curve
+    taps="decayMeasured:out decayFormula:ctl"
+    xTitle="partial"
+    yTitle="dB lost a second"
+    min={0}
+  >
+    How fast each partial falls: measured on the string as it rings, and worked out by the
+    formula from the string's own pole and gain. Notice the two lie on each other. Try Sustain,
+    and notice a short one leave fewer partials to measure: a partial that is gone before the
+    second window is left out.
+  </Curve>
+
+  <Check id="decayError" />
+
+  The fundamental falls at <Claim id="fall-first">17.1 dB a second</Claim> and the tenth partial at <Claim id="fall-tenth">130 dB a second</Claim>. Across the sixteen partials, the measurement and the formula differ by <Claim id="fall-formula">less than 0.01 %</Claim>. This is the whole character of a plucked string: a note begins with all its partials and ends as little more than its fundamental.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/string.h"
+    from="void design() {"
+    to="loss_gain_ = min(gain1 / loss_magnitude(loss_a_, w1), kMaxLoopGain);"
+    name="design"
+    at={{ trip: 'const float gain1 = std::pow(' }}
+  />
+</StageBlock>
+
+<StageBlock tap="stretchMeasured" n={4} title="Stiffness: partials that are not quite harmonics">
+  A real string resists bending, and the shorter the wave the more it resists. So high partials travel faster than low ones and sound a little sharp of whole multiples. The kit copies this with a short chain of first-order all-pass filters in the loop. An all-pass passes every frequency at full size and only delays it (<Lesson id="phasing" /> is made of them), and these delay the lows longer than the highs. The law they are fitted to puts partial <M t="n" /> at
+
+  <M block t={String.raw`\sig{ctl}{f_n} = n\,f_0\,\sqrt{\frac{1 + B\,n^2}{1 + B}}`} />
+
+  <M t={String.raw`f_0`} /> is the fundamental and <M t="B" /> is the string's inharmonicity. With <M t="B" /> at zero the square root is 1 and every partial is a whole multiple. The larger <M t="B" /> is, the further each partial stands above its multiple, and the square of <M t="n" /> makes the high ones stand furthest.
+
+  The Guitar <Src path="cpp/devices/guitar/guitar.h" at="static constexpr float kStringStiffness[kStrings]">gives each of its six strings a number of its own</Src>, the thick strings the most, and <Src path="cpp/devices/guitar/guitar.h" at="return kit::min(kStringStiffness[string_for(hz)] * ratio * ratio, 4.0e-4f);">raises it with the square of the fret's shortening</Src>. It uses <Src path="cpp/devices/guitar/guitar.h" at="static constexpr int kStringStages[kStrings]">two all-passes on the three low strings and one on the others</Src>, and one filter can follow the law only so far up.
+
+  <Controls ids="note" />
+
+  <Curve
+    taps="stretchMeasured:out stretchLaw:ctl"
+    xTitle="partial"
+    yTitle="cents above a whole multiple"
+    min={0}
+  >
+    Where each partial of the string stands, in cents above the whole multiple of the note:
+    measured on the string, and by the law. Notice the two agree low down and part company
+    higher up. Try Pitch, and notice the lines jump where the note moves to another string.
+  </Curve>
+
+  The tenth partial of the starting note stands <Claim id="stretch-tenth">6.3 cents above ten times the fundamental, where the law says 6.5 cents</Claim>. In the line this is the ripple that runs ahead of the main shape in the figure of stage 2.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/string.h"
+    from="// Phase delay in samples of the allpass"
+    to="return 1.0f - 2.0f * std::atan2(a * std::sin(w), 1.0f + a * std::cos(w)) / w; }"
+    name="allpass"
+  />
+</StageBlock>
+
+<StageBlock tap="tuneKit" n={5} title="Tuning: the line is shorter than the period">
+  Here is the trap in making a string from a delay, the one that steps 3 and 4 of the build fell into. The period of the note is the time of one trip round the whole loop, and the line is not the whole loop. The loss filter delays what passes through it, and so do the stiffness filters. A line one period long makes a loop longer than a period, and a flat note.
+
+  So `retune` works out the delay of everything else at the note's own frequency, and takes it off:
+
+  <M
+    block
+    t={String.raw`\at{retune-line}{N = P - D_{\text{loss}} - D_{\text{stiff}}}`}
+  />
+
+  <M
+    block
+    t={String.raw`\at{retune-loss}{D_{\text{loss}} = \frac{1}{\omega} \arctan \frac{a \sin\omega}{1 - a\cos\omega}}`}
+  />
+
+  <M t="P" /> is the period in samples and <M t="N" /> the length the line should have. <M t={String.raw`D_{\text{loss}}`} /> is how long the loss filter of stage 3 holds the fundamental, from its <M t="a" />, and <M t={String.raw`D_{\text{stiff}}`} /> is the same for the all-passes of stage 4, by the function listed there.
+
+  <Check id="lossDelay" />
+  <Check id="stiffDelay" />
+  <Check id="lineLength" />
+
+  For the starting note, <Claim id="delays-220">the period is 218.18 samples. The loss filter holds the fundamental for 0.83 samples and the stiffness filters for 5.29 samples, which leaves 212.06 samples for the line</Claim>.
+
+  A line holds a whole number of samples, and that length is not one. The kit keeps whole samples in the line and makes the rest, <M t="r" />, with one more all-pass, whose coefficient is chosen so that its delay at the fundamental is exactly <M t="r" />:
+
+  <M
+    block
+    t={String.raw`\at{retune-rest}{a_t = \frac{\sin\bigl((1 - r)\,\omega/2\bigr)}{\sin\bigl((1 + r)\,\omega/2\bigr)}}`}
+  />
+
+  The rest is kept <Src path="cpp/kit/string.h" at="// Whole samples in the line, the rest (0.5 to 1.5) in the allpass,">between half a sample and one and a half</Src>, and so away from zero, because an all-pass asked for a very short delay rings on by itself for a long time. Being an all-pass it takes nothing off any frequency, so the falls of stage 3 are untouched.
+
+  <Check id="loopError" />
+  <Check id="cents" />
+
+  The first check is arithmetic: line, all-pass and filters add up to one period, <Claim id="loop-adds-up">less than 0.0001 samples out</Claim>. The second is measured on the ringing string. Found between the bins of a transform one second long, <Claim id="in-tune">the fundamental is less than 0.001 cents from 220 Hz on the string, and less than 0.02 cents from it at the device's output</Claim>.
+
+  To see what the two corrections are worth, the lab has a second Guitar pluck every note from the low E to the A three octaves and a fourth above it. It measures each, and works out where two simpler loops would have put it.
+
+  <Curve
+    taps="tuneWhole:ctl tuneFlat:alt tuneKit:out"
+    xLog
+    xTitle="the note, hertz"
+    yTitle="cents from the note"
+    min={-100}
+    max={25}
+  >
+    Each point is a note of the neck, tuned three ways: as the kit tunes it, with the line
+    rounded to whole samples, and with a line one period long. Notice the kit's line lie flat on
+    zero while the other two wander. The steps in the line one period long are where the note
+    moves to the next string, which has another stiffness.
+  </Curve>
+
+  The kit's string is <Claim id="tuned-everywhere">less than 0.02 cents off at every one of the 42 notes</Claim>. A line of whole samples would be <Claim id="whole-samples">as much as 12.7 cents out</Claim>, sharp or flat by the luck of the note, and worse the higher the note is, because one sample is a bigger share of a short period. A line one period long would be <Claim id="period-long">48 cents flat at 220 Hz, and at least 36 cents flat at every note</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/string.h"
+    from="void retune() {"
+    to="tune_a_ = std::sin((1.0f - rest) * w * 0.5f) / std::sin((1.0f + rest) * w * 0.5f);"
+    skip={['delay_target_ = line_;', 'if (!primed_) delay_ = delay_target_;']}
+    name="retune"
+    at={{ line: 'line_ = clamp(period_ - loss_delay - stiff_delay', loss: 'const float loss_delay = std::atan2(', rest: 'tune_a_ = std::sin(' }}
+  />
+</StageBlock>
+
+<StageBlock tap="early" n={6} title="Pick position: a comb on the pluck">
+  Pluck a string a fifth of the way along and it has no fifth partial, no tenth and no fifteenth. Each of those has a still point there, and a pluck at a still point cannot start it.
+
+  In the loop this is a comb on the pluck. `tick` puts the pluck into the line twice: once at the write head, and once upside down <M t="M" /> samples further along, where it will be read <M t="M" /> samples sooner. <M t="M" /> is the pick's place along the string, measured in samples of the loop:
+
+  <M
+    block
+    t={String.raw`\at{comb-offset}{M = \operatorname{round}(q\,P)}`}
+  />
+
+  <M t="q" /> is the pick's place as a fraction of the string and <M t="P" /> the period in samples. Going round the loop, the two plucks cancel for any partial that fits a whole number of waves into <M t="M" />, and partial <M t="k" /> comes out at
+
+  <M
+    block
+    t={String.raw`\sig{ctl}{\bigl|\,2 \sin(\pi k M / P)\,\bigr|}`}
+  />
+
+  of its size. Where <M t={String.raw`kM/P`} /> is a whole number the sine is zero and the partial is gone. Half way between two such places it is 1, and the partial comes out at twice its size.
+
+  The Guitar's Position is a fraction of the open string, because a player's hand stays over the body while the fretting finger shortens the string. On a fretted note the pick is therefore further along what is left: <M t="q" /> is <Src path="cpp/devices/guitar/guitar.h" at="static float pick_fraction(float position, float ratio)">Position times the note's frequency over the open string's</Src>.
+
+  <Controls ids="position note hardness" />
+
+  <Spectrum taps="early:out comb:ctl" linear fMax={6000} min={-80} max={6}>
+    The string's spectrum just after the pluck, and the comb the formula draws. Notice that where
+    the comb's line dives, the partial under it is weak or missing. Try Pick position, and notice
+    the dives move along. Hardness tilts the whole spectrum: a soft pick leaves the upper partials
+    out from the start.
+  </Spectrum>
+
+  <Claim id="pick-fifth">With Pitch at 110 Hz, the open A string, and Pick position at 0.2, the second pluck is 87 samples ahead, a fifth of the loop, and the fifth partial stands 41 dB under the fourth</Claim>. The tenth goes with it.
+
+  <Listing
+    slot="listing"
+    path="cpp/kit/string.h"
+    from="void place_comb() {"
+    to="comb_offset_ = clamp_int(static_cast<int>(comb_fraction_ * period_ + 0.5f), 0, room > 0 ? room : 0);"
+    name="comb"
+    at={{ offset: 'comb_offset_ = clamp_int(' }}
+  />
+</StageBlock>
+
+<StageBlock tap="level" n={7} title="Two strings for one note">
+  The kit's string ends at stage 6. A device has to make an instrument of it, and the Guitar's first addition is a second string. A real string swings up and down and side to side at once, at very slightly different pitches, and the two swings die at different speeds.
+
+  So the Guitar runs two loops for each note, tuned half the Shimmer rate under the note and over it. Its pickup hears <Src path="cpp/devices/guitar/guitar.h" at="static constexpr float kFirstLevel = 0.72f;">0.72 of the first</Src> and <Src path="cpp/devices/guitar/guitar.h" at="static constexpr float kSecondLevel = 0.34f;">0.34 of the second</Src>, and the first is the one that dies sooner.
+
+  <Controls ids="shimmer hold" />
+
+  <Trace taps="levelOne:alt level:out" min={-100} max={0} unit="dB">
+    The level of the note at the pickup and of its first string alone, each averaged over one
+    period. Notice the note's line bend where the second string takes over. Try Shimmer above
+    zero with Key held for at its longest, and notice the note's line ripple.
+  </Trace>
+
+  Together the two make a note that falls quickly and then slowly: <Claim id="two-slopes">16.6 dB a second early on and 11.7 dB a second later, where the first string alone keeps to at least 18 dB a second</Claim>.
+
+  This lesson starts with Shimmer at zero, so that the two strings stay in step. Raise it, and they drift in and out of step. Two tones a little apart are one tone whose size swells and shrinks. Take partial <M t="k" /> of a note at <M t="f" /> hertz, with <M t="s" /> the Shimmer rate. Write <M t={String.raw`\varphi`} /> for how far that partial of the note itself has turned by the time <M t="t" />, and <M t={String.raw`\beta`} /> for how far each string's partial has drifted from it:
+
+  <M block t={String.raw`\varphi = 2\pi k f\,t`} />
+
+  <M block t={String.raw`\beta = \pi k s\,t`} />
+
+  The two strings' partials are then the two terms on the left, and their sum is the right:
+
+  <M
+    block
+    t={String.raw`\cos(\varphi - \beta) + \cos(\varphi + \beta) = 2 \cos\beta\,\cos\varphi`}
+  />
+
+  The right side is the same sound written another way: a tone at the partial's own frequency, <M t={String.raw`\cos\varphi`} />, times a slow wave, <M t={String.raw`2\cos\beta`} />, that takes it through zero <M t={String.raw`k s`} /> times a second. So each partial beats at its own rate, the second twice as fast as the first, and the note shimmers where a single beat would only throb.
+
+  <Claim id="shimmer-apart">With Shimmer at 0.3 Hz the first string is tuned to 219.85 Hz</Claim>, and the note dips <Claim id="beat">up to 6 dB</Claim> under its in-tune self.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/guitar/guitar.h"
+    from="void tune(Voice& voice) {"
+    to="voice.b.set_decay(seconds, high_seconds, kHighHz);"
+    name="strings"
+  />
+</StageBlock>
+
+<StageBlock tap="string" n={8} title="Key up is a finger on the string">
+  When the key is let go, the output is not faded. The Guitar lays a finger on the string. In <Src path="cpp/devices/guitar/guitar.h" at="static constexpr int kDampTicks = 16;">16 small steps</Src> the two decay times of each string are walked down to <Src path="cpp/devices/guitar/guitar.h" at="static constexpr float kDampSeconds = 0.14f;">0.14 s</Src> for the fundamental and <Src path="cpp/devices/guitar/guitar.h" at="static constexpr float kDampHighSeconds = 0.035f;">0.035 s</Src> for the top, `design` runs at each step, and the loop itself loses the note, the top first.
+
+  <Still
+    taps="string"
+    values={{ hold: 0.5 }}
+    from={0.4}
+    span={0.3}
+    caption="The string either side of key up, with the key held for half a second. It does not stop dead. It rings down over a few hundredths of a second, as a string under a finger does."
+  />
+
+  <M
+    block
+    t={String.raw`\at{damp-walk}{T(u) = T_0 \Bigl(\frac{T_1}{T_0}\Bigr)^{u}}`}
+  />
+
+  <M t={String.raw`T_0`} /> is a decay time as the note was ringing and <M t={String.raw`T_1`} /> the time under the finger. <M t="u" /> is how far the finger has come down, from nothing to 1 in those steps. Each step multiplies the time by the same amount, so neither the loop's gain nor its length jumps, and nothing clicks. Measured after key up, the note falls at <Claim id="damped">over 400 dB a second</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/guitar/guitar.h"
+    from="void advance_damp(Voice& voice) {"
+    to="set_ring(voice, from * std::pow(to / from, t), from_high * std::pow(to_high / from_high, t));"
+    name="damp"
+    at={{ walk: 'set_ring(voice, from * std::pow(to / from, t)' }}
+  />
+  <Fragment slot="listen">Hear the string, key up and all</Fragment>
+</StageBlock>
+
+<StageBlock tap="pickup" n={9} title="The pickup is a second comb">
+  A pickup hears the string at one point, so it cannot hear a partial that is still there. That is the pick's comb again, on the way out this time. The Guitar's signal is each string, less itself a fraction of a period earlier:
+
+  <M
+    block
+    t={String.raw`d_a[n] = \at{render-first}{a[n] - a[n - q P_a]}`}
+  />
+
+  <M
+    block
+    t={String.raw`x[n] = c_1\,d_a[n] + \at{render-second}{c_2\,d_b[n]}`}
+  />
+
+  <M
+    block
+    t={String.raw`\sig{out}{p[n]} = \at{render-curve}{\bigl(x[n] + \kappa\,x[n]^2\bigr)}\,g[n]`}
+  />
+
+  <M t="a" /> and <M t="b" /> are the two strings. <M t={String.raw`d_a`} /> is the first as the pickup hears it: the string, less itself <M t={String.raw`q P_a`} /> samples earlier, where <M t={String.raw`P_a`} /> is that string's period. <M t={String.raw`d_b`} /> is the same for the second string. <M t="x" /> is the two together, with <M t={String.raw`c_1`} /> and <M t={String.raw`c_2`} /> how much of each the pickup hears, and <M t="p" /> is what the pickup hands on. <M t="q" /> is the pickup's distance from the bridge as a fraction of the sounding length. It grows with every fret, which is why no two notes of a guitar have quite the same colour and why no fixed filter sounds like a pickup. <M t={String.raw`\kappa`} /> is <Src path="cpp/devices/guitar/guitar.h" at="static constexpr float kPickupCurve = 0.07f;">a small number</Src> that adds a little second harmonic to hard notes. <M t="g" /> is a gain that keeps notes about as loud wherever the pickup is, and carries the Swell.
+
+  <Controls ids="pickup" />
+
+  <Spectrum taps="string:alt pickup:out" linear fMax={6000} min={-110} max={0}>
+    The average spectrum of the first string and of the note at the pickup. Notice the partials
+    the pickup's comb has cut. Try Pickup from one end to the other, and notice a different set
+    go.
+  </Spectrum>
+
+  <Check id="rebuilt" />
+
+  The lab works the pickup's signal out from the two strings by the lines listed here, and compares it with what the device handed on to its next stage. The two are <Claim id="rebuilt-exact">the same, sample for sample</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/guitar/guitar.h"
+    from="const float pluck = voice.exciter.active() ? voice.exciter.next(voice.scrape) : 0.0f;"
+    to="return x * gain;"
+    name="render"
+    at={{ first: 'float x = voice.first * (', second: 'voice.second * (b - voice.b.tap(', curve: 'x += kPickupCurve * x * x;' }}
+  />
+  <Fragment slot="listen">Hear the note at the pickup</Fragment>
+</StageBlock>
+
+<StageBlock tap="out" n={10} title="Amplifier and speaker">
+  What follows the pickup is not the string's business, and each piece of it belongs to another lesson. A filter <Src path="cpp/devices/guitar/guitar.h" at="dc_.set_cutoff(15.0f, sr);">at 15 Hz</Src> takes out any steady push. The pickup's resonance against its cable is a low-pass with a hump, which Tone moves (<Lesson id="state-variable-filter" />). One soft amplifier stage follows, which Warmth drives (<Lesson id="saturation" />). Then come <Src path="cpp/devices/guitar/guitar.h" at="scoop_.set_peak(480.0f, 0.7f, -4.0f, sr);">a dip in the middle</Src>, a speaker that passes little <Src path="cpp/devices/guitar/guitar.h" at="speaker_high_.set_highpass(85.0f, 0.75f, sr);">under 85 Hz</Src> or <Src path="cpp/devices/guitar/guitar.h" at="speaker_low_[0].set_lowpass(5000.0f, 0.5412f, sr);">over 5 kHz</Src> (<Lesson id="equalising" />), Volume, and a soft clip.
+
+  <Controls ids="tone warmth volume" />
+
+  <Spectrum taps="pickup:alt out:out" min={-110} max={0}>
+    The average spectrum of the note at the pickup and at the output. Notice the top fall away
+    above the speaker's corner. Try Tone from one end to the other, and notice a hump slide along
+    the output's line.
+  </Spectrum>
+
+  The Guitar plays up to <Src path="cpp/devices/guitar/guitar.h" at="static constexpr int kMaxVoices = 12;">12 notes at once</Src> through this one chain, and its output is <Claim id="mono">the same on both sides</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/guitar/guitar.h"
+    from="float x = resonance_.lowpass(dc_.process(sum) * kAmpGain);"
+    to="const float out = kit::soft_clip(x * kOutputGain * volume_.next());"
+    name="amp"
+  />
+  <Fragment slot="listen">Hear the output</Fragment>
+</StageBlock>
+
+### All the stages at once
+
+<Lanes
+  taps="pluck string levelOne level pickup out"
+  ranges={{ levelOne: [-100, 0], level: [-100, 0] }}
+>
+  Every stage that is a signal over time, on one time axis. Notice that the pluck is over before
+  anything else has begun to fall: all that follows is the loop. Try Key held for shorter, and
+  notice every lane below the pluck stop together.
+</Lanes>
+
+</Part>
+
+<Part id="ways" title="Five things players do with these controls.">
+
+Each of these is a habit of playing, not a preset. Press "Try it" and the page moves to settings that show the idea, so you can go back up to the engine and see what the comb, the loss and the level are doing.
+
+<Ways>
+  <Way title="Pick by the bridge" tag="a low Pick position, a hard pick" set="bridge">
+    Close to the bridge the comb of stage 6 has its first dive far up, so every low partial is let through, but weakly, and the high ones come out strong. The note is thin and bright and cuts through a mix. <Claim id="way-bridge">The second pluck is 12 samples ahead of the first, and the fundamental comes out 8.7 dB lower than in the picked note</Claim>. After the card, move Pick position up a little at a time and listen for the body of the note coming back.
+  </Way>
+  <Way title="A soft thumb over the neck" tag="Hardness at nothing, a high Pick position" set="thumb">
+    A soft pick is a low corner on the pluck's second low-pass, so the top partials are never put into the line at all. Picking further from the bridge takes more of them out. <Claim id="way-thumb">The tenth partial of the output stands 27 dB under the first, where the picked note has it 9 dB under</Claim>. This is the round note for a slow line or the bottom of a chord.
+  </Way>
+  <Way title="Leave it to ring" tag="a long Sustain, the key held" set="ring">
+    A plucked string cannot be held at a level. It can only be left alone for longer. With a long Sustain the loss filter is nearly flat and the gain of the loop is nearly 1, and <Claim id="way-ring">the fundamental falls at 5.1 dB a second</Claim>, less than a third of the rate stage 3 measured. After the card, listen to the last second: what is left is close to a pure tone.
+  </Way>
+  <Way title="Set the two strings a little apart" tag="a slow Shimmer" set="apart">
+    This is the device's own starting Shimmer, which this lesson takes off so that the string can be measured. With it the note is never quite still. Each partial drifts in and out at its own slow rate, as stage 7 worked out, and a held chord moves a little without anything being played. Only an ear can say how much is right. After the card, try Shimmer at nothing and listen to the note go flat and plain.
+  </Way>
+  <Way title="Hide the pick" tag="Swell, with a long Sustain" set="swell">
+    Swell brings the pickup's signal up from nothing after the pick. The string is struck as hard as ever, but the strike is not heard: <Claim id="way-swell">the first 20 ms come out 41 dB under those of the picked note</Claim>. What arrives is a string that is already ringing, which sits nearer to a bowed note than a picked one. It wants a long Sustain, or there is little left to arrive.
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Eight ways it goes wrong, three of them to hear.">
+
+<Faults>
+  <Fault title="A note that dies dull" set="dull">
+    Sustain is not a volume. A short Sustain makes the loss filter of stage 3 heavy, and a heavy low-pass in a loop takes the top first and fastest. <Claim id="fault-dull">The fundamental of this note falls at 109 dB a second</Claim> and the upper partials are gone within a few trips, so the note is a thud with a pitch. For a short note that stays bright, keep Sustain long and let the key go early: the finger of stage 8 stops it.
+  </Fault>
+  <Fault title="A wobble" set="wobble">
+    A slow Shimmer is movement. A fast one is two strings heard to be out of tune. <Claim id="fault-wobble">The level of this note dips 6.4 dB under what it is with the two strings in tune</Claim>, over and over, and the upper partials beat faster still. On one note it is a wobble. On a chord every note wobbles at its own rate and the chord sounds sour. Turn Shimmer down until the movement is felt and not heard.
+  </Fault>
+  <Fault title="Nearly all pick" set="spike">
+    A hard pick close to the bridge, heard by a pickup close to the bridge, puts nearly everything into the first few milliseconds. <Claim id="fault-spike">The loudest sample stands 23.6 dB over the level of the note from a tenth to six tenths of a second after the pick</Claim>, a good deal further than in the picked note of part 3. In a mix the meter reads the spike and the ear hears the body, so the part is loud on the meter and quiet in the room. Soften the pick or move it, before reaching for the compressor of <Lesson id="compression" />.
+  </Fault>
+  <Fault title="Only the fundamental is in tune">
+    Stage 5 tunes the loop at one frequency, the note's own. The loss filter does not hold every frequency equally long, so the upper partials come round a little early and sound a little sharp. At the starting settings that is too small to matter. A heavy loss filter makes it larger: <Claim id="loss-sharpens">with Sustain at 1 s the fifth partial is 8 cents sharp, where the stiff string's law puts it under 2 cents</Claim>. It is one more reason that a short Sustain sounds wrong and not merely short.
+  </Fault>
+  <Fault title="A loop that never lets go">
+    A loop whose gain reaches 1 at any frequency holds what it is given there for ever. The kit guards against that in two places. `design` never lets the loop's gain go above <Src path="cpp/kit/string.h" at="static constexpr float kMaxLoopGain = 0.99999f;">a hair under 1</Src>, however long a decay is asked for. And the pick's comb puts the pluck in twice with opposite signs, so the two add up to nothing and no steady push is left standing in the line.
+  </Fault>
+  <Fault title="Numbers too small to hold">
+    A tail that falls for long enough reaches numbers so small that a processor handles them very slowly, and a loop keeps feeding them back to itself. Each filter in the loop therefore <Src path="cpp/common/dsp_util.h" at="inline float flush_denormal(float x) {">sets such a value to nothing</Src>. Nothing is heard of it. Without it, a quiet tail would cost more to compute than a loud note.
+  </Fault>
+  <Fault title="A pick on a string that is still moving">
+    Striking a note again cannot simply clear the line: the string was somewhere, and a jump to nothing is a click. The Guitar fades the old sound out of the pickup quickly and only then puts in the new pluck. It takes <Src path="cpp/devices/guitar/guitar.h" at="static constexpr float kRepluckSeconds = 0.008f;">8 ms</Src> over it when the same note is played again and <Src path="cpp/devices/guitar/guitar.h" at="static constexpr float kStealSeconds = 0.003f;">3 ms</Src> when the string is taken for another.
+  </Fault>
+  <Fault title="Nothing at the very top">
+    The higher the note, the shorter the line, and the more of the loop is filter and the less is delay. The kit stops at <Src path="cpp/kit/string.h" at="hz_ = clamp(hz, lowest_hz(sample_rate), sample_rate * 0.125f);">an eighth of the sample rate</Src>. A note asked for above that sounds at the limit, which is flat. A real neck ends well below it.
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="The noise is the sound of the string.">
+    The noise is only what the line is first filled with. Part 1 fed one period of it to a loop and a note came out, and the note's pitch was the loop's length. The kit's string is not fed noise at all: stage 1 shows a rounded pulse with a little scrape on it. What makes the sound a string is the loop.
+  </Myth>
+  <Myth says="The delay line is one period long.">
+    The whole loop is one period long. The filters in it take up part of that, and the line has to be shorter by as much. Stage 5 has the sum for the starting note, and its picture shows what a line of one period would do to every note of the neck.
+  </Myth>
+  <Myth says="Sustain is a fade on the output.">
+    A fade turns every partial down together, and part 1 has the sound of that beside the string. Sustain sets two decay times inside the loop, from which the kit solves the loss filter. The upper partials always go first, and a short Sustain takes them almost at once, as the dull note of part 7 shows.
+  </Myth>
+  <Myth says="It plays back a recording of a string.">
+    Nothing is recorded. The line holds the last period of what the loop itself made, and nothing else. That is why the pick's place, the pick's hardness and the note's length can change from one note to the next, and why step 8 of the build could arrive at the device's own signal from a few dozen lines.
+  </Myth>
+  <Myth says="The low-pass is a tone control.">
+    A tone control filters a sound once. This one sits in the loop, so the sound passes it once every period, hundreds of times a second. One pass costs so little that it could not be heard, as the picture of stage 3 shows. The darkening is that small loss, paid again on every trip.
+  </Myth>
+  <Myth says="A high note rings as long as a low one.">
+    A high note makes more trips in a second and pays the loop's loss on each. The Guitar shortens its ring further on purpose, as a short string's is. The low and the high string of part 3 have the two rates, measured at nearly the same Sustain.
+  </Myth>
+</Myths>
+
+</Part>

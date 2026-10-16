@@ -1,0 +1,68 @@
+{
+  "tile": {
+    "tap": "out",
+    "picture": { "taps": ["plainStart", "plainLater"], "view": "curve" }
+  },
+  "sets": {
+    "noise": {
+      "label": "Noise going round a loop",
+      "tap": "plain"
+    },
+    "fixed": {
+      "label": "A fixed wave under one fade",
+      "tap": "fixed"
+    },
+    "alone": {
+      "label": "The string before the pickup",
+      "tap": "string"
+    },
+    "picked": {
+      "label": "A picked note"
+    },
+    "low": {
+      "label": "A low string",
+      "values": { "note": 82.41, "sustain": 14, "hardness": 0.35, "pickup": 1 }
+    },
+    "high": {
+      "label": "A high string",
+      "values": { "note": 880, "hardness": 0.7 }
+    },
+    "muted": {
+      "label": "A muted note",
+      "values": { "hold": 0.25, "hardness": 0.8 }
+    },
+    "bridge": {
+      "label": "Picked by the bridge",
+      "values": { "position": 0.05, "hardness": 0.75 }
+    },
+    "thumb": {
+      "label": "A soft thumb over the neck",
+      "values": { "position": 0.3, "hardness": 0 }
+    },
+    "ring": {
+      "label": "Left to ring",
+      "values": { "sustain": 30, "hold": 4 }
+    },
+    "apart": {
+      "label": "Two strings a little apart",
+      "values": { "shimmer": 0.3, "sustain": 14, "hold": 4 }
+    },
+    "swell": {
+      "label": "The pick hidden",
+      "values": { "swell": 0.6, "sustain": 20, "hold": 4 }
+    },
+    "dull": {
+      "label": "A note that dies dull",
+      "values": { "note": 110, "sustain": 1 }
+    },
+    "wobble": {
+      "label": "A wobble",
+      "values": { "shimmer": 1.5, "hold": 4 }
+    },
+    "spike": {
+      "label": "Nearly all pick",
+      "values": { "position": 0.05, "hardness": 1, "pickup": 0 }
+    }
+  },
+  "defaults": { "values": { "shimmer": 0.3, "volume": -6 } }
+}

@@ -14,19 +14,38 @@
 // contents at two instants, the string's output (the sample its loop wrote
 // last), the note at the pickup (the input the DC blocker kept), the output.
 // Measured on those: how fast each partial of the string falls, where each
-// partial stands, the string's pitch.
+// partial stands, the string's pitch, and the level of the note at the pickup.
 // Worked out here from the device's own numbers ("lesson"): the loop filter's
 // response and the fall of each partial that follows from it, the stiff
 // string's law, the pick's comb, the tuning a simpler loop would have, the
-// two levels, and the pickup's signal from the two strings, which the
-// "rebuilt" check holds to the device.
+// pickup's signal from the two strings, which the "rebuilt" check holds to the
+// device, and from it the level of the first string alone.
 // The tuning at every note of the neck is measured on a second Guitar's own
 // string, set up by that Guitar and ticked here ("kit").
 //
+// Beside the device run two things the lesson starts from. The plain string is
+// a third kit::PluckedString with no stiffness and no pick position, rung as
+// long as the device's first string and fed one period of noise in place of a
+// pluck ("kit"): the technique at its barest. The fixed wave is what a string
+// is not: a saw at the note under one fade, falling as fast as the string's
+// fundamental does ("lesson").
+//
+// The build path puts the string together in eight pieces, each a few lines of
+// `Loop` and `Built` below: a burst of noise; a delay loop; the loss filter;
+// stiffness; fine tuning; a shaped pluck; pick position; two strings and a
+// pickup. The step chosen changes only the "built" taps. Each piece reads its
+// numbers from the device's own strings as they run (the filter's pole and
+// gain, the line's length, the all-passes' coefficients), so what the build
+// writes out again is the arithmetic, not the design. Two copies run: one at
+// the step chosen, and one with every piece, whose sound is compared on every
+// render with the device's own signal at the pickup, from the pick onward (the
+// "builtDifference" check).
+//
 // The lab starts where the technique shows plainly: Shimmer at 0 (the device
 // starts at 0.3 Hz), so the note's two strings are tuned alike; no strum; and
-// every pluck the same (set_variation(0), which is not a parameter). Volume is
-// at +6 dB (the device starts at -6), so the output is heard beside the rest.
+// every pluck the same (set_variation(0), which is not a parameter). Volume
+// starts at +6 dB (the device starts at -6), so the output is heard beside the
+// rest. Strum spaces the notes of a chord and has nothing to space here.
 
 #include "lab.h"
 
@@ -53,7 +72,18 @@ lab::Control trips{"trips", "Look again after", "trips", 2.0f, 200.0f, 20.0f, la
 lab::Control hold{"hold", "Key held for", "s", 0.25f, 4.0f, 3.0f};
 lab::Control shimmer{"shimmer", "Shimmer", "Hz", 0.0f, 1.5f, 0.0f};
 lab::Control pickup{"pickup", "Pickup", "", 0.0f, 1.0f, 0.85f};
+lab::Control tone{"tone", "Tone", "Hz", 1500.0f, 5500.0f, 3600.0f, lab::kLog};
+lab::Control swell{"swell", "Swell", "s", 0.0f, 3.0f, 0.0f};
+lab::Control warmth{"warmth", "Warmth", "", 0.0f, 1.0f, 0.3f};
+lab::Control volume{"volume", "Volume", "dB", -48.0f, 6.0f, 6.0f};
 
+lab::Tap burst_tap{"burst", "One period of noise", lab::kAudio, lab::kLesson, 1};
+lab::Tap plain_tap{"plain", "A plain string, fed the noise", lab::kAudio, lab::kKit, 1};
+lab::Tap plain_start{"plainStart", "One period, the noise just in", lab::kCurve, lab::kKit, 1};
+lab::Tap plain_later{"plainLater", "One period, some trips later", lab::kCurve, lab::kKit, 1};
+lab::Tap plain_partials{"plainPartials", "The plain string's partials", lab::kFrames, lab::kKit, 1, "dB"};
+lab::Tap fixed_tap{"fixed", "A fixed wave under one fade", lab::kAudio, lab::kLesson, 1};
+lab::Tap fixed_partials{"fixedPartials", "The fixed wave's partials", lab::kFrames, lab::kLesson, 1, "dB"};
 lab::Tap pluck{"pluck", "The pluck", lab::kAudio, lab::kDevice, 1};
 lab::Tap line_start{"lineStart", "The line just after the pluck", lab::kCurve, lab::kDevice, 1};
 lab::Tap line_later{"lineLater", "The line some trips later", lab::kCurve, lab::kDevice, 1};
@@ -70,7 +100,7 @@ lab::Tap tune_kit{"tuneKit", "The string as the kit tunes it", lab::kCurve, lab:
 lab::Tap tune_whole{"tuneWhole", "A line of whole samples", lab::kCurve, lab::kLesson, 1, "cents"};
 lab::Tap tune_flat{"tuneFlat", "A line one period long", lab::kCurve, lab::kLesson, 1, "cents"};
 lab::Tap level_one{"levelOne", "The first string alone", lab::kControl, lab::kLesson, 1, "dB"};
-lab::Tap level{"level", "Both strings: the note", lab::kControl, lab::kLesson, 1, "dB"};
+lab::Tap level{"level", "Both strings: the note", lab::kControl, lab::kDevice, 1, "dB"};
 lab::Tap pickup_tap{"pickup", "At the pickup", lab::kAudio, lab::kDevice, 1};
 lab::Tap out_tap{"out", "Output", lab::kAudio, lab::kDevice, 2};
 
@@ -195,12 +225,15 @@ void configure(Guitar& device) {
   device.init(lab::kSampleRate);
   device.set_variation(0.0f);
   device.set_param(kStrum, 0.0f);
-  device.set_param(kVolume, 6.0f);
   device.set_param(kPickup, pickup.value);
   device.set_param(kPosition, position.value);
   device.set_param(kHardness, hardness.value);
   device.set_param(kSustain, sustain.value);
   device.set_param(kShimmer, shimmer.value);
+  device.set_param(kTone, tone.value);
+  device.set_param(kSwell, swell.value);
+  device.set_param(kWarmth, warmth.value);
+  device.set_param(kVolume, volume.value);
 }
 
 Guitar::Voice* voice_of(Guitar& device) {
@@ -351,6 +384,249 @@ void tuning_curves() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// The textbook case: one period of noise, a plain string, and a fixed wave.
+
+constexpr float kBurstLevel = 0.7f;
+constexpr float kFixedLevel = 0.25f;
+constexpr int kLongestBurst = 1024;
+
+float burst_[kLongestBurst];  // one period of noise, its mean taken out
+int burst_length = 0;
+
+// As many samples of noise as the note's period is long, the same every
+// render. Their mean is taken out: a steady push would go round the loop too.
+void make_burst(float period) {
+  kit::Rng rng;
+  rng.seed(0x5EED1E55u);
+  burst_length = kit::clamp_int(static_cast<int>(period + 0.5f), 1, kLongestBurst);
+  float sum = 0.0f;
+  for (int k = 0; k < burst_length; ++k) {
+    burst_[k] = kBurstLevel * rng.bipolar();
+    sum += burst_[k];
+  }
+  const float mean = sum / static_cast<float>(burst_length);
+  for (int k = 0; k < burst_length; ++k) burst_[k] -= mean;
+}
+
+String plain;  // a third string of the kit's: no stiffness, no pick position
+
+// The last `points` samples a line was given, the newest first.
+void capture_last(lab::Tap& tap, const float* line, int write, int points) {
+  if (tap.data || !tap.open(points)) return;
+  tap.x0 = 0.0f;
+  tap.x1 = static_cast<float>(points - 1);
+  for (int j = 0; j < points; ++j) tap.set(j, line[(write - 1 - j) & String::kMask]);
+}
+
+// ---------------------------------------------------------------------------
+// The build path: the string put together a piece at a time.
+
+// The pieces, in the order the steps add them.
+enum Piece : int { kBurst = 0, kLoop = 1, kLoss = 2, kStiff = 3, kTune = 4, kPluck = 5, kComb = 6, kPickup = 7 };
+
+// Until the loss filter arrives nothing in the loop loses anything, and the
+// note would never end: at key up the build lays a finger of its own on the
+// string, and each trip then keeps this much.
+constexpr float kFinger = 0.9f;
+
+// One string of the build: a delay line, and what stands in its loop so far.
+// `like` is the device's own string, read as it runs: each piece takes its
+// numbers from it and does the arithmetic again.
+struct Loop {
+  float line[String::kMask + 1];
+  int write = 0;
+  float lowpass = 0.0f;
+  float stiff_in[String::kMaxStiffStages];
+  float stiff_out[String::kMaxStiffStages];
+  float tune_in = 0.0f;
+  float tune_out = 0.0f;
+
+  void clear() {
+    for (float& sample : line) sample = 0.0f;
+    write = 0;
+    lowpass = 0.0f;
+    for (int s = 0; s < String::kMaxStiffStages; ++s) stiff_in[s] = stiff_out[s] = 0.0f;
+    tune_in = tune_out = 0.0f;
+  }
+
+  // One sample: the pluck goes in, the string's newest sample comes out.
+  float round(float pluck, const String& like, int step, bool finger) {
+    float y = 0.0f;
+    if (step >= kLoop) {
+      // The delay loop: what was written one trip ago comes back.
+      const int trip = step >= kTune ? like.whole_ : static_cast<int>(like.period_ + 0.5f);
+      y = line[(write - trip) & String::kMask];
+      if (step < kLoss && finger) y *= kFinger;
+    }
+    if (step >= kLoss) {
+      // The loss filter: a low-pass of one pole, then a gain a little under one.
+      lowpass = flush_denormal(y + (lowpass - y) * like.loss_a_);
+      y = like.loss_gain_ * lowpass;
+    }
+    if (step >= kStiff) {
+      // Stiffness: all-passes that hold the low partials back longer than the high.
+      for (int s = 0; s < like.stiff_stages_; ++s) {
+        const float out = flush_denormal(like.stiff_a_ * y + stiff_in[s] - like.stiff_a_ * stiff_out[s]);
+        stiff_in[s] = y;
+        stiff_out[s] = out;
+        y = out;
+      }
+    }
+    if (step >= kTune) {
+      // Fine tuning: the line is cut to whole samples, and one all-pass is the rest.
+      const float out = flush_denormal(like.tune_a_ * y + tune_in - like.tune_a_ * tune_out);
+      tune_in = y;
+      tune_out = out;
+      y = out;
+    }
+    y += pluck;
+    line[write] = y;
+    // Pick position: the same pluck, upside down, a little further round.
+    if (step >= kComb && like.comb_offset_ > 0 && pluck != 0.0f) {
+      line[(write - like.comb_offset_) & String::kMask] -= pluck;
+    }
+    write = (write + 1) & String::kMask;
+    return y;
+  }
+
+  // The string `delay` samples ago, read between two samples of the line.
+  float earlier(float delay) const {
+    const int whole = static_cast<int>(delay);
+    const float fraction = delay - static_cast<float>(whole);
+    const float a = line[(write - 1 - whole) & String::kMask];
+    const float b = line[(write - 2 - whole) & String::kMask];
+    return a + (b - a) * fraction;
+  }
+};
+
+// The string so far: the pieces up to `step`, run a sample at a time beside
+// the device, struck on the sample the device strikes.
+struct Built {
+  int step = 0;
+  bool struck = false;
+  Loop first;
+  Loop second;
+  int burst_at = 0;
+  // The shaped pluck: one tall sample and a little noise, and two low-passes.
+  float impulse = 0.0f;
+  float scrape_level = 0.0f;
+  float scrape_fall = 0.0f;
+  float body_a = 0.0f;
+  float pick_a = 0.0f;
+  float body = 0.0f;
+  float pick = 0.0f;
+  int left = 0;
+  kit::Rng scrape;
+  float pluck = 0.0f;   // what went into the loop on this sample
+  float string = 0.0f;  // the first string's newest sample
+
+  void start(int at) {
+    step = at;
+    struck = false;
+    pluck = 0.0f;
+    string = 0.0f;
+  }
+
+  // The pick leaves the string. `fresh` is the device's pluck before any of it
+  // has run: how tall, how noisy, and where its two low-passes stand.
+  void strike(const kit::PluckExciter& fresh, const kit::Rng& rng) {
+    first.clear();
+    second.clear();
+    struck = true;
+    burst_at = 0;
+    impulse = fresh.impulse_;
+    scrape_level = fresh.noise_level_;
+    scrape_fall = fresh.noise_decay_;
+    body_a = fresh.body_a_;
+    pick_a = fresh.pick_a_;
+    left = fresh.remaining_;
+    body = 0.0f;
+    pick = 0.0f;
+    scrape = rng;
+  }
+
+  // A burst of noise: one period of it, once.
+  float noise() { return burst_at < burst_length ? burst_[burst_at++] : 0.0f; }
+
+  // A shaped pluck: the tall sample falls away at the note's own frequency,
+  // and the pick's low-pass rounds its corner.
+  float shaped() {
+    if (left <= 0) return 0.0f;
+    float x = impulse;
+    impulse = 0.0f;
+    if (scrape_level > 1.0e-9f) {
+      x += scrape_level * scrape.bipolar();
+      scrape_level *= scrape_fall;
+    }
+    body = x + (body - x) * body_a;
+    pick = body + (pick - body) * pick_a;
+    if (--left == 0) {
+      body = 0.0f;
+      pick = 0.0f;
+    }
+    return pick;
+  }
+
+  // One sample of the note so far. `voice` is the device's note, and
+  // `open_fraction` where its pickup stands on the open string.
+  float run(const Guitar::Voice& voice, float open_fraction) {
+    if (!struck) return 0.0f;
+    pluck = step >= kPluck ? shaped() : noise();
+    string = first.round(pluck, voice.a, step, voice.damping);
+    if (step < kPickup) return string * voice.fade;
+    // Two strings and a pickup: the second string, and each string less
+    // itself a little earlier, as a pickup at one point of it hears it.
+    const float other = second.round(pluck, voice.b, step, voice.damping);
+    if (!voice.sounding) return 0.0f;
+    const float q = Guitar::pickup_fraction(open_fraction, voice.ratio);
+    float x = voice.first * (string - first.earlier(q * voice.a.period_)) +
+              voice.second * (other - second.earlier(q * voice.b.period_));
+    x += Guitar::kPickupCurve * x * x;
+    float gain = voice.trim * voice.fade;
+    gain *= voice.swell * voice.swell * (3.0f - 2.0f * voice.swell);
+    return x * gain;
+  }
+};
+
+lab::Build build{"A burst of noise|A delay loop|The loss filter|Stiffness|Fine tuning|A shaped pluck|"
+                 "Pick position|Two strings and a pickup",
+                 kPickup, -120.0f,
+                 "The string as built, all eight pieces, against the device's own signal at the pickup, from the pick onward"};
+
+lab::Tap built{"built", "The string so far", lab::kAudio, lab::kLesson, 1};
+lab::Tap built_pluck{"builtPluck", "What goes into the loop", lab::kAudio, lab::kLesson, 1};
+lab::Tap built_level{"builtLevel", "Level, as built", lab::kControl, lab::kLesson, 1, "dB"};
+lab::Tap built_start{"builtStart", "One period as built, the pluck just in", lab::kCurve, lab::kLesson, 1};
+lab::Tap built_later{"builtLater", "One period as built, some trips later", lab::kCurve, lab::kLesson, 1};
+
+lab::Check built_cents{"builtCents", "The string as built, against the note", "cents"};
+
+Built shown;  // at the step the reader chose: what the built taps hold
+Built held;   // with every piece: what is compared with the device
+
+// The device's pluck before any of it has run: a second Guitar is set up the
+// same, the same key pressed, and the strike worked out with nothing played.
+bool fresh_pluck(float hz, kit::PluckExciter* exciter, kit::Rng* scrape) {
+  configure(probe);
+  probe.note_on(kKey, hz, kStrike);
+  Guitar::Voice* voice = voice_of(probe);
+  if (!voice) return false;
+  probe.strike(*voice);
+  *exciter = voice->exciter;
+  *scrape = voice->scrape;
+  return true;
+}
+
+// How long one trip round the built loop is at the note, in samples, at a step.
+double built_trip(const String& s, int step) {
+  if (step >= kTune) return s.period_;
+  double trip = static_cast<int>(s.period_ + 0.5f);
+  if (step >= kLoss) trip += loss_delay_of(s);
+  if (step >= kStiff) trip += stiff_delay_of(s);
+  return trip;
+}
+
 }  // namespace
 
 void lab_setup() {
@@ -369,14 +645,32 @@ void lab_render(int frames) {
   release_at -= release_at % kBlock;
   float* at_pickup = lab::take(frames);
   float* worked_out = lab::take(frames);
-  if (!at_pickup || !worked_out) return;
+  float* built_string = lab::take(frames);
+  if (!at_pickup || !worked_out || !built_string) return;
 
   Guitar::Voice* voice = nullptr;
   int struck = -1;  // where in the kept pass the pick left the string
   int look_first = -1, look_later = -1;
-  MeanSquare of_first, of_note;
+  MeanSquare of_first, of_note, of_built;
   of_first.reset(static_cast<int>(lab::kSampleRate / note.value + 0.5f));
   of_note.reset(of_first.length);
+  of_built.reset(of_first.length);
+
+  // The textbook case beside the device.
+  plain.reset();
+  bool plain_rings = false;
+  int plain_first = -1, plain_later_at = -1;
+  kit::BlepOsc saw;
+  float fixed_gain = 0.0f, fixed_fall = 1.0f;
+  const float fixed_damp = std::pow(10.0f, -3.0f / (Guitar::kDampSeconds * lab::kSampleRate));
+  int burst_at = 0;
+  burst_length = 0;
+
+  // The build path beside it.
+  shown.start(build.at());
+  held.start(build.compared_step);
+  int built_first = -1, built_later_at = -1;
+  double built_apart = 0.0, built_whole = 0.0;
 
   for (int i = 0; i < total; ++i) {
     const int at = i % frames;
@@ -397,15 +691,44 @@ void lab_render(int frames) {
     const bool kept = i < 2 * frames;
     const bool sounding = voice && voice->sounding;
 
-    if (kept && struck < 0 && waiting && !voice->pending) {  // the pick left the string on this sample
+    if (waiting && !voice->pending) {  // the pick left the string on this sample
       const String& s = voice->a;
-      struck = at;
-      // The first look is before anything has come round: the two plucks,
-      // comb_offset_ apart, stand either side of a point six tenths along the line.
-      look_first = struck + static_cast<int>(0.6f * static_cast<float>(s.whole_) - 0.5f * static_cast<float>(s.comb_offset_));
-      const int most = static_cast<int>(static_cast<float>(frames - 2 - look_first) / s.period_);
-      const int asked = static_cast<int>(trips.value + 0.5f);
-      look_later = look_first + static_cast<int>(s.period_ * static_cast<float>(asked < most ? asked : most) + 0.5f);
+      // The plain string and the fixed wave start with it, and so does the build.
+      make_burst(s.period_);
+      burst_at = 0;
+      plain.reset();
+      plain.set_decay(s.decay_, s.decay_high_, s.high_hz_);
+      plain.set_frequency(s.hz_, lab::kSampleRate);
+      plain_rings = true;
+      saw.reset(0.5f);
+      fixed_gain = kFixedLevel;
+      fixed_fall = static_cast<float>(std::pow(10.0, -fall_of(s, s.hz_) / (20.0 * lab::kSampleRate)));
+      kit::PluckExciter fresh;
+      kit::Rng scrape;
+      if (fresh_pluck(voice->hz, &fresh, &scrape)) {
+        shown.strike(fresh, scrape);
+        held.strike(fresh, scrape);
+      }
+      if (kept && struck < 0) {
+        struck = at;
+        // The first look is before anything has come round: the two plucks,
+        // comb_offset_ apart, stand either side of a point six tenths along the line.
+        look_first =
+            struck + static_cast<int>(0.6f * static_cast<float>(s.whole_) - 0.5f * static_cast<float>(s.comb_offset_));
+        const int most = static_cast<int>(static_cast<float>(frames - 2 - look_first) / s.period_);
+        const int asked = static_cast<int>(trips.value + 0.5f);
+        const int round = asked < most ? asked : most;
+        look_later = look_first + static_cast<int>(s.period_ * static_cast<float>(round) + 0.5f);
+        // The plain string is looked at when the last of the noise has gone in,
+        // and the build when its pluck has: the noise, or the pick's two plucks.
+        plain_first = struck + burst_length - 1;
+        plain_later_at = plain_first + static_cast<int>(s.period_ * static_cast<float>(round) + 0.5f);
+        const int comb_at = shown.step >= kComb ? s.comb_offset_ : 0;
+        built_first = shown.step >= kPluck
+                          ? struck + static_cast<int>(0.6f * static_cast<float>(s.whole_) - 0.5f * static_cast<float>(comb_at))
+                          : plain_first;
+        built_later_at = built_first + static_cast<int>(built_trip(s, shown.step) * round + 0.5);
+      }
     }
     if (kept && sounding) {
       if (at == look_first) capture(line_start, voice->a);
@@ -423,14 +746,60 @@ void lab_render(int frames) {
       const float heard_b = one.second * (newest(one.b) - one.b.tap(q * one.b.period()));
       float x = heard_a + heard_b;
       x += Guitar::kPickupCurve * x * x;
-      sum += x * (one.trim * one.fade);
-      if (&one == voice) first_alone = heard_a * (one.trim * one.fade);
+      float gain = one.trim * one.fade;
+      gain *= one.swell * one.swell * (3.0f - 2.0f * one.swell);  // the Swell's fade-in, 1 once it is over
+      sum += x * gain;
+      if (&one == voice) first_alone = heard_a * gain;
     }
     const float device_sum = instrument.idle_.asleep() ? 0.0f : instrument.dc_.x1;
     if (kept) {
       at_pickup[at] = device_sum;
       worked_out[at] = sum;
     }
+
+    // The plain string: the kit's own loop, fed the noise, rung and damped as
+    // the device's first string is.
+    const float fade = voice ? voice->fade : 0.0f;
+    const float noise_in = plain_rings && burst_at < burst_length ? burst_[burst_at++] : 0.0f;
+    float plain_out = 0.0f;
+    if (plain_rings) {
+      if (sounding && (voice->a.decay_ != plain.decay_ || voice->a.decay_high_ != plain.decay_high_)) {
+        plain.set_decay(voice->a.decay_, voice->a.decay_high_, voice->a.high_hz_);
+      }
+      plain_out = plain.tick(noise_in) * fade;
+    }
+    if (kept && at == plain_first) capture_last(plain_start, plain.buffer_, plain.write_, burst_length);
+    if (kept && at == plain_later_at) capture_last(plain_later, plain.buffer_, plain.write_, burst_length);
+    burst_tap.put(i, noise_in);
+    plain_tap.put(i, plain_out);
+
+    // The fixed wave: every partial of a saw under the one fade.
+    float fixed_out = 0.0f;
+    if (plain_rings && voice) {
+      fixed_out = fixed_gain * saw.saw(voice->a.hz_ / lab::kSampleRate) * fade;
+      fixed_gain = flush_denormal(fixed_gain * (voice->damping ? fixed_damp : fixed_fall));
+    }
+    fixed_tap.put(i, fixed_out);
+
+    // The build path: the step chosen, and every piece against the device.
+    float built_out = 0.0f;
+    if (voice) {
+      built_out = shown.run(*voice, instrument.pickup_.value);
+      const float whole = held.run(*voice, instrument.pickup_.value);
+      if (kept && struck >= 0) {
+        const double apart = static_cast<double>(whole) - static_cast<double>(device_sum);
+        built_apart += apart * apart;
+        built_whole += static_cast<double>(device_sum) * static_cast<double>(device_sum);
+      }
+    }
+    if (kept) {
+      built_string[at] = shown.string;
+      if (at == built_first) capture_last(built_start, shown.first.line, shown.first.write, burst_length);
+      if (at == built_later_at) capture_last(built_later, shown.first.line, shown.first.write, burst_length);
+    }
+    built.put(i, built_out);
+    built_pluck.put(i, shown.struck ? shown.pluck : 0.0f);
+    const float built_power = of_built.push(built_out);
 
     pluck.put(i, sounding ? voice->exciter.pick_ : 0.0f);
     string_tap.put(i, sounding ? newest(voice->a) : 0.0f);
@@ -439,15 +808,26 @@ void lab_render(int frames) {
     if (i % lab::kControlPeriod == 0) {
       level_one.put(i, level_db(first_power));
       level.put(i, level_db(note_power));
+      built_level.put(i, level_db(built_power));
     }
     pickup_tap.put(i, device_sum);
     out_tap.put(i, instrument.out_left()[0], instrument.out_right()[0]);
   }
   rebuilt.value = lab::difference_db(worked_out, at_pickup, frames);
+  build.difference.value = lab::ratio_db(built_apart, built_whole);
+
+  // A loop too short for the looks asked for still shows the lines as they end.
+  if (burst_length > 0) {
+    capture_last(plain_start, plain.buffer_, plain.write_, burst_length);
+    capture_last(plain_later, plain.buffer_, plain.write_, burst_length);
+    capture_last(built_start, shown.first.line, shown.first.write, burst_length);
+    capture_last(built_later, shown.first.line, shown.first.write, burst_length);
+  }
+  lab::spectrogram_tap(plain_partials, plain_tap.channel(0), frames);
+  lab::spectrogram_tap(fixed_partials, fixed_tap.channel(0), frames);
 
   if (!voice) return;
   const String& s = voice->a;
-  // A loop too short for the looks asked for still shows the line as it ends.
   capture(line_start, s);
   capture(line_later, s);
 
@@ -476,6 +856,12 @@ void lab_render(int frames) {
   loop_error.value = static_cast<float>(line + loss_delay_of(s) + stiff_delay_of(s) - s.period_);
   if (after >= kLookFrom + kWindow + 2048) {
     cents.value = static_cast<float>(cents_between(measure_hz(x + struck + kLookFrom, 2048, s.hz_), s.hz_));
+    // The built string's pitch, where it has one: looked for where its loop's length puts it.
+    if (shown.step >= kLoop) {
+      const double guess = lab::kSampleRate / built_trip(s, shown.step);
+      built_cents.value =
+          static_cast<float>(cents_between(measure_hz(built_string + struck + kLookFrom, 2048, guess), s.hz_));
+    }
   }
   tuning_curves();
 }
