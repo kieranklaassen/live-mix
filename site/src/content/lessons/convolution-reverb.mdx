@@ -11,7 +11,7 @@ bench:
   as: send
   params: { wet: 0.35 }
   impulse: { seconds: 3, seed: 24301 }
-  note: The plate is the engine's Convolver reverb, handed this lesson's room as it starts, three seconds long. Left to itself the device writes another impulse, plain noise under a curve, 2.6 s long. It puts out the reverb only, so the dry loop is mixed back in beside it, as a send would.
+  note: The plate is the engine's Convolver reverb, handed this lesson's room as it starts, three seconds long. The device leaves the browser's own scaling of an impulse on, which the engine's room and this lesson's lab turn off, so its reverb does not come back at the lab's level, and Wet is set by ear. Left to itself the device writes another impulse, plain noise under a curve, 2.6 s long, and the curve drawn on the plate is always that one, so the plate does not picture the room that is heard here. It puts out the reverb only, so the dry loop is mixed back in beside it, as a send would.
 sources: [drums, guitar, chords, pad, mix, clicks, noise, sine]
 seconds: 4
 files:
@@ -35,13 +35,13 @@ Here is the drum loop this page opens on, as it was played. Between the hits it 
 
 Listen to it first. <Hear set="dry" label="Hear the drums as played" />
 
-Nothing heard in a real place sounds like that. In a hall the walls send every hit back, late and from every side, for seconds. The ear reads the place from those returns: how large it is, and how far away the drummer sits. Take them away and the sound seems to sit inside the listener's head.
+Nothing heard in a real place sounds like that. In a hall the walls send every hit back, late and from every side, for seconds. The ear reads the place from those returns: how large it is, and how far away the drummer sits.
 
-So here is the question this lesson answers. How do you put a sound into a room it was never played in?
+So the question of this lesson: how is a sound put into a room it was never played in?
 
 ### The obvious answer fails
 
-A room sends back echoes. So add echoes: a few copies of the loop, each a little later than the last and of its own size. Here are <Claim id="few-echoes">ten of them, all within a tenth of a second</Claim> of each hit.
+A room sends back echoes. So add echoes: a few copies of the loop, each a little later than the last and of its own size. Here are a few: <Claim id="few-echoes">ten that stand at least a tenth as tall as the tallest, all within a tenth of a second</Claim> of each hit.
 
 <Still
   taps="room"
@@ -53,9 +53,9 @@ A room sends back echoes. So add echoes: a few copies of the loop, each a little
 
 Listen for what follows each hit. <Hear set="echoes" label="Hear ten echoes" show />
 
-It is a rattle close behind the drum, and whether it sounds like a place is for your ear. The measurement is plainer. The gaps are as empty as they were: the quietest tenth of a second of the result measures <Claim id="echoes-gap">−102 dB</Claim>.
+Each hit now has a short burst of copies close behind it. Whether that sounds like a place is for your ear. The measurement is plainer. The gaps are as empty as they were: the quietest tenth of a second of the result measures <Claim id="echoes-gap">−102 dB</Claim>.
 
-A real room does not return ten echoes. Sound crosses the hall, meets a wall and comes back. Then it meets the next wall, and the one after. Very soon the returns arrive by the thousand in every second, far too close together to hear one by one. What reaches the ear is a wash that swells, dulls and dies away. No handful of delays makes that.
+A real room does not return ten echoes. Sound crosses the hall, meets a wall and comes back. Then it meets the next wall, and the one after. Very soon the returns are far too many and too close together to hear one by one. What reaches the ear is a wash that swells, dulls and dies away. No handful of delays makes that.
 
 ### The room's answer to one click
 
@@ -68,7 +68,7 @@ The way out is to stop counting echoes and take them all at once. Make one short
 
 The room in this engine was never recorded. The engine writes its impulse response from noise, shaped to behave as a room's does, and part 5 opens that up. For now it is enough that there is one, and that it can be heard by itself: <Listen tap="room">hear the room's answer to one click</Listen>.
 
-Now the idea the whole lesson rests on. A sound is a row of samples, and each sample is a click of its own height. If the room answers one click with its impulse response, it answers a row of clicks with a row of impulse responses. Each one starts at its own click and is as large as that click. Add them all up, and the result is the sound in the room. That sum is called _convolution_.
+A sound is a row of samples, and each sample is a click of its own height. If the room answers one click with its impulse response, it answers a row of clicks with a row of impulse responses. Each one starts at its own click and is as large as that click. Add them all up, and the result is the sound in the room. That sum is called _convolution_.
 
 <Still
   taps="out"
@@ -87,7 +87,7 @@ Measured on the drums at the settings the page opens on, the quietest tenth of a
   ]}
 >
 
-The impulse response itself. That is what the words mean: it is the room's response to an impulse, and a single sample is the shortest impulse there is. Put through the lab's convolution, one sample at full scale comes out as the impulse the engine wrote, with <Claim id="click-returns-impulse">a difference more than 120 dB down</Claim> on both channels.
+The impulse response itself. That is what the words mean: it is the room's response to an impulse, and a single sample is the shortest impulse there is. Put through the lab's convolution, one sample at full scale comes out as the impulse the engine wrote, with <Claim id="click-returns-impulse">a difference more than 130 dB down</Claim> on both channels.
 
 <Still
   taps="wet"
@@ -126,7 +126,7 @@ One sample holds very little energy, so one copy of this room is far quieter tha
 
 <Check id="lift" />
 
-Now the picture as arithmetic. Call the impulse response <M t="h" />, and call the first sample <M t="x[k_1]" />: <M t="k_1" /> is where it sits, counted in samples from the start of the loop, and <M t="x[k_1]" /> is its size. The copy it lays down is
+As arithmetic, call the impulse response <M t="h" />, and call the first sample <M t="x[k_1]" />: <M t="k_1" /> is where it sits, counted in samples from the start of the loop, and <M t="x[k_1]" /> is its size. The copy it lays down is
 
 <M block t={String.raw`\sig{alt}{y_1[n]} = \sig{in}{x[k_1]} \; h[n - k_1]`} />
 
@@ -148,11 +148,11 @@ What a room does for a sound depends on how the sound fills time. Each card belo
   <Use title="Drums" set="drumroom">
     <Still
       slot="picture"
-      taps="out in"
+      taps="wet in"
       set="drumroom"
       from={0}
       span={1}
-      caption="One second of the loop. Going in, each hit is a spike on a flat line. Coming out, each is followed by a tail that has nearly gone when the next arrives."
+      caption="One second of the drums going in, and of their reverb alone, before Send turns it down. Going in, each hit is a spike on a flat line. The reverb fills that line after each hit, and is well down when the next arrives."
     />
 
     Hits are short and the gaps between them are empty, so the room is heard in the gaps and nowhere else. A short Decay lets each tail die before the bar comes round; a long one runs the bars together. The Pre-delay is short, which keeps the room attached to the hit. At this card's settings the quietest tenth of a second of the loop sits at <Claim id="use-drums">−52 dB</Claim>: the gaps are filled, and still far under the hits.
@@ -168,7 +168,7 @@ What a room does for a sound depends on how the sound fills time. Each card belo
       caption="One second of the picked line going in, and of its reverb alone. The reverb has no sharp fronts: it rises after each note and carries it into the next."
     />
 
-    Single notes ring and die, with space between them. A room behind the line joins one note to the next and sets the player back from the listener. The Pre-delay is longer here, so the pick of each note is heard dry before the room answers. A ringing sound gets more from this room than a drum does: before Send turns it down, the reverb of this line is <Claim id="use-line">0.3 dB louder than the line itself, where the reverb of the drums on the card before is 2.9 dB quieter than the drums</Claim>.
+    Single notes ring and die, with space between them. A room behind the line fills the space between one note and the next. The Pre-delay is longer here, so the pick of each note has passed before the room answers. This line gets more back from its room than the drums get from theirs: before Send turns it down, the reverb of this line is <Claim id="use-line">0.3 dB louder than the line itself, where the reverb of the drums on the card before is 2.9 dB quieter than the drums</Claim>. How much a room gives back depends on where a sound has its energy, which stage 4 of part 5 takes up.
 
   </Use>
   <Use title="A pad" set="wash">
@@ -177,10 +177,10 @@ What a room does for a sound depends on how the sound fills time. Each card belo
       taps="in wet"
       set="wash"
       view="spectrum"
-      caption="The spectrum of the pad going in, and of its reverb. Through the low mids the two run together. Above them the reverb falls away under the pad: this room is dark."
+      caption="The spectrum of the pad going in, and of its reverb. Through the middle the two run together. At the very bottom and at the very top the reverb falls under the pad."
     />
 
-    A pad has no fronts for a room to blur, so it can take a long room, sent loud. The Swell is slow, and the room comes up under each chord and does not arrive with it. The room is set darker at its end, which keeps so long a tail from hissing. With Send where this card puts it, the pad and its reverb together are <Claim id="use-pad">1.7 dB louder than the pad alone</Claim>.
+    A pad has no fronts for a room to blur, so it can take a long room, sent loud. The Swell is slow, and the room comes up under each chord and does not arrive with it. The room is set darker at its end, so that so long a tail keeps less of its top. With Send where this card puts it, the pad and its reverb together are <Claim id="use-pad">1.7 dB louder than the pad alone</Claim>.
 
   </Use>
   <Use title="Chords in a small room" set="small">
@@ -198,7 +198,7 @@ What a room does for a sound depends on how the sound fills time. Each card belo
   </Use>
 </Uses>
 
-These are places to start. The room that is right for a sound is the one that stops being noticed as an effect.
+These are places to start.
 
 </Part>
 
@@ -284,7 +284,7 @@ A few stamps out of many are far quieter than the finished reverb. So each of th
   <Step title="Every sample, by transform">
     Stamping every sample one at a time is out of reach. There is another road to the same sum, and it goes through the Fourier transform of <Lesson id="fourier-transform" />.
 
-    Put a steady sine into a room and what comes back is a sine at the same frequency. It may be larger or smaller, earlier or later, and it is never another frequency. So to one frequency a room does one simple thing: it multiplies its size by one number and turns its phase by one angle. Those two numbers, for every frequency, are the transform of the impulse response. Transform the sound as well, and the long sum becomes one multiplication for each frequency:
+    Put a steady sine into a room and what comes back is a sine at the same frequency. It may be larger or smaller, earlier or later, and it is never another frequency. The sum says why: every stamp of a sine is that sine again, later and of another size, and sines of one frequency add up to one sine of that frequency. So to one frequency a room does one simple thing: it multiplies its size by one number and turns its phase by one angle. Those two numbers, for every frequency, are the transform of the impulse response. Transform the sound as well, and the long sum becomes one multiplication for each frequency:
 
     <M block t={String.raw`\sig{out}{Y[b]} = \sig{in}{X[b]} \cdot \at{transform-product}{H[b]}`} />
 
@@ -292,7 +292,7 @@ A few stamps out of many are far quieter than the finished reverb. So each of th
 
     `by_transform` is that sentence in order. It loads the loop into a block with zeros after it, transforms it, multiplies it by the room's spectrum bin by bin, transforms back, and folds whatever ran past the loop's end onto its start. The transform is the engine's own, `kit::Fft`. The block is the whole loop at once: <Claim id="transform-cost">524,288 points, the power of two that holds the loop and its tail, and one transform of that size is 5.0 million butterflies</Claim>, the small step a transform is made of. Three transforms stand in for the billions of multiplications of the step before: the loop forwards, the room forwards, and the product back.
 
-    Two things hold this to be the same sum. The lab's test worked the sum of every stamp out term by term at 64 moments spread across the loop, and there the transform's answer <Claim id="transform-agrees">differs from it by less than −120 dB</Claim>. The other runs on this page at every render, and is the step that is held to the engine. One unit sample goes through the same product of spectra, and what comes out must be the impulse the engine wrote. In every room and length of loop the test tried, it was <Claim id="unit-through">more than 130 dB under</Claim> the impulse. The line below is what it is now.
+    Two things hold this to be the same sum. The lab's test worked the sum of every stamp out term by term at 64 moments spread across the loop, and there the transform's answer and the sum <Claim id="transform-agrees">differ by less than −130 dB</Claim>, counted against the sum's own level. The other runs on this page at every render, and is the step that is held to the engine. One unit sample goes through the same product of spectra, and what comes out must be the impulse the engine wrote. In every room and length of loop the test tried, the difference was <Claim id="unit-through">more than 130 dB under</Claim> the impulse. The line below is what it is now.
 
     <Listing
       path="site/labs/convolution-reverb.cpp"
@@ -341,7 +341,9 @@ That is a convolution reverb: a stamp, a way of doing every stamp at once, and a
 
 <Part id="engine" title="Inside the engine: a room written from noise, and a sum the browser does.">
 
-From here on it is the engine's own. Its convolution reverb is two things. A function writes a room's impulse response, one sample at a time. The browser's convolver then does the sum while the sound plays. That function is TypeScript, so the page runs it as it stands, at the values of the controls here, and hands what it makes to the lab. Under its title each stage says where its figure comes from. The impulse is made by the engine's own code. The pictures of stages 2 to 4 are the lab's own measurements of that impulse, and are marked so. The convolution inside the lab is the lesson's, and stage 6 holds it to the browser's.
+The engine has the technique in two places: the room that every track can send its clips into, and a plain device, the Convolver reverb of part 9. Both hand the sum to the browser's convolver, which does it while the sound plays. The room is the fuller of the two. A function writes its impulse response, one sample at a time, and stages 1 to 4 follow that function. It is TypeScript, so the page runs it as it stands, at the values of the controls here, and hands what it makes to the lab. <Claim id="start-settings">The room's controls start where the engine's own room starts them, all but Decay</Claim>, which stage 3 takes up.
+
+Under its title each stage says where its figure comes from. The impulse is made by the engine's own code. The pictures of stages 2 to 4 are the lab's own measurements of that impulse, and are marked so. The convolution inside the lab is the lesson's, and stage 6 holds it to the browser's.
 
 <Flow
   label="Along the top, the sound divides: one copy goes straight to the output, the other is convolved with the room's impulse, turned down by the send and added back. Underneath, the impulse is made: seeded noise, through a low-pass that closes, shaped by a swell and a decay, and set to its level."
@@ -366,7 +368,7 @@ From here on it is the engine's own. Its convolution reverb is two things. A fun
 <StageBlock tap="room" n={1} title="Echoes too many to count are noise">
   Record a real room's answer to a click and it has three parts. First nothing, while the sound crosses the room. Then echoes, so many and so close together that they are noise. Then that noise dying away, the top end first, because air and soft surfaces take more out of high frequencies at every bounce.
 
-  The engine writes exactly that, in <Src path="src/core/tracks/space.ts" at="export function spaceImpulseChannel(">`spaceImpulseChannel`</Src>. It begins with noise from a small generator of random numbers that is started from a seed. So <Claim id="same-room">the same settings make the same room, sample for sample</Claim>, every time and on every machine. Left and right start from different seeds. They share a shape and no sample, which is what makes the tail wide.
+  The engine writes exactly that, in <Src path="src/core/tracks/space.ts" at="export function spaceImpulseChannel(">`spaceImpulseChannel`</Src>. It begins with noise from a small generator of random numbers that is started from a seed. So <Claim id="same-room">the same settings make the same room, sample for sample</Claim>, however often it is written. Left and right start from different seeds. They share a shape and no sample, so the tail is different on each side.
 
   <Controls ids="predelay grain" />
 
@@ -419,10 +421,13 @@ From here on it is the engine's own. Its convolution reverb is two things. A fun
     at={{ cutoff: 'const cutoffHz = space.brightHz * (space.darkHz / space.brightHz) ** along' }}
     name="dark"
   />
+  <Fragment slot="after">
+    In the listing `a` and `b` are the engine's own letters for the filter's two coefficients at that cutoff, and are not the letters of this page's equations. Its last line is the division: under the square root is the power that white noise keeps through two such filters in a row.
+  </Fragment>
 </StageBlock>
 
 <StageBlock tap="energy" n={3} title="Swell in, then die away">
-  A room's length is given as the time its sound takes to fall <Src path="src/core/tracks/space.ts" at="/** Seconds for the tail to fall 60 dB. Default 5. */">60 dB</Src>, and Decay is that time. The engine's own room starts at <Src path="src/core/tracks/space.ts" at="decaySec: 5,">5 s</Src>; this page starts it shorter, so that the tail fits inside the loop.
+  A room's length is given as the time its sound takes to fall <Src path="src/core/tracks/space.ts" at="/** Seconds for the tail to fall 60 dB. Default 5. */">60 dB</Src>, and Decay is that time. The engine's own room starts at <Src path="src/core/tracks/space.ts" at="decaySec: 5,">5 s</Src>; this page starts it at <Src path="site/labs/convolution-reverb.cpp" at={'lab::Control decay{"decay", "Decay", "s", 0.3f, 6.0f, 3.0f, lab::kLog};'}>3 s</Src>, so that the tail fits inside the four-second loop.
 
   A better picture of a decay than the wave is how much energy is still to come at each moment: add up the squares of the samples from that moment to the end. It falls smoothly where the wave is ragged.
 
@@ -433,19 +438,21 @@ From here on it is the engine's own. Its convolution reverb is two things. A fun
     line steepen and stay straight. A straight line in decibels is an exponential decay.
   </Curve>
 
-  A line fitted to the level of the room the page opens on <Claim id="decay-time">falls 60 dB in 2.95 s</Claim>. By the measure in the picture, that room has all but a millionth of its energy behind it <Claim id="energy-60">2.7 s</Claim> in: a little sooner, because the curve counts what is left, and near the end almost nothing is.
+  Nobody waits for the whole fall to read a room's length. The reading here is the one of <Lesson id="plate-reverb" />, and of <Lesson id="spring-reverb" />: the time this curve takes from 5 dB down to 25 dB down, multiplied by three. Read that way, the room the page opens on <Claim id="decay-time">falls 60 dB in 3.0 s</Claim>, which is the Decay it is set to. The reading moves a little with the stretch it is taken from, so it is written to two figures.
+
+  The curve itself is 60 dB down sooner. By the measure in the picture, that room has all but a millionth of its energy behind it <Claim id="energy-60">2.7 s</Claim> in. The curve counts what is left, and near the end almost nothing is: the tail stops at the Decay time, and its last tenth is run out, as is said below.
 
   The tail does not start at full size. It swells in:
 
   <M block t={String.raw`\at{shape-swell}{w(t) = 1 - e^{-3t/t_w}}`} />
 
-  <M t="t" /> is the time since the tail began and <M t="t_w" /> is the Swell. At the first sample the exponential is 1 and <M t="w" /> is 0. One Swell time later it is <Claim id="swell-95">95 %</Claim> of the way up, measured on the engine's impulse with a swell and without one. With no sharp first echo, a sound sent here seems far away, where a first echo would put it in a room of its own.
+  <M t="t" /> is the time since the tail began and <M t="t_w" /> is the Swell. At the first sample the exponential is 1 and <M t="w" /> is 0. One Swell time later it is <Claim id="swell-95">95 %</Claim> of the way up, measured on the engine's impulse with a swell and without one. The engine gives its reason <Src path="src/core/tracks/space.ts" at="room with no early slap, so a clip sent far into it reads as distant rather">at the top of its file</Src>: with no sharp first echo, a sound sent far into the room is meant to be taken as distant, where a first echo would put it in a room of its own.
 
-  The last tenth of the tail is also run down to nothing in a <Src path="src/core/tracks/space.ts" at="const end = i >= tail - runOut ? (tail - i) / runOut : 1">straight line</Src>, so that the impulse does not end on a step. Fault 3 of part 7 shows what a step there does.
+  The <Src path="src/core/tracks/space.ts" at="const runOut = Math.max(1, Math.round(tail * 0.1))">last tenth</Src> of the tail is also run down to nothing in a <Src path="src/core/tracks/space.ts" at="const end = i >= tail - runOut ? (tail - i) / runOut : 1">straight line</Src>, so that the impulse does not end on a step. Fault 3 of part 7 shows what a step there does.
 
   <M slot="equation" block t={String.raw`\at{shape-decay}{d[i] = 10^{-3\,i/T}}`} />
   <Fragment slot="readback">
-    Read it against the curve. <M t="d" /> is what each sample of the tail is multiplied by. At the start <M t="i/T" /> is 0 and <M t="d" /> is 1. At the end it is ten to the power minus three, one thousandth, which is the fall that Decay is named for. Every equal stretch of time multiplies the size by the same factor, and that is the straight line.
+    Read it against the curve. <M t="d" /> is what each sample of the tail is multiplied by. At the start <M t="i/T" /> is 0 and <M t="d" /> is 1. At the end it is ten to the power minus three, one thousandth, which is 60 dB down: the fall that Decay is named for. Every equal stretch of time multiplies the size by the same factor, and that is the straight line.
   </Fragment>
   <Listing
     slot="listing"
@@ -469,13 +476,13 @@ From here on it is the engine's own. Its convolution reverb is two things. A fun
     one hardly moves.
   </Spectrum>
 
-  Measured on the lab's convolution at the room the page opens on: noise in that band comes back <Claim id="band-as-loud">within 1.5 dB of the level it went in at</Claim>. White noise, most of whose energy is above the band, comes back <Claim id="white-quieter">about 5 dB quieter</Claim>.
+  Measured on the lab's convolution at the room the page opens on: noise held to that band, more steeply than the rule's own filter holds it, comes back <Claim id="band-as-loud">about 1 dB louder than it went in</Claim>. White noise, most of whose energy is above the band, comes back <Claim id="white-quieter">about 5 dB quieter</Claim>.
 
-  One steady tone is another matter. A room written from noise has a response that is itself noise, up at one frequency and down at the next. Between the two ends of the level band, single bins of the response stand anywhere <Claim id="ragged">from 18 dB under to 7 dB over</Claim> the level a wire would give. <Claim id="tones-vary">Three sines, at 220, 440 and 1,000 Hz, came back between 4 dB quieter and 6 dB louder</Claim> than they went in. Music does not sit on one frequency long enough for this to be noticed, and the response of a real room is ragged in the same way.
+  One steady tone is another matter. A room written from noise has a response that is itself noise, up at one frequency and down at the next. Between the two ends of the level band, the single bins that the jagged line is drawn through stand anywhere <Claim id="ragged">from 18 dB under to 7 dB over</Claim> the level a wire would give. <Claim id="tones-vary">Three sines, at 220, 440 and 1,000 Hz, came back between 4 dB quieter and 6 dB louder</Claim> than they went in. The response of a real room is ragged in the same way. Whether it is heard on music, which seldom sits on one frequency for long, is for your ear: try the Sine of this page, and then the drums.
 
   <M slot="equation" block t={String.raw`\at{level-unit}{c = \sqrt{E_1 / E_h}}`} />
   <Fragment slot="readback">
-    Read it against the smooth line. <M t="E_h" /> is the energy of the impulse as heard through the level band: the impulse is passed through a filter that keeps that band, squared and added up. <M t="E_1" /> is the same measure of a single sample at 1, which is the impulse response of a plain wire. Every sample of the impulse is multiplied by <M t="c" />, and after that the room has a wire's energy in the band. That is why the smooth line runs near the level of a wire through the low mids.
+    Read it against the smooth line. <M t="E_h" /> is the energy of the impulse as heard through the level band: the impulse is passed through a filter that keeps that band, squared and added up. <M t="E_1" /> is the same measure of a single sample at 1, which is the impulse response of a plain wire. Every sample of the impulse is multiplied by <M t="c" />, and after that the room has a wire's energy in the band. That is why the smooth line runs near the level of a wire through the low mids. The listing's `levelDb` is a trim on top of that rule, <Src path="src/core/tracks/space.ts" at="levelDb: 0,">0 dB</Src> as the engine starts it and on this page.
   </Fragment>
   <Listing
     slot="listing"
@@ -496,13 +503,15 @@ From here on it is the engine's own. Its convolution reverb is two things. A fun
 
   <Check id="sums" />
 
-  On the drums, the guitar and noise the two differ by <Claim id="sums-agree">less than −110 dB</Claim>, which is the rounding of the arithmetic.
+  On the drums, the guitar and noise the two differ by <Claim id="sums-agree">less than −130 dB</Claim>, which is the rounding of the arithmetic.
 
   The term-by-term sum of this stage is written the other way round from part 4's:
 
   <M block t={String.raw`y[n] = \sum_{j} \at{sums-echo}{h[j] \; x[n - j]}`} />
 
   Part 4 went through the samples of the sound, and gave each one a copy of the impulse. This goes through the samples of the impulse, <M t="j" /> counting along it, and gives each one a copy of the sound: the whole loop, <M t="j" /> samples late and <M t="h[j]" /> times as large. Both add up the same products, so both are the same sum. Read this second way, every sample of the impulse is one echo, and a room is as many echoes as its impulse has samples. Part 1's ten echoes were on the right road and stopped far too soon.
+
+  Read the same line for one moment <M t="n" /> of the output, and it says why the sum is drawn in textbooks with the impulse turned round. The newest sample of the sound, <M t="x[n]" />, meets the first sample of the impulse, <M t="h[0]" />. A sample that is <M t="j" /> samples old meets <M t="h[j]" />, because its copy of the impulse has by now run for <M t="j" /> samples. So the sum goes forwards through the impulse while it goes backwards through the sound. Lay the two side by side on one time axis and one of them has to be flipped. Nothing in the room runs backwards.
 
   <Listing
     path="site/labs/convolution-reverb.cpp"
@@ -511,6 +520,16 @@ From here on it is the engine's own. Its convolution reverb is two things. A fun
     at={{ echo: 'if (k < samples) sum += static_cast<double>(h[first + j]) * x[k];' }}
     name="sums"
   />
+
+  Over frequency the product of spectra can be seen. In decibels a product is a sum, so the spectrum of the reverb is the spectrum of the loop with the shape of the room's added to it.
+
+  <Spectrum taps="in impulse:alt wet:out" min={-120} max={-10}>
+    The spectra of the loop, of the room's impulse and of the reverb alone. The impulse's line
+    stands far under the other two, because one click holds so little: its shape is what counts. Try
+    Top end at the start lower, in stage 2, and notice the impulse's line fall away sooner towards
+    the right and the reverb's line fall with it. Top end at the end hardly moves either line: most
+    of the room's energy comes early, while the filter is still open.
+  </Spectrum>
 
   The product of spectra uses <Src path="cpp/kit/fft.h" at="class Fft {">the kit's `Fft`</Src>, the transform the engine's spectral devices are built on. The listing below is its core: the butterfly. Two numbers go in, one of them is turned by an angle, and their sum and their difference come out. A transform is that step, done for every pair, at every doubling of size. The letters in the listing are the kit's own, and are not the letters of this page's equations.
 
@@ -529,11 +548,11 @@ From here on it is the engine's own. Its convolution reverb is two things. A fun
 <StageBlock tap="wet" n={6} title="The browser's convolver, and not waiting">
   The product of spectra has a price. It needs the whole of the sound before it can transform it, so it cannot answer until its block is full. A reverb that plays live cannot wait for the end of the song.
 
-  The way out is to cut the impulse into pieces. The first short piece is convolved in small blocks, so its answer comes at once. Later pieces of the tail use larger and larger transforms, which cost less for each sample. They can afford to be late, because the part of the tail they work out is late anyway. This is called partitioned convolution.
+  The way out is to cut the impulse into pieces. The first short piece is convolved in small blocks, the sound taken a block at a time as <Lesson id="short-time-fourier" /> takes it a frame at a time, so its answer comes at once. Later pieces of the tail use larger and larger transforms, which cost less for each sample. They can afford to be late, because the part of the tail they work out is late anyway. This is called partitioned convolution.
 
-  The engine does not write that itself. It hands the impulse to the browser's `ConvolverNode`, which does. The engine's room turns the node's own scaling off, because the impulse already carries the level of stage 4.
+  The engine does not write that itself. It hands the impulse to the browser's `ConvolverNode`. How a browser does the sum is its own business, and what can be checked from outside is that it does not wait. The engine's room turns the node's own scaling off, because the impulse already carries the level of stage 4.
 
-  That the node does not wait can be checked. Given an impulse that is a single sample at 1, the browser's convolver returns its input <Claim id="unit-impulse">at the same sample, with a difference below −80 dB</Claim>, and the device reports a latency of <Src path="src/core/devices/native/ConvolverReverb.ts" at="readonly latencySamples = 0">no samples</Src>. After a sound stops, the room goes on for <Claim id="rings-on">the length of the impulse, less one sample</Claim>.
+  That was checked in the browser these pages are tested in. Given an impulse that is a single sample at 1, its convolver returns its input <Claim id="unit-impulse">at the same sample, with a difference below −80 dB</Claim>, and the device reports a latency of <Src path="src/core/devices/native/ConvolverReverb.ts" at="readonly latencySamples = 0">no samples</Src>. After a sound stops, the room goes on for <Claim id="rings-on">the length of the impulse, less one sample</Claim>.
 
   So there are two convolutions on this page: the lab's, with the kit's transform, and the browser's, which is the one the engine plays through. Each time a control moves, the page puts the loop and the impulse through the browser's own and compares the two.
 
@@ -541,11 +560,11 @@ From here on it is the engine's own. Its convolution reverb is two things. A fun
 
   In the browser these pages are tested in, the two differ by <Claim id="browser-convolver">less than −80 dB</Claim>. The line above is what yours makes of it.
 
-  One thing here is particular to a loop. What plays on this page is the loop as it sounds the tenth time round, when the tail of every pass is still ringing over the next. For a sound that repeats every <M t="L" /> samples, that is the same as convolving one pass with an impulse folded onto itself:
+  One thing here is particular to a loop. What plays on this page is the loop as it sounds once it has gone round for longer than the impulse lasts, when the tail of every pass is still ringing over the next. For a sound that repeats every <M t="L" /> samples, that is the same as convolving one pass with an impulse folded onto itself:
 
   <M block t={String.raw`\tilde{h}[j] = h[j] + h[j + L] + h[j + 2L] + \dots`} />
 
-  Whatever of the impulse lies more than one loop along is added back in at the start, since by then the loop has come round and is saying the same thing again. The lab folds the impulse this way, convolves once, and folds the answer. <Claim id="loop-wraps">On half a second of the drums in a room of 0.3 s, where the sum over a loop that never stops is small enough to do term by term, the two agree to below −110 dB</Claim>.
+  Whatever of the impulse lies more than one loop along is added back in at the start, since by then the loop has come round and is saying the same thing again. The lab folds the impulse this way, convolves once, and folds the answer. <Claim id="loop-wraps">On half a second of the drums in a room of 0.3 s, where the sum over a loop that never stops is small enough to do term by term, the two agree to below −130 dB</Claim>.
 
   <Listing
     slot="listing"
@@ -571,9 +590,9 @@ From here on it is the engine's own. Its convolution reverb is two things. A fun
     gaps between the hits fill while the hits hardly change.
   </Wave>
 
-  In the engine a room belongs to a track. Each clip has its own send level into it, and each track convolves for itself, ahead of its own strip, so that its fader and its effects act on the room as they do on the dry sound. Every track reads the same impulse, and convolution is linear, so the tracks still sound as if they shared one room.
+  In the engine each clip has its own send level into the room, and <Src path="src/core/tracks/space.ts" at="Each audio track convolves for itself, ahead of its strip, so its inserts,">each track convolves for itself</Src>, ahead of its own strip, so that its fader and its effects act on the room as they do on the dry sound. Every track reads the same impulse, and convolution is linear, so what comes out is what one shared room would give.
 
-  The device on the plate in part 9 is the plainest form of the same thing: a convolver, and one gain after it. It puts out the reverb only, and the dry sound goes round it.
+  The device on the plate in part 9 is the plainest form of the same thing: a convolver, and one gain after it. It puts out the reverb only, and the dry sound goes round it. Left to itself it writes an impulse of its own, <Src path="src/core/devices/native/ConvolverReverb.ts" at="export const REVERB_DECAY_SECONDS = 2.6">2.6 s</Src> of noise under a curve, with none of stages 1 to 4 in it. Its listing below has no line that turns the node's own scaling off, as the room's listing in stage 6 has. So the plate, which is handed this lesson's room, plays it at the level the browser's rule gives it, and not at the level of stage 4.
 
   <Listing
     slot="listing"
@@ -601,7 +620,7 @@ From here on it is the engine's own. Its convolution reverb is two things. A fun
 
 <Part id="ways" title="Six things a room can be made to do.">
 
-The cards of part 3 fitted a room to a sound. These turn one control each, to make the room do something in particular. Each plays, and each leaves the page at its settings, so the figures of part 5 show what was changed.
+The cards of part 3 fitted a room to a sound. These turn the room towards one thing each. Each plays, and each leaves the page at its settings, so the figures of part 5 show what was changed.
 
 <Ways>
   <Way title="Keep the sound close" tag="pre-delay" set="pre">
@@ -614,7 +633,7 @@ The cards of part 3 fitted a room to a sound. These turn one control each, to ma
       caption="The start of this room's answer to one click, turned up. Nothing at all for the length of the Pre-delay, and then the swell."
     />
 
-    A room that answers at once blurs the front of a sound and draws it back from the listener. Hold the room off for a moment, and the dry front arrives alone. The ear then places the sound near, with a large space behind it. <Claim id="pre-silent">For the whole of the Pre-delay the impulse is exactly nothing</Claim>, so no hit's reverb can begin before then. Longer still, and the room is heard as an echo of its own.
+    A room that answers at once lies over the front of a sound. Hold the room off for a moment, and the dry front arrives alone: <Claim id="pre-silent">for the whole of the Pre-delay the impulse is exactly nothing</Claim>, so no hit's reverb can begin before then. Listen for whether the drums now stand nearer, with the space behind them. Then make the Pre-delay longer still, and listen for the point where the room turns into an echo of its own.
 
   </Way>
   <Way title="Darker, not shorter" tag="the two top ends" set="darker">
@@ -623,10 +642,10 @@ The cards of part 3 fitted a room to a sound. These turn one control each, to ma
       taps="in wet"
       set="darker"
       view="spectrum"
-      caption="The spectrum of the picked line going in, and of its reverb. The reverb keeps the low end of the line and gives up the top early."
+      caption="The spectrum of the picked line going in, and of its reverb. Through the low mids the reverb stands with the line. Above them it falls under it, further the higher it goes."
     />
 
-    A long tail with a bright top hisses over the sound it follows. Pull both top ends down, and the room goes dull while its length stays. By the fitted line of stage 3, this room's decay comes out at <Claim id="darker-as-long">2.9 s</Claim>, as it did before. Reach for the top ends before the Decay when a room is in the way.
+    A long tail with a bright top lies over the top of the sound it follows. Pull both top ends down, and the room loses its top while its length stays. Read as in stage 3, the time this room takes to fall 60 dB is <Claim id="darker-as-long">less than 0.05 s from what it was</Claim> before it was darkened. Reach for the top ends before the Decay when a room is in the way.
 
   </Way>
   <Way title="Echoes you can nearly count" tag="grain" set="grainy">
@@ -639,7 +658,7 @@ The cards of part 3 fitted a room to a sound. These turn one control each, to ma
       caption="The start of this room's answer to one click: single spikes with gaps between them, where a smooth room has unbroken noise."
     />
 
-    Between an echo and a reverb lies a rough room: an impulse thinned until its echoes can nearly be told apart. Behind a ringing sound it leaves a grainy flutter in place of a wash. Grain makes it, and a shorter Decay keeps it from clouding. Listen for the grain behind the notes, and then lower Grain a step at a time until it smooths over.
+    Between an echo and a reverb lies a rough room: an impulse thinned until its echoes can nearly be told apart. Grain makes it, and a shorter Decay keeps it brief. Listen for the grain behind the notes, and then lower Grain a step at a time until it smooths over.
 
   </Way>
   <Way title="A room cut short" tag="impulse used" set="cutroom">
@@ -674,7 +693,7 @@ The cards of part 3 fitted a room to a sound. These turn one control each, to ma
       caption="The picked line going in and coming out. What comes out is mostly room: the notes barely stand above it."
     />
 
-    How far away a sound seems depends on how much of what arrives is room. Raise Send past the dry sound, and the player walks to the back of the hall. At this card's Send the reverb is <Claim id="far-level">6.3 dB louder than the dry line</Claim>. The engine uses its room this way, as a place to send a sound that should be far off.
+    The more of what arrives is room, the further off a sound is taken to be. Raise Send past the dry sound, and listen for the player moving to the back of the hall. At this card's Send the reverb is <Claim id="far-level">6.3 dB louder than the dry line</Claim>. The engine uses its room this way, as a place to send a sound that should be far off.
 
   </Way>
 </Ways>
@@ -705,7 +724,7 @@ The cards of part 3 fitted a room to a sound. These turn one control each, to ma
       caption="A quarter of a second of this room's answer to one click, turned up. Single spikes with gaps between them: a sharp hit comes back once for each."
     />
 
-    An impulse with too few echoes in it gives a sharp sound back as a string of separate copies. That is what Grain at 1 does to drums, and it is what any sparse impulse does, such as a room cut down too far. Lower Grain, or keep a rough room for sounds with no sharp front. Put the pad through this card's room and listen for whether the rattle is still there.
+    An impulse with too few echoes in it gives a sharp sound back as a string of separate copies. That is what Grain at 1 does to drums, and it is what any sparse impulse does. Lower Grain, or keep a rough room for sounds with no sharp front. Put the pad through this card's room and listen for whether the rattle is still there.
 
   </Fault>
   <Fault title="A tail cut off" set="cuttail">
@@ -728,7 +747,7 @@ The cards of part 3 fitted a room to a sound. These turn one control each, to ma
     Swap the impulse under a tail that is still ringing, and the tail is gone. The engine does not swap. When a room changes it <Src path="src/core/tracks/SpaceRoom.ts" at="this.nodes = this.build(settings)">builds a second convolver</Src> and moves the sends over to it. What was already in the old room <Src path="src/core/tracks/SpaceRoom.ts" at="const tailSec = (nodes.convolver.buffer?.duration ?? 0) + SPACE_RETIRE_MARGIN_SECONDS">rings out there</Src> before the old one is taken down. On this page a moved control renders the whole loop again, so the cut is not heard here.
   </Fault>
   <Fault title="How loud is an impulse?">
-    Two impulses with the same largest sample can make rooms of very different loudness, because loudness is in the whole of the tail and not in its tallest sample. A convolver that is handed impulses from outside has to decide what "as loud" means. The browser's node has a rule of its own, which the engine's room <Src path="src/core/tracks/SpaceRoom.ts" at="convolver.normalize = false">turns off</Src> in favour of the rule of stage 4. When an impulse comes from elsewhere, set its level by ear against the dry sound, and expect to do it again for the next one.
+    Two impulses with the same largest sample can make rooms of very different loudness, because loudness is in the whole of the tail and not in its tallest sample. A convolver that is handed impulses from outside has to decide what "as loud" means. The browser's node has a rule of its own, which the engine's room <Src path="src/core/tracks/SpaceRoom.ts" at="convolver.normalize = false">turns off</Src> in favour of the rule of stage 4, and which the engine's plain device leaves on (stage 7). When an impulse comes from elsewhere, set its level by ear against the dry sound, and expect to do it again for the next one.
   </Fault>
 </Faults>
 
@@ -747,10 +766,10 @@ The cards of part 3 fitted a room to a sound. These turn one control each, to ma
     One large transform does, because it must wait for its whole block. A convolver built in pieces need not. Stage 6 of part 5 measures the browser's: it returns its input at the same sample.
   </Myth>
   <Myth says="A longer room is a louder room.">
-    Not in this engine. The level of its room is set by rule after its length, so white noise comes back <Claim id="length-not-level">4.9 dB quieter at a Decay of 0.5 s and 5.0 dB quieter at 6 s</Claim>. What a longer room does is fill more of the silence between sounds, which a meter over the whole loop reads as louder. The Mud card of part 7 shows that.
+    Not in this engine. The level of its room is set by rule after its length, so white noise comes back <Claim id="length-not-level">4.9 dB quieter at a Decay of 0.5 s and 5.0 dB quieter at 6 s</Claim>. What a longer room does is fill more of the silence between sounds. <Claim id="length-fills-gaps">On the drums, with Send where the page opens it, the output is 0.3 dB over the dry drums at a Decay of 0.5 s and 0.2 dB over them at 6 s, while its quietest tenth of a second rises from −66 dB to −38 dB</Claim>. The Mud card of part 7 shows the same on a mix.
   </Myth>
   <Myth says="With the right impulse, a convolver can copy any effect.">
-    It can copy whatever treats every moment and every level alike: a room, a filter, an echo. It cannot copy an effect that changes with how loud the sound is, as the compressor of <Lesson id="compression" /> does, or one that adds frequencies, as the distortion of <Lesson id="saturation" /> does. A convolution adds none. The Sine of this page comes back from the room as a sine: <Claim id="no-new-tones">what is not at its frequency is more than 120 dB under what is</Claim>.
+    It can copy whatever treats every moment and every level alike: a room, a filter, an echo. It cannot copy an effect that changes with how loud the sound is, as the compressor of <Lesson id="compression" /> does, or one that adds frequencies, as the distortion of <Lesson id="saturation" /> does. A convolution adds none. The Sine of this page comes back from the room as a sine: <Claim id="no-new-tones">what is not at its frequency is more than 130 dB under what is</Claim>.
   </Myth>
 </Myths>
 

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { roomImpulse, withRoom } from '../../src/lab/room.ts'
 import type { RenderResult } from '../../src/lab/runner.ts'
+import { initialValues } from '../../src/lab/describe.ts'
 import { readSettings, resolveSet } from '../../src/lib/settings.ts'
+import { resolveSpace } from '../../../src/core/tracks/space.ts'
 import {
   benchSource,
   click,
@@ -64,15 +66,16 @@ function loudestHundredth(x: Float32Array): number {
 }
 
 /**
- * How many separate echoes an impulse holds: the runs of samples that stand over 15 % of its
- * largest, a run ending where half a millisecond passes with none.
+ * How many separate echoes of an impulse stand at least a tenth as tall as its tallest: the runs
+ * of samples of that size, a run ending where half a millisecond passes with none. The count
+ * hangs on that line: this lesson's ten are nine at a fifth and twelve at a hundredth.
  */
-function echoes(h: Float32Array): number {
+function echoes(h: Float32Array, share = 0.1): number {
   const top = peak(h)
   let count = 0
   let last = -Infinity
   for (let i = 0; i < h.length; i += 1) {
-    if (Math.abs(h[i]!) <= 0.15 * top) continue
+    if (Math.abs(h[i]!) < share * top) continue
     if (i - last > 24) count += 1
     last = i
   }
@@ -88,26 +91,24 @@ function energy60(result: RenderResult): number {
   return energy.x0 + ((energy.x1 - energy.x0) * k) / (curve.length - 1)
 }
 
-/** The time for the level to fall 60 dB, from a line fitted to its level in dB over the middle of the tail. */
-function fittedDecay(h: Float32Array, predelaySec: number, decaySec: number): number {
-  const window = 2400 // 50 ms
-  const ts: number[] = []
-  const dbs: number[] = []
-  for (let t = predelaySec + 0.1 * decaySec; t < predelaySec + 0.8 * decaySec; t += 0.05) {
-    const at = seconds(t)
-    ts.push(t)
-    dbs.push(gainToDb(rms(h, at, at + window)))
-  }
-  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
-  const mt = mean(ts)
-  const md = mean(dbs)
-  let above = 0
-  let below = 0
-  for (let i = 0; i < ts.length; i += 1) {
-    above += (ts[i]! - mt) * (dbs[i]! - md)
-    below += (ts[i]! - mt) ** 2
-  }
-  return -60 / (above / below)
+/** When the curve of the energy still to come first stands `down` dB under its start, in seconds. */
+function downAt(result: RenderResult, down: number): number {
+  const energy = result.taps.energy!
+  const curve = energy.channels_data[0]!
+  let k = 1
+  while (k < curve.length - 1 && curve[k]! > -down) k += 1
+  // Between the two points either side of the level, in a straight line.
+  const part = (curve[k - 1]! + down) / (curve[k - 1]! - curve[k]!)
+  return energy.x0 + ((energy.x1 - energy.x0) * (k - 1 + part)) / (curve.length - 1)
+}
+
+/**
+ * The time a room takes to fall 60 dB, read as the plate and the spring lessons read theirs:
+ * three times the stretch of the curve of the energy still to come from 5 dB down to 25 dB
+ * down. `shift` takes the stretch that many dB lower.
+ */
+function fallTime(result: RenderResult, shift = 0): number {
+  return 3 * (downAt(result, 25 + shift) - downAt(result, 5 + shift))
 }
 
 /** Roughly the band the engine sets the room's level in: a one-pole each way, twice over. */
@@ -211,7 +212,7 @@ describe('convolution reverb', () => {
     for (const channel of [0, 1]) {
       const wet = out.taps.wet!.channels_data[channel]!
       const impulse = out.taps.impulse!.channels_data[channel]!
-      expectWritten(-differenceDb(wet, impulse), 'more than 120 dB')
+      expectWritten(-differenceDb(wet, impulse), 'more than 130 dB')
     }
   })
 
@@ -222,12 +223,15 @@ describe('convolution reverb', () => {
     expectWritten(quietest(left(hall.result, 'out')), '−41 dB')
   })
 
-  it('does not fill the gaps with ten echoes (claim few-echoes, claim echoes-gap)', async () => {
+  it('does not fill the gaps with ten echoes that stand a tenth as tall as the tallest (claim few-echoes, claim echoes-gap)', async () => {
     const { result } = await played('echoes')
-    expectWritten(echoes(left(result, 'impulse')), '10')
+    const impulse = left(result, 'impulse')
+    expectWritten(echoes(impulse), '10')
+    // The count is of that line and no other: fewer stand over a higher one, more over a lower.
+    expect(echoes(impulse, 0.2)).toBe(9)
+    expect(echoes(impulse, 0.01)).toBe(12)
     expectWritten(quietest(left(result, 'out')), '−102 dB')
     // They are the hit again: all within a tenth of a second of it.
-    const impulse = left(result, 'impulse')
     expect(impulse.subarray(seconds(0.1)).every((v) => v === 0)).toBe(true)
   })
 
@@ -298,6 +302,11 @@ describe('convolution reverb', () => {
       expect(differenceDb(builtAt(step, channel), expected)).toBeLessThan(-120)
     }
     expectWritten(underTheWhole(step), '36.5 dB')
+    // Each of the first three steps is turned up until its largest sample is one half.
+    for (const build of [0, 1, 2]) {
+      const heard = theLab.render(drums, { build })
+      expect(Math.max(peak(left(heard, 'built')), peak(right(heard, 'built')))).toBeCloseTo(0.5, 5)
+    }
   })
 
   it('adds three stamps for three samples, 31.6 dB under the whole reverb, and one stamp alone is not (claim three-stamps)', async () => {
@@ -318,12 +327,13 @@ describe('convolution reverb', () => {
     const stamped = left(step, 'builtIn')
     const first = stamped.findIndex((v) => v !== 0)
     const last = stamped.findLastIndex((v) => v !== 0)
-    expect(last - first + 1).toBeLessThanOrEqual(240)
-    expect(last - first + 1).toBeGreaterThan(230)
-    // The run is the loop's own samples, from the first one stamped on.
-    expect(stamped.subarray(first, first + 240)).toEqual(drums.left.subarray(first, first + 240))
-    expectWritten(240, '240 samples')
-    expectWritten((240 * 1000) / RATE, '5 ms')
+    // The run as it is counted in the lab's own tap, from the first sample stamped to the last.
+    const run = last - first + 1
+    expectWritten(run, '240 samples')
+    expectWritten((run * 1000) / RATE, '5 ms')
+    // The run is the loop's own samples, and nothing is stamped outside it.
+    expect(stamped.subarray(first, first + run)).toEqual(drums.left.subarray(first, first + run))
+    expect(stamped.filter((v) => v !== 0).length).toBeLessThanOrEqual(run)
     expectWritten(underTheWhole(step), '13.7 dB')
     expect(matchesWritten(underTheWhole(theLab.render(drums, { build: 1 })), '13.7 dB')).toBe(false)
   })
@@ -332,12 +342,12 @@ describe('convolution reverb', () => {
     const theLab = await room()
     const drums = await benchSource('drums', LOOP)
     const step = theLab.render(drums, { build: 3 })
-    expectWritten(againstEveryStamp(step, drums.left), 'less than −120 dB')
+    expectWritten(againstEveryStamp(step, drums.left), 'less than −130 dB')
     expect(left(step, 'built')).toEqual(left(step, 'wet'))
     expect(
       matchesWritten(
         againstEveryStamp(theLab.render(drums, { build: 2 }), drums.left),
-        'less than −120 dB',
+        'less than −130 dB',
       ),
     ).toBe(false)
   })
@@ -397,13 +407,13 @@ describe('convolution reverb', () => {
     for (const id of ['drums', 'guitar', 'noise']) {
       const source = await benchSource(id, LOOP)
       const out = theLab.render(source, {})
-      expectWritten(out.checks.sums!, 'less than −110 dB')
+      expectWritten(out.checks.sums!, 'less than −130 dB')
       // And the two are not both nothing.
       expect(rms(out.taps.direct!.channels_data[0]!)).toBeGreaterThan(1e-4)
     }
   })
 
-  it('keeps the loop as it sounds the tenth time round: on half a second of drums in a room of 0.3 s, the same as the sum over a loop that never stops (claim loop-wraps)', async () => {
+  it('keeps the loop as it sounds once it has gone round for longer than the impulse lasts: on half a second of drums in a room of 0.3 s, the same as the sum over a loop that never stops (claim loop-wraps)', async () => {
     const theLab = await room()
     const frames = seconds(0.5)
     const drums = await benchSource('drums', frames)
@@ -418,7 +428,7 @@ describe('convolution reverb', () => {
         sum += taps[k]! * drums.left[(n - k + frames) % frames]!
       expected[n] = sum
     }
-    expectWritten(differenceDb(out.taps.wet!.channels_data[0]!, expected), 'less than −110 dB')
+    expectWritten(differenceDb(out.taps.wet!.channels_data[0]!, expected), 'less than −130 dB')
   })
 
   it('folds an impulse longer than the loop back onto the loop', async () => {
@@ -434,11 +444,34 @@ describe('convolution reverb', () => {
 
   // The room the engine writes.
 
-  it('falls 60 dB in 2.95 s at the starting decay of 3 s, and within 5 % of the decay it is set to (claim decay-time)', () => {
-    expectWritten(fittedDecay(roomImpulse(START).left, 0.02, 3), '2.95 s')
+  it('starts the room where the engine starts its own, all but Decay (claim start-settings)', async () => {
+    const theLab = await room()
+    const starts = initialValues(theLab.description)
+    const engine = resolveSpace()
+    expect(starts.predelay! / 1000).toBeCloseTo(engine.predelaySec, 6)
+    expect(starts.swell! / 1000).toBeCloseTo(engine.attackSec, 6)
+    expect(starts.bright).toBe(engine.brightHz)
+    expect(starts.dark).toBe(engine.darkHz)
+    expect(starts.grain).toBe(engine.grain)
+    // Decay is the one that differs: the engine's 5 s would outlast the loop of 4 s.
+    expect(engine.decaySec).toBe(5)
+    expect(starts.decay).toBe(3)
+    // And nothing is cut off the impulse or left out of it as the page opens.
+    expect(starts.used! / 1000).toBeGreaterThan(starts.decay! + starts.predelay! / 1000)
+  })
+
+  it('falls 60 dB in 3.0 s at the starting decay of 3 s, read from 5 dB down to 25 dB down and multiplied by three (claim decay-time)', async () => {
+    const theLab = await room()
+    const start = theLab.render(click(LOOP), {})
+    expectWritten(fallTime(start), '3.0 s')
+    // The reading moves with the stretch it is taken from, and not out of the two figures: a
+    // decibel higher and a decibel lower it is written the same.
+    expect(fallTime(start, -1)).not.toBe(fallTime(start))
+    expectWritten(fallTime(start, -1), '3.0 s')
+    expectWritten(fallTime(start, 1), '3.0 s')
+    // It follows the Decay it is set to, within 5 %.
     for (const decay of [1, 3, 5]) {
-      const h = roomImpulse({ ...START, decay }).left
-      const measured = fittedDecay(h, 0.02, decay)
+      const measured = fallTime(theLab.render(click(LOOP), { decay }))
       expect(measured).toBeGreaterThan(decay * 0.95)
       expect(measured).toBeLessThan(decay * 1.05)
     }
@@ -479,14 +512,15 @@ describe('convolution reverb', () => {
     expectWritten(levelOf(white.left) - levelOf(wet), '5 dB')
   })
 
-  it('gives noise in the low mids back as loud as it went in, within 1.5 dB (claim band-as-loud)', async () => {
+  it('gives noise held to the low mids back about 1 dB louder than it went in (claim band-as-loud)', async () => {
     const theLab = await room()
     const white = await benchSource('noise', LOOP)
+    // Held to the band more steeply than the engine's rule holds it: its filter twice over.
     const band = { left: levelBand(white.left), right: levelBand(white.right) }
     const out = theLab.render(band, {})
     for (const [channel, dry] of [band.left, band.right].entries()) {
       const change = gainToDb(rms(out.taps.wet!.channels_data[channel]!) / rms(dry))
-      expectWritten(Math.abs(change), 'less than 1.5 dB')
+      expectWritten(change, '1 dB')
     }
   })
 
@@ -534,7 +568,7 @@ describe('convolution reverb', () => {
     expect(Math.abs(10 * Math.log10(power / count))).toBeLessThan(1.5)
   })
 
-  it('returns a sine as a sine: what is not at its frequency is more than 120 dB under what is (claim no-new-tones)', async () => {
+  it('returns a sine as a sine: what is not at its frequency is more than 130 dB under what is (claim no-new-tones)', async () => {
     const theLab = await room()
     const tone = await benchSource('sine', LOOP)
     const wet = left(theLab.render(tone, {}), 'wet')
@@ -555,7 +589,7 @@ describe('convolution reverb', () => {
       whole += wet[i]! ** 2
     }
     expect(whole).toBeGreaterThan(0)
-    expectWritten(-10 * Math.log10(rest / whole), 'more than 120 dB')
+    expectWritten(-10 * Math.log10(rest / whole), 'more than 130 dB')
   })
 
   it('comes back as loud whatever its length: white noise 4.9 dB quieter at a decay of 0.5 s and 5.0 dB quieter at 6 s (claim length-not-level)', async () => {
@@ -565,6 +599,17 @@ describe('convolution reverb', () => {
       levelOf(white.left) - levelOf(left(theLab.render(white, { decay }), 'wet'))
     expectWritten(quieter(0.5), '4.9 dB')
     expectWritten(quieter(6), '5.0 dB')
+  })
+
+  it('fills the gaps with a longer room and adds nothing to the whole: the drums 0.3 dB over dry at a decay of 0.5 s and 0.2 dB over at 6 s, their quietest tenth of a second up from −66 dB to −38 dB (claim length-fills-gaps)', async () => {
+    const theLab = await room()
+    const drums = await benchSource('drums', LOOP)
+    const short = left(theLab.render(drums, { decay: 0.5 }), 'out')
+    const long = left(theLab.render(drums, { decay: 6 }), 'out')
+    expectWritten(levelOf(short) - levelOf(drums.left), '0.3 dB')
+    expectWritten(levelOf(long) - levelOf(drums.left), '0.2 dB')
+    expectWritten(quietest(short), '−66 dB')
+    expectWritten(quietest(long), '−38 dB')
   })
 
   // The lesson's own controls.
@@ -642,11 +687,18 @@ describe('convolution reverb', () => {
     }
   })
 
-  it('stays as long when it is made darker: a decay of 2.9 s by the fitted line (claim darker-as-long)', async () => {
-    const { values } = await played('darker')
-    const h = roomImpulse({ ...START, bright: values.bright!, dark: values.dark! }).left
+  it('stays as long when it is made darker: its time to fall 60 dB moves by less than 0.05 s (claim darker-as-long)', async () => {
+    const { result, values } = await played('darker')
+    const theLab = await room()
+    // The same room before it was darkened: the card's settings with the two top ends put back.
+    const bright = theLab.render(await benchSource('guitar', LOOP), {
+      ...values,
+      bright: START.bright,
+      dark: START.dark,
+    })
     expect(values.decay).toBe(3)
-    expectWritten(fittedDecay(h, 0.02, 3), '2.9 s')
+    expect(left(result, 'impulse')).not.toEqual(left(bright, 'impulse'))
+    expectWritten(Math.abs(fallTime(result) - fallTime(bright)), 'less than 0.05 s')
   })
 
   it('puts more room than sound with the send right up: the reverb 6.3 dB over the dry line (claim far-level)', async () => {
