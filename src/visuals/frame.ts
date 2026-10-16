@@ -133,7 +133,7 @@ export function presenceOf(visual: Visual, beat: number, strokeLevel: number): n
  * stretch. These are the ones a performance thins out.
  */
 export function paintsWholePiece(visual: Visual): boolean {
-  return visual.stroke === null && visual.beats === null && visualStyle(visual.kind) !== undefined
+  return visual.stroke === null && visual.beats === null && paints(visual.kind)
 }
 
 /**

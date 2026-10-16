@@ -93,6 +93,13 @@ function grainOver(
 const BLUR_ACROSS = 64
 const MOST_HALVINGS = 6
 
+function copyTo(to: HTMLCanvasElement, from: HTMLCanvasElement): void {
+  const toContext = pen(to)
+  toContext.globalCompositeOperation = 'copy'
+  toContext.drawImage(from, 0, 0, to.width, to.height)
+  toContext.globalCompositeOperation = 'source-over'
+}
+
 function filterOver(
   context: CanvasRenderingContext2D,
   clean: HTMLCanvasElement,
@@ -106,12 +113,6 @@ function filterOver(
     Math.max(1, Math.round(Math.log2(Math.max(1, width / BLUR_ACROSS)))),
   )
   while (halves.length < steps) halves.push(document.createElement('canvas'))
-  const copyTo = (to: HTMLCanvasElement, from: HTMLCanvasElement) => {
-    const toContext = pen(to)
-    toContext.globalCompositeOperation = 'copy'
-    toContext.drawImage(from, 0, 0, to.width, to.height)
-    toContext.globalCompositeOperation = 'source-over'
-  }
   for (let step = 0; step < steps; step++) {
     const half = halves[step]
     const halfWidth = Math.max(1, Math.round(width / 2 ** (step + 1)))

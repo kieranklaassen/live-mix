@@ -112,12 +112,7 @@ const nextFrame = (): Promise<void> => new Promise((resolve) => setTimeout(resol
 
 /** Paints frames of `frameAt` until the picture draws, then looks at a few more and measures the brightest. */
 async function look(frameAt: (nowMs: number) => VisualFrame): Promise<Measured> {
-  const canvas = document.createElement('canvas')
-  canvas.width = WIDTH
-  canvas.height = HEIGHT
-  const context = canvas.getContext('2d', { willReadFrequently: true })
-  if (!context) throw new Error('no 2D context')
-  const stage = createStage()
+  const { context, stage } = screen()
   let now = 1000
   let waited = 0
   while (stage.paint(context, frameAt(now), 1)) {

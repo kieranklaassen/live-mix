@@ -48,7 +48,7 @@ export interface VisualFilter {
   spread: number
 }
 
-/** What a performance asks of the picture. `performAsk` of a piece as composed asks nothing: see `AT_REST`. */
+/** What a performance asks of the picture. */
 export interface PerformAsk {
   /** How full the piece stands, from 0 with one sound left to 1 as composed. */
   full: number
@@ -98,7 +98,7 @@ const PUSH_AT_WIDEST = 0.5
 const SPREAD_AT_WIDEST = 0.35
 /** Space all the way down: what the piece's own trails keep of their length. */
 const TRAILS_KEPT_AT_DRIEST = 0.3
-/** A part of the filter smaller than this is not drawn. */
+/** A filter with no part as large as this is not drawn. */
 const LEAST_FILTERED = 0.004
 
 /** A value that has come this close to where it is heading is put there. */
@@ -233,7 +233,9 @@ export interface PerformMove {
  * What that performance does to the picture, one entry for each thing that is moved and none for a piece as
  * composed. It reads where the picture is heading: hand it the performance as it stands, not as it has come to.
  */
-export function performMoves(now: PerformNow): PerformMove[] {
+export function performMoves(
+  now: Pick<PerformNow, 'rides' | 'ladder' | 'space' | 'tone'>,
+): PerformMove[] {
   const moves: PerformMove[] = []
   const full = fullnessOf(now)
   if (full < 1) moves.push({ from: 'sounds', does: 'thins', amount: 1 - full })

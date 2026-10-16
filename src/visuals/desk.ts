@@ -19,6 +19,7 @@ import {
   performAsk,
   performedFrame,
   type PerformAsk,
+  type PerformDials,
   type PerformNow,
   type PerformReading,
 } from './perform'
@@ -44,6 +45,12 @@ export interface DeskReading {
    * the one the piece's visuals come to and the dials are handed to the styles as they are.
    */
   perform?: PerformReading | null
+}
+
+/** What a performance asks of a frame, and the performance as it has come to for that frame. */
+interface Followed {
+  ask: PerformAsk
+  now: PerformNow
 }
 
 /** Two asks closer together than this are the same frame, in milliseconds. */
@@ -89,8 +96,8 @@ export class VisualDesk {
   private made: VisualFrame | null = null
   private reading: DeskReading | null = null
   private readonly performance = new PerformFollower()
-  /** What the performance asks of this frame, and the dials as they have come to; null where none is followed. */
-  private asked: { ask: PerformAsk; now: PerformNow } | null = null
+  /** Null where no performance is followed. */
+  private asked: Followed | null = null
 
   constructor(private readonly read: () => DeskReading) {}
 
@@ -135,7 +142,7 @@ export class VisualDesk {
   }
 
   /** Where the performance has the picture this frame; null where the page follows none. */
-  private follow(reading: DeskReading, dtSec: number): { ask: PerformAsk; now: PerformNow } | null {
+  private follow(reading: DeskReading, dtSec: number): Followed | null {
     if (!reading.perform) {
       this.performance.rest()
       return null
@@ -145,7 +152,7 @@ export class VisualDesk {
   }
 
   /** The dials the styles are handed: as they have come to with the performance, else as the page reads them. */
-  private dials(reading: DeskReading): { energy: number; space: number; tone: number } {
+  private dials(reading: DeskReading): PerformDials {
     return this.asked
       ? { energy: this.asked.ask.energy, space: this.asked.now.space, tone: this.asked.now.tone }
       : { energy: reading.energy, space: reading.space, tone: reading.tone }
