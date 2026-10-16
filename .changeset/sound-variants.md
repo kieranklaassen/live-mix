@@ -1,5 +1,0 @@
----
-'@kieranklaassen/live-mix': minor
----
-
-A variant of a factory sound (`./dsp`): the same recipe played once more, differently. `varySound(sound, { seed, chords, speed, pattern, touch })` gives the variant's recipe, `renderFactorySound` takes it as `vary`, and `describeVariant` says what it does. A seed is one variant, always the same one. Each kind of difference (`VARIATION_KINDS`) has an amount from 0 to 1 and `amount` is for every kind not given one; at 0 in every kind the sound itself comes back, so its render does not change. Chords plays the sound on another chord of the key by a weighted choice and moves notes by an octave; speed plays a phrase from half to twice as fast, or one that comes round at half or double time; pattern rests notes of a phrase as a Euclidean rhythm, changes the places of neighbours and thins a chord; touch moves each note a little in time, level and tuning and takes a held chord up at another moment. The instrument, the effects, the length, the loop, the key and the attack stay. `VARIATION_LIMITS` says how far each goes at an amount of 1. Bench: `FACTORY_REPORT=variants`, with `FACTORY_KIND` for one kind alone.

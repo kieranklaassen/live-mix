@@ -1,5 +1,0 @@
----
-'@kieranklaassen/live-mix': patch
----
-
-A clip that starts exactly where the transport is started is no longer skipped now and then. The audio clock belongs to the audio thread, so it can move on between `Transport.start()` pinning the anchor and the `Scheduler`'s first pass in the same task (a render quantum ends, or a listener ahead of the scheduler takes its time). The position had then left the anchor behind, the first window began after it, and a clip at the anchor (typically one at 0 when playing from the top) was not handed over until the loop came round: one silent pass, about once in forty starts in ambient-live. The first window after a `start` or a `seek` now runs from the anchor's own position up to the usual lookahead, so such a clip is handed over with the anchor's clock time and the track joins it a few milliseconds in, as it does after a throttled timer. `Scheduler.tick` also reads the clock once per pass instead of once for the position and again inside it. A loop change still re-derives from the position, because it keeps what is sounding; a schedulable registered mid-play still starts from where the transport is.
