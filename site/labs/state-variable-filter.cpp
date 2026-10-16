@@ -46,9 +46,10 @@
 // five pieces, whose three outputs are compared on every render with the
 // kit's Svf on the same moving cutoff (the "builtDifference" check). The
 // build writes the loop's sum with its division in the line, and the kit does
-// the division once when the filter is set, so the two differ in the last
-// bits of a sample and no more. A third copy takes one unit sample, for the
-// curve of the step.
+// the division once when the filter is set and multiplies by what it kept, so
+// the two round differently: by the last bits of a sample at most settings,
+// and by more where the loop rings longest (see the bound, at `build`). A
+// third copy takes one unit sample, for the curve of the step.
 
 #include "lab.h"
 
@@ -289,12 +290,21 @@ struct Built {
   }
 };
 
-// The bound is measured. On the bench's loops the build lands 127 dB or more
-// under the kit's filter at the starting values, and 97 dB under at the worst
-// setting tried (a cutoff of 20 Hz at a Q of 25, where the loop's sums are at
-// their largest beside what comes out), so 90 leaves room and no more.
+// The bound is measured. The kit multiplies each sample of the loop by a1,
+// one over the loop's sum, which it worked out when the filter was set and
+// which is rounded to a float's 24 bits. The build divides in the line. So
+// the two differ by that rounding, which acts as a small change to the
+// brake. At the starting values the build lands 126 dB or more under the
+// kit's filter on the bench's loops. Where the brake takes least from each
+// sample, a low cutoff at the highest Resonance, the rounding is a larger
+// share of it and the two rings die at slightly different rates: 76 dB under
+// on the drums with the cutoff at 59 Hz and a Q of 25, and 73.7 dB under on
+// a tone at 60 Hz, at half of full scale, with the cutoff on it. That is the
+// worst found in a search of the cutoffs from 20 to 130 Hz, on every loop of
+// the bench and on a tone on the cutoff. Lower than that the two agree
+// better again. So 70 leaves room and no more.
 lab::Build build{"One integrator|A second integrator|Resonance|The outputs|A cutoff that moves", Built::kMoving,
-                 -90.0f, "The filter as built, all five pieces, against the kit's filter on the same moving cutoff"};
+                 -70.0f, "The filter as built, all five pieces, against the kit's filter on the same moving cutoff"};
 
 Built shown;   // at the step the reader chose: what the built taps hold
 Built held;    // with every piece: what is compared with the kit's filter
@@ -324,6 +334,18 @@ float oscillator_now(const AutoFilter& d) {
   phase -= std::floor(phase);
   const int shape = kit::clamp_int(static_cast<int>(d.param(p::kLfoShape) + 0.5f), 0, AutoFilter::kNumLfoShapes - 1);
   return AutoFilter::lfo_value(shape, static_cast<float>(phase), d.lfo_held_);
+}
+
+// The oscillator as the device reads it on the sample that wakes it. Waking
+// after its phase has gone once round or more, the device draws Random steps a
+// new value before it reads one (its wake_up), so the lab draws the same value
+// from a copy of the device's generator.
+float oscillator_on_waking(const AutoFilter& d) {
+  const double phase = d.lfo_phase_ + static_cast<double>(d.lfo_rate_.value) * d.slept_ / d.sample_rate();
+  kit::Rng generator = d.random_;
+  const float held = phase >= 1.0 ? generator.bipolar() : d.lfo_held_;
+  const int shape = kit::clamp_int(static_cast<int>(d.param(p::kLfoShape) + 0.5f), 0, AutoFilter::kNumLfoShapes - 1);
+  return AutoFilter::lfo_value(shape, static_cast<float>(phase - std::floor(phase)), held);
 }
 
 float envelope_now(const AutoFilter& d) {
@@ -591,12 +613,16 @@ void lab_render(int frames) {
     const float left = lab::in_at(0, i);
     const float right = lab::in_at(1, i);
     // The oscillator as the device is about to read it, and after its tick the
-    // envelope it has just used. Asleep, it keeps both on paper.
+    // envelope it has just used. Asleep, it keeps both on paper, and the
+    // sample that wakes it reads the oscillator as waking leaves it.
+    const bool asleep = device.slept_ > 0.0;
+    const float on_waking = asleep ? oscillator_on_waking(device) : 0.0f;
     float oscillator = oscillator_now(device);
     device.in_left()[0] = left;
     device.in_right()[0] = right;
     device.process(1);
     if (device.slept_ > 0.0) oscillator = oscillator_now(device);
+    else if (asleep) oscillator = on_waking;
     const float envelope = envelope_now(device);
 
     // The cutoff the device stands at on this sample: its Cutoff, moved by its

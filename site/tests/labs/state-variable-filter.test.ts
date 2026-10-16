@@ -166,6 +166,7 @@ const DEVICE_KEY: Record<string, string> = {
 // The oscillator's shapes, in the device's order.
 const SINE = 0
 const SQUARE = 4
+const RANDOM_STEPS = 5
 
 describe('the state-variable filter', () => {
   it('is a sound lab on the saw: every tap says something, loops, and answers to every control', async () => {
@@ -182,6 +183,18 @@ describe('the state-variable filter', () => {
     const turned = { resonance: 4, type: 2, lfoAmount: 50 }
     for (const id of ['saw', 'drums']) {
       expectBuild(filter, await benchSource(id, seconds(4)), turned)
+    }
+    // The clicks leave the device asleep between them, and with Random steps it draws a new
+    // held value on the sample that wakes it. The build has to read the oscillator as the
+    // device is about to, on that sample too: read a sample early, it lands above the kit.
+    const clicks = await benchSource('clicks', seconds(4))
+    for (const values of [
+      { resonance: 25, lfoAmount: 100, lfoShape: RANDOM_STEPS, lfoRate: 20 },
+      { resonance: 6, lfoAmount: 80, lfoShape: RANDOM_STEPS, lfoRate: 8 },
+      { resonance: 25, lfoAmount: 100, lfoShape: SQUARE, lfoRate: 20 },
+    ]) {
+      const check = filter.render(clicks, values).checks
+      expect(check.builtDifference!, JSON.stringify(values)).toBeLessThanOrEqual(check.builtBound!)
     }
   })
 
@@ -287,6 +300,49 @@ describe('the state-variable filter', () => {
     expectWritten(levelDb(tap(result, 'band'), 1000), '0.00 dB')
   })
 
+  it('is 12.4 dB down at 2 kHz, an octave past a cutoff of 1 kHz, on the kit’s low-pass (claim octave-on)', async () => {
+    const filter = await lab(NAME)
+    const low = tap(filter.render(unitSample(), { cutoff: 1000 }), 'low')
+    expectWritten(-levelDb(low, 2000), '12.4 dB')
+  })
+
+  it('answers each step of the saw with one short pulse on the band output, one that lasts longer with the cutoff lower: what the picture of stage 2 says', async () => {
+    const filter = await lab(NAME)
+    const saw = await benchSource('saw', seconds(4))
+    // The stretch the picture draws: three hundredths of a second from 1 s.
+    const drawn = (cutoff: number) =>
+      tap(filter.render(saw, { cutoff }), 'band').subarray(RATE, RATE + 0.03 * RATE)
+    /** The share of the stretch on which the band output is over a fifth of its largest sample. */
+    const share = (x: Float32Array) =>
+      x.filter((v) => Math.abs(v) > 0.2 * peak(x)).length / x.length
+    const at1k = drawn(1000)
+    // A pulse and no ring: over a fifth of its size the band output is all on one side of zero.
+    const sides = new Set([...at1k].filter((v) => Math.abs(v) > 0.2 * peak(at1k)).map(Math.sign))
+    expect(sides.size).toBe(1)
+    expect(share(at1k)).toBeLessThan(0.1)
+    expect(share(drawn(500))).toBeGreaterThan(1.8 * share(at1k))
+    expect(share(drawn(250))).toBeGreaterThan(1.8 * share(drawn(500)))
+  })
+
+  it('draws the three close-up curves almost on each other at 1 kHz, and at 8 kHz the late loop to the right of the cutoff and higher than the kit’s: what the pictures of stage 2 say', async () => {
+    const filter = await lab(NAME)
+    const curves = (cutoff: number) => {
+      const taps = filter.render(unitSample(), { cutoff }).taps
+      return [taps.tuned!, taps.plainTuned!, taps.lateTuned!] as const
+    }
+    const [kit, plain, late] = curves(1000).map((one) => one.channels_data[0]!)
+    let apart = 0
+    for (let i = 0; i < kit!.length; i += 1) {
+      apart = Math.max(apart, Math.abs(plain![i]! - kit![i]!), Math.abs(late![i]! - kit![i]!))
+    }
+    // Under half a decibel, on a picture 42 dB tall.
+    expect(apart).toBeLessThan(0.5)
+    const [kit8, plain8, late8] = curves(8000)
+    expect(curvePeak(plain8)).toBeLessThan(0.95)
+    expect(curvePeak(late8)).toBeGreaterThan(1.1)
+    expect(largest(late8.channels_data[0]!) - largest(kit8.channels_data[0]!)).toBeGreaterThan(1)
+  })
+
   it('lands 7.9 % flat, at 7.37 kHz, when asked for 8 kHz with the tangent left out (claim no-tangent)', async () => {
     const filter = await lab(NAME)
     // The close-up is measured at a Q of 4 whatever the resonance is set to.
@@ -368,7 +424,7 @@ describe('the state-variable filter', () => {
     expectWritten(runsAwayAt(filter, 4, 9000, 18000) / 1000, '13.5 kHz')
   })
 
-  it('answers a unit sample with nothing larger than the sample, at any cutoff from 20 Hz to 20 kHz and any Q from 0.5 to 25 (claim kit-stable)', async () => {
+  it('answers a unit sample with nothing larger than the sample on each of its three outputs, at every setting tried, cutoffs from 20 Hz to 20 kHz and Q from 0.5 to 25 (claim kit-stable)', async () => {
     const filter = await lab(NAME)
     for (const cutoff of [20, 100, 1000, 8000, 12000, 16000, 20000]) {
       for (const resonance of [0.5, 0.7071, 4, 25]) {
@@ -443,16 +499,46 @@ describe('the state-variable filter', () => {
 
   // ── The device ─────────────────────────────────────────────────────────────────────────────
 
-  it("cannot tell the device's own stage from the kit's at 1 kHz: the check is at its floor, −140 dB (claim same-stage)", async () => {
+  it("reads its floor, −140 dB, between the device's own stage and the kit's with the cutoff at 1 kHz: more than 140 dB under (claim same-stage)", async () => {
     const filter = await lab(NAME)
     const noise = await benchSource('noise', seconds(4))
+    // The floor is what the check reads for any difference 140 dB under the sound or further.
+    expect(filter.render(noise, {}).checks.sameStage!).toBe(-140)
     expectWritten(filter.render(noise, {}).checks.sameStage!, '−140 dB')
   })
 
-  it("finds the device's stage 82 dB from the kit's at 8 kHz and a Q of 4, on the noise (claim same-stage-8k)", async () => {
+  it("finds the difference between the device's stage and the kit's 82 dB under the kit's three outputs at 8 kHz and a Q of 4, on the noise (claim same-stage-8k), and the tangent alone accounts for it", async () => {
     const filter = await lab(NAME)
     const noise = await benchSource('noise', seconds(4))
     expectWritten(-filter.render(noise, { cutoff: 8000, resonance: 4 }).checks.sameStage!, '82 dB')
+    // The kit's loop written out here in a sample's own arithmetic, once with the kit's short
+    // tangent and once with the library's, and nothing else changed between the two.
+    const f = Math.fround
+    const loop = (g: number, k: number, x: Float32Array) => {
+      const a1 = f(1 / f(1 + f(g * f(g + k))))
+      const a2 = f(g * a1)
+      const a3 = f(g * a2)
+      const out = new Float32Array(3 * x.length)
+      let [ic1, ic2] = [0, 0]
+      for (let i = 0; i < x.length; i += 1) {
+        const v3 = f(x[i]! - ic2)
+        const v1 = f(f(a1 * ic1) + f(a2 * v3))
+        const v2 = f(f(ic2 + f(a2 * ic1)) + f(a3 * v3))
+        ic1 = f(f(2 * v1) - ic1)
+        ic2 = f(f(2 * v2) - ic2)
+        out[3 * i] = v2
+        out[3 * i + 1] = v1
+        out[3 * i + 2] = f(f(x[i]! - f(k * v1)) - v2)
+      }
+      return out
+    }
+    const angle = f(f(f(Math.PI) * 8000) / RATE)
+    const squared = f(angle * angle)
+    const short = f(f(angle * f(15 - squared)) / f(15 - f(6 * squared)))
+    const k = f(1 / 4)
+    const withLibrary = loop(f(Math.tan(angle)), k, noise.left)
+    const withShort = loop(short, k, noise.left)
+    expectWritten(-differenceDb(withLibrary, withShort), '82 dB')
   })
 
   it('is 31 samples late through the device (claim latency)', async () => {
@@ -532,26 +618,33 @@ describe('the state-variable filter', () => {
     }
   })
 
-  it('holds a full-scale tone on the cutoff at a Q of 25 to 0.24 of full scale with 6 dB of drive (claim drive-caps)', async () => {
+  it('holds a full-scale tone on the cutoff at a Q of 25 to 0.24 of full scale with 6 dB of drive, where without it the tone comes out at 25 times full scale (claim drive-caps)', async () => {
     const filter = await lab(NAME)
     const tone = sine(440, 1, seconds(2))
     const values = { cutoff: 440, resonance: 25 }
     // With no drive the device, like the kit's filter, puts out 25 times full scale.
     const plain = filter.render(tone, values)
-    expect(peak(tap(plain, 'out'))).toBeGreaterThan(24.5)
-    expect(peak(tap(plain, 'low'))).toBeGreaterThan(24.5)
+    expectWritten(peak(tap(plain, 'out')), '25.0')
+    expectWritten(peak(tap(plain, 'low')), '25.0')
     expectWritten(peak(tap(filter.render(tone, { ...values, drive: 6 }), 'out')), '0.24')
   })
 
-  it('opens the cutoff 1.56 octaves on the loudest hit of the drums with Envelope amount at 100, five times the envelope’s 0.31 (claim env-opens)', async () => {
+  it('opens the cutoff 1.56 octaves on the loudest hit of the drums with Envelope amount at 100, five times the envelope’s 0.311 (claim env-opens)', async () => {
     const filter = await lab(NAME)
     const drums = await benchSource('drums', seconds(4))
     const result = filter.render(drums, { envAmount: 100 })
     const opened = range(tap(result, 'sweep')).hi
     const envelope = range(tap(result, 'envelope')).hi
     expectWritten(opened, '1.56 octaves')
-    expectWritten(envelope, '0.31')
+    expectWritten(envelope, '0.311')
     expect(opened).toBeCloseTo(5 * envelope, 3)
+    // The envelope is read before Drive: with Drive at its highest it is the same line.
+    const driven = filter.render(drums, { envAmount: 100, drive: 24 })
+    expect([...tap(driven, 'envelope')]).toEqual([...tap(result, 'envelope')])
+    // On the saw, whose size does not change, it lies level.
+    const saw = await benchSource('saw', seconds(4))
+    const level = tap(filter.render(saw, {}), 'envelope')
+    expect(range(level.subarray(level.length / 4)).span).toBeLessThan(0.01)
   })
 
   it('swings the cutoff 3.00 octaves each way with Oscillator amount at 100 (claim osc-swing)', async () => {
@@ -626,25 +719,51 @@ describe('the state-variable filter', () => {
     expect(swing(3).span).toBe(0)
   })
 
-  it('lands the whole build more than 120 dB under the kit’s filter at the starting values (claim build-same), and more than 95 dB under at the worst setting tried, a cutoff of 20 Hz with Resonance at 25 (claim build-worst)', async () => {
+  it('lands the whole build more than 120 dB under the kit’s filter at the starting values, on the saw, the drums, the bass and the noise (claim build-same)', async () => {
     const filter = await lab(NAME)
     for (const id of ['saw', 'drums', 'noise', 'bass']) {
       const source = await benchSource(id, seconds(4))
       expectWritten(-filter.render(source, {}).checks.builtDifference!, 'more than 120 dB')
     }
+  })
+
+  it('lands the build 76 dB under the kit’s filter on the drums with the cutoff at 59 Hz and Resonance at 25 (claim build-worst)', async () => {
+    const filter = await lab(NAME)
+    const drums = await benchSource('drums', seconds(4))
+    expectWritten(
+      -filter.render(drums, { cutoff: 59, resonance: 25 }).checks.builtDifference!,
+      '76 dB',
+    )
+  })
+
+  it('finds the build nearest the kit’s filter, 74 dB under, on a tone at 60 Hz with the cutoff on it and Resonance at 25, among the cutoffs from 20 to 130 Hz, and nowhere nearer than the bound of 70 dB (claim build-bound)', async () => {
+    const filter = await lab(NAME)
+    const on = (hz: number) =>
+      filter.render(sine(hz, 0.5, seconds(2)), { cutoff: hz, resonance: 25 }).checks
+        .builtDifference!
+    const worst = on(60)
+    expectWritten(-worst, '74 dB')
+    expect(filter.render(sine(60, 0.5, seconds(2)), {}).checks.builtBound).toBe(-70)
+    // Tones on other cutoffs of the span, and the settings that move the cutoff furthest and
+    // fastest, all lie under it.
+    for (const hz of [20, 30, 45, 55, 58, 59, 61, 65, 80, 100, 130]) {
+      expect(on(hz), `a tone at ${hz} Hz`).toBeLessThan(worst)
+    }
     const drums = await benchSource('drums', seconds(4))
     const noise = await benchSource('noise', seconds(4))
-    const worst = Math.max(
-      filter.render(drums, { cutoff: 20, resonance: 25 }).checks.builtDifference!,
-      filter.render(noise, { cutoff: 20, resonance: 25 }).checks.builtDifference!,
-      filter.render(noise, { resonance: 25, lfoAmount: 100, lfoShape: SQUARE, lfoRate: 20 }).checks
-        .builtDifference!,
-      filter.render(drums, { cutoff: 20000, resonance: 25, envAmount: -100 }).checks
-        .builtDifference!,
-    )
-    expectWritten(-worst, 'more than 95 dB')
-    // And the bound the lab states leaves room over that.
-    expect(filter.render(drums, {}).checks.builtBound).toBe(-90)
+    for (const [source, values] of [
+      [drums, { cutoff: 20, resonance: 25 }],
+      [noise, { cutoff: 20, resonance: 25 }],
+      [noise, { resonance: 25, lfoAmount: 100, lfoShape: SQUARE, lfoRate: 20 }],
+      [noise, { cutoff: 59, resonance: 25, lfoAmount: 100, lfoShape: RANDOM_STEPS, lfoRate: 20 }],
+      [drums, { cutoff: 20000, resonance: 25, envAmount: -100 }],
+      [drums, { cutoff: 59, resonance: 25, envAmount: 100 }],
+    ] as const) {
+      expect(
+        filter.render(source, values).checks.builtDifference!,
+        JSON.stringify(values),
+      ).toBeLessThan(worst)
+    }
   })
 
   // ── The cards ──────────────────────────────────────────────────────────────────────────────
@@ -694,6 +813,62 @@ describe('the state-variable filter', () => {
   it('opens the band-pass as far as 0.7 octaves on the guitar’s loudest note (claim way-wah)', async () => {
     const filter = await lab(NAME)
     expectWritten(range(tap(await played(filter, 'wah'), 'sweep')).hi, '0.7 octaves')
+  })
+
+  it('says what the slow sweep and the moving hole do, on the saw and on the noise: the cutoff is highest at 1 s and lowest at 3 s, and the notch takes out the sound where it stands and not an octave off', async () => {
+    const filter = await lab(NAME)
+    /** The moments, in seconds, at which a line over the loop is highest and lowest. */
+    const turns = (x: Float32Array) => {
+      let [hi, lo] = [0, 0]
+      for (let i = 1; i < x.length; i += 1) {
+        if (x[i]! > x[hi]!) hi = i
+        if (x[i]! < x[lo]!) lo = i
+      }
+      return { hi: (4 * hi) / x.length, lo: (4 * lo) / x.length, most: x[hi]!, least: x[lo]! }
+    }
+    for (const [name, octaves] of [
+      ['slow', 1.5],
+      ['hole', 2.7],
+    ] as const) {
+      const swept = turns(tap(await played(filter, name), 'sweep'))
+      expect(swept.hi, name).toBeCloseTo(1, 1)
+      expect(swept.lo, name).toBeCloseTo(3, 1)
+      expect(swept.most, name).toBeCloseTo(octaves, 2)
+      expect(swept.least, name).toBeCloseTo(-octaves, 2)
+    }
+    // The hole at 1 s, at the top of its climb: a fifth of an octave of the noise round the
+    // notch, in the device's output and in the sound that went in 31 samples before.
+    const result = await played(filter, 'hole')
+    const around = (id: string, late: number) =>
+      tap(result, id).subarray(0.98 * RATE + late, 1.02 * RATE + late)
+    const held = (x: Float32Array, hz: number) => {
+      let sum = 0
+      for (let step = -3; step <= 3; step += 1)
+        sum += 10 ** (levelDb(x, hz * 2 ** (step / 60), x.length) / 10)
+      return 10 * Math.log10(sum)
+    }
+    const notch = 900 * 2 ** 2.7
+    const taken = (hz: number) => held(around('in', 0), hz) - held(around('out', 31), hz)
+    expect(taken(notch)).toBeGreaterThan(15)
+    expect(taken(notch * 2)).toBeLessThan(3)
+  })
+
+  it('falls only part of the way back between the guitar’s notes on the band the playing opens: what the picture of that card says', async () => {
+    const filter = await lab(NAME)
+    const sweep = tap(await played(filter, 'wah'), 'sweep')
+    // After the first note the band never comes back to its setting.
+    expect(range(sweep.subarray(sweep.length / 8)).lo).toBeGreaterThan(0.1)
+  })
+
+  it('has the high output largest while the cutoff is low and the low output largest while it is high: what the picture of all the stages says', async () => {
+    const filter = await lab(NAME)
+    const saw = await benchSource('saw', seconds(4))
+    // The oscillator at its starting rate, one cycle a second: highest at 0.25 s, lowest at 0.75 s.
+    const result = filter.render(saw, { lfoAmount: 100 })
+    const round = (id: string, at: number) =>
+      rms(tap(result, id).subarray((at - 0.05) * RATE, (at + 0.05) * RATE))
+    expect(round('high', 0.75)).toBeGreaterThan(5 * round('high', 0.25))
+    expect(round('low', 0.25)).toBeGreaterThan(1.3 * round('low', 0.75))
   })
 
   it('pushes the cutoff down as far as 0.8 octaves on the loudest hit of the drums with Envelope amount under zero (claim way-duck)', async () => {
