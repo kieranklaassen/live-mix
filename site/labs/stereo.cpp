@@ -11,14 +11,16 @@
 //            and right ─► scatter ─► a short delay on the right ─► + the bass,
 //            narrowed ─► out
 //
-// Read from the device: its output, the bass its two one-poles hold, and the
-// five numbers its Width sets (the side's gain, the mid's gain, how much of
-// the scatter, how much of the delay; the bass's share of its side is a local
-// and is written again). The stages between are locals of the device's one
-// function, so the lab keeps a copy of that function (`Built` below, with
-// every piece switched in), feeds it what the device is fed, and reads the
-// stages out of the copy: they are the lesson's. The copy's output is held to
-// the device's on every render (the "builtDifference" check).
+// Read from the running device: its output and the bass its two one-poles
+// hold. Asked of the widener's own class, called by itself outside the device:
+// the numbers its Width sets (the side's gain, the mid's gain, how much of the
+// scatter, how much of the delay; the bass's share of its side is a local and
+// is written again) and what it makes of one unit sample. The stages between
+// are locals of the device's one function, so the lab keeps a copy of that
+// function (`Built` below, with every piece switched in), feeds it what the
+// device is fed, and reads the stages out of the copy: they are the lesson's.
+// The copy's output is held to the device's on every render (the
+// "builtDifference" check).
 //
 // Beside the widener a second device runs on the same sound: the engine's
 // other widener (cpp/devices/spread), its three regions all at twice the
@@ -102,17 +104,17 @@ lab::Tap line_right{"lineRight", "Right's gain, straight line", lab::kCurve, lab
 lab::Tap line_power{"linePower", "Power of the two together, straight line", lab::kCurve, lab::kLesson, 1, "dB"};
 lab::Tap line_sum{"lineSum", "The two added, straight line", lab::kCurve, lab::kLesson, 1, "dB"};
 
-lab::Tap side_gain{"sideGain", "The side's gain", lab::kCurve, lab::kDevice, 1};
-lab::Tap mid_gain{"midGain", "The mid's gain", lab::kCurve, lab::kDevice, 1};
-lab::Tap scatter_share{"scatterShare", "How much is scattered", lab::kCurve, lab::kDevice, 1};
-lab::Tap delay_share{"delayShare", "How much of the right is delayed", lab::kCurve, lab::kDevice, 1};
+lab::Tap side_gain{"sideGain", "The side's gain", lab::kCurve, lab::kCalled, 1};
+lab::Tap mid_gain{"midGain", "The mid's gain", lab::kCurve, lab::kCalled, 1};
+lab::Tap scatter_share{"scatterShare", "How much is scattered", lab::kCurve, lab::kCalled, 1};
+lab::Tap delay_share{"delayShare", "How much of the right is delayed", lab::kCurve, lab::kCalled, 1};
 lab::Tap bass_share{"bassShare", "The bass's side, kept", lab::kCurve, lab::kLesson, 1};
 
-lab::Tap click_left{"clickLeft", "Left, from one sample", lab::kCurve, lab::kDevice, 1};
-lab::Tap click_right{"clickRight", "Right, from one sample", lab::kCurve, lab::kDevice, 1};
-lab::Tap left_response{"leftResponse", "Left alone", lab::kSpectrum, lab::kDevice, 1, "dB"};
-lab::Tap right_response{"rightResponse", "Right alone", lab::kSpectrum, lab::kDevice, 1, "dB"};
-lab::Tap mono_response{"monoResponse", "On one speaker", lab::kSpectrum, lab::kDevice, 1, "dB"};
+lab::Tap click_left{"clickLeft", "Left, from one sample", lab::kCurve, lab::kCalled, 1};
+lab::Tap click_right{"clickRight", "Right, from one sample", lab::kCurve, lab::kCalled, 1};
+lab::Tap left_response{"leftResponse", "Left alone", lab::kSpectrum, lab::kCalled, 1, "dB"};
+lab::Tap right_response{"rightResponse", "Right alone", lab::kSpectrum, lab::kCalled, 1, "dB"};
+lab::Tap mono_response{"monoResponse", "On one speaker", lab::kSpectrum, lab::kCalled, 1, "dB"};
 lab::Tap second_response{"secondResponse", "The second widener on one speaker", lab::kSpectrum, lab::kDevice, 1,
                          "dB"};
 

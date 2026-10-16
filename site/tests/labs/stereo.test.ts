@@ -62,12 +62,31 @@ function largestAt(x: Float32Array, from = 0, to = x.length): number {
   for (let i = from; i < to; i += 1) if (Math.abs(x[i]!) > Math.abs(x[at]!)) at = i
   return at
 }
+/** Whether two signals are the same, sample for sample. */
+const same = (a: Float32Array, b: Float32Array) =>
+  a.length === b.length && a.every((v, i) => v === b[i])
+/**
+ * Where each run of samples over `floor` starts, counted from `from`. A run is over once `gap`
+ * samples have stayed under the floor.
+ */
+function runStarts(x: Float32Array, from: number, floor = 0.002, gap = 150): number[] {
+  const starts: number[] = []
+  let last = -Infinity
+  for (let i = from; i < x.length; i += 1) {
+    if (Math.abs(x[i]!) <= floor) continue
+    if (i - last > gap) starts.push(i - from)
+    last = i
+  }
+  return starts
+}
 /** A tone on both channels at a peak of 0.5, a second long: it comes round whole. */
 const tone = (hz = 1000): Source => sine(hz, 0.5, seconds(1))
 /** One sample of 0.5 on both channels a quarter of a second into a second of silence. */
 const AT = seconds(0.25)
 const oneSample = (): Source => click(seconds(1), AT, 0.5)
 const ms = (samples: number) => (samples * 1000) / RATE
+/** The least the scatter adds to the pad placed halfway left at Width 1, in dB (5.0 measured). */
+const SCATTER_ADDS = 3
 
 /** A named set as its card plays it: on its own source, with `over` laid on its values. */
 async function played(st: Lab, name: string, over: Record<string, number> = {}) {
@@ -156,14 +175,18 @@ describe('the pan law', () => {
     expectWritten(sum[(sum.length - 1) / 2]! - sum[0]!, '3.01 dB')
   })
 
-  it('carries 3.01 dB less power in the middle than hard left, on a 1 kHz tone, when the shares are a straight line, and the same to less than 0.001 dB once they are equal power (claim line-dip, claim build-line, claim build-circle)', async () => {
+  it('carries 3.01 dB less power in the middle than at either end, on a 1 kHz tone, when the shares are a straight line, and the same to less than 0.001 dB once they are equal power (claim line-dip, claim build-line, claim build-circle)', async () => {
     const st = await lab('stereo')
     const at = (build: number, pan: number) => together(st.render(tone(), { build, pan }), 'built')
-    expectWritten(at(STEP.line, -1) - at(STEP.line, 0), '3.01 dB')
-    // The piece switched in: the next step has no dip.
+    const dip = at(STEP.line, -1) - at(STEP.line, 0)
+    expectWritten(dip, '3.01 dB')
+    expectWritten(at(STEP.line, 1) - at(STEP.line, 0), '3.01 dB')
+    // The piece switched in: the next step has no dip, and the step before it is not level.
     const after = at(STEP.circle, -1) - at(STEP.circle, 0)
     expect(matchesWritten(after, '3.01 dB')).toBe(false)
     expectWritten(Math.abs(after), 'less than 0.001 dB')
+    expectWritten(Math.abs(at(STEP.circle, 1) - at(STEP.circle, 0)), 'less than 0.001 dB')
+    expect(matchesWritten(Math.abs(dip), 'less than 0.001 dB')).toBe(false)
     // The curves of the lab say the same of both laws.
     const result = st.render(tone(), {})
     const line = tap(result, 'linePower')
@@ -196,7 +219,8 @@ describe('the widener', () => {
     const result = st.render(tone(), { feed: 1, pan: 0, width: 0.75 })
     expectWritten(levelDb(tap(result, 'going')) - levelDb(tap(result, 'out', 0)), '2.9 dB')
     expectWritten(levelDb(tap(result, 'going')) - levelDb(tap(result, 'out', 1)), '2.9 dB')
-    expect(levelDb(tap(result, 'outSide'))).toBeLessThan(-140)
+    // No wider: the two sides come out the same, sample for sample.
+    expect(same(tap(result, 'out', 0), tap(result, 'out', 1))).toBe(true)
   })
 
   it('moves a 1 kHz tone placed halfway left from 7.7 dB between the speakers to 19.1 dB at Width 0.75 (claim tone-edge)', async () => {
@@ -209,7 +233,8 @@ describe('the widener', () => {
   it('puts a 1 kHz tone that was hard left into the right speaker too, 7.5 dB under the left and −0.98 alike (claim tone-over)', async () => {
     const st = await lab('stereo')
     const result = st.render(tone(), { feed: 1, pan: -1, width: 0.75 })
-    expect(levelDb(tap(result, 'going', 1))).toBeLessThan(-140)
+    // Nothing on the right going in: every sample is 0.
+    expect(tap(result, 'going', 1).every((v) => v === 0)).toBe(true)
     expectWritten(rightUnderLeft(result, 'out'), '7.5 dB')
     expectWritten(alike(tap(result, 'out', 0), tap(result, 'out', 1)), '−0.98')
   })
@@ -295,6 +320,17 @@ describe('the widener', () => {
     const st = await lab('stereo')
     const result = st.render(oneSample(), { width: 1 })
     const left = tap(result, 'out', 0)
+    // Where each group starts, by the first sample of it that is over a floor.
+    const starts = runStarts(left, AT)
+    expect(starts).toHaveLength(5)
+    for (let k = 1; k < starts.length; k += 1) {
+      expectWritten(ms(starts[k]! - starts[k - 1]!), '10.67 ms')
+    }
+    // On the right the first run starts with the bass, which is not delayed, and each of the
+    // other four starts the delay's 38 samples after the left's: nearly the same places.
+    const right = runStarts(tap(result, 'out', 1), AT)
+    expect(right).toHaveLength(5)
+    expect(right.slice(1).map((start, k) => start - starts[k + 1]!)).toEqual([38, 38, 38, 38])
     const loud = (from: number, to: number) => {
       let top = 0
       for (let i = AT + from; i < AT + to; i += 1) top = Math.max(top, Math.abs(left[i]!))
@@ -306,7 +342,6 @@ describe('the widener', () => {
       expect(loud(512 * group, 512 * group + 140), `group ${group}`).toBeGreaterThan(0.02)
       expect(loud(512 * group + 140, 512 * (group + 1))).toBeLessThan(0.004)
     }
-    expectWritten(ms(512), '10.67 ms')
     // And no sixth: after the fifth there is less than a hundredth of the sample left.
     expect(loud(512 * 5, 512 * 9)).toBeLessThan(0.005)
   })
@@ -344,7 +379,8 @@ describe('the widener', () => {
   it('leaves the strum, the same on both sides, with no side and 1.9 dB quieter at Width 0.75 (claim myth-mono)', async () => {
     const st = await lab('stereo')
     const result = st.render(await benchSource('chords', LOOP), { width: 0.75 })
-    expect(levelDb(tap(result, 'outSide'))).toBeLessThan(-140)
+    expect(same(tap(result, 'going', 0), tap(result, 'going', 1))).toBe(true)
+    expect(same(tap(result, 'out', 0), tap(result, 'out', 1))).toBe(true)
     expectWritten(levelDb(tap(result, 'going')) - levelDb(tap(result, 'out', 0)), '1.9 dB')
     expectWritten(levelDb(tap(result, 'going')) - levelDb(tap(result, 'out', 1)), '1.9 dB')
   })
@@ -445,7 +481,72 @@ describe('the build', () => {
     // Before the sum, the step with the engine's six pieces has more level on each side than
     // one speaker gets of the two: the loss is in the adding.
     const wide = st.render(source, { ...values, build: STEP.delay })
-    expect(levelDb(tap(wide, 'built', 0))).toBeGreaterThan(levelDb(tap(summed, 'built')))
+    for (const channel of [0, 1]) {
+      const lost = levelDb(tap(before, 'built', channel)) - levelDb(tap(wide, 'built', channel))
+      expect(lost).toBeGreaterThan(0)
+      expect(lost).toBeLessThan(one(before) - levelDb(tap(summed, 'built')))
+      // The piece switched off: neither side of the step before is down by the sum's number.
+      expect(matchesWritten(lost, '3.9 dB')).toBe(false)
+    }
+  })
+
+  it('takes the pair apart and puts it back more than 140 dB under the sound, with the side the mid at one end of Pan, the mid turned over at the other and nothing in the middle (claim build-apart)', async () => {
+    const st = await lab('stereo')
+    const pad = await benchSource('pad', LOOP)
+    for (const pan of [-0.5, 0.3]) {
+      const before = st.render(pad, { build: STEP.circle, pan })
+      const after = st.render(pad, { build: STEP.midSide, pan })
+      let apart = 0
+      let whole = 0
+      for (const channel of [0, 1]) {
+        const was = tap(before, 'built', channel)
+        const is = tap(after, 'built', channel)
+        for (let i = 0; i < was.length; i += 1) {
+          apart += (was[i]! - is[i]!) ** 2
+          whole += was[i]! ** 2
+        }
+      }
+      expectWritten(10 * Math.log10(whole / apart), 'more than 140 dB')
+    }
+    // All the way left the side is the mid, sample for sample.
+    const left = st.render(pad, { build: STEP.midSide, pan: -1 })
+    expect(same(tap(left, 'builtSide'), tap(left, 'builtMid'))).toBe(true)
+    // In the middle there is no side to speak of, and all the way right it is the mid turned
+    // over: the two added leave next to nothing. (The cosine of a quarter turn is not quite 0
+    // in single precision, so neither is held to the last bit.)
+    const middle = st.render(pad, { build: STEP.midSide, pan: 0 })
+    expect(levelDb(tap(middle, 'builtSide')) - levelDb(tap(middle, 'builtMid'))).toBeLessThan(-120)
+    const right = st.render(pad, { build: STEP.midSide, pan: 1 })
+    const added = tap(right, 'builtMid').map((v, i) => v + tap(right, 'builtSide')[i]!)
+    expect(levelDb(added) - levelDb(tap(right, 'builtMid'))).toBeLessThan(-120)
+  })
+
+  it('changes nothing with the two gains at a Width of one half, comes out louder with the scatter in than without it at Width 1, and at Width 1 keeps each lane within 0.5 dB with the delay in', async () => {
+    const st = await lab('stereo')
+    const pad = await benchSource('pad', LOOP)
+    // Width 0.5: both gains are 1, and the step is the step before it, sample for sample.
+    for (const pan of [-0.5, 0.7]) {
+      const before = st.render(pad, { build: STEP.midSide, pan, width: 0.5 })
+      const after = st.render(pad, { build: STEP.width, pan, width: 0.5 })
+      for (const channel of [0, 1]) {
+        expect(same(tap(before, 'built', channel), tap(after, 'built', channel))).toBe(true)
+      }
+    }
+    // Width 1, the pad in mono placed halfway left: the scatter's copies add power.
+    const level = (build: number) => together(st.render(pad, { build, width: 1 }), 'built')
+    expect(level(STEP.scatter) - level(STEP.bass)).toBeGreaterThan(SCATTER_ADDS)
+    // At Width 1 the delay moves the right channel in time and leaves the size of each lane
+    // nearly alone (0.18 dB at most, measured). Between 0.85 and 1 it does not make the side larger.
+    for (const width of [0.9, 0.95, 1]) {
+      const without = st.render(pad, { build: STEP.scatter, width })
+      const withIt = st.render(pad, { build: STEP.delay, width })
+      const change = (lane: string) => levelDb(tap(withIt, lane)) - levelDb(tap(without, lane))
+      expect(change('builtSide')).toBeLessThan(0)
+      if (width < 1) continue
+      for (const lane of ['builtLeft', 'builtRight', 'builtMid', 'builtSide']) {
+        expect(Math.abs(change(lane))).toBeLessThan(0.5)
+      }
+    }
   })
 })
 
@@ -479,14 +580,19 @@ describe('the settings file', () => {
     const result = st.render(tone(), values)
     expectWritten(rightUnderLeft(result, 'going'), '7.7 dB')
     expectWritten(rightUnderLeft(result, 'out'), '19.1 dB')
+    // More of the guitar than of the tone is in the bass path, which Width does not push out.
+    const underLeft = (r: RenderResult) => levelDb(tap(r, 'goingLeft')) - levelDb(tap(r, 'bass'))
+    expect(underLeft(pushed)).toBeLessThan(6)
+    expect(underLeft(result)).toBeGreaterThan(12)
   })
 
-  it('puts the hard-left guitar in the right speaker 7.7 dB under the left and −0.71 alike at Width 0.75 (claim fault-over)', async () => {
+  it('puts the hard-left guitar in the right speaker 7.7 dB under the left and −0.71 alike at Width 0.75, and leaves one speaker 1.7 dB less of it (claim fault-over, claim fault-over-one)', async () => {
     const st = await lab('stereo')
     const over = await played(st, 'over')
-    expect(levelDb(tap(over, 'going', 1))).toBeLessThan(-140)
+    expect(tap(over, 'going', 1).every((v) => v === 0)).toBe(true)
     expectWritten(rightUnderLeft(over, 'out'), '7.7 dB')
     expectWritten(alike(tap(over, 'out', 0), tap(over, 'out', 1)), '−0.71')
+    expectWritten(levelDb(tap(over, 'goingMid')) - levelDb(tap(over, 'mono')), '1.7 dB')
     // At the device's own default nothing is turned over: the right speaker has only what the
     // narrowed bass puts there, far under the left and the same way up.
     const rest = await played(st, 'over', settings.defaults!.values)
@@ -518,16 +624,15 @@ describe('the settings file', () => {
     expectWritten(levelDb(tap(result, 'mono')) - levelDb(tap(result, 'goingMid')), '5.6 dB')
   })
 
-  it('spreads each hit of the drums at Width 1: groups 10.67 ms apart, the last 42.67 ms after its sample, the level within 0.1 dB and the loudest sample 2.2 dB higher (claim smear)', async () => {
+  it('spreads each hit of the drums at Width 1: groups 10.67 ms apart, the last starting 42.67 ms after its sample on the left, the level within 0.1 dB and the loudest sample 2.2 dB higher (claim smear, claim loud-drums)', async () => {
     const st = await lab('stereo')
     const { values } = resolveSet(st.description, settings.sets.smear!)
-    // One sample: the last of its five groups starts four rings after it.
-    const one = tap(st.render(oneSample(), values), 'out')
-    let last = 0
-    for (let i = AT; i < one.length; i += 1) if (Math.abs(one[i]!) > 0.004) last = i - AT
-    expectWritten(ms(512), '10.67 ms')
-    expectWritten(ms(last - (last % 512)), '42.67 ms')
-    expect(last - (last % 512)).toBe(4 * 512)
+    // One sample: where each of its five groups starts on the left.
+    const starts = runStarts(tap(st.render(oneSample(), values), 'out'), AT)
+    expect(starts).toHaveLength(5)
+    expectWritten(ms(starts[1]! - starts[0]!), '10.67 ms')
+    expectWritten(ms(starts[4]! - starts[3]!), '10.67 ms')
+    expectWritten(ms(starts[4]!), '42.67 ms')
     // The drums.
     const result = await played(st, 'smear')
     const peakOf = (x: Float32Array) => x.reduce((top, v) => Math.max(top, Math.abs(v)), 0)
