@@ -159,7 +159,7 @@ export const ISOCHRONIC_PRESETS: readonly FactoryPreset[] = [
   },
   // --- Where an even pulse is already music ---
   {
-    id: 'sixty-six-a-minute',
+    id: 'sixty-six-a-minute-tone',
     name: 'Sixty six a minute',
     category: 'drone',
     description:
