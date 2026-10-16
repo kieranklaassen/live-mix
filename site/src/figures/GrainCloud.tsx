@@ -120,7 +120,8 @@ export default function GrainCloud({
 
   const tall = height ?? (compact ? 190 : 300)
   const left = compact ? 34 : 44
-  const right = 10
+  // A card's picture runs to the card's edge: room for half of the last number along the bottom.
+  const right = compact ? 18 : 10
   const stripTop = 8
   const stripHeight = wave ? (compact ? 34 : 52) : 0
   const gap = wave ? (compact ? 16 : 26) : 0

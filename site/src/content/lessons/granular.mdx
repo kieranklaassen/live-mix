@@ -1,7 +1,7 @@
 ---
 title: Granular sound
 family: delays
-summary: A grain is a few hundredths of a second of sound under a window that fades it in and out. Play enough of them, each read from its own place at its own speed, and a delay stops repeating what it heard and starts making something new out of it. This lesson says why anyone wanted that, builds a grain delay a piece at a time, then opens the engine's own and reads every grain out of it as it plays.
+summary: A grain is a short piece of sound under a window that fades it in and out. Play enough of them, each read from its own place at its own speed, and a delay stops repeating what it heard and starts making something new out of it. This lesson says why anyone wanted that, builds a grain delay a piece at a time, then opens the engine's own and reads every grain out of it as it plays.
 long: true
 opening: { input: in, output: out, from: 0.5, span: 2, caption: "Two seconds of the line going in, and what comes out at the settings the page opens on. It is the same line a quarter of a second later, cut into bells. Each bell is one grain." }
 lab: granular
@@ -26,16 +26,28 @@ files:
 A guitar line goes into a delay, and a quarter of a second later the delay answers. The answer is the line: the same notes, at the same pitch, the same way round. Listen to the line by itself, <Hear set="dry" label="as it was played" />, and then with its answer under it, <Hear set="echo" label="with one repeat" />.
 
 <Still
-  taps="in grains"
+  taps="in"
   set="echo"
   from={0.5}
   span={2}
-  caption="Two seconds of the line going in, and the repeat alone. Every note of the first stands again in the second, a quarter of a second to its right and no different."
+  min={-0.5}
+  max={0.5}
+  caption="Two seconds of the line going in. Notice the note that starts at 2 seconds: its outline is ragged all the way along, and its first spike down is the deepest in the picture."
+/>
+
+<Still
+  taps="grains"
+  set="echo"
+  from={0.5}
+  span={2}
+  min={-0.5}
+  max={0.5}
+  caption="The repeat alone, over the same two seconds. Notice that note again, ragged outline and deep spike: it now starts at 2.25 seconds. Every note of the first picture stands here a quarter of a second further right, and no different."
 />
 
 That is an echo, and <Lesson id="delay-and-echo" /> is about how one is made: a ring of memory that is always being written, and a read head that follows the write head round it at a fixed distance. Whatever passes under the write head passes under the read head a little later, unchanged.
 
-So here is the question this lesson answers. How do you make what comes back something other than what went in (an octave higher, or backwards, or smeared into a cloud) and still have it come back on time?
+The question this lesson answers is how to make what comes back something other than what went in (an octave higher, or backwards, or smeared into a cloud) and still have it come back on time.
 
 ### The obvious answer fails
 
@@ -45,7 +57,7 @@ It cannot keep that up. The write head lays down one sample for every sample of 
 
 ### So read for a little while
 
-That is the way out. Read a short piece of the ring at whatever speed you like, stop well before the write head, and start again from further back. <Lesson id="pitch-shifting" cap /> does exactly this with two read heads that take turns. This lesson does it with as many as it likes, and lets each one go its own way.
+That is the way out. Read a short piece of the ring at any speed, stop well before the write head, and start again from further back. <Lesson id="pitch-shifting" cap /> does exactly this with two read heads that take turns. This lesson does it with as many as it likes, and lets each one go its own way.
 
 A piece that starts and stops has two ends, though. Here is one piece as a read head lifts it out of the ring: a little over a tenth of a second of the guitar line, with nothing done to it.
 
@@ -55,7 +67,7 @@ A piece that starts and stops has two ends, though. Here is one piece as a read 
   caption="What one read of the ring brings back: a piece of the line, against milliseconds from where the read began. Notice the two ends. The sound is in full swing at both, and before the first and after the last there is nothing."
 />
 
-Each end is a jump between silence and sound in full swing, and a jump is a click. A click is not a note: it has some of every frequency in it. The next picture shows that for the plainest sound there is, one steady tone. Cut a piece out of it and the piece no longer holds one frequency. <Claim id="click">A piece cut from a 440 Hz tone averages 65 dB under its own peak between 8 and 12 kHz</Claim>, where the tone itself has nothing at all.
+Each end is a jump between silence and sound in full swing, and a jump is a click. A click is not a note: it has some of every frequency in it. The next picture shows that for the plainest sound there is, one steady tone. Cut a piece out of it and the piece no longer holds one frequency. <Claim id="click">The piece in the picture, cut from a 440 Hz tone, averages 65 dB under its own peak between 8 and 12 kHz, where the tone itself has nothing at all, and every other piece cut from the loop is within 2 dB of that</Claim>.
 
 <Still
   taps="cutSpectrum grainSpectrum"
@@ -66,11 +78,11 @@ Each end is a jump between silence and sound in full swing, and a jump is a clic
   caption="The spectrum of a piece of the tone, cut out with no window and then under one. The cut piece spreads up the whole picture from its peak. Under the window the peak stands alone and the rest has dropped off the bottom."
 />
 
-Play pieces like that one after another and every end clicks. Listen for a tick at each one: <Hear set="cut" label="pieces with their ends cut all but square" />.
+Play pieces like that one after another and every end clicks. The engine's kit will not cut a piece quite that square: <Src path="cpp/kit/grains.h" at="grain.edge = clamp(shape, 0.02f, 1.0f) * 0.5f;">its steepest window</Src> still fades a hundredth of the piece at each end. So the pieces of the next card are nearly square and not square, and far gentler than the cut in the picture. <Claim id="cut-soft">They are 60 ms long with ends of 0.6 ms, and by the same measure a piece of the tone cut that way averages more than 100 dB under its own peak between 8 and 12 kHz</Claim>. The card plays them an octave up, two at a time. Listen for what such ends still leave, a roughness at each joint: <Hear set="cut" label="pieces with their ends cut all but square" />.
 
 ### Fade each piece in and out
 
-The cure is older than computers: do not switch a sound on, fade it in. Multiply the piece by a curve that starts at nothing, rises smoothly to one and falls smoothly back. The curve is called a window, and a piece of sound under a window is called a _grain_.
+The cure is not to switch a sound on, but to fade it in. Multiply the piece by a curve that starts at nothing, rises smoothly to one and falls smoothly back. The curve is called a window, and a piece of sound under a window is called a _grain_.
 
 <Still
   taps="piece bell:ctl grain:out"
@@ -78,9 +90,9 @@ The cure is older than computers: do not switch a sound on, fade it in. Multiply
   caption="The same piece of the line, the window drawn at the piece's height, and the grain: the piece multiplied by the window, sample by sample. Notice that the grain starts and ends at nothing, however the piece does."
 />
 
-<Claim id="windowed">Under the window the piece of the tone leaves under −135 dB a bin between 8 and 12 kHz</Claim>: nothing that the measurement can find. Here are the same pieces as before, each under its window: <Hear set="windowed" label="the pieces as grains" />.
+<Claim id="windowed">Under the window the piece of the tone leaves under −135 dB a bin between 8 and 12 kHz</Claim>, against a full-scale tone: nothing that the measurement can find. Here are the same pieces as before, each under its window: <Hear set="windowed" label="the pieces as grains" />.
 
-One grain alone is a blip, too short to be a note or a word and long enough to keep the colour of what it was cut from. Each has four things of its own: where on the ring it reads, how long it lasts, how fast it reads, and when it starts. Granular sound is what happens when a great many are played, each started a little after the last. Give them all the same place and the recording's own speed, and they add back up to the echo this part began with. Give each its own, and the echo becomes something the player never played.
+One grain alone is a blip of whatever it was cut from. Each has four things of its own: where on the ring it reads, how long it lasts, how fast it reads, and when it starts. Granular sound is what happens when a great many are played, each started a little after the last. Give them all the same place and the recording's own speed, and they add back up to the echo this part began with. Give each its own, and the echo becomes something the player never played.
 
 <Predict
   question="Pitch goes up twelve semitones, so every grain now reads the ring at twice the speed. A note is played. When does its answer arrive?"
@@ -106,7 +118,7 @@ When it did before. A grain that reads twice as fast covers twice its own length
 
 </Predict>
 
-The engine's Grain Delay is a delay line that is never read straight. Everything it puts out is grains. This lesson starts it at its plainest (one grain at a time, read at the recording's own speed, nothing left to chance) so that each part can be seen by itself, and brings the rest back one control at a time. Part 9 puts the lesson's starting settings beside the device's own.
+The engine's Grain Delay is a delay line that is never read straight. Everything it adds to the dry sound is grains. This lesson starts it at its plainest (one grain at a time, read at the recording's own speed, nothing left to chance) so that each part can be seen by itself, and brings the rest back one control at a time. Part 9 puts the lesson's starting settings beside the device's own.
 
 </Part>
 
@@ -124,9 +136,9 @@ One grain is picked out and joined to the piece of the recording it reads. The p
   the dashed line of Time.
 </GrainCloud>
 
-Check this against the picture. Leave the three controls where the page starts them and read the key under the figure. It counts <Claim id="open-count">33 grains in the loop, one every 120 ms, each reading 250 ms behind the write point</Claim>. Size is the length of one of those steps and Density is 1, so each grain starts as the one before it ends, and the beads lie end to end in a row on the dashed line.
+Check this against the picture. Leave the three controls where the page starts them. The device then starts <Claim id="open-count">33 grains in the loop, one every 120 ms, each reading 250 ms behind the write point</Claim>. The key under the figure counts them. Size is the length of one of those steps and Density is 1, so each grain starts as the one before it ends, and the beads lie end to end in a row on the dashed line.
 
-Now the three controls. Size is how long a grain lasts, and makes the beads longer or shorter. Density is how many grains sound at once: it packs more beads into the same time by starting each one before the last has finished. Pitch is how fast a grain reads. At 0 a grain reads the ring exactly as fast as the ring is written, stays the same distance behind, and its bead lies level. Raise Pitch and the grain gains on the write point, so the bead climbs. Lower it and the bead falls away.
+Size is how long a grain lasts, and makes the beads longer or shorter. Density is how many grains sound at once: it packs more beads into the same time by starting each one before the last has finished. Pitch is how fast a grain reads. At 0 a grain reads the ring exactly as fast as the ring is written, stays the same distance behind, and its bead lies level. Raise Pitch and the grain gains on the write point, so the bead climbs. Lower it and the bead falls away.
 
 Notice what the picture does not show: how loud the result is, and what the beads add up to where they overlap. Those are the business of part 5.
 
@@ -168,7 +180,7 @@ All four settings use the device's dice, which part 5 opens. They are seeded whe
       below the dashed line of Time. No two beads line up.
     </GrainCloud>
 
-    A pad or a held chord has no edges to lose, so its grains can be long, many and thrown far apart in time. What comes back is the chord's own colour with its timing rubbed out. On the pad loop, with the dice as the device seeds them, this setting starts <Claim id="use-wash">79 grains in four seconds and never has more than 8 sounding at once. On every one of the lab's eight dice the middle of each grain reads at least 200 ms and at most 840 ms behind</Claim>, so at any moment the wash is made of sound from across more than half a second.
+    A pad or a held chord has no edges to lose, so its grains can be long, many and thrown far apart in time. Listen for the chord's own colour with its timing rubbed out. On the pad loop, with the dice as the device seeds them, this setting starts <Claim id="use-wash">79 grains in four seconds and never has more than 8 sounding at once. On every one of the lab's eight dice the middle of each grain reads at least 200 ms and at most 840 ms behind</Claim>, so over the loop the wash is drawn from a stretch of the past more than half a second long.
 
   </Use>
   <Use title="Drums" set="shatter">
@@ -187,7 +199,7 @@ All four settings use the device's dice, which part 5 opens. They are seeded whe
       dashed line of Time, with a dot on the recording wherever one reads.
     </GrainCloud>
 
-    A drum hit is over in a few hundredths of a second. Grains about that long, read from a scatter of places just behind the hit, throw splinters of it around the beat and from side to side. With the device's own dice, this setting starts <Claim id="use-shatter">296 grains of 40 ms in the loop, with at most 5 sounding at once</Claim>. The dry drums are mixed in at equal strength, so the beat itself stays where it was.
+    A drum hit is short. Short grains, read from a scatter of places just behind the hit, throw splinters of it around the beat and from side to side. With the device's own dice, this setting starts <Claim id="use-shatter">296 grains of 40 ms in the loop, with at most 5 sounding at once</Claim>. The dry drums are mixed in at equal strength, so the beat itself stays where it was.
 
   </Use>
   <Use title="A bass line" set="under">
@@ -218,7 +230,7 @@ These are places to start. The controls that matter most differ from card to car
 
 <Part id="build" title="Start with a ring that remembers. Add one piece. Listen. Add the next.">
 
-The quickest way to understand a grain delay is to make one. This part begins with a ring and one read head, which is a plain delay, and adds five pieces to it, one at a time. After each piece the pictures are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these pictures and plays "Hear it so far".
+One way to understand a grain delay is to make one. This part begins with a ring and one read head, which is a plain delay, and adds five pieces to it, one at a time. After each piece the pictures are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these pictures and plays "Hear it so far".
 
 The ring, the pool that plays the grains and the dice are the engine's kit, the same classes the device is made of. What the build writes for itself is everything that decides where a grain goes.
 
@@ -228,7 +240,7 @@ The ring, the pool that plays the grains and the dice are the engine's kit, the 
 
     Press "Hear it so far". It is the loop, late. At the Time the page starts on, what comes out is what went in <Claim id="build-late">250 ms</Claim> earlier, sample for sample.
 
-    The ring is the kit's delay line, which <Lesson id="delay-and-echo" /> takes apart. The device's is <Src path="cpp/devices/grain-delay/grain_delay.h" at="static constexpr int kRingSize = 1 << 20;">two to the power of twenty samples</Src> long on each side.
+    The ring is <Src path="cpp/kit/delay.h">the kit's delay line</Src>, which <Lesson id="delay-and-echo" /> takes apart. The device's is <Src path="cpp/devices/grain-delay/grain_delay.h" at="static constexpr int kRingSize = 1 << 20;">two to the power of twenty samples</Src> long on each side.
 
     <Listing
       path="site/labs/granular.cpp"
@@ -305,7 +317,7 @@ The ring, the pool that plays the grains and the dice are the engine's kit, the 
 
     Windows that overlap add up, though, so eight grains at once would be far louder than one. The piece that comes with Density is a gain. It works out how much power that many overlapping windows carry, and divides it out. There are two answers, because grains that read the same sound add like waves in step, and grains that read unrelated sound add like a crowd. The listing has both, and stage 7 of part 5 reads them term by term.
 
-    With the gain in place, white noise at Density 1 is back <Claim id="build-level">less than 0.1 dB</Claim> from what was recorded. At Density 2 the windows add up to exactly one, and the guitar comes out as itself, late: <Claim id="build-plain">the difference from the input 250 ms earlier is more than 85 dB under it</Claim>. Take this piece out again and Density does nothing: the same two measurements find the bells of the step before.
+    With the gain in place, white noise at Density 1 is back <Claim id="build-level">less than 0.1 dB</Claim> from what was recorded. At Density 2 the windows add up to one, and the guitar comes out as itself, late: <Claim id="build-plain">the difference from the input 250 ms earlier is more than 85 dB under it</Claim>. Take this piece out again and Density does nothing: the same two measurements find the bells of the step before.
 
     <Listing
       path="site/labs/granular.cpp"
@@ -372,7 +384,7 @@ The ring, the pool that plays the grains and the dice are the engine's kit, the 
 
   </Step>
   <Step title="Pitch" controls="time size density spray spread dice pitch pitchSpray reverse">
-    A grain's speed is the last thing of its own. Pitch sets it in semitones, twelve to a doubling. Pitch Spray moves each grain's pitch by a random amount, up to an octave either way at its fullest. Reverse is the share of grains that read backwards.
+    A grain's speed is the last thing of its own. Pitch sets it in semitones, twelve to a doubling. Pitch Spray moves each grain's pitch by a random amount, up to <Src path="cpp/devices/grain-delay/grain_delay.h" at="static constexpr float kMaxPitchSpraySemitones = 12.0f;">an octave</Src> either way at its fullest. Reverse is the share of grains that read backwards.
 
     Speed changes where a grain must start. A grain that reads faster than the ring is written covers more ring than it lasts, so it starts further back by half the extra, and its middle still reads the sound that is Time old. A grain read backwards starts nearer the write point and runs away from it. Neither is allowed within four samples of the write point, and that puts a floor under Time, which part 7 comes back to.
 
@@ -410,7 +422,7 @@ The ring, the pool that plays the grains and the dice are the engine's kit, the 
     title="Round again"
     controls="time size density spray spread dice pitch pitchSpray reverse feedback tone mix"
   >
-    Three small things are left, and one large one. The grains' sum is limited by a curve that is a straight line for anything under full scale, so that only a pile-up of grains in step is touched. It is low-passed at Tone and high-passed far down, under anything a note holds. And Mix blends it with the dry sound.
+    Three small things are left, and one large one. The grains' sum is limited by a curve that is a straight line for anything under full scale, so that only a pile-up of grains in step is touched. It is low-passed at Tone and high-passed far down, for a reason stage 10 of part 5 gives. And Mix blends it with the dry sound.
 
     The large one is Feedback. What the grains made is added to what comes in, and recorded with it. So the next grains read grains, and whatever each grain does to the sound is done again on every trip round. <Claim id="build-repeats">At a Feedback of 0.5, with Time at 500 ms, Size at 100 ms and Density at 2, each repeat of a short note comes back 6.1 dB under the one before</Claim>. With this piece taken out there is one repeat and no second.
 
@@ -418,7 +430,7 @@ The ring, the pool that plays the grains and the dice are the engine's kit, the 
 
     <Check id="builtDifference" />
 
-    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows when there is no difference at all.
+    That reading stops at <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>. It shows that number for any difference more than 140 dB under the output, so by itself it cannot tell a difference that small from none. The test's comparison of the samples can, and that is what the sentence above rests on.
 
     <Listing
       path="site/labs/granular.cpp"
@@ -438,7 +450,7 @@ The ring, the pool that plays the grains and the dice are the engine's kit, the 
   </Step>
 </Build>
 
-The engine's device is the same six pieces in the same order, written as one loop and one function. The next part opens it.
+The engine's device is the same six pieces in the same order, written as one loop and one function.
 
 </Part>
 
@@ -471,7 +483,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 <StageBlock tap="recorded" n={1} title="The ring: what is recorded">
   The device never plays its input late. It writes onto a ring, and everything that comes out is read from the ring by grains. So the first stage is what gets written. The ring is the delay line of <Lesson id="delay-and-echo" />, long enough that no grain can reach its far side.
 
-  Three things are done to the sound on its way onto the ring. What the grains made is added to it, times Feedback, which stage 10 comes back to. The sum is kept inside full scale. And it is low-passed, which matters only when Pitch is up. A grain that reads at twice the speed doubles every frequency it reads, so nothing may be on the ring that would be doubled past half the sample rate. The device finds the fastest upward speed that Pitch and Pitch Spray can ask for and sets the corner of the low-pass to match.
+  Three things are done to the sound on its way onto the ring. What the grains made is added to it, times Feedback, which stage 10 comes back to. The sum is low-passed. And it is kept inside full scale. The low-pass matters only when Pitch is up. A grain that reads at twice the speed doubles every frequency it reads, so nothing may be on the ring that would be doubled past half the sample rate. The device finds the fastest upward speed that Pitch and Pitch Spray can ask for and sets the corner of the low-pass to match.
 
   <Still
     taps="in recorded"
@@ -485,7 +497,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <M block t={String.raw`f_c = \at{guard-corner}{0.45}\,\frac{f_s}{r_{\text{up}}}`} />
 
-  Read it against the picture. <M t="f_s" /> is the sample rate, and <M t={String.raw`r_{\text{up}}`} /> is the fastest upward speed in use, never less than 1. With Pitch at 0 the corner <M t="f_c" /> is close to half the sample rate, above anything a loop holds, and the two lines of the picture lie together all the way. An octave up, the speed is 2 and the corner comes down to just under a quarter of the sample rate. Measured there, <Claim id="guard">white noise at +12 semitones is recorded 3 dB down at 10.8 kHz and 10 dB down at 15 kHz</Claim>. With Pitch at 0 or below, the corner goes back up to where it began.
+  Read it against the picture. <M t="f_s" /> is the sample rate, and <M t={String.raw`r_{\text{up}}`} /> is the fastest upward speed in use, never less than 1. With Pitch at 0 the corner <M t="f_c" /> is close to half the sample rate, above anything a loop holds: <Claim id="guard-open">white noise is then recorded less than 0.1 dB down at 15 kHz</Claim>. An octave up, as in the picture, the speed is 2 and the corner comes down to just under a quarter of the sample rate. Measured there, <Claim id="guard">white noise at +12 semitones is recorded 3 dB down at 10.8 kHz and 10 dB down at 15 kHz</Claim>. With Pitch at 0 or below, the corner goes back up to where it began.
 
   <Listing
     slot="listing"
@@ -513,7 +525,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <M t="n" /> counts the samples since the grain started. <M t="p_0" /> is the place on the ring where it began, and <M t="p[n]" /> is the place it reads on sample <M t="n" />. <M t="r" /> is the speed: at 1 the place moves on one sample of ring for each sample of time, and the grain plays the recording as it was. At 2 it moves two, and plays it an octave up. Below zero it moves backwards.
 
-  The place is seldom a whole number. At a speed of 1.5 every other read falls half way between two samples. The device then works the value out from the four samples around the place, with a smooth curve through them, which keeps a shifted note clean. The place itself is kept as a number with twice the usual precision, so that it stays exact however long the device has run.
+  The place is seldom a whole number. At a speed of 1.5 every other read falls half way between two samples. The device then works the value out from <Src path="cpp/devices/grain-delay/grain_delay.h" at="return kit::hermite(line.at(index - 1), line.at(index), line.at(index + 1), line.at(index + 2),">the four samples around the place</Src>, with a smooth curve through them. The place itself is kept as a number with twice the usual precision, because it is counted from the moment the device started and keeps growing for as long as the device runs.
 
   <Listing
     slot="listing"
@@ -545,7 +557,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   Read it against the picture. At the start <M t={String.raw`\varphi`} /> is 0, the cosine is 1 and the window is nothing. When <M t={String.raw`\varphi`} /> reaches <M t="e" /> the cosine has gone half way round to −1, and the window is 1. After that it stays at 1 until the same distance from the end, where it falls by the same curve run backwards. <M t="e" /> is half of Shape. At a Shape of 1 the two fades meet in the middle with no flat part between them, and the window is one whole smooth bell, the Hann window.
 
-  The device always asks for the full bell. Its reason is in what bells add up to: started at even steps of half their length or less, they sum to a constant, so overlapping grains of one sound can put that sound back together exactly. <Lesson id="short-time-fourier" cap /> shows why that holds and which windows have it. The flat-topped windows are in the kit for other uses, and in this lab for the lesson's own pool. At the least Shape the kit allows, <Src path="cpp/kit/grains.h" at="grain.edge = clamp(shape, 0.02f, 1.0f) * 0.5f;">0.02</Src>, the window is fully open for <Claim id="shape-least">98 %</Claim> of the grain. That is the nearly square piece of part 1.
+  The device always asks for the full bell. Its reason is in what bells add up to: started at even steps of a half, a third, a quarter of their length, or any whole number of steps to a grain from two up, they sum to a constant, so overlapping grains of one sound can put that sound back together. <Lesson id="short-time-fourier" cap /> shows why that holds and which windows have it. The flat-topped windows are in the kit for other uses, and in this lab for the lesson's own pool. At the least Shape the kit allows, <Src path="cpp/kit/grains.h" at="grain.edge = clamp(shape, 0.02f, 1.0f) * 0.5f;">0.02</Src>, the window is fully open for <Claim id="shape-least">98 %</Claim> of the grain. That is the nearly square piece of part 1.
 
   <Listing
     slot="listing"
@@ -570,7 +582,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     t={String.raw`\sig{out}{g[n]} = A\;\sig{in}{q\bigl(p[n]\bigr)}\;\sig{ctl}{w\!\bigl(\tfrac{n}{L}\bigr)}`}
   />
 
-  <M t="q" /> is the ring, read at the place of stage 2. <M t="w" /> is the window of stage 3, and <M t="L" /> is the grain's length in samples, so <M t="n" /> over <M t="L" /> is how far through the grain it is. <M t="A" /> is the gain, which stage 7 works out. The pool does this for every grain that is sounding and adds the results: it is the marked line of the listing under stage 2.
+  <M t="q" /> is the ring, read at the place of stage 2. <M t="w" /> is the window of stage 3, and <M t="L" /> is the grain's length in samples, so <M t="n" /> over <M t="L" /> is how far through the grain it is: the <M t={String.raw`\varphi`} /> of stage 3. <M t="A" /> is the gain, which stage 7 works out. The pool does this for every grain that is sounding and adds the results: it is the marked line of the listing under stage 2.
 
   The grain in the figure is the device's own, run again by the lab alone in a pool of one, from the same place at the same speed. It is the product the formula says it is: the difference between the two is <Claim id="one-grain">more than 130 dB</Claim> under the grain, at any speed, in either direction and at any Shape the test tried.
 </StageBlock>
@@ -586,22 +598,22 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     and notice the beads refuse to start any nearer the write point.
   </GrainCloud>
 
-  First the place. The device wants the middle of the grain to read the sound that is a chosen age, <M t="d" /> samples old. A grain that reads at the recording's speed stays the same distance behind the write point all its life, so it starts <M t="d" /> behind. A faster grain closes on the write point as it plays, so it must start further back:
+  First the place. The device wants the middle of the grain to read the sound that is a chosen age, in samples. A grain that reads at the recording's speed stays the same distance behind the write point all its life, so it starts that many samples behind. A faster grain closes on the write point as it plays, so it must start further back:
 
   <M
     block
-    t={String.raw`p_0 = t - \at{birth-delay}{d} - \at{birth-lead}{\tfrac12\,(r - 1)\,L}`}
+    t={String.raw`p_0 = t - \at{birth-delay}{\text{age}} - \at{birth-lead}{\tfrac12\,(r - 1)\,L}`}
   />
 
   <M t="t" /> is the write point, the sample being recorded now. The last term is half of how much more ring the grain covers than time passes while it sounds. At a speed of 1 it is nothing. This is the answer to the question of part 1, and the tilted beads crossing the line of Time at their middles are its picture.
 
-  The grain must also never reach the write point, where the ring holds nothing newer. So the device raises <M t="d" /> where it has to, and that is a floor under Time. <Claim id="time-floor">With Time at 10 ms, Size at 500 ms and Pitch at +12 semitones, every grain starts 500.08 ms behind</Claim>: the half second it will gain while it sounds, and <Src path="cpp/devices/grain-delay/grain_delay.h" at="delay = kit::max(delay, (lead < 0.0f ? -lead : lead) + 4.0f);">four samples</Src> to spare.
+  The grain must also never reach the write point, where the ring holds nothing newer. So the device raises the age where it has to, and that is a floor under Time. <Claim id="time-floor">With Time at 10 ms, Size at 500 ms and Pitch at +12 semitones, every grain starts 500.08 ms behind</Claim>: the half second it will gain while it sounds, and <Src path="cpp/devices/grain-delay/grain_delay.h" at="delay = kit::max(delay, (lead < 0.0f ? -lead : lead) + 4.0f);">four samples</Src> to spare.
 
   Then the wait. With <M t="D" /> for Density, the next grain starts after
 
   <M
     block
-    t={String.raw`W = \at{birth-wait}{\frac{L}{D}}\,\bigl(1 + \at{birth-jitter}{j}\bigr)`}
+    t={String.raw`\at{birth-wait}{\frac{L}{D}}\,\bigl(1 + \at{birth-jitter}{j}\bigr)`}
   />
 
   samples. The device keeps that number in a counter, takes one from it on every sample, and starts a grain when it runs out. The lab reads the counter as the device runs:
@@ -614,9 +626,9 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <M t="j" /> is a small random number, and stage 9 is about it. While the grains all read the same sound it is exactly nothing, and the grains are evenly spaced: <Claim id="steady-wait">at a Size of 100 ms and a Density of 4, 25 ms from each start to the next</Claim>. The count follows: <Claim id="count-doubles">at a Size of 100 ms the device starts 40 grains in the four seconds of the loop at a Density of 1, 80 at 2, 160 at 4 and 320 at 8</Claim>.
 
-  Once the grains read unrelated sound, <M t="j" /> is thrown between a half under and a half over. Over the lab's eight dice, with Size and Density as before and Pitch, Spray, Pitch Spray or Reverse turned up, the shortest wait is <Claim id="wait-range">12.5 ms and the longest 37.5 ms</Claim>.
+  Once the grains read unrelated sound, <M t="j" /> is thrown between a half under and a half over. Over the lab's eight dice, with Size and Density as before and Pitch at 12, Spray at 0.5, Pitch Spray at 0.5 or Reverse at 1, the shortest wait is <Claim id="wait-range">12.5 ms and the longest 37.5 ms</Claim>: half of the steady wait, and half as much again.
 
-  The pool has room for <Src path="cpp/devices/grain-delay/grain_delay.h" at="static constexpr int kMaxGrains = 20;">20 grains</Src>, and Density stops at 8. Uneven waits bunch grains up, so more than eight can sound together, but not many more. At Density 8 with the waits scattered, <Claim id="most-grains">the most at once is 11 with the device's own dice, and never more than 12 on any of the eight</Claim>. The pool does not fill.
+  The pool has room for <Src path="cpp/devices/grain-delay/grain_delay.h" at="static constexpr int kMaxGrains = 20;">20 grains</Src>, and Density stops at <Src path="cpp/devices/grain-delay/device.json" at='"max": 8,'>8</Src>. Uneven waits bunch grains up, so more than eight can sound together. No wait is shorter than half the steady one, though, so no more than twice Density can overlap, and twice eight is under twenty: the pool does not fill. Far fewer bunch up than that. At Density 8, with Size at 100 ms and Pitch at 12 so that the waits are scattered, <Claim id="most-grains">the most at once is 11 with the device's own dice, and at most 12 on any of the eight</Claim>.
 
   <Listing
     slot="listing"
@@ -637,7 +649,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 </StageBlock>
 
 <StageBlock tap="throws" n={6} title="The dice">
-  Five numbers are thrown for every grain, in a fixed order: one for its pitch, one for its direction, one for its place, one for its side, one for its wait. Each control that has "spray" or "spread" in what it does is a size put on one of those throws. With the control at nothing the throw is still made and then multiplied by nothing.
+  Five numbers are thrown for every grain, in a fixed order: one for its pitch, one for its direction, one for its place, one for its side, one for its wait. Spray, Pitch Spray and Spread are each a size put on one of those throws, and Reverse is the share of the throws for direction that turn a grain round. With a control at nothing its throw is still made, and then multiplied by nothing.
 
   <Controls ids="spray pitchSpray spread dice" />
 
@@ -651,16 +663,16 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <M
     block
-    t={String.raw`d = \bigl(\text{Time} + \at{birth-delay}{\text{Spray}^2\,u}\bigr)\,f_s`}
+    t={String.raw`\text{age} = \bigl(\text{Time} + \at{birth-delay}{\text{Spray}^2\,u}\bigr)\,f_s`}
   />
 
-  Time is in seconds here and Spray squared is in seconds too: at full Spray a grain may read up to <Src path="cpp/devices/grain-delay/grain_delay.h" at="static constexpr float kMaxSpraySeconds = 1.0f;">one second</Src> later than Time. The throw can only add. Nothing is ever read from nearer than Time, which is why the beads of a sprayed cloud hang below the dashed line and never stand above it. <Claim id="spray-reach">With Time at 350 ms and Spray at 0.5, the grains read at least 350 ms and at most 600 ms behind</Claim>, on every one of the lab's eight dice. The square is there for the hand: it gives the low end of the control the fine steps.
+  Time is in seconds here and Spray squared is in seconds too: at full Spray a grain may read sound up to <Src path="cpp/devices/grain-delay/grain_delay.h" at="static constexpr float kMaxSpraySeconds = 1.0f;">one second</Src> older than Time asks for. The throw can only add. Nothing is ever read from nearer than Time, which is why the beads of a sprayed cloud hang below the dashed line and never stand above it. <Claim id="spray-reach">With Time at 350 ms and Spray at 0.5, the grains read at least 350 ms and at most 600 ms behind</Claim>, on every one of the lab's eight dice. The square is there for the hand: it gives the low end of the control the fine steps.
 
-  The throw for pitch, <M t={String.raw`b_p`} />, runs from −1 to 1 and moves the grain's pitch either way:
+  The throw for pitch, <M t="b" />, runs from −1 to 1 and moves the grain's pitch either way:
 
   <M
     block
-    t={String.raw`r = 2^{\,\at{birth-semis}{(\text{Pitch} + 12\,\text{Pitch Spray}^2\,b_p)}/12}`}
+    t={String.raw`r = 2^{\,\at{birth-semis}{(\text{Pitch} + 12\,\text{Pitch Spray}^2\,b)}/12}`}
   />
 
   Pitch is in semitones, and twelve of them double the speed. Pitch Spray squared, times <Src path="cpp/devices/grain-delay/grain_delay.h" at="static constexpr float kMaxPitchSpraySemitones = 12.0f;">twelve</Src>, is how many semitones the throw may add or take. At a Pitch Spray of 0.5 that is three: on every one of the eight dice the grains lie <Claim id="pitch-spray-reach">at most 3 semitones</Claim> above the Pitch and at most that far below it. Whatever comes of it, the speed is kept between an eighth and <Src path="cpp/devices/grain-delay/grain_delay.h" at="static constexpr float kMaxRatio = 8.0f;">eight</Src>.
@@ -686,7 +698,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     notice a row of humps turn into a level line at one.
   </Trace>
 
-  At a Density of 1 the windows stand end to end, and their sum falls to nothing at every joint and rises to <Claim id="bells-peak">1.63</Claim> in the middle of each grain. The grains are then the recording, late, times that sum: at the opening settings <Claim id="grain-in-device">the grains differ from the recording 250 ms earlier times the sum by more than 130 dB under</Claim>. From a Density of 2 up, at whole numbers, the bells add to exactly one and the device is a plain delay made the long way round: on the guitar <Claim id="plain-delay">the grains differ from the recording 250 ms earlier by more than 85 dB under it</Claim>.
+  At a Density of 1 the windows stand end to end, and their sum falls to nothing at every joint and rises to <Claim id="bells-peak">1.63</Claim> in the middle of each grain. The grains are then the recording, late, times that sum: at the opening settings <Claim id="grain-in-device">the grains differ from the recording 250 ms earlier, times that sum, by more than 130 dB under their own level</Claim>. From a Density of 2 up, at whole numbers, the bells add to one and the device is a plain delay made the long way round: on the guitar <Claim id="plain-delay">the grains differ from the recording 250 ms earlier by more than 85 dB under it</Claim>.
 
   The gain is what puts the peak at 1.63 and the level line at one. The device asks how much power a sound of power 1 would come out with, and divides by its square root:
 
@@ -740,13 +752,13 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <Check id="rebuilt" />
 
-  In the lab's test, at four settings on two loops, the difference is <Claim id="rebuilt">more than 130 dB</Claim> under the output.
+  In the lab's test, at four settings on two loops, the difference is <Claim id="rebuilt">more than 130 dB</Claim> under the output. Like the reading in part 4, this one stops at its floor and shows the floor for any difference smaller still. What it holds is the sum: that the grains, added up from the pool and put through the last stages, are the output to that depth.
 
-  A second check holds the rule of stages 5 to 7. For every grain the device starts, the lab works out the start, the speed, the length, the gain and the wait from the formulas above, throwing a copy of the device's dice, and compares each with what the device's pool then holds. The differences are added up in samples:
+  A second check holds the rule of stages 5 to 7. For every grain the device starts, the lab works out the start, the speed, the length, the gain and the wait by that rule, written out again in the lab, throwing a copy of the device's dice, and compares each with what the device's pool and its counter then hold. The lab's copy calls the device's own functions for <M t="c" /> and for the two powers, so this check holds the arithmetic that joins them, and not those three formulas. They are held by the build of part 4, which writes them out as well and is the device's output sample for sample. The differences are added up in samples:
 
   <Check id="rule" />
 
-  In the test, at four settings, the sum is <Claim id="rule">0 samples</Claim>.
+  In the test, at four settings, the sum is <Claim id="rule">0 samples</Claim>, and exactly so: every number is the device's own to its last bit.
 
   <Fragment slot="listen">Hear the grains alone</Fragment>
 </StageBlock>
@@ -754,7 +766,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 <StageBlock tap="steady" n={9} title="Why the starts are scattered">
   One throw of stage 6 has not been explained: the wait. Why would a device make its grains uneven on purpose?
 
-  Because evenly spaced grains have a pitch of their own. Play a steady tone through grains that start at an even rate, and what comes out repeats at that rate. Anything that repeats so many times a second can hold only frequencies that many hertz apart. The figure shows it. The lab plays <Src path="site/labs/granular.cpp" at="constexpr float kToneHz = 1000.0f;">a 1 kHz tone</Src> through a second copy of the device, and through a pool of its own that reads the same ring by the same rule, except that its waits are as uneven as Scatter says.
+  Because evenly spaced grains have a pitch of their own. Play a steady tone through grains that start at an even rate, and what comes out is one pattern again and again at that rate, each time with the tone's own wave a fixed step further on. Sound made that way can hold only frequencies that many hertz apart. The figure shows it. The lab plays <Src path="site/labs/granular.cpp" at="constexpr float kToneHz = 1000.0f;">a 1 kHz tone</Src> through a second copy of the device, and through a pool of its own that reads the same ring by the same rule, except that its waits are as uneven as Scatter says.
 
   <Controls ids="pitch size density scatter" />
 
@@ -767,8 +779,9 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
   >
     The spectrum of the grains of the lab's tone, either side of where Pitch puts it, from the
     device and from the lab's own pool. Try Size at 20 ms, and notice three lines stand where one
-    went in. Then try Pitch at 7 with Size at 100 ms and Density at 4, and compare the two lines
-    with Scatter at 0 and at 1.
+    went in. Then try Pitch at 7 with Size at 100 ms and Density at 4, and compare the device's curve
+    with the lab's pool's as Scatter goes from 0 to 1. As the page starts the two curves are one,
+    the lab's pool drawn over the device's.
   </Curve>
 
   With <M t={String.raw`f_0`} /> the tone that went in and <M t={String.raw`f_g`} /> the number of grains started each second, evenly spaced grains can put sound only at
@@ -777,13 +790,13 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   where <M t={String.raw`\ell`} /> is any whole number, positive or negative. The window decides how strong each of those lines is.
 
-  At Pitch 0 this does little harm. <Claim id="three-lines">With Size at 20 ms and Density at 1 a grain starts every 20 ms, and the tone comes out as three lines: itself, and a line 50 Hz either side of it, each 6 dB under the middle one</Claim>. That is the bells of the opening picture again: listen for a buzz. At a Density of 2 the bells add to one and the side lines go: what is left beside the tone is <Claim id="no-lines">55.6 dB</Claim> under it.
+  At Pitch 0 this does little harm. <Claim id="three-lines">With Size at 20 ms and Density at 1 a grain starts every 20 ms, and the tone comes out as three lines: itself, and a line 50 Hz either side of it, each 6 dB under the middle one</Claim>. That is the bells of the opening picture again: listen for a buzz. At a Density of 2 the bells add to one and the side lines go: <Claim id="no-lines">where each stood there is nothing within 90 dB of the tone</Claim>, which is as far down as this measurement can see beside a tone.
 
-  With Pitch up it is ruinous. The formula has <M t={String.raw`f_0`} /> in it, the pitch that went in, and no trace of the pitch that was asked for. The grains each play the shifted pitch, but each starts its wave afresh, and at an even rate those fresh starts cancel everything that is not on a line. <Claim id="comb-lines">With the tone shifted seven semitones, Size at 100 ms, Density at 4 and the lab's Scatter at 0, the two strongest lines stand 18 Hz under and 22 Hz over the pitch that was asked for, 40 Hz apart</Claim>, and all of it together is <Claim id="comb-level">23 dB</Claim> under the tone that went in. The note is all but gone, and what is left is out of tune.
+  With Pitch up it is ruinous at most settings. The formula has <M t={String.raw`f_0`} /> in it, the pitch that went in, and no trace of the pitch that was asked for. The grains each play the shifted pitch, but each starts its wave afresh, and at an even rate those fresh starts cancel everything that is not on a line. <Claim id="comb-lines">With the tone shifted seven semitones, Size at 100 ms, Density at 4 and the lab's Scatter at 0, the two strongest lines stand 18 Hz under and 22 Hz over the pitch that was asked for, 40 Hz apart</Claim>, and all of it together is <Claim id="comb-level">23 dB</Claim> under the tone that went in. The note is all but gone, and what is left is out of tune. Only where a line happens to stand on the pitch that was asked for does the note survive, and then it is too loud, because the gain was worked out for grains that do not add in step: <Claim id="comb-octave">an octave up at the same Size and Density a line stands on the pitch, and the tone comes out 4.3 dB over what went in</Claim>. Either way the level and the tuning hang on the grain rate.
 
   Uneven waits break the pattern. With Scatter at 1, <Claim id="scattered">less than 1 % of the power lies further than 20 Hz from the pitch</Claim>, from the lab's pool and from the device alike, on every one of the eight dice, and the level is back near what went in. So the device scatters its waits by itself, by one less the <M t="c" /> of stage 7: not at all while the grains read the same sound, where even spacing is what makes the bells add up, and fully once they do not.
 
-  The lab's pool is there so that this one term can be turned off, which the device does not allow. With Scatter at 0, Shape at 1 and the device's own grains steady, the two pools make the same sum: they differ by <Claim id="same-pool">more than 130 dB</Claim>.
+  The lab's pool is there so that this one term can be turned off, which the device does not allow. With Scatter at 0, Shape at 1 and the device's own grains steady, the two pools make the same sum: the difference is <Claim id="same-pool">more than 130 dB</Claim> under it.
 
   <Fragment slot="listen">Hear the lab's own pool</Fragment>
 </StageBlock>
@@ -799,23 +812,23 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     Then lower Tone, and notice the copies lose their tops.
   </Spectrogram>
 
-  Then the result goes two ways. One way is out, blended with the dry sound. With <M t="m" /> for Mix, <M t="x" /> the sound coming in and <M t="z" /> the grains after those three stages:
+  Then the result goes two ways. One way is out, blended with the dry sound. With <M t="x" /> for the sound coming in and <M t="z" /> for the grains after those three stages:
 
   <M
     block
-    t={String.raw`\sig{out}{y[t]} = \at{loop-dry}{\cos\!\bigl(\tfrac{\pi}{2} m\bigr)}\,\sig{in}{x[t]} + \at{loop-wet}{\sin\!\bigl(\tfrac{\pi}{2} m\bigr)}\,z[t]`}
+    t={String.raw`\sig{out}{y[t]} = \at{loop-dry}{\cos\!\bigl(\tfrac{\pi}{2}\,\text{Mix}\bigr)}\,\sig{in}{x[t]} + \at{loop-wet}{\sin\!\bigl(\tfrac{\pi}{2}\,\text{Mix}\bigr)}\,z[t]`}
   />
 
   The cosine and the sine keep the power of the blend steady as Mix moves: at a half, each side is at 0.707 and not at 0.5.
 
-  The other way is back onto the ring. With <M t="F" /> for Feedback:
+  The other way is back onto the ring:
 
   <M
     block
-    t={String.raw`q[t] = \operatorname{clip}\Bigl(\operatorname{lp}\bigl(\sig{in}{x[t]} + \at{loop-record}{F\,z[t]}\bigr)\Bigr)`}
+    t={String.raw`q[t] = \operatorname{clip}\Bigl(\operatorname{lp}\bigl(\sig{in}{x[t]} + \at{loop-record}{\text{Feedback}\cdot z[t]}\bigr)\Bigr)`}
   />
 
-  Here lp is the low-pass of stage 1 and clip the limit. This one line is why a grain delay with Feedback does something no chain of separate effects does. The grains read what the grains made. A repeat that was shifted an octave is recorded, read by new grains and shifted an octave again. <Claim id="octave-stair">With a short 220 Hz note, Pitch at +12 semitones, Time at 500 ms, Size at 100 ms, Density at 4 and Feedback at 0.5, the first three repeats come back strongest, of every semitone, at 440 Hz, 880 Hz and 1,760 Hz</Claim>. Tone is inside the loop as well, so each trip darkens the sound once more.
+  Here lp is the low-pass of stage 1 and clip the limit. This one line is what Feedback changes. The grains read what the grains made. A repeat that was shifted an octave is recorded, read by new grains and shifted an octave again. <Claim id="octave-stair">With a short 220 Hz note, Pitch at +12 semitones, Time at 500 ms, Size at 100 ms, Density at 4 and Feedback at 0.5, the first three repeats come back strongest, of every semitone, at 440 Hz, 880 Hz and 1,760 Hz</Claim>. Tone is inside the loop as well, so each trip darkens the sound once more.
 
   How fast the repeats die is Feedback's to say. With Pitch at 0, Density at 2 and the rest as in that measurement, each repeat comes back <Claim id="repeat-level">6.1 dB</Claim> under the one before. Six of that is the half that Feedback multiplies by, and the rest is the filters.
 
@@ -842,7 +855,7 @@ Here is the whole device with every control live. The lanes are read along the s
 
 <Lanes taps="in recorded cover grains out" ranges={{ cover: [0, 2] }}>
   Every stage that runs against time, on one clock. Try any control, and notice which lanes change:
-  Feedback changes every lane from the second down, and Mix only the last.
+  Feedback changes what is recorded, the grains and the output, and Mix only the output.
 </Lanes>
 
 To judge what the device did, compare three things: <Listen tap="in">what went in</Listen>, <Listen tap="grains">the grains alone</Listen>, and <Listen tap="out">what came out</Listen>.
@@ -855,13 +868,13 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
 
 <Ways>
   <Way title="Stack repeats a fifth apart" tag="Pitch up a fifth, and Feedback" set="fifth">
-    Feedback sends each shifted repeat round to be shifted again, so the pitch steps by the same interval on every trip. An octave stays in key however far it climbs. A fifth makes a chord. On this card's settings <Claim id="way-fifth">a short 220 Hz note comes back strongest at 330 Hz and then at 494 Hz</Claim>: a fifth up, and a fifth above that. The third trip is already a note that most keys do not hold, so Feedback here is a choice of how many of those steps are heard. After the card, try Pitch at 5 and at 12, and listen to how soon each one leaves the key.
+    Feedback sends each shifted repeat round to be shifted again, so the pitch steps by the same interval on every trip. An octave stays in key however far it climbs. A fifth makes a chord. On this card's settings and the device's own dice <Claim id="way-fifth">a short 220 Hz note comes back strongest at 330 Hz and then at 494 Hz</Claim>: a fifth up, and a fifth above that. The first holds on every one of the lab's eight dice and the second on seven of them: a repeat of a short note is a handful of grains, and one throw can put its strongest semitone one below. Each further trip adds a note a fifth higher still, so Feedback here is a choice of how many of those steps are heard. After the card, try Pitch at 5 and at 12, and listen for how far each climbs before it leaves the key.
   </Way>
   <Way title="Turn a chord into a cloud" tag="long grains, many of them, read from far apart" set="smear">
-    Long grains, as many as the device allows, each read from a different place across more than a third of a second, and most of the result sent round again. No one grain can be picked out, and what was a rhythm becomes a texture that changes when the harmony does. After the card, lower Spray a little at a time and watch the beads of stage 5 gather under the line of Time. The rhythm of the chords comes back as they do.
+    Long grains, as many as the device allows, each read from a different place across more than a third of a second, and most of the result sent round again. Listen for a texture in which no one grain can be picked out, and which changes when the harmony does. After the card, lower Spray a little at a time and watch the beads of stage 5 gather under the line of Time. Listen for the rhythm of the chords coming back as they do.
   </Way>
   <Way title="Make the grains themselves a note" tag="short grains, one at a time" set="rattle">
-    At a Density of 1 every grain fades to nothing before the next begins, and with Size short enough that happens too often to hear as separate fades: <Claim id="way-rattle">200 grains start in the four seconds of the loop, one every 20 ms</Claim>. A fade that comes round that often is a tone of its own, laid on whatever is playing. Stage 9 measured what it adds to a single frequency. After the card, raise Size and listen for the buzz falling in pitch. Then raise Density to 2 and listen for it going out.
+    At a Density of 1 every grain fades to nothing before the next begins, and on this card that happens fifty times a second: <Claim id="way-rattle">200 grains start in the four seconds of the loop, one every 20 ms</Claim>. A fade that comes round that often adds frequencies of its own to whatever is playing. Stage 9 measured them on a single tone. After the card, raise Size and listen for the buzz falling in pitch. Then raise Density to 2 and listen for it going out.
   </Way>
   <Way title="Answer backwards" tag="Reverse all the way, with long grains" set="back">
     Each grain starts at the late end of its piece and reads towards the early end. The pieces still come in the order they were played, since the rule of stage 5 puts the middle of each where Time says, so the phrase keeps its shape while every piece of it swells where it used to die away. Long grains are the point here: the shorter a grain is, the less of the sound's own shape there is in it to turn round. After the card, try Reverse at 0.5. The direction is then thrown for each grain, and about half go each way.
@@ -877,13 +890,13 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
 
 <Faults>
   <Fault title="Grains you can count" set="single">
-    One grain at a time means a gap at every joint. On a sound that should hold steady, listen for the gaps. <Claim id="fault-single">On the pad at a Density of 1 the sum of the windows falls to nothing 33 times in the loop</Claim>, once for each grain. This is how the lesson starts, on purpose, to show one grain by itself. For anything held, raise Density to 2 or more, where the windows add to one and the gaps close.
+    One grain at a time means a gap at every joint. On a sound that should hold steady, listen for the gaps. <Claim id="fault-single">On the pad at a Density of 1 the sum of the windows falls to nothing 33 times in the loop</Claim>, once for each grain. This is how the lesson starts, on purpose, to show one grain by itself. For anything held, raise Density to 2, where the windows add to one, or beyond: the gaps close.
 
     <Hear set="closed" label="Hear the same pad at a Density of 2" />
 
   </Fault>
   <Fault title="A shifted note that all but vanishes" set="locked">
-    This is stage 9's trap, and it is the one a first try at a grain shifter falls into. Start the grains at an even rate with the pitch shifted and a steady note is cancelled nearly everywhere. The card plays the lab's own pool with its Scatter at 0. <Claim id="fault-locked">The 440 Hz tone, shifted seven semitones at a Size of 100 ms and a Density of 4, comes out 31 dB under the same tone with the starts scattered and the device's own dice, and more than 30 dB under it on every one of the eight</Claim>. The device does not let this happen: it scatters the starts by itself once the grains read different sound. If you ever build a pool of your own, scatter them.
+    This is stage 9's trap, and an easy one to build by accident. Start the grains at an even rate with the pitch shifted and a steady note is cancelled nearly everywhere. The card plays the lab's own pool with its Scatter at 0. <Claim id="fault-locked">The 440 Hz tone, shifted seven semitones at a Size of 100 ms and a Density of 4, comes out 31 dB under the same tone with the starts scattered and the device's own dice, and more than 29 dB under it on every one of the eight</Claim>. The device does not let this happen: it scatters the starts by itself once the grains read different sound. If you ever build a pool of your own, scatter them.
 
     <Hear set="unlocked" label="Hear the same note with the starts scattered" />
 
@@ -891,11 +904,15 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
   <Fault title="A Time the grains cannot keep" set="floor">
     A grain that reads faster than the ring is written must start far enough back to last. Ask for a short Time with long grains and Pitch up, and the device moves the grains back without saying so. On this card Time is at its least, and <Claim id="floor-middle">the middle of every grain reads what is 250 ms old</Claim>. The answer arrives a quarter of a second after the note, whatever the control says. To get it nearer, shorten Size: the floor is the extra ring a grain covers in its lifetime, and a short grain covers little.
   </Fault>
-  <Fault title="A level that sags a hair off pitch" set="dip">
-    The gain of stage 7 rests on a guess of how alike the grains' sound is, and the guess takes the sound to be like itself over a fixed stretch of time. Bright sound is not: it changes faster than that. So when grains of a bright sound read from places only a little apart, the device counts them as in step, turns them down as if they were, and they are not. <Claim id="level-model">White noise at a Density of 4, with Pitch a fiftieth of a semitone up, comes out more than 5 dB under what was recorded</Claim>. On pitch, nothing is lost. The card plays that setting. The estimate was <Src path="cpp/devices/grain-delay/grain_delay.h" at="// were fitted to band-limited noise (see the harness).">fitted to noise with its top taken off</Src>, and white noise has more up there than that. The trap is narrow, though: a wider move of Pitch takes the grains out of step, the device counts them as apart, and stage 7 measured the level holding on this same noise an octave up.
+  <Fault title="A level that moves a hair off pitch" set="dip">
+    The gain of stage 7 rests on a guess of how alike the grains' sound is, and the guess takes every sound to stay like itself over the same fixed stretch of time. Bright sound changes faster than that. So when grains of a bright sound read from places only a little apart, the device counts them as in step and turns them down as if they were, and they are not. The card plays the plainest case of it: white noise, the brightest sound there is, at a Size of 120 ms and a Density of 4, with Pitch a fiftieth of a semitone up. <Claim id="level-model">On every one of the eight dice the grains come out more than 5 dB under what was recorded</Claim>. On pitch, nothing is lost. The estimate was <Src path="cpp/devices/grain-delay/grain_delay.h" at="// were fitted to band-limited noise (see the harness).">fitted to noise with its top taken off</Src>, and white noise has more up there than that.
+
+    At this Size the sag is narrow: <Claim id="dip-narrow">with Pitch three tenths of a semitone up it is less than 1 dB</Claim>, and stage 7 measured the level holding on this same noise an octave up. Shorter grains widen it: <Claim id="dip-short">at a Size of 10 ms, Pitch a whole semitone up still loses more than 3 dB</Claim>. A touch of Spray does what a touch of Pitch does: <Claim id="dip-spray">with Pitch at 0 and Spray at 0.02, more than 3 dB</Claim>.
+
+    Sound with most of its power low down misses the other way. It stays like itself for longer than the guess allows, so the device counts its grains as apart while they still add in step. <Claim id="dip-swell">On the drum loop at the same Size and Density, with Pitch three tenths of a semitone up, the grains come out 4.6 dB over what was recorded with the device's own dice, and more than 3 dB over on every one of the eight</Claim>. So when the level moves as Pitch or Spray first leaves nothing, this estimate is why.
   </Fault>
-  <Fault title="A grain too short for the note">
-    A grain keeps the colour of what it reads only if it holds a few cycles of it. Shorten Size until a grain is no longer than one cycle of a low note and the note is gone: what is left is the grain's own bell, repeated. Short grains suit drums and bright sound, and low notes need long ones. This is why the bass card of part 3 uses longer grains than the drums' card does.
+  <Fault title="A grain too short to carry a shift">
+    A grain can carry a pitch of its own only if it holds a few cycles of what it reads. Shorten Size until a grain is shorter than one cycle of a low note and Pitch stops working on that note: each grain is a sliver of a cycle, and what the slivers add up to is still the old note, roughened. <Claim id="fault-short">With a 55 Hz tone, Pitch at +12 and a Density of 4, grains of 10 ms leave less than 1 % of the grains' power within a semitone of 110 Hz and more than 90 % within a semitone of 55 Hz, and grains of 200 ms put more than 90 % of it within a semitone of 110 Hz</Claim>, on every one of the eight dice. Short grains suit drums and bright sound, and a low note needs long ones to be shifted. This is why the bass card of part 3 uses longer grains than the drums' card does.
   </Fault>
 </Faults>
 
@@ -905,7 +922,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
 
 <Myths>
   <Myth says="A grain delay is a delay with an effect after it.">
-    Nothing in it plays the recording late and then changes it. Every sample that comes out was read by a grain, and the pitch, the direction and the scatter are all in how the grains read. With two or more grains overlapping, all reading the same place at the recording's speed, the grains happen to add up to a plain delay, and stage 7 measures how exactly. That is one setting among many, and not a stage inside.
+    Nothing in it plays the recording late and then changes it. Every sample of the wet sound was read by a grain, and the pitch, the direction and the scatter are all in how the grains read. With a whole number of grains overlapping, two or more, all reading the same place at the recording's speed, the grains add up to a plain delay, and stage 7 measures how nearly. That is one setting among many, and not a stage inside.
   </Myth>
   <Myth says="Pitch up makes the answer come sooner.">
     Each grain plays its piece faster. The grains still start at the pace of the clock, and each is placed so that its middle reads what is Time old. The prediction of part 1 has the measurement. <Lesson id="pitch-shifting" cap /> is the same trade with two long grains that take turns, and it says what the trade costs.
@@ -917,7 +934,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     The dice are arithmetic, started from a fixed number when the device starts. From the same start they give the same grains, to the sample, as stage 6 shows. What changes between two passes of a song is where in its run of throws the device has got to, and not the run itself.
   </Myth>
   <Myth says="More grains is louder.">
-    The device works out how much power the overlap adds and divides it away as each grain starts. Stage 7 moves Density through its whole range on white noise and the level stays where it was. More grains is denser and smoother. Where the level does move, it is the estimate of part 7 that has missed.
+    The device works out how much power the overlap adds and divides it away as each grain starts. Stage 7 moves Density through its whole range on white noise and measures how little the level moves. More grains fill the gaps between grains, and add no level. Where the level does move, it is the estimate of part 7 that has missed.
   </Myth>
   <Myth says="Size is how long the echo is.">
     Size is how long each piece is, and Time is how old the sound in it is. The two are separate controls, and the beads of part 2 show them apart: Size is a bead's width and Time is its depth. They meet only at the floor of stage 5, where long, fast grains cannot start as near as Time asks.

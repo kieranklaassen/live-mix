@@ -497,29 +497,65 @@ describe('granular sound', () => {
     expect(flat[0]).toBe(0)
   })
 
-  it('leaves a cut piece of a 440 Hz sine 65 dB under its peak between 8 and 12 kHz (claim click), and under the window less than −135 dB a bin there (claim windowed)', async () => {
+  it('leaves the piece cut from a 440 Hz sine 65 dB under its peak between 8 and 12 kHz, and every other piece of the loop within 2 dB of that (claim click); under the window less than −135 dB a bin there (claim windowed); and a piece of 60 ms cut at the kit’s least Shape, with ends of 0.6 ms, more than 100 dB under its peak there (claim cut-soft)', async () => {
     const grain = await lab(NAME)
     const tone = sine(440, 0.5, seconds(4))
-    const out = grain.render(tone, {})
-    const cut = left(out.taps.cutSpectrum)
-    const windowed = left(out.taps.grainSpectrum)
-    const top = most(Array.from(cut))
-    const cutHigh = meanDb(cut, 8000, 12_000)
-    const windowedHigh = meanDb(windowed, 8000, 12_000)
+    // How far the piece lies under its own peak between 8 and 12 kHz, cut square and under the
+    // window that Shape asks for; and that window.
+    const read = (values: Record<string, number>) => {
+      const out = grain.render(tone, values)
+      const cut = left(out.taps.cutSpectrum)
+      const shaped = left(out.taps.grainSpectrum)
+      return {
+        cut: most(Array.from(cut)) - meanDb(cut, 8000, 12_000),
+        shaped: most(Array.from(shaped)) - meanDb(shaped, 8000, 12_000),
+        shapedHigh: meanDb(shaped, 8000, 12_000),
+        window: left(out.taps.window),
+      }
+    }
+    const first = read({})
     say(
-      'cut piece: peak',
-      top.toFixed(1),
-      'dB, 8 to 12 kHz',
-      cutHigh.toFixed(1),
-      'dB; windowed',
-      windowedHigh.toFixed(1),
+      'the piece of the picture: cut,',
+      first.cut.toFixed(2),
+      'dB under its peak at 8 to 12 kHz; windowed, a bin there at',
+      first.shapedHigh.toFixed(1),
+      'dB',
     )
-    expectWritten(top - cutHigh, '65 dB')
-    expectWritten(windowedHigh, 'under −135 dB')
-    // The kit's least Shape is between the two.
-    const flat = meanDb(left(grain.render(tone, { shape: 0.02 }).taps.grainSpectrum), 8000, 12_000)
-    expect(flat).toBeLessThan(cutHigh - 30)
-    expect(flat).toBeGreaterThan(windowedHigh)
+    expectWritten(first.cut, '65 dB')
+    expectWritten(first.shapedHigh, 'under −135 dB')
+    // The cut falls somewhere else in the tone's wave for each piece: every piece of the loop.
+    const others: number[] = []
+    for (let look = 0; look < 3.7; look += 0.12) others.push(read({ look }).cut)
+    say(
+      'every piece of the loop, cut: from',
+      least(others).toFixed(2),
+      'to',
+      most(others).toFixed(2),
+      'dB under its peak',
+    )
+    for (const one of others) expectWritten(Math.abs(one - first.cut), 'less than 2 dB')
+    // The pieces of the card "cut": the lab's pool at the kit's least Shape, on the card's Size
+    // and Pitch, read at four pieces of the tone.
+    const { values } = resolveSet(grain.description, settings.sets.cut!)
+    for (const look of [0.4, 1, 1.6, 2.2]) {
+      const soft = read({ ...values, look })
+      const rise = Array.from(soft.window).findIndex((v) => v >= 1)
+      say(
+        'a piece as the card "cut" cuts it, at',
+        look,
+        's:',
+        soft.shaped.toFixed(1),
+        'dB under its peak at 8 to 12 kHz;',
+        soft.window.length,
+        'samples long, fully open after',
+        rise,
+      )
+      expectWritten(soft.shaped, 'more than 100 dB')
+      expectWritten((soft.window.length * 1000) / RATE, '60 ms')
+      expectWritten((rise * 1000) / RATE, '0.6 ms')
+      // And it is still far from the bell, which leaves nothing there to measure.
+      expect(soft.shapedHigh).toBeGreaterThan(first.shapedHigh + 10)
+    }
   })
 
   it('starts 40 grains in four seconds at Size 100 ms and Density 1, 80 at 2, 160 at 4: doubling Density doubles the count (claim count-doubles)', async () => {
@@ -539,7 +575,7 @@ describe('granular sound', () => {
     expect(Math.abs(count(4, 120) - 2 * count(2, 120))).toBeLessThanOrEqual(1)
   })
 
-  it('waits Size / Density between grains that read the same sound, 25 ms at Size 100 ms and Density 4 (claim steady-wait); once they do not, over the eight dice the shortest wait is 12.5 ms and the longest 37.5 ms (claim wait-range)', async () => {
+  it('waits Size / Density between grains that read the same sound, 25 ms at Size 100 ms and Density 4 (claim steady-wait); once they do not (Pitch at 12, Spray at 0.5, Pitch Spray at 0.5 or Reverse at 1), over the eight dice the shortest wait is 12.5 ms and the longest 37.5 ms (claim wait-range)', async () => {
     const grain = await lab(NAME)
     const guitar = await benchSource('guitar', seconds(4))
     const steady = waitsMs(grainsOf(grain.render(guitar, { size: 100, density: 4 }).taps.cloud))
@@ -590,7 +626,7 @@ describe('granular sound', () => {
     expect(Math.abs(teeth - started)).toBeLessThanOrEqual(1)
   })
 
-  it('keeps the pool far from full: at Density 8 with the waits scattered, 11 grains at once of its 20 with the device’s own dice, and never more than 12 on any of the eight (claim most-grains)', async () => {
+  it('keeps the pool far from full: at Density 8, Size 100 ms and Pitch 12, where the waits are scattered, 11 grains at once of its 20 with the device’s own dice, and at most 12 on any of the eight (claim most-grains)', async () => {
     const grain = await lab(NAME)
     const guitar = await benchSource('guitar', seconds(4))
     const counts = DICE.map((dice) =>
@@ -600,6 +636,9 @@ describe('granular sound', () => {
     )
     say('most grains at once at Density 8, scattered, on each of the dice:', counts)
     expectWritten(counts[0]!, '11')
+    // The eight are eight throws, not a bound: of 1,500 other seeds played into the device by
+    // itself, three reached 13. What bounds it is the least wait, half of Size over Density,
+    // which the test of the waits holds: twice Density at once, sixteen, and the pool holds 20.
     for (const count of counts) expectWritten(count, 'at most 12')
   })
 
@@ -681,17 +720,127 @@ describe('granular sound', () => {
     expectWritten(worst, 'less than 1 dB')
   })
 
-  it('loses more than 5 dB of white noise at Density 4 when the grains are a fiftieth of a semitone off pitch, with the device’s own dice: the guess of how alike they are is made for duller sound (claim level-model)', async () => {
+  it('loses more than 5 dB of white noise at Size 120 ms and Density 4 when the grains are a fiftieth of a semitone off pitch, on every one of the eight dice: the guess of how alike they are is made for duller sound (claim level-model)', async () => {
     const grain = await lab(NAME)
-    const result = await played(grain, 'dip')
-    const change = gainToDb(rms(tapOf(result, 'grains')) / rms(tapOf(result, 'recorded')))
-    say('white noise, Pitch 0.02, Density 4:', change.toFixed(2), 'dB')
-    expectWritten(-change, 'more than 5 dB')
+    for (const dice of DICE) {
+      const result = await played(grain, 'dip', { dice })
+      const change = gainToDb(rms(tapOf(result, 'grains')) / rms(tapOf(result, 'recorded')))
+      say('white noise, Pitch 0.02, Density 4, Dice', dice + 1, ':', change.toFixed(2), 'dB')
+      expectWritten(-change, 'more than 5 dB')
+      expectWritten(grainsOf(result.taps.cloud)[0]!.length * 1000, '120 ms')
+    }
     // On pitch, nothing is lost.
     const on = await played(grain, 'dip', { pitch: 0 })
     expect(Math.abs(gainToDb(rms(tapOf(on, 'grains')) / rms(tapOf(on, 'recorded'))))).toBeLessThan(
       0.1,
     )
+  })
+
+  it('misses the level of white noise only close to pitch at Size 120 ms: three tenths of a semitone up it is less than 1 dB down (claim dip-narrow); at a Size of 10 ms a whole semitone up still loses more than 3 dB (claim dip-short), and so does a Spray of 0.02 with Pitch at 0 (claim dip-spray); on every one of the eight dice', async () => {
+    const grain = await lab(NAME)
+    const change = async (over: Record<string, number>) => {
+      const result = await played(grain, 'dip', over)
+      return gainToDb(rms(tapOf(result, 'grains')) / rms(tapOf(result, 'recorded')))
+    }
+    for (const dice of DICE) {
+      const narrow = await change({ pitch: 0.3, dice })
+      const short = await change({ pitch: 1, size: 10, dice })
+      const sprayed = await change({ pitch: 0, spray: 0.02, dice })
+      say(
+        'white noise, Density 4, Dice',
+        dice + 1,
+        ': Pitch 0.3',
+        narrow.toFixed(2),
+        'dB; Size 10 ms, Pitch 1',
+        short.toFixed(2),
+        'dB; Spray 0.02',
+        sprayed.toFixed(2),
+        'dB',
+      )
+      expectWritten(-narrow, 'less than 1 dB')
+      expectWritten(-short, 'more than 3 dB')
+      expectWritten(-sprayed, 'more than 3 dB')
+    }
+  })
+
+  it('misses the other way on sound with its power low down: the drum loop at Size 120 ms and Density 4, with Pitch three tenths of a semitone up, comes out 4.6 dB over what was recorded with the device’s own dice, and more than 3 dB over on every one of the eight (claim dip-swell)', async () => {
+    const grain = await lab(NAME)
+    const drums = await benchSource('drums', seconds(4))
+    const changes = DICE.map((dice) => {
+      const result = grain.render(drums, { pitch: 0.3, density: 4, dice })
+      return gainToDb(rms(tapOf(result, 'grains')) / rms(tapOf(result, 'recorded')))
+    })
+    say(
+      'drums, Pitch 0.3, Density 4, on each of the dice:',
+      changes.map((v) => v.toFixed(2)),
+      'dB',
+    )
+    expectWritten(changes[0]!, '4.6 dB')
+    for (const change of changes) expectWritten(change, 'more than 3 dB')
+    // On pitch the grains are the recording, and nothing is gained.
+    const on = grain.render(drums, { pitch: 0, density: 4 })
+    expect(Math.abs(gainToDb(rms(tapOf(on, 'grains')) / rms(tapOf(on, 'recorded'))))).toBeLessThan(
+      0.1,
+    )
+  })
+
+  it('cannot shift a note with grains shorter than its cycle: on a 55 Hz sine at +12 semitones and Density 4, grains of 10 ms leave less than 1 % of their power within a semitone of 110 Hz and more than 90 % within a semitone of 55 Hz, and grains of 200 ms put more than 90 % within a semitone of 110 Hz, on every one of the eight dice (claim fault-short)', async () => {
+    const grain = await lab(NAME)
+    const low = sine(55, 0.5, seconds(4))
+    // The share of the power from 20 Hz to 1.2 kHz that lies within a semitone of each of `hzs`,
+    // over two seconds of the grains under a Hann window, every fourth sample.
+    const semitone = 2 ** (1 / 12)
+    const shares = (x: Float32Array, hzs: number[]) => {
+      const from = seconds(1)
+      const n = seconds(2) / 4
+      const windowed = Float64Array.from(
+        { length: n },
+        (_, i) => x[from + 4 * i]! * (0.5 - 0.5 * Math.cos((2 * Math.PI * i) / n)),
+      )
+      const bands = hzs.map(() => 0)
+      let all = 0
+      for (let hz = 20; hz <= 1200; hz += 0.5) {
+        // The power at one frequency, by the recurrence that needs no sine in the loop.
+        const twice = 2 * Math.cos((2 * Math.PI * hz * 4) / RATE)
+        let last = 0
+        let before = 0
+        for (let i = 0; i < n; i += 1) {
+          const now = windowed[i]! + twice * last - before
+          before = last
+          last = now
+        }
+        const power = last * last + before * before - twice * last * before
+        all += power
+        hzs.forEach((at, k) => {
+          if (hz >= at / semitone && hz <= at * semitone) bands[k] = bands[k]! + power
+        })
+      }
+      return bands.map((band) => (100 * band) / all)
+    }
+    for (const dice of DICE) {
+      const short = shares(
+        left(grain.render(low, { pitch: 12, density: 4, size: 10, dice }).taps.grains),
+        [110, 55],
+      )
+      const long = shares(
+        left(grain.render(low, { pitch: 12, density: 4, size: 200, dice }).taps.grains),
+        [110],
+      )
+      say(
+        '55 Hz, +12, Density 4, Dice',
+        dice + 1,
+        ': grains of 10 ms,',
+        short[0]!.toFixed(2),
+        '% near 110 Hz and',
+        short[1]!.toFixed(1),
+        '% near 55 Hz; grains of 200 ms,',
+        long[0]!.toFixed(1),
+        '% near 110 Hz',
+      )
+      expectWritten(short[0]!, 'less than 1 %')
+      expectWritten(short[1]!, 'more than 90 %')
+      expectWritten(long[0]!, 'more than 90 %')
+    }
   })
 
   it('places a grain so that its middle is 350 ms old at a Time of 350 ms: at +12 semitones and Size 100 ms it starts 50 ms further back and reads at twice the speed (claim middle)', async () => {
@@ -861,23 +1010,29 @@ describe('granular sound', () => {
     expect(lineDb(between.taps.linesDevice, 50)).toBeLessThan(-50)
   })
 
-  it('draws one line at Density 2: the windows add up to one and what is left beside the sine is 55.6 dB under it (claim no-lines)', async () => {
+  it('draws one line at Density 2: the windows add up to one, and where the lines 50 Hz either side stood there is nothing within 90 dB of the sine (claim no-lines)', async () => {
     const grain = await lab(NAME)
-    const out = grain.render(sine(440, 0.5, seconds(1)), { size: 20, density: 2 })
-    const beside = Math.max(
-      bandDb(out.taps.linesDevice, -250, -8),
-      bandDb(out.taps.linesDevice, 8, 250),
-    )
-    const middle = lineDb(out.taps.linesDevice, 0)
-    say(
-      'Size 20 ms, Density 2: the sine',
-      middle.toFixed(2),
-      'dB, all else',
-      beside.toFixed(2),
-      'dB',
-    )
-    expect(middle).toBeCloseTo(0, 0)
-    expectWritten(middle - beside, '55.6 dB')
+    for (const density of [2, 3, 4]) {
+      const out = grain.render(sine(440, 0.5, seconds(1)), { size: 20, density })
+      const middle = lineDb(out.taps.linesDevice, 0)
+      const below = lineDb(out.taps.linesDevice, -50)
+      const above = lineDb(out.taps.linesDevice, 50)
+      say(
+        'Size 20 ms, Density',
+        density,
+        ': the sine',
+        middle.toFixed(2),
+        'dB, at 50 Hz under and over',
+        below.toFixed(1),
+        above.toFixed(1),
+        'dB',
+      )
+      expect(middle).toBeCloseTo(0, 0)
+      // A sine alone reads −96.7 dB there under this measurement's own window: the bound is
+      // the measurement's, and all the band beside the sine (−55.6 dB) is its window too.
+      expectWritten(middle - below, 'more than 90 dB')
+      expectWritten(middle - above, 'more than 90 dB')
+    }
   })
 
   it('locks a sine shifted seven semitones to the grain rate when the starts are steady, at Size 100 ms and Density 4: lines 40 Hz apart, 18 Hz under and 22 Hz over the pitch (claim comb-lines), all of it 23 dB down (claim comb-level)', async () => {
@@ -928,6 +1083,33 @@ describe('granular sound', () => {
     }).taps.linesSteady
     say('steady, at the page’s own values: in all', bandDb(beside, -250, 250).toFixed(1), 'dB')
     expect(bandDb(beside, -250, 250)).toBeLessThan(-20)
+  })
+
+  it('lets the shifted sine through where a line stands on its pitch: an octave up, at Size 100 ms and Density 4 with steady starts, all of it is on the pitch and 4.3 dB over the sine that went in (claim comb-octave)', async () => {
+    const grain = await lab(NAME)
+    const tap = grain.render(sine(440, 0.5, seconds(1)), {
+      pitch: 12,
+      size: 100,
+      density: 4,
+      scatter: 0,
+    }).taps.linesSteady
+    const onPitch = bandDb(tap, -9, 9)
+    const all = bandDb(tap, -250, 250)
+    say('steady, +12: on the pitch', onPitch.toFixed(2), 'dB, in all', all.toFixed(2), 'dB')
+    expectWritten(all, '4.3 dB')
+    expect(all - onPitch).toBeLessThan(0.01)
+    // Four bells in step are 2 high, and the gain is the one for four that are not: √(8/3).
+    expect(all).toBeCloseTo(20 * Math.log10(Math.sqrt(8 / 3)), 1)
+    // Other pitches, other fates: the lines stand 40 Hz apart from 1 kHz, wherever the pitch is.
+    const at = (pitch: number) =>
+      bandDb(
+        grain.render(sine(440, 0.5, seconds(1)), { pitch, size: 100, density: 4, scatter: 0 }).taps
+          .linesSteady,
+        -250,
+        250,
+      )
+    expect(at(5)).toBeLessThan(-8)
+    expect(at(1)).toBeLessThan(-20)
   })
 
   it('lands a shifted sine on its pitch when the starts are scattered: less than 1 % of its power further than 20 Hz from the pitch, from the lab’s pool and from the device, on every one of the eight dice (claim scattered)', async () => {
@@ -990,7 +1172,7 @@ describe('granular sound', () => {
     expect(differenceDb(left(square.taps.steady), left(square.taps.grains))).toBeGreaterThan(-60)
   })
 
-  it('low-passes what it records to what the pitch can carry: at +12 semitones white noise is 3 dB down at 10.8 kHz and 10 dB down at 15 kHz (claim guard)', async () => {
+  it('low-passes what it records to what the pitch can carry: at +12 semitones white noise is 3 dB down at 10.8 kHz and 10 dB down at 15 kHz (claim guard), and with Pitch at 0 or an octave down less than 0.1 dB down at 15 kHz (claim guard-open)', async () => {
     const grain = await lab(NAME)
     const hiss = noise(0.25, seconds(4))
     const drop = (hz: number) => {
@@ -1010,7 +1192,8 @@ describe('granular sound', () => {
     // Down, or not at all, nothing is taken.
     for (const pitch of [0, -12]) {
       grain.render(hiss, { pitch })
-      expect(Math.abs(drop(15_000))).toBeLessThan(0.2)
+      say('Pitch', pitch, ': recorded against the input at 15 kHz', drop(15_000).toFixed(3), 'dB')
+      expectWritten(Math.abs(drop(15_000)), 'less than 0.1 dB')
     }
   })
 
@@ -1030,29 +1213,33 @@ describe('granular sound', () => {
 
   it('shifts every repeat again: at Time 500 ms, Size 100 ms, Density 4 and a Feedback of 0.5 a short 220 Hz note at +12 semitones comes back at 440 Hz, 880 Hz and 1,760 Hz, to the nearest semitone (claim octave-stair)', async () => {
     const grain = await lab(NAME)
-    const out = left(
-      grain.render(burst(seconds(4)), {
-        time: 500,
-        pitch: 12,
-        feedback: 0.5,
-        size: 100,
-        density: 4,
-      }).taps.out,
-    )
-    // Every semitone from 110 Hz to 7 kHz.
-    const candidates = Array.from({ length: 73 }, (_, k) => 110 * 2 ** (k / 12))
-    const found = [1, 2, 3].map((n) => {
-      const from = seconds(n * 0.5 + 0.03)
-      return strongest(out, from, from + seconds(0.2), candidates)
-    })
-    say(
-      'the three repeats are strongest at',
-      found.map((hz) => hz.toFixed(1)),
-      'Hz',
-    )
-    expectWritten(found[0]!, '440 Hz')
-    expectWritten(found[1]!, '880 Hz')
-    expectWritten(found[2]!, '1,760 Hz')
+    // The waits are scattered at this Pitch, so the dice are in it: every one of the eight.
+    for (const dice of DICE) {
+      const out = left(
+        grain.render(burst(seconds(4)), {
+          time: 500,
+          pitch: 12,
+          feedback: 0.5,
+          size: 100,
+          density: 4,
+          dice,
+        }).taps.out,
+      )
+      const found = [1, 2, 3].map((n) => {
+        const from = seconds(n * 0.5 + 0.03)
+        return strongest(out, from, from + seconds(0.2), SEMITONES)
+      })
+      say(
+        'Dice',
+        dice + 1,
+        ': the three repeats are strongest at',
+        found.map((hz) => hz.toFixed(1)),
+        'Hz',
+      )
+      expectWritten(found[0]!, '440 Hz')
+      expectWritten(found[1]!, '880 Hz')
+      expectWritten(found[2]!, '1,760 Hz')
+    }
   })
 
   it('adds the grains up again from the pool to the device’s own output: more than 130 dB under it (claim rebuilt)', async () => {
@@ -1179,7 +1366,7 @@ describe('granular sound', () => {
     }
   })
 
-  it('with steady starts a 440 Hz sine shifted seven semitones comes out 31 dB under the same note with the starts scattered and the device’s own dice, and more than 30 dB under it on every one of the eight, at Size 100 ms and Density 4 (claim fault-locked)', async () => {
+  it('with steady starts a 440 Hz sine shifted seven semitones comes out 31 dB under the same note with the starts scattered and the device’s own dice, and more than 29 dB under it on every one of the eight, at Size 100 ms and Density 4 (claim fault-locked)', async () => {
     const grain = await lab(NAME)
     const locked = levelOf(await played(grain, 'locked'), 'steady')
     const levels = []
@@ -1192,7 +1379,10 @@ describe('granular sound', () => {
       levels.map((v) => v.toFixed(2)),
     )
     expectWritten(levels[0]! - locked, '31 dB')
-    for (const level of levels) expectWritten(level - locked, 'more than 30 dB')
+    // The eight stand 30.9 to 31.4 dB over it. The bound written is one that more throws keep:
+    // the device's own scatter at these settings, on 400 other seeds, stood 29.9 to 32.1 dB over
+    // the steady pool.
+    for (const level of levels) expectWritten(level - locked, 'more than 29 dB')
   })
 
   it('opens on 33 grains in the loop, one every 120 ms, each reading 250 ms behind the write point (claim open-count)', async () => {
@@ -1238,21 +1428,31 @@ describe('granular sound', () => {
     for (const one of all) expectWritten(one.length * 1000, '40 ms')
   })
 
-  it('repeats a fifth apart: on the card’s settings a short 220 Hz note comes back strongest at 330 Hz and then at 494 Hz, of every semitone (claim way-fifth)', async () => {
+  it('repeats a fifth apart: on the card’s settings and the device’s own dice a short 220 Hz note comes back strongest at 330 Hz and then at 494 Hz, of every semitone; the first on every one of the eight dice, the second on seven of them (claim way-fifth)', async () => {
     const grain = await lab(NAME)
     const { values } = resolveSet(grain.description, settings.sets.fifth!)
-    const out = tapOf(grain.render(burst(seconds(4)), values), 'out')
-    const found = [1, 2].map((n) => {
-      const from = seconds(n * 0.375 + 0.03)
-      return strongest(out, from, from + seconds(0.2), SEMITONES)
+    // The card's waits are scattered, so the dice are in it: every one of the eight.
+    const all = DICE.map((dice) => {
+      const out = tapOf(grain.render(burst(seconds(4)), { ...values, dice }), 'out')
+      const found = [1, 2].map((n) => {
+        const from = seconds(n * 0.375 + 0.03)
+        return strongest(out, from, from + seconds(0.2), SEMITONES)
+      })
+      say(
+        'fifths, Dice',
+        dice + 1,
+        ': the first two repeats are strongest at',
+        found.map((hz) => hz.toFixed(2)),
+        'Hz',
+      )
+      return found
     })
-    say(
-      'fifths: the first two repeats are strongest at',
-      found.map((hz) => hz.toFixed(2)),
-      'Hz',
-    )
-    expectWritten(found[0]!, '330 Hz')
-    expectWritten(found[1]!, '494 Hz')
+    expectWritten(all[0]![0]!, '330 Hz')
+    expectWritten(all[0]![1]!, '494 Hz')
+    for (const found of all) expectWritten(found[0]!, '330 Hz')
+    // The second repeat is fewer grains of a fainter note, and one throw of the eight puts its
+    // strongest semitone one below.
+    expect(all.filter((found) => matchesWritten(found[1]!, '494 Hz')).length).toBe(7)
   })
 
   it('grains you can count: on the pad at Density 1 the windows’ sum falls to nothing 33 times in the loop, and at Density 2 it stays at one (claim fault-single)', async () => {
