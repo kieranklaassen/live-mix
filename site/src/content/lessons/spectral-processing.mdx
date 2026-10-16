@@ -1,0 +1,1018 @@
+---
+title: Spectral processing
+family: spectrum
+summary: Between the transform and its inverse a sound lies as a row of bins, each a size and an angle, and anything may be done to them. This lesson holds them, lets them fall, scrambles them and sorts them. It builds the engine's Spectral Blur a piece at a time, then reads it, Sift and Sustain as they run.
+long: true
+opening:
+  input: in
+  output: out
+  caption: The strummed chords going in, and what comes out with Freeze on. Notice that three tenths of a second in, the output stops fading and keeps its height to the end of the loop, straight through the second strum.
+lab: spectral-processing
+devices: [spectral-blur, sift, sustainer]
+bench:
+  device: spectral-blur
+  params: { blur: 0, smear: 0, freeze: 0, tilt: 0, lowCut: 20, highCut: 20000, shimmer: 0, width: 0, mix: 1 }
+  as: insert
+  note: The plate opens with every control at rest, where the device is a wire with a delay in it, so that each control can be heard alone. In the lesson Freeze is switched on by the lab at a chosen moment of the loop; on the plate you switch it yourself. The device's own defaults are a long, diffuse hang, and the table below sets the two side by side.
+sources: [chords, guitar, pad, drums, bass, mix, sine, noise, clicks, saw]
+seconds: 4
+files:
+  - cpp/devices/spectral-blur/spectral_blur.h
+  - cpp/devices/spectral-blur/device.json
+  - cpp/devices/sift/sift.h
+  - cpp/devices/sustainer/sustainer.h
+  - cpp/kit/stft.h
+  - cpp/kit/fft.h
+  - cpp/kit/math.h
+---
+
+<Part id="why" title="A chord dies in two seconds. Suppose you want it to stay.">
+
+A guitar chord is strummed and left to ring. Two seconds later it has all but gone, and the next chord is struck.
+
+<Still
+  taps="in"
+  caption="The loop against time: two chords, each struck and left to die. Notice how soon each chord has fallen to a fraction of its first height."
+/>
+
+Suppose you want the first chord to stay: not the strum, only the sound of the chord a moment after it, held under everything that follows for as long as you like. A recording has that moment once, and it lasts a few hundredths of a second.
+
+The first thing anyone tries is to cut that moment out and play it round and round. Here it is: <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr int kFrame = 2048;">2,048 samples</Src> of the chord, which is <Claim id="slice">42.7 ms</Claim>, repeated end to end. <Hear set="loop" label="Hear the slice repeated" />
+
+<Still
+  taps="looped"
+  set="loop"
+  from={0.34}
+  span={0.1}
+  caption="A tenth of a second of the repeated slice. The slice ends at one height and begins at another, so there is a step where it joins itself. Notice the step come round again and again, once for every turn of the slice."
+/>
+
+It is not the chord. The step where the slice joins itself is a click, and the click comes round at a steady rate, which the ear hears as a buzz with a pitch of its own. Worse, a sound that repeats exactly can only hold frequencies that fit its length a whole number of times. Put a plain 440 Hz tone through the same loop, and what comes out is not at 440 Hz at all: it is <Claim id="loop-lines">a row of lines 23.4 Hz apart, the strongest at 445.3 Hz, with the lines either side of it 10.7 dB and 14.6 dB under it</Claim>.
+
+<Still
+  taps="linesIn:in linesLooped:out"
+  set="loop"
+  source="sine"
+  view="spectrum"
+  scale="linear"
+  top={1000}
+  min={-80}
+  max={0}
+  caption="A 440 Hz tone, and the same tone as a repeated slice, up to 1 kHz. Notice that the one peak has become a comb, and that no tooth of the comb stands at 440 Hz."
+/>
+
+<Lesson id="short-time-fourier" cap /> offers something better than a slice of the wave. It cuts the sound into overlapping frames, turns each into bins, and adds the frames back so smoothly that nothing can be heard where they join. A frame's bins say how much of each frequency the moment holds, which is exactly what you want to keep. So keep them: take one frame's bins and lay that same frame down again at every hop, for ever.
+
+<Predict
+  question="One frame's bins are kept just as they are, and that frame is laid down again every 512 samples, overlapping its neighbours as frames do. A steady 440 Hz tone goes in. What comes out?"
+  choices={['The tone, held', 'A steady tone at another pitch', 'A buzz with no pitch']}
+>
+
+A steady tone at another pitch. The joins are smooth now, so there is no click. But one frame laid down again at every hop makes a sound that comes round at every hop, and <Claim id="stuck-pitch">a sound that repeats every 512 samples can only hold multiples of 93.75 Hz. The tone moves to the nearest one, 468.75 Hz, a semitone sharp, and comes out 5.4 dB quieter</Claim>. <Hear set="stuck" label="Hear the tone come out sharp" />
+
+<Still
+  taps="linesIn:in linesStuck:out"
+  set="stuck"
+  view="spectrum"
+  scale="linear"
+  top={1000}
+  min={-80}
+  max={0}
+  caption="The 440 Hz tone, and one frame of it laid down again and again, up to 1 kHz. Notice that the peak has moved up, to a place where a sound that repeats every hop can have one."
+/>
+
+The frame was not wrong. What was wrong was treating it as a still picture. Every bin of a frame is a size and an angle, and in a sound that is going on, the angle of every bin turns from one frame to the next, each by its own amount. Hold the angles still and you have asked every frequency to come round exactly once a hop, which only those few can do.
+
+</Predict>
+
+So the sizes may be kept, and the angles must be kept turning. That is the whole idea of this lesson, and it works: the picture this page opens on is the chord held that way by Spectral Blur, a device of the engine. Three tenths of a second into the loop its Freeze is switched on, and from there the chord neither fades nor buzzes. <Hear set="held" label="Hear the chord held" />
+
+Holding is only the first thing that can be done once a sound lies as bins. The sizes can be let fall slowly, so that a sound hangs behind itself. The angles can be scrambled, which smears every attack across its frame and leaves the colour. Each bin can be given a gain of its own, or copied an octave up, or sorted by how it behaves and sent one way or another. All of it happens in the gap between the transform and its inverse, and the rest of the page goes through that gap one piece at a time.
+
+</Part>
+
+<Part id="picture" title="Every bin is a bar. Hold the bars, and the sound stays.">
+
+This is the lesson in one picture. It shows one frame of the loop as Spectral Blur has it in hand, two seconds after the moment "Frame at" picks: the bins of the lowest 1.5 kHz, each drawn as a bar as tall as the bin is large. Two rows of bars share one axis. One is what is coming in at that moment. The other is what the device holds for each bin, which is what it sends on to be turned back into sound.
+
+<Controls ids="at freeze blur" />
+
+<Curve taps="later:in held:out" stems xTitle="hertz" yTitle="size" height={300}>
+  The bins coming in two seconds after "Frame at", and what the bins hold at that moment. A bar
+  of 1 would be a full-scale sine. Try Freeze off, and notice the held bars drop onto the
+  incoming ones. Then raise Blur to its top with Freeze still off, and notice the first chord's
+  bars stand up again, shorter than they were.
+</Curve>
+
+Check one thing against it. As the page opens, Freeze goes on while the first chord rings, and the picture is taken two seconds later, just after the second chord is struck. So the two rows are two different chords: the tallest bar coming in stands at <Claim id="held-bars">258 Hz, and the tallest held bar at 328 Hz</Claim>. The held row is the first chord, and <Claim id="held-same">every bar of it is exactly the size its bin had in the frame Freeze caught</Claim>, though the sound that made it died away long ago.
+
+That is all that holding is. A frame is a row of sizes, and a device that keeps the row instead of taking the next one has stopped the sound in its tracks. The three controls are three ways of deciding what a bin holds. "Frame at" picks the moment. Freeze keeps every bar for good. Blur lets each bar follow its input up at once and come down slowly, so that the row always shows a little of what was there before.
+
+Two more pictures belong beside this one, and both come back in part 5. The first is the same row of bars in Sift, a second device. Sift holds nothing. It gives every bin a share between none and all, and passes on that much of it: a gate with a setting for each bin.
+
+<Still
+  taps="gateSizes:in gateKept:out"
+  view="curve"
+  stems
+  xTitle="hertz"
+  set="tones"
+  values={{ at: 0.5 }}
+  caption="One frame of the mix, taken as a drum is struck over a chord, and what Sift passes on when it keeps the tones. Notice that a few bars come through whole and the rest are cut down or gone."
+/>
+
+The second is how the bars become sound again. Each frame is turned back into samples and laid over its neighbours, and whatever was done to the bars, the frames have to add up evenly or the sound would flutter.
+
+<Still
+  taps="windows windowSum"
+  view="curve"
+  xTitle="milliseconds"
+  caption="Two frames' length of time. Each hump is one frame's share of what comes out, and the level line is all of them added. Notice that four humps lie over every moment and that their sum does not move."
+/>
+
+The bars are also only half of each bin. The other half is its angle, and part 1 has shown what happens when the angles are held as the sizes are. Part 4 builds both halves.
+
+</Part>
+
+<Part id="uses" title="Sounds that hold still freeze well. Sounds that strike become something else.">
+
+What a row of held or sorted bins is good for depends on what the sound was doing when the bins were taken. The cards play three devices on four kinds of sound. Each prints its own settings.
+
+<Uses>
+  <Use title="A chord, held" set="drone">
+    <Still
+      slot="picture"
+      taps="pictureOut"
+      view="spectrogram"
+      set="drone"
+      top={1500}
+      min={-40}
+      caption="The strummed chords out of Spectral Blur with Freeze on, up to 1.5 kHz. Notice that the bands of the first chord run on at one strength to the end of the loop, straight through the second strum."
+    />
+
+    A strummed chord a moment after the strum is the best case there is. Its partials hold still, each lies in a few bins, and those few bins are all that Freeze has to keep. The chord caught here comes out level: <Claim id="freeze-steady">read over three stretches of 1.1 s from 0.6 s on, its level stays within 0.7 dB while the chords going in differ by 16.7 dB</Claim>. Its level is all that is promised: the second strum moves the pitch of the held partials it lands on, which part 7 takes up. Width is up, so that the held sound spreads between the speakers.
+
+  </Use>
+  <Use title="A picked line, with a hang behind it" set="hang">
+    <Still
+      slot="picture"
+      taps="pictureOut"
+      view="spectrogram"
+      set="hang"
+      top={3000}
+      min={-48}
+      caption="The picked guitar out of Spectral Blur with Freeze off and Blur up. Notice that every note's lines run on past the note and fade slowly into the ones that follow."
+    />
+
+    Blur does for a while what Freeze does for good. Each bin rises with its note and then comes down slowly, so every note leaves a tail made of its own partials and of nothing else: no echo, and no room. The plain guitar is mixed back in over it. The device reads for itself how much of each band is held, and over this loop the reading for the band from 200 to 630 Hz says that <Claim id="hang-share">on average 90 % of what is heard there comes from bins the input has let go of</Claim>.
+
+  </Use>
+  <Use title="Drums, as a wash" set="wash">
+    <Still
+      slot="picture"
+      taps="pictureOut"
+      view="spectrogram"
+      set="wash"
+      top={3000}
+      caption="The drums out of Spectral Blur with Smear at its top. Notice that the upright stripe of each hit has spread sideways, and that the gaps between the hits have filled."
+    />
+
+    Drums are nearly all attack, and a frame cannot say where inside itself an attack fell. With the angles scrambled, each hit comes back spread over its whole frame, ahead of its own moment as much as behind it, and with some Blur the spread hits hang into one another. The loop goes in with silence between its hits. Out of the device, <Claim id="wash-gaps">its quietest 50 ms stand at −33 dB</Claim>. This is no way to keep a drum part. It is a way to make a texture out of one.
+
+  </Use>
+  <Use title="A mix, sorted" set="tones">
+    <Still
+      slot="picture"
+      taps="pictureSifted"
+      view="spectrogram"
+      set="tones"
+      top={3000}
+      min={-50}
+      caption="The mix out of Sift with only its tones kept. Notice the short level dashes, one for each partial of each note, and that nothing here is an unbroken upright stripe, which is what a drum hit would be."
+    />
+
+    Sift sorts bins instead of holding them. For each bin of each frame it asks whether what is there has stayed put in frequency, which makes it a tone, or stands across many bins for a moment, which makes it an attack, and what is neither it calls air. This card keeps the tones. On this loop the tones alone come out <Claim id="sift-mix">4.2 dB under the mix, and the attacks alone 6.1 dB under it</Claim>. The three parts together are the mix again, which stage 10 of part 5 checks.
+
+  </Use>
+  <Use title="One note, caught" set="note">
+    <Still
+      slot="picture"
+      taps="in sustained:out"
+      set="note"
+      caption="The picked guitar and what Sustain holds of it. Notice that from the moment of the catch the second wave has one height to the end, while the notes of the first come and go."
+    />
+
+    Sustain catches a moment as Freeze does, and takes more care over what it caught. It finds each partial in the frames, measures its frequency, and from then on turns all the bins of that partial together as one piece, so that a held note has nothing in it that drifts. On the guitar note caught here, <Claim id="note-steady">read every tenth of a second from 1.5 s to 3.6 s, its level moves less than 0.05 dB while the guitar going in moves over 10 dB</Claim>.
+
+  </Use>
+</Uses>
+
+</Part>
+
+<Part id="build" title="Seven pieces: split, hold, turn, smear, fall, an octave, a gain.">
+
+Spectral Blur's frame is put together here a piece at a time, in the lab's own code. The frames themselves are those of <Lesson id="short-time-fourier" />, at the sizes the device uses: <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr int kFrame = 2048;">2,048 samples</Src>, a new one every <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr int kHop = 512;">512</Src>. Each step adds one small function between the transform and its inverse. The sound of every step is real, so press "Hear it so far" as you go. Step 2 sounds wrong, and it is meant to: it is the experiment of part 1, and step 3 is the cure.
+
+"Frame at" and Freeze work as they did in part 2. The frame that "Frame at" picks is the one Freeze catches, and the pictures of bars are taken two seconds after it.
+
+<Build>
+  <Step title="Sizes and angles" controls="at">
+    Begin by doing nothing, with care. A frame goes through the transform and comes out as bins, each a pair of numbers. Read as a point on a plane, a bin is an arrow from the middle: it has a length, and it points somewhere. The length is how much of that frequency the frame holds, and this page calls it the bin's size. The direction is the bin's angle: where in its swing that frequency stood when the frame began. This step takes every bin apart into the two, puts them together again, and sends the frame back.
+
+    <Listing
+      path="site/labs/spectral-processing.cpp"
+      from="// Analyse: the newest 2,048 samples times the window, as 1,025 bins."
+      to="unit_im[k] = level[k] > 1.0e-12f ? in_im[k] * inverse : 0.0f;"
+      mark={['level[k] = std::sqrt(in_re[k] * in_re[k] + in_im[k] * in_im[k]);', 'unit_re[k] = level[k] > 1.0e-12f ? in_re[k] * inverse : 1.0f;']}
+      name="split"
+    />
+
+    The size is the length of the arrow, by Pythagoras. The angle is kept as an arrow too: the bin divided by its own length, which points the same way and is one unit long. No angle in degrees or radians is ever worked out, here or in the device. Turning an arrow by an angle is multiplying it by another arrow of length one, and that is all the later pieces need.
+
+    <Listing
+      path="site/labs/spectral-processing.cpp"
+      from="// Join: size times angle is a bin again."
+      to="for (int n = 0; n < kFrame; ++n) sum[(out_start + n) & kMask] += re[n] * hann[n] * (1.0f / (1.5f * kFrame));"
+      mark={['re[k] = out[k] * angle_re[k];', 'im[k] = out[k] * angle_im[k];']}
+      name="join"
+    />
+
+    `join` reads two things this step has not touched: `size`, which is what the bin holds, and `angle_re` and `angle_im`, the angle it goes out at. For now they are the bin's own size and its own angle, so the bins that go back are the bins that came in, and `rebuild` adds the frames up as the earlier lesson showed. What comes out is the sound that went in, <Claim id="built-wire">2,304 samples late, with the difference between the two more than 130 dB under the sound</Claim>. Every later step works by making `size` or the angle differ from what came in.
+
+    <Curve slot="picture" taps="builtSent" stems xTitle="hertz" yTitle="size" height={200}>
+      The sizes of the bins that go back, for the frame two seconds after "Frame at": a bar for
+      each bin up to 1.5 kHz. Try "Frame at", and notice the tall bars move to other bins as the
+      chord under the frame changes.
+    </Curve>
+
+    <Curve slot="picture" taps="builtAngles" stems xTitle="hertz" yTitle="turns" min={-0.5} max={0.5} height={200}>
+      The angle each of those bins goes back at, in turns. Try "Frame at" a hair to either side,
+      and notice that the bars above barely change while every angle here lands somewhere new.
+    </Curve>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the frames laid back down. Notice that the second is the first, a
+      little late.
+    </Lanes>
+
+  </Step>
+  <Step title="Hold a frame" controls="at freeze">
+    Now hold the bars. `hold` decides, for every bin of every frame, what the bin holds from here on. A bin is driven while it takes its size from the input. With Freeze on no bin is driven, and each keeps the size it had.
+
+    <Listing
+      path="site/labs/spectral-processing.cpp"
+      from="// What each bin holds. A bin is driven while the input reaches what it"
+      to="size[k] = kept;"
+      mark="driven[k] = !frozen && level[k] >= kept;"
+      name="hold"
+    />
+
+    The function is written with step 5 in mind. Until then `fall` is 0 and `rise` is 1, so with Freeze off `kept` starts at nothing, every bin is driven, and `kept` ends as the size that came in: step 1 again. With Freeze on, `fall` is 1 and nothing is driven, so `kept` is last frame's size, untouched. The line under the test drops a bin that holds less than <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kMagnitudeFloor = 1.0e-6f;">a millionth</Src>, far under anything that can be heard, so that a held frame can be told from silence.
+
+    A bin that is not driven has no input to take its angle from. At this step it goes out at the angle it went out at last time. So with Freeze on, the same frame goes back at every hop, sizes and angles alike: the experiment of part 1, in the build. From the catch on, the output <Claim id="hold-repeats">repeats every 512 samples, with the difference from one hop to the next more than 120 dB under the sound</Claim>. It is also the lab's own "one frame laid down again and again" of part 1, which was made with no transform at all: the two differ by <Claim id="stuck-built">an amount more than 130 dB under the sound</Claim>.
+
+    Hear it so far. The chord is held, and it buzzes at the rate of the hop. On the sine in the row of sounds it is a clean tone at the wrong pitch.
+
+    <Wave slot="picture" taps="built" from={1} span={0.05}>
+      A twentieth of a second of the frames laid back down, one second into the loop. Try Freeze
+      off and on again, and notice that with it on one short shape comes round over and over.
+    </Wave>
+
+    <Trace slot="picture" taps="pitchIn:in builtPitch:out" unit="Hz">
+      The frequency the loudest bin of the caught frame comes in at, and the frequency the build
+      sends it out at, each worked out from how far the bin's angle turns between frames. Try the
+      sine in the row of sounds, and notice the second line step up, away from the first, at the
+      moment of the catch.
+    </Trace>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the frames laid back down. Notice that from the catch on the second
+      lane keeps one height while the first dies away.
+    </Lanes>
+
+  </Step>
+  <Step title="Keep the bins turning" controls="at freeze">
+    What step 2 lacks is in the angles. While a partial sounds, each of its bins turns by the same angle from one frame to the next, and how far it turns is set by the partial's frequency: <Lesson id="short-time-fourier" /> worked that out in its stage on the phase between frames. A held bin whose angle stands still is claiming a frequency that comes round exactly once a hop. So measure each bin's turn while it still has an input, and keep the bin turning by that much after the input has gone.
+
+    <Listing
+      path="site/labs/spectral-processing.cpp"
+      from="// The turn: this frame's bin times the conjugate of the last one's is a"
+      to="last_im[k] = in_im[k];"
+      mark={['const float tr = xr * lr + xi * li;', 'const float ti = xi * lr - xr * li;', 'const float turned = angle_re[k] * tr - angle_im[k] * ti;']}
+      name="turning"
+    />
+
+    `measure_turn` multiplies this frame's bin by last frame's bin laid over on its back, which is its conjugate. The product is an arrow whose angle is the difference of the two angles: the turn. Its length is of no use and is taken out when the turn is used. The test above it measures only while the bin's input is holding up, because a bin whose input is being cut off turns by the cut and not by the sound.
+
+    `angles` then gives each bin the angle it goes out at. A driven bin goes out at the angle it came in at. A held bin goes out at its last angle times its turn, which is the two angles added. The line with `keep` nudges the arrow back to a length of one, since thousands of multiplications would otherwise let it creep.
+
+    With this piece the held sine is at its own pitch. Freeze holds the 440 Hz sine at <Claim id="turn-440">440.0 Hz where step 2 gave 468.75 Hz, and what is held is the tone that went in, carried on: the two differ by an amount more than 75 dB under the tone</Claim>. Hear it so far on the chords: the buzz has gone.
+
+    <Trace slot="picture" taps="pitchIn:in builtPitch:out" unit="Hz">
+      The frequency the bin comes in at and the frequency the build sends it out at. Try the sine
+      in the row of sounds, and notice that the second line now stays on the first after the
+      catch.
+    </Trace>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the frames laid back down. Notice that the second lane still keeps
+      one height from the catch on. The change in this step is one to hear.
+    </Lanes>
+
+  </Step>
+  <Step title="Smear the angles" controls="at freeze smear">
+    A frame that only turns is a fixed handful of sines, and nothing in it will ever move. It also keeps every angle of the moment it was caught, and with them the exact shape of whatever was happening then. The fourth piece loosens the angles: every frame, each bin's angle is turned by a random amount, and Smear says how far, up to half a turn either way at its top.
+
+    <Listing
+      path="site/labs/spectral-processing.cpp"
+      from="// Smear: every bin's angle is turned by a random amount, up to half a turn"
+      to="angle_re[k] = rotated;"
+      mark="const float steps = angle * (driven[k] ? driven_steps : held_steps);"
+      name="scatter"
+    />
+
+    The same lines do two different things. A driven bin starts again from the input's angle on every frame, so its random turns never add up: it is only ever a little way from where the input put it. A held bin has nothing to start again from, so its turns pile up and its angle wanders further and further from where it began. And while Freeze is on, the held bins are smeared as if Smear were at least <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kFreezeDrift = 0.12f;">0.12</Src>, wherever the control stands. A frozen sound in this device always moves a little.
+
+    How much it moves depends on how many partials share the work. One sine lies in three bins that now wander apart from one another, so they add up differently from moment to moment: with Freeze on and Smear at 0, <Claim id="drift-span">the level of the held 440 Hz sine, read every 50 ms from 1.6 s on, ranges over 9 dB, where step 3 held it within 0.01 dB</Claim>. A chord has dozens of partials to average over, and the drone of part 3 is the result.
+
+    Random angles also cost level where four frames overlap, and `join` has two gains to pay it back, one for driven bins and one for held. Stage 5 of part 5 works them out.
+
+    <Trace slot="picture" taps="pitchIn:in builtPitch:out" unit="Hz">
+      The frequency the bin comes in at and the frequency the build sends it out at. Try the sine
+      in the row of sounds, and notice the second line wander about the first once Freeze has
+      caught it.
+    </Trace>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the frames laid back down. Try Smear at its top with Freeze off on
+      the drums, and notice each hit in the second lane spread out to both sides.
+    </Lanes>
+
+  </Step>
+  <Step title="Let the sizes fall" controls="at freeze smear blur">
+    Freeze holds for ever. Blur holds for a while. Each frame, a bin keeps what it held times a number a little under 1, and takes its size from the input only when the input reaches that.
+
+    <Listing
+      path="site/labs/spectral-processing.cpp"
+      from="const float seconds = Blur::kMaxDecaySeconds * s.blur * s.blur * s.blur;"
+      to="hold(frozen, frozen ? 1.0f : fall, rise);"
+      mark={['fall = seconds > 0.0f ? std::exp(-6.9077553f * kHop / (seconds * lab::kSampleRate)) : 0.0f;', 'rise = 1.0f - Blur::kAttackSoftening * s.blur;']}
+      name="falling"
+    />
+
+    `seconds` is how long a held bin takes to fall 60 dB: <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kMaxDecaySeconds = 20.0f;">20 seconds</Src> times Blur cubed, so that most of the control's travel is spent on short hangs. `fall` is the factor for one hop that gets there. Read `hold` in step 2 again with `fall` under 1. `kept` is what the bin held, a little less. If the input reaches that, the bin is driven and follows the input. If not, the bin is held and keeps `kept`. A loud note takes its bins over at once, and when it stops they come down at Blur's pace, each at the frequency step 3 gave it.
+
+    `rise` softens the way up. At Blur 0 a driven bin takes the input's size at once. Higher up it covers only part of the distance each frame, <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kAttackSoftening = 0.7f;">0.7 times Blur</Src> short of all of it, so that a bin does not ride every chance peak of a noisy input.
+
+    The lab's test puts in a 440 Hz tone that fades out over a twentieth of a second, with Freeze off and Blur at 0.5. From then on the bin the tone was in <Claim id="fall-24">falls 24 dB a second; with this piece switched off it is empty by the next frame</Claim>.
+
+    <Trace slot="picture" taps="binIn:in builtBin:out" unit="dB" min={-90} max={0}>
+      The size of one bin as it comes in and as the build holds it. Try Freeze off and Blur at a
+      half, and notice the second line leave the first after each strum and come down along a
+      straight slope: the same number of decibels every second.
+    </Trace>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the frames laid back down. Try Freeze off and Blur up, and notice
+      the second lane stay full between the strums.
+    </Lanes>
+
+  </Step>
+  <Step title="An octave above" controls="at freeze smear blur shimmer">
+    The sixth piece adds to each frame a copy of itself an octave up. The bin at twice the frequency takes this bin's size, times Shimmer, and twice its angle.
+
+    <Listing
+      path="site/labs/spectral-processing.cpp"
+      from="// Shimmer: bin 2a takes bin a's size and twice its angle, which is a's"
+      to="im[2 * a + 1] += odd * (ur[a] * ui[a + 1] + ui[a] * ur[a + 1]);"
+      mark={['re[2 * a] += even * (ur[a] * ur[a] - ui[a] * ui[a]);', 'im[2 * a] += even * (2.0f * ur[a] * ui[a]);']}
+      name="octave"
+    />
+
+    Twice the angle, because a partial an octave up turns twice as far in the same time, and it has to go on doing so from frame to frame or the copy would be at no pitch at all. An arrow of length one times itself is an arrow at twice the angle, which is what the two marked lines work out. A partial is a few bins wide, and doubling the bin numbers would leave a gap between each of its bins and the next. The odd bins between are filled from two neighbours: the product of their angles, at a size between theirs.
+
+    On the 440 Hz sine, with Freeze off and Shimmer at 0.5, <Claim id="octave-880">a line stands at 880 Hz, 4.9 dB under the tone, where the step before has nothing to measure there</Claim>.
+
+    <Curve slot="picture" taps="builtSent" stems xTitle="hertz" yTitle="size" height={200}>
+      The sizes of the bins that go back, two seconds after "Frame at". Try Shimmer up, and
+      notice a second set of bars rise at twice the frequency of each tall one.
+    </Curve>
+
+    <Spectrum slot="picture" taps="in built:out" linear fMax={3000} min={-100} max={0}>
+      The spectrum of the sound going in and of the frames laid back down, up to 3 kHz. Try the
+      sine in the row of sounds with Freeze off, and notice one new peak an octave over it and
+      none above that.
+    </Spectrum>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the frames laid back down. Try Shimmer up with Freeze off, and
+      notice the second lane grow a little taller than the first.
+    </Lanes>
+
+  </Step>
+  <Step title="A gain for every bin" controls="at freeze smear blur shimmer tilt lowCut highCut">
+    Last, the simplest thing that can be done to a bin, and the one the earlier lesson ended on: multiply it by a gain. Spectral Blur keeps one gain for each bin, made from three controls. Tilt leans the whole spectrum about <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kTiltPivotHz = 1000.0f;">1 kHz</Src>, and Low Cut and High Cut each take away what lies beyond them.
+
+    <Listing
+      path="site/labs/spectral-processing.cpp"
+      from="// A gain for every bin."
+      to="im[k] *= bin_gain[k];"
+      mark={['re[k] *= bin_gain[k];', 'im[k] *= bin_gain[k];']}
+      name="gain"
+    />
+
+    Both parts of the bin are scaled alike, so its size changes and its angle does not. The gains themselves are worked out when a control moves, by the device's own arithmetic, which stage 7 of part 5 reads. A 2 kHz sine, one octave over the place the spectrum leans about, comes out <Claim id="tilt-3">3.0 dB down at a Tilt of −3 dB an octave, where the step before returned it unchanged</Claim>.
+
+    With this piece the build is the device's own frame. On every render the lab adds up the build's frames beside the device's left channel and compares the two, and <Claim id="built-same">the comparison reads −140 dB, which is the lab's floor: no difference it can count</Claim>.
+
+    <Check id="builtDifference" />
+
+    <Curve slot="picture" taps="builtSent" stems xTitle="hertz" yTitle="size" height={200}>
+      The sizes of the bins that go back, two seconds after "Frame at". Try Low Cut up, and
+      notice the bars at its end of the picture shrink and vanish, a few at a time.
+    </Curve>
+
+    <Spectrum slot="picture" taps="in built:out" min={-100} max={0}>
+      The spectrum of the sound going in and of the frames laid back down. Try Tilt at either
+      end with Freeze off, and notice the second line lean against the first, crossing it at
+      1 kHz.
+    </Spectrum>
+
+    <Lanes slot="picture" taps="in built">
+      The sound going in and the frames laid back down, every piece in place.
+      Try High Cut down with Freeze off, and notice the second lane grow smoother.
+    </Lanes>
+
+  </Step>
+</Build>
+
+Here are the seven pieces where they meet. `frame` runs once every hop and calls them in the order a frame meets them, each behind a test of how far the build has got. The lines with `watch` are where the lab takes its picture of the bars.
+
+<Listing
+  path="site/labs/spectral-processing.cpp"
+  from="// One frame through the pieces built so far, in the order it meets them."
+  to="rebuild(now);"
+  mark={['hold(frozen, frozen ? 1.0f : fall, rise);', 'if (pieces >= kTurn) measure_turn();', 'if (held_smear > 0.0f) scatter(s, held_smear);', 'if (pieces >= kOctave && s.shimmer > 0.0f) octave_up(s.shimmer);', 'if (pieces >= kShape) shape();']}
+  name="frame"
+/>
+
+The build is one channel, and it stops where the frames have been added up. The device has two things more: a right channel that can be given random angles of its own, and a limiter and a Mix after the frames. Both are in the next part.
+
+</Part>
+
+<Part id="engine" title="Three devices that work on bins.">
+
+Everything from here on is the engine's own code. Three devices run on your loop, and each figure is read out of the running code at the point the text is talking about. Spectral Blur takes nine stages, in the order a frame meets them, because all of it is one function, `transform`, that the build has just put together. Sift and Sustain take one stage each: the first sorts bins where Spectral Blur holds them, and the second holds them more carefully. Under each stage a line says where its figure comes from: read from the running device, computed by the kit, or written for this lesson.
+
+<Flow
+  label="The sound is cut into frames and each frame becomes bins. Every bin's size is held, its angle is turned and smeared, a copy goes an octave up, each bin is multiplied by a gain, and the frames are turned back and added. The result is limited and mixed with the plain sound, delayed to match. Sustain and Sift each work on the same sound in a row of their own."
+  blocks={[
+    { id: 'in', tap: 'in', shape: 'end' },
+    { id: 'split', shape: 'dot', from: 'in' },
+    { id: 'bins', from: 'split', tap: 'caught', label: 'Frames to bins', n: 1, signal: 'value' },
+    { id: 'hold', from: 'bins', tap: 'binHeld', label: 'Hold each size', n: 2, signal: 'value' },
+    { id: 'turn', from: 'hold', tap: 'pitchOut', label: 'Turn and smear', n: 4, signal: 'value' },
+    { id: 'octave', from: 'turn', tap: 'sent', label: 'Octave above', n: 6, signal: 'value' },
+    { id: 'gain', from: 'octave', tap: 'shape', label: 'Gain per bin', n: 7, signal: 'value' },
+    { id: 'back', from: 'gain', tap: 'wet', label: 'Back and add', n: 8 },
+    { id: 'mix', label: 'Limit and mix', from: ['back', 'split'], n: 9 },
+    { id: 'out', tap: 'out', shape: 'end', from: 'mix' },
+    { id: 'sustain', row: -1, from: 'split', tap: 'sustained', label: 'Sustain', n: 11 },
+    { id: 'sift', row: 1, from: 'split', tap: 'sifted', label: 'Sift', n: 10 },
+  ]}
+>
+  Along the middle row the sound becomes bins, the bins are worked on, and they become sound
+  again. The plain sound goes round them to the mix. The row above is Sustain and the row under
+  is Sift, each a device of its own on the same sound. Press a stage's button below, and notice
+  its block light up here.
+</Flow>
+
+<StageBlock tap="caught" n={1} title="A frame becomes sizes and angles">
+  Once every hop, for each channel, `transform` takes the newest 2,048 samples through the Hann window and the kit's transform, as <Lesson id="short-time-fourier" /> describes. The device keeps its own ring of samples and adds its own frames back, where the earlier lesson's device left both to a class of the kit. The arithmetic is the same. The first thing it does with a bin is take its size.
+
+  <Controls ids="at" />
+
+  <Curve taps="caught:out" stems xTitle="hertz" yTitle="size" height={260}>
+    The sizes of the bins of the frame at "Frame at", up to 1.5 kHz. Try "Frame at" from one end
+    to the other, and notice the row of bars change with the chord and shrink as the chord dies.
+  </Curve>
+
+  <M
+    block
+    t={String.raw`\begin{gathered} X_m[k] = \sig{out}{A_m[k]}\,e^{\,i\varphi_m[k]} \\[6pt] \sig{out}{A_m[k]} = \at{sizes-size}{\sqrt{\operatorname{Re}^2 X_m[k] + \operatorname{Im}^2 X_m[k]}} \end{gathered}`}
+  />
+
+  Read it against the picture. <M t="X_m[k]" /> is bin <M t="k" /> of frame <M t="m" />, the pair of numbers the transform gives. <M t="A_m[k]" /> is its size, the height of bar <M t="k" />. <M t={String.raw`\varphi_m[k]`} /> is its angle, which the picture does not show. The bars are drawn so that 1 is the size of a full-scale sine, which in the transform's own numbers is <Src path="cpp/kit/stft.h" at="static constexpr float kFullScale = 0.25f * Frame;">a quarter of the frame's length</Src>. Put such a sine exactly on a bin, and <Claim id="on-a-bin">it reads 1.00 on that bin and 0.50 on the bin either side</Claim>. So a steady partial is three bars wide before anything has been done to it, and whatever is done to bins is done to all three.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="const float xr = re_[k];"
+    to="const bool driven = !frozen && level >= held;"
+    mark="const float level = std::sqrt(power);"
+    name="sizes"
+    at={{ size: 'const float level = std::sqrt(power);', fall: 'float held = channel.magnitude[k] * decay;', driven: 'const bool driven = !frozen && level >= held;' }}
+  />
+</StageBlock>
+
+<StageBlock tap="binHeld" n={2} title="What a bin holds: up at once, down slowly">
+  The size that goes on is not the size that came in. Each bin holds a size of its own, kept from frame to frame, and Blur decides how that follows the input: up with it, and down more slowly than it.
+
+  <Controls ids="freeze blur" />
+
+  <Trace taps="binIn:in binHeld:out" unit="dB" min={-90} max={0}>
+    The size of one bin, the loudest of the frame at "Frame at", as it comes in and as the
+    device holds it. With Freeze on, the held line is level from the catch. Try Freeze off and
+    Blur at a half, and notice the held line leave the incoming one after each strum and come
+    down along a straight slope.
+  </Trace>
+
+  <M
+    block
+    t={String.raw`\begin{gathered} \sig{out}{S_m[k]} = \begin{cases} h + \at{fall-rise}{a}\,\bigl(\sig{in}{A_m[k]} - h\bigr) & \text{if } \at{sizes-driven}{\sig{in}{A_m[k]} \ge h} \\[4pt] \at{sizes-fall}{h} & \text{otherwise} \end{cases} \\[8pt] h = d\,S_{m-1}[k], \qquad d = 10^{-3H/(T f_s)} \\[6pt] \at{fall-time}{T = 20\,B^3}, \qquad a = 1 - 0.7\,B \end{gathered}`}
+  />
+
+  Read it against the picture. <M t="S_m[k]" /> is the held line and <M t="A_m[k]" /> the incoming one. <M t="h" /> is what the bin held a frame ago, <M t={String.raw`S_{m-1}[k]`} />, after its fall by the factor <M t="d" />. The first case is a driven bin: the input reaches that, and the bin moves towards the input by the share <M t="a" /> of the distance. The second is a held bin: the input falls short, and the bin keeps what it had, less the fall. <M t="B" /> is Blur. <M t="T" /> is the time a held bin takes to fall 60 dB, <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kMaxDecaySeconds = 20.0f;">20 seconds</Src> times Blur cubed, and <M t="d" /> is worked out so that one hop of <M t="H" /> samples at the sample rate <M t="f_s" /> takes a bin that far. <Claim id="blur-times">At Blur 0.5 a held bin falls 60 dB in 2.5 s, which is 24 dB a second, and at Blur 0.7 in 6.9 s</Claim>.
+
+  At Blur 0 the fall is total: <M t="d" /> is 0, every bin is driven and takes the whole of its input, and the device holds nothing. The share <M t="a" /> matters at the other end. A bin that jumped to every peak of a noisy input and then came down slowly would ride the peaks and read high, so the rise is slowed by <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kAttackSoftening = 0.7f;">0.7 times Blur</Src>: at full Blur a driven bin <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="held += attack * (level - held);">covers</Src> three tenths of the way to its input each frame.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="const float seconds = kMaxDecaySeconds * blur * blur * blur;"
+    to="const float attack = 1.0f - kAttackSoftening * blur;"
+    mark={['const float seconds = kMaxDecaySeconds * blur * blur * blur;', 'const float attack = 1.0f - kAttackSoftening * blur;']}
+    name="fall"
+    at={{ time: 'const float seconds = kMaxDecaySeconds * blur * blur * blur;', rise: 'const float attack = 1.0f - kAttackSoftening * blur;' }}
+  />
+</StageBlock>
+
+<StageBlock tap="held" n={3} title="Freeze: no bin is driven">
+  Freeze is three words in lines already shown. The fall becomes <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="frozen ? 1.0f : (seconds > 0.0f ? std::exp(-6.9077553f * kHop / (seconds * sample_rate())) : 0.0f);">1</Src>, so a bin keeps all of what it had. The test for a driven bin <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="const bool driven = !frozen && level >= held;">fails for every bin</Src>, so none takes anything from the input. And the angles are loosened a little, which stage 5 comes to.
+
+  <Controls ids="at freeze" />
+
+  <Curve taps="caught:alt held:out" stems xTitle="hertz" yTitle="size" height={260}>
+    The bins of the frame at "Frame at", and what the bins hold two seconds later. With Freeze
+    on the two are the same, and one row of bars covers the other. Try Freeze off, and notice
+    the held row become whatever is coming in two seconds on.
+  </Curve>
+
+  <M block t={String.raw`\begin{gathered} \sig{out}{S_m[k]} = \sig{alt}{S_{m_0}[k]} \\[4pt] \text{for every frame } m \text{ after the catch at } m_0 \end{gathered}`} />
+
+  Read it against the picture. The held row at any later frame is the row at the frame of the catch, bar for bar. The input goes on being transformed, and none of its sizes reaches the output until Freeze is let go. One thing of it does get through: the turn of each bin goes on being measured, and stage 4 shows what follows from that.
+
+  In a track Freeze is a control like any other, switched by hand or by automation. On this page the lab switches it, inside the running device, just after the frame at "Frame at" has been taken, and lets it go where the loop comes round, so that the frame the device holds is the one whose bars the page shows. A device that froze before any sound had come in would hold silence.
+</StageBlock>
+
+<StageBlock tap="pitchOut" n={4} title="A held bin keeps turning">
+  A driven bin goes out at the angle it came in at, and the input keeps it turning. A held bin has lost its input, and step 2 of the build showed what a held bin does when its angle stands still. So while a bin has an input, the device measures how far its angle turns from one frame to the next, and afterwards it keeps the bin turning by that much.
+
+  <Controls ids="freeze blur" />
+
+  <Trace taps="pitchIn:in pitchOut:out" unit="Hz">
+    The frequency the bin comes in at and the frequency the device sends it out at, each read
+    from how far the bin's angle turns between one frame and the next. Where a line drops to 0
+    the bin is too small to read. With Freeze on, the second line wanders, which is stage 5, and
+    steps up at the second strum, which the text below comes to. Try Freeze off and Blur at 0.7,
+    and notice the second line stay level as each chord dies while the first begins to jitter.
+  </Trace>
+
+  <M
+    block
+    t={String.raw`\begin{gathered} \at{turn-turn}{U[k] = \frac{X_m[k]\,\overline{X_{m-1}[k]}}{\bigl|X_m[k]\,\overline{X_{m-1}[k]}\bigr|}} \\[8pt] e^{\,i\theta_m[k]} = \begin{cases} \sig{in}{e^{\,i\varphi_m[k]}} & \text{driven} \\[4pt] \at{held-step}{U[k]\;e^{\,i\theta_{m-1}[k]}} & \text{held} \end{cases} \end{gathered}`}
+  />
+
+  Read it against the picture. <M t="U[k]" /> is the bin's turn: this frame's bin times the last frame's with its angle reversed, which is what the bar over it means, brought to a length of one. Its angle is the difference between the two frames' angles. <M t={String.raw`\theta_m[k]`} /> is the angle the bin goes out at. Driven, that is the input's angle <M t={String.raw`\varphi_m[k]`} />, and the two lines of the picture lie together. Held, it is last frame's angle moved on by the turn, and the second line carries on level where the first has nothing left to follow. How a turn per hop becomes a frequency is the relation <Lesson id="short-time-fourier" /> gives for the phase between frames, and the lab uses the kit's function for it on the device's own angles.
+
+  The turn is measured only while the bin's input is holding up: its size must stand over a tenth of what the bin holds and must not have dropped by more than a fifth in power since the last frame. A sound that is being cut off turns its bins by the cut and not by its pitch. The lab's test puts in a 440 Hz tone that fades out over a twentieth of a second, with Freeze off and Blur at 0.7. For the two seconds after the tone has gone, <Claim id="turn-kept">its bin goes on turning at 440.1 Hz, less than 1 cent from the tone, and the tail that is heard is at that pitch</Claim>.
+
+  The measuring does not stop for Freeze. Whenever what comes in at a bin stands over a tenth of what the bin holds, the bin's turn is taken afresh, frozen or not. A frozen bin keeps its size, then, and takes its pitch from whatever is played into it later. The picture shows it as the page opens: <Claim id="chord-retuned">the bin that was caught turning at 330 Hz goes out at 349 Hz once the second chord is struck</Claim>, a semitone up, with its size unchanged. On plain tones: <Claim id="freeze-retuned">a 440 Hz tone caught by Freeze, with a 452 Hz tone of the same level played in afterwards, comes out within 1 Hz of 452 Hz; with the later tone 20 dB quieter it stays within 1 Hz of 440 Hz</Claim>. The device's own notes say that <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="// - Freeze stops the magnitudes where they are and ignores the input. Held">Freeze ignores the input</Src>. For the sizes that is so. For the turns it is not, and part 7 says what to do about it.
+
+  The three bins of one partial measure the same turn, so they go on turning together and the partial stays a partial. The device never works out an angle as a number. Angles and turns are kept as arrows one unit long, a turn is a multiplication, and the only correction needed is a nudge back to unit length.
+
+  <Listing
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="// The turn since the last frame, measured only while the bin's input"
+    to="channel.last_im[k] = xi;"
+    mark={['const float tr = xr * lr + xi * li;', 'const float ti = xi * lr - xr * li;']}
+    name="turn"
+    at={{ turn: 'const float tr = xr * lr + xi * li;' }}
+  />
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="float tr = channel.turn_re[k];"
+    to="pi *= keep;"
+    mark={['pr = channel.phase_re[k] * tr - channel.phase_im[k] * ti;', 'pi = channel.phase_re[k] * ti + channel.phase_im[k] * tr;']}
+    name="held"
+    at={{ step: 'pr = channel.phase_re[k] * tr - channel.phase_im[k] * ti;' }}
+  />
+</StageBlock>
+
+<StageBlock tap="wet" n={5} title="Smear: a random turn for every bin">
+  Sizes say how much of each frequency a moment holds. Angles say how those frequencies line up, and so where inside the frame things happen: one sharp edge is a great many bins whose angles agree at a single sample. Smear turns every bin's angle by a random amount on every frame. The sizes stay, and the agreement goes.
+
+  <Controls ids="freeze smear width" />
+
+  <Wave taps="in wet:out" from={1.95} span={0.2}>
+    A fifth of a second around the second strum: the sound going in, and the device's frames
+    added up, which come a little later. Try Smear at its top with Freeze off, and notice the
+    sharp edge of the strum become a swell that begins before the edge would have come.
+  </Wave>
+
+  <M
+    block
+    t={String.raw`\begin{gathered} \theta_m[k] \;\leftarrow\; \theta_m[k] + \at{random-angle}{\pi\,s\,r_m[k]} \\[4pt] r_m[k] \text{ drawn afresh between } -1 \text{ and } 1 \end{gathered}`}
+  />
+
+  Read it against the picture. <M t="s" /> is Smear and <M t="r_m[k]" /> a random number for this bin and this frame, so at <M t="s = 1" /> the turn is anything up to half a circle either way and the angle that came in is forgotten. For a driven bin the arrow on the left is the input's angle, set again every frame, so the randomness never adds up. For a held bin it is last frame's angle already turned, so the random turns pile up and the bin wanders. In the code the turn is one of <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr int kAngles = 2048;">2,048 arrows</Src> in a table, one for each step round the circle.
+
+  <Still
+    taps="wet"
+    source="clicks"
+    values={{ freeze: 0, smear: 1 }}
+    from={0.98}
+    span={0.14}
+    caption="One sample of full height went in at one second, with Freeze off and Smear at its top. This is what the frames add up to. Notice that the sample has become a burst longer than a frame, and that half of it comes before the sample's own moment in the middle."
+  />
+
+  Measured on that single sample: <Claim id="click-smear">at Smear 1 it comes back spread over 62 ms, its highest point 20.8 dB down, with 51 % of its energy ahead of the moment it would have come out</Claim>. Its energy is all still there. It has only lost its place in time, to within a frame.
+
+  Random angles cost level. Four frames lie over every sample, and they add up to the full sound only while they agree with one another. The part of a bin that still agrees with its frame comes back whole; the rest comes back as four frames of unrelated sound, at a quarter of the power. The device raises every size to pay for it:
+
+  <M
+    block
+    t={String.raw`\at{makeup-driven}{g = \frac{1}{\sqrt{c^2 + \tfrac14\,(1 - c^2)}}}, \qquad c = \frac{\sin \pi s}{\pi s}`}
+  />
+
+  Here <M t="c" /> is the share of a bin that stays in step when its angle is turned at random by up to <M t={String.raw`\pi s`} />: all of it at Smear 0, none at 1. So <M t="g" /> is 1 with Smear down and 2 at its top. With Freeze off, <Claim id="smear-level">the chords come out within 0.5 dB of the level they went in at, at any Smear</Claim>. A held bin gets a gain of its own by the same reasoning, <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="// accumulates its angles, so neighbouring frames are in step by">worked out for angles that pile up</Src>.
+
+  Two more things live in this stage. While Freeze is on, held bins are smeared as if Smear were at least <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kFreezeDrift = 0.12f;">0.12</Src>, so that a frozen sound moves. With Smear itself at 0, the bin of a frozen 440 Hz sine wanders between <Claim id="drift">434.5 Hz and 445.6 Hz</Claim> from frame to frame. And Width gives the right channel random numbers <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="if (apart > 0.0f) angle += apart * (own.bipolar() - angle);">of its own</Src>. On a sound that is the same on both sides, with 1 standing for two sides that are the same and 0 for two that have nothing in common, the sides of the held chord are <Claim id="width-apart">alike to 1.00 at Width 0 and to less than 0.1 at Width 1</Claim>.
+
+  <Listing
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="// What random phase costs in level, undone. A driven bin gets a fresh"
+    to="kit::Rng shared, own;"
+    mark="const float driven_gain = 1.0f / std::sqrt(c_driven * c_driven + 0.25f * (1.0f - c_driven * c_driven));"
+    name="makeup"
+    at={{ driven: 'const float driven_gain = 1.0f / std::sqrt(c_driven * c_driven + 0.25f * (1.0f - c_driven * c_driven));' }}
+  />
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="if (randomise) {"
+    to="pr = rotated;"
+    mark="const float steps = angle * (driven ? driven_steps : held_steps);"
+    name="random"
+    at={{ angle: 'const float steps = angle * (driven ? driven_steps : held_steps);' }}
+  />
+  <Fragment slot="listen">Hear the frames added up, before the limiter and the mix</Fragment>
+</StageBlock>
+
+<StageBlock tap="sent" n={6} title="Shimmer: every bin again, an octave up">
+  Size and angle are joined into a bin again, and before the bins go back Shimmer adds a second copy of the frame to itself, an octave up. Every partial then has a partner at twice its frequency.
+
+  <Controls ids="shimmer" />
+
+  <Curve taps="held:alt sent:out" stems xTitle="hertz" yTitle="size" height={260}>
+    What the bins hold two seconds after "Frame at", and the sizes of the bins as they go back.
+    With Shimmer at 0 the second row is the first times the gain of stage 5. Try Shimmer up,
+    and notice new bars rise at twice the frequency of each tall one.
+  </Curve>
+
+  <M
+    block
+    t={String.raw`\begin{gathered} Y_m[k] = g\,\sig{alt}{S_m[k]}\,e^{\,i\theta_m[k]} \\[6pt] \sig{out}{Y_m[2j]} \;\leftarrow\; Y_m[2j] + \at{shimmer-even}{\sigma\,g\,S_m[j]\,e^{\,2i\theta_m[j]}} \end{gathered}`}
+  />
+
+  Read it against the picture. <M t="Y_m[k]" /> is bin <M t="k" /> as it goes back: the held size, the gain of stage 5, the angle of stages 4 and 5. The second line adds to bin <M t="2j" /> a copy of bin <M t="j" />: its size times Shimmer, <M t={String.raw`\sigma`} />, at twice its angle. Twice the angle is what keeps the copy a partial. A tone an octave up turns twice as far from frame to frame, and an angle that doubles every frame does exactly that. The bins with odd numbers lie between two copies and are filled from both.
+
+  The copies are made from what the bins held, not from what has just been added, so the octave is copied once and there is no octave of the octave. Measured with Freeze off: <Claim id="shimmer-levels">the octave of a 440 Hz sine stands 4.9 dB under it at Shimmer 0.5 and 1.1 dB over it at Shimmer 1, and nothing stands two octaves up</Claim>.
+
+  The row of bars as they go back is the one figure of this device that is the lab's own. `transform` changes its bins where they lie and transforms them back, and keeps no copy. The bars are those of the build with all seven pieces, which the check of part 4 holds to the device.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="// Shimmer: bin j takes the product of the phases of bins j/2 and"
+    to="im_[2 * a + 1] += odd * (ur[a] * ui[a + 1] + ui[a] * ur[a + 1]);"
+    mark={['re_[2 * a] += even * (ur[a] * ur[a] - ui[a] * ui[a]);', 'im_[2 * a] += even * (2.0f * ur[a] * ui[a]);']}
+    name="shimmer"
+    at={{ even: 're_[2 * a] += even * (ur[a] * ur[a] - ui[a] * ui[a]);' }}
+  />
+</StageBlock>
+
+<StageBlock tap="shape" n={7} title="Tilt and the cuts: a gain for every bin">
+  The last thing done to a bin is the plainest: it is multiplied by a gain. The device keeps a table with one gain for each bin and works it out again only when Tilt, Low Cut or High Cut moves.
+
+  <Controls ids="tilt lowCut highCut" />
+
+  <Spectrum taps="shape" min={-60} max={15}>
+    The device's gain for every bin, against frequency. With the three controls at rest it is a
+    level line at 0 dB. Try Tilt at either end, and notice the line lean about 1 kHz and go
+    level where it meets its ceiling. Try Low Cut up, and notice a step slide along the line.
+  </Spectrum>
+
+  <M
+    block
+    t={String.raw`\begin{gathered} G[k] = \at{shape-tilt}{10^{\,t\,o_k/20}}\;\cdot\;E_{\text{low}}[k]\;\cdot\;E_{\text{high}}[k] \\[6pt] E_{\text{low}}[k] = \at{shape-low}{e\bigl(2\,(o_k - o_{\text{low}}) + \tfrac12\bigr)} \\[4pt] E_{\text{high}}[k] = e\bigl(2\,(o_{\text{high}} - o_k) + \tfrac12\bigr) \\[6pt] o_k = \log_2\frac{f_k}{1\ \text{kHz}}, \qquad e(x) = x^2\,(3 - 2x) \end{gathered}`}
+  />
+
+  Read it against the picture. <M t="G[k]" /> is one point of the line. <M t="o_k" /> is how many octaves bin <M t="k" /> lies over <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kTiltPivotHz = 1000.0f;">1 kHz</Src>, and <M t="t" /> is Tilt in decibels an octave, so the first factor is a straight lean on the picture's axes. It is not allowed to lift any bin by more than <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kMaxTiltBoostDb = 12.0f;">12 dB</Src>, which is where the line goes level. The other two factors, <M t={String.raw`E_{\text{low}}[k]`} /> and <M t={String.raw`E_{\text{high}}[k]`} />, are the cuts. Each is a smooth step, <M t="e" /> of a number kept between 0 and 1, half an octave wide and centred on the cut's frequency, <M t={String.raw`o_{\text{low}}`} /> or <M t={String.raw`o_{\text{high}}`} /> in octaves: nothing a quarter of an octave outside it, everything a quarter of an octave inside. A cut at the end of its range is switched off altogether.
+
+  Measured on sines with Freeze off: <Claim id="shape">at a Tilt of −3 dB an octave a sine comes out 3.0 dB down an octave over 1 kHz and 3.0 dB up an octave under it, and however far Tilt leans the lift stops at 12.0 dB. A cut takes 6 dB off a sine that stands on it, leaves alone one half an octave inside it, and removes one half an octave outside it</Claim>. A sine is three bins wide, which is why the test stands half an octave off and not a quarter.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="// Gain per bin from Tilt and the cuts. The cuts are raised-cosine steps"
+    to="shape_[k] = gain;"
+    mark="const float db = kit::clamp(tilt * octave_[k], -60.0f, kMaxTiltBoostDb);"
+    name="shape"
+    at={{ tilt: 'const float db = kit::clamp(tilt * octave_[k], -60.0f, kMaxTiltBoostDb);', low: 'const float x = k == 0 ? 0.0f : kit::clamp((octave_[k] - low_octave) * 2.0f + 0.5f, 0.0f, 1.0f);' }}
+  />
+</StageBlock>
+
+<StageBlock tap="windowSum" n={8} title="Back to sound: the frames added up">
+  The bins go back through the kit's transform, the frame is multiplied by the window a second time, and it is added to the output where it came from. This is the overlap-add of <Lesson id="short-time-fourier" />, which shows why the second window is there and why frames a quarter of their length apart add up evenly. Only the device's own numbers are read here.
+
+  <OverlappingWindows windows="windows" sum="windowSum" xTitle="milliseconds" max={2}>
+    Two frames' length of time. Each hump is one frame's share of the output: the window
+    squared, once for the way in and once for the way out. The other line is all of them added.
+    Try any control on this page, and notice that nothing here moves: this picture belongs to
+    the frames, not to what is done to the bins inside them.
+  </OverlappingWindows>
+
+  <M
+    block
+    t={String.raw`y[n] = \at{add-scale}{\frac{1}{1.5\,N}} \sum_m \sig{alt}{w[n - mH]}\;\hat{y}_m[n - mH]`}
+  />
+
+  Read it against the picture. <M t={String.raw`\hat{y}_m`} /> is frame <M t="m" /> as it comes out of the inverse transform, <M t="w" /> is the window, and the sum adds every frame that lies over sample <M t="n" />. Each hump of the picture is <M t="w" /> squared, since an untouched frame comes back shaped by the first window and is then multiplied by the second. <Claim id="sum">The squared windows over any one sample add up to 1.5</Claim>, and the device divides by that and by the frame's length <M t="N" />, which the kit's inverse transform leaves in: <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr float kOutputScale = 1.0f / (1.5f * kFrame);">`kOutputScale`</Src>.
+
+  Every sample comes out <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr int kLatency = kFrame + kStagger;">a frame and half a hop</Src> after it went in, and the two channels take their frames <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="static constexpr int kStagger = 256;">half a hop apart</Src> so that no block of audio holds the transforms of both. The device's manifest states the delay, so that a host can line other tracks up with it: <Claim id="latency">2,304 samples, which is 48 ms</Claim>. With Freeze off and Blur, Smear, Shimmer and Tilt at rest, every bin goes back as it came, and what the frames add up to is <Claim id="through">the input 2,304 samples late, with the difference between the two more than 130 dB under the input</Claim>.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="// Tilt and cuts, then the mirror half of a real signal's spectrum."
+    to="channel.output[(out_start + n) & kRingMask] += re_[n] * window_[n] * kOutputScale;"
+    mark="channel.output[(out_start + n) & kRingMask] += re_[n] * window_[n] * kOutputScale;"
+    name="add"
+    at={{ scale: 'channel.output[(out_start + n) & kRingMask] += re_[n] * window_[n] * kOutputScale;' }}
+  />
+</StageBlock>
+
+<StageBlock tap="out" n={9} title="A limiter, and the mix with the plain sound">
+  Two things stand between the frames and the output. Held bins can pile up: a long Blur under a busy part, an octave added, a Tilt that lifts. So what the frames add up to goes through a limiter. Then Mix sets it against the plain sound, which has been waiting in the ring the frames were cut from.
+
+  <Controls ids="freeze mix" />
+
+  <Spectrogram tap="pictureOut" top={3000} min={-60} max={-15}>
+    The output up to 3 kHz: seconds across, hertz up. With Freeze on, the lines of the caught
+    chord run level to the end. Try Mix at 0, and notice the picture become the plain loop,
+    each chord fading as it does going in.
+  </Spectrogram>
+
+  <M
+    block
+    t={String.raw`\begin{aligned} \text{out} = {} & \at{mix-sum}{\cos\!\bigl(\tfrac{\pi}{2}\,\text{Mix}\bigr)\,\text{dry}} \\[4pt] & {} + \sin\!\bigl(\tfrac{\pi}{2}\,\text{Mix}\bigr)\;\cdot\;\at{mix-limit}{2\,\operatorname{clip}\!\bigl(\tfrac12\,y\bigr)} \end{aligned}`}
+  />
+
+  Read it against the picture. <M t="y" /> is the sum of stage 8 and clip is <Src path="cpp/kit/math.h" at="inline float soft_clip(float x) {">the kit's soft limiter</Src>. Halving before it and doubling after makes it <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="// Linear up to ±1, never past ±2.">a straight wire up to full scale that bends over above it</Src>, so an ordinary level passes untouched. "Dry" is the input of 2,304 samples ago, <Src path="cpp/devices/spectral-blur/spectral_blur.h" at="const float dry = channel.input[(position_ - kLatency) & kRingMask];">read straight from the ring</Src>, so the two paths arrive together. The two gains are <Src path="cpp/kit/math.h" at="inline void equal_power(float mix, float* dry_gain, float* wet_gain) {">a cosine and a sine of the same angle</Src>: one falls as the other rises, and their squares always add up to 1. <Claim id="mix">At Mix 0 the output is the input, sample for sample, 2,304 samples late</Claim>.
+
+  That law is made for two sounds that have nothing to do with one another, which is what a smeared or held sound is to the plain one. It has a cost when they are the same sound, and part 7 measures it.
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/spectral-blur/spectral_blur.h"
+    from="const float mix = mix_.next();"
+    to="out[c] = dry * dry_gain_ + wet * wet_gain_;"
+    mark={['const float wet = 2.0f * kit::soft_clip(0.5f * slot);', 'out[c] = dry * dry_gain_ + wet * wet_gain_;']}
+    name="mix"
+    at={{ limit: 'const float wet = 2.0f * kit::soft_clip(0.5f * slot);', sum: 'out[c] = dry * dry_gain_ + wet * wet_gain_;' }}
+  />
+  <Fragment slot="listen">Hear what comes out</Fragment>
+</StageBlock>
+
+<StageBlock tap="sifted" n={10} title="Sift: a share of every bin">
+  Sift is a second device on the same frames, and it does the other thing the gap between the transforms allows. It holds nothing. For every bin of every frame it decides how much is tone, how much is attack and how much is neither, and sends each part on at a level of its own. Here one part is kept and the other two are turned all the way down, so that the sorting can be heard.
+
+  <Controls ids="at keep sharpness edge" />
+
+  <Curve taps="gateSteady:alt gateSudden:alt2" xTitle="hertz" yTitle="size" height={220}>
+    Sift's two readings of every bin of the frame at "Frame at": how large the bin has been
+    over the frames around it, and how large its neighbours across frequency are in this one
+    frame. Try "Frame at" on a drum hit of the mix in the row of sounds, and notice the sudden
+    reading rise over the steady one right across the picture.
+  </Curve>
+
+  <M
+    block
+    t={String.raw`\begin{gathered} \text{tones}[k] = \at{mask-share}{\frac{1}{1 + \bigl(2\,\sig{alt2}{V[k]} \big/ \sig{alt}{P[k]}\bigr)^{p}}} \\[8pt] \text{attacks}[k] = \frac{1}{1 + \bigl(2\,\sig{alt}{P[k]} \big/ \sig{alt2}{V[k]}\bigr)^{p}} \\[8pt] \text{air}[k] = 1 - \text{tones}[k] - \text{attacks}[k] \\[6pt] \at{mask-slope}{p = 1.5 \cdot 8^{\,\text{Sharpness}}} \end{gathered}`}
+  />
+
+  Read it against the picture. <M t="P[k]" /> is the steady reading: the middle value of the bin's size over nine frames, <Src path="cpp/devices/sift/sift.h" at="static constexpr int kLook = 4;">four either side</Src> of the one being split. A partial that stays put is in all nine. A click is in four at the most and never reaches the middle. <M t="V[k]" /> is the sudden reading: a low value among nine bins of this frame, <Src path="cpp/devices/sift/sift.h" at="static constexpr int kReach = 8;">every second one up to eight either side</Src>. A click fills every bin and reads high. A partial fills only three and reads low. The reading is <Src path="cpp/devices/sift/sift.h" at="static constexpr float kAcrossBias = 1.455f;">scaled</Src> so that steady noise reads the same both ways. A bin is tone when the steady reading beats the sudden one by a margin of <Src path="cpp/devices/sift/sift.h" at="static constexpr float kMargin = 2.0f;">two to one</Src>, attack when it loses by as much, and the rest is air: noise reads about the same both ways. The power <M t="p" /> is how sharply a doubtful bin is given to one side, and Sharpness takes it from <Src path="cpp/devices/sift/sift.h" at="static constexpr float kSoftSlope = 1.5f;">1.5</Src> up to <Src path="cpp/devices/sift/sift.h" at="static constexpr float kSlopeRange = 8.0f;">eight times that</Src>. Edge moves the first moment of a new tone from the tones to the attacks, so that the start of a note goes with its strike.
+
+  <Curve taps="gateShare:ctl" xTitle="hertz" yTitle="share" min={0} max={1} height={180}>
+    The share of each bin that the chosen part gets, from none to all. Try Keep on each of its
+    four settings, and notice that on Everything the line is level at the top.
+  </Curve>
+
+  <Curve taps="gateSizes:in gateKept:out" stems xTitle="hertz" yTitle="size" height={260}>
+    The bins of the frame Sift splits, and each bin times its share, which is what goes on. Try
+    Sharpness at either end, and notice bars that were passed in part come through whole or not
+    at all.
+  </Curve>
+
+  <Spectrogram tap="pictureSifted" top={3000} min={-60} max={-15}>
+    What Sift keeps, up to 3 kHz. Try the mix in the row of sounds with Keep on Tones and then on
+    Attacks, and notice level lines in the one picture and upright stripes in the other.
+  </Spectrogram>
+
+  Each part alone, at the Sharpness this page starts from and with Edge at 0: <Claim id="sift-parts">the tones keep a sine whole, and of white noise the tones pass 13.2 dB less than went in, the attacks 17.6 dB less and the air 2.3 dB less</Claim>. The three shares of a bin add up to one, so nothing is lost in the sorting: with Keep on Everything the output is <Claim id="sift-sum">the input 4,352 samples late, with the difference between the two more than 130 dB under it</Claim>. The delay is longer than Spectral Blur's because Sift cannot split a frame until the four after it have arrived. Its manifest states <Claim id="sift-latency">4,352 samples, which is 90.7 ms</Claim>, <Src path="cpp/devices/sift/sift.h" at="static constexpr int kLatency = Stft::kLatency + kLookSamples;">four hops more</Src>.
+
+  <Listing
+    path="cpp/devices/sift/sift.h"
+    from="void update_mask() {"
+    to="mask_[i] = 1.0f / (1.0f + std::pow(kMargin * (1.0f - q) / q, slope));"
+    mark="mask_[i] = 1.0f / (1.0f + std::pow(kMargin * (1.0f - q) / q, slope));"
+    name="mask"
+    at={{ slope: 'const float slope = kSoftSlope * std::pow(kSlopeRange, param(sift::kSharpness));', share: 'mask_[i] = 1.0f / (1.0f + std::pow(kMargin * (1.0f - q) / q, slope));' }}
+  />
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/sift/sift.h"
+    from="// The shares of the frame split: tone_[k] and strike_[k]; the air is the rest."
+    to="strike_[k] = mask_[j + 1] + (mask_[j] - mask_[j + 1]) * f;"
+    mark={['tone_[k] = mask_[i] + (mask_[i + 1] - mask_[i]) * f;', 'strike_[k] = mask_[j + 1] + (mask_[j] - mask_[j + 1]) * f;']}
+    name="shares"
+  />
+  <Fragment slot="listen">Hear the part Sift keeps</Fragment>
+</StageBlock>
+
+<StageBlock tap="sustained" n={11} title="Sustain: whole partials, turned as one piece">
+  Sustain is a third device, and it does what Freeze does with more care. It catches a moment and holds it. Where Freeze keeps a row of bins and lets each wander, Sustain finds the partials in what it caught and holds each one as a piece.
+
+  <Controls ids="at motion" />
+
+  <Lanes taps="in sustained out">
+    The sound going in, what Sustain holds from "Frame at" on, and Spectral Blur's Freeze of the
+    same moment. Try the sine in the row of sounds, and notice that the second lane is one
+    height from the catch on while the third ripples.
+  </Lanes>
+
+  <M
+    block
+    t={String.raw`\begin{gathered} Y_m[k] = \at{lay-add}{C[k]\;u_m^{(R)}} \\[4pt] \text{for every bin } k \text{ of region } R \\[6pt] \at{region-turn}{u_m^{(R)} = \rho^{(R)}\,u_{m-1}^{(R)}} \end{gathered}`}
+  />
+
+  Read it against the picture. <M t="C[k]" /> is bin <M t="k" /> as it was caught, size and angle. The caught spectrum is cut into regions, one round each peak and reaching to the valleys beside it, and each region <M t="R" /> has one arrow <M t={String.raw`u^{(R)}`} /> that every bin in it is multiplied by. Each hop that arrow is turned by <M t={String.raw`\rho^{(R)}`} />, the turn of the region's peak, measured between two frames at the catch. So all the bins of a partial turn by the same amount for as long as it is held, and the shape the partial had across its bins comes back exactly in every frame. That is the second lane's level line. Spectral Blur's bins each keep a turn of their own and are smeared one by one, which is the third lane's ripple.
+
+  Measured: <Claim id="sustain-level">a 440 Hz sine caught by Sustain is held at 440.0 Hz, 2.5 dB under the level it went in at, and its level read every 50 ms moves less than 0.01 dB</Claim>. The drop is deliberate: the held sound is scaled to <Src path="cpp/devices/sustainer/sustainer.h" at="static constexpr float kHeldGain = 0.75f;">three quarters</Src> so that it sits under the playing.
+
+  The care shows most where one moment is a poor sample of the sound. Two tones close together beat: they swell and cancel, and a frame taken in a cancellation has small bins. <Claim id="close-tones">Two sines 10 Hz apart, caught at five moments 25 ms apart, are held by Freeze at levels that range over 16 dB, and by Sustain at levels within 0.1 dB of one another</Claim>. Sustain looks at a low part of the spectrum <Src path="cpp/devices/sustainer/sustainer.h" at="// - The second look. 85 ms cannot separate partials closer than 35 Hz, which">a second time, with longer frames</Src>, and holds the two tones as two partials instead of one bin that happened to be loud or quiet.
+
+  <Listing
+    path="cpp/devices/sustainer/sustainer.h"
+    from="// The region's own turn."
+    to="slot.u_im[r] = ui;"
+    mark="float ur = slot.u_re[r] * slot.rot_re[r] - slot.u_im[r] * slot.rot_im[r];"
+    name="region"
+    at={{ turn: 'float ur = slot.u_re[r] * slot.rot_re[r] - slot.u_im[r] * slot.rot_im[r];' }}
+  />
+
+  <Listing
+    slot="listing"
+    path="cpp/devices/sustainer/sustainer.h"
+    from="const int end = slot.start[r + 1];"
+    to="acc_im_[1][k] += cr * w_im[1] + ci * w_re[1];"
+    mark="acc_re_[0][k] += cr * w_re[0] - ci * w_im[0];"
+    name="lay"
+    at={{ add: 'acc_re_[0][k] += cr * w_re[0] - ci * w_im[0];' }}
+  />
+  <Fragment slot="listen">Hear what Sustain holds</Fragment>
+</StageBlock>
+
+### Every stage that has a time axis, at once
+
+Here is Spectral Blur with all nine of its controls live. The lanes are the sound going in, one bin as it comes in, the same bin as the device holds it, the device's own reading of how much of the band around that bin is held, the frames added up, and the output.
+
+<Controls ids="blur smear freeze tilt lowCut highCut shimmer width mix" />
+
+<Lanes taps="in binIn binHeld hang wet out" ranges={{ binIn: [-90, 0], binHeld: [-90, 0], hang: [0, 1] }}>
+  Six stages on one time axis. Try Freeze off and Blur at 0.6, and notice the held share climb
+  as each chord dies and drop at the next strum. Try Mix at 0, and notice the last lane become
+  the first.
+</Lanes>
+
+The stages that are rows of bins have no lane here. A frame's sizes, its gains and its windows are not one value against time, and each has its own figure above.
+
+</Part>
+
+<Part id="ways" title="Six ways to use held and sorted bins.">
+
+Each card sets the page and plays. The first four are settings of Spectral Blur, the fifth is Sift, and the last is about where the device itself begins and has nothing to play.
+
+<Ways>
+  <Way title="Hold a chord under the playing" tag="Freeze on, Mix at a half" set="pedal">
+    <Still
+      slot="picture"
+      taps="pictureOut"
+      view="spectrogram"
+      set="pedal"
+      top={3000}
+      min={-48}
+      caption="The picked guitar with a caught moment held under it. Notice the level lines of the held sound running behind the notes that come and go."
+    />
+
+    With Mix at a half the plain sound stays on top and the frozen moment lies under it, as a pedal note lies under a tune. Which moment is held is everything, and on this page "Frame at" chooses it. Move it after pressing the card, and listen for the held chord change while the line over it stays the same. The held chord is not deaf to the line: a note played into a held bin lends the bin its pitch, which is the second fault of part 7.
+
+  </Way>
+  <Way title="A short haze" tag="a little Blur, a little Smear, Mix low" set="haze">
+    Low settings of both, under the plain sound, leave a part where it was and put a soft edge behind it. The hits still land on time, because the plain sound carries them, and each leaves a short tail of its own colour. Listen for the gaps between the drums: they are no longer empty, and nothing in them is an echo.
+  </Way>
+  <Way title="A dark hang" tag="Tilt down, High Cut in" set="dark">
+    Tilt and the cuts work on the bins, so they shape what is held and smeared and leave the plain sound alone. Leaning the spectrum down and cutting the top turns a long hang into something that sits behind a part instead of over it. Here Mix is all the way up, so that the shaping is all there is to hear. Listen for the pad's upper partials missing from its tail.
+  </Way>
+  <Way title="An octave over a pad" tag="Shimmer, with Blur and Smear" set="halo">
+    Shimmer copies every bin an octave up, held bins included, so a hang that carries it has a second, higher hang inside it. Smear matters here: with the angles loosened, the copy has no attack of its own and seems to grow out of the sound under it. Listen for the upper octave arriving after each chord and outlasting it.
+  </Way>
+  <Way title="Only the hits" tag="Sift, keeping the attacks" set="hits">
+    <Still
+      slot="picture"
+      taps="pictureSifted"
+      view="spectrogram"
+      set="hits"
+      top={3000}
+      min={-46}
+      caption="The mix out of Sift with only its attacks kept. Notice the upright stripes of the drum hits, and that the level lines of the held notes are gone between them."
+    />
+
+    The other half of the card in part 3. With Edge up, the first moment of every note goes with the attacks as well, so what is kept is the rhythm of the whole mix with the pitch taken out of it. In a track the three parts each have a level, and turning the attacks down a little softens a mix without dulling it. Listen for what is left of the chords: only their starts.
+
+  </Way>
+  <Way title="Start where the device starts" tag="the device's own defaults">
+    This lesson begins with every control at rest and Freeze on, so that each can be heard alone. The device itself begins as a long, diffuse hang: Blur and Smear well up, Width full, a little Shimmer, a slight Tilt down, and the plain sound mixed in. The table in part 9 sets the two starting points side by side, with a button that puts the page on the device's own.
+  </Way>
+</Ways>
+
+</Part>
+
+<Part id="wrong" title="Five faults, and what to do about each.">
+
+<Faults>
+  <Fault title="What is caught depends on the moment" set="caughtHit">
+    <Still
+      slot="picture"
+      taps="in out"
+      set="caughtHit"
+      caption="The drums and what Freeze holds when it catches a hit. Notice that the held sound keeps the height the hit had in the one frame that was caught, however short the hit was."
+    />
+
+    Freeze keeps one frame, and a frame is a few hundredths of a second of whatever was going on. On a held chord any frame will do. On a sound that moves, a hair's difference changes everything. <Claim id="catch-moment">Caught 0.5 s into the drum loop, on a hit, the frozen sound stands at −19 dB. Caught 0.55 s in, it stands 25 dB lower, and caught at 0.4 s, between two hits, there is nothing to hold</Claim>. A frozen hit is also no longer a hit: it is the hit's colour, held as a steady noise. What to do: catch a sound while it rings, not while it strikes. In a track, automate Freeze to go on after the attack, or put the device on a send and catch only what is sent. For a note that has to be held cleanly, Sustain does the catching itself and waits for the attack to pass.
+
+  </Fault>
+  <Fault title="What is played next retunes what is held" set="retuned">
+    Freeze holds the size of every bin, and stage 4 of part 5 showed that it goes on taking each bin's turn from the input. So whatever is played into the device after the catch, in a bin that is held and at more than a tenth of the held size, moves that held partial to its own pitch. This card plays the chords as the page opens them: the first chord is caught, and the second is struck over it. Listen at the two-second mark for the held chord to shift: its loudest bin moves a semitone, and the chord that was caught is no longer quite the chord that sounds. What to do: once the sound is caught, stop feeding the device. On a send, close the send after the catch, and nothing arrives to retune the held bins. On an insert with Mix at a half, expect the held sound to lean towards whatever is played over it. Sustain has no such fault: it measures its turns once, at the catch.
+  </Fault>
+  <Fault title="Sound ahead of the attack" set="scramble">
+    A bin's angle is what puts an attack at its place inside the frame. Turn the angles at random and the attack spreads over the whole frame, and half of a frame lies before the moment it should have come: stage 5 of part 5 measured half of a single sample's energy arriving early. This card plays the drums with Smear at its top and nothing else. Listen for a breath before each hit and for the hits themselves gone soft. What to do: keep Smear low on anything that strikes, or lower Mix so that the plain sound carries the attacks and the smeared sound only follows them. Sift offers a third way, which is to take the attacks out first and smear only what is left.
+  </Fault>
+  <Fault title="Louder than it went in" set="loud">
+    Mix weighs the plain sound against the frames by a law made for two sounds that have nothing to do with each other. With Blur and Smear down and Freeze off, the frames are the plain sound, the two add up in step, and the law overshoots: on this card, with Mix at a half, <Claim id="loud">the chords come out 3.0 dB over the level they went in at</Claim>. What to do: nothing, once the device is doing its work, since a held or smeared sound is no longer in step with the plain one. But a Mix at a half is not the place to check whether the device is switched in by comparing levels, and a setting that barely blurs will read a little hot.
+  </Fault>
+  <Fault title="It is always late">
+    Nothing that works on frames answers sooner than a frame, and stages 8 and 10 of part 5 gave the two delays. Played by hand through Spectral Blur, a part is heard a frame and half a hop after the key went down, and through Sift later still, because Sift waits for the frames that follow before it sorts one. No setting shortens either. What to do: use these devices on tracks that are already recorded, where a host moves every other track to meet the delay. The engine's part is to be exact about it: one fixed number for each device, stated in its manifest, with the plain sound inside the device delayed to match.
+  </Fault>
+</Faults>
+
+</Part>
+
+<Part id="myths" title="Six things that are often said, and what is true.">
+
+<Myths>
+  <Myth says="Freezing a sound is looping a short piece of it.">
+    A looped piece can only hold frequencies that fit its length, so it turns a tone into a comb of other tones and adds a click where it joins itself: part 1 shows both. Freeze keeps no piece of the wave. It keeps a size and a turn for each bin, and step 3 of the build shows a held tone coming out at its own pitch.
+  </Myth>
+  <Myth says="The sizes of the bins are the sound, and the angles do not matter.">
+    Step 2 of the build holds the sizes exactly and gets the angles wrong, and a tone comes out a semitone sharp. Stage 5 of part 5 keeps the sizes and scrambles the angles, and a single sample becomes a burst longer than a frame. The sizes say which frequencies. The angles say where in time, and how the frames join.
+  </Myth>
+  <Myth says="A spectral blur is a kind of reverb.">
+    A reverb is made of echoes: copies of the sound that arrive later. Nothing here arrives later. Each bin simply stays where it was and comes down along the straight slope of stage 2, so a tail holds only the frequencies that were played and no reflections of anything. The hang card of part 3 is the sound of it.
+  </Myth>
+  <Myth says="A frozen sound is a recording of that moment.">
+    It is one row of sizes and one turn for each bin, and the wave of the moment cannot be had back from them. Stage 3 shows the row held bar for bar. Stage 5 shows that the angles are then left to wander, so the frozen sound is never twice the same. Part 7 shows how much the result depends on which frame was caught, and that later playing can move its pitch.
+  </Myth>
+  <Myth says="Scrambling the angles throws the sound's energy away.">
+    It would, by up to three quarters, if nothing were done about it, because four overlapping frames that disagree add up to less than four that agree. Stage 5 gives the gain the device applies to make that good, and the measurements beside it: the level of the chords holds at any Smear, and the energy of the single sample is all still there. What is lost is the place of things in time.
+  </Myth>
+  <Myth says="A bin is a frequency.">
+    A bin is a place where nearby frequencies show up. Stage 1 shows one sine filling three of them, and stage 4 shows that the frequency itself is in how fast the bin turns: a tone between two bins is held at its own pitch and not at the centre of either. A device that treated bins as frequencies would hold every sound a little out of tune, which is step 2 of the build again.
+  </Myth>
+</Myths>
+
+</Part>

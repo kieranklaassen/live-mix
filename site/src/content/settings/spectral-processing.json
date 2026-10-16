@@ -1,0 +1,164 @@
+{
+  "tile": {
+    "values": {
+      "freeze": 1,
+      "width": 1
+    },
+    "tap": "out",
+    "picture": {
+      "taps": ["later", "held"],
+      "view": "curve"
+    }
+  },
+  "sets": {
+    "loop": {
+      "label": "One slice of the wave, repeated",
+      "source": "chords",
+      "tap": "looped"
+    },
+    "stuck": {
+      "label": "One frame laid down again and again",
+      "source": "sine",
+      "tap": "stuck"
+    },
+    "held": {
+      "label": "The chord held",
+      "source": "chords"
+    },
+    "drone": {
+      "label": "A chord held as a drone",
+      "values": {
+        "width": 1
+      },
+      "source": "chords"
+    },
+    "hang": {
+      "label": "A hang behind a picked line",
+      "values": {
+        "freeze": 0,
+        "blur": 0.6,
+        "smear": 0.7,
+        "width": 1,
+        "mix": 0.5
+      },
+      "source": "guitar"
+    },
+    "wash": {
+      "label": "Drums dissolved into a wash",
+      "values": {
+        "freeze": 0,
+        "blur": 0.45,
+        "smear": 1,
+        "width": 1
+      },
+      "source": "drums"
+    },
+    "tones": {
+      "label": "The mix without its hits",
+      "values": {
+        "keep": 1,
+        "edge": 1
+      },
+      "source": "mix",
+      "tap": "sifted"
+    },
+    "note": {
+      "label": "One note caught and held",
+      "values": {
+        "at": 1.1
+      },
+      "source": "guitar",
+      "tap": "sustained"
+    },
+    "pedal": {
+      "label": "A held chord under the playing",
+      "values": {
+        "width": 1,
+        "mix": 0.5
+      },
+      "source": "guitar"
+    },
+    "haze": {
+      "label": "A short haze",
+      "values": {
+        "freeze": 0,
+        "blur": 0.3,
+        "smear": 0.3,
+        "mix": 0.4
+      },
+      "source": "drums"
+    },
+    "dark": {
+      "label": "A dark hang",
+      "values": {
+        "freeze": 0,
+        "blur": 0.7,
+        "smear": 0.7,
+        "tilt": -1.5,
+        "highCut": 4000,
+        "width": 1
+      },
+      "source": "pad"
+    },
+    "halo": {
+      "label": "An octave over a pad",
+      "values": {
+        "freeze": 0,
+        "blur": 0.6,
+        "smear": 0.5,
+        "shimmer": 0.5,
+        "width": 1,
+        "mix": 0.5
+      },
+      "source": "pad"
+    },
+    "hits": {
+      "label": "Only the hits",
+      "values": {
+        "keep": 2,
+        "edge": 1
+      },
+      "source": "mix",
+      "tap": "sifted"
+    },
+    "caughtHit": {
+      "label": "A drum hit, frozen",
+      "values": {
+        "at": 0.5
+      },
+      "source": "drums"
+    },
+    "retuned": {
+      "label": "A held chord, retuned by the next",
+      "source": "chords"
+    },
+    "scramble": {
+      "label": "The angles scrambled, the sizes kept",
+      "values": {
+        "freeze": 0,
+        "smear": 1
+      },
+      "source": "drums"
+    },
+    "loud": {
+      "label": "Mix at a half with nothing held",
+      "values": {
+        "freeze": 0,
+        "mix": 0.5
+      },
+      "source": "chords"
+    }
+  },
+  "defaults": {
+    "values": {
+      "blur": 0.6,
+      "smear": 0.7,
+      "freeze": 0,
+      "tilt": -0.5,
+      "highCut": 12000,
+      "shimmer": 0.15,
+      "width": 1,
+      "mix": 0.5
+    }
+  }
+}
