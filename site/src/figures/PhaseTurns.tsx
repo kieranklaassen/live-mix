@@ -6,7 +6,7 @@
 
 import { useLab, waitingText } from '../lab/page.ts'
 import { label as number } from './draw.ts'
-import Plot, { type Mark, type Series } from './Plot.tsx'
+import Plot, { uprightsAt, type Mark, type Series } from './Plot.tsx'
 import type { TapRef } from './roles.ts'
 
 const HALF_TURN = 180
@@ -77,10 +77,7 @@ export default function PhaseTurns({
     // Two can carry their frequency, in hertz as the axis is; more would write over each other.
     for (const hz of places) marks.push({ x: hz, text: places.length <= 2 ? number(hz) : '' })
   }
-  for (const [id, name] of uprights) {
-    const value = state.values[id]
-    if (value !== undefined) marks.push({ x: value, text: name })
-  }
+  marks.push(...uprightsAt(uprights, state.values))
 
   return (
     <Plot

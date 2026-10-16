@@ -4,7 +4,7 @@
 import { useEffect, useRef } from 'react'
 import { labStore, pagePlayer, startLab, useLab } from '../lab/page.ts'
 import type { SourceInfo } from '../lab/sources.ts'
-import { BENCH } from '../lab/store.ts'
+import { BENCH, type LabState } from '../lab/store.ts'
 import { toDb } from './draw.ts'
 import SourcePicker from './SourcePicker.tsx'
 
@@ -46,10 +46,31 @@ function Meter() {
   )
 }
 
+/** What the bar says of the lab's last render, or of why there is none. */
+function statusOf(state: LabState): string {
+  if (state.status === 'failed') return 'The lab did not load'
+  if (state.status !== 'ready' || !state.result) return 'Loading…'
+  if (state.rendering) return 'Rendering…'
+  return `Rendered in ${Math.max(1, Math.round(state.result.ms))} ms`
+}
+
+/** The audio taps the page's spectrum figures name: the lab works out a spectrum of these alone. */
+function spectrumTaps(): string[] {
+  const named = [...document.querySelectorAll<HTMLElement>('[data-spectrum-taps]')].flatMap(
+    (figure) => (figure.dataset.spectrumTaps ?? '').split(' ').filter(Boolean),
+  )
+  return [...new Set(named)]
+}
+
 export default function PlayBar({ lab, seconds, sources, stages, bench }: Props) {
   const state = useLab()
   useEffect(() => {
-    startLab({ lab, seconds, sources: sources.map((source) => source.id) })
+    startLab({
+      lab,
+      seconds,
+      sources: sources.map((source) => source.id),
+      spectra: spectrumTaps(),
+    })
   }, [lab, seconds, sources])
 
   const ready = state.status === 'ready' && state.result !== undefined
@@ -58,14 +79,6 @@ export default function PlayBar({ lab, seconds, sources, stages, bench }: Props)
     sounding === BENCH
       ? `The real device: ${bench}`
       : stages.find((stage) => stage.id === sounding)?.name
-  const status =
-    state.status === 'failed'
-      ? 'The lab did not load'
-      : !ready
-        ? 'Loading…'
-        : state.rendering
-          ? 'Rendering…'
-          : `Rendered in ${Math.max(1, Math.round(state.result?.ms ?? 0))} ms`
 
   return (
     <div
@@ -117,7 +130,7 @@ export default function PlayBar({ lab, seconds, sources, stages, bench }: Props)
         <Meter />
       </div>
       <span className="playbar-status" role="status" data-status={state.status}>
-        {status}
+        {statusOf(state)}
       </span>
     </div>
   )

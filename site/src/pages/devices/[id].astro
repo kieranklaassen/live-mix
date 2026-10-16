@@ -1,5 +1,4 @@
 ---
-import { getCollection } from 'astro:content'
 import '../../styles/devices.css'
 import '../../styles/lesson.css'
 import DeviceBench from '../../figures/DeviceBench.tsx'
@@ -8,11 +7,12 @@ import { SOURCES } from '../../lab/sources.ts'
 import Base from '../../layouts/Base.astro'
 import ParamTable from '../../components/ParamTable.astro'
 import { catalogue, lessonsUsing, presetSettings, type CatalogueDevice } from '../../lib/devices'
+import { lessonPath, lessonsInOrder } from '../../lib/lessons'
 import { href } from '../../lib/paths'
 import { sourceUrl } from '../../lib/site'
 
 export async function getStaticPaths() {
-  const lessons = (await getCollection('lessons')).map((lesson) => ({
+  const lessons = (await lessonsInOrder()).map((lesson) => ({
     id: lesson.id,
     title: lesson.data.title,
     order: lesson.data.order,
@@ -125,7 +125,7 @@ const sources = SOURCES.filter((source) =>
         <ol class="lesson-list">
           {lessons.map((lesson) => (
             <li>
-              <a href={href(`lessons/${lesson.id}/`)}>
+              <a href={href(lessonPath(lesson.id))}>
                 <span class="n">{String(lesson.order).padStart(2, '0')}</span>
                 <span class="t">{lesson.title}</span>
                 <span class="s">{lesson.summary}</span>

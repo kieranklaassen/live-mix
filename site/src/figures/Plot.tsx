@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { pagePlayer, useLab } from '../lab/page.ts'
-import { useCanvas } from './canvas.ts'
+import { EDGE, MONO, useCanvas } from './canvas.ts'
 import { fromUnit, label, minMaxPlaced, ticks, toUnit, withUnit, type Axis } from './draw.ts'
 import { ROLE_VAR, type Role } from './roles.ts'
 
@@ -37,6 +37,18 @@ export interface Mark {
   text: string
 }
 
+/** A line across the picture at the value of each control named: [id, name] pairs. */
+export const linesAt = (controls: [string, string][], values: Record<string, number>) =>
+  controls.flatMap(([id, name]) =>
+    values[id] === undefined ? [] : [{ y: values[id], text: name }],
+  )
+
+/** A line up the picture at the value of each control named: [id, name] pairs. */
+export const uprightsAt = (controls: [string, string][], values: Record<string, number>) =>
+  controls.flatMap(([id, name]) =>
+    values[id] === undefined ? [] : [{ x: values[id], text: name }],
+  )
+
 interface Props {
   /** What the picture shows, for a reader who cannot see it. */
   label: string
@@ -54,9 +66,6 @@ interface Props {
   /** Changes when the data does. */
   stamp: unknown
 }
-
-const EDGE = { left: 44, right: 10, top: 8, bottom: 22 }
-const MONO = '10px ui-monospace, "SF Mono", Menlo, Consolas, monospace'
 
 function valueAt(series: Series, x: number): number | undefined {
   const ys = series.ys

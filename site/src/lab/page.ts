@@ -6,6 +6,7 @@ import { useSyncExternalStore } from 'react'
 import { BASE } from '../lib/paths.ts'
 import type { LabDescription } from './describe.ts'
 import { createPagePlayer, type Player } from './player.ts'
+import { SAMPLE_RATE } from './rate.ts'
 import {
   INITIAL_STATE,
   createLabStore,
@@ -17,8 +18,6 @@ import {
   type Result,
 } from './store.ts'
 import type { WorkerReply, WorkerRequest } from './worker.ts'
-
-const SAMPLE_RATE = 48_000
 
 function workerRenderer(): Renderer {
   let worker: Worker | undefined
@@ -44,7 +43,7 @@ function workerRenderer(): Renderer {
           if (reply.type === 'ready') loaded?.resolve(reply.description)
           else if (reply.type === 'failed') loaded?.reject(new Error(reply.message))
           else {
-            waiting.get(reply.seq)?.resolve(reply.result as Result)
+            waiting.get(reply.seq)?.resolve(reply.result)
             waiting.delete(reply.seq)
           }
         }
@@ -54,6 +53,7 @@ function workerRenderer(): Renderer {
           labUrl: `${labs}${config.lab}.wasm`,
           benchUrl: `${labs}bench.wasm`,
           frames: Math.round(config.seconds * SAMPLE_RATE),
+          spectra: config.spectra ?? [],
         })
       })
     },
@@ -104,7 +104,6 @@ const getState = () => labStore().getState()
 // must first render that same state, or what it renders would not match the page as built.
 const getBuiltState = () => INITIAL_STATE
 
-/** The page's lab as a component sees it. */
 export function useLab(): LabState {
   return useSyncExternalStore(subscribe, getState, getBuiltState)
 }

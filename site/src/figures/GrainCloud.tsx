@@ -9,8 +9,9 @@
 
 import { useEffect, useRef } from 'react'
 import { pagePlayer, useLab, waitingText } from '../lab/page.ts'
-import { useCanvas } from './canvas.ts'
-import { label as number, roomyAxis, ticks } from './draw.ts'
+import { EDGE, drawGrid, useCanvas } from './canvas.ts'
+import { label as number, loopAxis, roomyAxis } from './draw.ts'
+import { linesAt } from './Plot.tsx'
 import { ROLE_VAR, type TapRef } from './roles.ts'
 
 interface Props {
@@ -27,8 +28,6 @@ interface Props {
 }
 
 const ROWS = 6
-const EDGE = { left: 44, right: 10, top: 8, bottom: 22 }
-const MONO = '10px ui-monospace, "SF Mono", Menlo, Consolas, monospace'
 /** Points along each edge of a bead. */
 const STEPS = 12
 
@@ -48,14 +47,11 @@ export default function GrainCloud({
   const data = found?.channels_data[0]
   const count = found?.columns ?? 0
   const hasData = !waiting && data !== undefined && count > 0
-  const seconds = result ? result.frames / 48_000 : 4
-  const length = span ?? seconds - from
+  const { seconds, length } = loopAxis(result, from, span)
   const playing = state.playing
   const line = useRef<HTMLDivElement | null>(null)
 
-  const marks = lines.flatMap(([id, name]) =>
-    state.values[id] === undefined ? [] : [{ y: state.values[id], text: name }],
-  )
+  const marks = linesAt(lines, state.values)
 
   // The deepest any grain reads, over the whole loop, so the scale holds still as the stretch moves.
   let deepest = 0
@@ -80,37 +76,14 @@ export default function GrainCloud({
       const px = (at: number) => EDGE.left + ((at - from) / length) * w
       const py = (behind: number) => EDGE.top + (behind / bottom) * h
 
-      context.font = MONO
-      context.lineWidth = 1
-      context.textBaseline = 'middle'
-      context.textAlign = 'right'
-      for (const value of ticks({ min: 0, max: bottom }, Math.max(2, Math.round(h / 44)))) {
-        const at = Math.round(py(value)) + 0.5
-        context.strokeStyle = value === 0 ? c.line : c.grid
-        context.beginPath()
-        context.moveTo(EDGE.left, at)
-        context.lineTo(EDGE.left + w, at)
-        context.stroke()
-        context.fillStyle = c.muted
-        context.fillText(number(value), EDGE.left - 6, at)
-      }
-      context.textBaseline = 'top'
-      context.textAlign = 'center'
-      for (const value of ticks(
-        { min: from, max: from + length },
-        Math.max(2, Math.round(w / 90)),
-      )) {
-        const at = Math.round(px(value)) + 0.5
-        context.strokeStyle = c.grid
-        context.beginPath()
-        context.moveTo(at, EDGE.top)
-        context.lineTo(at, EDGE.top + h)
-        context.stroke()
-        context.fillStyle = c.muted
-        context.fillText(number(value), at, EDGE.top + h + 6)
-      }
-      context.strokeStyle = c.line
-      context.strokeRect(EDGE.left + 0.5, EDGE.top + 0.5, w - 1, h - 1)
+      drawGrid(
+        context,
+        c,
+        w,
+        h,
+        { axis: { min: from, max: from + length }, at: px },
+        { axis: { min: 0, max: bottom }, at: py },
+      )
       context.fillStyle = c.muted
       context.textAlign = 'left'
       context.textBaseline = 'top'

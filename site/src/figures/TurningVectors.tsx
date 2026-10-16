@@ -5,14 +5,12 @@
 
 import { useEffect, useId, useState } from 'react'
 import { useLab, waitingText } from '../lab/page.ts'
-import { useCanvas } from './canvas.ts'
+import { SAMPLE_RATE } from '../lab/rate.ts'
+import { EDGE, MONO, useCanvas } from './canvas.ts'
 import { label as numberLabel, minMaxColumns, peakOf, ticks } from './draw.ts'
 import { ROLE_VAR, type TapRef } from './roles.ts'
 
-const RATE = 48_000
-const EDGE = { left: 44, right: 10, top: 8, bottom: 22 }
 const GAP = 14
-const MONO = '10px ui-monospace, "SF Mono", Menlo, Consolas, monospace'
 /** How long the chain takes to turn through the whole frame, in milliseconds. */
 const SWEEP_MS = 12_000
 
@@ -129,7 +127,7 @@ export default function TurningVectors({
       if (!has || !xs || !ys) return
 
       // Milliseconds under the frame.
-      const lastMs = ((size - 1) / RATE) * 1000
+      const lastMs = ((size - 1) / SAMPLE_RATE) * 1000
       context.textAlign = 'center'
       for (const value of ticks({ min: 0, max: lastMs }, Math.max(2, Math.round(waveW / 70)))) {
         const at = waveX + (value / lastMs) * waveW

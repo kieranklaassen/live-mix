@@ -2,8 +2,9 @@
 // response the lab worked out. The lab says what the first and the last point stand at.
 
 import { useLab, waitingText } from '../lab/page.ts'
+import { CONTROL_PERIOD, SAMPLE_RATE } from '../lab/rate.ts'
 import { AUDIBLE, rangeOf, roomyAxis } from './draw.ts'
-import Plot, { type Mark, type Series } from './Plot.tsx'
+import Plot, { linesAt, uprightsAt, type Mark, type Series } from './Plot.tsx'
 import type { TapRef } from './roles.ts'
 
 interface Props {
@@ -82,18 +83,13 @@ export default function Curve(props: Props) {
     })
   }
   const auto = roomyAxis(Number.isFinite(lo) ? lo : 0, Number.isFinite(hi) ? hi : 1)
-  const marks: Mark[] = [
-    ...lines.flatMap(([id, name]) =>
-      state.values[id] === undefined ? [] : [{ y: state.values[id], text: name }],
-    ),
-    ...uprights.flatMap(([id, name]) =>
-      state.values[id] === undefined ? [] : [{ x: state.values[id], text: name }],
-    ),
-  ]
+  const marks: Mark[] = [...linesAt(lines, state.values), ...uprightsAt(uprights, state.values)]
   const followed = follow ? result?.taps[follow]?.channels_data[0] : undefined
   const cursor = followed
     ? (seconds: number) =>
-        followed[Math.min(followed.length - 1, Math.floor((seconds * 48_000) / 16))] ?? null
+        followed[
+          Math.min(followed.length - 1, Math.floor((seconds * SAMPLE_RATE) / CONTROL_PERIOD))
+        ] ?? null
     : undefined
   return (
     <Plot

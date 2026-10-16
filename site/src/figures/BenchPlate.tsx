@@ -12,13 +12,14 @@ import {
   type Device,
   type Engine,
 } from '@kieranklaassen/live-mix'
-import { registerStockWasmDevices } from '@kieranklaassen/live-mix/dsp'
+import { noteFrequency, registerStockWasmDevices } from '@kieranklaassen/live-mix/dsp'
 import {
   DevicePlate,
   DevicePresetCell,
   LiveMixProvider,
   deviceSkin,
 } from '@kieranklaassen/live-mix/react'
+import { messageOf } from '../lab/message.ts'
 import { labStore, pagePlayer, useLab } from '../lab/page.ts'
 import { BENCH } from '../lab/store.ts'
 import type { BenchProps } from './DeviceBench.tsx'
@@ -79,17 +80,13 @@ export default function BenchPlate(props: BenchProps) {
         setBuilt(result)
         labStore().openBench()
       },
-      (error: unknown) =>
-        live && setFailure(error instanceof Error ? error.message : String(error)),
+      (error: unknown) => live && setFailure(messageOf(error)),
     )
     return () => {
       live = false
       if (made) {
-        try {
-          made.feed.disconnect(made.device.input)
-        } catch {
-          // An instrument was never fed.
-        }
+        // An instrument was never fed.
+        if (props.as !== 'instrument') made.feed.disconnect(made.device.input)
         made.device.output.disconnect()
         made.device.dispose()
       }
@@ -112,7 +109,7 @@ export default function BenchPlate(props: BenchProps) {
         timers.push(
           setTimeout(() => {
             held.add(id)
-            device.noteOn(id, 440 * 2 ** ((note - 69) / 12), gain)
+            device.noteOn(id, noteFrequency(note), gain)
           }, at * 1000),
           setTimeout(
             () => {

@@ -1,4 +1,3 @@
-/** One rule for a doc's id, used by the loader (generateId) and by the link rewriter. */
 export const EXCLUDED_DIRS = ['plans', 'solutions', 'api']
 
 /**

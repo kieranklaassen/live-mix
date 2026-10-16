@@ -20,9 +20,11 @@ const { taps, uprights, label, ...rest } = Astro.props
 const { lab, lesson } = pageLab(Astro.locals)
 const refs = tapRefs(taps, lab.taps, lesson)
 const said = label ?? `The spectrum of ${refs.map((tap) => tap.name).join(' and ')}`
+// Read by the play bar when it starts the lab: a spectrum is worked out only of a sound named here.
+const sounds = refs.filter((tap) => tap.kind === 'audio').map((tap) => tap.id)
 ---
 
-<figure class="fig">
+<figure class="fig" data-spectrum-taps={sounds.length > 0 ? sounds.join(' ') : undefined}>
   <Spectrum
     client:visible
     taps={refs}

@@ -2,12 +2,10 @@
 // The same code runs in Node, where the lab tests call it, and in the page's worker.
 
 import { describeLab, type LabDescription, type TapInfo } from './describe.ts'
+import { CONTROL_PERIOD, SAMPLE_RATE } from './rate.ts'
 import { instantiateLab, type LabExports } from './wasm.ts'
 
-/** Every render is at this rate, so a picture and a test come out the same anywhere. */
-export const SAMPLE_RATE = 48_000
-/** Points of a control tap are this many samples apart. */
-export const CONTROL_PERIOD = 16
+export { CONTROL_PERIOD, SAMPLE_RATE }
 
 export interface Source {
   left: Float32Array

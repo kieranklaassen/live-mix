@@ -21,7 +21,7 @@ export async function getStaticPaths() {
   const lessons = await lessonsInOrder()
   return lessons.map((lesson, index) => ({
     params: { slug: lesson.id },
-    props: { lesson, prev: lessons[index - 1], next: lessons[index + 1], count: lessons.length },
+    props: { lesson, prev: lessons[index - 1], next: lessons[index + 1] },
   }))
 }
 
@@ -29,7 +29,6 @@ interface Props {
   lesson: Lesson
   prev?: Lesson
   next?: Lesson
-  count: number
 }
 const { lesson, prev, next } = Astro.props
 const { data } = lesson
@@ -45,18 +44,16 @@ const sources = lessonSources(lesson)
 const stages = lab.taps
   .filter((tap) => tap.kind === 'audio')
   .map((tap) => ({ id: tap.id, name: tap.name }))
-const bench = data.bench ? { ...data.bench, entry: catalogueEntry(data.bench.device) } : undefined
-if (data.bench && !bench?.entry) {
-  throw new Error(
-    `${lesson.id}: its bench names the device "${data.bench.device}", which the library does not have.`,
-  )
-}
-const devices = data.devices.map((id) => {
+const deviceOrThrow = (id: string, named: 'its bench names' | 'it names') => {
   const entry = catalogueEntry(id)
   if (!entry)
-    throw new Error(`${lesson.id}: it names the device "${id}", which the library does not have.`)
+    throw new Error(`${lesson.id}: ${named} the device "${id}", which the library does not have.`)
   return entry
-})
+}
+const bench = data.bench
+  ? { ...data.bench, entry: deviceOrThrow(data.bench.device, 'its bench names') }
+  : undefined
+const devices = data.devices.map((id) => deviceOrThrow(id, 'it names'))
 ---
 
 <Base title={data.title} description={data.summary}>
@@ -107,7 +104,7 @@ const devices = data.devices.map((id) => {
         </p>
       )}
 
-      {bench && bench.entry && (
+      {bench && (
         <>
           <h2 id="the-real-device">The real device</h2>
           <p>
@@ -153,6 +150,6 @@ const devices = data.devices.map((id) => {
     seconds={data.seconds}
     sources={sources}
     stages={stages}
-    bench={bench?.entry?.name}
+    bench={bench?.entry.name}
   />
 </Base>

@@ -2,19 +2,17 @@
 
 import { labStore, useLab } from '../lab/page.ts'
 import type { ControlInfo } from '../lab/describe.ts'
-import { withUnit } from './draw.ts'
+import { fromUnit, toUnit, withUnit, type Axis } from './draw.ts'
 
 const STEPS = 1000
 
-const toSlider = (control: ControlInfo, value: number) =>
-  control.scale === 'log'
-    ? (Math.log(value / control.min) / Math.log(control.max / control.min)) * STEPS
-    : ((value - control.min) / (control.max - control.min)) * STEPS
-
-const fromSlider = (control: ControlInfo, place: number) =>
-  control.scale === 'log'
-    ? control.min * Math.pow(control.max / control.min, place / STEPS)
-    : control.min + (place / STEPS) * (control.max - control.min)
+const axisOf = (control: ControlInfo): Axis => ({
+  min: control.min,
+  max: control.max,
+  log: control.scale === 'log',
+})
+const toSlider = (control: ControlInfo, value: number) => toUnit(axisOf(control), value) * STEPS
+const fromSlider = (control: ControlInfo, place: number) => fromUnit(axisOf(control), place / STEPS)
 
 export function Control({ control }: { control: ControlInfo }) {
   const state = useLab()

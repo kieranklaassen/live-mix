@@ -1,12 +1,12 @@
 // A value the device works out, against time: a level, a gain, a delay time. One point for every
 // sixteen samples, the rate at which the engine's devices compute their controls.
 
+import { useMemo } from 'react'
 import { useLab, waitingText } from '../lab/page.ts'
-import { rangeOf, roomyAxis } from './draw.ts'
-import Plot, { type Mark, type Series } from './Plot.tsx'
+import { CONTROL_PERIOD, SAMPLE_RATE } from '../lab/rate.ts'
+import { loopAxis, rangeOf, roomyAxis } from './draw.ts'
+import Plot, { linesAt, type Series } from './Plot.tsx'
 import type { TapRef } from './roles.ts'
-
-const RATE = 48_000
 
 interface Props {
   taps: TapRef[]
@@ -34,46 +34,40 @@ export default function Trace({
 }: Props) {
   const state = useLab()
   const result = state.result
-  const seconds = result ? result.frames / RATE : 4
-  const length = span ?? seconds - from
-  const scale = length < 0.2 && from < 1 ? 1000 : 1
-  let lo = Infinity
-  let hi = -Infinity
-  const series: Series[] = taps.map((tap) => {
-    const found = result?.taps[tap.id]
-    const data = found?.channels_data[0]
-    if (!found || !data)
-      return { key: tap.id, name: tap.name, role: tap.role, x0: 0, x1: 1, unit: tap.unit }
-    // A control tap has a point every sixteen samples; an audio tap one a sample.
-    const step = found.kind === 'control' ? 16 : 1
-    const [a, b] = rangeOf(data)
-    lo = Math.min(lo, a)
-    hi = Math.max(hi, b)
-    return {
-      key: tap.id,
-      name: tap.name,
-      role: tap.role,
-      ys: data,
-      x0: 0,
-      x1: (((data.length - 1) * step) / RATE) * scale,
-      unit: tap.unit,
-    }
-  })
-  const marks: Mark[] = lines.flatMap(([id, name]) => {
-    const value = state.values[id]
-    return value === undefined ? [] : [{ y: value, text: name }]
-  })
+  const { scale, x } = loopAxis(result, from, span)
+  const fitted = min === undefined || max === undefined
+  const { series, lo, hi } = useMemo(() => {
+    let lo = Infinity
+    let hi = -Infinity
+    const series: Series[] = taps.map((tap) => {
+      const found = result?.taps[tap.id]
+      const data = found?.channels_data[0]
+      if (!found || !data)
+        return { key: tap.id, name: tap.name, role: tap.role, x0: 0, x1: 1, unit: tap.unit }
+      const step = found.kind === 'control' ? CONTROL_PERIOD : 1
+      if (fitted) {
+        const [a, b] = rangeOf(data)
+        lo = Math.min(lo, a)
+        hi = Math.max(hi, b)
+      }
+      return {
+        key: tap.id,
+        name: tap.name,
+        role: tap.role,
+        ys: data,
+        x0: 0,
+        x1: (((data.length - 1) * step) / SAMPLE_RATE) * scale,
+        unit: tap.unit,
+      }
+    })
+    return { series, lo, hi }
+  }, [result, taps, scale, fitted])
   const auto = roomyAxis(Number.isFinite(lo) ? lo : 0, Number.isFinite(hi) ? hi : 1)
   return (
     <Plot
       label={label}
       series={series}
-      x={{
-        min: from * scale,
-        max: (from + length) * scale,
-        unit: scale === 1 ? 's' : 'ms',
-        title: scale === 1 ? 'seconds' : 'milliseconds',
-      }}
+      x={x}
       y={{
         min: min ?? auto.min,
         max: max ?? auto.max,
@@ -81,7 +75,7 @@ export default function Trace({
         title: unit ?? taps[0]?.unit,
       }}
       height={height}
-      marks={marks}
+      marks={linesAt(lines, state.values)}
       waiting={waitingText(state)}
       cursor={(at) => at * scale}
       stamp={result}

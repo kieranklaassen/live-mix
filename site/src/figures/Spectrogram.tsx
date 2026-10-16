@@ -2,7 +2,8 @@
 // The lab lays it out in columns, one per frame of its short-time transform.
 
 import { useLab, waitingText } from '../lab/page.ts'
-import { rgbOf, useCanvas } from './canvas.ts'
+import { SAMPLE_RATE } from '../lab/rate.ts'
+import { EDGE, MONO, rgbOf, useCanvas } from './canvas.ts'
 import { label as number, ticks } from './draw.ts'
 import type { TapRef } from './roles.ts'
 
@@ -20,15 +21,12 @@ interface Props {
   label: string
 }
 
-const EDGE = { left: 44, right: 10, top: 8, bottom: 22 }
-const MONO = '10px ui-monospace, "SF Mono", Menlo, Consolas, monospace'
-
 export default function Spectrogram({
   tap,
   min = -90,
   max = 0,
   rowMin = 0,
-  rowMax = 24_000,
+  rowMax = SAMPLE_RATE / 2,
   top,
   height = 220,
   label,

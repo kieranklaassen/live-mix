@@ -78,14 +78,12 @@ const TYPESCRIPT_SOURCES: Readonly<Record<string, string>> = {
 
 const inRepo = (relPath: string) => fs.existsSync(path.join(REPO_ROOT, relPath))
 
-/** The device's folder under cpp/devices, else its .dsp file under cpp/faust, else its TypeScript file. */
 function sourcePath(id: string): string {
   const folder = `cpp/devices/${id}/`
   if (inRepo(folder)) return folder
   const dsp = `cpp/faust/${id}.dsp`
   if (inRepo(dsp)) return dsp
   const file = TYPESCRIPT_SOURCES[id]
-  // A wrong link is worse than a build that stops: a new device of this kind is added to the table.
   if (!file) {
     throw new Error(
       `site: device "${id}" has no folder in cpp/devices and no .dsp in cpp/faust; ` +

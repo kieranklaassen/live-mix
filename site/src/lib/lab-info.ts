@@ -3,7 +3,7 @@
 // in the page as built, and a lesson that names a tap its lab does not have stops the build.
 import fs from 'node:fs'
 import path from 'node:path'
-import type { LabDescription } from '../lab/describe.ts'
+import type { ControlInfo, LabDescription } from '../lab/describe.ts'
 import { loadLab } from '../lab/runner.ts'
 import { REPO_ROOT } from './site.ts'
 
@@ -12,17 +12,17 @@ const cache = new Map<string, Promise<LabDescription>>()
 
 export function labInfo(lab: string, lesson: string): Promise<LabDescription> {
   const file = path.join(REPO_ROOT, 'site/public/labs', `${lab}.wasm`)
-  const key = fs.existsSync(file) ? `${lab}@${fs.statSync(file).mtimeMs}` : lab
+  if (!fs.existsSync(file)) {
+    const source = path.join(REPO_ROOT, 'site/labs', `${lab}.cpp`)
+    throw new Error(
+      fs.existsSync(source)
+        ? `${lesson}: its lab "${lab}" is not built. Run \`pnpm labs\` in site/ first.`
+        : `${lesson}: it names the lab "${lab}", and there is no site/labs/${lab}.cpp.`,
+    )
+  }
+  const key = `${lab}@${fs.statSync(file).mtimeMs}`
   let found = cache.get(key)
   if (!found) {
-    if (!fs.existsSync(file)) {
-      const source = path.join(REPO_ROOT, 'site/labs', `${lab}.cpp`)
-      throw new Error(
-        fs.existsSync(source)
-          ? `${lesson}: its lab "${lab}" is not built. Run \`pnpm labs\` in site/ first.`
-          : `${lesson}: it names the lab "${lab}", and there is no site/labs/${lab}.cpp.`,
-      )
-    }
     found = loadLab(fs.readFileSync(file)).then((loaded) => loaded.description)
     cache.set(key, found)
   }
@@ -35,13 +35,9 @@ export function pageLab(locals: App.Locals): { lab: LabDescription; lesson: stri
   return { lab: locals.lab, lesson: locals.lesson ?? 'the lesson' }
 }
 
-/** Controls named in a figure's `lines` or `uprights`, as [id, name] pairs the figure can draw. */
-export function controlPairs(
-  names: string | undefined,
-  lab: LabDescription,
-  lesson: string,
-): [string, string][] {
-  return (names ?? '')
+/** The controls a component names, "threshold ratio knee", as the lab describes them. */
+export function controlsNamed(names: string, lab: LabDescription, lesson: string): ControlInfo[] {
+  return names
     .split(/[\s,]+/)
     .filter(Boolean)
     .map((id) => {
@@ -50,6 +46,15 @@ export function controlPairs(
         const known = lab.controls.map((one) => one.id).join(', ')
         throw new Error(`${lesson}: the lab has no control called "${id}". It has: ${known}`)
       }
-      return [control.id, control.name]
+      return control
     })
+}
+
+/** Controls named in a figure's `lines` or `uprights`, as [id, name] pairs the figure can draw. */
+export function controlPairs(
+  names: string | undefined,
+  lab: LabDescription,
+  lesson: string,
+): [string, string][] {
+  return controlsNamed(names ?? '', lab, lesson).map((control) => [control.id, control.name])
 }

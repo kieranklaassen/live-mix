@@ -2,7 +2,8 @@
 // `normalize` off, as src/core/tracks/SpaceRoom.ts sets it. The convolution lesson's lab does the
 // same sum with the kit's transform; this is what it is held to, in the reader's own browser.
 
-import { SAMPLE_RATE, type Source } from './runner.ts'
+import { SAMPLE_RATE } from './rate.ts'
+import type { Source } from './runner.ts'
 
 function buffer(context: BaseAudioContext, sound: Source): AudioBuffer {
   const made = context.createBuffer(2, sound.left.length, context.sampleRate)

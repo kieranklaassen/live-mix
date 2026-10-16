@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import { convolveLoop, differenceDb } from '../lab/convolution.ts'
+import { messageOf } from '../lab/message.ts'
 import { useLab } from '../lab/page.ts'
 import type { Source } from '../lab/runner.ts'
 import type { Tap } from '../lab/store.ts'
@@ -38,8 +39,7 @@ export default function ConvolverCheck({
     const timer = setTimeout(() => {
       convolveLoop(loop, room).then(
         (theirs) => current && setAnswer({ db: differenceDb(own, theirs) }),
-        (error: unknown) =>
-          current && setAnswer({ failed: error instanceof Error ? error.message : String(error) }),
+        (error: unknown) => current && setAnswer({ failed: messageOf(error) }),
       )
     }, 250)
     return () => {

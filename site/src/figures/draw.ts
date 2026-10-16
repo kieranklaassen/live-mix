@@ -1,6 +1,8 @@
 // The arithmetic of a figure, apart from any canvas: where a value stands on an axis, what a
 // pixel column of a long signal holds, where the grid lines go. Tested in tests/unit/draw.test.ts.
 
+import { SAMPLE_RATE } from '../lab/rate.ts'
+
 export interface Axis {
   min: number
   max: number
@@ -31,6 +33,28 @@ export const AUDIBLE: Axis = { min: 20, max: 20_000, log: true }
 /** Where a frequency stands across a figure `width` wide. The same for any size of transform. */
 export function hzToX(hz: number, width: number, axis: Axis = AUDIBLE): number {
   return toUnit(axis, hz) * width
+}
+
+/**
+ * The time axis of a stretch of the loop: `from` seconds in and `span` long, or to the loop's end.
+ * A stretch shorter than a fifth of a second, near the loop's start, reads better in milliseconds:
+ * `scale` is what a time in seconds is multiplied by to stand on `x`.
+ */
+export function loopAxis(result: { frames: number } | undefined, from: number, span?: number) {
+  const seconds = result ? result.frames / SAMPLE_RATE : 4
+  const length = span ?? seconds - from
+  const scale = length < 0.2 && from < 1 ? 1000 : 1
+  return {
+    seconds,
+    length,
+    scale,
+    x: {
+      min: from * scale,
+      max: (from + length) * scale,
+      unit: scale === 1 ? 's' : 'ms',
+      title: scale === 1 ? 'seconds' : 'milliseconds',
+    },
+  }
 }
 
 /**

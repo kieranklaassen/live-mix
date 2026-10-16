@@ -2,14 +2,16 @@
 // reads this, so they hydrate apart and stay in step: the source, the control values, the taps of
 // the last render, and what is sounding.
 
-import type { LabDescription } from './describe.ts'
+import { initialValues, type LabDescription } from './describe.ts'
+import { messageOf } from './message.ts'
+import { START_VOLUME } from './player.ts'
+import { CONTROL_PERIOD, SAMPLE_RATE } from './rate.ts'
 import type { RenderResult, TapData } from './runner.ts'
 import { OWN_FILE } from './sources.ts'
 
 export type Tap = TapData & { spectrum?: Float32Array }
 export type Result = Omit<RenderResult, 'taps'> & { taps: Record<string, Tap> }
 
-/** What does the rendering: the worker in the page, a stand-in in tests. */
 export interface LabConfig {
   /** The lab's name: public/labs/<lab>.wasm. */
   lab: string
@@ -17,8 +19,11 @@ export interface LabConfig {
   sources: string[]
   /** The loop's length. */
   seconds: number
+  /** The audio taps a figure on the page draws the spectrum of, by id; none when left out. */
+  spectra?: string[]
 }
 
+/** What does the rendering: the worker in the page, a stand-in in tests. */
 export interface Renderer {
   load(config: LabConfig): Promise<LabDescription>
   render(source: string, values: Record<string, number>): Promise<Result>
@@ -64,7 +69,6 @@ export interface LabState {
 }
 
 export const MAX_FILE_SECONDS = 8
-const SAMPLE_RATE = 48_000
 
 /** The state before anything has loaded: what a page is built with, and what it wakes up as. */
 export const INITIAL_STATE: LabState = {
@@ -77,7 +81,7 @@ export const INITIAL_STATE: LabState = {
   playing: false,
   sounding: '',
   benchOpen: false,
-  volume: 0.7,
+  volume: START_VOLUME,
 }
 
 export interface LabStore {
@@ -85,7 +89,6 @@ export interface LabStore {
   subscribe(listener: () => void): () => void
   init(config: LabConfig): Promise<void>
   setValue(id: string, value: number): void
-  resetValues(): void
   setSource(id: string): void
   /** A decoded file of the reader's own, already at 48 kHz. */
   setFile(name: string, left: Float32Array, right: Float32Array): void
@@ -112,7 +115,6 @@ export function createLabStore(renderer: Renderer, sounder: Sounder): LabStore {
   const audioTaps = () =>
     Object.values(state.result?.taps ?? {}).filter((tap) => tap.kind === 'audio' && tap.length > 0)
 
-  /** The tap to sound: the chosen one if the render has it, else the last audio tap (the output). */
   const soundingTap = (): Tap | undefined => {
     const taps = audioTaps()
     return taps.find((tap) => tap.id === state.sounding) ?? taps[taps.length - 1]
@@ -145,11 +147,7 @@ export function createLabStore(renderer: Renderer, sounder: Sounder): LabStore {
       },
       (error: unknown) => {
         inFlight = false
-        set({
-          rendering: false,
-          status: 'failed',
-          error: error instanceof Error ? error.message : String(error),
-        })
+        set({ rendering: false, status: 'failed', error: messageOf(error) })
       },
     )
   }
@@ -165,12 +163,10 @@ export function createLabStore(renderer: Renderer, sounder: Sounder): LabStore {
       set({ status: 'loading', sources: config.sources, source: config.sources[0] ?? '' })
       try {
         const description = await renderer.load(config)
-        const values: Record<string, number> = {}
-        for (const control of description.controls) values[control.id] = control.initial
-        set({ status: 'ready', description, values })
+        set({ status: 'ready', description, values: initialValues(description) })
         render()
       } catch (error) {
-        set({ status: 'failed', error: error instanceof Error ? error.message : String(error) })
+        set({ status: 'failed', error: messageOf(error) })
       }
     },
     setValue(id, value) {
@@ -181,12 +177,6 @@ export function createLabStore(renderer: Renderer, sounder: Sounder): LabStore {
       set({ values: { ...state.values, [id]: clamped } })
       render()
     },
-    resetValues() {
-      const values: Record<string, number> = {}
-      for (const control of state.description?.controls ?? []) values[control.id] = control.initial
-      set({ values })
-      render()
-    },
     setSource(id) {
       if (id === state.source || (id !== OWN_FILE && !state.sources.includes(id))) return
       if (id === OWN_FILE && !state.file) return
@@ -195,7 +185,7 @@ export function createLabStore(renderer: Renderer, sounder: Sounder): LabStore {
     },
     setFile(name, left, right) {
       const most = MAX_FILE_SECONDS * SAMPLE_RATE
-      const frames = Math.min(left.length, most) - (Math.min(left.length, most) % 16)
+      const frames = Math.min(left.length, most) - (Math.min(left.length, most) % CONTROL_PERIOD)
       const keptLeft = left.slice(0, frames)
       const keptRight = right.slice(0, frames)
       // A short fade at each end, so a file cut anywhere loops without a click.

@@ -47,9 +47,3 @@ export const NO_SOURCE: SourceInfo = {
 
 /** The picker's last choice: a file of the reader's own, decoded in the page. */
 export const OWN_FILE = 'file'
-
-export function sourceInfo(id: string): SourceInfo {
-  const found = [...SOURCES, NO_SOURCE].find((source) => source.id === id)
-  if (!found) throw new Error(`No source called ${id}`)
-  return found
-}

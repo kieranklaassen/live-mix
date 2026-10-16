@@ -17,7 +17,6 @@ const lessons = defineCollection({
   loader: glob({ base: './src/content/lessons', pattern: '*.mdx' }),
   schema: z.object({
     title: z.string(),
-    /** 1 to 20: the lesson's place in the course. */
     order: z.number().int().positive(),
     /** One or two sentences for the index and the page's description. */
     summary: z.string(),
@@ -39,7 +38,6 @@ const lessons = defineCollection({
       .optional(),
     /** Sources the reader may pick, by id (site/src/lab/sources.ts); the first is the default. */
     sources: z.array(z.string()).min(1),
-    /** Loop length in seconds, at most eight. */
     seconds: z.number().positive().max(8).default(4),
     /** The engine's files the lesson talks about, as paths from the repository's root. */
     files: z.array(z.string()).default([]),

@@ -3,8 +3,8 @@
 // for each instant) and the sum as a curve over the same stretch of time.
 
 import { useLab, waitingText } from '../lab/page.ts'
-import { useCanvas } from './canvas.ts'
-import { label as number, rangeOf, ticks, toUnit } from './draw.ts'
+import { EDGE, drawGrid, useCanvas } from './canvas.ts'
+import { label as number, rangeOf, toUnit } from './draw.ts'
 import { ROLE_VAR, type TapRef } from './roles.ts'
 
 interface Props {
@@ -19,9 +19,6 @@ interface Props {
   height?: number
   label: string
 }
-
-const EDGE = { left: 44, right: 10, top: 8, bottom: 22 }
-const MONO = '10px ui-monospace, "SF Mono", Menlo, Consolas, monospace'
 
 export default function OverlappingWindows({
   windows,
@@ -54,34 +51,7 @@ export default function OverlappingWindows({
       const px = (value: number) => EDGE.left + toUnit(x, value) * w
       const py = (value: number) => EDGE.top + (1 - toUnit(y, value)) * h
 
-      context.font = MONO
-      context.lineWidth = 1
-      context.textBaseline = 'middle'
-      context.textAlign = 'right'
-      for (const value of ticks(y, Math.max(2, Math.round(h / 44)))) {
-        const at = Math.round(py(value)) + 0.5
-        context.strokeStyle = value === 0 ? c.line : c.grid
-        context.beginPath()
-        context.moveTo(EDGE.left, at)
-        context.lineTo(EDGE.left + w, at)
-        context.stroke()
-        context.fillStyle = c.muted
-        context.fillText(number(value), EDGE.left - 6, at)
-      }
-      context.textBaseline = 'top'
-      context.textAlign = 'center'
-      for (const value of ticks(x, Math.max(2, Math.round(w / 90)))) {
-        const at = Math.round(px(value)) + 0.5
-        context.strokeStyle = c.grid
-        context.beginPath()
-        context.moveTo(at, EDGE.top)
-        context.lineTo(at, EDGE.top + h)
-        context.stroke()
-        context.fillStyle = c.muted
-        context.fillText(number(value), at, EDGE.top + h + 6)
-      }
-      context.strokeStyle = c.line
-      context.strokeRect(EDGE.left + 0.5, EDGE.top + 0.5, w - 1, h - 1)
+      drawGrid(context, c, w, h, { axis: x, at: px }, { axis: y, at: py })
       if (xTitle) {
         context.fillStyle = c.muted
         context.textAlign = 'right'

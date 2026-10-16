@@ -2,17 +2,20 @@
 // and drawn again when its box changes size or the theme changes.
 
 import { useEffect, useRef, type RefObject } from 'react'
+import { label, ticks, type Axis } from './draw.ts'
 import { ROLE_VAR, type Role } from './roles.ts'
+
+/** The room round a picture for its numbers, and the type they are set in. */
+export const EDGE = { left: 44, right: 10, top: 8, bottom: 22 }
+export const MONO = '10px ui-monospace, "SF Mono", Menlo, Consolas, monospace'
 
 export interface Colours {
   role: Record<Role, string>
-  text: string
   muted: string
   grid: string
   line: string
   bg: string
   panel: string
-  playhead: string
 }
 
 let cached: { theme: string | null; colours: Colours } | undefined
@@ -28,13 +31,11 @@ export function colours(): Colours {
   for (const [key, name] of Object.entries(ROLE_VAR)) role[key as Role] = read(name, '#888')
   const value: Colours = {
     role,
-    text: read('--lm-text', '#111'),
     muted: read('--lm-muted', '#777'),
     grid: read('--lm-grid-line', '#eee'),
     line: read('--sig-grid', '#ccc'),
     bg: read('--lm-bg', '#fff'),
     panel: read('--lm-panel', '#f4f4f4'),
-    playhead: read('--lm-playhead', '#e33'),
   }
   cached = { theme, colours: value }
   return value
@@ -59,6 +60,22 @@ export type Draw = (
   c: Colours,
 ) => void
 
+function paint(canvas: HTMLCanvasElement, draw: Draw): void {
+  const box = canvas.getBoundingClientRect()
+  const width = Math.max(1, Math.round(box.width))
+  const height = Math.max(1, Math.round(box.height))
+  const ratio = Math.min(3, window.devicePixelRatio || 1)
+  if (canvas.width !== width * ratio || canvas.height !== height * ratio) {
+    canvas.width = width * ratio
+    canvas.height = height * ratio
+  }
+  const context = canvas.getContext('2d')
+  if (!context) return
+  context.setTransform(ratio, 0, 0, ratio, 0, 0)
+  context.clearRect(0, 0, width, height)
+  draw(context, width, height, colours())
+}
+
 /**
  * A ref for a canvas that `draw` paints, in CSS pixels. Painted again when `deps` change, when
  * the canvas changes size, and when the theme changes.
@@ -72,29 +89,21 @@ export function useCanvas(
   latest.current = draw
 
   useEffect(() => {
+    if (ref.current) paint(ref.current, latest.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps)
+
+  useEffect(() => {
     const canvas = ref.current
     if (!canvas) return
     let frame = 0
-    const paint = () => {
+    const repaint = () => {
       frame = 0
-      const box = canvas.getBoundingClientRect()
-      const width = Math.max(1, Math.round(box.width))
-      const height = Math.max(1, Math.round(box.height))
-      const ratio = Math.min(3, window.devicePixelRatio || 1)
-      if (canvas.width !== width * ratio || canvas.height !== height * ratio) {
-        canvas.width = width * ratio
-        canvas.height = height * ratio
-      }
-      const context = canvas.getContext('2d')
-      if (!context) return
-      context.setTransform(ratio, 0, 0, ratio, 0, 0)
-      context.clearRect(0, 0, width, height)
-      latest.current(context, width, height, colours())
+      paint(canvas, latest.current)
     }
     const ask = () => {
-      if (!frame) frame = requestAnimationFrame(paint)
+      if (!frame) frame = requestAnimationFrame(repaint)
     }
-    paint()
     const sizes = new ResizeObserver(ask)
     sizes.observe(canvas)
     const theme = new MutationObserver(ask)
@@ -107,8 +116,49 @@ export function useCanvas(
       sizes.disconnect()
       theme.disconnect()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps)
+  }, [])
 
   return ref
+}
+
+/**
+ * The grid of a picture and its numbers: a line across at each round value of `y`, a line up at
+ * each of `x`, and the frame round them, `w` by `h` inside EDGE. `at` says where a value stands.
+ */
+export function drawGrid(
+  context: CanvasRenderingContext2D,
+  c: Colours,
+  w: number,
+  h: number,
+  x: { axis: Axis; at: (value: number) => number },
+  y: { axis: Axis; at: (value: number) => number },
+): void {
+  context.font = MONO
+  context.lineWidth = 1
+  context.textBaseline = 'middle'
+  context.textAlign = 'right'
+  for (const value of ticks(y.axis, Math.max(2, Math.round(h / 44)))) {
+    const at = Math.round(y.at(value)) + 0.5
+    context.strokeStyle = value === 0 ? c.line : c.grid
+    context.beginPath()
+    context.moveTo(EDGE.left, at)
+    context.lineTo(EDGE.left + w, at)
+    context.stroke()
+    context.fillStyle = c.muted
+    context.fillText(label(value), EDGE.left - 6, at)
+  }
+  context.textBaseline = 'top'
+  context.textAlign = 'center'
+  for (const value of ticks(x.axis, Math.max(2, Math.round(w / 90)))) {
+    const at = Math.round(x.at(value)) + 0.5
+    context.strokeStyle = c.grid
+    context.beginPath()
+    context.moveTo(at, EDGE.top)
+    context.lineTo(at, EDGE.top + h)
+    context.stroke()
+    context.fillStyle = c.muted
+    context.fillText(label(value), at, EDGE.top + h + 6)
+  }
+  context.strokeStyle = c.line
+  context.strokeRect(EDGE.left + 0.5, EDGE.top + 0.5, w - 1, h - 1)
 }

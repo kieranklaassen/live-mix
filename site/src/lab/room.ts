@@ -7,6 +7,7 @@
 // The lab declares the room's controls like any others; this file reads their values.
 
 import { spaceImpulseChannel, type SpaceOptions } from '../../../src/core/tracks/space.ts'
+import { initialValues } from './describe.ts'
 import { SAMPLE_RATE, type Lab, type Source, type Values } from './runner.ts'
 
 /** The lab's control ids, as the engine's options. Times the lab shows in milliseconds are seconds there. */
@@ -43,9 +44,7 @@ export function roomImpulse(values: Values): Source {
 /** A lab that takes the room as its second signal, rendered with the room its controls ask for. */
 export function withRoom(lab: Lab): Lab {
   if (!lab.takesAux) return lab
-  const initial = Object.fromEntries(
-    lab.description.controls.map((control) => [control.id, control.initial]),
-  )
+  const initial = initialValues(lab.description)
   return {
     ...lab,
     render: (source, values, frames) => {

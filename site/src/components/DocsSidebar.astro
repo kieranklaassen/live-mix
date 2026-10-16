@@ -10,9 +10,13 @@ interface Props {
 }
 const { groups, current } = Astro.props
 const here = (id: string) => (id === current ? 'page' : undefined)
+
+// The menu is written open, so the list is there without scripts, and kept out of the search
+// index, where it would repeat on every page. Its script runs before paint: a narrow screen starts
+// with the list folded, so the page opens on its text; a wide one shows it beside the text, with
+// the page being read scrolled into sight.
 ---
 
-<!-- Written open, so the list is there without scripts; kept out of the search index, where it would repeat on every page. -->
 <details class="docs-menu" open data-pagefind-ignore>
   <summary>All docs</summary>
   <nav class="docs-nav" aria-label="Docs">
@@ -36,8 +40,6 @@ const here = (id: string) => (id === current ? 'page' : undefined)
   </nav>
 </details>
 <script is:inline>
-  // Runs before paint. A narrow screen starts with the list folded, so the page opens on its text;
-  // a wide one shows it beside the text, with the page being read scrolled into sight.
   ;(function () {
     var menu = document.currentScript.previousElementSibling
     var narrow = window.matchMedia('(max-width: 56em)')

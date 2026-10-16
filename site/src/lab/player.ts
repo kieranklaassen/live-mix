@@ -3,9 +3,9 @@
 // crosses over to it in 20 ms. Every stage plays at one gain, with room over it, so a stage that
 // passes full scale is heard unclipped and stages keep their true difference in level.
 
+import { SAMPLE_RATE } from './rate.ts'
 import type { Sounder, Tap } from './store.ts'
 
-const SAMPLE_RATE = 48_000
 const FADE = 0.02
 /** With the volume at its starting place the stages play 12 dB under full scale. */
 export const START_VOLUME = 0.7
@@ -56,6 +56,10 @@ export function createPlayer(makeContext: () => PlayerContext): Player {
   let duration = 0
   let volume = START_VOLUME
 
+  const sounding = () => voice !== undefined || feedVoice !== undefined
+  /** Seconds into the loop at a time on the context's clock. */
+  const placeAt = (time: number) => (((time - origin) % duration) + duration) % duration
+
   const ensure = (): PlayerContext => {
     if (context) {
       if (context.state === 'suspended') void context.resume()
@@ -96,13 +100,13 @@ export function createPlayer(makeContext: () => PlayerContext): Player {
   }
 
   /** A looping voice for a tap, into `into`, at the loop's present place (or its start). */
-  const start = (ctx: PlayerContext, tap: Tap, into: AudioNode, restart: boolean): Voice => {
+  const start = (ctx: PlayerContext, tap: Tap, into: AudioNode): Voice => {
     const buffer = bufferOf(ctx, tap)
     const now = ctx.currentTime
-    const sounding = voice !== undefined || feedVoice !== undefined
-    if (restart || !sounding || duration <= 0) origin = now
+    // From silence the loop starts at its start; over a voice that is sounding it carries on in place.
+    if (!sounding() || duration <= 0) origin = now
     duration = buffer.duration
-    const offset = (((now - origin) % duration) + duration) % duration
+    const offset = placeAt(now)
     const source = ctx.createBufferSource()
     source.buffer = buffer
     source.loop = true
@@ -127,8 +131,7 @@ export function createPlayer(makeContext: () => PlayerContext): Player {
     benchReturn: () => (ensure(), back),
     play(tap) {
       const ctx = ensure()
-      // From silence a play starts at the loop's start; from the bench it carries on in place.
-      const next = start(ctx, tap, taps, voice === undefined && feedVoice === undefined)
+      const next = start(ctx, tap, taps)
       fadeOut(ctx, voice)
       fadeOut(ctx, feedVoice)
       feedVoice = undefined
@@ -137,7 +140,7 @@ export function createPlayer(makeContext: () => PlayerContext): Player {
     },
     update(tap) {
       if (!context || !voice) return
-      const next = start(context, tap, taps, false)
+      const next = start(context, tap, taps)
       fadeOut(context, voice)
       voice = next
     },
@@ -149,7 +152,7 @@ export function createPlayer(makeContext: () => PlayerContext): Player {
         benchLevel(ctx, 0)
         return
       }
-      const next = start(ctx, source, feed, false)
+      const next = start(ctx, source, feed)
       fadeOut(ctx, voice)
       fadeOut(ctx, feedVoice)
       voice = undefined
@@ -170,11 +173,11 @@ export function createPlayer(makeContext: () => PlayerContext): Player {
       master.gain.setTargetAtTime(volumeGain(volume), context.currentTime, 0.015)
     },
     position() {
-      if (!context || (!voice && !feedVoice) || duration <= 0) return null
-      return (((context.currentTime - origin) % duration) + duration) % duration
+      if (!context || !sounding() || duration <= 0) return null
+      return placeAt(context.currentTime)
     },
     level() {
-      if (!context || (!voice && !feedVoice)) return 0
+      if (!context || !sounding()) return 0
       scope ??= new Float32Array(analyser.fftSize)
       analyser.getFloatTimeDomainData(scope)
       let peak = 0

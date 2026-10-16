@@ -55,6 +55,11 @@ export interface LabDescription {
   checks: CheckInfo[]
 }
 
+/** Every control at the value the lab starts it at, by id. */
+export function initialValues(description: LabDescription): Record<string, number> {
+  return Object.fromEntries(description.controls.map((control) => [control.id, control.initial]))
+}
+
 function enumAt<T extends string>(names: readonly T[], value: number, what: string): T {
   const name = names[value]
   if (name === undefined)

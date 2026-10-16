@@ -1,9 +1,9 @@
 ---
-import { getCollection } from 'astro:content'
 import Base from '../layouts/Base.astro'
+import { lessonPath, lessonsInOrder } from '../lib/lessons'
 import { href } from '../lib/paths'
 
-const lessons = (await getCollection('lessons')).sort((a, b) => a.data.order - b.data.order)
+const lessons = await lessonsInOrder()
 ---
 
 <Base
@@ -61,7 +61,7 @@ const lessons = (await getCollection('lessons')).sort((a, b) => a.data.order - b
       <ol class="lesson-list">
         {lessons.map((lesson) => (
           <li>
-            <a href={href(`lessons/${lesson.id}/`)}>
+            <a href={href(lessonPath(lesson.id))}>
               <span class="n">{String(lesson.data.order).padStart(2, '0')}</span>
               <span class="t">{lesson.data.title}</span>
               <span class="s">{lesson.data.summary}</span>

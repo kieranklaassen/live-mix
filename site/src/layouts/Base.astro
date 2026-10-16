@@ -12,6 +12,9 @@ interface Props {
 }
 const { title, description, indexed = true } = Astro.props
 const full = title === 'live-mix' ? title : `${title} · live-mix`
+
+// The script in the head runs before paint, so a dark system never sees a light flash. The kit's
+// tokens follow the attribute it sets.
 ---
 
 <!doctype html>
@@ -25,7 +28,6 @@ const full = title === 'live-mix' ? title : `${title} · live-mix`
     <link rel="sitemap" href={href('sitemap-index.xml')} />
     <link rel="icon" href={href('favicon.svg')} type="image/svg+xml" />
     <script is:inline>
-      // Before paint, so a dark system never sees a light flash. The kit's tokens follow this attribute.
       ;(function () {
         var dark = window.matchMedia('(prefers-color-scheme: dark)')
         function set() {
