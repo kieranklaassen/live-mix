@@ -1,6 +1,7 @@
 // Every lesson, opened in a browser: it renders with no error, every figure draws, a control
 // draws them again, play starts the sound, each stage can be heard, and the real device's plate
 // appears and sounds. Runs on whatever lessons exist.
+import fs from 'node:fs'
 import { expect, test } from '@playwright/test'
 import {
   labReady,
@@ -116,3 +117,29 @@ for (const lesson of lessonIds()) {
     }
   })
 }
+
+test('a lesson named in the text links to it, with the number and the title the map gives', async ({
+  page,
+}) => {
+  const map: { lessons: { id: string; title: string }[] }[] = JSON.parse(
+    fs.readFileSync(new URL('../../src/content/families.json', import.meta.url), 'utf8'),
+  )
+  const inOrder = map.flatMap((family) => family.lessons)
+  let found = 0
+  for (const lesson of lessonIds()) {
+    await page.goto(`lessons/${lesson}/`)
+    const mentions = await page.locator('.lesson-body a', { hasText: /^lesson \d+, /i }).all()
+    for (const mention of mentions) {
+      const id = /\/lessons\/([^/]+)\/$/.exec((await mention.getAttribute('href')) ?? '')?.[1]
+      const number = inOrder.findIndex((one) => one.id === id) + 1
+      // A capital only where the mention starts a sentence.
+      const words = ((await mention.textContent()) ?? '').replace(/^L/, 'l')
+      expect(words, `${lesson}, naming ${id}`).toBe(
+        `lesson ${number}, ${inOrder[number - 1]?.title}`,
+      )
+      found += 1
+    }
+  }
+  // With every lesson run, some lesson names another.
+  if (!process.env.LESSONS) expect(found).toBeGreaterThan(0)
+})

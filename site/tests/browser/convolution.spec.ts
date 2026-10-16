@@ -5,7 +5,7 @@
 import { expect, test } from '@playwright/test'
 import { labReady, renders, watch } from './support.ts'
 
-const LESSON = 'lessons/15-convolution-reverb/'
+const LESSON = 'lessons/convolution-reverb/'
 
 /** In the page: seeded noise through a ConvolverNode holding `impulse`, with `normalize` off. */
 async function throughConvolver({

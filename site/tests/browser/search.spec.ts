@@ -11,14 +11,14 @@ test('"compress" finds the compression lesson, with the API reference in a list 
   await page.locator('#search-q').fill('compress')
   const site = page.locator('.search-group[data-group=site]')
   await expect(site).toBeVisible()
-  await expect(site.locator('.search-results a[href$="/lessons/07-compression/"]')).toBeVisible()
+  await expect(site.locator('.search-results a[href$="/lessons/compression/"]')).toBeVisible()
   // Nothing of the API reference stands among the lessons, docs and devices.
   await expect(site.locator('.search-results a[href*="/api/"]')).toHaveCount(0)
   const api = page.locator('.search-group[data-group=api]')
   await expect(api).toBeVisible()
   expect(await api.locator('.search-results a[href*="/api/"]').count()).toBeGreaterThan(0)
 
-  await site.locator('.search-results a[href$="/lessons/07-compression/"]').click()
+  await site.locator('.search-results a[href$="/lessons/compression/"]').click()
   await expect(page.locator('h1')).toContainText(/compress/i)
   expect(problems).toEqual([])
 })
@@ -27,7 +27,9 @@ test('a search can be linked to, and says so when it finds nothing', async ({ pa
   await page.goto('search/?q=convolution')
   await expect(page.locator('#search-q')).toHaveValue('convolution')
   await expect(
-    page.locator('.search-group[data-group=site] .search-results a[href*="/lessons/15-"]'),
+    page.locator(
+      '.search-group[data-group=site] .search-results a[href$="/lessons/convolution-reverb/"]',
+    ),
   ).toBeVisible()
 
   await page.locator('#search-q').fill('zxqv')

@@ -12,12 +12,15 @@ import {
   lessonPath,
   lessonSources,
   lessonsInOrder,
+  placeOf,
+  twoDigits,
   type Lesson,
 } from '../../lib/lessons.ts'
 import { href } from '../../lib/paths.ts'
 import { sourceUrl } from '../../lib/site.ts'
 
 export async function getStaticPaths() {
+  // Before and after are the neighbours that are written, in the map's order.
   const lessons = await lessonsInOrder()
   return lessons.map((lesson, index) => ({
     params: { slug: lesson.id },
@@ -60,7 +63,7 @@ const devices = data.devices.map((id) => deviceOrThrow(id, 'it names'))
   <article class="lesson" data-lesson={lesson.id}>
     <header class="lesson-head">
       <p class="label">
-        <a href={href('lessons/')}>Lessons</a> · {String(data.order).padStart(2, '0')}
+        <a href={href('lessons/')}>Lessons</a> · {twoDigits(placeOf(lesson.id).number)}
       </p>
       <h1>{data.title}</h1>
       <p class="lede">{data.summary}</p>

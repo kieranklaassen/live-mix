@@ -2,6 +2,7 @@ import { defineCollection } from 'astro:content'
 import { glob } from 'astro/loaders'
 import { z } from 'astro/zod'
 import { docId, EXCLUDED_DIRS } from './lib/doc-routes.ts'
+import { MAP } from './lib/lesson-map.ts'
 
 // The docs are rendered where they are: ../docs, read on GitHub and here alike.
 const docs = defineCollection({
@@ -17,7 +18,10 @@ const lessons = defineCollection({
   loader: glob({ base: './src/content/lessons', pattern: '*.mdx' }),
   schema: z.object({
     title: z.string(),
-    order: z.number().int().positive(),
+    /** The family the map puts the lesson in, by its id there (src/content/families.json). */
+    family: z.enum(MAP.map((family) => family.id) as [string, ...string[]]),
+    /** The long shape: the nine parts and the long layout. A lesson without it renders as before. */
+    long: z.boolean().default(false),
     /** One or two sentences for the index and the page's description. */
     summary: z.string(),
     /** The lab module's name: site/labs/<lab>.cpp. */

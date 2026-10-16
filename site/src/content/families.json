@@ -1,0 +1,85 @@
+[
+  {
+    "id": "signals",
+    "name": "Signals",
+    "lessons": [
+      { "id": "samples-and-aliasing", "title": "Samples, sine waves and aliasing" },
+      { "id": "level-and-loudness", "title": "Level and loudness" },
+      { "id": "bit-depth-and-dither", "title": "Bit depth and dither" },
+      { "id": "wavetables", "title": "Wavetables" }
+    ]
+  },
+  {
+    "id": "spectrum",
+    "name": "Spectrum",
+    "lessons": [
+      { "id": "fourier-transform", "title": "The Fourier transform" },
+      { "id": "short-time-fourier", "title": "The short-time Fourier transform" },
+      { "id": "spectral-processing", "title": "Spectral processing" },
+      { "id": "frequency-shifting", "title": "Frequency shifting" }
+    ]
+  },
+  {
+    "id": "filters",
+    "name": "Filters",
+    "lessons": [
+      { "id": "one-pole", "title": "The one-pole filter and smoothing" },
+      { "id": "state-variable-filter", "title": "The state-variable filter" },
+      { "id": "equalising", "title": "Equalising with biquads" },
+      { "id": "phasing", "title": "Phasing" }
+    ]
+  },
+  {
+    "id": "dynamics",
+    "name": "Dynamics",
+    "lessons": [
+      { "id": "compression", "title": "Compression" },
+      { "id": "limiting", "title": "Limiting and true peaks" },
+      { "id": "saturation", "title": "Saturation and oversampling" },
+      { "id": "tremolo-and-ring-modulation", "title": "Tremolo and ring modulation" }
+    ]
+  },
+  {
+    "id": "delays",
+    "name": "Delays",
+    "lessons": [
+      { "id": "delay-and-echo", "title": "Delay and echo" },
+      { "id": "chorus-and-flanging", "title": "Chorus and flanging" },
+      { "id": "pitch-shifting", "title": "Pitch shifting" },
+      { "id": "granular", "title": "Granular sound" }
+    ]
+  },
+  {
+    "id": "rooms",
+    "name": "Rooms",
+    "lessons": [
+      { "id": "plate-reverb", "title": "Plate reverb" },
+      { "id": "feedback-delay-network", "title": "The feedback delay network" },
+      { "id": "convolution-reverb", "title": "Convolution reverb" },
+      { "id": "spring-reverb", "title": "Spring reverb" }
+    ]
+  },
+  {
+    "id": "space-and-motion",
+    "name": "Space and motion",
+    "lessons": [
+      { "id": "envelopes-and-lfos", "title": "Envelopes and LFOs" },
+      { "id": "stereo", "title": "Stereo" },
+      { "id": "rotary-speaker", "title": "The rotary speaker" },
+      { "id": "binaural-beats", "title": "Binaural beats" }
+    ]
+  },
+  {
+    "id": "synthesis",
+    "name": "Synthesis",
+    "lessons": [
+      {
+        "id": "oscillators-and-subtractive-voice",
+        "title": "Oscillators and the subtractive voice"
+      },
+      { "id": "plucked-string", "title": "The plucked string" },
+      { "id": "frequency-modulation", "title": "Frequency modulation" },
+      { "id": "modal-synthesis", "title": "Modal synthesis" }
+    ]
+  }
+]

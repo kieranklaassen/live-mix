@@ -63,8 +63,8 @@ describe('the colour of a signal', () => {
   })
 
   it('stops on a tap the lab does not have, naming the lesson and the taps there are', () => {
-    expect(() => tapRefs('in outt', taps, '07-compression')).toThrow(
-      '07-compression: the lab has no tap called "outt". It has: in, side, level, gain, out',
+    expect(() => tapRefs('in outt', taps, 'compression')).toThrow(
+      'compression: the lab has no tap called "outt". It has: in, side, level, gain, out',
     )
     expect(() => tapRefs('in:loud', taps, 'x')).toThrow('"loud" is not a role')
   })
@@ -89,8 +89,8 @@ describe('a stage', () => {
 
 describe('a lesson and its lab', () => {
   it('stops the build, naming the lesson, when the lab it names does not exist', () => {
-    expect(() => labInfo('no-such-lab', '99-nothing')).toThrow(
-      '99-nothing: it names the lab "no-such-lab", and there is no site/labs/no-such-lab.cpp.',
+    expect(() => labInfo('no-such-lab', 'nothing')).toThrow(
+      'nothing: it names the lab "no-such-lab", and there is no site/labs/no-such-lab.cpp.',
     )
   })
 
@@ -118,13 +118,15 @@ describe('claims', () => {
     fs.mkdirSync(path.join(site, 'src/content/lessons'), { recursive: true })
     fs.mkdirSync(path.join(site, 'tests/labs'), { recursive: true })
     fs.writeFileSync(
-      path.join(site, 'src/content/lessons/01-a.mdx'),
+      path.join(site, 'src/content/lessons/falling.mdx'),
       'Falls <Claim id="six-db">6 dB</Claim> an octave.',
     )
     expect(checkClaims(site).problems).toHaveLength(1)
-    expect(checkClaims(site).problems[0]).toContain('01-a: the claim "six-db" is held by no test')
+    expect(checkClaims(site).problems[0]).toContain(
+      'falling: the claim "six-db" is held by no test',
+    )
     fs.writeFileSync(
-      path.join(site, 'tests/labs/01-a.test.ts'),
+      path.join(site, 'tests/labs/falling.test.ts'),
       "it('falls 6 dB an octave (claim six-db)', () => {})",
     )
     expect(checkClaims(site)).toEqual({ problems: [], count: 1, lessons: 1 })

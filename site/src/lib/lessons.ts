@@ -1,22 +1,32 @@
 // The lessons as pages: their order, their routes, and the components a lesson is written with.
 import { getCollection, type CollectionEntry } from 'astro:content'
 import { NO_SOURCE, SOURCES, type SourceInfo } from '../lab/sources.ts'
+import { inMapOrder, mapWith, type MapRow } from './lesson-map.ts'
+
+export {
+  lessonPath,
+  placeOf,
+  twoDigits,
+  type MapLesson,
+  type MapRow,
+  type Place,
+} from './lesson-map.ts'
 
 export type Lesson = CollectionEntry<'lessons'>
 
+/**
+ * The lessons that are written, in the map's order (src/content/families.json). Stops the build
+ * on a lesson's file the map does not list, on a family that is not the one the map gives, and
+ * on an id the map lists twice.
+ */
 export async function lessonsInOrder(): Promise<Lesson[]> {
-  const lessons = (await getCollection('lessons')).sort((a, b) => a.data.order - b.data.order)
-  const seen = new Map<number, string>()
-  for (const lesson of lessons) {
-    const other = seen.get(lesson.data.order)
-    if (other)
-      throw new Error(`Lessons ${other} and ${lesson.id} are both number ${lesson.data.order}.`)
-    seen.set(lesson.data.order, lesson.id)
-  }
-  return lessons
+  return inMapOrder(await getCollection('lessons'))
 }
 
-export const lessonPath = (id: string) => `lessons/${id}/`
+/** The whole map, family by family, each lesson with its text where that is written. */
+export async function lessonMap(): Promise<MapRow<Lesson>[]> {
+  return mapWith(await getCollection('lessons'))
+}
 
 /** The sources a lesson offers, as the picker lists them. Throws on an id the bench does not play. */
 export function lessonSources(lesson: Lesson): SourceInfo[] {

@@ -342,8 +342,8 @@ inline void spectrum_tap(Tap& tap, const float* x, int count) {
   spectrum(x, count, tap.data);
 }
 
-// The sum the Fourier transform is (lesson 2), of `count` samples at one
-// frequency in hertz: what an impulse response `h` does to that frequency.
+// The sum the Fourier transform is (the lesson on it), of `count` samples at
+// one frequency in hertz: what an impulse response `h` does to that frequency.
 // The angle of (re, im) is the phase, power() the level squared.
 struct Bin {
   double re;

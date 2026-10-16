@@ -12,16 +12,17 @@ moves, and ends with the real device behind its own plate on the same loop.
 
 ## What is where
 
-| Path                         | What it is                                                                                     |
-| ---------------------------- | ---------------------------------------------------------------------------------------------- |
-| `site/src/content/lessons/`  | The lessons, one `.mdx` each                                                                   |
-| `site/labs/`                 | One C++ file a lesson: the engine's code with a tap on every stage, built to WebAssembly       |
-| `site/tests/labs/`           | One test file a lesson: every quantity the lesson states, measured on the lab in Node          |
-| `site/tests/browser/`        | The site as built, in a headless browser: every lesson, the docs, the devices, the search      |
-| `site/src/pages/docs/`       | `docs/*.md` as pages. The Markdown stays where it is and is not copied                         |
-| `site/src/pages/devices/`    | A page a device, written from the library's own descriptors                                    |
-| `site/scripts/`              | The labs build, the API copy, the checks, a server for the build, `look.mjs` for a look at one |
-| `.github/workflows/site.yml` | Builds and checks the site; on `main`, publishes it                                            |
+| Path                             | What it is                                                                                            |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `site/src/content/lessons/`      | The lessons, one `.mdx` each                                                                          |
+| `site/src/content/families.json` | The map of the lessons: eight families of four, by id and title. A lesson's number is its place there |
+| `site/labs/`                     | One C++ file a lesson: the engine's code with a tap on every stage, built to WebAssembly              |
+| `site/tests/labs/`               | One test file a lesson: every quantity the lesson states, measured on the lab in Node                 |
+| `site/tests/browser/`            | The site as built, in a headless browser: every lesson, the docs, the devices, the search             |
+| `site/src/pages/docs/`           | `docs/*.md` as pages. The Markdown stays where it is and is not copied                                |
+| `site/src/pages/devices/`        | A page a device, written from the library's own descriptors                                           |
+| `site/scripts/`                  | The labs build, the API copy, the checks, a server for the build, `look.mjs` for a look at one        |
+| `.github/workflows/site.yml`     | Builds and checks the site; on `main`, publishes it                                                   |
 
 [site/LESSONS.md](../site/LESSONS.md) is the guide to writing a lesson: the
 three files, the rules a lesson keeps, the lab's interface, the components a
@@ -41,7 +42,7 @@ pnpm dev                          # http://localhost:4321/live-mix/
 ```
 
 The labs are built, never committed, so a lesson always runs the engine as it
-is at that commit. `pnpm labs 07-compression` builds one.
+is at that commit. `pnpm labs compression` builds one.
 
 ```sh
 pnpm build                        # pages, then the API reference, then the search index

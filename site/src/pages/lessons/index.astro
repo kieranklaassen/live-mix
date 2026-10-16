@@ -1,6 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro'
-import { lessonPath, lessonsInOrder } from '../../lib/lessons.ts'
+import { lessonPath, lessonsInOrder, placeOf, twoDigits } from '../../lib/lessons.ts'
 import { href } from '../../lib/paths.ts'
 
 const lessons = await lessonsInOrder()
@@ -26,7 +26,7 @@ const lessons = await lessonsInOrder()
       {lessons.map((lesson) => (
         <li>
           <a href={href(lessonPath(lesson.id))}>
-            <span class="n">{String(lesson.data.order).padStart(2, '0')}</span>
+            <span class="n">{twoDigits(placeOf(lesson.id).number)}</span>
             <span class="t">{lesson.data.title}</span>
             <span class="s">{lesson.data.summary}</span>
           </a>

@@ -6,7 +6,7 @@ import { expect, type Page } from '@playwright/test'
 
 const LESSONS = fileURLToPath(new URL('../../src/content/lessons/', import.meta.url))
 
-/** The lessons there are, by id; `LESSONS=07-compression,02-fourier-transform` runs only those. */
+/** The lessons there are, by id; `LESSONS=compression,fourier-transform` runs only those. */
 export function lessonIds(): string[] {
   const all = fs
     .readdirSync(LESSONS)

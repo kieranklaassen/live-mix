@@ -1,6 +1,6 @@
 # Writing a lesson
 
-A lesson is three files with one name, such as `07-compression`:
+A lesson is three files with one name, such as `compression`:
 
 | File                             | What it is                                                    |
 | -------------------------------- | ------------------------------------------------------------- |
@@ -8,10 +8,16 @@ A lesson is three files with one name, such as `07-compression`:
 | `tests/labs/<name>.test.ts`      | The lab's tests: every number the lesson states is held here. |
 | `src/content/lessons/<name>.mdx` | The lesson: the words, the equations, the figures.            |
 
+The name is the lesson's id and its address, and it carries no number. The map,
+[src/content/families.json](src/content/families.json), lists the eight families and the four
+lessons of each by id and title, in order: a lesson's number is its place there. A lesson's file
+that the map does not list stops the build, and a lesson the map lists that has no file yet is
+not yet written.
+
 Compression is the pattern. Read its three files before writing another:
-[labs/07-compression.cpp](labs/07-compression.cpp),
-[tests/labs/07-compression.test.ts](tests/labs/07-compression.test.ts),
-[src/content/lessons/07-compression.mdx](src/content/lessons/07-compression.mdx).
+[labs/compression.cpp](labs/compression.cpp),
+[tests/labs/compression.test.ts](tests/labs/compression.test.ts),
+[src/content/lessons/compression.mdx](src/content/lessons/compression.mdx).
 
 ## The rules
 
@@ -104,9 +110,9 @@ void lab_render(int frames) {  // every time a control moves
 - **A device with `.cpp` files** names them in a comment the build reads:
   `// lab-sources: cpp/devices/plate-reverb/plate_reverb.cpp`. Leave out its `device_api*.cpp`.
   `// lab-memory-mb: 128` and `// lab-arena-mb: 96` give a lab more room.
-- **A stage made by the engine's TypeScript** (the room of lesson 15) is `kEngine`. The page
-  runs the engine's function and hands the result to the lab as a second signal: `#define
-LAB_AUX` ahead of `lab.h`, then `lab::aux(channel)` and `lab::aux_frames()`.
+- **A stage made by the engine's TypeScript** (the room of the convolution reverb lesson) is
+  `kEngine`. The page runs the engine's function and hands the result to the lab as a second
+  signal: `#define LAB_AUX` ahead of `lab.h`, then `lab::aux(channel)` and `lab::aux_frames()`.
   `src/lab/room.ts` is the one such hand-over there is.
 - **A lab that plays by itself** (an instrument, an oscillator) ignores `lab::in_at` and its
   lesson names `sources: [none]`. `labs/bench.cpp` shows how notes are played into the
@@ -119,7 +125,7 @@ Build one lab, from the repository's root or from `site/`:
 
 ```sh
 source /opt/emsdk/emsdk_env.sh        # Emscripten 4.0.15, wherever it is installed
-bash site/scripts/build-labs.sh 07-compression
+bash site/scripts/build-labs.sh compression
 ```
 
 A name the lesson gives that the lab does not have (a tap, a control, a check) stops the page
@@ -142,7 +148,7 @@ as the page plays it), `sine`, `noise`, `silence`, `seconds`, `dbToGain`, `gainT
   measured, rounded, and the test allows the rounding.
 
 ```sh
-cd site && npx vitest run tests/labs/07-compression.test.ts
+cd site && npx vitest run tests/labs/compression.test.ts
 ```
 
 ## The lesson
@@ -151,9 +157,9 @@ Front matter:
 
 ```yaml
 title: Compression
-order: 7
+family: dynamics # the family the map puts it in, by the family's id there
 summary: One or two sentences, for the index and the page's description.
-lab: 07-compression
+lab: compression
 devices: [ambient-comp] # the device pages that will link here
 bench:
   device: ambient-comp
@@ -198,6 +204,7 @@ The components, which need no import:
 | `<Claim id="x">3 dB</Claim>`                                                                                                      | A stated quantity. A test names it.                                                                                                                                        |
 | `<Src path="cpp/kit/filters.h">the kit's `Svf`</Src>`                                                                             | A link to the file at this commit. `lines="40-62"` for a range.                                                                                                            |
 | `<M t={String.raw`y[n] = a\,y[n-1]`} />`                                                                                          | An equation; with `block`, on a line of its own. Always `String.raw`.                                                                                                      |
+| `<Lesson id="compression" />`                                                                                                     | Another lesson by its id, as a link: "lesson 13, Compression", with the number and title the map gives. `cap` where it starts a sentence.                                  |
 | `<Listen tap="out">Hear the output</Listen>`                                                                                      | A button in the text.                                                                                                                                                      |
 | `<Aside title="...">`                                                                                                             | A box beside the run of the text.                                                                                                                                          |
 
@@ -238,9 +245,9 @@ its name, never "we". The reader is "you" only where they are asked to do someth
 
 ```sh
 cd site && pnpm dev                                   # http://localhost:4321/live-mix/
-node scripts/look.mjs lessons/07-compression/         # what a headless browser finds, and pictures
-node scripts/look.mjs lessons/07-compression/ --width 390 --play --set threshold=-40
-LESSONS=07-compression npx playwright test tests/browser/lessons.spec.ts --workers=1
+node scripts/look.mjs lessons/compression/         # what a headless browser finds, and pictures
+node scripts/look.mjs lessons/compression/ --width 390 --play --set threshold=-40
+LESSONS=compression npx playwright test tests/browser/lessons.spec.ts --workers=1
 ```
 
 `look.mjs` says whether the lab loaded, how long a render took, how many figures drew, whether

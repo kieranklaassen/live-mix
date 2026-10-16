@@ -7,7 +7,7 @@ import { SOURCES } from '../../lab/sources.ts'
 import Base from '../../layouts/Base.astro'
 import ParamTable from '../../components/ParamTable.astro'
 import { catalogue, lessonsUsing, presetSettings, type CatalogueDevice } from '../../lib/devices'
-import { lessonPath, lessonsInOrder } from '../../lib/lessons'
+import { lessonPath, lessonsInOrder, placeOf, twoDigits } from '../../lib/lessons'
 import { href } from '../../lib/paths'
 import { sourceUrl } from '../../lib/site'
 
@@ -15,7 +15,7 @@ export async function getStaticPaths() {
   const lessons = (await lessonsInOrder()).map((lesson) => ({
     id: lesson.id,
     title: lesson.data.title,
-    order: lesson.data.order,
+    number: placeOf(lesson.id).number,
     summary: lesson.data.summary,
     devices: lesson.data.devices,
   }))
@@ -27,7 +27,7 @@ export async function getStaticPaths() {
 
 interface Props {
   device: CatalogueDevice
-  lessons: { id: string; title: string; order: number; summary: string }[]
+  lessons: { id: string; title: string; number: number; summary: string }[]
 }
 const { device, lessons } = Astro.props
 
@@ -126,7 +126,7 @@ const sources = SOURCES.filter((source) =>
           {lessons.map((lesson) => (
             <li>
               <a href={href(lessonPath(lesson.id))}>
-                <span class="n">{String(lesson.order).padStart(2, '0')}</span>
+                <span class="n">{twoDigits(lesson.number)}</span>
                 <span class="t">{lesson.title}</span>
                 <span class="s">{lesson.summary}</span>
               </a>

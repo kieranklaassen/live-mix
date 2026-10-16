@@ -40,7 +40,7 @@ async function init(labUrl: string, benchUrl: string, frames: number): Promise<L
     const left = tap.channels_data[0]
     if (left) sources.set(tap.id, { left, right: tap.channels_data[1] ?? left })
   }
-  // The one lab that takes a second signal takes the engine's room (lesson 15).
+  // The one lab that takes a second signal takes the engine's room (the convolution reverb lesson).
   lab = withRoom(await loadLab(labBytes))
   return lab.description
 }

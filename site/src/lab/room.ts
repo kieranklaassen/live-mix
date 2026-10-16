@@ -1,4 +1,4 @@
-// The engine's room, for the lab that convolves with it (lesson 15).
+// The engine's room, for the lab that convolves with it (the convolution reverb lesson).
 //
 // The engine's convolution reverb is TypeScript: `spaceImpulseChannel` in
 // src/core/tracks/space.ts writes a room's impulse response, and the browser's ConvolverNode

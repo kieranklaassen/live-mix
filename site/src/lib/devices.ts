@@ -59,7 +59,8 @@ export interface CatalogueFamily {
 export interface LessonRef {
   id: string
   title: string
-  order: number
+  /** Its place in the map of the lessons, from 1. */
+  number: number
   devices: readonly string[]
 }
 
@@ -152,7 +153,7 @@ export function families(): CatalogueFamily[] {
 export function lessonsUsing<L extends LessonRef>(deviceId: string, lessons: readonly L[]): L[] {
   return lessons
     .filter((lesson) => lesson.devices.includes(deviceId))
-    .sort((a, b) => a.order - b.order)
+    .sort((a, b) => a.number - b.number)
 }
 
 /** A number for a table: whole numbers whole, the rest to four significant figures. */

@@ -2,10 +2,10 @@
 // did not draw, anything sticking out sideways. It also saves the page as pictures, cut into
 // lengths a person or a model can read.
 //
-//   node scripts/look.mjs lessons/07-compression/                # the page as built or served
-//   node scripts/look.mjs lessons/07-compression/ --width 390    # at a phone's width
-//   node scripts/look.mjs lessons/07-compression/ --play         # with the loop playing
-//   node scripts/look.mjs lessons/07-compression/ --set threshold=-40 --set ratio=10
+//   node scripts/look.mjs lessons/compression/                # the page as built or served
+//   node scripts/look.mjs lessons/compression/ --width 390    # at a phone's width
+//   node scripts/look.mjs lessons/compression/ --play         # with the loop playing
+//   node scripts/look.mjs lessons/compression/ --set threshold=-40 --set ratio=10
 //
 // The site must be served first: `pnpm dev`, or `pnpm build` and `node scripts/serve.mjs`.
 // --url gives another address (default http://localhost:4321 and the base path SITE_BASE);
