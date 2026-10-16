@@ -1,9 +1,11 @@
-// The bins of one frame as turning vectors. Each bin is a vector of a length and a starting angle
-// that turns a whole number of times across the frame; laid tip to tail, the height their chain
-// reaches at sample n is the frame's value there. On the left the chain, on the right the frame
-// and what the chain rebuilds, on one scale, so the tip can be carried across to the curve.
+// The bins of one frame as turning vectors, which the page calls arrows. Each bin is an arrow of
+// a length and a starting angle that turns a whole number of times across the frame; laid tip to
+// tail, the height their chain reaches at sample n is the frame's value there. On the left the
+// chain, on the right the frame and what the chain rebuilds, on one scale, so the tip can be
+// carried across to the curve. Where the right half is too narrow to draw the whole frame as a
+// line, it draws the stretch of it around the sample shown.
 
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useLab, waitingText } from '../lab/page.ts'
 import { SAMPLE_RATE } from '../lab/rate.ts'
 import { EDGE, MONO, useCanvas } from './canvas.ts'
@@ -11,6 +13,10 @@ import { label as numberLabel, minMaxColumns, peakOf, ticks } from './draw.ts'
 import { ROLE_VAR, type TapRef } from './roles.ts'
 
 const GAP = 14
+/** The most samples a pixel of the frame's half may hold before the lines close into a band. */
+const CROWDED = 10
+/** How many samples a pixel holds where only a stretch of the frame is drawn. */
+const STRETCH = 8
 /** How long the chain takes to turn through the whole frame, in milliseconds. */
 const SWEEP_MS = 12_000
 
@@ -48,8 +54,17 @@ export default function TurningVectors({
     Math.max(1, Math.round(state.values[count[0]] ?? 1)),
     has ? size / 2 + 1 : 1,
   )
-  // Where in the frame the chain is shown, 0 to 1, so it keeps its place when the frame's length changes.
-  const [place, setPlace] = useState(0.47)
+  // Where in the frame the chain is shown, 0 to 1, so it keeps its place when the frame's length
+  // changes. Until the reader picks a sample it is where the rebuilt frame first stood tallest:
+  // there the arrows point the same way and the chain is long enough to see.
+  const [picked, setPlace] = useState<number | null>(null)
+  const opened = useRef<number | null>(null)
+  if (opened.current === null && has && ys) {
+    let tallest = 0
+    for (let i = 1; i < size; i += 1) if (Math.abs(ys[i]!) > Math.abs(ys[tallest]!)) tallest = i
+    opened.current = tallest / (size - 1)
+  }
+  const place = picked ?? opened.current ?? 0.5
   const [turning, setTurning] = useState(false)
   const n = has ? Math.min(size - 1, Math.round(place * (size - 1))) : 0
   const id = useId()
@@ -62,7 +77,7 @@ export default function TurningVectors({
       frameId = requestAnimationFrame(step)
       const moved = (now - last) / SWEEP_MS
       last = now
-      setPlace((at) => (at + moved) % 1)
+      setPlace((at) => ((at ?? opened.current ?? 0.5) + moved) % 1)
     }
     frameId = requestAnimationFrame(step)
     return () => cancelAnimationFrame(frameId)
@@ -99,7 +114,11 @@ export default function TurningVectors({
       const peak = has && xs && ys ? Math.max(peakOf(xs), peakOf(ys), 1e-6) : 1
       const scale = h / 2 / (peak * 1.15)
       const py = (value: number) => mid - value * scale
-      const px = (sample: number) => waveX + (sample / Math.max(1, size - 1)) * waveW
+      // The samples the frame's half draws: all of them, or the stretch around the sample shown.
+      const crowded = has && size > CROWDED * waveW
+      const span = crowded ? Math.max(2, Math.min(size, Math.round(STRETCH * waveW))) : size
+      const from = crowded ? Math.min(size - span, Math.max(0, n - (span >> 1))) : 0
+      const px = (sample: number) => waveX + ((sample - from) / Math.max(1, span - 1)) * waveW
 
       // The grid: one scale for both halves.
       context.font = MONO
@@ -122,15 +141,19 @@ export default function TurningVectors({
       context.fillStyle = c.muted
       context.textBaseline = 'top'
       context.textAlign = 'left'
-      context.fillText('the vectors', turnX + 6, EDGE.top + 5)
-      context.fillText('the frame', waveX + 6, EDGE.top + 5)
+      context.fillText('the arrows', turnX + 6, EDGE.top + 5)
+      context.fillText(crowded ? 'a stretch' : 'the frame', waveX + 6, EDGE.top + 5)
       if (!has || !xs || !ys) return
 
       // Milliseconds under the frame.
-      const lastMs = ((size - 1) / SAMPLE_RATE) * 1000
+      const firstMs = (from / SAMPLE_RATE) * 1000
+      const lastMs = ((from + span - 1) / SAMPLE_RATE) * 1000
       context.textAlign = 'center'
-      for (const value of ticks({ min: 0, max: lastMs }, Math.max(2, Math.round(waveW / 70)))) {
-        const at = waveX + (value / lastMs) * waveW
+      for (const value of ticks(
+        { min: firstMs, max: lastMs },
+        Math.max(2, Math.round(waveW / 70)),
+      )) {
+        const at = waveX + ((value - firstMs) / (lastMs - firstMs)) * waveW
         const text = numberLabel(value)
         const half = context.measureText(text).width / 2
         if (at + half <= width) context.fillText(text, Math.max(at, waveX + half), EDGE.top + h + 6)
@@ -147,8 +170,8 @@ export default function TurningVectors({
         context.lineJoin = 'round'
         const columns = Math.max(1, Math.floor(waveW))
         context.beginPath()
-        if (data.length > 2 * columns) {
-          const ends = minMaxColumns(data, 0, data.length, columns)
+        if (span > 2 * columns) {
+          const ends = minMaxColumns(data, from, from + span, columns)
           for (let col = 0; col < columns; col += 1) {
             const at = waveX + ((col + 0.5) / columns) * waveW
             if (col === 0) context.moveTo(at, py(ends[1]!))
@@ -156,8 +179,8 @@ export default function TurningVectors({
             context.lineTo(at, py(ends[2 * col]!))
           }
         } else {
-          for (let i = 0; i < data.length; i += 1) {
-            if (i === 0) context.moveTo(px(i), py(data[i]!))
+          for (let i = from; i < from + span; i += 1) {
+            if (i === from) context.moveTo(px(i), py(data[i]!))
             else context.lineTo(px(i), py(data[i]!))
           }
         }
@@ -258,7 +281,7 @@ export default function TurningVectors({
             }}
           />
         </div>
-        <div className="control" role="group" aria-label="Turn the vectors through the frame">
+        <div className="control" role="group" aria-label="Turn the arrows through the frame">
           <span className="control-name">Through the frame</span>
           <span className="control-choices">
             <button
@@ -280,7 +303,7 @@ export default function TurningVectors({
       <ul className="fig-legend key">
         <li>
           <i style={{ background: `var(${ROLE_VAR.ctl})` }} />
-          {kept} {kept === 1 ? 'vector' : 'vectors'}, tip to tail
+          {kept} {kept === 1 ? 'arrow' : 'arrows'}, tip to tail
         </li>
         <li>
           <i style={{ background: `var(${ROLE_VAR.in})` }} />

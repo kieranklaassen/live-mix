@@ -12,14 +12,14 @@
 //
 // Computed by the kit: every bin (real and imaginary part, and the level and
 // the angle worked out from them), the frame rebuilt from the bins kept, the
-// loop rebuilt frame by frame, and the two spectra of the probe.
+// loop rebuilt frame by frame, and the two spectra of the test sine.
 // Read from the running device: its output, and the bins of the one of its
 // frames that begins nearest the lesson's frame (the "deviceBins" check holds
 // them to the kit's plain transform of the same samples, "deviceWire" holds
 // its output to its input).
 // Written for the lesson: the window (the same raised cosine the engine's
 // spectral devices write for themselves), the cosine and the running sums of
-// the one-bin picture, and the probe sine. The lab also writes the transform's
+// the one-bin picture, and the test sine. The lab also writes the transform's
 // sum out by hand for one bin and reports how far it lands from the kit's bin
 // (the "direct" check), measures the energy on both sides of the transform
 // ("parseval"), the gain of forward then inverse ("unscaled", "roundTrip"),
@@ -45,7 +45,7 @@ using namespace livemix;
 namespace {
 
 constexpr int kMaxSize = 4096;
-constexpr int kProbeSize = 64;
+constexpr int kTestSize = 64;  // the frame the test sine of stage 2 is given
 constexpr int kDeviceFrame = SpectralBlur::kFrame;
 
 kit::Fft<64> fft64;
@@ -59,7 +59,7 @@ lab::Control position{"position", "Frame starts at", "s", 0.0f, 4.0f, 0.1f};
 lab::Control size{"size", "Frame length", "", 0.0f, 3.0f, 3.0f, lab::kLinear, "64|256|1024|4096"};
 lab::Control window{"window", "Window", "", 0.0f, 1.0f, 1.0f, lab::kLinear, "None|Hann"};
 lab::Control compare{"compare", "Compare with", "Hz", 20.0f, 5000.0f, 110.0f, lab::kLog};
-lab::Control probe{"probe", "Probe frequency", "bins", 6.0f, 10.0f, 8.0f};
+lab::Control test_sine{"testSine", "Test sine frequency", "bins", 6.0f, 10.0f, 8.0f};
 lab::Control keep{"keep", "Bins kept", "", 1.0f, 2049.0f, 48.0f, lab::kLog};
 
 lab::Tap in_tap{"in", "The loop", lab::kAudio, lab::kSource, 2};
@@ -80,14 +80,14 @@ lab::Tap device_level{"deviceLevel", "Bins of the device's own frame, level", la
 lab::Tap device_tap{"device", "Out of Spectral Blur, nothing altered", lab::kAudio, lab::kDevice, 2};
 lab::Tap removed{"removed", "The loop, less its rebuild", lab::kAudio, lab::kLesson, 2};
 lab::Tap out_tap{"out", "The loop rebuilt from the bins kept", lab::kAudio, lab::kKit, 2};
-lab::Tap probe_twice{"probeTwice", "The probe's frame, twice over", lab::kCurve, lab::kLesson, 1};
-lab::Tap probe_twice_hann{"probeTwiceHann", "The same, windowed", lab::kCurve, lab::kLesson, 1};
-lab::Tap leak_plain{"leakPlain", "Probe's bins, no window", lab::kCurve, lab::kKit, 1, "dB"};
-lab::Tap leak_hann{"leakHann", "Probe's bins, Hann window", lab::kCurve, lab::kKit, 1, "dB"};
+lab::Tap test_twice{"testTwice", "The test sine's frame, twice over", lab::kCurve, lab::kLesson, 1};
+lab::Tap test_twice_hann{"testTwiceHann", "The same, windowed", lab::kCurve, lab::kLesson, 1};
+lab::Tap leak_plain{"leakPlain", "Test sine's bins, no window", lab::kCurve, lab::kKit, 1, "dB"};
+lab::Tap leak_hann{"leakHann", "Test sine's bins, Hann window", lab::kCurve, lab::kKit, 1, "dB"};
 
 lab::Check match{"match", "How much of the frequency compared the frame holds", "dB"};
 lab::Check direct{"direct", "The sum written out for the nearest bin, against the kit's bin", "dB"};
-lab::Check parseval{"parseval", "Energy of the bins over N against energy of the frame, apart by", ""};
+lab::Check parseval{"parseval", "Energy of the bins over N against energy of the frame, apart by", "%"};
 lab::Check unscaled{"unscaled", "The gain of forward then inverse, divided by N", ""};
 lab::Check round_trip{"roundTrip", "Forward, inverse, divided by N, against the frame", "dB"};
 lab::Check rebuild_null{"rebuildNull", "The frame rebuilt from the bins kept, against the frame", "dB"};
@@ -214,7 +214,7 @@ void analyse(const kit::Fft<N>& fft) {
       in_bins += static_cast<double>(re_[n]) * re_[n] + static_cast<double>(im_[n]) * im_[n];
     }
     in_bins /= N;
-    parseval.value = in_time > 0.0 ? static_cast<float>(std::fabs(in_bins - in_time) / in_time) : 0.0f;
+    parseval.value = in_time > 0.0 ? static_cast<float>(100.0 * std::fabs(in_bins - in_time) / in_time) : 0.0f;
   }
 
   // The sum written out for the bin nearest the frequency compared.
@@ -306,22 +306,22 @@ void analyse(const kit::Fft<N>& fft) {
 
 // A sine of the lesson's own in a frame of 64, at a frequency given in bins:
 // what the kit's transform makes of it bare and under the Hann window.
-void run_probe() {
-  constexpr int N = kProbeSize;
+void run_test_sine() {
+  constexpr int N = kTestSize;
   static float x[N], w[N], re[N], im[N];
-  if (!probe_twice.open(2 * N) || !probe_twice_hann.open(2 * N)) return;
+  if (!test_twice.open(2 * N) || !test_twice_hann.open(2 * N)) return;
   if (!leak_plain.open(N / 2 + 1) || !leak_hann.open(N / 2 + 1)) return;
-  probe_twice.x0 = probe_twice_hann.x0 = 0.0f;
-  probe_twice.x1 = probe_twice_hann.x1 = static_cast<float>(2 * N - 1);
+  test_twice.x0 = test_twice_hann.x0 = 0.0f;
+  test_twice.x1 = test_twice_hann.x1 = static_cast<float>(2 * N - 1);
   leak_plain.x0 = leak_hann.x0 = 0.0f;
   leak_plain.x1 = leak_hann.x1 = static_cast<float>(N / 2);
   for (int n = 0; n < N; ++n) {
-    x[n] = static_cast<float>(std::sin(2.0 * lab::kPi * probe.value * n / N));
+    x[n] = static_cast<float>(std::sin(2.0 * lab::kPi * test_sine.value * n / N));
     w[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * lab::kPi * n / N));
   }
   for (int n = 0; n < 2 * N; ++n) {
-    probe_twice.set(n, x[n % N]);
-    probe_twice_hann.set(n, x[n % N] * w[n % N]);
+    test_twice.set(n, x[n % N]);
+    test_twice_hann.set(n, x[n % N] * w[n % N]);
   }
   for (int pass = 0; pass < 2; ++pass) {
     for (int n = 0; n < N; ++n) {
@@ -509,7 +509,7 @@ struct Built {
   }
 
   // The window: the frame fades in from nothing and out to nothing before
-  // any probe sees it. It is one turn of the slowest probe's cosine, stood on end.
+  // any probe sees it. It is one turn of the slowest probe's cosine, turned over and lifted.
   void window() {
     for (int n = 0; n < size; ++n) frame[n] *= static_cast<float>(0.5 - 0.5 * turn_cos[n]);
   }
@@ -675,6 +675,6 @@ void lab_render(int frames) {
       run(fft4096);
       break;
   }
-  run_probe();
+  run_test_sine();
   run_device(frames + frame_start());
 }

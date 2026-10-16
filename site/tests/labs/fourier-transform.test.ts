@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 import type { Lab, RenderResult } from '../../src/lab/runner.ts'
 import { readSettings, resolveSet } from '../../src/lib/settings.ts'
@@ -17,7 +18,6 @@ import {
   seconds,
   silence,
   sine,
-  type Source,
 } from './support.ts'
 
 const NAME = 'fourier-transform'
@@ -123,6 +123,13 @@ describe('the Fourier transform', () => {
       expect(level[k]).toBeGreaterThan(level[k - 1]!)
       expect(level[k]).toBeGreaterThan(level[k + 1]!)
     }
+    // They are the four lowest: no other bin up to the fourth stands over both its neighbours
+    // within the range the lesson's picture draws, which stops at −80 dB.
+    const peaks: number[] = []
+    for (let k = 1; k <= bins[3]!; k += 1) {
+      if (level[k]! > -80 && level[k]! > level[k - 1]! && level[k]! > level[k + 1]!) peaks.push(k)
+    }
+    expect(peaks).toEqual(bins)
     expectWritten(bins[0]! * spacing(out), '105 Hz')
     expectWritten(bins[1]! * spacing(out), '164 Hz')
     expectWritten(bins[2]! * spacing(out), '223 Hz')
@@ -241,17 +248,52 @@ describe('the Fourier transform', () => {
         }
       }
     }
+    // The check is worked out on a bank of the lab's own at every step, so the piece is switched
+    // off on the taps: with no window the bank's levels are the kit's, and one probe's are not.
+    const chords = await benchSource('chords', seconds(4))
+    const apart = (build: number) => {
+      const out = fourier.render(chords, { build, window: 0 })
+      const kit = first(out.taps.magnitude)
+      const found = first(out.taps.builtBins)
+      let worst = 0
+      for (let k = 0; k < kit.length; k += 1) {
+        if (kit[k]! > -100) worst = Math.max(worst, Math.abs(found[k]! - kit[k]!))
+      }
+      return worst
+    }
+    expect(apart(STEP.bank)).toBeLessThan(0.01)
+    expect(apart(STEP.probe)).toBeGreaterThan(60)
   })
 
-  it('leaks the 440 Hz sine across the bank with no window, 28 dB under its peak ten bins up (claim built-leak-bare), and holds it 70 dB under with the window (claim built-leak-windowed)', async () => {
+  it('leaks the 440 Hz sine across the bank with no window, between 26 dB and 28 dB under its peak ten bins up, depending on where the frame is cut (claim built-leak-bare), and holds it 70 dB under with the window, wherever it is cut (claim built-leak-windowed)', async () => {
     const fourier = await lab(NAME)
     const tone = await benchSource('sine', seconds(4))
-    const bare = skirt(fourier.render(tone, { build: STEP.bank }), 10)
-    const windowed = skirt(fourier.render(tone, { build: STEP.window }), 10)
-    expectWritten(bare, '28 dB')
-    expectWritten(windowed, '70 dB')
-    // The piece switched off: the step before the window does not hold the leak there.
-    expect(matchesWritten(bare, '70 dB')).toBe(false)
+    // One cycle of the sine is 2.27 ms: forty-six cuts a twentieth of a millisecond apart cover it.
+    const bare: number[] = []
+    for (let cut = 0; cut < 46; cut += 1) {
+      const position = 0.1 + cut * 0.00005
+      bare.push(skirt(fourier.render(tone, { build: STEP.bank, position }), 10))
+      const windowed = skirt(fourier.render(tone, { build: STEP.window, position }), 10)
+      expectWritten(windowed, '70 dB')
+      // The piece switched off: the step before the window does not hold the leak there.
+      expect(matchesWritten(bare.at(-1)!, '70 dB')).toBe(false)
+    }
+    expectWritten(Math.min(...bare), '26 dB')
+    expectWritten(Math.max(...bare), '28 dB')
+    // The piece switched off: one probe has asked at one bin, and ten bins up nothing was asked.
+    const one = skirt(fourier.render(tone, { build: STEP.probe }), 10)
+    expect(matchesWritten(one, '26 dB') || matchesWritten(one, '28 dB')).toBe(false)
+    expect(one).toBeGreaterThan(60)
+  })
+
+  it("takes the one probe's tone down with the window, and with the way back and 48 bins kept is the kit's rebuilt frame", async () => {
+    const fourier = await lab(NAME)
+    const chords = await benchSource('chords', seconds(4))
+    const level = (build: number) => rms(first(fourier.render(chords, { build }).taps.built))
+    expect(level(STEP.bank)).toBe(level(STEP.probe))
+    expect(gainToDb(level(STEP.window) / level(STEP.bank))).toBeLessThan(-3)
+    const back = fourier.render(chords, { build: STEP.back })
+    expect(differenceDb(first(back.taps.builtAnswer), first(back.taps.rebuilt))).toBeLessThan(-130)
   })
 
   it('adds the answers of every probe back up to the frame, more than 130 dB under it (claim built-back), where one answer alone is not the frame', async () => {
@@ -297,18 +339,18 @@ describe('the Fourier transform', () => {
     }
   })
 
-  it('puts a probe sine exactly on a bin into that bin alone: the rest are more than 120 dB down (claim on-bin-plain)', async () => {
+  it('puts the test sine exactly on a bin into that bin alone: the rest are more than 130 dB down (claim on-bin-plain)', async () => {
     const fourier = await lab(NAME)
-    const out = fourier.render(silence(seconds(0.5)), { probe: 8 })
+    const out = fourier.render(silence(seconds(0.5)), { testSine: 8 })
     const bins = first(out.taps.leakPlain)
     expect(bins[8]).toBeCloseTo(0, 2)
-    expectWritten(-highest(bins, 0, 8), 'more than 120 dB')
-    expectWritten(-highest(bins, 9), 'more than 120 dB')
+    expectWritten(-highest(bins, 0, 8), 'more than 130 dB')
+    expectWritten(-highest(bins, 9), 'more than 130 dB')
   })
 
   it('spreads the same sine over three bins under the Hann window, the neighbours 6.0 dB down (claim on-bin-hann)', async () => {
     const fourier = await lab(NAME)
-    const out = fourier.render(silence(seconds(0.5)), { probe: 8 })
+    const out = fourier.render(silence(seconds(0.5)), { testSine: 8 })
     const bins = first(out.taps.leakHann)
     expect(bins[8]).toBeCloseTo(0, 2)
     expectWritten(bins[8]! - bins[7]!, '6.0 dB')
@@ -319,7 +361,7 @@ describe('the Fourier transform', () => {
 
   it('leaks a sine half way between two bins everywhere with no window: 3.7 dB and 4.1 dB down either side, 24 dB down at bin 13, no bin under −38 dB (claim between-plain)', async () => {
     const fourier = await lab(NAME)
-    const out = fourier.render(silence(seconds(0.5)), { probe: 8.5 })
+    const out = fourier.render(silence(seconds(0.5)), { testSine: 8.5 })
     const bins = first(out.taps.leakPlain)
     expectWritten(-bins[8]!, '3.7 dB')
     expectWritten(-bins[9]!, '4.1 dB')
@@ -329,7 +371,7 @@ describe('the Fourier transform', () => {
 
   it('holds the leak down under the Hann window: 1.4 dB down either side, 49 dB down at bin 13 (claim between-hann)', async () => {
     const fourier = await lab(NAME)
-    const out = fourier.render(silence(seconds(0.5)), { probe: 8.5 })
+    const out = fourier.render(silence(seconds(0.5)), { testSine: 8.5 })
     const bins = first(out.taps.leakHann)
     expectWritten(-bins[8]!, '1.4 dB')
     expectWritten(-bins[9]!, '1.4 dB')
@@ -366,10 +408,16 @@ describe('the Fourier transform', () => {
     }
   })
 
-  it('finds nothing of a frequency the frame does not hold: a 750 Hz sine against 1,500 Hz sums to more than 120 dB down (claim no-match)', async () => {
+  it('finds nothing of a frequency the frame does not hold: a 750 Hz sine against 1,500 Hz sums to more than 130 dB down (claim no-match)', async () => {
     const fourier = await lab(NAME)
-    const out = fourier.render(sine(750, 0.5, seconds(1)), { position: 0.25, compare: 1500 })
-    expectWritten(-out.checks.match!, 'more than 120 dB')
+    for (const window of [0, 1]) {
+      const out = fourier.render(sine(750, 0.5, seconds(1)), {
+        position: 0.25,
+        window,
+        compare: 1500,
+      })
+      expectWritten(-out.checks.match!, 'more than 130 dB')
+    }
   })
 
   it("writes the sum out for one bin and lands on the kit's bin, more than 130 dB under the largest bin (claim direct)", async () => {
@@ -410,13 +458,19 @@ describe('the Fourier transform', () => {
     }
   })
 
-  it('keeps the energy: the squares of the bins add up to N times the squares of the samples, apart by less than 0.0001 % (claim parseval)', async () => {
+  it('keeps the energy: on the white noise, wherever the frame is cut, the squares of the bins add up to N times the squares of the samples, apart by less than 0.00002 % of them (claim parseval)', async () => {
     const fourier = await lab(NAME)
-    const hiss = noise(0.5, seconds(1))
+    // The check is in per cent of the samples' side. The noise of the row of sounds, at sixteen
+    // places along the loop, and a noise of the test's own.
+    const hiss = await benchSource('noise', seconds(4))
     for (const size of [0, 1, 2, 3]) {
       for (const window of [0, 1]) {
-        const out = fourier.render(hiss, { size, window })
-        expectWritten(out.checks.parseval! * 100, 'less than 0.0001 %')
+        for (let cut = 0; cut < 16; cut += 1) {
+          const out = fourier.render(hiss, { size, window, position: 0.05 + cut * 0.243 })
+          expectWritten(out.checks.parseval!, 'less than 0.00002 %')
+        }
+        const own = fourier.render(noise(0.5, seconds(1)), { size, window })
+        expectWritten(own.checks.parseval!, 'less than 0.00002 %')
       }
     }
   })
@@ -441,11 +495,11 @@ describe('the Fourier transform', () => {
     }
   })
 
-  it('reads one sample alone as every frequency at once: all bins within 0.001 dB of each other (claim click-flat)', async () => {
+  it('reads one sample alone as every frequency at once: all bins within 0.0001 dB of each other (claim click-flat)', async () => {
     const fourier = await lab(NAME)
     for (const window of [0, 1]) {
       const level = first(fourier.render(clickIn(1000), { position: 0.25, window }).taps.magnitude)
-      expectWritten(highest(level) - lowest(level), 'less than 0.001 dB')
+      expectWritten(highest(level) - lowest(level), 'less than 0.0001 dB')
     }
   })
 
@@ -579,27 +633,95 @@ describe('the Fourier transform', () => {
     expect(Math.abs(through(164.81))).toBeLessThan(1)
   })
 
-  it('spreads a click ahead of itself in a long frame: cut at 562 Hz in frames of 4,096 it sounds 73 ms early, 43 dB under its peak between 20 ms and 40 ms ahead (claim pre-echo); in frames of 256 it is at most 4 ms early (claim pre-echo-short)', async () => {
+  it('spreads a click ahead of itself in a long frame: cut at 562 Hz in frames of 4,096 it begins between 43 ms and 85 ms early, depending on where in a frame it falls, and stands between 41 dB and 46 dB under its peak from 40 ms to 20 ms ahead (claim pre-echo); in frames of 256 it begins between 2.7 ms and 5.3 ms early (claim pre-echo-short)', async () => {
     const fourier = await lab(NAME)
-    const at = RATE / 2
-    const source = click(seconds(1), at)
     // The settings of the two cards: bin 48 of 4,096 and bin 3 of 256 both stand at 562.5 Hz.
     const early = resolveSet(fourier.description, settings.sets.early!).values
     const brief = resolveSet(fourier.description, settings.sets.short!).values
     expect([early.size, early.keep, brief.size, brief.keep]).toEqual([3, 48, 1, 3])
-    const long = first(fourier.render(source, early).taps.out)
-    const short = first(fourier.render(source, brief).taps.out)
-    const earlyMs = (out: Float32Array) => ((at - out.findIndex((v) => v !== 0)) * 1000) / RATE
-    expectWritten(earlyMs(long), '73 ms')
-    expectWritten(earlyMs(short), 'at most 4 ms')
-    expect(earlyMs(short)).toBeGreaterThan(3.5)
-    const ahead = gainToDb(
-      rms(long, at - seconds(0.04), at - seconds(0.02)) / highest(long.map(Math.abs)),
-    )
-    expectWritten(-ahead, '43 dB')
+    // The lab takes a frame every half frame, so a click can fall anywhere in half a frame: at
+    // its first sample, at its last, and at places between.
+    const measure = (
+      values: Record<string, number>,
+      half: number,
+      base: number,
+      places: number[],
+    ) => {
+      const ms: number[] = []
+      const ahead: number[] = []
+      for (const place of places) {
+        const at = base * half + place
+        const out = first(fourier.render(click(seconds(1), at), values).taps.out)
+        ms.push(((at - out.findIndex((v) => v !== 0)) * 1000) / RATE)
+        ahead.push(
+          -gainToDb(rms(out, at - seconds(0.04), at - seconds(0.02)) / highest(out.map(Math.abs))),
+        )
+      }
+      return { ms, ahead }
+    }
+    const steps = (half: number, count: number) =>
+      Array.from({ length: count }, (_, i) => Math.round((i * half) / count)).concat(half - 1)
+    const long = measure(early, 2048, 12, steps(2048, 16))
+    expectWritten(Math.min(...long.ms), '43 ms')
+    expectWritten(Math.max(...long.ms), '85 ms')
+    expectWritten(Math.min(...long.ahead), '41 dB')
+    expectWritten(Math.max(...long.ahead), '46 dB')
+    const short = measure(brief, 128, 190, steps(128, 16))
+    expectWritten(Math.min(...short.ms), '2.7 ms')
+    expectWritten(Math.max(...short.ms), '5.3 ms')
   })
 
   // --- the settings file -------------------------------------------------------------------
+
+  it("keeps the bins and the frames its cards' words say", async () => {
+    const fourier = await lab(NAME)
+    const of = (name: string) => resolveSet(fourier.description, settings.sets[name]!).values
+    // Frame length is a choice: 1 is 256 samples and 3 is 4,096, the longest.
+    expect(SIZES[1]).toBe(256)
+    expect(SIZES[3]).toBe(4096)
+    const said: Record<string, { keep: number; size: number }> = {
+      lower: { keep: 16, size: 3 },
+      upper: { keep: 16, size: 3 },
+      held: { keep: 30, size: 3 },
+      lows: { keep: 12, size: 3 },
+      hit: { keep: 12, size: 1 },
+      hiss: { keep: 400, size: 3 },
+      wall: { keep: 48, size: 3 },
+      rest: { keep: 48, size: 3 },
+      inplace: { keep: 3, size: 1 },
+      blunt: { keep: 2, size: 1 },
+    }
+    for (const [name, { keep, size }] of Object.entries(said)) {
+      expect([name, of(name).keep, of(name).size]).toEqual([name, keep, size])
+    }
+    // "Bins kept" starts at 48, which the opening picture draws.
+    expect(fourier.description.controls.find((one) => one.id === 'keep')!.initial).toBe(48)
+  })
+
+  it('opens the plate with everything the device does to its bins off, where its own defaults have them on', async () => {
+    const device = JSON.parse(
+      await readFile(
+        new URL('../../../cpp/devices/spectral-blur/device.json', import.meta.url),
+        'utf8',
+      ),
+    ) as {
+      latencySamples: number
+      params: { key: string; min?: number; max?: number; default: number }[]
+    }
+    const param = (key: string) => device.params.find((one) => one.key === key)!
+    // What the plate's note says of the defaults.
+    expect(param('blur').default).toBe(0.6)
+    expect(param('smear').default).toBe(0.7)
+    expect(param('shimmer').default).toBeGreaterThan(0)
+    expect(param('tilt').default).toBeLessThan(0)
+    expect(param('highCut').default).toBeLessThan(param('highCut').max!)
+    expect(param('width').default).toBe(1)
+    expect(param('mix').default).toBe(0.5)
+    // What the lesson's front matter opens the plate on, and the lab sets: the cuts at their ends.
+    expect(param('lowCut').min).toBe(20)
+    expect(param('highCut').max).toBe(20000)
+    expect(device.latencySamples).toBe(LATENCY)
+  })
 
   it('renders every named set: the sound its card plays is there and is not silence', async () => {
     const fourier = await lab(NAME)

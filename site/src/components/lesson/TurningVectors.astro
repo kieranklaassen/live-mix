@@ -1,5 +1,5 @@
 ---
-// The bins of a frame as vectors that turn and add up to it:
+// The bins of a frame as arrows that turn and add up to it:
 // <TurningVectors real="real" imag="imag" frame="windowed" rebuilt="rebuilt" count="keep">Caption.</TurningVectors>
 import TurningVectors from '../../figures/TurningVectors.tsx'
 import { tapRefs } from '../../figures/roles.ts'
@@ -29,7 +29,7 @@ if (!realRef || !imagRef || !frameRef || !rebuiltRef || !pair) {
   throw new Error(`${lesson}: <TurningVectors> needs real, imag, frame, rebuilt and count.`)
 }
 const said =
-  label ?? `The bins of ${frameRef.name} as turning vectors, and ${rebuiltRef.name} beside them`
+  label ?? `The bins of ${frameRef.name} as turning arrows, and ${rebuiltRef.name} beside them`
 ---
 
 <figure class="fig">
