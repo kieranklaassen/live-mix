@@ -1,0 +1,50 @@
+---
+// One sound the technique is used on: a still of it, why, and the settings to start from, in
+// words read from the same named set the card's button plays (src/content/settings/<lesson>.json):
+// <Use title="Drums" set="drums">
+//   <Still slot="picture" taps="in out" set="drums" caption="…" />
+//   Why it is used on this sound.
+// </Use>
+// A card with no `set` has no settings and no button.
+import { getEntry } from 'astro:content'
+import Hear from './Hear.astro'
+import { pageLab } from '../../lib/lab-info.ts'
+import { setInWords } from '../../lib/parts.ts'
+import { lessonSettings, setNamed } from '../../lib/settings.ts'
+
+interface Props {
+  title: string
+  /** A name under `sets` in the lesson's settings file. */
+  set?: string
+}
+const { title, set } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const entry = set ? await getEntry('lessons', lesson) : undefined
+const words = set && entry && setInWords(lab, setNamed(await lessonSettings(entry), set, lesson))
+---
+
+<article class="lesson-card use" data-set={set}>
+  {Astro.slots.has('picture') && (
+    <div class="lesson-card-picture">
+      <slot name="picture" />
+    </div>
+  )}
+  <div class="lesson-card-text">
+    <h3>{title}</h3>
+    <slot />
+    {words && (
+      <ul class="lesson-card-settings" aria-label="Starting settings">
+        {words.settings.map((one) => (
+          <li data-setting={one.id}>{`${one.name} ${one.value}`}</li>
+        ))}
+        {words.settings.length === 0 && <li>the lesson's starting settings</li>}
+        {words.source && <li data-setting-source>{`on ${words.source}`}</li>}
+      </ul>
+    )}
+    {set && (
+      <p class="lesson-card-hear">
+        <Hear set={set} label="Hear" />
+      </p>
+    )}
+  </div>
+</article>

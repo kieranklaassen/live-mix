@@ -1,5 +1,6 @@
 /*
- * A lesson's page: the figures, the stage strip, the controls, the play bar and the bench.
+ * A lesson's page: the figures, the stage strip, the controls, the play bar and the bench, and
+ * at the end the long shape: the hero, the nine parts, the cards and the tiles.
  * Colours and type come from site.css and, through it, the React kit's tokens.
  */
 
@@ -378,7 +379,8 @@ input[type='range'] {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem 1rem;
-  padding: 0.5rem max(1rem, calc((100vw - var(--wide)) / 2));
+  /* In line with the page's text: the frame's gutter, inside its width on a wide window. */
+  padding: 0.5rem max(var(--gutter), calc((100vw - var(--wide)) / 2 + var(--gutter)));
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   background: var(--lm-raised);
   border-top: 1px solid var(--lm-hairline);
@@ -525,5 +527,466 @@ input[type='range'] {
   }
   body:has(.playbar) .site-footer {
     padding-bottom: 9rem;
+  }
+}
+
+/* ---- the long shape: the hero ------------------------------------------ */
+
+/* A long lesson fills the page's frame. Its parts are as wide as the frame, not as one column. */
+.lesson[data-long] {
+  max-width: none;
+  /*
+   * The colour of a part's number, of a card's tag and of the hero's first line: the ink of the
+   * lesson's family where the page's styles give one (--family-ink, with --family for its dot),
+   * and the accent where they do not.
+   */
+  --part-ink: var(--family-ink, var(--lm-accent));
+}
+.lesson-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 32px 60px;
+  padding: 32px 0 44px;
+}
+.lesson-hero-title {
+  flex: 999 1 520px;
+  min-width: 0;
+}
+.lesson-kicker {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--lm-font-mono);
+  font-size: 13px;
+  color: var(--part-ink);
+}
+.lesson-kicker::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--family, currentColor);
+}
+/* The frame's title: very large, set tight. Smaller on a phone, so no word of a title is cut. */
+.lesson-hero h1 {
+  margin: 12px 0 0;
+  font-size: clamp(3.25rem, 10vw, 8.5rem);
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+  overflow-wrap: break-word;
+}
+.lesson-standfirst {
+  margin: 26px 0 0;
+  max-width: 660px;
+  font-size: 24px;
+  line-height: 1.38;
+  color: var(--lm-muted);
+}
+.lesson-contents {
+  flex: 1 1 300px;
+  min-width: 0;
+  max-width: 380px;
+  border-top: 1px solid var(--lm-text);
+}
+.lesson-contents .label {
+  margin: 0;
+  padding: 10px 0 6px;
+}
+.lesson-contents ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--rule);
+}
+.lesson-contents li {
+  margin: 0;
+  border-top: 1px solid var(--rule);
+}
+.lesson-contents a {
+  display: flex;
+  gap: 14px;
+  padding: 9px 0;
+  font-size: 16px;
+  text-decoration: none;
+}
+.lesson-contents .n {
+  flex: none;
+  padding-top: 3px;
+  font-family: var(--lm-font-mono);
+  font-size: 12px;
+  color: var(--lm-muted);
+}
+/* What a page with scripts off is told, in a column a line of it can be read in. */
+.lesson[data-long] > noscript .aside {
+  max-width: 760px;
+}
+/* Under the hero: the row of sounds the page plays, then the opening picture. */
+.lesson-opening {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--lm-text);
+}
+.lesson-opening .fig {
+  margin: 0;
+}
+
+/* ---- the long shape: a part -------------------------------------------- */
+
+/* A numbered part: its label in a column of its own, its text beside it under a hairline. */
+.part {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 40px;
+  padding-top: 88px;
+  /* A contents link lands on the part's rule, not on the space over it. */
+  scroll-margin-top: -3rem;
+}
+.part-label {
+  flex: 0 0 190px;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--lm-text);
+  font-family: var(--lm-font-mono);
+  font-size: 13px;
+  color: var(--lm-muted);
+}
+.part-label b {
+  font-family: var(--lm-font);
+  font-size: 44px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--part-ink);
+}
+.part-body {
+  flex: 1 1 560px;
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+.part-body > h2 {
+  margin: 0 0 22px;
+  padding: 0;
+  border: 0;
+  max-width: 820px;
+  font-size: clamp(34px, 4.4vw, 56px);
+  line-height: 1.04;
+  letter-spacing: -0.028em;
+}
+.part-body > h3 {
+  margin: 44px 0 12px;
+  max-width: 680px;
+  font-size: 28px;
+  line-height: 1.15;
+}
+.part-body > :is(p, ul, ol, blockquote) {
+  max-width: 680px;
+  margin-bottom: 18px;
+  font-size: 19px;
+}
+/* The first paragraph of the first part leads the lesson in. */
+.part[data-part='why'] .part-body > h2 + p {
+  max-width: 760px;
+  font-size: 24px;
+  line-height: 1.4;
+}
+.part-body > .files {
+  max-width: none;
+  font-size: 0.9rem;
+}
+.part-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* ---- the long shape: cards --------------------------------------------- */
+
+/* Cards side by side in a ruled grid: what it is used on, ways to use it, what goes wrong. */
+.lesson-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+  margin: 26px 0 8px;
+  border-top: 1px solid var(--rule);
+  border-left: 1px solid var(--rule-soft);
+}
+.lesson-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.lesson-card-text,
+a.lesson-card {
+  gap: 8px;
+  padding: 18px 20px 22px;
+}
+.lesson-card-text {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+.lesson-card h3,
+.lesson-card b {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+.lesson-card-text p,
+a.lesson-card > span {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--lm-muted);
+}
+.lesson-card .lesson-card-tag {
+  font-family: var(--lm-font-mono);
+  font-size: 12px;
+  color: var(--part-ink);
+  overflow-wrap: anywhere;
+}
+/* A card's settings, in the words of the set its button plays. */
+.lesson-card-settings {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  font-family: var(--lm-font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.lesson-card-settings li {
+  margin: 0;
+}
+.lesson-card-settings li:not(:last-child)::after {
+  content: '·';
+  margin: 0 0.5em;
+  color: var(--lm-muted);
+}
+/* The button sits at the card's foot, whatever the length of its neighbours' text. */
+.lesson-card .lesson-card-hear {
+  margin-top: auto;
+  padding-top: 8px;
+}
+.lesson-card-picture {
+  background: var(--lm-sunken);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.lesson-card-picture .fig {
+  margin: 0;
+}
+.lesson-card-picture figcaption {
+  margin: 0;
+  padding: 6px 20px 8px;
+}
+a.lesson-card {
+  text-decoration: none;
+}
+a.lesson-card:hover {
+  background: var(--lm-sunken);
+  color: inherit;
+}
+
+/* ---- the long shape: a prediction -------------------------------------- */
+
+/* A question to answer first. The answer is in a disclosure, shut until the reader opens it. */
+.predict {
+  max-width: 760px;
+  margin: 28px 0;
+  padding: 14px 20px 6px;
+  border: 1px solid var(--rule-soft);
+  border-top: 1px solid var(--lm-text);
+}
+.predict fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.predict legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1.25;
+}
+.predict legend .label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--part-ink);
+}
+.predict label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 17px;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.predict input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--lm-accent);
+}
+.predict details {
+  margin-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+.predict summary {
+  padding: 12px 0;
+  font-size: 15px;
+  cursor: pointer;
+}
+.predict-answer {
+  padding: 2px 0 14px;
+  font-size: 17px;
+}
+.predict-answer > :last-child {
+  margin-bottom: 0;
+}
+
+/* ---- the long shape: misconceptions ------------------------------------ */
+
+.myths {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: 0 40px;
+  margin-top: 8px;
+}
+.myth {
+  min-width: 0;
+  padding: 20px 0 22px;
+  border-top: 1px solid var(--rule);
+}
+/* What is said, in the italic of the page's set mathematics. */
+.myth-says {
+  margin: 0 0 10px;
+  font-family: KaTeX_Main, 'Times New Roman', serif;
+  font-size: 26px;
+  font-style: italic;
+  line-height: 1.25;
+}
+.myth-true {
+  font-size: 17px;
+}
+.myth-true > :last-child {
+  margin-bottom: 0;
+}
+
+/* ---- the long shape: the device's table, the tiles --------------------- */
+
+.device-table {
+  max-width: 760px;
+  margin: 24px 0;
+}
+.device-table table {
+  width: 100%;
+  margin: 0 0 18px;
+  border-top: 1px solid var(--lm-text);
+}
+.device-table th,
+.device-table td {
+  padding: 9px 12px 9px 0;
+}
+/* The headings may break, so the three columns fit a phone. */
+.device-table th {
+  white-space: normal;
+}
+.device-table tbody th {
+  font-family: var(--lm-font);
+  font-size: 17px;
+  color: var(--lm-text);
+}
+.device-table td {
+  font-family: var(--lm-font-mono);
+  font-size: 15px;
+}
+.device-table button.button {
+  font: inherit;
+  font-size: 15px;
+}
+/* The button needs the lab: like the buttons that play (parts.css), it is hidden until a
+   script has marked the page, so a page read with scripts off shows none that does nothing. */
+:root:not([data-lab]) .device-table button {
+  display: none;
+}
+/* The lessons before and after, and the way back to the map. */
+.lesson-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  margin-top: 96px;
+  border-top: 1px solid var(--lm-text);
+  border-left: 1px solid var(--rule-soft);
+}
+.lesson-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 14px 16px;
+  border-right: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+  text-decoration: none;
+}
+.lesson-tile:hover {
+  background: var(--lm-sunken);
+  color: inherit;
+}
+.lesson-tile[rel='next'] .label {
+  color: var(--part-ink);
+}
+.lesson-tile .t {
+  font-size: 22px;
+  line-height: 1.2;
+}
+.lesson-tile .s {
+  font-size: 14px;
+  color: var(--lm-muted);
+}
+
+/* Where the label column no longer fits beside the text, a part's label lies over it. */
+@media (max-width: 56rem) {
+  .part-label {
+    flex-basis: 100%;
+  }
+  .part-body {
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+@media (max-width: 40rem) {
+  .lesson-hero {
+    padding-top: 12px;
+  }
+  .lesson-standfirst,
+  .part[data-part='why'] .part-body > h2 + p {
+    font-size: 20px;
+  }
+  .part {
+    padding-top: 64px;
+    /* The header is two rows high here. */
+    scroll-margin-top: -1.5rem;
+  }
+  .part-body > h3 {
+    font-size: 24px;
+  }
+  .part-body > :is(p, ul, ol, blockquote) {
+    font-size: 17px;
+  }
+  .myth-says {
+    font-size: 22px;
   }
 }

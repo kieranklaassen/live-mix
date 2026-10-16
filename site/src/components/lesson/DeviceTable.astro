@@ -1,0 +1,44 @@
+---
+// The last part's table: where the lesson starts each control beside where the device starts
+// it, with a button that sets the page to the device's defaults and plays nothing. The page
+// places it where the lesson's settings file has `defaults`:
+// <DeviceTable defaults={{ values: { ratio: 2 } }} />
+import DefaultsButton from '../../figures/DefaultsButton.tsx'
+import Mark from '../../figures/Mark.astro'
+import { pageLab } from '../../lib/lab-info.ts'
+import { defaultsBeside } from '../../lib/parts.ts'
+import type { NamedSet } from '../../lib/settings.ts'
+
+interface Props {
+  /** The device's defaults as lab values: `defaults` of the lesson's settings file. */
+  defaults: NamedSet
+}
+const { defaults } = Astro.props
+const { lab } = pageLab(Astro.locals)
+const rows = defaultsBeside(lab, defaults)
+---
+
+<div class="device-table" data-device-table>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Control</th>
+          <th scope="col">This lesson starts at</th>
+          <th scope="col">The device starts at</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr data-row={row.id}>
+            <th scope="row">{row.name}</th>
+            <td>{row.lesson}</td>
+            <td>{row.device}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <Mark />
+  <DefaultsButton client:visible defaults={{ values: defaults.values }} />
+</div>

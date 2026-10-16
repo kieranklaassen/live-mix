@@ -1,0 +1,25 @@
+---
+// One of the nine parts of a long lesson, under the lesson's own headline for it:
+// <Part id="why" title="Music is louder and quieter than the place it has to fit.">…</Part>
+// The id is one of the nine (src/lib/parts.ts), which gives the part its number and its name.
+// A lesson writes parts 1 to 8; the page adds the ninth.
+import { partNamed } from '../../lib/parts.ts'
+
+interface Props {
+  id: string
+  title: string
+}
+const part = partNamed(Astro.props.id, Astro.locals.lesson ?? 'A page')
+const heading = `${part.id}-title`
+---
+
+<section class="part" id={part.id} data-part={part.id} aria-labelledby={heading}>
+  <p class="part-label">
+    <b>{part.number}</b>
+    {part.name}
+  </p>
+  <div class="part-body">
+    <h2 id={heading}>{Astro.props.title}</h2>
+    <slot />
+  </div>
+</section>

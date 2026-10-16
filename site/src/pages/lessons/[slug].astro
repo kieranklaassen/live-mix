@@ -1,12 +1,19 @@
 ---
 import 'katex/dist/katex.min.css'
 import '../../styles/lesson.css'
+import fs from 'node:fs'
+import path from 'node:path'
 import { render } from 'astro:content'
 import Base from '../../layouts/Base.astro'
+import DeviceTable from '../../components/lesson/DeviceTable.astro'
+import Opening from '../../components/lesson/Opening.astro'
+import Part from '../../components/lesson/Part.astro'
+import Sounds from '../../components/lesson/Sounds.astro'
 import DeviceBench from '../../figures/DeviceBench.tsx'
 import PlayBar from '../../figures/PlayBar.tsx'
 import { catalogueEntry } from '../../lib/devices.ts'
 import { labInfo } from '../../lib/lab-info.ts'
+import { MAP, places } from '../../lib/lesson-map.ts'
 import {
   lessonComponents,
   lessonPath,
@@ -16,8 +23,10 @@ import {
   twoDigits,
   type Lesson,
 } from '../../lib/lessons.ts'
+import { DEVICE_PART, openingTaps, partNamed, partsIn } from '../../lib/parts.ts'
 import { href } from '../../lib/paths.ts'
-import { sourceUrl } from '../../lib/site.ts'
+import { lessonSettings } from '../../lib/settings.ts'
+import { REPO_ROOT, sourceUrl } from '../../lib/site.ts'
 
 export async function getStaticPaths() {
   // Before and after are the neighbours that are written, in the map's order.
@@ -57,96 +66,282 @@ const bench = data.bench
   ? { ...data.bench, entry: deviceOrThrow(data.bench.device, 'its bench names') }
   : undefined
 const devices = data.devices.map((id) => deviceOrThrow(id, 'it names'))
+
+// The long shape: the nine parts under a hero, as the map and the lesson's own text give them.
+// A lesson that does not carry `long` yet renders below as it always has.
+const place = placeOf(lesson.id)
+const parts = data.long
+  ? [...partsIn(lesson.body ?? '', lesson.id), partNamed(DEVICE_PART, lesson.id)]
+  : []
+const settings = data.long ? await lessonSettings(lesson) : undefined
+const opening = data.long && data.opening && openingTaps(lab, data.opening, lesson.id)
+// Where the bench's device is tested, apart from the lesson, and where the lesson's own numbers
+// are held: each is linked only where the file is there.
+const inRepo = (file: string) => (fs.existsSync(path.join(REPO_ROOT, file)) ? file : undefined)
+const deviceTest = bench && inRepo(`cpp/test/${bench.entry.id.replaceAll('-', '_')}_test.cpp`)
+const labTest = inRepo(`site/tests/labs/${data.lab}.test.ts`)
 ---
 
 <Base title={data.title} description={data.summary}>
-  <article class="lesson" data-lesson={lesson.id}>
-    <header class="lesson-head">
-      <p class="label">
-        <a href={href('lessons/')}>Lessons</a> · {twoDigits(placeOf(lesson.id).number)}
-      </p>
-      <h1>{data.title}</h1>
-      <p class="lede">{data.summary}</p>
-    </header>
-    <noscript>
-      <p class="aside">
-        The figures on this page are drawn, and the sound made, by running the engine's code in your
-        browser. With scripts off the text and the captions are all here, and the pictures are not.
-      </p>
-    </noscript>
-
-    <div class="prose lesson-body">
-      <Content components={lessonComponents} />
-
-      <h2 id="in-the-engine">In the engine</h2>
-      <p>The code this lesson ran and read, as it stood when this page was built:</p>
-      <ul class="files">
-        {data.files.map((file) => (
-          <li>
-            <a href={sourceUrl(file)}>
-              <code>{file}</code>
-            </a>
-          </li>
-        ))}
-        <li>
-          <a href={sourceUrl(`site/labs/${data.lab}.cpp`)}>
-            <code>site/labs/{data.lab}.cpp</code>
-          </a>
-          , the lab that put the taps on it
-        </li>
-      </ul>
-      {devices.length > 0 && (
-        <p>
-          Devices built on it:
-          {devices.map((device, index) => (
-            <Fragment>
-              {index > 0 ? ', ' : ' '}
-              <a href={href(`devices/${device.id}/`)}>{device.name}</a>
-            </Fragment>
-          ))}
-        </p>
-      )}
-
-      {bench && (
-        <>
-          <h2 id="the-real-device">The real device</h2>
-          <p>
-            Everything above ran in a lab: the engine's code, stopped at each stage so it could be
-            looked at. Here is <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a>{' '}
-            itself, running live through the engine as an app runs it, on the same loop.
+  {data.long ? (
+    <article class="lesson" data-lesson={lesson.id} data-family={data.family} data-long>
+      <header class="lesson-hero">
+        <div class="lesson-hero-title">
+          <p class="lesson-kicker">
+            {twoDigits(place.number)} · {place.familyName.toLowerCase()} · lesson {place.inFamily}{' '}
+            of {place.ofFamily} in its family
           </p>
-          {bench.note && <p>{bench.note}</p>}
-          <DeviceBench
-            client:visible
-            device={bench.entry.id}
-            name={bench.entry.name}
-            params={bench.params}
-            as={bench.as}
-            impulse={bench.impulse}
-          />
-        </>
-      )}
-    </div>
+          <h1>{data.title}</h1>
+          <p class="lesson-standfirst">{data.summary}</p>
+        </div>
+        <nav class="lesson-contents" aria-label="In this lesson">
+          <p class="label">in this lesson</p>
+          <ol>
+            {parts.map((part) => (
+              <li>
+                <a href={`#${part.id}`}>
+                  <span class="n">{part.number}</span>
+                  {part.name}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      </header>
+      <noscript>
+        <p class="aside">
+          The live figures on this page are drawn, and the sound made, by running the engine's code
+          in your browser. With scripts off the text, the equations, the listings, the still
+          pictures, every step of the build and the answer to each prediction are all here; the live
+          figures, the controls and the sound are not.
+        </p>
+      </noscript>
+      <div class="lesson-opening">
+        <Sounds />
+        {opening && <Opening input={opening.input} output={opening.output} />}
+      </div>
 
-    <nav class="lesson-nav" aria-label="Lessons">
-      {prev ? (
-        <a href={href(lessonPath(prev.id))} rel="prev">
-          <span class="label">Before</span>
-          {prev.data.title}
+      <div class="lesson-body">
+        <Content components={lessonComponents} />
+
+        <Part
+          id={DEVICE_PART}
+          title={bench?.entry.name ?? devices[0]?.name ?? "The engine's own code"}
+        >
+          {bench && (
+            <>
+              <p>
+                Everything above ran in a lab: the engine's code, stopped at each stage so it could
+                be looked at. Here is{' '}
+                <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a> itself, running
+                live through the engine as an app runs it, on the same loop.
+              </p>
+              {bench.note && <p>{bench.note}</p>}
+            </>
+          )}
+          {bench && settings?.defaults && (
+            <>
+              <p>
+                The lab's controls are the device's own. Where this lesson starts each of them, and
+                where the device starts it when nothing has been set:
+              </p>
+              <DeviceTable defaults={settings.defaults} />
+            </>
+          )}
+          {bench && (
+            <DeviceBench
+              client:visible
+              device={bench.entry.id}
+              name={bench.entry.name}
+              params={bench.params}
+              as={bench.as}
+              impulse={bench.impulse}
+            />
+          )}
+          <div class="lesson-cards device-links">
+            {bench && (
+              <>
+                <a class="lesson-card" href={href(`devices/${bench.entry.id}/`)}>
+                  <span class="lesson-card-tag">the device's page</span>
+                  <b>Every control, explained</b>
+                  <span>
+                    Its ranges, its defaults and what each control is for, with the device to try by
+                    itself.
+                  </span>
+                </a>
+                <a class="lesson-card" href={sourceUrl(bench.entry.source)}>
+                  <span class="lesson-card-tag">{bench.entry.source}</span>
+                  <b>Read the source</b>
+                  <span>The device's code, as it stood when this page was built.</span>
+                </a>
+              </>
+            )}
+            {deviceTest && (
+              <a class="lesson-card" href={sourceUrl(deviceTest)}>
+                <span class="lesson-card-tag">{deviceTest}</span>
+                <b>The device's own tests</b>
+                <span>What the engine holds the device to, apart from this lesson.</span>
+              </a>
+            )}
+            {labTest && (
+              <a class="lesson-card" href={sourceUrl(labTest)}>
+                <span class="lesson-card-tag">{labTest}</span>
+                <b>Where the numbers come from</b>
+                <span>
+                  Each quantity this lesson measured is held by a test of its lab, which fails when
+                  the number stops being true.
+                </span>
+              </a>
+            )}
+          </div>
+          <h3 id="in-the-engine">The code this lesson ran and read</h3>
+          <ul class="files">
+            {data.files.map((file) => (
+              <li>
+                <a href={sourceUrl(file)}>
+                  <code>{file}</code>
+                </a>
+              </li>
+            ))}
+            <li>
+              <a href={sourceUrl(`site/labs/${data.lab}.cpp`)}>
+                <code>site/labs/{data.lab}.cpp</code>
+              </a>
+              , the lab that put the taps on it
+            </li>
+          </ul>
+          {devices.length > 0 && (
+            <p>
+              Devices built on it:
+              {devices.map((device, index) => (
+                <Fragment>
+                  {index > 0 ? ', ' : ' '}
+                  <a href={href(`devices/${device.id}/`)}>{device.name}</a>
+                </Fragment>
+              ))}
+            </p>
+          )}
+        </Part>
+      </div>
+
+      <nav class="lesson-tiles" aria-label="Lessons">
+        {prev && (
+          <a class="lesson-tile" href={href(lessonPath(prev.id))} rel="prev">
+            <span class="label">
+              before · {twoDigits(placeOf(prev.id).number)} ·{' '}
+              {placeOf(prev.id).familyName.toLowerCase()}
+            </span>
+            <span class="t">{prev.data.title}</span>
+          </a>
+        )}
+        <a class="lesson-tile" href={href('lessons/')}>
+          <span class="label">the map</span>
+          <span class="t">All the lessons</span>
+          <span class="s">
+            {places().length} lessons in {MAP.length} families
+          </span>
         </a>
-      ) : (
-        <span />
-      )}
-      {next ? (
-        <a href={href(lessonPath(next.id))} rel="next">
-          <span class="label">Next</span>
-          {next.data.title}
-        </a>
-      ) : (
-        <span />
-      )}
-    </nav>
-  </article>
+        {next && (
+          <a class="lesson-tile" href={href(lessonPath(next.id))} rel="next">
+            <span class="label">
+              next · {twoDigits(placeOf(next.id).number)} ·{' '}
+              {placeOf(next.id).familyName.toLowerCase()}
+            </span>
+            <span class="t">{next.data.title}</span>
+          </a>
+        )}
+      </nav>
+    </article>
+  ) : (
+    <article class="lesson" data-lesson={lesson.id}>
+      <header class="lesson-head">
+        <p class="label">
+          <a href={href('lessons/')}>Lessons</a> · {twoDigits(placeOf(lesson.id).number)}
+        </p>
+        <h1>{data.title}</h1>
+        <p class="lede">{data.summary}</p>
+      </header>
+      <noscript>
+        <p class="aside">
+          The figures on this page are drawn, and the sound made, by running the engine's code in
+          your browser. With scripts off the text and the captions are all here, and the pictures
+          are not.
+        </p>
+      </noscript>
+
+      <div class="prose lesson-body">
+        <Content components={lessonComponents} />
+
+        <h2 id="in-the-engine">In the engine</h2>
+        <p>The code this lesson ran and read, as it stood when this page was built:</p>
+        <ul class="files">
+          {data.files.map((file) => (
+            <li>
+              <a href={sourceUrl(file)}>
+                <code>{file}</code>
+              </a>
+            </li>
+          ))}
+          <li>
+            <a href={sourceUrl(`site/labs/${data.lab}.cpp`)}>
+              <code>site/labs/{data.lab}.cpp</code>
+            </a>
+            , the lab that put the taps on it
+          </li>
+        </ul>
+        {devices.length > 0 && (
+          <p>
+            Devices built on it:
+            {devices.map((device, index) => (
+              <Fragment>
+                {index > 0 ? ', ' : ' '}
+                <a href={href(`devices/${device.id}/`)}>{device.name}</a>
+              </Fragment>
+            ))}
+          </p>
+        )}
+
+        {bench && (
+          <>
+            <h2 id="the-real-device">The real device</h2>
+            <p>
+              Everything above ran in a lab: the engine's code, stopped at each stage so it could be
+              looked at. Here is <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a>{' '}
+              itself, running live through the engine as an app runs it, on the same loop.
+            </p>
+            {bench.note && <p>{bench.note}</p>}
+            <DeviceBench
+              client:visible
+              device={bench.entry.id}
+              name={bench.entry.name}
+              params={bench.params}
+              as={bench.as}
+              impulse={bench.impulse}
+            />
+          </>
+        )}
+      </div>
+
+      <nav class="lesson-nav" aria-label="Lessons">
+        {prev ? (
+          <a href={href(lessonPath(prev.id))} rel="prev">
+            <span class="label">Before</span>
+            {prev.data.title}
+          </a>
+        ) : (
+          <span />
+        )}
+        {next ? (
+          <a href={href(lessonPath(next.id))} rel="next">
+            <span class="label">Next</span>
+            {next.data.title}
+          </a>
+        ) : (
+          <span />
+        )}
+      </nav>
+    </article>
+  )}
   <PlayBar
     client:load
     lab={data.lab}

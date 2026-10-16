@@ -1,0 +1,39 @@
+---
+// A question to answer before the page shows what happens:
+// <Predict question="What happens to the quiet hits?" choices={['They rise', 'They stay', 'They fall']}>
+//   The answer, with whatever shows it: a still, a figure, a button to hear it.
+// </Predict>
+// The answer is in a disclosure of the browser's own, so it opens with scripts off, and what is
+// inside it shows only once it is open.
+interface Props {
+  question: string
+  choices: string[]
+}
+const { question, choices } = Astro.props
+
+// The choices of one question are one group: its name is made from the question's own words.
+let sum = 0
+for (const letter of question) sum = (sum * 31 + letter.charCodeAt(0)) >>> 0
+const group = `predict-${sum.toString(36)}`
+---
+
+<div class="predict" data-predict>
+  <fieldset>
+    <legend>
+      <span class="label">Predict first</span>
+      {question}
+    </legend>
+    {choices.map((choice) => (
+      <label>
+        <input type="radio" name={group} />
+        {choice}
+      </label>
+    ))}
+  </fieldset>
+  <details>
+    <summary>Show the answer</summary>
+    <div class="predict-answer">
+      <slot />
+    </div>
+  </details>
+</div>
