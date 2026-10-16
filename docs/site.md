@@ -116,4 +116,41 @@ The records, at whoever holds the domain's DNS:
 
 ## What has been checked, and where
 
-CHECKED
+Checked on 16 October 2026, on Linux, in the container the site was written
+in. Nothing here was checked on a person's machine, and nobody has listened to
+any of it.
+
+**Measured in Node, on the labs.** Each lesson's lab is the engine's C++
+compiled to WebAssembly, and `pnpm test` runs it: 558 tests. Every quantity a
+lesson states (550 of them across the twenty lessons) is the title of a test
+that measures it, and `check-claims.mjs` fails a lesson whose stated quantity
+no test holds. These are measurements of the samples the code puts out: a
+level in dB, a frequency, a time, a difference between two signals.
+
+**Seen in a headless Chromium, on the site as built.** 113 browser tests: each
+lesson opens with no error, every figure draws, moving a control renders again
+and changes a picture, Play makes the meter move, every stage that is sound
+can be chosen, the real device opens behind its plate and sound passes through
+it, and the page fits a window 390 and 1280 px wide. The docs index and a link
+between two docs, a lesson with JavaScript off, a device page for an effect
+and for an instrument, and the search are covered the same way. "Sound" here
+means the page's meter read above nothing: a number, not a judgement.
+
+**Read, not run.** Every link inside the build is followed by
+`check-links.mjs` (96,909 on the day), and the pages' wording is read against
+a list of names by `check-wording.mjs`. Links out of the site are counted and
+not fetched.
+
+**Not checked.**
+
+- How any lesson sounds. Whether a loop is pleasant, whether a stage is loud
+  enough beside the next, whether the click-free crossfade at a loop's end is
+  click-free to an ear: nobody has heard them.
+- How any picture reads to a person. The figures were looked at as
+  screenshots while each lesson was written, at two widths.
+- Firefox and Safari, and any phone. Only Chromium has opened the site.
+- The deploy job. It cannot run before Pages is switched on; its first run on
+  `main` is its test.
+- A build for a domain's root is made and its links are followed
+  (`check.sh --root`), and its browser tests have not been run there.
+- Whether the proposed domains are free.
