@@ -1357,6 +1357,70 @@ static void test_voices() {
     Stereo rest = render(device, 0.5f, kRate);
     EXPECT(peak(rest.left, at(0.3)) == 0.0, "and one note off ends it");
   }
+  // One note id at one pitch, at another and at the first again, the third
+  // strike 10 ms after the second, while the first voice is still on its way
+  // out (it falls for 50 ms): the id keeps one voice held. A second held
+  // voice would be one that no note off ends, and the bed would never stop.
+  {
+    steady(device);
+    device.set_param(p::kTint, 1.0f);
+    device.note_on(1, 220.0f, 1.0f);
+    render(device, 0.3f, kRate);
+    device.note_on(1, 330.0f, 1.0f);
+    render(device, 0.01f, kRate);
+    device.note_on(1, 220.0f, 1.0f);
+    Stereo out = render(device, 10.5f, kRate);
+    const std::vector<double> power = spectrum(out.left, at(0.5));
+    const double first = stands_out(power, bare_full, 220.0), second = stands_out(power, bare_full, 330.0);
+    std::printf("  a note id at 220, 330 and 220 Hz, 10 ms between the last two: its band stands %.1f dB out at 220 Hz, %.1f dB at 330 Hz\n",
+                first, second);
+    EXPECT(first > 6.0 && second < 3.0, "a note id sent back to its first pitch plays there alone");
+    device.note_off(1);
+    Stereo rest = render(device, 0.5f, kRate);
+    EXPECT(peak(rest.left, at(0.3)) == 0.0 && peak(rest.right, at(0.3)) == 0.0, "and one note off ends it: exact silence after the release");
+  }
+  // The same with the first key let go before the id moves on, under a
+  // Release of 2 s: its voice is still fading a second later, when the id
+  // comes back to its pitch, and one note off ends what it plays then.
+  {
+    steady(device);
+    device.set_param(p::kRelease, 2.0f);
+    device.note_on(1, 220.0f, 1.0f);
+    render(device, 0.3f, kRate);
+    device.note_off(1);
+    render(device, 0.1f, kRate);
+    device.note_on(1, 330.0f, 1.0f);
+    render(device, 1.0f, kRate);
+    device.note_on(1, 220.0f, 1.0f);
+    render(device, 0.5f, kRate);
+    device.note_off(1);
+    Stereo rest = render(device, 4.5f, kRate);
+    EXPECT(peak(rest.left, at(4.0)) == 0.0 && peak(rest.right, at(4.0)) == 0.0,
+           "a note id let go, sent at another pitch and back at the first is ended by one note off: exact silence 4 s later at Release 2 s");
+  }
+  // And through a full pool. The id holds the first voice, another key is
+  // let go and fades slowly, so every voice is busy; the id at another pitch
+  // has to wait in that fading voice, and 10 ms later, before the wait is
+  // over, the id is back at its first pitch.
+  {
+    steady(device);
+    device.set_param(p::kTint, 1.0f);
+    device.set_param(p::kRelease, 2.0f);
+    device.note_on(50, 220.0f, 0.8f);
+    for (int n = 1; n < 10; ++n) device.note_on(n, kTen[n], 0.8f);
+    render(device, 1.0f, kRate);
+    device.note_off(9);
+    render(device, 0.5f, kRate);
+    device.note_on(50, 330.0f, 0.8f);
+    render(device, 0.01f, kRate);
+    device.note_on(50, 220.0f, 0.8f);
+    render(device, 0.5f, kRate);
+    for (int n = 1; n < 9; ++n) device.note_off(n);
+    device.note_off(50);
+    Stereo rest = render(device, 4.5f, kRate);
+    EXPECT(peak(rest.left, at(4.0)) == 0.0 && peak(rest.right, at(4.0)) == 0.0,
+           "a note id that goes to another pitch and back while it waits for a voice is ended by one note off: exact silence after every key is let go");
+  }
   // What a key may ask for is held to the range: pitch to 20 Hz and 12 kHz, gain to 0..1.
   {
     auto key = [](float hz, float gain) {

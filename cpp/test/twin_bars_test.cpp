@@ -624,6 +624,39 @@ static void the_damp() {
     EXPECT(fallen > -10.0, label);
   }
 
+  // One note id at one pitch, at another and at the first again, then one
+  // key up: the id keeps one voice held, so its bars fall as fast as those
+  // of a key struck once and let go. (A second held voice would be one that
+  // no key up lets go, and it would ring on at Decay.) At the default Damp
+  // the fall is read over most of a second; at Damp 1, where a let go key is
+  // over in 70 ms, over 30 ms.
+  for (float damp : {p::kParamDefault[p::kDamp], 1.0f}) {
+    const double from = damp < 1.0f ? 0.05 : 0.01, to = damp < 1.0f ? 0.9 : 0.04, window = damp < 1.0f ? 0.1 : 0.02;
+    double rings[2];
+    for (int pass = 0; pass < 2; ++pass) {
+      device.init(kRate);
+      device.set_param(p::kEars, 1.0f);
+      device.set_param(p::kDamp, damp);
+      device.note_on(1, 220.0f, 0.8f);
+      render(device, 0.4f, kRate);
+      if (pass == 1) {
+        device.note_on(1, 330.0f, 0.8f);
+        render(device, 0.01f, kRate);
+        device.note_on(1, 220.0f, 0.8f);
+        render(device, 0.4f, kRate);
+      }
+      device.note_off(1);
+      Stereo tail = render(device, 1.2f, kRate);
+      rings[pass] = ring_time(tail.left, kRate, 222.0, from, to, window);
+    }
+    const double held = p::kParamDefault[p::kDecay];
+    std::snprintf(label, sizeof label,
+                  "Damp %.1f, a note id at 220, 330 and 220 Hz, then one key up: it rings %.3f s, a key struck once and let go %.3f s (a held one %.0f s)",
+                  damp, rings[1], rings[0], held);
+    std::printf("%s\n", label);
+    EXPECT(std::fabs(rings[1] / rings[0] - 1.0) < 0.05 && rings[1] < 0.5 * held, label);
+  }
+
   // In between, a let go key rings Decay^(1 - Damp) · 0.07^Damp: 1.58 s at the defaults.
   device.init(kRate);
   device.set_param(p::kEars, 1.0f);
@@ -1139,6 +1172,33 @@ static void stealing() {
                   pass == 0 ? "levels tied" : "ringing", struck, left, both_peak(after));
     std::printf("%s\n", label);
     EXPECT(struck > -40.0 && left == TwinBars::kMaxVoices - 1, label);
+    EXPECT(both_peak(after) == 0.0, label);
+  }
+
+  // A held key sent at another pitch over a full pool, and 10 ms later at
+  // its first pitch again. The lowest key holds the first voice; the highest
+  // is let go, so that it is the quietest voice and the other pitch takes
+  // it. Back on its first bars the id lets that voice go, and one key up
+  // ends the id: a second after every key is let go the device is exactly
+  // silent.
+  {
+    full_pool(0.8f);
+    render(device, 0.25f, kRate);
+    device.note_off(TwinBars::kMaxVoices - 1);
+    render(device, 0.05f, kRate);
+    device.note_on(0, 2130.0f, 0.8f);
+    render(device, 0.01f, kRate);
+    device.note_on(0, 200.0f, 0.8f);
+    Stereo out = render(device, 0.3f, kRate);
+    const double back = db(bin_level(out.left, kRate, 202.0, 2400, 9600));
+    for (int n = 0; n < TwinBars::kMaxVoices; ++n) device.note_off(n);
+    render(device, 1.0f, kRate);
+    Stereo after = render(device, 0.5f, kRate);
+    std::snprintf(label, sizeof label,
+                  "a held key at another pitch over a full pool and back 10 ms later: its first pitch sounds (%.1f dB), and a second after the keys are let go the peak is %g",
+                  back, both_peak(after));
+    std::printf("%s\n", label);
+    EXPECT(back > -40.0, label);
     EXPECT(both_peak(after) == 0.0, label);
   }
 

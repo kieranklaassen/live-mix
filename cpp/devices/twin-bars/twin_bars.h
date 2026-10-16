@@ -135,16 +135,24 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
       voice.follow = stroke_level(material, gain);
       return;
     }
-    // The same key while its bars still ring: strike those bars again.
+    // The same key while its bars still ring: strike those bars again, and
+    // let go every other voice the id has, before them in the pool or after.
+    // One key up lets go only the newest held voice of an id, so an id keeps
+    // one held.
+    Voice* again = nullptr;
     for (int v = 0; v < kMaxVoices; ++v) {
       Voice& voice = pool_.voices[v];
       if (!voice.sounding || voice.pending || voice.fading || pool_.note_id_of(v) != note_id) continue;
-      if (voice.material == material && voice.frequency == frequency) {
-        voice.released = false;
-        play(voice, gain);
-        return;
+      if (again == nullptr && voice.material == material && voice.frequency == frequency) {
+        again = &voice;
+        continue;
       }
       voice.released = true;
+    }
+    if (again != nullptr) {
+      again->released = false;
+      play(*again, gain);
+      return;
     }
     bool stolen = false;
     Voice& voice = pool_.voices[pool_.note_on(note_id, &stolen)];

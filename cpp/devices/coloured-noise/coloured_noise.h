@@ -118,7 +118,9 @@ class ColouredNoise : public kit::DeviceBase<coloured_noise::kNumParams> {
     gain = kit::clamp(gain, 0.0f, 1.0f);
     if (pool_.count_active() == 0) restart();
 
-    // The key's own voice, if it has one: held, fading or waiting.
+    // The key's own voices, if it has any: held, fading or waiting. One note
+    // off ends only the newest held voice of an id, so an id keeps one held.
+    int again = -1;
     for (int v = 0; v < kMaxVoices; ++v) {
       Voice& own = pool_.voices[v];
       if (pool_.note_id_of(v) != note_id || !own.active()) continue;
@@ -129,16 +131,26 @@ class ColouredNoise : public kit::DeviceBase<coloured_noise::kNumParams> {
         own.next_gain = gain;
         return;
       }
-      if (own.frequency == frequency && !own.stolen) {
-        // Struck again where it stands: the envelope rises from where it is,
-        // so the bed does not dip and the band is not doubled.
-        own.gain_target = gain;
-        own.env.gate_on();
-        return;
+      if (again < 0 && own.frequency == frequency && !own.stolen) {
+        // Struck again where it stands. The loop goes on first and lets go
+        // every other voice of the id, those that stand after this one in
+        // the pool as well as those before it; this one is held again below.
+        // (Where a voice further on waits for the id, the strike is that
+        // voice's, and this one fades on.)
+        again = v;
+        continue;
       }
       // The same id at another pitch: a held voice is let go quickly, so that
       // one note off ends the key; a fading one fades on.
       if (!own.env.releasing()) own.env.fast_release(kRestrikeSeconds);
+    }
+    if (again >= 0) {
+      // The envelope rises from where it is, so the bed does not dip and the
+      // band is not doubled.
+      Voice& own = pool_.voices[again];
+      own.gain_target = gain;
+      own.env.gate_on();
+      return;
     }
 
     bool stolen = false;
