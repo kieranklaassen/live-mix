@@ -1,14 +1,24 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { LOOPS } from '../../src/lab/tiles.ts'
+import { readSettings, resolveSet } from '../../src/lib/settings.ts'
 import {
   benchSource,
   click,
   dbToGain,
+  expectBuild,
   expectSoundLab,
+  expectWritten,
+  gainToDb,
   lab,
+  matchesWritten,
   range,
   RATE,
+  rms,
   seconds,
   silence,
+  type Source,
 } from './support.ts'
 
 const NAME = 'feedback-delay-network'
@@ -18,6 +28,9 @@ const REFERENCE = [4799, 5399, 5801, 6199, 6599, 6997, 7393, 7789]
 /** What they come to at 48 kHz: each times 48000 / 44100, cut to a whole number. */
 const LENGTHS = [5223, 5876, 6314, 6747, 7182, 7615, 8046, 8477]
 const MEAN = LENGTHS.reduce((sum, length) => sum + length, 0) / LENGTHS.length
+
+/** The build's steps, as the lab's build path numbers them. */
+const STEP = { comb: 0, eight: 1, matrix: 2, damping: 3, diffusion: 4, movement: 5, guards: 6 }
 
 interface Curve {
   channels_data: Float32Array[]
@@ -58,7 +71,7 @@ function decayTime(curve: Curve, from = -5, to = -35): number {
   return -60 / slope(points)
 }
 
-/** Seconds to fall 60 dB, from the energy of a response in quarter-second windows from `from` to `to` seconds. */
+/** Seconds to fall 60 dB, from the energy of an answer in quarter-second windows from `from` to `to` seconds. */
 function lateDecayTime(response: Float32Array, from = 0.5, to = 2): number {
   const points: [number, number][] = []
   for (let t = from; t + 0.25 <= to + 1e-9; t += 0.25) {
@@ -79,20 +92,256 @@ function atRatio(curve: Curve, x: number): number {
 
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
 
+/** A signal through a two-pole band-pass at `hz`, twice, so that the bands beside it stay out. */
+function band(x: ArrayLike<number>, hz: number, q = 4): Float64Array {
+  const w = (2 * Math.PI * hz) / RATE
+  const alpha = Math.sin(w) / (2 * q)
+  const a0 = 1 + alpha
+  const b0 = alpha / a0
+  const a1 = (-2 * Math.cos(w)) / a0
+  const a2 = (1 - alpha) / a0
+  const once = (input: ArrayLike<number>) => {
+    const y = new Float64Array(input.length)
+    let x1 = 0
+    let x2 = 0
+    let y1 = 0
+    let y2 = 0
+    for (let i = 0; i < input.length; i += 1) {
+      const v = b0 * input[i]! - b0 * x2 - a1 * y1 - a2 * y2
+      x2 = x1
+      x1 = input[i]!
+      y2 = y1
+      y1 = v
+      y[i] = v
+    }
+    return y
+  }
+  return once(once(x))
+}
+
+/**
+ * How fast a click's answer falls in the band at `hz`, in dB a second: the line through the
+ * band's energy in eighth-second windows from a quarter second to one second after the click.
+ */
+function fall(answer: Float32Array, hz: number): number {
+  const y = band(answer, hz)
+  const points: [number, number][] = []
+  for (let t = 0.25; t + 0.125 <= 1.0001; t += 0.125) {
+    let sum = 0
+    for (let i = Math.round(t * RATE); i < Math.round((t + 0.125) * RATE); i += 1) sum += y[i]! ** 2
+    points.push([t + 0.0625, 10 * Math.log10(sum)])
+  }
+  return -slope(points)
+}
+
+/** How many samples from `from` up to `to` are not exactly zero: each is an echo arriving. */
+function echoes(x: Float32Array, from: number, to: number): number {
+  let count = 0
+  for (let i = from; i < to; i += 1) if (x[i] !== 0) count += 1
+  return count
+}
+
+/** The largest sample, as a size. */
+function top(x: Float32Array): number {
+  let most = 0
+  for (const v of x) most = Math.max(most, Math.abs(v))
+  return most
+}
+
+/** The level of a sound in windows of 50 ms, in dB: how far apart the quietest and loudest are. */
+function levelSpan(x: Float32Array): number {
+  const levels: number[] = []
+  for (let i = 0; i + 2400 <= x.length; i += 2400) levels.push(gainToDb(rms(x, i, i + 2400)))
+  return range(levels).span
+}
+
+/** The level of `a − b` against the level of `a`, from `from` up to `to`, in dB. */
+function apartDb(a: Float32Array, b: Float32Array, from: number, to: number): number {
+  let differ = 0
+  let whole = 0
+  for (let i = from; i < to; i += 1) {
+    differ += (a[i]! - b[i]!) ** 2
+    whole += a[i]! ** 2
+  }
+  return 10 * Math.log10(differ / whole)
+}
+
+/** The level of a tap over the whole loop and every channel, in dB against full scale. */
+function levelOf(tap: { channels_data: Float32Array[] }): number {
+  let sum = 0
+  let count = 0
+  for (const data of tap.channels_data) {
+    for (const v of data) sum += v * v
+    count += data.length
+  }
+  return 10 * Math.log10(sum / count)
+}
+
+/** One source after another, as one longer source. */
+function joined(...parts: Source[]): Source {
+  const frames = parts.reduce((sum, part) => sum + part.left.length, 0)
+  const left = new Float32Array(frames)
+  const right = new Float32Array(frames)
+  let at = 0
+  for (const part of parts) {
+    left.set(part.left, at)
+    right.set(part.right, at)
+    at += part.left.length
+  }
+  return { left, right }
+}
+
+const same = (a: Float32Array, b: Float32Array) => a.every((v, i) => v === b[i])
+
 describe('the feedback delay network', () => {
-  it('is a sound lab on the clicks: every tap says something, loops, and answers to every control', async () => {
+  it('is a sound lab on the drums: every tap says something, loops, and answers to every control', async () => {
     const fdn = await lab(NAME)
-    const clicks = await benchSource('clicks', seconds(2))
-    const result = fdn.render(clicks, {})
-    // With the breath at 0 its gain on the input is 1 throughout.
-    expectSoundLab(fdn, clicks, result, { quiet: ['gate'] })
+    const drums = await benchSource('drums', seconds(2))
+    const result = fdn.render(drums, {})
+    // With the breath at 0 its gain on the input is 1 throughout, and with the lines still no
+    // read sways.
+    expectSoundLab(fdn, drums, result, { quiet: ['gate', 'sway1', 'sway8'] })
   })
 
-  it("keeps energy in both of the kit's mixing matrices: every column of unit length and at right angles to the others, within 1e-5 (claim matrix-keeps)", async () => {
+  it('has a build path of seven steps, the last of them held to the device', async () => {
+    const fdn = await lab(NAME)
+    const drums = await benchSource('drums', seconds(2))
+    // The sixth piece moves the lines only when Wander lets them move.
+    expectBuild(fdn, drums, { wander: 1 })
+  })
+
+  it('builds the network again with not one sample of any line different from the device (claim built-same)', async () => {
+    const fdn = await lab(NAME)
+    const settings: Record<string, number>[] = [
+      {},
+      { wander: 1 },
+      { decay: 6, size: 1.37, damping: 0.7, wander: 1, breathDepth: 0.6, mix: 0.5, predelay: 33 },
+      { decay: 0.3, size: 0.5, damping: 1, breathRate: 2, breathDepth: 1 },
+    ]
+    for (const id of ['drums', 'clicks', 'sine', 'pad']) {
+      const source = await benchSource(id, seconds(2))
+      for (const values of settings) {
+        for (const step of [STEP.comb, STEP.guards]) {
+          const out = fdn.render(source, { ...values, build: step })
+          expect(out.checks.builtWorst, `${id}, step ${step}`).toBe(0)
+          expect(out.checks.builtDifference, `${id}, step ${step}`).toBe(-140)
+          expectWritten(out.checks.builtDifference!, 'under −120 dB')
+          if (step !== STEP.guards) continue
+          // The two sides of the last step are the device's wet signal. The lab makes that
+          // from the line outputs where the device keeps them, which is after anything under
+          // 1e-15 has been written as zero; the build, like the device, sums them before. So
+          // the two may part by that much in a sample where a line is dying out, and no more.
+          const built = out.taps.built!.channels_data
+          const wet = out.taps.wet!.channels_data
+          for (const side of [0, 1]) {
+            const apart = built[side]!.reduce(
+              (most, v, i) => Math.max(most, Math.abs(v - wet[side]![i]!)),
+              0,
+            )
+            expect(apart, `${id}: side ${side}`).toBeLessThan(1e-15)
+          }
+        }
+      }
+    }
+  })
+
+  it('counts 12 echoes on the left in the first half second of eight lines, where one comb gave 4 (claim build-eight)', async () => {
+    const fdn = await lab(NAME)
+    const answer = (step: number) =>
+      fdn.render(click(seconds(1)), { build: step }).taps.builtClick!.channels_data[0]!
+    const eight = echoes(answer(STEP.eight), 0, seconds(0.5))
+    expect(eight).toBe(12)
+    expectWritten(eight, '12 echoes')
+    // The piece switched off: one comb.
+    const before = echoes(answer(STEP.comb), 0, seconds(0.5))
+    expect(before).toBe(4)
+    expect(matchesWritten(before, '12 echoes')).toBe(false)
+  })
+
+  it('counts 117 echoes in the first half second once the build mixes its lines, where it counted 12 (claim build-matrix)', async () => {
+    const fdn = await lab(NAME)
+    const answer = (step: number) =>
+      fdn.render(click(seconds(1)), { build: step }).taps.builtClick!.channels_data[0]!
+    const mixed = echoes(answer(STEP.matrix), 0, seconds(0.5))
+    expectWritten(mixed, '117 echoes')
+    // The piece switched off: eight lines, each to itself.
+    expect(matchesWritten(echoes(answer(STEP.eight), 0, seconds(0.5)), '117 echoes')).toBe(false)
+  })
+
+  it('makes the answer fall 22 dB a second faster around 8 kHz than around 500 Hz once the build damps, with Damping at 0.4 (claim build-damping)', async () => {
+    const fdn = await lab(NAME)
+    const faster = (step: number) => {
+      const answer = fdn.render(click(seconds(1)), { build: step, damping: 0.4 }).taps.builtClick!
+        .channels_data[0]!
+      return fall(answer, 8000) - fall(answer, 500)
+    }
+    expectWritten(faster(STEP.damping), '22 dB')
+    // The piece switched off: no band falls faster than another by anything like that.
+    const before = faster(STEP.matrix)
+    expect(Math.abs(before)).toBeLessThan(6)
+    expect(matchesWritten(before, '22 dB')).toBe(false)
+  })
+
+  it("brings the tallest sample of the build's answer to a click down to −24.8 dB, from −12.7 dB, with the energy of the second after it within 0.01 dB (claim build-diffusion)", async () => {
+    const fdn = await lab(NAME)
+    const answer = (step: number) =>
+      fdn.render(click(seconds(1)), { build: step }).taps.builtClick!.channels_data[0]!
+    const energy = (x: Float32Array) => 10 * Math.log10(x.reduce((sum, v) => sum + v * v, 0))
+    const diffused = answer(STEP.diffusion)
+    const before = answer(STEP.damping)
+    expectWritten(gainToDb(top(diffused)), '−24.8 dB')
+    expectWritten(gainToDb(top(before)), '−12.7 dB')
+    expectWritten(Math.abs(energy(diffused) - energy(before)), 'less than 0.01 dB')
+    // The piece switched off.
+    expect(matchesWritten(gainToDb(top(before)), '−24.8 dB')).toBe(false)
+    // And where 1,073 samples of the first half second held something, 18,330 now do.
+    expect(echoes(before, 0, seconds(0.5))).toBe(1073)
+    expect(echoes(diffused, 0, seconds(0.5))).toBe(18330)
+  })
+
+  it('lets the level of a 440 Hz tone through the build wander over 4.8 dB once the lines move, with Wander on Moving (claim build-movement)', async () => {
+    const fdn = await lab(NAME)
+    const tone = await benchSource('sine', seconds(2))
+    const span = (step: number, wander: number) =>
+      levelSpan(fdn.render(tone, { build: step, wander }).taps.built!.channels_data[0]!)
+    expectWritten(span(STEP.movement, 1), '4.8 dB')
+    // The piece switched off, and the piece there with Wander on Still.
+    expect(span(STEP.diffusion, 1)).toBeLessThan(0.01)
+    expect(matchesWritten(span(STEP.diffusion, 1), '4.8 dB')).toBe(false)
+    expect(span(STEP.movement, 0)).toBeLessThan(0.01)
+  })
+
+  it('takes a steady offset out of the build: the left side stands at less than 0.000001 where it stood at 0.185 (claim build-guards), and with Decay at 20 s gives back no sample of 1 or more where it gave 8 (claim build-limit)', async () => {
+    const fdn = await lab(NAME)
+    const frames = seconds(2)
+    const offset = {
+      left: new Float32Array(frames).fill(0.1),
+      right: new Float32Array(frames).fill(0.1),
+    }
+    const standing = (step: number) => {
+      const left = fdn.render(offset, { build: step }).taps.built!.channels_data[0]!
+      return Math.abs(left.reduce((sum, v) => sum + v, 0) / left.length)
+    }
+    expectWritten(standing(STEP.guards), 'less than 0.000001')
+    // The piece switched off.
+    expectWritten(standing(STEP.movement), '0.185')
+    expect(matchesWritten(standing(STEP.movement), 'less than 0.000001')).toBe(false)
+
+    // The drums at eight times their level, with the longest decay.
+    const drums = await benchSource('drums', seconds(2))
+    const loud = { left: drums.left.map((v) => 8 * v), right: drums.right.map((v) => 8 * v) }
+    const tallest = (step: number) =>
+      top(fdn.render(loud, { build: step, decay: 20 }).taps.builtFirst!.channels_data[0]!)
+    expectWritten(tallest(STEP.guards), 'less than 1')
+    expectWritten(tallest(STEP.movement), '8')
+    expect(matchesWritten(tallest(STEP.movement), 'less than 1')).toBe(false)
+  })
+
+  it("keeps energy in both of the kit's mixing matrices: every column of unit length and at right angles to the others, to within 0.00001 (claim matrix-keeps)", async () => {
     const fdn = await lab(NAME)
     const { checks } = fdn.render(click(seconds(1)), {})
-    expect(checks.keeps).toBeLessThan(1e-5)
-    expect(checks.keepsHouseholder).toBeLessThan(1e-5)
+    expectWritten(checks.keeps!, 'less than 0.00001')
+    expectWritten(checks.keepsHouseholder!, 'less than 0.00001')
   })
 
   it("finds the device's own matrix to be the kit's Hadamard, entry for entry (claim same-matrix)", async () => {
@@ -105,68 +354,128 @@ describe('the feedback delay network', () => {
     const ms = fdn.render(click(seconds(1)), {}).taps.lengths!.channels_data[0]!
     expect(Array.from(ms, (v) => Math.round((v * RATE) / 1000))).toEqual(LENGTHS)
     expect(LENGTHS).toEqual(REFERENCE.map((length) => Math.floor((length * 48000) / 44100)))
-    expect(ms[0]!).toBeCloseTo(108.8, 1)
-    expect(ms[7]!).toBeCloseTo(176.6, 1)
+    expectWritten(ms[0]!, '108.8 ms')
+    expectWritten(ms[7]!, '176.6 ms')
     // Size scales every one of them.
     const doubled = fdn.render(click(seconds(1)), { size: 2 }).taps.lengths!.channels_data[0]!
     doubled.forEach((v, i) => expect(v).toBeCloseTo(2 * ms[i]!, 3))
   })
 
-  it('hears nothing from line 1 until 5,223 samples after a click, and from line 8 until 8,477 (claim first-out)', async () => {
+  it('has lines of 6,935 samples, 144.5 ms, in the mean, which is the one length its gain is worked out for (claim mean-length)', async () => {
+    const fdn = await lab(NAME)
+    expectWritten(MEAN, '6,935 samples')
+    expectWritten((1000 * MEAN) / RATE, '144.5 ms')
+    // The gain the lab reads from the device is the formula at that length, and at no line's own.
+    const gain = fdn.render(click(seconds(1)), { decay: 1.5 }).checks.tripGain!
+    expect(gain).toBeCloseTo((-60 * MEAN) / RATE / 1.5, 3)
+    expect(Math.abs(gain - (-60 * LENGTHS[0]!) / RATE / 1.5)).toBeGreaterThan(1)
+  })
+
+  it('lets half the energy of a click out of the diffusers 18 ms after it went in, and nine tenths of it after 39 ms (claim diffusion-burst)', async () => {
+    const fdn = await lab(NAME)
+    const taps = fdn.render(click(seconds(1)), {}).taps
+    const burst = taps.diffused!.channels_data[0]!.subarray(0, seconds(0.25))
+    // One sample went in, and the diffusers answer it at once.
+    const fed = taps.fed!.channels_data[0]!
+    expect(fed[0]).not.toBe(0)
+    expect(fed.subarray(1, seconds(0.25)).every((v) => v === 0)).toBe(true)
+    expect(burst[0]).not.toBe(0)
+    let whole = 0
+    for (const v of burst) whole += v * v
+    const after = (share: number) => {
+      let sum = 0
+      for (let i = 0; i < burst.length; i += 1) {
+        sum += burst[i]! ** 2
+        if (sum >= share * whole) return (1000 * i) / RATE
+      }
+      return Infinity
+    }
+    expectWritten(after(0.5), '18 ms')
+    expectWritten(after(0.9), '39 ms')
+    // All-passes: what comes out has the energy of what went in.
+    expect(Math.abs(10 * Math.log10(whole / fed[0]! ** 2))).toBeLessThan(0.01)
+  })
+
+  it('hears nothing from line 1 until 5,223 samples after a click, and from line 8 until 8,477 samples (claim first-out)', async () => {
     const fdn = await lab(NAME)
     // A decay so short that the tail of the pass before is over. "Nothing" is under −120 dB:
     // see the residue test below for what is left.
     const out = fdn.render(click(seconds(2)), { decay: 0.1 })
     const first = (x: Float32Array) => x.findIndex((v) => Math.abs(v) > 1e-6)
+    expect(first(out.taps.fed!.channels_data[0]!)).toBe(0)
     expect(first(out.taps.diffused!.channels_data[0]!)).toBe(0)
     expect(first(out.taps.written!.channels_data[0]!)).toBe(0)
-    expect(first(out.taps.line1!.channels_data[0]!)).toBe(5223)
-    expect(first(out.taps.line8!.channels_data[0]!)).toBe(8477)
+    expectWritten(first(out.taps.line1!.channels_data[0]!), '5,223 samples')
+    expectWritten(first(out.taps.line8!.channels_data[0]!), '8,477 samples')
   })
 
-  it('leaves a residue of about 1e-7 that changes sign every sample when the lines stand still at a whole number of samples, and exact zeros at any other length (claim still-residue)', async () => {
+  it('says nothing for 217.6 ms after a click with Size at 2, and for 54.4 ms with Size at 0.5 (claim late-start)', async () => {
     const fdn = await lab(NAME)
+    const first = (size: number) => {
+      const out = fdn.render(click(seconds(2)), { decay: 0.1, size }).taps.out!.channels_data[0]!
+      return (1000 * out.findIndex((v) => Math.abs(v) > 1e-6)) / RATE
+    }
+    expectWritten(first(2), '217.6 ms')
+    expectWritten(first(0.5), '54.4 ms')
+  })
+
+  it('holds the sound back 479 samples with the Pre-delay at 10 ms, one short of the 480 samples that 10 ms is (claim predelay-short)', async () => {
+    const fdn = await lab(NAME)
+    const first = (values: Record<string, number>) =>
+      fdn
+        .render(click(seconds(2)), { decay: 0.1, ...values })
+        .taps.fed!.channels_data[0]!.findIndex((v) => v !== 0)
+    expect(first({})).toBe(0)
+    expectWritten(first({ predelay: 10 }), '479 samples')
+    expect(seconds(0.01)).toBe(480)
+    // And the lines hear it that much later.
+    const line = fdn.render(click(seconds(2)), { decay: 0.1, predelay: 10 }).taps.line1!
+    expect(line.channels_data[0]!.findIndex((v) => Math.abs(v) > 1e-6)).toBe(5223 + 479)
+  })
+
+  it('leaves a residue of under 0.0000001 that changes sign every sample when the lines stand still at a whole number of samples, and exact zeros at any other length (claim still-residue)', async () => {
+    const fdn = await lab(NAME)
+    // 1.9 s after the click, long after its tail: not zero, and alternating.
+    const at = seconds(1.9)
     const still = fdn.render(click(seconds(2)), { decay: 0.1, size: 1 }).taps.line1!
       .channels_data[0]!
-    // Two seconds after the click before, long after its tail: not zero, and alternating.
-    for (let i = 1000; i < 1100; i += 1) {
+    for (let i = at; i < at + 100; i += 1) {
       expect(Math.abs(still[i]!)).toBeGreaterThan(2e-8)
-      expect(Math.abs(still[i]!)).toBeLessThan(5e-7)
+      expectWritten(Math.abs(still[i]!), 'under 0.0000001')
       expect(Math.sign(still[i]!)).toBe(-Math.sign(still[i - 1]!))
     }
     const between = fdn.render(click(seconds(2)), { decay: 0.1, size: 1.01 }).taps.line1!
       .channels_data[0]!
-    expect(between.subarray(0, 5000).every((v) => v === 0)).toBe(true)
+    expect(between.subarray(at).every((v) => v === 0)).toBe(true)
     const moving = fdn.render(click(seconds(2)), { decay: 0.1, wander: 1 }).taps.line1!
       .channels_data[0]!
-    expect(moving.subarray(0, 5000).every((v) => v === 0)).toBe(true)
+    expect(moving.subarray(at).every((v) => v === 0)).toBe(true)
   })
 
   it('makes one line alone a comb: an echo every 5,223 samples, each 5.78 dB under the last (claim comb-step), gone 60 dB in 1.13 s (claim comb-alone), with a tooth every 9.19 Hz (claim comb-teeth)', async () => {
     const fdn = await lab(NAME)
     const out = fdn.render(click(seconds(1)), { decay: 1.5 })
     const comb = out.taps.comb!.channels_data[0]!
-    const echoes: number[] = []
-    comb.forEach((v, i) => v !== 0 && echoes.push(i))
-    expect(echoes.slice(0, 4)).toEqual([5223, 10446, 15669, 20892])
+    const places: number[] = []
+    comb.forEach((v, i) => v !== 0 && places.push(i))
+    expect(places.slice(0, 4)).toEqual([5223, 10446, 15669, 20892])
     const step = 20 * Math.log10(comb[10446]! / comb[5223]!)
-    expect(step).toBeGreaterThan(-5.79)
-    expect(step).toBeLessThan(-5.77)
-    const alone = ((60 / -step) * 5223) / RATE
-    expect(alone).toBeGreaterThan(1.12)
-    expect(alone).toBeLessThan(1.14)
+    expectWritten(-step, '5.78 dB')
+    expectWritten(((60 / -step) * 5223) / RATE, '1.13 s')
 
+    // The teeth of its response: where each peak stands, from the three points round its top.
     const teeth = out.taps.combTeeth!
     const data = teeth.channels_data[0]!
     const peaks: number[] = []
     for (let i = 1; i < data.length - 1; i += 1) {
-      if (data[i]! > data[i - 1]! && data[i]! >= data[i + 1]!)
-        peaks.push((teeth.x1 * i) / (data.length - 1))
+      if (data[i]! > data[i - 1]! && data[i]! >= data[i + 1]!) {
+        const bend = data[i - 1]! - 2 * data[i]! + data[i + 1]!
+        const shift = bend === 0 ? 0 : (0.5 * (data[i - 1]! - data[i + 1]!)) / bend
+        peaks.push((teeth.x1 * (i + shift)) / (data.length - 1))
+      }
     }
     expect(peaks.length).toBe(6)
-    const apart = (peaks[5]! - peaks[0]!) / 5
-    expect(apart).toBeGreaterThan(9.19 - 0.05)
-    expect(apart).toBeLessThan(9.19 + 0.05)
+    expectWritten((peaks[5]! - peaks[0]!) / 5, '9.19 Hz')
   })
 
   it('gives a line alone the set decay time when its gain comes from its own length: 4.35 dB a trip for line 1 at 1.5 s (claim comb-own)', async () => {
@@ -174,9 +483,8 @@ describe('the feedback delay network', () => {
     const comb = fdn.render(click(seconds(1)), { decay: 1.5, gains: 1 }).taps.comb!
       .channels_data[0]!
     const step = 20 * Math.log10(comb[10446]! / comb[5223]!)
-    expect(step).toBeGreaterThan(-4.36)
-    expect(step).toBeLessThan(-4.34)
-    expect(((60 / -step) * 5223) / RATE).toBeCloseTo(1.5, 2)
+    expectWritten(-step, '4.35 dB')
+    expectWritten(((60 / -step) * 5223) / RATE, '1.50 s')
   })
 
   it('has lengths with no factor in common at 44.1 kHz, and some at 48 kHz, where the first two lines to bring an echo round together do so after 6.9 s (claim shared-factors)', () => {
@@ -208,8 +516,7 @@ describe('the feedback delay network', () => {
       }
     }
     expect(soonest).toBe((6747 * 8477) / 173)
-    expect(soonest / RATE).toBeGreaterThan(6.8)
-    expect(soonest / RATE).toBeLessThan(7.0)
+    expectWritten(soonest / RATE, '6.9 s')
     // At 44.1 kHz the soonest is the product of the two shortest: nearly ten minutes.
     expect((4799 * 5399) / 44100 / 60).toBeGreaterThan(9.7)
   })
@@ -219,7 +526,6 @@ describe('the feedback delay network', () => {
     const mixed = fdn.render(click(seconds(1)), { matrix: 1 }).checks
     expect(mixed.densityFirst).toBe(117)
     expect(mixed.densitySecond).toBe(1979)
-    expect(mixed.densitySecond!).toBeGreaterThan(10 * mixed.densityFirst!)
     const unmixed = fdn.render(click(seconds(1)), { matrix: 0 }).checks
     expect(unmixed.densityFirst).toBe(12)
     expect(unmixed.densitySecond).toBe(15)
@@ -228,18 +534,34 @@ describe('the feedback delay network', () => {
     for (let i = 8; i < curve.length; i += 4) expect(curve[i]!).toBeGreaterThan(curve[i - 4]!)
   })
 
+  it('counts 26 echoes a millisecond two seconds after the click with the lines mixed at Size 1 (claim density-climb), and every sample an echo, 48 a millisecond, from 1.8 s on at Size 0.5 (claim density-full)', async () => {
+    const fdn = await lab(NAME)
+    const one = fdn.render(click(seconds(1)), { matrix: 1, size: 1 })
+    const mixed = one.taps.densityMixed!.channels_data[0]!
+    expectWritten(mixed[mixed.length - 1]!, '26')
+    // Unmixed the count stays where it began: never more than 4 echoes in a window of 50 ms.
+    expect(range(one.taps.densityApart!.channels_data[0]!).hi * 50).toBeLessThanOrEqual(4.001)
+    const half = fdn.render(click(seconds(1)), { matrix: 1, size: 0.5 }).taps.densityMixed!
+    const data = half.channels_data[0]!
+    const full = data.findIndex((v) => v === 48)
+    expect(full).toBeGreaterThan(0)
+    expect(data.subarray(full).every((v) => v === 48)).toBe(true)
+    expectWritten(half.x0 + ((half.x1 - half.x0) * full) / (data.length - 1), '1.8 s')
+    // At Size 2 the two seconds end with under 4 a millisecond.
+    const large = fdn.render(click(seconds(1)), { matrix: 1, size: 2 }).taps.densityMixed!
+    expect(range(large.channels_data[0]!).hi).toBeLessThan(4.1)
+  })
+
   it('sets one gain for all eight lines from their mean length: 5.78 dB a trip at 1.5 s (claim trip-gain), never nearer 1 than 0.975 (claim gain-cap)', async () => {
     const fdn = await lab(NAME)
     const gain = fdn.render(click(seconds(1)), { decay: 1.5 }).checks.tripGain!
     expect(gain).toBeCloseTo((-60 * MEAN) / RATE / 1.5, 2)
-    expect(gain).toBeGreaterThan(-5.79)
-    expect(gain).toBeLessThan(-5.77)
+    expectWritten(-gain, '5.78 dB')
     // The longest decay with the shortest lines is the nearest the controls bring it to 1.
     const nearest = dbToGain(
       fdn.render(click(seconds(1)), { decay: 20, size: 0.5 }).checks.tripGain!,
     )
-    expect(nearest).toBeGreaterThan(0.975)
-    expect(nearest).toBeLessThan(0.976)
+    expectWritten(nearest, '0.975')
     // Size leaves the gain's decay time alone: twice the length, twice the loss a trip.
     expect(fdn.render(click(seconds(1)), { decay: 1.5, size: 2 }).checks.tripGain!).toBeCloseTo(
       2 * gain,
@@ -256,13 +578,12 @@ describe('the feedback delay network', () => {
       )
       measured[set] = time
       expect(time).toBeGreaterThan(set * 0.85)
-      expect(time).toBeLessThan(set * 1.15)
       // And always on the short side.
       expect(time).toBeLessThan(set)
     }
-    expect(measured[1]).toBeCloseTo(0.97, 1)
-    expect(Math.abs(measured[1.5]! - 1.34)).toBeLessThan(0.03)
-    expect(Math.abs(measured[2]! - 1.77)).toBeLessThan(0.03)
+    expectWritten(measured[1]!, '0.97 s')
+    expectWritten(measured[1.5]!, '1.34 s')
+    expectWritten(measured[2]!, '1.77 s')
   })
 
   it('decays in 1.46 s as a bare network with one gain for all at 1.5 s, and in 1.50 s with a gain for each line (claim bare-decay)', async () => {
@@ -275,28 +596,31 @@ describe('the feedback delay network', () => {
       fdn.render(click(seconds(1)), { decay: 1.5, matrix: 1, gains: 1 }).taps.mixed!
         .channels_data[0]!,
     )
-    expect(Math.abs(one - 1.46)).toBeLessThan(0.02)
-    expect(Math.abs(each - 1.5)).toBeLessThan(0.02)
+    expectWritten(one, '1.46 s')
+    expectWritten(each, '1.50 s')
   })
 
   it('falls short of a long decay time: 15.7 s measured for 20 s set (claim decay-long)', async () => {
     const fdn = await lab(NAME)
-    const level = fdn.render(click(seconds(8)), { decay: 20 }).taps.level!.channels_data[0]!
+    const out = fdn.render(click(seconds(8)), { decay: 20 })
+    // Eight seconds of every tap fit in the lab's room.
+    for (const tap of Object.values(out.taps)) expect(tap.length, tap.id).toBeGreaterThan(0)
+    const level = out.taps.level!.channels_data[0]!
     // The level's fall from 1 s to 7 s after the click, one point every 16 samples.
     const points: [number, number][] = []
     for (let i = 3000; i < 21000; i += 1) points.push([i / 3000, level[i]!])
-    const time = -60 / slope(points)
-    expect(Math.abs(time - 15.7)).toBeLessThan(0.4)
+    expectWritten(-60 / slope(points), '15.7 s')
   })
 
-  it("works the feedback path out again with the kit's matrix and lands on the device's own state, under −120 dB (claim loop-rebuilt)", async () => {
+  it("works the feedback path out again with the kit's matrix and lands on the device's own state, under −120 dB (claim loop-rebuilt), and the wet signal on its output", async () => {
     const fdn = await lab(NAME)
     const clicks = await benchSource('clicks', seconds(2))
     const drums = await benchSource('drums', seconds(2))
-    expect(fdn.render(clicks, {}).checks.loop).toBeLessThan(-120)
-    expect(fdn.render(drums, {}).checks.loop).toBeLessThan(-120)
     const moved = { decay: 6, size: 1.37, damping: 0.7, wander: 1, breathDepth: 0.6, mix: 0.5 }
-    expect(fdn.render(drums, moved).checks.loop).toBeLessThan(-120)
+    for (const out of [fdn.render(clicks, {}), fdn.render(drums, {}), fdn.render(drums, moved)]) {
+      expectWritten(out.checks.loop!, 'under −120 dB')
+      expect(out.checks.wetAgain).toBeLessThan(-120)
+    }
   })
 
   it('loses 9.75 dB a trip at 8 kHz against 5.81 dB at 500 Hz with the damping at 0.4 (claim damping-trip), and a click dies in 0.90 s around 8 kHz against 1.34 s around 500 Hz (claim damping-bands)', async () => {
@@ -304,15 +628,15 @@ describe('the feedback delay network', () => {
     const out = fdn.render(click(seconds(1)), { decay: 1.5, damping: 0.4 })
     const low = atRatio(out.taps.passGain!, 500)
     const high = atRatio(out.taps.passGain!, 8000)
-    expect(low).toBeCloseTo(-5.81, 1)
-    expect(high).toBeCloseTo(-9.75, 1)
+    expectWritten(-low, '5.81 dB')
+    expectWritten(-high, '9.75 dB')
     const lowTime = decayTime(out.taps.decayLow!)
     const highTime = decayTime(out.taps.decayHigh!)
-    expect(Math.abs(lowTime - 1.34)).toBeLessThan(0.03)
-    expect(Math.abs(highTime - 0.9)).toBeLessThan(0.03)
+    expectWritten(lowTime, '1.34 s')
+    expectWritten(highTime, '0.90 s')
     // What the loss a trip foretells for 8 kHz: 60 dB, at that many dB a trip of the mean length.
     const foretold = ((60 / -high) * MEAN) / RATE
-    expect(foretold).toBeCloseTo(0.89, 2)
+    expectWritten(foretold, '0.89 s')
     expect(Math.abs(highTime - foretold) / foretold).toBeLessThan(0.05)
   })
 
@@ -320,39 +644,68 @@ describe('the feedback delay network', () => {
     const fdn = await lab(NAME)
     const out = fdn.render(click(seconds(1)), { decay: 1.5, damping: 0 })
     const gain = out.checks.tripGain!
-    expect(atRatio(out.taps.passGain!, 8000) - gain).toBeCloseTo(-0.33, 1)
-    expect(atRatio(out.taps.passGain!, 50) - gain).toBeCloseTo(-1.97, 1)
+    expectWritten(gain - atRatio(out.taps.passGain!, 8000), '0.33 dB')
+    expectWritten(gain - atRatio(out.taps.passGain!, 50), '2 dB')
     expect(Math.abs(atRatio(out.taps.passGain!, 1000) - gain)).toBeLessThan(0.02)
   })
 
-  it('holds a steady sine at a level that moves 0.01 dB with the lines still (claim wander-still) and 4.2 dB with them moving (claim wander-moving)', async () => {
+  it('has lost half its power on each trip, 3.01 dB more than the gain alone, at 38 Hz: the corner of the filter that keeps a steady offset out of the loop (claim dc-corner)', async () => {
+    const fdn = await lab(NAME)
+    const out = fdn.render(click(seconds(1)), { decay: 1.5, damping: 0 })
+    const curve = out.taps.passGain!
+    const data = curve.channels_data[0]!
+    const under = (i: number) => data[i]! - out.checks.tripGain!
+    const hz = (place: number) => curve.x0 * (curve.x1 / curve.x0) ** (place / (data.length - 1))
+    const half = 10 * Math.log10(0.5)
+    let corner = 0
+    for (let i = 0; i + 1 < data.length; i += 1) {
+      if (under(i) < half && under(i + 1) >= half) {
+        corner = hz(i + (half - under(i)) / (under(i + 1) - under(i)))
+        break
+      }
+    }
+    expectWritten(corner, '38 Hz')
+    // Damping does not move it.
+    const damped = fdn.render(click(seconds(1)), { decay: 1.5, damping: 0.4 })
+    expect(atRatio(damped.taps.passGain!, 38) - atRatio(curve, 38)).toBeCloseTo(0, 1)
+  })
+
+  it('holds a steady 440 Hz sine at a level that moves less than 0.01 dB with the lines still (claim wander-still) and 4.2 dB with them moving (claim wander-moving)', async () => {
     const fdn = await lab(NAME)
     const tone = await benchSource('sine', seconds(2))
     const still = range(fdn.render(tone, { wander: 0 }).taps.level!.channels_data[0]!).span
     const moving = range(fdn.render(tone, { wander: 1 }).taps.level!.channels_data[0]!).span
-    expect(still).toBeLessThan(0.02)
-    expect(moving).toBeGreaterThan(3.7)
-    expect(moving).toBeLessThan(4.7)
+    expectWritten(still, 'less than 0.01 dB')
+    expectWritten(moving, '4.2 dB')
   })
 
-  it('answers two clicks a second apart alike with the lines still, to 100 dB under the tail, and as differently as two unrelated sounds with them moving (claim wander-clicks)', async () => {
+  it('sways each read by 12 samples either way, which bends the pitch of line 8 by at most 2 cents (claim sway-pitch)', async () => {
+    const fdn = await lab(NAME)
+    const tone = await benchSource('sine', seconds(2))
+    const out = fdn.render(tone, { wander: 1 })
+    const sway = out.taps.sway8!.channels_data[0]!
+    // The read is at most 12 samples from the line's length; over two seconds line 8 gets there.
+    expect(range(sway).hi).toBeLessThanOrEqual(12)
+    expect(range(sway).hi).toBeGreaterThan(11.9)
+    // How fast the read slides, in samples a second: one point of the tap every 16 samples.
+    let fastest = 0
+    for (let i = 1; i < sway.length; i += 1)
+      fastest = Math.max(fastest, Math.abs(sway[i]! - sway[i - 1]!) * (RATE / 16))
+    expectWritten(1200 * Math.log2(1 + fastest / RATE), '2 cents')
+    // With the lines still nothing sways.
+    expect(fdn.render(tone, {}).taps.sway8!.channels_data[0]!.every((v) => v === 0)).toBe(true)
+  })
+
+  it('answers two clicks a second apart alike with the lines still, more than 100 dB under the tail, and as differently as two unrelated sounds with them moving, 3 dB over it (claim wander-clicks)', async () => {
     const fdn = await lab(NAME)
     const clicks = await benchSource('clicks', seconds(2))
     const apart = (values: Record<string, number>) => {
       const out = fdn.render(clicks, values).taps.out!.channels_data[0]!
-      let differ = 0
-      let whole = 0
-      for (let i = 0; i < RATE; i += 1) {
-        differ += (out[i]! - out[i + RATE]!) ** 2
-        whole += out[i]! ** 2
-      }
-      return 10 * Math.log10(differ / whole)
+      return apartDb(out.subarray(0, RATE), out.subarray(RATE), 0, RATE)
     }
     // A decay short enough that each tail is over before the next click.
-    expect(apart({ decay: 0.3, wander: 0 })).toBeLessThan(-100)
-    const moving = apart({ decay: 0.3, wander: 1 })
-    expect(moving).toBeGreaterThan(2)
-    expect(moving).toBeLessThan(4)
+    expectWritten(-apart({ decay: 0.3, wander: 0 }), 'more than 100 dB')
+    expectWritten(apart({ decay: 0.3, wander: 1 }), '3 dB')
   })
 
   it('opens and closes the input between 0.6 and 1 with the breath at 0.4, and leaves it at exactly 1 with the breath at 0 (claim breath)', async () => {
@@ -360,15 +713,9 @@ describe('the feedback delay network', () => {
     const drums = await benchSource('drums', seconds(4))
     const off = fdn.render(drums, { breathDepth: 0 }).taps.gate!.channels_data[0]!
     expect(off.every((v) => v === 1)).toBe(true)
-    const on = fdn.render(drums, { breathDepth: 0.4 }).taps.gate!.channels_data[0]!
-    let lo = Infinity
-    let hi = -Infinity
-    for (const v of on) {
-      lo = Math.min(lo, v)
-      hi = Math.max(hi, v)
-    }
-    expect(lo).toBeCloseTo(0.6, 2)
-    expect(hi).toBeCloseTo(1, 2)
+    const on = range(fdn.render(drums, { breathDepth: 0.4 }).taps.gate!.channels_data[0]!)
+    expectWritten(on.lo, '0.6')
+    expectWritten(on.hi, '1.0')
   })
 
   it('puts out two sides that have little to do with each other: a correlation of 0.13 on the clicks (claim stereo)', async () => {
@@ -385,33 +732,151 @@ describe('the feedback delay network', () => {
       rr += right[i]! ** 2
       lr += left[i]! * right[i]!
     }
-    expect(lr / Math.sqrt(ll * rr)).toBeCloseTo(0.13, 2)
+    expectWritten(lr / Math.sqrt(ll * rr), '0.13')
   })
 
   it('is the input, sample for sample, with the mix at 0 (claim mix-zero)', async () => {
     const fdn = await lab(NAME)
     const drums = await benchSource('drums', seconds(2))
     const out = fdn.render(drums, { mix: 0, decay: 5 }).taps.out!
-    expect(out.channels_data[0]!.every((v, i) => v === drums.left[i])).toBe(true)
-    expect(out.channels_data[1]!.every((v, i) => v === drums.right[i])).toBe(true)
+    expect(same(out.channels_data[0]!, drums.left)).toBe(true)
+    expect(same(out.channels_data[1]!, drums.right)).toBe(true)
   })
 
   it('answers a click with a quiet tail, 25 dB under the click at its loudest (claim tail-quiet)', async () => {
     const fdn = await lab(NAME)
     const clicks = await benchSource('clicks', seconds(2))
     const out = fdn.render(clicks, {}).taps.out!
-    let top = 0
-    for (const data of out.channels_data) for (const v of data) top = Math.max(top, Math.abs(v))
     // The click itself is 1, full scale.
-    expect(20 * Math.log10(top)).toBeGreaterThan(-25.5)
-    expect(20 * Math.log10(top)).toBeLessThan(-24.5)
+    expectWritten(-gainToDb(Math.max(...out.channels_data.map(top))), '25 dB')
   })
 
   it('answers silence with exact silence (claim silence)', async () => {
     const fdn = await lab(NAME)
     const out = fdn.render(silence(seconds(1)), {})
-    for (const id of ['diffused', 'written', 'line1', 'line8', 'out']) {
+    for (const id of [
+      'fed',
+      'diffused',
+      'written',
+      'line1',
+      'line8',
+      'wet',
+      'out',
+      'bare',
+      'lone',
+    ]) {
       expect(out.taps[id]!.channels_data[0]!.every((v) => v === 0)).toBe(true)
+    }
+  })
+
+  it('starts the kept pass with the tail of the pass before, 23.5 dB under the output over the first half second of the drums (claim second-pass); passes before that one would add a part more than 100 dB under it with Decay at 1.5 s and 19 dB under it at 20 s (claim older-passes)', async () => {
+    const fdn = await lab(NAME)
+    const frames = seconds(2)
+    const drums = await benchSource('drums', frames)
+    // The loop after two seconds of nothing: the kept pass's second half has no pass before it.
+    const fresh = joined(silence(frames), drums)
+    // The loop twice over: three passes come before the second half of the kept pass.
+    const twice = joined(drums, drums)
+    const outputs = (values: Record<string, number>) => ({
+      page: fdn.render(drums, values).taps.out!.channels_data[0]!,
+      alone: fdn.render(fresh, values).taps.out!.channels_data[0]!.subarray(frames),
+      longer: fdn.render(twice, values).taps.out!.channels_data[0]!.subarray(frames),
+    })
+    // From the end of the 20 ms crossfade at the loop's start.
+    const start = outputs({})
+    expectWritten(-apartDb(start.page, start.alone, 960, seconds(0.5)), '23.5 dB')
+    expectWritten(-apartDb(start.longer, start.page, 960, frames), 'more than 100 dB')
+    const long = outputs({ decay: 20 })
+    expectWritten(-apartDb(long.longer, long.page, 960, frames), '19 dB')
+  })
+
+  it('plays no more of the first pass than the lines remember: with Decay at 0.3 s the kept pass is the same to within 100 dB whether the loop ran once before it or three times', async () => {
+    const fdn = await lab(NAME)
+    const frames = seconds(2)
+    const drums = await benchSource('drums', frames)
+    for (const values of [
+      { decay: 0.3 },
+      { decay: 0.3, matrix: 0 },
+      { decay: 0.5, size: 2, predelay: 250 },
+    ]) {
+      const page = fdn.render(drums, values).taps
+      const longer = fdn.render(joined(drums, drums), values).taps
+      for (const id of ['out', 'bare', 'lone', 'line8']) {
+        const a = page[id]!.channels_data[0]!
+        const b = longer[id]!.channels_data[0]!.subarray(frames)
+        expect(apartDb(b, a, 960, frames), `${id} at ${JSON.stringify(values)}`).toBeLessThan(-100)
+      }
+    }
+  })
+
+  it('renders every named set, and its tile at a level inside the band on every loop', async () => {
+    const fdn = await lab(NAME)
+    const settings = readSettings(NAME)!
+    for (const [name, set] of Object.entries(settings.sets ?? {})) {
+      const source = await benchSource(set.source ?? 'drums', seconds(2))
+      const out = fdn.render(source, resolveSet(fdn.description, set).values)
+      const tap = out.taps[set.tap ?? 'out']!
+      expect(tap.kind, name).toBe('audio')
+      expect(levelOf(tap), `${name}: the level of what its card plays`).toBeGreaterThan(-45)
+      expect(levelOf(tap), name).toBeLessThan(-5)
+      expect(out.checks.builtWorst, name).toBe(0)
+    }
+    const tile = settings.tile!
+    for (const loop of LOOPS) {
+      const out = fdn.render(await benchSource(loop, seconds(2)), tile.values ?? {})
+      const level = levelOf(out.taps[tile.tap ?? 'out']!)
+      expect(level, loop).toBeGreaterThanOrEqual(-36)
+      expect(level, loop).toBeLessThanOrEqual(-5)
+    }
+  })
+
+  it("keeps the settings file's defaults equal to the device's own, as its headers and its descriptor give them", async () => {
+    const fdn = await lab(NAME)
+    const read = (file: string) =>
+      readFileSync(fileURLToPath(new URL(`../../../${file}`, import.meta.url)), 'utf8')
+    const header = read('cpp/devices/fdn-reverb/fdn_reverb.h')
+    const wrapper = read('cpp/devices/fdn-reverb/fdn_reverb_device.h')
+    const constant = (text: string, name: string) => {
+      const found = new RegExp(`${name} = ([0-9.]+)f;`).exec(text)
+      if (!found) throw new Error(`No constant ${name}`)
+      return Number(found[1])
+    }
+    const device: Record<string, number> = {
+      mix: constant(wrapper, 'kDefaultMix'),
+      decay: constant(header, 'kDefaultDecaySeconds'),
+      damping: constant(header, 'kDefaultDamping'),
+      predelay: constant(header, 'kDefaultPredelayMs'),
+      size: constant(header, 'kDefaultSize'),
+      breathRate: constant(header, 'kDefaultBreathRateHz'),
+      breathDepth: constant(header, 'kDefaultBreathDepth'),
+    }
+    // The descriptor the plate is drawn from says the same.
+    const descriptor = read('src/dsp/devices/fdn-reverb.ts')
+    for (const [id, value] of Object.entries({ ...device, predelayMs: device.predelay })) {
+      if (id === 'predelay') continue
+      expect(descriptor, id).toMatch(new RegExp(`${id}: \\{[^}]*default: ${value}[,\\s]`))
+    }
+    // The device has no control for its lines' sway, which always runs: Wander on Moving.
+    const defaults = readSettings(NAME)!.defaults!.values
+    const whole = resolveSet(fdn.description, { values: defaults }).values
+    for (const [id, value] of Object.entries(device)) expect(whole[id], id).toBeCloseTo(value, 6)
+    expect(whole.wander).toBe(1)
+    // A control the file leaves out starts where the device does already.
+    for (const control of fdn.description.controls) {
+      // The build's step is the page's, not a setting: no set carries it.
+      if (control.id in defaults || control.id in device || control.id === 'build') continue
+      expect(whole[control.id], control.id).toBe(control.initial)
+    }
+    // And the ranges are the device's own.
+    const ranges: Record<string, [number, number]> = {
+      decay: [constant(header, 'kMinDecaySeconds'), constant(header, 'kMaxDecaySeconds')],
+      size: [constant(header, 'kMinSize'), constant(header, 'kMaxSize')],
+      predelay: [0, constant(header, 'kMaxPredelayMs')],
+      breathRate: [constant(header, 'kMinBreathRateHz'), constant(header, 'kMaxBreathRateHz')],
+    }
+    for (const [id, [min, max]] of Object.entries(ranges)) {
+      const control = fdn.description.controls.find((one) => one.id === id)!
+      expect([control.min, control.max], id).toEqual([Math.fround(min), Math.fround(max)])
     }
   })
 })
