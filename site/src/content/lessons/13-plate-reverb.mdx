@@ -53,7 +53,7 @@ Last before the all-passes is a one-pole low-pass, the *bandwidth* filter:
 
 <M block t={String.raw`y[n] = (1 - a)\,x[n] + a\,y[n-1]`} />
 
-Each output is mostly the new input and a little of the last output; the larger <M t="a" />, the more of the past is kept and the duller the result. In the code it is <Src path="cpp/common/dsp_util.h">`OnePoleLowpass`</Src>. Here <M t="a" /> is fixed at 0.0005, which leaves the filter all but open: it takes <Claim id="bandwidth-loss">0.008 dB</Claim> off a tone at 20 kHz. This is the place where a plate can be told to take in less treble, and this device has no control for it. The same filter with a coefficient that matters is the damping of stage 6.
+Each output is mostly the new input and a little of the last output; the larger <M t="a" />, the more of the past is kept and the duller the result. In the code it is <Src path="cpp/common/dsp_util.h">`OnePoleLowpass`</Src>. Here <M t="a" /> is <Src path="cpp/devices/plate-reverb/plate_reverb.h">fixed at 0.0005</Src>, which leaves the filter all but open: it takes <Claim id="bandwidth-loss">0.008 dB</Claim> off a tone at 20 kHz. This is the place where a plate can be told to take in less treble, and this device has no control for it. The same filter with a coefficient that matters is the damping of stage 6.
 
 <Controls ids="predelay" />
 
