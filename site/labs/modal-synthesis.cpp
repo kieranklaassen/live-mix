@@ -24,8 +24,9 @@
 // of the mallet's length ends up in a mode at each frequency
 // (TwinBars::response).
 //
-// Beside the device runs what a bar is not: the same modes, struck as hard and
-// dying as fast, moved to whole multiples of the lowest ("lesson").
+// Beside the device runs what a bar is not: the same modes, each with the
+// weight and the decay the bar gives it, moved to whole multiples of the
+// lowest and added with no gains for the two sides ("lesson").
 //
 // The build path puts the bank together in seven pieces, each a few lines of
 // `Bank` below: one resonator; a mallet; several modes; their ratios; a decay
@@ -102,7 +103,6 @@ lab::Tap level4{"level4", "Mode 4's level", lab::kControl, lab::kDevice, 1, "dB"
 lab::Tap level5{"level5", "Mode 5's level", lab::kControl, lab::kDevice, 1, "dB"};
 lab::Tap level6{"level6", "Mode 6's level", lab::kControl, lab::kDevice, 1, "dB"};
 lab::Tap whole_tap{"whole", "The same modes at whole multiples", lab::kAudio, lab::kLesson, 1};
-lab::Tap whole_partials{"wholePartials", "Partials at whole multiples", lab::kFrames, lab::kLesson, 1, "dB"};
 lab::Tap sum_tap{"sum", "The modes added", lab::kAudio, lab::kLesson, 2};
 lab::Tap twin_tap{"twin", "Two bars, a Beat apart", lab::kAudio, lab::kDevice, 2};
 lab::Tap twin_level{"twinLevel", "The two bars' level", lab::kControl, lab::kDevice, 1, "dB"};
@@ -547,5 +547,4 @@ void lab_render(int frames) {
   pulse_samples.value = push_length;
   mallet_curve(push_length);
   lab::spectrogram_tap(partials, out_tap.channel(0), frames);
-  lab::spectrogram_tap(whole_partials, whole_tap.channel(0), frames);
 }

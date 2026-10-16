@@ -7,8 +7,10 @@ import {
   expectBuild,
   expectSoundLab,
   expectWritten,
+  FADE,
   gainToDb,
   lab,
+  largestDifference,
   matchesWritten,
   peak,
   POINT_RATE,
@@ -113,12 +115,15 @@ function dips(
 /** The mean time between one dip and the next. */
 const apart = (times: number[]) => (times.at(-1)! - times[0]!) / (times.length - 1)
 
-/** The largest difference between two signals, sample against sample. */
-function furthest(a: Float32Array, b: Float32Array): number {
-  let most = 0
-  for (let i = 0; i < a.length; i += 1) most = Math.max(most, Math.abs(a[i]! - b[i]!))
-  return most
+/** How many samples of `a` are the same number as the sample of `b` at the same place. */
+function same(a: Float32Array, b: Float32Array): number {
+  let count = 0
+  for (let i = 0; i < a.length; i += 1) if (a[i] === b[i]) count += 1
+  return count
 }
+
+/** The samples of the loop: four seconds of them. */
+const LOOP = seconds(4)
 
 /** How far a tap's values lie apart between two times after the key went down. */
 function spanOf(x: Float32Array, from: number, to: number): number {
@@ -179,7 +184,7 @@ describe('modal synthesis', () => {
     expect(bank.render(nothing(), {}).checks.builtStep).toBe(STEP.sides)
   })
 
-  it('renders every named set, finite and heard, and with every piece the build is the device there too', async () => {
+  it('renders every named set, finite and heard, and with every piece all 192,000 samples of the build are the device there too, on each side (claim built-exact)', async () => {
     const bank = await lab('modal-synthesis')
     for (const [name, set] of Object.entries(settings.sets)) {
       const result = played(bank, name, { build: STEP.sides })
@@ -192,8 +197,15 @@ describe('modal synthesis', () => {
       // The lesson lists no source: every card plays the lab's own note.
       expect(set.source, name).toBeUndefined()
       expect(set.values?.build, name).toBeUndefined()
-      expect(furthest(tap(result, 'built'), tap(result, 'out')), name).toBe(0)
-      expect(furthest(tap(result, 'built', 1), tap(result, 'out', 1)), name).toBe(0)
+      // Sample against sample, on each side: every one of the loop's samples is the same number.
+      for (const side of [0, 1]) {
+        expect(tap(result, 'out', side).length, name).toBe(LOOP)
+        expect(same(tap(result, 'built', side), tap(result, 'out', side)), name).toBe(LOOP)
+        expect(largestDifference(tap(result, 'built', side), tap(result, 'out', side)), name).toBe(
+          0,
+        )
+      }
+      // The two checks read their floor, which says no more than "over 140 dB apart in level".
       expect(result.checks.rebuilt, name).toBeLessThanOrEqual(-140)
       expect(result.checks.pulseAgain, name).toBeLessThanOrEqual(-140)
     }
@@ -224,6 +236,20 @@ describe('modal synthesis', () => {
     expect(sizeDb(out, 440, after(0.05), RATE)).toBeLessThan(
       sizeDb(out, 606.54, after(0.05), RATE) - 80,
     )
+    // Each partial dies at the rate it had in the bar: the fall from 50 ms to 250 ms after the
+    // strike, partial by partial, is the same to a tenth of a decibel a second.
+    const level = (x: Float32Array, hz: number, s: number) => sizeDb(x, hz, after(s), 4096)
+    const fall = (x: Float32Array, hz: number) => (level(x, hz, 0.05) - level(x, hz, 0.25)) / 0.2
+    BAR.forEach((ratio, k) => {
+      expect(
+        Math.abs(fall(whole, 220 * (k + 1)) - fall(out, 220 * ratio)),
+        `partial ${k + 1}`,
+      ).toBeLessThan(0.1)
+    })
+    // And the upper ones are louder than they were: the second by more than 5 dB, the seventh
+    // by more than 20 dB, 30 ms after the strike.
+    expect(level(whole, 440, 0.03) - level(out, 220 * BAR[1]!, 0.03)).toBeGreaterThan(5)
+    expect(level(whole, 1540, 0.03) - level(out, 220 * BAR[6]!, 0.03)).toBeGreaterThan(20)
   })
 
   it('has the high modes die first: from 0.1 s to 0.6 s after the strike mode 1 falls at 20.0 dB a second and mode 6 at 64.5 dB a second (claim high-first)', async () => {
@@ -382,19 +408,35 @@ describe('modal synthesis', () => {
     expect(matchesWritten(under(STEP.decays), '27 dB')).toBe(false)
   })
 
-  it("step 7, pairs and two sides: the build is the device's output, sample for sample, where the lab allows −120 dB (claim built-exact)", async () => {
+  it("step 7, pairs and two sides: all 192,000 samples of the build are the device's output on each side, at the start and at the ends of the controls, where the lab allows −120 dB (claim built-exact)", async () => {
     const bank = await lab('modal-synthesis')
     const whole = bank.render(nothing(), { build: STEP.sides })
-    expect(furthest(tap(whole, 'built'), tap(whole, 'out'))).toBe(0)
-    expect(furthest(tap(whole, 'built', 1), tap(whole, 'out', 1))).toBe(0)
+    /** How many samples of the build are the device's, on the left and on the right. */
+    const alike = (result: RenderResult) =>
+      [0, 1].map((side) => same(tap(result, 'built', side), tap(result, 'out', side)))
+    for (const count of alike(whole)) expectWritten(count, '192,000 samples')
+    expect(LOOP).toBe(192000)
+    expect(largestDifference(tap(whole, 'built'), tap(whole, 'out'))).toBe(0)
+    expect(largestDifference(tap(whole, 'built', 1), tap(whole, 'out', 1))).toBe(0)
+    // The test of every named set, above, counts the same at each of them. Here: at both ends
+    // of every control of the lab but the step itself, and at each material.
+    for (const control of bank.description.controls) {
+      if (control.id === 'build') continue
+      const stops =
+        control.choices.length > 0 ? control.choices.map((_, i) => i) : [control.min, control.max]
+      for (const value of stops) {
+        const result = bank.render(nothing(), { [control.id]: value, build: STEP.sides })
+        expect(alike(result), `${control.id} at ${value}`).toEqual([LOOP, LOOP])
+      }
+    }
     expectWritten(whole.checks.builtBound!, '−120 dB')
     expect(whole.checks.builtDifference).toBeLessThanOrEqual(-140)
     // The two sides differ, as the device's do.
-    expect(furthest(tap(whole, 'built'), tap(whole, 'built', 1))).toBeGreaterThan(0.01)
+    expect(largestDifference(tap(whole, 'built'), tap(whole, 'built', 1))).toBeGreaterThan(0.01)
     // The piece switched off: one sound on both sides, and not the device's.
     const before = bank.render(nothing(), { build: STEP.where })
-    expect(furthest(tap(before, 'built'), tap(before, 'built', 1))).toBe(0)
-    expect(furthest(tap(before, 'built'), tap(before, 'out'))).toBeGreaterThan(0.1)
+    expect(largestDifference(tap(before, 'built'), tap(before, 'built', 1))).toBe(0)
+    expect(largestDifference(tap(before, 'built'), tap(before, 'out'))).toBeGreaterThan(0.1)
   })
 
   // ---- part 5: the engine, stage by stage -------------------------------------------------------
@@ -415,7 +457,7 @@ describe('modal synthesis', () => {
     expect(bank.render(nothing(), {}).checks.pulseAgain).toBeLessThanOrEqual(-140)
   })
 
-  it('stage 2, what a push leaves in a mode: at 3,079 Hz, where the starting push lasts one period, the curve reads −6.0 dB, and it is the textbook formula to less than 0.01 dB (claim mallet-half)', async () => {
+  it('stage 2, what a push leaves in a mode: at 3,079 Hz, where the starting push lasts one period, the curve reads −6.0 dB, and it is the textbook formula to less than 0.01 dB wherever it stands above −80 dB, where the lab stops it (claim mallet-half)', async () => {
     const bank = await lab('modal-synthesis')
     const result = bank.render(nothing(), {})
     const length = result.checks.pulseSamples!
@@ -425,13 +467,21 @@ describe('modal synthesis', () => {
     const curve = result.taps.mallet!
     const ys = curve.channels_data[0]!
     let worst = 0
+    let compared = 0
     ys.forEach((value, i) => {
       const hz = curve.x0 * (curve.x1 / curve.x0) ** (i / (ys.length - 1))
       const periods = (hz * length) / RATE
       const size = Math.abs(Math.sin(Math.PI * periods) / (Math.PI * periods * (1 - periods ** 2)))
-      if (value > -79.9) worst = Math.max(worst, Math.abs(gainToDb(size) - value))
+      if (value > -80) {
+        worst = Math.max(worst, Math.abs(gainToDb(size) - value))
+        compared += 1
+      }
+      // Nothing is drawn under the floor: the gaps between the lobes are cut off there.
+      expect(value).toBeGreaterThanOrEqual(-80)
     })
     expectWritten(worst, 'less than 0.01 dB')
+    // Nearly all of the curve stands above the floor and is compared.
+    expect(compared / ys.length).toBeGreaterThan(0.95)
   })
 
   it('stage 2 on the device: with Hardness at 0, 50 ms after the strike mode 2 stands 26 dB lower than at the starting Hardness and mode 1 2.8 dB lower (claim soft-mallet)', async () => {
@@ -462,7 +512,7 @@ describe('modal synthesis', () => {
     expect(Math.abs(tap(result, 'shape3').at(-1)!)).toBeCloseTo(1, 6)
   })
 
-  it("stage 5, a decay for each: modes 1 to 4 fall at 20.0, 24.4, 31.1 and 40.0 dB a second and mode 6 at 64.5 dB a second, each less than 0.02 dB a second from the device's law (claim fall-law)", async () => {
+  it("stage 5, a decay for each: from 0.1 s to 0.6 s after the strike modes 1 to 4 fall at 20.0, 24.4, 31.1 and 40.0 dB a second and mode 6 at 64.5 dB a second, each less than 0.02 dB a second from the device's law (claim fall-law)", async () => {
     const bank = await lab('modal-synthesis')
     const result = bank.render(nothing(), {})
     const measured = [1, 2, 3, 4, 5, 6].map((n) => slope(tap(result, `level${n}`), 0.1, 0.6))
@@ -479,24 +529,33 @@ describe('modal synthesis', () => {
     })
   })
 
-  it('stage 6, two sides: half a second after the strike the left side stands 3.6 dB over the right at the starting Spread and 5.6 dB over it with Spread at 1, and with Spread at 0 the two are the same sample for sample (claim sides)', async () => {
+  it('stage 6, two sides: half a second after the strike the left side stands 3.6 dB over the right at the starting Spread and 5.6 dB over it with Spread at 1, and with Spread at 0 all 192,000 samples of the left are the same as the right (claim sides)', async () => {
     const bank = await lab('modal-synthesis')
     const over = (result: RenderResult) =>
       tap(result, 'levelLeft')[tick(0.5)]! - tap(result, 'levelRight')[tick(0.5)]!
     expectWritten(over(bank.render(nothing(), {})), '3.6 dB')
     expectWritten(over(bank.render(nothing(), { spread: 1 })), '5.6 dB')
     const middle = bank.render(nothing(), { spread: 0 })
-    expect(furthest(tap(middle, 'out'), tap(middle, 'out', 1))).toBe(0)
+    expectWritten(same(tap(middle, 'out'), tap(middle, 'out', 1)), '192,000 samples')
+    expect(largestDifference(tap(middle, 'out'), tap(middle, 'out', 1))).toBe(0)
+    // At the starting Spread they are not: the count is no formality.
+    const start = bank.render(nothing(), {})
+    expect(same(tap(start, 'out'), tap(start, 'out', 1))).toBeLessThan(LOOP / 2)
   })
 
-  it('stage 6, the modes added: at the starting settings the sum of the modes with their gains is the output, sample for sample (claim sum-exact)', async () => {
+  it('stage 6, the modes added: at the starting settings all 192,000 samples of the sum of the modes with their gains are the output, on each side (claim sum-exact)', async () => {
     const bank = await lab('modal-synthesis')
     const result = bank.render(nothing(), {})
     // Volume is at 0 dB and the sum stays under the clip's knee, so nothing is done to it.
     expect(peak(tap(result, 'sum'))).toBeLessThan(0.5)
-    expect(furthest(tap(result, 'sum'), tap(result, 'out'))).toBe(0)
-    expect(furthest(tap(result, 'sum', 1), tap(result, 'out', 1))).toBe(0)
+    for (const side of [0, 1]) {
+      expectWritten(same(tap(result, 'sum', side), tap(result, 'out', side)), '192,000 samples')
+      expect(largestDifference(tap(result, 'sum', side), tap(result, 'out', side))).toBe(0)
+    }
     expect(result.checks.rebuilt).toBeLessThanOrEqual(-140)
+    // With Volume off 0 dB the sum is no longer the output, and the count says so.
+    const louder = bank.render(nothing(), { volume: 6 })
+    expect(same(tap(louder, 'sum'), tap(louder, 'out'))).toBeLessThan(LOOP / 2)
   })
 
   it('stage 6, a pair that beats turns between the sides: with the halves 1 Hz apart and Spread at 1, the right side stands 7 dB over the left half a second after the strike and the left 8 dB over the right a second after it (claim turns)', async () => {
@@ -556,13 +615,43 @@ describe('modal synthesis', () => {
     expectWritten(apart(one), '1.0 s')
   })
 
-  it("stage 9, the clip: with Volume at +6 dB, the hardest mallet and Brightness at 1 the modes add up to a peak 6.0 dB over full scale, and the output's largest sample is 0.0 dB (claim clipped)", async () => {
+  it("stage 9, the clip: with Volume at +6 dB, the hardest mallet and Brightness at 1 what goes into the clip, the modes added times Volume, peaks 6.0 dB over full scale, and the output's largest sample is 0.0 dB (claim clipped)", async () => {
     const bank = await lab('modal-synthesis')
     const result = played(bank, 'hot')
     expect(settings.sets.hot!.values).toEqual({ volume: 6, hardness: 1, brightness: 1 })
     expectWritten(gainToDb(peak(tap(result, 'sum'))) + 6, '6.0 dB')
     expectWritten(gainToDb(peak(tap(result, 'out'))), '0.0 dB')
     expect(peak(tap(result, 'out'))).toBeLessThanOrEqual(1)
+    // The clip is at work: without it the output would be the sum times Volume, twice as tall.
+    expect(peak(tap(result, 'sum')) * 10 ** (6 / 20)).toBeGreaterThan(1.9)
+  })
+
+  it("stage 9, the clip lands on full scale: with the loud card's settings and Position at 1, every sample that goes in at twice full scale or more comes out at 1 exactly, and none comes out larger (claim clip-lands)", async () => {
+    const bank = await lab('modal-synthesis')
+    const result = played(bank, 'hot', { position: 1 })
+    const volume = 10 ** (6 / 20)
+    let reached = 0
+    let short = 0
+    let larger = 0
+    for (const side of [0, 1]) {
+      const sum = tap(result, 'sum', side)
+      const out = tap(result, 'out', side)
+      // The loop's first samples are a blend of two passes of the note, so they are left out.
+      for (let i = FADE; i < sum.length; i += 1) {
+        if (Math.abs(out[i]!) > 1) larger += 1
+        // A hair over twice full scale, so that the rounding of Volume cannot decide it.
+        if (Math.abs(sum[i]!) * volume >= 2.001) {
+          reached += 1
+          if (out[i] !== Math.sign(sum[i]!)) short += 1
+        }
+      }
+    }
+    expect(reached).toBeGreaterThan(10)
+    expect(short).toBe(0)
+    expect(larger).toBe(0)
+    // At the loud card itself nothing goes in that far over, and no sample is 1 exactly.
+    const hot = played(bank, 'hot')
+    expect(tap(hot, 'out').filter((v) => Math.abs(v) === 1).length).toBe(0)
   })
 
   // ---- part 6: ways to use it -------------------------------------------------------------------
@@ -601,6 +690,14 @@ describe('modal synthesis', () => {
     const node = played(bank, 'node')
     expect(settings.sets.node!.values).toEqual({ position: 0.333 })
     expectWritten(tap(end, 'level1')[tick(0.05)]! - tap(node, 'level1')[tick(0.05)]!, '59 dB')
+    // The 59 dB is how near 0.333 comes to a third: a Position nearer still takes mode 1 lower,
+    // and one further off leaves more of it.
+    const lower = (position: number) =>
+      tap(end, 'level1')[tick(0.05)]! -
+      tap(bank.render(nothing(), { position }), 'level1')[tick(0.05)]!
+    expect(lower(0.3333)).toBeGreaterThan(75)
+    expect(lower(0.33)).toBeLessThan(45)
+    expect(lower(0.34)).toBeLessThan(40)
     // The others are still there: mode 2 is within a few decibels of where it was.
     expect(
       Math.abs(tap(end, 'level2')[tick(0.05)]! - tap(node, 'level2')[tick(0.05)]!),
