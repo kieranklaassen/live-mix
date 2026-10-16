@@ -18,11 +18,6 @@
       "label": "The fader, smoothed",
       "tap": "out"
     },
-    "played": {
-      "label": "The drums as played",
-      "source": "drums",
-      "tap": "in"
-    },
     "kick": {
       "label": "Drums, the top taken off",
       "values": { "cutoff": 250 },

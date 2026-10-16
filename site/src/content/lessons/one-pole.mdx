@@ -3,14 +3,19 @@ title: The one-pole filter and smoothing
 family: filters
 summary: The smallest filter there is keeps one number and moves it part of the way towards each new sample. On a sound that takes the top off. On a fader it turns a jump into a glide, so a gain that moves under a held note does not click. This lesson builds it a piece at a time, then reads the kit's own, line by line.
 long: true
-opening: { input: in, output: low }
+opening:
+  input: in
+  output: low
+  from: 0.5
+  span: 0.04
+  caption: One hit of the drum loop, and the low-pass of it. The low-pass keeps the slow swing of the hit and loses the quick wiggles that ride on it.
 lab: one-pole
 devices: [tremolo]
 bench:
   device: tremolo
   params: { mode: 2, rate: 0.5, depth: 1, shape: 2, crossover: 500, drift: 0, smooth: 0, mix: 1 }
   as: insert
-  note: The plate opens in Harmonic mode with a square shape at full depth, one cycle every two seconds, and the crossover where this lesson starts its Cutoff, so it plays this lesson's low-pass for a second and its high-pass for the next. The device's own defaults are a plain tremolo, faster and shallower, with a little drift and some smoothing of the shape.
+  note: This lesson's controls are the filter's and the fader's, and the Tremolo has neither, so there is no table of the two side by side. Of them only Cutoff has a counterpart on the plate, the Crossover, and the plate opens with it where this lesson starts its Cutoff. The plate also opens with Mode at Harmonic, Shape at Square, Depth at full, Rate at one cycle every two seconds, and Drift and Smooth at nothing, so it passes this lesson's low band for a second and the rest of the sound for the next, as stage 5 measured. The device's own defaults are Mode at Tremolo with Shape at Sine, a faster Rate, less Depth, a little Drift, some Smooth and a higher Crossover.
 sources: [drums, chords, mix, pad, saw, noise, clicks, sweep, guitar]
 seconds: 4
 files:
@@ -71,7 +76,7 @@ Quieter, and many more. Each stair is a twentieth of the height it was, and ther
 
 Listen for the buzz that rides on the tone. <Hear set="often" label="Hear two hundred values a second" />
 
-Sending more only moves the trouble. The stairs would have to come once a sample to vanish, and no host sends a control that often: it has the whole sound to compute in the same time.
+Sending more only moves the trouble. The stairs would have to come once a sample to vanish, and a host does not send a control that often: it has the whole sound to compute in the same time.
 
 </Predict>
 
@@ -102,14 +107,14 @@ A number that moves only part of the way to each new sample cannot keep up with 
   set="kick"
   from={0}
   span={0.12}
-  caption="The first hit of the drum loop and the low-pass of it. The low-pass follows the slow swing of the kick and passes through the middle of the quick wiggles that ride on it."
+  caption="The first hit of the drum loop, a kick, and the low-pass of it. The low-pass follows the slow swing of the kick a little behind it, and rounds off the sharp start of the hit."
 />
 
 Take that average away from the sound and what is left is the quick part. That is a high-pass filter, and it costs one subtraction more.
 
 This is the one-pole filter. It has one number of memory and one multiplication a sample, and it does two jobs that look unrelated. On a sound it takes one end off. On a control it turns a jump into a glide. In this engine the second job is everywhere: <Claim id="smoothed-devices">more than 100 of its devices</Claim> keep one of these on their controls.
 
-It is also where filters begin. The three lessons after this one, <Lesson id="state-variable-filter" />, <Lesson id="equalising" /> and <Lesson id="phasing" />, build on what this one sets out: what a pole is, and what the slope of a filter, counted in decibels an octave, means. Both are said plainly in part 5, each beside the test that holds it.
+It is also where filters begin. The three lessons after this one, <Lesson id="state-variable-filter" />, <Lesson id="equalising" /> and <Lesson id="phasing" />, build on what this one sets out: what a pole is, and what the slope of a filter, counted in decibels an octave, means. Both are said plainly in part 5, and measured there.
 
 </Part>
 
@@ -170,7 +175,7 @@ Each card below shows one such job, lists its setting and plays it. A card's but
       caption="The spectrum of a mix and of the high-pass of it. The high end is as it was, and the low end falls away below the cutoff."
     />
 
-    The high-pass is the same filter read the other way: the sound with its slow part taken away. On a mix it thins the bass and the kick and leaves what is above them alone, which is what a part needs when it has to make room for another instrument's low end. Here <Claim id="use-thin">what is below 150 Hz comes out 11.0 dB lower, and what is above 2 kHz 0.2 dB lower</Claim>.
+    The high-pass is the same filter read the other way: the sound with its slow part taken away. On a mix it thins the bass and the kick and leaves what is above them alone, which is what a part needs when it has to make room for another instrument's low end. Here <Claim id="use-thin">what is below 150 Hz comes out 11 dB lower, and what is above 2 kHz 0.2 dB lower</Claim>.
 
   </Use>
   <Use title="Any control that moves while a note sounds" set="glided">
@@ -208,7 +213,7 @@ A card's setting is a place to start. One pole has a single control worth the na
 
 Part 1 called the low-pass a running average. This part starts from the plainest average there is and changes one thing at a time until it is the kit's filter. Then it adds the high-pass, a fader and the fader's smoothing. After each piece the lanes are drawn again from what has been built so far, and the listing shows the lines that piece added. The listings are the lab's own source: the code that draws these lanes and plays "Hear it so far".
 
-The first step and the fifth are wrong on purpose. Hearing what is wrong with a step is how the next piece earns its place.
+The first step and the fifth are wrong on purpose. What is wrong with each is the reason for the piece after it.
 
 <Build>
   <Step title="A running average" controls="cutoff">
@@ -239,7 +244,7 @@ The first step and the fifth are wrong on purpose. Hearing what is wrong with a 
 
   </Step>
   <Step title="Keep one number, not every sample" controls="cutoff">
-    The average is itself one number. Suppose that is all that is kept. When a new sample comes the old ones are gone, so the oldest cannot be taken out of the sum. What can be done is to move the average part of the way towards the new sample, far enough that the newcomer counts about as much as one sample in <M t="N" /> did.
+    The average is itself one number. Suppose that is all that is kept. When a new sample comes the old ones are gone, so the oldest cannot be taken out of the sum. What can be done is to move the average part of the way towards the new sample, by a share chosen so that the average looks about as far back as the <M t="N" /> samples did.
 
     <M
       block
@@ -278,14 +283,13 @@ The first step and the fifth are wrong on purpose. Hearing what is wrong with a 
       name="time"
     />
 
-    <Claim id="build-exact">At 500 Hz the weights now fall with a time constant of 15.3 samples, where the step before gave 15.5 samples. And 5 kHz and 6 kHz, which the step before made into one filter because both came to a span of three samples, are two filters again</Claim>.
+    <Claim id="build-exact">At 500 Hz the weights now fall with a time constant of 15.3 samples, where the step before gave 15.5 samples. And 5 kHz and 6 kHz, which the step before made into one filter because both came to a span of three samples, are two filters</Claim>.
 
     On most sounds this step is hard to hear. It is the step that makes the build's low half the kit's own filter, line for line.
 
     <Lanes slot="picture" taps="in built">
-      The sound going in and the low-pass, now set by a time. Try Cutoff slowly through its top
-      octave, and notice the lane change a little with every move, where the step before changed in
-      jumps.
+      The sound going in and the low-pass, now set by a time. Try Cutoff anywhere, and notice the
+      lane look as it did a step ago: what this step changes is too small to see at this size.
     </Lanes>
 
   </Step>
@@ -300,7 +304,7 @@ The first step and the fifth are wrong on purpose. Hearing what is wrong with a 
       name="rest"
     />
 
-    <Claim id="build-high">With Cutoff at 500 Hz a tone at 50 Hz, far below it, now comes out 20.3 dB down, where the step before passed it 0.0 dB down</Claim>. Listen on the drums for the weight of the kick going and the hats staying.
+    <Claim id="build-high">With Cutoff at 500 Hz a tone at 50 Hz, far below it, now comes out 20.3 dB down, where the step before passed it less than 0.1 dB down</Claim>. Listen on the drums for the weight of the kick going and the hats staying.
 
     <Lanes slot="picture" taps="in builtLow built">
       The sound going in, the low half as built, and the sound so far, which is now the rest. Try
@@ -320,9 +324,9 @@ The first step and the fifth are wrong on purpose. Hearing what is wrong with a 
       name="blend"
     />
 
-    In the middle the halves are back in equal parts, which is the sound itself at half its size. <Claim id="build-fader">For the first tenth of a second of the loop the fader stands at one half, and a 1 kHz tone comes out 6.0 dB down, where the high-pass alone passed it 1.3 dB down</Claim>.
+    In the middle the halves are back in equal parts, which is the sound itself at half its size. <Claim id="build-fader">For the first tenth of a second of the loop the fader stands at one half, and a 750 Hz tone comes out 6.0 dB down, where the high-pass alone passed it 1.9 dB down</Claim>.
 
-    This is the heart of the Tremolo's Harmonic mode, with the lab's fader in the place of the device's slow oscillator. It is also wrong in the way part 1 was wrong. The fader arrives as a staircase, and each stair is a jump in the sound. On the drums the hits may cover the jumps. Choose the pad or the saw in the row of sounds and listen again.
+    This is what the Tremolo's Harmonic mode does, with the lab's fader in the place of the device's slow oscillator. It is also wrong in the way part 1 was wrong. The fader arrives as a staircase, and each stair is a jump in the sound. On the drums the hits may cover the jumps. Choose the pad or the saw in the row of sounds and listen again.
 
     <Lanes slot="picture" taps="in builtFader built" from={0.25} span={0.5}>
       Half a second around the bottom of the fader's move: the sound going in, the fader as built,
@@ -332,7 +336,7 @@ The first step and the fifth are wrong on purpose. Hearing what is wrong with a 
 
   </Step>
   <Step title="Smooth the fader" controls="cutoff updates smoothing">
-    The cure is the line of step 2 again. This time what goes in is the fader's value as it arrives, and what comes out is the gain to use: a running average of where the fader has been. One thing is added. Once the gain is so close to the value that the rest could not be heard, it is put exactly on it, so a fader at rest costs nothing.
+    The cure is the line of step 2 again. This time what goes in is the fader's value as it arrives, and what comes out is the gain to use: a running average of where the fader has been. One thing is added. Once the gain is so close to the value that the rest could not be heard, it is put exactly on it, so a fader at rest leaves the gain at rest.
 
     <Listing
       path="site/labs/one-pole.cpp"
@@ -367,7 +371,7 @@ Here is how the lab puts the pieces in order, for one sample.
   name="run"
 />
 
-That is a filter, its complement and a smoothed control in seven small functions. The kit's versions are shorter still, because each does one of these jobs and nothing else. The next part opens them.
+That is a filter, its complement and a smoothed control in seven small functions. The kit's versions, in the next part, are shorter still, because each does one of these jobs and nothing else.
 
 </Part>
 
@@ -395,8 +399,8 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
   block light up here.
 </Flow>
 
-<StageBlock tap="impulse" n={1} title="One line: an average that keeps one number">
-  The filter is for averaging a signal without keeping the samples it averages. On a sound that average is the low-pass the page opens on, and you can <Listen tap="low">hear the low-pass</Listen> from here. Put one sample of 1 into the filter, then nothing, and it reads its weights out one after another: first the weight it gives the newest sample, then the weight of a sample one step old, and so on. That read-out is called the filter's impulse response.
+<StageBlock tap="low" n={1} title="One line: an average that keeps one number">
+  The filter is for averaging a signal without keeping the samples it averages. On a sound that average is the low-pass the page opens on. Put one sample of 1 into the filter, then nothing, and it reads its weights out one after another: first the weight it gives the newest sample, then the weight of a sample one step old, and so on. That read-out is called the filter's impulse response.
 
   <Controls ids="cutoff" />
 
@@ -420,7 +424,7 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
 
     Read it against the stalks. The newest sample has the weight <M t="1-a" />, the first stalk. Every older sample has <M t="a" /> times the weight of the sample after it, so each stalk is the same fraction of the one before. The weights add up to 1, so a steady input comes out at its own level. <Claim id="newest-weight">With Cutoff at 500 Hz the first stalk is 0.063</Claim> and <Claim id="weight-ratio">each stalk after it is 0.937 of the one before</Claim>.
 
-    That ratio is what the filter is named after. Take the input away and the line above becomes <M t={String.raw`y[n] = a\,y[n-1]`} />: left alone, the filter multiplies what it remembers by <M t="a" /> at every sample. A number that a filter's memory is multiplied by in this way is called a pole of the filter. A pole under 1 dies away, as the stalks do. A pole of exactly 1 would hold its value for ever, and a pole over 1 would grow without end. This filter has one number of memory, so it has one pole, and the pole is <M t="a" />. The filter of <Lesson id="state-variable-filter" /> remembers two numbers and has two poles, which together can do what one cannot: ring.
+    That ratio is what the filter is named after. Take the input away and the line above becomes <M t={String.raw`y[n] = a\,y[n-1]`} />: left alone, the filter multiplies what it remembers by <M t="a" /> at every sample. A number that a filter's memory is multiplied by in this way is called a pole of the filter. A pole smaller than 1 dies away, as the stalks do. A pole of exactly 1 would hold its value for ever, and a larger one would grow without end. This filter has one number of memory, so it has one pole, and the pole is <M t="a" />. The filter of <Lesson id="state-variable-filter" /> remembers two numbers and has two poles, which together can do what one cannot: ring.
 
     The lab's check holds what the filter put out against <M t={String.raw`(1-a)\,a^{n}`} /> worked out directly. They agree to <Claim id="impulse-error">less than 0.0000001 at every cutoff tried</Claim>.
 
@@ -437,6 +441,7 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
     }}
     name="pole"
   />
+  <Fragment slot="listen">Hear the low-pass</Fragment>
 </StageBlock>
 
 <StageBlock tap="step" n={2} title="The pole from a time">
@@ -463,13 +468,13 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
   <Fragment slot="readback">
     After <M t="p" /> samples of the step the output stands at <M t={String.raw`1 - a^{p}`} />: the distance left is multiplied by <M t="a" /> at every sample. There is a natural length in that, the time constant <M t={String.raw`\tau`} />: the time in which the distance left falls to <M t="1/e" /> of what it was, so that <Src path="site/labs/one-pole.cpp" at="constexpr float kSixtyThree = 0.63212056f;">63 % of it</Src> has been covered. The equation says which pole gives which time constant, with <M t="f_s" /> the sample rate, <Src path="site/labs/lab.h" at="constexpr float kSampleRate = 48000.0f;">48,000 samples a second</Src> on this page. The listing below is that line as the kit writes it.
 
-    A cutoff is the same thing said in hertz:
+    A cutoff is the same thing said in hertz. With <M t="f_c" /> the cutoff:
 
     <M block t={String.raw`\tau = \frac{1}{2\pi \at{pole-cutoff}{f_c}}`} />
 
     Put the second line into the first and the result is the filter's own `set_cutoff`, in the listing of stage 1. So the kit sets a pole in two ways, from a time or from a cutoff, and they are one formula. <Claim id="tau-500">A cutoff of 500 Hz is a time constant of 0.32 ms, which is 15.3 samples</Claim>.
 
-    Measured on the step, <Claim id="step-63">the output first stands at 63 % less than 1 sample after the time constant, at every cutoff tried</Claim>, and the check above counts how far into that sample. <Claim id="step-two-three">It has covered 86.5 % after two time constants, 95 % after three and 99.3 % after five</Claim>. A time constant is therefore not the time a smoother takes. Allow three to five of them.
+    Measured on the step, <Claim id="step-63">the output first stands at 63 % less than 1 sample after the time constant, at every cutoff tried</Claim>, and the check above counts how far into that sample. <Claim id="step-two-three">With Cutoff at 20 Hz, where a sample is a small part of a time constant, it has covered 86.5 % after two time constants, 95 % after three and 99.3 % after five</Claim>. A time constant is therefore not the time a smoother takes. Allow three to five of them.
 
   </Fragment>
   <Listing
@@ -494,14 +499,14 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
     xMax={20000}
     uprights="cutoff"
     min={-48}
-    max={3}
+    max={12}
     xTitle="hertz"
     yTitle="level, dB"
     height={260}
   >
     The response measured through the kit's filter and the textbook's curve for one pole, with
-    Cutoff as an upright line. Try Cutoff at its highest, and notice the measured line lift away
-    from the textbook's at the top of the band.
+    Cutoff as an upright line. Try Cutoff lower and higher, and notice the two lines part in the
+    same place, the top octave of the band, wherever the upright line stands.
   </Curve>
 
   <Check id="corner" />
@@ -520,11 +525,11 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
   <Fragment slot="readback">
     This is the textbook's line in the first picture: the level <M t="|H|" /> a tone of frequency <M t="f" /> comes out at, with <M t="f_c" /> the cutoff. Read it in three places. Far below the cutoff <M t="f/f_c" /> is small, the bottom of the fraction is close to 1, and nothing is lost: the flat part. At the cutoff the bottom is <M t={String.raw`\sqrt2`} />, which is half the power. Far above the cutoff the 1 no longer matters and the level is <M t="f_c/f" />: double the frequency and the level halves.
 
-    That last reading is what the slope of a filter means, and what people mean when they say "6 dB an octave". <Claim id="octave-half">An octave is a doubling of frequency, and a wave of half the size is 6 dB down. So a filter that falls 6 dB an octave halves the size of a tone each time the tone's frequency doubles: measured well above the cutoff, a tone comes out 0.50 of the size of the tone an octave under it</Claim>. There is a plain reason for it here: a tone twice as fast gives the average half as long to move before the wave turns round. It is the gentlest slope a filter can have, and it is what one pole gives. A filter with two poles falls twice as steeply.
+    That last reading is what the slope of a filter means, and what people mean when they say "6 dB an octave". <Claim id="octave-half">An octave is a doubling of frequency, and a wave of half the size is 6 dB down. So a filter that falls 6 dB an octave halves the size of a tone each time the tone's frequency doubles: measured with Cutoff at 20 Hz, far below both tones, a tone at 1 kHz comes out 0.50 of the size of a tone at 500 Hz</Claim>. There is a plain reason for it here: a tone twice as fast gives the average half as long to move before the wave turns round. It is the slope one pole gives. A low-pass with two poles falls twice as steeply.
 
-    Measured with steady tones through the kit's filter, <Claim id="minus-3">a tone at the cutoff comes out 3.0 dB down</Claim>. Well above the cutoff <Claim id="octave">the level falls 6.0 dB an octave</Claim>. Over ten times the frequency, a decade, that adds up to <Claim id="decade">20 dB a decade</Claim>. And <Claim id="corner-500">with Cutoff at 500 Hz the measured response is 3 dB down at 500.2 Hz</Claim>.
+    Measured with steady tones through the kit's filter, <Claim id="minus-3">with Cutoff at 500 Hz a tone at the cutoff comes out 3.0 dB down</Claim>. <Claim id="octave">With Cutoff at 20 Hz the level falls 6.0 dB over the octave from 500 Hz to 1 kHz</Claim>. Over ten times the frequency, a decade, that adds up: <Claim id="decade">with Cutoff at 20 Hz the level falls 20 dB from 200 Hz to 2 kHz</Claim>. And <Claim id="corner-500">with Cutoff at 500 Hz the measured response is 3 dB down at 500.2 Hz</Claim>.
 
-    The two lines part company at the top of the band, and the sample rate is the reason. A sampled signal holds nothing above half its sample rate, and nothing in this filter forces its output to nothing there: at half the rate it still passes <Claim id="top-level"><M t={String.raw`(1-a)/(1+a)`} /></Claim> of what goes in. So the slope flattens on the way up. <Claim id="top-octave">With Cutoff at 100 Hz the last octave, 10 kHz to 20 kHz, falls only 4.0 dB</Claim>. <Claim id="bend">With Cutoff at 500 Hz the measured line stays within 0.1 dB of the textbook's up to 3 kHz and ends 2.6 dB above it at 20 kHz</Claim>.
+    The two lines part at the top of the band, and the sample rate is the reason. A sampled signal holds nothing above half its sample rate, and nothing in this filter forces its output to nothing there: at half the rate it still passes <Claim id="top-level"><M t={String.raw`(1-a)/(1+a)`} /></Claim> of what goes in. So the slope flattens on the way up. <Claim id="top-octave">With Cutoff at 100 Hz the last octave, 10 kHz to 20 kHz, falls only 4.0 dB</Claim>. <Claim id="bend">With Cutoff at 500 Hz the measured line stays within 0.1 dB of the textbook's up to 3 kHz and ends 2.6 dB above it at 20 kHz</Claim>.
 
   </Fragment>
 </StageBlock>
@@ -541,14 +546,14 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
     xMax={20000}
     uprights="cutoff"
     min={-48}
-    max={3}
+    max={12}
     xTitle="hertz"
     yTitle="level, dB"
     height={260}
   >
-    The low-pass and the high-pass, both measured through the kit's filter. Try Cutoff from one end
-    to the other, and notice the place where the two lines cross follow the upright line, a little
-    under the top of the picture.
+    The low-pass and the high-pass, both measured through the kit's filter. Try Cutoff lower, and
+    notice the place where the two lines cross stay beside the upright line. Then try Cutoff at its
+    highest, and notice the high-pass line sink until the two no longer cross.
   </Curve>
 
   <M
@@ -557,11 +562,11 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
     t={String.raw`\sig{alt}{h[n]} = \sig{in}{x[n]} - \sig{out}{y[n]}`}
   />
   <Fragment slot="readback">
-    <M t="h" /> is the high-pass, <M t="x" /> the input and <M t="y" /> the low-pass of stage 1. In the kit it is <Src path="cpp/kit/filters.h" at="float highpass(float x) { return x - lowpass(x); }">the last line of the filter</Src>. Its response is the low-pass's turned round: nothing at the very bottom, <Claim id="high-octave">rising 6.0 dB an octave</Claim> towards the cutoff, and flat above it.
+    <M t="h" /> is the high-pass, <M t="x" /> the input and <M t="y" /> the low-pass of stage 1. In the kit it is <Src path="cpp/kit/filters.h" at="float highpass(float x) { return x - lowpass(x); }">the last line of the filter</Src>. Its response is the low-pass's turned round: nothing at the very bottom, <Claim id="high-octave">rising 6.0 dB an octave while it is far below the cutoff</Claim>, and flat above it.
 
-    The two halves are made to add back to the input, and they do. <Claim id="complement">On the noise the sum is the input, sample for sample. On the drums it is within one rounding of a float, 7.5 billionths of full scale</Claim>, because a subtraction and an addition each round once.
+    The two halves are made to add back to the input, and they do. <Claim id="complement">On the noise the sum is the input, sample for sample. On the drums it is within one rounding of a float, 7.45 billionths of full scale</Claim>, because a subtraction and an addition each round once.
 
-    What the split does not keep is the textbook's symmetry, in which both halves are equally far down at the cutoff. Here the low-pass is down by the amount stage 3 measured, and <Claim id="high-at-cutoff">a tone at the cutoff comes through the high-pass 3.3 dB down</Claim>. The halves add back exactly as samples. They are not equal as powers.
+    What the split does not keep is the textbook's symmetry, in which both halves are equally far down at the cutoff. With Cutoff at 500 Hz the low-pass is down by the amount stage 3 measured, and <Claim id="high-at-cutoff">a tone at the cutoff comes through the high-pass 3.3 dB down</Claim>. The halves add back exactly as samples. They are not equal as powers, and the picture shows them further from equal the higher the Cutoff is set.
 
   </Fragment>
   <Fragment slot="listen">Hear the high-pass</Fragment>
@@ -572,16 +577,20 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
 
   <Controls ids="cutoff" />
 
-  <Wave taps="in deviceLow" from={0} span={0.12} fit>
-    The start of the loop going in, and the low band inside the running Tremolo. Try Cutoff lower,
-    and notice the band keep the slow swing and lose the quick wiggles that ride on it.
+  <Wave taps="in deviceLow" from={0.5} span={0.04} fit>
+    One hit of the loop going in, and the low band inside the running Tremolo. Try Cutoff lower, and
+    notice the band keep the slow swing and lose more of the quick wiggles that ride on it.
   </Wave>
 
   The device's crossover runs from <Src path="cpp/devices/tremolo/device.json" at='"min": 100,'>100 Hz</Src> to <Src path="cpp/devices/tremolo/device.json" at='"max": 4000,'>4 kHz</Src>. This lesson's Cutoff goes further both ways, and outside that range the device stays at the end of its own. The lab's check therefore sets a filter of its own to whatever crossover the device is using and holds the two together on every render.
 
   <Check id="split" />
 
-  On every loop and cutoff the lab's test tries, the low band inside the device and the lab's own one-pole are <Claim id="split">the same, sample for sample</Claim>. The device is on the bench at the foot of this page.
+  On every loop and cutoff the lab's test tries, the low band inside the device and the lab's own one-pole are <Claim id="split">the same, sample for sample</Claim>.
+
+  What the device does with the two bands is the last line of the listing below: `down` is the gain on the low band, and the bracket after it is the gain on the rest. The lab sets the device as the bench at the foot of this page opens it, with Shape at Square and Depth at full. The first gain is then 1 for half of each cycle and 0 for the other half, and the second is the opposite. <Claim id="trades">On every loop of this page the device's output is one band at a time: the gap between the output and that band is more than 100 dB under the band</Claim>. The lab leaves out <Src path="site/labs/one-pole.cpp" at="constexpr int kTurnOver = 2400;">the 50 ms after each change-over</Src>, where the device's slew rounds the square.
+
+  <Check id="trades" />
 
   <Listing
     slot="listing"
@@ -632,7 +641,7 @@ From here on it is the engine's code. The page runs the kit's C++, compiled for 
 </StageBlock>
 
 <StageBlock tap="glide" n={7} title="Landing, and the smoother that arrives on time">
-  Covering a share of the distance does not finish by itself. A control that is always nearly there can never be called settled, and a device with something still moving cannot rest. So `next()` lands: once the distance left is under <Src path="cpp/kit/smooth.h" at="const float epsilon = 1.0e-6f">a millionth of the target and a billionth more</Src>, or a step no longer changes the float, it puts the value exactly on the target.
+  Covering a share of the distance does not finish by itself. Left alone the value would stop a little short of its target, as part 7 measures, or, falling towards zero, shrink into numbers too small to compute with quickly. So `next()` lands: once the distance left is under <Src path="cpp/kit/smooth.h" at="const float epsilon = 1.0e-6f">a millionth of the target and a billionth more</Src>, or a step no longer changes the float, it puts the value exactly on the target.
 
   <Controls ids="smoothing" />
 
@@ -707,7 +716,7 @@ One pole has few settings, so the ways of using it are habits more than recipes.
     Set high, one pole is a tilt and not a cut. On a bright sound it rounds the top and leaves the body alone. <Claim id="way-soften">On the saw, what is above 5 kHz comes out 8.1 dB lower and what is below 1 kHz less than 0.1 dB lower</Claim>. Try Cutoff lower from here, and listen for the point where the saw stops sounding like a saw.
   </Way>
   <Way title="Listen to what you are taking away" tag="the other half" set="removed">
-    The high-pass at the same Cutoff is exactly what the low-pass removed, so playing it alone is a quick way to judge a low-pass. If the removed half holds something the sound needs, the Cutoff is too low. On the drums, at the Cutoff the lesson starts with, <Claim id="way-removed">the removed half comes out 11 dB under the drums and the low-pass 0.4 dB under them</Claim>: by level, nearly all of this loop is in the half that was kept.
+    The high-pass at the same Cutoff is exactly what the low-pass removed, so playing it alone is a quick way to judge a low-pass. If the removed half holds something the sound needs, the Cutoff is too low. On the drums, at the Cutoff the lesson starts with, <Claim id="way-removed">the removed half comes out 11 dB under the drums and the low-pass less than 0.5 dB under them</Claim>: by level, nearly all of this loop is in the half that was kept.
   </Way>
   <Way title="Round the edges of a chopped sound" tag="a long smoothing time" set="swell">
     Smoothing need not be too short to notice. A gain that jumps between a few values chops a sound into blocks, and smoothed over a longer time each edge of a block becomes a short fade. <Claim id="way-swell">With two values a second and Smoothing at 20 ms, 63 % of each jump is covered 20 ms after it and 95 % after 60 ms</Claim>. The Tremolo does the same to its own square wave, with two poles in a row: <Src path="cpp/devices/tremolo/tremolo.h" at="The slew is two poles and never less than 1 ms each">its notes say that is what keeps the square from clicking</Src>.
@@ -716,7 +725,7 @@ One pole has few settings, so the ways of using it are habits more than recipes.
     Part 1 found that sending values more often is not enough by itself. With smoothing it is worth having: the stairs are small, and what is left of them is rounded. <Claim id="way-fine">With 200 values a second and Smoothing at 5 ms, what the fader leaves above 2 kHz on the tone is 50 dB lower than the unsmoothed fader left at 10 a second, and 10 dB lower than the smoothing alone left</Claim>.
   </Way>
   <Way title="Think of it as a time" tag="when it is not on a sound">
-    On a control, or inside a detector that follows a level, nobody hears a cutoff. What matters is how long the filter's memory is. Ask for that, and let the formula of stage 2 turn it into a pole. Then remember what a time constant is: the move is about two thirds done after one, and over, for most purposes, after three to five.
+    On a control, or inside a detector that follows a level, nobody hears a cutoff. What matters is how long the filter's memory is. Ask for that, and let the formula of stage 2 turn it into a pole. Then remember what stage 2 measured: the move is not done after one time constant, and is over, for most purposes, after three to five.
   </Way>
 </Ways>
 
@@ -737,12 +746,12 @@ Most of what goes wrong with one pole is one of its virtues seen from the other 
     Smoothing is lag. A gain that is always on its way has not reached the fader's value when the fader moves on, so a fade to nothing does not get to nothing. <Claim id="fault-late">With 200 values a second and Smoothing at 20 ms, the gain gets no lower than 37 dB down where the fader reaches nothing. With Smoothing at 5 ms it gets 51 dB down</Claim>. Use the shortest time that does not click. Where a move has to end on time, the linear ramp of stage 7 ends on time, and where a value should jump, as a mute should, `snap` jumps.
   </Fault>
   <Fault title="One pole is no wall" set="gentle">
-    A low-pass is often expected to remove what is above its cutoff. One pole only turns it down, a little more with each octave. <Claim id="fault-gentle">With Cutoff at 200 Hz the drums above 2 kHz come out 26 dB lower, and with Cutoff an octave lower, at 100 Hz, only 6 dB lower still</Claim>. Listen for the hats: turned down, and still there. Two one-poles in a row fall twice as steeply and keep the same soft corner. A steep filter with a firm corner needs two poles that work together, which is <Lesson id="state-variable-filter" />.
+    A low-pass is often expected to remove what is above its cutoff. One pole only turns it down, a little more with each octave. <Claim id="fault-gentle">With Cutoff at 200 Hz the drums above 2 kHz come out 26 dB lower, and with Cutoff an octave lower, at 100 Hz, only 6 dB lower still</Claim>. Listen for the hats: turned down, and still there. Two one-poles in a row take off twice as many decibels at every frequency, so they fall twice as steeply and their corner is as soft. A steep filter with a firm corner needs two poles that work together, which is <Lesson id="state-variable-filter" />.
   </Fault>
   <Fault title="Set high, the cutoff is only a name">
-    The kit takes the pole from the time constant, so the time is the exact part and the frequency is the part that bends. <Claim id="corner-formula">The response is 3 dB down where <M t={String.raw`\cos\omega = 2 - \cosh\omega_0`} />, with <M t={String.raw`\omega_0 = 2\pi f_c/f_s`} />, and the measured corner lands on that to less than 0.01 %</Claim>. <Claim id="corner-2pc">That corner is within 2 % of the Cutoff for every setting up to 3.6 kHz</Claim>. Higher up it drifts: <Claim id="corner-8k">set to 8 kHz the filter is 3 dB down at 8.86 kHz</Claim>, and <Claim id="corner-never">set to 13.5 kHz or higher it does not fall 3 dB anywhere below half the sample rate</Claim>. <Claim id="corner-20k">Set to 20 kHz it is 1.2 dB down at 20 kHz</Claim>.
+    The kit takes the pole from the time constant, so the time is the exact part and the frequency is the part that bends. Write a frequency <M t="f" /> as the angle a tone at it turns through in one sample, <M t={String.raw`\omega = 2\pi f/f_s`} />, and the Cutoff <M t="f_c" /> in the same way, <M t={String.raw`\omega_0 = 2\pi f_c/f_s`} />. <Claim id="corner-formula">The response is 3 dB down where <M t={String.raw`\cos\omega = 2 - \cosh\omega_0`} />, and the measured corner lands on that to less than 0.001 %</Claim>. <Claim id="corner-2pc">That corner is within 2 % of the Cutoff for every setting up to 3.6 kHz</Claim>. Higher up it drifts: <Claim id="corner-8k">set to 8 kHz the filter is 3 dB down at 8.86 kHz</Claim>, and <Claim id="corner-never">set to 13.5 kHz or higher it does not fall 3 dB anywhere below half the sample rate</Claim>. <Claim id="corner-20k">Set to 20 kHz it is 1.2 dB down at 20 kHz</Claim>.
 
-    <Claim id="exact-pole">A pole placed for an exact corner</Claim> would be <M t={String.raw`a = b - \sqrt{b^2 - 1}`} /> with <M t={String.raw`b = 2 - \cos\omega_c`} />. The kit does not place it so, because its one-poles that are set this high are gentle roll-offs, where the name is enough. A filter that has to be in tune is not built from one pole.
+    <Claim id="exact-pole">A pole placed so that the corner falls on the Cutoff itself</Claim> would be <M t={String.raw`a = b - \sqrt{b^2 - 1}`} /> with <M t={String.raw`b = 2 - \cos\omega_0`} />. The kit does not place it so: it takes the pole from the time, as stage 2 showed. For a gentle roll-off the name is enough, and a filter that has to be in tune is not built from one pole.
 
   </Fault>
   <Fault title="It does not arrive">
@@ -761,10 +770,10 @@ Most of what goes wrong with one pole is one of its virtues seen from the other 
 
 <Myths>
   <Myth says="The cutoff is where the filter stops the sound.">
-    At the cutoff a tone has lost half its power, and it is plainly still there. Each octave above the cutoff takes off as much again as stage 3 measured. The first picture of stage 3 is that slope, and the card "One pole is no wall" in part 7 plays it.
+    At the cutoff a tone has lost half its power, and it is plainly still there. Above the cutoff each octave takes off more, at the slope stage 3 measured. The first picture of stage 3 is that slope, and the card "One pole is no wall" in part 7 plays it.
   </Myth>
   <Myth says="A smoothing time is how long the control takes to arrive.">
-    It is the time constant: the time to cover about two thirds of the way. <Claim id="lag-15">At 5 ms a control is 95 % of the way 15 ms after its value was sent</Claim>, and stage 7 measures how much longer it takes to land. The step picture of stage 2 shows where one, two and three time constants fall.
+    It is the time constant: the time to cover <Src path="cpp/kit/math.h" at="// A time constant as a one-pole coefficient: the pole that covers 63 % of a">63 % of the way</Src>. <Claim id="lag-15">At 5 ms a control is 95 % of the way 15 ms after its value was sent</Claim>, and stage 7 measures how much longer it takes to land. The step picture of stage 2 shows the curve still climbing long after it has crossed that level.
   </Myth>
   <Myth says="A high-pass is a different filter from a low-pass.">
     Here it is the same filter and one subtraction. Step 4 of the build adds it in a line, and stage 4 shows the two responses crossing. The two halves add back to the input.
@@ -776,7 +785,7 @@ Most of what goes wrong with one pole is one of its virtues seen from the other 
     That is the textbook's split. With this one the halves add back exactly, sample by sample, and at the cutoff the high half is a little further down than the low half. Stage 4 has both numbers.
   </Myth>
   <Myth says="6 dB an octave means the filter takes 6 dB off above the cutoff.">
-    It is a slope and not an amount: that much for every doubling of the frequency. Two octaves above the cutoff the loss is about twice what it is one octave above, and it goes on growing until the top of the band, where stage 3 shows it flatten.
+    It is a slope and not an amount: that much again for every doubling of the frequency. The loss goes on growing with every octave above the cutoff, until the top of the band, where stage 3 shows the slope flatten.
   </Myth>
 </Myths>
 

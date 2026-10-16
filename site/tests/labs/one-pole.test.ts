@@ -183,38 +183,51 @@ describe('the one-pole filter and smoothing', () => {
     }
   })
 
-  it('has covered 86.5 % after two time constants, 95 % after three and 99.3 % after five (claim step-two-three)', async () => {
+  it('with the cutoff at 20 Hz has covered 86.5 % after two time constants, 95 % after three and 99.3 % after five (claim step-two-three)', async () => {
     const pole = await lab('one-pole')
     // At 20 Hz a time constant is 382 samples, so a sample is a small part of one.
-    const low = tap(pole.render(stepUp(), { cutoff: 20 }), 'low')
-    const at = (constants: number) =>
-      100 * low[seconds(0.5) + Math.round(constants * tauSamples(20)) - 1]!
+    const covered = (cutoff: number) => {
+      const low = tap(pole.render(stepUp(), { cutoff }), 'low')
+      return (constants: number) =>
+        100 * low[seconds(0.5) + Math.round(constants * tauSamples(cutoff)) - 1]!
+    }
+    const at = covered(20)
     expectWritten(at(1), '63 %')
     expectWritten(at(2), '86.5 %')
     expectWritten(at(3), '95 %')
     expectWritten(at(5), '99.3 %')
+    // Set high, a time constant is a sample or two and the count of whole samples misses it: the
+    // sentence names its cutoff.
+    expect(matchesWritten(covered(5000)(2), '86.5 %')).toBe(false)
   })
 
-  it('passes a tone at its cutoff 3.0 dB down (claim minus-3)', async () => {
+  it('with the cutoff at 500 Hz passes a tone at the cutoff 3.0 dB down (claim minus-3)', async () => {
     const pole = await lab('one-pole')
-    const out = pole.render(sine(500, 0.5, seconds(1)), { cutoff: 500 })
-    expectWritten(downDb(out, 'low'), '3.0 dB')
+    const down = (cutoff: number) =>
+      downDb(pole.render(sine(cutoff, 0.5, seconds(1)), { cutoff }), 'low')
+    expectWritten(down(500), '3.0 dB')
+    // Set high it is less: the sentence names its cutoff.
+    expect(matchesWritten(down(8000), '3.0 dB')).toBe(false)
   })
 
-  it('falls 6.0 dB an octave well above the cutoff (claim octave), which is each tone 0.50 of the size of the one an octave under it (claim octave-half), and 20 dB a decade (claim decade)', async () => {
+  it('with the cutoff at 20 Hz falls 6.0 dB over the octave from 500 Hz to 1 kHz (claim octave), which is the higher tone 0.50 of the size of the lower (claim octave-half), and 20 dB over the decade from 200 Hz to 2 kHz (claim decade)', async () => {
     const pole = await lab('one-pole')
     const down = (hz: number, cutoff: number) =>
       downDb(pole.render(sine(hz, 0.5, seconds(1)), { cutoff }), 'low')
-    // An octave is a doubling of the frequency: 1 kHz to 2 kHz, with the cutoff far under both.
-    expectWritten(down(2000, 100) - down(1000, 100), '6.0 dB')
+    // An octave is a doubling of the frequency: 500 Hz to 1 kHz, with the cutoff far under both
+    // and the top of the band far over them.
+    const octave = down(1000, 20) - down(500, 20)
+    expectWritten(octave, '6.0 dB')
     // Half the size is 6 dB: the two say the same thing.
-    expectWritten(down(2000, 100) - down(1000, 100), '6 dB')
-    expectWritten(10 ** (-(down(2000, 100) - down(1000, 100)) / 20), '0.50')
-    // A decade is ten times the frequency: 200 Hz to 2 kHz, with the cutoff at 20 Hz.
+    expectWritten(octave, '6 dB')
+    expectWritten(10 ** (-octave / 20), '0.50')
+    // A decade is ten times the frequency: 200 Hz to 2 kHz.
     expectWritten(down(2000, 20) - down(200, 20), '20 dB')
     // The first decade above the cutoff holds the bend, so it falls less.
     expect(down(1000, 100) - down(100, 100)).toBeGreaterThan(16.5)
     expect(down(1000, 100) - down(100, 100)).toBeLessThan(17.5)
+    // And towards the top of the band an octave falls less than that: the sentence names its octave.
+    expect(matchesWritten(down(8000, 100) - down(4000, 100), '6.0 dB')).toBe(false)
   })
 
   it('flattens towards the top of the band: with the cutoff at 100 Hz the last octave, 10 kHz to 20 kHz, falls 4.0 dB (claim top-octave)', async () => {
@@ -237,15 +250,21 @@ describe('the one-pole filter and smoothing', () => {
     }
   })
 
-  it('would be 3 dB down at the cutoff itself with the pole a = b − √(b² − 1), b = 2 − cos ω (claim exact-pole)', () => {
-    // Arithmetic on the formula alone: the kit does not place its pole this way.
-    for (const cutoff of [100, 500, 3600, 8000, 13500, 20000]) {
-      const w = (2 * Math.PI * cutoff) / RATE
+  it('is 3 dB down at the corner asked for when its pole is a = b − √(b² − 1), b = 2 − cos ω₀ (claim exact-pole)', async () => {
+    const pole = await lab('one-pole')
+    for (const wanted of [100, 500, 3600, 8000, 13500, 20000]) {
+      const w = (2 * Math.PI * wanted) / RATE
       const b = 2 - Math.cos(w)
       const a = b - Math.sqrt(b * b - 1)
-      const level = (1 - a) / Math.sqrt(1 - 2 * a * Math.cos(w) + a * a)
-      expect(20 * Math.log10(level), `${cutoff} Hz`).toBeCloseTo(-3.0103, 4)
+      // The kit takes its pole from a cutoff, so the kit's filter is given the cutoff that comes
+      // to that pole, and the corner is measured through it.
+      const cutoff = (-Math.log(a) * RATE) / (2 * Math.PI)
+      const out = pole.render(noise(0.25, seconds(0.25)), { cutoff })
+      expect(out.checks.corner! / wanted, `${wanted} Hz`).toBeCloseTo(1, 5)
     }
+    // Set to the corner itself, the kit's filter is not 3 dB down there.
+    const plain = pole.render(noise(0.25, seconds(0.25)), { cutoff: 8000 })
+    expect(plain.checks.corner! / 8000).toBeGreaterThan(1.1)
   })
 
   it('with the cutoff at 500 Hz stands 2.6 dB above the textbook pole at 20 kHz, and within 0.1 dB of it up to 3 kHz (claim bend)', async () => {
@@ -284,13 +303,14 @@ describe('the one-pole filter and smoothing', () => {
     expectWritten(out.checks.corner! / 1000, '8.86 kHz')
   })
 
-  it('puts the −3 dB point where cos ω = 2 − cosh ω₀ says, to less than 0.01 % (claim corner-formula)', async () => {
+  it('puts the −3 dB point where cos ω = 2 − cosh ω₀ says, to less than 0.001 % (claim corner-formula)', async () => {
     const pole = await lab('one-pole')
-    for (const cutoff of [100, 500, 2000, 5000, 8000, 12000]) {
+    // Every cutoff that has a corner under half the sample rate, in steps of about a sixth of an octave.
+    for (let cutoff = 20; cutoff < 13000; cutoff *= 1.13) {
       const out = pole.render(noise(0.25, seconds(0.25)), { cutoff })
       const w0 = (2 * Math.PI * cutoff) / RATE
       const predicted = (Math.acos(2 - Math.cosh(w0)) * RATE) / (2 * Math.PI)
-      expectWritten(100 * Math.abs(out.checks.corner! / predicted - 1), 'less than 0.01 %')
+      expectWritten(100 * Math.abs(out.checks.corner! / predicted - 1), 'less than 0.001 %')
     }
   })
 
@@ -305,7 +325,7 @@ describe('the one-pole filter and smoothing', () => {
     expectWritten(downDb(out, 'low'), '1.2 dB')
   })
 
-  it('gives back the input when low and high are added: exactly on the noise, and to one rounding of a float, 7.5 billionths of full scale, on the drums (claim complement)', async () => {
+  it('gives back the input when low and high are added: exactly on the noise, and to one rounding of a float, 7.45 billionths of full scale, on the drums (claim complement)', async () => {
     const pole = await lab('one-pole')
     const apartOn = async (id: string) => {
       const out = pole.render(await benchSource(id, seconds(4)), {})
@@ -326,18 +346,62 @@ describe('the one-pole filter and smoothing', () => {
     // (x − low) + low is rounded twice. One sample in thirty comes back one step of a float off.
     expect(drums.count).toBeGreaterThan(0)
     expect(drums.count / seconds(4)).toBeLessThan(0.05)
-    expectWritten(drums.worst * 1e9, '7.5 billionths')
+    // One step of a float between a sixteenth and an eighth of full scale: 2 to the −27th.
+    expect(drums.worst).toBe(2 ** -27)
+    expectWritten(drums.worst * 1e9, '7.45 billionths')
     for (const id of ['saw', 'guitar', 'sweep'])
       expect((await apartOn(id)).worst, id).toBeLessThan(1e-8)
   })
 
-  it('passes a tone at the cutoff 3.3 dB down through the high-pass, not 3.0 (claim high-at-cutoff), and rises 6.0 dB an octave below it (claim high-octave)', async () => {
+  it('with the cutoff at 500 Hz passes a tone at the cutoff 3.3 dB down through the high-pass, not 3.0 (claim high-at-cutoff), and far below the cutoff rises 6.0 dB an octave (claim high-octave)', async () => {
     const pole = await lab('one-pole')
     const down = (hz: number, cutoff: number) =>
       downDb(pole.render(sine(hz, 0.5, seconds(1)), { cutoff }), 'high')
     expectWritten(down(500, 500), '3.3 dB')
     expect(matchesWritten(down(500, 500), '3.0 dB')).toBe(false)
+    // Far below: from 100 Hz to 200 Hz, with the cutoff at 2 kHz.
     expectWritten(down(100, 2000) - down(200, 2000), '6.0 dB')
+    // The higher the cutoff, the further the high-pass at the cutoff is under the low-pass there.
+    const under = (cutoff: number) =>
+      down(cutoff, cutoff) - downDb(pole.render(sine(cutoff, 0.5, seconds(1)), { cutoff }), 'low')
+    expect(under(500)).toBeGreaterThan(under(100))
+    expect(under(2000)).toBeGreaterThan(under(500))
+    expect(under(8000)).toBeGreaterThan(under(2000))
+  })
+
+  it('crosses its high-pass beside the cutoff while the cutoff is low, further above it as the cutoff rises, and nowhere with the cutoff at its highest', async () => {
+    const pole = await lab('one-pole')
+    // Where the two measured responses cross, as a multiple of the cutoff; 0 where they do not.
+    const crossing = (cutoff: number) => {
+      const out = pole.render(noise(0.25, seconds(0.25)), { cutoff })
+      const lows = tap(out, 'response')
+      const highs = tap(out, 'responseHigh')
+      for (let p = 1; p < lows.length; p += 1) {
+        if (lows[p]! > highs[p]!) continue
+        return (20 * 1000 ** (p / (lows.length - 1))) / cutoff
+      }
+      return 0
+    }
+    // The curves have 80 points a decade, so a crossing is found to within 3 %.
+    for (const cutoff of [50, 100, 500]) {
+      expect(crossing(cutoff), `${cutoff} Hz`).toBeGreaterThan(0.97)
+      expect(crossing(cutoff), `${cutoff} Hz`).toBeLessThan(1.08)
+    }
+    expect(crossing(5000)).toBeGreaterThan(1.4)
+    expect(crossing(20000)).toBe(0)
+  })
+
+  it('parts from the textbook pole in the same place whatever the cutoff: within 1 dB of it up to 10 kHz, and more than 2 dB above it at 20 kHz', async () => {
+    const pole = await lab('one-pole')
+    for (const cutoff of [50, 100, 500, 2000, 5000]) {
+      const out = pole.render(noise(0.25, seconds(0.25)), { cutoff })
+      const measured = tap(out, 'response')
+      const textbook = tap(out, 'responseTextbook')
+      const hzAt = (p: number) => 20 * 1000 ** (p / 240)
+      for (let p = 0; p < 241 && hzAt(p) <= 10000; p += 1)
+        expect(Math.abs(measured[p]! - textbook[p]!), `${cutoff} Hz`).toBeLessThan(1)
+      expect(measured[240]! - textbook[240]!, `${cutoff} Hz`).toBeGreaterThan(2)
+    }
   })
 
   it('stops 7 float steps short of a steady 1 at 500 Hz, and leaves that in the high-pass, 128 dB down (claim never-arrives) (claim never-silent)', async () => {
@@ -370,6 +434,28 @@ describe('the one-pole filter and smoothing', () => {
     const beyond = pole.render(await benchSource('noise', seconds(1)), { cutoff: 8000 })
     expect(beyond.checks.split).toBe(-140)
     expect(tap(beyond, 'deviceLow').some((v, i) => v !== tap(beyond, 'low')[i])).toBe(true)
+  })
+
+  it('set as the bench sets it, the Tremolo passes one band at a time: its output and its low band for half of each cycle, or the rest of the sound for the other half, are more than 100 dB apart on every loop of the page (claim trades)', async () => {
+    const pole = await lab('one-pole')
+    for (const id of [
+      'drums',
+      'chords',
+      'mix',
+      'pad',
+      'saw',
+      'noise',
+      'clicks',
+      'sweep',
+      'guitar',
+    ]) {
+      const source = await benchSource(id, seconds(4))
+      for (const cutoff of [100, 500, 4000]) {
+        const out = pole.render(source, { cutoff })
+        // The check is the difference under the band, in dB: a level below 0.
+        expectWritten(-out.checks.trades!, 'more than 100 dB')
+      }
+    }
   })
 
   // ---- the filter on a control ----------------------------------------------------------------
@@ -512,7 +598,7 @@ describe('the one-pole filter and smoothing', () => {
     expectWritten(clicks(10) - clicks(200), '16 dB')
   })
 
-  it('is on the controls of more than 100 devices: 136 of them declare a kit::Smoother (claim smoothed-devices)', () => {
+  it('is on the controls of more than 100 devices, counted as those whose headers declare a kit::Smoother (claim smoothed-devices)', () => {
     const devices = fileURLToPath(new URL('../../../cpp/devices/', import.meta.url))
     const smoothed = readdirSync(devices, { withFileTypes: true }).filter(
       (entry) =>
@@ -600,9 +686,12 @@ describe('the one-pole filter and smoothing', () => {
     }
     expect(same(1)).toBe(true)
     expect(same(2)).toBe(false)
+    // The span itself, read off the running average of the first step: three samples at both.
+    for (const cutoff of [5000, 6000])
+      expectWritten(weights(0, cutoff).filter((v) => v !== 0).length, '3 samples')
   })
 
-  it('the high-pass passes a 50 Hz tone 20.3 dB down with the cutoff at 500 Hz, where the low-pass of the step before passed it 0.0 dB down (claim build-high)', async () => {
+  it('the high-pass passes a 50 Hz tone 20.3 dB down with the cutoff at 500 Hz, where the low-pass of the step before passed it less than 0.1 dB down (claim build-high)', async () => {
     const pole = await lab('one-pole')
     const down = (build: number) =>
       downDb(
@@ -612,22 +701,22 @@ describe('the one-pole filter and smoothing', () => {
         seconds(0.9),
       )
     expectWritten(down(3), '20.3 dB')
-    expectWritten(down(2), '0.0 dB')
+    expectWritten(down(2), 'less than 0.1 dB')
     expect(matchesWritten(down(2), '20.3 dB')).toBe(false)
   })
 
-  it('with the fader at one half, as it is for the first tenth of a second, the halves add back to the sound at half its size: a 1 kHz tone comes out 6.0 dB down, where the high-pass alone passed it 1.3 dB down (claim build-fader)', async () => {
+  it('with the fader at one half, as it is for the first tenth of a second, the halves add back to the sound at half its size: a 750 Hz tone comes out 6.0 dB down, where the high-pass alone passed it 1.9 dB down (claim build-fader)', async () => {
     const pole = await lab('one-pole')
     const from = seconds(0.03)
     const to = seconds(0.09)
-    const render = (build: number) => pole.render(sine(1000, 0.5, seconds(4)), { build })
+    const render = (build: number) => pole.render(sine(750, 0.5, seconds(4)), { build })
     const faded = render(4)
     // The fader holds one half until a tenth of a second in.
     const held = tap(faded, 'builtFader')
     expect(held[Math.round(from / 16)]).toBe(0.5)
     expect(held[Math.round(to / 16)]).toBe(0.5)
     expectWritten(downDb(faded, 'built', from, to), '6.0 dB')
-    expectWritten(downDb(render(3), 'built', from, to), '1.3 dB')
+    expectWritten(downDb(render(3), 'built', from, to), '1.9 dB')
     expect(matchesWritten(downDb(render(3), 'built', from, to), '6.0 dB')).toBe(false)
     // At its ends the fader gives one half alone: the low half at 1, the high half at 0.
     const ends = pole.render(sine(1000, 0.5, seconds(4)), { build: 4, updates: 2 })
@@ -663,7 +752,8 @@ describe('the one-pole filter and smoothing', () => {
       { cutoff: 8000, updates: 2, smoothing: 0.3 },
       { smoothing: 0 },
     ]
-    const loops = ['drums', 'chords', 'bass', 'pad', 'mix', 'guitar', 'saw', 'noise', 'clicks']
+    // The loops the page offers, as its front matter lists them.
+    const loops = ['drums', 'chords', 'mix', 'pad', 'saw', 'noise', 'clicks', 'sweep', 'guitar']
     for (const id of loops) {
       const source = await benchSource(id, seconds(4))
       for (const values of tried) {
@@ -702,10 +792,10 @@ describe('the one-pole filter and smoothing', () => {
     expectWritten(bandDown(pole, 'low', 20, 150), '0.6 dB')
   })
 
-  it('takes the bottom out of a mix and leaves the top: through the high-pass what is below 150 Hz comes out 11.0 dB lower, and what is above 2 kHz 0.2 dB lower (claim use-thin)', async () => {
+  it('takes the bottom out of a mix and leaves the top: through the high-pass what is below 150 Hz comes out 11 dB lower, and what is above 2 kHz 0.2 dB lower (claim use-thin)', async () => {
     const pole = await lab('one-pole')
     await played(pole, 'thin')
-    expectWritten(bandDown(pole, 'high', 20, 150), '11.0 dB')
+    expectWritten(bandDown(pole, 'high', 20, 150), '11 dB')
     expectWritten(bandDown(pole, 'high', 2000, 20000), '0.2 dB')
   })
 
@@ -732,11 +822,11 @@ describe('the one-pole filter and smoothing', () => {
     expectWritten(bandDown(pole, 'low', 20, 1000), 'less than 0.1 dB')
   })
 
-  it('plays what the low-pass took away from the drums: the high-pass alone comes out 11 dB under the drums, and the low-pass 0.4 dB under them (claim way-removed)', async () => {
+  it('plays what the low-pass took away from the drums: the high-pass alone comes out 11 dB under the drums, and the low-pass less than 0.5 dB under them (claim way-removed)', async () => {
     const pole = await lab('one-pole')
     const out = await played(pole, 'removed')
     expectWritten(downDb(out, 'high'), '11 dB')
-    expectWritten(downDb(out, 'low'), '0.4 dB')
+    expectWritten(downDb(out, 'low'), 'less than 0.5 dB')
   })
 
   it('makes swells of jumps: with two values a second and the smoothing at 20 ms, 95 % of a jump of the gain is covered 60 ms after it (claim way-swell)', async () => {

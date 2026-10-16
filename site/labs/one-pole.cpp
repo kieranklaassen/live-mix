@@ -24,7 +24,9 @@
 // input with one OnePole per channel. The lab runs it a sample at a time,
 // reads that filter's state out of the device as a tap of its own, and holds
 // it against a OnePole of the lab's at the same crossover. Asleep, the device
-// does not run its filter; the lab's copies wait with it.
+// does not run its filter; the lab's copies wait with it. The device is set as
+// the lesson's bench sets it, so that what it does with the two bands can be
+// held too: its output against the one band its square wave has turned up.
 //
 // The build part puts the filter together a piece at a time, on a path of its
 // own beside the kit's (lab::Build in lab.h). It has six pieces, each a
@@ -61,6 +63,7 @@ constexpr int kChase = 33;       // the input that goes up and comes down: this 
 constexpr int kChaseUp = 16;     // of which this many, from the second on, stand at 1
 constexpr int kMaxWindow = 1024; // the most samples the build's running average may span
 constexpr float kFloatSteps = 16777216.0f;  // steps of a float in one unit, just under 1: 2 to the 24th
+constexpr int kTurnOver = 2400;  // 50 ms: what is left out after the Tremolo's square wave turns over
 
 kit::OnePole low_filter[2];
 kit::OnePole high_filter[2];
@@ -103,8 +106,14 @@ lab::Tap built_fader{"builtFader", "The fader, as built", lab::kControl, lab::kL
 
 lab::Check impulse_error{"impulseError", "The filter's impulse response against (1 − a)·aⁿ worked out directly", ""};
 lab::Check step_time{"stepTime", "Samples from the time constant to the first sample of the step at 63 %", "samples"};
-lab::Check corner{"corner", "Where the response measured through the filter is 3 dB down", "Hz"};
+lab::Check corner{"corner",
+                  "Where the response measured through the filter is 3 dB down, or half the sample rate where it is not",
+                  "Hz"};
 lab::Check split{"split", "The low band inside the Tremolo against the lab's own one-pole", "dB"};
+lab::Check trades{"trades",
+                  "The Tremolo's output against one band at a time: its low band for half of each cycle, the rest of "
+                  "the sound for the other half",
+                  "dB"};
 lab::Check same_filter{"sameFilter", "The smoother against a one-pole at the cutoff 1/(2π·time), until it lands", ""};
 lab::Check landing{"landing", "The smoother stands exactly on its target after", "ms"};
 lab::Check stall{"stall", "How far short of a steady 1 that one-pole stops, with nothing to land it", "float steps"};
@@ -415,6 +424,9 @@ void lab_render(int frames) {
     }
   }
   double split_apart = 0.0, split_whole = 0.0;
+  double trades_apart = 0.0, trades_whole = 0.0;
+  bool low_turn = true;  // which band the device's square wave has turned up
+  int since_turn = 0;    // samples since it last turned over
 
   const float seconds = smoothing.value * 0.001f;
   smoother.set_time(seconds, fs);
@@ -438,6 +450,10 @@ void lab_render(int frames) {
     // The device's own filter, and the lab's beside it, a sample at a time.
     // The device runs its filter only while it is awake.
     const bool awake = left != 0.0f || right != 0.0f || split_device.idle_.quiet_ < split_device.idle_.hold_;
+    // The first half of the oscillator's cycle is the low band's turn. Asleep, the oscillator waits.
+    const bool turn = split_device.phase_ < 0.5;
+    since_turn = turn == low_turn ? since_turn + 1 : 0;
+    low_turn = turn;
     split_device.in_left()[0] = left;
     split_device.in_right()[0] = right;
     split_device.process(1);
@@ -461,6 +477,18 @@ void lab_render(int frames) {
       const double apart = static_cast<double>(split_device.split_[c].state) - split_copy[c].state;
       split_apart += apart * apart;
       split_whole += static_cast<double>(split_copy[c].state) * split_copy[c].state;
+    }
+    // What the device does with its two bands: with a square shape at full depth it passes one
+    // at a time. Its slew rounds each change-over, so the 50 ms after one are left out.
+    if (awake && since_turn >= kTurnOver) {
+      for (int c = 0; c < 2; ++c) {
+        const float x = c == 0 ? left : right;
+        const float band = low_turn ? split_device.split_[c].state : x - split_device.split_[c].state;
+        const float out = c == 0 ? split_device.out_left()[0] : split_device.out_right()[0];
+        const double apart = static_cast<double>(out) - band;
+        trades_apart += apart * apart;
+        trades_whole += static_cast<double>(band) * band;
+      }
     }
     // The same blend from the kit's own filter and smoother: what the whole build is held to.
     const float kit_left = Built::blend(low_left, Built::rest(left, low_left), gain);
@@ -486,6 +514,7 @@ void lab_render(int frames) {
   }
   build.difference.value = lab::ratio_db(built_apart, built_whole);
   split.value = lab::ratio_db(split_apart, split_whole);
+  trades.value = lab::ratio_db(trades_apart, trades_whole);
 
   measure_filter();
   measure_smoothers();
