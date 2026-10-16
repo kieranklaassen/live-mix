@@ -99,7 +99,7 @@ Listen to the room being struck four times. <Hear set="click" label="Hear one sa
 
 </Predict>
 
-The rest of the lesson is that one sum. Part 2 shows what it is made of, part 4 builds it, and part 5 shows how the engine gets it done fast enough to play.
+The rest of the lesson is that one sum.
 
 </Part>
 
@@ -335,7 +335,7 @@ A few stamps out of many are far quieter than the finished reverb. So each of th
   </Step>
 </Build>
 
-That is a convolution reverb: a stamp, a way of doing every stamp at once, and a sum with the dry sound. What stood in the way was cost, and the transform answers that for a loop that is known in advance. A reverb that plays live cannot wait for the whole of its sound before it starts. The engine does not solve that itself: it writes the room, and hands the sum to the browser. The next part opens both.
+That is a convolution reverb: a stamp, a way of doing every stamp at once, and a sum with the dry sound. What stood in the way was cost, and the transform answers that for a loop that is known in advance. For sound that is still arriving the engine does not do the sum itself: it writes the room, and hands the sum to the browser.
 
 </Part>
 
@@ -346,7 +346,7 @@ The engine has the technique in two places: the room that every track can send i
 Under its title each stage says where its figure comes from. The impulse is made by the engine's own code. The pictures of stages 2 to 4 are the lab's own measurements of that impulse, and are marked so. The convolution inside the lab is the lesson's, and stage 6 holds it to the browser's.
 
 <Flow
-  label="Along the top, the sound divides: one copy goes straight to the output, the other is convolved with the room's impulse, turned down by the send and added back. Underneath, the impulse is made: seeded noise, through a low-pass that closes, shaped by a swell and a decay, and set to its level."
+  label="The sound divides: one copy goes straight to the output, the other is convolved with the room's impulse, turned down by the send and added back. On a row of its own the impulse is made: seeded noise, through a low-pass that closes, shaped by a swell and a decay, and set to its level."
   blocks={[
     { id: 'in', tap: 'in', shape: 'end' },
     { id: 'split', shape: 'dot', from: 'in' },
@@ -360,9 +360,9 @@ Under its title each stage says where its figure comes from. The impulse is made
     { id: 'out', tap: 'out', shape: 'end', from: 'sum' },
   ]}
 >
-  The row along the top is the sound, and it runs for as long as the sound does. The row under it
-  runs once, before any sound arrives: it writes the impulse the convolver is given. Press a stage's
-  button below, and notice its block light up here.
+  The row from Input to Output is the sound, and it runs for as long as the sound does. The row
+  from Seeded noise to Level runs once, before any sound arrives: it writes the impulse the
+  Convolver is given. Press a stage's button below, and notice its block light up here.
 </Flow>
 
 <StageBlock tap="room" n={1} title="Echoes too many to count are noise">
@@ -438,7 +438,7 @@ Under its title each stage says where its figure comes from. The impulse is made
     line steepen and stay straight. A straight line in decibels is an exponential decay.
   </Curve>
 
-  Nobody waits for the whole fall to read a room's length. The reading here is the one of <Lesson id="plate-reverb" />, and of <Lesson id="spring-reverb" />: the time this curve takes from 5 dB down to 25 dB down, multiplied by three. Read that way, the room the page opens on <Claim id="decay-time">falls 60 dB in 3.0 s</Claim>, which is the Decay it is set to. The reading moves a little with the stretch it is taken from, so it is written to two figures.
+  Nobody waits for the whole fall to read a room's length. The reading here is the one of <Lesson id="plate-reverb" />, which the lessons either side of this one use too: three times the stretch of this curve from 5 dB down to 25 dB down. Read that way, the room the page opens on <Claim id="decay-time">falls 60 dB in 3.0 s</Claim>, which is the Decay it is set to. The reading moves a little with the stretch it is taken from, so it is written to two figures.
 
   The curve itself is 60 dB down sooner. By the measure in the picture, that room has all but a millionth of its energy behind it <Claim id="energy-60">2.7 s</Claim> in. The curve counts what is left, and near the end almost nothing is: the tail stops at the Decay time, and its last tenth is run out, as is said below.
 

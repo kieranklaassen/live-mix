@@ -824,10 +824,10 @@ describe('plate reverb', () => {
       expect(tap(held, 'wobbleRight').every((v) => v === 0)).toBe(true)
     })
 
-    it('holds a steady tone steady when still, within 0.1 dB (claim still-steady), and swings it through 21 dB when the delays move (claim moving-swings)', async () => {
+    it('holds a steady tone steady when still, within 0.001 dB (claim still-steady), and swings it through 21 dB when the delays move (claim moving-swings)', async () => {
       const plate = await lab(NAME)
       const source = sine(440, 0.25, seconds(8))
-      expectWritten(swing(tap(plate.render(source, {}), 'out')), 'less than 0.1 dB')
+      expectWritten(swing(tap(plate.render(source, {}), 'out')), 'less than 0.001 dB')
       const moving = tap(plate.render(source, { movement: 1 }), 'out')
       expectWritten(swing(moving), '21 dB')
       // Read from a quarter, a half and three quarters of a tenth of a second later, it is the same.
@@ -984,12 +984,12 @@ describe('plate reverb', () => {
       expectWritten(levelOf(tap(result, 'out'), at, at + seconds(0.2)), '−23 dB')
     })
 
-    it('swings a held 440 Hz tone through 21 dB across the loop with the delays moving, and holds it within 0.01 dB with them still (claim fault-swell)', async () => {
+    it('swings a held 440 Hz tone through 21 dB across the loop with the delays moving, and holds it within 0.001 dB with them still (claim fault-swell)', async () => {
       const plate = await lab(NAME)
       expectWritten(swing(tap(await played(plate, 'swell'), 'out')), '21 dB')
       expectWritten(
         swing(tap(await played(plate, 'swell', { movement: 0 }), 'out')),
-        'less than 0.01 dB',
+        'less than 0.001 dB',
       )
     })
 

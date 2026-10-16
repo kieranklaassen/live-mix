@@ -14,6 +14,7 @@ import {
   gainToDb,
   lab,
   matchesWritten,
+  noise,
   range,
   RATE,
   rms,
@@ -56,20 +57,21 @@ function slope(points: [number, number][]): number {
   return (n * sxy - sx * sy) / (n * sxx - sx * sx)
 }
 
-/**
- * Seconds to fall 60 dB, from the line fitted to an energy decay curve between 5 dB and
- * 35 dB down: the usual way a decay time is read off such a curve.
- */
-function decayTime(curve: Curve, from = -5, to = -35): number {
+/** When a curve that only falls first stands at `level` dB, by a straight line between its points. */
+function timeDown(curve: Curve, level: number): number {
   const data = curve.channels_data[0]!
-  const points: [number, number][] = []
-  for (let i = 0; i < data.length; i += 1) {
-    const y = data[i]!
-    if (y > from) continue
-    if (y < to) break
-    points.push([curve.x0 + ((curve.x1 - curve.x0) * i) / (data.length - 1), y])
-  }
-  return -60 / slope(points)
+  const p = data.findIndex((v) => v <= level)
+  const part = (data[p - 1]! - level) / (data[p - 1]! - data[p]!)
+  return curve.x0 + ((curve.x1 - curve.x0) * (p - 1 + part)) / (data.length - 1)
+}
+
+/**
+ * Seconds to fall 60 dB, read as the plate, the convolution and the spring lessons read
+ * theirs: three times the stretch of the curve of the energy still to come from 5 dB down to
+ * 25 dB down. `shift` takes the stretch that many dB lower.
+ */
+function fallTime(curve: Curve, shift = 0): number {
+  return 3 * (timeDown(curve, -25 - shift) - timeDown(curve, -5 - shift))
 }
 
 /** Seconds to fall 60 dB, from the energy of an answer in quarter-second windows from `from` to `to` seconds. */
@@ -144,6 +146,25 @@ function fall(answer: Float32Array, hz: number): number {
 function echoes(x: Float32Array, from: number, to: number): number {
   let count = 0
   for (let i = from; i < to; i += 1) if (x[i] !== 0) count += 1
+  return count
+}
+
+/**
+ * Echoes in the 10 ms of an answer that start at `from`, counted as the plate lesson counts
+ * them: samples larger in size than both neighbours and within 60 dB of the largest of the
+ * same 10 ms. `within` draws that line somewhere else.
+ */
+function peaksIn(h: ArrayLike<number>, from: number, within = 60): number {
+  let most = 0
+  for (let i = from; i < from + 480; i += 1) most = Math.max(most, Math.abs(h[i]!))
+  const floor = most * 10 ** (-within / 20)
+  let count = 0
+  for (let i = from; i < from + 480; i += 1) {
+    const here = Math.abs(h[i]!)
+    const before = i > 0 ? Math.abs(h[i - 1]!) : 0
+    const after = Math.abs(h[i + 1] ?? 0)
+    if (here > floor && here > before && here >= after) count += 1
+  }
   return count
 }
 
@@ -635,6 +656,36 @@ describe('the feedback delay network', () => {
     expect(range(large.channels_data[0]!).hi).toBeLessThan(4.1)
   })
 
+  it("counts, the plate lesson's way, 160 echoes in every 10 ms of the device's answer to a click on average over the 400 ms from 200 ms on, which is what white noise counted that way holds (claim density-peaks)", async () => {
+    const fdn = await lab(NAME)
+    const taps = fdn.render(click(seconds(1)), {}).taps
+    // Forty stretches of 10 ms, from 200 ms after the click: the shortest line has delivered
+    // by 109 ms and the longest by 177 ms.
+    const mean = (h: ArrayLike<number>, within = 60) => {
+      let sum = 0
+      for (let w = 20; w < 60; w += 1) sum += peaksIn(h, w * 480, within)
+      return sum / 40
+    }
+    const answer = taps.answer!.channels_data[0]!
+    expect(answer.length).toBe(seconds(2))
+    expectWritten(mean(answer), '160')
+    // It does not hang on where the line of 60 dB is drawn.
+    expect(Math.abs(mean(answer, 40) - mean(answer))).toBeLessThan(1)
+    expect(Math.abs(mean(answer, 100) - mean(answer))).toBeLessThan(1)
+    // Three seconds of noise, a second of each of three seeds.
+    let sum = 0
+    for (const seed of [1, 2, 3]) {
+      const hiss = noise(0.5, seconds(1), seed).left
+      for (let w = 0; w < 100; w += 1) sum += peaksIn(hiss, w * 480)
+    }
+    expectWritten(sum / 300, '160')
+    // The bare network of part 2 is nowhere near it over the same stretch, mixed or not: the
+    // device's diffusers and its filters are what fill the samples between.
+    expect(mean(taps.mixed!.channels_data[0]!)).toBeLessThan(40)
+    expect(mean(taps.apart!.channels_data[0]!)).toBeLessThan(1)
+    expect(matchesWritten(mean(taps.mixed!.channels_data[0]!), '160')).toBe(false)
+  })
+
   it('sets one gain for all eight lines from their mean length: 5.78 dB a trip at 1.5 s (claim trip-gain), never nearer 1 than 0.975 (claim gain-cap)', async () => {
     const fdn = await lab(NAME)
     const gain = fdn.render(click(seconds(1)), { decay: 1.5 }).checks.tripGain!
@@ -652,38 +703,59 @@ describe('the feedback delay network', () => {
     )
   })
 
-  it('decays, with the damping at 0, within 15 % of the time set: 0.97 s for 1 s, 1.34 s for 1.5 s, 1.77 s for 2 s (claim decay-set)', async () => {
+  it('decays, with the damping at 0, in 1.0 s for 1 s set and 1.7 s for 2 s (claim decay-set); for 1.5 s set it reads 1.36 s, and 1.40 s or 1.27 s with the stretch a decibel higher or a decibel lower (claim decay-read)', async () => {
     const fdn = await lab(NAME)
-    const measured: Record<string, number> = {}
-    for (const set of [1, 1.5, 2]) {
-      const time = decayTime(
-        fdn.render(click(seconds(1)), { decay: set, damping: 0 }).taps.decayCurve!,
-      )
-      measured[set] = time
-      expect(time).toBeGreaterThan(set * 0.85)
-      // And always on the short side.
-      expect(time).toBeLessThan(set)
+    const curve = (set: number) =>
+      fdn.render(click(seconds(1)), { decay: set, damping: 0 }).taps.decayCurve!
+    // Measured: 0.995 s and 1.728 s.
+    expectWritten(fallTime(curve(1)), '1.0 s')
+    expectWritten(fallTime(curve(2)), '1.7 s')
+    // The stretch from 5 dB down to 25 dB down, then from 4 to 24 and from 6 to 26. The curve
+    // comes down in steps here, so a decibel moves the reading by more than a figure's worth.
+    const middle = curve(1.5)
+    expectWritten(fallTime(middle), '1.36 s')
+    expectWritten(fallTime(middle, -1), '1.40 s')
+    expectWritten(fallTime(middle, 1), '1.27 s')
+    // Short of what was set at 1.5 s and at 2 s, wherever the stretch is taken, and never by
+    // more than a sixth.
+    for (const set of [1.5, 2]) {
+      for (const shift of [-1, 0, 1]) {
+        const time = fallTime(curve(set), shift)
+        expect(time, `${set} s, ${shift} dB`).toBeLessThan(set)
+        expect(time, `${set} s, ${shift} dB`).toBeGreaterThan((set * 5) / 6)
+      }
     }
-    expectWritten(measured[1]!, '0.97 s')
-    expectWritten(measured[1.5]!, '1.34 s')
-    expectWritten(measured[2]!, '1.77 s')
+    // The line fitted between 5 dB and 35 dB down, which the lesson read before, is not that
+    // reading: it gave 1.34 s for 1.5 s set.
+    expect(matchesWritten(fallTime(middle), '1.34 s')).toBe(false)
   })
 
-  it('reads long, not short, by the same fitted line with Size at 2: 1.6 s for 1.5 s set (claim decay-size)', async () => {
+  it('reads long, not short, by the same stretch with Size at 2: more than 1.5 s for 1.5 s set (claim decay-size)', async () => {
     const fdn = await lab(NAME)
-    const time = decayTime(
+    const time = fallTime(
       fdn.render(click(seconds(1)), { decay: 1.5, damping: 0, size: 2 }).taps.decayCurve!,
     )
-    expectWritten(time, '1.6 s')
-    expect(time).toBeGreaterThan(1.5)
+    // Measured: 1.556 s, on the edge between two numbers of two figures.
+    expectWritten(time, 'more than 1.5 s')
+    expect(time).toBeLessThan(1.7)
   })
 
-  it("falls at the rate of 60 dB in 1.48 s, with 1.5 s set, in the band around 500 Hz of the device's answer from half a second after the click on (claim decay-late)", async () => {
+  it("falls at the rate of 60 dB in 1.5 s, with 1.5 s set, in the band around 500 Hz of the device's answer from half a second after the click on (claim decay-late)", async () => {
     const fdn = await lab(NAME)
     const answer = fdn.render(click(seconds(1)), { decay: 1.5, damping: 0 }).taps.answer!
-    // Measured: 1.482 s. The same answer read by the line fitted between 5 dB and 35 dB down
-    // is the 1.34 s of the test above.
-    expectWritten(lateDecayTime(band(answer.channels_data[0]!, 500)), '1.48 s')
+    const middle = band(answer.channels_data[0]!, 500)
+    // Measured: 1.482 s from half a second to two seconds. The same answer read from 5 dB
+    // down to 25 dB down is the 1.36 s of the test above.
+    expectWritten(lateDecayTime(middle), '1.5 s')
+    // Other stretches of the same tail read 1.43 s to 1.56 s, so two figures are written.
+    for (const [from, to] of [
+      [0.5, 1.5],
+      [0.75, 2],
+      [1, 2],
+    ]) {
+      expect(lateDecayTime(middle, from, to)).toBeGreaterThan(1.4)
+      expect(lateDecayTime(middle, from, to)).toBeLessThan(1.6)
+    }
   })
 
   it('decays in 1.46 s as a bare network with one gain for all at 1.5 s, and in 1.50 s with a gain for each line (claim bare-decay)', async () => {
@@ -700,7 +772,7 @@ describe('the feedback delay network', () => {
     expectWritten(each, '1.50 s')
   })
 
-  it("falls short of a long decay time: with 20 s set, the level of a click's tail falls between 1 s and 7 s after it at the rate of 60 dB in 15.7 s (claim decay-long); around 1 kHz the same tail falls at the rate of 60 dB in 19.2 s and around 8 kHz in 10.8 s (claim decay-long-bands)", async () => {
+  it("falls short of a long decay time: with 20 s set, the level of a click's tail falls between 1 s and 7 s after it at the rate of 60 dB in 16 s (claim decay-long); around 1 kHz the same tail falls at the rate of 60 dB in 19 s and around 8 kHz in 11 s (claim decay-long-bands)", async () => {
     const fdn = await lab(NAME)
     const out = fdn.render(click(seconds(8)), { decay: 20, damping: 0 })
     // Eight seconds of every tap fit in the lab's room.
@@ -711,13 +783,15 @@ describe('the feedback delay network', () => {
       for (let i = 3000; i < 21000; i += 1) points.push([i / 3000, level[i]!])
       return -60 / slope(points)
     }
+    // Measured: 15.7 s. From 1 s to 6 s it reads 15.3 s and from 2 s to 7 s 16.3 s, so two
+    // figures are written.
     const twenty = whole(out.taps.level!.channels_data[0]!)
-    expectWritten(twenty, '15.7 s')
+    expectWritten(twenty, '16 s')
     // The same seven seconds band by band: the middle of the spectrum keeps nearly the time
     // set, and the top falls far short of it.
     const tail = out.taps.out!.channels_data[0]!
-    expectWritten(lateDecayTime(band(tail, 1000), 1, 7), '19.2 s')
-    expectWritten(lateDecayTime(band(tail, 8000), 1, 7), '10.8 s')
+    expectWritten(lateDecayTime(band(tail, 1000), 1, 7), '19 s')
+    expectWritten(lateDecayTime(band(tail, 8000), 1, 7), '11 s')
     // And less well the longer Decay is: 5 s set comes nearer to 5 s than 20 s set to 20 s.
     const five = whole(
       fdn.render(click(seconds(8)), { decay: 5, damping: 0 }).taps.level!.channels_data[0]!,
@@ -737,7 +811,7 @@ describe('the feedback delay network', () => {
     }
   })
 
-  it('loses 9.8 dB a trip at 8 kHz against 5.8 dB at 500 Hz with the damping at 0.4 (claim damping-trip), which foretells a tail of 0.89 s at 8 kHz and of 1.49 s at 500 Hz (claim damping-foretold), and a click dies in 0.90 s around 8 kHz against 1.34 s around 500 Hz (claim damping-bands)', async () => {
+  it('loses 9.8 dB a trip at 8 kHz against 5.8 dB at 500 Hz with the damping at 0.4 (claim damping-trip), which foretells a tail of 0.89 s at 8 kHz and of 1.49 s at 500 Hz (claim damping-foretold), and a click dies in 0.92 s around 8 kHz against 1.3 s around 500 Hz (claim damping-bands)', async () => {
     const fdn = await lab(NAME)
     const out = fdn.render(click(seconds(1)), { decay: 1.5, damping: 0.4 })
     const low = atRatio(out.taps.passGain!, 500)
@@ -750,11 +824,14 @@ describe('the feedback delay network', () => {
     const foretold = (loss: number) => ((60 / loss) * MEAN) / RATE
     expectWritten(foretold(-low), '1.49 s')
     expectWritten(foretold(-high), '0.89 s')
-    const lowTime = decayTime(out.taps.decayLow!)
-    const highTime = decayTime(out.taps.decayHigh!)
-    expectWritten(lowTime, '1.34 s')
-    expectWritten(highTime, '0.90 s')
-    // The high band lands on what was foretold; the low band reads a tenth short of it.
+    // Each band's curve read as the whole answer's is: 1.323 s and 0.920 s. A decibel higher
+    // or lower the high band reads 0.92 s to 0.94 s and the low band 1.28 s to 1.47 s.
+    const lowTime = fallTime(out.taps.decayLow!)
+    const highTime = fallTime(out.taps.decayHigh!)
+    expectWritten(lowTime, '1.3 s')
+    expectWritten(highTime, '0.92 s')
+    // The high band comes within a twentieth of what was foretold; the low band reads a tenth
+    // short of it.
     expect(Math.abs(highTime - foretold(-high)) / foretold(-high)).toBeLessThan(0.05)
     expect(lowTime / foretold(-low)).toBeGreaterThan(0.85)
     expect(lowTime / foretold(-low)).toBeLessThan(0.95)
@@ -868,7 +945,7 @@ describe('the feedback delay network', () => {
     expectWritten(on.hi, '1.0')
   })
 
-  it('puts out two sides that have little to do with each other: a correlation of 0.13 on the clicks (claim stereo)', async () => {
+  it('puts out two sides that have little to do with each other: a likeness of 0.13 on the clicks, read as the plate lesson reads it (claim stereo)', async () => {
     const fdn = await lab(NAME)
     const clicks = await benchSource('clicks', seconds(2))
     const out = fdn.render(clicks, {}).taps.out!

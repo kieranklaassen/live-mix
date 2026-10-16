@@ -424,7 +424,10 @@ describe('the spring reverb lab', () => {
           // first step too, where a second build with every piece runs beside the one shown.
           for (const build of loop === 'drums' ? [0, 5] : [5]) {
             const { checks } = tank.render(source, { ...values, build })
-            // −140 dB is the floor of the reading: no difference at all.
+            // The largest difference in any one sample between a pickup as built and the
+            // device's own: 0 when every sample of all three is the same, and only then.
+            expect(checks.builtWorst, `${loop} ${JSON.stringify(values)}`).toBe(0)
+            // −140 dB is the floor of the other reading, which says only "more than 140 dB under".
             expect(checks.builtDifference, `${loop} ${JSON.stringify(values)}`).toBe(-140)
           }
         }

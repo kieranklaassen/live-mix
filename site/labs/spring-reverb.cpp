@@ -51,8 +51,9 @@
 // it run: one at the step the reader chose, which is what the "built" taps
 // show, and one with all six pieces, whose three pickups are compared on
 // every render with the pickups of the device's three springs (the
-// "builtDifference" check). With all six the build does to a sample what the
-// device's tank does, in the same order. A step before the last is the
+// "builtDifference" check, and "builtWorst", the largest difference in any
+// one sample). With all six the build does to a sample what the device's
+// tank does, in the same order. A step before the last is the
 // lesson's own: a tank with a piece missing, which the device never is.
 //
 // The device sleeps once nothing has gone in and its output has stayed under
@@ -271,6 +272,9 @@ struct Built {
 
 lab::Build build{"A line and a pickup|A hundred all-passes|Feedback|Damping|Drift|Several springs", Built::kSeveral,
                  -120.0f, "The tank as built, all six pieces, against the pickups of the device's own three springs"};
+
+lab::Check built_worst{"builtWorst",
+                       "The largest difference in any one sample between a pickup as built and the device's", ""};
 
 Built shown;  // at the step the reader chose: what the built taps hold
 Built held;   // with every piece: what is compared with the device
@@ -642,6 +646,7 @@ void lab_render(int frames) {
 
   double apart = 0.0, whole = 0.0;
   double built_apart = 0.0, built_whole = 0.0;
+  float worst = 0.0f;
   // The first spring's, as of the tank's last sample.
   float came_back = 0.0f;
   float heard = 0.0f;
@@ -694,10 +699,13 @@ void lab_render(int frames) {
         if (both) held.run(fed);
         if (kept) {
           for (int n = 0; n < kCoils; ++n) {
-            const double own = spring.spring_[n].line.read(spring.spring_[n].half);
+            const float pickup = spring.spring_[n].line.read(spring.spring_[n].half);
+            const double own = pickup;
             const double d = static_cast<double>(compared.coil[n].pickup) - own;
             built_apart += d * d;
             built_whole += own * own;
+            const float off = std::fabs(compared.coil[n].pickup - pickup);
+            if (off > worst) worst = off;
           }
         }
       }
@@ -741,6 +749,7 @@ void lab_render(int frames) {
   }
   rebuilt.value = lab::ratio_db(apart, whole);
   build.difference.value = lab::ratio_db(built_apart, built_whole);
+  built_worst.value = worst;
 
   strike();
   ring(low_rate, factor);
