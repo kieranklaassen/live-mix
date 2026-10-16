@@ -25,6 +25,9 @@
 //   kEngine  made by the engine's own code outside a device: its TypeScript,
 //            run by the page and handed to the lab (lab::aux below)
 //
+// A lab may also carry the lesson's build part: the technique put together a
+// piece at a time, on a path and taps of its own (lab::Build below).
+//
 // Labs are built by site/scripts/build-labs.sh with the flags the library's
 // own devices are built with, plus -fno-access-control so a lab can read a
 // device's state without the device being changed for it. Like the devices,
@@ -42,7 +45,7 @@ constexpr int kMaxFrames = 8 * 48000;
 constexpr int kFadeFrames = 960;       // 20 ms: the crossfade across a loop's wrap
 constexpr int kControlPeriod = 16;     // samples per point of a control tap
 constexpr int kMaxControls = 32;       // the most a lab may declare of each of the three
-constexpr int kMaxTaps = 48;
+constexpr int kMaxTaps = 64;
 constexpr int kMaxChecks = 16;
 
 // Pi as a double, for the lab's own sums. The kit's kPi is a float.
@@ -236,6 +239,78 @@ struct Check {
   float value = 0.0f;
   Check(const char* id_, const char* name_, const char* unit_) : id(id_), name(name_), unit(unit_) {
     if (g_check_count < kMaxChecks) g_checks[g_check_count++] = this;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// The build part: the technique put together a piece at a time, for the part
+// of a lesson where the reader adds one piece at each step. It runs on a path
+// of its own beside the lab's main one and writes taps of its own, whose ids
+// begin "built": "built" is the sound so far, and the others ("builtLevel",
+// "builtGain") are the lanes a step draws. The main path and its taps never
+// change with the step. A lab that has a build part declares it once:
+//
+//   lab::Build build{"A wire|Measure the level|Threshold and ratio", 1, -100.0f,
+//                    "The level the build measures, against the device's own detector"};
+//
+// which is one control and three checks:
+//
+//   build            the control: one choice a step, the first step at 0.
+//                    build.at() is the step chosen.
+//   builtStep        the step that is held to the engine, counted from 0: the
+//                    last one that builds the engine's own code again. A step
+//                    after it is written for the lesson and held by a test of
+//                    its own, so a lab whose later pieces the engine does not
+//                    have names an earlier step here.
+//   builtDifference  how far that step lands from what the engine itself made
+//                    (a device's output or state, or a kit class), as a level
+//                    in dB against it: lab::difference_db or lab::ratio_db.
+//                    The lab works it out on every render, whichever step is
+//                    chosen, and writes it to build.difference.value. Left
+//                    unwritten it reads 0 dB, which no bound allows.
+//   builtBound       the most builtDifference may be, in dB: below 0.
+//
+// The page shows the three beside the step, and expectBuild
+// (site/tests/labs/support.ts) holds every lab that has a build part to them.
+
+struct Build;
+inline Build* g_build = nullptr;
+
+struct Build {
+  Control step;
+  Check difference;
+  Check compared;
+  Check bound;
+  int compared_step;
+  float bound_db;
+
+  // `choices` names the steps, as a switch's positions are named. `against`
+  // says what is compared with what, for the page.
+  Build(const char* choices, int compared_step_, float bound_db_, const char* against)
+      : step("build", "Build", "", 0.0f, static_cast<float>(count(choices) - 1), 0.0f, kLinear, choices),
+        difference("builtDifference", against, "dB"),
+        compared("builtStep", "The step that is held to the engine", ""),
+        bound("builtBound", "The most the difference may be", "dB"),
+        compared_step(compared_step_),
+        bound_db(bound_db_) {
+    g_build = this;
+  }
+
+  int at() const { return step.choice(); }
+
+  // Before every render: the two checks that do not change, and a difference
+  // that is the worst there is until the lab has written its own.
+  void begin() {
+    compared.value = static_cast<float>(compared_step);
+    bound.value = bound_db;
+    difference.value = 0.0f;
+  }
+
+ private:
+  static int count(const char* choices) {
+    int steps = 1;
+    for (const char* c = choices; *c; ++c) steps += *c == '|' ? 1 : 0;
+    return steps;
   }
 };
 
@@ -504,6 +579,7 @@ void lab_run(int frames) {
   lab::g_arena_used = 0;
   for (int i = 0; i < lab::g_tap_count; ++i) lab::g_taps[i]->clear();
   for (int i = 0; i < lab::g_check_count; ++i) lab::g_checks[i]->value = 0.0f;
+  if (lab::g_build) lab::g_build->begin();
   if (frames > 0) lab_render(frames);
 }
 

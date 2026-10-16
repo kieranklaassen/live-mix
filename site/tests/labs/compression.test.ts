@@ -2,9 +2,16 @@ import { describe, expect, it } from 'vitest'
 import {
   benchSource,
   dbToGain,
+  expectBuild,
   expectSoundLab,
+  expectWritten,
+  gainToDb,
   lab,
+  matchesWritten,
   mean,
+  POINT_RATE,
+  range,
+  rms,
   seconds,
   silence,
   sine,
@@ -30,17 +37,7 @@ function riseMs(reduction: Float32Array, final: number, part = 1 - Math.exp(-1))
   const from = reduction.length / 2
   let k = from
   while (k < reduction.length && reduction[k]! > final * part) k += 1
-  return ((k - from) * 16 * 1000) / 48_000
-}
-
-const range = (x: Float32Array, from: number, to: number) => {
-  let lo = Infinity
-  let hi = -Infinity
-  for (let i = from; i < to; i += 1) {
-    lo = Math.min(lo, x[i]!)
-    hi = Math.max(hi, x[i]!)
-  }
-  return hi - lo
+  return ((k - from) * 1000) / POINT_RATE
 }
 
 const hard = { threshold: -24, ratio: 4, knee: 0, attack: 10, release: 0.1 }
@@ -135,10 +132,66 @@ describe('compression', () => {
     const two = out.taps.level!.channels_data[0]!
     // The last 100 ms, eleven cycles of the wobble.
     const from = one.length - 300
-    expect(range(one, from, one.length)).toBeGreaterThan(0.36)
-    expect(range(one, from, one.length)).toBeLessThan(0.48)
-    expect(range(two, from, two.length)).toBeGreaterThan(0.012)
-    expect(range(two, from, two.length)).toBeLessThan(0.028)
+    expect(range(one, from, one.length).span).toBeGreaterThan(0.36)
+    expect(range(one, from, one.length).span).toBeLessThan(0.48)
+    expect(range(two, from, two.length).span).toBeGreaterThan(0.012)
+    expect(range(two, from, two.length).span).toBeLessThan(0.028)
+  })
+
+  it("builds a compressor a piece at a time on taps of its own: every step changes one, none changes the main path, and the level the build measures is within −100 dB of the power in the device's detector", async () => {
+    const comp = await lab('compression')
+    expect(comp.description.controls.find((control) => control.id === 'build')!.choices).toEqual([
+      'A wire',
+      'Measure the level',
+      'Threshold and ratio',
+    ])
+    expectBuild(comp, await benchSource('drums', seconds(4)))
+    // A click a second, and a tone after a second of silence, leave the device half a second
+    // of silence at a time, in which it rests and forgets its level: the build has to forget
+    // with it to stay within the bound.
+    const clicks = await benchSource('clicks', seconds(4))
+    expect(comp.render(clicks, {}).checks.builtDifference).toBeLessThan(-100)
+    expect(comp.render(step(-6), { build: 2 }).checks.builtDifference).toBeLessThan(-100)
+    const result = comp.render(await benchSource('chords', seconds(4)), { build: 2, scLowCut: 300 })
+    expect(result.checks.builtStep).toBe(1)
+    expect(result.checks.builtBound).toBe(-100)
+    expect(result.checks.builtDifference).toBeLessThan(-100)
+  })
+
+  it('is a wire at the first step, and a wire with a meter on it at the second', async () => {
+    const comp = await lab('compression')
+    const drums = await benchSource('drums', seconds(4))
+    const main = comp.render(drums, {}).taps.level!.channels_data[0]!
+    for (const build of [0, 1]) {
+      const taps = comp.render(drums, { build, threshold: -40, ratio: 10 }).taps
+      expect(taps.built!.channels_data[0]!.every((v, i) => v === drums.left[i])).toBe(true)
+      expect(taps.builtGain!.channels_data[0]!.every((v) => v === 0)).toBe(true)
+      const level = taps.builtLevel!.channels_data[0]!
+      if (build === 0) expect(level.every((v) => v === -100)).toBe(true)
+      // The built level is the level the main path reads off the device, point for point.
+      else expect(level.every((v, i) => Math.abs(v - main[i]!) < 0.001)).toBe(true)
+    }
+  })
+
+  it('at the third step brings a tone 12 dB over the threshold down 9 dB at 4:1, and by nothing with the piece out', async () => {
+    const comp = await lab('compression')
+    const tone = sineAt(-12, seconds(2))
+    const values = { threshold: -24, ratio: 4 }
+    const turnedDown = (build: number) => {
+      const taps = comp.render(tone, { ...values, build }).taps
+      return -gainToDb(rms(taps.built!.channels_data[0]!) / rms(taps.in!.channels_data[0]!))
+    }
+    expectWritten(turnedDown(2), '9 dB')
+    expectWritten(
+      -mean(comp.render(tone, { ...values, build: 2 }).taps.builtGain!.channels_data[0]!),
+      '9.0 dB',
+    )
+    // The piece switched out: the step before it turns nothing down.
+    expect(Math.abs(turnedDown(1))).toBe(0)
+    expect(matchesWritten(turnedDown(1), '9 dB')).toBe(false)
+    // And it answers to its two controls: 12 dB over at 2:1 comes down 6 dB.
+    const halved = comp.render(tone, { threshold: -24, ratio: 2, build: 2 }).taps
+    expectWritten(-mean(halved.builtGain!.channels_data[0]!), '6.0 dB')
   })
 
   it('is the input, sample for sample, with the mix at 0 (claim mix-zero)', async () => {

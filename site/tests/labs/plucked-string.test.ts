@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { expectSoundLab, lab, peak, seconds, silence } from './support.ts'
-
-const RATE = 48_000
+import { expectSoundLab, lab, peak, points, RATE, seconds, silence } from './support.ts'
 
 // Nothing goes in: the lab plays the note itself. Its key goes down 10 ms into the loop.
 const nothing = () => silence(seconds(4))
 const DOWN = 480
 /** The point of a control tap that stands `s` seconds after the key went down. */
-const tick = (s: number) => Math.round((s * RATE + DOWN) / 16)
+const tick = (s: number) => points(s + DOWN / RATE)
 
 /** The size, in dB, of the part of `x` that turns at `hz`, under a Hann window `length` long. */
 function sizeDb(x: Float32Array, hz: number, from: number, length: number): number {

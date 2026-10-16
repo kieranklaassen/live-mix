@@ -13,6 +13,17 @@
 // release, and reports how far that lands from the reduction the device
 // stored (the "rebuilt" check). The level after the first of the detector's
 // two poles is the device's own state too, put into dB here.
+//
+// The build part puts a compressor together a piece at a time, on a path of
+// its own beside the device (lab::Build in lab.h): a wire; then the level,
+// measured with the kit's filters as the device measures it; then threshold
+// and ratio, which turn the level into a gain. The path writes the "built"
+// taps and leaves every other tap as it was. Two copies of it run: one at the
+// step the reader chose, which is what the taps show, and one held at the
+// step that measures the level, whose reading is compared on every render
+// with the power in the device's own detector (the "builtDifference" check).
+// The step after it is written for the lesson: it is a compressor with a hard
+// knee and no attack or release, which the device never is.
 
 #include "lab.h"
 
@@ -50,6 +61,89 @@ lab::Tap curve_formula{"curveFormula", "The curve as written", lab::kCurve, lab:
 
 lab::Check rebuilt{"rebuilt", "The curve and ballistics worked out again, against the device's reduction", "dB"};
 lab::Check curve_error{"curveError", "The measured curve against the curve as written", "dB"};
+
+// The build part's pieces, in the order the steps add them.
+enum Piece : int { kWire = 0, kMeasure = 1, kCurve = 2 };
+
+lab::Build build{"A wire|Measure the level|Threshold and ratio", kMeasure, -100.0f,
+                 "The level the build measures, against the device's own detector"};
+
+lab::Tap built{"built", "The compressor so far", lab::kAudio, lab::kLesson, 2};
+lab::Tap built_level{"builtLevel", "Level, as built", lab::kControl, lab::kKit, 1, "dB"};
+lab::Tap built_gain{"builtGain", "Gain, as built", lab::kControl, lab::kLesson, 1, "dB"};
+
+// The compressor so far: the pieces up to `pieces`, one sample at a time.
+struct Built {
+  int pieces = kWire;
+  kit::Svf sidechain[2];
+  kit::OnePole rms[2];
+  kit::ControlClock clock;
+  float power = 0.0f;
+  float level = AmbientComp::kFloorDb;
+  float reduction = 0.0f;  // dB, 0 or below
+  float gain = 1.0f;
+  float gain_target = 1.0f;
+  float gain_step = 0.0f;
+  bool ticked = false;  // the last sample was one the level is read on
+  float out[2] = {0.0f, 0.0f};
+
+  void start(int pieces_) {
+    pieces = pieces_;
+    for (kit::Svf& filter : sidechain) filter.set(sc_low_cut.value, kit::kSqrtHalf, lab::kSampleRate);
+    for (kit::OnePole& stage : rms) {
+      stage.set_cutoff(1.0f / (kit::kTwoPi * AmbientComp::kRmsSeconds), lab::kSampleRate);
+    }
+    rest();
+  }
+
+  // Nothing is sounding: forget the level and the gain, as the device does.
+  void rest() {
+    for (kit::Svf& filter : sidechain) filter.reset();
+    for (kit::OnePole& stage : rms) stage.reset();
+    clock.reset(AmbientComp::kControlPeriod);
+    power = 0.0f;
+    level = AmbientComp::kFloorDb;
+    reduction = 0.0f;
+    gain = 1.0f;
+    gain_target = 1.0f;
+    gain_step = 0.0f;
+    ticked = false;
+  }
+
+  void run(float left, float right) {
+    // A wire: what goes in comes out.
+    out[0] = left;
+    out[1] = right;
+    ticked = false;
+    if (pieces < kMeasure) return;
+
+    // Measure the level: the mean power of the two channels above "Ignore
+    // below", through two 30 ms one-poles, read in dB every 16 samples.
+    const float heard_left = sidechain[0].highpass(left);
+    const float heard_right = sidechain[1].highpass(right);
+    power = rms[1].lowpass(rms[0].lowpass(0.5f * (heard_left * heard_left + heard_right * heard_right)));
+    ticked = clock.tick();
+    if (ticked) level = power > AmbientComp::kFloorPower ? 10.0f * std::log10(power) : AmbientComp::kFloorDb;
+    if (pieces < kCurve) return;
+
+    // Threshold and ratio: every dB the level stands over the threshold is
+    // let through as 1 / ratio of a dB. The gain that does it is aimed at on
+    // each reading and ramped to over the 16 samples until the next.
+    if (ticked) {
+      const float over = level - threshold.value;
+      reduction = over > 0.0f ? (1.0f / ratio.value - 1.0f) * over : 0.0f;
+      gain = gain_target;
+      gain_target = kit::db_to_gain(reduction);
+      gain_step = (gain_target - gain) * (1.0f / static_cast<float>(AmbientComp::kControlPeriod));
+    }
+    gain += gain_step;
+    out[0] = left * gain;
+    out[1] = right * gain;
+  }
+};
+
+Built shown;  // at the step the reader chose: what the built taps hold
+Built held;   // at the step that is compared with the device
 
 void configure(AmbientComp& device, float attack_ms, float release_s, float tails_value, float makeup_db,
                float mix_value) {
@@ -147,6 +241,11 @@ void lab_render(int frames) {
   float level_now = -100.0f;
   float target_now = 0.0f;
 
+  // The build part: the chosen step, and the step that is held to the device.
+  shown.start(build.at());
+  held.start(build.compared_step);
+  double built_apart = 0.0, built_whole = 0.0;
+
   const int total = lab::total();
   for (int i = 0; i < total; ++i) {
     const float left = lab::in_at(0, i);
@@ -185,7 +284,27 @@ void lab_render(int frames) {
       if (i >= lab::frames() && distance > worst) worst = distance;
     }
 
+    // The build part, beside the device. At rest the device forgets what it
+    // measured, and the build forgets with it.
+    if (comp.resting_) {
+      shown.rest();
+      held.rest();
+      shown.out[0] = left;
+      shown.out[1] = right;
+    } else {
+      shown.run(left, right);
+      held.run(left, right);
+      if (held.ticked && i >= lab::frames()) {
+        const double apart = static_cast<double>(held.power) - comp.rms_[1].state;
+        built_apart += apart * apart;
+        built_whole += static_cast<double>(comp.rms_[1].state) * comp.rms_[1].state;
+      }
+    }
+    built.put(i, shown.out[0], shown.out[1]);
+
     if (i % lab::kControlPeriod == 0) {
+      built_level.put(i, shown.level);
+      built_gain.put(i, shown.reduction);
       const float one_pole = comp.rms_[0].state;
       level_one.put(i, comp.resting_ || one_pole <= 1.0e-10f ? -100.0f : 10.0f * std::log10(one_pole));
       level.put(i, level_now);
@@ -195,5 +314,6 @@ void lab_render(int frames) {
     }
   }
   rebuilt.value = worst;
+  build.difference.value = lab::ratio_db(built_apart, built_whole);
   measure_curve();
 }

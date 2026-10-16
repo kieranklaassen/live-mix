@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
   benchSource,
+  click,
   differenceDb,
   expectSoundLab,
   gainToDb,
   lab,
   noise,
+  RATE,
   rms,
   seconds,
   silence,
   sine,
-  type Source,
 } from './support.ts'
 
-const RATE = 48_000
 const SIZES = [64, 256, 1024, 4096]
 const ALL = 2049 // more bins than any frame has: every bin is kept
 
@@ -25,12 +25,7 @@ const highest = (x: Float32Array, from = 0, to = x.length) => Math.max(...x.suba
 const onBin = (bin: number, size: number, peak = 0.5) => sine((bin * RATE) / size, peak, seconds(1))
 
 /** One unit sample, `after` samples into a frame that starts a quarter of a second in. */
-function click(after: number): Source {
-  const source = silence(seconds(1))
-  source.left[RATE / 4 + after] = 1
-  source.right[RATE / 4 + after] = 1
-  return source
-}
+const clickIn = (after: number) => click(seconds(1), RATE / 4 + after)
 
 describe('the Fourier transform', () => {
   it('is a sound lab on the saw: every tap says something, loops, and answers to every control', async () => {
@@ -168,14 +163,14 @@ describe('the Fourier transform', () => {
   it('reads one sample alone as every frequency at once: all bins within 0.001 dB of each other (claim click-flat)', async () => {
     const fourier = await lab('fourier-transform')
     for (const window of [0, 1]) {
-      const level = first(fourier.render(click(1000), { position: 0.25, window }).taps.magnitude)
+      const level = first(fourier.render(clickIn(1000), { position: 0.25, window }).taps.magnitude)
       expect(highest(level) - lowest(level)).toBeLessThan(0.001)
     }
   })
 
   it('loses a click on the first sample of a Hann-windowed frame altogether (claim edge-click)', async () => {
     const fourier = await lab('fourier-transform')
-    const out = fourier.render(click(0), { position: 0.25 })
+    const out = fourier.render(clickIn(0), { position: 0.25 })
     expect(first(out.taps.frame)[0]).toBe(1)
     expect(first(out.taps.windowed).every((v) => v === 0)).toBe(true)
     expect(highest(first(out.taps.magnitude))).toBe(-140)

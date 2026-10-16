@@ -1,25 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import {
   benchSource,
+  click,
   expectSoundLab,
   lab,
   mean,
   peak,
+  range,
+  RATE,
   seconds,
   silence,
   sine,
   type Source,
 } from './support.ts'
 
-const RATE = 48_000
-
-/** Silence with one sample of `size` on both sides, `at` samples in. */
-function click(frames: number, size = 0.01, at = 100): Source {
-  const source = silence(frames)
-  source.left[at] = size
-  source.right[at] = size
-  return source
-}
+/** Silence with one sample of 0.01 on both sides, 100 samples in. */
+const smallClick = (frames: number) => click(frames, 100, 0.01)
 
 /** Silence with 20 ms of a 1 kHz sine under a Hann window, `at` samples in. */
 function burst(frames: number, size = 0.05, at = 100, length = 960): Source {
@@ -56,16 +52,6 @@ function at(curve: Float32Array, hz: number): number {
   return curve[i]! + (curve[i + 1]! - curve[i]!) * (place - i)
 }
 
-const range = (x: Float32Array, from = 0, to = x.length) => {
-  let lo = Infinity
-  let hi = -Infinity
-  for (let i = from; i < to; i += 1) {
-    lo = Math.min(lo, x[i]!)
-    hi = Math.max(hi, x[i]!)
-  }
-  return { lo, hi }
-}
-
 const cents = (ratio: number) => 1200 * Math.log2(ratio)
 
 // The heads alone, one repeat: what went in comes back once.
@@ -85,12 +71,14 @@ describe('delay and echo', () => {
   it('gives a sample back after Time, to the sample where Time is a whole number of them (claim returns)', async () => {
     const echo = await lab('delay-and-echo')
     for (const time of [30, 250, 1000, 2000]) {
-      const heads = echo.render(click(seconds(4)), { ...once, time }).taps.heads!.channels_data[0]!
+      const heads = echo.render(smallClick(seconds(4)), { ...once, time }).taps.heads!
+        .channels_data[0]!
       expect(peakAt(heads)).toBe(100 + time * 48)
     }
     // 380 ms, the device's default, and a time that is not a whole number of samples: within one.
     for (const time of [380, 100.01]) {
-      const heads = echo.render(click(seconds(4)), { ...once, time }).taps.heads!.channels_data[0]!
+      const heads = echo.render(smallClick(seconds(4)), { ...once, time }).taps.heads!
+        .channels_data[0]!
       expect(Math.abs(peakAt(heads) - (100 + time * 48))).toBeLessThan(1)
     }
   })
@@ -119,7 +107,7 @@ describe('delay and echo', () => {
 
   it('turns one sample into −1/16, 9/16, 9/16, −1/16 when Time ends in half a sample: the device reads by Hermite (claim device-hermite)', async () => {
     const echo = await lab('delay-and-echo')
-    const result = echo.render(click(seconds(1)), { ...once, time: 12000.5 / 48 })
+    const result = echo.render(smallClick(seconds(1)), { ...once, time: 12000.5 / 48 })
     const heads = result.taps.heads!.channels_data[0]!
     const four = Array.from(heads.subarray(12_099, 12_103), (v) => v / 0.01)
     // Time is a float: the delay is 12,000.501 samples, so the middle two are 0.561 and 0.564.
@@ -142,7 +130,7 @@ describe('delay and echo', () => {
 
   it('loses 2.0 dB at 10 kHz and 11.7 dB at 20 kHz to a linear read half way between samples (claim linear-half), and 0.53 dB and 8.4 dB to a Hermite read (claim hermite-half)', async () => {
     const echo = await lab('delay-and-echo')
-    const half = echo.render(click(seconds(0.5)), { fraction: 0.5 })
+    const half = echo.render(smallClick(seconds(0.5)), { fraction: 0.5 })
     const linear = half.taps.responseLinear!.channels_data[0]!
     const hermite = half.taps.responseHermite!.channels_data[0]!
     expect(at(linear, 10_000)).toBeCloseTo(-2.01, 1)
@@ -153,7 +141,7 @@ describe('delay and echo', () => {
     expect(at(linear, 10_000)).toBeCloseTo(20 * Math.log10(Math.cos((Math.PI * 10_000) / RATE)), 2)
     // On a stored sample, at either end, both reads are flat.
     for (const fraction of [0, 1]) {
-      const whole = echo.render(click(seconds(0.5)), { fraction })
+      const whole = echo.render(smallClick(seconds(0.5)), { fraction })
       for (const tap of ['responseLinear', 'responseHermite']) {
         const { lo, hi } = range(whole.taps[tap]!.channels_data[0]!)
         expect(Math.max(Math.abs(lo), Math.abs(hi))).toBeLessThan(0.001)
@@ -194,14 +182,16 @@ describe('delay and echo', () => {
     const echo = await lab('delay-and-echo')
     for (const feedback of [0.3, 0.5, 0.9, 1.1]) {
       for (const values of [{}, filtered, { highCut: 4500 }, { ...filtered, drive: 1 }]) {
-        expect(echo.render(click(seconds(0.5)), { feedback, ...values }).checks.loop).toBe(-140)
+        expect(echo.render(smallClick(seconds(0.5)), { feedback, ...values }).checks.loop).toBe(
+          -140,
+        )
       }
     }
   })
 
   it("takes 6.3 dB a trip at 1 kHz (claim trip-1k), 10.5 dB at the high cut's 4.5 kHz (claim trip-corner) and 20.6 dB at 9 kHz (claim trip-9k), at the device's default filters", async () => {
     const echo = await lab('delay-and-echo')
-    const taps = echo.render(click(seconds(0.5)), { feedback: 0.5, ...filtered }).taps
+    const taps = echo.render(smallClick(seconds(0.5)), { feedback: 0.5, ...filtered }).taps
     const repeat = (k: number, hz: number) => at(taps[`repeat${k}`]!.channels_data[0]!, hz)
     for (const [hz, step] of [
       [1000, -6.32],
@@ -222,7 +212,7 @@ describe('delay and echo', () => {
 
   it('takes 8.4 dB from one sample on its first trip with the filters open, and less each trip after, 6.2 dB by the eleventh (claim click-step)', async () => {
     const echo = await lab('delay-and-echo')
-    const levels = echo.render(click(seconds(0.5)), { feedback: 0.5 }).taps.repeatsClick!
+    const levels = echo.render(smallClick(seconds(0.5)), { feedback: 0.5 }).taps.repeatsClick!
       .channels_data[0]!
     const stepsDown = Array.from(levels.subarray(1), (v, i) => levels[i]! - v)
     expect(stepsDown[0]).toBeCloseTo(8.36, 1)
@@ -234,8 +224,8 @@ describe('delay and echo', () => {
 
   it("leaves a click's peak half a sample later each trip through the open filter: four samples late by the eighth repeat (claim late)", async () => {
     const echo = await lab('delay-and-echo')
-    const heads = echo.render(click(seconds(4)), { mix: 1, time: 250, feedback: 0.5 }).taps.heads!
-      .channels_data[0]!
+    const heads = echo.render(smallClick(seconds(4)), { mix: 1, time: 250, feedback: 0.5 }).taps
+      .heads!.channels_data[0]!
     const late = [1, 2, 3, 4, 5, 6, 7, 8].map(
       (k) => peakAt(heads, 100 + 12_000 * k - 20, 100 + 12_000 * k + 200) - (100 + 12_000 * k),
     )
@@ -291,12 +281,13 @@ describe('delay and echo', () => {
 
   it('lets a burst die slowly at a feedback of exactly 1: its 24th repeat is 0.7 dB under its first (claim unity)', async () => {
     const echo = await lab('delay-and-echo')
-    const levels = echo.render(click(seconds(0.5)), { feedback: 1 }).taps.repeats!.channels_data[0]!
+    const levels = echo.render(smallClick(seconds(0.5)), { feedback: 1 }).taps.repeats!
+      .channels_data[0]!
     const fall = levels[0]! - levels[23]!
     expect(fall).toBeGreaterThan(0.6)
     expect(fall).toBeLessThan(0.8)
     // Past 1 the same burst grows: 0.83 dB a repeat at first.
-    const grown = echo.render(click(seconds(0.5)), { feedback: 1.1 }).taps.repeats!
+    const grown = echo.render(smallClick(seconds(0.5)), { feedback: 1.1 }).taps.repeats!
       .channels_data[0]!
     expect(grown[1]! - grown[0]!).toBeGreaterThan(0.7)
     expect(grown[1]! - grown[0]!).toBeLessThan(0.83)
@@ -388,7 +379,7 @@ describe('delay and echo', () => {
   it('reads the tape at 200, 400 and 600 ms with three heads and Time at 600 ms (claim three-heads)', async () => {
     const echo = await lab('delay-and-echo')
     const found = (heads: number) => {
-      const read = echo.render(click(seconds(4)), { ...once, heads, time: 600 }).taps.heads!
+      const read = echo.render(smallClick(seconds(4)), { ...once, heads, time: 600 }).taps.heads!
         .channels_data[0]!
       const out: [number, number][] = []
       read.forEach((v, i) => {
@@ -414,7 +405,7 @@ describe('delay and echo', () => {
 
   it('sends the repeats to the left and the right in turn with Ping pong at 1, left first (claim ping-pong)', async () => {
     const echo = await lab('delay-and-echo')
-    const taps = echo.render(click(seconds(4)), { mix: 1, feedback: 0.5, spread: 1 }).taps
+    const taps = echo.render(smallClick(seconds(4)), { mix: 1, feedback: 0.5, spread: 1 }).taps
     const [left, right] = taps.heads!.channels_data as [Float32Array, Float32Array]
     for (let k = 1; k <= 6; k += 1) {
       const from = 100 + 12_000 * k - 50
@@ -427,7 +418,7 @@ describe('delay and echo', () => {
 
   it('mixes the input and the heads at 0.707 each at a Mix of 0.5 (claim mix-half) and is the input, sample for sample, at 0 (claim mix-zero)', async () => {
     const echo = await lab('delay-and-echo')
-    const out = echo.render(click(seconds(4)), { feedback: 0, mix: 0.5 }).taps.out!
+    const out = echo.render(smallClick(seconds(4)), { feedback: 0, mix: 0.5 }).taps.out!
       .channels_data[0]!
     expect(out[100]! / 0.01).toBeCloseTo(Math.SQRT1_2, 4)
     expect(out[12_100]! / 0.01).toBeCloseTo(Math.SQRT1_2, 4)

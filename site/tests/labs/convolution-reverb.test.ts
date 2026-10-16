@@ -2,16 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { roomImpulse, withRoom } from '../../src/lab/room.ts'
 import {
   benchSource,
+  click,
   differenceDb,
   expectSoundLab,
   gainToDb,
   lab,
   noise,
+  RATE,
   rms,
   seconds,
-  silence,
   sine,
-  type Source,
 } from './support.ts'
 
 // The lab's starting controls, for asking the engine for the same room the lab is handed.
@@ -19,21 +19,13 @@ const START = { decay: 3, predelay: 20, swell: 40, bright: 7000, dark: 900, grai
 
 const room = async () => withRoom(await lab('convolution-reverb'))
 
-/** One unit sample at the loop's start, on both channels. */
-function click(frames: number): Source {
-  const source = silence(frames)
-  source.left[0] = 1
-  source.right[0] = 1
-  return source
-}
-
 /** The time for the level to fall 60 dB, from a line fitted to its level in dB over the middle of the tail. */
 function fittedDecay(h: Float32Array, predelaySec: number, decaySec: number): number {
   const window = 2400 // 50 ms
   const ts: number[] = []
   const dbs: number[] = []
   for (let t = predelaySec + 0.1 * decaySec; t < predelaySec + 0.8 * decaySec; t += 0.05) {
-    const at = Math.round(t * 48_000)
+    const at = seconds(t)
     ts.push(t)
     dbs.push(gainToDb(rms(h, at, at + window)))
   }
@@ -53,8 +45,8 @@ function fittedDecay(h: Float32Array, predelaySec: number, decaySec: number): nu
 function levelBand(x: Float32Array): Float32Array {
   const y = x.slice()
   for (let pass = 0; pass < 2; pass += 1) {
-    const high = Math.exp((-2 * Math.PI * 150) / 48_000)
-    const low = 1 - Math.exp((-2 * Math.PI * 1500) / 48_000)
+    const high = Math.exp((-2 * Math.PI * 150) / RATE)
+    const low = 1 - Math.exp((-2 * Math.PI * 1500) / RATE)
     let highIn = 0
     let highOut = 0
     let lowOut = 0

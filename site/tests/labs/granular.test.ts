@@ -3,9 +3,11 @@ import {
   benchSource,
   differenceDb,
   expectSoundLab,
+  FADE,
   gainToDb,
   lab,
   noise,
+  RATE,
   rms,
   seconds,
   silence,
@@ -16,9 +18,6 @@ import {
 // SAY=1 prints what each test measured: the numbers the lesson states.
 const SAY = process.env.SAY === '1'
 const say = (...words: unknown[]) => SAY && console.log(...words)
-
-const RATE = 48_000
-const FADE = 960 // the first 20 ms of a tap are a crossfade of two passes (lab.h)
 
 type Tap = {
   channels_data: Float32Array[]

@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import type { Lab } from '../../src/lab/runner.ts'
-import { expectSoundLab, lab, mean, peak, seconds, silence } from './support.ts'
+import {
+  BIN,
+  expectSoundLab,
+  lab,
+  mean,
+  peak,
+  POINT_RATE,
+  RATE,
+  seconds,
+  silence,
+} from './support.ts'
 
 /** The lab plays by itself: nothing goes in. */
 const nothing = silence(seconds(2))
 
-/** The spacing of the lab's spectrum: 4,096 points at 48 kHz. */
-const BIN = 48_000 / 4096
 /** A note on the middle of bin 40, so that a line's level is read with no loss between bins. */
 const ON_A_BIN = 40 * BIN
 
@@ -48,7 +56,7 @@ function loudestAwayFrom(spectrum: Float32Array, hz: number, clear = 4): number 
 /** The loudest bin above 0.47 of the sample rate, the device's band limit. */
 function loudestOverTheLimit(spectrum: Float32Array): number {
   let top = -Infinity
-  for (let k = Math.ceil((0.47 * 48_000) / BIN); k < spectrum.length; k += 1) {
+  for (let k = Math.ceil((0.47 * RATE) / BIN); k < spectrum.length; k += 1) {
     top = Math.max(top, spectrum[k]!)
   }
   return top
@@ -60,7 +68,7 @@ function fallTime(trace: Float32Array, part: number): number {
   const from = trace.indexOf(top)
   let k = from
   while (k < trace.length && trace[k]! > top * part) k += 1
-  return ((k - from) * 16) / 48_000
+  return (k - from) / POINT_RATE
 }
 
 /** Where a curve against the index (0 to 8 rad) crosses zero, in radians. */
@@ -313,7 +321,7 @@ describe('frequency modulation', () => {
     expect(loudestOverTheLimit(free)).toBeGreaterThan(-14.5)
     expect(loudestOverTheLimit(free)).toBeLessThan(-12)
     // A folded line stands between the rungs of the ladder: 220 + 9 × 3,080 Hz comes back at 20,060 Hz.
-    const folded = 48_000 - (220 + 9 * 3080)
+    const folded = RATE - (220 + 9 * 3080)
     expect(lineAt(free, folded)).toBeGreaterThan(-20)
     expect(lineAt(capped, folded)).toBeLessThan(-80)
   })

@@ -1,27 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import {
   benchSource,
+  click,
   expectSoundLab,
   gainToDb,
   lab,
   peak,
+  RATE,
   rms,
   seconds,
-  silence,
   sine,
-  type Source,
 } from './support.ts'
 
-const RATE = 48_000
 const NAME = 'state-variable-filter'
 
-/** One unit sample at the start of a loop: what comes out of a stage is its ring. */
-function unitSample(frames = seconds(1)): Source {
-  const source = silence(frames)
-  source.left[0] = 1
-  source.right[0] = 1
-  return source
-}
+/** One unit sample at the start of a second's loop: what comes out of a stage is its ring. */
+const unitSample = () => click(seconds(1))
 
 /** The level of a ring at one frequency, in dB: the sum the Fourier transform is, at exactly `hz`. */
 function levelDb(h: Float32Array, hz: number, count = Math.min(h.length, RATE / 2)): number {
@@ -277,7 +271,7 @@ describe('the state-variable filter', () => {
     for (const cutoff of [20, 100, 1000, 8000, 12000, 16000, 20000]) {
       for (const resonance of [0.5, 0.7071, 4, 25]) {
         // Long enough for the slowest ring to be gone before the loop comes round.
-        const source = unitSample(seconds(cutoff < 100 ? 8 : 2))
+        const source = click(seconds(cutoff < 100 ? 8 : 2))
         const result = filter.render(source, { cutoff, resonance })
         for (const id of ['low', 'band', 'high']) {
           expect(peak(result.taps[id]!.channels_data[0]!)).toBeLessThanOrEqual(1 + 1e-6)

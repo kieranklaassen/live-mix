@@ -1,31 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import {
   benchSource,
+  click,
   expectSoundLab,
   gainToDb,
   lab,
   peak,
+  range,
+  RATE,
   rms,
   seconds,
-  silence,
   sine,
   type Source,
 } from './support.ts'
 
 const NAME = 'short-time-fourier'
-const RATE = 48_000
 /** The sizes the "Frame" switch offers, in its order. */
 const SIZES = [512, 1024, 2048, 4096]
 /** Glimmer's latency, and the kit's at a frame of 2,048: a frame and half a hop. */
 const LATENCY = 2048 + 256
-
-/** Silence with one unit sample in it. */
-function click(frames: number, at: number): Source {
-  const source = silence(frames)
-  source.left[at] = 1
-  source.right[at] = 1
-  return source
-}
 
 /** Two sources added, sample by sample. */
 function both(a: Source, b: Source): Source {
@@ -39,16 +32,6 @@ const loudestAt = (x: Float32Array) => {
   let best = 0
   for (let i = 1; i < x.length; i += 1) if (Math.abs(x[i]!) > Math.abs(x[best]!)) best = i
   return best
-}
-
-const range = (x: ArrayLike<number>, from = 0, to = x.length) => {
-  let lo = Infinity
-  let hi = -Infinity
-  for (let i = from; i < to; i += 1) {
-    lo = Math.min(lo, x[i]!)
-    hi = Math.max(hi, x[i]!)
-  }
-  return { lo, hi }
 }
 
 /**

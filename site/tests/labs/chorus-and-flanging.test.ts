@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   benchSource,
+  BIN,
   expectSoundLab,
   gainToDb,
   lab,
   noise,
+  POINT_RATE,
+  range,
+  RATE,
   rms,
   seconds,
   silence,
@@ -14,10 +18,8 @@ import {
 
 const NAME = 'chorus-and-flanging'
 
-/** One bin of the lab's 4,096-point spectrum, in hertz: 11.72. */
-const BIN = 48_000 / 4096
 /** One point of a control tap, in seconds. */
-const POINT = 16 / 48_000
+const POINT = 1 / POINT_RATE
 
 /** White noise, the same on both sides. */
 function monoNoise(frames: number): Source {
@@ -27,16 +29,6 @@ function monoNoise(frames: number): Source {
 
 /** The level of `x` against the level of `reference`, in dB. */
 const against = (x: Float32Array, reference: Float32Array) => gainToDb(rms(x) / rms(reference))
-
-function range(x: Float32Array, from = 0, to = x.length): [number, number] {
-  let lo = Infinity
-  let hi = -Infinity
-  for (let i = from; i < to; i += 1) {
-    lo = Math.min(lo, x[i]!)
-    hi = Math.max(hi, x[i]!)
-  }
-  return [lo, hi]
-}
 
 /** The frequency of the lowest bin within three bins of `hz`, and how far under the bins around it lies. */
 function notchNear(spectrum: Float32Array, hz: number) {
@@ -201,7 +193,7 @@ describe('chorus and flanging', () => {
     // Above 1 kHz, so the peak at 0 Hz is not the one found.
     let top = Math.ceil(1000 / BIN)
     for (let k = top; k * BIN < 3000; k += 1) if (short.curve[k]! > short.curve[top]!) top = k
-    expect(Math.abs(top * BIN - 48_000 / 25)).toBeLessThanOrEqual(BIN)
+    expect(Math.abs(top * BIN - RATE / 25)).toBeLessThanOrEqual(BIN)
     expect(top * BIN).toBeCloseTo(1921.9, 0)
     expect(Math.abs(top * BIN - 2000)).toBeGreaterThan(5 * BIN)
   })
@@ -226,11 +218,11 @@ describe('chorus and flanging', () => {
     const theLab = await lab(NAME)
     const source = await benchSource('noise', seconds(4))
     const half = range(theLab.render(source, {}).taps.delayMs!.channels_data[0]!)
-    expect(half[0]).toBeCloseTo(1.3125, 3)
-    expect(half[1]).toBeCloseTo(3.6875, 3)
+    expect(half.lo).toBeCloseTo(1.3125, 3)
+    expect(half.hi).toBeCloseTo(3.6875, 3)
     const full = range(theLab.render(source, { depth: 100 }).taps.delayMs!.channels_data[0]!)
-    expect(full[0]).toBeCloseTo(0.125, 3)
-    expect(full[1]).toBeCloseTo(4.875, 3)
+    expect(full.lo).toBeCloseTo(0.125, 3)
+    expect(full.hi).toBeCloseTo(4.875, 3)
   })
 
   it('sweeps the lowest notch of noise between 136 Hz, where the delay is longest, and 381 Hz, where it is shortest, each within one bin (claim sweep-notch)', async () => {
@@ -273,8 +265,8 @@ describe('chorus and flanging', () => {
     const theLab = await lab(NAME)
     const source = await benchSource('noise', seconds(4))
     const out = theLab.render(source, { delay: 0.5, depth: 100 })
-    const [shortest] = range(out.taps.delayMs!.channels_data[0]!)
-    expect(shortest).toBeCloseTo(2000 / 48_000, 5)
+    const shortest = range(out.taps.delayMs!.channels_data[0]!).lo
+    expect(shortest).toBeCloseTo(2000 / RATE, 5)
   })
 
   it('draws each shape as the oscillator makes it: a sine from 0, a triangle from −1 to +1 at half way, ramps, a square, one held value', async () => {
@@ -294,7 +286,7 @@ describe('chorus and flanging', () => {
     near(quarters(4), [1, 1, -1, -1])
     const held = theLab.render(source, { shape: 5 }).taps.lfo!.channels_data[0]!
     // Random holds one value for a whole cycle (the first few points are the fade across the wrap).
-    expect(range(held, 100, 11_900)[1] - range(held, 100, 11_900)[0]).toBe(0)
+    expect(range(held, 100, 11_900).span).toBe(0)
   })
 
   it('takes 3 ms to cover 63 % of a jump in the delay, with the square shape (claim lag)', async () => {
@@ -332,7 +324,7 @@ describe('chorus and flanging', () => {
     const source = await benchSource('noise', seconds(4))
     const out = theLab.render(source, {})
     for (const id of ['cents1', 'cents2', 'cents3']) {
-      const [down, up] = range(out.taps[id]!.channels_data[0]!)
+      const { lo: down, hi: up } = range(out.taps[id]!.channels_data[0]!)
       expect(up).toBeCloseTo(21.62, 1)
       expect(down).toBeCloseTo(-21.9, 1)
     }
@@ -355,7 +347,7 @@ describe('chorus and flanging', () => {
     let slowest = Infinity
     let fastest = -Infinity
     for (let i = 20; i < crossings.length; i += 1) {
-      const hz = (20 * 48_000) / (crossings[i]! - crossings[i - 20]!)
+      const hz = (20 * RATE) / (crossings[i]! - crossings[i - 20]!)
       slowest = Math.min(slowest, hz)
       fastest = Math.max(fastest, hz)
     }
@@ -373,8 +365,8 @@ describe('chorus and flanging', () => {
     const two = out.taps.voice2Ms!.channels_data[0]!
     const three = out.taps.voice3Ms!.channels_data[0]!
     for (const voice of [one, two, three]) {
-      expect(range(voice)[0]).toBeCloseTo(9.5, 3)
-      expect(range(voice)[1]).toBeCloseTo(14.5, 3)
+      expect(range(voice).lo).toBeCloseTo(9.5, 3)
+      expect(range(voice).hi).toBeCloseTo(14.5, 3)
     }
     // Each voice is ahead of the one before: it rises through the centre a third of 1.25 s sooner.
     const first = risings(one, 12).find((t) => t > 0.9)!
@@ -403,7 +395,7 @@ describe('chorus and flanging', () => {
     expect(worst).toBeLessThan(0.0001)
 
     const short = theLab.render(source, { chorusDelay: 5, chorusDepth: 100 })
-    const [nearest, furthest] = range(short.taps.voice1Ms!.channels_data[0]!)
+    const { lo: nearest, hi: furthest } = range(short.taps.voice1Ms!.channels_data[0]!)
     expect(nearest).toBeCloseTo(1, 3)
     expect(furthest).toBeCloseTo(9, 3)
   })

@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
   benchSource,
+  click,
   differenceDb,
   expectSoundLab,
   gainToDb,
   lab,
   peak,
+  RATE,
   rms,
   seconds,
   silence,
   sine,
-  type Source,
 } from './support.ts'
 
-const RATE = 48_000
 const NAME = 'frequency-shifting'
 
 /**
@@ -101,14 +101,6 @@ function outline(x: Float32Array, width: number, hop: number): { at: number; top
 /** When, in seconds, the outline of `x` is at its lowest. */
 function lowestAt(x: Float32Array, width: number): number {
   return outline(x, width, 8).reduce((a, b) => (b.top < a.top ? b : a)).at
-}
-
-/** A single sample of height 1 in a second of silence, at sample 100. */
-function click(): Source {
-  const source = silence(seconds(1))
-  source.left[100] = 1
-  source.right[100] = 1
-  return source
 }
 
 describe('frequency shifting', () => {
@@ -372,7 +364,7 @@ describe('frequency shifting', () => {
 
   it('at a shift of 0 Hz spreads a click: its largest sample is 0.79, three samples late (claim click-smear), and its energy is the same to one part in a million (claim click-energy)', async () => {
     const shifter = await lab(NAME)
-    const out = shifter.render(click(), { shift: 0 }).taps.out!.channels_data[0]!
+    const out = shifter.render(click(seconds(1), 100), { shift: 0 }).taps.out!.channels_data[0]!
     let at = 0
     let energy = 0
     for (let k = 0; k < out.length; k += 1) {

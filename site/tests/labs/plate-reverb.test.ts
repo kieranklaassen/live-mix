@@ -1,25 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
   benchSource,
+  click,
   expectSoundLab,
   gainToDb,
   lab,
+  RATE,
   rms,
   seconds,
-  silence,
   sine,
-  type Source,
 } from './support.ts'
 
 const NAME = 'plate-reverb'
-
-/** One unit sample on both channels, then silence. */
-function oneSample(frames: number): Source {
-  const source = silence(frames)
-  source.left[0] = 1
-  source.right[0] = 1
-  return source
-}
 
 /** The place of the first sample that is not silence. */
 const firstSound = (x: Float32Array) => x.findIndex((v) => Math.abs(v) > 1e-6)
@@ -135,7 +127,7 @@ describe('plate reverb', () => {
 
   it('lets a sample through 959 samples later at a pre-delay of 20 ms, and at once at 0 ms (claim predelay-one-less)', async () => {
     const plate = await lab(NAME)
-    const source = oneSample(seconds(2))
+    const source = click(seconds(2))
     // Decay at 0.1: nothing of the first pass is left to wrap into the second.
     const at20 = plate.render(source, { decay: 0.1 })
     expect(firstSound(at20.taps.predelayed!.channels_data[0]!)).toBe(959)
@@ -160,7 +152,7 @@ describe('plate reverb', () => {
 
   it('turns one sample into −0.75 and then echoes of 0.44, 0.33 and 0.25, 229 samples apart, in its first all-pass (claim allpass-echoes)', async () => {
     const plate = await lab(NAME)
-    const hit = plate.render(oneSample(seconds(1)), {}).taps.hit1!.channels_data[0]!
+    const hit = plate.render(click(seconds(1)), {}).taps.hit1!.channels_data[0]!
     // The bandwidth filter in front passes 0.9995 of the sample, so each is that much short.
     expect(hit.subarray(0, LEAD).every((v) => v === 0)).toBe(true)
     expect(hit[LEAD]!).toBeCloseTo(-0.75, 2)
@@ -174,7 +166,7 @@ describe('plate reverb', () => {
 
   it('leaves every frequency at its level through one all-pass, within 0.00001 dB (claim allpass-flat), and through all four (claim chain-flat)', async () => {
     const plate = await lab(NAME)
-    const out = plate.render(oneSample(seconds(1)), {})
+    const out = plate.render(click(seconds(1)), {})
     // From 20 Hz to 20 kHz, at 241 frequencies: the furthest from the level that went in.
     expect(out.checks.flatOne).toBeLessThan(0.00001)
     expect(out.checks.flat).toBeLessThan(0.00001)
@@ -187,7 +179,7 @@ describe('plate reverb', () => {
 
   it('lifts some frequencies 12 dB and drops others 4.9 dB with one delay and feedback, a peak every 210 Hz (claim comb-peaks)', async () => {
     const plate = await lab(NAME)
-    const tap = plate.render(oneSample(seconds(1)), {}).taps.responseComb!
+    const tap = plate.render(click(seconds(1)), {}).taps.responseComb!
     const comb = Array.from(tap.channels_data[0]!)
     // 1 / (1 - 0.75) is 12.04 dB and 1 / (1 + 0.75) is -4.86 dB.
     expect(Math.max(...comb)).toBeCloseTo(12.04, 1)
@@ -205,7 +197,7 @@ describe('plate reverb', () => {
 
   it('counts 2, 23, 47 and 96 echoes in the 10 ms from 30 ms on, after one, two, three and four all-passes (claim density-stages)', async () => {
     const plate = await lab(NAME)
-    const taps = plate.render(oneSample(seconds(1)), {}).taps
+    const taps = plate.render(click(seconds(1)), {}).taps
     const counted = [1, 2, 3, 4].map((n) => Array.from(taps[`density${n}`]!.channels_data[0]!))
     expect(counted.map((counts) => counts[3])).toEqual([2, 23, 47, 96])
     // From 10 ms on, every stage has more echoes in each 10 ms than the stage before it.
@@ -223,7 +215,7 @@ describe('plate reverb', () => {
 
   it('reaches 186 echoes in 10 ms after the fourth all-pass (claim density-four), and about 150 at the output from 100 ms on (claim density-ceiling)', async () => {
     const plate = await lab(NAME)
-    const taps = plate.render(oneSample(seconds(1)), {}).taps
+    const taps = plate.render(click(seconds(1)), {}).taps
     expect(Math.max(...taps.density4!.channels_data[0]!)).toBe(186)
     const out = Array.from(taps.densityOut!.channels_data[0]!).slice(10, 50)
     const mean = out.reduce((a, b) => a + b) / out.length
@@ -236,9 +228,7 @@ describe('plate reverb', () => {
 
   it('sets the four input all-passes to 229, 173, 611 and 447 samples at 48 kHz, no two sharing a factor (claim input-lengths)', async () => {
     const plate = await lab(NAME)
-    const lengths = Array.from(
-      plate.render(oneSample(seconds(1)), {}).taps.lengths!.channels_data[0]!,
-    )
+    const lengths = Array.from(plate.render(click(seconds(1)), {}).taps.lengths!.channels_data[0]!)
     const input = lengths.slice(0, 4)
     expect(input).toEqual([229, 173, 611, 447])
     for (let a = 0; a < 4; a += 1)
@@ -247,9 +237,7 @@ describe('plate reverb', () => {
 
   it('sets the tank to 1083.8, 7182, 2903 and 6000 samples on the left and 1464.5, 6801, 4284 and 5101 on the right (claim tank-lengths)', async () => {
     const plate = await lab(NAME)
-    const lengths = Array.from(
-      plate.render(oneSample(seconds(1)), {}).taps.lengths!.channels_data[0]!,
-    )
+    const lengths = Array.from(plate.render(click(seconds(1)), {}).taps.lengths!.channels_data[0]!)
     expect(lengths[4]!).toBeCloseTo(1083.8, 1)
     expect(lengths.slice(5, 8)).toEqual([7182, 2903, 6000])
     expect(lengths[8]!).toBeCloseTo(1464.5, 1)
@@ -258,7 +246,7 @@ describe('plate reverb', () => {
 
   it('delays by one sample less than a plain delay is long: 7181 for 7182 (claim one-less)', async () => {
     const plate = await lab(NAME)
-    const source = oneSample(seconds(2))
+    const source = click(seconds(2))
     // With no decay nothing comes round, so the first sound at each point is the sample's own.
     const once = plate.render(source, { decay: 0, predelay: 0 }).taps
     expect(firstSound(once.tankA!.channels_data[0]!)).toBe(0)
@@ -275,13 +263,13 @@ describe('plate reverb', () => {
 
   it('goes once round both halves in 0.725 s (claim trip)', async () => {
     const plate = await lab(NAME)
-    const out = plate.render(oneSample(seconds(1)), {})
+    const out = plate.render(click(seconds(1)), {})
     expect(out.checks.trip).toBeCloseTo(0.7253, 3)
   })
 
   it('brings what entered the right half round to the left 11,901 samples later, at 248 ms (claim crossing)', async () => {
     const plate = await lab(NAME)
-    const source = oneSample(seconds(1))
+    const source = click(seconds(1))
     // With the decay at 0 nothing crosses: what differs from that is what came round.
     const round = plate.render(source, {}).taps.hitTank!
     const alone = plate.render(source, { decay: 0 }).taps.hitTank!.channels_data[0]!
@@ -295,7 +283,7 @@ describe('plate reverb', () => {
   /** With no damping: the measured time and the formula's, each as the lesson rounds it. */
   async function fallAt(decay: number, measured: number, formula: number) {
     const plate = await lab(NAME)
-    const checks = plate.render(oneSample(seconds(1)), { decay, damping: 0 }).checks
+    const checks = plate.render(click(seconds(1)), { decay, damping: 0 }).checks
     near(checks.fall!, measured, 0.02)
     near(checks.fallFormula!, formula, 0.01)
     // The formula and the measurement are never more than a tenth apart.
@@ -316,7 +304,7 @@ describe('plate reverb', () => {
 
   it('dies away more slowly the higher the decay, from 0.47 s at 0 to 10.4 s at 0.9, twenty-two times as long (claim decay-range)', async () => {
     const plate = await lab(NAME)
-    const source = oneSample(seconds(1))
+    const source = click(seconds(1))
     const times = [0, 0.1, 0.3, 0.5, 0.7, 0.9].map(
       (decay) => plate.render(source, { decay }).checks.fall!,
     )
@@ -330,7 +318,7 @@ describe('plate reverb', () => {
 
   it('reads the time to fall 60 dB off the decay curve: three times its time from −5 dB to −25 dB', async () => {
     const plate = await lab(NAME)
-    const out = plate.render(oneSample(seconds(1)), {})
+    const out = plate.render(click(seconds(1)), {})
     const curve = out.taps.decayCurve!
     const data = curve.channels_data[0]!
     expect(data[0]).toBe(0)
@@ -345,7 +333,7 @@ describe('plate reverb', () => {
 
   it('shortens the highs with damping and hardly the lows: at 0.7 the band at 5 kHz falls 60 dB in 1.27 s against 1.84 s with none, the band at 500 Hz in 1.86 s against 1.88 s (claim damping-bands)', async () => {
     const plate = await lab(NAME)
-    const source = oneSample(seconds(1))
+    const source = click(seconds(1))
     const bright = plate.render(source, { damping: 0 }).checks
     const dark = plate.render(source, { damping: 0.7 }).checks
     near(bright.fallHigh!, 1.84, 0.02)
@@ -364,10 +352,10 @@ describe('plate reverb', () => {
 
   it('gives 1.8 s at 500 Hz and 1.2 s at 5 kHz by the formula at a decay of 0.5 and a damping of 0.7 (claim damping-formula), within a tenth of what is measured', async () => {
     const plate = await lab(NAME)
-    const checks = plate.render(oneSample(seconds(1)), { damping: 0.7 }).checks
+    const checks = plate.render(click(seconds(1)), { damping: 0.7 }).checks
     const a = 0.7
     const formula = (hz: number) => {
-      const w = (2 * Math.PI * hz) / 48_000
+      const w = (2 * Math.PI * hz) / RATE
       const gain2 = (1 - a) ** 2 / (1 - 2 * a * Math.cos(w) + a * a)
       return (-3 * checks.trip!) / Math.log10(0.5 ** 4 * gain2)
     }
@@ -392,7 +380,7 @@ describe('plate reverb', () => {
 
   it('loses its highs a little sooner even with no damping: 16 kHz falls 60 dB in 1.74 s where 500 Hz takes 1.98 s (claim still-loses-highs)', async () => {
     const plate = await lab(NAME)
-    const tail = plate.render(oneSample(seconds(1)), { damping: 0 }).taps.tail!
+    const tail = plate.render(click(seconds(1)), { damping: 0 }).taps.tail!
     const low = bandFall(tail, 500)
     const high = bandFall(tail, 16_000)
     near(low, 1.98, 0.03)
@@ -402,7 +390,7 @@ describe('plate reverb', () => {
 
   it('first sounds 428 samples after the pre-delay on the left and 568 on the right (claim first-out), the right repeating the left for its first 1083 samples (claim sides-early), and over the whole response the two sides are unrelated: a likeness under 0.01 (claim sides)', async () => {
     const plate = await lab(NAME)
-    const out = plate.render(oneSample(seconds(1)), {})
+    const out = plate.render(click(seconds(1)), {})
     const left = out.taps.hitLeft!.channels_data[0]!
     const right = out.taps.hitRight!.channels_data[0]!
     expect(firstSound(left)).toBe(428)
@@ -413,9 +401,9 @@ describe('plate reverb', () => {
     for (let k = 0; k < 1083; k += 1) expect(right[568 + k]).toBe(left[428 + k])
     expect(right[568 + 1084]).not.toBe(left[428 + 1084])
     expect(Math.abs(out.checks.sides!)).toBeLessThan(0.01)
-    expect(
-      Math.abs(plate.render(oneSample(seconds(1)), { movement: 1 }).checks.sides!),
-    ).toBeLessThan(0.01)
+    expect(Math.abs(plate.render(click(seconds(1)), { movement: 1 }).checks.sides!)).toBeLessThan(
+      0.01,
+    )
   })
 
   it('adds up to 19.35 samples to the delay of each half’s first all-pass, the left once a second and the right at 0.95 Hz (claim wobble-range), and nothing when held still', async () => {

@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { expectSoundLab, lab, peak, seconds, silence } from './support.ts'
+import { BIN, expectSoundLab, lab, peak, RATE, seconds, silence } from './support.ts'
 import type { Lab, RenderResult } from '../../src/lab/runner.ts'
 
 const NAME = 'samples-and-aliasing'
-const RATE = 48_000
-/** A bin of the page's spectrum: 48,000 / 4,096 Hz. */
-const BIN = RATE / 4096
 
 // The lab plays by itself: nothing goes in.
 const nothing = () => silence(seconds(2))

@@ -8,6 +8,7 @@ import {
   lab,
   mean,
   peak,
+  RATE,
   seconds,
   silence,
   sine,
@@ -33,7 +34,7 @@ interface Points {
 function harmonicDb(x: Float32Array, hz: number, k: number): number {
   let re = 0
   let im = 0
-  const w = (2 * Math.PI * hz * k) / 48_000
+  const w = (2 * Math.PI * hz * k) / RATE
   for (let i = 0; i < x.length; i += 1) {
     re += x[i]! * Math.cos(w * i)
     im += x[i]! * Math.sin(w * i)
@@ -353,7 +354,7 @@ describe('saturation and oversampling', () => {
     // The mean of two samples is a cosine of the frequency against the rate the curve runs at.
     const law = (hz: number, rate: number) => gainToDb(Math.cos((Math.PI * hz) / rate))
     for (const hz of [2000, 5000, 10_000, 15_000, 20_000]) {
-      expect(Math.abs(at(once, hz) - law(hz, 48_000))).toBeLessThan(0.05)
+      expect(Math.abs(at(once, hz) - law(hz, RATE))).toBeLessThan(0.05)
       expect(Math.abs(at(result.taps.smallAdaa2x!, hz) - law(hz, 96_000))).toBeLessThan(0.05)
       expect(Math.abs(at(four, hz) - law(hz, 192_000))).toBeLessThan(0.05)
       // The plain curve leaves a quiet signal alone.

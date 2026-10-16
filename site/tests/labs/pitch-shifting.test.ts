@@ -6,15 +6,13 @@ import {
   gainToDb,
   lab,
   mean,
+  POINT_RATE,
+  RATE,
   rms,
   seconds,
   sine,
   type Source,
 } from './support.ts'
-
-const RATE = 48_000
-/** Control taps have a point every 16 samples: 3,000 a second. */
-const POINTS = 3000
 
 /** The loop's sine: 440 Hz, 12 dB under full scale, as the page plays it. */
 const tone = () => benchSource('sine', seconds(4))
@@ -206,9 +204,9 @@ describe('pitch shifting', () => {
     // The steepest step between neighbouring points is the jump back; the commonest is the slope.
     const slope = (delays: Float32Array) => {
       const steps: number[] = []
-      for (let i = POINTS; i < 3 * POINTS; i += 1) steps.push(delays[i + 1]! - delays[i]!)
+      for (let i = POINT_RATE; i < 3 * POINT_RATE; i += 1) steps.push(delays[i + 1]! - delays[i]!)
       steps.sort((a, b) => a - b)
-      return (steps[Math.floor(steps.length / 2)]! * POINTS) / 1000
+      return (steps[Math.floor(steps.length / 2)]! * POINT_RATE) / 1000
     }
     const at = (semitones: number) =>
       slope(shifter.render(source, { semitones }).taps.delayA!.channels_data[0]!)
@@ -226,12 +224,12 @@ describe('pitch shifting', () => {
       const a = result.taps.delayA!.channels_data[0]!
       const b = result.taps.delayB!.channels_data[0]!
       for (const delays of [a, b]) {
-        expect(Math.min(...delays.subarray(POINTS))).toBeGreaterThanOrEqual(1.5)
-        expect(Math.min(...delays.subarray(POINTS))).toBeLessThan(1.7)
-        expect(Math.max(...delays.subarray(POINTS))).toBeLessThanOrEqual(61.5)
-        expect(Math.max(...delays.subarray(POINTS))).toBeGreaterThan(61.2)
+        expect(Math.min(...delays.subarray(POINT_RATE))).toBeGreaterThanOrEqual(1.5)
+        expect(Math.min(...delays.subarray(POINT_RATE))).toBeLessThan(1.7)
+        expect(Math.max(...delays.subarray(POINT_RATE))).toBeLessThanOrEqual(61.5)
+        expect(Math.max(...delays.subarray(POINT_RATE))).toBeGreaterThan(61.2)
       }
-      for (let i = POINTS; i < 3 * POINTS; i += 1) {
+      for (let i = POINT_RATE; i < 3 * POINT_RATE; i += 1) {
         expect(Math.abs(Math.abs(a[i]! - b[i]!) - 30)).toBeLessThan(0.001)
       }
     }
@@ -248,7 +246,7 @@ describe('pitch shifting', () => {
         if (delays[i + 1]! - delays[i]! > 30) jumps.push(i)
       }
       expect(jumps.length).toBeGreaterThan(1)
-      return ((jumps[jumps.length - 1]! - jumps[0]!) / (jumps.length - 1) / POINTS) * 1000
+      return ((jumps[jumps.length - 1]! - jumps[0]!) / (jumps.length - 1) / POINT_RATE) * 1000
     }
     expect(sweep(12)).toBeCloseTo(60, 0)
     expect(sweep(1)).toBeGreaterThan(1009 - 2)
@@ -393,7 +391,7 @@ describe('pitch shifting', () => {
     const source = await tone()
     const result = shifter.render(source, { size: 10 })
     const level = Array.from(result.taps.level!.channels_data[0]!.subarray(1500, 10_500))
-    expect(dipsPerSecond(level, POINTS)).toBeCloseTo(200, 0)
+    expect(dipsPerSecond(level, POINT_RATE)).toBeCloseTo(200, 0)
     // And the comb's teeth are 200 Hz apart: 440 + 2 × 200 is the tallest.
     const voice = result.taps.voice!.channels_data[0]!
     expect(lineDb(voice, 840)).toBeGreaterThan(lineDb(voice, 880) + 60)

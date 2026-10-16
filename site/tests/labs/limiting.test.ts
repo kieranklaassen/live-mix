@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { TruePeakDetector } from '../../../src/core/analysis/loudness.ts'
 import {
   benchSource,
+  click,
   dbToGain,
   expectSoundLab,
   gainToDb,
   lab,
   peak,
+  POINT_RATE,
+  RATE,
   rms,
   seconds,
   silence,
@@ -25,7 +28,7 @@ const least = (x: Float32Array) => x.reduce((low, v) => Math.min(low, v), Infini
 function meterDb(channels: Float32Array[]): number {
   let top = 0
   for (const x of channels) {
-    const detector = new TruePeakDetector(48_000)
+    const detector = new TruePeakDetector(RATE)
     // Twice round, so the filter's memory at the loop's start holds the loop's end.
     for (const v of x) detector.push(v)
     for (const v of x) top = Math.max(top, detector.push(v))
@@ -70,14 +73,6 @@ const levelDb = (channels: Float32Array[]) =>
   gainToDb(Math.sqrt(channels.reduce((sum, x) => sum + rms(x) ** 2, 0) / channels.length))
 
 const sampleDb = (channels: Float32Array[]) => gainToDb(Math.max(...channels.map(peak)))
-
-/** Silence with one sample of `size` on both channels at `at`. */
-function click(size: number, at: number, frames: number): Source {
-  const source = silence(frames)
-  source.left[at] = size
-  source.right[at] = size
-  return source
-}
 
 /** A sine at a quarter of the sample rate, 12 kHz, sampled 45 degrees from its crests. */
 function quarterTone(frames: number): Source {
@@ -145,7 +140,7 @@ describe('limiting and true peaks', () => {
   it('delays a click by 77 samples, the latency the device reports (claim delay-77)', async () => {
     const limiter = await lab('limiting')
     // Half full scale under a ceiling of 0 dB: nothing to turn down.
-    const out = limiter.render(click(0.5, 5000, seconds(0.5)), { push: 0, ceiling: 0 })
+    const out = limiter.render(click(seconds(0.5), 5000, 0.5), { push: 0, ceiling: 0 })
     for (const data of out.taps.out!.channels_data) {
       expect(data[5077]).toBe(0.5)
       expect(data.filter((v) => v !== 0).length).toBe(1)
@@ -261,7 +256,7 @@ describe('limiting and true peaks', () => {
 
   it('has the gain 63 % of the way back 101 ms after its lowest, at a release of 100 ms (claim release-100)', async () => {
     const limiter = await lab('limiting')
-    const out = limiter.render(click(1, 48_000, seconds(4)), {
+    const out = limiter.render(click(seconds(4), seconds(1)), {
       push: 12,
       ceiling: -1,
       release: 100,
@@ -271,7 +266,7 @@ describe('limiting and true peaks', () => {
     const back = 1 - (1 - gain[lowest]!) * Math.exp(-1)
     let k = lowest
     while (k < gain.length && gain[k]! < back) k += 1
-    const ms = ((k - lowest) * 16 * 1000) / 48_000
+    const ms = ((k - lowest) * 1000) / POINT_RATE
     say('release-100', ms)
     expect(ms).toBeGreaterThan(101 - 1)
     expect(ms).toBeLessThan(101 + 1)
@@ -279,7 +274,7 @@ describe('limiting and true peaks', () => {
 
   it('comes to rest 0.0012 dB short of no reduction at a release of 100 ms (claim rests-short)', async () => {
     const limiter = await lab('limiting')
-    const out = limiter.render(click(1, 48_000, seconds(4)), {
+    const out = limiter.render(click(seconds(4), seconds(1)), {
       push: 12,
       ceiling: -1,
       release: 100,
@@ -296,7 +291,7 @@ describe('limiting and true peaks', () => {
   it('holds the lowest gain a click asks for through 73 samples (claim held-73)', async () => {
     const limiter = await lab('limiting')
     // A loop long enough for the gain to be at rest again when the click comes round.
-    const out = limiter.render(click(1, 5000, seconds(2)), { push: 12, ceiling: -1 })
+    const out = limiter.render(click(seconds(2), 5000), { push: 12, ceiling: -1 })
     // In the loop, and in the lab's own view of one click through a second device.
     for (const id of ['nearMinimum', 'clickMinimum']) {
       const minimum = out.taps[id]!.channels_data[0]!
@@ -311,7 +306,7 @@ describe('limiting and true peaks', () => {
 
   it('starts the gain down 72 samples before a click comes out (claim ramp-72), in a straight line (claim ramp-straight), and reaches the lowest on the sample it comes out and the one after (claim bottom-on-peak)', async () => {
     const limiter = await lab('limiting')
-    const out = limiter.render(click(1, 5000, seconds(2)), { push: 12, ceiling: -1 })
+    const out = limiter.render(click(seconds(2), 5000), { push: 12, ceiling: -1 })
     // The click goes in 77 samples before it comes out, four times its size after the push.
     expect(near(out.taps.nearPushed!)(-77)).toBeCloseTo(dbToGain(12), 4)
     expect(near(out.taps.nearDelayed!)(0)).toBeCloseTo(dbToGain(12), 4)

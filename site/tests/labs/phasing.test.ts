@@ -6,6 +6,8 @@ import {
   gainToDb,
   lab,
   peak,
+  POINT_RATE,
+  RATE,
   rms,
   seconds,
   silence,
@@ -13,7 +15,6 @@ import {
   type Source,
 } from './support.ts'
 
-const RATE = 48_000
 const STAGES = [4, 6, 8, 10, 12]
 
 /** The frequency point `i` of an `n`-point curve stands at: even ratios from 20 Hz to 20 kHz. */
@@ -362,7 +363,7 @@ describe('phasing', () => {
     while (covered(start) < 1e-3) start += 1
     let k = start
     while (covered(k) < 1 - Math.exp(-1)) k += 1
-    const ms = ((k - start) * 16 * 1000) / RATE
+    const ms = ((k - start) * 1000) / POINT_RATE
     // A point of the tap is a third of a millisecond.
     expect(ms).toBeGreaterThan(2.6)
     expect(ms).toBeLessThan(3.4)
@@ -372,7 +373,7 @@ describe('phasing', () => {
     const phasing = await lab('phasing')
     const noise = await benchSource('noise', seconds(4))
     const out = phasing.render(noise, { stereo: 90 })
-    const top = (x: Float32Array) => (x.indexOf(Math.max(...x)) * 16) / RATE
+    const top = (x: Float32Array) => x.indexOf(Math.max(...x)) / POINT_RATE
     const left = top(out.taps.corner!.channels_data[0]!)
     const right = top(out.taps.cornerRight!.channels_data[0]!)
     expect(left).toBeCloseTo(1, 1)

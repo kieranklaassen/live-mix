@@ -3,9 +3,11 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   benchSource,
+  BIN,
   expectSoundLab,
   lab,
   noise,
+  RATE,
   rms,
   seconds,
   silence,
@@ -13,7 +15,6 @@ import {
   type Source,
 } from './support.ts'
 
-const RATE = 48_000
 const SIXTY_THREE = 1 - Math.exp(-1)
 /** One step of a 32-bit float just under 1. */
 const FLOAT_STEP = 2 ** -24
@@ -56,9 +57,8 @@ function levelDb(result: { taps: Record<string, { channels_data: Float32Array[] 
 
 /** The power of a spectrum between two frequencies, in dB. */
 function bandDb(spectrum: Float32Array, from: number, to: number): number {
-  const binHz = RATE / 4096
   let sum = 0
-  for (let k = Math.round(from / binHz); k <= Math.round(to / binHz); k += 1)
+  for (let k = Math.round(from / BIN); k <= Math.round(to / BIN); k += 1)
     sum += 10 ** (spectrum[k]! / 10)
   return 10 * Math.log10(sum)
 }
@@ -68,8 +68,9 @@ describe('the one-pole filter and smoothing', () => {
     const pole = await lab('one-pole')
     const hiss = await benchSource('noise', seconds(4))
     const result = pole.render(hiss, {})
-    // The 63 % line is a level to read the curves against: flat by design.
-    expectSoundLab(pole, hiss, result, { quiet: ['sixtyThree'] })
+    // The 63 % line is a level to read the curves against: flat by design. The stepped fader
+    // steps as the loop starts, as it does ten times a second: that step is the lesson's subject.
+    expectSoundLab(pole, hiss, result, { quiet: ['sixtyThree'], steps: ['zipper'] })
   })
 
   it('gives the newest sample a weight of 1 − a, 0.063 at 500 Hz (claim newest-weight), and each older one 0.937 of the next (claim weight-ratio)', async () => {
