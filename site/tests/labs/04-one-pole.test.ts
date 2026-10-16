@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   benchSource,
@@ -81,6 +83,16 @@ describe('lesson 4: the one-pole filter and smoothing', () => {
     for (let n = 1; n < h.length; n += 1) expect(h[n]! / h[n - 1]!).toBeCloseTo(0.937, 3)
   })
 
+  it('has a time constant of 0.32 ms, 15.3 samples, at 500 Hz, read from how fast its weights fall (claim tau-500)', async () => {
+    const pole = await lab('04-one-pole')
+    const h = pole.render(noise(0.25, seconds(0.5)), { cutoff: 500 }).taps.impulse!
+      .channels_data[0]!
+    // Each weight is a times the one before, and a = exp(−1/(τ·fs)).
+    const samples = -1 / Math.log(h[1]! / h[0]!)
+    expect(samples).toBeCloseTo(15.3, 1)
+    expect((samples * 1000) / RATE).toBeCloseTo(0.32, 2)
+  })
+
   it('reads out (1 − a)·aⁿ for one unit sample, within a ten-millionth at any cutoff (claim impulse-error)', async () => {
     const pole = await lab('04-one-pole')
     for (const cutoff of [20, 100, 500, 2000, 8000, 20000]) {
@@ -135,6 +147,30 @@ describe('lesson 4: the one-pole filter and smoothing', () => {
     const at = (hz: number) =>
       levelDb(pole.render(sine(hz, 0.5, seconds(1)), { cutoff: 100 }), 'low')
     expect(at(10000) - at(20000)).toBeCloseTo(4.0, 1)
+  })
+
+  it('passes (1 − a)/(1 + a) at half the sample rate (claim top-level)', async () => {
+    const pole = await lab('04-one-pole')
+    for (const cutoff of [3000, 5000, 12000]) {
+      // Short enough a memory that the 2 ms kept is all of the response.
+      const h = pole.render(noise(0.25, seconds(0.25)), { cutoff }).taps.impulse!.channels_data[0]!
+      // At half the rate a tone is +1, −1, +1: its level out is the weights summed with those signs.
+      let level = 0
+      for (let n = 0; n < h.length; n += 1) level += n % 2 === 0 ? h[n]! : -h[n]!
+      const a = poleFor(cutoff)
+      expect(level, `${cutoff} Hz`).toBeCloseTo((1 - a) / (1 + a), 6)
+    }
+  })
+
+  it('would be 3 dB down at the cutoff itself with the pole a = b − √(b² − 1), b = 2 − cos ω (claim exact-pole)', () => {
+    // Arithmetic on the formula alone: the kit does not place its pole this way.
+    for (const cutoff of [100, 500, 3600, 8000, 13500, 20000]) {
+      const w = (2 * Math.PI * cutoff) / RATE
+      const b = 2 - Math.cos(w)
+      const a = b - Math.sqrt(b * b - 1)
+      const level = (1 - a) / Math.sqrt(1 - 2 * a * Math.cos(w) + a * a)
+      expect(20 * Math.log10(level), `${cutoff} Hz`).toBeCloseTo(-3.0103, 4)
+    }
   })
 
   it('stands 2.6 dB above the textbook pole at 20 kHz with the cutoff at 500 Hz, and within 0.1 dB of it up to 3 kHz (claim bend)', async () => {
@@ -228,7 +264,7 @@ describe('lesson 4: the one-pole filter and smoothing', () => {
     expect(at(200, 2000) - at(100, 2000)).toBeCloseTo(6.0, 1)
   })
 
-  it('stops 7 float steps short of a steady 1 at 500 Hz, and leaves that in the high-pass, 128 dB down (claim never-arrives)', async () => {
+  it('stops 7 float steps short of a steady 1 at 500 Hz, and leaves that in the high-pass, 128 dB down (claim never-arrives) (claim never-silent)', async () => {
     const pole = await lab('04-one-pole')
     const out = pole.render(constant(1, seconds(1)), { cutoff: 500 })
     const low = out.taps.low!.channels_data[0]!
@@ -271,6 +307,30 @@ describe('lesson 4: the one-pole filter and smoothing', () => {
       )
     }
     expect(worst).toBeLessThan(1e-6)
+  })
+
+  it('answers a step at 5 ms as the filter at a cutoff of 31.8 Hz does, and not as one at 35 Hz (claim smoothing-cutoff)', async () => {
+    const pole = await lab('04-one-pole')
+    const cutoff = 1 / (2 * Math.PI * 0.005)
+    expect(cutoff).toBeCloseTo(31.8, 1)
+    const apart = (hz: number) => {
+      const out = pole.render(noise(0.25, seconds(0.25)), { cutoff: hz, smoothing: 5 })
+      const step = out.taps.step!.channels_data[0]!
+      const glide = out.taps.glide!.channels_data[0]!
+      let worst = 0
+      for (let p = 0; p < step.length; p += 1)
+        worst = Math.max(worst, Math.abs(step[p]! - glide[p]!))
+      return worst
+    }
+    expect(apart(cutoff)).toBeLessThan(1e-6)
+    expect(apart(35)).toBeGreaterThan(1e-2)
+  })
+
+  it('is 95 % of the way 15 ms after a value arrives, at 5 ms (claim lag-15)', async () => {
+    const pole = await lab('04-one-pole')
+    const glide = pole.render(noise(0.25, seconds(0.25)), { smoothing: 5 }).taps.glide!
+      .channels_data[0]!
+    expect(glide[seconds(0.015)]).toBeCloseTo(0.95, 3)
   })
 
   it('lands the smoother exactly on a target of 1, from 0, 58.7 ms after the step at 5 ms: 11.7 time constants (claim landing)', async () => {
@@ -319,6 +379,15 @@ describe('lesson 4: the one-pole filter and smoothing', () => {
     expect(out.taps.glide!.channels_data[0]![240]).toBeCloseTo(0.632, 3)
   })
 
+  it('puts a 220 Hz tone under the fader: 110 cycles in half a second (claim tone-220)', async () => {
+    const pole = await lab('04-one-pole')
+    // At two values a second the fader holds 0.5 for the first half second.
+    const tone = pole.render(silence(seconds(4)), { updates: 2 }).taps.zipper!.channels_data[0]!
+    let cycles = 0
+    for (let i = 1; i < seconds(0.5); i += 1) if (tone[i - 1]! < 0 && tone[i]! >= 0) cycles += 1
+    expect(cycles).toBe(110)
+  })
+
   it('moves the gain 0.1 in one sample as the fader arrives, and a 240th of that through the smoother (claim gain-step)', async () => {
     const pole = await lab('04-one-pole')
     const out = pole.render(constant(1, seconds(4)), { rides: 1 })
@@ -343,6 +412,20 @@ describe('lesson 4: the one-pole filter and smoothing', () => {
     // 40.1 dB measured: the tone itself is at 220 Hz, far under the band.
     expect(stepped - smooth).toBeGreaterThan(38)
     expect(stepped - smooth).toBeLessThan(42)
+  })
+
+  it('is on the knobs of more than a hundred devices: 136 of them declare a kit::Smoother (claim smoothed-devices)', () => {
+    const devices = fileURLToPath(new URL('../../../cpp/devices/', import.meta.url))
+    const smoothed = readdirSync(devices, { withFileTypes: true }).filter(
+      (entry) =>
+        entry.isDirectory() &&
+        readdirSync(devices + entry.name)
+          .filter((name) => name.endsWith('.h'))
+          .some((name) =>
+            readFileSync(`${devices}${entry.name}/${name}`, 'utf8').includes('kit::Smoother'),
+          ),
+    )
+    expect(smoothed.length).toBeGreaterThan(100)
   })
 
   it('is the stepped fader exactly with the smoothing at 0 (claim smoothing-zero)', async () => {
