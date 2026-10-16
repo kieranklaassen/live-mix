@@ -128,19 +128,76 @@ describe('the lessons that are written', () => {
     )
   })
 
-  it('leave a listed lesson with no file as not yet written, and do not fail', () => {
-    const map = mapWith([written('limiting', 'dynamics'), written('one-pole', 'filters')], small)
+  it('fail a whole build on a lesson the map lists that has no file, naming each one', () => {
+    expect(() =>
+      mapWith([written('limiting', 'dynamics'), written('one-pole', 'filters')], small),
+    ).toThrow(
+      'The map lists 2 lessons that have no file: phasing, compression. ' +
+        'Each needs site/src/content/lessons/<id>.mdx, or comes off the map (site/src/content/families.json).',
+    )
+    expect(() =>
+      mapWith(
+        [
+          written('limiting', 'dynamics'),
+          written('one-pole', 'filters'),
+          written('phasing', 'filters'),
+        ],
+        small,
+      ),
+    ).toThrow('The map lists 1 lesson that has no file: compression.')
+  })
+
+  it('are the whole map, family by family, when every lesson it lists has its file', () => {
+    const all = [
+      written('limiting', 'dynamics'),
+      written('compression', 'dynamics'),
+      written('phasing', 'filters'),
+      written('one-pole', 'filters'),
+    ]
+    const map = mapWith(all, small)
     expect(map.map((family) => family.name)).toEqual(['Filters', 'Dynamics'])
+    expect(
+      map.flatMap((family) => family.lessons.map((one) => [one.number, one.id, one.lesson?.id])),
+    ).toEqual([
+      [1, 'one-pole', 'one-pole'],
+      [2, 'phasing', 'phasing'],
+      [3, 'compression', 'compression'],
+      [4, 'limiting', 'limiting'],
+    ])
+  })
+
+  it('in a build of one lesson leave every other lesson of the map in its place, not built', () => {
+    // scripts/lesson.sh builds a site that holds one lesson: only its file is read.
+    const map = mapWith([written('limiting', 'dynamics')], small, 'limiting')
     expect(
       map.flatMap((family) =>
         family.lessons.map((one) => [one.number, one.id, one.lesson !== undefined]),
       ),
     ).toEqual([
-      [1, 'one-pole', true],
+      [1, 'one-pole', false],
       [2, 'phasing', false],
       [3, 'compression', false],
       [4, 'limiting', true],
     ])
+    // The one lesson itself must be there.
+    expect(() => mapWith([], small, 'limiting')).toThrow(
+      'The map lists 1 lesson that has no file: limiting.',
+    )
+  })
+
+  it('have a file each: thirty-two of them, as the map lists', () => {
+    const folder = fileURLToPath(new URL('../../src/content/lessons/', import.meta.url))
+    const files = fs
+      .readdirSync(folder)
+      .filter((name) => name.endsWith('.mdx'))
+      .map((name) => name.replace(/\.mdx$/, ''))
+      .sort()
+    expect(files).toEqual(
+      TABLE.flatMap(([, ids]) => ids)
+        .slice()
+        .sort(),
+    )
+    expect(files).toHaveLength(32)
   })
 
   it('are each in the map, under the family their front matter names', () => {
@@ -171,5 +228,21 @@ describe('a lesson named in the text', () => {
     expect(() => mention('07-compression', false, 'limiting')).toThrow(
       'limiting: <Lesson id="07-compression" /> names a lesson the map does not list.',
     )
+  })
+})
+
+describe("what the pages' build takes in", () => {
+  it('is no file that finds the map by a path from its own place', () => {
+    // scripts/site-env.mjs opens src/content/families.json beside itself when a build holds one
+    // lesson. Taken into the pages' build it is moved, the path leads nowhere, and every
+    // one-lesson build stops. The content's own settings file is read where it lies, and may.
+    const src = fileURLToPath(new URL('../../src/', import.meta.url))
+    const taking = fs
+      .readdirSync(src, { recursive: true, encoding: 'utf8' })
+      .filter((file) => /\.(ts|tsx|astro|mjs)$/.test(file) && file !== 'content.config.ts')
+      .filter((file) =>
+        /from\s+['"][^'"]*site-env\.mjs['"]/.test(fs.readFileSync(`${src}${file}`, 'utf8')),
+      )
+    expect(taking).toEqual([])
   })
 })

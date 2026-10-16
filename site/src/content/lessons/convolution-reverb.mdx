@@ -2,9 +2,9 @@
 title: Convolution reverb
 family: rooms
 summary: A convolution reverb keeps a room as its answer to one click, and lays a copy of that answer down for every sample of the sound. This lesson stamps the copies by hand, adds them, does the same sum with the engine's Fourier transform, and holds the result to the browser's own convolver, which the engine plays through.
-long: true
 opening: { input: in, output: out, separate: true, caption: 'The drums as played, and with the room added. The line between the hits is flat going in. Coming out, the room is still ringing when the next hit lands.' }
 lab: convolution-reverb
+written: The sum that stamps a copy of the room for every sample is written for this lesson, because the engine hands that sum to the browser's own convolver. The Fourier transform the lesson then does the same sum with is the engine's.
 devices: [convolver-reverb]
 bench:
   device: convolver-reverb

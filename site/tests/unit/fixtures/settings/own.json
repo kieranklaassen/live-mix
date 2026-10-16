@@ -1,0 +1,6 @@
+{
+  "tile": {
+    "tap": "out",
+    "picture": { "taps": ["out"], "view": "wave" }
+  }
+}

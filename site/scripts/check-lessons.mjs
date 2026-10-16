@@ -1,13 +1,15 @@
-// The lesson packet, held: what a long lesson is made of (site/LESSONS.md). This reads the lesson
-// pages as built and fails on a page that carries `data-long` and is short of the packet: a part
-// missing or out of its order, a part or the whole lesson under its floor, a figure with no key,
-// a caption or a key that names a colour, text that calls a control by what it looks like. A
-// lesson that is not long yet is skipped.
+// The lesson packet, held: what a lesson is made of (site/LESSONS.md). This reads the lesson
+// pages as built and fails on one that is short of the packet: a part missing or out of its
+// order, a part or the whole lesson under its floor, a figure with no key, a caption or a key
+// that names a colour, text that calls a control by what it looks like. Every lesson is held.
 //
 //   node scripts/check-lessons.mjs [lesson] [folder]     # every lesson of site/dist
 //
-// It also knows which files are a lesson's own, for scripts/lesson.sh and the wording check,
-// and a lesson's own browser spec where it has one (`--spec <lesson>`).
+// It also knows which files are a lesson's own, for scripts/lesson.sh and the wording check
+// (`--packet <lesson>`); a lesson's own browser spec where it has one (`--spec <lesson>`); what
+// of a lesson's own is TypeScript, as a project the compiler checks by itself
+// (`--types <lesson> <file>`); and which file a failed step's output blames
+// (`--outside <lesson> <log>`).
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -28,7 +30,7 @@ export const PART_IDS = [
   'device',
 ]
 
-/** The least a long lesson holds (LESSONS.md, "The lesson packet"). */
+/** The least a lesson holds (LESSONS.md, "The nine parts"). */
 export const FLOORS = {
   words: 3500,
   figures: 12,
@@ -175,11 +177,13 @@ function sentenceAt(text, found) {
 
 /**
  * What a built lesson page is short of, one line each: the lesson, the part, and what is short
- * and by how much. Undefined for a page that does not carry the long mark.
+ * and by how much. A page that holds no lesson at all is one fault.
  */
 export function shapeOf(html, lesson) {
-  const article = all(parse(html), is({ tag: 'article', cls: 'lesson', attr: 'data-long' }))[0]
-  if (!article) return undefined
+  const article = all(parse(html), is({ tag: 'article', cls: 'lesson' }))[0]
+  if (!article) {
+    return [`${lesson}: the page built for it holds no lesson (no <article class="lesson">)`]
+  }
   const problems = []
   const say = (where, what) => problems.push(`${lesson}: ${where}: ${what}`)
   const floor = (where, have, least, what) => {
@@ -327,7 +331,7 @@ export function shapeOf(html, lesson) {
 }
 
 /**
- * What the long lessons built in `folder` are short of, one line each. Reads
+ * What the lessons built in `folder` are short of, one line each. Reads
  * `<folder>/lessons/<id>/index.html`: every lesson there, or the one of that id.
  */
 export function checkLessons(folder = path.join(SITE, siteFolder), lesson) {
@@ -340,15 +344,10 @@ export function checkLessons(folder = path.join(SITE, siteFolder), lesson) {
         )
         .sort()
     : []
-  const problems = []
-  let long = 0
-  for (const id of ids) {
-    const found = shapeOf(fs.readFileSync(path.join(lessons, id, 'index.html'), 'utf8'), id)
-    if (!found) continue
-    long += 1
-    problems.push(...found)
-  }
-  return { problems, long, pages: ids.length }
+  const problems = ids.flatMap((id) =>
+    shapeOf(fs.readFileSync(path.join(lessons, id, 'index.html'), 'utf8'), id),
+  )
+  return { problems, pages: ids.length }
 }
 
 /**
@@ -386,20 +385,34 @@ export function packetFiles(lesson, site = SITE) {
 }
 
 /**
- * The one browser spec of a lesson's own that is not called by its lesson's id: it was named
- * before the rule, after its technique, and the repository's plans name it so.
- */
-const NAMED_SPECS = { 'convolution-reverb': 'tests/browser/convolution.spec.ts' }
-
-/**
- * A lesson's own browser spec, as a path from site/, where it has one: tests/browser/<id>.spec.ts.
- * It holds what only a browser can measure, and the browser step of scripts/lesson.sh runs it
- * with the shared spec, on the lesson's own build. Undefined for a lesson with none.
+ * A lesson's own browser spec, as a path from site/, where it has one: tests/browser/<id>.spec.ts,
+ * by the lesson's id and no other name. It holds what only a browser can measure, and the
+ * browser step of scripts/lesson.sh runs it with the shared spec, on the lesson's own build.
+ * Undefined for a lesson with none.
  */
 export function ownSpec(lesson, site = SITE) {
-  return [`tests/browser/${lesson}.spec.ts`, NAMED_SPECS[lesson]].find(
-    (file) => file && fs.existsSync(path.join(site, file)),
+  const file = `tests/browser/${lesson}.spec.ts`
+  return fs.existsSync(path.join(site, file)) ? file : undefined
+}
+
+/**
+ * The TypeScript that is a lesson's own, as a project for the compiler: its lab test, its
+ * figure and its browser spec, each where it is there, under the site's own settings
+ * (site/tsconfig.json). The compiler checks those files and what they import, so a file of
+ * another lesson is not read. `from` is the folder the project's file is written to, from
+ * site/: the paths in it are from there. scripts/lesson.sh checks a lesson's types with it.
+ */
+export function typesConfig(lesson, from = '.lesson/.runs', site = SITE) {
+  const up = path.relative(path.join(site, from), site)
+  const own = [...packetFiles(lesson, site), ownSpec(lesson, site)].filter(
+    (file) => file && /\.tsx?$/.test(file),
   )
+  return {
+    extends: path.join(up, 'tsconfig.json'),
+    // The page's own types (the lab a figure's wrapper reads) are declared for every file.
+    include: ['src/env.d.ts', ...own].map((file) => path.join(up, file)),
+    exclude: [],
+  }
 }
 
 // Where a tool says the file it could not compile: the C++ compiler, the test runner's
@@ -411,19 +424,19 @@ const STOPPED_AT = [
   /\[CompilerError\].*\n\s*Location:\s*\n\s*(\S+?):\d+:\d+/,
   /^SyntaxError: (\S+?): /m,
 ]
+// Where the type checker says a type does not hold: every fault it found, each with its file.
+const TYPE_FAULT = /^(\S+?)\(\d+,\d+\): error TS\d+: /gm
 
 /**
  * The file a failed step's output blames, as a path from the repository's root, when it is not
  * one of the lesson's own: the first file a tool could not compile. Undefined when that file is
  * the lesson's, when the C++ compiler's notes on it point into the lesson's lab, and when the
- * step failed for any other reason (a test that does not hold is the lesson's to mend).
+ * step failed for any other reason (a test that does not hold is the lesson's to mend). The
+ * type checker lists every fault it found: it blames a file outside only when none of them is
+ * in a file of the lesson's own.
  */
 export function blamedOutside(output, lesson, site = SITE) {
   const text = output.replace(/\x1b\[[0-9;]*m/g, '')
-  const first = STOPPED_AT.map((pattern) => pattern.exec(text))
-    .filter(Boolean)
-    .sort((a, b) => a.index - b.index)[0]
-  if (!first) return undefined
   const repo = path.resolve(site, '..')
   // A tool names a file from where it ran: site/, or the repository's root.
   const inRepo = (file) => {
@@ -437,6 +450,12 @@ export function blamedOutside(output, lesson, site = SITE) {
   const own = [...packetFiles(lesson, site), ownSpec(lesson, site)]
     .filter(Boolean)
     .map((file) => path.relative(repo, path.join(site, file)))
+  const typed = [...text.matchAll(TYPE_FAULT)].map((fault) => inRepo(fault[1])).filter(Boolean)
+  if (typed.length > 0) return typed.some((file) => own.includes(file)) ? undefined : typed[0]
+  const first = STOPPED_AT.map((pattern) => pattern.exec(text))
+    .filter(Boolean)
+    .sort((a, b) => a.index - b.index)[0]
+  if (!first) return undefined
   const blamed = inRepo(first[1])
   if (!blamed || own.includes(blamed)) return undefined
   const rest = text.slice(first.index + first[0].length)
@@ -455,13 +474,18 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     // The lesson's own browser spec, where it has one.
     const spec = ownSpec(second)
     if (spec) console.log(spec)
+  } else if (first === '--types') {
+    // The lesson's own TypeScript as a project, written to the file named, for `tsc -p`.
+    const config = typesConfig(second, path.relative(SITE, path.dirname(path.resolve(third))))
+    fs.mkdirSync(path.dirname(path.resolve(third)), { recursive: true })
+    fs.writeFileSync(third, `${JSON.stringify(config, null, 2)}\n`)
   } else if (first === '--outside') {
     // The file outside the lesson's packet that a failed step's output blames, if it blames one.
     const blamed = blamedOutside(fs.readFileSync(third, 'utf8'), second)
     if (blamed) console.log(blamed)
   } else {
     const folder = path.resolve(second ?? path.join(SITE, siteFolder))
-    const { problems, long, pages } = checkLessons(folder, first)
+    const { problems, pages } = checkLessons(folder, first)
     if (first && pages === 0) {
       console.error(`No page of the lesson "${first}" is built in ${folder}.`)
       process.exit(1)
@@ -469,8 +493,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     for (const problem of problems) console.error(problem)
     console.log(
       problems.length
-        ? `Places where a long lesson is short of its packet (LESSONS.md): ${problems.length}.`
-        : `Lesson pages read: ${pages}. Long: ${long}, and none is short of its packet.`,
+        ? `Places where a lesson is short of its packet (LESSONS.md): ${problems.length}.`
+        : `Lesson pages read: ${pages}, and none is short of its packet.`,
     )
     process.exit(problems.length ? 1 : 0)
   }

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import katex from 'katex'
 import { describe, expect, it } from 'vitest'
 import { ROLES } from '../../src/figures/roles.ts'
-import { mathsHtml } from '../../src/lib/maths.ts'
+import { mathsBox, mathsHtml } from '../../src/lib/maths.ts'
 
 const SITE = fileURLToPath(new URL('../..', import.meta.url))
 
@@ -31,6 +31,19 @@ describe('an equation', () => {
       // Once, on the outermost element: everything the renderer wrote is inside it.
       expect(html.match(/data-pagefind-ignore/g)).toHaveLength(1)
     }
+  })
+
+  it('as a block stands in a box that scrolls sideways and takes the focus, as a listing’s does', () => {
+    const html = mathsBox(String.raw`C(z) = \sig{out}{z} + \tfrac{1}{2}`)
+    // The box is what scrolls (styles/lesson.css): with a place in the order of the Tab key the
+    // arrow keys move it, so an equation wider than a phone is read to its end without a pointer.
+    expect(html.startsWith('<div class="math" tabindex="0"><span data-pagefind-ignore ')).toBe(true)
+    expect(html.endsWith('</span></div>')).toBe(true)
+    expect(html).toContain('class="katex-display"')
+    // The page sets a block through it, and an equation in a sentence has no box.
+    const component = fs.readFileSync(path.join(SITE, 'src/components/lesson/M.astro'), 'utf8')
+    expect(component).toContain('set:html={mathsBox(t)}')
+    expect(mathsHtml(String.raw`a + b`)).not.toContain('tabindex')
   })
 
   it('still fails on mathematics that cannot be read', () => {

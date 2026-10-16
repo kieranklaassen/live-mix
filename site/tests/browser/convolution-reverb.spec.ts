@@ -2,10 +2,16 @@
 // its room through. A ConvolverNode does not run in Node, so what the lesson says of it is held
 // here: it adds no delay, a sound rings on for the impulse's length, and the lab's convolution
 // with the kit's transform is the same convolution.
+//
+// This is the lesson's own browser spec, named by the lesson's id: scripts/lesson.sh runs it
+// with the shared spec in the one-lesson check of `convolution-reverb`.
 import { expect, test } from '@playwright/test'
 import { labReady, renders, watch } from './support.ts'
 
 const LESSON = 'lessons/convolution-reverb/'
+
+/** The most the lab's convolution may differ from the browser's, in dB: what the measurement supports. */
+const HELD_DB = -120
 
 /** In the page: seeded noise through a ConvolverNode holding `impulse`, with `normalize` off. */
 async function throughConvolver({
@@ -95,7 +101,9 @@ test.describe('the convolution lesson', () => {
       Number(await page.locator('[data-convolver]').getAttribute('data-convolver'))
     const first = await read()
     console.log(`the lab's convolution against the browser's: ${first} dB`)
-    expect(first).toBeLessThan(-80)
+    // The lesson writes "less than −80 dB". The two read −130.1 dB apart here, and are held
+    // to −120 dB: ten decibels of room over what was measured, and forty under what is written.
+    expect(first).toBeLessThan(HELD_DB)
 
     // On another room, and with only part of the impulse in use: checked again.
     const count = await renders(page)
@@ -104,7 +112,9 @@ test.describe('the convolution lesson', () => {
     await decay.press('Home')
     await expect.poll(() => renders(page)).toBeGreaterThan(count)
     await expect.poll(read, { timeout: 30_000 }).not.toBe(first)
-    expect(await read()).toBeLessThan(-80)
+    const second = await read()
+    console.log(`and on the shortest room: ${second} dB`)
+    expect(second).toBeLessThan(HELD_DB)
     expect(problems).toEqual([])
   })
 })

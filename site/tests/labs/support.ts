@@ -28,53 +28,82 @@ export const BIN = SAMPLE_RATE / 4096
 export const FADE = 960
 
 /**
- * Fails when a lab's file declares more checks than a lab may (kMaxChecks in site/labs/lab.h).
- * A check past the limit is kept in no list and is in no render: its test would read nothing,
- * and its line on the page would never fill.
+ * What a lab declares, each kind with the constant of site/labs/lab.h that limits it and what
+ * becomes of one declared past that limit: lab.h keeps it in no list.
  */
-export function expectRoomForChecks(name: string, declared: number, limit: number): void {
-  if (declared <= limit) return
+const DECLARED = {
+  controls: { limit: 'kMaxControls', lost: 'set by no page and no test', build: 'one' },
+  taps: { limit: 'kMaxTaps', lost: 'read by no page and no test', build: undefined },
+  checks: { limit: 'kMaxChecks', lost: 'in no render', build: 'three' },
+} as const
+
+export type Declared = keyof typeof DECLARED
+
+/** How many of one kind a lab's file declares, and the most it may. */
+export interface Room {
+  what: Declared
+  declared: number
+  limit: number
+}
+
+/**
+ * How many controls, taps and checks a built lab's file declares, and the most it may of each,
+ * as the module itself says. A kind is left out for a module built before lab.h counted it.
+ */
+export async function declaredIn(bytes: BufferSource): Promise<Room[]> {
+  const { instance } = await WebAssembly.instantiate(bytes, {})
+  const module = instance.exports as Record<string, (() => number) | undefined>
+  // The module is a reactor: its file-level objects, the three kinds among them, are built here.
+  module._initialize?.()
+  const room: Room[] = []
+  for (const what of Object.keys(DECLARED) as Declared[]) {
+    const one = what.slice(0, -1)
+    const declared = module[`lab_${one}_declared`]
+    const limit = module[`lab_${one}_limit`]
+    if (declared && limit) room.push({ what, declared: declared(), limit: limit() })
+  }
+  return room
+}
+
+/**
+ * What is wrong with a lab's file that declares more of a kind than a lab may, in a sentence,
+ * with both numbers; undefined when it has room. One past the limit would be dropped in
+ * silence: a control no page could set, a tap or a check whose test would read nothing.
+ */
+export function overLimit(name: string, { what, declared, limit }: Room): string | undefined {
+  if (declared <= limit) return undefined
   const over = declared - limit
-  throw new Error(
-    `site/labs/${name}.cpp declares ${declared} checks, and a lab may declare ${limit} (kMaxChecks in site/labs/lab.h): ` +
-      `the last ${over === 1 ? 'one declared is' : `${over} declared are`} in no render. A lab::Build is three of them.`,
+  const kind = DECLARED[what]
+  return (
+    `site/labs/${name}.cpp declares ${declared} ${what}, and a lab may declare ${limit} (${kind.limit} in site/labs/lab.h): ` +
+    `the last ${over === 1 ? 'one declared is' : `${over} declared are`} ${kind.lost}.` +
+    (kind.build ? ` A lab::Build is ${kind.build} of them.` : '')
   )
 }
 
 /**
- * How many checks a built lab's file declares, and the most it may, as the module itself says.
- * Undefined for a module built before lab.h counted them.
+ * Fails when a built lab's file declares more controls, taps or checks than a lab may, saying
+ * how many of each it declares and how many it may.
  */
-async function checksDeclared(
-  bytes: BufferSource,
-): Promise<{ declared: number; limit: number } | undefined> {
-  const { instance } = await WebAssembly.instantiate(bytes, {})
-  const module = instance.exports as {
-    _initialize?: () => void
-    lab_check_declared?: () => number
-    lab_check_limit?: () => number
-  }
-  if (!module.lab_check_declared || !module.lab_check_limit) return undefined
-  // The module is a reactor: its file-level objects, the checks among them, are built here.
-  module._initialize?.()
-  return { declared: module.lab_check_declared(), limit: module.lab_check_limit() }
+export async function expectRoom(name: string, bytes: BufferSource): Promise<void> {
+  const faults = (await declaredIn(bytes)).map((room) => overLimit(name, room)).filter(Boolean)
+  if (faults.length > 0) throw new Error(faults.join('\n'))
 }
 
-/** The labs whose checks have been counted in this run: once a lab is enough. */
+/** The labs whose room has been looked at in this run: once a lab is enough. */
 const counted = new Set<string>()
 
 /**
  * A lab built by `pnpm labs`. A missing file means the labs were not built first. A lab that
- * declares more checks than it may fails here, so its test fails saying how many it declares
- * and how many it may.
+ * declares more controls, taps or checks than it may fails here, so every test of its lesson
+ * fails saying how many it declares and how many it may.
  */
 export async function lab(name: string): Promise<Lab> {
   const bytes = await readFile(`${LABS}${name}.wasm`).catch(() => {
     throw new Error(`site/public/labs/${name}.wasm is missing: run \`pnpm labs\` in site/ first.`)
   })
   if (!counted.has(name)) {
-    const room = await checksDeclared(bytes)
-    if (room) expectRoomForChecks(name, room.declared, room.limit)
+    await expectRoom(name, bytes)
     counted.add(name)
   }
   return loadLab(bytes)

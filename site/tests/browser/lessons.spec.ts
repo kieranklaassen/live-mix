@@ -1,18 +1,16 @@
 // Every lesson, opened in a browser. Runs on whatever lessons exist, and takes whatever a lesson
 // has: no case names a lesson's own taps, controls or sets.
 //
-// A lesson in the long shape: it opens with no error and reads through (the contents list, the
-// predictions, every figure, a control by the keys and not by the wheel); it fits a narrow
-// window; play starts the sound and each stage can be heard; a card plays its set and is lit
-// alone, a second takes over, and "back" puts the page back; the build shows a step at a time,
-// sounds and steps forward. A lesson not yet rewritten keeps the cases it had. Either kind ends
-// with the real device's plate, and says what it has to say with JavaScript off.
+// A lesson opens with no error and reads through (the contents list, the predictions, every
+// figure, a control by the keys and not by the wheel); it fits a narrow window, where a listing
+// or an equation wider than it scrolls in its own box, by the keys too; play starts the sound
+// and each stage can be heard; a card plays its set and is lit alone, a second takes over, and
+// "back" puts the page back; the build shows a step at a time, sounds and steps forward; it says
+// what it has to say with JavaScript off; and it ends with the real device's plate.
 import fs from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import {
-  farEnd,
   turnToFarEnd,
-  isLong,
   labReady,
   lessonIds,
   lessonSets,
@@ -63,8 +61,21 @@ const joinedCode = (page: Page) =>
       .map((one) => (one.textContent ?? '').trim().slice(0, 60)),
   )
 
-/** The cases of a lesson in the long shape: nine parts under a hero. */
-function longCases(lesson: string) {
+/**
+ * The listings and block equations wider than their box that the keys cannot reach: a box that
+ * scrolls takes the focus, or a reader with no pointer never sees its far end.
+ */
+const outOfReach = (page: Page) =>
+  page
+    .locator('.listing pre, .math')
+    .evaluateAll((boxes) =>
+      boxes
+        .filter((box) => box.scrollWidth > box.clientWidth && (box as HTMLElement).tabIndex !== 0)
+        .map((box) => (box.textContent ?? '').trim().slice(0, 60)),
+    )
+
+/** The cases of a lesson: nine parts under a hero. */
+function cases(lesson: string) {
   test('opens and reads through: the contents lead to every part, a prediction opens, every figure draws, a control moves by the keys and not by the wheel', async ({
     page,
   }) => {
@@ -72,7 +83,7 @@ function longCases(lesson: string) {
     await page.setViewportSize({ width: 1280, height: 900 })
     await page.goto(`lessons/${lesson}/`)
     await expect(page.locator('h1')).toBeVisible()
-    await expect(page.locator('article.lesson[data-long]')).toBeVisible()
+    await expect(page.locator('article.lesson')).toBeVisible()
     await labReady(page)
     // Nothing sounds until the reader starts it.
     expect(await meter(page)).toBe(0)
@@ -192,6 +203,20 @@ function longCases(lesson: string) {
     // A line of a listing, or an equation, wider than the window is read by scrolling its own
     // box to its end: none is cut. Code is set letter for letter, with no two marks joined.
     expect(await cutShort(page), 'boxes whose end cannot be scrolled to').toEqual([])
+    // And by the keys: every such box takes the focus, and the arrow keys then move it.
+    expect(await outOfReach(page), 'boxes that scroll and take no focus').toEqual([])
+    const wide = page.locator('.listing pre, .math')
+    const first = await wide.evaluateAll((boxes) =>
+      boxes.findIndex((box) => box.scrollWidth > box.clientWidth + 40),
+    )
+    if (first >= 0) {
+      const box = wide.nth(first)
+      await box.focus()
+      await expect(box).toBeFocused()
+      await page.keyboard.press('ArrowRight')
+      await expect.poll(() => box.evaluate((one) => one.scrollLeft)).toBeGreaterThan(0)
+      await box.evaluate((one) => (one.scrollLeft = 0))
+    }
     expect(await joinedCode(page), 'code whose face joins marks').toEqual([])
     expect(await overflow(page)).toBe(0)
     await openPlate(page)
@@ -471,105 +496,10 @@ function longCases(lesson: string) {
   })
 }
 
-/** The cases of a lesson not yet rewritten: a strip of stages and three closing sections. */
-function shortCases(lesson: string) {
-  test('opens, draws every figure, and draws them again when a control moves', async ({ page }) => {
-    const problems = watch(page)
-    await page.goto(`lessons/${lesson}/`)
-    await expect(page.locator('h1')).toBeVisible()
-    await labReady(page)
-    await scrollThrough(page)
-
-    const figures = page.locator('[data-figure]')
-    expect(await figures.count()).toBeGreaterThan(2)
-    await expect(page.locator('[data-figure]:not([data-drawn])')).toHaveCount(0)
-    // Every stage says where it comes from.
-    const stages = page.locator('.stage')
-    expect(await stages.count()).toBeGreaterThan(1)
-    await expect(page.locator('.stage .stage-origin:empty')).toHaveCount(0)
-
-    // Move the first control to the far end of its range: the lab renders again and at least
-    // one picture is another picture.
-    const before = await pictures(page)
-    const count = await renders(page)
-    // A ranged control is a knob, found by its role and moved by the keys.
-    const controls = page.locator('.dials')
-    const knob = controls.getByRole('slider').first()
-    if ((await knob.count()) > 0) {
-      await knob.focus()
-      await knob.press((await farEnd(knob)).key)
-    } else {
-      await controls.getByRole('radio', { checked: false }).first().click()
-    }
-    await expect.poll(() => renders(page)).toBeGreaterThan(count)
-    await expect
-      .poll(async () => (await pictures(page)).some((one, i) => one !== before[i]))
-      .toBe(true)
-    await expect(page.locator('[data-figure]:not([data-drawn])')).toHaveCount(0)
-
-    expect(problems).toEqual([])
-  })
-
-  test('plays on a click, and every stage that is sound can be heard', async ({ page }) => {
-    const problems = watch(page)
-    await page.goto(`lessons/${lesson}/`)
-    await labReady(page)
-    expect(await meter(page)).toBe(0)
-
-    await page.locator('.playbar-play').click()
-    await expect(page.locator('.playbar-play[data-playing]')).toBeVisible()
-    await sounds(page)
-
-    const listens = page.locator('.stage-listen')
-    const count = await listens.count()
-    expect(count).toBeGreaterThan(0)
-    for (let i = 0; i < count; i += 1) {
-      const stage = page.locator('.stage', { has: page.locator('.stage-listen') }).nth(i)
-      await stage.locator('.stage-listen').click()
-      await expect(stage).toHaveAttribute('data-sounding', '')
-      await expect(page.locator('.stage[data-sounding]')).toHaveCount(1)
-    }
-    // A stage that is not sound has no button.
-    await expect(page.locator('.stage:has(.stage-kind) button')).toHaveCount(0)
-
-    await page.locator('.playbar-play').click()
-    await expect(page.locator('.playbar-play[data-playing]')).toHaveCount(0)
-    expect(problems).toEqual([])
-  })
-
-  for (const width of [390, 1280]) {
-    test(`fits a window ${width} px wide`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 900 })
-      await page.goto(`lessons/${lesson}/`)
-      await labReady(page)
-      await scrollThrough(page)
-      expect(await overflow(page)).toBe(0)
-      // Open, the plate scrolls in its own box and still does not widen the page.
-      await openPlate(page)
-      expect(await overflow(page)).toBe(0)
-    })
-  }
-
-  test('with JavaScript off it still has its headings, its prose and its captions', async ({
-    browser,
-  }) => {
-    const context = await browser.newContext({ javaScriptEnabled: false })
-    const page = await context.newPage()
-    await page.goto(`lessons/${lesson}/`)
-    await expect(page.locator('h1')).toBeVisible()
-    expect(await page.locator('main h2').count()).toBeGreaterThan(2)
-    expect(await wordCount(page.locator('main'))).toBeGreaterThan(600)
-    expect(await page.locator('figure figcaption').count()).toBeGreaterThan(2)
-    // The mathematics is written into the page when it is built.
-    expect(await page.locator('.katex').count()).toBeGreaterThan(0)
-    await context.close()
-  })
-}
-
 /** A set's label as a pattern reads it, sign for sign. */
 const escaped = (words: string) => words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-/** Either kind of lesson ends with the engine's own device, live. */
+/** A lesson ends with the engine's own device, live. */
 async function endsWithTheDevice(page: Page, lesson: string) {
   const problems = watch(page)
   await page.goto(`lessons/${lesson}/`)
@@ -588,8 +518,7 @@ async function endsWithTheDevice(page: Page, lesson: string) {
 
 for (const lesson of lessonIds()) {
   test.describe(lesson, () => {
-    if (isLong(lesson)) longCases(lesson)
-    else shortCases(lesson)
+    cases(lesson)
 
     test('ends with the real device: its plate appears and sound goes through it', ({ page }) =>
       endsWithTheDevice(page, lesson))

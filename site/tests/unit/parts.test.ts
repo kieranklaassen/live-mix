@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest'
 import type { ControlInfo, LabDescription } from '../../src/lab/describe.ts'
 import {
   PARTS,
+  benchFeed,
   defaultsBeside,
+  labsOwnRows,
   openingTaps,
   partNamed,
   partsIn,
+  ranWords,
   setInWords,
   stageKindWords,
+  tableWords,
   valueInWords,
   valueWithUnit,
 } from '../../src/lib/parts.ts'
@@ -214,6 +218,127 @@ describe("the lesson's start beside the device's defaults", () => {
       { id: 'release', name: 'Release', lesson: '0.3 s', device: '2 s' },
       { id: 'tails', name: 'Tails', lesson: 'Release', device: 'Hold' },
     ])
+  })
+})
+
+describe("which rows of the last part's table are the lab's own", () => {
+  // A lab names a control in its own way and the device in the library's: the same control is
+  // `predelay` in milliseconds here and `predelayMs` there, "Rate" here and "LFO Rate" there.
+  const room: LabDescription = {
+    ...lab,
+    controls: [
+      control(0, 'size', 'Size', '', 0, 1, 0.5),
+      control(1, 'predelay', 'Pre-delay', 'ms', 0, 200, 20),
+      control(2, 'rate', 'Rate', 'Hz', 0.1, 10, 1),
+      control(3, 'wander', 'Wander', '', 0, 1, 0),
+      control(4, 'tank', "The tank's delays", '', 0, 1, 1, ['Still', 'Moving']),
+      control(5, 'build', 'Build', '', 0, 2, 0, ['A wire', 'One', 'Two']),
+    ],
+  }
+  const params = [
+    { key: 'size', name: 'Room size' },
+    { key: 'predelayMs', name: 'Pre-delay' },
+    { key: 'lfoRateHz', name: 'LFO Rate' },
+    { key: 'ratePerSecond', name: 'Grains' },
+    { key: 'mix', name: 'Mix' },
+  ]
+  const every = { values: { size: 0.7, predelay: 0, rate: 0.5, wander: 1, tank: 0 } }
+
+  it('are those no parameter of the device answers to, by its key or by its name', () => {
+    expect(labsOwnRows(room, every, params).map((row) => row.id)).toEqual(['wander', 'tank'])
+  })
+
+  it('are none where every row is a parameter of the device, however the two spell it', () => {
+    expect(labsOwnRows(room, { values: { size: 0.7, predelay: 0, rate: 0.5 } }, params)).toEqual([])
+  })
+
+  it('takes a key that ends in the control and its unit, and no key that only begins with it', () => {
+    // `rate` in hertz is `lfoRateHz`; it is not `ratePerSecond`, which is another control.
+    const grains = [{ key: 'ratePerSecond', name: 'Grains' }]
+    expect(labsOwnRows(room, { values: { rate: 0.5 } }, grains).map((row) => row.id)).toEqual([
+      'rate',
+    ])
+    // Nor is a key that ends in another unit than the control's.
+    const seconds = [{ key: 'predelaySeconds', name: 'Wait' }]
+    expect(labsOwnRows(room, { values: { predelay: 0 } }, seconds).map((row) => row.id)).toEqual([
+      'predelay',
+    ])
+  })
+
+  it('is every row for a device with no parameter', () => {
+    expect(labsOwnRows(room, every, []).map((row) => row.id)).toEqual([
+      'size',
+      'predelay',
+      'rate',
+      'wander',
+      'tank',
+    ])
+  })
+})
+
+describe('the sentence above the last part\u2019s table', () => {
+  const row = (id: string, name: string) => ({ id, name, lesson: '0', device: '1' })
+  const rows = [row('size', 'Size'), row('wander', 'Wander'), row('tank', "The tank's delays")]
+
+  it("says the lab's controls are the device's own only where every row is the device's", () => {
+    expect(tableWords(rows, [])).toBe(
+      "The lab's controls are the device's own. Where this lesson starts each of them, and where the device starts it when nothing has been set:",
+    )
+  })
+
+  it("names the row that is the lab's, and says what its second number is", () => {
+    expect(tableWords(rows, [rows[1]!])).toBe(
+      "The controls in this table are the device's own, except Wander, which is the lab's: the device has no such control, and that row gives the setting at which the lab does as the device does. Where this lesson starts each of them, and where the device starts it when nothing has been set:",
+    )
+  })
+
+  it("names every row that is the lab's, where there are several", () => {
+    expect(tableWords(rows, [rows[1]!, rows[2]!])).toBe(
+      "The controls in this table are the device's own, except Wander and The tank's delays, which are the lab's: the device has no such controls, and those rows give the settings at which the lab does as the device does. Where this lesson starts each of them, and where the device starts it when nothing has been set:",
+    )
+  })
+
+  it("says so where every row is the lab's", () => {
+    expect(tableWords(rows, rows)).toBe(
+      "The controls in this table are the lab's, and the device has none of them. Where this lesson starts each of them, and the setting at which the lab does as the device does:",
+    )
+  })
+})
+
+describe('what the last part says ran above it', () => {
+  it("is the engine's code and nothing else, for a lesson that says nothing more", () => {
+    expect(ranWords()).toBe(
+      "Everything above ran in a lab: the engine's code, stopped at each stage so it could be looked at.",
+    )
+  })
+
+  it("says part of it is the lesson's own where the front matter says which part, in its words", () => {
+    expect(ranWords('The sum is written here, because the engine hands it to the browser.')).toBe(
+      "Everything above ran in a lab: the engine's code, stopped at each stage so it could be looked at, and with it code written for this lesson. The sum is written here, because the engine hands it to the browser.",
+    )
+  })
+})
+
+describe('what the real device is fed', () => {
+  it('is the loop the page plays, for an effect in a lesson with loops', () => {
+    expect(benchFeed(lab, ['drums', 'pad'], 'insert')).toBe('on the same loop')
+    expect(benchFeed(lab, ['drums'], 'send')).toBe('on the same loop')
+  })
+
+  it('is a phrase of its own for an instrument, which takes no sound in', () => {
+    expect(benchFeed(lab, ['none'], 'instrument')).toBe('played a short phrase that comes round')
+  })
+
+  it('is the sound the lab makes, by its name, for an effect in a lesson with no loop', () => {
+    // The page hands the bench the first tap that is the source's, as the store does.
+    expect(benchFeed(lab, ['none'], 'insert')).toBe(
+      'fed the sound the lab itself makes, \u201cInput\u201d, since this lesson plays no loop',
+    )
+    // Without one, the first that is sound.
+    const taps = lab.taps.map((tap) => ({ ...tap, origin: 'device' as const }))
+    expect(benchFeed({ ...lab, taps: [taps[1]!, taps[2]!, taps[0]!] }, ['none'], 'send')).toBe(
+      'fed the sound the lab itself makes, \u201cOutput\u201d, since this lesson plays no loop',
+    )
   })
 })
 

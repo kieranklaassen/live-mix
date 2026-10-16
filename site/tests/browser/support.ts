@@ -19,17 +19,6 @@ export function lessonIds(): string[] {
   return only ? all.filter((id) => only.includes(id)) : all
 }
 
-/**
- * True for a lesson in the long shape: its front matter carries `long: true`, and its page
- * `data-long`. Read from the lesson's file, so the cases a lesson gets are known before any page
- * is opened.
- */
-export function isLong(lesson: string): boolean {
-  const text = fs.readFileSync(`${LESSONS}${lesson}.mdx`, 'utf8')
-  const front = /^---\n([\s\S]*?)\n---/.exec(text)?.[1] ?? ''
-  return /^long:\s*true\s*$/m.test(front)
-}
-
 /** A named set as a lesson's settings file writes it: what a card plays. */
 export interface CardSet {
   label: string

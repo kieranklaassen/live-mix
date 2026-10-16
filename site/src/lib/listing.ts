@@ -97,6 +97,27 @@ export function lineAnchor({ first, last }: Lines): string {
   return first === last ? `#L${first}` : `#L${first}-L${last}`
 }
 
+/**
+ * The anchor of a link to a file of the engine, as <Src> writes it: the line its `at` is on,
+ * the lines from there to its `to`, or nothing for the whole file. A link is never given by
+ * line numbers: they move when the file does and nothing would say so, so `lines` stops the
+ * build, naming the lesson and the file.
+ */
+export function sourceAnchor(
+  file: string,
+  asked: { at?: string; to?: string; lines?: unknown },
+  lesson?: string,
+): string {
+  if (asked.lines !== undefined) {
+    throw new Error(
+      `${lesson ?? 'A page'}: <Src path="${file}" lines="${String(asked.lines)}"> gives its lines by number, ` +
+        `which moves when the file does. Give text that is on the line, <Src path="${file}" at="…">, ` +
+        `and for several lines text on the last as well, to="…".`,
+    )
+  }
+  return asked.at === undefined ? '' : lineAnchor(sourceLines(file, asked.at, asked.to, lesson))
+}
+
 /** What of a file a listing shows. */
 export interface Cut {
   /** Text on the first line shown. */

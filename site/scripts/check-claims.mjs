@@ -1,7 +1,7 @@
 // Every quantity a lesson states is written through <Claim id="…">, and a test must hold it.
 // This fails when a claim's id is in no test's name as "claim <id>", in the lesson's lab test
-// (tests/labs/<lesson>.test.ts) or a browser test (tests/browser/*.spec.ts). In a long lesson
-// (`long: true`) it also fails when a number with a unit that the claim writes is not in that
+// (tests/labs/<lesson>.test.ts) or a browser test (tests/browser/*.spec.ts). It also fails
+// when a number with a unit that the claim writes is not in that
 // test as written: in its title, or passed to the written-number helper of
 // tests/labs/support.ts, `expectWritten(measured, '39 ms')` or `matchesWritten`.
 //
@@ -174,8 +174,7 @@ export function checkClaims(site = SITE, lesson) {
         )
       }
     }
-    // A long lesson: the numbers a claim writes are the numbers its test holds.
-    if (!/^long:\s*true\s*$/m.test(/^---\n[\s\S]*?\n---/.exec(text)?.[0] ?? '')) continue
+    // The numbers a claim writes are the numbers its test holds.
     // Of a claim written more than once, the first writing: the others state the same, or
     // have been named above.
     const first = written.filter(

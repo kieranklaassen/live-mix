@@ -47,9 +47,9 @@ constexpr float kSampleRate = 48000.0f;
 constexpr int kMaxFrames = 8 * 48000;
 constexpr int kFadeFrames = 960;       // 20 ms: the crossfade across a loop's wrap
 constexpr int kControlPeriod = 16;     // samples per point of a control tap
-constexpr int kMaxControls = 32;       // the most a lab may declare of each of the three
-constexpr int kMaxTaps = 64;
-constexpr int kMaxChecks = 32;         // a lab::Build is three of them
+constexpr int kMaxControls = 32;       // the most a lab may declare of each of the three:
+constexpr int kMaxTaps = 64;           // a lab::Build is one of the controls and three of
+constexpr int kMaxChecks = 32;         // the checks
 
 // Pi as a double, for the lab's own sums. The kit's kPi is a float.
 constexpr double kPi = 3.14159265358979323846;
@@ -126,6 +126,11 @@ inline int aux_frames() { return g_aux_frames; }
 struct Control;
 inline Control* g_controls[kMaxControls];
 inline int g_control_count = 0;
+// Every control, tap and check a lab declares is counted, the ones past its limit too. Those are
+// kept in no list: no page can set such a control, and such a tap or check is in no render. So
+// the lab's test asks for the three counts as it loads the lab and fails when one is over its
+// limit, saying both numbers (`lab` in site/tests/labs/support.ts).
+inline int g_controls_declared = 0;
 
 struct Control {
   const char* id;
@@ -143,6 +148,7 @@ struct Control {
           int scale_ = kLinear, const char* choices_ = "")
       : id(id_), name(name_), unit(unit_), min(min_), max(max_), initial(initial_), scale(scale_),
         choices(choices_), value(initial_) {
+    ++g_controls_declared;
     if (g_control_count < kMaxControls) g_controls[g_control_count++] = this;
   }
 
@@ -160,6 +166,7 @@ struct Control {
 struct Tap;
 inline Tap* g_taps[kMaxTaps];
 inline int g_tap_count = 0;
+inline int g_taps_declared = 0;
 
 struct Tap {
   const char* id;
@@ -177,6 +184,7 @@ struct Tap {
 
   Tap(const char* id_, const char* name_, int kind_, int origin_, int channels_ = 1, const char* unit_ = "")
       : id(id_), name(name_), kind(kind_), origin(origin_), channels(channels_ == 2 ? 2 : 1), unit(unit_) {
+    ++g_taps_declared;
     if (g_tap_count < kMaxTaps) g_taps[g_tap_count++] = this;
   }
 
@@ -234,9 +242,6 @@ struct Tap {
 struct Check;
 inline Check* g_checks[kMaxChecks];
 inline int g_check_count = 0;
-// Every check a lab declares is counted, the ones past kMaxChecks too. Those are kept in no
-// list and are in no render, so the lab's test asks for this count and fails when it is over
-// the limit, saying both numbers (`lab` in site/tests/labs/support.ts).
 inline int g_checks_declared = 0;
 
 struct Check {
@@ -479,7 +484,12 @@ inline void response_tap(Tap& tap, const float* h, int count, int points = 241, 
 // kit, in dB where a full-scale sine reads 0. Rows are the 513 bins from 0 Hz
 // to half the sample rate, 46.9 Hz apart; point (column, row) is at
 // data[column * 513 + row]. With `loops`, a frame near the end reads on from
-// the start, as the loop does.
+// the start, as the loop does. Without it the sound stops at `count`, and a
+// frame that would run past there starts early enough to end on the last
+// sample: no frame is filled out with silence, which would cut a sound that
+// is still going part of the way through its window and draw the cut as a
+// stripe up the picture's right edge. Only a sound shorter than one frame is
+// filled out.
 constexpr int kPictureSize = 1024;
 constexpr int kPictureRows = kPictureSize / 2 + 1;
 
@@ -502,7 +512,8 @@ inline void spectrogram_tap(Tap& tap, const float* x, int count, int columns = 2
   tap.x1 = static_cast<float>(count) / kSampleRate;
   const double full = (kPictureSize / 4.0) * (kPictureSize / 4.0);
   for (int c = 0; c < columns; ++c) {
-    const int start = static_cast<int>(static_cast<long long>(c) * count / columns);
+    int start = static_cast<int>(static_cast<long long>(c) * count / columns);
+    if (!loops && start + kPictureSize > count) start = count > kPictureSize ? count - kPictureSize : 0;
     for (int n = 0; n < kPictureSize; ++n) {
       int i = start + n;
       if (i >= count) i = loops ? i % count : -1;
@@ -584,6 +595,14 @@ int lab_control_scale(int i) { return lab_control_at(i) ? lab_control_at(i)->sca
 void lab_set(int i, float value) {
   if (lab_control_at(i)) lab_control_at(i)->set(value);
 }
+// How many controls the lab's file declares, and the most a lab may: the first is over the
+// second when the file declares too many, and lab_control_count then stops at the limit. The
+// taps and the checks have the same two each. Exported by name here: the checks' two are in
+// the list of scripts/build-labs.sh, which was written before a control or a tap was counted.
+__attribute__((export_name("lab_control_declared"))) int lab_control_declared(void) {
+  return lab::g_controls_declared;
+}
+__attribute__((export_name("lab_control_limit"))) int lab_control_limit(void) { return lab::kMaxControls; }
 
 void lab_run(int frames) {
   lab_init();
@@ -612,6 +631,8 @@ float lab_tap_x0(int i) { return lab_tap_at(i) ? lab_tap_at(i)->x0 : 0.0f; }
 float lab_tap_x1(int i) { return lab_tap_at(i) ? lab_tap_at(i)->x1 : 0.0f; }
 int lab_tap_columns(int i) { return lab_tap_at(i) ? lab_tap_at(i)->columns : 0; }
 int lab_tap_scale(int i) { return lab_tap_at(i) ? lab_tap_at(i)->scale : 0; }
+__attribute__((export_name("lab_tap_declared"))) int lab_tap_declared(void) { return lab::g_taps_declared; }
+__attribute__((export_name("lab_tap_limit"))) int lab_tap_limit(void) { return lab::kMaxTaps; }
 
 int lab_check_count(void) { return lab::g_check_count; }
 static lab::Check* lab_check_at(int i) { return i >= 0 && i < lab::g_check_count ? lab::g_checks[i] : nullptr; }
@@ -619,8 +640,6 @@ const char* lab_check_id(int i) { return lab_check_at(i) ? lab_check_at(i)->id :
 const char* lab_check_name(int i) { return lab_check_at(i) ? lab_check_at(i)->name : ""; }
 const char* lab_check_unit(int i) { return lab_check_at(i) ? lab_check_at(i)->unit : ""; }
 float lab_check_value(int i) { return lab_check_at(i) ? lab_check_at(i)->value : 0.0f; }
-// How many checks the lab's file declares, and the most a lab may: the first is over the
-// second when the file declares too many, and lab_check_count then stops at the limit.
 int lab_check_declared(void) { return lab::g_checks_declared; }
 int lab_check_limit(void) { return lab::kMaxChecks; }
 

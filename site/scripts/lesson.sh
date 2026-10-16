@@ -4,14 +4,16 @@
 # that fails, one line each with its result and how long it took:
 #
 #   format    the lesson's own files, as the formatter wants them
+#   types     its own TypeScript, type-checked by itself: its lab test, its figure and its
+#             browser spec, with what they import and no other lesson's file
 #   lab       its lab, built (site/public/labs/<id>.wasm)
 #   test      its lab test (tests/labs/<id>.test.ts)
 #   tile      the level of its tile on the home map, on every loop the tile takes
 #   build     a site that holds the home page and this lesson, in site/.lesson/<id>/, and a
 #             copy of it that is this run's own, which the steps after it read
-#   claims    every claim is held by a test; in a long lesson, with its number as written
+#   claims    every claim is held by a test, with its number as written
 #   wording   no name and no comparison, in its own files and its page
-#   shape     a long lesson holds its packet
+#   shape     the lesson holds its packet
 #   browser   its browser tests (tests/browser/lessons.spec.ts, and the lesson's own spec
 #             where it has one: tests/browser/<id>.spec.ts), on that build at the run's own port
 #   map       its tile on the map of that build with scripts off: a link and a drawn picture
@@ -23,8 +25,8 @@
 # lesson's own, which it names: run again later, and change nothing.
 #
 # SITE_SLOTS names a folder of locks that everyone working in one tree shares. With it a step
-# waits its turn: the heavy ones (lab, test, browser) run one at a time, or as many at a time as
-# SITE_HEAVY_SLOTS says, the others two at a time. The build runs one at a time whatever is
+# waits its turn: the heavy ones (lab, test, tile, browser) run one at a time, or as many at a
+# time as SITE_HEAVY_SLOTS says, the others two at a time. The build runs one at a time whatever is
 # said: two builds in one tree share what a build keeps of the lessons' text (site/.astro), and
 # one of them would write the other's page. A lock is let go when its step ends, however it
 # ends. Without it the steps run straight.
@@ -52,9 +54,12 @@ folder=".lesson/$id"
 # and would take the pages away from under this run's checks and its browser. The copy goes
 # when the run ends; one left by a run that was killed goes when the next run starts.
 kept=".lesson/.runs/$id.$$"
+# The lesson's own TypeScript as a project for the type checker, in a folder of this run's own
+# that goes with the run as the copy does.
+typed=".lesson/.runs/$id.types.$$"
 log="$(mktemp)"
 ticket=""
-trap 'rm -f "$log" $ticket; rm -rf "$kept"' EXIT
+trap 'rm -f "$log" $ticket; rm -rf "$kept" "$typed"' EXIT
 for old in .lesson/.runs/*.*; do
   [ -d "$old" ] && ! kill -0 "${old##*.}" 2>/dev/null && rm -rf "$old"
 done
@@ -125,6 +130,15 @@ step() {
 mapfile -t own < <(node scripts/check-lessons.mjs --packet "$id")
 
 step format light pnpm exec prettier --check --ignore-unknown "${own[@]}"
+# check_types: the lesson's own TypeScript and what it imports, under the site's own settings.
+# The test runner and the browser tests strip types and check none, so without this a type that
+# does not hold in a new test is found only by the whole site's check. A fault in a file that
+# is not the lesson's own ends the run as any other step's does, with that file's name.
+check_types() {
+  node scripts/check-lessons.mjs --types "$id" "$typed/tsconfig.json" || return
+  pnpm exec tsc --noEmit --pretty false -p "$typed/tsconfig.json"
+}
+step types light check_types
 step lab heavy bash scripts/build-labs.sh "$id"
 step test heavy npx vitest run --no-file-parallelism "tests/labs/$id.test.ts"
 # The level of its tile on the home map, on every loop the tile takes.

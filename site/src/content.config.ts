@@ -26,12 +26,10 @@ const lessons = defineCollection({
     title: z.string(),
     /** The family the map puts the lesson in, by its id there (src/content/families.json). */
     family: z.enum(MAP.map((family) => family.id) as [string, ...string[]]),
-    /** The long shape: the nine parts and the long layout. A lesson without it renders as before. */
-    long: z.boolean().default(false),
     /** One or two sentences for the index and the page's description. */
     summary: z.string(),
     /**
-     * The picture a long lesson opens on: the tap of the sound going in and the tap of what
+     * The picture a lesson opens on: the tap of the sound going in and the tap of what
      * comes out, by id, drawn on one time axis. The rest is as a still takes it, and optional:
      * the view, the span of time, the vertical range and the highest frequency. `separate` draws
      * the two taps apart, one above the other, each on a range of its own; `caption` is what to
@@ -55,6 +53,11 @@ const lessons = defineCollection({
       .optional(),
     /** The lab module's name: site/labs/<lab>.cpp. */
     lab: z.string(),
+    /**
+     * For a lab that runs code which is not the engine's: a sentence that says which part is
+     * written for the lesson, and why. The last part prints it after saying what ran above.
+     */
+    written: z.string().min(1).optional(),
     /** Ids of the devices the lesson is about, for the device pages' "Lessons" block. */
     devices: z.array(z.string()).default([]),
     /** The device on the bench at the lesson's end, with the controls it starts at. */

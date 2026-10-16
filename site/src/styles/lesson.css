@@ -1,29 +1,25 @@
 /*
  * A lesson's page: the figures, the stage strip, the controls, the play bar and the bench, and
- * at the end the long shape: the hero, the nine parts, the cards and the tiles.
+ * then the page's own frame: the hero, the nine parts, the cards and the tiles.
  * Colours and type come from site.css and, through it, the React kit's tokens.
  */
 
+/* A lesson fills the page's frame. Its parts are as wide as the frame, not as one column. */
 .lesson {
-  max-width: var(--measure);
   margin: 0 auto;
   /* Room for the play bar, which stays over the page's foot. */
   padding-bottom: 2rem;
-}
-.lesson-head h1 {
-  margin-bottom: 0.4em;
-}
-.lesson-head .label a {
-  text-decoration: none;
-}
-.lesson-body > h2 {
-  margin-top: 3rem;
+  /*
+   * The colour of a part's number, of a card's tag and of the hero's first line: the ink of the
+   * lesson's family (--family-ink in site.css, with --family for its dot).
+   */
+  --part-ink: var(--family-ink, var(--lm-accent));
 }
 body:has(.playbar) .site-footer {
   padding-bottom: 6.5rem;
 }
 
-/* ---- figures ---------------------------------------------------------- */
+/* ---- figures --------------------------------------------------------- */
 
 .fig {
   margin: 1.6rem 0;
@@ -137,7 +133,7 @@ body:has(.playbar) .site-footer {
   margin-left: auto;
 }
 
-/* ---- the stage strip --------------------------------------------------- */
+/* ---- the stage strip ------------------------------------------------- */
 
 .stages-wrap {
   margin: 1.8rem 0;
@@ -267,7 +263,7 @@ button:disabled {
   white-space: nowrap;
 }
 
-/* ---- controls ---------------------------------------------------------- */
+/* ---- controls -------------------------------------------------------- */
 
 .controls {
   display: grid;
@@ -337,7 +333,7 @@ input[type='range'] {
   min-height: 1.5rem;
 }
 
-/* ---- the lab's word on itself ------------------------------------------ */
+/* ---- the lab's word on itself ---------------------------------------- */
 
 .check {
   display: flex;
@@ -400,7 +396,7 @@ input[type='range'] {
   font-size: 0.9rem;
 }
 
-/* ---- the play bar ------------------------------------------------------ */
+/* ---- the play bar ---------------------------------------------------- */
 
 .playbar {
   position: fixed;
@@ -490,7 +486,7 @@ input[type='range'] {
   color: var(--lm-danger);
 }
 
-/* ---- the bench --------------------------------------------------------- */
+/* ---- the bench ------------------------------------------------------- */
 
 .bench {
   margin: 1.2rem 0;
@@ -513,28 +509,6 @@ input[type='range'] {
 .bench button.button {
   font: inherit;
   cursor: pointer;
-}
-
-/* ---- from lesson to lesson --------------------------------------------- */
-
-.lesson-nav {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-top: 3rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--lm-border);
-}
-.lesson-nav a {
-  text-decoration: none;
-  font-weight: 600;
-}
-.lesson-nav a[rel='next'] {
-  text-align: right;
-}
-.lesson-nav .label {
-  display: block;
-  font-weight: 400;
 }
 
 @media (max-width: 640px) {
@@ -563,17 +537,8 @@ input[type='range'] {
   }
 }
 
-/* ---- the long shape: the hero ------------------------------------------ */
+/* ---- the hero -------------------------------------------------------- */
 
-/* A long lesson fills the page's frame. Its parts are as wide as the frame, not as one column. */
-.lesson[data-long] {
-  max-width: none;
-  /*
-   * The colour of a part's number, of a card's tag and of the hero's first line: the ink of the
-   * lesson's family (--family-ink in site.css, with --family for its dot).
-   */
-  --part-ink: var(--family-ink, var(--lm-accent));
-}
 .lesson-hero {
   display: flex;
   flex-wrap: wrap;
@@ -652,7 +617,7 @@ input[type='range'] {
   color: var(--lm-muted);
 }
 /* What a page with scripts off is told, in a column a line of it can be read in. */
-.lesson[data-long] > noscript .aside {
+.lesson > noscript .aside {
   max-width: 760px;
 }
 /* Under the hero: the row of sounds the page plays, then the opening picture. */
@@ -667,7 +632,7 @@ input[type='range'] {
   margin: 0;
 }
 
-/* ---- the long shape: a part -------------------------------------------- */
+/* ---- a part ---------------------------------------------------------- */
 
 /* A numbered part: its label in a column of its own, its text beside it under a hairline. */
 .part {
@@ -739,7 +704,7 @@ input[type='range'] {
   margin-bottom: 0;
 }
 
-/* ---- the long shape: cards --------------------------------------------- */
+/* ---- cards ----------------------------------------------------------- */
 
 /* Cards side by side in a ruled grid: what it is used on, ways to use it, what goes wrong. */
 .lesson-cards {
@@ -840,7 +805,7 @@ a.lesson-card:hover {
   color: inherit;
 }
 
-/* ---- the long shape: a prediction -------------------------------------- */
+/* ---- a prediction ---------------------------------------------------- */
 
 /* A question to answer first. The answer is in a disclosure, shut until the reader opens it. */
 .predict {
@@ -900,7 +865,7 @@ a.lesson-card:hover {
   margin-bottom: 0;
 }
 
-/* ---- the long shape: misconceptions ------------------------------------ */
+/* ---- misconceptions -------------------------------------------------- */
 
 .myths {
   display: grid;
@@ -928,7 +893,7 @@ a.lesson-card:hover {
   margin-bottom: 0;
 }
 
-/* ---- the long shape: the device's table, the tiles --------------------- */
+/* ---- the device's table, the tiles ----------------------------------- */
 
 .device-table {
   max-width: 760px;

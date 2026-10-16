@@ -910,17 +910,15 @@ describe('a lesson’s tile', () => {
     expect(tile.picture).not.toMatch(HEX)
   })
 
-  it('with no entry plays and draws the lab’s last sound on its main path, at the starting values', async () => {
-    // The compression lab's last sound is `built`, a tap of its build path; before it comes `out`.
-    const tile = await lessonTile(COMPRESSION, FIXTURES)
-    expect(tile).toMatchObject({
-      lab: 'compression',
-      values: {},
-      tap: 'out',
-      own: false,
-      time: { from: 0, span: 4 },
-    })
-    expect(tile.picture).toContain('var(--sig-out)')
+  it('stops the build on a lesson with no tile entry, in a settings file or for want of one', async () => {
+    // A settings file with sets and no tile.
+    await expect(lessonTile({ ...SAMPLE, id: 'untiled' }, FIXTURES)).rejects.toThrow(
+      'untiled: its settings file has no tile entry. Every lesson of the map has one: "tile" in site/src/content/settings/untiled.json',
+    )
+    // No settings file at all among the fixtures.
+    await expect(lessonTile(COMPRESSION, FIXTURES)).rejects.toThrow(
+      'compression: it has no settings file, and so no tile entry. Every lesson of the map has one: "tile" in site/src/content/settings/compression.json',
+    )
   })
 
   it('draws its picture with the stems, the scale and the channels its entry asks for', async () => {
@@ -948,6 +946,6 @@ describe('a lesson’s tile', () => {
   })
 
   it('of a lab that takes no source plays its own notes', async () => {
-    expect((await lessonTile(STRING, FIXTURES)).own).toBe(true)
+    expect((await lessonTile({ ...STRING, id: 'own' }, FIXTURES)).own).toBe(true)
   })
 })

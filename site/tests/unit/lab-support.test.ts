@@ -9,7 +9,6 @@ import {
   click,
   differenceDb,
   expectBuild,
-  expectRoomForChecks,
   expectSoundLab,
   expectWritten,
   FADE,
@@ -20,6 +19,7 @@ import {
   matchesWritten,
   noise,
   onsetMs,
+  overLimit,
   POINT_RATE,
   points,
   range,
@@ -266,37 +266,53 @@ describe('two taps, sample for sample', () => {
   })
 })
 
-describe('the checks a lab declares', () => {
+describe('what a lab declares past its limit', () => {
   const read = (file: string) => fs.readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8')
+  const checks = (declared: number) => overLimit('falling', { what: 'checks', declared, limit: 32 })
 
-  it('fail the lab’s test when there are more than a lab may declare, with both numbers', () => {
-    expect(() => expectRoomForChecks('falling', 33, 32)).toThrow(
-      'site/labs/falling.cpp declares 33 checks, and a lab may declare 32',
+  it('fails the lab’s test with both numbers, and says what becomes of what is over', () => {
+    expect(checks(33)).toBe(
+      'site/labs/falling.cpp declares 33 checks, and a lab may declare 32 (kMaxChecks in site/labs/lab.h): ' +
+        'the last one declared is in no render. A lab::Build is three of them.',
     )
-    expect(() => expectRoomForChecks('falling', 33, 32)).toThrow(
-      'the last one declared is in no render',
-    )
-    expect(() => expectRoomForChecks('falling', 35, 32)).toThrow(
-      'the last 3 declared are in no render',
-    )
-    expect(() => expectRoomForChecks('falling', 32, 32)).not.toThrow()
-    expect(() => expectRoomForChecks('falling', 3, 32)).not.toThrow()
+    expect(checks(35)).toContain('the last 3 declared are in no render')
+    expect(checks(32)).toBeUndefined()
+    expect(checks(3)).toBeUndefined()
   })
 
-  it('are counted by lab.h before the limit is looked at, and the count is in every built lab', () => {
+  it('is said of a control and of a tap as of a check, each by its own limit', () => {
+    expect(overLimit('falling', { what: 'controls', declared: 33, limit: 32 })).toBe(
+      'site/labs/falling.cpp declares 33 controls, and a lab may declare 32 (kMaxControls in site/labs/lab.h): ' +
+        'the last one declared is set by no page and no test. A lab::Build is one of them.',
+    )
+    expect(overLimit('falling', { what: 'taps', declared: 66, limit: 64 })).toBe(
+      'site/labs/falling.cpp declares 66 taps, and a lab may declare 64 (kMaxTaps in site/labs/lab.h): ' +
+        'the last 2 declared are read by no page and no test.',
+    )
+    expect(overLimit('falling', { what: 'taps', declared: 64, limit: 64 })).toBeUndefined()
+  })
+
+  it('is counted by lab.h before the limit is looked at, and the count is in every built lab', () => {
     const header = read('labs/lab.h')
-    expect(header).toMatch(
-      /\+\+g_checks_declared;\s+if \(g_check_count < kMaxChecks\) g_checks\[g_check_count\+\+\] = this;/,
-    )
-    expect(header).toContain(
-      'int lab_check_declared(void) { return lab::g_checks_declared; }\nint lab_check_limit(void) { return lab::kMaxChecks; }',
-    )
+    for (const [counter, count, limit, list] of [
+      ['g_controls_declared', 'g_control_count', 'kMaxControls', 'g_controls'],
+      ['g_taps_declared', 'g_tap_count', 'kMaxTaps', 'g_taps'],
+      ['g_checks_declared', 'g_check_count', 'kMaxChecks', 'g_checks'],
+    ]) {
+      expect(header).toContain(
+        `++${counter};\n    if (${count} < ${limit}) ${list}[${count}++] = this;`,
+      )
+    }
+    // The checks' two are named in the list of exports; the others carry their own names.
     expect(read('scripts/build-labs.sh')).toMatch(/^\s+lab_check_declared lab_check_limit$/m)
-  })
-
-  it('have the limit the template states', () => {
-    const [, limit] = /constexpr int kMaxChecks = (\d+);/.exec(read('labs/lab.h'))!
-    expect(read('LESSONS.md')).toContain(`64 taps and ${limit} checks`)
+    for (const name of [
+      'lab_control_declared',
+      'lab_control_limit',
+      'lab_tap_declared',
+      'lab_tap_limit',
+    ]) {
+      expect(header).toContain(`__attribute__((export_name("${name}"))) int ${name}(void)`)
+    }
   })
 })
 

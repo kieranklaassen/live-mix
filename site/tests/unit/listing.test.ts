@@ -17,6 +17,7 @@ import {
   listingOf,
   rangeOf,
   rowsOf,
+  sourceAnchor,
   sourceLines,
 } from '../../src/lib/listing.ts'
 import { COMMIT, REPO_ROOT, REPO_URL } from '../../src/lib/site.ts'
@@ -132,6 +133,37 @@ describe('text anchors', () => {
     expect(() =>
       sourceLines('cpp/kit/no-such.h', 'struct OnePole {', undefined, 'one-pole'),
     ).toThrow(/one-pole.*cpp\/kit\/no-such\.h/)
+  })
+})
+
+describe('a link to the source', () => {
+  it('goes to the line its text is on, to the lines between two texts, or to the whole file', () => {
+    const { first } = sourceLines('cpp/kit/filters.h', 'struct OnePole {')
+    const { last } = sourceLines('cpp/kit/filters.h', 'struct OnePole {', 'return x - lowpass(x);')
+    expect(sourceAnchor('cpp/kit/filters.h', { at: 'struct OnePole {' })).toBe(`#L${first}`)
+    expect(
+      sourceAnchor('cpp/kit/filters.h', { at: 'struct OnePole {', to: 'return x - lowpass(x);' }),
+    ).toBe(`#L${first}-L${last}`)
+    expect(sourceAnchor('cpp/kit/filters.h', {})).toBe('')
+  })
+
+  it('stops the build on lines given by number, naming the lesson and the file', () => {
+    expect(() => sourceAnchor('cpp/kit/filters.h', { lines: '40-62' }, 'one-pole')).toThrow(
+      'one-pole: <Src path="cpp/kit/filters.h" lines="40-62"> gives its lines by number',
+    )
+    // With a text beside them too: a number is never taken.
+    expect(() =>
+      sourceAnchor('cpp/kit/filters.h', { at: 'struct OnePole {', lines: '40' }, 'one-pole'),
+    ).toThrow('gives its lines by number')
+  })
+
+  it('is what <Src> is made of, whatever it is handed', () => {
+    const component = fs.readFileSync(
+      path.join(REPO_ROOT, 'site/src/components/lesson/Src.astro'),
+      'utf8',
+    )
+    expect(component).toContain('sourceAnchor(file, Astro.props, Astro.locals.lesson)')
+    expect(component).not.toMatch(/lines\?:/)
   })
 })
 

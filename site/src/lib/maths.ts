@@ -101,3 +101,12 @@ export function mathsHtml(t: string, block = false): string {
   // excerpts, and a letter alone answers a search for any word that starts with it.
   return unnestLinks(html).replace(/^<span /, '<span data-pagefind-ignore ')
 }
+
+/**
+ * A block equation in the box it scrolls in. An equation wider than the page is read by
+ * scrolling that box sideways (styles/lesson.css), so the box takes the focus as a listing's
+ * does: a reader with no pointer comes to it by the Tab key and moves it by the arrow keys.
+ */
+export function mathsBox(t: string): string {
+  return `<div class="math" tabindex="0">${mathsHtml(t, true)}</div>`
+}

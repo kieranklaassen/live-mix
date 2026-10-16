@@ -26,16 +26,9 @@ import { ROLE_VAR, ROLES, tapRefs, type Role, type TapRef } from '../figures/rol
 import { CONTROL_PERIOD, SAMPLE_RATE } from '../lab/rate.ts'
 import { withRoom } from '../lab/room.ts'
 import type { LabDescription, TapInfo } from '../lab/describe.ts'
-import {
-  loadLab,
-  type Lab,
-  type RenderResult,
-  type Source,
-  type TapData,
-  type Values,
-} from '../lab/runner.ts'
+import { loadLab, type Lab, type RenderResult, type Source, type Values } from '../lab/runner.ts'
 import { NO_SOURCE } from '../lab/sources.ts'
-import { BUILD, isBuilt } from '../lab/store.ts'
+import { BUILD } from '../lab/store.ts'
 import { labInfo } from './lab-info.ts'
 import {
   checkSettings,
@@ -1150,29 +1143,30 @@ const tiles = new Map<string, Promise<LessonTile>>()
 
 /**
  * A lesson's tile. It is the `tile` entry of the lesson's settings file: the values and the tap
- * the button plays, and the picture (drawn on the entry's source, or the lesson's first). A
- * lesson with no entry plays and draws its lab's last sound on the main path, against time, at
- * the lab's starting values.
+ * the button plays, and the picture (drawn on the entry's source, or the lesson's first). Every
+ * lesson of the map has one: the build stops, naming the lesson, on a settings file without the
+ * entry and on a lesson with no settings file.
  */
 export async function lessonTile(lesson: StillLesson, dir = SETTINGS_DIR): Promise<LessonTile> {
-  const entry: TileEntry | undefined = (await lessonSettings(lesson, dir))?.tile
+  const settings = await lessonSettings(lesson, dir)
+  const entry: TileEntry | undefined = settings?.tile
+  if (!entry) {
+    const lacks = settings
+      ? 'its settings file has no tile entry'
+      : 'it has no settings file, and so no tile entry'
+    throw new Error(
+      `${lesson.id}: ${lacks}. Every lesson of the map has one: "tile" in site/src/content/settings/${lesson.id}.json (site/LESSONS.md, "The settings file").`,
+    )
+  }
   const { lab, seconds } = lesson.data
   // Kept by what it is made from: the home page and the lessons' index draw the same tiles.
   const key = JSON.stringify([lesson.id, stampOf(lab), seconds, lesson.data.sources[0], entry])
   let found = tiles.get(key)
   if (!found) {
     found = (async () => {
-      const values = entry?.values ?? {}
-      const source = entry?.source ?? lesson.data.sources[0]!
+      const { values, tap, picture: drawn } = entry
+      const source = entry.source ?? lesson.data.sources[0]!
       const render = await renderStill({ lab, source, seconds, values })
-      const tap =
-        entry?.tap ??
-        Object.values(render.result.taps).findLast(
-          (one: TapData) => one.kind === 'audio' && one.length > 0 && !isBuilt(one.id),
-        )?.id
-      if (tap === undefined)
-        throw new Error(`${lesson.id}: its lab writes no sound for a tile to play.`)
-      const drawn = entry?.picture ?? { taps: [tap], view: 'wave' as const, from: 0 }
       const description = await labInfo(lab, lesson.id)
       const taps = tapRefs(drawn.taps.join(' '), description.taps, lesson.id)
       // A tile's entry always holds a `from`, 0 when its file gives none: a span of time, which

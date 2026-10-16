@@ -1,4 +1,4 @@
-// The nine parts of a long lesson, fixed and in order, and what the reading parts say of a named
+// The nine parts of a lesson, fixed and in order, and what the reading parts say of a named
 // set. A lesson writes parts 1 to 8 as <Part id="why" title="…">; the page adds the ninth from
 // front matter and settings. A card prints its settings from the same set its button plays, in
 // the lab's own names and units, so the words cannot drift from the sound. Nothing here needs
@@ -165,6 +165,113 @@ export function defaultsBeside(lab: LabDescription, defaults: NamedSet): Default
       lesson: valueInWords(control, control.initial),
       device: valueInWords(control, values[control.id]!),
     }))
+}
+
+/** A parameter of a device, as far as a row is matched to it: its key and its name. */
+export interface ParamName {
+  key: string
+  name: string
+}
+
+/** The words of a key or a name, small: `lfoRateHz` and "LFO Rate" are lfo, rate (and hz). */
+const wordsOf = (text: string): string[] =>
+  text
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+
+const endsWith = (whole: string[], end: string[]): boolean =>
+  end.length > 0 &&
+  end.length <= whole.length &&
+  end.every((word, at) => word === whole[whole.length - end.length + at])
+
+/**
+ * True where the parameter is the control. A lab names a control in its own way and the library
+ * in its: the two are one where the parameter's key ends in the control's id, with or without
+ * the control's unit after it (`predelay` in ms is `predelayMs`, `rate` in Hz is `lfoRateHz`),
+ * or its name ends in the control's name ("Rate" is "LFO Rate").
+ */
+function answersTo(param: ParamName, control: ControlInfo): boolean {
+  const key = wordsOf(param.key)
+  const id = wordsOf(control.id)
+  const unit = wordsOf(control.unit)
+  return (
+    endsWith(key, id) ||
+    (unit.length === 1 && endsWith(key, [...id, ...unit])) ||
+    endsWith(wordsOf(param.name), wordsOf(control.name))
+  )
+}
+
+/**
+ * The rows of the last part's table that are the lab's own: the controls the defaults name to
+ * which no parameter of the lesson's devices answers. What is the device's is read from the
+ * library's own list of its parameters, so nothing here is kept by hand.
+ */
+export function labsOwnRows(
+  lab: LabDescription,
+  defaults: NamedSet,
+  params: readonly ParamName[],
+): DefaultsRow[] {
+  const own = new Set(
+    lab.controls
+      .filter((control) => !params.some((param) => answersTo(param, control)))
+      .map((control) => control.id),
+  )
+  return defaultsBeside(lab, defaults).filter((row) => own.has(row.id))
+}
+
+const listed = (names: string[]): string =>
+  names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+
+/**
+ * The sentence above the last part's table. It says the lab's controls are the device's own
+ * only where every row is; a row that is the lab's is named, with what its second number is.
+ */
+export function tableWords(rows: readonly DefaultsRow[], own: readonly DefaultsRow[]): string {
+  const starts =
+    'Where this lesson starts each of them, and where the device starts it when nothing has been set:'
+  if (own.length === 0) return `The lab's controls are the device's own. ${starts}`
+  if (own.length === rows.length) {
+    return "The controls in this table are the lab's, and the device has none of them. Where this lesson starts each of them, and the setting at which the lab does as the device does:"
+  }
+  const names = listed(own.map((row) => row.name))
+  const which =
+    own.length === 1
+      ? "which is the lab's: the device has no such control, and that row gives the setting"
+      : "which are the lab's: the device has no such controls, and those rows give the settings"
+  return `The controls in this table are the device's own, except ${names}, ${which} at which the lab does as the device does. ${starts}`
+}
+
+/**
+ * What the last part says ran above it. A lesson whose lab runs code that is not the engine's
+ * says which in its front matter (`written`), and the page says so in the lesson's words.
+ */
+export function ranWords(written?: string): string {
+  const engine =
+    "Everything above ran in a lab: the engine's code, stopped at each stage so it could be looked at"
+  return written ? `${engine}, and with it code written for this lesson. ${written}` : `${engine}.`
+}
+
+/**
+ * How the last part's device is fed, to end "running live through the engine as an app runs
+ * it, …". An effect is fed the loop the page plays. An instrument takes no sound in: the bench
+ * plays it a phrase of its own. An effect in a lesson that plays no loop is fed the sound the
+ * lab makes, which the page takes as the store does (lab/store.ts): the first tap of sound that
+ * is the source's, or the first of sound.
+ */
+export function benchFeed(
+  lab: LabDescription,
+  sources: readonly string[],
+  as: 'insert' | 'send' | 'instrument',
+): string {
+  if (as === 'instrument') return 'played a short phrase that comes round'
+  if (sources.some((source) => source !== NO_SOURCE.id)) return 'on the same loop'
+  const sound = lab.taps.filter((tap) => tap.kind === 'audio')
+  const fed = sound.find((tap) => tap.origin === 'source') ?? sound[0]
+  if (!fed) return 'with nothing going in'
+  return `fed the sound the lab itself makes, “${fed.name}”, since this lesson plays no loop`
 }
 
 /** What a tap that is not sound is, as site/labs/lab.h declares its kind. */

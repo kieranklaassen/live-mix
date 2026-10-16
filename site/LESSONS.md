@@ -23,8 +23,8 @@ The figure of its own is optional: one pair, `src/figures/<Name>.tsx` with
 The name is the lesson's id and its address, and it carries no number. The map,
 [src/content/families.json](src/content/families.json), lists the eight families and the four
 lessons of each by id and title, in order: a lesson's number is its place there. A lesson's file
-that the map does not list stops the build, and a lesson the map lists that has no file yet is
-a tile marked as not yet written.
+that the map does not list stops the build, and so does a lesson the map lists that has no file,
+or no tile entry in its settings file.
 
 Compression is the pattern. Read its four files before writing another:
 [labs/compression.cpp](labs/compression.cpp),
@@ -175,21 +175,26 @@ void lab_render(int frames) {  // every time a control moves
   `kFrames` (a spectrum over time).
 - **Helpers:** `spectrum_tap(tap, x, count)`; `response_tap(tap, h, count)` (a filter's curve
   from its impulse response, at logarithmic steps from 20 Hz to 20 kHz);
-  `spectrogram_tap(tap, x, count)`; `energy_decay_tap(tap, x, count)`; `to_db`, `power_to_db`,
-  `difference_db(x, y, count)`, `peak`, `rms`; `ratio_db(diff, ref)` for a lab that adds the
-  two sums up as its loop runs; `fourier_at(h, count, hz)` (one frequency of an impulse
-  response, as `re` and `im`); `kPi` as a double.
+  `spectrogram_tap(tap, x, count, columns, loops)`; `energy_decay_tap(tap, x, count)`;
+  `to_db`, `power_to_db`, `difference_db(x, y, count)`, `peak`, `rms`; `ratio_db(diff, ref)`
+  for a lab that adds the two sums up as its loop runs; `fourier_at(h, count, hz)` (one
+  frequency of an impulse response, as `re` and `im`); `kPi` as a double.
   `ratio_db` and `difference_db` stop at −140 dB. A reading of −140 dB is that floor: it says
   the two are at least that far apart in level, not that they are equal sample for sample.
   That is shown in the lab's test, with `largestDifference` ([The tests](#the-tests)).
   The page can already draw the spectrum of any audio tap, so a spectrum tap is only for
   something that is not a tap of the loop.
-- **Room:** a lab may declare 32 controls, 64 taps and 32 checks. A `lab::Build` is three of
-  the checks. A check past the thirty-second is in no render, and the lab's test fails as it
-  loads the lab, with both numbers: "site/labs/compression.cpp declares 33 checks, and a lab
-  may declare 32 (kMaxChecks in site/labs/lab.h)". No heap: buffers are file-level arrays or
-  `lab::take(count)` (zeroed, gone at the next render). The arena is 40 MB of floats; an 8 s
-  stereo tap takes 3 MB.
+  `spectrogram_tap` draws 200 columns of a sound that is a loop when its last two arguments are
+  left out: a frame that runs past the end reads on from the start. For a sound that is not a
+  loop (one note that rings out) give `false` for `loops`: every frame then lies inside the
+  sound, the last one ending on its last sample, so no column is filled out with silence.
+- **Room:** a lab may declare 32 controls, 64 taps and 32 checks. A `lab::Build` is one of the
+  controls and three of the checks. A control, a tap or a check past its limit is in no list
+  and no render, and the lab's test fails as it loads the lab, with both numbers:
+  "site/labs/compression.cpp declares 33 checks, and a lab may declare 32 (kMaxChecks in
+  site/labs/lab.h)". Every test of the lesson fails so, since each loads the lab. No heap:
+  buffers are file-level arrays or `lab::take(count)` (zeroed, gone at the next render). The
+  arena is 40 MB of floats; an 8 s stereo tap takes 3 MB.
 - **A device with `.cpp` files** names them in a comment the build reads:
   `// lab-sources: cpp/devices/plate-reverb/plate_reverb.cpp`. Leave out its `device_api*.cpp`.
   `// lab-memory-mb: 128` and `// lab-arena-mb: 96` give a lab more room.
@@ -199,6 +204,10 @@ void lab_render(int frames) {  // every time a control moves
   `src/lab/room.ts` is the one such hand-over there is. Where the engine's code is TypeScript
   and cannot be handed over as a signal, the lab's stage is written for the lesson, labelled
   so, and the lab's test holds it to the engine's own function on the same signal.
+- **A stage the engine does not compute at all** (the sum of the convolution reverb lesson,
+  which the engine hands to the browser) is written for the lesson, `kLesson`, and the
+  lesson's front matter says so in `written` ([The lesson](#the-lesson)): the last part then
+  says that what ran above was the engine's code and, with it, code written for the lesson.
 - **A lab that plays by itself** (an instrument, an oscillator) ignores `lab::in_at` and its
   lesson names `sources: [none]`. `labs/bench.cpp` shows how notes are played into the
   engine's instruments.
@@ -317,8 +326,8 @@ What a lab's test holds, in this order:
   "at most", "more than", "over", "at least"). A measurement that supports fewer digits is
   written with fewer. Its title says what it holds in plain words and ends with the claim it
   holds: `'brings a tone 12 dB over the threshold at 4:1 out 3 dB over it (claim ratio-4)'`.
-  In a long lesson the claims check fails a claim whose written number is not in the test that
-  names it, in its title or in a call of the helper.
+  The claims check fails a claim whose written number is not in the test that names it, in its
+  title or in a call of the helper.
 - **A number said again keeps its id.** A claim stated in part 2 and again in part 7 is written
   both times under one id, and one test holds both:
   `<Claim id="ratio-4">3 dB over</Claim>` there and `<Claim id="ratio-4">3 dB</Claim>` here.
@@ -395,7 +404,8 @@ file, so a number on a card is one a test can render.
 }
 ```
 
-All three keys are optional, and a key the shape does not have is refused.
+Every lesson has the file and its `tile`: the build stops on a lesson of the map without
+either. `sets` and `defaults` are optional, and a key the shape does not have is refused.
 
 - **`sets`** are what the cards play, by the name a card asks for (`set="pump"`). `label` is
   what the play bar calls the card while it sounds ("Output · Pumping") and what its button is
@@ -419,8 +429,7 @@ All three keys are optional, and a key the shape does not have is refused.
   The picture is drawn on the tile's `source`, or on the lesson's first. It should tell this
   lesson from its neighbours: take the picture the plan's table names for the lesson ("A
   picture it needs") where a tap gives it. A steady tone against time is a solid band, so a
-  lesson of steady tones names a short span or another view. Without an entry the tile plays
-  and draws the lab's last sound on the main path, at starting values, over the whole loop.
+  lesson of steady tones names a short span or another view.
 - **The tile's level** must sit between −36 and −5 dB RMS against full scale on every loop it
   takes: the six musical loops, or the lab's own notes for a lesson whose sources are `[none]`,
   which takes no loop. `tests/labs/tiles.test.ts` holds it.
@@ -428,6 +437,15 @@ All three keys are optional, and a key the shape does not have is refused.
   lab's controls are the device's parameters. The last part then shows where the lesson starts
   each control beside where the device does, with a button that sets the page to the device's
   and plays nothing. A test holds them equal to `cpp/devices/<device>/device.json`.
+- **A control of the lab's own among the defaults.** Where the lab turns into a control
+  something the device does with none (a movement the device always has), `defaults` names
+  that control too, at the setting where the lab does as the device does. The page tells such
+  a row from the device's by itself and says so over the table: "The controls in this table
+  are the device's own, except Wander, which is the lab's". A row is the device's where one
+  of the parameters the library lists for the bench's device answers to the lab's control: its
+  key ends in the control's id, with or without the control's unit after it (`predelay` in ms
+  is `predelayMs`, `rate` in Hz is `lfoRateHz`), or its name ends in the control's name ("Rate"
+  is "LFO Rate"). So a control that is the device's is given the device's id or its name.
 - **The build fails**, naming the lesson and the set, on a control the lab does not have, a
   value outside its control's range, a tap that is not there or is not sound, and a source the
   lesson does not list.
@@ -440,9 +458,9 @@ Front matter:
 title: Compression
 family: dynamics # the family the map puts it in, by the family's id there
 summary: One or two sentences. The standfirst under the title, and the page's description.
-long: true # the long shape: the nine parts under a hero
 opening: { input: in, output: out } # the taps of the opening picture, and how it is drawn
 lab: compression
+written: Which part of what the lab runs is written for the lesson, and why. # left out by most
 devices: [ambient-comp] # the device pages that will link here
 bench:
   device: ambient-comp
@@ -468,11 +486,19 @@ The page adds by itself:
   starting values on the first source, with a key and a button to hear each. It counts as one
   of the lesson's figures. `opening` may say more, each optional
   ([The opening picture](#the-opening-picture)).
-- **Part 9, the real device:** the device's plate on the same loop, or played a short phrase
-  where the bench is `as: instrument`, and the page's sentence says which. Then the table of
-  starting settings beside the device's defaults with its button (where the settings file has
-  `defaults`), links to the device's page, its source, its tests and the lab's test, and the
-  list of `files`. A lesson about two devices puts one on the bench and names the other in
+- **Part 9, the real device:** the device's plate, and a sentence that says what ran above and
+  how the plate is fed: on the same loop; played a short phrase where the bench is
+  `as: instrument`; or, for an effect in a lesson whose sources are `[none]`, fed the sound the
+  lab itself makes, which the sentence names by its tap (the first sound tap that is `kSource`,
+  or the first sound tap). "Everything above ran in a lab: the engine's code, stopped at each
+  stage so it could be looked at" is the page's own sentence. Where a stage the technique turns
+  on is not the engine's code, `written` says which and why in a sentence of the lesson's, and
+  the page adds "and with it code written for this lesson" and then that sentence. Then the
+  table of starting settings beside the device's defaults with its button (where the settings
+  file has `defaults`), under a sentence that says which rows are the device's
+  ([The settings file](#the-settings-file)); links to the device's page, its source, its
+  tests, the lab's test and the lesson's own browser spec where it has one; and the list of
+  `files`. A lesson about two devices puts one on the bench and names the other in
   `bench.also`, a list of device ids: `also: [ring]`. Each is shown after the first device's
   links, under its name, by the table of its controls (range, where the device starts it and
   unit) and links to its page and its source. It has no plate of its own, so the `note` need
@@ -855,12 +881,24 @@ children are the caption.
 | `<Spectrum taps="in out" uprights="cutoff" min={-96} max={0} fMin fMax linear>`   | The spectrum of audio taps (the page works it out) or of spectrum taps.                                                                                                   |
 | `<Spectrogram tap="picture" top={8000} min={-90} max={0}>`                        | A frames tap: frequency up, time across, level as colour.                                                                                                                 |
 
-Each also takes `height` and `label`. Six more were made for one lesson each and take taps the
-same way; the first lines of their files show how each is written: `<SamplesOnWaves>` (samples
-against the waves through them), `<TurningVectors>` (a frame's bins as vectors that turn),
-`<OverlappingWindows>` (the windows of overlapping frames and their sum), `<PhaseTurns>` (a
-filter's phase in half turns), `<GrainCloud>` (each grain as a bead) and `<ConvolverCheck>`
-(the lab's convolution against the browser's own).
+Each also takes `height` and `label`. A `Trace` takes `from` and `span` as a `Wave` does. A
+`Wave` draws the left channel of a sound that has two, or the one `channel` names, counted
+from 0. A `Curve` takes `xUnit` and `yUnit`, the unit each axis's values are in, beside the
+titles. A `Spectrogram` takes `rowMin` and `rowMax`, the hertz at the bottom and the top row of
+the lab's picture (0 and half the sample rate when left out), and `xTitle` for a picture that
+is not laid out over time.
+
+Twelve more were made for one lesson each and take taps the same way; the first lines of their
+files show how each is written: `<SamplesOnWaves>` (samples against the waves through them),
+`<TurningVectors>` (a frame's bins as vectors that turn), `<OverlappingWindows>` (the windows
+of overlapping frames and their sum), `<PhaseTurns>` (a filter's phase in half turns),
+`<GrainCloud>` (each grain as a bead), `<ConvolverCheck>` (the lab's convolution against the
+browser's own), `<DelayRing>` (a delay line as a ring of slots with a head that writes and one
+that reads), `<FaderScale>` (a fader's scale in gain and in decibels, with the sounds measured
+standing on it), `<PolesAndZeros>` (a filter's zeros and poles on the plane beside the curve
+they make), `<StereoCloud>` (left against right, a dot a sample), `<TurningHorn>` (a horn
+turning past two microphones, beside what a microphone hears) and `<VoiceRow>` (a voice as
+blocks in a row, each with its wave and its harmonics).
 
 A curve's `stems` may name the taps it applies to, by id, and the other curves stay lines:
 
@@ -1001,7 +1039,8 @@ how many), `at` (lines an equation links to, each under a key, by text on the li
 - A listing is never given by line numbers.
 - A line longer than the page is neither cut nor wrapped: the listing scrolls sideways in its
   own box, on a phone as on a wide page, and the page itself never does. An edge the lines run
-  past is shaded until the listing is scrolled to that end.
+  past is shaded until the listing is scrolled to that end. The box takes the focus, so the
+  arrow keys scroll it for a reader with no pointer.
 - Code is set letter for letter, in a listing and in a sentence: `>=`, `!=` and `->` are two
   marks each, as they are typed, so what is read can be held against the source.
 
@@ -1015,7 +1054,7 @@ whose line is not on the page. An unknown role stops the build. A link may stand
 that holds a link of its own, `\at{gain-whole}{\frac{\at{gain-over}{x}}{r}}`: the inner term
 goes to its own line and the rest of the outer term to the outer one's. A block equation
 wider than a phone is not cut: it scrolls sideways in its own box, as a listing does, with the
-edge it runs past shaded.
+edge it runs past shaded, and the box takes the focus so that the arrow keys scroll it.
 
 ```mdx
 <M block t={String.raw`\sig{out}{y[n]} = \at{pole-step}{a}\,\sig{in}{x[n]}`} />
@@ -1023,8 +1062,9 @@ edge it runs past shaded.
 
 **`Src`** links to a file of the engine at the commit built: `path`, `at` (text on the line
 linked to), `to` (text on the last line, for a range). Its children are the link's words; with
-none it prints the path. This is the home of a number read off the code. `lines="40-62"` still
-works and nothing holds it to the file: a long lesson does not use it.
+none it prints the path. This is the home of a number read off the code. A link is never given
+by line numbers, which move when the file does: `lines="40-62"` stops the build, naming the
+lesson and the file.
 
 ```mdx
 The detector's two poles are <Src path="cpp/devices/ambient-comp/ambient_comp.h" at="kRmsSeconds =">30 ms each</Src>.
@@ -1104,8 +1144,8 @@ The detector's filter is the one of <Lesson id="one-pole" />.
 <Aside title="Why 30 ms">A shorter window follows the wave itself, not its level.</Aside>
 ```
 
-The page places `Sounds`, `Opening` and `DeviceTable` itself. `Stages`, the strip of the
-lessons not yet rewritten, is not used in a long lesson.
+The page places `Sounds`, `Opening` and `DeviceTable` itself. `Stages` is left from an earlier
+shape of the page, and no lesson uses it.
 
 #### The opening picture
 
@@ -1243,12 +1283,13 @@ build. The dark scheme is the system's, and `look.mjs` has no option for it: a s
 own asks a headless browser for it with `colorScheme: 'dark'` on the browser's context.
 
 The browser test (`tests/browser/lessons.spec.ts`) takes whatever a lesson has and names none
-of its taps, controls or sets. For a lesson in the long shape it holds:
+of its taps, controls or sets. It holds:
 
 - the page opens with no error at 1,280 and 390 pixels, every figure that shows has drawn, and
   nothing sticks out sideways, the device's plate open or shut;
 - every check has its number before the page is scrolled, every listing and block equation
-  wider than a phone scrolls to its end in its own box, and no code is set with joined marks;
+  wider than a phone scrolls to its end in its own box, takes the focus and moves by the arrow
+  keys, and no code is set with joined marks;
 - the contents list names the parts the page has, in order, and a link goes there;
 - each prediction's answer is shut and opens;
 - a control found by its role moves by the keys and the figures draw again, and the wheel over
@@ -1274,17 +1315,21 @@ what its card is meant to do.
 the first that fails:
 
 1. the format check of the lesson's own files;
-2. the build of that one lab;
-3. the lab's test, and the level of the lesson's tile on every loop the tile takes;
-4. a build of a site that holds that one lesson and the home page, written to
+2. the types of the lesson's own TypeScript: its lab test, its figure and its browser spec,
+   each where it is there, with what they import and no other lesson's file. The test runner
+   and the browser tests check no types, so this is where a type that does not hold in a new
+   test is found;
+3. the build of that one lab;
+4. the lab's test, and the level of the lesson's tile on every loop the tile takes;
+5. a build of a site that holds that one lesson and the home page, written to
    `site/.lesson/<id>/` and never to `site/dist`. It loads that lesson's text and settings and
    no other lesson's, so a lesson half written beside it cannot stop it. The run then copies
    the build to a folder of its own, `site/.lesson/.runs/<id>.<process>/`, and the steps after
    this one read the copy: another run of the same lesson builds into the same folder, and
    cannot take the pages from under this one. The copy goes when the run ends;
-5. on that build, the claims check, the wording check and the shape check, each for that
+6. on that build, the claims check, the wording check and the shape check, each for that
    lesson alone;
-6. the lesson's browser test, and the lesson's own browser spec where it has one, on that
+7. the lesson's browser test, and the lesson's own browser spec where it has one, on that
    build served at a port of the run's own; and the lesson's tile on the map with scripts off:
    a link, and a picture that is drawn.
 
@@ -1292,7 +1337,8 @@ It prints one line a step, with its result and how long it took:
 
 ```text
 format   ok         2 s   09:17:28 to 09:17:30
-build    ok        15 s   09:17:43 to 09:17:58
+types    ok         8 s   09:17:30 to 09:17:38
+build    ok        15 s   09:17:51 to 09:18:06
 ```
 
 It exits 0 when the lesson holds; 1 when a step failed; 2 when it could not start (no such
@@ -1320,35 +1366,56 @@ What it reads from the environment:
 - `SITE_FOLDER` names a folder to serve in place of the build's own. The script sets it for
   its browser steps, to the run's own copy of its build.
 
-The one-lesson build has no docs, devices or search pages and no tiles for the lessons beside
-it, and a mention of another lesson is not a link there. Two specs run on it:
+The one-lesson build has no docs, devices or search pages. On its home page the lessons beside
+it stand as tiles with no link, no picture and no button, and a mention of another lesson is
+not a link there. Two specs run on it:
 `tests/browser/lessons.spec.ts`, and the lesson's own where it has one.
 
 **A lesson's own browser spec** is `tests/browser/<id>.spec.ts`: it holds the claims that only
 a browser can measure, opens no page but the lesson's, and is one of the lesson's own files,
-so a failure in it is the lesson's. `lesson.sh` finds it by that name and runs it with the
-shared spec: `tests/browser/plate-reverb.spec.ts` would be the lesson `plate-reverb`'s. One
-spec has another name, kept because other files name it: `tests/browser/convolution.spec.ts`
-is the lesson `convolution-reverb`'s (`NAMED_SPECS` in `scripts/check-lessons.mjs`).
+so a failure in it is the lesson's. `lesson.sh` finds it by that name, and by no other, and
+runs it with the shared spec: `tests/browser/convolution-reverb.spec.ts` is the lesson
+`convolution-reverb`'s. The last part of the lesson's page links to it.
 
-Each check also runs alone: `node scripts/check-claims.mjs [lesson]`,
-`node scripts/check-wording.mjs [lesson] [folder]`,
-`node scripts/check-lessons.mjs [lesson] [folder]`. A fault is one line, such as
+**One step alone.** Each step is a command of its own, run from `site/`, and the steps after
+the build read the folder it wrote:
+
+```sh
+pnpm exec prettier --check $(node scripts/check-lessons.mjs --packet compression)     # format
+node scripts/check-lessons.mjs --types compression .lesson/types/tsconfig.json &&
+  pnpm exec tsc --noEmit -p .lesson/types/tsconfig.json                               # types
+bash scripts/build-labs.sh compression                                                # lab
+npx vitest run --no-file-parallelism tests/labs/compression.test.ts                   # test
+npx vitest run --no-file-parallelism tests/labs/tiles.test.ts -t "compression:"       # tile
+SITE_ONLY_LESSON=compression pnpm exec astro build                                    # build
+node scripts/check-claims.mjs compression                                             # claims
+node scripts/check-wording.mjs compression .lesson/compression                        # wording
+node scripts/check-lessons.mjs compression .lesson/compression                        # shape
+SITE_ONLY_LESSON=compression LESSONS=compression \
+  pnpm exec playwright test tests/browser/lessons.spec.ts                             # browser
+SITE_ONLY_LESSON=compression \
+  pnpm exec playwright test tests/browser/home.spec.ts -g 'scripts off\W+/ is the map' # map
+```
+
+By hand the build is in `site/.lesson/<id>/`, and the browser steps serve it at port 4321 plus
+the lesson's number in the map. The three checks take no lesson to read every lesson of a whole
+build: `node scripts/check-claims.mjs`, `node scripts/check-wording.mjs`,
+`node scripts/check-lessons.mjs`. A fault is one line, such as
 `compression: part 3 (uses): 2 use cards with a picture and a set, 1 short of 3` or
 `compression: the claim "back" writes "39 ms", and the test that names it does not`.
 
 What the three checks hold:
 
 - **Claims** (`scripts/check-claims.mjs`): every `<Claim id>` is named by a test as
-  `claim <id>`, and in a long lesson each number with a unit in a claim's sentence is in that
-  test as written, in its title or in a call of the written-number helper. An id written more
+  `claim <id>`, and each number with a unit in a claim's sentence is in that test as written,
+  in its title or in a call of the written-number helper. An id written more
   than once states the same number each time.
 - **Wording** (`scripts/check-wording.mjs`): rule 4, in the lesson's sources and in the page as
   built, listings among them.
-- **Shape** (`scripts/check-lessons.mjs`): the nine parts present and in order; the least each
-  part holds and the whole lesson's floors, as [The nine parts](#the-nine-parts) gives them; a
-  key on every figure; no colour named in a caption; no control named as a knob, a slider or a
-  switch.
+- **Shape** (`scripts/check-lessons.mjs`), for every lesson there is: the nine parts present
+  and in order; the least each part holds and the whole lesson's floors, as
+  [The nine parts](#the-nine-parts) gives them; a key on every figure; no colour named in a
+  caption; no control named as a knob, a slider or a switch.
 
 Many lessons are written side by side on one machine and in one working tree. When `SITE_SLOTS`
 names a lock folder, each heavy step waits for one of a few slots there, so the lessons do not

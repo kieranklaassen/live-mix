@@ -23,9 +23,16 @@ export async function lessonsInOrder(): Promise<Lesson[]> {
   return inMapOrder(await getCollection('lessons'))
 }
 
-/** The whole map, family by family, each lesson with its text where that is written. */
+/**
+ * The whole map, family by family, each lesson with its text. Stops the build on a lesson the
+ * map lists that has no file. A build of one lesson holds that lesson's text alone, and the
+ * others are left in their places, not built.
+ */
 export async function lessonMap(): Promise<MapRow<Lesson>[]> {
-  return mapWith(await getCollection('lessons'))
+  // Read from the environment here, as scripts/site-env.mjs reads it: that file finds the map by
+  // a path from its own place, so it cannot be taken into the pages' build.
+  const only = process.env.SITE_ONLY_LESSON || undefined
+  return mapWith(await getCollection('lessons'), undefined, only)
 }
 
 /** The sources a lesson offers, as the picker lists them. Throws on an id the bench does not play. */

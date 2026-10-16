@@ -3,10 +3,11 @@
 // <Src path="cpp/kit/fft.h" /> or
 // <Src path="cpp/kit/fft.h" at="for (int k = 0; k < half; ++k)">the butterfly loop</Src>, and
 // with `to` as well, the lines from one text to the other. The lines are found by the text, so
-// the build fails when the file no longer holds it once.
+// the build fails when the file no longer holds it once. Lines are never given by number:
+// `lines="40-62"` stops the build.
 import fs from 'node:fs'
 import path from 'node:path'
-import { lineAnchor, sourceLines } from '../../lib/listing.ts'
+import { sourceAnchor } from '../../lib/listing.ts'
 import { REPO_ROOT, sourceUrl } from '../../lib/site.ts'
 
 interface Props {
@@ -15,20 +16,15 @@ interface Props {
   at?: string
   /** Text on the last of the lines, with `at`. */
   to?: string
-  /** A line or a range of lines by number, "40" or "40-62": nothing holds it to the file. */
-  lines?: string
 }
-const { path: file, at, to, lines } = Astro.props
+const { path: file } = Astro.props
 if (!fs.existsSync(path.join(REPO_ROOT, file))) {
   throw new Error(
     `${Astro.locals.lesson ?? 'A page'} links to ${file}, which is not in the repository.`,
   )
 }
-const anchor = at
-  ? lineAnchor(sourceLines(file, at, to, Astro.locals.lesson))
-  : lines
-    ? `#L${lines.replace('-', '-L')}`
-    : ''
+// Handed over whole: a `lines` a lesson still writes is found there and refused.
+const anchor = sourceAnchor(file, Astro.props, Astro.locals.lesson)
 ---
 
 <a class="src" href={`${sourceUrl(file)}${anchor}`}><slot><code>{file}</code></slot></a>

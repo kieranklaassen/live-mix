@@ -1,10 +1,11 @@
 // The checks that read the site as a whole, tried on small sites made for the purpose: a dead
 // link is found and a sound one is not, a name is found and a word that only holds one is not,
-// a long lesson short of its packet is found and one at its floors is not, a claim's number is
+// a lesson short of its packet is found and one at its floors is not, a claim's number is
 // found missing from its test, and a lesson's own files are told from everybody's.
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import { checkClaims, numbersIn, statedBy, testsNaming } from '../../scripts/check-claims.mjs'
 import {
@@ -15,6 +16,7 @@ import {
   packetFiles,
   PART_IDS,
   shapeOf,
+  typesConfig,
 } from '../../scripts/check-lessons.mjs'
 import { checkLinks } from '../../scripts/check-links.mjs'
 import { checkWording, patternsOf, wordingIn } from '../../scripts/check-wording.mjs'
@@ -128,7 +130,7 @@ function partsAtTheFloors(): Record<string, string> {
 }
 
 /** A lesson's page as built, from its parts in the order given. */
-function longPage(parts: Record<string, string>, order = Object.keys(parts), long = true): string {
+function longPage(parts: Record<string, string>, order = Object.keys(parts)): string {
   const sections = order
     .map(
       (id) =>
@@ -137,7 +139,7 @@ function longPage(parts: Record<string, string>, order = Object.keys(parts), lon
     .join('\n')
   const opening =
     '<figure class="fig opening"><div class="still-plot"><svg></svg></div><ul class="fig-legend"><li><i></i>Input<astro-island ssr><button class="listen">Hear it</button></astro-island></li></ul></figure>'
-  return `<!doctype html><html><head><title>A lesson</title><style>.a > .b { color: red }</style></head><body><article class="lesson" data-lesson="made-up"${long ? ' data-long' : ''}><header class="lesson-hero"><h1>A lesson</h1></header><div class="lesson-opening">${opening}</div><div class="lesson-body">${sections}</div></article><astro-island ssr><div class="playbar">Play the slider</div></astro-island><script>const red = "<p>"</script></body></html>`
+  return `<!doctype html><html><head><title>A lesson</title><style>.a > .b { color: red }</style></head><body><article class="lesson" data-lesson="made-up"><header class="lesson-hero"><h1>A lesson</h1></header><div class="lesson-opening">${opening}</div><div class="lesson-body">${sections}</div></article><astro-island ssr><div class="playbar">Play the slider</div></astro-island><script>const red = "<p>"</script></body></html>`
 }
 
 describe('check-lessons', () => {
@@ -236,37 +238,45 @@ describe('check-lessons', () => {
     ])
   })
 
-  it('has nothing to say of a lesson that is not long yet', () => {
-    expect(shapeOf(longPage({ why: '<p>Short.</p>' }, ['why'], false), 'old')).toBeUndefined()
+  it('holds every lesson page to the packet: a page with no parts is short of all nine', () => {
+    // What a page of the short shape there once was would be: a head, some prose, no part.
+    const short =
+      '<!doctype html><html><body><article class="lesson" data-lesson="old"><header class="lesson-head"><h1>Old</h1></header><div class="lesson-body"><p>Short.</p></div></article></body></html>'
+    const found = shapeOf(short, 'old')
+    for (const [at, id] of PART_IDS.entries()) {
+      expect(found).toContain(`old: part ${at + 1} (${id}): missing`)
+    }
+    expect(found).toContain('old: the opening: 0 opening pictures, 1 short of 1')
+    // And a page under lessons/ that is no lesson at all is a fault, not a page to pass over.
+    expect(shapeOf('<!doctype html><html><body><h1>Nothing</h1></body></html>', 'none')).toEqual([
+      'none: the page built for it holds no lesson (no <article class="lesson">)',
+    ])
   })
 
-  it('reads the lessons of a built folder, one of them when asked, and skips the old shape', () => {
+  it('reads the lessons of a built folder, every one of them, or the one asked for', () => {
     const parts = partsAtTheFloors()
     delete parts.myths
     const dist = site({
       'lessons/index.html': '<h1>Lessons</h1>',
       'lessons/whole/index.html': longPage(partsAtTheFloors()),
       'lessons/short/index.html': longPage(parts),
-      'lessons/old/index.html': longPage({ why: '<p>Short.</p>' }, ['why'], false),
     })
-    expect(checkLessons(dist)).toEqual({
+    expect(checkLessons(dist)).toEqual({ problems: ['short: part 8 (myths): missing'], pages: 2 })
+    expect(checkLessons(dist, 'whole')).toEqual({ problems: [], pages: 1 })
+    expect(checkLessons(dist, 'short')).toEqual({
       problems: ['short: part 8 (myths): missing'],
-      long: 2,
-      pages: 3,
+      pages: 1,
     })
-    expect(checkLessons(dist, 'whole')).toEqual({ problems: [], long: 1, pages: 1 })
-    expect(checkLessons(dist, 'old')).toEqual({ problems: [], long: 0, pages: 1 })
     expect(checkLessons(site({ 'index.html': '<h1>Home</h1>' }))).toEqual({
       problems: [],
-      long: 0,
       pages: 0,
     })
   })
 })
 
 describe('check-claims', () => {
-  const lesson = (claim: string, long = true) =>
-    `---\ntitle: Made up\n${long ? 'long: true\n' : ''}---\n\nAt a release of 100 ms the gain is back <Claim id="back">${claim}</Claim> after the hit.\n`
+  const lesson = (claim: string) =>
+    `---\ntitle: Made up\n---\n\nAt a release of 100 ms the gain is back <Claim id="back">${claim}</Claim> after the hit.\n`
   const tested = (title: string, body = 'expect(measured).toBeCloseTo(0.04)') =>
     `import { it } from 'vitest'\n\nit('${title}', async () => {\n  ${body}\n})\n\nit('does something else, in 39 ms', () => {})\n`
   const claims = (text: string, test: string) =>
@@ -317,12 +327,30 @@ describe('check-claims', () => {
     expect(claims(lesson('39 ms'), tested('is back (claim back)')).problems).toHaveLength(1)
   })
 
-  it('leaves a lesson that is not long, and a claim with no number, as they were', () => {
-    expect(
-      claims(lesson('39 ms', false), tested('is back in 41 ms (claim back)')).problems,
-    ).toEqual([])
+  it('leaves a claim with no number as it was', () => {
     expect(
       claims(lesson('in a straight line'), tested('is back in 41 ms (claim back)')).problems,
+    ).toEqual([])
+  })
+
+  it('skips no lesson there is: while it reads `long: true`, every lesson carries it', () => {
+    // Every lesson is long, and the key goes from the lessons. The check must stop reading it in
+    // the same change, or it would pass over every lesson's numbers and say all is well.
+    const here = fileURLToPath(new URL('../..', import.meta.url))
+    const check = fs.readFileSync(path.join(here, 'scripts/check-claims.mjs'), 'utf8')
+    const folder = path.join(here, 'src/content/lessons')
+    const passedOver = !check.includes('long:\\s*true')
+      ? []
+      : fs
+          .readdirSync(folder)
+          .filter((file) => file.endsWith('.mdx'))
+          .filter((file) => {
+            const text = fs.readFileSync(path.join(folder, file), 'utf8')
+            return !/^long:\s*true\s*$/m.test(/^---\n[\s\S]*?\n---/.exec(text)?.[0] ?? '')
+          })
+    expect(
+      passedOver,
+      'scripts/check-claims.mjs reads `long: true` and would pass over these: drop that line of it',
     ).toEqual([])
   })
 
@@ -458,20 +486,61 @@ describe("a lesson's own files", () => {
     ).toBe('site/labs/lab.h')
   })
 
-  it('may have a browser spec beside them: named by the lesson’s id, or the one named before that rule', () => {
+  it('may have a browser spec beside them, named by the lesson’s id and by nothing else', () => {
     const root = made()
     expect(ownSpec('one', root)).toBeUndefined()
     fs.writeFileSync(path.join(root, 'tests/browser/one.spec.ts'), '')
     expect(ownSpec('one', root)).toBe('tests/browser/one.spec.ts')
     expect(ownSpec('two', root)).toBeUndefined()
-    // The convolution lesson's spec is called after the technique and not after the lesson.
-    expect(ownSpec('convolution-reverb', root)).toBeUndefined()
+    // A spec called after a technique and not after its lesson is nobody's: it would not be run.
     fs.writeFileSync(path.join(root, 'tests/browser/convolution.spec.ts'), '')
-    expect(ownSpec('convolution-reverb', root)).toBe('tests/browser/convolution.spec.ts')
-    expect(ownSpec('one', root)).toBe('tests/browser/one.spec.ts')
-    // In this repository that spec is there, and it is what the browser step is handed.
-    expect(ownSpec('convolution-reverb')).toBe('tests/browser/convolution.spec.ts')
+    expect(ownSpec('convolution-reverb', root)).toBeUndefined()
+    // In this repository the convolution lesson's spec is there, under the lesson's id, and it
+    // is what the browser step of the one-lesson check is handed.
+    expect(ownSpec('convolution-reverb')).toBe('tests/browser/convolution-reverb.spec.ts')
     expect(ownSpec('compression')).toBeUndefined()
+    const browser = fileURLToPath(new URL('../browser/', import.meta.url))
+    const specs = fs.readdirSync(browser).filter((name) => name.endsWith('.spec.ts'))
+    // Every spec there is the whole site's, or a lesson's own by its id.
+    const shared = ['devices', 'docs', 'home', 'lessons', 'search']
+    const lessons = fs
+      .readdirSync(fileURLToPath(new URL('../../src/content/lessons/', import.meta.url)))
+      .map((name) => name.replace(/\.mdx$/, ''))
+    for (const spec of specs) {
+      expect([...shared, ...lessons], spec).toContain(spec.replace(/\.spec\.ts$/, ''))
+    }
+  })
+
+  it('are type-checked by themselves: its test, its spec and its figure, and what they import', () => {
+    const root = made()
+    fs.writeFileSync(path.join(root, 'tests/browser/one.spec.ts'), '')
+    // The settings file and the lab are not TypeScript, and a wrapper is checked by the build.
+    expect(typesConfig('one', '.lesson/.runs', root)).toEqual({
+      extends: '../../tsconfig.json',
+      include: [
+        '../../src/env.d.ts',
+        '../../tests/labs/one.test.ts',
+        '../../src/figures/Beads.tsx',
+        '../../tests/browser/one.spec.ts',
+      ],
+      exclude: [],
+    })
+    // A lesson with no test and no spec has its figure alone.
+    expect(typesConfig('two', '.lesson/.runs', root).include).toEqual([
+      '../../src/env.d.ts',
+      '../../src/figures/Turns.tsx',
+    ])
+  })
+
+  it('are blamed for a type that does not hold in them, and not for one in a file everybody shares', () => {
+    const root = made()
+    const own =
+      "tests/labs/one.test.ts(12,5): error TS2322: Type 'string' is not assignable to type 'number'.\n"
+    const shared = "tests/labs/support.ts(40,9): error TS2304: Cannot find name 'tap'.\n"
+    expect(blamedOutside(own, 'one', root)).toBeUndefined()
+    expect(blamedOutside(shared, 'one', root)).toBe('site/tests/labs/support.ts')
+    // Both at once, the shared file's first: the lesson's own fault is the lesson's to mend.
+    expect(blamedOutside(shared + own, 'one', root)).toBeUndefined()
   })
 
   it('are blamed for that spec when it cannot be compiled, and not for another lesson’s', () => {

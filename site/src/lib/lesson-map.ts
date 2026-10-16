@@ -32,7 +32,7 @@ export interface Written {
   data: { family: string }
 }
 
-/** A lesson of the map, with its text where that is written. */
+/** A lesson of the map, with its text: every one has it, but in a build of one lesson. */
 export interface MapLesson<L> extends Place {
   lesson?: L
 }
@@ -84,7 +84,7 @@ export function placeOf(id: string, map: readonly MapFamily[] = MAP): Place {
 /**
  * The lessons that are written, in the map's order. Throws on one the map does not list and
  * on one whose front matter names another family than the map puts it in. A lesson the map
- * lists and nobody has written yet is not an error: it is left out.
+ * lists that has no file is left out here: `mapWith` is what stops the build on it.
  */
 export function inMapOrder<L extends Written>(
   lessons: readonly L[],
@@ -102,13 +102,30 @@ export function inMapOrder<L extends Written>(
   return numbered.sort((a, b) => a.number - b.number).map((one) => one.lesson)
 }
 
-/** The whole map, family by family. A lesson not yet written has no `lesson`. */
+/**
+ * The whole map, family by family, each lesson with its text. Every lesson the map lists has a
+ * file: the build stops on one that has none, naming each. A build of one lesson (`only`, the
+ * lesson's id: scripts/lesson.sh) reads that lesson's file and no other, so there the others
+ * keep their places with no `lesson`, and the page draws them as tiles that are not built.
+ */
 export function mapWith<L extends Written>(
   lessons: readonly L[],
   map: readonly MapFamily[] = MAP,
+  only?: string,
 ): MapRow<L>[] {
   const written = new Map(inMapOrder(lessons, map).map((lesson) => [lesson.id, lesson]))
   const all = places(map)
+  const missing = all
+    .filter((place) => !written.has(place.id) && (only === undefined || place.id === only))
+    .map((place) => place.id)
+  if (missing.length > 0) {
+    const lessonsThat =
+      missing.length === 1 ? '1 lesson that has' : `${missing.length} lessons that have`
+    throw new Error(
+      `The map lists ${lessonsThat} no file: ${missing.join(', ')}. ` +
+        'Each needs site/src/content/lessons/<id>.mdx, or comes off the map (site/src/content/families.json).',
+    )
+  }
   return map.map(({ id, name }) => ({
     id,
     name,

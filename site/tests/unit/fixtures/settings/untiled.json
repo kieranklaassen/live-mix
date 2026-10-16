@@ -1,0 +1,5 @@
+{
+  "sets": {
+    "dry": { "label": "the loop, dry", "tap": "in" }
+  }
+}
