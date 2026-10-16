@@ -28,6 +28,10 @@ build_generated_devices() {
     cpp/devices/aurora/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device auto-filter \
     cpp/devices/auto-filter/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device band-pulse \
+    cpp/devices/band-pulse/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device binaural \
+    cpp/devices/binaural/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device bloom-reverb \
     cpp/devices/bloom-reverb/device_api.gen.cpp \
     cpp/devices/spectral-drifter/SpectralDrifter.cpp \
@@ -38,6 +42,8 @@ build_generated_devices() {
     cpp/devices/bowls/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device breath \
     cpp/devices/breath/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device breath-pacer \
+    cpp/devices/breath-pacer/device_api.gen.cpp
   MEMORY_BYTES=33554432 EXTRA_EXPORTS=",_device_meter" build_device canon \
     cpp/devices/canon/device_api.gen.cpp
   MEMORY_BYTES=16777216 EXTRA_EXPORTS=",_device_meter" build_device cascade \
@@ -54,6 +60,8 @@ build_generated_devices() {
     cpp/devices/clarinet/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device club-kit \
     cpp/devices/club-kit/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device coloured-noise \
+    cpp/devices/coloured-noise/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device common-tones \
     cpp/devices/common-tones/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device constellation \
@@ -70,6 +78,8 @@ build_generated_devices() {
     cpp/devices/drum-kit/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device dusk \
     cpp/devices/dusk/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device ear-shift \
+    cpp/devices/ear-shift/device_api.gen.cpp
   MEMORY_BYTES=20971520 EXTRA_EXPORTS=",_device_meter" build_device echo-memory \
     cpp/devices/echo-memory/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ember \
@@ -130,6 +140,8 @@ build_generated_devices() {
     cpp/devices/ice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device imprint \
     cpp/devices/imprint/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device isochronic \
+    cpp/devices/isochronic/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ladder-bass \
     cpp/devices/ladder-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device late-vibrato \
@@ -230,6 +242,8 @@ build_generated_devices() {
     cpp/devices/staircase/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stereo-detune \
     cpp/devices/stereo-detune/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device still-point \
+    cpp/devices/still-point/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stops \
     cpp/devices/stops/device_api.gen.cpp
   MEMORY_BYTES=25165824 EXTRA_EXPORTS=",_device_meter" build_device stretch \
@@ -268,6 +282,8 @@ build_generated_devices() {
     cpp/devices/tine-piano/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tremolo \
     cpp/devices/tremolo/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device twin-bars \
+    cpp/devices/twin-bars/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device underwater \
     cpp/devices/underwater/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device vessel \
@@ -288,6 +304,8 @@ build_generated_devices() {
     cpp/devices/west-coast/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wind-harp \
     cpp/devices/wind-harp/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device winding-down \
+    cpp/devices/winding-down/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device zither \
     cpp/devices/zither/device_api.gen.cpp
   MEMORY_BYTES=67108864 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit,_device_zone_capacity,_device_zone_pool_capacity,_device_zones_begin,_device_zone_sample,_device_zone_sample_buffer,_device_zone_fields,_device_zone_add" build_device zone-sampler \
@@ -319,6 +337,10 @@ test_generated_devices() {
     cpp/test/aurora_test.cpp
   native_test auto_filter_test \
     cpp/test/auto_filter_test.cpp
+  native_test band_pulse_test \
+    cpp/test/band_pulse_test.cpp
+  native_test binaural_test \
+    cpp/test/binaural_test.cpp
   native_test bloom_reverb_test \
     cpp/test/bloom_reverb_test.cpp \
     cpp/devices/spectral-drifter/SpectralDrifter.cpp \
@@ -329,6 +351,8 @@ test_generated_devices() {
     cpp/test/bowls_test.cpp
   native_test breath_test \
     cpp/test/breath_test.cpp
+  native_test breath_pacer_test \
+    cpp/test/breath_pacer_test.cpp
   native_test canon_test \
     cpp/test/canon_test.cpp
   native_test cascade_test \
@@ -345,6 +369,8 @@ test_generated_devices() {
     cpp/test/clarinet_test.cpp
   native_test club_kit_test \
     cpp/test/club_kit_test.cpp
+  native_test coloured_noise_test \
+    cpp/test/coloured_noise_test.cpp
   native_test common_tones_test \
     cpp/test/common_tones_test.cpp
   native_test constellation_test \
@@ -361,6 +387,8 @@ test_generated_devices() {
     cpp/test/drum_kit_test.cpp
   native_test dusk_test \
     cpp/test/dusk_test.cpp
+  native_test ear_shift_test \
+    cpp/test/ear_shift_test.cpp
   native_test echo_memory_test \
     cpp/test/echo_memory_test.cpp
   native_test ember_test \
@@ -421,6 +449,8 @@ test_generated_devices() {
     cpp/test/ice_test.cpp
   native_test imprint_test \
     cpp/test/imprint_test.cpp
+  native_test isochronic_test \
+    cpp/test/isochronic_test.cpp
   native_test ladder_bass_test \
     cpp/test/ladder_bass_test.cpp
   native_test late_vibrato_test \
@@ -521,6 +551,8 @@ test_generated_devices() {
     cpp/test/staircase_test.cpp
   native_test stereo_detune_test \
     cpp/test/stereo_detune_test.cpp
+  native_test still_point_test \
+    cpp/test/still_point_test.cpp
   native_test stops_test \
     cpp/test/stops_test.cpp
   native_test stretch_test \
@@ -559,6 +591,8 @@ test_generated_devices() {
     cpp/test/tine_piano_test.cpp
   native_test tremolo_test \
     cpp/test/tremolo_test.cpp
+  native_test twin_bars_test \
+    cpp/test/twin_bars_test.cpp
   native_test underwater_test \
     cpp/test/underwater_test.cpp
   native_test vessel_test \
@@ -579,6 +613,8 @@ test_generated_devices() {
     cpp/test/west_coast_test.cpp
   native_test wind_harp_test \
     cpp/test/wind_harp_test.cpp
+  native_test winding_down_test \
+    cpp/test/winding_down_test.cpp
   native_test zither_test \
     cpp/test/zither_test.cpp
   native_test zone_sampler_test \

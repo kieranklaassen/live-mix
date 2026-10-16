@@ -1,0 +1,129 @@
+{
+  "id": "ear-shift",
+  "name": "Ear Shift",
+  "category": "spatial",
+  "description": "On headphones any sound beats between the ears. Only a band is shifted, where the frequency shifter's stereo mode moves it all, and Ears can bring the beat into the air.",
+  "class": "EarShift",
+  "header": "ear_shift.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "beat",
+      "name": "Beat",
+      "min": 0.5,
+      "max": 40,
+      "default": 6,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How many times a second the beat between the ears comes round. The band is moved up by half of it in the left ear and down by half in the right."
+    },
+    {
+      "key": "ears",
+      "name": "Ears",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "At full the band goes up in the left ear and down in the right. Speakers, a mono fold or a reverb fed from both sides make that a pulse in the air, as zero does outright."
+    },
+    {
+      "key": "low",
+      "name": "Low",
+      "min": 60,
+      "max": 400,
+      "default": 60,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Bottom of the shifted band. Sound well below it passes unshifted. A note within an octave of this edge is part shifted and wavers at half the rate of Beat."
+    },
+    {
+      "key": "high",
+      "name": "High",
+      "min": 400,
+      "max": 2000,
+      "default": 1000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Top of the shifted band. Sound well above it passes unshifted. A note within an octave of this edge wavers at half the rate of Beat. It stays half an octave over Low."
+    }
+  ],
+  "presets": {
+    "Six a second": {},
+    "Slow turn": {
+      "beat": 0.5,
+      "high": 700
+    },
+    "One, wide band": {
+      "beat": 1,
+      "high": 2000
+    },
+    "Two, low band": {
+      "beat": 2,
+      "high": 400
+    },
+    "Four, narrow": {
+      "beat": 4,
+      "low": 300,
+      "high": 700
+    },
+    "Three, mid band": {
+      "beat": 3,
+      "low": 250
+    },
+    "Five, a little air": {
+      "beat": 5,
+      "ears": 0.7,
+      "high": 700
+    },
+    "Four in the air": {
+      "beat": 4,
+      "ears": 0,
+      "low": 150,
+      "high": 2000
+    },
+    "Eight, half air": {
+      "beat": 8,
+      "ears": 0.5
+    },
+    "Slow wave on top": {
+      "beat": 1,
+      "ears": 0,
+      "low": 400,
+      "high": 2000
+    },
+    "Two, mostly air": {
+      "beat": 2,
+      "ears": 0.25
+    },
+    "Ten in the air": {
+      "beat": 10,
+      "ears": 0,
+      "low": 150
+    },
+    "Slow wave": {
+      "beat": 1.5,
+      "ears": 0,
+      "high": 2000
+    },
+    "Twelve on top": {
+      "beat": 12,
+      "ears": 0.5,
+      "low": 400,
+      "high": 2000
+    },
+    "Three in the bass": {
+      "beat": 3,
+      "ears": 0,
+      "high": 400
+    },
+    "Sixteen, half air": {
+      "beat": 16,
+      "ears": 0.5,
+      "low": 150,
+      "high": 2000
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit, cpp/kit/beat.h and cpp/kit/band.h. A band of the input is shifted up in the left ear and down in the right through a phase difference network; no unit or plug-in is modelled."
+  }
+}

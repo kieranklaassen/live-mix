@@ -1,0 +1,251 @@
+{
+  "id": "band-pulse",
+  "name": "Band Pulse",
+  "category": "modulation",
+  "description": "Pulses only the band between Low and High, up to 40 times a second, with a set Duty and Edge. The tremolo moves the whole sound; this leaves bass and air steady.",
+  "class": "BandPulse",
+  "header": "band_pulse.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.5,
+      "max": 40,
+      "default": 8,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How many times a second the band pulses. Slow pulses are heard one by one; towards the top they run together into a rough edge on the sound."
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far the band drops between pulses. At full the middle of a band four octaves wide is silent in the gaps; a narrower band only dips. At zero nothing is pulsed."
+    },
+    {
+      "key": "duty",
+      "name": "Duty",
+      "min": 0.1,
+      "max": 0.9,
+      "default": 0.5,
+      "description": "How much of each cycle the pulse is on. Low gives short ticks with long gaps, high gives short dips in a steady sound."
+    },
+    {
+      "key": "edge",
+      "name": "Edge",
+      "min": 2,
+      "max": 50,
+      "default": 12,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long a pulse takes to rise and to fall. Short is a hard chop, long is a soft swell. It is held to half of the shorter of the on time and the gap."
+    },
+    {
+      "key": "offset",
+      "name": "Offset",
+      "min": 0,
+      "max": 180,
+      "default": 0,
+      "unit": "deg",
+      "description": "Moves the right side's pulse behind the left's. At 180 with Duty at half the sides take turns, and in mono, or in a reverb fed from both sides, the pulse is gone."
+    },
+    {
+      "key": "low",
+      "name": "Low",
+      "min": 60,
+      "max": 400,
+      "default": 200,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The bottom of the band that is pulsed. Sound an octave under it keeps its own level, so the bass stays steady; nearer the band it is pulsed in part."
+    },
+    {
+      "key": "high",
+      "name": "High",
+      "min": 400,
+      "max": 4000,
+      "default": 1000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The top of the band that is pulsed. Sound an octave over it keeps its own level. The top stays at least half an octave over Low."
+    }
+  ],
+  "presets": {
+    "Eight a second": {
+      "rate": 8
+    },
+    "Six a second": {
+      "rate": 6,
+      "depth": 0.7,
+      "edge": 25,
+      "low": 150,
+      "high": 1500
+    },
+    "Ten a second": {
+      "rate": 10,
+      "depth": 0.75,
+      "edge": 8,
+      "high": 2000
+    },
+    "Four a second": {
+      "rate": 4,
+      "depth": 0.45,
+      "duty": 0.6,
+      "edge": 30
+    },
+    "Three a second": {
+      "rate": 3,
+      "depth": 0.8,
+      "duty": 0.4,
+      "edge": 40,
+      "low": 120,
+      "high": 1500
+    },
+    "One up, one down": {
+      "rate": 0.5,
+      "depth": 0.4,
+      "edge": 50,
+      "low": 100,
+      "high": 2500
+    },
+    "Slow low pulse": {
+      "rate": 0.8,
+      "depth": 0.7,
+      "edge": 50,
+      "low": 60,
+      "high": 400
+    },
+    "One a second": {
+      "rate": 1,
+      "depth": 0.45,
+      "duty": 0.35,
+      "edge": 50,
+      "high": 2000
+    },
+    "Seventy a minute": {
+      "rate": 1.17,
+      "depth": 0.85,
+      "duty": 0.2,
+      "edge": 40,
+      "low": 60,
+      "high": 500
+    },
+    "Fourteen a second": {
+      "rate": 14,
+      "depth": 0.6,
+      "edge": 6,
+      "low": 150,
+      "high": 700
+    },
+    "Sixteen mid band": {
+      "rate": 16,
+      "depth": 0.45,
+      "edge": 8
+    },
+    "Sixteen, thin": {
+      "rate": 16,
+      "depth": 0.6,
+      "duty": 0.25,
+      "edge": 3,
+      "low": 250,
+      "high": 2500
+    },
+    "Twenty up high": {
+      "rate": 20,
+      "depth": 0.55,
+      "duty": 0.4,
+      "edge": 4,
+      "low": 400,
+      "high": 2500
+    },
+    "Forty, smooth": {
+      "rate": 40,
+      "depth": 0.6,
+      "edge": 6,
+      "low": 100,
+      "high": 4000
+    },
+    "Forty ticks": {
+      "rate": 40,
+      "depth": 1,
+      "duty": 0.15,
+      "edge": 2,
+      "low": 300,
+      "high": 3000
+    },
+    "Side to side": {
+      "rate": 2,
+      "depth": 0.9,
+      "edge": 50,
+      "offset": 180,
+      "low": 150,
+      "high": 3000
+    },
+    "Side flutter": {
+      "rate": 12,
+      "depth": 0.8,
+      "edge": 8,
+      "offset": 180,
+      "high": 2000
+    },
+    "Five, left first": {
+      "rate": 5,
+      "depth": 0.7,
+      "duty": 0.4,
+      "edge": 15,
+      "offset": 90
+    },
+    "Hard chop": {
+      "rate": 8,
+      "depth": 1,
+      "edge": 2,
+      "low": 60,
+      "high": 4000
+    },
+    "Short dips": {
+      "rate": 2.5,
+      "depth": 1,
+      "duty": 0.85,
+      "edge": 20,
+      "low": 100,
+      "high": 3000
+    },
+    "Three high ticks": {
+      "rate": 3,
+      "depth": 0.9,
+      "duty": 0.15,
+      "edge": 4,
+      "low": 400,
+      "high": 4000
+    },
+    "Narrow flutter": {
+      "rate": 6,
+      "depth": 1,
+      "edge": 10,
+      "low": 300,
+      "high": 600
+    },
+    "Four down low": {
+      "rate": 4,
+      "depth": 0.85,
+      "duty": 0.35,
+      "edge": 25,
+      "low": 60,
+      "high": 400
+    },
+    "Eight up high": {
+      "rate": 8,
+      "depth": 0.8,
+      "edge": 6,
+      "low": 400,
+      "high": 4000
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit, with the pulse of cpp/kit/beat.h and the split of cpp/kit/band.h. An even pulse on the middle band of a sound; no unit or plug-in is modelled."
+  }
+}

@@ -1,0 +1,278 @@
+{
+  "id": "binaural",
+  "name": "Binaural",
+  "category": "instrument",
+  "description": "On headphones each key is a pair of warm tones a few hertz apart, one to an ear, heard as a beat between the ears. Ears at 0 puts the beat in the air for speakers.",
+  "class": "Binaural",
+  "header": "binaural.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "beat",
+      "name": "Beat",
+      "min": 0.5,
+      "max": 40,
+      "default": 6,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Hertz between the two tones of a key, the same on every key: the rate of the beat. Heard between the ears alone, the beat fades above about 30 hertz."
+    },
+    {
+      "key": "ears",
+      "name": "Ears",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "At 1 each ear has one tone, at 0 both ears have both. Speakers, a mono fold or a reverb fed from both sides beat in the air at any setting. The bed is not narrowed."
+    },
+    {
+      "key": "layout",
+      "name": "Layout",
+      "choices": ["Pair", "Cross"],
+      "default": 0,
+      "description": "Pair gives each ear one tone. Cross gives each ear two, Beat apart and 3 dB softer, so each ear beats in the air at Beat while the two ears differ by half of Beat."
+    },
+    {
+      "key": "warmth",
+      "name": "Warmth",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Adds the second and third partials and holds the peak, so the level drops a little. A partial under 1 kHz is split between the ears by Beat, one above is not."
+    },
+    {
+      "key": "bed",
+      "name": "Bed",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Level of a stereo noise under the tones, as loud as one bare key at the top. It follows the loudest key, so there is none before a key and none after the last release."
+    },
+    {
+      "key": "colour",
+      "name": "Colour",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Colour of the bed: white at 0, pink in the middle, brown at 1. Higher is darker, with less hiss and more rumble."
+    },
+    {
+      "key": "target",
+      "name": "Target",
+      "min": 0.5,
+      "max": 40,
+      "default": 6,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The rate Beat glides to while Glide is above 0. The glide covers equal ratios in equal times and then stays at Target."
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 0,
+      "max": 30,
+      "default": 0,
+      "unit": "min",
+      "description": "Minutes Beat takes to reach Target, from when it is set if a key sounds, else from the next key. At 0 Beat stays put. Moving Beat, Target or Glide starts it again."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.01,
+      "max": 10,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "Time a key takes to swell to its full level."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 15,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "Time a key takes to fade once it is let go. The bed fades with the last key."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": 0,
+      "unit": "dB",
+      "description": "Output level. Keys share one level, so a chord of tones stays under the soft clip at 0 dB. Above 0 dB, or with Bed near its top, peaks reach the clip, which adds tones."
+    }
+  ],
+  "meters": [
+    {
+      "key": "glide",
+      "name": "Glide place",
+      "display": true
+    }
+  ],
+  "presets": {
+    "Six a second": {
+      "beat": 6
+    },
+    "Slow turn": {
+      "beat": 1,
+      "warmth": 0.15,
+      "attack": 2.5,
+      "release": 5
+    },
+    "Three a second": {
+      "beat": 3,
+      "warmth": 0.5,
+      "attack": 0.8,
+      "release": 2
+    },
+    "Four in the air": {
+      "beat": 4,
+      "ears": 0,
+      "warmth": 0.4
+    },
+    "Ten in the air": {
+      "beat": 10,
+      "ears": 0,
+      "warmth": 0.2,
+      "attack": 0.5
+    },
+    "Rough sixteen": {
+      "beat": 16,
+      "ears": 0.5,
+      "warmth": 0.7,
+      "attack": 0.3,
+      "release": 1.5
+    },
+    "Forty in the air": {
+      "beat": 40,
+      "ears": 0,
+      "warmth": 0,
+      "attack": 1,
+      "release": 2
+    },
+    "Forty crossed": {
+      "beat": 40,
+      "layout": 1
+    },
+    "Ten down to six": {
+      "beat": 10,
+      "target": 6,
+      "glide": 10,
+      "bed": 0.3,
+      "colour": 0.5
+    },
+    "Twelve to four": {
+      "beat": 12,
+      "target": 4,
+      "glide": 15,
+      "warmth": 0.1,
+      "ears": 0.5,
+      "attack": 3,
+      "release": 6
+    },
+    "Eight to sixteen": {
+      "beat": 8,
+      "target": 16,
+      "glide": 8,
+      "warmth": 0.6,
+      "ears": 0.6
+    },
+    "Rising to three": {
+      "beat": 0.5,
+      "target": 3,
+      "glide": 1,
+      "attack": 2,
+      "bed": 0.45,
+      "colour": 0.8
+    },
+    "Pink bed, six": {
+      "beat": 6,
+      "bed": 0.55,
+      "colour": 0.5
+    },
+    "Brown bed, slow": {
+      "beat": 2,
+      "bed": 0.7,
+      "colour": 1,
+      "warmth": 0.2,
+      "attack": 3,
+      "release": 6
+    },
+    "White bed, ten": {
+      "beat": 10,
+      "ears": 0,
+      "bed": 0.4,
+      "colour": 0
+    },
+    "Bars seven apart": {
+      "beat": 7,
+      "warmth": 0.6,
+      "attack": 0.01,
+      "release": 4
+    },
+    "Detuned rank": {
+      "beat": 1.5,
+      "ears": 0,
+      "warmth": 1,
+      "attack": 0.15,
+      "release": 0.4
+    },
+    "Two strings": {
+      "beat": 1,
+      "ears": 0,
+      "warmth": 0.7,
+      "attack": 0.03,
+      "release": 9
+    },
+    "Near unison": {
+      "beat": 0.5,
+      "warmth": 0.05,
+      "attack": 5,
+      "release": 10,
+      "volume": -4
+    },
+    "Bare pair": {
+      "beat": 5,
+      "warmth": 0,
+      "attack": 1,
+      "release": 2
+    },
+    "Two a second": {
+      "beat": 2,
+      "ears": 0.7,
+      "warmth": 0.4,
+      "attack": 0.4,
+      "release": 1.5
+    },
+    "Eight a second": {
+      "beat": 8,
+      "layout": 1,
+      "ears": 0.5,
+      "warmth": 0.5,
+      "attack": 0.2,
+      "release": 2.5
+    },
+    "Slow cross": {
+      "beat": 2,
+      "layout": 1,
+      "warmth": 0.6,
+      "attack": 2,
+      "release": 4
+    },
+    "Dark bed, three": {
+      "beat": 3,
+      "bed": 0.8,
+      "colour": 0.85,
+      "warmth": 0,
+      "attack": 4,
+      "release": 8
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit and the beat and breath headers (cpp/kit/beat.h, cpp/kit/colour.h). A pair of sines per key around one shared half-beat clock; no source code was ported."
+  }
+}

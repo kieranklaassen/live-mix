@@ -34,6 +34,7 @@ import { TURN_INSTRUMENT_FACES } from './instrument-turns'
 import { VOICE_INSTRUMENT_FACES } from './instrument-voices'
 import { WEATHER_INSTRUMENT_FACES } from './instrument-weather'
 import { WIRE_INSTRUMENT_FACES } from './instrument-wires'
+import { TWIN_BARS_FACES } from './twin-bars'
 import { IMPRINT_FACES } from './imprint'
 import { GLIMMER_FACES } from './glimmer'
 import { HAZE_FACES } from './haze'
@@ -75,6 +76,14 @@ import { MURMURATION_FACES } from './murmuration'
 import { LATE_VIBRATO_FACES } from './late-vibrato'
 import { COMMON_TONES_FACES } from './common-tones'
 import { BOWLS_FACES } from './bowls'
+import { BINAURAL_FACES } from './binaural'
+import { BAND_PULSE_FACES } from './band-pulse'
+import { ISOCHRONIC_FACES } from './isochronic'
+import { EAR_SHIFT_FACES } from './ear-shift'
+import { STILL_POINT_FACES } from './still-point'
+import { WINDING_DOWN_FACES } from './winding-down'
+import { BREATH_PACER_FACES } from './breath-pacer'
+import { COLOURED_NOISE_FACES } from './coloured-noise'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -120,6 +129,7 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...WEATHER_INSTRUMENT_FACES,
   ...TURN_INSTRUMENT_FACES,
   ...BODY_INSTRUMENT_FACES,
+  ...TWIN_BARS_FACES,
   ...CANON_FACES,
   ...OVERTONE_SINGER_FACES,
   ...BREATH_FACES,
@@ -151,4 +161,12 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...HOWL_FACES,
   ...LIFT_FACES,
   ...VESSEL_FACES,
+  ...BINAURAL_FACES,
+  ...BAND_PULSE_FACES,
+  ...ISOCHRONIC_FACES,
+  ...EAR_SHIFT_FACES,
+  ...STILL_POINT_FACES,
+  ...WINDING_DOWN_FACES,
+  ...BREATH_PACER_FACES,
+  ...COLOURED_NOISE_FACES,
 }
