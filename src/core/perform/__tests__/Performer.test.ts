@@ -12,6 +12,8 @@ import { createEngine, type Engine } from '../../Engine'
 import { TempoMap } from '../../time/TempoMap'
 import { RIDE_ARRIVAL_TIME_CONSTANT } from '../../tracks/ChannelStrip'
 import {
+  DEFAULT_DIAL_GLIDE_SECONDS,
+  DEFAULT_RESET_SECONDS,
   DIAL_RIDE_LAYER,
   Performer,
   SCENE_RIDE_LAYER,
@@ -102,7 +104,7 @@ describe('Performer: scenes', () => {
     expect(ride('a', DIAL_RIDE_LAYER)).toBeNull()
     expect(performer.state).toMatchObject({ scene: 'dawn', queued: null, rides: { a: 1, b: 0 } })
     expect(events.filter((event) => event.type === 'scene')).toEqual([
-      { type: 'scene', scene: 'dawn', at: START },
+      { type: 'scene', scene: 'dawn', at: START, seconds: 4 },
     ])
   })
 
@@ -368,6 +370,42 @@ describe('Performer: dials', () => {
     expect(performer.dialValue('energy')).toBe(0.75)
     expect(performer.dial('nothing', 1)).toBe(false)
     expect(performer.dialValue('nothing')).toBeNull()
+  })
+
+  it('says with each move how long it takes', () => {
+    const set = dialSet()
+    set.scenes[1].morphBars = 1
+    set.scenes[1].dials = { energy: 0.75 }
+    const { engine, performer, events } = rig(set)
+    const moves = () =>
+      events
+        .splice(0)
+        .flatMap((event) =>
+          event.type === 'scene' || event.type === 'ride' || event.type === 'dial'
+            ? [[event.type, event.seconds]]
+            : [],
+        )
+    // A scene, its rides and the dials it names take its morph: the scene's own bar here.
+    performer.go('night')
+    expect(new Set(moves().map(([, seconds]) => seconds))).toEqual(new Set([BAR]))
+    // A move with a morph of its own takes that, and a cut takes no time.
+    performer.go('night', { morphBars: 0 })
+    expect(new Set(moves().map(([, seconds]) => seconds))).toEqual(new Set([0]))
+    performer.ride('b', 0, { quantize: 'none', morphBars: 0 })
+    expect(moves()).toEqual([['ride', 0]])
+    // A ride with no morph of its own takes the set's two bars, as the tape runs: half the time at twice the speed.
+    performer.ride('b', 1, { quantize: 'none' })
+    expect(moves()).toEqual([['ride', 2 * BAR]])
+    engine.transport.setRate(2)
+    performer.ride('b', 0, { quantize: 'none' })
+    expect(moves()).toEqual([['ride', BAR]])
+    // A dial takes its glide, and Reset the time it is given.
+    performer.dial('energy', 0.6)
+    expect(moves()).toEqual([['dial', DEFAULT_DIAL_GLIDE_SECONDS]])
+    performer.dial('energy', 0.5, { seconds: 3 })
+    expect(moves()).toEqual([['dial', 3]])
+    performer.reset()
+    expect(new Set(moves().map(([, seconds]) => seconds))).toEqual(new Set([DEFAULT_RESET_SECONDS]))
   })
 
   it('does nothing for a value a dial already has', () => {
@@ -758,7 +796,7 @@ describe('Performer: taking up a performance', () => {
       rides: { a: 0.25 },
       dials: { energy: 0.5 },
     })
-    expect(events.at(-1)).toEqual({ type: 'scene', scene: 'night', at: START })
+    expect(events.at(-1)).toEqual({ type: 'scene', scene: 'night', at: START, seconds: 0 })
   })
 
   it('puts rides back on a strip that was made anew', () => {
@@ -817,7 +855,7 @@ describe('Performer: leaving', () => {
       rides: {},
       dials: { energy: 1 },
     })
-    expect(events.at(-1)).toEqual({ type: 'scene', scene: null, at: START })
+    expect(events.at(-1)).toEqual({ type: 'scene', scene: null, at: START, seconds: 2 })
   })
 
   it("dispose hands a dial's host targets their resting values", () => {

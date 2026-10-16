@@ -5,6 +5,7 @@ import type { FollowedStroke } from '../follow'
 import { SPECTRUM_BANDS } from '../frame'
 import { DEFAULT_GRAIN, emptyVisualSet, firstKnobs, type Visual, type VisualSet } from '../model'
 import { DEFAULT_PALETTE, visualPalette } from '../palettes'
+import { performAsk, performAtRest, type PerformReading } from '../perform'
 
 const visual = (id: string, kind: string, more: Partial<Visual> = {}): Visual => ({
   id,
@@ -223,6 +224,139 @@ describe('the frame that shows one kind alone', () => {
     expect(sample.signals.pad).toBeCloseTo(1, 3)
     expect(sample.signals.drone).toBe(0)
     expect(sample.signals.place).toBe(0.5)
+  })
+})
+
+describe('the frame of a piece that is performed', () => {
+  const three = setOf(
+    visual('a', 'dot-globe', { lane: 0 }),
+    visual('b', 'dot-screen', { lane: 1 }),
+    visual('c', 'dot-globe', { lane: 2, variation: 1 }),
+  )
+  const performed = (more: Partial<PerformReading> = {}): PerformReading => ({
+    rides: 1,
+    ladder: 1,
+    overSec: 0.08,
+    ...more,
+  })
+  /** Frames at sixty a second from `from` up to `to` milliseconds; the last one. */
+  const run = (desk: VisualDesk, from: number, to: number) => {
+    let frame = desk.frame(from)
+    for (let now = from + 16; now <= to; now += 16) frame = desk.frame(now)
+    return frame
+  }
+
+  it('is the frame of today with no performance handed, with none, and with one at rest', () => {
+    const plain = run(deskOf({ set: three, energy: 1 }).desk, 0, 480)
+    const handed = { 'left out': undefined, none: null, 'at rest': performed() }
+    for (const [said, perform] of Object.entries(handed)) {
+      const frame = run(deskOf({ set: three, energy: 1, perform }).desk, 0, 480)
+      expect(frame, said).toEqual(plain)
+      expect('filter' in frame, said).toBe(false)
+    }
+  })
+
+  it('thins the picture out to its first visual, dimmer and further off, with one sound left', () => {
+    const { desk } = deskOf({ set: three, energy: 1, perform: performed({ rides: 0 }) })
+    const plain = deskOf({ set: three, energy: 1 }).desk.frame(0)
+    const frame = desk.frame(0)
+    expect(frame.layers).toHaveLength(1)
+    const [first] = frame.layers
+    const [whole] = plain.layers
+    if (!('paint' in first) || !('paint' in whole)) throw new Error('a layer that paints')
+    expect(first.paint).toBe('dot-globe')
+    expect(first.level).toBeLessThan(whole.level)
+    expect(first.level).toBeGreaterThan(0.5)
+    expect(first.size).toBeLessThan(whole.size)
+    expect(frame.palette.calm).toBeGreaterThan(plain.palette.calm)
+  })
+
+  it('gives a visual with the knobs it is added with the glow Energy all the way down gives it today', () => {
+    const one = setOf(visual('a', 'dot-globe'))
+    const today = deskOf({ set: one, energy: 0 }).desk.frame(0)
+    const scene = deskOf({ set: one, energy: 1, perform: performed({ rides: 0 }) }).desk.frame(0)
+    const [was] = today.layers
+    const [now] = scene.layers
+    if (!('paint' in was) || !('paint' in now)) throw new Error('a layer that paints')
+    expect(scene.signals.energy).toBe(0)
+    expect(now.glow).toBe(was.glow)
+    expect(now.glow).toBeGreaterThan(0.05)
+    expect(now.level).toBeGreaterThan(0.5)
+  })
+
+  it('takes the picture there over the time the move takes, and not at once', () => {
+    const { desk, state } = deskOf({ set: three, energy: 1, perform: performed() })
+    desk.frame(0)
+    state.now = reading({ set: three, energy: 1, perform: performed({ rides: 0, overSec: 4 }) })
+    const early = desk.frame(250)
+    expect(early.layers).toHaveLength(3)
+    const [, , third] = early.layers
+    if (!('paint' in third)) throw new Error('a layer that paints')
+    // The last drawn has begun to leave, and is not half gone.
+    expect(third.level).toBeLessThan(0.9)
+    expect(third.level).toBeGreaterThan(0.45)
+    // Four seconds on the sound is all but there, and so is the picture: what is left of the second is faint.
+    const [, second] = run(desk, 266, 4250).layers
+    expect(second === undefined || ('paint' in second && second.level < 0.05)).toBe(true)
+    expect(run(desk, 4266, 8000).layers).toHaveLength(1)
+  })
+
+  it('hands the styles the dials as they have come to, and as they are with no performance', () => {
+    const turned = { set: three, energy: 1, tone: 0, space: 1 }
+    const { desk, state } = deskOf({ set: three, energy: 1, perform: performed() })
+    desk.frame(0)
+    state.now = reading({ ...turned, perform: performed({ overSec: 4 }) })
+    const { signals } = desk.frame(250)
+    expect(signals.tone).toBeGreaterThan(0.3)
+    expect(signals.tone).toBeLessThan(0.5)
+    expect(signals.space).toBeGreaterThan(0.5)
+    expect(signals.space).toBeLessThan(0.7)
+    const raw = deskOf({ set: three, energy: 1 })
+    raw.desk.frame(0)
+    raw.state.now = reading(turned)
+    expect(raw.desk.frame(250).signals).toMatchObject({ tone: 0, space: 1 })
+  })
+
+  it('is exactly the frame at rest again once the performance is back there', () => {
+    const { desk, state } = deskOf({ set: three, energy: 1, perform: performed() })
+    const rest = deskOf({ set: three, energy: 1 }).desk
+    desk.frame(0)
+    state.now = reading({
+      set: three,
+      energy: 0.2,
+      tone: 0,
+      space: 1,
+      perform: performed({ rides: 0.3, ladder: 0.1, overSec: 0.5 }),
+    })
+    expect(run(desk, 16, 1000).filter).toBeDefined()
+    state.now = reading({ set: three, energy: 1, perform: performed({ overSec: 0.5 }) })
+    const back = run(desk, 1016, 4000)
+    const never = run(rest, 0, 4000)
+    expect(back.layers).toEqual(never.layers)
+    expect(back.palette).toBe(never.palette)
+    expect(back.grain).toBe(never.grain)
+    expect('filter' in back).toBe(false)
+    expect([back.signals.energy, back.signals.space, back.signals.tone]).toEqual([1, 0.5, 0.5])
+  })
+
+  it('starts where the performance stands when the link is switched on again', () => {
+    const { desk, state } = deskOf({ set: three, energy: 1, perform: performed() })
+    desk.frame(0)
+    state.now = reading({ set: three, energy: 1, perform: null })
+    desk.frame(16)
+    state.now = reading({ set: three, energy: 1, perform: performed({ rides: 0, overSec: 8 }) })
+    expect(desk.frame(32).layers).toHaveLength(1)
+  })
+
+  it('lays the filter and the fullness over a style shown alone', () => {
+    const { desk } = deskOf({ energy: 1, tone: 0, perform: performed({ rides: 0 }) })
+    const sample = desk.sample('dot-screen', 0, 0)
+    const ask = performAsk({ ...performAtRest(), rides: 0, tone: 0 })
+    expect(sample.filter).toEqual(ask.filter)
+    expect(sample.layers).toHaveLength(1)
+    expect(sample.layers[0]).toMatchObject({ paint: 'dot-screen', level: ask.level })
+    expect(sample.signals.energy).toBe(0)
+    expect(sample.signals.tone).toBe(0)
   })
 })
 

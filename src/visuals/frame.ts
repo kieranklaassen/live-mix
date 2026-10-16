@@ -17,6 +17,7 @@ import {
   type VisualSource,
 } from './model'
 import { visualPalette, type VisualPalette } from './palettes'
+import { stayShare, type VisualFilter } from './perform'
 import { visualStyle } from './styles'
 
 /** The parts the spectrum is handed to a style in, low to high. */
@@ -74,6 +75,8 @@ export interface VisualFrame {
   palette: VisualPalette
   /** How much film grain lies over the picture, 0 to 1. */
   grain: number
+  /** A pass over the finished picture, where a performance asks for one (`perform.ts`). */
+  filter?: VisualFilter
 }
 
 const clamp01 = (value: number): number => (value > 0 ? (value < 1 ? value : 1) : 0)
@@ -126,19 +129,35 @@ export function presenceOf(visual: Visual, beat: number, strokeLevel: number): n
 }
 
 /**
+ * Whether a visual paints for the whole piece: a style this build has, not linked to a stroke and not drawn for a
+ * stretch. These are the ones a performance thins out.
+ */
+export function paintsWholePiece(visual: Visual): boolean {
+  return visual.stroke === null && visual.beats === null && paints(visual.kind)
+}
+
+/**
  * The frame a piece's visuals come to now. `beat` is where the playhead is, in beats from the start of the piece;
- * `strokeLevels` says how loud each stroke is now, by its id (a stroke not in it is silent).
+ * `strokeLevels` says how loud each stroke is now, by its id (a stroke not in it is silent). `full` is how full a
+ * performance has the piece (`perform.ts`): under 1, the visuals that paint for the whole piece leave one after
+ * another, the last drawn first and the first never. One linked to a stroke or drawn for a stretch comes and goes
+ * by itself, and is left to.
  */
 export function frameOf(
   set: VisualSet,
   signals: VisualSignals,
   beat: number,
   strokeLevels: ReadonlyMap<string, number>,
+  full = 1,
 ): VisualFrame {
   const layers: VisualLayer[] = []
-  for (const visual of drawOrder(set)) {
+  const order = drawOrder(set)
+  const whole = full < 1 ? order.filter(paintsWholePiece).length : 0
+  let rank = 0
+  for (const visual of order) {
     const stroke = visual.stroke === null ? 0 : (strokeLevels.get(visual.stroke) ?? 0)
-    const here = presenceOf(visual, beat, stroke)
+    const stays = full < 1 && paintsWholePiece(visual) ? stayShare(full, rank++, whole) : 1
+    const here = presenceOf(visual, beat, stroke) * stays
     if (here < 0.01) continue
     const knob = (name: string) => knobNow(visual.knobs[name], signals, stroke)
     if (paints(visual.kind)) {

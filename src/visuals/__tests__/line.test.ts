@@ -88,6 +88,22 @@ describe('the line to a second screen', () => {
     screen.close()
   })
 
+  it('carries the filter a frame has, as it is', () => {
+    const lines = hub()
+    const filter = { soft: 0.6, dim: 0.2, thin: 0, spread: 0.3 }
+    const sender = sendVisuals('picture', () => ({ ...frameWith(clock / 1000, 1), filter }), {
+      open: lines.open,
+      now,
+    })
+    const screen = receiveVisuals('picture', { open: lines.open, now })
+    pass(40)
+    expect(screen.frameAt(clock).filter).toEqual(filter)
+    pass(500)
+    expect(screen.frameAt(clock).filter).toEqual(filter)
+    sender.close()
+    screen.close()
+  })
+
   it('is heard at once by a sender that starts after the screen', () => {
     const { open } = hub()
     const screen = receiveVisuals('picture', { open, now })

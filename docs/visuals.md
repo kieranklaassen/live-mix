@@ -60,6 +60,7 @@ A frame is plain data. It can be made in one window and painted in another ([A s
 | `heard`                              | The level and sixteen bands of what is heard, from an ear; `null` where nothing can be heard |
 | `energy`, `space`, `tone`            | A performer's three dials, 0 to 1                                                            |
 | `input`                              | How loud the live input is, 0 to 1                                                           |
+| `perform`                            | Where a performance stands, for a picture that follows it; left out or `null`, none does     |
 
 Two things feed a picture.
 
@@ -217,11 +218,44 @@ So with its source at rest the knob shows a little, and with the source full it 
 
 Every source is 0 to 1 and already smooth (`VisualFollower`).
 
+## Following a performance
+
+A host that performs a piece (takes sounds out and brings them in, turns Energy, Space and Tone) can have the whole picture go with it, with nothing set up visual by visual. It hands the desk a `PerformReading` as `perform`:
+
+| Field     | Holds                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------- |
+| `rides`   | How much of what the Energy dial lets through is left in by hand and by the scene in play, 0 to 1 |
+| `ladder`  | How much of the sounds that can leave the Energy dial lets through, 0 to 1                        |
+| `overSec` | How long the move that was made last takes, in seconds: a scene's morph, or a dial's short glide  |
+
+Both shares are 1 with the piece as composed and 0 with one sound left: the one sound Energy never takes out is not counted. Their product is how full the piece stands (`fullnessOf`). With `perform` handed, the desk does four things.
+
+| From                  | The picture                                                                                                                                                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Fullness under 1      | The visuals that paint for the whole piece leave one after another, the last drawn first and the first never (`stayShare`). Every visual that paints shows less and stands further off, and the palette is calmer. |
+| Fullness under Energy | The `energy` every style and knob is handed is the lower of the dial and the fullness, so a scene that takes sounds out moves a Glow that follows Energy as the dial would.                                        |
+| Tone off its rest     | A filter over the finished picture. Under the rest its fine detail goes and it dims, and the grain is finer. Over the rest its broad light goes and the fine detail stays, and the grain is coarser.               |
+| Space off its rest    | Over the rest, what was on the screen stays a while, drifts outward and spreads. Under it, the trails the piece has are shortened.                                                                                 |
+
+Tone and Space do nothing within `DIAL_REST_SPAN` (0.02) of the middle, the span a low-pass and high-pass on the mix would leave alone. A visual linked to a stroke or drawn for a stretch is never thinned out: it already comes and goes by itself (`paintsWholePiece` tells the two apart).
+
+**A piece as composed is the frame it was.** Both shares at 1 and Tone and Space at rest ask nothing, whatever Energy is: the layers, the palette, the grain and the signals are value for value what the desk makes with no `perform`, and the frame has no `filter`.
+
+**The picture takes as long as the move.** A reading says where a performance is heading, not how far it has come. The desk takes each value there by the time that really went by, with a quarter of `overSec` as its time constant, and each value keeps the pace of the move that last changed it: a dial turned while sounds are still fading leaves their fade alone. The first frame stands where the performance does. With `perform` handed, the three dials in a frame's signals are the eased ones.
+
+What is asked is written into the frame. Thinning, the step back, the calmer palette and the trails are in its layers, palette and grain. The pass over the finished picture is `frame.filter`, a `VisualFilter` of four parts from 0 to 1: `soft`, `dim`, `thin` and `spread`. A frame goes down a line whole, so a second screen paints the same.
+
+`performMoves(now)` says the same in plain values, for a host to put into words: one entry for each thing that is moved (`thins` from the sounds, `softens` or `sharpens` from Tone, `rings` or `dries` from Space) with how far, and none for a piece as composed. `staying(full, count)` says how many of so many whole-piece visuals show.
+
+The amounts are a first setting and have not been judged by eye on a real screen.
+
 ## Painting
 
 `showVisuals(canvas, frameAt, options)` paints `frameAt(now)` on a canvas for as long as it is shown and hands back the way to stop. It sizes the canvas to what the page gives it (a screen sharper than two device pixels a point is drawn as one that sharp), paints thirty times a second unless `fps` says otherwise, four times a second for someone who asked their system for less motion unless `always` is set, and nothing while `still()` answers true or the canvas has no size. A frame that cannot be painted is handed to `onError` and the frame before it stays.
 
 A host with a frame loop of its own paints by hand: `createStage()` makes a stage for one canvas (it remembers what that canvas showed, for Trails), and `stage.paint(context, frame, scale)` paints a frame over the whole of it. It answers true while a style was not ready yet, when the frame should be painted again though nothing changed.
+
+A frame's `filter` is drawn on the canvas that is shown, after the finished picture is copied there and before the grain. What Trails keeps of a frame is the picture without it, so a filter is never laid over what was filtered the frame before. The picture is blurred once for it, by drawing it at half the size again and again and back up, and that copy serves every part: mixed in it softens, added it spreads, and inverted and multiplied in it takes from each point the broad light around it. No pixel is read back.
 
 All of it is drawn with WebGL 2 in **one context for the whole page** (`visualRig`), however many canvases show pictures: a style is drawn there at the size asked, never wider than 960 pixels, and copied to the 2D canvas that wants it. A shader is fetched and made the first time its style is asked for, one new shader a frame, so a long list of styles does not freeze a page as it opens. A style that cannot be made is given up on alone and the others still draw; one whose script could not be fetched is asked for again a few seconds later. A context that is lost (a phone takes it away when the page is put aside) is made again when it comes back.
 
@@ -313,4 +347,5 @@ The file opens with five comment lines (`name`, `a`, `b`, `what`, `follows`) tha
 
 - The model, the signals, the frame, the line to a second screen and the scope that measures how far a picture is behind the sound are covered by unit tests in Node (`src/visuals/__tests__`).
 - Every style in both variations, every bend over a style, a canvas left to `showVisuals`, and one painted from frames that went down a `BroadcastChannel` are drawn from the built entry in headless Chromium (`browser-tests/specs/visuals.spec.ts`). That machine has no graphics card, so they are drawn in software.
-- **Not checked:** the pictures on a real graphics card, how fast each style draws there, a phone, the line between two windows of which one is covered or on another screen, and how far a picture is behind the sound on a machine that paints at a screen's pace (the machine these were run on paints four to twelve frames a second while a piece plays).
+- The filter a performance asks for is painted in the same browser on 15 October 2026: one frame of a style is painted as it is and with each part of the filter, and the two pictures are held against each other. Soft leaves under 0.7 of the difference between neighbouring pixels, dim leaves the light asked, spread adds light. Thin, looked at on a style with broad light on 16 October 2026, takes 0.36 of its light and 0.30 of the difference between neighbouring pixels: more of the broad light than of the fine detail. Under Trails, measured the same day, one painting without the filter after thirty with it is the picture of a screen that never had a filter, so none of it is in what the stage keeps. Both checks were seen to fail on a stage changed for the purpose: one that keeps the filter, and one that multiplies by the blur without turning it over. Three styles were measured with a performance over them there: with one sound left the picture has 0.48 to 0.67 of the light it has as composed, with Tone all the way down 0.61 to 0.63 of the light and about a quarter of the fine detail, with Tone all the way up 0.73 to 0.94 of the light, with Space all the way up 1.6 to 1.9 times the light, and with one sound left and Tone down 0.27 to 0.39, still lit over a quarter to a half of the picture.
+- **Not checked:** how a performance looks in the picture to an eye, on any screen, and whether its amounts are right; the pictures on a real graphics card, how fast each style draws there, a phone, the line between two windows of which one is covered or on another screen, and how far a picture is behind the sound on a machine that paints at a screen's pace (the machine these were run on paints four to twelve frames a second while a piece plays).
