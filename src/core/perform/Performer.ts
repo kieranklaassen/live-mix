@@ -114,12 +114,17 @@ export interface DialOptions {
 }
 
 export type PerformEvent =
-  /** A scene's morph begins at `at`. `scene` is null after a reset. */
-  | { type: 'scene'; scene: string | null; at: number }
+  /**
+   * A scene's morph begins at `at` and takes `seconds`. `scene` is null after
+   * a reset.
+   */
+  | { type: 'scene'; scene: string | null; at: number; seconds: number }
   /** A scene is waiting for its line, or (null) the wait was called off. */
   | { type: 'queue'; scene: string | null }
-  | { type: 'ride'; track: string; value: number; at: number }
-  | { type: 'dial'; dial: string; value: number; at: number }
+  /** A track's ride heads for `value` from `at`, over `seconds`. */
+  | { type: 'ride'; track: string; value: number; at: number; seconds: number }
+  /** A dial heads for `value` from `at`, over `seconds`. */
+  | { type: 'dial'; dial: string; value: number; at: number; seconds: number }
   | { type: 'cue'; cue: string; at: number }
   /** A bar line falls at `at`. `bar` counts from 0 within the pass. */
   | { type: 'bar'; bar: number; pass: number; at: number }
@@ -347,7 +352,7 @@ export class Performer {
         timeConstant,
         arriveAt: at + seconds,
       })
-      this.events.emit({ type: 'ride', track, value: 1, at })
+      this.events.emit({ type: 'ride', track, value: 1, at, seconds })
     }
     this.sceneRides.clear()
     this.queuedRides.clear()
@@ -356,7 +361,7 @@ export class Performer {
     this.followAtBeats = null
     for (const dial of this.current.dials) this.dialValues.set(dial.id, dial.value)
     this.applyDials({ at, seconds })
-    this.events.emit({ type: 'scene', scene: null, at })
+    this.events.emit({ type: 'scene', scene: null, at, seconds })
     this.changed()
   }
 
@@ -395,7 +400,7 @@ export class Performer {
     this.applyDials({ at, seconds: 0 })
     this.scene = from.scene && this.findScene(from.scene) ? from.scene : null
     this.armFollow(this.beatsNow())
-    this.events.emit({ type: 'scene', scene: this.scene, at })
+    this.events.emit({ type: 'scene', scene: this.scene, at, seconds: 0 })
     this.changed()
   }
 
@@ -441,7 +446,7 @@ export class Performer {
     }
     this.dialValues.set(id, next)
     this.applyDial(dial, glide)
-    this.events.emit({ type: 'dial', dial: id, value: next, at: glide.at })
+    this.events.emit({ type: 'dial', dial: id, value: next, at: glide.at, seconds: glide.seconds })
     this.changed()
     return true
   }
@@ -724,11 +729,11 @@ export class Performer {
       if (value === undefined) continue
       this.dialValues.set(dial.id, value)
       this.applyDial(dial, glide)
-      this.events.emit({ type: 'dial', dial: dial.id, value, at })
+      this.events.emit({ type: 'dial', dial: dial.id, value, at, seconds: glide.seconds })
     }
     this.scene = scene.id
     this.armFollow(beats)
-    this.events.emit({ type: 'scene', scene: scene.id, at })
+    this.events.emit({ type: 'scene', scene: scene.id, at, seconds: glide.seconds })
   }
 
   private moveRide(track: string, value: number, at: number, morphBars: number): void {
@@ -741,7 +746,7 @@ export class Performer {
       timeConstant,
       arriveAt: at + seconds,
     })
-    this.events.emit({ type: 'ride', track, value, at })
+    this.events.emit({ type: 'ride', track, value, at, seconds })
   }
 
   // --- Dials ------------------------------------------------------------------------------
