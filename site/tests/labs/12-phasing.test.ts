@@ -294,6 +294,17 @@ describe('lesson 12: phasing', () => {
     expect(Math.max(...at100) / 4525.5).toBeCloseTo(1, 3)
   })
 
+  it('reads a corner of 28 kHz, over half the sample rate, at the top of a full sweep from 5 kHz (claim corner-over)', async () => {
+    const phasing = await lab('12-phasing')
+    const noise = await benchSource('noise', seconds(4))
+    const corner = phasing.render(noise, { centre: 5000, depth: 100 }).taps.corner!
+      .channels_data[0]!
+    const top = Math.max(...corner)
+    expect(top).toBeGreaterThan(24_000)
+    expect(top / (5000 * 2 ** 2.5)).toBeCloseTo(1, 3)
+    expect(Math.abs(top - 28_284)).toBeLessThan(30)
+  })
+
   it('brings the oscillator round once in the four-second loop at 0.25 Hz, up first (claim one-cycle)', async () => {
     const phasing = await lab('12-phasing')
     const noise = await benchSource('noise', seconds(4))

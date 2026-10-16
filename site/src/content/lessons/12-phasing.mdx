@@ -82,7 +82,7 @@ Filters in a row multiply their responses, which means their levels multiply (on
   The phase of the whole chain as the device runs it, oscillator still. Each dashed line across is an odd number of half turns (−180°, −540° and so on), where the chain's output is the input upside down. Each dashed line up marks a frequency where the curve crosses one; with four stages the two carry their frequency in hertz. Add stages and the curve falls further and crosses more of them.
 </PhaseTurns>
 
-With four stages a tone at the corner has been turned four quarters, <Claim id="whole-turn">a whole turn, and comes out of the chain as it went in</Claim>: the difference between the two is more than 100 dB under the tone.
+With four stages a tone at the corner has been turned four quarters, <Claim id="whole-turn">a whole turn, and comes out of the chain as it went in: the difference between the two is more than 100 dB under the tone</Claim>.
 
 The stages need not share a corner. **Spread** tunes them apart: <Src path="cpp/devices/phaser/phaser.h" lines="193-197">`tune_chain`</Src> puts stage <M t="s" /> at <M t={String.raw`f_c \cdot 2^{\,\text{spread}\cdot p_s}`} />, with <M t={String.raw`p_s`} /> running evenly from −1 at the first stage to +1 at the last, so at 100 % the chain spans an octave either side of the corner. The total still runs from 0 to <M t="N" /> half turns, but less steeply through the middle, and the crossings move apart. It is a gentle control. At the device's default of 30 % the two crossings of four stages move by less than one per cent, to <Claim id="spread-30">329 and 1,939 Hz</Claim>; at 100 % they are at <Claim id="spread-100">303 and 2,106 Hz</Claim>.
 
@@ -110,7 +110,7 @@ There are exactly <M t={String.raw`N/2`} /> of them. Each stage stops short of a
 
 The second check is this stage's argument as a measurement: at every frequency where the chain's phase was found to cross an odd half turn, the sum at half mix reads <Claim id="null-depth">under −100 dB</Claim>.
 
-For four stages the two tangents are 0.414 and 2.414, so the notches sit a little over an octave either side of the corner. At 800 Hz the device puts them at <Claim id="first-notch">331.6 Hz</Claim> and <Claim id="second-notch">1,923 Hz</Claim>, and at every stage count the measured frequencies are within a hundredth of a hertz of the formula. The notch is real and it is narrow: a tone at 331.6 Hz comes out <Claim id="notch-null">more than 90 dB down</Claim>, and one a hundredth higher in frequency <Claim id="notch-side">only 37 dB down</Claim>.
+For four stages the two tangents are 0.414 and 2.414, so the notches sit a little over an octave either side of the corner. At 800 Hz the device puts them at <Claim id="first-notch">331.6 Hz</Claim> and <Claim id="second-notch">1,923 Hz, and at every stage count the measured frequencies are within a hundredth of a hertz of the formula</Claim>. The notch is real and it is narrow: a tone at 331.6 Hz comes out <Claim id="notch-null">more than 90 dB down</Claim>, and one a hundredth higher in frequency <Claim id="notch-side">only 37 dB down</Claim>.
 
 The mix is a plain linear crossfade, where other devices of the engine keep equal power, and the reason is in <M t={String.raw`|1 - 2m|`} />: only equal amounts cancel completely. At a mix of a quarter or of three quarters the notches are <Claim id="mix-quarter">6 dB deep</Claim>. At a mix of 1 there are <Claim id="mix-one">none</Claim>, because the output is then the all-passed signal alone, the flat green line.
 
@@ -126,7 +126,7 @@ The comb has <Claim id="comb-even">eighteen notches below 12 kHz, 667 Hz apart</
 
 ### 5. The oscillator moves the corner
 
-Everything so far stood still. The motion comes from one slow oscillator whose value <M t="o" />, between −1 and 1, sets the corner of every stage:
+Everything so far stood still. The motion comes from one slow oscillator. Its value <M t="o" /> lies between −1 and 1 and sets the corner of every stage:
 
 <M block t={String.raw`f_c(t) = \text{Centre}\cdot 2^{\;o(t)\,\cdot\,\text{Depth}\,\cdot\,2.5}`} />
 
@@ -145,16 +145,16 @@ At the lab's 0.25 Hz the oscillator <Claim id="one-cycle">comes round once in th
 <Controls ids="centre depth stereo" />
 
 <Trace taps="corner:ctl cornerRight:alt" lines="centre" min={0} max={6000} unit="Hz">
-  The corner frequency of the left side's stages (blue) and of the right's (green), on the same scale of hertz as the picture below; with Stereo at 0 the two are one line. In hertz the sweep is lopsided: the corner spends as long under the dashed Centre line as over it, but the octave and a half above is nearly three times as many hertz as the one below.
+  The corner frequency of the left side's stages (blue) and of the right's (green), on the same scale of hertz as the picture below; with Stereo at 0 the two are one line and only the green shows. In hertz the sweep is lopsided: the corner spends as long under the dashed Centre line as over it, but the octave and a half above is nearly three times as many hertz as the one below.
 </Trace>
 
 <Spectrogram tap="picture" top={6000} min={-72} max={-42}>
   The output's spectrum over the loop again. With four stages on one corner the notches ride at 0.41 and 2.4 times the corner traced above, so they keep their distance in octaves and the upper one swings much further in hertz.
 </Spectrogram>
 
-A tone makes the travelling notch plain. A 331.5 Hz sine sits where the lower notch is when the corner is at 800 Hz, and through the sweeping device it <Claim id="sweep-null">drops by more than 30 dB twice in each cycle of the oscillator</Claim>, at the two moments the corner passes 800 Hz, and is back within 2 dB between them.
+A tone makes the travelling notch plain. A 331.5 Hz sine sits where the lower notch is when the corner is at 800 Hz, and through the sweeping device it <Claim id="sweep-null">drops by more than 30 dB twice in each cycle of the oscillator, at the two moments the corner passes 800 Hz, and is back within 2 dB between them</Claim>.
 
-Two details keep the motion smooth. The oscillator passes through a one-pole lag of 3 ms (`kLfoLagSeconds`) before it sets the sweep, so the shapes that jump do not jump the filters: after a step of the square wave the corner has covered <Claim id="sweep-lag">63 % of the distance, in octaves, in 3 ms</Claim>. And **Stereo** reads the same oscillator a fraction of a cycle ahead for the right side: at 90° the right corner peaks <Claim id="stereo-quarter">a quarter of a cycle, one second at this rate, before the left</Claim>, so for most of the cycle the left side's notches and the right's are at different frequencies.
+Two details keep the motion smooth. The oscillator passes through a one-pole lag of 3 ms (<Src path="cpp/devices/phaser/phaser.h" lines="137-140">`kLfoLagSeconds`</Src>) before it sets the sweep, so the shapes that jump do not jump the filters: after a step of the square wave the corner has covered <Claim id="sweep-lag">63 % of the distance, in octaves, in 3 ms</Claim>. And **Stereo** reads the same oscillator a fraction of a cycle ahead for the right side: at 90° the right corner peaks <Claim id="stereo-quarter">a quarter of a cycle, one second at this rate, before the left</Claim>, so for most of the cycle the left side's notches and the right's are at different frequencies.
 
 ### 6. Feedback sharpens the peaks
 
@@ -167,10 +167,10 @@ The upper line is how <Src path="cpp/devices/phaser/phaser.h" lines="169-176">`C
 <Controls ids="feedback" />
 
 <Spectrum taps="plain:alt response:out" min={-36} max={24}>
-  The sum without feedback (green) and with the feedback as set (red), oscillator still. Turn Feedback up and a peak grows between the notches, another above them, and the lows rise. Turn it down past zero and the peaks grow at the notch frequencies.
+  The sum without feedback (green) and with the feedback as set (red), oscillator still. At 0 % the two are the same and only red shows. Turn Feedback up and a peak grows between the notches, another above them, and the lows rise. Turn it down past zero and the peaks grow at the notch frequencies.
 </Spectrum>
 
-At the device's default of 40 % the peak between the notches stands <Claim id="feedback-40">2.5 dB up, the notches fill in to −17 dB, and the upper one moves from 1,923 to 2,034 Hz</Claim>. The last two follow from the loop as well. The notch fills because the two arrows of stage 3 are no longer the same length there: the all-passed one has shrunk to <M t={String.raw`1/(1+g)`} />. It moves because of the one sample of delay in the loop, which adds a turn of its own that grows with frequency: 2.5° at the lower notch, 14° at the upper. The same sample is why there is a peak above the top notch, where chain and delay together make a whole turn again. At 95 %, the end of the range, the peaks reach <Claim id="feedback-95">20 dB, at 780 Hz and at 6.75 kHz</Claim>.
+At the device's default of 40 % the peak between the notches stands <Claim id="feedback-40">2.5 dB up, the notches fill in to −17 dB, and the upper one moves from 1,923 to 2,034 Hz</Claim>. The last two follow from the loop as well. The notch fills because the two arrows of stage 3 are no longer the same length there: the all-passed one has shrunk to <M t={String.raw`1/(1+g)`} />. It moves because of the one sample of delay in the loop, which adds a turn of its own that grows with frequency. By the delay formula of stage 4 with one sample, that is 2.5° at the lower notch and 14° at the upper. The same sample is why there is a peak above the top notch, where chain and delay together make a whole turn again. At 95 %, the end of the range, the peaks reach <Claim id="feedback-95">20 dB, at 780 Hz and at 6.75 kHz</Claim>.
 
 The sign matters. With <M t="g" /> below zero every lap is turned upside down once more, so the pile-up moves to the frequencies of the odd half turns: at −75 % the notches have become <Claim id="feedback-negative">peaks of 3.5 and 3.7 dB, at 326 and 1,753 Hz</Claim>.
 
@@ -180,9 +180,9 @@ The sign matters. With <M t="g" /> below zero every lap is turned upside down on
 
 **A loop that rings.** The range of Feedback stops at ±95 %, so each lap is always smaller than the last and the loop dies away. Close to that end it rings for a long time, and at a peak a quiet tone comes out of the chain <Claim id="loop-gain">19.9 times</Claim> the size it went in. A full-scale tone would then run 26 dB over full scale inside the loop, so the signal fed back passes through <Src path="cpp/devices/phaser/phaser.h" lines="142-143">`loop_limit`</Src>: <Src path="cpp/kit/math.h">the kit's `soft_clip`</Src> scaled to be exactly linear up to full scale and to level off at twice that. A full-scale tone at the peak then comes out of the chain at <Claim id="loop-limit">3.4 times full scale, not 20</Claim>. Past full scale the loop is no longer the linear one of stage 6.
 
-**Steps.** Coefficients that change in jumps put clicks into the sound. The device retunes every four samples, lags the oscillator by 3 ms as above, and never switches a stage in or out of a ringing chain: a change of Stages fades over 20 ms (`kStageFadeSeconds`) to a second chain that starts empty.
+**Steps.** Coefficients that change in jumps put clicks into the sound. The device retunes every four samples, lags the oscillator by 3 ms as above, and never switches a stage in or out of a ringing chain: a change of Stages fades over 20 ms (<Src path="cpp/devices/phaser/phaser.h" lines="137-140">`kStageFadeSeconds`</Src>) to a second chain that starts empty.
 
-**The top of the range.** Centre at 5 kHz with full depth asks for a corner of 28 kHz at the top of the sweep, above half the sample rate. The stages stop at 0.45 of the sample rate, 21.6 kHz, while the corner trace reads on. Near the top the tangents of the notch formula also squeeze everything in under half the sample rate, which is why the upper notch of stage 3 is at 1,923 Hz and not at 2.414 times 800.
+**The top of the range.** Centre at 5 kHz with full depth asks for a corner of <Claim id="corner-over">28 kHz at the top of the sweep, above half the sample rate</Claim>. The stages stop at 0.45 of the sample rate, 21.6 kHz (the clamp in <Src path="cpp/devices/phaser/phaser_stage.h" lines="22-31">`allpass_coefficient`</Src>), while the corner trace reads on. Near the top the tangents of the notch formula also squeeze everything in under half the sample rate, which is why the upper notch of stage 3 is at 1,923 Hz and not at 2.414 times 800.
 
 **Silence.** With nothing coming in and nothing left ringing the device sleeps (<Src path="cpp/kit/idle.h">the kit's `IdleGate`</Src>): its output is <Claim id="sleeps">exact silence, and the oscillator goes on turning</Claim>, so the sweep is where it would have been when sound returns.
 
