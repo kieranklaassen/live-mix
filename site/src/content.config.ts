@@ -3,6 +3,7 @@ import { glob } from 'astro/loaders'
 import { z } from 'astro/zod'
 import { docId, EXCLUDED_DIRS } from './lib/doc-routes.ts'
 import { MAP } from './lib/lesson-map.ts'
+import { settingsSchema } from './lib/settings.ts'
 
 // The docs are rendered where they are: ../docs, read on GitHub and here alike.
 const docs = defineCollection({
@@ -48,4 +49,12 @@ const lessons = defineCollection({
   }),
 })
 
-export const collections = { docs, lessons }
+// A lesson's named settings, one file a lesson by the lesson's id: its home tile, the sets its
+// cards play and the device's defaults. Held to their shape here; lib/settings.ts reads a file
+// and checks it against the lesson's lab.
+const settings = defineCollection({
+  loader: glob({ base: './src/content/settings', pattern: '*.json' }),
+  schema: settingsSchema,
+})
+
+export const collections = { docs, lessons, settings }

@@ -126,6 +126,34 @@ describe('the player', () => {
     expect(count).toBe(0)
   })
 
+  it('makes or resumes its context in a press without starting a sound', () => {
+    const fake = fakeContext()
+    fake.context.state = 'suspended'
+    let resumed = 0
+    fake.context.resume = async () => {
+      resumed += 1
+    }
+    let count = 0
+    const player = createPlayer(() => {
+      count += 1
+      return fake.context as unknown as PlayerContext
+    })
+    player.wake()
+    expect(count).toBe(1)
+    expect(resumed).toBe(1)
+    expect(fake.sources).toHaveLength(0)
+    expect(player.position()).toBeNull()
+    // A second press makes no second context, and resumes the one that is still suspended.
+    player.wake()
+    expect(count).toBe(1)
+    expect(resumed).toBe(2)
+    // The sound that starts later, outside the press, starts at the start of the loop.
+    fake.context.currentTime = 0.4
+    player.play(tap('out'))
+    expect(count).toBe(1)
+    expect(fake.sources[0]!.started).toEqual({ when: 0.4, offset: 0 })
+  })
+
   it('starts a stage at the start of the loop', () => {
     const { player, sources } = made()
     player.play(tap('out'))

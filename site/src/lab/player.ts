@@ -32,6 +32,11 @@ interface Voice {
 export interface Player extends Sounder {
   /** The context, made on first use: call this only from a click. */
   context(): PlayerContext
+  /**
+   * Make the context, or resume it, and start no sound. Called inside a press whose sound starts
+   * later, when its render lands: a browser lets a context start only inside one.
+   */
+  wake(): void
   /** Where the bench's device takes the loop from, and where it sends its sound. */
   benchFeed(): AudioNode
   benchReturn(): AudioNode
@@ -127,6 +132,9 @@ export function createPlayer(makeContext: () => PlayerContext): Player {
 
   return {
     context: ensure,
+    wake() {
+      ensure()
+    },
     benchFeed: () => (ensure(), feed),
     benchReturn: () => (ensure(), back),
     play(tap) {

@@ -1,0 +1,5 @@
+{
+  "sets": {
+    "pump": { "label": "pumping", "values": { "threshold": -30 } }
+  }
+}

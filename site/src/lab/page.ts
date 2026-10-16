@@ -80,13 +80,15 @@ export function pagePlayer(): Player {
 
 export function labStore(): LabStore {
   // The player makes its context on the first play, inside a click, where a browser lets one
-  // start. A volume set before then makes the player and no context, and the play starts at it.
+  // start; a card, whose sound starts later on its render, makes it in its press. A volume set
+  // before then makes the player and no context, and the play starts at it.
   store ??= createLabStore(workerRenderer(), {
     play: (tap) => pagePlayer().play(tap),
     update: (tap) => pagePlayer().update(tap),
     bench: (source) => pagePlayer().bench(source),
     stop: () => player?.stop(),
     setVolume: (volume) => pagePlayer().setVolume(volume),
+    wake: () => pagePlayer().wake(),
   })
   return store
 }
