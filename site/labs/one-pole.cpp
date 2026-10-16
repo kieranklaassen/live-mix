@@ -11,19 +11,35 @@
 // The fader is a hand pulling a gain from full down to nothing in a second
 // and pushing it back up in the next, as a host delivers it: a new value so
 // many times a second, held in between. What it rides is a steady 220 Hz tone
-// from the kit's sine table, or the source, by a switch. A tone is the
+// from the kit's sine table, or the source, by a choice. A tone is the
 // default because a gain's steps are plain on a sound that does nothing else.
 //
 // Beside the loop the lab measures the filter at rest: one unit sample
 // through it (the impulse response, and from that the response to frequency),
-// a step through it, and a step through each of the kit's two smoothers,
-// Smoother and LinearRamp.
+// a step through it, a short input that goes up and comes down again with
+// the output chasing it sample by sample, and a step through each of the
+// kit's two smoothers, Smoother and LinearRamp.
 //
-// One device is run as well, for a check: the Tremolo (cpp/devices/tremolo)
-// splits its input with one OnePole per channel. The lab reads that filter's
-// state out of the device and holds it against a OnePole of its own at the
-// same crossover, where each block of 16 samples ends. Asleep, the device
-// does not run its filter; the lab's copy waits with it.
+// One device is run as well: the Tremolo (cpp/devices/tremolo) splits its
+// input with one OnePole per channel. The lab runs it a sample at a time,
+// reads that filter's state out of the device as a tap of its own, and holds
+// it against a OnePole of the lab's at the same crossover. Asleep, the device
+// does not run its filter; the lab's copies wait with it.
+//
+// The build part puts the filter together a piece at a time, on a path of its
+// own beside the kit's (lab::Build in lab.h). It has six pieces, each a
+// function of `Built` below, in the order the steps add them: a running
+// average, which keeps every sample it spans; the same average kept as one
+// number, moved part of the way to each new sample; that part worked out from
+// a time, as the kit works it out; the high-pass, by subtraction; a fader
+// between the two halves, applied as it arrives; and the fader smoothed by
+// the first line again. The path writes the "built" taps and leaves every
+// other tap as it was. Two copies of it run: one at the step the reader
+// chose, which is what the taps show, and one with all six pieces, whose
+// output is compared on every render with the same blend made from the kit's
+// own OnePole and Smoother (the "builtDifference" check). The first two
+// steps and the fifth are the lesson's own: an average the kit does not
+// have, a share it does not use, and a fader no device applies unsmoothed.
 
 #include "lab.h"
 
@@ -40,13 +56,16 @@ constexpr int kPatience = 480000;  // ten seconds: how long a thing is waited fo
 constexpr float kSixtyThree = 0.63212056f;  // 1 − 1/e
 constexpr int kBottom = 24000;   // the sample at which the fader reaches nothing: half a second in
 constexpr int kToneHz = 220;
-constexpr int kBlock = 16;       // the Tremolo is run in blocks of this many samples
 constexpr float kToneLevel = 0.5f;
+constexpr int kChase = 33;       // the input that goes up and comes down: this many samples of it
+constexpr int kChaseUp = 16;     // of which this many, from the second on, stand at 1
+constexpr int kMaxWindow = 1024; // the most samples the build's running average may span
+constexpr float kFloatSteps = 16777216.0f;  // steps of a float in one unit, just under 1: 2 to the 24th
 
 kit::OnePole low_filter[2];
 kit::OnePole high_filter[2];
-kit::OnePole probe;       // the same filter at rest, for the curves
-kit::OnePole split_copy;  // the lab's own filter beside the Tremolo's
+kit::OnePole probe;          // the same filter at rest, for the curves
+kit::OnePole split_copy[2];  // the lab's own filters beside the Tremolo's
 kit::Smoother smoother;
 kit::LinearRamp ramp;
 Tremolo split_device;
@@ -60,20 +79,27 @@ lab::Control rides{"rides", "The fader rides", "", 0.0f, 1.0f, 0.0f, lab::kLinea
 lab::Tap in_tap{"in", "Input", lab::kAudio, lab::kSource, 2};
 lab::Tap high{"high", "High-pass", lab::kAudio, lab::kKit, 2};
 lab::Tap fader{"fader", "The fader, as it arrives", lab::kControl, lab::kLesson, 1, ""};
-lab::Tap smoothed{"smoothed", "Smoothed", lab::kControl, lab::kKit, 1, ""};
+lab::Tap smoothed{"smoothed", "The fader, smoothed", lab::kControl, lab::kKit, 1, ""};
 lab::Tap zipper{"zipper", "Under the stepped fader", lab::kAudio, lab::kLesson, 2};
 lab::Tap out_tap{"out", "Under the smoothed fader", lab::kAudio, lab::kKit, 2};
-// The last sound declared is the one the page plays first: the low-pass.
+lab::Tap device_low{"deviceLow", "The low band inside the Tremolo", lab::kAudio, lab::kDevice, 2};
+// The last sound declared on the main path is the one the page plays first: the low-pass.
 lab::Tap low{"low", "Low-pass", lab::kAudio, lab::kKit, 2};
 
 lab::Tap impulse{"impulse", "One unit sample through the filter", lab::kCurve, lab::kKit, 1, ""};
 lab::Tap step{"step", "A step through the filter", lab::kCurve, lab::kKit, 1, ""};
 lab::Tap sixty_three{"sixtyThree", "63 % of the way", lab::kCurve, lab::kLesson, 1, ""};
+lab::Tap chase{"chase", "The output, sample by sample", lab::kCurve, lab::kKit, 1, ""};
+lab::Tap chase_target{"chaseTarget", "The input, sample by sample", lab::kCurve, lab::kLesson, 1, ""};
 lab::Tap response{"response", "Low-pass, measured", lab::kCurve, lab::kKit, 1, "dB"};
 lab::Tap response_high{"responseHigh", "High-pass, measured", lab::kCurve, lab::kKit, 1, "dB"};
 lab::Tap response_textbook{"responseTextbook", "One pole with no sample rate", lab::kCurve, lab::kLesson, 1, "dB"};
 lab::Tap glide{"glide", "A step through the smoother", lab::kCurve, lab::kKit, 1, ""};
 lab::Tap glide_ramp{"glideRamp", "A step through the ramp", lab::kCurve, lab::kKit, 1, ""};
+
+lab::Tap built{"built", "The filter so far", lab::kAudio, lab::kLesson, 2};
+lab::Tap built_low{"builtLow", "The low half, as built", lab::kAudio, lab::kLesson, 2};
+lab::Tap built_fader{"builtFader", "The fader, as built", lab::kControl, lab::kLesson, 1, ""};
 
 lab::Check impulse_error{"impulseError", "The filter's impulse response against (1 − a)·aⁿ worked out directly", ""};
 lab::Check step_time{"stepTime", "Samples from the time constant to the first sample of the step at 63 %", "samples"};
@@ -81,7 +107,7 @@ lab::Check corner{"corner", "Where the response measured through the filter is 3
 lab::Check split{"split", "The low band inside the Tremolo against the lab's own one-pole", "dB"};
 lab::Check same_filter{"sameFilter", "The smoother against a one-pole at the cutoff 1/(2π·time), until it lands", ""};
 lab::Check landing{"landing", "The smoother stands exactly on its target after", "ms"};
-lab::Check stall{"stall", "How far short of a steady 1 that one-pole stops, with nothing to land it", ""};
+lab::Check stall{"stall", "How far short of a steady 1 that one-pole stops, with nothing to land it", "float steps"};
 
 // The fader at sample `i` of the loop, 0 to 1: the place of a triangle, two
 // seconds a cycle, at the last moment a value was sent. The moments are
@@ -101,6 +127,108 @@ float tone_at(int i) {
   const int turns = (i % lab::frames()) * kToneHz % static_cast<int>(lab::kSampleRate);
   return kToneLevel * kit::SineTable::lookup(static_cast<float>(turns) / lab::kSampleRate + 0.25f);
 }
+
+// The filter so far: one function a piece, and run() to take a sample through
+// the pieces there are.
+struct Built {
+  // The pieces, in the order the steps add them.
+  enum Piece : int { kAverage = 0, kOneNumber, kFromTime, kHigh, kFader, kSmooth };
+
+  int pieces = kAverage;
+  int window = 1;               // how many samples the running average spans
+  int oldest = 0;               // where in `kept` the oldest of them is
+  float kept[2][kMaxWindow];    // the running average's memory: every sample it spans
+  double sum[2] = {0.0, 0.0};   // and their sum
+  float low[2] = {0.0f, 0.0f};  // the one-number average's memory: one number a channel
+  float keep = 0.0f;            // the part of that number that is kept each sample
+  float gain = 1.0f;            // the smoothed fader: where it has got to
+  float fader = 0.0f;           // the fader's value in force on this sample
+  float gain_keep = 0.0f;       // the part of the distance to a new fader value that is left each sample
+  float lows[2] = {0.0f, 0.0f};
+  float out[2] = {0.0f, 0.0f};
+
+  // A running average: the mean of the last `window` samples. To take the
+  // oldest sample out of the sum as the newest goes in, it has to have kept
+  // every sample in between.
+  float average(int c, float x) {
+    sum[c] += static_cast<double>(x) - kept[c][oldest];
+    kept[c][oldest] = x;
+    return static_cast<float>(sum[c] / window);
+  }
+
+  // One number of memory: the average so far, moved part of the way to the
+  // new sample. `keep` is the part of the distance that is left.
+  float follow(int c, float x) {
+    low[c] = flush_denormal(x + (low[c] - x) * keep);
+    return low[c];
+  }
+
+  // How much to keep, from the length of the average it stands in for: the
+  // newest sample gets the share 2 / (window + 1), and the rest is kept.
+  static float keep_for_window(int window) { return 1.0f - 2.0f / static_cast<float>(window + 1); }
+
+  // How much to keep, from a time. A cutoff of `hz` is a time constant of
+  // 1 / (2π · hz) seconds, and e^(−1 / the samples in that time) is kept.
+  static float keep_for_cutoff(float hz) {
+    return std::exp(-kit::kTwoPi * kit::clamp(hz, 0.0f, lab::kSampleRate * 0.49f) / lab::kSampleRate);
+  }
+
+  // The high-pass by subtraction: what is left of a sample when the average
+  // is taken away from it.
+  static float rest(float x, float average) { return x - average; }
+
+  // A fader between the two halves: the low half alone at 1, the high half
+  // alone at 0, and half of the sample itself in the middle.
+  static float blend(float lows, float highs, float fader) { return highs + fader * (lows - highs); }
+
+  // Smoothing the fader: follow() again, on the fader's value, and put
+  // exactly on that value once the distance left is too small to matter.
+  float glide(float asked) {
+    const float left = gain - asked;
+    const float close = 1.0e-6f * (asked < 0.0f ? -asked : asked) + 1.0e-9f;
+    const float moved = asked + left * gain_keep;
+    gain = ((left > -close && left < close) || moved == gain) ? asked : moved;
+    return gain;
+  }
+
+  // One sample through the pieces built so far. `asked` is the fader as it arrives.
+  void run(float left, float right, float asked) {
+    fader = pieces >= kSmooth ? glide(asked) : asked;
+    for (int c = 0; c < 2; ++c) {
+      const float x = c == 0 ? left : right;
+      lows[c] = pieces >= kOneNumber ? follow(c, x) : average(c, x);
+      const float highs = rest(x, lows[c]);
+      out[c] = pieces >= kFader ? blend(lows[c], highs, fader) : pieces >= kHigh ? highs : lows[c];
+    }
+    oldest = (oldest + 1) % window;
+  }
+
+  // Where the fader of the built taps stands: nowhere, before there is one.
+  float fader_shown() const { return pieces >= kFader ? fader : 0.0f; }
+
+  void start(int pieces_, float first) {
+    pieces = pieces_;
+    window = kit::clamp_int(static_cast<int>(lab::kSampleRate / (kit::kPi * cutoff.value) + 0.5f), 1, kMaxWindow);
+    keep = pieces >= kFromTime ? keep_for_cutoff(cutoff.value) : keep_for_window(window);
+    gain_keep = kit::time_to_coeff(smoothing.value * 0.001f, lab::kSampleRate);
+    gain = first;
+    fader = first;
+    oldest = 0;
+    for (int c = 0; c < 2; ++c) {
+      for (int n = 0; n < kMaxWindow; ++n) kept[c][n] = 0.0f;
+      sum[c] = 0.0;
+      low[c] = lows[c] = out[c] = 0.0f;
+    }
+  }
+};
+
+lab::Build build{"A running average|One number of memory|The share from a time|The high-pass|A fader between the halves|"
+                 "Smooth the fader",
+                 Built::kSmooth, -120.0f,
+                 "The filter as built, all six pieces, against the same blend made from the kit's own filter and smoother"};
+
+Built shown;  // at the step the reader chose: what the built taps hold
+Built held;   // with every piece: what is compared with the kit
 
 // The filter at rest: an impulse, a step, and the response to frequency.
 void measure_filter() {
@@ -135,6 +263,17 @@ void measure_filter() {
     sixty_three.x1 = static_cast<float>(kGlide - 1) * 1000.0f / fs;
     sixty_three.set(0, kSixtyThree);
     sixty_three.set(1, kSixtyThree);
+  }
+  // An input that goes up for sixteen samples and comes down again, and the
+  // output on its way after it: each point is one sample.
+  if (chase.open(kChase) && chase_target.open(kChase)) {
+    chase.x1 = chase_target.x1 = static_cast<float>(kChase - 1);
+    probe.reset();
+    for (int n = 0; n < kChase; ++n) {
+      const float target = n >= 1 && n <= kChaseUp ? 1.0f : 0.0f;
+      chase_target.set(n, target);
+      chase.set(n, probe.lowpass(target));
+    }
   }
   // How many samples of the step it takes to stand at 63 %, against the time
   // constant 1/(2π·cutoff) in samples.
@@ -230,14 +369,17 @@ void measure_smoothers() {
   same_filter.value = static_cast<float>(worst);
   landing.value = static_cast<float>(calls) * 1000.0f / fs;
 
-  // The bare filter, left to itself until it stops moving.
+  // The bare filter, left to itself until it stops moving: how far short it
+  // stops, counted in steps of a float just under 1. With no time there is no
+  // filter, and nothing is short.
+  stall.value = 0.0f;
   if (comparable) {
     float before = -1.0f;
     for (int n = 0; n < kPatience && probe.state != before; ++n) {
       before = probe.state;
       probe.lowpass(1.0f);
     }
-    stall.value = 1.0f - probe.state;
+    stall.value = (1.0f - probe.state) * kFloatSteps;
   }
 }
 
@@ -267,17 +409,22 @@ void lab_render(int frames) {
     split_device.set_param(kCrossover, cutoff.value);
     split_device.set_param(kDrift, 0.0f);
     split_device.set_param(kSmooth, 0.0f);
-    split_copy.set_cutoff(split_device.param(kCrossover), fs);
-    split_copy.reset();
+    for (kit::OnePole& copy : split_copy) {
+      copy.set_cutoff(split_device.param(kCrossover), fs);
+      copy.reset();
+    }
   }
   double split_apart = 0.0, split_whole = 0.0;
-  float block_left[kBlock] = {};
-  bool heard = false;
 
   const float seconds = smoothing.value * 0.001f;
   smoother.set_time(seconds, fs);
   smoother.snap(fader_at(0));
   const bool on_source = rides.on();
+
+  // The build part: the chosen step, and the whole build that is held to the kit.
+  shown.start(build.at(), fader_at(0));
+  held.start(build.compared_step, fader_at(0));
+  double built_apart = 0.0, built_whole = 0.0;
 
   const int total = lab::total();
   for (int i = 0; i < total; ++i) {
@@ -288,23 +435,15 @@ void lab_render(int frames) {
     const float high_left = high_filter[0].highpass(left);
     const float high_right = high_filter[1].highpass(right);
 
-    // The device's own filter, and the lab's beside it: a block at a time,
-    // the two compared where each block ends.
-    const int at = i % kBlock;
-    block_left[at] = left;
-    split_device.in_left()[at] = left;
-    split_device.in_right()[at] = right;
-    heard = heard || left != 0.0f || right != 0.0f;
-    if (at == kBlock - 1) {
-      const bool awake = heard || split_device.idle_.quiet_ < split_device.idle_.hold_;
-      split_device.process(kBlock);
-      for (int j = 0; awake && j < kBlock; ++j) split_copy.lowpass(block_left[j]);
-      heard = false;
-      if (i >= lab::frames()) {
-        const double apart = static_cast<double>(split_device.split_[0].state) - split_copy.state;
-        split_apart += apart * apart;
-        split_whole += static_cast<double>(split_copy.state) * split_copy.state;
-      }
+    // The device's own filter, and the lab's beside it, a sample at a time.
+    // The device runs its filter only while it is awake.
+    const bool awake = left != 0.0f || right != 0.0f || split_device.idle_.quiet_ < split_device.idle_.hold_;
+    split_device.in_left()[0] = left;
+    split_device.in_right()[0] = right;
+    split_device.process(1);
+    if (awake) {
+      split_copy[0].lowpass(left);
+      split_copy[1].lowpass(right);
     }
 
     // The fader: as it arrives, and through the smoother.
@@ -312,18 +451,40 @@ void lab_render(int frames) {
     smoother.set_target(asked);
     const float gain = smoother.next();
 
+    // The build part, beside the kit.
+    shown.run(left, right, asked);
+    held.run(left, right, asked);
+
     // The first pass only warms the filters up: a tap keeps nothing of it.
     if (i < lab::frames()) continue;
+    for (int c = 0; c < 2; ++c) {
+      const double apart = static_cast<double>(split_device.split_[c].state) - split_copy[c].state;
+      split_apart += apart * apart;
+      split_whole += static_cast<double>(split_copy[c].state) * split_copy[c].state;
+    }
+    // The same blend from the kit's own filter and smoother: what the whole build is held to.
+    const float kit_left = Built::blend(low_left, Built::rest(left, low_left), gain);
+    const float kit_right = Built::blend(low_right, Built::rest(right, low_right), gain);
+    const double apart_left = static_cast<double>(held.out[0]) - kit_left;
+    const double apart_right = static_cast<double>(held.out[1]) - kit_right;
+    built_apart += apart_left * apart_left + apart_right * apart_right;
+    built_whole += static_cast<double>(kit_left) * kit_left + static_cast<double>(kit_right) * kit_right;
+
     const float under_left = on_source ? left : tone_at(i);
     const float under_right = on_source ? right : under_left;
     in_tap.put(i, left, right);
     low.put(i, low_left, low_right);
     high.put(i, high_left, high_right);
+    device_low.put(i, split_device.split_[0].state, split_device.split_[1].state);
     fader.put(i, asked);
     smoothed.put(i, gain);
     zipper.put(i, under_left * asked, under_right * asked);
     out_tap.put(i, under_left * gain, under_right * gain);
+    built.put(i, shown.out[0], shown.out[1]);
+    built_low.put(i, shown.lows[0], shown.lows[1]);
+    built_fader.put(i, shown.fader_shown());
   }
+  build.difference.value = lab::ratio_db(built_apart, built_whole);
   split.value = lab::ratio_db(split_apart, split_whole);
 
   measure_filter();
