@@ -165,9 +165,13 @@ function longCases(lesson: string) {
     for (let i = 0; i < (await heard.count()); i += 1) {
       const button = heard.nth(i).locator('.stage-block-listen button')
       // The page opens on the lab's last sound: a stage that reads that tap is lit already,
-      // and a press would put it out.
-      if ((await button.getAttribute('aria-pressed')) !== 'true') await press(button)
-      await expect(button).toHaveAttribute('aria-pressed', 'true')
+      // and a press would put it out. A button wakes when it comes into view, so what it
+      // says before then is not yet the page's: press until it is lit, and leave a lit one.
+      await button.scrollIntoViewIfNeeded()
+      await expect(async () => {
+        if ((await button.getAttribute('aria-pressed')) !== 'true') await button.click()
+        await expect(button).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
+      }).toPass({ timeout: 15_000 })
       await expect(page.locator('#lab-stage')).toHaveValue(
         (await button.getAttribute('data-tap')) ?? '',
       )
