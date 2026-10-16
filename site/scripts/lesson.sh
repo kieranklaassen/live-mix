@@ -47,7 +47,20 @@ fi
 
 folder=".lesson/$id"
 log="$(mktemp)"
-trap 'rm -f "$log"' EXIT
+ticket=""
+trap 'rm -f "$log" $ticket' EXIT
+
+# in_turn <ticket>: whether the ticket is the oldest in its line whose owner still runs. A ticket
+# whose owner has gone is taken out of the line.
+in_turn() {
+  local other
+  for other in "${1%/*}"/*; do
+    [ "$other" = "$1" ] && return 0
+    kill -0 "${other##*.}" 2>/dev/null && return 1
+    rm -f "$other"
+  done
+  return 0
+}
 
 # step <name> <heavy|light|build> <command...>: runs the command in a slot of its pool, says how it
 # went, and ends the script when it failed.
@@ -58,16 +71,24 @@ step() {
   [ "$pool" = light ] && slots=2
   [ "$pool" = build ] && slots=1
   if [ -n "${SITE_SLOTS:-}" ]; then
-    mkdir -p "$SITE_SLOTS"
-    # The first lock of the pool that nobody holds; when all are held, look again in a second.
+    # Those waiting take a slot in the order they came: each leaves a ticket in the pool's line,
+    # and only the oldest may look for a lock. It takes the first lock of the pool that nobody
+    # holds; when all are held, or it is not its turn, it looks again in a second.
+    mkdir -p "$SITE_SLOTS/$pool.line"
+    ticket="$SITE_SLOTS/$pool.line/$(date +%s%N).$$"
+    : >"$ticket"
     while true; do
-      for slot in $(seq 1 "$slots"); do
-        exec {lock}>"$SITE_SLOTS/$pool.$slot.lock"
-        flock -n "$lock" && break 2
-        exec {lock}>&-
-      done
+      if in_turn "$ticket"; then
+        for slot in $(seq 1 "$slots"); do
+          exec {lock}>"$SITE_SLOTS/$pool.$slot.lock"
+          flock -n "$lock" && break 2
+          exec {lock}>&-
+        done
+      fi
       sleep 1
     done
+    rm -f "$ticket"
+    ticket=""
   fi
   local began=$SECONDS from
   from="$(date +%T)"
