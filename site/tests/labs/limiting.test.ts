@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { TruePeakDetector } from '../../../src/core/analysis/loudness.ts'
 import type { Lab, RenderResult } from '../../src/lab/runner.ts'
@@ -267,7 +269,7 @@ describe('limiting and true peaks', () => {
     expectWritten(levelDb(sound(out, 'pushed')) - levelDb(went), '12.0 dB')
   })
 
-  it('turns the loudest hit of the drums pushed 12 dB down 9.3 dB (claim deepest), and brings the loop out 6.1 dB higher in mean power (claim louder) with its highest sample 2.8 dB higher (claim peak-rise)', async () => {
+  it('turns the loudest hit of the drums pushed 12 dB down 9.3 dB (claim deepest), and brings the loop out 6.1 dB higher in mean power (claim louder) with its highest sample 2.8 dB higher (claim peak-rise), and has no point of the gain above 0 dB (claim only-down)', async () => {
     const limiter = await lab('limiting')
     const drums = await benchSource('drums', seconds(4))
     const out = limiter.render(drums, { push: 12, ceiling: -1 })
@@ -279,6 +281,10 @@ describe('limiting and true peaks', () => {
     expectWritten(-deepest, '9.3 dB')
     expectWritten(more, '6.1 dB')
     expectWritten(rise, '2.8 dB')
+    // The gain only turns down, here and with everything pushed as far as it goes.
+    expectWritten(most(value(out, 'gain')), 'at most 0 dB')
+    const hard = limiter.render(drums, { push: 24, ceiling: -20, release: 10 })
+    expectWritten(most(value(hard, 'gain')), 'at most 0 dB')
   })
 
   it("shows the drums' largest peak close to: the delayed sound at 2.56, the gain at 0.34, the output at 0.88 under a ceiling of 0.89 (claim picture-reads), with the gain already down from 0.89 to 0.61 where the hit starts to come out, 1.4 ms before its peak (claim dips-first)", async () => {
@@ -317,6 +323,15 @@ describe('limiting and true peaks', () => {
     for (let n = -144; n <= 96; n += 1) {
       expect(clipped(n)).toBe(Math.max(-top, Math.min(top, delayed(n))))
     }
+    // What the picture's caption invites. Push at its lowest: the gain is 1 all across, and
+    // Output is Delayed.
+    const low = limiter.render(drums, { push: -12 })
+    expect(value(low, 'nearGain').every((v) => v === 1)).toBe(true)
+    expect(value(low, 'nearOut')).toEqual(value(low, 'nearDelayed'))
+    // Release at its longest: the gain begins the picture lower, not yet back from the hit before.
+    const long = near(limiter.render(drums, { release: 2000 }).taps.nearGain!)
+    say('picture: the gain at the left of the view at a release of 2 s', long(-144))
+    expect(long(-144)).toBeLessThan(gain(-144) - 0.25)
   })
 
   it('finds a 12 kHz sine sampled 45 degrees off its crests 3.01 dB over its samples by trigonometry (claim quarter-rate), reads it 3.05 dB over them (claim detector-reads), and turns it down 1.04 dB under a ceiling 2 dB above every sample (claim unseen)', async () => {
@@ -348,10 +363,19 @@ describe('limiting and true peaks', () => {
     // Between two equal samples the four are a mirror of themselves, and each is the sine there.
     expect(points[0]).toBeCloseTo(points[3]!, 5)
     expect(points[1]).toBeCloseTo(points[2]!, 5)
-    for (let q = 0; q < 8; q += 1) {
-      const exact = Math.sin(2 * Math.PI * (0.25 * (0.125 + q / 4) + 0.125))
-      expect(Math.abs(points[q]! - exact)).toBeLessThan(0.03)
-    }
+    const tone = (place: number) => Math.sin(2 * Math.PI * (0.25 * place + 0.125))
+    /** The furthest any of the first eight points lies from the tone, were the first at `from`. */
+    const worst = (from: number) =>
+      Math.max(...[0, 1, 2, 3, 4, 5, 6, 7].map((q) => Math.abs(points[q]! - tone(from + q / 4))))
+    say('eighths', worst(0.125), 'were they quarters', worst(0), worst(0.25))
+    expect(worst(0.125)).toBeLessThan(0.03)
+    // Were they at quarters of the gap, on the sample or a quarter after it, they would not
+    // fit the tone: the first point would be a sample, or the last would.
+    expect(worst(0)).toBeGreaterThan(0.1)
+    expect(worst(0.25)).toBeGreaterThan(0.1)
+    // And the lab draws them where they are.
+    expect(out.taps.toneBetween!.x0).toBe(0.125)
+    expect(out.taps.toneSamples!.x0).toBe(0)
   })
 
   it('reads twelve samples of size 1, their signs chosen against it, 6.12 dB over them (claim worst-case)', async () => {
@@ -381,7 +405,18 @@ describe('limiting and true peaks', () => {
     const right = gainToDb(peak(sound(out, 'out')[1]!)) + 20
     say('linked', right, least(gain), most(gain))
     expectWritten(-least(gain), '6.0 dB')
-    expect(right).toBeCloseTo(least(gain), 2)
+    expect(Math.abs(right - least(gain))).toBeLessThan(1e-5)
+    // Sample by sample, each side comes out of the delay times the same number.
+    const came = sound(out, 'out')
+    const delayed = sound(out, 'delayed')
+    let apart = 0
+    for (let i = 0; i < frames; i += 1) {
+      if (Math.abs(delayed[0]![i]!) < 0.2 || Math.abs(delayed[1]![i]!) < 0.02) continue
+      const sides = [0, 1].map((c) => gainToDb(came[c]![i]! / delayed[c]![i]!))
+      apart = Math.max(apart, Math.abs(sides[0]! - sides[1]!))
+    }
+    say('linked: the most the two sides differ on one sample, in dB', apart)
+    expect(apart).toBeLessThan(1e-5)
   })
 
   it('brings a 1 kHz tone 12 dB over the ceiling out at the ceiling, within 0.01 dB (claim at-the-ceiling)', async () => {
@@ -534,17 +569,29 @@ describe('limiting and true peaks', () => {
     expectWritten(at(100), '0.57 dB')
   })
 
-  it('lets white noise pushed 12 dB read 1.8 dB over the ceiling on the long sinc while its own detector reads the ceiling (claim noise-over)', async () => {
+  it("lets white noise pushed 12 dB read 1.8 dB over the ceiling on the long sinc while the engine's meter reads it within 0.01 dB of the ceiling (claim noise-over)", async () => {
     const limiter = await lab('limiting')
     const source = await benchSource('noise', seconds(4))
     const out = sound(limiter.render(source, { push: 12, ceiling: -1 }), 'out')
     const over = sincDb(out, 16) + 1
     say('noise-over', over, meterDb(out))
     expectWritten(over, '1.8 dB')
-    expect(meterDb(out)).toBeLessThanOrEqual(-1 + 0.01)
+    expectWritten(Math.abs(meterDb(out) + 1), 'less than 0.01 dB')
+    // The wave between the samples of noise stands further over them than that of the drums,
+    // and that of the bench's sine hardly at all, as the caption of stage 2's picture says.
+    const overshoot = async (id: string) =>
+      limiter.render(await benchSource(id, seconds(4)), {}).checks.overshoot!
+    const [drums, noise, tone] = [
+      await overshoot('drums'),
+      await overshoot('noise'),
+      await overshoot('sine'),
+    ]
+    say('overshoot at the spot shown: drums, noise, sine', drums, noise, tone)
+    expect(noise).toBeGreaterThan(drums + 2)
+    expect(tone).toBeLessThan(0.1)
   })
 
-  it('keeps a tone whole to 20 kHz in its two middle points and loses 3.0 dB of it at 22 kHz (claim inner-22k), and 0.5 dB in the two nearest a sample (claim outer-22k)', async () => {
+  it('keeps a tone within 0.3 dB up to 20 kHz in its two middle points and loses 3.0 dB of it at 22 kHz (claim inner-22k), and 0.5 dB in the two nearest a sample (claim outer-22k)', async () => {
     const limiter = await lab('limiting')
     const out = limiter.render(silence(seconds(0.25)), {})
     const inner = out.taps.responseInner!
@@ -562,8 +609,7 @@ describe('limiting and true peaks', () => {
     expectWritten(-outer.channels_data[0]![88]!, '0.5 dB')
     for (const row of [inner, outer]) {
       const upTo20k = row.channels_data[0]!.subarray(0, 81)
-      expect(most(upTo20k)).toBeLessThan(0.3)
-      expect(least(upTo20k)).toBeGreaterThan(-0.3)
+      expectWritten(Math.max(most(upTo20k), -least(upTo20k)), 'less than 0.3 dB')
     }
   })
 
@@ -627,6 +673,39 @@ describe('limiting and true peaks', () => {
     // And it answers to Release: shorter, and the tone is bent more.
     const short = sound(limiter.render(over(100), { ...plain, release: 10, build: 3 }), 'built')
     expect(-notTone(short[0]!, 100)).toBeLessThan(bends(limiter, 3) - 6)
+  })
+
+  it('at the fourth step still presses the samples on the way up to every crest of that tone flat against the ceiling (claim built-late)', async () => {
+    const limiter = await lab('limiting')
+    const tone = over(100)
+    const top = dbToGain(-1)
+    /** Samples of the settled second half that lie on the ceiling, and how many of them rise. */
+    const pressed = (step: number) => {
+      const built = sound(limiter.render(tone, { ...plain, build: step }), 'built')[0]!
+      let flat = 0
+      let rising = 0
+      for (let i = built.length / 2; i < built.length; i += 1) {
+        if (Math.abs(Math.abs(built[i]!) - top) > 1e-6) continue
+        flat += 1
+        // No wait yet at this step: the sample out is the sample in, times the gain.
+        if (Math.abs(tone.left[i]!) >= Math.abs(tone.left[i - 1]!)) rising += 1
+      }
+      return { flat, rising }
+    }
+    const crests = 2 * 100 // a 100 Hz tone has two crests a cycle, over one second
+    const late = pressed(3)
+    const ramped = pressed(5)
+    say(
+      'built-late: samples on the ceiling in a second, at the release and at the ramp',
+      late,
+      ramped,
+    )
+    // More than twenty to a crest on the way up. One more follows each crest: the gain has
+    // begun to climb by then, faster than the tone falls, and is taken down again.
+    expect(late.rising).toBeGreaterThan(20 * crests)
+    expect(late.flat - late.rising).toBeLessThanOrEqual(crests)
+    // With the wait, the hold and the ramp in, a crest touches the ceiling and no more.
+    expect(ramped.flat).toBeLessThanOrEqual(crests)
   })
 
   it('at the fifth step has the gain down 72 samples before a click comes out, where the step before had it down only on the sample itself (claim built-hold), and still drops it 75 % of the way in one sample (claim built-cliff)', async () => {
@@ -727,13 +806,21 @@ describe('limiting and true peaks', () => {
     }
   })
 
-  it('on the drums lets the gain back to less than 0.1 dB down between hits, and has it more than 1 dB down for 50 % of the loop (claim use-drums)', async () => {
+  it('on the drums lets the gain back to less than 0.1 dB down at its highest, in the widest spaces of the loop, and has it more than 1 dB down for 50 % of the loop (claim use-drums)', async () => {
     const limiter = await lab('limiting')
     const gain = value((await played(limiter, 'drums')).result, 'gain')
     const share = (100 * gain.filter((v) => v < -1).length) / gain.length
     say('use-drums', most(gain), share)
     expectWritten(-most(gain), 'less than 0.1 dB')
     expectWritten(share, '50 %')
+    // It gets that far in some of the spaces and not in all: count the stretches it does.
+    let stretches = 0
+    for (let k = 1; k < gain.length; k += 1) {
+      if (gain[k]! > -0.1 && gain[k - 1]! <= -0.1) stretches += 1
+    }
+    say('use-drums: stretches less than 0.1 dB down', stretches)
+    expect(stretches).toBeGreaterThanOrEqual(2)
+    expect(stretches).toBeLessThanOrEqual(6)
   })
 
   it('on the bass at a release of 400 ms moves the gain between 0.7 dB and 6.1 dB down (claim use-bass)', async () => {
@@ -846,7 +933,7 @@ describe('limiting and true peaks', () => {
     expectWritten(louder(short), '8.5 dB')
   })
 
-  it('pushed 24 dB leaves the highest sample of the drums 11.0 dB over their level, where it stood 18.7 dB over it, with the gain never less than 0.4 dB down and more than 11 dB more taken away than let through (claim fault-flat)', async () => {
+  it('pushed 24 dB leaves the highest sample of the drums 11.0 dB over their level, where it stood 18.7 dB over it, with the gain at least 0.4 dB down all through the loop and more than 11 dB more taken away than let through (claim fault-flat)', async () => {
     const limiter = await lab('limiting')
     const one = await played(limiter, 'flat')
     const out = sound(one.result, 'out')
@@ -893,5 +980,89 @@ describe('limiting and true peaks', () => {
     expectWritten(-least(value(result, 'wallGain')), '6.2 dB')
     expectWritten(quieter, '1.2 dB')
     expect(meterDb(sound(result, 'ambient'))).toBeLessThanOrEqual(-1 + 0.01)
+  })
+
+  it("with Ceiling at −20 dB holds the drums to −20.0 dB by the engine's meter, where the Ambient Limiter, whose Ceiling stops higher, holds them to −12.0 dB (claim ambient-ceiling)", async () => {
+    const limiter = await lab('limiting')
+    const drums = await benchSource('drums', seconds(4))
+    for (const values of [{ ceiling: -20 }, { ceiling: -20, release: 80, ride: 0 }]) {
+      const result = limiter.render(drums, values)
+      say(
+        'ambient-ceiling',
+        JSON.stringify(values),
+        meterDb(sound(result, 'out')),
+        meterDb(sound(result, 'ambient')),
+      )
+      expectWritten(meterDb(sound(result, 'out')), '−20.0 dB')
+      expectWritten(meterDb(sound(result, 'ambient')), '−12.0 dB')
+    }
+    // Down to where the device's Ceiling stops, the two are still one limiter at Ride 0.
+    const edge = limiter.render(drums, { ceiling: -12, release: 80, ride: 0 })
+    expect(sound(edge, 'ambient')).toEqual(sound(edge, 'out'))
+    // And at both ends of Push.
+    for (const push of [-12, 24]) {
+      const result = limiter.render(drums, { push, release: 80, ride: 0 })
+      expect(sound(result, 'ambient'), `push ${push}`).toEqual(sound(result, 'out'))
+    }
+  })
+
+  it("differs from the Ambient Limiter as the lesson's last part says: that device's controls, read from its descriptor, against this page's", async () => {
+    const limiter = await lab('limiting')
+    const read = (file: string) =>
+      fs.readFileSync(fileURLToPath(new URL(`../../../${file}`, import.meta.url)), 'utf8')
+    const device = JSON.parse(read('cpp/devices/ambient-limiter/device.json')) as {
+      params: { key: string; min: number; max: number; default: number; unit?: string }[]
+    }
+    const theirs = Object.fromEntries(device.params.map((one) => [one.key, one]))
+    const ours = Object.fromEntries(limiter.description.controls.map((one) => [one.id, one]))
+    expect(Object.keys(theirs)).toEqual(['ceiling', 'gain', 'release', 'ride', 'autoGain'])
+    // Gain is Push, with the same reach; it starts at 0 dB where the page's Push starts at 12 dB.
+    expect([theirs.gain!.min, theirs.gain!.max]).toEqual([ours.push!.min, ours.push!.max])
+    expect(theirs.gain!.default).toBe(0)
+    expect(ours.push!.initial).toBe(12)
+    // Ride starts at 1, there and on this page.
+    expect(theirs.ride!.default).toBe(1)
+    expect(ours.ride!.initial).toBe(1)
+    // Release is another thing: seconds of the slow gain, where the page's is the limiter's own.
+    expect(theirs.release!.unit).toBe('s')
+    expect(theirs.release!.default).toBe(1.5)
+    expect(ours.release!.unit).toBe('ms')
+    // Ceiling stops at −12 dB there and at −20 dB here; both start at −1 dB.
+    expect(theirs.ceiling!.min).toBe(-12)
+    expect(ours.ceiling!.min).toBe(-20)
+    expect(theirs.ceiling!.default).toBe(ours.ceiling!.initial)
+    // Auto gain is off where it starts.
+    expect(theirs.autoGain!.default).toBe(0)
+    // The plate opens as the lesson's note says: Ride at 0, Gain at the page's Push.
+    const lesson = read('site/src/content/lessons/limiting.mdx')
+    expect(lesson).toContain('params: { ceiling: -1, gain: 12, ride: 0 }')
+  })
+
+  it('moves only the lanes the caption of "All eight at once" says: Push every lane but the first, Ceiling the gains from the fourth lane down, Release from the fifth, and neither the sound after the wait', async () => {
+    const limiter = await lab('limiting')
+    const drums = await benchSource('drums', seconds(4))
+    const lanes = [
+      'in',
+      'pushed',
+      'peak',
+      'required',
+      'released',
+      'minimum',
+      'gain',
+      'delayed',
+      'out',
+    ]
+    const start = limiter.render(drums, {})
+    const moved = (values: Record<string, number>) => {
+      const other = limiter.render(drums, values)
+      return lanes.filter((id) =>
+        sound(other, id).some((data, c) => data.some((v, i) => v !== sound(start, id)[c]![i])),
+      )
+    }
+    expect(moved({ push: 6 })).toEqual(lanes.slice(1))
+    expect(moved({ ceiling: -6 })).toEqual(['required', 'released', 'minimum', 'gain', 'out'])
+    expect(moved({ release: 400 })).toEqual(['released', 'minimum', 'gain', 'out'])
+    // Ride is the other device's: it moves none of them.
+    expect(moved({ ride: 0 })).toEqual([])
   })
 })

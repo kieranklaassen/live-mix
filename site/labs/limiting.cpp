@@ -531,6 +531,8 @@ void lab_render(int frames) {
 
   // The Ambient Limiter at the same Push and Ceiling, with its own Ride, and
   // otherwise as it starts by itself: its release at a second and a half.
+  // Its Ceiling stops at -12 dB, so under that it stays there (set_param
+  // holds a value to the device's range) while the limiter alone goes on down.
   ambient.init(lab::kSampleRate);
   ambient.set_param(ambient_limiter::kGain, push.value);
   ambient.set_param(ambient_limiter::kCeiling, ceiling.value);
