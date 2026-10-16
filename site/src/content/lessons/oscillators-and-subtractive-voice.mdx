@@ -127,7 +127,7 @@ What moves the filter is the contour, and the picture shows it when Look at move
 
 <Check id="contourNow" />
 
-Cutoff sets where the filter comes to rest. Contour sets how far above that the start of each note throws it open. With Contour at 0 the filter does not move. <Claim id="row-still">The cutoff reads 648 Hz at the starting moment and again with Look at at 0.3 s, 0.6 s and 0.9 s, and each of the first eight bars after the filter stays within 0.3 dB of where it stood. The thirty-second bar is more than 5 dB lower by 0.9 s</Claim>, and so is the thirty-second bar going into the filter: the two oscillators slip against each other a little, which stage 2 of part 5 measures, and a little slip is a large part of a cycle for a high harmonic. What is left moving is the size of the last block, until the note has died. Then the voice goes to sleep, and every block of the row is empty.
+Cutoff sets where the filter comes to rest. Contour sets how far above that the start of each note throws it open. With Contour at 0 the filter does not move. <Claim id="row-still">The cutoff reads 648.4 Hz at the starting moment and again with Look at at 0.3 s, 0.6 s and 0.9 s, and each of the first eight bars after the filter stays within 0.3 dB of where it stood. The thirty-second bar is more than 5 dB lower by 0.9 s</Claim>, and so is the thirty-second bar going into the filter: the two oscillators slip against each other a little, which stage 2 of part 5 measures. What is left moving is the size of the last block, until the note has died. Then the voice goes to sleep, and every block of the row is empty.
 
 Notice what the picture leaves out. Each row is one instant, so it cannot show how fast the filter closes or how long the note lasts. Part 5 draws the same four places against time.
 
@@ -172,7 +172,7 @@ Each card below plays the engine's own instrument, lists the settings that make 
       caption="The envelope of the first key's voice in the engine's pad instrument. It climbs slowly, sinks a little to a level it holds, and falls away when the keys come up."
     />
 
-    A chord needs a voice for every key, and a pad wants its notes to arrive slowly. The engine's Dusk is the same chain many times over, with a slow rise in place of the bass's strike. The lab holds <Src path="site/labs/oscillators-and-subtractive-voice.cpp" at="constexpr int kPadSemitones[kPadKeys] = {12, 19, 28};">three keys of a chord</Src> on it. <Claim id="use-pad">The pad gives the three keys three voices. The envelope of the first key's voice reaches its top 0.60 s after the keys go down, and that voice's cutoff stands at 5.9 kHz then, 1.5 octaves over where it rests</Claim>.
+    A chord needs a voice for every key, and a pad wants its notes to arrive slowly. The engine's Dusk is the same chain many times over, with a slow rise in place of the bass's strike. The lab holds <Src path="site/labs/oscillators-and-subtractive-voice.cpp" at="constexpr int kPadSemitones[kPadKeys] = {12, 19, 28};">three keys of a chord</Src> on it. <Claim id="use-pad">The pad gives the three keys three voices. The envelope of the first key's voice reaches its top 0.60 s after the keys go down, and that voice's cutoff stands between 5.9 and 6.0 kHz then, 1.5 octaves over where it rests</Claim>.
 
   </Use>
   <Use title="A soft sub" set="sub">
@@ -192,8 +192,6 @@ Each card below plays the engine's own instrument, lists the settings that make 
 
   </Use>
 </Uses>
-
-These are places to start. Every one of them is the same chain with other numbers in it.
 
 </Part>
 
@@ -241,9 +239,9 @@ Each piece is the device's own arithmetic, written out again a function at a tim
       name="apart"
     />
 
-    With Beat at 0 the two waves stay in step and add to the same shape at twice the size. <Claim id="build-double">The first bar of the picture rises 6.0 dB, which is twice the size, and so does the tenth. The largest sample of the two cycles drawn goes from 0.29 to 0.52, which is 1.8 times</Claim>. The largest sample is the tip of the ripple beside each drop, and the two oscillators' drops do not land quite together even with Beat at 0, because the device lets the pair drift a little. So the tips do not add up in full, while away from the drops the wave is twice the first step's. Stage 2 of part 5 measures the drift.
+    With Beat at 0 the two waves stay in step and add to the same shape at twice the size. <Claim id="build-double">The first bar of the picture rises 6.0 dB, which is twice the size, and so does the tenth. The largest sample of the two cycles drawn goes from 0.29 to between 0.52 and 0.53, which is 1.8 times</Claim>. The largest sample is the tip of the ripple beside each drop, and the two oscillators' drops do not land quite together even with Beat at 0, because the device lets the pair drift a little. So the tips do not add up in full, while away from the drops the wave is twice the first step's. Stage 2 of part 5 measures the drift.
 
-    Raise Beat and the two drift past each other. When they are in step they add, and when they are half a cycle apart their first harmonics cancel, so the note swells and empties at a steady rate. With Beat at <Src path="site/labs/oscillators-and-subtractive-voice.cpp" at="lab::Control beat{">25 cents, the top of its range</Src>, on the lesson's starting note and with Key held for at the top of its range too, <Claim id="build-beat">the first harmonic of the built sound empties 1.6 times a second</Claim>. A step earlier, with one oscillator, it never does. <Lesson id="binaural-beats" cap /> is about what two tones a few hertz apart do to the ear.
+    Raise Beat and the two drift past each other. When they are in step they add, and when they are half a cycle apart their first harmonics cancel, so the note swells and empties at a steady rate. With Beat at <Src path="site/labs/oscillators-and-subtractive-voice.cpp" at="lab::Control beat{">25 cents, the top of its range</Src>, on the lesson's starting note and with Key held for at the top of its range too, <Claim id="build-beat">the first harmonic of the built sound empties 1.6 times a second</Claim>. A step earlier, with one oscillator, it never does. <Lesson id="binaural-beats" cap /> is about two tones a few hertz apart, added in the air or given one to each ear, and what each channel then holds.
 
     <Lanes slot="picture" taps="built">
       The sound so far over the whole loop. Try Beat at the top of its range, and notice the
@@ -286,7 +284,7 @@ Each piece is the device's own arithmetic, written out again a function at a tim
       name="filter"
     />
 
-    The saw's ramp is rounded and its bars slope away. At the lesson's starting settings <Claim id="build-filter">the tenth harmonic of the built sound goes from 20 dB under the first to 38 dB under it</Claim> as this piece goes in, at every moment the key is down. Press "Hear it so far", and listen for how much of the edge has gone. It is still a wave that is turned on and off. Nothing moves yet.
+    The saw's ramp is rounded and its bars slope away. At the lesson's starting settings <Claim id="build-filter">the tenth harmonic of the built sound goes from 20 dB under the first to between 37 and 38 dB under it</Claim> as this piece goes in, at every moment the key is down. Press "Hear it so far", and listen for how much of the edge has gone. It is still a wave that is turned on and off. Nothing moves yet.
 
     <VoiceRow slot="picture" waves="builtWave:out" parts="builtHarmonics" live step={3}>
       Two cycles of the sound so far, and its harmonics. Try Cutoff across its range, and notice
@@ -331,7 +329,7 @@ Each piece is the device's own arithmetic, written out again a function at a tim
       name="swept"
     />
 
-    At the lesson's starting settings <Claim id="build-sweep">the cutoff starts each note at 5.2 kHz, 3.0 octaves over the 648 Hz it rests at</Claim>. A step earlier it does not leave its rest.
+    At the lesson's starting settings <Claim id="build-sweep">the cutoff starts each note at 5.2 kHz, 3.0 octaves over the 648.4 Hz it rests at</Claim>. A step earlier it does not leave its rest.
 
     This is the whole voice, and it is the device's. One sample of it, from the pieces in their order:
 
@@ -342,7 +340,7 @@ Each piece is the device's own arithmetic, written out again a function at a tim
       name="sample"
     />
 
-    The lab runs this beside the Ladder Bass on every render and compares the two outputs. <Claim id="build-same">Every one of the loop's 192,000 samples is the same</Claim>, at the lesson's starting settings, at the device's own, and with a line of notes played hard into the filter. The check below is that comparison as it stands now. It reads the bottom of its scale when nothing differs.
+    The lab runs this beside the Ladder Bass on every render and compares the two outputs. <Claim id="build-same">Every one of the loop's 192,000 samples is the same</Claim>, at the lesson's starting settings, at the device's own, and with a line of notes played hard into the filter. The check below is the level of the difference against the level of the output, as it stands now. <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src> is the lowest it can read, so by itself it says only that the difference lies more than 140 dB under the output. The count of samples is what says they are the same.
 
     <Check id="builtDifference" />
 
@@ -469,7 +467,7 @@ Everything up to and including the filter runs <Src path="cpp/devices/ladder-bas
 </StageBlock>
 
 <StageBlock tap="mix" n={2} title="Two oscillators a few cents apart, and a sine under them">
-  The second oscillator is the first again, and the two are tuned apart by Beat. A sine wave an octave under the note can be added below them. The three are added with weights, and the sum is what the filter is given.
+  These are steps 2 and 3 of the build as the device has them: the two oscillators and the sine an octave under the note are added with weights, and the sum is what the filter is given.
 
   <Controls ids="beat sub wave" />
 
@@ -628,7 +626,7 @@ Everything up to and including the filter runs <Src path="cpp/devices/ladder-bas
   />
 
   <Fragment slot="after">
-    Following the key by half is a compromise. A filter that did not follow at all would leave high notes dull, and one that followed fully would make every note equally bright. Measured with Contour at 0, on keys an octave apart from the lesson's starting note upwards, <Claim id="cutoff-track">the cutoff stands at 648 Hz, 917 Hz and 1,297 Hz: 0.50 octaves for each octave of the key</Claim>.
+    Following the key by half is a compromise. A filter that did not follow at all would leave high notes dull, and one that followed fully would make every note equally bright. Measured with Contour at 0, on keys an octave apart from the lesson's starting note upwards, <Claim id="cutoff-track">the cutoff stands at 648.4 Hz, 917 Hz and 1,297 Hz: 0.50 octaves for each octave of the key</Claim>.
 
     The cutoff is never set <Src path="cpp/devices/ladder-bass/ladder_bass.h" at="static constexpr float kMaxCutoffHz = 18000.0f;">above 18 kHz</Src>, however far the contour would open it. The check below is how far the lab's cutoff lands from the coefficient the device's filter actually holds, at the worst moment of this render.
 
@@ -682,15 +680,15 @@ Everything up to and including the filter runs <Src path="cpp/devices/ladder-bas
   />
 
   <Fragment slot="after">
-    Measured on that second filter with Emphasis at 0, the contour off the filter, and Cutoff at the lesson's <Src path="site/labs/oscillators-and-subtractive-voice.cpp" at="lab::Control cutoff{">500 Hz</Src> on the key where Cutoff is the cutoff: <Claim id="ladder-slope">a tone at the cutoff comes out 12.0 dB down, a tone an octave above it 28.0 dB down, and between eight and sixteen times the cutoff the curve falls a further 24.0 dB</Claim>. That is four times the slope of one stage.
+    Measured on that second filter with Emphasis at 0, the contour off the filter, and Cutoff at the lesson's <Src path="site/labs/oscillators-and-subtractive-voice.cpp" at="lab::Control cutoff{">500 Hz</Src> on the key where Cutoff is the cutoff: <Claim id="ladder-slope">a tone at the cutoff comes out 12.04 dB down, a tone an octave above it 28.0 dB down, and between eight and sixteen times the cutoff the curve falls a further 24.0 dB</Claim>. That is four times the slope of one stage.
 
-    Emphasis is paid for. The feedback that raises the peak also takes level from everything below it, and nothing in the device gives that back. On the same key, <Claim id="ladder-emphasis">a tone at 40 Hz comes out 6.8 dB down with Emphasis at 0.3 and 13.2 dB down with Emphasis at 0.9, where the top of the peak stands 24 dB over that. The highest point of the drawn curve stands 3 dB short of the top</Claim>. The curve is <Src path="site/labs/oscillators-and-subtractive-voice.cpp" at="constexpr int kResponsePoints = 121;">121 points</Src> a semitone apart, and at this Emphasis the peak is narrower than a semitone, so the lab looks for the top between the points:
+    Emphasis is paid for: nothing in the device gives back the level that the feedback takes from everything below the peak. On the same key, <Claim id="ladder-emphasis">a tone at 40 Hz comes out 6.8 dB down with Emphasis at 0.3 and 13.2 dB down with Emphasis at 0.9, where the top of the peak stands 24 dB over that. The highest point of the drawn curve stands 3 dB short of the top</Claim>. The curve is <Src path="site/labs/oscillators-and-subtractive-voice.cpp" at="constexpr int kResponsePoints = 121;">121 points</Src> a semitone apart, and at this Emphasis the peak is narrower than a semitone, so the lab looks for the top between the points:
 
     <Check id="responseTop" />
 
     With Emphasis at the very top of its range the filter's ring outlasts the stretch the lab measures, and the curve's skirts lift: read that picture as a ring that does not die, not as levels.
 
-    Drive is gain into the tangent. With the filter wide open and Emphasis at 0, on a held note, <Claim id="drive-square">the second harmonic of the output goes from 7 dB under the first with Drive at 0 to more than 24 dB under it with Drive at 1, at every moment of the note</Claim>. A ramp pushed flat against a ceiling and a floor is on its way to a square, and a square has no even harmonics.
+    Drive is gain into the tangent. With the filter wide open and Emphasis at 0, on a held note, <Claim id="drive-square">the second harmonic of the output goes from between 6 and 8 dB under the first with Drive at 0 to more than 24 dB under it with Drive at 1, at every moment of the note</Claim>. A ramp pushed flat against a ceiling and a floor is on its way to a square, and a square has no even harmonics.
 
   </Fragment>
   <Fragment slot="listen">Hear the sound after the filter</Fragment>
@@ -725,7 +723,7 @@ Everything up to and including the filter runs <Src path="cpp/devices/ladder-bas
   />
 
   <Fragment slot="after">
-    Three small things stand in that last line. The steady offset is taken out by a high-pass <Src path="cpp/devices/ladder-bass/ladder_bass.h" at="static constexpr float kDcBlockHz = 2.0f;">at 2 Hz</Src>, far under any note. A key struck softly is quieter but never silent: <Src path="cpp/devices/ladder-bass/ladder_bass.h" at="keys_[held_].level = 0.35f + 0.65f * gain;">the softest strike still plays at about a third of the hardest</Src>. And the clip is the kit's <Src path="cpp/kit/math.h" at="inline float soft_clip(float x) {">`soft_clip`</Src>, there for safety. <Claim id="clip-idle">At the lesson's starting settings it does nothing: the largest sample of the output is 0.32, under the half of full scale at which the clip begins. Two cards of part 6, "Thicken it" and "Push the filter", go over that half, and no other card does</Claim>.
+    Three small things stand in that last line. The steady offset is taken out by a high-pass <Src path="cpp/devices/ladder-bass/ladder_bass.h" at="static constexpr float kDcBlockHz = 2.0f;">at 2 Hz</Src>, far under any note. A key struck softly is quieter but never silent: <Src path="cpp/devices/ladder-bass/ladder_bass.h" at="keys_[held_].level = 0.35f + 0.65f * gain;">the softest strike still plays at about a third of the hardest</Src>. And the clip is the kit's <Src path="cpp/kit/math.h" at="inline float soft_clip(float x) {">`soft_clip`</Src>, there for safety. <Claim id="clip-idle">At the lesson's starting settings it does nothing: the largest sample of the output is between 0.32 and 0.33, under the half of full scale at which the clip begins. Two cards of part 6, "Thicken it" and "Push the filter", go over that half, and no other card does</Claim>.
 
     When the contour reaches nothing the voice goes to sleep and the oscillators stop where they are. That is why the first lane ends in a level line.
 
@@ -754,7 +752,7 @@ The bass plays one note at a time. A chord needs the whole chain once for every 
 </Flow>
 
 <StageBlock tap="padEnv" n={7} title="An envelope with a slow rise and a level it holds">
-  Where the bass strikes, the pad rises. Its envelope is the kit's <Src path="cpp/kit/env.h" at="class Adsr {">`Adsr`</Src>, the four-part shape of <Lesson id="envelopes-and-lfos" />: it climbs for the attack time, sinks to a holding level, stays there while the key is down, and falls when the key comes up. The pad gives it two controls, not four. It sinks towards the holding level at the release's speed, a thousand times closer in every release time, which is how <Lesson id="envelopes-and-lfos" /> reads such a time. The holding level is fixed at <Src path="cpp/devices/dusk/dusk.h" at="static constexpr float kSustain = 0.7f;">0.7</Src>.
+  Where the bass strikes, the pad rises. Its envelope is the kit's <Src path="cpp/kit/env.h" at="class Adsr {">`Adsr`</Src>, the four-part shape of <Lesson id="envelopes-and-lfos" />: it climbs for the attack time, sinks to a holding level, stays there while the key is down, and falls when the key comes up. The pad gives it two controls, not four. It sinks towards the holding level at the release's speed, a thousand times closer in every release time, which is how that lesson reads such a time. The holding level is fixed at <Src path="cpp/devices/dusk/dusk.h" at="static constexpr float kSustain = 0.7f;">0.7</Src>.
 
   <Controls ids="padAttack padRelease hold" />
 
@@ -944,7 +942,7 @@ The chain is simple, and most of what goes wrong in it is one piece doing exactl
       caption="The kit's square wave around the moment the key goes down. It goes from nothing to its full height within one sample."
     />
 
-    An oscillator with no contour starts at full size and stops wherever it happens to be. Each of those is a jump. Listen for a tick on top of the note at its start and at its end. The cure is any shape at all on the level: even the bass's strike takes a couple of thousandths of a second to arrive, and it starts from wherever the contour stands, so a note struck over a dying one does not jump either.
+    An oscillator with no contour starts at full size and stops wherever it happens to be. Each of those is a jump. Listen for a tick on top of the note at its start and at its end. The cure is any shape at all on the level: even the bass's strike takes a couple of thousandths of a second to arrive, and stage 3 of part 5 says why a note struck over a dying one does not jump either.
 
   </Fault>
   <Fault title="The note that never opens" set="choked">
@@ -982,7 +980,7 @@ The chain is simple, and most of what goes wrong in it is one piece doing exactl
       caption="What the filter passes, with Emphasis high. The peak stands up at the cutoff, and everything to the left of it has sunk well under the level it came in at."
     />
 
-    A tall peak is paid for with the level of everything under it, and under it is where a bass note lives. On this card, against the same note with Emphasis at 0, <Claim id="fault-thin">the first harmonic of the output is 13 dB lower</Claim>. Lower Emphasis, or push into the filter with Drive, or put the bottom back with Sub.
+    What Emphasis takes is the level of everything under the peak, as stage 5 of part 5 measured, and under the peak is where a bass note lives. On this card, against the same note with Emphasis at 0, <Claim id="fault-thin">the first harmonic of the output is 13 dB lower</Claim>. Lower Emphasis, or push into the filter with Drive, or put the bottom back with Sub.
 
   </Fault>
   <Fault title="Halfway between the two waves" set="octave">
@@ -1019,7 +1017,7 @@ The chain is simple, and most of what goes wrong in it is one piece doing exactl
     Only while they are in step, and two oscillators that are tuned apart are in step for a moment at a time. The second step of the build shows the level swelling and emptying as they pass each other. What a second oscillator adds is movement.
   </Myth>
   <Myth says="More resonance makes a bigger sound.">
-    It makes a peak, and it takes level from everything under the peak to do it. Stage 5 measured the loss, and the fourth fault of part 7 is what it does to a low note. This filter gives nothing back for it.
+    It makes a peak, and stage 5 of part 5 measured what the peak costs: the level of everything under it. The fourth fault of part 7 is what that does to a low note.
   </Myth>
   <Myth says="A voice needs one envelope for the filter and another for the level.">
     Many synthesisers have two. Neither instrument on this page does. The bass's one contour and the pad's one envelope each move the cutoff and the level together, as the last step of the build and the two signal-flow pictures of part 5 show. One shape is enough for a note that is brightest when it is loudest.

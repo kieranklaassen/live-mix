@@ -145,7 +145,7 @@ Check this against the picture. Leave the controls where the lesson starts them:
 
 Those four numbers are a ladder with the carrier in the middle. The modulator turns three and a half times as fast as the carrier, and the new lines stand a whole number of modulators above the carrier and below it. One modulator up is 4.5 times the note, and two up is 8. One modulator down is 2.5 times the note below zero. A frequency below zero is not lost: it is the same sine running backwards, and it shows in the spectrum at the same distance above zero. So the lower rungs come back up, at 2.5 and at 6, and stand between the upper ones. With the note at 468.75 Hz, and the Ratio at 1, at 2 and at 3.5, every line of the held tone stands <Claim id="sidebands-where">within one bin of the measure, 11.7 Hz</Claim>, of such a rung.
 
-The new lines are called **side bands**. The ratio spaces them. Set Ratio to 2 and every rung, going up or coming back, lands on an odd multiple of the note. Set it to 1 and they land on every multiple, which is the pattern of a plucked string (<Lesson id="plucked-string" />) or a voice. At 3.5 half of them fall between the note's harmonics, and the tone has the uneven overtones of struck metal.
+The new lines are called **side bands**. The ratio spaces them. Set Ratio to 2 and every rung, going up or coming back, lands on an odd multiple of the note, where a square wave has its harmonics. Set it to 1 and they land on every multiple, where a saw wave has its own (<Lesson id="oscillators-and-subtractive-voice" />). At 3.5 half of them fall between the note's harmonics, and the tone has the uneven overtones of struck metal.
 
 The index fills the ladder. Take Index to 0 and one line is left: the held tone is then one sine, with every other line <Claim id="one-sine">more than 125 dB under it</Claim> on the note at 468.75 Hz, which is as far down as the measure reaches. Raise it and the lines come in from the carrier outwards. They do not simply grow. Each one rises, falls back to nothing and rises again, as the carrier's own line did in part 1.
 
@@ -230,7 +230,7 @@ The first five steps hold their tone steady, so that a spectrum of it stands sti
 
 <Build>
   <Step title="A carrier" controls="pitch">
-    One operator, alone. Its phase is a number from 0 to 1 that counts cycles. Every sample it steps on by the note's frequency over the sample rate, and when it passes 1 it wraps. The sound is the sine of the phase, read from the kit's table of <Src path="cpp/kit/math.h" at="static constexpr int kSize = 4096;">4,096 steps</Src> round the circle.
+    One operator, alone. Its phase is a number from 0 to 1 that counts cycles. Every sample it steps on by the note's frequency over the sample rate, and when it passes 1 it wraps. The sound is the sine of the phase, read from the kit's table of one cycle of a sine.
 
     Press "Hear it so far". It is one plain tone.
 
@@ -311,7 +311,7 @@ The first five steps hold their tone steady, so that a spectrum of it stands sti
   <Step title="The ratio" controls="pitch index ratio">
     So far the modulator turns in step with the carrier, and every line falls on a harmonic of the note. The ratio gives the modulator a step of its own: the note's step times the Ratio. The lab starts Ratio at 3.5, and the lines move to the places part 2 counted.
 
-    With the note on 468.75 Hz and Index at 2, the strongest line of the step before was the one at twice the note. It now stands <Claim id="build-ratio">more than 120 dB under the strongest</Claim>: nothing is left there at all.
+    With the note on 468.75 Hz and Index at 2, the strongest line of the step before was the one at twice the note. It now stands <Claim id="build-ratio">more than 120 dB under the strongest</Claim>: that line has gone.
 
     <Listing
       path="site/labs/frequency-modulation.cpp"
@@ -428,6 +428,15 @@ The first five steps hold their tone steady, so that a spectrum of it stands sti
       name="feedback"
     />
 
+    <Still
+      slot="picture"
+      taps="builtModulator"
+      values={{ build: 6, feedback: 1 }}
+      from={0.002}
+      span={0.006}
+      caption="Six milliseconds of the built modulator at the strike, with Feedback at 1. Each cycle leans to one side: its rise and its fall no longer take the same time."
+    />
+
     <Lanes slot="picture" taps="builtModulator built" from={0.002} span={0.006}>
       Six milliseconds at the strike: the modulator, and the sound so far. Try Feedback at 1, and
       notice each cycle of the modulator lean to one side.
@@ -442,7 +451,7 @@ The first five steps hold their tone steady, so that a spectrum of it stands sti
   <Step title="A second pair" controls="pitch index ratio decay attack sustain feedback detune spread">
     So far a note is one carrier and one modulator: one pair of operators. The device gives every note two such pairs, and voices the second apart from the first: a smaller index that dies sooner. Spread leans the first pair of operators to the left and the second to the right, and Detune tunes one a little flat and the other a little sharp, so that the two beat against each other.
 
-    The lab starts Spread at 1, which puts each pair of operators alone on its own side. In the first 85 ms, at the settings the page opens on, the first pair of side bands on the right stands <Claim id="build-second">11 and 12 dB under the carrier, where on the left it stands 4 and 5 dB under</Claim>. At the step before the right channel was the left.
+    The lab starts Spread at 1, which puts each pair of operators alone on its own side. In the first 85 ms, at the settings the page opens on, the first pair of side bands on the right stands <Claim id="build-second">between 11 and 13 dB under the carrier, where on the left it stands 4 and 5 dB under</Claim>. At the step before the right channel was the left.
 
     <Listing
       path="site/labs/frequency-modulation.cpp"
@@ -474,7 +483,7 @@ The first five steps hold their tone steady, so that a spectrum of it stands sti
 
     <Check id="builtDifference" />
 
-    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows when there is no difference at all. At each of the settings the lab's test tries, the build and the device are <Claim id="built-exact">the same, sample for sample, on both channels</Claim>.
+    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which says only that the difference lies more than 140 dB under the output. So the lab's test compares the samples themselves: at each of the settings it tries, the build and the device are <Claim id="built-exact">the same, sample for sample, on both channels</Claim>.
 
     The build is handed three things by the device and does not work them out: each note's steps, its index and how much of the Feedback it is given, which part 5 opens; its four envelopes, as the device set them; and the moment the device goes to sleep after a note has died.
 
@@ -495,20 +504,20 @@ Here is how the lab puts the pieces in order, for one sample.
   name="run"
 />
 
-That is a whole instrument in a handful of small functions. The one in the engine has the same pieces in the same order, written as one function for a voice. Around them it has what the build was handed: the sums that turn a key and a few controls into steps, an index and envelope times, and the rule that keeps the ladder of lines from running off the top of the band. The next part opens it.
+That is a whole instrument in a handful of small functions. The one in the engine has the same pieces in the same order, written as one function for a voice, and around them the sums that make what the build was handed.
 
 </Part>
 
 <Part id="engine" title="The engine's own instrument, opened up.">
 
-From here on it is the device itself. The page runs the engine's C++, compiled for the browser, strikes one key every two seconds, and reads each figure out of the running code at the point the text is talking about. The device is called Glass. Each of its notes has four operators, and in the arrangement it starts on, which it calls Bell, they are wired as two pairs of a modulator and a carrier.
+From here on it is the device itself, Glass, and each figure is read out of the running code at the point the text is talking about. In the arrangement the device starts on, which it calls Bell, the four operators of a note are wired as two pairs of a modulator and a carrier.
 
 The lesson starts the device where the technique shows plainly. Detune is at 0 and Spread at 1, so the left channel is the first pair alone, at the note's own pitch. Feedback is at 0. Velocity is at 0, so every key comes out at full level and full index. Everything below is that first pair until stage 6, where the second comes back.
 
 Under its title each stage says where its figure comes from. The envelopes are read from the running device. The index is worked out from four numbers read from it: Brightness as smoothed, the note's own index, its cap, and the modulator's envelope. The device combines them inside one expression and keeps no result. The carrier's sine and its product with the envelope are worked out inside one function of the device and not kept, so the lab works them out again from the device's own phases with the device's own expression, and stage 7 has the check that holds the result to the device's output. The held tone of parts 1 and 2 is the same two table sines run through the device's own operator functions, with no envelope.
 
 <Flow
-  label="The carrier's phase counts along the middle row. The modulator, on the row under it, is multiplied by the index and added to that phase. The sum is looked up in the sine table and multiplied by the carrier's envelope, which comes in from the row above. The second pair is added beside it, and the result passes a gain and two guards to the output."
+  label="The carrier's phase counts along the middle row. The modulator, on the row under it, is multiplied by the index and added to that phase. The sum is looked up in the sine table and multiplied by the carrier's envelope, which comes in from a row of its own. The second pair is added beside it, and the result passes a gain and two guards to the output."
   blocks={[
     { id: 'phase', tap: 'carrier', label: "Carrier's phase", n: 1 },
     { id: 'mod', row: 1, tap: 'modulator', label: 'Modulator', n: 2 },
@@ -528,7 +537,7 @@ Under its title each stage says where its figure comes from. The envelopes are r
 </Flow>
 
 <StageBlock tap="carrier" n={1} title="An operator is a counter and a table">
-  Every operator is the same small machine. Its phase is a number from 0 to 1 that says how far through its cycle the sine is. On each sample the phase steps on by the operator's frequency over the sample rate, and wraps when it passes 1.
+  Every operator is the same small machine: the counter and the table of the build's first step.
 
   <Controls ids="pitch ratio" />
 
@@ -571,7 +580,7 @@ Under its title each stage says where its figure comes from. The envelopes are r
 <StageBlock tap="modulator" n={2} title="The modulator, and what Feedback does to it">
   The modulator is an operator like the carrier, at its own frequency and with an envelope of its own. Its output never goes to the output of the device. The button under this stage plays it anyway, so that you can hear what is doing the pushing.
 
-  With Feedback at 0 it is the table's sine. Feedback lets the modulator push its own phase before the carrier's. A sine that pushes itself leans over towards a sawtooth and grows harmonics, and each of those harmonics then makes side bands of its own on the carrier.
+  With Feedback at 0 it is the table's sine. Feedback lets it push its own phase before the carrier's, as step 7 of the build did, and each harmonic it grows that way then makes side bands of its own on the carrier.
 
   <Controls ids="feedback" />
 
@@ -640,7 +649,7 @@ Under its title each stage says where its figure comes from. The envelopes are r
 
   The first listing divides by <M t={String.raw`2\pi`} /> because the table counts in cycles. Its second line is Velocity, which this lesson holds at 0. The index is also <Src path="cpp/devices/fm-glass/fm_glass.h" at="const float index_a = kit::min(brightness * voice.index[0], voice.cap[0]);">held under a cap</Src> that keeps the side bands inside the band, and part 7 opens that.
 
-  From the strike on, the index is that number times the modulator's envelope. The envelope jumps to 1 and then decays: on every sample it closes a fixed share of the distance to the level it will settle on.
+  From the strike on, the index is that number times the modulator's envelope, the kit's envelope of four parts that <Lesson id="envelopes-and-lfos" /> builds. It jumps to 1 and then decays: on every sample it closes a fixed share of the distance to the level it will settle on.
 
   <M block t={String.raw`\sig{ctl}{v[n]} = h + \at{decay-step}{\bigl(\sig{ctl}{v[n-1]} - h\bigr)\,d}`} />
 
@@ -709,7 +718,7 @@ Under its title each stage says where its figure comes from. The envelopes are r
     caption="The spectrum of a held pair as the index rises: frequency up, the index across, the carrier in the middle. At the left there is one line. As the index grows the lines fan out above and below it, a modulator apart, and inside the fan each line fades out and comes back."
   />
 
-  That fan is this lesson in one picture. Its width is the brightness. The gaps along its rows are lines that have gone, and the first gap in the middle row is the answer to the question of part 1.
+  That fan is this lesson in one picture. Its width is the brightness, and the gaps along its rows are lines that have gone.
 
   Multiplying one sine by another gives exactly one pair of new lines, a modulator above the carrier and a modulator below (<Lesson id="tremolo-and-ring-modulation" />). Pushing its phase gives that pair, then a second pair two modulators out, then a third, without end.
 
@@ -748,7 +757,7 @@ Under its title each stage says where its figure comes from. The envelopes are r
 
   ### Lines that come back from below zero
 
-  The lower rungs of the ladder run out of room. With the note at 468.75 Hz and a Ratio of 3.5, the first lower side band belongs two and a half notes below zero. A sine at a frequency below zero is the same sine running backwards, which is the same sine upside down, so it comes back up and stands two and a half notes above zero. With Index at 1 that reflected line reads <Claim id="reflected-level">7.1 dB under the bare carrier</Claim>, and so does the upper one.
+  The lower rungs of the ladder run out of room, and part 2 counted them coming back up. With the note at 468.75 Hz and a Ratio of 3.5, the first lower side band belongs two and a half notes below zero and stands two and a half notes above it. A sine running backwards is the same sine upside down, so the line comes back with its sign changed and its size kept. With Index at 1 that reflected line reads <Claim id="reflected-level">7.1 dB under the bare carrier</Claim>, and so does the upper one.
 
   A reflected line that lands on another line adds to it or takes from it, by its sign. At a Ratio of 2 the first lower side band comes back exactly onto the carrier. With Index at 1 the line at the note then reads <Claim id="ratio-two">1.6 dB over</Claim> the bare carrier: more than the carrier had with nothing pushing it.
 
@@ -764,7 +773,7 @@ Under its title each stage says where its figure comes from. The envelopes are r
 
   <Check id="asFrequency" />
 
-  At the settings the page opens on, over a tenth of a second, the two tones differ by a part that is <Claim id="as-frequency">64 dB under</Claim> either of them. What is left is the error of adding the frequency up one sample at a time.
+  At the settings the page opens on, over a tenth of a second, the two tones differ by a part that is <Claim id="as-frequency">between 64 and 65 dB under</Claim> either of them. What is left is the error of adding the frequency up one sample at a time.
 
   That is the one real difference between the two. A machine that swings the frequency adds the modulator to the carrier's step, and the phase is then the running sum of every step so far. An error in one step stays in the sum, and a modulator that does not average zero leaves the note out of tune. A machine that pushes the phase adds the modulator after the counting is done. Nothing is summed, so nothing can drift: the moment the modulator is silent the carrier is exactly back on its own phase. The device is of the second kind, and the technique has kept the name of the first.
 
@@ -832,7 +841,7 @@ Under its title each stage says where its figure comes from. The envelopes are r
 
   <M block t={String.raw`f_{\text{beat}} = f\,\bigl(2^{\,c/2400} - 2^{-c/2400}\bigr)`} />
 
-  <M t="c" /> is Detune in cents, hundredths of a semitone, and <M t={String.raw`f_{\text{beat}}`} /> is how many times a second the two pairs come round against each other. It grows with the note, so a chord's high notes beat faster than its low ones. Spread then leans the first pair to the left and the second to the right. At a Spread of 1 each side holds one pair and neither side beats: the difference is left to the two ears. Listen for it as movement between the speakers.
+  <M t="c" /> is Detune in cents, hundredths of a semitone, and <M t={String.raw`f_{\text{beat}}`} /> is how many times a second the two pairs come round against each other. It grows with the note, so a chord's high notes beat faster than its low ones. Spread then leans the first pair to the left and the second to the right. At a Spread of 1 each side holds one pair and neither side beats: the difference is left to the two ears, which is the subject of <Lesson id="binaural-beats" />. Listen for it as movement between the speakers.
 
   <Fragment slot="listen">Hear the second pair alone</Fragment>
 </StageBlock>
@@ -988,10 +997,10 @@ At 220 Hz, a Ratio of 14 and an Index of 8, the device grants <Claim id="cap-gra
 
 <Faults>
   <Fault title="High notes go dull" set="high">
-    The cure has a price. The higher the note, the less room there is above it, and the less index it is given. With Index at 8 this card's note is granted <Claim id="fault-high">0.47 rad</Claim>. At 880 Hz and a Ratio of 3.5 the most the device grants is <Claim id="key-scale">2.64 rad</Claim>. A modulator that would itself stand above the limit is not run at all: at 1,760 Hz and a Ratio of 14 the note is <Claim id="modulator-silent">one sine</Claim>. If a high part must be bright, choose a lower ratio.
+    The cure has a price. The higher the note, the less room there is above it, and the less index it is given. With Index at 8 this card's note is granted <Claim id="fault-high">between 0.47 and 0.48 rad</Claim>. At 880 Hz and a Ratio of 3.5 the most the device grants is <Claim id="key-scale">2.64 rad</Claim>. A modulator that would itself stand above the limit is not run at all: at 1,760 Hz and a Ratio of 14 the note is <Claim id="modulator-silent">one sine</Claim>. If a high part must be bright, choose a lower ratio.
   </Fault>
   <Fault title="A note with nothing at its own pitch" set="hollow">
-    Near an Index of 2.4 the carrier's line is gone, and at a ratio that is not whole nothing else stands at the note. Held on a note at 468.75 Hz, the first pair of this card's tone, at 2.5 and 4.5 times the note, stands <Claim id="fault-hollow">5.7 dB under the bare carrier</Claim>, and that is where the tone now is. Listen for whether the note still sits at its pitch. If it has gone thin, move the index off 2.4 in either direction.
+    This is the missing line of part 1, at a ratio that is not whole, so nothing else stands at the note either. Held on a note at 468.75 Hz, the first pair of this card's tone, at 2.5 and 4.5 times the note, stands <Claim id="fault-hollow">5.7 dB under the bare carrier</Claim>, and that is where the tone now is. Listen for whether the note still sits at its pitch. If it has gone thin, move the index off 2.4 in either direction.
   </Fault>
   <Fault title="Too much index" set="harsh">
     More index is not more of a good thing. At an index of 8 the fan of stage 4 is wide open and no line leads. On the measured curves the carrier's line is then <Claim id="fault-harsh">15.3 dB under the bare carrier, and the third pair, at 10.7 dB under, is the strongest of the first four</Claim>. Listen for the note losing its pitch in the strike. Lower Index until the strike has a centre again, or shorten Decay so that the wide moment is over quickly.
@@ -1016,7 +1025,7 @@ At 220 Hz, a Ratio of 14 and an Index of 8, the device grants <Claim id="cap-gra
     The modulator pushes the carrier's phase forward and back by the same amount, so over any whole cycle of the modulator the carrier has turned exactly as far as it would have alone. The device moves the phase, and the frequency swings only as a consequence. Stage 4 makes the tone both ways and measures how far apart they land.
   </Myth>
   <Myth says="More index is the same tone, only brighter.">
-    Each line rises, falls to nothing and comes back as the index grows, the carrier's included. The curves of stage 4 show where each one goes, and the answer to the question of part 1 is the first of those places.
+    Each line rises, falls to nothing and comes back as the index grows, the carrier's included. The curves of stage 4 show where each one goes.
   </Myth>
   <Myth says="The brightness dies because a filter closes.">
     There is no filter in the instrument apart from the guard of stage 7, which sits below any note. A voice whose brightness does die that way is another lesson's (<Lesson id="oscillators-and-subtractive-voice" />). The index falls, and the side bands give their power back to the carrier. Stage 5 has the measurement, and the picture of stage 4 shows the same thing from right to left.
@@ -1025,7 +1034,7 @@ At 220 Hz, a Ratio of 14 and an Index of 8, the device grants <Claim id="cap-gra
     The pushed sine has the height it had. Part 1 measured the held tone's level as the Index went from 0 to 8, and it stayed <Claim id="power-same">less than 0.01 dB</Claim> from where it started. Whether a tone with more lines seems louder is for your ear, and the meter does not move.
   </Myth>
   <Myth says="The modulator is one of the sounds in the note.">
-    It never reaches the output. In the picture at the top of part 5 its row ends at the adder in front of the sine table. Only the lab lets you hear it, at stage 2.
+    It never reaches the output. In the picture at the top of part 5 its row ends at the adder that feeds the sine table. Only the lab lets you hear it, at stage 2.
   </Myth>
   <Myth says="A ratio between two on the list would give a tone in between.">
     Moving the ratio moves every line at once, each by a different distance. Between two whole ratios the lines stand on no harmonic of anything, so the tone on the way is a clang and not a blend. That is why the device's Ratio is a list of twelve fixed values and not a continuous range, and why a sounding note keeps the one it was struck with.

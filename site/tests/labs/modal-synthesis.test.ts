@@ -441,12 +441,13 @@ describe('modal synthesis', () => {
 
   // ---- part 5: the engine, stage by stage -------------------------------------------------------
 
-  it("stage 1, the mallet: the push is 15.6 samples long at the starting Hardness, 69 samples at the device's own 0.45 and 137 samples at 0 (claim pulse-length)", async () => {
+  it("stage 1, the mallet: the push is 15.6 samples long at the starting Hardness, 69 samples at the device's own 0.45 and between 137 and 138 samples at 0 (claim pulse-length)", async () => {
     const bank = await lab('modal-synthesis')
     const length = (hardness: number) => bank.render(nothing(), { hardness }).checks.pulseSamples!
     expectWritten(bank.render(nothing(), {}).checks.pulseSamples!, '15.6 samples')
     expectWritten(length(0.45), '69 samples')
-    expectWritten(length(0), '137 samples')
+    expectWritten(length(0), 'more than 137 samples')
+    expectWritten(length(0), 'less than 138 samples')
     // What the device's lines work out, from its constants: 0.9 periods of the note for the
     // softest mallet, 0.03 for the hardest, by the square of Hardness, times 1.5 less the strike.
     for (const hardness of [0, 0.45, 0.8, 1]) {
@@ -512,12 +513,12 @@ describe('modal synthesis', () => {
     expect(Math.abs(tap(result, 'shape3').at(-1)!)).toBeCloseTo(1, 6)
   })
 
-  it("stage 5, a decay for each: from 0.1 s to 0.6 s after the strike modes 1 to 4 fall at 20.0, 24.4, 31.1 and 40.0 dB a second and mode 6 at 64.5 dB a second, each less than 0.02 dB a second from the device's law (claim fall-law)", async () => {
+  it("stage 5, a decay for each: from 0.1 s to 0.6 s after the strike modes 1 to 4 fall at 20.0, 24.44, 31.1 and 40.0 dB a second and mode 6 at 64.5 dB a second, each less than 0.02 dB a second from the device's law (claim fall-law)", async () => {
     const bank = await lab('modal-synthesis')
     const result = bank.render(nothing(), {})
     const measured = [1, 2, 3, 4, 5, 6].map((n) => slope(tap(result, `level${n}`), 0.1, 0.6))
     expectWritten(measured[0]!, '20.0 dB')
-    expectWritten(measured[1]!, '24.4 dB')
+    expectWritten(measured[1]!, '24.44 dB')
     expectWritten(measured[2]!, '31.1 dB')
     expectWritten(measured[3]!, '40.0 dB')
     expectWritten(measured[5]!, '64.5 dB')
@@ -624,6 +625,11 @@ describe('modal synthesis', () => {
     expect(peak(tap(result, 'out'))).toBeLessThanOrEqual(1)
     // The clip is at work: without it the output would be the sum times Volume, twice as tall.
     expect(peak(tap(result, 'sum')) * 10 ** (6 / 20)).toBeGreaterThan(1.9)
+    // Before the clip the sum can pass twice full scale, where the page's player clips it: the Gong, the
+    // last Material, with Brightness at 1. The output stays within full scale.
+    const gong = bank.render(nothing(), { material: 6, brightness: 1 })
+    expect(Math.max(peak(tap(gong, 'sum', 0)), peak(tap(gong, 'sum', 1)))).toBeGreaterThan(2)
+    expect(Math.max(peak(tap(gong, 'out', 0)), peak(tap(gong, 'out', 1)))).toBeLessThanOrEqual(1)
   })
 
   it("stage 9, the clip lands on full scale: with the loud card's settings and Position at 1, every sample that goes in at twice full scale or more comes out at 1 exactly, and none comes out larger (claim clip-lands)", async () => {

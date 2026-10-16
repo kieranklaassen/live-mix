@@ -442,21 +442,25 @@ describe('frequency modulation', () => {
     expect(second(STEP.level)).toBeGreaterThan(100)
   })
 
-  it('voices the right channel duller: its first pair 11 and 12 dB under the carrier at the strike, where the left has 4 and 5 dB (claim build-second)', async () => {
+  it('voices the right channel duller: its first pair between 11 and 13 dB under the carrier at the strike, where the left has 4 and 5 dB (claim build-second)', async () => {
     const fm = await lab('frequency-modulation')
     fm.render(nothing, { build: STEP.second })
     const left = pairUnder(atTheStrike(fm, 'built', 0))
     const right = pairUnder(atTheStrike(fm, 'built', 1))
-    expectWritten(right.lower, '11 dB')
-    expectWritten(right.upper, '12 dB')
+    // 11.27 and 12.45 dB: the second stands on the edge between "12 dB" and "13 dB", so the
+    // sentence gives the two bounds both lines lie between.
+    for (const line of [right.lower, right.upper]) {
+      expectWritten(line, 'more than 11 dB')
+      expectWritten(line, 'less than 13 dB')
+    }
     expectWritten(left.lower, '4 dB')
     expectWritten(left.upper, '5 dB')
     // The piece switched off: at the step before the right channel is the left.
     const before = fm.render(nothing, { build: STEP.feedback })
     expect(sameSamples(tap(before, 'built', 0), tap(before, 'built', 1))).toBe(true)
     const alike = pairUnder(atTheStrike(fm, 'built', 1))
-    expect(matchesWritten(alike.lower, '11 dB')).toBe(false)
-    expect(matchesWritten(alike.upper, '12 dB')).toBe(false)
+    expect(matchesWritten(alike.lower, 'more than 11 dB')).toBe(false)
+    expect(matchesWritten(alike.upper, 'more than 11 dB')).toBe(false)
   })
 
   it('takes the standing part of a held note from 36 dB under the note to more than 120 dB under it (claim build-guard)', async () => {
@@ -528,9 +532,11 @@ describe('frequency modulation', () => {
     expectWritten(fallTime(tap(result, 'ampEnv'), 0.001), '1.7 s')
   })
 
-  it('leaves the difference between a sine whose frequency is swung and the sine whose phase is pushed 64 dB under that sine (claim as-frequency)', async () => {
+  it('leaves the difference between a sine whose frequency is swung and the sine whose phase is pushed between 64 and 65 dB under that sine (claim as-frequency)', async () => {
     const fm = await lab('frequency-modulation')
-    expectWritten(-fm.render(nothing, {}).checks.asFrequency!, '64 dB')
+    const under = -fm.render(nothing, {}).checks.asFrequency!
+    expectWritten(under, 'more than 64 dB')
+    expectWritten(under, 'less than 65 dB')
   })
 
   it('reads the carrier 2.3 dB and the first pair 7.1 dB under the bare carrier at an Index of 1 (claim bessel-one)', async () => {
@@ -768,9 +774,11 @@ describe('frequency modulation', () => {
     expect(scaled).toBeCloseTo(8 * Math.sqrt(261.63 / 880), 2)
   })
 
-  it('grants the high note 0.47 rad of the 8 asked (claim fault-high)', async () => {
+  it('grants the high note between 0.47 and 0.48 rad of the 8 asked (claim fault-high)', async () => {
     const fm = await lab('frequency-modulation')
-    expectWritten(played(fm, 'high').checks.granted!, '0.47 rad')
+    const granted = played(fm, 'high').checks.granted!
+    expectWritten(granted, 'more than 0.47 rad')
+    expectWritten(granted, 'less than 0.48 rad')
   })
 
   it('does not run a modulator that would sit above the limit: at 1,760 Hz and a Ratio of 14 the note is one sine (claim modulator-silent)', async () => {

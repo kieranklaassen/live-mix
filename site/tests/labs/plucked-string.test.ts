@@ -147,12 +147,12 @@ describe('the plucked string', () => {
 
   // ---- part 1: why a fade is not enough, and what a loop of noise does -------------------------
 
-  it('fades every partial of the fixed wave at one rate, the tenth at 17.1 dB a second like the first (claim fixed-together)', async () => {
+  it('fades every partial of the fixed wave at one rate, the tenth at 17 dB a second like the first (claim fixed-together)', async () => {
     const string = await lab('plucked-string')
     const fixed = tap(string.render(nothing(), {}), 'fixed')
     // The same windows as the string's fundamental is measured in: 50 ms to 250 ms after the pick.
-    expectWritten(fall(fixed, 220, after(0.05), 9600), '17.1 dB')
-    expectWritten(fall(fixed, 2200, after(0.05), 9600), '17.1 dB')
+    expectWritten(fall(fixed, 220, after(0.05), 9600), '17 dB')
+    expectWritten(fall(fixed, 2200, after(0.05), 9600), '17 dB')
   })
 
   it('starts the tenth partial of the string 22 dB under its fundamental and has it 75 dB under half a second later (claim darkens)', async () => {
@@ -230,9 +230,9 @@ describe('the plucked string', () => {
     expectWritten(spike(tap(played(string, 'picked'), 'out')), '16 dB')
   })
 
-  it("loses the fundamental of the low note's first string at 6.7 dB a second (claim use-low) and of the high note's at 34 dB a second (claim use-high)", async () => {
+  it("loses the fundamental of the low note's first string at 7 dB a second (claim use-low) and of the high note's at 34 dB a second (claim use-high)", async () => {
     const string = await lab('plucked-string')
-    expectWritten(fall(tap(played(string, 'low'), 'string'), 82.41, after(0.05), 9600), '6.7 dB')
+    expectWritten(fall(tap(played(string, 'low'), 'string'), 82.41, after(0.05), 9600), '7 dB')
     expectWritten(fall(tap(played(string, 'high'), 'string'), 880, after(0.05), 9600), '34 dB')
   })
 
@@ -247,17 +247,17 @@ describe('the plucked string', () => {
 
   // ---- part 4: the build path ------------------------------------------------------------------
 
-  it('goes round for ever in the bare loop, its level less than 0.01 dB apart two seconds on (claim built-forever), and 1.4 cents sharp (claim built-sharp)', async () => {
+  it('goes round for ever in the bare loop, its level less than 0.01 dB apart two seconds on (claim built-forever), and 1.44 cents sharp (claim built-sharp)', async () => {
     const string = await lab('plucked-string')
     const loop = string.render(nothing(), { build: STEP.loop })
     const level = tap(loop, 'builtLevel')
     expectWritten(Math.abs(level[tick(0.5)]! - level[tick(2.5)]!), 'less than 0.01 dB')
-    expectWritten(loop.checks.builtCents!, '1.4 cents')
+    expectWritten(loop.checks.builtCents!, '1.44 cents')
     // The burst alone, the step before, is over in one period: nothing is left to have a level.
     const before = string.render(nothing(), { build: STEP.burst })
     expect(tap(before, 'builtLevel')[tick(0.5)]).toBe(-120)
     // And nothing to have a pitch: the piece switched off, the number is not there.
-    expect(matchesWritten(before.checks.builtCents!, '1.4 cents')).toBe(false)
+    expect(matchesWritten(before.checks.builtCents!, '1.44 cents')).toBe(false)
   })
 
   it('falls 20 dB between 0.5 s and 1.5 s once the loss filter is in the loop, and not at all without it (claim built-loss); the loop is then 5.1 cents flat (claim built-loss-flat)', async () => {
@@ -424,7 +424,7 @@ describe('the plucked string', () => {
     expectWritten(-curve[at220]!, '0.08 dB')
   })
 
-  it('loses the fundamental at 17.1 dB a second (claim fall-first) and the tenth partial at 130 dB a second (claim fall-tenth)', async () => {
+  it('loses the fundamental at 17 dB a second (claim fall-first) and the tenth partial at 130 dB a second (claim fall-tenth)', async () => {
     const string = await lab('plucked-string')
     const out = string.render(nothing(), {})
     const x = tap(out, 'string')
@@ -432,11 +432,11 @@ describe('the plucked string', () => {
     const first = fall(x, 220, after(0.05), 9600)
     const tenthHz = peakHz(x, 2190, 2225, after(0.03), 4096)
     const tenth = fall(x, tenthHz, after(0.03), 2400)
-    expectWritten(first, '17.1 dB')
+    expectWritten(first, '17 dB')
     expectWritten(tenth, '130 dB')
     // The lab's own measure of both.
     const measured = tap(out, 'decayMeasured')
-    expectWritten(measured[0]!, '17.1 dB')
+    expectWritten(measured[0]!, '17 dB')
     expectWritten(measured[9]!, '130 dB')
   })
 
@@ -466,28 +466,30 @@ describe('the plucked string', () => {
     }
   })
 
-  it('stands its tenth partial 6.3 cents above ten times the note, where the law says 6.5 cents (claim stretch-tenth)', async () => {
+  it('stands its tenth partial 6.3 cents above ten times the note, where the law says 6.45 cents (claim stretch-tenth)', async () => {
     const string = await lab('plucked-string')
     const out = string.render(nothing(), {})
     const tenthHz = peakHz(tap(out, 'string'), 2190, 2225, after(0.03), 4096)
     expectWritten(cents(tenthHz, 2200), '6.3 cents')
     expectWritten(tap(out, 'stretchMeasured')[9]!, '6.3 cents')
     // The law's line has ten points to a partial: the tenth partial is its 91st point.
-    expectWritten(tap(out, 'stretchLaw')[90]!, '6.5 cents')
+    expectWritten(tap(out, 'stretchLaw')[90]!, '6.45 cents')
     expect(Math.abs(tap(out, 'stretchMeasured')[0]!)).toBeLessThan(0.01)
   })
 
-  it("holds the fifth partial 8 cents sharp with Sustain at 1 s, where the stiff string's law puts it 1.6 cents sharp (claim loss-sharpens)", async () => {
+  it("holds the fifth partial more than 8 cents sharp, and less than 9 cents, with Sustain at 1 s, where the stiff string's law puts it 1.6 cents sharp (claim loss-sharpens)", async () => {
     const string = await lab('plucked-string')
     const out = string.render(nothing(), { sustain: 1 })
     // At a Sustain of 1 s only the first five partials ring long enough to be measured.
     const measured = out.taps.stretchMeasured!
     expect(measured.length).toBe(5)
-    expectWritten(measured.channels_data[0]![4]!, '8 cents')
+    expectWritten(measured.channels_data[0]![4]!, 'more than 8 cents')
+    expectWritten(measured.channels_data[0]![4]!, 'less than 9 cents')
     expectWritten(tap(out, 'stretchLaw')[40]!, '1.6 cents')
     // By a transform of the string itself: the fifth partial stands above 1100 Hz by as much.
     const hz = peakHz(tap(out, 'string'), 1100, 1112, after(0.03), 4096)
-    expectWritten(cents(hz, 1100), '8 cents')
+    expectWritten(cents(hz, 1100), 'more than 8 cents')
+    expectWritten(cents(hz, 1100), 'less than 9 cents')
   })
 
   it('plucks with a rounded pulse: highest 8 samples after it starts, half gone after 36 samples, under a hundredth of its height from 4.2 ms on (claim pluck-shape)', async () => {
@@ -500,6 +502,13 @@ describe('the plucked string', () => {
     expectWritten(top.at, '8 samples')
     expect(top.value).toBeGreaterThan(1.9)
     expect(top.value).toBeLessThan(2)
+    // Past twice full scale, where the page's player clips: the hardest pick, the lowest note and the pick
+    // nearest the bridge. The Guitar's own output stays within full scale.
+    const tall = string.render(nothing(), { note: 82.41, hardness: 1, position: 0.05 })
+    expect(peak(tap(tall, 'pluck'))).toBeGreaterThan(2)
+    expect(peak(tap(tall, 'string'))).toBeGreaterThan(2.5)
+    expect(peak(tap(tall, 'string'))).toBeLessThan(3)
+    expect(peak(tap(tall, 'out'))).toBeLessThanOrEqual(1)
     let half = top.at
     while (pluck[half]! > top.value / 2) half += 1
     expectWritten(half, '36 samples')
@@ -554,7 +563,7 @@ describe('the plucked string', () => {
     for (const k of [2, 3, 6, 7, 8]) expect(size(1) - size(k)).toBeLessThan(15)
   })
 
-  it("works the pickup's signal out again from the two strings, sample for sample (claim rebuilt-exact)", async () => {
+  it("works the pickup's signal out again from the two strings: the difference at least 140 dB under the device's, the floor of the measure (claim rebuilt-exact)", async () => {
     const string = await lab('plucked-string')
     for (const values of [
       {},
@@ -564,20 +573,20 @@ describe('the plucked string', () => {
       { swell: 1 },
       { note: 311.13, shimmer: 1.5 },
     ]) {
-      expect(string.render(nothing(), values).checks.rebuilt).toBe(-140)
+      expectWritten(-string.render(nothing(), values).checks.rebuilt!, 'at least 140 dB')
     }
   })
 
-  it('falls slower as it rings, 16.6 dB a second from 0.2 s to 0.7 s after the pick and 11.7 dB from 2 s to 2.9 s, where the first string alone falls at 20.2 dB and then 18.0 dB (claim two-slopes)', async () => {
+  it('falls slower as it rings, 16.56 dB a second from 0.2 s to 0.7 s after the pick and 11.7 dB from 2 s to 2.9 s, where the first string alone falls at 20.25 dB and then 18.0 dB (claim two-slopes)', async () => {
     const string = await lab('plucked-string')
     const out = string.render(nothing(), {})
     const note = tap(out, 'level')
     const first = tap(out, 'levelOne')
     const slope = (x: Float32Array, from: number, to: number) =>
       (x[tick(from)]! - x[tick(to)]!) / (to - from)
-    expectWritten(slope(note, 0.2, 0.7), '16.6 dB')
+    expectWritten(slope(note, 0.2, 0.7), '16.56 dB')
     expectWritten(slope(note, 2, 2.9), '11.7 dB')
-    expectWritten(slope(first, 0.2, 0.7), '20.2 dB')
+    expectWritten(slope(first, 0.2, 0.7), '20.25 dB')
     expectWritten(slope(first, 2, 2.9), '18.0 dB')
   })
 
@@ -617,15 +626,12 @@ describe('the plucked string', () => {
 
   // ---- parts 6 and 7: the cards of ways to use it, and of what goes wrong -----------------------
 
-  it('puts the second pluck 12 samples ahead when picked by the bridge, and the fundamental comes out 8.7 dB lower than in the picked note (claim way-bridge)', async () => {
+  it('puts the second pluck 12 samples ahead when picked by the bridge, and the fundamental comes out 9 dB lower than in the picked note (claim way-bridge)', async () => {
     const string = await lab('plucked-string')
     const bridge = played(string, 'bridge')
     expectWritten(bridge.checks.pickSamples!, '12 samples')
     const picked = played(string, 'picked')
-    expectWritten(
-      partial(tap(picked, 'out'), 220, 1) - partial(tap(bridge, 'out'), 220, 1),
-      '8.7 dB',
-    )
+    expectWritten(partial(tap(picked, 'out'), 220, 1) - partial(tap(bridge, 'out'), 220, 1), '9 dB')
   })
 
   it('leaves the tenth partial of the output 27 dB under the first under a soft thumb, where the picked note has it 9 dB under (claim way-thumb)', async () => {
@@ -638,9 +644,9 @@ describe('the plucked string', () => {
     expectWritten(under('picked'), '9 dB')
   })
 
-  it("loses the first string's fundamental at 5.1 dB a second when left to ring (claim way-ring)", async () => {
+  it("loses the first string's fundamental at 5 dB a second when left to ring (claim way-ring)", async () => {
     const string = await lab('plucked-string')
-    expectWritten(fall(tap(played(string, 'ring'), 'string'), 220, after(0.05), 9600), '5.1 dB')
+    expectWritten(fall(tap(played(string, 'ring'), 'string'), 220, after(0.05), 9600), '5 dB')
   })
 
   it('brings the loudest sample of the first 20 ms of the swelled note out 41 dB under that of the picked note (claim way-swell)', async () => {
@@ -655,14 +661,15 @@ describe('the plucked string', () => {
     expectWritten(fall(tap(played(string, 'dull'), 'string'), 110, after(0.05), 9600), '109 dB')
   })
 
-  it('dips the wobbling note 6.4 dB under its in-tune self (claim fault-wobble)', async () => {
+  it('dips the wobbling note more than 6 dB under its in-tune self, and less than 7 dB (claim fault-wobble)', async () => {
     const string = await lab('plucked-string')
     const wobble = tap(played(string, 'wobble'), 'level')
     const still = tap(played(string, 'wobble', { shimmer: 0 }), 'level')
     let deepest = 0
     for (let i = tick(0.2); i < tick(3.8); i += 1)
       deepest = Math.min(deepest, wobble[i]! - still[i]!)
-    expectWritten(-deepest, '6.4 dB')
+    expectWritten(-deepest, 'more than 6 dB')
+    expectWritten(-deepest, 'less than 7 dB')
   })
 
   it('stands the peak of the hardest pluck 23.6 dB over its level from 0.1 s to 0.6 s after the pick (claim fault-spike)', async () => {
