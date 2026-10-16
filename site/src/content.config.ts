@@ -4,6 +4,11 @@ import { z } from 'astro/zod'
 import { docId, EXCLUDED_DIRS } from './lib/doc-routes.ts'
 import { MAP } from './lib/lesson-map.ts'
 import { settingsSchema } from './lib/settings.ts'
+import { onlyLesson } from '../scripts/site-env.mjs'
+
+// A one-lesson build (scripts/lesson.sh) reads that lesson's text and its settings and no other
+// lesson's, so a lesson half written beside it cannot stop it; and no doc, which it has no page for.
+const ofLesson = (ending: string) => (onlyLesson ? `${onlyLesson}.${ending}` : `*.${ending}`)
 
 // The docs are rendered where they are: ../docs, read on GitHub and here alike.
 const docs = defineCollection({
@@ -16,7 +21,7 @@ const docs = defineCollection({
 })
 
 const lessons = defineCollection({
-  loader: glob({ base: './src/content/lessons', pattern: '*.mdx' }),
+  loader: glob({ base: './src/content/lessons', pattern: ofLesson('mdx') }),
   schema: z.object({
     title: z.string(),
     /** The family the map puts the lesson in, by its id there (src/content/families.json). */
@@ -58,8 +63,8 @@ const lessons = defineCollection({
 // cards play and the device's defaults. Held to their shape here; lib/settings.ts reads a file
 // and checks it against the lesson's lab.
 const settings = defineCollection({
-  loader: glob({ base: './src/content/settings', pattern: '*.json' }),
+  loader: glob({ base: './src/content/settings', pattern: ofLesson('json') }),
   schema: settingsSchema,
 })
 
-export const collections = { docs, lessons, settings }
+export const collections = onlyLesson ? { lessons, settings } : { docs, lessons, settings }

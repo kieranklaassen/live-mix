@@ -1,12 +1,16 @@
 // The site's browser tests run on the site as built: `pnpm build` first, then `pnpm test:browser`.
 // They are served under the same base path the build was made for (SITE_BASE, '/live-mix' when
 // unset), so a test never knows whether it is at a domain's root or under a prefix.
+//
+// A one-lesson run (scripts/lesson.sh, SITE_ONLY_LESSON) looks at that lesson's own build, in
+// its own folder and at its own port: scripts/serve.mjs serves whichever the environment names.
 import { defineConfig } from '@playwright/test'
 import {
   basePath as base,
   CHROMIUM_ARGS,
   findChromium,
   sitePort as port,
+  siteShard,
 } from './scripts/site-env.mjs'
 
 // A machine that ships its own Chromium says where; otherwise Playwright's own is used.
@@ -17,6 +21,7 @@ export default defineConfig({
   timeout: 90_000,
   fullyParallel: true,
   workers: process.env.CI ? 2 : 4,
+  shard: siteShard(),
   reporter: [['list']],
   use: {
     baseURL: `http://localhost:${port}${base}/`,

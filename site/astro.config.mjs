@@ -8,7 +8,7 @@ import { satteri } from '@astrojs/markdown-satteri'
 import { codeTheme } from './src/lib/code-theme.ts'
 import { docLinks, mermaidBlocks } from './src/lib/markdown-plugins.ts'
 import { COMMIT, REPO_ROOT, REPO_URL } from './src/lib/site.ts'
-import { siteBase } from './scripts/site-env.mjs'
+import { onlyLesson, siteBase, siteFolder } from './scripts/site-env.mjs'
 
 // The address comes from the environment so one build serves a path prefix or a domain's root.
 const site = process.env.SITE_URL ?? 'https://kieranklaassen.github.io'
@@ -39,9 +39,29 @@ const packaged = {
     return { ...found, fonts: asked }
   },
 }
+
+/**
+ * A one-lesson build (scripts/lesson.sh) holds the home page and that lesson's page. Every other
+ * page of src/pages is read as one that has no paths and answers with nothing: no file is
+ * written for it and nothing it imports is built.
+ * @type {import('vite').Plugin}
+ */
+const homeAndLessonOnly = {
+  name: 'site:one-lesson',
+  enforce: 'pre',
+  load(id) {
+    const pages = fileURLToPath(new URL('./src/pages/', import.meta.url))
+    if (!id.startsWith(pages) || id.includes('?')) return
+    if (['index.astro', 'lessons/[slug].astro'].includes(id.slice(pages.length))) return
+    return '---\nexport const getStaticPaths = () => []\nreturn new Response(null)\n---\n'
+  },
+}
+
 export default defineConfig({
   site,
   base: siteBase,
+  // The whole site is built into dist; a one-lesson build into a folder of its own.
+  outDir: siteFolder,
   trailingSlash: 'always',
   // Left off: with it on, the space between two links in running text is removed.
   compressHTML: false,
@@ -80,6 +100,7 @@ export default defineConfig({
     shikiConfig: { theme: codeTheme },
   },
   vite: {
+    plugins: onlyLesson ? [homeAndLessonOnly] : [],
     resolve: {
       // The library is linked from the repository's root and brings its own node_modules.
       dedupe: ['react', 'react-dom'],
