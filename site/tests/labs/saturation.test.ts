@@ -15,7 +15,6 @@ import {
   matchesWritten,
   mean,
   peak,
-  range,
   RATE,
   rms,
   seconds,
@@ -166,11 +165,11 @@ describe('saturation and oversampling', () => {
 
   // ---- part 1: why ---------------------------------------------------------------------------
 
-  it('brings the guitar line out denser: its loudest sample stood 17.1 dB over its level and comes out 8.4 dB over it, the level more than 6.5 dB higher and the loudest sample 2.0 dB lower (claim guitar-dense)', async () => {
+  it('brings the guitar line out denser: its loudest sample stood 17.1 dB over its level and comes out 8.44 dB over it, the level more than 6.5 dB higher and the loudest sample 2.0 dB lower (claim guitar-dense)', async () => {
     const sat = await lab('saturation')
     const result = await played(sat, 'bent')
     expectWritten(crest(result, 'in'), '17.1 dB')
-    expectWritten(crest(result, 'out'), '8.4 dB')
+    expectWritten(crest(result, 'out'), '8.44 dB')
     expectWritten(levelOf(result, 'out') - levelOf(result, 'in'), 'more than 6.5 dB')
     expect(levelOf(result, 'out') - levelOf(result, 'in')).toBeLessThan(7)
     expectWritten(topOf(result, 'in') - topOf(result, 'out'), '2.0 dB')
@@ -251,7 +250,7 @@ describe('saturation and oversampling', () => {
     // The curve is the Soft one on the input times the drive: tanh(0.25 · 10^(18/20)).
     expect(Math.abs(at(transfer, 0.25) - Math.tanh(0.25 * dbToGain(18)))).toBeLessThan(1e-4)
     // With no drive, the same sample comes out nearly as it went in.
-    expectWritten(at(sat.render(nothing, { driveDb: 0 }).taps.transfer!, 0.25), '0.24')
+    expectWritten(at(sat.render(nothing, { driveDb: 0 }).taps.transfer!, 0.25), '0.245')
   })
 
   // ---- part 5: the engine, stage by stage ----------------------------------------------------
@@ -272,14 +271,14 @@ describe('saturation and oversampling', () => {
     }
   })
 
-  it('passes a quiet sine at low drive as the input doubled, 60 dB under it on the Soft curve (claim low-drive) and 38.5 dB on Tape (claim tape-null)', async () => {
+  it('passes a quiet sine at low drive as the input doubled, 59.6 dB under it on the Soft curve (claim low-drive) and 38.5 dB on Tape (claim tape-null)', async () => {
     const sat = await lab('saturation')
     const quiet = sine(440, dbToGain(-30), seconds(1))
     const doubled = quiet.left.map((v) => v * dbToGain(6))
     const left = (values: Record<string, number>, id: string) =>
       differenceDb(tap(sat.render(quiet, { driveDb: 6, ...values }), id), doubled)
     const soft = left({ curve: SOFT }, 'shaped1x')
-    expectWritten(-soft, '60 dB')
+    expectWritten(-soft, '59.6 dB')
     // Through the filters of the 4x path it is the same to half a decibel.
     expect(Math.abs(left({ curve: SOFT }, 'shaped') - soft)).toBeLessThan(0.5)
     // The lab's own driven signal is the input times the device's gain.
@@ -365,11 +364,11 @@ describe('saturation and oversampling', () => {
     expect(result.checks.aliasDrop).toBe(0)
   })
 
-  it('brings them down 34 dB at 2x (claim fold-2x) and 88 dB at 4x, to −111 dB (claim fold-4x)', async () => {
+  it('brings them down 33.6 dB at 2x (claim fold-2x) and 88.4 dB at 4x, to −111 dB (claim fold-4x)', async () => {
     const sat = await lab('saturation')
-    expectWritten(sat.render(nothing, { probe: 5000, oversample: X2 }).checks.aliasDrop!, '34 dB')
+    expectWritten(sat.render(nothing, { probe: 5000, oversample: X2 }).checks.aliasDrop!, '33.6 dB')
     const four = sat.render(nothing, { probe: 5000, oversample: X4 }).checks
-    expectWritten(four.aliasDrop!, '88 dB')
+    expectWritten(four.aliasDrop!, '88.4 dB')
     expectWritten(four.aliasSet!, '−111 dB')
   })
 
@@ -498,12 +497,12 @@ describe('saturation and oversampling', () => {
     }
   })
 
-  it('costs a quiet signal 2 dB at 10 kHz and 11.7 dB at 20 kHz through the mean of the curve at 1x (claim droop-1x), 0.5 dB at 20 kHz at 4x (claim droop-4x)', async () => {
+  it('costs a quiet signal 2 dB at 10 kHz and 11.74 dB at 20 kHz through the mean of the curve at 1x (claim droop-1x), 0.5 dB at 20 kHz at 4x (claim droop-4x)', async () => {
     const sat = await lab('saturation')
     const result = sat.render(nothing, { curve: HARD })
     const once = result.taps.smallAdaa1x!
     expectWritten(-at(once, 10_000), '2 dB')
-    expectWritten(-at(once, 20_000), '11.7 dB')
+    expectWritten(-at(once, 20_000), '11.74 dB')
     const four = result.taps.smallAdaa4x!
     expectWritten(-at(four, 20_000), '0.5 dB')
     // The mean of two samples is a cosine of the frequency against the rate the curve runs at.
@@ -529,15 +528,15 @@ describe('saturation and oversampling', () => {
     ).toBeLessThan(0.01)
   })
 
-  it('tilts about 1 kHz: with Tone at 6 dB a tone at 100 Hz comes out 5.8 dB lower, one at 10 kHz 5.9 dB higher and one at 1 kHz 0.0 dB from where it was (claim tone-tilt)', async () => {
+  it('tilts about 1 kHz: with Tone at 6 dB a tone at 100 Hz comes out 5.84 dB lower, one at 10 kHz 5.9 dB higher and one at 1 kHz 0.0 dB from where it was (claim tone-tilt)', async () => {
     const sat = await lab('saturation')
     const tilt = sat.render(nothing, { toneDb: 6 }).taps.toneResponse!
-    expectWritten(-at(tilt, 100), '5.8 dB')
+    expectWritten(-at(tilt, 100), '5.84 dB')
     expectWritten(at(tilt, 10_000), '5.9 dB')
     expectWritten(at(tilt, 1000), '0.0 dB')
     // Down is the same picture turned over.
     const dark = sat.render(nothing, { toneDb: -6 }).taps.toneResponse!
-    expectWritten(at(dark, 100), '5.8 dB')
+    expectWritten(at(dark, 100), '5.84 dB')
     expectWritten(-at(dark, 10_000), '5.9 dB')
     // The tap after Tone is that filter on the curve's output: at 0 dB the two are the same to
     // the last bit but one.
@@ -568,10 +567,10 @@ describe('saturation and oversampling', () => {
     // A sine of peak 0.25 on both channels has a mean square of 1/32: −15.05 dB.
     const result = sat.render(tone(2), { driveDb: 0, curve: HARD, outputDb: 0 })
     const going = tap(result, 'meterIn')
-    expectWritten(mean(going, going.length / 2), '−15.1 dB')
+    expectWritten(mean(going, going.length / 2), '−15.05 dB')
     // Hard at no drive is a wire for a sound under full scale: the same level comes out.
     const coming = tap(result, 'meterOut')
-    expectWritten(mean(coming, coming.length / 2), '−15.1 dB')
+    expectWritten(mean(coming, coming.length / 2), '−15.05 dB')
     // The last sound the main path writes is the output: a card with no tap of its own plays it.
     const sounds = sat.description.taps.filter(
       (one) => one.kind === 'audio' && !one.id.startsWith('built'),
@@ -597,7 +596,8 @@ describe('saturation and oversampling', () => {
         const result = sat.render(source, { ...values, build: 6 })
         expect(result.checks.builtStep).toBe(6)
         expect(result.checks.builtBound).toBe(-120)
-        // No difference at all: the check reads its floor, and each channel is the device's.
+        // The check reads its floor, which says only more than 140 dB under. The samples of each
+        // channel are what say the build is the device.
         expect(result.checks.builtDifference).toBe(-140)
         for (const c of [0, 1]) {
           const out = result.taps.out!.channels_data[c]!

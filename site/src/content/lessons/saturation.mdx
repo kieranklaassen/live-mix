@@ -32,7 +32,7 @@ A guitar line is picked one note at a time. Each note is at its tallest the mome
 
 Listen to it first. <Hear set="played" label="Hear the line as played" />
 
-Two numbers describe that shape. One is the loudest sample, the top of the tallest note. The other is the level of the whole loop: the root of the mean of its squared samples, in decibels below full scale, the largest number a sample can be. On this line the first stands a long way over the second. The starts of the notes set how far the line can be turned up before something clips. Most of each note is the ring, and the ring sits far below.
+Two numbers describe that shape. One is the loudest sample, the top of the tallest note. The other is the level of the whole loop: the root of the mean of its squared samples, in decibels below full scale, the largest number a sample can be. <Lesson id="level-and-loudness" /> is about both. On this line the first stands a long way over the second. The starts of the notes set how far the line can be turned up before something clips. Most of each note is the ring, and the ring sits far below.
 
 How do you bring the body of each note up without its start going through the ceiling, and without waiting for anything to react? That is the question this lesson starts from.
 
@@ -50,7 +50,7 @@ Here is the guitar line through the engine's saturator, at the settings this pag
   caption="The line going in and coming out. Going in, each note starts tall and falls away. Coming out, every note starts at one height, lower than the tallest went in, and stays near that height for most of its length."
 />
 
-Measured on that render, <Claim id="guitar-dense">the loudest sample stood 17.1 dB over the level going in and stands 8.4 dB over it coming out. The level is more than 6.5 dB higher, and the loudest sample is 2.0 dB lower</Claim>. A fader cannot do that: it moves both numbers by the same amount.
+Measured on that render, <Claim id="guitar-dense">the loudest sample stood 17.1 dB over the level going in and stands 8.44 dB over it coming out. The level is more than 6.5 dB higher, and the loudest sample is 2.0 dB lower</Claim>. A fader cannot do that: it moves both numbers by the same amount.
 
 Compare it with the line as played. <Hear set="bent" label="Hear it through the curve" />
 
@@ -130,7 +130,7 @@ Here is the same sweep at 4x. <Hear set="sweep4x" label="Hear it at 4x" />
 
 The lab also keeps what the base rate has that 4x has not. On the sweep that is <Claim id="sweep-folded">24 dB under the whole</Claim>, and it can be heard alone. <Hear set="sweepFolded" label="Hear only what folded" />
 
-So a saturator in a computer is two things. One is a curve, which takes a line of code. The other is a way of running a curve on samples without the folding, which takes most of the device. This lesson goes through both. It starts the engine's saturator driven harder than it starts by itself, so that the bend is easy to see, and part 9 puts the two beside each other.
+So a saturator in a computer is two things. One is a curve, which takes a line of code. The other is a way of running a curve on samples without the folding, which takes most of the device. This lesson starts the engine's saturator driven harder than it starts by itself, so that the bend is easy to see, and part 9 puts the two beside each other.
 
 </Part>
 
@@ -211,7 +211,7 @@ Every card but the last reports the same measurement, the one of part 1: how far
       caption="One second of the drums going in and coming out. The tallest hits come out lower than they went in, and what rings between the hits comes out larger."
     />
 
-    A drum hit is nearly all peak. A moderate Drive into the Soft curve rounds the very top of each hit off and leaves the rest of it standing, with no gain to arrive late. <Claim id="use-drums">The loudest sample stood 19.4 dB over the level and comes out 14.1 dB over it, and it is more than 2.2 dB lower than it went in</Claim>.
+    A drum hit is nearly all peak. A moderate Drive into the Soft curve rounds the very top of each hit off and leaves the rest of it standing, with no gain to arrive late. <Claim id="use-drums">The loudest sample stood 19.4 dB over the level and comes out 14.1 dB over it, and it is more than 2.2 dB lower than it went in</Claim>. This page loops two seconds of the drums where the two lessons before this one loop four, which is why the first of those numbers is not theirs.
 
   </Use>
   <Use title="The whole mix" set="bus">
@@ -280,7 +280,7 @@ The first steps are the one line of part 1, and they fold. Hearing and seeing wh
 
   </Step>
   <Step title="Push the sound into the bend, and take the loudness back" controls="curve driveDb outputDb">
-    A curve that the sound hardly reaches does nothing. Drive is gain before the curve: the curve stays where it is, and each sample lands further along it. Driving a sound makes it louder as well as bending it, so a second gain follows the curve to take that back. That is Output.
+    A curve that the sound hardly reaches does nothing. Drive, the gain before the curve, lands each sample further along it. Driving a sound makes it louder as well as bending it, so a second gain follows the curve to take that back. That is Output.
 
     <Claim id="build-drive">With Drive at 18 dB and Output at −9 dB the guitar comes out more than 6.5 dB higher in level, with its loudest sample 2.0 dB lower. The step before changed the level by less than 0.1 dB</Claim>. This is already the sound of part 1.
 
@@ -301,7 +301,7 @@ The first steps are the one line of part 1, and they fold. Hearing and seeing wh
   <Step title="Lean the curve to one side" controls="curve driveDb outputDb bias">
     Four of the five curves treat the upper and the lower half of a wave alike. Bias moves the sample off centre before the curve, so that one half meets more of the bend than the other. A wave bent unevenly has even harmonics as well as odd ones, and its middle no longer lies at zero.
 
-    The curve's own answer to the bias is taken off again. Without that, a bias would put a constant on the output even in silence. With it, silence in is silence out, and only the offset the sound itself makes is left. Bias starts at 0, so adding this piece changes nothing until it is moved.
+    The curve's own answer to the bias is taken off again, so that silence in is still silence out and only the offset the sound itself makes is left. Bias starts at 0, so adding this piece changes nothing until it is moved.
 
     <Claim id="build-bias">With Bias at 0.3 a 1 kHz tone gains a second harmonic 19.3 dB under its fundamental, and the middle of the wave moves to −0.065. The step before had no second harmonic, and its middle lay at zero</Claim>.
 
@@ -320,7 +320,7 @@ The first steps are the one line of part 1, and they fold. Hearing and seeing wh
 
   </Step>
   <Step title="Give the harmonics room" controls="curve driveDb outputDb bias oversample probe">
-    Everything so far ran once for each sample, and it folds: this is the one line of code of part 1. This piece runs the same curve at twice or four times the rate.
+    Everything so far ran once for each sample, and it folds. This piece runs the same curve at twice or four times the rate.
 
     To go up, the kit's half-band filter turns one sample into two: the sample itself, and the sample that belongs half way to the next. Both go through the curve. To come down, the same filter takes out everything above the old limit and keeps one sample of each two. For four times the rate a second, shorter filter does the same inside the first.
 
@@ -406,7 +406,7 @@ The first steps are the one line of part 1, and they fold. Hearing and seeing wh
 
     <Check id="builtDifference" />
 
-    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows when there is no difference at all. On every loop of this page, at each of the settings the lab's test tries, the build and the device are <Claim id="build-same">the same, sample for sample</Claim>.
+    That reading goes no lower than <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which it shows for any difference more than 140 dB under the sound, so by itself it does not say the two are equal. The lab's test compares the samples. On every loop of this page, at each of the settings it tries, the build and the device are <Claim id="build-same">the same, sample for sample</Claim>, on both channels.
 
     <Lanes slot="picture" taps="in built">
       The sound going in and the whole saturator as built. Try Mix at 0, and notice the second lane
@@ -427,7 +427,7 @@ Here is how the lab puts the pieces in order, for one sample.
 
 Three of its lines are not pieces of their own. Whatever the rate, the sound takes the same <Src path="cpp/devices/saturator/saturator.h" at="static constexpr int kLatency = 39;">39 samples</Src> to get through, so the 1x and 2x paths are fed late on purpose. And Tape is a curve with a high cut behind it that closes as Drive rises.
 
-That is a whole saturator in a handful of small functions. The one in the engine is the same pieces in the same order. Around them it has what a device needs and the build left out: controls that glide when they are moved, a crossfade when the curve or the rate is changed, and the sleep after a silence. The next part opens it.
+That is a whole saturator in a handful of small functions. The one in the engine is the same pieces in the same order. What a device needs around them, and the build left out, is listed at the end of the next part.
 
 </Part>
 
@@ -451,13 +451,13 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     { id: 'out', tap: 'out', shape: 'end', from: 'blend' },
   ]}
 >
-  The row along the top is the sound that is bent. The block under it holds the sound as it went in
+  The blocks from Drive to Tone are the sound that is bent. Delay holds the sound as it went in
   until the bent copy has caught up. Press a stage's button below, and notice its block light up
   here.
 </Flow>
 
 <StageBlock tap="driven" n={1} title="Drive: how far along the curve">
-  The curve of stage 2 does not move. What decides how much of it a sound meets is the size of the sound when it gets there, and that is all Drive is: a gain in front.
+  The curve of stage 2 does not move. Drive is the gain in front of it, as the build's second step made it.
 
   <Controls ids="driveDb" />
 
@@ -511,7 +511,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     upper half Tube lies on Soft, where the two are one curve.
   </Curve>
 
-  Those two things are what every curve here has in common. Near zero each one is a wire, so a quiet sound at low Drive passes as it is. Measured on a sine 30 dB under full scale with Drive at 6 dB, what the Soft curve changed lies <Claim id="low-drive">60 dB under the sine</Claim>. And each one is bounded, so however hard it is driven the curve itself puts nothing out over full scale.
+  Those two things are what every curve here has in common. Near zero each one is a wire, so a quiet sound at low Drive passes as it is. Measured on a sine 30 dB under full scale with Drive at 6 dB, what the Soft curve changed lies <Claim id="low-drive">59.6 dB under the sine</Claim>. And each one is bounded, so however hard it is driven the curve itself puts nothing out over full scale.
 
   Between those two ends the five differ, and the difference is the character of each. In each equation <M t="v" /> is the sample as the curve receives it and <M t="f(v)" /> is what the curve gives back.
 
@@ -572,7 +572,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <M block t={String.raw`\sig{out}{y} = \at{shaped-curve}{f}(\at{shaped-lean}{\sig{alt}{u} + b}) - f(b)`} />
 
-  <M t="u" /> is the driven sample of stage 1, <M t="b" /> is Bias and <M t="f" /> is the curve chosen. Adding <M t="b" /> slides the sound along the curve, so that its upper half sits nearer one bend than its lower half sits to the other.
+  <M t="u" /> is the driven sample of stage 1, <M t="b" /> is Bias and <M t="f" /> is the curve chosen.
 
   The second term is what the curve gives for silence. A sample of zero arrives at the curve as <M t="b" />, and <M t="f(b)" /> comes out, so that much is taken off again. With it gone, <Claim id="silence">silence in is exact silence out</Claim>, on every curve, whatever the bias. That matters to more than tidiness: a device that puts out a constant cannot go to sleep, and one that woke with a constant on its output would thump.
 
@@ -601,19 +601,19 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <Check id="rebuilt" />
 
-  On the loops and the settings its test tries, that reads <Claim id="rebuilt-exact">its floor, −140 dB</Claim>: no difference at all.
+  On the loops and the settings its test tries, that reads <Claim id="rebuilt-exact">its floor, −140 dB</Claim>: whatever difference there is lies more than 140 dB under the sound.
 
   **Tape's high cut.** One curve has something behind it. Tape is followed by a one-pole low-pass, the filter of <Lesson id="one-pole" />, whose corner falls as Drive rises:
 
   <M block t={String.raw`\at{drive-cutoff}{f_{\text{tape}}} = f_{\text{top}} \left( \frac{f_{\text{low}}}{f_{\text{top}}} \right)^{D / D_{\max}}`} />
 
-  <M t={String.raw`f_{\text{tape}}`} /> is the corner. With Drive at 0 dB it is at <M t={String.raw`f_{\text{top}}`} />, <Src path="cpp/devices/saturator/saturator.h" at="static constexpr float kTapeCutoffMaxHz = 16000.0f;">16 kHz</Src>. At the most Drive there is, <Src path="cpp/devices/saturator/saturator.h" at="static constexpr float kMaxDriveDb = 36.0f;">36 dB</Src>, it has come down to <M t={String.raw`f_{\text{low}}`} />, <Src path="cpp/devices/saturator/saturator.h" at="static constexpr float kTapeCutoffMinHz = 6000.0f;">6 kHz</Src>. So the harder Tape is driven the duller it gets: <Claim id="tape-cut">a quiet signal is 2.0 dB down at 20 kHz with Drive at 0 dB and 8.3 dB down with it at 36 dB</Claim>. The cut is there even when the curve is doing nothing. The quiet sine that Soft passed 60 dB clean comes through Tape with a difference only <Claim id="tape-null">38.5 dB under it</Claim>, and all of that is the filter holding the wave back by a fraction of a sample.
+  <M t={String.raw`f_{\text{tape}}`} /> is the corner. With Drive at 0 dB it is at <M t={String.raw`f_{\text{top}}`} />, <Src path="cpp/devices/saturator/saturator.h" at="static constexpr float kTapeCutoffMaxHz = 16000.0f;">16 kHz</Src>. At the most Drive there is, <Src path="cpp/devices/saturator/saturator.h" at="static constexpr float kMaxDriveDb = 36.0f;">36 dB</Src>, it has come down to <M t={String.raw`f_{\text{low}}`} />, <Src path="cpp/devices/saturator/saturator.h" at="static constexpr float kTapeCutoffMinHz = 6000.0f;">6 kHz</Src>. So the harder Tape is driven the duller it gets: <Claim id="tape-cut">a quiet signal is 2.0 dB down at 20 kHz with Drive at 0 dB and 8.3 dB down with it at 36 dB</Claim>. The cut is there even when the curve is doing nothing. The quiet sine that Soft passed nearly clean comes through Tape with a difference only <Claim id="tape-null">38.5 dB under it</Claim>, and all of that is the filter holding the wave back by a fraction of a sample.
 
   <Fragment slot="listen">Hear the sound after the curve, at 1x</Fragment>
 </StageBlock>
 
 <StageBlock tap="shaped" n={3} title="Up, through the curve, and down again">
-  Stage 2 is a whole saturator on paper. In a computer it has the fault of part 1: the curve makes harmonics with no upper end, and the samples can hold nothing above half their rate. What is asked for above that comes back below it, where it was never played. Why is the subject of <Lesson id="samples-and-aliasing" />. All that is needed here is where a partial lands:
+  Stage 2 is a whole saturator on paper. In a computer it has the fault of part 1: what the curve asks for above half the rate comes back below it, where it was never played. <Lesson id="samples-and-aliasing" /> says why. All that is needed here is where a partial lands:
 
   <M block t={String.raw`f_{\text{heard}} = \left|\, f_{\text{asked}} - f_r \operatorname{round}\!\left( \frac{f_{\text{asked}}}{f_r} \right) \right|`} />
 
@@ -630,7 +630,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   The lab adds up the second line below 20 kHz, as one number, in decibels where a full-scale sine reads 0. For the <Src path="site/labs/saturation.cpp" at="lab::Control probe_hz">5 kHz probe</Src> on the Soft curve at 1x, with Drive where the page starts it, it comes to <Claim id="fold-1x">−23 dB</Claim>. That is not a subtle fault.
 
-  **The cure is room.** Run the curve at a higher rate, and the limit is higher: more of the harmonics fit under it and stay where they belong. Then, before coming back to the old rate, filter off everything the old rate cannot hold. What would have folded is removed while it is still above the band, where a filter can tell it from the music.
+  **The cure is room**, as part 1 said: run the curve at a higher rate, and before coming back filter off everything the old rate cannot hold. What would have folded is removed while it is still above the band, where a filter can tell it from the music.
 
   Going up is a filter's job too. To double the rate, a new sample is needed half way between each two. The kit works it out from the samples either side with a half-band filter of <Src path="cpp/kit/oversample.h" at="static constexpr int kTaps = 63;">63 taps</Src>, and passes the original samples through as they are.
 
@@ -672,7 +672,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
   <Check id="aliasSet" />
   <Check id="aliasDrop" />
 
-  On the 5 kHz probe, 2x brings what folds down by <Claim id="fold-2x">34 dB</Claim>, and 4x by <Claim id="fold-4x">88 dB, to −111 dB</Claim>.
+  On the 5 kHz probe, 2x brings what folds down by <Claim id="fold-2x">33.6 dB</Claim>, and 4x by <Claim id="fold-4x">88.4 dB, to −111 dB</Claim>.
 
   That is little, and it is not nothing. At 4x the curve still runs at a rate, four times the page's, and still makes harmonics past half of it. Those fold at the high rate, before the filters, and some land in the band: <Claim id="fold-high">the 35th harmonic of the 5 kHz tone, asked for at 175 kHz, comes back at 17 kHz, 117 dB under full scale</Claim>. A higher rate does not end folding. It moves it out to harmonics that are far weaker.
 
@@ -691,7 +691,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 </StageBlock>
 
 <StageBlock tap="foldedSet" n={4} title="The mean of the curve in place of the curve">
-  More room helps a smooth curve a great deal and a curve with a corner much less. On Hard, 4x gains <Claim id="hard-4x">30 dB</Claim> where on Soft it gained 88: a corner makes harmonics that die away slowly, and plenty are left at any rate. For those the device has a second cure, of a different kind. ADAA stands for antiderivative anti-aliasing, and the long name says how it works.
+  More room helps a smooth curve a great deal and a curve with a corner much less. On Hard, 4x gains <Claim id="hard-4x">30 dB</Claim> where on Soft it gained 88.4: the corner's harmonics die away slowly, and plenty are left at any rate. For those the device has a second cure, of a different kind. ADAA stands for antiderivative anti-aliasing, and the long name says how it works.
 
   Between two samples, the sound went from one value to the other. The plain curve looks at the two ends and never at the way between. ADAA supposes the sound ran in a straight line from one to the other, and puts out the mean of the curve along that line.
 
@@ -716,11 +716,9 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <M block t={String.raw`\at{curves-hardarea}{F_{\text{hard}}(v)} = \begin{cases} v^2 / 2 & |v| \le 1 \\ |v| - \tfrac{1}{2} & |v| > 1 \end{cases}`} />
 
-  On Tube, Tape and Fold, ADAA is left out and the plain curve runs.
-
   When two samples are nearly the same, the fraction is one tiny number over another and cannot be trusted. Closer than <Src path="cpp/devices/saturator/Adaa.h" at="static constexpr double kMinDelta = 1.0e-4;">one ten-thousandth</Src>, the device takes the curve's value half way between the two, which is what the mean tends to.
 
-  A mean is a smoothing, and this one happens to the bent wave before it is sampled again, which is the only place a smoothing can stop folding. It takes most from what changes fastest: the sharp corner, where the harmonics that die away slowly come from.
+  The mean smooths the bent wave before it is sampled again, which is the only place a smoothing can stop folding. It takes most from what changes fastest: the sharp corner.
 
   <Controls ids="curve adaa oversample" />
 
@@ -735,7 +733,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
   <Check id="adaaRebuilt" />
 
-  On every curve that reads <Claim id="adaa-exact">its floor, −140 dB</Claim>.
+  On every curve that reads <Claim id="adaa-exact">its floor, −140 dB</Claim>: whatever difference there is lies more than 140 dB under the sound.
 
   **What it costs.** A mean of two samples is a filter in its own right. A quiet sound, which the curve would pass untouched, loses some of its top:
 
@@ -755,11 +753,11 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     octaves, and the line for 4x stay close to the plain curve's.
   </Spectrum>
 
-  At 1x that costs <Claim id="droop-1x">2 dB at 10 kHz and 11.7 dB at 20 kHz</Claim>, and the top of the sound goes with it. At 4x the same mean costs <Claim id="droop-4x">0.5 dB at 20 kHz</Claim>. So the two cures need each other from both sides: the higher rate leaves the corner's harmonics for the mean to take, and it pushes the mean's own loss up the band, down to that half decibel. A mean of two samples is also half a sample late, at whatever rate the curve runs.
+  At 1x that costs <Claim id="droop-1x">2 dB at 10 kHz and 11.74 dB at 20 kHz</Claim>, and the top of the sound goes with it. At 4x the same mean costs <Claim id="droop-4x">0.5 dB at 20 kHz</Claim>. So the two cures need each other from both sides: the higher rate leaves the corner's harmonics for the mean to take, and it pushes the mean's own loss up the band, down to that half decibel. A mean of two samples is also half a sample late, at whatever rate the curve runs.
 </StageBlock>
 
 <StageBlock tap="offset" n={5} title="The DC block, under the ceiling">
-  A wave bent more on one side than the other does not lie about zero any more. The 1 kHz tone through Tube comes out lifted by <Claim id="tube-offset">0.097</Claim>, nearly a tenth of full scale, for as long as it sounds. An offset is a frequency of zero. No one can hear it and no loudspeaker can play it, and it uses up room: the wave is that much nearer the ceiling on one side, for nothing.
+  A wave bent more on one side than the other does not lie about zero any more. The 1 kHz tone through Tube comes out lifted by <Claim id="tube-offset">0.097</Claim>, nearly a tenth of full scale, for as long as it sounds. An offset is a frequency of zero, which no loudspeaker can play, and the room it takes on one side is spent for nothing.
 
   <Controls ids="curve bias dcBlock" />
 
@@ -810,7 +808,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
   <Fragment slot="readback">
     <M t={String.raw`\omega_0`} /> is the turning point and <M t="k" /> is Tone as a number to multiply by, <M t={String.raw`10^{T/20}`} />. Far below the turning point <M t="s" /> is small beside the other terms, and what is left is one over <M t="k" />: the lows come down by Tone. Far above it <M t="s" /> is all that counts, and what is left is <M t="k" />: the highs go up by Tone. At the turning point the top and the bottom have the same size and the gain is 1.
 
-    So Tone at 6 dB is 6 dB down at one end and 6 dB up at the other, with a gentle slope between. With Tone at 6 dB, <Claim id="tone-tilt">a tone at 100 Hz comes out 5.8 dB lower, one at 10 kHz 5.9 dB higher and one at 1 kHz 0.0 dB from where it was</Claim>.
+    So Tone at 6 dB is 6 dB down at one end and 6 dB up at the other, with a gentle slope between. With Tone at 6 dB, <Claim id="tone-tilt">a tone at 100 Hz comes out 5.84 dB lower, one at 10 kHz 5.9 dB higher and one at 1 kHz 0.0 dB from where it was</Claim>.
 
     It is one pole and one zero, the smallest filter that can do it. The listing turns the formula into the three numbers that filter needs.
 
@@ -829,6 +827,8 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 
 <StageBlock tap="out" n={7} title="Output and Mix">
   Two things are left. Output is a gain after everything, to set the level the bent sound leaves at. Mix blends the bent sound with the sound as it went in.
+
+  Nothing follows Output. The curve stops at full scale, and Output can put its flat tops many times over that. This page plays every stage <Src path="site/src/lab/player.ts" at="export const volumeGain = (volume: number) => 0.5 * volume * volume">at half its height with the volume all the way up</Src>, so a sound that Output takes past twice full scale is cut off on its way to your ears, and the pictures do not show it.
 
   <Controls ids="outputDb mix" />
 
@@ -914,7 +914,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     The fault of part 1, at its worst: a curve with a corner, run once for each sample. As the sine rises, other tones slide down through it, and they are no part of any note. On the 5 kHz probe through Hard at 1x, what folds stands at <Claim id="fault-alias">−18 dB</Claim>. Set Oversampling to 4x, and on Soft or Hard turn ADAA on as well. A low note with little top has little to fold. A bright sound driven hard has a great deal: listen for it there first.
   </Fault>
   <Fault title="More drive than the cure reaches" set="hardest">
-    Oversampling makes room for harmonics, and more Drive makes more of them, higher up. At some point they outrun the room. <Claim id="hardest-4x">With Drive at 36 dB on the Soft curve, 4x gains only 16 dB</Claim> on the probe tone, where at the page's starting Drive it gained 88. Listen near the top of the sweep. With ADAA on as well the gain is <Claim id="hardest-both">40 dB</Claim>. After that the cure is less Drive, or a sound with less top going in.
+    Oversampling makes room for harmonics, and more Drive makes more of them, higher up. At some point they outrun the room. <Claim id="hardest-4x">With Drive at 36 dB on the Soft curve, 4x gains only 16 dB</Claim> on the probe tone, where at the page's starting Drive it gained 88.4. Listen near the top of the sweep. With ADAA on as well the gain is <Claim id="hardest-both">40 dB</Claim>. After that the cure is less Drive, or a sound with less top going in.
   </Fault>
   <Fault title="Notes that nobody played" set="chord">
     One note through a curve gains harmonics, which belong to it. Two notes gain more than that: tones at sums and differences of the two, which belong to neither. With Drive where the page starts it, <Claim id="imd">two tones 100 Hz apart, at 1,000 Hz and 1,100 Hz, each an eighth of full scale, come out of Soft with tones at 900 Hz and 1,200 Hz as well, 17.5 dB under each. Out of Tube there is one at 100 Hz too, 21 dB under</Claim>. A chord makes many such tones, and more Drive makes them stronger. Listen for the chord thickening, and then for the notes becoming hard to tell apart. No setting of Oversampling helps, because nothing has folded: this is what a curve does. Use less Drive on chords, or bend the parts one at a time before they are mixed.
@@ -936,7 +936,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
 
 <Myths>
   <Myth says="Oversampling gets rid of aliasing.">
-    It turns it down, by an amount that depends on the curve and on Drive. Stage 3 shows 4x taking the Soft curve's folding down by 88 dB, and then shows the harmonic that still comes back. Stage 4 shows the same setting doing much less for a curve with a corner, and the second fault of part 7 shows it running out as Drive rises.
+    It turns it down, by an amount that depends on the curve and on Drive. Stage 3 shows 4x taking the Soft curve's folding down by 88.4 dB, and then shows the harmonic that still comes back. Stage 4 shows the same setting doing much less for a curve with a corner, and the second fault of part 7 shows it running out as Drive rises.
   </Myth>
   <Myth says="A soft curve is smooth, so it does not alias.">
     Smooth curves make harmonics that die away sooner, and they still have no last one. The number of stage 3 that started all this, the folding at 1x, was measured on Soft. Only a curve that is a wire makes nothing new.

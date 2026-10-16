@@ -12,6 +12,7 @@ import {
   expectWritten,
   gainToDb,
   lab,
+  largestDifference,
   matchesWritten,
   mean,
   peak,
@@ -61,12 +62,31 @@ async function played(comp: Lab, name: string, over: Record<string, number> = {}
 }
 
 const tap = (result: RenderResult, id: string) => result.taps[id]!.channels_data[0]!
+/** Both channels of a sound. */
+const sides = (result: RenderResult, id: string) => result.taps[id]!.channels_data
+/** How far apart two sounds are at their furthest sample, on either channel: 0 when they are the same. */
+const furthest = (result: RenderResult, a: string, b: string) =>
+  Math.max(...[0, 1].map((c) => largestDifference(sides(result, a)[c]!, sides(result, b)[c]!)))
 /** A tap's level over the loop, in dB against full scale. */
 const levelOf = (result: RenderResult, id: string) => gainToDb(rms(tap(result, id)))
 /** A tap's loudest sample, in dB against full scale. */
 const topOf = (result: RenderResult, id: string) => gainToDb(peak(tap(result, id)))
-/** How far the loudest sample stands over the level of the whole: the height of the hits. */
-const crest = (result: RenderResult, id: string) => topOf(result, id) - levelOf(result, id)
+/**
+ * How far the loudest sample stands over the level of the whole: the height of the hits. Both
+ * channels are read, the loudest sample of either against the mean power of the two, as the
+ * limiting lesson reads the same loop.
+ */
+function crest(result: RenderResult, id: string): number {
+  let top = 0
+  let squares = 0
+  let count = 0
+  for (const side of sides(result, id)) {
+    top = Math.max(top, peak(side))
+    for (const v of side) squares += v * v
+    count += side.length
+  }
+  return gainToDb(top) - gainToDb(Math.sqrt(squares / count))
+}
 
 /** The point of a control tap at which another is at its least. */
 function quietest(x: Float32Array): number {
@@ -174,6 +194,24 @@ describe('compression', () => {
     expect(tap(out, 'reduction').every((v) => v === 0)).toBe(true)
     const above = comp.render(sineAt(-26, seconds(1)), { threshold: -24, ratio: 4, knee: 6 })
     expect(mean(tap(above, 'reduction'))).toBeLessThan(0)
+    // The sentence is about any knee: a wide one under a low threshold, a hard corner, and the
+    // lowest threshold there is. Each is tried a decibel under the bottom of its knee and a
+    // decibel over it.
+    for (const [threshold, knee] of [
+      [-40, 24],
+      [-10, 0],
+      [-60, 12],
+    ] as const) {
+      const values = { threshold, ratio: 10, knee }
+      const bottom = threshold - knee / 2
+      const under = comp.render(sineAt(bottom - 1, seconds(1)), values)
+      expect(
+        tap(under, 'reduction').every((v) => v === 0),
+        `${threshold} ${knee}`,
+      ).toBe(true)
+      const over = comp.render(sineAt(bottom + 1, seconds(1)), values)
+      expect(mean(tap(over, 'reduction'), points(0.5)), `${threshold} ${knee}`).toBeLessThan(0)
+    }
   })
 
   it('measures the curve the formula draws, within 0.01 dB (claim curve-error)', async () => {
@@ -257,14 +295,19 @@ describe('compression', () => {
 
   it("lets a tone at the corner of the detector's high-pass through 3.0 dB down (claim corner-3db) and one an octave under it 12.3 dB down (claim octave-under)", async () => {
     const comp = await lab('compression')
-    const heard = (hz: number) => {
-      const out = comp.render(sine(hz, 0.5, seconds(2)), { ratio: 1, scLowCut: 90 })
-      // The second half, once the filter has settled.
-      const from = seconds(1)
+    const heard = (hz: number, corner = 90) => {
+      const out = comp.render(sine(hz, 0.5, seconds(3)), { ratio: 1, scLowCut: corner })
+      // The last second, once the filter has settled.
+      const from = seconds(2)
       return gainToDb(rms(tap(out, 'sidechain'), from) / rms(tap(out, 'in'), from))
     }
     expectWritten(-heard(90), '3.0 dB')
     expectWritten(-heard(45), '12.3 dB')
+    // The sentence names no corner: the same two numbers at each end of Ignore below.
+    for (const corner of [20, 300]) {
+      expectWritten(-heard(corner, corner), '3.0 dB')
+      expectWritten(-heard(corner / 2, corner), '12.3 dB')
+    }
     // The picture of it is the same filter: a point at the corner, on a scale of even ratios.
     const drawn = comp.render(sine(1000, 0.5, seconds(0.5)), { scLowCut: 90 }).taps
       .sidechainResponse!
@@ -276,14 +319,15 @@ describe('compression', () => {
     expect(drawn.channels_data[0]![at(45)]!).toBeLessThan(-11)
   })
 
-  it('holds the gain down while a chord rings away with Tails on Hold, between 19 dB and 20 dB down all through the loop and 20.0 dB down just before the next strike, where on Release it has come back to 0.9 dB (claim tails-hold)', async () => {
+  it('holds the gain down while a chord rings away with Tails on Hold, more than 18.5 dB down all through the loop, 20.3 dB down at its deepest and 20.0 dB down just before the next strike, where on Release it has come back to 0.94 dB (claim tails-hold)', async () => {
     const comp = await lab('compression')
     const before = points(1.9)
     const held = tap(await played(comp, 'evened', { tails: 0 }), 'reduction')
-    expectWritten(-range(held).hi, '19 dB')
-    expectWritten(-range(held).lo, '20 dB')
+    expectWritten(-range(held).hi, 'more than 18.5 dB')
+    expect(-range(held).hi).toBeLessThan(18.6)
+    expectWritten(-range(held).lo, '20.3 dB')
     expectWritten(-held[before]!, '20.0 dB')
-    expectWritten(-tap(await played(comp, 'evened', { tails: 1 }), 'reduction')[before]!, '0.9 dB')
+    expectWritten(-tap(await played(comp, 'evened', { tails: 1 }), 'reduction')[before]!, '0.94 dB')
   })
 
   it('with Release at 20 s keeps the gain 19.1 dB down just before the second strike of the chords, and the strike and the end of the ring come out 34.4 dB apart, no closer than the 34 dB they went in (claim way-tail)', async () => {
@@ -320,10 +364,25 @@ describe('compression', () => {
 
   it('is the input, sample for sample, with the mix at 0 (claim mix-zero)', async () => {
     const comp = await lab('compression')
-    const drums = await benchSource('drums', seconds(2))
-    const out = comp.render(drums, { mix: 0, threshold: -40, ratio: 10, makeup: 12 })
-    const dry = tap(out, 'in')
-    expect(tap(out, 'out').every((v, i) => v === dry[i])).toBe(true)
+    // Whatever the compressor is doing under it: a hard setting, the hardest there is with all
+    // the make-up there is, and the page's own start. Both channels are compared.
+    const tried: Record<string, number>[] = [
+      { threshold: -40, ratio: 10, makeup: 12 },
+      { threshold: -60, ratio: 10, knee: 24, makeup: 24, tails: 0 },
+      {},
+    ]
+    for (const id of ['drums', 'pad', 'clicks']) {
+      const source = await benchSource(id, seconds(2))
+      for (const values of tried) {
+        const out = comp.render(source, { ...values, mix: 0 })
+        expect(furthest(out, 'out', 'in'), `${id} ${JSON.stringify(values)}`).toBe(0)
+        // And the compressor was at work: the same setting at a mix of 1 changes the sound.
+        if (id === 'drums')
+          expect(furthest(comp.render(source, { ...values, mix: 1 }), 'out', 'in')).toBeGreaterThan(
+            0,
+          )
+      }
+    }
   })
 
   it('at a mix of one half brings a tone that is 12 dB down in the compressed copy out 4.1 dB down (claim mix-half)', async () => {
@@ -413,8 +472,8 @@ describe('compression', () => {
         expect(result.checks.builtStep).toBe(6)
         expect(result.checks.builtBound).toBe(-120)
         expect(result.checks.builtDifference).toBeLessThan(-120)
-        const out = tap(result, 'out')
-        expect(tap(result, 'built').every((v, i) => v === out[i])).toBe(true)
+        // The check's floor, −140 dB, is "more than 140 dB under". The samples say "the same".
+        expect(furthest(result, 'built', 'out'), `${id} ${JSON.stringify(values)}`).toBe(0)
         // Whatever step the reader is on, the build with every piece is what is compared.
         if (id === 'drums') {
           const earlier = comp.render(source, { ...values, build: 2 })
@@ -427,7 +486,14 @@ describe('compression', () => {
     // measured, and the build forgets with it.
     const rested = comp.render(step(-6), { build: 6 })
     expect(rested.checks.builtDifference).toBeLessThan(-120)
-    expect(tap(rested, 'built').every((v, i) => v === tap(rested, 'out')[i])).toBe(true)
+    expect(furthest(rested, 'built', 'out')).toBe(0)
+    // The comparison can fail: a step short of the last, the build is not the device's output.
+    const short = comp.render(await benchSource('drums', seconds(4)), {
+      makeup: 9,
+      mix: 0.4,
+      build: 5,
+    })
+    expect(furthest(short, 'built', 'out')).toBeGreaterThan(0)
   })
 
   it('is a wire at the first step, and a wire with a meter on it at the second', async () => {
@@ -638,12 +704,13 @@ describe('compression', () => {
     expectWritten(-bass.hi, '0.8 dB')
     const line = await ridden('line')
     expectWritten(-line.lo, '4.9 dB')
-    expectWritten(-line.hi, '2.5 dB')
+    expectWritten(-line.hi, 'at least 2.5 dB')
+    expect(-line.hi).toBeLessThan(2.6)
     const mix = await ridden('mix')
     expectWritten(-mix.lo, '2.2 dB')
     expectWritten(-mix.hi, '1.5 dB')
     const pad = await ridden('pad')
-    expectWritten(-pad.lo, '4.6 dB')
+    expectWritten(-pad.lo, '4.65 dB')
     expectWritten(-pad.hi, '4.1 dB')
   })
 
@@ -706,12 +773,12 @@ describe('compression', () => {
     expectWritten(-range(tap(await played(comp, 'hit', { attack: 10 }), 'reduction')).lo, '11.3 dB')
   })
 
-  it('beside the sound moves the gain on the whole through 5.7 dB, where the compressed copy alone moves through 19.7 dB (claim way-beside)', async () => {
+  it('beside the sound moves the gain on the whole through 5.7 dB, from 2.75 dB down to 2.96 dB up, where the compressed copy alone moves through 19.7 dB (claim way-beside)', async () => {
     const comp = await lab('compression')
     const blended = applied(await played(comp, 'beside'))
     expectWritten(blended.hi - blended.lo, '5.7 dB')
-    expectWritten(-blended.lo, 'less than 3 dB')
-    expectWritten(blended.hi, 'less than 3 dB')
+    expectWritten(-blended.lo, '2.75 dB')
+    expectWritten(blended.hi, '2.96 dB')
     const alone = applied(await played(comp, 'beside', { mix: 1 }))
     expectWritten(alone.hi - alone.lo, '19.7 dB')
   })
@@ -756,12 +823,12 @@ describe('compression', () => {
     }
   })
 
-  it('with the threshold under everything never lets go: the gain is never less than 9.0 dB down, and the loudest sample stands 26.8 dB over the level where it stood 18.4 dB over it (claim fault-flat)', async () => {
+  it('with the threshold under everything never lets go: the gain is never less than 9.0 dB down, and the loudest sample of either channel stands 27.1 dB over the level of the two where it stood 18.7 dB over it (claim fault-flat)', async () => {
     const comp = await lab('compression')
     const result = await played(comp, 'flat')
     expectWritten(-range(tap(result, 'reduction')).hi, '9.0 dB')
-    expectWritten(crest(result, 'in'), '18.4 dB')
-    expectWritten(crest(result, 'out'), '26.8 dB')
+    expectWritten(crest(result, 'in'), '18.7 dB')
+    expectWritten(crest(result, 'out'), '27.1 dB')
     // The loudest sample coming out is the front of the hit that met the least reduction of the
     // loop: 9.0 dB down, under 12 dB of make-up.
     const makeup = settings.sets.flat!.values!.makeup!

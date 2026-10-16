@@ -22,7 +22,7 @@ files:
 
 A guitar chord is struck and left to ring. The strike is the loudest thing in the bar. Two seconds later the same chord is still sounding, far quieter, and that last part of the ring is often the part worth hearing.
 
-This page has a meter for how loud a sound is. It reads in decibels below full scale, the largest number a sample can be, and it measures the way the compressor's own detector will; part 5 says how. On the two chords of the loop below it reads <Claim id="chords-span">−17.7 dB at the strike and −51.7 dB at the end of the ring, which is 34 dB apart</Claim>.
+This page has a meter for how loud a sound is. It reads in decibels below full scale, the largest number a sample can be, which is the unit <Lesson id="level-and-loudness" /> explains. It measures the way the compressor's own detector will; part 5 says how. On the two chords of the loop below it reads <Claim id="chords-span">−17.7 dB at the strike and −51.7 dB at the end of the ring, which is 34 dB apart</Claim>.
 
 <Still
   taps="meterIn"
@@ -48,7 +48,7 @@ Turn it all up. A fader multiplies every sample by one number, so the end of the
 
 Turn your own volume down first: it is loud, and the strikes pass full scale. <Hear set="fader" label="Hear it turned up" />
 
-Nothing was gained. The ring is louder and the strike is over the ceiling. The distance between them is what it was.
+Nothing was gained.
 
 ### First there was a hand
 
@@ -102,6 +102,8 @@ Everything that comes out of a compressor louder was made louder by a plain gain
   upwards, and notice the whole of the second line rise by that much while its shape stays as the
   compressor left it.
 </Trace>
+
+Nothing after Make-up holds a ceiling, and this page's own room is not endless. It plays every stage <Src path="site/src/lab/player.ts" at="export const volumeGain = (volume: number) => 0.5 * volume * volume">at half its height with the volume all the way up</Src>, so a Make-up that takes a sound past twice full scale is cut off on its way to your ears, and the pictures do not show it.
 
 </Predict>
 
@@ -176,7 +178,7 @@ The same controls do different work depending on the shape of what goes in. Each
       caption="The level of a guitar line, and the gain on it. The gain sits a little under the top throughout, and dips at each note."
     />
 
-    A part played by hand is uneven from phrase to phrase, and evening it out is the job the hand on the fader did. A gentle ratio and a wide knee take a little off all the time, and more when the player digs in: <Claim id="use-line">between 2.5 dB and 4.9 dB</Claim> on this line. If you can hear it working, it is doing too much.
+    A part played by hand is uneven from phrase to phrase, and evening it out is the job the hand on the fader did. A gentle ratio and a wide knee take a little off all the time, and more when the player digs in: <Claim id="use-line">at least 2.5 dB, and 4.9 dB at the deepest</Claim>, on this line. If you can hear it working, it is doing too much.
 
   </Use>
   <Use title="The whole mix" set="mix">
@@ -198,7 +200,7 @@ The same controls do different work depending on the shape of what goes in. Each
       caption="A pad going in and coming out. It has no hits, only a slow swell, and it comes out a little smaller all the way along."
     />
 
-    A pad has no hits to catch. It has slow swells, and tails that should be left to die away at their own speed. This card is the engine's compressor close to the way it starts by itself: gentle, slow, and with Tails on Hold. The gain moves <Claim id="use-pad">between 4.1 dB and 4.6 dB down</Claim>, about half a decibel of travel in four seconds. On a sound this even, a slow compressor is close to a fixed gain. That is the point of it: as little movement as possible.
+    A pad has no hits to catch. It has slow swells, and tails that should be left to die away at their own speed. This card is the engine's compressor close to the way it starts by itself: gentle, slow, and with Tails on Hold. The gain moves <Claim id="use-pad">between 4.1 dB and 4.65 dB down</Claim>, about half a decibel of travel in four seconds. On a sound this even, a slow compressor is close to a fixed gain. That is the point of it: as little movement as possible.
 
   </Use>
 </Uses>
@@ -374,7 +376,7 @@ Some of the steps are wrong on purpose. Hearing what is missing is how the next 
 
     <Check id="builtDifference" />
 
-    The floor of that reading is <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which is what it shows when there is no difference at all. On every loop of this page, at each of the settings the lab's test tries, the build and the device are <Claim id="build-same">the same, sample for sample</Claim>.
+    That reading goes no lower than <Src path="site/labs/lab.h" at="constexpr float kFloorDb = -140.0f;">−140 dB</Src>, which it shows for any difference more than 140 dB under the sound, so by itself it does not say the two are equal. The lab's test compares the samples. On every loop of this page, at each of the settings it tries, the build and the device are <Claim id="build-same">the same, sample for sample</Claim>, on both channels.
 
     <Lanes slot="picture" taps="in builtGain built" ranges={{ builtGain: [-24, 12] }}>
       The gain on the sound, with make-up and mix in it. Try Mix at 0.5, and notice the dips in the
@@ -393,7 +395,7 @@ Here is how the lab puts the pieces in order, for one sample.
   name="run"
 />
 
-That is a whole compressor in a handful of small functions. The one in the engine is the same pieces in the same order, written as one loop and one function. Around them it has what a device needs and the build left out: controls that glide when they are moved, and the rest after a silence. The next part opens it.
+That is a whole compressor in a handful of small functions. The one in the engine is written as one loop and one function. Around the pieces it has what a device needs and the build left out: controls that glide when they are moved, and the rest after a silence.
 
 </Part>
 
@@ -415,9 +417,9 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     { id: 'out', tap: 'out', shape: 'end', from: 'blend' },
   ]}
 >
-  The row along the top is sound, and can be heard. The row under it is the side chain: after its
-  first block it carries numbers about the sound, never the sound. Press a stage's button below, and
-  notice its block light up here.
+  Times the gain and Make-up, mix are sound, and can be heard. The four blocks from High-pass to
+  Attack, release are the side chain: after its first block it carries numbers about the sound,
+  never the sound. Press a stage's button below, and notice its block light up here.
 </Flow>
 
 <StageBlock tap="in" n={1} title="The sound splits in two">
@@ -620,7 +622,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
     caption="The chords of part 1 again, with Tails on Hold. The gain line is nearly flat: it moves a little at each strike and then stays where it is while the ring dies away. In part 1, on Release, it climbed back."
   />
 
-  On those chords, <Claim id="tails-hold">the gain on Hold stays between 19 dB and 20 dB down all through the loop. Just before the second strike it is still 20.0 dB down, where on Release it has come back to 0.9 dB down</Claim>.
+  On those chords, <Claim id="tails-hold">the gain on Hold is more than 18.5 dB down all through the loop, and 20.3 dB down at its deepest. Just before the second strike it is still 20.0 dB down, where on Release it has come back to 0.94 dB down</Claim>.
 
   <Listing
     slot="listing"
@@ -660,7 +662,7 @@ From here on it is the device itself. The page runs the engine's C++, compiled f
 </StageBlock>
 
 <StageBlock tap="out" n={7} title="Make-up and mix">
-  Two more numbers ride along with the gain. Make-up is a fixed gain that turns the compressed sound back up. Mix blends the compressed sound with the sound as it went in. The two are the same signal at different gains, with no delay between them, so the blend needs no special care: it is one multiplication.
+  Two more numbers ride along with the gain, the last two pieces of the build: Make-up, a fixed gain after the compressor's, and Mix, which blends the result with the sound as it went in. There is no delay between the two, so the blend is one multiplication.
 
   <Controls ids="makeup mix" />
 
@@ -724,10 +726,10 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     Let the gain come back while the sound rings, and turn the result up. The ring rises towards the strike: this is the setting of part 1. A long release does the opposite. It holds the gain down across the ring, and the ring keeps its distance from the strike. <Claim id="way-tail">With Release at 20 s the gain is still 19.1 dB down just before the second strike, and the strike and the end of the ring come out 34.4 dB apart, no closer than the 34 dB they went in</Claim>. Tails on Hold does the same on purpose, as stage 5 shows.
   </Way>
   <Way title="Hold a mix together" tag="a low ratio, a wide knee, slowly" set="mix">
-    A decibel or two of reduction across everything at once. When one part gets loud the rest gives way a little, and separate parts begin to move as one. After the card, lower Threshold a little at a time. Listen for the point where the mix starts to sound held, and then for the point where it starts to sound small.
+    A decibel or two of reduction across everything at once, as on the card for the whole mix in part 3. After the card, lower Threshold a little at a time. Listen for the point where the mix starts to sound held, and then for the point where it starts to sound small.
   </Way>
   <Way title="Compress beside the sound" tag="heavy settings, mix near a third" set="beside">
-    Squash a copy hard, turn it up, and blend it under the untouched sound. <Claim id="way-beside">On the drums the compressed copy alone moves through 19.7 dB of gain. Blended, the gain on the whole moves through 5.7 dB, and is less than 3 dB up or down at any moment</Claim>. The hits keep their shape, because they are mostly the sound as it went in.
+    Squash a copy hard, turn it up, and blend it under the untouched sound. <Claim id="way-beside">On the drums the compressed copy alone moves through 19.7 dB of gain. Blended, the gain on the whole moves through 5.7 dB, from 2.75 dB down to 2.96 dB up</Claim>. The hits keep their shape, because they are mostly the sound as it went in.
   </Way>
   <Way title="Keep the lows out of it" tag="Ignore below, raised" set="lows">
     If the whole sound dips with every bass note, the detector is listening to the bass. Raise Ignore below until the gain follows the part of the sound you care about. On the mix, with Threshold and Ratio left alone, <Claim id="way-lows">the gain dips 6.2 dB with Ignore below at 300 Hz and 11.1 dB with it at 20 Hz</Claim>.
@@ -746,7 +748,7 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
     This compressor measures before it acts, and measuring takes time. By the time the gain moves, the first few hundredths of a second of a hit have passed at the gain that was there before it. <Claim id="fault-front">On the drums the gain goes as far as 11.3 dB down, and the loudest sample that comes out stands only 0.5 dB under the loudest that went in. They are not the same hit. The one that gets through follows a gap. The loudest sample going in follows close on another hit, meets the gain that hit left, and comes out 6.4 dB down</Claim>. If you like the hit, that is a gift, and part 6 uses it. If the top of the hit is the trouble, a compressor is the wrong tool. The tool that holds a ceiling is the limiter of <Lesson id="limiting" />.
   </Fault>
   <Fault title="Too much" set="flat">
-    A threshold under everything, a high ratio and a lot of make-up. The compressor is at work the whole time, <Claim id="fault-flat">with the gain at least 9.0 dB down all through the loop. Going in, the loudest sample stood 18.4 dB over the level of the loop. Coming out, it stands 26.8 dB over it</Claim>. What stands up is the front of the one hit that met the least reduction, and everything else is pressed flat under it. Raise Threshold until the gain comes back to nothing between phrases, so that the sound has something to be loud against.
+    A threshold under everything, a high ratio and a lot of make-up. The compressor is at work the whole time, <Claim id="fault-flat">with the gain at least 9.0 dB down all through the loop. Going in, the loudest sample stood 18.7 dB over the level of the loop. Coming out, it stands 27.1 dB over it</Claim>. What stands up is the front of the one hit that met the least reduction, and everything else is pressed flat under it. Raise Threshold until the gain comes back to nothing between phrases, so that the sound has something to be loud against.
   </Fault>
   <Fault title="The noise comes up too" set="evened">
     Make-up raises everything that was quiet, and that includes the hiss and the room. In part 1 the end of each ring came up by nearly all of the make-up, which was the point. Anything else that was down there came up with it. Listen to the last half second of each chord. The cure is a quieter recording, or less make-up.
@@ -765,10 +767,10 @@ Each of these is a habit of working, not a preset. Press "Try it" and the page m
 
 <Myths>
   <Myth says="A compressor makes things louder.">
-    It only turns down. The loudness comes from the make-up after it: with Make-up at 0 dB the chords of part 1 came out quieter, and the answer to that part's question has the number. What the compressor changes is how far the sound can come up before its loud moments reach the ceiling.
+    It only turns down. The loudness comes from the make-up after it: with Make-up at 0 dB the chords of part 1 came out quieter, and the answer to that part's question has the number.
   </Myth>
   <Myth says="A ratio of 4 means four times quieter.">
-    The ratio works only on the part above the threshold, and in decibels. The sentence under the curve of part 2 is the case to remember: a tone goes in 12 dB over and comes out 3 dB over. A sound below the knee is not touched at all, as stage 4 shows.
+    The ratio works only on the part above the threshold, and in decibels. The sentence under the curve of part 2 is the case to remember: a tone goes in 12 dB over and comes out <Claim id="ratio-4">3 dB over</Claim>. A sound below the knee is not touched at all, as stage 4 shows.
   </Myth>
   <Myth says="An attack of 10 ms means it has reacted in 10 ms.">
     After one time constant the gain is 63 % of the way there, and the detector adds its own time in front. Stage 5 measures it on the running device: at the shortest setting, for a tone 18 dB over the threshold, it is nearly four times what the control says.

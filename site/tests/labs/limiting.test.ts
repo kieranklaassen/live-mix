@@ -13,6 +13,7 @@ import {
   expectWritten,
   gainToDb,
   lab,
+  largestDifference,
   matchesWritten,
   peak,
   POINT_RATE,
@@ -220,7 +221,7 @@ describe('limiting and true peaks', () => {
     expect(most(value(out, 'peak'))).toBeGreaterThan(8)
   })
 
-  it('reads 0.14 dB over the ceiling on those drums by a long sinc at 4 points to the sample (claim sharper-ruler-4) and 0.17 dB at 16 (claim sharper-ruler-16)', async () => {
+  it('reads 0.14 dB over the ceiling on those drums by a long sinc at 4 points to the sample (claim sharper-ruler-4) and 0.166 dB at 16 (claim sharper-ruler-16)', async () => {
     const limiter = await lab('limiting')
     const drums = await benchSource('drums', seconds(4))
     const out = sound(limiter.render(drums, { push: 12, ceiling: -1 }), 'out')
@@ -228,7 +229,7 @@ describe('limiting and true peaks', () => {
     const sixteen = sincDb(out, 16) + 1
     say('sharper-ruler', four, sixteen)
     expectWritten(four, '0.14 dB')
-    expectWritten(sixteen, '0.17 dB')
+    expectWritten(sixteen, '0.166 dB')
   })
 
   it('delays a click by 77 samples, the latency the device reports (claim delay-77)', async () => {
@@ -287,7 +288,7 @@ describe('limiting and true peaks', () => {
     expectWritten(most(value(hard, 'gain')), 'at most 0 dB')
   })
 
-  it("shows the drums' largest peak close to: the delayed sound at 2.56, the gain at 0.34, the output at 0.88 under a ceiling of 0.89 (claim picture-reads), with the gain already down from 0.89 to 0.61 where the hit starts to come out, 1.4 ms before its peak (claim dips-first)", async () => {
+  it("shows the drums' largest peak close to: the delayed sound just over 2.56, the gain at 0.34, the output at 0.88 under a ceiling of 0.89 (claim picture-reads), with the gain already down from 0.89 to 0.61 where the hit starts to come out, 1.4 ms before its peak (claim dips-first)", async () => {
     const limiter = await lab('limiting')
     const drums = await benchSource('drums', seconds(4))
     const out = limiter.render(drums, {})
@@ -296,7 +297,8 @@ describe('limiting and true peaks', () => {
     const came = near(out.taps.nearOut!)
     expect(out.taps.nearGain!.x0).toBe(-3)
     expect(out.taps.nearGain!.x1).toBe(2)
-    expectWritten(delayed(0), '2.56')
+    expectWritten(delayed(0), 'over 2.56')
+    expect(delayed(0)).toBeLessThan(2.57)
     expectWritten(gain(0), '0.34')
     expectWritten(came(0), '0.88')
     expectWritten(near(out.taps.nearCeiling!)(0), '0.89')
@@ -334,7 +336,7 @@ describe('limiting and true peaks', () => {
     expect(long(-144)).toBeLessThan(gain(-144) - 0.25)
   })
 
-  it('finds a 12 kHz sine sampled 45 degrees off its crests 3.01 dB over its samples by trigonometry (claim quarter-rate), reads it 3.05 dB over them (claim detector-reads), and turns it down 1.04 dB under a ceiling 2 dB above every sample (claim unseen)', async () => {
+  it('finds a 12 kHz sine sampled 45 degrees off its crests 3.01 dB over its samples by trigonometry (claim quarter-rate), reads it 3.055 dB over them (claim detector-reads), and turns it down 1.045 dB under a ceiling 2 dB above every sample (claim unseen)', async () => {
     const limiter = await lab('limiting')
     const tone = quarterTone(seconds(0.5))
     expectWritten(-gainToDb(peak(tone.left)), '3.01 dB')
@@ -343,14 +345,14 @@ describe('limiting and true peaks', () => {
     const open = limiter.render(tone, { push: 0, ceiling: 0 })
     const reads = most(value(open, 'peak')) - gainToDb(peak(tone.left))
     say('detector-reads', reads, 'overshoot check', open.checks.overshoot)
-    expectWritten(reads, '3.05 dB')
-    expectWritten(open.checks.overshoot!, '3.05 dB')
+    expectWritten(reads, '3.055 dB')
+    expectWritten(open.checks.overshoot!, '3.055 dB')
     const shut = limiter.render(tone, { push: 0, ceiling: -1 })
     const gain = value(shut, 'gain')
     say('unseen', least(gain), most(gain))
     expect(sampleDb([tone.left])).toBeLessThan(-1 - 2)
-    expectWritten(-least(gain), '1.04 dB')
-    expectWritten(-most(gain), '1.04 dB')
+    expectWritten(-least(gain), '1.045 dB')
+    expectWritten(-most(gain), '1.045 dB')
   })
 
   it('puts its four points an eighth, three, five and seven eighths of the way across each gap (claim eighths)', async () => {
@@ -459,7 +461,7 @@ describe('limiting and true peaks', () => {
     expectWritten(ms, '101 ms')
   })
 
-  it('comes to rest 0.0012 dB short of no reduction at a release of 100 ms (claim rests-short)', async () => {
+  it('comes to rest 0.00124 dB short of no reduction at a release of 100 ms (claim rests-short)', async () => {
     const limiter = await lab('limiting')
     const out = limiter.render(click(seconds(4), seconds(1)), {
       push: 12,
@@ -469,7 +471,7 @@ describe('limiting and true peaks', () => {
     const gain = value(out, 'gain')
     const rest = gain[gain.length - 1]!
     say('rests-short', rest)
-    expectWritten(-rest, '0.0012 dB')
+    expectWritten(-rest, '0.00124 dB')
     // It has stopped: the last second is one value.
     expect(gain.subarray(gain.length - 3000).every((v) => v === rest)).toBe(true)
   })
@@ -744,13 +746,13 @@ describe('limiting and true peaks', () => {
     expect(gain[48 + ramped.out]).toBeCloseTo(0.25, 6)
   })
 
-  it('at the seventh step turns a 12 kHz tone sampled 45 degrees off its crests down 1.04 dB under a ceiling 2 dB above its samples, where the step before left it alone (claim built-between), and brings a click out 77 samples after it went in, where the step before took 72 samples (claim built-delay)', async () => {
+  it('at the seventh step turns a 12 kHz tone sampled 45 degrees off its crests down 1.045 dB under a ceiling 2 dB above its samples, where the step before left it alone (claim built-between), and brings a click out 77 samples after it went in, where the step before took 72 samples (claim built-delay)', async () => {
     const limiter = await lab('limiting')
     const tone = quarterTone(seconds(0.5))
     say('built-between', dips(limiter, tone, 5), dips(limiter, tone, 6))
-    expectWritten(dips(limiter, tone, 6), '1.04 dB')
+    expectWritten(dips(limiter, tone, 6), '1.045 dB')
     expect(dips(limiter, tone, 5)).toBe(0)
-    expect(matchesWritten(dips(limiter, tone, 5), '1.04 dB')).toBe(false)
+    expect(matchesWritten(dips(limiter, tone, 5), '1.045 dB')).toBe(false)
     const after = clicks(limiter, 6)
     const before = clicks(limiter, 5)
     say('built-delay', before, after)
@@ -769,9 +771,15 @@ describe('limiting and true peaks', () => {
         { push: 0, ceiling: 0, release: 2000 },
       ]) {
         const result = limiter.render(source, { ...values, build: 6 })
-        // −140 dB is the floor of the lab's reading: no difference at all.
+        // −140 dB is the floor of the lab's reading: more than 140 dB under, and no more than
+        // that. The samples are what say the two are the same.
         expect(result.checks.builtDifference, `${id} ${JSON.stringify(values)}`).toBe(-140)
-        expect(sound(result, 'built')).toEqual(sound(result, 'out'))
+        for (const c of [0, 1]) {
+          expect(
+            largestDifference(sound(result, 'built')[c]!, sound(result, 'out')[c]!),
+            `${id} ${JSON.stringify(values)}`,
+          ).toBe(0)
+        }
         // The lane of the build's gain is the device's own.
         expect(value(result, 'builtGain')).toEqual(value(result, 'gain'))
       }
@@ -823,11 +831,11 @@ describe('limiting and true peaks', () => {
     expect(stretches).toBeLessThanOrEqual(6)
   })
 
-  it('on the bass at a release of 400 ms moves the gain between 0.7 dB and 6.1 dB down (claim use-bass)', async () => {
+  it('on the bass at a release of 400 ms moves the gain between 0.66 dB and 6.1 dB down (claim use-bass)', async () => {
     const limiter = await lab('limiting')
     const gain = value((await played(limiter, 'bass')).result, 'gain')
     say('use-bass', most(gain), least(gain))
-    expectWritten(-most(gain), '0.7 dB')
+    expectWritten(-most(gain), '0.66 dB')
     expectWritten(-least(gain), '6.1 dB')
   })
 
@@ -889,7 +897,7 @@ describe('limiting and true peaks', () => {
     }
   })
 
-  it('on a held pad moves the limiter alone through 7.7 dB of gain; with the slow gain in front, that gain stays between 7.7 dB and 9.2 dB down and the limiter behind it goes no deeper than 1.4 dB (claim way-ridden)', async () => {
+  it('on a held pad moves the limiter alone through 7.7 dB of gain; with the slow gain in front, that gain stays between 7.74 dB and 9.2 dB down and the limiter behind it goes no deeper than 1.4 dB (claim way-ridden)', async () => {
     const limiter = await lab('limiting')
     const alone = value((await played(limiter, 'alone')).result, 'gain')
     const ridden = (await played(limiter, 'ridden')).result
@@ -906,7 +914,7 @@ describe('limiting and true peaks', () => {
       least(wall),
     )
     expectWritten(most(alone) - least(alone), '7.7 dB')
-    expectWritten(-most(ride), '7.7 dB')
+    expectWritten(-most(ride), '7.74 dB')
     expectWritten(-least(ride), '9.2 dB')
     expectWritten(-least(wall), '1.4 dB')
     // Both are held to the ceiling of the set, as the engine's meter reads them.
@@ -968,7 +976,7 @@ describe('limiting and true peaks', () => {
     expect(sound(other, 'ambient')).not.toEqual(sound(other, 'out'))
   })
 
-  it('with Ride at 1 on the drums pushed 12 dB has the slow gain between 3.1 dB and 5.0 dB down, leaves its limiter 6.2 dB to take at the deepest, and comes out 1.2 dB quieter than the limiter alone (claim ambient-drums)', async () => {
+  it('with Ride at 1 on the drums pushed 12 dB has the slow gain between 3.1 dB and 4.96 dB down, leaves its limiter 6.2 dB to take at the deepest, and comes out 1.2 dB quieter than the limiter alone (claim ambient-drums)', async () => {
     const limiter = await lab('limiting')
     const drums = await benchSource('drums', seconds(4))
     const result = limiter.render(drums, { push: 12, ceiling: -1, ride: 1 })
@@ -976,7 +984,7 @@ describe('limiting and true peaks', () => {
     const quieter = levelDb(sound(result, 'out')) - levelDb(sound(result, 'ambient'))
     say('ambient-drums', most(ride), least(ride), least(value(result, 'wallGain')), quieter)
     expectWritten(-most(ride), '3.1 dB')
-    expectWritten(-least(ride), '5.0 dB')
+    expectWritten(-least(ride), '4.96 dB')
     expectWritten(-least(value(result, 'wallGain')), '6.2 dB')
     expectWritten(quieter, '1.2 dB')
     expect(meterDb(sound(result, 'ambient'))).toBeLessThanOrEqual(-1 + 0.01)
