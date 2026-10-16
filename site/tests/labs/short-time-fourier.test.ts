@@ -193,8 +193,13 @@ describe('the short-time Fourier transform', () => {
     const frame = sized[2]!.taps.frame!
     expect(frame.length).toBe(2048)
     expectWritten(((frame.x1 - frame.x0) * 1000 * frame.length) / (frame.length - 1), '42.7 ms')
-    // The bins run from 0 Hz to half the rate, ends included.
-    const spacing = sized.map((result) => RATE / 2 / (result.taps.bins!.length - 1))
+    // The bins run from 0 Hz to half the rate, ends included: the spacing is read off the tap's
+    // own axis, and there are 1,025 of them at a frame of 2,048.
+    expect(sized.map((result) => result.taps.bins!.length)).toEqual(SIZES.map((n) => n / 2 + 1))
+    expect(sized[2]!.taps.bins!.length).toBe(1025)
+    const spacing = sized.map(
+      ({ taps }) => (taps.bins!.x1 - taps.bins!.x0) / (taps.bins!.length - 1),
+    )
     expectWritten(spacing[0]!, '93.75 Hz')
     expectWritten(spacing[2]!, '23.4 Hz')
     expectWritten(spacing[3]!, '11.7 Hz')
@@ -459,18 +464,36 @@ describe('the short-time Fourier transform', () => {
     }
   })
 
-  it('is the input sample for sample, 2,304 late, from 21 ms ahead of an attack to 6 ms after it (claim attack-dry)', async () => {
+  it('is the input sample for sample, 2,304 late, from 21 ms ahead of an attack to 5 ms after it (claim attack-dry)', async () => {
     const stft = await lab(NAME)
-    // In the loop, on a click: where the pass is full.
-    const at = 24_000 + LATENCY
-    const pass = tap(stft.render(click(seconds(1), 24_000), {}), 'pass')
-    const full: number[] = []
-    pass.forEach((value, k) => {
-      if (value >= 1) full.push(k * 16 - at)
-    })
-    // A point of the pass every 16 samples, an attack placed to the nearest segment of 64.
-    expectWritten((-full[0]! * 1000) / RATE, '21 ms')
-    expectWritten((full[full.length - 1]! * 1000) / RATE, '6 ms')
+    // In the loop, on a click: where the pass is full. The device places an attack to the
+    // segment of 64 samples it falls in, so the click is tried from a segment's first sample
+    // to its last, and the lesson states the least of each: what holds wherever an attack falls.
+    let ahead = Infinity
+    let after = Infinity
+    const found: number[][] = []
+    for (const within of [0, 1, 16, 31, 32, 47, 63]) {
+      const at = 24_000 + within + LATENCY
+      const pass = tap(stft.render(click(seconds(1), 24_000 + within), {}), 'pass')
+      const full: number[] = []
+      pass.forEach((value, k) => {
+        if (value >= 1) full.push(k * 16 - at)
+      })
+      found.push([full[0]!, full[full.length - 1]!])
+      ahead = Math.min(ahead, -full[0]!)
+      after = Math.min(after, full[full.length - 1]!)
+    }
+    // A point of the pass every 16 samples.
+    expectWritten((ahead * 1000) / RATE, '21 ms')
+    expectWritten((after * 1000) / RATE, '5 ms')
+    // Where in its segment the attack falls moves both ends by up to that segment.
+    expect(found[0]).toEqual([-1024, 304])
+    expect(found[found.length - 1]).toEqual([-1087, 241])
+    // No setting moves the pass: it is worked out from the input alone.
+    const plain = tap(stft.render(click(seconds(1), 24_000), {}), 'pass')
+    const other = { depth: 0.5, grain: 1, pattern: 0, rate: 6, soft: 0, mix: 0.5 }
+    const moved = tap(stft.render(click(seconds(1), 24_000), other), 'pass')
+    expect(moved.every((value, k) => value === plain[k])).toBe(true)
 
     // And on the guitar: wherever the pass is full, the output is the dry sound and the frames' sum is not.
     const guitar = await benchSource('guitar', seconds(4))
@@ -549,12 +572,33 @@ describe('the short-time Fourier transform', () => {
     // 937.5 Hz is bin 80 of the page's spectrum (4,096 points, 11.72 Hz apart) and goes a whole
     // number of times into the loop; a hop of 1,024 samples comes round every four bins.
     const tone = sine(937.5, 0.5, seconds(2))
-    expectWritten((4 * RATE) / 4096, '46.9 Hz')
-    expectWritten(RATE / 1024, '46.9 Hz')
-    await played(stft, 'halfhop', {}, tone)
+    const swung = await played(stft, 'halfhop', {}, tone)
     const halved = stft.spectrum('added')
+    // The tone, and the two tallest peaks that are not the tone: found, not looked for.
+    const hz = RATE / 2 / (halved.length - 1)
+    let carrier = 1
+    for (let k = 1; k < halved.length; k += 1) if (halved[k]! > halved[carrier]!) carrier = k
+    const sides: number[] = []
+    for (let k = 2; k < halved.length - 2; k += 1) {
+      if (k !== carrier && halved[k]! > halved[k - 1]! && halved[k]! > halved[k + 1]!) sides.push(k)
+    }
+    sides.sort((a, b) => halved[b]! - halved[a]!)
+    expect(carrier).toBe(80)
+    expect(sides.slice(0, 2).sort((a, b) => a - b)).toEqual([76, 84])
+    expectWritten(Math.abs(carrier - sides[0]!) * hz, '46.9 Hz')
+    expectWritten(Math.abs(carrier - sides[1]!) * hz, '46.9 Hz')
     expectWritten(halved[80]! - halved[76]!, '15.6 dB')
     expectWritten(halved[80]! - halved[84]!, '15.6 dB')
+    // Nothing else stands within 90 dB of the tone.
+    expect(halved[sides[2]!]! - halved[carrier]!).toBeLessThan(-90)
+    // And that is the rate of the hop, read off the lab's own picture of the windows' sum: it
+    // crosses 1 on the way up once every hop, over a stretch whose length the tap states.
+    const sum = swung.taps.windowSum!
+    const line = sum.channels_data[0]!
+    let rises = 0
+    for (let p = 1; p < line.length; p += 1) if (line[p - 1]! < 1 && line[p]! >= 1) rises += 1
+    const stretch = ((sum.x1 - sum.x0) * line.length) / (line.length - 1)
+    expectWritten((1000 * rises) / stretch, '46.9 Hz')
     // At the kit's hop there is none.
     await played(stft, 'halfhop', { hop: 1 }, tone)
     const whole = stft.spectrum('added')
@@ -578,7 +622,7 @@ describe('the short-time Fourier transform', () => {
     expect(shares.hi).toBe(1)
   })
 
-  it('leaks a 440 Hz sine only 32 dB under its peak ten bins away when the frame is cut square (claim leak-square), and 74 dB under once the window is on (claim leak-windowed)', async () => {
+  it('leaks a 440 Hz sine only 32 dB under its peak ten bins above it when the frame is cut square (claim leak-square), and 74 dB under once the window is on (claim leak-windowed)', async () => {
     const stft = await lab(NAME)
     const tone = await benchSource('sine', seconds(4))
     const fall = (build: number) => fallFromPeak(tap(stft.render(tone, { build }), 'builtBins'), 10)
@@ -586,6 +630,21 @@ describe('the short-time Fourier transform', () => {
     expectWritten(fall(STEP.window), '74 dB')
     // With the piece off the number is not the one the step states.
     expect(matchesWritten(fall(STEP.frame), '74 dB')).toBe(false)
+    expect(matchesWritten(fall(STEP.window), '32 dB')).toBe(false)
+    // The square cut's leak depends on where in its swing the wave is cut, so its number is the
+    // frame's that "Frame at" starts on; no frame escapes it. The window's is 74 dB in every frame.
+    for (const at of [0, 0.7, 1.5, 2.6, 3.3, 3.9]) {
+      const square = fallFromPeak(
+        tap(stft.render(tone, { build: STEP.frame, at }), 'builtBins'),
+        10,
+      )
+      expect(square).toBeGreaterThan(30)
+      expect(square).toBeLessThan(37)
+      expectWritten(
+        fallFromPeak(tap(stft.render(tone, { build: STEP.window, at }), 'builtBins'), 10),
+        '74 dB',
+      )
+    }
     // The windowed frame begins and ends at nothing; the square one does not.
     const ends = (build: number) => {
       const frame = tap(stft.render(tone, { build }), 'builtFrame')
@@ -607,7 +666,7 @@ describe('the short-time Fourier transform', () => {
     expect(shares.hi).toBeCloseTo(1, 4)
   })
 
-  it('comes back 6.0 dB louder than it went in once the frames are a quarter of a frame apart (claim hops-double), in 375 frames (claim hops-frames)', async () => {
+  it('comes back 6.0 dB louder than it went in once the frames are a quarter of a frame apart (claim hops-double), in 375 frames (claim hops-frames), four windows over every sample adding up to 2 (claim hops-sum)', async () => {
     const stft = await lab(NAME)
     const guitar = await benchSource('guitar', seconds(4))
     const at = (build: number) => stft.render(guitar, { build })
@@ -619,6 +678,17 @@ describe('the short-time Fourier transform', () => {
     const shares = range(tap(at(STEP.hops), 'builtWindowSum'))
     expect(shares.lo).toBeCloseTo(2, 5)
     expect(shares.hi).toBeCloseTo(2, 5)
+    const each = at(STEP.hops).taps.builtWindows!
+    const points = each.length / each.columns
+    for (const p of [1, 100, 255, 511]) {
+      let over = 0
+      for (let m = 0; m < each.columns; m += 1) {
+        if (each.channels_data[0]![m * points + p]! > 0) over += 1
+      }
+      expect(over).toBe(4)
+    }
+    // With the piece off the sum is not level at all.
+    expect(range(tap(at(STEP.window), 'builtWindowSum')).span).toBeGreaterThan(0.99)
   })
 
   it("returns the input more than 130 dB under itself once the frames are windowed twice and scaled (claim built-back), which is the kit's own overlap-add more than 130 dB under it (claim built-kit)", async () => {
@@ -712,10 +782,16 @@ describe('the short-time Fourier transform', () => {
   it('keeps what a changed frame throws further than 21 ms from a unit sample under −79 dB with the second window, against −64 dB without it (claim second-window)', async () => {
     const stft = await lab(NAME)
     const result = stft.render(await benchSource('guitar', seconds(1)), {})
-    // 1,024 samples: half a frame, and 21.3 ms.
-    expectWritten((1024 * 1000) / RATE, '21 ms')
-    const twice = farFrom(tap(result, 'clickWet'), 1024)
-    const once = farFrom(tap(result, 'clickBare'), 1024)
+    // Half of the build's frame, as the lab cuts it: 1,024 samples, and 21.3 ms.
+    const frame = result.taps.builtFrame!.length
+    const beyond = frame / 2
+    expectWritten((beyond * 1000) / RATE, '21 ms')
+    // The curves run a whole frame either side of the sample, which is as far as a frame that
+    // holds it can reach: "further than" has no far end the lab does not show.
+    expect(tap(result, 'clickWet').length).toBe(2 * frame + 1)
+    expect(tap(result, 'clickBare').length).toBe(2 * frame + 1)
+    const twice = farFrom(tap(result, 'clickWet'), beyond)
+    const once = farFrom(tap(result, 'clickBare'), beyond)
     expectWritten(twice.top, '−79 dB')
     expectWritten(once.top, '−64 dB')
     expect(matchesWritten(once.top, '−79 dB')).toBe(false)
@@ -748,6 +824,29 @@ describe('the short-time Fourier transform', () => {
     expect(opened(tap(await played(stft, 'picked'), 'pass')).times).toBe(16)
     expect(opened(tap(await played(stft, 'hits'), 'pass')).times).toBe(19)
     expect(opened(tap(await played(stft, 'held'), 'pass')).times).toBe(0)
+  })
+
+  it('holds the strummed chords within 0.5 dB of the level they went in at while single partials come and go (claim narrow-level)', async () => {
+    const stft = await lab(NAME)
+    const chords = await benchSource(settings.sets.narrow!.source!, seconds(4))
+    const result = await played(stft, 'narrow')
+    expectWritten(Math.abs(levelOver(result, 'out', chords)), 'less than 0.5 dB')
+    // The bands do go silent on the way.
+    expect(range(tap(result, 'gains')).lo).toBeLessThan(-100)
+  })
+
+  it("never moves what Glimmer does with Frame: the device's frames, its pass and its output are the same at every size", async () => {
+    const stft = await lab(NAME)
+    const guitar = await benchSource('guitar', seconds(4))
+    const sized = SIZES.map((_, size) => stft.render(guitar, { size }))
+    const same = (a: Float32Array, b: Float32Array) =>
+      a.length === b.length && a.every((value, i) => value === b[i])
+    for (const id of ['wet', 'pass', 'out', 'gains', 'clickWet', 'clickOut']) {
+      for (const other of sized.slice(1))
+        expect(same(tap(other, id), tap(sized[0]!, id)), id).toBe(true)
+    }
+    // The pictures it does move: the kit's frames at that size.
+    expect(sized.map((result) => result.taps.picture!.columns)).toEqual([1500, 750, 375, 187])
   })
 
   it('moves every band between 3.4 dB under its input and 2.6 dB over it at half Depth (claim half-depth)', async () => {

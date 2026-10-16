@@ -359,7 +359,7 @@ void render_click() {
   constexpr uint32_t kMask = DeviceStft::kMask;
   constexpr int kLatency = DeviceStft::kLatency;
   constexpr int kClickAt = 4480;  // after two frames of silence, and not on a hop
-  constexpr int kReach = 1536;    // 32 ms either side of where it comes out
+  constexpr int kReach = DeviceStft::kFrame;  // a whole frame either side of where it comes out: as far as a frame reaches
   const int points = 2 * kReach + 1;
   if (!click_wet.open(points) || !click_out.open(points) || !click_bare.open(points)) return;
   click_wet.x0 = click_out.x0 = click_bare.x0 = -1000.0f * kReach / lab::kSampleRate;
