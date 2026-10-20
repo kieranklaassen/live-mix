@@ -63,6 +63,7 @@ export const PLATE_PALETTES = {
   'ambient-limiter': { plate: '#262b3d', ink: '#eef0f8', accent: '#ff7a5c' },
   'fet-limiter': { plate: '#ef8f7a', ink: '#2e0d06', accent: '#1d3a6b' },
   ducker: { plate: '#f7d774', ink: '#2b2106', accent: '#274c9c' },
+  gate: { plate: '#2f6e6a', ink: '#eefaf7', accent: '#ffb35c' },
   swell: { plate: '#a8d5a2', ink: '#17301a', accent: '#a3341f' },
   delay: { plate: '#b7cdf0', ink: '#101f3d', accent: '#b5361f' },
   'grain-delay': { plate: '#8f446b', ink: '#fff1f6', accent: '#ffe9a0' },

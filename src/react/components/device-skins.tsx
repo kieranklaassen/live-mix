@@ -1806,6 +1806,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'ambient-limiter': { ...PLATE_PALETTES['ambient-limiter'], finish: 'matte', cap: 'dot' },
   'fet-limiter': { ...PLATE_PALETTES['fet-limiter'], finish: 'brushed', cap: 'pointer' },
   ducker: { ...PLATE_PALETTES.ducker, finish: 'gloss', cap: 'disc', name: 'Ducker' },
+  gate: { ...PLATE_PALETTES.gate, finish: 'matte', cap: 'pointer' },
   swell: { ...PLATE_PALETTES.swell, finish: 'fade', cap: 'dot' },
   delay: { ...PLATE_PALETTES.delay, finish: 'matte', cap: 'disc' },
   'grain-delay': { ...PLATE_PALETTES['grain-delay'], finish: 'speckle', cap: 'dot' },

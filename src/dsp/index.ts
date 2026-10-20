@@ -78,6 +78,7 @@ export {
   FET_LIMITER_DESCRIPTOR,
   SAMPLE_DEVICE_IDS,
   WORKLET_DUCKER_DESCRIPTOR,
+  WORKLET_GATE_DESCRIPTOR,
   SPECTRAL_DRIFTER_DESCRIPTOR,
   STEREO_WIDENER_DESCRIPTOR,
   STOCK_WASM_DEVICES,
@@ -246,6 +247,23 @@ export {
   type DuckerNodeFactory,
   type WorkletDuckerOptions,
 } from '../core/devices/native/WorkletDucker'
+export {
+  createWorkletGate,
+  gateProcessorUrl,
+  loadGateProcessor,
+  type GateProcessorOverrides,
+} from './devices/gate'
+export {
+  GATE_PARAMS,
+  GATE_PROCESSOR_NAME,
+  type GateParamName,
+} from '../core/devices/native/gate-abi'
+export {
+  GATE_METERS,
+  WorkletGate,
+  type GateNodeFactory,
+  type WorkletGateOptions,
+} from '../core/devices/native/WorkletGate'
 export {
   TRUE_PEAK_LIMITER_DEVICE,
   TRUE_PEAK_LIMITER_LATENCY_SECONDS,

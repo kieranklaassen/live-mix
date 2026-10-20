@@ -10,6 +10,9 @@ import { PLATE_REVERB_DEVICE } from './devices/plate-reverb'
 import { ETHER_REVERB_DEVICE } from './devices/ether-reverb'
 import { FELT_PIANO_DEVICE } from './devices/felt-piano'
 import { createWorkletDucker, type DuckerProcessorOverrides } from './devices/ducker'
+import { GATE_PARAMS } from '../core/devices/native/gate-abi'
+import { GATE_METERS, type WorkletGateOptions } from '../core/devices/native/WorkletGate'
+import { createWorkletGate, type GateProcessorOverrides } from './devices/gate'
 import { FDN_REVERB_DEVICE } from './devices/fdn-reverb'
 import { GENERATED_WASM_DESCRIPTORS, GENERATED_WASM_DEVICES } from './devices/index.gen'
 import { FET_LIMITER_DEVICE } from './devices/fet-limiter'
@@ -322,6 +325,41 @@ export const WORKLET_DUCKER_DESCRIPTOR: DeviceDescriptor<typeof DUCKER_PARAMS> =
   },
 }
 
+/**
+ * The worklet gate as a registry device: it turns a sound down while it is
+ * under the threshold, keyed on itself. Its defaults are a gentle gate for a
+ * speaking voice, the first thing on a voice's strip; its factory takes the
+ * registry's `params` map and hands `processorUrl`/`createNode` through.
+ */
+export const WORKLET_GATE_DESCRIPTOR: DeviceDescriptor<typeof GATE_PARAMS> = {
+  id: 'gate',
+  name: 'Gate',
+  kind: 'worklet',
+  category: 'dynamics',
+  description:
+    'Turns a sound down while it is under a threshold, to take the room, a fan or breaths out of the pauses between words.',
+  version: 1,
+  params: GATE_PARAMS,
+  meters: GATE_METERS,
+  presets: {
+    'Voice, gentle': {},
+    'Voice, firm': { threshold: -45, range: -24, holdMs: 120, releaseMs: 150 },
+    'Noisy room': { threshold: -40, range: -18, holdMs: 200, releaseMs: 250 },
+    'Hard gate': { threshold: -40, range: -90, attackMs: 0.5, holdMs: 50, releaseMs: 80 },
+  },
+  create: (context, options) => {
+    const { params, ...rest } = options as {
+      params?: Readonly<Record<string, number>>
+    } & GateProcessorOverrides &
+      Pick<WorkletGateOptions, 'createNode' | 'reportHz'>
+    // Its own parameters only: a saved value named `reportHz` or `createNode` is not that option of the host.
+    const own = Object.fromEntries(
+      Object.entries(params ?? {}).filter(([name]) => Object.hasOwn(GATE_PARAMS, name)),
+    )
+    return createWorkletGate(context, { ...rest, ...own })
+  },
+}
+
 export const FELT_PIANO_DESCRIPTOR = wasmDeviceDescriptor(FELT_PIANO_DEVICE, {
   name: 'Felt Piano',
   category: 'instrument',
@@ -485,6 +523,7 @@ export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   HALL_REVERB_DESCRIPTOR,
   FET_LIMITER_DESCRIPTOR,
   WORKLET_DUCKER_DESCRIPTOR,
+  WORKLET_GATE_DESCRIPTOR,
   SPECTRAL_DRIFTER_DESCRIPTOR,
   ETHER_REVERB_DESCRIPTOR,
   FELT_PIANO_DESCRIPTOR,

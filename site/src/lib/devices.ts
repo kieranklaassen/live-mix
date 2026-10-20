@@ -74,6 +74,7 @@ const TYPESCRIPT_SOURCES: Readonly<Record<string, string>> = {
   'convolver-reverb': 'src/core/devices/native/ConvolverReverb.ts',
   utility: 'src/core/devices/native/Utility.ts',
   ducker: 'src/core/devices/native/WorkletDucker.ts',
+  gate: 'src/core/devices/native/WorkletGate.ts',
   rack: 'src/core/devices/Rack.ts',
 }
 

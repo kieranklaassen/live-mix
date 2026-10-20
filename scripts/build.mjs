@@ -17,6 +17,7 @@ const dist = join(root, 'dist')
 const worklets = {
   'wasm-device': 'src/dsp/worklets/wasm-device.processor.ts',
   ducker: 'src/dsp/worklets/ducker.processor.ts',
+  gate: 'src/dsp/worklets/gate.processor.ts',
   meter: 'src/dsp/worklets/meter.processor.ts',
   recorder: 'src/dsp/worklets/recorder.processor.ts',
   'native-bridge': 'src/native/worklets/native-bridge.processor.ts',

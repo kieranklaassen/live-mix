@@ -159,6 +159,24 @@ export {
   type WorkletDuckerOptions,
 } from './core/devices/native/WorkletDucker'
 export {
+  GATE_BYPASS_RAMP_SECONDS,
+  GATE_DETECTOR_RELEASE_MS,
+  GATE_PARAMS,
+  GATE_PROCESSOR_NAME,
+  GATE_REPORT_HZ,
+  type GateHostMessage,
+  type GateMessage,
+  type GateParamName,
+  type GateProcessorOptions,
+} from './core/devices/native/gate-abi'
+export { GateKernel } from './core/devices/native/GateKernel'
+export {
+  GATE_METERS,
+  WorkletGate,
+  type GateNodeFactory,
+  type WorkletGateOptions,
+} from './core/devices/native/WorkletGate'
+export {
   SampleStore,
   bytesOfBuffer,
   type KnownSample,
