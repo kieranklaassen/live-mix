@@ -3363,5 +3363,12 @@
     "Soft swell": {"direction":0,"rate":1.5,"halving":40,"layers":4,"depth":1,"edge":50,"offset":0},
     "Faint slowing": {"direction":0,"rate":4,"halving":20,"layers":4,"depth":0.25,"edge":30,"offset":0},
     "Two crossing": {"direction":0,"rate":4,"halving":10,"layers":2,"depth":0.9,"edge":10,"offset":0}
+  },
+  "gate": {
+    "(default)": {"threshold":-50,"range":-12,"attackMs":2,"holdMs":150,"releaseMs":200,"hysteresis":4},
+    "Voice, gentle": {"threshold":-50,"range":-12,"attackMs":2,"holdMs":150,"releaseMs":200,"hysteresis":4},
+    "Voice, firm": {"threshold":-45,"range":-24,"attackMs":2,"holdMs":120,"releaseMs":150,"hysteresis":4},
+    "Noisy room": {"threshold":-40,"range":-18,"attackMs":2,"holdMs":200,"releaseMs":250,"hysteresis":4},
+    "Hard gate": {"threshold":-40,"range":-90,"attackMs":0.5,"holdMs":50,"releaseMs":80,"hysteresis":4}
   }
 }

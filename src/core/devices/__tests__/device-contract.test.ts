@@ -120,6 +120,7 @@ it('covers every stock device and the WAM adapter', () => {
       'hall-reverb',
       'fet-limiter',
       'ducker',
+      'gate',
       'spectral-drifter',
       'wam-fake-effect',
       'ether-reverb',
