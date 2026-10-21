@@ -126,21 +126,20 @@ describe('a steady clock', () => {
 
 // A clock that runs at a rate, as a transport played fast does: its time moves `rate` seconds a second.
 describe('a steady clock that follows a rate', () => {
-  /** Reads a clock running at `rate` from `start` seconds, for frames `from` to `to`, starting at `at` seconds of the clock's time when frame `from` is drawn. */
+  /** Reads a clock running at `rate` for frames `from` to `to`, at `at` seconds of its time when frame `from` is drawn. */
   function playedAt(
     rate: number,
     from: number,
     to: number,
     at: number,
     clock: ReturnType<typeof steadyClock>,
-    round = audioClock,
   ) {
     const raw: number[] = []
     const steady: number[] = []
     const nows: number[] = []
     for (let frame = from; frame < to; frame += 1) {
       const now = frameAt(frame)
-      const reading = round(at + (rate * (now - frameAt(from))) / 1000)
+      const reading = audioClock(at + (rate * (now - frameAt(from))) / 1000)
       nows.push(now)
       raw.push(reading)
       steady.push(clock.read(reading, now, rate))
