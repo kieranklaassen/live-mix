@@ -208,6 +208,12 @@ const time = clock.read(audioContext.currentTime, performance.now()) // each fra
 clock.reset() // when the clock is started, stopped or moved
 ```
 
+A clock played fast moves `rate` seconds a second. Given the rate as a third argument, the steady time moves by `rate × elapsed` between readings and its lead over a reading is 10 ms times the rate. A change of rate alone is not a jump, so 1.5x to 2x glides; a seek is still taken at once at any rate. With no rate it is 1, and the times are the same as before.
+
+```ts
+const time = clock.read(audioContext.currentTime, performance.now(), transport.rate) // each frame
+```
+
 The clock is the one part that remembers anything, and it only decides what time it is. What is drawn at that time is still a function of the time alone. It reads no timer itself: the caller hands it `now`.
 
 ## What holds it

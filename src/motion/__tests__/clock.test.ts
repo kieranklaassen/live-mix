@@ -123,3 +123,97 @@ describe('a steady clock', () => {
     expect(clock.read(reading, now)).toBeCloseTo(first, 12)
   })
 })
+
+// A clock that runs at a rate, as a transport played fast does: its time moves `rate` seconds a second.
+describe('a steady clock that follows a rate', () => {
+  /** Reads a clock running at `rate` from `start` seconds, for frames `from` to `to`, starting at `at` seconds of the clock's time when frame `from` is drawn. */
+  function playedAt(
+    rate: number,
+    from: number,
+    to: number,
+    at: number,
+    clock: ReturnType<typeof steadyClock>,
+    round = audioClock,
+  ) {
+    const raw: number[] = []
+    const steady: number[] = []
+    const nows: number[] = []
+    for (let frame = from; frame < to; frame += 1) {
+      const now = frameAt(frame)
+      const reading = round(at + (rate * (now - frameAt(from))) / 1000)
+      nows.push(now)
+      raw.push(reading)
+      steady.push(clock.read(reading, now, rate))
+    }
+    return { raw, steady, nows }
+  }
+  /** How far each time is from the display's time at the rate, in milliseconds: constant for a clock that runs with it. */
+  const againstAt = (rate: number, times: number[], nows: number[]): number[] =>
+    times.map((time, index) => time * 1000 - rate * nows[index])
+
+  it('at 2x, readings every 8 ms that advance 16 ms give times that advance evenly, with no reset', () => {
+    const clock = steadyClock()
+    const steady: number[] = []
+    for (let frame = 0; frame < 240; frame += 1)
+      steady.push(clock.read(3 + (frame * 16) / 1000, 1000 + frame * 8, 2))
+
+    for (const step of steps(steady)) expect(step).toBeCloseTo(16, 6)
+    expect(steady[steady.length - 1]).toBeCloseTo(3 + (239 * 16) / 1000, 9)
+  })
+
+  it('at 3x, readings in 2.7 ms audio steps come out even', () => {
+    const { raw, steady, nows } = playedAt(3, 0, 600, 3, steadyClock())
+
+    expect(spread(againstAt(3, raw, nows))).toBeGreaterThan(2.5)
+    expect(spread(againstAt(3, steady.slice(120), nows.slice(120)))).toBeLessThan(1)
+    for (const step of steps(steady)) expect(step).toBeGreaterThan(0)
+    for (let frame = 120; frame < raw.length; frame += 60)
+      expect(Math.abs(steady[frame] - raw[frame])).toBeLessThan(0.006)
+  })
+
+  it('glides from 1.5x to 2x: a change of rate alone is not a jump', () => {
+    const clock = steadyClock()
+    const before = playedAt(1.5, 0, 240, 3, clock)
+    const at = before.raw[before.raw.length - 1] + (1.5 * (frameAt(240) - frameAt(239))) / 1000
+    const after = playedAt(2, 240, 480, at, clock)
+    const steady = [...before.steady, ...after.steady]
+
+    // Every step is between the slow and the fast pace of a frame, give or take a frame's lateness: none is a jump.
+    for (const step of steps(steady)) {
+      expect(step).toBeGreaterThan(1.5 * (FRAME - 2.7))
+      expect(step).toBeLessThan(2 * (FRAME + 2.7))
+    }
+    expect(spread(againstAt(2, after.steady.slice(120), after.nows.slice(120)))).toBeLessThan(1)
+  })
+
+  it('takes a seek at once at any rate', () => {
+    for (const rate of [1.5, 2, 3]) {
+      const clock = steadyClock()
+      playedAt(rate, 0, 60, 3, clock)
+
+      expect(clock.read(20, frameAt(60), rate)).toBe(20)
+      expect(clock.read(1, frameAt(61), rate)).toBe(1)
+    }
+  })
+
+  it('runs ahead of a clock that has stopped by a lead that scales with the rate', () => {
+    const clock = steadyClock()
+    const { raw } = playedAt(2, 0, 120, 3, clock)
+    const stopped = raw[raw.length - 1]
+    const times: number[] = []
+    for (let frame = 120; frame < 160; frame += 1)
+      times.push(clock.read(stopped, frameAt(frame), 2))
+
+    for (const time of times) expect(time - stopped).toBeLessThanOrEqual(0.0201)
+    expect(Math.max(...times) - stopped).toBeGreaterThan(0.0101)
+    for (const step of steps(times)) expect(step).toBeGreaterThanOrEqual(0)
+  })
+
+  it('at a rate of 1 gives the same times as with no rate', () => {
+    const plain = played(300).steady
+    const clock = steadyClock()
+    const atOne = played(300).raw.map((reading, frame) => clock.read(reading, frameAt(frame), 1))
+
+    expect(atOne).toEqual(plain)
+  })
+})
