@@ -91,7 +91,7 @@ describe('Lane and LaneHead', () => {
     render(
       <LaneHead
         name="Display"
-        brush={8}
+        brush={10}
         height={20}
         glyph={<Glyph kind="display" />}
         note="3"
@@ -197,7 +197,7 @@ describe('VideoStroke', () => {
       <VideoStroke
         width={300}
         height={20}
-        brush={8}
+        brush={10}
         frames={['a.jpg', 'b.jpg', 'c.jpg']}
         data-testid="v"
       />,

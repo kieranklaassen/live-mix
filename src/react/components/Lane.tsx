@@ -11,7 +11,7 @@ import { Meter } from './Meter'
 import { ToggleButton } from './Toggle'
 import { BRUSH_COUNT, cx } from './tokens'
 
-/** The brush a number names, 1 … 6, wrapping as `Stroke` does. */
+/** The brush a number names, 1 … `BRUSH_COUNT` (8), wrapping as `Stroke` does. */
 export function brushIndex(brush: number): number {
   return ((Math.round(brush) - 1 + BRUSH_COUNT * 100) % BRUSH_COUNT) + 1
 }
@@ -43,7 +43,7 @@ export const Lane = forwardRef<HTMLDivElement, LaneProps>(function Lane(
 
 export interface LaneHeadProps extends Omit<HTMLAttributes<HTMLDivElement>, 'children'> {
   name: string
-  /** Brush colour of the swatch, 1 … 6 (wraps); omit for no swatch. */
+  /** Brush colour of the swatch, 1 … 8 (wraps); omit for no swatch. */
   brush?: number
   height: 20 | 40
   /** Rendered before the name, after the swatch (a `Glyph`, a `SoundIcon`). */

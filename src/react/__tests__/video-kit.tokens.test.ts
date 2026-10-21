@@ -54,7 +54,7 @@ describe('the video kit tokens', () => {
       expect(themes[name], name).toMatchObject({
         'bar-height': '40px',
         'panel-width': '320px',
-        'lane-head-width': '160px',
+        'lane-head-width': '200px',
         'read-size': '13px',
         'handle-size': '7px',
       })

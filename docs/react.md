@@ -745,8 +745,11 @@ and differ only in colour:
 Set one with `data-lm-theme="graphite"` (or any name above) or
 `themeStyle(graphite)`, and add `className="lm-dense"` on the wrapper for the
 density rules (one-row device title bars, no body padding, sentence-case
-labels). Every theme also carries a six-colour brush palette (`--lm-brush-N`
-to paint with, `--lm-brush-ink-N` for detail and text on it), grid lines
+labels). Every theme also carries an eight-colour brush palette (`--lm-brush-N`
+to paint with, `--lm-brush-ink-N` for detail and text on it; `BRUSH_COUNT` is
+8 and a brush number wraps by it): six, then a red (7) and a purple (8), each
+at least 3:1 on the lane's ground (`sunken`) with its ink at least 4.5:1 on the
+brush and on the stroke's wash. The red is told from `danger` by its hue. Grid lines
 (`--lm-grid-line`, `--lm-grid-line-strong`, `--lm-rule`) and an automation
 colour.
 
@@ -920,7 +923,7 @@ these:
 | `record`                                                      | The record dot. The value of `danger`, with a meaning of its own                                  |
 | `note`, `note-soft`                                           | A note's tab, line and span edge, and the wash behind its words. 4.5:1 or better on `bg`/`sunken` |
 | `note-mark`, `mark-edge`                                      | A note's marks on a picture and the dark line around any mark there. One value in every theme     |
-| `bar-height`, `panel-width`, `lane-head-width`, `handle-size` | 40 px, 320 px, 160 px, 7 px                                                                       |
+| `bar-height`, `panel-width`, `lane-head-width`, `handle-size` | 40 px, 320 px, 200 px, 7 px                                                                       |
 | `read-size`                                                   | 13 px: text that is read (a transcript, a conversation). `.lm-read` sets it on a 20 px line       |
 
 `.lm-time-large` is the transport's time (the mono face at 13 px), `.lm-num` a

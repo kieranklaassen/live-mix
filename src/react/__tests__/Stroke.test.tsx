@@ -35,7 +35,7 @@ describe('Stroke', () => {
   })
 
   it('wraps the brush number onto the palette', () => {
-    render(<Stroke width={80} height={20} brush={8} data-testid="s" />)
+    render(<Stroke width={80} height={20} brush={10} data-testid="s" />)
     expect(screen.getByTestId('s')).toHaveClass('lm-stroke--b2')
   })
 

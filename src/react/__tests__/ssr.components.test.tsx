@@ -298,7 +298,7 @@ describe('kit components under SSR', () => {
       </div>,
     )
     expect(timeline).toContain('--lm-note:#8a3fa3')
-    expect(timeline).toContain('--lm-lane-head-width:160px')
+    expect(timeline).toContain('--lm-lane-head-width:200px')
     expect(timeline).toContain('role="slider"')
     expect(timeline).toContain('--lm-ruler-minor:40px')
     expect(timeline).toContain('lm-playhead__flag')
