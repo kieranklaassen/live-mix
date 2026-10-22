@@ -1086,3 +1086,47 @@ alone), pitch and level at 44.1/48/96 kHz, and prints both CPU figures;
 `src/dsp/__tests__/felt-piano-wasm.test.ts` repeats silence, fundamental,
 release/sustain, the 48-key stress and the flush on the artefact, and pins the
 note entry points.
+
+## Voice cleanup: de-hum, de-click, de-plosive, de-noise, de-reverb, de-ess
+
+The repair tools of a dialogue editor, as six worklet devices in the `repair`
+group (`CLEANUP_DESCRIPTORS`, among the stock devices
+`registerStockWasmDevices` registers). They are written in TypeScript like the
+gate, not compiled to WASM: one bundled file (`dist/worklets/cleanup.js`)
+registers a processor for each, and one host class (`WorkletCleanup`) serves
+all six. Each kernel (`src/core/devices/native/cleanup/`) is a plain class
+over blocks, so the tests render the exact audio-thread code offline. The
+order of `CLEANUP_KINDS` is the order a chain runs them: hum, clicks, pops,
+noise, the room, then sibilance.
+
+| Device       | What it does                                                                                                                                                                                                                                                        | Holds the sound              |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `de-hum`     | A band-pass Width Hz wide at the mains (50 or 60 Hz) and each harmonic asked for picks out the hum, and all but Reduction dB of it is taken away.                                                                                                                   | 0                            |
+| `de-click`   | A jump over 4 kHz far above the highest the voice reached there in the last few ms, lasting no longer than Length, is drawn again by linear predictors (order 16) learned from the 3 ms either side and crossfaded. A longer jump is a consonant and is left alone. | about 6.5 ms (313 at 48 kHz) |
+| `de-plosive` | While the lows under Frequency stand more than Threshold dB over the voice above it, the voice is crossfaded toward its high-pass by the excess, Range dB at most.                                                                                                  | 0                            |
+| `de-noise`   | Minimum statistics over the last Adapt seconds learn the noise per band; a decision-directed Wiener gain, floored at Reduction, keeps the voice.                                                                                                                    | one frame, about 21 ms       |
+| `de-reverb`  | Spectral subtraction of the late reverberation (Lebart): each band's power Early ms ago, faded by the Tail's decay, is the room's share now.                                                                                                                        | one frame, about 21 ms       |
+| `de-ess`     | While the part over Frequency comes within Threshold dB of the whole voice's level, the voice is crossfaded toward its low-pass, 4:1, Range dB at most. Level-independent.                                                                                          | 0                            |
+
+The two spectral devices work in frames of about 21 ms (`cleanupFrameSize`:
+1024 samples at 44.1 and 48 kHz) a quarter of a frame apart under a
+square-root Hann window, and their two channels ride one complex transform
+with one gain per band, so the stereo image never moves. Every device is
+bypassed to the dry sound held as long as it holds its own, so turning one
+off moves nothing in time, and reports one meter: the dB it took off lately.
+
+**Measured** (`src/core/__tests__/CleanupKernels.test.ts`, 48 kHz, made-up
+sounds): a 60 Hz hum with two harmonics 30 dB down, a tone 5 Hz off a
+harmonic 0.2 dB down; clicks in a voice repaired to within 0.03 of the clean
+voice, and a voice with none passed sample for sample; a 40 Hz thump 8.6 dB
+down and a 90 Hz voice untouched; white noise 10 dB down at Reduction 12,
+noise under speech 7 dB down; a room's tail 8 dB down where the sound that
+rang it lost 2.6; hiss over 5.5 kHz 8 dB down, alike at two levels 30 dB
+apart; speech with nothing wrong in it within 0.1 dB through every device but
+de-reverb, which takes 2.2 dB of a dry voice's steady part for room (the
+method cannot tell a held sound from its own reverb).
+
+**Not yet done.** Nobody has listened to any of them on a real voice, and
+their CPU has not been measured on an iPhone or in a browser. The numbers
+above are on synthetic sounds; a real room, a real noise and a real mouth
+will want the defaults looked at again.

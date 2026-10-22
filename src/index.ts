@@ -177,6 +177,36 @@ export {
   type WorkletGateOptions,
 } from './core/devices/native/WorkletGate'
 export {
+  CLEANUP_BYPASS_RAMP_SECONDS,
+  CLEANUP_KINDS,
+  CLEANUP_PARAMS,
+  CLEANUP_REPORT_HZ,
+  DECLICK_PARAMS,
+  DEESS_PARAMS,
+  DEHUM_PARAMS,
+  DENOISE_PARAMS,
+  DEPLOSIVE_PARAMS,
+  DEREVERB_PARAMS,
+  cleanupFrameSize,
+  cleanupLatencySamples,
+  cleanupProcessorName,
+  declickLatencySamples,
+  type CleanupHostMessage,
+  type CleanupKind,
+  type CleanupMessage,
+  type CleanupParamName,
+  type CleanupParams,
+  type CleanupProcessorOptions,
+} from './core/devices/native/cleanup/abi'
+export { CleanupKernel, type AnyCleanupKernel } from './core/devices/native/cleanup/CleanupKernel'
+export { createCleanupKernel } from './core/devices/native/cleanup/kernels'
+export {
+  CLEANUP_METERS,
+  WorkletCleanup,
+  type CleanupNodeFactory,
+  type WorkletCleanupOptions,
+} from './core/devices/native/cleanup/WorkletCleanup'
+export {
   SampleStore,
   bytesOfBuffer,
   type KnownSample,

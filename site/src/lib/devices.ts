@@ -75,6 +75,12 @@ const TYPESCRIPT_SOURCES: Readonly<Record<string, string>> = {
   utility: 'src/core/devices/native/Utility.ts',
   ducker: 'src/core/devices/native/WorkletDucker.ts',
   gate: 'src/core/devices/native/WorkletGate.ts',
+  'de-hum': 'src/core/devices/native/cleanup/DehumKernel.ts',
+  'de-click': 'src/core/devices/native/cleanup/DeclickKernel.ts',
+  'de-plosive': 'src/core/devices/native/cleanup/DeplosiveKernel.ts',
+  'de-noise': 'src/core/devices/native/cleanup/DenoiseKernel.ts',
+  'de-reverb': 'src/core/devices/native/cleanup/DereverbKernel.ts',
+  'de-ess': 'src/core/devices/native/cleanup/DeessKernel.ts',
   rack: 'src/core/devices/Rack.ts',
 }
 

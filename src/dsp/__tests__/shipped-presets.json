@@ -3370,5 +3370,45 @@
     "Voice, firm": {"threshold":-45,"range":-24,"attackMs":2,"holdMs":120,"releaseMs":150,"hysteresis":4},
     "Noisy room": {"threshold":-40,"range":-18,"attackMs":2,"holdMs":200,"releaseMs":250,"hysteresis":4},
     "Hard gate": {"threshold":-40,"range":-90,"attackMs":0.5,"holdMs":50,"releaseMs":80,"hysteresis":4}
+  },
+  "de-hum": {
+    "(default)": {"mains":1,"harmonics":4,"width":2,"reduction":30},
+    "Hum, 60 Hz": {"mains":1,"harmonics":4,"width":2,"reduction":30},
+    "Hum, 50 Hz": {"mains":0,"harmonics":4,"width":2,"reduction":30},
+    "Buzz, 60 Hz": {"mains":1,"harmonics":8,"width":3,"reduction":30},
+    "Buzz, 50 Hz": {"mains":0,"harmonics":8,"width":3,"reduction":30}
+  },
+  "de-click": {
+    "(default)": {"sensitivity":0.5,"lengthMs":1.5},
+    "Mouth clicks": {"sensitivity":0.5,"lengthMs":1.5},
+    "Gentle": {"sensitivity":0.3,"lengthMs":1.5},
+    "Thorough": {"sensitivity":0.75,"lengthMs":2.5}
+  },
+  "de-plosive": {
+    "(default)": {"threshold":6,"frequency":150,"range":18},
+    "Pops": {"threshold":6,"frequency":150,"range":18},
+    "Gentle": {"threshold":10,"frequency":150,"range":12},
+    "Close microphone": {"threshold":4,"frequency":200,"range":24}
+  },
+  "de-noise": {
+    "(default)": {"reduction":12,"threshold":0,"adaptSec":2},
+    "Voice, gentle": {"reduction":12,"threshold":0,"adaptSec":2},
+    "Voice, firm": {"reduction":20,"threshold":3,"adaptSec":2},
+    "Fan or air conditioning": {"reduction":18,"threshold":0,"adaptSec":1},
+    "Hiss": {"reduction":15,"threshold":0,"adaptSec":4}
+  },
+  "de-reverb": {
+    "(default)": {"reduction":10,"tailSec":0.6,"earlyMs":40},
+    "Small room": {"reduction":10,"tailSec":0.6,"earlyMs":40},
+    "Light touch": {"reduction":6,"tailSec":0.6,"earlyMs":40},
+    "Echoey room": {"reduction":14,"tailSec":1,"earlyMs":30},
+    "Large hall": {"reduction":16,"tailSec":2,"earlyMs":30}
+  },
+  "de-ess": {
+    "(default)": {"threshold":-12,"frequency":5500,"range":8},
+    "Voice": {"threshold":-12,"frequency":5500,"range":8},
+    "Deep voice": {"threshold":-12,"frequency":4500,"range":8},
+    "Bright voice": {"threshold":-12,"frequency":7000,"range":8},
+    "Firm": {"threshold":-18,"frequency":5500,"range":12}
   }
 }
