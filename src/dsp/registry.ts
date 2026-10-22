@@ -13,6 +13,16 @@ import { createWorkletDucker, type DuckerProcessorOverrides } from './devices/du
 import { GATE_PARAMS } from '../core/devices/native/gate-abi'
 import { GATE_METERS, type WorkletGateOptions } from '../core/devices/native/WorkletGate'
 import { createWorkletGate, type GateProcessorOverrides } from './devices/gate'
+import {
+  CLEANUP_PARAMS,
+  type CleanupKind,
+  type CleanupParams,
+} from '../core/devices/native/cleanup/abi'
+import {
+  CLEANUP_METERS,
+  type WorkletCleanupOptions,
+} from '../core/devices/native/cleanup/WorkletCleanup'
+import { createWorkletCleanup, type CleanupProcessorOverrides } from './devices/cleanup'
 import { FDN_REVERB_DEVICE } from './devices/fdn-reverb'
 import { GENERATED_WASM_DESCRIPTORS, GENERATED_WASM_DEVICES } from './devices/index.gen'
 import { FET_LIMITER_DEVICE } from './devices/fet-limiter'
@@ -360,6 +370,119 @@ export const WORKLET_GATE_DESCRIPTOR: DeviceDescriptor<typeof GATE_PARAMS> = {
   },
 }
 
+/** A voice cleanup device as a registry device; its factory takes the registry's `params` map and hands `processorUrl`/`createNode` through. */
+function cleanupDescriptor<K extends CleanupKind>(
+  kind: K,
+  meta: Pick<DeviceDescriptor<CleanupParams[K]>, 'name' | 'description' | 'presets'>,
+): DeviceDescriptor<CleanupParams[K]> {
+  return {
+    id: kind,
+    kind: 'worklet',
+    category: 'repair',
+    version: 1,
+    params: CLEANUP_PARAMS[kind],
+    meters: CLEANUP_METERS,
+    ...meta,
+    create: (context, options) => {
+      const { params, ...rest } = options as {
+        params?: Readonly<Record<string, number>>
+      } & CleanupProcessorOverrides &
+        Pick<WorkletCleanupOptions, 'createNode' | 'reportHz'>
+      // Its own parameters only: a saved value named `reportHz` or `createNode` is not that option of the host.
+      const own = Object.fromEntries(
+        Object.entries(params ?? {}).filter(([name]) => Object.hasOwn(CLEANUP_PARAMS[kind], name)),
+      )
+      return createWorkletCleanup(context, kind, { ...rest, params: own })
+    },
+  }
+}
+
+/** Mains hum and its harmonics cut out, the first of the voice cleanup chain. */
+export const DEHUM_DESCRIPTOR = cleanupDescriptor('de-hum', {
+  name: 'De-hum',
+  description:
+    'Takes the hum of the mains and its harmonics out of a recording, with cuts narrow enough to leave the voice beside them alone.',
+  presets: {
+    'Hum, 60 Hz': {},
+    'Hum, 50 Hz': { mains: 0 },
+    'Buzz, 60 Hz': { harmonics: 8, width: 3 },
+    'Buzz, 50 Hz': { mains: 0, harmonics: 8, width: 3 },
+  },
+})
+
+/** Mouth clicks and short ticks taken out and drawn over. */
+export const DECLICK_DESCRIPTOR = cleanupDescriptor('de-click', {
+  name: 'De-click',
+  description:
+    'Finds the small clicks of a mouth and any tick as short, and draws the voice through where they were. Holds the sound about 6.5 ms.',
+  presets: {
+    'Mouth clicks': {},
+    Gentle: { sensitivity: 0.3 },
+    Thorough: { sensitivity: 0.75, lengthMs: 2.5 },
+  },
+})
+
+/** The thump of a "p" or a "b" turned down. */
+export const DEPLOSIVE_DESCRIPTOR = cleanupDescriptor('de-plosive', {
+  name: 'De-plosive',
+  description:
+    'Turns down the thump of a "p" or a "b" on the microphone, only while it lasts and only in the lows.',
+  presets: {
+    Pops: {},
+    Gentle: { threshold: 10, range: 12 },
+    'Close microphone': { threshold: 4, frequency: 200, range: 24 },
+  },
+})
+
+/** A steady noise under a voice turned down, learned as it goes. */
+export const DENOISE_DESCRIPTOR = cleanupDescriptor('de-noise', {
+  name: 'De-noise',
+  description:
+    'Learns the steady noise under a voice (a fan, a computer, hiss, the air of a room) as it goes and turns it down, band by band. Holds the sound about 21 ms.',
+  presets: {
+    'Voice, gentle': {},
+    'Voice, firm': { reduction: 20, threshold: 3 },
+    'Fan or air conditioning': { reduction: 18, adaptSec: 1 },
+    Hiss: { reduction: 15, adaptSec: 4 },
+  },
+})
+
+/** The room's echo and reverb taken off a voice. */
+export const DEREVERB_DESCRIPTOR = cleanupDescriptor('de-reverb', {
+  name: 'De-reverb',
+  description:
+    'Takes the echo and the reverb of a room off a voice, from how long the room rings. Holds the sound about 21 ms.',
+  presets: {
+    'Small room': {},
+    'Light touch': { reduction: 6 },
+    'Echoey room': { reduction: 14, tailSec: 1, earlyMs: 30 },
+    'Large hall': { reduction: 16, tailSec: 2, earlyMs: 30 },
+  },
+})
+
+/** An ess turned down, whatever the voice's level. */
+export const DEESS_DESCRIPTOR = cleanupDescriptor('de-ess', {
+  name: 'De-ess',
+  description:
+    'Turns down the hiss of an "s" or a "sh" while it lasts, judged against the voice around it so it works alike on a loud and a quiet recording.',
+  presets: {
+    Voice: {},
+    'Deep voice': { frequency: 4500 },
+    'Bright voice': { frequency: 7000 },
+    Firm: { threshold: -18, range: 12 },
+  },
+})
+
+/** The six voice cleanup devices, in the order a chain runs them. */
+export const CLEANUP_DESCRIPTORS: readonly DeviceDescriptor[] = [
+  DEHUM_DESCRIPTOR,
+  DECLICK_DESCRIPTOR,
+  DEPLOSIVE_DESCRIPTOR,
+  DENOISE_DESCRIPTOR,
+  DEREVERB_DESCRIPTOR,
+  DEESS_DESCRIPTOR,
+]
+
 export const FELT_PIANO_DESCRIPTOR = wasmDeviceDescriptor(FELT_PIANO_DEVICE, {
   name: 'Felt Piano',
   category: 'instrument',
@@ -515,7 +638,7 @@ export const FELT_PIANO_DESCRIPTOR = wasmDeviceDescriptor(FELT_PIANO_DEVICE, {
   },
 })
 
-/** Every stock worklet-backed device shipped in `./dsp` (WASM modules and the ducker). */
+/** Every stock worklet-backed device shipped in `./dsp` (WASM modules, the ducker, the gate and the voice cleanup devices). */
 export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   PLATE_REVERB_DESCRIPTOR,
   FDN_REVERB_DESCRIPTOR,
@@ -524,6 +647,7 @@ export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   FET_LIMITER_DESCRIPTOR,
   WORKLET_DUCKER_DESCRIPTOR,
   WORKLET_GATE_DESCRIPTOR,
+  ...CLEANUP_DESCRIPTORS,
   SPECTRAL_DRIFTER_DESCRIPTOR,
   ETHER_REVERB_DESCRIPTOR,
   FELT_PIANO_DESCRIPTOR,

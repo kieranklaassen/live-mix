@@ -361,6 +361,7 @@ describe('the stock devices', () => {
       'constellation.shuffle',
       'constellation.stars',
       'currents.bands',
+      'de-hum.harmonics',
       'ember.unisonVoices',
       'flock.birds',
       'fog.layers',

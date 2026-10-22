@@ -24,6 +24,7 @@ export type DeviceKind = 'node' | 'wasm' | 'wam' | 'native' | (string & {})
 export type DeviceCategory =
   | 'eq'
   | 'dynamics'
+  | 'repair'
   | 'delay'
   | 'reverb'
   | 'modulation'
@@ -46,6 +47,7 @@ export const DEVICE_CATEGORIES: readonly { id: DeviceCategory; label: string }[]
   { id: 'modulation', label: 'Modulation' },
   { id: 'eq', label: 'EQ and filters' },
   { id: 'dynamics', label: 'Dynamics' },
+  { id: 'repair', label: 'Repair' },
   { id: 'drive', label: 'Drive' },
   { id: 'spatial', label: 'Spatial' },
   { id: 'utility', label: 'Utility' },
