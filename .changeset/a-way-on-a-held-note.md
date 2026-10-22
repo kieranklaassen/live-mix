@@ -1,5 +1,0 @@
----
-'@kieranklaassen/live-mix': patch
----
-
-A way of playing has something to play on a drone (`./dsp`). A held sound with fewer than two notes above the one it stands on had no way at all: there was no chord to deal. It is now read with notes lent to it from its key, the third, the fifth and the octave above the standing note where the sound does not hold them, until three notes are above it, so the six ways that play a held chord (Rising, There and back, Outside in, Staggered entries, Voices come and go, Unequal rounds) play a held note or a held pair as well. `lentNotes(sound, key)` lists what a sound is lent, low to high, and is empty for a sound with a chord of its own, for a phrase and for keys that are not pitches. A lent note sounds only in a take: without `plays` every render is what it was, and so is every take of a sound that is lent nothing. One thing differs for a sound that had takes before: a held sound of two notes played Rising, There and back or Outside in past half of `far` (the one case such a sound had takes in) now deals its lent notes too. The rows of those six ways say "A held note or chord" under what they need.
