@@ -9,13 +9,22 @@
 // the display between readings, and leans toward the reading so it never
 // drifts from it. It decides what time it is; what is drawn at that time is
 // still a function of the time alone.
+//
+// A clock played fast, as a transport at a rate is, moves `rate` seconds a
+// second. Told the rate, the steady time moves by `rate × elapsed` between
+// readings, and the lead it may run ahead of a reading scales with it. A
+// change of rate alone is not a jump: the next reading is followed at the new
+// pace from where the steady time stands, so 1.5x to 2x glides.
 
 export interface SteadyClock {
   /**
    * The steady time for a `reading` of the clock, in seconds, taken at `now`
-   * milliseconds of a monotonic timer such as `performance.now()`.
+   * milliseconds of a monotonic timer such as `performance.now()`. `rate` is
+   * how many seconds the clock moves a second of the timer: 1 (the default)
+   * for a clock played at speed, 2 for one played twice as fast. Give the
+   * rate the clock moves at now; a change of it alone is not a jump.
    */
-  read(reading: number, now: number): number
+  read(reading: number, now: number, rate?: number): number
   /** Forgets the pace, so the next reading is taken as it is: when the clock is started, stopped or moved. */
   reset(): void
 }
@@ -28,7 +37,8 @@ export interface SteadyClockOptions {
 }
 
 /**
- * The steady time is never this many seconds ahead of a reading. A clock
+ * The steady time is never this many seconds ahead of a reading, at a rate of
+ * 1; at another rate the lead is this many times the rate. A clock
  * that stands still, as an audio clock does until its first sound is heard,
  * is followed to a stop and not run on past: more than the few milliseconds
  * a running clock's steps put a reading behind, and under a frame.
@@ -43,16 +53,16 @@ export function steadyClock({
   let anchor: { time: number; now: number } | null = null
 
   return {
-    read(reading, now) {
+    read(reading, now, rate = 1) {
       const elapsed = anchor ? (now - anchor.now) / 1000 : -1
-      const steady = anchor ? anchor.time + elapsed : reading
+      const steady = anchor ? anchor.time + rate * elapsed : reading
       const off = reading - steady
       if (elapsed < 0 || Math.abs(off) > tolerance) {
         anchor = { time: reading, now }
         return reading
       }
       // Lean toward the reading by a share that grows with the time since the last one: asked twice in a frame, it moves once.
-      const time = Math.min(steady + off * (1 - Math.exp(-elapsed / settle)), reading + LEAD)
+      const time = Math.min(steady + off * (1 - Math.exp(-elapsed / settle)), reading + LEAD * rate)
       anchor = { time, now }
       return time
     },
