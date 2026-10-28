@@ -125,6 +125,12 @@ export {
   type StripHost,
   type StripShadow,
 } from './core/tracks/ChannelStrip'
+export {
+  DEFAULT_KEEPER_BLOCK_MS,
+  PitchKeeper,
+  keptSemitones,
+  type PitchKeeperOptions,
+} from './core/tracks/PitchKeeper'
 export { createPan } from './core/pan'
 export { GroupTrack, type GroupTrackOptions } from './core/tracks/GroupTrack'
 export {

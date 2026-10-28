@@ -451,6 +451,7 @@ describe('engine change events and latency (U24 hooks follow-up)', () => {
       outputSec: 0.02,
       inputSec: 0,
       totalSec: 0.025,
+      keptSec: 0,
     })
 
     const mic = engine.addLiveInputTrack('mic')
