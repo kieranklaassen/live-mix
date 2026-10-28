@@ -32,6 +32,7 @@ import { type SidechainDucker } from './devices/native/SidechainDucker'
 import { WorkletDucker, type WorkletDuckerOptions } from './devices/native/WorkletDucker'
 import { type DeviceRegistry } from './devices/registry'
 import { AudioTrack, type AudioTrackOptions } from './tracks/AudioTrack'
+import { PitchKeeper, type PitchKeeperOptions } from './tracks/PitchKeeper'
 import { StretchTrack, type StretchTrackOptions } from './tracks/StretchTrack'
 import {
   SoloInPlace,
@@ -108,6 +109,14 @@ export interface EngineOptions extends ClockOptions {
    * are let in and out each by itself.
    */
   joinClips?: boolean
+  /**
+   * Keep the pitch while the transport runs at another rate: each audio
+   * track's voices are summed into a `PitchKeeper` (signalsmith-stretch in
+   * its live-input mode) that shifts them back to the pitch they were
+   * recorded at, ahead of the track's strip. Made by `preparePitch`, never
+   * before; out of the path at rate 1. Left out, a rate is tape's.
+   */
+  keepPitch?: PitchKeeperOptions
 }
 
 export type AddElementTrackOptions = Omit<
@@ -218,6 +227,12 @@ export interface IoLatency {
   inputSec: number
   /** `baseSec + outputSec + inputSec`. */
   totalSec: number
+  /**
+   * What the pitch keepers hold the sound back by while the transport runs at
+   * another rate (`EngineOptions.keepPitch`), 0 at rate 1. Part of what a
+   * listener hears late, as `baseSec` and `outputSec` are; not in `totalSec`.
+   */
+  keptSec: number
 }
 
 export interface AddBusOptions {
@@ -280,6 +295,9 @@ export class Engine {
   private readonly sharedSpaces: SharedSpaces | null
   private readonly joinClips: boolean
   private disposed = false
+  /** The pitch keeper of each audio track, once `preparePitch` made them. */
+  private readonly keepers = new Map<AudioTrack, PitchKeeper>()
+  private readonly keepPitch: PitchKeeperOptions | null
 
   constructor(options: EngineOptions) {
     this.context = options.context
@@ -317,6 +335,39 @@ export class Engine {
           settings: () => ({ impulse: this.spaceImpulse(), ...this.spaceColour() }),
         })
       : null
+    this.keepPitch = options.keepPitch ?? null
+    // After the scheduler's own listener: the voices are retimed, then the keepers take the new rate.
+    this.transport.onChange((change) => {
+      if (change.reason === 'rate') this.keepAt(this.transport.rate)
+    })
+  }
+
+  /**
+   * Makes a pitch keeper for every audio track that has none, so that a rate
+   * set next is heard at the pitch it was recorded at. Async (a worklet and
+   * its WASM): await it before `transport.setRate`, or the first moments are
+   * tape's. Without `keepPitch` it does nothing. A track added after it plays
+   * at tape's pitch until it is called again.
+   */
+  async preparePitch(): Promise<void> {
+    const options = this.keepPitch
+    if (!options) return
+    const missing = [...this.trackMap.values()].filter((track) => !this.keepers.has(track))
+    const made = await Promise.all(missing.map(() => PitchKeeper.make(this.context, options)))
+    missing.forEach((track, at) => {
+      const keeper = made[at]
+      if (this.disposed || !this.trackMap.has(track.name)) return keeper.dispose()
+      this.keepers.set(track, keeper)
+    })
+    this.keepAt(this.transport.rate)
+  }
+
+  /** Puts each keeper in the path at a rate that is not 1, at its shift, and takes it out at 1. */
+  private keepAt(rate: number): void {
+    for (const [track, keeper] of this.keepers) {
+      keeper.setRate(rate)
+      track.strip.keepPitch(rate === 1 ? null : keeper.node)
+    }
   }
 
   /** Audio-clock seconds through the injected clock. */
@@ -553,6 +604,8 @@ export class Engine {
     if (!track) return
     this.retainers.get(track)?.dispose()
     this.retainers.delete(track)
+    this.keepers.get(track)?.dispose()
+    this.keepers.delete(track)
     track.dispose()
     this.trackMap.delete(name)
     this.changed('track', 'removed', name)
@@ -682,7 +735,8 @@ export class Engine {
     const baseSec = finiteOrZero(context.baseLatency)
     const outputSec = finiteOrZero(context.outputLatency)
     const inputSec = Math.max(0, ...this.liveInputs.map((track) => track.inputLatencySec))
-    return { baseSec, outputSec, inputSec, totalSec: baseSec + outputSec + inputSec }
+    const keptSec = Math.max(0, ...[...this.keepers.values()].map((keeper) => keeper.latencySec))
+    return { baseSec, outputSec, inputSec, totalSec: baseSec + outputSec + inputSec, keptSec }
   }
 
   private changed(kind: EngineObjectKind, action: 'added' | 'removed', name: string): void {
@@ -887,6 +941,8 @@ export class Engine {
     this.automation.dispose()
     for (const retainer of this.retainers.values()) retainer.dispose()
     this.retainers.clear()
+    for (const keeper of this.keepers.values()) keeper.dispose()
+    this.keepers.clear()
     for (const track of this.trackMap.values()) track.dispose()
     this.trackMap.clear()
     this.sharedSpaces?.dispose()

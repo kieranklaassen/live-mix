@@ -165,7 +165,16 @@ describe('DeviceRegistry', () => {
     expect(registry.list({ kind: 'wasm' })).toEqual(
       STOCK_WASM_DEVICES.filter((d) => d.kind === 'wasm'),
     )
-    expect(registry.list({ kind: 'worklet' }).map((d) => d.id)).toEqual(['ducker', 'gate'])
+    expect(registry.list({ kind: 'worklet' }).map((d) => d.id)).toEqual([
+      'ducker',
+      'gate',
+      'de-hum',
+      'de-click',
+      'de-plosive',
+      'de-noise',
+      'de-reverb',
+      'de-ess',
+    ])
     expect(
       registry
         .list({ category: 'reverb' })

@@ -79,6 +79,13 @@ export {
   SAMPLE_DEVICE_IDS,
   WORKLET_DUCKER_DESCRIPTOR,
   WORKLET_GATE_DESCRIPTOR,
+  CLEANUP_DESCRIPTORS,
+  DECLICK_DESCRIPTOR,
+  DEESS_DESCRIPTOR,
+  DEHUM_DESCRIPTOR,
+  DENOISE_DESCRIPTOR,
+  DEPLOSIVE_DESCRIPTOR,
+  DEREVERB_DESCRIPTOR,
   SPECTRAL_DRIFTER_DESCRIPTOR,
   STEREO_WIDENER_DESCRIPTOR,
   STOCK_WASM_DEVICES,
@@ -264,6 +271,25 @@ export {
   type GateNodeFactory,
   type WorkletGateOptions,
 } from '../core/devices/native/WorkletGate'
+export {
+  cleanupProcessorUrl,
+  createWorkletCleanup,
+  loadCleanupProcessor,
+  type CleanupProcessorOverrides,
+} from './devices/cleanup'
+export {
+  CLEANUP_KINDS,
+  CLEANUP_PARAMS,
+  cleanupLatencySamples,
+  cleanupProcessorName,
+  type CleanupKind,
+} from '../core/devices/native/cleanup/abi'
+export {
+  CLEANUP_METERS,
+  WorkletCleanup,
+  type CleanupNodeFactory,
+  type WorkletCleanupOptions,
+} from '../core/devices/native/cleanup/WorkletCleanup'
 export {
   TRUE_PEAK_LIMITER_DEVICE,
   TRUE_PEAK_LIMITER_LATENCY_SECONDS,

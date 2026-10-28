@@ -165,6 +165,8 @@ export class ChannelStrip {
   private readonly changes = new Emitter<StripChange>()
   private sendList: SendList | null = null
   private nodes: StripNodes | null = null
+  /** What the sources are summed into ahead of the strip while the transport plays at another rate (`PitchKeeper`). */
+  private keeper: AudioNode | null = null
   // The fader and gate each shadow keeps in step with the strip's.
   private readonly shadows = new Set<ShadowNodes>()
   // The rides, in the order they stand between the fader and the gate.
@@ -277,7 +279,32 @@ export class ChannelStrip {
   connectSource(node: AudioNode): void {
     this.assertLive()
     this.sources.add(node)
-    node.connect(this.entry())
+    node.connect(this.sourceEntry())
+  }
+
+  /**
+   * Sums every source into `node` before the strip, and `node` into the strip,
+   * from now on: a `PitchKeeper` while the transport runs at another rate.
+   * `null` connects the sources to the strip again. Sources that connect later
+   * go where the others are.
+   */
+  keepPitch(node: AudioNode | null): void {
+    this.assertLive()
+    if (node === this.keeper) return
+    const from = this.sourceEntry()
+    const entry = this.entry()
+    if (node) node.connect(entry)
+    for (const source of this.sources) {
+      source.connect(node ?? entry)
+      source.disconnect(from)
+    }
+    if (this.keeper) this.keeper.disconnect(entry)
+    this.keeper = node
+  }
+
+  /** The node summing the sources ahead of the strip, or null while they reach it directly. */
+  get keptBy(): AudioNode | null {
+    return this.keeper
   }
 
   /** Drop a source from the bookkeeping after the caller disconnected it. */
@@ -289,7 +316,7 @@ export class ChannelStrip {
   disconnectSource(node: AudioNode): void {
     if (!this.sources.delete(node)) return
     try {
-      node.disconnect(this.entry())
+      node.disconnect(this.sourceEntry())
     } catch {
       // Already disconnected by the caller; nothing to undo.
     }
@@ -313,7 +340,7 @@ export class ChannelStrip {
       this.nodes.gate.disconnect(this.destinationNode)
       this.nodes.gate.connect(node)
     } else {
-      for (const source of this.sources) {
+      for (const source of this.keeper ? [this.keeper] : this.sources) {
         source.disconnect(this.destinationNode)
         source.connect(node)
       }
@@ -754,6 +781,11 @@ export class ChannelStrip {
     return this.nodes?.inputGain ?? this.destinationNode
   }
 
+  /** Where a source connects: the keeper while there is one, else the strip. */
+  private sourceEntry(): AudioNode {
+    return this.keeper ?? this.entry()
+  }
+
   private insertTail(): AudioNode {
     const last = this.insertList[this.insertList.length - 1]
     return last ? last.output : this.ensureNodes().inputGain
@@ -776,7 +808,7 @@ export class ChannelStrip {
     gate.connect(this.destinationNode)
     const nodes: StripNodes = { inputGain, panner, fader, gate }
     this.nodes = nodes
-    for (const source of this.sources) {
+    for (const source of this.keeper ? [this.keeper] : this.sources) {
       source.disconnect(this.destinationNode)
       source.connect(inputGain)
     }
