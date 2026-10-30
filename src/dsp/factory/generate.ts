@@ -73,6 +73,8 @@ export interface GeneratedSound {
   loopCrossfadeSec?: number
   /** Fade at the end of a sound that does not loop. */
   fadeOutSec?: number
+  /** True for a sound of steady tones, each tuned to a whole number of cycles per loop. */
+  steady?: boolean
 }
 
 // --- Draws ------------------------------------------------------------------------
@@ -1154,5 +1156,6 @@ export function generateSound(options: GenerateSoundOptions): GeneratedSound {
     ...(made.skipSec !== undefined ? { skipSec: made.skipSec } : {}),
     ...(made.loopCrossfadeSec !== undefined ? { loopCrossfadeSec: made.loopCrossfadeSec } : {}),
     ...(made.fadeOutSec !== undefined ? { fadeOutSec: made.fadeOutSec } : {}),
+    ...(made.steady ? { steady: true } : {}),
   }
 }

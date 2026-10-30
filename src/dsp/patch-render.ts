@@ -17,6 +17,8 @@ import { compileWasm, type WasmSource } from './assets'
 import { isWasmDescriptor, type WasmDeviceDescriptor } from './descriptor'
 import { noteFrequency } from './note-frequency'
 import { describeStockWasmDevice } from './registry'
+import { isKitInstrument } from './factory/kits'
+import { type KeyTuning, tuneKey } from './tuning'
 import { loadDeviceZones } from './zones/device'
 import { type PreparedZoneLoad } from './zones/zone-map'
 
@@ -50,6 +52,12 @@ export interface RenderPatchOptions {
   sampleRate?: number
   /** What the instrument plays. Without one an instrument patch renders silence. */
   phrase?: Phrase
+  /**
+   * The tuning the phrase is played in (`tuneKey`): each note at its pitch in
+   * the piece's tuning. Absent or Equal, the notes as written. A kit's notes
+   * are never tuned, since its keys pick drums and not pitches.
+   */
+  keyTuning?: KeyTuning
   /** What an effect chain processes (mono or stereo, at `sampleRate`); silence follows it. */
   input?: PlanarAudio
   /** The sound a sample instrument (granular synth, sampler) plays, at any rate. */
@@ -215,7 +223,12 @@ interface Round {
   frames: number
 }
 
-function phraseEvents(phrase: Phrase | undefined, sampleRate: number, round?: Round): NoteEvent[] {
+function phraseEvents(
+  phrase: Phrase | undefined,
+  sampleRate: number,
+  round?: Round,
+  keyTuning?: KeyTuning,
+): NoteEvent[] {
   const events: NoteEvent[] = []
   phrase?.notes.forEach((note, id) => {
     if (!Number.isFinite(note.atSec) || !Number.isFinite(note.durSec) || note.durSec <= 0) return
@@ -229,7 +242,7 @@ function phraseEvents(phrase: Phrase | undefined, sampleRate: number, round?: Ro
       ? pass * round.frames +
         Math.max(0, Math.floor((note.atSec - pass * round.sec) * sampleRate + 0.5 + 1e-6))
       : Math.max(0, Math.round(note.atSec * sampleRate))
-    const frequency = noteFrequency(note.note)
+    const frequency = noteFrequency(keyTuning ? tuneKey(note.note, keyTuning) : note.note)
     const gain = note.gain ?? DEFAULT_PHRASE_GAIN
     events.push({ frame, on: true, id, frequency, gain })
     events.push({
@@ -242,6 +255,19 @@ function phraseEvents(phrase: Phrase | undefined, sampleRate: number, round?: Ro
   })
   // Stable: at the same frame a release sorts before the next attack only when it came first.
   return events.sort((a, b) => a.frame - b.frame)
+}
+
+/**
+ * The tuning a patch's notes are played in: none for Equal, whose notes are
+ * as written, and none for a kit, whose keys pick drums.
+ */
+export function playedTuning(
+  keyTuning: KeyTuning | undefined,
+  patch: Patch,
+): KeyTuning | undefined {
+  return keyTuning?.tuning !== 'equal' && !isKitInstrument(patch.instrument?.deviceId ?? '')
+    ? keyTuning
+    : undefined
 }
 
 function nextTask(): Promise<void> {
@@ -362,7 +388,9 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   // Aborted before the call or while the modules were compiled: a short render never reaches the end of a slice.
   options.signal?.throwIfAborted()
 
-  const events = instrument ? phraseEvents(options.phrase, sampleRate, round) : []
+  const events = instrument
+    ? phraseEvents(options.phrase, sampleRate, round, playedTuning(options.keyTuning, patch))
+    : []
   // The input as long as the render: what it lacks is the silence its tail rings into.
   const padded = (channel: Float32Array | undefined): Float32Array => {
     const out = new Float32Array(total)

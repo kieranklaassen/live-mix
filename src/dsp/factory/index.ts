@@ -5,7 +5,14 @@
 
 import { type PatchCategory } from '../../core/devices/patch'
 import { type PlanarAudio } from '../../core/render/encode'
-import { peakOf, renderPatch, type RenderPatchOptions } from '../patch-render'
+import {
+  type Phrase,
+  peakOf,
+  playedTuning,
+  renderPatch,
+  type RenderPatchOptions,
+} from '../patch-render'
+import { type KeyTuning, tuneKey } from '../tuning'
 import { FACTORY_CHAINS } from './chains'
 import { type GeneratedSound } from './generate'
 import { transposePatch, transposePhrase, transposeWords } from './key'
@@ -206,6 +213,14 @@ export type FactorySoundRenderOptions = FactoryRenderOptions & {
    * keys and its key is `transpose`: `plays.key` is not read.
    */
   plays?: WayPlaying
+  /**
+   * The piece's tuning (`tuneKey`), applied to the notes once they are in the
+   * key and before a steady tone is nudged to whole cycles, so it loops whole
+   * at its tuned pitch. Absent or Equal, the notes as written. A kit's notes
+   * and those of a sound made from another one are not tuned; the sound it is
+   * made from is.
+   */
+  keyTuning?: KeyTuning
 }
 
 /** How a generated sound is rendered: where to run the devices, and played which way. */
@@ -216,6 +231,11 @@ export type GeneratedSoundRenderOptions = FactoryRenderOptions & {
    * as it was generated.
    */
   plays?: WayPlaying
+  /**
+   * The piece's tuning (`tuneKey`). A steady sound is nudged to whole cycles
+   * again at its tuned pitches; its pure fifth is the tuning's fifth.
+   */
+  keyTuning?: KeyTuning
 }
 
 /**
@@ -347,6 +367,20 @@ function peakDbOf(audio: PlanarAudio): number {
 }
 
 /**
+ * A phrase's notes in `keyTuning`, and for a steady tone that loops every
+ * `loopSec`, each moved to a whole number of cycles of the loop at that pitch.
+ */
+function settledPhrase(phrase: Phrase, keyTuning?: KeyTuning, loopSec?: number): Phrase {
+  if (!keyTuning && loopSec === undefined) return phrase
+  return {
+    notes: phrase.notes.map((note) => {
+      const tuned = keyTuning ? tuneKey(note.note, keyTuning) : note.note
+      return { ...note, note: loopSec === undefined ? tuned : wholeCycles(tuned, loopSec) }
+    }),
+  }
+}
+
+/**
  * Render a factory sound: its phrase on its patch, looped without a seam
  * when the recipe asks for it, in the bank's own key or `transpose`
  * semitones from it, and for a sound that keeps time at the tempo it is
@@ -358,7 +392,7 @@ export async function renderFactorySound(
   sound: FactorySound,
   options: FactorySoundRenderOptions = {},
 ): Promise<PlanarAudio> {
-  const { transpose = 0, vary, plays, bpm, ...render } = options
+  const { transpose = 0, vary, plays, bpm, keyTuning, ...render } = options
   // Played and varied as it is written, on the white keys and at its own
   // tempo, and moved into the key and to the tempo afterwards.
   const inKey = soundAtTempo(
@@ -384,17 +418,14 @@ export async function renderFactorySound(
     if (!source || source.source !== undefined) {
       throw new Error(`live-mix: factory sound "${sound.id}" has no plain source "${sound.source}"`)
     }
-    sample = await renderFactorySound(source, { ...render, transpose })
+    sample = await renderFactorySound(source, { ...render, transpose, keyTuning })
   }
-  const phrase =
-    inKey.tuning === 'whole-cycles'
-      ? {
-          notes: inKey.phrase.notes.map((note) => ({
-            ...note,
-            note: wholeCycles(note.note, inKey.durationSec),
-          })),
-        }
-      : inKey.phrase
+  // A sound made from another one keeps its own notes, as it does in another key.
+  const phrase = settledPhrase(
+    inKey.phrase,
+    sound.source === undefined ? playedTuning(keyTuning, patch) : undefined,
+    inKey.tuning === 'whole-cycles' ? inKey.durationSec : undefined,
+  )
   return renderPatch(patch, {
     ...render,
     sample,
@@ -429,8 +460,13 @@ export function renderGeneratedSound(
   sound: GeneratedSound,
   options: GeneratedSoundRenderOptions = {},
 ): Promise<PlanarAudio> {
-  const { plays, ...render } = options
-  const { phrase } = playSound(sound, plays && { ...plays, key: plays.key ?? sound.key })
+  const { plays, keyTuning, ...render } = options
+  const played = playSound(sound, plays && { ...plays, key: plays.key ?? sound.key }).phrase
+  const tuning = playedTuning(keyTuning, sound.patch)
+  // Its steady tones were nudged to whole cycles at their equal pitches: the
+  // tuning drops that nudge, so it is laid again on the tuned ones.
+  const steady = sound.steady && played === sound.phrase ? sound.durationSec : undefined
+  const phrase = tuning ? settledPhrase(played, tuning, steady) : played
   return renderPatch(sound.patch, {
     ...render,
     phrase,
