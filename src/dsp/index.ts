@@ -103,6 +103,15 @@ export {
   type LimitedRender,
 } from './limit-rendered'
 export {
+  KEY_TUNINGS,
+  KEY_TUNING_LABELS,
+  KEY_TUNING_SCALES,
+  isKeyTuningId,
+  tuneKey,
+  type KeyTuning,
+  type KeyTuningId,
+} from './tuning'
+export {
   DEFAULT_PHRASE_GAIN,
   canRenderPatch,
   foldLoop,
