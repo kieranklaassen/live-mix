@@ -457,6 +457,12 @@ const dspSymbols = [
   'foldLoop',
   'peakOf',
   'noteFrequency',
+  // The tunings a piece plays in (ambient-live's keys and renders)
+  'KEY_TUNINGS',
+  'KEY_TUNING_LABELS',
+  'KEY_TUNING_SCALES',
+  'isKeyTuningId',
+  'tuneKey',
   'DEFAULT_PHRASE_GAIN',
   'FACTORY_PRESETS',
   'FACTORY_CHAINS',
