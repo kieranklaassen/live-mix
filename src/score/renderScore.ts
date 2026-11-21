@@ -1,7 +1,8 @@
 // Score-driven bounce: the document is the arrangement, `loadScore` builds it
 // on the offline engine, `renderOffline` pre-schedules and renders it. This is
 // the AE6 golden's subject: the same score rendered offline must hand the
-// graph exactly what the live engine does.
+// graph exactly what the live engine does, but that every strip and the
+// master start where the score has them, where a playing engine eases there.
 //
 // Not rendered: live-input tracks (declared, their audio is the app's) and
 // element tracks (HTMLMediaElements play in real time only). Both are dropped

@@ -1,6 +1,7 @@
 // AE6, score-driven: the same document loaded on a live engine (real clock,
 // timer-driven scheduler and automation) and bounced through `renderScore`
-// must hand the graph the same source starts/stops and AudioParam events.
+// must hand the graph the same source starts/stops and AudioParam events,
+// but that the bounce starts every strip where the score has it.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -16,6 +17,7 @@ import {
   type ScheduleSnapshot,
 } from '../../testing'
 import { type OfflineContextFactory } from '../../core/render/OfflineRenderer'
+import { startingWhereSet } from '../../core/render/__tests__/starting-where-set'
 import { createEngine } from '../../core/Engine'
 import { loadScore } from '../loadScore'
 import { renderScore, renderScoreStems, renderableScore } from '../renderScore'
@@ -139,7 +141,11 @@ describe('renderScore', () => {
 
     expect(offline.sources.length).toBe(3)
     expect(offline.sources).toEqual(live.sources)
-    expect(offline.params).toEqual(live.params)
+    // The master's level, the pad's mute and the kick's pan are where the
+    // bounce starts. The kick's level is its lane's, written the same in both.
+    const playing = startingWhereSet(live.params)
+    expect(playing.written).toEqual([0.9, 0, -0.2])
+    expect(offline.params).toEqual(playing.params)
     expect(result.audio.channels[0]).toHaveLength(4 * SAMPLE_RATE)
     expect(result.engine.liveInputs).toEqual([])
     expect(result.engine.tempo.tempoSegments).toMatchObject(score.tempo)

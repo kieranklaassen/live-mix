@@ -122,7 +122,8 @@ and pitch in semitones; Camelot key matching.
 
 **Offline render and export** — `renderOffline`, `renderStems`,
 `renderScore`; identical to live playback down to every source start and
-`AudioParam` event; WAV encoding at 16/24/32 bit; recorders as taps.
+`AudioParam` event, but that a strip set before a render starts at its value
+where live playback eases to it; WAV encoding at 16/24/32 bit; recorders as taps.
 
 **Control surfaces** — `ControlSurface` with MIDI (Web MIDI, 14-bit, relative
 encoders) and OSC (over WebSocket) learn, soft takeover, curves, persistence;
@@ -608,7 +609,7 @@ the JSON types, listens to any node, and nothing imports it. Every audible path 
 a ramp; every scheduled start is idempotent by key. The same C++ compiles to
 the browser's C ABI and builds natively (JUCE) unchanged, and the offline
 renderer issues exactly the source starts and `AudioParam` events the live
-engine does.
+engine does, but for a strip set before the render, which starts at its value.
 
 ## Entry map
 

@@ -36,7 +36,12 @@ the whole arrangement — scheduler and automation ticks stepped through the
 duration plus lookahead — before `startRendering()`. A bounce is therefore a
 pure function of the arrangement: identical every run, and identical **at the
 level of every source start and `AudioParam` event** to what the live engine
-tells its graph. `engine.alignLatency({ liveInputs: true })` runs after the
+tells its graph, with one difference. A strip or a bus given a level, pan,
+trim, mute or solo before the render begins starts there: the value is
+written for the first sample, where a playing engine approaches it over 5 ms,
+so a muted track is out of the file from its first sample. A value given with
+a time constant of its own, or for a later time, is approached in a render as
+it is live. `engine.alignLatency({ liveInputs: true })` runs after the
 build so plugin-delay compensation is the same in every render;
 `alignLatency: false` skips it. `createContext` is injectable, which is how
 the render-equals-live golden runs on the recording mocks in Node; the

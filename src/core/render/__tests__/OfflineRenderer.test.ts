@@ -1,6 +1,7 @@
 // Offline render goldens (AE6 at the graph-command level): the offline
 // pre-scheduling path must hand the graph exactly what the live, timer-driven
-// engine does for the same arrangement, and must do so identically on every
+// engine does for the same arrangement, but that a strip set before the
+// render starts at its value, and must do so identically on every
 // run. Real audio comparison needs a browser OfflineAudioContext (Playwright
 // follow-up); here the recording mocks capture every start/stop and AudioParam
 // event, which is what determines the rendered audio.
@@ -28,6 +29,7 @@ import {
   scheduleAhead,
   type OfflineContextFactory,
 } from '../OfflineRenderer'
+import { startingWhereSet } from './starting-where-set'
 
 const SAMPLE_RATE = 48000
 
@@ -197,7 +199,11 @@ describe('render equals live (graph-command golden)', () => {
     const offlineSnapshot = contexts[0].scheduleSnapshot()
 
     expect(offlineSnapshot.sources).toEqual(liveSnapshot.sources)
-    expect(offlineSnapshot.params).toEqual(liveSnapshot.params)
+    // The voice's level of 0.8 is where the render starts. Its move to 0.2 at
+    // 3 s, with a time constant of its own, is the same approach in both.
+    const playing = startingWhereSet(liveSnapshot.params)
+    expect(playing.written).toEqual([0.8])
+    expect(offlineSnapshot.params).toEqual(playing.params)
     expect(result.audio.channels[0].length).toBe(4 * SAMPLE_RATE)
     engine.dispose()
   })

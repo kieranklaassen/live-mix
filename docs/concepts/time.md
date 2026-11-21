@@ -429,4 +429,6 @@ the timers with a virtual clock and steps the scheduler and automation through
 the whole duration before `startRendering()`. Because everything is anchored
 to one clock, the offline render issues the same source starts and the same
 `AudioParam` events the live engine does — the render-equals-live golden in
-`src/core/render/__tests__` asserts exactly that ([render](./render.md)).
+`src/core/render/__tests__` asserts exactly that ([render](./render.md)). The
+one difference is a strip set before the render begins, which starts at its
+value where a playing engine eases to it.

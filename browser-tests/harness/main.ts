@@ -27,6 +27,7 @@ import {
 import { measureRooms } from './room'
 import { measureSeparation } from './separation'
 import { measureSharedRooms } from './shared-room'
+import { measureMuteMidRender, measureStripStarts } from './strip-start'
 
 export interface HarnessResult {
   offline: { events: ScheduleSnapshot; fingerprint: Fingerprint; latency: unknown }
@@ -125,6 +126,8 @@ declare global {
       renderAndLetGo: typeof renderAndLetGo
       rendersKept: typeof rendersKept
       measureSharedRooms: typeof measureSharedRooms
+      measureStripStarts: typeof measureStripStarts
+      measureMuteMidRender: typeof measureMuteMidRender
       defaultSession: SessionSpec
     }
   }
@@ -144,6 +147,8 @@ window.liveMixHarness = {
   measureRooms,
   measureSeparation,
   measureSharedRooms,
+  measureStripStarts,
+  measureMuteMidRender,
   framedNodesMade,
   framedRenderDifference,
   renderAndLetGo,

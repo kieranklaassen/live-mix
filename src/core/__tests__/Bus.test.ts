@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { type Device } from '../devices/Device'
-import { asAudioContext, createMockContext, type MockAudioContext } from '../../testing'
+import {
+  asAudioContext,
+  createMockContext,
+  createMockOfflineContext,
+  type MockAudioContext,
+} from '../../testing'
 import { Bus } from '../buses/Bus'
 import { MasterBus } from '../buses/MasterBus'
 import { OutputRouter } from '../output/OutputRouter'
@@ -47,6 +52,28 @@ describe('Bus', () => {
     expect(ctx.gains[0].gain.eventsFor('setTargetAtTime').map((e) => e.args)).toEqual([
       [0.4, 3, 0.005],
       [0, 4, 0.05],
+    ])
+  })
+
+  it('setLevel before a render begins writes the level for the first sample', () => {
+    const ctx = createMockOfflineContext()
+    const bus = new Bus(asAudioContext(ctx), {
+      name: 'b',
+      destination: ctx.destination as unknown as AudioNode,
+    })
+    bus.setLevel(0.4)
+    expect(bus.targetLevel).toBe(0.4)
+    // A time constant of its own, or a later time, is still an approach.
+    bus.setLevel(0.2, { at: 0, timeConstant: 0.5 })
+    bus.setLevel(0.1, { at: 2 })
+    // And so is every level given once the render is under way.
+    ctx.currentTime = 1
+    bus.setLevel(0.3)
+    expect(ctx.gains[0].gain.events).toEqual([
+      { method: 'setValueAtTime', args: [0.4, 0] },
+      { method: 'setTargetAtTime', args: [0.2, 0, 0.5] },
+      { method: 'setTargetAtTime', args: [0.1, 2, 0.005] },
+      { method: 'setTargetAtTime', args: [0.3, 1, 0.005] },
     ])
   })
 

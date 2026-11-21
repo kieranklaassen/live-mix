@@ -4,6 +4,7 @@ import {
   asAudioContext,
   asAudioNode,
   createMockContext,
+  createMockOfflineContext,
   type MockAudioContext,
   type MockAudioNode,
   type MockAudioParam,
@@ -813,5 +814,96 @@ describe('ChannelStrip.setRide', () => {
     s.setRide(1, { layer: 'scene' })
     const [released] = [...asMock(after.input).outputs]
     expect(released).toBeUndefined()
+  })
+})
+
+describe('ChannelStrip before a render begins', () => {
+  const atStart = (value: number) => ({ method: 'setValueAtTime', args: [value, 0] })
+
+  it('writes a level, a pan, a trim and a mute for the first sample', () => {
+    const ctx = createMockOfflineContext()
+    const s = strip(ctx, 'a')
+    s.setLevel(0.5)
+    s.setPan(-0.3, { at: 0 })
+    s.setInputGain(2)
+    s.mute = true
+    expect(gainParam(s.fader).events).toEqual([atStart(0.5)])
+    expect(panParam(s.panner).events).toEqual([atStart(-0.3)])
+    expect(gainParam(s.inputGainNode).events).toEqual([atStart(2)])
+    expect(gainParam(s.gate).events).toEqual([atStart(0)])
+    // Told again before the render, the last word is the one written last.
+    s.setLevel(0.25)
+    expect(gainParam(s.fader).events).toEqual([atStart(0.5), atStart(0.25)])
+  })
+
+  it('still approaches a value given with a time constant of its own, or for a later time', () => {
+    const ctx = createMockOfflineContext()
+    const s = strip(ctx, 'a')
+    s.setLevel(0, { at: 0, timeConstant: 2 })
+    s.setLevel(0.5, { timeConstant: 0 })
+    s.setLevel(1, { at: 3 })
+    s.setMute(true, { at: 1.5 })
+    expect(gainParam(s.fader).events).toEqual([
+      { method: 'setTargetAtTime', args: [0, 0, 2] },
+      { method: 'setTargetAtTime', args: [0.5, 0, 0] },
+      { method: 'setTargetAtTime', args: [1, 3, 0.005] },
+    ])
+    expect(gainParam(s.gate).events).toEqual([{ method: 'setTargetAtTime', args: [0, 1.5, 0.005] }])
+  })
+
+  it('approaches as a playing strip does once the render is under way', () => {
+    const ctx = createMockOfflineContext()
+    const s = strip(ctx, 'a')
+    s.setLevel(0.5)
+    ctx.currentTime = 1
+    s.setLevel(0.8)
+    s.mute = true
+    expect(gainParam(s.fader).events).toEqual([
+      atStart(0.5),
+      { method: 'setTargetAtTime', args: [0.8, 1, 0.005] },
+    ])
+    expect(gainParam(s.gate).events).toEqual([{ method: 'setTargetAtTime', args: [0, 1, 0.005] }])
+  })
+
+  it('closes every other strip for the first sample when one is soloed, a strip made afterwards too', () => {
+    const ctx = createMockOfflineContext()
+    const solo = new SoloInPlace()
+    const a = strip(ctx, 'a', { solo })
+    const b = strip(ctx, 'b', { solo })
+    a.setSolo(true, { at: 0 })
+    expect(a.materialized).toBe(false)
+    expect(gainParam(b.gate).events).toEqual([atStart(0)])
+    const c = strip(ctx, 'c', { solo })
+    expect(gainParam(c.gate).events).toEqual([atStart(0)])
+    // Safe from the solo before the render: open again from the first sample.
+    b.soloSafe = true
+    expect(gainParam(b.gate).events).toEqual([atStart(0), atStart(1)])
+  })
+
+  it('starts a shadow where the strip is, whichever was made first', () => {
+    const ctx = createMockOfflineContext()
+    const s = strip(ctx, 'a')
+    const before = s.shadow()
+    s.setLevel(0.25)
+    s.mute = true
+    const after = s.shadow()
+    for (const shadow of [before, after]) {
+      expect(gainParam(shadow.input).events).toEqual([atStart(0.25)])
+      expect(gainParam(shadow.output).events).toEqual([atStart(0)])
+    }
+  })
+
+  it('starts a ride where it is put, in the strip and in a shadow made afterwards', () => {
+    const ctx = createMockOfflineContext()
+    const s = strip(ctx, 'a')
+    s.setRide(0.5)
+    const ride = s.rideNode()
+    if (!ride) throw new Error('the ride has no node')
+    expect(gainParam(ride).events).toEqual([
+      { method: 'cancelScheduledValues', args: [0] },
+      atStart(0.5),
+    ])
+    const [shadowRide] = [...asMock(s.shadow().input).outputs] as MockGainNode[]
+    expect(shadowRide.gain.events).toEqual([atStart(0.5)])
   })
 })

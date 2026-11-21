@@ -1,7 +1,8 @@
 // One score, two renderers (R22, AE6): a compiled script loaded on a live
 // engine (real clock, timer-driven scheduler and lane writers) and bounced
 // through `renderScore` must hand the graph the same source starts/stops and
-// AudioParam events. Then the timing the mocks recorded is checked against
+// AudioParam events, but that the bounce starts every strip where the score
+// has it. Then the timing the mocks recorded is checked against
 // the compiled timeline: crossfade overlaps, duck dips at cue times.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -18,13 +19,14 @@ import {
   type ScheduleSnapshot,
 } from '../../../testing'
 import { type OfflineContextFactory } from '../../../core/render/OfflineRenderer'
+import { startingWhereSet } from '../../../core/render/__tests__/starting-where-set'
 import { readWavInfo } from '../../../core/render/encode'
 import { dbToGain } from '../../../core/devices/native/units'
 import { CROSSFADE_SECONDS } from '../../../core/tracks/AudioTrack'
 import { createEngine } from '../../../core/Engine'
 import { loadScore } from '../../../score/loadScore'
 import { renderScore, renderableScore } from '../../../score/renderScore'
-import { type Score, type ScoreSource } from '../../../score/schema'
+import { targetKey, type Score, type ScoreSource } from '../../../score/schema'
 import {
   SCRIPT_DUCK_DB,
   SCRIPT_MUSIC_DB,
@@ -116,7 +118,20 @@ describe('golden: a compiled script renders live and offline identically', () =>
     )
     expect(offline.sources.length).toBe(clipCount)
     expect(offline.sources).toEqual(live.snapshot.sources)
-    expect(offline.params).toEqual(live.snapshot.params)
+    // The levels the score gives its tracks and no lane holds are where the
+    // bounce starts; a level under a lane is the lane's, written the same in both.
+    const held = new Set(session.score.lanes.map((lane) => targetKey(lane.target)))
+    const levels = session.score.tracks
+      .filter(
+        (track) =>
+          track.strip.level !== 1 &&
+          !held.has(targetKey({ kind: 'strip', owner: track.id, param: 'level' })),
+      )
+      .map((track) => track.strip.level)
+    const playing = startingWhereSet(live.snapshot.params)
+    expect(levels.length).toBeGreaterThan(0)
+    expect([...playing.written].sort()).toEqual([...levels].sort())
+    expect(offline.params).toEqual(playing.params)
     // Not vacuous: the duck lane and the breath lane both wrote automation.
     const laneWrites = offline.params.filter((p) =>
       p.events.some((e) => e.method === 'linearRampToValueAtTime'),

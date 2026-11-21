@@ -51,7 +51,8 @@ What happens: the renderer builds the engine with a virtual clock, runs
 `alignLatency({ liveInputs: true })` so plugin delay compensation matches the
 live mix, steps the scheduler and the automation loop through the whole
 duration (plus lookahead) so every source start and `AudioParam` event is
-issued exactly as live, then `startRendering()`. `bounce.latency` is the
+issued exactly as live (a strip set in the build starts at its value, where
+live playback eases to it), then `startRendering()`. `bounce.latency` is the
 report. WASM devices and worklets render offline in Chromium and Firefox;
 the legacy main-thread `Ducker` and analyser meters cannot — use
 `mode: 'worklet'` for a ducked bounce.
@@ -127,7 +128,11 @@ expect(offline).toEqual(live)
 ```
 
 The mock offline context records the same node and parameter events as the
-live mock, so `scheduleSnapshot()` is the render-equals-live comparison. For
+live mock, so `scheduleSnapshot()` is the render-equals-live comparison. A
+build that sets a strip or the master before the render begins
+(`strip.setLevel(0.8)`, `strip.mute = true`) differs there and nowhere else:
+the render is told `setValueAtTime(0.8, 0)`, the value from its first sample,
+where the live engine is told to approach it ([render](../concepts/render.md)). For
 real samples in Node, decode into `AudioBuffer`-shaped objects and pass them
 to `engine.samples.load(id, buffer)`; the encoder side (`encodeWav`,
 `decodeWav`) is pure and runs anywhere.

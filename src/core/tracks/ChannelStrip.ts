@@ -15,6 +15,15 @@
 // one channel leaves it at the centre as loud as it reached the destination
 // with no strip between.
 //
+// A render that has not begun is the one place a value is not approached.
+// None of its samples is made yet, so there is nothing for a step to click
+// in, and an approach from the first sample would leave the head of the file
+// on its way: a muted track heard for its first 60 ms. There a level, pan,
+// trim, ride or gate given for the start with no time constant of its own
+// is written for the first sample, and a shadow or a ride made afterwards
+// comes up with it. An approach asked for by its time constant, or for a
+// later time, is still one, and so is every move once the render is under way.
+//
 // Solo is solo-in-place: soloed strips are heard through their normal routing
 // (groups, sends, returns) at the main output, and every other strip is muted
 // by a ramp on its gate. `SoloInPlace` holds one engine's strips and computes
@@ -30,7 +39,7 @@
 // Each named layer is one more gain between the fader and the gate, made when
 // it is first moved, so a strip nobody rides has the four nodes it always had.
 
-import { LEVEL_RAMP_SECONDS, type Bus } from '../buses/Bus'
+import { LEVEL_RAMP_SECONDS, renderNotBegun, type Bus } from '../buses/Bus'
 import { type Device } from '../devices/Device'
 import { Emitter } from '../events'
 import { createPan } from '../pan'
@@ -523,6 +532,7 @@ export class ChannelStrip {
     const fader = ctx.createGain()
     const gate = ctx.createGain()
     // Partway through a ramp the nodes say where they are; from there the same approach lands with them.
+    // Before a render begins they do not yet say what they were given, and the approach is that write again.
     fader.gain.value = this.nodes?.fader.gain.value ?? this.levelValue
     gate.gain.value = this.nodes?.gate.gain.value ?? this.gateCommand
     if (fader.gain.value !== this.levelValue) this.approach(fader.gain, this.levelValue, {})
@@ -726,7 +736,13 @@ export class ChannelStrip {
   }
 
   private approach(param: AudioParam, value: number, options: RampOptions): void {
-    const at = options.at ?? this.context().currentTime
+    const ctx = this.context()
+    const at = options.at ?? ctx.currentTime
+    // Before a render begins the value is where it starts, with nothing to ease from.
+    if (at <= 0 && options.timeConstant === undefined && renderNotBegun(ctx)) {
+      param.setValueAtTime(value, 0)
+      return
+    }
     param.setTargetAtTime(value, at, options.timeConstant ?? this.timeConstant)
   }
 

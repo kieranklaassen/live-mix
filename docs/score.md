@@ -382,9 +382,26 @@ matrix. A host that builds devices by hand for a render of its own asks
 offline engine and renders it (`renderScoreStems` per track id). What cannot
 render offline is dropped first (`renderableScore`): live-input tracks and
 element tracks (media elements play in real time only), with any lanes and
-routes on them. The score-driven golden renders a document offline and
-compares every source start/stop and AudioParam event with a live engine
-following the same document.
+routes on them.
+
+A render starts every strip where the score has it. A level, pan, input gain,
+mute or solo that the document gives a track, a group or a return, and the
+master's level, are written for the first sample: a muted track is out of the
+file from its first sample, a track at half level is at half from there, and
+with a track soloed the file holds that track alone. A stem is its track
+soloed in place, so the same goes for it. Playback eases to a value
+instead: an engine that plays approaches each one over the strip's time
+constant (5 ms), so that a move made while sound passes is never a step.
+Before a render begins no sound passes, and an approach from the first sample
+would leave the first 60 ms of the file on their way. A score changed once a
+render is under way is approached as it is live.
+
+That is the one place where a render and live playback are told different
+things. The score-driven golden renders a document offline and compares every
+source start/stop and `AudioParam` event with a live engine following the same
+document, the starting values of the strips written as each of the two writes
+them. What the samples of a real render hold from the first one on is measured
+in a browser (`browser-tests/specs/render-starts-strips.spec.ts`).
 
 ## Not in this unit
 

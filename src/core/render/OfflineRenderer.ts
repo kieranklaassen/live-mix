@@ -1,7 +1,9 @@
 // Offline rendering (R22): the same engine graph on an `OfflineAudioContext`,
 // with the whole session scheduled ahead of time from a virtual clock, so a
 // render is a pure function of the arrangement — identical every time and
-// identical to what the live engine tells its graph for the same arrangement.
+// identical to what the live engine tells its graph for the same arrangement,
+// but for one thing: a strip or a bus set before the render begins starts at
+// its value, where a playing one eases to it (`ChannelStrip`, `Bus.setLevel`).
 //
 // How determinism works: the engine's clock is injected. During a render the
 // clock is a virtual `now` that the renderer steps forward in `tickSec`

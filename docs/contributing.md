@@ -108,7 +108,9 @@ site/                 the public site (not published with the package): lessons,
   import every entry in Node.
 - **Ramps, never steps.** Every parameter write in the library is a
   `setTargetAtTime`/ramp or an in-device smoother; the recording mocks make a
-  bare `.value =` visible in a diff.
+  bare `.value =` visible in a diff. The one step is a strip's or a bus's
+  value given before a render begins, when no sound passes yet: it is written
+  for the first sample (`ChannelStrip`, `Bus.setLevel`).
 - **Real-time rules.** Nothing allocates in `process()`; WASM memory is
   fixed; denormals are flushed in software in every feedback path; scheduling
   runs on a timer, never `requestAnimationFrame`; every scheduled start is

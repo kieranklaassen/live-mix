@@ -28,6 +28,19 @@ export interface BusOptions {
 /** Default ramp for level changes made through `setLevel`. */
 export const LEVEL_RAMP_SECONDS = 0.005
 
+/**
+ * Whether `ctx` is a render that has not begun. None of its samples is made
+ * yet, so a level given now is the one the render starts at: there is no
+ * sound for a step to click in, and an approach from the first sample would
+ * leave the head of the file on its way there.
+ */
+export function renderNotBegun(ctx: BaseAudioContext): boolean {
+  return (
+    ctx.currentTime === 0 &&
+    typeof (ctx as Partial<OfflineAudioContext>).startRendering === 'function'
+  )
+}
+
 export class Bus {
   readonly name: string
   readonly gainNode: GainNode
@@ -77,16 +90,22 @@ export class Bus {
 
   /**
    * Click-free level change: an exponential approach with `timeConstant`
-   * seconds, starting `at` (default now).
+   * seconds, starting `at` (default now). On a render that has not begun, a
+   * level given for its start with no time constant of its own is the level
+   * of the first sample.
    */
   setLevel(value: number, options: { at?: number; timeConstant?: number } = {}): void {
     const at = options.at ?? this.ctx.currentTime
     this.levelValue = Math.max(0, value)
-    this.gainNode.gain.setTargetAtTime(
-      this.levelValue,
-      at,
-      options.timeConstant ?? LEVEL_RAMP_SECONDS,
-    )
+    if (at <= 0 && options.timeConstant === undefined && renderNotBegun(this.ctx)) {
+      this.gainNode.gain.setValueAtTime(this.levelValue, 0)
+    } else {
+      this.gainNode.gain.setTargetAtTime(
+        this.levelValue,
+        at,
+        options.timeConstant ?? LEVEL_RAMP_SECONDS,
+      )
+    }
     this.changes.emit({ kind: 'level', bus: this })
   }
 
