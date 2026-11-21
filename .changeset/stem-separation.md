@@ -1,0 +1,5 @@
+---
+'@kieranklaassen/live-mix': patch
+---
+
+`@kieranklaassen/live-mix/separation`, a new entry that takes a finished track apart. `separateTrack(audio, separator)` gives four stems (vocals, drums, bass, other) and a remainder, the track minus the four, each at the track's sample rate, length and channel count, with a report of the remainder's level; it refuses a stem that is not finite or peaks more than 12 dB over the track. `separationTracks(score, separation)` returns one operation that adds the five as audio tracks, their buffers and what `renderScore` is told, so the untouched score bounces back to the track. `createSegmentSeparator` runs a model of fixed segment length over a whole track with progress and an `AbortSignal`, and `createHybridModel` (with `HYBRID_MODEL_SPEC`) runs a waveform-and-spectrogram model through the ONNX runtime's tensor class and the session a host hands in. Also `STEM_NAMES`, `PART_NAMES`, `SeparationError` and the types. The library imports no runtime, ships no model and gives no address for one; `scripts/try-separation.mjs` runs a real export in Node (docs/separation.md).

@@ -1,7 +1,7 @@
 # live-mix documentation
 
 Everything here is prose you can read on GitHub; the API reference is
-generated from the eight public entries and lives in CI, not in git.
+generated from the nine public entries and lives in CI, not in git.
 
 ## Start
 
@@ -78,7 +78,8 @@ Written next to the subsystem they document, by the unit that built it.
 | [iphone-memory-and-element-source.md](./iphone-memory-and-element-source.md) | The iPhone verification checklist for eviction and streaming                                                                                                                                                                                                    |
 | [motion.md](./motion.md)                                                     | The motion entry: a layer's motion, how a value is put together, the presets and their numbers, easing, springs, keyframes, the profile, shutter times, the steady clock, what holds it                                                                         |
 | [visuals.md](./visuals.md)                                                   | The visuals entry: what a host hands the desk, a piece's visuals and their saved shape, the forty-one styles, bends, palettes and grain, knobs and what they follow, painting, pedals on the picture, a second screen, what a shader is handed, what is checked |
-| **API reference**                                                            | `pnpm docs:api` → `docs/api/` (TypeDoc over `.`, `./dsp`, `./react`, `./motion`, `./visuals`, `./testing`, `./wam`, `./native`); the `api-reference` artefact of every CI run; not committed                                                                    |
+| [separation.md](./separation.md)                                             | The separation entry: a track as four stems and a remainder, the five on a score as tracks that bounce back to the track, a separator and a model of one's own, what a host serves, where the weights' license stands, what was measured and what was not       |
+| **API reference**                                                            | `pnpm docs:api` → `docs/api/` (TypeDoc over `.`, `./dsp`, `./react`, `./motion`, `./visuals`, `./testing`, `./wam`, `./native`, `./separation`); the `api-reference` artefact of every CI run; not committed                                                    |
 
 ## Project
 

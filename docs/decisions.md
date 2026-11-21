@@ -71,6 +71,31 @@ The plan itself is [`docs/plans/2026-09-14-001-feat-audio-mixing-engine-plan.md`
 | U39  | **A host process, not a second engine.** The plan sketched a native shell that implements the device and score contracts itself. Instead the browser engine stays the only engine and a hosted plug-in is one more `Device`: a JUCE program loads the plug-in and processes blocks sent to it over a loopback WebSocket, with a shared-memory ring between the audio thread and a worker on the page's side. That keeps one mixer, one score renderer and one offline render, at the price of latency (the audio device's buffer plus 512 frames by default, measured, reported and compensated). **In this repository, not `live-mix-shell`:** the host's source ships in the package and is built per machine, the client is the `./native` entry, and nothing in `.`, `./dsp` or `./react` reaches either; the desktop shell (Electron in ambient-live) is the consumer's. **Offline renders are paced** by one clock per context and every stop goes through `holdRenderAt`, since a context takes one suspend per block. **A plug-in that is missing or fails to load is a stand-in** that passes audio and keeps its settings, so a score never fails to render or loses data over a plug-in. A plug-in's opaque state is not in the score yet. |
 | U40  | The TypeDoc API reference is **generated, never committed** (`docs/api/` gitignored; CI artefact; `pnpm docs:api`) so in-flight units never conflict on it; the playground demo is a **score document** so the mixer, the agent console, the grid and the offline bounce are all renderers of one source; the playground smoke is a spec in the one Playwright suite (`browser-tests/`), not a second runner.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
+## Stem separation (the `./separation` entry)
+
+Decided while it was built ([separation.md](./separation.md)).
+
+- **An entry of its own.** Separation is library code, so any host of the
+  engine can use it, and it is reached from nowhere else: `.`, `./dsp` and
+  `./testing` load none of it. The `./wam` entry is the precedent.
+- **The runtime and the session are handed in.** The library declares the
+  two things it uses of an ONNX runtime, a tensor class and a session's
+  `run`, and the host passes its own. The runtime is not declared as a peer
+  either: this repository installs its peers, and the runtime is 150 MB
+  unpacked. A test holds that no file under `src/` imports one.
+- **No weights and no address for them.** The first model kind's weights are
+  for personal and research use by their publisher's word, so which weights
+  a product serves is its owner's decision.
+- **The library's own resampler, on plain arrays.** It takes the length it
+  must produce, so a track comes back from the model's rate with exactly its
+  own frames. The remainder is taken last, at the track's rate, so what
+  resampling lost lands in the remainder and the five parts still add up.
+- **Each part's buffer ends in 20 ms of silence.** An audio track eases a
+  clip's edge where the sound steps there and decides for each sound alone;
+  the silence keeps all five square, and the untouched bounce is the track.
+- **The model's reference is followed, but for the mean.** The reference adds
+  the track's mean to every stem. Here it stays out of the stems.
+
 ## Still open (owned by a unit)
 
 - The session grid's `format: 3` and a scheduler-driven `StretchTrack` when
@@ -78,3 +103,5 @@ The plan itself is [`docs/plans/2026-09-14-001-feat-audio-mixing-engine-plan.md`
 - Felt's iPhone CPU measurement (U37); the meter/ducker iPhone budget (U16/U17).
 - Whether kkfonie vendors `cpp/` instead of keeping copies (KTD10).
 - Whether the offline renderer retires the tuin pipeline (U38; Kieran's call).
+- Stem separation: a model kind whose weights carry a stated license, a run
+  of a real model in a browser and on a graphics card, and a first listen.

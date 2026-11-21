@@ -75,3 +75,23 @@ A card plays a set. A control the set does not name goes to the Lab's starting v
 One of the eight groups of four lessons on the map, `site/src/content/families.json`.
 
 A lesson's number is its place in the map, and its family gives its page and its tile their colour. The device pages group devices in families too: those are the library's categories of device, and have nothing to do with these.
+
+## Stem separation
+
+### Stem
+
+One of the four sounds a finished track is taken apart into: vocals, drums, bass, and other, which is everything a model does not put in the first three.
+
+A stem has the track's sample rate, length and channel count. It is a model's answer and can be wrong: a voice in the drums, a cymbal in the other. The engine also calls the tracks of a mix bounced one at a time stems (`renderStems`). Those are made by the desk and are exact.
+
+### Remainder
+
+The track minus its four Stems, sample by sample: the fifth part of a separation.
+
+The four stems and the remainder added together are the track, whatever the stems got wrong, so a separation laid on a score and left untouched bounces back to the track. What a model missed, what two resamplings lost and a recording's offset from zero are all in the remainder. It is a track on the desk like the others and is not an error.
+
+### Separator
+
+Whatever takes a track at one sample rate, in two channels, and answers with its four Stems.
+
+A model run a segment at a time in the browser is one, and so is a host's call to a service of its own. The Remainder is never a separator's to give: it is taken from the track and the stems after the separator has answered.
