@@ -146,7 +146,9 @@ the tracks for nothing.
 `createSegmentSeparator(model, { overlap })` is the separator for a model
 that takes a segment of fixed length. It cuts the track into segments that
 overlap by a quarter, hands each to the model, and adds the answers back with
-the most weight on the middle of each. It knows nothing else about the model:
+the most weight on the middle of each. `overlap` is how much of a segment the
+next one covers again, 0 or more and less than 1; anything else is refused
+when the separator is made. It knows nothing else about the model:
 
 ```ts
 interface SegmentModel {

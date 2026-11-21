@@ -136,10 +136,12 @@ const separation = await separateTrack(track, separator, {
 })
 const runSeconds = (performance.now() - started) / 1000
 
+const soundOf = (name) => (name === 'remainder' ? separation.remainder : separation.stems[name])
+
 const trackSquares = squares(track.channels)
 const parts = Object.fromEntries(
   PART_NAMES.map((name) => {
-    const channels = name === 'remainder' ? separation.remainder : separation.stems[name]
+    const channels = soundOf(name)
     return [
       name,
       {
@@ -185,8 +187,10 @@ console.log(`the stem that sits lowest is ${lowest}`)
 if (values.out) {
   await mkdir(values.out, { recursive: true })
   for (const name of PART_NAMES) {
-    const channels = name === 'remainder' ? separation.remainder : separation.stems[name]
-    const wav = encodeWav({ channels, sampleRate: separation.sampleRate }, { bitDepth: 32 })
+    const wav = encodeWav(
+      { channels: soundOf(name), sampleRate: separation.sampleRate },
+      { bitDepth: 32 },
+    )
     await writeFile(join(values.out, `${name}.wav`), Buffer.from(wav))
   }
   await writeFile(join(values.out, 'report.json'), JSON.stringify(report, null, 2))

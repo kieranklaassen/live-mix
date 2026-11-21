@@ -90,6 +90,23 @@ describe('a model run over a whole track, segment by segment', () => {
     expect(Array.from(calls[1][0].subarray(630))).toEqual(new Array(370).fill(0))
   })
 
+  it.each([0, 0.5, 0.9])('gives the track back with an overlap of %s', async (overlap) => {
+    const track = [noise(4321, 21), noise(4321, 22)]
+    const stems = await createSegmentSeparator(passing(), { overlap }).separate(track)
+    const { mean } = standard(track)
+    for (const channel of [0, 1]) {
+      const about = track[channel].map((sample) => sample - mean)
+      expect(differenceDb(stems.other[channel], about)).toBeLessThan(-120)
+    }
+  })
+
+  it.each([-0.2, 1, 25, Number.NaN])(
+    'refuses an overlap of %s before a model is asked',
+    (overlap) => {
+      expect(() => createSegmentSeparator(passing(), { overlap })).toThrow(SeparationError)
+    },
+  )
+
   it('weighs each segment most in its middle where two overlap', async () => {
     // The first segment answers 1 everywhere and the second 2, so a frame
     // says how much of each it was given.

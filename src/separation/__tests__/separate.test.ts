@@ -167,6 +167,19 @@ describe('separating a track', () => {
     await expect(separateTrack(track, short)).rejects.toThrow(/other/)
   })
 
+  it('refuses an answer that leaves a stem out, and names the stem', async () => {
+    const track = { channels: [noise(3000, 14), noise(3000, 15)], sampleRate: 44100 }
+    const without: Separator = {
+      sampleRate: 44100,
+      separate: async (channels) => {
+        const stems: Partial<Record<StemName, Channels>> = await byGains(SPLIT).separate(channels)
+        delete stems.bass
+        return stems as Record<StemName, Channels>
+      },
+    }
+    await expect(separateTrack(track, without)).rejects.toThrow(/nothing.*bass/)
+  })
+
   it('refuses a track with no frames or with three channels before asking the separator', async () => {
     const seen: Channels[] = []
     const separator = byGains(SPLIT, 44100, seen)

@@ -22,16 +22,18 @@ const LOUDEST_STEM = 4
 /** Under this (-120 dB) a stem is let be, however quiet the track. */
 const NEAR_SILENCE = 1e-6
 
-function peakOf(channels: Channels): number {
+/** The largest sample of `channels`, and whether every one of them is a finite number. */
+function peakOf(channels: Channels): { peak: number; finite: boolean } {
   let peak = 0
+  let finite = true
   for (const channel of channels) {
     for (const sample of channel) {
+      if (!Number.isFinite(sample)) finite = false
       const size = Math.abs(sample)
-      // A value that is no number is larger than nothing: it is looked for by itself.
       if (size > peak) peak = size
     }
   }
-  return peak
+  return { peak, finite }
 }
 
 function squaresOf(channels: Channels): number {
@@ -74,19 +76,27 @@ export async function separateTrack(
   const modelRate = separator.sampleRate
   const resampled = modelRate !== sampleRate
   const modelFrames = resampled ? resampledLength(frames, sampleRate, modelRate) : frames
-  const atModelRate = channels.map((channel) =>
-    resample(channel, sampleRate, modelRate, modelFrames),
-  )
-  const answer = await separator.separate(
-    atModelRate.length === 1 ? [atModelRate[0], atModelRate[0]] : atModelRate,
-    options,
-  )
+  // What is held at the separator's rate is let go as soon as it has been
+  // used: the track there once the separator has answered, and each stem
+  // once it is back at the track's rate. Four minutes of stereo is 85 MB a
+  // part, and ten of them need not be held beside the five that are kept.
+  const ask = (): Promise<Record<StemName, Channels>> => {
+    const atModelRate = channels.map((channel) =>
+      resample(channel, sampleRate, modelRate, modelFrames),
+    )
+    return separator.separate(
+      atModelRate.length === 1 ? [atModelRate[0], atModelRate[0]] : atModelRate,
+      options,
+    )
+  }
+  const answer: Partial<Record<StemName, Channels>> = { ...(await ask()) }
   options.signal?.throwIfAborted()
 
-  const limit = LOUDEST_STEM * peakOf(channels) + NEAR_SILENCE
+  const limit = LOUDEST_STEM * peakOf(channels).peak + NEAR_SILENCE
   const stems = {} as Record<StemName, Channels>
   for (const name of STEM_NAMES) {
     const stem = answer[name]
+    answer[name] = undefined
     if (stem?.length !== 2 || stem.some((channel) => channel.length !== modelFrames)) {
       throw new SeparationError(
         `the separator answered [${stem?.map((channel) => channel.length).join(', ') ?? 'nothing'}] for ${name}, ` +
@@ -96,10 +106,10 @@ export async function separateTrack(
     const [left, right] = stem
     const own = channels.length === 1 ? [left.map((sample, i) => (sample + right[i]) / 2)] : stem
     stems[name] = own.map((channel) => resample(channel, modelRate, sampleRate, frames))
-    if (stems[name].some((channel) => !channel.every(Number.isFinite))) {
+    const { peak, finite } = peakOf(stems[name])
+    if (!finite) {
       throw new SeparationError(`the ${name} stem holds a value that is not a number`)
     }
-    const peak = peakOf(stems[name])
     if (peak > limit) {
       throw new SeparationError(
         `the ${name} stem peaks at ${peak.toPrecision(3)}, more than 12 dB over the track`,
@@ -108,10 +118,11 @@ export async function separateTrack(
   }
 
   const remainder = channels.map((channel, index) => {
+    const parts = STEM_NAMES.map((name) => stems[name][index])
     const rest = new Float32Array(frames)
     for (let i = 0; i < frames; i += 1) {
       let sum = 0
-      for (const name of STEM_NAMES) sum += stems[name][index][i]
+      for (const part of parts) sum += part[i]
       rest[i] = channel[i] - sum
     }
     return rest
@@ -127,7 +138,7 @@ export async function separateTrack(
         remainderSquares === 0
           ? -Infinity
           : 10 * Math.log10(remainderSquares / squaresOf(channels)),
-      remainderPeak: peakOf(remainder),
+      remainderPeak: peakOf(remainder).peak,
       modelSampleRate: modelRate,
       resampled,
     },

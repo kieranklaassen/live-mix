@@ -12,6 +12,7 @@
 // what follows is silence, is left square, and so is every part.
 
 import { type Clip } from '../core/clips/Clip'
+import { SEAM_WINDOW_SECONDS } from '../core/clips/seam'
 import { type Operation } from '../score/operations'
 import {
   defaultStrip,
@@ -23,8 +24,8 @@ import {
 } from '../score/schema'
 import { PART_NAMES, SeparationError, type PartName, type Separation } from './types'
 
-/** The silence after each part's sound, in seconds: longer than the stretch a track looks at for a step. */
-const TAIL_SECONDS = 0.02
+/** The silence after each part's sound, in seconds: four times the stretch a track looks at for a step. */
+const TAIL_SECONDS = 4 * SEAM_WINDOW_SECONDS
 
 const TRACK_NAMES: Record<PartName, string> = {
   vocals: 'Vocals',

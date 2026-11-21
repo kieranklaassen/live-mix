@@ -27,7 +27,7 @@ export interface SegmentModel {
 }
 
 export interface SegmentSeparatorOptions {
-  /** How much of a segment the next one covers again, 0 up to 1. Default 0.25. */
+  /** How much of a segment the next one covers again: 0 or more, and less than 1. Default 0.25. */
   overlap?: number
 }
 
@@ -65,7 +65,13 @@ export function createSegmentSeparator(
   options: SegmentSeparatorOptions = {},
 ): Separator {
   const segmentFrames = model.segmentFrames
-  const stride = Math.max(1, Math.floor((1 - (options.overlap ?? 0.25)) * segmentFrames))
+  const overlap = options.overlap ?? 0.25
+  // Refused here and not found out later: at 1 a run would ask the model
+  // once for every frame, and under 0 it would leave frames no segment covers.
+  if (!(overlap >= 0 && overlap < 1)) {
+    throw new SeparationError(`an overlap is 0 or more and less than 1, not ${overlap}`)
+  }
+  const stride = Math.max(1, Math.floor((1 - overlap) * segmentFrames))
   const weight = weights(segmentFrames)
 
   return {
