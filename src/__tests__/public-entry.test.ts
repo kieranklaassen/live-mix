@@ -628,9 +628,11 @@ const wamSymbols = [
 // Every value `./separation` exports: a host reads a separation with these
 // names, and none of them may reach a host that only imports `.`.
 const separationSymbols = [
+  'HYBRID_MODEL_SPEC',
   'PART_NAMES',
   'STEM_NAMES',
   'SeparationError',
+  'createHybridModel',
   'createSegmentSeparator',
 ] as const
 

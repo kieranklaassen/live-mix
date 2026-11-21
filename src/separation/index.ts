@@ -11,6 +11,7 @@
  *
  * @module live-mix/separation
  */
+export { HYBRID_MODEL_SPEC, createHybridModel, type HybridModelSpec } from './hybrid-model'
 
 export { createSegmentSeparator, type SegmentModel, type SegmentSeparatorOptions } from './segments'
 export {
