@@ -8,6 +8,7 @@
       "@kieranklaassen/live-mix/dsp": ["../src/dsp/index.ts"],
       "@kieranklaassen/live-mix/testing": ["../src/testing/index.ts"],
       "@kieranklaassen/live-mix/native": ["../src/native/index.ts"],
+      "@kieranklaassen/live-mix/separation": ["../src/separation/index.ts"],
       "@kieranklaassen/live-mix/visuals": ["../src/visuals/index.ts"]
     }
   },

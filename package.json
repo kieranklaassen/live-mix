@@ -71,6 +71,10 @@
       "types": "./dist/native/index.d.ts",
       "default": "./dist/native/index.js"
     },
+    "./separation": {
+      "types": "./dist/separation/index.d.ts",
+      "default": "./dist/separation/index.js"
+    },
     "./native/shell": {
       "types": "./native/shell.d.mts",
       "default": "./native/shell.mjs"

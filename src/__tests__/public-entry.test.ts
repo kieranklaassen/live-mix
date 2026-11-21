@@ -3,13 +3,14 @@
 // entry must be present. A named export list in src/index.ts can silently drop
 // a symbol; this pins the ones the adopters rely on.
 
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 
 import * as core from '../index'
 import * as dsp from '../dsp/index'
 import * as motion from '../motion/index'
 import * as native from '../native/index'
+import * as separation from '../separation/index'
 import * as testing from '../testing/index'
 import * as visuals from '../visuals/index'
 import * as wam from '../wam/index'
@@ -624,6 +625,10 @@ const wamSymbols = [
   'WAM_DEVICE_RAMP_SECONDS',
 ] as const
 
+// Every value `./separation` exports: a host reads a separation with these
+// names, and none of them may reach a host that only imports `.`.
+const separationSymbols = ['PART_NAMES', 'STEM_NAMES', 'SeparationError'] as const
+
 // Every value `./motion` exports: a host's stored motion is read with these
 // names, so none may go quietly.
 const motionSymbols = [
@@ -793,6 +798,26 @@ describe('public entries', () => {
   })
   it.each(wamSymbols)('`./wam` exports %s', (name) => {
     expect((wam as Record<string, unknown>)[name]).toBeDefined()
+  })
+  it.each(separationSymbols)('`./separation` exports %s', (name) => {
+    expect((separation as Record<string, unknown>)[name]).toBeDefined()
+  })
+  it('`./separation` exports nothing that is not pinned here', () => {
+    expect(Object.keys(separation).sort()).toEqual([...separationSymbols].sort())
+  })
+  it.each(separationSymbols)('`.` does not export %s', (name) => {
+    expect((core as Record<string, unknown>)[name]).toBeUndefined()
+  })
+  it('no file of the library imports an ONNX runtime: a host hands its own in', async () => {
+    const files = await readdir(new URL('..', import.meta.url), { recursive: true })
+    const importing: string[] = []
+    for (const file of files.filter(
+      (name) => /\.tsx?$/.test(name) && !name.includes('__tests__'),
+    )) {
+      const source = await readFile(new URL(`../${file}`, import.meta.url), 'utf8')
+      if (/from\s*['"]onnxruntime|import\(\s*['"]onnxruntime/.test(source)) importing.push(file)
+    }
+    expect(importing).toEqual([])
   })
   it.each(motionSymbols)('`./motion` exports %s', (name) => {
     expect((motion as Record<string, unknown>)[name]).toBeDefined()
