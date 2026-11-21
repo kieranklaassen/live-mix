@@ -25,6 +25,7 @@ import {
   rendersKept,
 } from './render-let-go'
 import { measureRooms } from './room'
+import { measureSeparation } from './separation'
 import { measureSharedRooms } from './shared-room'
 
 export interface HarnessResult {
@@ -118,6 +119,7 @@ declare global {
       measureModulated: typeof measureModulated
       measurePlacements: typeof measurePlacements
       measureRooms: typeof measureRooms
+      measureSeparation: typeof measureSeparation
       framedNodesMade: typeof framedNodesMade
       framedRenderDifference: typeof framedRenderDifference
       renderAndLetGo: typeof renderAndLetGo
@@ -140,6 +142,7 @@ window.liveMixHarness = {
   measureModulated,
   measurePlacements,
   measureRooms,
+  measureSeparation,
   measureSharedRooms,
   framedNodesMade,
   framedRenderDifference,
