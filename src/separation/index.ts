@@ -4,17 +4,19 @@
  * the track.
  *
  * An entry of its own on purpose. A model is run through an ONNX runtime,
- * which the library never imports: the host loads `onnxruntime-web` (an
- * optional peer), makes the session, and hands both in. Nothing here is
- * reached from `.`, `./dsp` or `./testing`, and nothing here needs a DOM, so
- * the whole of it runs in a worker.
+ * which the library never imports: the host loads `onnxruntime-web`, makes
+ * the session, and hands both in. Nothing here is reached from `.`, `./dsp`
+ * or `./testing`. Separating needs no DOM, so it runs in a worker; the
+ * tracks are made on the page, where there is an `AudioBuffer` to keep a
+ * part in.
  *
  * @module live-mix/separation
  */
-export { HYBRID_MODEL_SPEC, createHybridModel, type HybridModelSpec } from './hybrid-model'
-export { separateTrack } from './separate'
 
+export { separateTrack } from './separate'
 export { createSegmentSeparator, type SegmentModel, type SegmentSeparatorOptions } from './segments'
+export { HYBRID_MODEL_SPEC, createHybridModel, type HybridModelSpec } from './hybrid-model'
+export { separationTracks, type SeparationTracks, type SeparationTracksOptions } from './tracks'
 export {
   PART_NAMES,
   STEM_NAMES,
