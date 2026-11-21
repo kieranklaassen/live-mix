@@ -3,7 +3,8 @@
 // handed to the model, and the answers are added back together with the most
 // weight on the middle of each, where a model is surest. The cutting and the
 // weights are the model's reference implementation's, since a model answers
-// best to what it was trained on. The runner knows nothing else about the
+// best to what it was trained on, and so is the bringing of the track to a
+// mean of 0 and a deviation of 1 first. The runner knows nothing else about the
 // model: one of another kind takes its place by answering `run`.
 
 import {
@@ -118,9 +119,13 @@ export function createSegmentSeparator(
         if (done + 1 < total) await turn()
       }
 
+      // The level comes back and the mean does not. The reference adds the
+      // mean to each of the four, which leaves a track that stands off zero
+      // with four times its offset in the stems. Left out, the offset is no
+      // stem's, and stays in what the track has over the stems.
       for (const name of STEM_NAMES) {
         for (const channel of summed[name]) {
-          for (let i = 0; i < length; i += 1) channel[i] = (channel[i] / weighed[i]) * scale + mean
+          for (let i = 0; i < length; i += 1) channel[i] = (channel[i] / weighed[i]) * scale
         }
       }
       return summed

@@ -52,9 +52,11 @@ describe('a model run over a whole track, segment by segment', () => {
     const track = [noise(length, 1), noise(length, 2)]
     const calls: Channels[] = []
     const stems = await createSegmentSeparator(passing(calls)).separate(track)
+    const { mean } = standard(track)
     for (const channel of [0, 1]) {
       expect(stems.other[channel].length).toBe(length)
-      expect(differenceDb(stems.other[channel], track[channel])).toBeLessThan(-120)
+      const about = track[channel].map((sample) => sample - mean)
+      expect(differenceDb(stems.other[channel], about)).toBeLessThan(-120)
     }
     for (const call of calls) {
       expect(call.map((channel) => channel.length)).toEqual([SEGMENT, SEGMENT])
@@ -62,7 +64,7 @@ describe('a model run over a whole track, segment by segment', () => {
     expect(calls.length).toBe(Math.ceil(length / STRIDE))
   })
 
-  it('takes a track as it is by its mean and deviation, and hands the stems back as they were', async () => {
+  it('hands a model the track about zero and at a deviation of one', async () => {
     const track = [
       noise(SEGMENT, 3).map((v) => v * 0.1 + 0.2),
       noise(SEGMENT, 4).map((v) => v * 0.1),
@@ -108,8 +110,8 @@ describe('a model run over a whole track, segment by segment', () => {
     }
     const track = [noise(SEGMENT, 7), noise(SEGMENT, 8)]
     const stems = await createSegmentSeparator(model).separate(track)
-    const { mean, deviation } = standard(track)
-    const back = (value: number): number => value * deviation + mean
+    const { deviation } = standard(track)
+    const back = (value: number): number => value * deviation
     // Before the second segment starts, the first alone.
     expect(stems.vocals[0][749]).toBeCloseTo(back(1), 5)
     // Frame 800 is 800 into the first, whose weight has fallen to 200 of 500,
@@ -125,11 +127,25 @@ describe('a model run over a whole track, segment by segment', () => {
     }
   })
 
-  it('gives a level that stands still back as it was', async () => {
+  it('leaves a track’s standing off zero out of every stem', async () => {
+    // A track 0.25 off zero. What the model answers comes back at the track's
+    // level and about zero: the offset is no stem's.
+    const about = [noise(1500, 3).map((v) => v * 0.1), noise(1500, 4).map((v) => v * 0.1)]
+    const { mean } = standard(about)
+    const track = about.map((channel) => channel.map((sample) => sample + 0.25))
+    const stems = await createSegmentSeparator(passing()).separate(track)
+    for (const channel of [0, 1]) {
+      const centred = about[channel].map((sample) => sample - mean)
+      expect(differenceDb(stems.other[channel], centred)).toBeLessThan(-100)
+      expect(peak(stems.vocals[channel])).toBe(0)
+    }
+  })
+
+  it('gives silence for a level that stands still', async () => {
     const level = (): Float32Array => new Float32Array(1500).fill(0.25)
     const stems = await createSegmentSeparator(passing()).separate([level(), level()])
-    expect(differenceDb(stems.other[0], level())).toBeLessThan(-120)
     expect(stems.other[0].every(Number.isFinite)).toBe(true)
+    expect(peak(stems.other[0])).toBeLessThan(1e-6)
   })
 
   it('reports each segment as it is done', async () => {
