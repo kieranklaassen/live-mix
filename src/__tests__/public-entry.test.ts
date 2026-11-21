@@ -627,7 +627,12 @@ const wamSymbols = [
 
 // Every value `./separation` exports: a host reads a separation with these
 // names, and none of them may reach a host that only imports `.`.
-const separationSymbols = ['PART_NAMES', 'STEM_NAMES', 'SeparationError'] as const
+const separationSymbols = [
+  'PART_NAMES',
+  'STEM_NAMES',
+  'SeparationError',
+  'createSegmentSeparator',
+] as const
 
 // Every value `./motion` exports: a host's stored motion is read with these
 // names, so none may go quietly.

@@ -12,6 +12,7 @@
  * @module live-mix/separation
  */
 
+export { createSegmentSeparator, type SegmentModel, type SegmentSeparatorOptions } from './segments'
 export {
   PART_NAMES,
   STEM_NAMES,
