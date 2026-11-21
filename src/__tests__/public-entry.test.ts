@@ -634,6 +634,7 @@ const separationSymbols = [
   'SeparationError',
   'createHybridModel',
   'createSegmentSeparator',
+  'separateTrack',
 ] as const
 
 // Every value `./motion` exports: a host's stored motion is read with these
