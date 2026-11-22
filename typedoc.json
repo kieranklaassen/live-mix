@@ -10,7 +10,8 @@
     "src/testing/index.ts",
     "src/wam/index.ts",
     "src/native/index.ts",
-    "src/separation/index.ts"
+    "src/separation/index.ts",
+    "src/analysis/index.ts"
   ],
   "out": "docs/api",
   "readme": "none",

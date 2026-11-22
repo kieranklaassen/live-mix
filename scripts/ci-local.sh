@@ -104,6 +104,7 @@ git_install() {
       for worklet in wasm-device ducker meter recorder native-bridge native-pump link-tap link-audio link-source link-receive load-sampler; do test -f "node_modules/@kieranklaassen/live-mix/dist/worklets/$worklet.js" || exit 1; done &&
       test -f node_modules/@kieranklaassen/live-mix/dist/native/index.js &&
       test -f node_modules/@kieranklaassen/live-mix/dist/separation/index.js &&
+      test -f node_modules/@kieranklaassen/live-mix/dist/analysis/index.js &&
       test -f node_modules/@kieranklaassen/live-mix/native/host/CMakeLists.txt &&
       node --input-type=module -e "
         import { LIVE_MIX_VERSION } from '@kieranklaassen/live-mix'

@@ -75,6 +75,10 @@
       "types": "./dist/separation/index.d.ts",
       "default": "./dist/separation/index.js"
     },
+    "./analysis": {
+      "types": "./dist/analysis/index.d.ts",
+      "default": "./dist/analysis/index.js"
+    },
     "./native/shell": {
       "types": "./native/shell.d.mts",
       "default": "./native/shell.mjs"

@@ -16,6 +16,7 @@ const SUBPATHS = {
   '@kieranklaassen/live-mix/testing': '/dist/testing/index.js',
   '@kieranklaassen/live-mix/native': '/dist/native/index.js',
   '@kieranklaassen/live-mix/separation': '/dist/separation/index.js',
+  '@kieranklaassen/live-mix/analysis': '/dist/analysis/index.js',
   '@kieranklaassen/live-mix/visuals': '/dist/visuals/index.js',
 }
 

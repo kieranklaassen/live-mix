@@ -6,6 +6,7 @@
 import { readFile, readdir } from 'node:fs/promises'
 import { describe, expect, it } from 'vitest'
 
+import * as analysis from '../analysis/index'
 import * as core from '../index'
 import * as dsp from '../dsp/index'
 import * as motion from '../motion/index'
@@ -638,6 +639,23 @@ const separationSymbols = [
   'separationTracks',
 ] as const
 
+// Every value `./analysis` exports: the measurer and the helper that walks a
+// whole buffer through it. Its other exports are their types.
+const analysisSymbols = ['Measurer', 'measure'] as const
+
+// Every file `./analysis` reaches. Each is arithmetic on plain arrays, so the
+// entry runs in a worker and in Node. A new name here is a file to read
+// through for anything that needs a window before it is added.
+const analysisFiles = [
+  'analysis/bands.ts',
+  'analysis/index.ts',
+  'analysis/measure.ts',
+  'analysis/range.ts',
+  'analysis/types.ts',
+  'core/analysis/loudness.ts',
+  'core/devices/native/cleanup/fft.ts',
+]
+
 // Every value `./motion` exports: a host's stored motion is read with these
 // names, so none may go quietly.
 const motionSymbols = [
@@ -827,6 +845,33 @@ describe('public entries', () => {
       if (/from\s*['"]onnxruntime|import\(\s*['"]onnxruntime/.test(source)) importing.push(file)
     }
     expect(importing).toEqual([])
+  })
+  it.each(analysisSymbols)('`./analysis` exports %s', (name) => {
+    expect((analysis as Record<string, unknown>)[name]).toBeDefined()
+  })
+  it('`./analysis` exports nothing that is not pinned here', () => {
+    expect(Object.keys(analysis).sort()).toEqual([...analysisSymbols].sort())
+  })
+  it.each(analysisSymbols)('`.` does not export %s', (name) => {
+    expect((core as Record<string, unknown>)[name]).toBeUndefined()
+  })
+  it('`./analysis` reaches only files of arithmetic, and no package', async () => {
+    const src = new URL('..', import.meta.url)
+    const reached = new Set<string>()
+    const packages: string[] = []
+    const follow = async (file: string): Promise<void> => {
+      if (reached.has(file)) return
+      reached.add(file)
+      const source = await readFile(new URL(file, src), 'utf8')
+      for (const [, specifier] of source.matchAll(/(?:from|import)\s*\(?\s*['"]([^'"]+)['"]/g)) {
+        if (!specifier.startsWith('.')) packages.push(`${file}: ${specifier}`)
+        else
+          await follow(new URL(`${specifier}.ts`, new URL(file, src)).href.slice(src.href.length))
+      }
+    }
+    await follow('analysis/index.ts')
+    expect(packages).toEqual([])
+    expect([...reached].sort()).toEqual(analysisFiles)
   })
   it.each(motionSymbols)('`./motion` exports %s', (name) => {
     expect((motion as Record<string, unknown>)[name]).toBeDefined()

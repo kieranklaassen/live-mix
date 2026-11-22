@@ -45,6 +45,7 @@ async function main() {
       'wam/index': 'src/wam/index.ts',
       'native/index': 'src/native/index.ts',
       'separation/index': 'src/separation/index.ts',
+      'analysis/index': 'src/analysis/index.ts',
     },
     format: ['esm'],
     target: 'es2022',

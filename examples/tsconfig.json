@@ -11,7 +11,8 @@
       "@kieranklaassen/live-mix/visuals": ["../src/visuals/index.ts"],
       "@kieranklaassen/live-mix/testing": ["../src/testing/index.ts"],
       "@kieranklaassen/live-mix/wam": ["../src/wam/index.ts"],
-      "@kieranklaassen/live-mix/separation": ["../src/separation/index.ts"]
+      "@kieranklaassen/live-mix/separation": ["../src/separation/index.ts"],
+      "@kieranklaassen/live-mix/analysis": ["../src/analysis/index.ts"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", "../src/visuals/glsl.d.ts"]
