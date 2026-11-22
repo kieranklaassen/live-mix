@@ -182,6 +182,8 @@ export class ChannelStrip {
   private readonly rides = new Map<string, RideLayer>()
   // Nodes that hear the strip's output and every shadow's (`tap`).
   private readonly taps = new Set<AudioNode>()
+  // Nodes that hear what goes into the strip (`tapSources`).
+  private readonly sourceTaps = new Set<AudioNode>()
 
   private inputGainValue = 1
   private levelValue: number
@@ -289,6 +291,7 @@ export class ChannelStrip {
     this.assertLive()
     this.sources.add(node)
     node.connect(this.sourceEntry())
+    if (!this.keeper) for (const tap of this.sourceTaps) node.connect(tap)
   }
 
   /**
@@ -308,6 +311,11 @@ export class ChannelStrip {
       source.disconnect(from)
     }
     if (this.keeper) this.keeper.disconnect(entry)
+    // What hears the strip's input hears the keeper while there is one, as the strip does.
+    for (const tap of this.sourceTaps) {
+      for (const feeder of this.sourceFeeders()) feeder.disconnect(tap)
+      for (const feeder of node ? [node] : this.sources) feeder.connect(tap)
+    }
     this.keeper = node
   }
 
@@ -326,9 +334,25 @@ export class ChannelStrip {
     if (!this.sources.delete(node)) return
     try {
       node.disconnect(this.sourceEntry())
+      if (!this.keeper) for (const tap of this.sourceTaps) node.disconnect(tap)
     } catch {
       // Already disconnected by the caller; nothing to undo.
     }
+  }
+
+  /**
+   * Let `node` hear what the track plays before the strip does anything to
+   * it: every source wired through `connectSource`, now or later, or the
+   * keeper they are summed into while there is one. The strip's trim,
+   * inserts, pan, level, mute and solo are all after it, and so is a move of
+   * the strip to another destination. Creates no strip nodes. The node hears
+   * the track until the strip is disposed.
+   */
+  tapSources(node: AudioNode): void {
+    this.assertLive()
+    if (this.sourceTaps.has(node)) return
+    this.sourceTaps.add(node)
+    for (const feeder of this.sourceFeeders()) feeder.connect(node)
   }
 
   /**
@@ -684,6 +708,16 @@ export class ChannelStrip {
     }
     this.shadows.clear()
     this.taps.clear()
+    for (const tap of this.sourceTaps) {
+      for (const feeder of this.sourceFeeders()) {
+        try {
+          feeder.disconnect(tap)
+        } catch {
+          // A source the track disconnected first; nothing to undo.
+        }
+      }
+    }
+    this.sourceTaps.clear()
     try {
       this.nodes?.inputGain.disconnect()
       for (const device of this.insertList) device.output.disconnect()
@@ -800,6 +834,11 @@ export class ChannelStrip {
   /** Where a source connects: the keeper while there is one, else the strip. */
   private sourceEntry(): AudioNode {
     return this.keeper ?? this.entry()
+  }
+
+  /** What feeds the strip's entry: the keeper while there is one, else every source. */
+  private sourceFeeders(): Iterable<AudioNode> {
+    return this.keeper ? [this.keeper] : this.sources
   }
 
   private insertTail(): AudioNode {

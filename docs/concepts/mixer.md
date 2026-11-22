@@ -165,6 +165,80 @@ mode for iOS lock-screen playback ([getting started §5](../getting-started.md#5
 Nothing in the engine — or in a well-behaved consumer — connects to
 `ctx.destination` itself.
 
+**A reference beside the mix.** `engine.setHeard({ source: 'reference' })`
+plays the tracks' own sound at the output in place of the mix, for hearing
+what the mix has done to it, and `engine.setHeard({ source: 'mix' })` plays
+the mix again. Both go on playing all the while, so the playhead keeps its
+place, and they cross over 20 ms (`HEARD_CROSS_SECONDS`): the one that is
+heard approaches its gain as the other approaches silence, the two adding up
+to one all the way.
+
+```mermaid
+flowchart LR
+  T["An audio track's<br/>own sound"] --> S["Its strip"]
+  T --> R["Reference sum"]
+  S --> M["Master<br/>gain → inserts → limiter → meter"]
+  R --> D["Delay<br/>what the mix arrives late"]
+  M --> GM["Mix gain<br/>heard only"]
+  D --> GR["Reference gain<br/>heard only"]
+  GM --> O["OutputRouter"]
+  GR --> O
+```
+
+```ts
+engine.setHeard({ source: 'reference', referenceGain: 0.7 }) // made on this first call
+engine.heard // { source: 'reference', mixGain: 1, referenceGain: 0.7 }
+engine.setHeard({ source: 'mix' }) // what is left out stays as it was
+```
+
+- **What it is.** The sum of what every audio track hands its strip (clip
+  tracks and stretch tracks): each clip's voice with its own fades, trim and
+  placement, and the track's own room. It is that sound and not a file. No
+  strip is in it, so a track's trim, inserts, pan, level, mute and solo leave
+  it as it is, and so does a solo of another track. No group, bus, return or
+  master is in it either: it goes round all of them to the output. Instrument
+  tracks, live inputs, element tracks and a room that tracks share
+  (`sharedSpace`) are not in it. Where the tracks are the parts one recording
+  was split into, it is that recording as nearly as the parts add up to it.
+- **In time with the mix.** The sum is held back by one delay: the latest
+  arrival of `engine.latencyReport()` when it is made, and after each
+  `engine.alignLatency()` the latest arrival that reports, which is what the
+  aligned tracks and the master's chain hold the mix back. A host that lines
+  its tracks up after a change of devices therefore keeps the two in time. The
+  delay is the stage an aligned strip has (`AlignmentDelay`), whose counts of
+  samples a browser spec holds in a render
+  ([render](./render.md#a-bypassed-device-and-an-aligned-strip)). It holds a
+  second at most (`PDC_MAX_DELAY_SECONDS`), and a new count is written at
+  once, not approached.
+- **Two gains, heard only.** `mixGain` and `referenceGain` are linear gains
+  on the two, each used while its own is the one heard, for playing the
+  louder of the two as loud as the other. They sit after everything else at
+  the output. The master's meters, its taps and a recorder on the master all
+  read ahead of the mix's gain, so they read the mix at its own level
+  whichever is heard.
+- **In no render.** The reference is made on a playing engine by the first
+  `setHeard`, and is no part of a score. `renderOffline` and `renderScore`
+  build an engine of their own and never call it, so a bounce made while the
+  reference is heard is the mix alone, at the mix's own level.
+- **What it costs.** Nothing until the first `setHeard`: the default graph is
+  as it was. From then on two gains at the output, one sum, one delay, and one
+  connection from each sounding voice.
+- **Stopping.** `engine.stop({ fadeSec })` fades the master, which the
+  reference goes round: while the reference is heard its voices end at the
+  end of the fade with no fade of their own.
+
+What ran, and where: `src/core/__tests__/Engine.reference.test.ts`,
+`Engine.latency.test.ts` and `src/core/tracks/__tests__/ChannelStrip.test.ts`,
+in Node on the recording stand-ins for Web Audio, on 2026-11-22. They hold
+what the graph is told: which nodes feed the sum and the two gains before
+and after a `score.replace` with the same tracks, the approaches written to
+the two gains, the count written to the delay as a device that takes time
+comes onto the master's chain and off it, and that the graph of a
+`renderScore` made while the reference is heard is the graph of one made
+without it. Not tried: any browser. No sound was made, so that the reference
+and the mix arrive on the same sample in a browser's graph was not measured.
+Nothing here was listened to.
+
 **Stats.** `engine.stats` counts glitches from `AudioContext.renderCapacity`
 where a browser exposes it (`supported`), converting each update's
 `underrunRatio` into render quanta; hosts add their own with
@@ -176,7 +250,8 @@ where a browser exposes it (`supported`), converting each update's
 `engine.latencyReport()` walks every path and reports each device's latency
 and each path's arrival; `engine.alignLatency()` inserts alignment delays so
 clip and instrument tracks arrive together with the longest path (live inputs
-excluded unless asked). Details in [devices](./devices.md#latency-and-delay-compensation).
+excluded unless asked), and holds the reference beside the mix back by the
+same. Details in [devices](./devices.md#latency-and-delay-compensation).
 
 ## Stopping and disposing
 

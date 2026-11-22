@@ -69,8 +69,12 @@ export {
   type TimeoutId,
 } from './core/clock'
 export {
+  HEARD_CROSS_SECONDS,
   OutputRouter,
   isIOSWebKit,
+  type Heard,
+  type HeardGains,
+  type HeardSource,
   type OutputMode,
   type OutputRouterOptions,
 } from './core/output/OutputRouter'

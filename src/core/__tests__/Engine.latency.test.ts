@@ -304,6 +304,44 @@ describe('Engine.alignLatency', () => {
     expect(report.paths.find((p) => p.key === 'live-input/voice')?.deficitSamples).toBe(365)
   })
 
+  it('holds the reference beside the mix back by the latest arrival, as the mix chain gains and loses latency', async () => {
+    const { mock, engine, pad } = await session()
+    engine.setHeard({ source: 'reference' })
+    // The one delay that plays into a node the output is fed by: the reference's.
+    const delay = mock.delays.find((node) =>
+      [...node.outputs].some((next) => next.isConnectedTo(mock.destination)),
+    )
+    if (!delay) throw new Error('expected the reference to have a delay')
+    const held = () => delay.delayTime.lastEvent('setValueAtTime')?.args
+    // Made before anything was lined up: the longest path there is.
+    expect(held()).toEqual([442 / SR, 1])
+
+    engine.alignLatency()
+    expect(delay.delayTime.events).toHaveLength(1)
+    expect(stageOf(pad.strip)?.delaySamples).toBe(77)
+
+    // A device on the mix's chain that holds its sound back 100 samples.
+    const late = fakeDevice(mock, 'late', 100)
+    engine.master.addInsert(late)
+    let report = engine.alignLatency()
+    expect(report.maxArrivalSamples).toBe(542)
+    expect(held()).toEqual([542 / SR, 1])
+    // The tracks need no more than before: the mix's chain is after all of them.
+    expect(stageOf(pad.strip)?.delaySamples).toBe(77)
+
+    engine.master.removeInsert(late)
+    report = engine.alignLatency()
+    expect(report.maxArrivalSamples).toBe(442)
+    expect(held()).toEqual([442 / SR, 1])
+
+    // And a track's own chain: the longest path grows, and the reference waits for it.
+    pad.strip.addInsert(fakeDevice(mock, 'slow', 200))
+    report = engine.alignLatency()
+    expect(report.maxArrivalSamples).toBe(565)
+    expect(held()).toEqual([565 / SR, 1])
+    engine.dispose()
+  })
+
   it('re-inserts a stage the host pulled, prunes stages of removed tracks, and disposes with the engine', async () => {
     const { mock, engine, pad, synth } = await session()
     engine.alignLatency()

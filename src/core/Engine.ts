@@ -17,7 +17,7 @@ import { MasterBus, type MasterBusOptions } from './buses/MasterBus'
 import { Bus } from './buses/Bus'
 import { createClock, startLeadSec, type Clock, type ClockOptions } from './clock'
 import { Emitter } from './events'
-import { OutputRouter, type OutputRouterOptions } from './output/OutputRouter'
+import { OutputRouter, type Heard, type OutputRouterOptions } from './output/OutputRouter'
 import { devices as defaultDevices } from './devices'
 import {
   AlignmentDelay,
@@ -251,6 +251,17 @@ interface LatencyPath extends LatencyPathInput {
   strip?: ChannelStrip
 }
 
+/**
+ * The reference beside the mix, once `setHeard` has made it: what the audio
+ * tracks hand their strips, summed and held back as the mix is.
+ */
+interface Reference {
+  /** Every tap ends here. */
+  readonly sum: GainNode
+  /** Holds the sum back by what the mix arrives late. */
+  readonly delay: AlignmentDelay
+}
+
 export class Engine {
   readonly context: BaseAudioContext
   readonly clock: Clock
@@ -289,6 +300,7 @@ export class Engine {
   private readonly groupMap = new Map<string, GroupTrack>()
   private readonly duckers = new Set<SidechainDucker>()
   private readonly alignmentDelays = new Map<ChannelStrip, AlignmentDelay>()
+  private reference: Reference | null = null
   private readonly disposeListeners = new Set<() => void>()
   private spaceValue: Required<SpaceOptions>
   private spaceBuffer: AudioBuffer | null = null
@@ -478,6 +490,7 @@ export class Engine {
     }
     track.attach(this.scheduler)
     this.trackMap.set(name, track)
+    this.tapForReference(track)
     this.changed('track', 'added', name)
     return track
   }
@@ -570,6 +583,7 @@ export class Engine {
     }
     track.attach(this.scheduler)
     this.stretchTrackMap.set(name, track)
+    this.tapForReference(track)
     this.changed('stretch-track', 'added', name)
     return track
   }
@@ -743,6 +757,62 @@ export class Engine {
     this.changes.emit({ kind, action, name })
   }
 
+  /** What is heard at the output: the mix at unity until `setHeard` says otherwise. */
+  get heard(): Heard {
+    return this.output.heard
+  }
+
+  /**
+   * Say what is heard at the output: the mix, or the reference beside it, and
+   * the gain each is heard at when it is the one. What is left out stays as it
+   * was. The two cross over `HEARD_CROSS_SECONDS` while both keep playing, so
+   * the playhead keeps its place. Returns what is heard from now on.
+   *
+   * The reference is the sound of the audio tracks themselves: what every
+   * clip track and stretch track hands its strip, summed. No strip is in it,
+   * so a track's trim, inserts, pan, level, mute and solo leave it as it is,
+   * and neither is the master: it goes round the master's chain to the output.
+   * It is held back by what the mix arrives late (`latencyReport().maxArrivalSamples`
+   * when it is made, and after each `alignLatency()` what that reports), so a
+   * host that lines its tracks up after a change of devices keeps the two in
+   * time. No more than `PDC_MAX_DELAY_SECONDS` is held.
+   *
+   * The first call makes it: two gains at the output, a sum, a delay, and a
+   * connection from each source of each track. Until then the engine has none
+   * of them. Both gains are after everything a render, a recorder on the
+   * master or a meter of the master reads, so none of those ever holds the
+   * reference or a gain given here.
+   */
+  setHeard(next: Partial<Heard>): Heard {
+    this.assertLive()
+    this.ensureReference()
+    return this.output.setHeard(next)
+  }
+
+  /** Makes the reference and puts the master through the mix's gain, once. */
+  private ensureReference(): void {
+    if (this.reference) return
+    const gains = this.output.heardGains()
+    const sum = this.context.createGain()
+    const delay = new AlignmentDelay(this.context, {
+      delaySamples: this.latencyReport().maxArrivalSamples,
+    })
+    sum.connect(delay.input)
+    delay.output.connect(gains.reference)
+    this.master.playInto(gains.mix)
+    this.reference = { sum, delay }
+    for (const track of this.trackMap.values()) this.tapForReference(track)
+    for (const track of this.stretchTrackMap.values()) this.tapForReference(track)
+  }
+
+  /**
+   * Lets the reference hear what a track hands its strip, while there is a
+   * reference. The strip lets the tap go when the track is disposed.
+   */
+  private tapForReference(track: AudioTrack | StretchTrack): void {
+    if (this.reference) track.strip.tapSources(this.reference.sum)
+  }
+
   /**
    * A group: a summing strip that member tracks route into, feeding the master
    * (or a bus, or another group). Creates its four nodes immediately.
@@ -836,8 +906,9 @@ export class Engine {
    * stays immediate; returns hear their sources post-fader, i.e. already
    * aligned, so they, plain buses and groups are reported only. Re-run after
    * inserts change: existing stages are resized in place, and a track whose
-   * strip has not materialised yet does so on its first stage. Returns the
-   * report afterwards.
+   * strip has not materialised yet does so on its first stage. The reference
+   * beside the mix (`setHeard`), once made, is held back by the latest arrival
+   * of the report. Returns the report afterwards.
    */
   alignLatency(options: AlignLatencyOptions = {}): LatencyReport {
     this.assertLive()
@@ -880,7 +951,10 @@ export class Engine {
       delay.dispose()
       this.alignmentDelays.delete(strip)
     }
-    return this.latencyReport()
+    const report = this.latencyReport()
+    // The reference goes round every strip and the master, so it is held back by what they take.
+    this.reference?.delay.setDelaySamples(report.maxArrivalSamples)
+    return report
   }
 
   /**
@@ -969,6 +1043,11 @@ export class Engine {
     this.stats.dispose()
     for (const delay of this.alignmentDelays.values()) delay.dispose()
     this.alignmentDelays.clear()
+    if (this.reference) {
+      this.reference.sum.disconnect()
+      this.reference.delay.dispose()
+      this.reference = null
+    }
     this.changes.emit({ kind: 'dispose' })
     this.changes.clear()
     if (failures.length > 0) throw failures[0]

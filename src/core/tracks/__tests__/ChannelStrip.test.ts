@@ -190,6 +190,74 @@ describe('ChannelStrip topology', () => {
     expect(b.disconnectCalls.count).toBe(1)
   })
 
+  it('tapSources hears what goes into the strip, before and after it has nodes or moves, and no more', () => {
+    const ctx = createMockContext()
+    const s = strip(ctx, 'a')
+    const tap = ctx.createGain()
+    const early = ctx.createGain()
+    for (const node of [tap, early]) strict(node)
+    s.connectSource(asAudioNode(early))
+    s.tapSources(asAudioNode(tap))
+    const late = ctx.createGain()
+    strict(late)
+    s.connectSource(asAudioNode(late))
+    const fed = () => [early, late].map((node) => node.isConnectedTo(tap))
+    expect(fed()).toEqual([true, true])
+    // The tap is no node of the strip: asking for it made none.
+    expect(s.materialized).toBe(false)
+
+    // The strip gets its nodes, is muted and moves to a bus: the sources still feed the tap.
+    s.setLevel(0.5)
+    s.mute = true
+    const bus = new Bus(asAudioContext(ctx), {
+      name: 'A',
+      destination: asAudioNode(ctx.destination),
+    })
+    s.connectTo(bus)
+    expect(fed()).toEqual([true, true])
+    expect(early.isConnectedTo(s.input as never)).toBe(true)
+    // Only the sources: nothing the strip puts out reaches the tap.
+    expect(asMock(s.gate).isConnectedTo(tap)).toBe(false)
+    expect(asMock(s.inputGainNode).isConnectedTo(tap)).toBe(false)
+
+    // A source the strip is told to let go of leaves the tap too.
+    s.disconnectSource(asAudioNode(early))
+    expect(fed()).toEqual([false, true])
+
+    // Asked for twice it is fed once, and the strip lets it go when it is disposed.
+    s.tapSources(asAudioNode(tap))
+    expect(late.connectCalls.calls.filter(([target]) => target === tap)).toHaveLength(1)
+    s.dispose()
+    expect(fed()).toEqual([false, false])
+    // What the track still feeds elsewhere is the track's to take down.
+    expect(late.outputs.size).toBe(1)
+  })
+
+  it('tapSources hears the keeper while the sources are summed into one, and the sources again after', () => {
+    const ctx = createMockContext()
+    const s = strip(ctx, 'a')
+    const tap = ctx.createGain()
+    const source = ctx.createGain()
+    const keeper = ctx.createGain()
+    for (const node of [source, keeper]) strict(node)
+    s.connectSource(asAudioNode(source))
+    s.tapSources(asAudioNode(tap))
+
+    s.keepPitch(asAudioNode(keeper))
+    expect(keeper.isConnectedTo(tap)).toBe(true)
+    expect(source.isConnectedTo(tap)).toBe(false)
+    // A source that comes while it is kept goes into the keeper alone.
+    const later = ctx.createGain()
+    strict(later)
+    s.connectSource(asAudioNode(later))
+    expect(later.isConnectedTo(tap)).toBe(false)
+    expect(later.isConnectedTo(keeper)).toBe(true)
+
+    s.keepPitch(null)
+    expect(keeper.isConnectedTo(tap)).toBe(false)
+    expect([source, later].map((node) => node.isConnectedTo(tap))).toEqual([true, true])
+  })
+
   it('connectTo re-points every source while node-free and only the gate once built', () => {
     const ctx = createMockContext()
     const s = strip(ctx, 'a')

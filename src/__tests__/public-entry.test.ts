@@ -27,6 +27,7 @@ const coreSymbols = [
   'Bus',
   'MasterBus',
   'OutputRouter',
+  'HEARD_CROSS_SECONDS',
   'isIOSWebKit',
   'Meter',
   'Transport',

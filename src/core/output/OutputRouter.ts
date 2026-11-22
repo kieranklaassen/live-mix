@@ -41,6 +41,37 @@ export interface OutputRouterOptions {
   mediaSession?: MediaSession | null
 }
 
+/** Which of the two the output plays: the mix, or the reference beside it. */
+export type HeardSource = 'mix' | 'reference'
+
+/**
+ * What is heard at the output: which of the mix and the reference, and the
+ * gain each of them is heard at when it is the one. These gains are in the
+ * heard path only. A render, a recorder on the master and the master's
+ * meters are all ahead of them.
+ */
+export interface Heard {
+  source: HeardSource
+  /** Linear gain on the mix while it is heard. 1 until set. */
+  mixGain: number
+  /** Linear gain on the reference while it is heard. 1 until set. */
+  referenceGain: number
+}
+
+/** How long the mix and the reference take to cross when what is heard changes. */
+export const HEARD_CROSS_SECONDS = 0.02
+
+// An approach with this time constant is within 2 % of where it is going
+// when the crossing's length has passed, and the two approaches add up to
+// one all the way, as two sounds that are nearly alike need.
+const HEARD_TIME_CONSTANT = HEARD_CROSS_SECONDS / 4
+
+/** The two gains only what is heard passes, both feeding the output. */
+export interface HeardGains {
+  readonly mix: GainNode
+  readonly reference: GainNode
+}
+
 export class OutputRouter {
   readonly mode: OutputMode
   /**
@@ -50,12 +81,16 @@ export class OutputRouter {
    */
   readonly output: AudioNode
   readonly element: HTMLAudioElement | null = null
+  private readonly ctx: BaseAudioContext
+  private heardNodes: HeardGains | null = null
+  private heardValue: Heard = { source: 'mix', mixGain: 1, referenceGain: 1 }
   private readonly mediaSession: MediaSession | null
   private mediaTitle: string
   private mediaArtist: string | undefined
   private activated = false
 
   constructor(ctx: BaseAudioContext, options: OutputRouterOptions = {}) {
+    this.ctx = ctx
     this.mode = options.mode ?? 'direct'
     this.mediaTitle = options.mediaTitle ?? 'live-mix'
     this.mediaArtist = options.mediaArtist
@@ -78,6 +113,55 @@ export class OutputRouter {
     } else {
       this.output = ctx.destination
     }
+  }
+
+  /** What is heard: the mix at unity until `setHeard` says otherwise. */
+  get heard(): Heard {
+    return { ...this.heardValue }
+  }
+
+  /**
+   * The two gains of the heard path, made on first use and both feeding
+   * `output`: the mix's at unity and the reference's silent, so that putting
+   * the mix through its gain moves no level. Nothing is connected to them
+   * here: the engine plays the master into the one and its reference into the
+   * other (`Engine.setHeard`). Until they are asked for the output has no
+   * node but its terminus.
+   */
+  heardGains(): HeardGains {
+    if (this.heardNodes) return this.heardNodes
+    const mix = this.ctx.createGain()
+    const reference = this.ctx.createGain()
+    reference.gain.value = 0
+    mix.connect(this.output)
+    reference.connect(this.output)
+    this.heardNodes = { mix, reference }
+    return this.heardNodes
+  }
+
+  /**
+   * Say which of the two is heard and at what gain. What is left out stays as
+   * it was. The one that is heard approaches its gain and the other approaches
+   * silence, from now and over `HEARD_CROSS_SECONDS`, and both go on playing
+   * into their gains all the while. Returns what is heard from now on. A host
+   * calls `Engine.setHeard`, which first makes the reference and plays it and
+   * the master into the two gains: called here alone, the gains are fed by
+   * nothing.
+   */
+  setHeard(next: Partial<Heard>): Heard {
+    const source = next.source ?? this.heardValue.source
+    const mixGain = next.mixGain ?? this.heardValue.mixGain
+    const referenceGain = next.referenceGain ?? this.heardValue.referenceGain
+    this.heardValue = { source, mixGain, referenceGain }
+    const { mix, reference } = this.heardGains()
+    const at = this.ctx.currentTime
+    mix.gain.setTargetAtTime(source === 'mix' ? mixGain : 0, at, HEARD_TIME_CONSTANT)
+    reference.gain.setTargetAtTime(
+      source === 'reference' ? referenceGain : 0,
+      at,
+      HEARD_TIME_CONSTANT,
+    )
+    return this.heard
   }
 
   /**
@@ -162,12 +246,12 @@ export class OutputRouter {
         // Element may already be detached; ignore.
       }
     }
-    if (this.mode === 'element') {
-      try {
-        this.output.disconnect()
-      } catch {
-        // Context may already be closed; ignore.
-      }
+    try {
+      this.heardNodes?.mix.disconnect()
+      this.heardNodes?.reference.disconnect()
+      if (this.mode === 'element') this.output.disconnect()
+    } catch {
+      // Context may already be closed; ignore.
     }
   }
 }

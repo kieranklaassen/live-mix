@@ -9,6 +9,9 @@
 //
 //   fader → inserts… → [limiter] → [analyser meter] → router.output
 //                                 └→ [LUFS meter] (and any other tap)
+//
+// `playInto` puts one more node between the last of those stages and the
+// terminus: the gain only what is heard passes (`Engine.setHeard`).
 
 import { LufsMeter, type LufsMeterOptions } from '../analysis/LufsMeter'
 import { Meter } from '../analysis/Meter'
@@ -32,10 +35,13 @@ export class MasterBus extends Bus {
   private limiterDevice: Device | null = null
   private limiterFacade: MasterLimiter | null = null
   private lufsMeter: LufsMeter | null = null
+  /** What the master's last stage plays into: the router's output until `playInto` names another node. */
+  private terminus: AudioNode
 
   constructor(ctx: BaseAudioContext, router: OutputRouter, options: MasterBusOptions = {}) {
     super(ctx, { name: 'master', destination: router.output, gain: options.gain })
     this.router = router
+    this.terminus = router.output
     if (options.meter) {
       // The meter sits between the chain tail and the terminus; the bus keeps
       // treating the meter as its destination so inserts rewire around it.
@@ -62,6 +68,27 @@ export class MasterBus extends Bus {
   /** The installed loudness meter, or null before `installLufsMeter`. */
   get lufs(): LufsMeter | null {
     return this.lufsMeter
+  }
+
+  /**
+   * Play the master's last stage (its meter, else its limiter, else the tail
+   * of its chain) into `node` in place of where it played before, which is the
+   * router's output until this is called. Every stage and tap of the master
+   * stays ahead of `node`, and so do inserts and a limiter that come later.
+   * The swap lands on one render quantum, so a node at unity moves no level.
+   */
+  playInto(node: AudioNode): void {
+    this.assertLive()
+    const from = this.terminus
+    if (node === from) return
+    const last = this.meter?.output ?? this.limiterDevice?.output
+    if (last) {
+      last.disconnect(from)
+      last.connect(node)
+    } else {
+      this.connectTo(node)
+    }
+    this.terminus = node
   }
 
   /**
