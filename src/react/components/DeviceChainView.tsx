@@ -13,6 +13,12 @@
 // A host adds tool cells of its own to each device (`deviceActions`) and says
 // where something it carries in from outside would land (`dropAt`): the chain
 // stands its marker in that gap, and what lands there is the host's to add.
+//
+// The chain draws effects only. The delay stage the engine puts on a strip to
+// line its arrival up with the others (`engine.alignLatency()`) is the
+// engine's, not the piece's: it is never drawn, and nothing here moves or
+// removes it. Every place the chain counts is among the devices it shows,
+// which under a score are the score's own.
 
 import {
   useCallback,
@@ -26,6 +32,7 @@ import {
 } from 'react'
 
 import { type Device } from '../../core/devices/Device'
+import { isAlignmentDelay } from '../../core/devices/pdc'
 import {
   DEVICE_CATEGORIES,
   type DeviceDescriptor,
@@ -164,10 +171,16 @@ function sameDevices(a: readonly Device[], b: readonly Device[]): boolean {
   return a.length === b.length && a.every((device, index) => device === b[index])
 }
 
-/** The host's inserts, re-read whenever it reports a change. */
+/**
+ * The host's inserts, re-read whenever it reports a change, without the
+ * alignment stages the engine puts on a strip: those are its own, not effects.
+ */
 export function useInserts(host: InsertHost): readonly Device[] {
   const subscribe = useCallback((onChange: () => void) => host.onChange(() => onChange()), [host])
-  const read = useCallback((): readonly Device[] => [...host.inserts], [host])
+  const read = useCallback(
+    (): readonly Device[] => host.inserts.filter((device) => !isAlignmentDelay(device)),
+    [host],
+  )
   return useExternalSnapshot(subscribe, read, sameDevices)
 }
 
@@ -294,7 +307,9 @@ export function DeviceChainView({
   const move = (from: number, to: number): void => {
     if (from === to || from < skip || to < skip) return
     if (!arbiter || owner === null) {
-      reorderInserts(strip, from, to, skip)
+      // The engine's chain may hold an alignment stage among the devices shown.
+      const place = (index: number): number => strip.inserts.indexOf(inserts[index])
+      reorderInserts(strip, place(from), place(to), skip)
       return
     }
     const moved = scoreSlot(inserts[from])
@@ -483,8 +498,11 @@ export function DeviceChainView({
       data-testid={testId}
       data-lm-strip={strip.name}
     >
-      {inserts.map((device, index) =>
-        index < skip ? null : (
+      {inserts.map((device, index) => {
+        if (index < skip) return null
+        // Where the device sits in the engine's own chain, alignment stages counted.
+        const place = strip.inserts.indexOf(device)
+        return (
           <div
             key={deviceKey(device)}
             role="listitem"
@@ -494,7 +512,7 @@ export function DeviceChainView({
             )}
             onPointerDown={reorder.onPointerDown(index - skip)}
             data-testid={testId ? `${testId}-item-${index - skip}` : undefined}
-            data-lm-insert={index}
+            data-lm-insert={place}
           >
             <div
               className="lm-chain__handle"
@@ -553,11 +571,11 @@ export function DeviceChainView({
                   showPresets={panelProps?.showPresets}
                   presetPicker={picker}
                   upright={upright}
-                  onRemove={() => remove(device, index)}
+                  onRemove={() => remove(device, place)}
                   actions={actions}
                   hint={PLATE_REORDER_HINT}
                   knobHint={knobHint ? (param) => knobHint(device, param) : undefined}
-                  source={index === 0 ? (strip.input ?? null) : inserts[index - 1].output}
+                  source={place <= 0 ? (strip.input ?? null) : strip.inserts[place - 1].output}
                   data-testid={id}
                 />
               ) : (
@@ -568,15 +586,15 @@ export function DeviceChainView({
                   device={device}
                   registry={reg ?? undefined}
                   presetPicker={picker}
-                  onRemove={() => remove(device, index)}
+                  onRemove={() => remove(device, place)}
                   actions={actions}
                   data-testid={id}
                 />
               )
             })()}
           </div>
-        ),
-      )}
+        )
+      })}
       {reorder.carried !== null ? (
         <div
           ref={reorder.labelRef}

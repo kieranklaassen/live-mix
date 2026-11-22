@@ -4,10 +4,22 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type Device } from '../../core/devices/Device'
+import { ALIGNMENT_DELAY_ID, AlignmentDelay } from '../../core/devices/pdc'
 import { DEVICE_CATEGORIES } from '../../core/devices/registry'
+import { Arbiter } from '../../score/Arbiter'
+import { loadScore } from '../../score/loadScore'
+import {
+  createScore,
+  defaultStrip,
+  findStripHost,
+  masterDestination,
+  type ScoreDevice,
+} from '../../score/schema'
+import { ScoreDocument } from '../../score/ScoreDocument'
 import {
   armedEnds,
   carryScrollMin,
@@ -23,6 +35,7 @@ import {
 import { DeviceChainView, groupDevices, reorderInserts } from '../components/DeviceChainView'
 import { deviceSkin } from '../components/device-skins'
 import { forgetPresses } from '../components/presses'
+import { LiveMixProvider } from '../hooks/useEngine'
 import { createTestEngine, type TestEngine } from './harness'
 
 // jsdom's own `URL` is not one `fileURLToPath` takes: the path is joined instead.
@@ -1174,5 +1187,161 @@ describe('DeviceChainView', () => {
     expect(
       within(screen.getByRole('combobox', { name: 'Add device' })).getAllByRole('group'),
     ).toHaveLength(1)
+  })
+})
+
+describe('DeviceChainView and the engine’s alignment stages', () => {
+  /** A score with one audio track, `pad`, that holds `inserts`, rendered and under an arbiter. */
+  async function scored(inserts: ScoreDevice[]) {
+    const fixture = createTestEngine()
+    const score = createScore({ id: 'aligned', name: 'Aligned' })
+    score.tracks = [
+      {
+        kind: 'audio',
+        id: 'pad',
+        name: 'Pad',
+        destination: masterDestination(),
+        strip: defaultStrip({ inserts }),
+        clips: [],
+      },
+    ]
+    const document = new ScoreDocument(score, { now: () => 0 })
+    const renderer = loadScore(fixture.engine, document, { onError: () => {} })
+    await renderer.whenIdle()
+    const arbiter = new Arbiter(document, {
+      now: () => 0,
+      renderer,
+      setTimeoutFn: () => 0,
+      clearTimeoutFn: () => {},
+    })
+    const wrapper = ({ children }: { children: ReactNode }): ReactNode => (
+      <LiveMixProvider engine={fixture.engine} frame={fixture.frames} arbiter={arbiter}>
+        {children}
+      </LiveMixProvider>
+    )
+    const pad = fixture.engine.track('pad')
+    const stage = new AlignmentDelay(fixture.engine.context, { delaySamples: 128 })
+    const ids = () => findStripHost(document.score, 'pad')?.strip.inserts.map((device) => device.id)
+    return { ...fixture, document, renderer, wrapper, pad, stage, ids }
+  }
+
+  const device = (id: string, deviceId: string): ScoreDevice => ({
+    id,
+    deviceId,
+    params: {},
+    bypass: false,
+  })
+
+  /** No cell of the chain moves or removes the alignment stage, and no item draws it. */
+  function expectNoStageShown(): void {
+    expect(screen.queryAllByRole('button', { name: new RegExp(ALIGNMENT_DELAY_ID) })).toEqual([])
+    for (const item of screen.queryAllByTestId(/^chain-item-\d+$/))
+      expect(item.querySelector(`[data-lm-device="${ALIGNMENT_DELAY_ID}"]`)).toBeNull()
+  }
+
+  it('shows one item for a strip with one device and an alignment stage', async () => {
+    const { pad, stage, wrapper } = await scored([device('pad-filter', 'filter')])
+    act(() => pad.strip.addInsert(stage))
+    expect(pad.strip.inserts).toHaveLength(2)
+    render(<DeviceChainView strip={pad} data-testid="chain" />, { wrapper })
+    expect(panels()).toEqual(['Filter'])
+    expect(screen.getByTestId('chain-item-0')).toHaveTextContent('Filter')
+    expect(screen.queryByTestId('chain-item-1')).toBeNull()
+    // Alone in the chain, the device has no place to step to.
+    expect(screen.getByRole('button', { name: 'Move filter earlier' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Move filter later' })).toBeDisabled()
+    expectNoStageShown()
+  })
+
+  it('adds a device at the score’s place on a strip that carries an alignment stage', async () => {
+    const { document, pad, renderer, stage, wrapper, ids } = await scored([
+      device('pad-filter', 'filter'),
+    ])
+    act(() => pad.strip.addInsert(stage))
+    render(<DeviceChainView strip={pad} data-testid="chain" />, { wrapper })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Add device' }), {
+      target: { value: 'delay' },
+    })
+    expect(document.log.entries.at(-1)?.op).toEqual({
+      type: 'device.add',
+      owner: 'pad',
+      device: device('delay-1', 'delay'),
+    })
+    // Second in the score, which counts no alignment stage.
+    expect(ids()).toEqual(['pad-filter', 'delay-1'])
+    await act(() => renderer.whenIdle())
+    expect(pad.strip.inserts).toHaveLength(3)
+    await waitFor(() => expect(panels()).toEqual(['Filter', 'Delay']))
+    expect(screen.queryByTestId('chain-item-2')).toBeNull()
+    expectNoStageShown()
+  })
+
+  it('moves the second of two devices to the head of the score past a stage between them', async () => {
+    const { document, pad, renderer, stage, wrapper, ids } = await scored([
+      device('pad-filter', 'filter'),
+      device('pad-eq', 'eq3'),
+    ])
+    const [filter, eq] = pad.strip.inserts
+    // The engine's list: the first device, the stage, the second device.
+    act(() => {
+      pad.strip.removeInsert(eq)
+      pad.strip.addInsert(stage)
+      pad.strip.addInsert(eq)
+    })
+    expect(pad.strip.inserts).toEqual([filter, stage, eq])
+    render(<DeviceChainView strip={pad} data-testid="chain" />, { wrapper })
+    expect(panels()).toEqual(['Filter', 'EQ Three'])
+    expectNoStageShown()
+
+    fireEvent.click(screen.getByTestId('chain-earlier-1'))
+    expect(document.log.entries.at(-1)?.op).toEqual({
+      type: 'device.move',
+      id: 'pad-eq',
+      index: 0,
+    })
+    expect(ids()).toEqual(['pad-eq', 'pad-filter'])
+    act(() => {
+      document.undo()
+    })
+    await act(() => renderer.whenIdle())
+    expect(ids()).toEqual(['pad-filter', 'pad-eq'])
+
+    // Carried by its title bar to the head of the chain: the same one move.
+    const items = [0, 1].map((index) => screen.getByTestId(`chain-item-${index}`))
+    items.forEach((item, index) => {
+      item.getBoundingClientRect = () =>
+        ({ left: index * 100, right: index * 100 + 100, top: 0, bottom: 40 }) as DOMRect
+    })
+    fireEvent.pointerDown(within(items[1]).getByRole('heading'), {
+      pointerId: 1,
+      button: 0,
+      clientX: 120,
+    })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 10 })
+    fireEvent.pointerUp(window, { pointerId: 1 })
+    expect(document.log.entries.at(-1)?.op).toEqual({
+      type: 'device.move',
+      id: 'pad-eq',
+      index: 0,
+    })
+    await act(() => renderer.whenIdle())
+    await waitFor(() => expect(panels()).toEqual(['EQ Three', 'Filter']))
+    expectNoStageShown()
+  })
+
+  it('moves the device shown on a chain no score carries, past a stage the engine put between', async () => {
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    const [filter, eq] = await chain(fixture, ['filter', 'eq3'])
+    const stage = new AlignmentDelay(fixture.engine.context)
+    for (const insert of [filter, stage, eq]) pad.strip.addInsert(insert)
+    render(<DeviceChainView strip={pad} data-testid="chain" />, { wrapper: fixture.wrapper })
+    expect(panels()).toEqual(['Filter', 'EQ Three'])
+    // Each item still says where its device sits in the strip's own chain.
+    expect(screen.getByTestId('chain-item-1')).toHaveAttribute('data-lm-insert', '2')
+    expectNoStageShown()
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 earlier' }))
+    expect(pad.strip.inserts.filter((insert) => insert !== stage)).toEqual([eq, filter])
+    expect(pad.strip.inserts).toContain(stage)
   })
 })
