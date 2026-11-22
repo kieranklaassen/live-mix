@@ -21,7 +21,19 @@ import { type AnyCleanupKernel } from '../../core/devices/native/cleanup/Cleanup
 import { createCleanupKernel } from '../../core/devices/native/cleanup/kernels'
 import { type ParamSpec } from '../../core/params'
 
-const EMPTY_INPUT: Float32Array[] = []
+/**
+ * Two channels of silence, `frames` long. A source that has ended leaves the
+ * node's input with no channels at all. The node takes two whenever it is
+ * fed, so what the kernel still holds is of two: handed none it would work on
+ * one, and play what it holds of the first on both sides.
+ */
+let silentPair: Float32Array[] = [new Float32Array(0), new Float32Array(0)]
+function silence(frames: number): Float32Array[] {
+  if (silentPair[0].length !== frames) {
+    silentPair = [new Float32Array(frames), new Float32Array(frames)]
+  }
+  return silentPair
+}
 
 function processorFor(kind: CleanupKind) {
   const namesById = new Map<number, string>(
@@ -41,6 +53,7 @@ function processorFor(kind: CleanupKind) {
       const processorOptions = (options?.processorOptions ?? { kind }) as CleanupProcessorOptions
       this.kernel = createCleanupKernel(kind, sampleRate)
       for (const [paramId, value] of processorOptions.params ?? []) this.setParam(paramId, value)
+      if (processorOptions.bypassed) this.kernel.startBypassed()
       const reportHz = processorOptions.reportHz ?? CLEANUP_REPORT_HZ
       this.reportInterval = reportHz > 0 ? Math.max(1, Math.round(sampleRate / reportHz)) : 0
 
@@ -80,8 +93,9 @@ function processorFor(kind: CleanupKind) {
       const output = outputs[0]
       if (!output || output.length === 0) return true
       const frames = output[0].length
-      // A disconnected input arrives as an empty array: silence.
-      this.kernel.process(inputs[0] ?? EMPTY_INPUT, output, frames)
+      // An input that is disconnected, or whose source has ended, arrives as an empty array.
+      const input = inputs[0]
+      this.kernel.process(input && input.length > 0 ? input : silence(frames), output, frames)
 
       if (this.reportInterval > 0) {
         this.samplesSinceReport += frames

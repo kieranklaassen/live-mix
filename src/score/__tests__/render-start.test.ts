@@ -4,6 +4,11 @@
 // engine that plays the same score approaches it over the strip's time
 // constant. What the samples of a real render then hold is measured in a
 // browser (`browser-tests/specs/render-starts-strips.spec.ts`).
+//
+// And a render starts every device where the score has it: one the score
+// marks bypassed is made so, with nothing to cross over from, where a device
+// bypassed while it plays crosses over its 5 ms. In real audio that is
+// `browser-tests/specs/bypassed-and-aligned.spec.ts`.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -20,6 +25,10 @@ import {
   type MockOfflineAudioContext,
   type MockStereoPannerNode,
 } from '../../testing'
+import { type Device } from '../../core/devices/Device'
+import { gainIn, io } from '../../core/devices/native/__tests__/graph-helpers'
+import { NODE_DEVICE_RAMP_SECONDS } from '../../core/devices/native/NodeDevice'
+import { DeviceRegistry, type DeviceCreateOptions } from '../../core/devices/registry'
 import { createEngine, type Engine } from '../../core/Engine'
 import { type OfflineContextFactory } from '../../core/render/OfflineRenderer'
 import { loadScore } from '../loadScore'
@@ -30,6 +39,7 @@ import {
   groupDestination,
   masterDestination,
   type Score,
+  type ScoreDevice,
   type ScoreStrip,
 } from '../schema'
 import { clip } from './fixtures'
@@ -95,12 +105,12 @@ const factory: OfflineContextFactory = ({ numberOfChannels, length, sampleRate }
   return ctx as unknown as ReturnType<OfflineContextFactory>
 }
 
-function render(score: Score): Promise<{ engine: Engine }> {
+function render(score: Score, devices?: DeviceRegistry): Promise<{ engine: Engine }> {
   return renderScore(score, {
     durationSec: 2,
     sampleRate: SAMPLE_RATE,
     createContext: factory,
-    renderer: { resolveSource },
+    renderer: { resolveSource, ...(devices ? { devices } : {}) },
   })
 }
 
@@ -243,6 +253,138 @@ describe('an engine that plays approaches where the score has a strip', () => {
     expect(gainEvents(kick.fader)).toEqual([...setAtStart(0.5), ...approachFrom(0.2, 1)])
     expect(gainEvents(engine.track('pad').strip.gate)).toEqual(approachFrom(0, 1))
     expect(eventsOf(engine.master.gain)).toEqual(approachFrom(0.8, 1))
+    engine.dispose()
+  })
+})
+
+describe('a render makes a device bypassed where the score has it so', () => {
+  const compressor = (bypass: boolean): ScoreDevice => ({
+    id: 'held',
+    deviceId: 'compressor',
+    params: {},
+    bypass,
+  })
+
+  /** The dry and wet gains of a node device that takes time, found by how they are wired. */
+  function paths(device: Device, gains: Iterable<MockGainNode>) {
+    const { input, output } = io(device)
+    const dryDelay = [...input.outputs].find((node) => node.kind === 'delay')
+    if (!dryDelay) throw new Error('expected a delay on the dry path')
+    const dry = gainIn(dryDelay.outputs)
+    const wet = gainIn(gains, (gain) => gain !== dry && gain.outputs.has(output))
+    return { dry, wet }
+  }
+
+  it('has a node device dry in the first sample, with nothing to cross over from', async () => {
+    const { engine } = await render(arrangement({ pad: { inserts: [compressor(true)] } }))
+    const device = engine.track('pad').strip.inserts[0]
+    expect(device.bypass).toBe(true)
+    const { dry, wet } = paths(device, contexts[0].gains)
+    expect(dry.gain.value).toBe(1)
+    expect(wet.gain.value).toBe(0)
+    expect(gainEvents(dry as unknown as GainNode)).toEqual([])
+    expect(gainEvents(wet as unknown as GainNode)).toEqual([])
+    engine.dispose()
+  })
+
+  /** A registry of one device that takes no time, whose factory notes what it was asked for. */
+  function recording(honours: boolean) {
+    const asked: DeviceCreateOptions[] = []
+    const told: boolean[] = []
+    const params = {
+      gain: { id: 0, name: 'Gain', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+    } as const
+    const registry = new DeviceRegistry([
+      {
+        id: 'plain',
+        name: 'Plain',
+        kind: 'node',
+        category: 'utility',
+        version: 1,
+        params,
+        create: (ctx, options) => {
+          asked.push(options)
+          const node = ctx.createGain()
+          let bypassed = honours && options.bypass === true
+          return {
+            id: 'plain',
+            input: node,
+            output: node,
+            params,
+            setParam: () => {},
+            getParam: () => 1,
+            get bypass() {
+              return bypassed
+            },
+            // Told after it was made: on a device that plays this is a crossfade.
+            set bypass(enabled: boolean) {
+              told.push(enabled)
+              bypassed = enabled
+            },
+            latencySec: 0,
+            dispose: () => node.disconnect(),
+          }
+        },
+      },
+    ])
+    return { registry, asked, told }
+  }
+
+  const plain = (bypass: boolean): ScoreDevice => ({
+    id: 'held',
+    deviceId: 'plain',
+    params: {},
+    bypass,
+  })
+
+  it('asks the factory for a bypassed device, and tells one made so nothing more', async () => {
+    const { registry, asked, told } = recording(true)
+    const { engine } = await render(arrangement({ pad: { inserts: [plain(true)] } }), registry)
+    expect(asked.map((options) => options.bypass)).toEqual([true])
+    expect(engine.track('pad').strip.inserts[0].bypass).toBe(true)
+    expect(told).toEqual([])
+    engine.dispose()
+  })
+
+  it('asks for no bypass on a device the score has working', async () => {
+    const { registry, asked, told } = recording(true)
+    const { engine } = await render(arrangement({ pad: { inserts: [plain(false)] } }), registry)
+    expect(asked.map((options) => options.bypass)).toEqual([undefined])
+    expect(engine.track('pad').strip.inserts[0].bypass).toBe(false)
+    expect(told).toEqual([])
+    engine.dispose()
+  })
+
+  it('bypasses a device whose factory made it working all the same', async () => {
+    const { registry, told } = recording(false)
+    const { engine } = await render(arrangement({ pad: { inserts: [plain(true)] } }), registry)
+    expect(engine.track('pad').strip.inserts[0].bypass).toBe(true)
+    expect(told).toEqual([true])
+    engine.dispose()
+  })
+
+  it('crosses a device over its 5 ms when it is bypassed while it plays', async () => {
+    const live = createMockContext({ sampleRate: SAMPLE_RATE, currentTime: 1.5 })
+    const engine = createEngine({ context: asAudioContext(live), tickMs: 50 })
+    const renderer = loadScore(engine, arrangement({ pad: { inserts: [compressor(false)] } }), {
+      resolveSource,
+    })
+    await renderer.whenIdle()
+    const device = engine.track('pad').strip.inserts[0]
+    const { dry, wet } = paths(device, live.gains)
+    expect(dry.gain.value).toBe(0)
+    expect(wet.gain.value).toBe(1)
+
+    await renderer.render(arrangement({ pad: { inserts: [compressor(true)] } }))
+    expect(device.bypass).toBe(true)
+    expect(gainEvents(dry as unknown as GainNode)).toEqual([
+      { method: 'cancelAndHoldAtTime', args: [1.5] },
+      { method: 'linearRampToValueAtTime', args: [1, 1.5 + NODE_DEVICE_RAMP_SECONDS] },
+    ])
+    expect(gainEvents(wet as unknown as GainNode)).toEqual([
+      { method: 'cancelAndHoldAtTime', args: [1.5] },
+      { method: 'linearRampToValueAtTime', args: [0, 1.5 + NODE_DEVICE_RAMP_SECONDS] },
+    ])
     engine.dispose()
   })
 })

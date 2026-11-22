@@ -361,7 +361,7 @@ export const WORKLET_GATE_DESCRIPTOR: DeviceDescriptor<typeof GATE_PARAMS> = {
     const { params, ...rest } = options as {
       params?: Readonly<Record<string, number>>
     } & GateProcessorOverrides &
-      Pick<WorkletGateOptions, 'createNode' | 'reportHz'>
+      Pick<WorkletGateOptions, 'createNode' | 'reportHz' | 'bypass'>
     // Its own parameters only: a saved value named `reportHz` or `createNode` is not that option of the host.
     const own = Object.fromEntries(
       Object.entries(params ?? {}).filter(([name]) => Object.hasOwn(GATE_PARAMS, name)),
@@ -387,7 +387,7 @@ function cleanupDescriptor<K extends CleanupKind>(
       const { params, ...rest } = options as {
         params?: Readonly<Record<string, number>>
       } & CleanupProcessorOverrides &
-        Pick<WorkletCleanupOptions, 'createNode' | 'reportHz'>
+        Pick<WorkletCleanupOptions, 'createNode' | 'reportHz' | 'bypass'>
       // Its own parameters only: a saved value named `reportHz` or `createNode` is not that option of the host.
       const own = Object.fromEntries(
         Object.entries(params ?? {}).filter(([name]) => Object.hasOwn(CLEANUP_PARAMS[kind], name)),

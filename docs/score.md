@@ -396,10 +396,15 @@ Before a render begins no sound passes, and an approach from the first sample
 would leave the first 60 ms of the file on their way. A score changed once a
 render is under way is approached as it is live.
 
-That is the one place where a render and live playback are told different
-things. The score-driven golden renders a document offline and compares every
-source start/stop and `AudioParam` event with a live engine following the same
-document, the starting values of the strips written as each of the two writes
+A device the score marks bypassed is made bypassed, in a render and on a
+playing engine alike, so in a render it passes its input as late as it
+reports from the first sample
+([render.md](./concepts/render.md#a-bypassed-device-and-an-aligned-strip)).
+
+Where a strip starts is the one place where a render and live playback are
+told different things. The score-driven golden renders a document offline and
+compares every source start/stop and `AudioParam` event with a live engine
+following the same document, the starting values of the strips written as each of the two writes
 them. What the samples of a real render hold from the first one on is measured
 in a browser (`browser-tests/specs/render-starts-strips.spec.ts`).
 

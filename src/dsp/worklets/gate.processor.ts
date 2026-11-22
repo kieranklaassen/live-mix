@@ -39,6 +39,7 @@ class GateProcessor extends AudioWorkletProcessor {
     }
     // Closed at the parameters it was made with, not the defaults.
     this.kernel.reset()
+    if (processorOptions.bypassed) this.kernel.startBypassed()
     const reportHz = processorOptions.reportHz ?? GATE_REPORT_HZ
     this.reportInterval = reportHz > 0 ? Math.max(1, Math.round(sampleRate / reportHz)) : 0
 

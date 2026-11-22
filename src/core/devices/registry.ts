@@ -71,6 +71,14 @@ export interface DeviceCreateOptions {
    * not move its own parameters ignores it, and so is a name the device lacks.
    */
   modulations?: Readonly<Record<string, ParamModulation>>
+  /**
+   * Make the device bypassed: it passes its input, as late as it reports,
+   * from its first sample, with nothing to cross over from (an offline render
+   * may be over before a bypass set afterwards is heard of). A factory that
+   * does not read it returns a working device, which whoever asked then
+   * bypasses as it would a playing one.
+   */
+  bypass?: boolean
 }
 
 export type DeviceFactory = (

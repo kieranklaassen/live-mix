@@ -99,6 +99,11 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
       last: Number.NaN,
     }))
     this.bypassStep = 1 / Math.max(1, BYPASS_RAMP_SECONDS * sampleRate)
+    // Made bypassed: dry from the first sample, with nothing to cross over from.
+    if (processorOptions.bypassed) {
+      this.bypassMix = 1
+      this.bypassTarget = 1
+    }
     const held = Math.max(0, Math.floor(processorOptions.latencySamples ?? 0))
     this.heldLeft = new Float32Array(held)
     this.heldRight = new Float32Array(held)

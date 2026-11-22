@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   CLEANUP_KINDS,
   CLEANUP_REPORT_HZ,
+  cleanupLatencySamples,
   cleanupProcessorName,
   type CleanupHostMessage,
   type CleanupKind,
@@ -100,6 +101,53 @@ describe('the cleanup processors', () => {
 
     processor.port.receive({ type: 'dispose' })
     expect(processor.process([[new Float32Array(BLOCK)]], [[new Float32Array(BLOCK)]])).toBe(false)
+  })
+
+  it('made bypassed, passes the sound as late as it holds its own from the first sample', () => {
+    const processor = construct('de-noise', { bypassed: true, reportHz: 0 })
+    const late = cleanupLatencySamples('de-noise', SAMPLE_RATE)
+    const sound = (n: number) => Math.fround(0.1 * Math.sin(n * 0.0731) + 0.0001 * (n % 97))
+    for (let block = 0; block < 16; block += 1) {
+      const signal = Float32Array.from({ length: BLOCK }, (_, i) => sound(block * BLOCK + i))
+      const out = [new Float32Array(BLOCK), new Float32Array(BLOCK)]
+      processor.process([[signal]], [out])
+      for (let i = 0; i < BLOCK; i += 1) {
+        const n = block * BLOCK + i
+        expect(out[0][i], `sample ${n}`).toBe(n < late ? 0 : sound(n - late))
+      }
+    }
+  })
+
+  it('gives out what it still holds of each side once its source has ended', () => {
+    const processor = construct('de-noise', { bypassed: true, reportHz: 0 })
+    const late = cleanupLatencySamples('de-noise', SAMPLE_RATE)
+    const left = (n: number) => Math.fround(0.1 * Math.sin(n * 0.0731))
+    const right = (n: number) => Math.fround(0.1 * Math.sin(n * 0.0417) + 0.0001 * (n % 89))
+    const blocks = 12
+    for (let block = 0; block < blocks; block += 1) {
+      const at = (i: number) => block * BLOCK + i
+      processor.process(
+        [
+          [
+            Float32Array.from({ length: BLOCK }, (_, i) => left(at(i))),
+            Float32Array.from({ length: BLOCK }, (_, i) => right(at(i))),
+          ],
+        ],
+        [[new Float32Array(BLOCK), new Float32Array(BLOCK)]],
+      )
+    }
+    // The source is over: its node's input arrives with no channels. The last
+    // `late` samples of both sides are still to come, each on its own side.
+    const ended = blocks * BLOCK
+    for (let n = ended; n < ended + late + BLOCK; n += BLOCK) {
+      const out = [new Float32Array(BLOCK), new Float32Array(BLOCK)]
+      processor.process([[]], [out])
+      for (let i = 0; i < BLOCK; i += 1) {
+        const from = n + i - late
+        expect(out[0][i], `left ${n + i}`).toBe(from < ended ? left(from) : 0)
+        expect(out[1][i], `right ${n + i}`).toBe(from < ended ? right(from) : 0)
+      }
+    }
   })
 
   it('refuses a parameter id its kind does not have', () => {

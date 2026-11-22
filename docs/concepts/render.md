@@ -47,6 +47,84 @@ build so plugin-delay compensation is the same in every render;
 the render-equals-live golden runs on the recording mocks in Node; the
 real-audio version runs in headless Chrome (`pnpm test:browser`, below).
 
+### A bypassed device and an aligned strip
+
+A device the score marks bypassed is made bypassed. It is not made working
+and then switched: `ScoreRenderer` asks the registry for it with
+`{ bypass: true }`, and the device starts dry. A node device has its dry gain
+at 1 and its wet gain at 0 as it is made, with no ramp. A WASM device, the
+gate and the six cleanup devices are told in their processor options, so
+nothing waits on a message. Such a device passes its input, as late as it
+reports, from the first sample of a render to the last of its sound. Made
+working and bypassed afterwards, as it was before, a node device crossed over
+5 ms at the head of the file, and a device in a worklet stayed working until
+the message reached it, which in a render could be after its first blocks or
+after its last. A bypass changed later, while a device plays or once a render
+is under way, still crosses over 5 ms.
+
+A factory that does not read `bypass` returns a working device, and the
+renderer then sets `device.bypass = true` on it as before. That is so for a
+rack, the convolver reverb, the worklet ducker, a WAM plug-in, a hosted
+plug-in, a WASM device on a processor of the app's own (told by message), and
+any device an app registers without reading the option.
+
+A strip the engine delays to line it up with the others
+(`engine.alignLatency()`, which `renderOffline` runs) comes out late by the
+count of samples in the report, to the last sample of its sound. The stage is
+one `DelayNode` that keeps two channels whatever feeds it, and so is the delay
+on a node device's dry path (`wholeSampleDelay`). Left to follow its input, a
+delay line in Chromium is emptied when the last source with two channels
+ends, and the last of the strip's sound, as much as the delay held, was
+missing from the file: up to 9,216 samples behind the stock device that takes
+longest. A sound in one channel goes through such a delay as the same sound
+in both. A cleanup device whose source has ended likewise goes on working on
+two channels, where it used to play what it still held of the left on both
+sides.
+
+What ran, and where: `browser-tests/specs/bypassed-and-aligned.spec.ts`, in
+headless Chromium 153 on Linux, on 2026-11-22. White noise that ends half a
+second before the render does is bounced through `renderScore` and
+`renderScoreStems`, and the bounce is held against the same noise moved later
+by a count of samples written in the spec.
+
+- **Bypassed, on one strip.** The scale filter (9,216 samples) at 48 and
+  44.1 kHz and Lift (288) at 48 kHz, which are WASM devices. The compressor,
+  a node device whose latency is the browser's (288 samples at 48 kHz, 264 at
+  44.1 kHz), in two channels at both rates and in one channel. The filter set
+  to take the highs off and the gate set to stay shut, which take no time.
+  De-noise, which holds 1,024 samples.
+- **Aligned.** Two strips play the noise. The first holds the bypassed scale
+  filter or Lift, so the engine delays the second by 9,216 or 288 samples.
+  The second strip by itself, and the two together, at 48 and 44.1 kHz in two
+  channels and at 48 kHz in one.
+- **The stage alone**, at 122 counts of samples at each of the two rates: one
+  sample, what each stock device reports, what each two of them in a chain
+  add up to, and one second, which is the most a stage holds.
+
+In every one of them the render is the expected sound sample for sample,
+where the spec asks for a difference under -120 dBFS. On the code before, the
+aligned strips and the bypassed compressor in two channels were off by as
+much as -8 dBFS, all of it in the last of the sound. The bypassed filter and
+gate were off by -8.7 and -8.6 dBFS at the head. De-noise was off by -2.1 dBFS
+at its end. The WASM devices were right in some runs and working, not
+bypassed, in others, by whether the message won its race with the first
+block. The cases in one channel were right before, as a source in one channel
+never changed the delay's count of channels. Each case was also seen to fail
+with the last 9,216 samples of the expected sound silenced and with the
+expected sound moved by one sample.
+
+A delay line takes its time in seconds, and the count of samples is written
+to it as `count / sampleRate`. That every count comes back whole is the
+browser's doing. Besides the 122 counts above, a probe run once by hand and
+not kept put noise through a bare `DelayNode` at 428 counts between 1 and the
+rate, at 44.1, 48 and 96 kHz, and each came out sample for sample.
+
+Not tried: any browser but that Chromium. A playing engine on an
+`AudioContext`, where the same nodes are used and nothing was measured. A
+rack's own delay lines (each chain's, and its dry path's), which are as they
+were. A stage that has to hold more than a second, which is still cut at
+`PDC_MAX_DELAY_SECONDS`. Nothing here was listened to.
+
 ### A render that gives its memory back
 
 Chromium keeps an `OfflineAudioContext` that a worklet module was loaded on,

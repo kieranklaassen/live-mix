@@ -12,17 +12,19 @@
 // and its dry path runs through a delay of that many samples, so the bypassed
 // device is as late as the working one and turning it off or on moves nothing
 // in time. A chain that takes none has no delay: input feeds dry directly.
-// (Chromium empties a DelayNode whose input falls from two channels to one, as
-// it does when the last stereo source into it ends: what the delay still held
-// of that sound's end, at most the latency, is not heard while bypassed.)
+// The delay keeps two channels whatever feeds it (`wholeSampleDelay`), so it
+// gives out the last of a sound whose source has ended.
 //
 // Every parameter change (and the bypass) ramps over NODE_DEVICE_RAMP_SECONDS,
 // the same 5 ms the WASM host uses for its bypass crossfade, so both device
-// kinds respond identically to a knob.
+// kinds respond identically to a knob. A device made bypassed is the one
+// exception: its dry and wet gains are written as it is made, so it is
+// bypassed in the first sample of a render and there is no crossfade to hear.
 
 import { Emitter } from '../../events'
 import { clampParam, type ParamSpec } from '../../params'
 import { type DeviceChange, type DeviceChangeListener, type ObservableDevice } from '../Device'
+import { wholeSampleDelay } from '../pdc'
 
 /** Ramp length for parameter and bypass changes; equals the WASM host's `BYPASS_RAMP_SECONDS`. */
 export const NODE_DEVICE_RAMP_SECONDS = 0.005
@@ -84,6 +86,8 @@ export function defineNodeDevice<
 export interface NodeDeviceOptions<P extends Record<string, ParamSpec>> {
   /** Initial parameter values by name; anything omitted uses the spec default. */
   params?: Partial<Record<keyof P & string, number>>
+  /** Make the device bypassed: dry from its first sample, with no crossfade. */
+  bypass?: boolean
 }
 
 /** Sets a param outright; used for initial values before any automation exists. */
@@ -130,7 +134,7 @@ export function definitionLatencySamples(
 function dryDelayOf(context: BaseAudioContext, samples: number): DelayNode {
   const seconds = samples / context.sampleRate
   // Room to spare, since a delay line cannot be shorter than what it is asked for.
-  const delay = context.createDelay(Math.max(1, seconds * 2))
+  const delay = wholeSampleDelay(context, Math.max(1, seconds * 2))
   delay.delayTime.value = seconds
   return delay
 }
@@ -176,8 +180,9 @@ export class NodeDevice<
     this.output = context.createGain()
     this.dry = context.createGain()
     this.wet = context.createGain()
-    this.dry.gain.value = 0
-    this.wet.gain.value = 1
+    this.bypassed = options.bypass === true
+    this.dry.gain.value = this.bypassed ? 1 : 0
+    this.wet.gain.value = this.bypassed ? 0 : 1
 
     this.graph = definition.build(context)
     this.input.connect(this.graph.input)

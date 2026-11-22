@@ -100,6 +100,15 @@ describe('AlignmentDelay', () => {
     expect(param.lastEvent('setValueAtTime')?.args).toEqual([0, 2])
   })
 
+  it('keeps two channels in its delay whatever feeds it', () => {
+    const mock = createMockContext({ sampleRate: SR })
+    new AlignmentDelay(asAudioContext(mock))
+    // A delay whose count of channels follows its input lets go of what it
+    // holds when the last source with two ends: the last of a strip's sound.
+    expect(mock.delays[0].channelCount).toBe(2)
+    expect(mock.delays[0].channelCountMode).toBe('explicit')
+  })
+
   it('takes an initial delay and a custom maximum', () => {
     const mock = createMockContext({ sampleRate: SR })
     const delay = new AlignmentDelay(asAudioContext(mock), {

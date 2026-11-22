@@ -107,6 +107,8 @@ export interface WasmDeviceProcessorOptions {
   load?: LoadSlot
   /** The latency the device reports, in samples: how late the dry signal of a bypass is played. */
   latencySamples?: number
+  /** The device is bypassed from its first block, with no crossfade: a `bypass` message that need not arrive. */
+  bypassed?: boolean
 }
 
 /** Registered processor name; shared by the host and the worklet file. */

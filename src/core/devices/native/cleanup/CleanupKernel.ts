@@ -24,6 +24,7 @@ export interface AnyCleanupKernel {
   readonly sampleRate: number
   readonly latencySamples: number
   bypass: boolean
+  startBypassed(): void
   setParam(name: string, value: number): void
   getParam(name: string): number
   takeReduction(): number
@@ -79,6 +80,12 @@ export abstract class CleanupKernel<P extends Record<string, ParamSpec>> {
   /** Click-free bypass: the output crossfades to the held dry sound over 5 ms; the kernel keeps running. */
   set bypass(enabled: boolean) {
     this.bypassTarget = enabled ? 1 : 0
+  }
+
+  /** Bypassed from the next sample with nothing to cross over from: for a device made bypassed, before its first block. */
+  startBypassed(): void {
+    this.bypassTarget = 1
+    this.bypassMix = 1
   }
 
   /** The dB taken off the sound since the last call (0 or more; 0 over silence), and a new span begun. */

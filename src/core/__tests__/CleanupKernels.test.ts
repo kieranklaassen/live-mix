@@ -108,6 +108,21 @@ describe('every voice cleanup kernel', () => {
   )
 
   it.each(CLEANUP_KINDS)(
+    '%s started bypassed is the dry sound held as long from the first sample',
+    (kind) => {
+      const kernel = createCleanupKernel(kind, SAMPLE_RATE)
+      kernel.startBypassed()
+      expect(kernel.bypass).toBe(true)
+      const signal = speech(0.25)
+      const out = render(kernel, signal)
+      const late = kernel.latencySamples
+      for (let i = 0; i < signal.length - BLOCK; i += 1) {
+        expect(out[i], `sample ${i}`).toBe(i < late ? 0 : signal[i - late])
+      }
+    },
+  )
+
+  it.each(CLEANUP_KINDS)(
     '%s plays a mono signal on both sides of a stereo output, and a missing input as silence',
     (kind) => {
       const kernel = createCleanupKernel(kind, SAMPLE_RATE)

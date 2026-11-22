@@ -10,6 +10,11 @@ import { ParamLane, WorkletRecorder, createEngine, renderOffline } from '@kieran
 import { createPlateReverb } from '@kieranklaassen/live-mix/dsp'
 import type { ScheduleSnapshot } from '@kieranklaassen/live-mix/testing'
 import { DEFAULT_SESSION, buildSession, type SessionDeps, type SessionSpec } from '../session'
+import {
+  measureAlignedStrips,
+  measureBypassedDevices,
+  measureDelayCounts,
+} from './bypassed-and-aligned'
 import { measureCutPieces } from './cut-pieces'
 import { measureDeviceDefaults } from './device-defaults'
 import { fingerprint, type Fingerprint } from './fingerprint'
@@ -128,6 +133,9 @@ declare global {
       measureSharedRooms: typeof measureSharedRooms
       measureStripStarts: typeof measureStripStarts
       measureMuteMidRender: typeof measureMuteMidRender
+      measureBypassedDevices: typeof measureBypassedDevices
+      measureAlignedStrips: typeof measureAlignedStrips
+      measureDelayCounts: typeof measureDelayCounts
       defaultSession: SessionSpec
     }
   }
@@ -149,6 +157,9 @@ window.liveMixHarness = {
   measureSharedRooms,
   measureStripStarts,
   measureMuteMidRender,
+  measureBypassedDevices,
+  measureAlignedStrips,
+  measureDelayCounts,
   framedNodesMade,
   framedRenderDifference,
   renderAndLetGo,

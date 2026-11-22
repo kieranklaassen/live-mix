@@ -38,6 +38,8 @@ export type GateNodeFactory = (
 export type WorkletGateOptions = Partial<Record<GateParamName, number>> & {
   /** Level report rate to the main thread (Hz); 0 disables. Default 30. */
   reportHz?: number
+  /** Make the gate bypassed: the processor is told in its options, so it is at unity from its first block. */
+  bypass?: boolean
   createNode?: GateNodeFactory
 }
 
@@ -79,7 +81,9 @@ export class WorkletGate implements ObservableDevice, MeteredDevice {
     const processorOptions: GateProcessorOptions = {
       params: PARAM_NAMES.map((name) => [GATE_PARAMS[name].id, this.getParam(name)] as const),
       reportHz: options.reportHz,
+      ...(options.bypass ? { bypassed: true } : {}),
     }
+    this.bypassed = options.bypass === true
     // As the processor reads it: it reports only at a rate above 0.
     this.meters = (options.reportHz ?? GATE_REPORT_HZ) > 0 ? GATE_METERS : NO_METERS
     try {

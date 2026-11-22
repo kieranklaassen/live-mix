@@ -316,6 +316,50 @@ describe('WasmDevice', () => {
     expect(device.bypass).toBe(false)
   })
 
+  it('made bypassed, tells the processor in its options and sends no message', async () => {
+    const ctx = createMockContext()
+    const options = { wasm: plateModule, processorUrl: 'p', createNode: mockNodeFactory }
+    const device = await createPlateReverb(asAudioContext(ctx), { ...options, bypass: true })
+    const of = (index: number) =>
+      (ctx.workletNodes[index].options as AudioWorkletNodeOptions)
+        .processorOptions as WasmDeviceProcessorOptions
+    // An offline render may be over before a message reaches the worklet.
+    expect(of(0).bypassed).toBe(true)
+    expect(device.bypass).toBe(true)
+    expect(ctx.workletNodes[0].port.posted.count).toBe(0)
+
+    // Turned on later it is told as any change is, and crosses over there.
+    device.bypass = false
+    expect(ctx.workletNodes[0].port.posted.calls.map((call) => call[0])).toEqual([
+      { type: 'bypass', enabled: false },
+    ])
+
+    const working = await createPlateReverb(asAudioContext(ctx), options)
+    expect(of(1).bypassed).toBeUndefined()
+    expect(working.bypass).toBe(false)
+  })
+
+  it('made bypassed on a processor of its own, tells it by message as it always did', async () => {
+    const ctx = createMockContext()
+    const own = defineWasmDevice({
+      ...PLATE_REVERB_DEVICE,
+      processor: { name: 'own-processor', url: () => 'own.js' },
+    })
+    const device = await WasmDevice.create(asAudioContext(ctx), own, {
+      wasm: plateModule,
+      createNode: mockNodeFactory,
+      bypass: true,
+    })
+    const options = (ctx.workletNodes[0].options as AudioWorkletNodeOptions)
+      .processorOptions as WasmDeviceProcessorOptions
+    // What that processor reads of its options is not this library's to say.
+    expect(options.bypassed).toBeUndefined()
+    expect(device.bypass).toBe(true)
+    expect(ctx.workletNodes[0].port.posted.calls.map((call) => call[0])).toEqual([
+      { type: 'bypass', enabled: true },
+    ])
+  })
+
   it('exposes the worklet node as input and output and disconnects on dispose', async () => {
     const ctx = createMockContext()
     const device = await createPlateReverb(asAudioContext(ctx), {

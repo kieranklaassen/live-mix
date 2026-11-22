@@ -85,6 +85,31 @@ describe('voice cleanup dsp entry', () => {
     expect(() => device.setParam('nothing', 1)).toThrow(/de-ess has no parameter "nothing"/)
   })
 
+  it('made bypassed, tells the processor in its options and sends no message', async () => {
+    const ctx = createMockContext()
+    const registry = new DeviceRegistry([DENOISE_DESCRIPTOR])
+    const device = await registry.create('de-noise', asAudioContext(ctx), {
+      bypass: true,
+      processorUrl: '/assets/cleanup.js',
+      createNode: nodeFactory(ctx),
+    })
+    const options = (ctx.workletNodes[0].options as AudioWorkletNodeOptions)
+      .processorOptions as CleanupProcessorOptions
+    // An offline render may be over before a message reaches the worklet.
+    expect(options.bypassed).toBe(true)
+    expect(device.bypass).toBe(true)
+    expect(ctx.workletNodes[0].port.posted.count).toBe(0)
+
+    const working = await registry.create('de-noise', asAudioContext(ctx), {
+      processorUrl: '/assets/cleanup.js',
+      createNode: nodeFactory(ctx),
+    })
+    const workingOptions = (ctx.workletNodes[1].options as AudioWorkletNodeOptions)
+      .processorOptions as CleanupProcessorOptions
+    expect(workingOptions.bypassed).toBeUndefined()
+    expect(working.bypass).toBe(false)
+  })
+
   it('are six stock devices in the repair group, in the order a chain runs them', () => {
     expect(CLEANUP_DESCRIPTORS.map((descriptor) => descriptor.id)).toEqual([...CLEANUP_KINDS])
     for (const descriptor of CLEANUP_DESCRIPTORS) {

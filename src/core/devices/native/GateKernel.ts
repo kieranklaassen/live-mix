@@ -108,6 +108,12 @@ export class GateKernel {
     this.bypassTarget = enabled ? 1 : 0
   }
 
+  /** Bypassed from the next sample with nothing to cross over from: for a gate made bypassed, before its first block. */
+  startBypassed(): void {
+    this.bypassTarget = 1
+    this.bypassMix = 1
+  }
+
   /** Clear the detector and close the gate (not the parameters). */
   reset(): void {
     this.levelValue = 0

@@ -205,6 +205,42 @@ describe('NodeDevice', () => {
     expect(dry.gain.eventsFor('linearRampToValueAtTime')).toHaveLength(2)
   })
 
+  it('made bypassed, has dry at 1 and wet at 0 with no ramp scheduled', () => {
+    const ctx = createMockContext({ currentTime: 5 })
+    const device = new NodeDevice(asAudioContext(ctx), TEST_DEVICE, { bypass: true })
+    const { output } = io(device)
+    const [dryDelay] = ctx.delays
+    const dry = gainIn(dryDelay.outputs, (g) => g.outputs.has(output))
+    const wet = gainIn(ctx.gains, (g) => g !== dry && g.outputs.has(output))
+
+    expect(device.bypass).toBe(true)
+    expect(dry.gain.value).toBe(1)
+    expect(wet.gain.value).toBe(0)
+    // Nothing to cross over from: a render has it bypassed in its first sample.
+    expect(dry.gain.events).toEqual([])
+    expect(wet.gain.events).toEqual([])
+
+    // Turned on later, it crosses over as any change does.
+    device.bypass = false
+    expect(dry.gain.lastEvent('linearRampToValueAtTime')?.args).toEqual([
+      0,
+      5 + NODE_DEVICE_RAMP_SECONDS,
+    ])
+    expect(wet.gain.lastEvent('linearRampToValueAtTime')?.args).toEqual([
+      1,
+      5 + NODE_DEVICE_RAMP_SECONDS,
+    ])
+  })
+
+  it('keeps two channels in the dry path’s delay whatever feeds it', () => {
+    const ctx = createMockContext()
+    const { dryDelay } = build(ctx)
+    // A delay whose count of channels follows its input lets go of what it
+    // holds when the last source with two ends.
+    expect(dryDelay.channelCount).toBe(2)
+    expect(dryDelay.channelCountMode).toBe('explicit')
+  })
+
   it('disconnects every node on dispose, exactly once, and goes quiet afterwards', () => {
     const ctx = createMockContext()
     const { device, input, output, stage, tone, dry, dryDelay, wet } = build(ctx)

@@ -56,6 +56,29 @@ describe('gate dsp entry', () => {
     expect(Object.keys((device as WorkletGate).meters)).toEqual(['gain', 'level'])
   })
 
+  it('made bypassed, tells the processor in its options and sends no message', async () => {
+    const ctx = createMockContext()
+    const registry = new DeviceRegistry([WORKLET_GATE_DESCRIPTOR])
+    const device = await registry.create('gate', asAudioContext(ctx), {
+      bypass: true,
+      processorUrl: '/assets/gate.js',
+      createNode: nodeFactory(ctx),
+    })
+    const options = ctx.workletNodes[0].options as AudioWorkletNodeOptions
+    // An offline render may be over before a message reaches the worklet.
+    expect((options.processorOptions as GateProcessorOptions).bypassed).toBe(true)
+    expect(device.bypass).toBe(true)
+    expect(ctx.workletNodes[0].port.posted.count).toBe(0)
+
+    const working = await registry.create('gate', asAudioContext(ctx), {
+      processorUrl: '/assets/gate.js',
+      createNode: nodeFactory(ctx),
+    })
+    const workingOptions = ctx.workletNodes[1].options as AudioWorkletNodeOptions
+    expect((workingOptions.processorOptions as GateProcessorOptions).bypassed).toBeUndefined()
+    expect(working.bypass).toBe(false)
+  })
+
   it('is a stock device, in the dynamics group', () => {
     expect(STOCK_WASM_DEVICES).toContain(WORKLET_GATE_DESCRIPTOR)
     expect(WORKLET_GATE_DESCRIPTOR.category).toBe('dynamics')

@@ -87,6 +87,13 @@ export interface WasmDeviceOptions<P extends Record<string, ParamSpec>> extends 
    * lacks is ignored, and so is all of it on a processor of the app's own.
    */
   modulations?: Readonly<Record<string, ParamModulation>>
+  /**
+   * Make the device bypassed: the processor is told in its options, so it
+   * plays the dry signal, as late as the device reports, from its first block
+   * with no crossfade and no message to wait for. A processor of the app's
+   * own is told by message, as a bypass set after creation is.
+   */
+  bypass?: boolean
   createNode?: WorkletNodeFactory
 }
 
@@ -226,6 +233,8 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
         }
       }
     }
+    // Only the library's own processor reads the flag: one of the app's own is told by message below.
+    const bornBypassed = options.bypass === true && definition.processor === undefined
     const processorOptions: WasmDeviceProcessorOptions = {
       module,
       deviceId: definition.id,
@@ -245,6 +254,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
       ...(load.slot ? { load: load.slot } : {}),
       // The processor plays a bypassed device's dry signal this late, so the bypass moves nothing in time.
       ...(latencySamples > 0 ? { latencySamples } : {}),
+      ...(bornBypassed ? { bypassed: true } : {}),
     }
     const processorName = definition.processor?.name ?? WASM_DEVICE_PROCESSOR_NAME
     let node: AudioWorkletNode
@@ -262,7 +272,10 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
       load.release()
       throw error
     }
-    return new WasmDevice(definition, node, initial, moved, context, load)
+    const device = new WasmDevice(definition, node, initial, moved, context, load)
+    if (bornBypassed) device.bypassed = true
+    else if (options.bypass) device.bypass = true
+    return device
   }
 
   get input(): AudioNode {

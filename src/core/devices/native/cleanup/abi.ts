@@ -312,6 +312,8 @@ export interface CleanupProcessorOptions {
   params?: readonly (readonly [paramId: number, value: number])[]
   /** Meter report rate (Hz); 0 disables reports. Default 30. */
   reportHz?: number
+  /** The device is bypassed from its first block, with no crossfade: a `bypass` message that need not arrive. */
+  bypassed?: boolean
 }
 
 /** Main thread → worklet. */

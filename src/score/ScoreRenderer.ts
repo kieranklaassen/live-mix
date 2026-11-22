@@ -1043,8 +1043,12 @@ export class ScoreRenderer {
       params: spec.params,
       ...(spec.state === undefined ? {} : { state: spec.state }),
       ...(modulations ? { modulations } : {}),
+      // Made bypassed, not made working and then switched: a render has it
+      // dry in its first sample, with no crossfade and no message to wait for.
+      ...(spec.bypass ? { bypass: true } : {}),
     })
-    if (spec.bypass) device.bypass = true
+    // A factory that does not read the option made a working device.
+    if (spec.bypass && !device.bypass) device.bypass = true
     // The one it leaves comes off its strip only now that the new one is
     // made: a pass that fails before here leaves it where it was. A device is
     // not carried from one strip to another; it is made anew, as an insert

@@ -84,6 +84,17 @@ describe('GateKernel', () => {
     expect(out[0][last]).toBeCloseTo(signal[last], 7)
   })
 
+  it('started bypassed, passes the signal as it came from the first sample', () => {
+    const kernel = new GateKernel(SAMPLE_RATE)
+    kernel.startBypassed()
+    expect(kernel.bypass).toBe(true)
+    // Under the threshold: the gate itself stays closed the whole time.
+    const signal = tone(-70, 0.02)
+    const out = [new Float32Array(signal.length)]
+    kernel.process([signal], out, signal.length)
+    expect(Array.from(out[0])).toEqual(Array.from(signal))
+  })
+
   it('applies one gain to every channel and repeats the last channel past the input', () => {
     const kernel = new GateKernel(SAMPLE_RATE)
     const signal = tone(-20, BLOCK / SAMPLE_RATE)

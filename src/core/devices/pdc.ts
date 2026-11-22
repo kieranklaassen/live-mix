@@ -1,7 +1,8 @@
 // Plugin delay compensation (R12). Devices report what they delay the signal
 // by; this module turns those reports into sample counts, provides the delay
 // stage that makes up the difference (`AlignmentDelay`, a Device wrapping one
-// DelayNode so it can sit in any insert chain), and computes the per-path
+// DelayNode so it can sit in any insert chain), the delay line that stage and
+// a node device's dry path are made of (`wholeSampleDelay`), and computes the per-path
 // latency report the engine exposes: every track, group and bus with its own
 // insert latency, what it adds up to on the way to the master output, and how
 // far behind the longest path it arrives.
@@ -67,6 +68,23 @@ export function isAlignmentDelay(device: unknown): device is AlignmentDelay {
   return device instanceof AlignmentDelay
 }
 
+/**
+ * A delay line for a whole number of samples, as an alignment stage and the
+ * dry path of a node device use one: write its `delayTime` as
+ * `samples / sampleRate`. It keeps two channels whatever feeds it. A delay
+ * whose count of channels follows its input is emptied by the browser when
+ * that count falls, as it does when the last source with two channels ends,
+ * and the last of the sound, as much as the delay held, is never heard. With
+ * the count fixed a sound in one channel passes through as the same sound in
+ * both, which the strip's panner makes of it anyway.
+ */
+export function wholeSampleDelay(context: BaseAudioContext, maxDelaySec: number): DelayNode {
+  const delay = context.createDelay(maxDelaySec)
+  delay.channelCount = 2
+  delay.channelCountMode = 'explicit'
+  return delay
+}
+
 export interface AlignmentDelayOptions {
   /** Initial delay. */
   delaySamples?: number
@@ -97,7 +115,7 @@ export class AlignmentDelay implements Device {
     this.context = context
     const maxDelaySec = options.maxDelaySec ?? PDC_MAX_DELAY_SECONDS
     this.maxDelaySamples = Math.max(0, Math.floor(maxDelaySec * context.sampleRate))
-    this.node = context.createDelay(maxDelaySec)
+    this.node = wholeSampleDelay(context, maxDelaySec)
     this.node.delayTime.value = 0
     if (options.delaySamples) this.setDelaySamples(options.delaySamples)
   }

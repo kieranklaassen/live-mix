@@ -239,7 +239,10 @@ buses, groups, element tracks, and sends themselves. A device's latency counts
 whether or not it is bypassed, so toggling bypass never moves a delay line, and
 a bypassed device plays its dry signal as late as it reports (a node device, a
 WAM plug-in and a rack hold it in a delay, a WASM device in its processor), so
-the bypass never moves the sound either. Compensation is capped at
+the bypass never moves the sound either. A device can be made bypassed
+(`registry.create(id, context, { bypass: true })`, which a score's renderer
+does for a device the score marks bypassed): it is dry from its first sample,
+with no crossfade ([render § A bypassed device and an aligned strip](./render.md#a-bypassed-device-and-an-aligned-strip)). Compensation is capped at
 `PDC_MAX_DELAY_SECONDS` (1 s) per stage.
 
 ```ts

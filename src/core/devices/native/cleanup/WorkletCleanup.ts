@@ -42,6 +42,8 @@ export interface WorkletCleanupOptions {
   params?: Readonly<Record<string, number>>
   /** Meter report rate to the main thread (Hz); 0 disables. Default 30. */
   reportHz?: number
+  /** Make the device bypassed: the processor is told in its options, so it plays the dry sound from its first block. */
+  bypass?: boolean
   createNode?: CleanupNodeFactory
 }
 
@@ -81,7 +83,9 @@ export class WorkletCleanup implements ObservableDevice, MeteredDevice {
         ([name, spec]) => [spec.id, this.getParam(name)] as const,
       ),
       reportHz: options.reportHz,
+      ...(options.bypass ? { bypassed: true } : {}),
     }
+    this.bypassed = options.bypass === true
     // As the processor reads it: it reports only at a rate above 0.
     this.meters = (options.reportHz ?? CLEANUP_REPORT_HZ) > 0 ? CLEANUP_METERS : NO_METERS
     const name = cleanupProcessorName(kind)

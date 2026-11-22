@@ -430,6 +430,36 @@ describe('WasmDeviceProcessor', () => {
       }
     })
 
+    // The reverb all wet: what it plays is nothing like what it is fed, so the dry sound is the bypass's.
+    const wetOnly = (more: Partial<WasmDeviceProcessorOptions>) =>
+      construct([[PLATE_REVERB_PARAMS.mix.id, 1]], { latencySamples: LATENCY, ...more })
+
+    it('made bypassed, plays the dry signal that late from its first sample, with no crossfade', () => {
+      const { processor } = wetOnly({ bypassed: true })
+      const heard = run(processor, 0, 4)
+      for (let n = 0; n < heard.length; n += 1) {
+        const expected = n < LATENCY ? 0 : Math.fround(sound(n - LATENCY))
+        expect(heard[n], `sample ${n}`).toBe(expected)
+      }
+    })
+
+    it('made bypassed and then turned on, crosses over to the device over 5 ms', () => {
+      const { processor, port } = wetOnly({ bypassed: true })
+      run(processor, 0, 8)
+      port.receive({ type: 'bypass', enabled: false })
+      // One block of 512, by hand: the reverb's two sides are not alike, which `run` asks of a dry sound.
+      const input = Float32Array.from({ length: 512 }, (_, i) => sound(8 * 128 + i))
+      const out = outputs(512)
+      processor.process([[input, input.slice()]], out)
+      const heard = out[0][0]
+      const dry = (n: number) => Math.fround(sound(8 * 128 + n - LATENCY))
+      // 240 samples at 48 kHz: its first sample is still nearly the dry sound, and halfway it is not.
+      expect(heard[0]).toBeCloseTo(dry(0), 2)
+      expect(Math.abs(heard[120] - dry(120))).toBeGreaterThan(0.01)
+      // Past it the dry sound is gone.
+      expect(Math.abs(heard[400] - dry(400))).toBeGreaterThan(0.05)
+    })
+
     it('told of no latency, plays the dry signal as it comes', () => {
       const { processor, port } = construct(undefined, {
         module: limiterModule,
