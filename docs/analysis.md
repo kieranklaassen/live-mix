@@ -74,11 +74,11 @@ A `Measurement`:
 
 `shortTerm` is a `ShortTermSeries`:
 
-| Field          | What it is                                                                                                                                                                        |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `startSeconds` | 3: where the first point's three seconds end                                                                                                                                      |
-| `hopSeconds`   | The time from one point to the next: 1, or `seconds / 120` when that is longer                                                                                                    |
-| `lufs`         | At most 120 points. Point `n` is the loudness, in LUFS, of the three seconds that end at `startSeconds + n * hopSeconds`. A point is null where the stretch is silent up to there |
+| Field          | What it is                                                                                                                                                                                                                                        |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `startSeconds` | 3: where the first point's three seconds end                                                                                                                                                                                                      |
+| `hopSeconds`   | The time from one point to the next: 1, or `seconds / 120` when that is longer                                                                                                                                                                    |
+| `lufs`         | At most 120 points. Point `n` is the loudness, in LUFS, of the three seconds that end at `startSeconds + n * hopSeconds`. A point is null where those three seconds hold no sound at all, at the head of the stretch or after its sound has ended |
 
 Each of `bands` is a `BandLevels`:
 
@@ -117,7 +117,9 @@ than this figure.
 
 **The short-term series** picks, from the readings taken every 100 ms, the
 one nearest each point's time, so a point is never more than 50 ms from where
-the table above puts it.
+the table above puts it. For a second or two after a sound has ended a
+point can read far under any sound, since the weighting still rings, and then
+the points are null.
 
 **The loudness range** is EBU Tech 3342: the short-term readings, every
 100 ms from three seconds in, less those under -70 LUFS, less those more than

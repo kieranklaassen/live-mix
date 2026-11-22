@@ -29,8 +29,9 @@ export interface ShortTermSeries {
   /**
    * Point `n` is the loudness, in LUFS, of the three seconds that end at
    * `startSeconds + n * hopSeconds`, read at the 100 ms step nearest that
-   * time. Null where the stretch is silent up to that time. Empty for a
-   * stretch under three seconds.
+   * time. Null where those three seconds hold no sound at all, at the head
+   * of the stretch or after its sound has ended. Empty for a stretch under
+   * three seconds.
    */
   lufs: (number | null)[]
 }

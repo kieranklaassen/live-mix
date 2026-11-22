@@ -115,6 +115,19 @@ describe('the short-term series', () => {
     near(shortTerm.lufs[5], -20, 0.1)
     near(shortTerm.lufs[7], -20, 0.1)
   })
+
+  it('is null again once the three seconds hold nothing of a sound that has ended', () => {
+    const channel = joined(sine(2, 1000, RATE, gainOf(-20)), new Float32Array(10 * RATE))
+    const { shortTerm } = measure([channel, channel], RATE)
+    // Points end at 3 to 12 seconds. Those ending at 3 and 4 hold two seconds and one second of the sine.
+    expect(shortTerm.lufs).toHaveLength(10)
+    near(shortTerm.lufs[0], -20 + 10 * Math.log10(2 / 3), 0.1)
+    near(shortTerm.lufs[1], -20 + 10 * Math.log10(1 / 3), 0.1)
+    // Those ending at 5 and 6 hold only what the weighting still rings with, far under any sound.
+    for (const point of shortTerm.lufs.slice(2, 4)) expect(point ?? -Infinity).toBeLessThan(-70)
+    // From there the three seconds are exact zeros.
+    expect(shortTerm.lufs.slice(4)).toEqual([null, null, null, null, null, null])
+  })
 })
 
 describe('loudness range', () => {
