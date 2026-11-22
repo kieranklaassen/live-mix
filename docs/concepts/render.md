@@ -211,6 +211,43 @@ and imports; `interleave`/`deinterleave`/`planarFromAudioBuffer` for the
 plumbing). Compressed formats come from the browser: the `media-recorder`
 mode below.
 
+**One scale.** A 16 or 24 bit sample is a whole number of steps, and full
+scale is 32,768 of them at 16 bits and 8,388,608 at 24. The writer multiplies
+a sample by that count and rounds it to the nearest whole number, and the
+reader divides by the same count. So a 16 or 24 bit file that is read with
+`decodeWav` and written again at its depth with no dither is the same file,
+byte for byte. The highest number a file holds is one step under full scale
+(32,767 and 8,388,607), and the lowest is full scale itself. A sample past
+either is held there, so a sample of exactly 1 is written one step low, and
+the writer counts no sample it held: a host that wants to say how many were
+over full scale counts them in the render. A 32 bit float file keeps every
+sample as it is, the ones over full scale too.
+
+**An undithered file** is what the writer makes when it is asked for nothing
+more. Each sample inside what the depth holds is within half a step of the
+sound, nothing is drawn, and the same sound is the same file. The error
+follows the sound: a fade that falls under half a step is written as exact
+silence.
+
+**Dither.** `encodeWav(planar, { bitDepth: 24, dither: { seed } })` adds a
+noise to each sample, counted in steps, before the rounding: one random number
+between 0 and 1 less another. That noise is triangular, two steps from its
+lowest to its highest, and as strong at every frequency. It is not shaped.
+Each sample is then within a step and a half of the sound, the error is right
+on average and as loud whatever the sound does (half a step, as a level), and
+silence is written as -1, 0 and 1. The noise is drawn from `seed`, a whole
+number a `Uint32` holds, in the order the samples are written, so each channel
+has noise of its own, and the same sound, depth and seed give the same file
+byte for byte. Another seed gives another file. At 32 bits nothing is
+rounded, and the option does nothing: the file is the one written without it.
+`wavBlob` and `audioBufferToWav` take the same options.
+
+What ran: `src/core/render/__tests__/encode.test.ts`, in Node, on 2026-11-22.
+It holds every sentence above for a second of two tones at 16 and at 24
+bits, and a 32 bit float file to the bytes the writer made before it could
+dither. Not tried: a file of the writer opened in another program. Nothing
+here was listened to.
+
 ## Recording
 
 Recorders are **taps** — nothing is inserted into the audible path (R23):

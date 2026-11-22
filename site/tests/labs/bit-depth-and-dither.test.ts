@@ -714,14 +714,14 @@ describe('bit depth and dither', () => {
     const file = encodeWav(audio)
     expect(readWavInfo(file).bitDepth).toBe(16)
     expect(readWavInfo(file).format).toBe('pcm')
-    // Each sample is the nearest whole number of 32,767ths, and nothing is added first: the
+    // Each sample is the nearest whole number of 32,768ths, and nothing is added first: the
     // numbers in the file are the rounding of the float, and the same every time.
     const written = new Int16Array(file, readWavInfo(file).dataOffset, RATE)
-    expect(written.every((code, i) => code === Math.round(fade[i]! * 32767))).toBe(true)
+    expect(written.every((code, i) => code === Math.round(fade[i]! * 32768))).toBe(true)
     expect(new Uint8Array(encodeWav(audio))).toEqual(new Uint8Array(file))
     // Half a step of that file. Every sample of the fade under it is written as zero, and from
     // the last sample over it to the end the file is exact silence while the fade goes on.
-    const half = 0.5 / 32767
+    const half = 0.5 / 32768
     const back = decodeWav(file).channels[0]!
     let last = RATE - 1
     while (Math.abs(fade[last]!) < half) last -= 1
@@ -734,7 +734,7 @@ describe('bit depth and dither', () => {
     expect(readWavInfo(fine).bitDepth).toBe(24)
     expect(
       decodeWav(fine).channels[0]!.every(
-        (v, i) => v === Math.fround(Math.round(fade[i]! * 8388607) / 8388608),
+        (v, i) => v === Math.fround(Math.round(fade[i]! * 8388608) / 8388608),
       ),
     ).toBe(true)
     expect(readWavInfo(encodeWav(audio, { bitDepth: 32 })).format).toBe('float')

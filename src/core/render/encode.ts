@@ -3,12 +3,40 @@
 // for float and > 2 channels). Compressed formats come from the browser's
 // MediaRecorder (see Recorder.ts) or an optional encoder the host supplies;
 // the library keeps zero dependencies.
+//
+// A 16 or 24 bit sample is a whole number of steps, and full scale is 32,768
+// or 8,388,608 of them. The writer multiplies by that count and the reader
+// divides by it, so a file read and written again is the same file. The
+// highest number a file holds is one step under full scale, and the lowest is
+// full scale itself: a sample past either is held there.
+
+import { seededRandom } from '../clips/chance'
 
 export type WavBitDepth = 16 | 24 | 32
+
+/** The steps full scale is at 16 and at 24 bits: what the writer multiplies by and the reader divides by. */
+const FULL_SCALE_STEPS = { 16: 32768, 24: 8388608 } as const
 
 export interface WavEncodeOptions {
   /** 16 or 24 = integer PCM, 32 = IEEE float. Default 16. */
   bitDepth?: WavBitDepth
+  /**
+   * Dither a 16 or 24 bit file: to each sample, counted in steps, one random
+   * number less another is added before the rounding. That noise is
+   * triangular, two steps from its lowest to its highest, and as strong at
+   * every frequency. A sample is then within a step and a half of the sound,
+   * the error no longer follows the sound, and silence is written as -1, 0
+   * and 1. Left out, a sample is rounded as it is and nothing is drawn. A
+   * 32 bit float file is rounded nowhere, so there it does nothing.
+   */
+  dither?: {
+    /**
+     * What the noise is drawn from: a whole number a `Uint32` holds. The same
+     * sound, depth and seed give the same file byte for byte, and another
+     * seed gives another noise.
+     */
+    seed: number
+  }
 }
 
 /** Planar channels (one Float32Array per channel) plus the sample rate. */
@@ -116,6 +144,10 @@ export function encodeWav(audio: PlanarAudio, options: WavEncodeOptions = {}): A
   ascii('data')
   u32(dataBytes)
   const interleaved = interleave(audio.channels)
+  // One stream for the file, drawn from in the order the samples are written,
+  // so each channel has noise of its own.
+  const draw = !isFloat && options.dither ? seededRandom(options.dither.seed, 'wav-dither') : null
+  const noise = draw ? () => draw() - draw() : () => 0
   if (isFloat) {
     for (const sample of interleaved) {
       view.setFloat32(offset, sample, true)
@@ -123,12 +155,12 @@ export function encodeWav(audio: PlanarAudio, options: WavEncodeOptions = {}): A
     }
   } else if (bitDepth === 16) {
     for (const sample of interleaved) {
-      view.setInt16(offset, toInt(sample, 32767), true)
+      view.setInt16(offset, toInt(sample, FULL_SCALE_STEPS[16], noise()), true)
       offset += 2
     }
   } else {
     for (const sample of interleaved) {
-      const value = toInt(sample, 8388607)
+      const value = toInt(sample, FULL_SCALE_STEPS[24], noise())
       view.setUint8(offset, value & 0xff)
       view.setUint8(offset + 1, (value >> 8) & 0xff)
       view.setUint8(offset + 2, (value >> 16) & 0xff)
@@ -212,7 +244,7 @@ export function decodeWav(wav: ArrayBuffer): PlanarAudio {
         channels[c][i] = view.getFloat32(offset, true)
         offset += 4
       } else if (info.bitDepth === 16) {
-        channels[c][i] = view.getInt16(offset, true) / 32768
+        channels[c][i] = view.getInt16(offset, true) / FULL_SCALE_STEPS[16]
         offset += 2
       } else {
         const raw =
@@ -220,7 +252,7 @@ export function decodeWav(wav: ArrayBuffer): PlanarAudio {
           (view.getUint8(offset + 1) << 8) |
           (view.getUint8(offset + 2) << 16)
         const signed = raw & 0x800000 ? raw - 0x1000000 : raw
-        channels[c][i] = signed / 8388608
+        channels[c][i] = signed / FULL_SCALE_STEPS[24]
         offset += 3
       }
     }
@@ -228,9 +260,13 @@ export function decodeWav(wav: ArrayBuffer): PlanarAudio {
   return { channels, sampleRate: info.sampleRate }
 }
 
-function toInt(sample: number, scale: number): number {
-  const clamped = Math.max(-1, Math.min(1, sample))
-  return Math.round(clamped * scale)
+/**
+ * A sample as a whole number of steps: the nearest one to the sample with
+ * `noise` steps added, held inside what the depth can write.
+ */
+function toInt(sample: number, steps: number, noise: number): number {
+  const nearest = Math.round(sample * steps + noise)
+  return Math.max(-steps, Math.min(steps - 1, nearest))
 }
 
 function channelMask(channelCount: number): number {

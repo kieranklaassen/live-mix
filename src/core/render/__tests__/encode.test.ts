@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 import { describe, expect, it } from 'vitest'
 
 import { MockAudioBuffer } from '../../../testing'
@@ -13,6 +15,31 @@ import {
 
 function ramp(frames: number, scale = 1): Float32Array {
   return Float32Array.from({ length: frames }, (_, i) => scale * ((2 * i) / (frames - 1) - 1))
+}
+
+const RATE = 48000
+
+/** The whole numbers a depth counts in: one step is one of them. */
+const STEPS = { 16: 32768, 24: 8388608 } as const
+
+/** A second of two tones that share no period, inside full scale. */
+function second(level = 0.8): Float32Array {
+  return Float32Array.from(
+    { length: RATE },
+    (_, i) =>
+      level *
+      (0.6 * Math.sin((2 * Math.PI * 440 * i) / RATE) +
+        0.4 * Math.sin((2 * Math.PI * 1234.5 * i) / RATE + 1)),
+  )
+}
+
+/** Each sample of a one-channel file, counted in steps of its depth. */
+function inSteps(wav: ArrayBuffer, depth: 16 | 24): number[] {
+  return Array.from(decodeWav(wav).channels[0], (value) => value * STEPS[depth])
+}
+
+function sha256(wav: ArrayBuffer): string {
+  return createHash('sha256').update(new Uint8Array(wav)).digest('hex')
 }
 
 describe('interleave / deinterleave', () => {
@@ -51,27 +78,134 @@ describe('encodeWav', () => {
     expect(view.getUint16(32, true)).toBe(4) // block align
   })
 
-  it('16-bit PCM round-trips within one quantisation step and clips out-of-range input', () => {
-    const source = ramp(1000)
-    source[0] = -1.7
-    source[1] = 1.7
-    const decoded = decodeWav(encodeWav({ channels: [source], sampleRate: 44100 }))
-    expect(decoded.sampleRate).toBe(44100)
-    expect(decoded.channels[0][0]).toBeCloseTo(-1, 3)
-    expect(decoded.channels[0][1]).toBeCloseTo(32767 / 32768, 6)
-    for (let i = 2; i < source.length; i += 1) {
-      expect(Math.abs(decoded.channels[0][i] - source[i])).toBeLessThanOrEqual(2 / 32768)
+  it.each([16, 24] as const)(
+    'writes a %i-bit file that, read and written again, is the same file',
+    (bitDepth) => {
+      // Every whole number 16 bits hold, and at 24 bits the same count of them spread over its range.
+      const spread = STEPS[bitDepth] / 32768
+      const source = Float32Array.from({ length: 65536 }, (_, i) => (i - 32768) / 32768)
+      const wav = encodeWav({ channels: [source, source], sampleRate: RATE }, { bitDepth })
+      expect(readWavInfo(wav)).toMatchObject({ bitDepth, format: 'pcm', frames: 65536 })
+      const view = new DataView(wav)
+      const { dataOffset } = readWavInfo(wav)
+      expect(view.getInt16(dataOffset + (bitDepth === 16 ? 0 : 1), true)).toBe(-32768)
+      expect(inSteps(wav, bitDepth)[40000]).toBe((40000 - 32768) * spread)
+      const again = encodeWav(decodeWav(wav), { bitDepth })
+      expect(again.byteLength).toBe(wav.byteLength)
+      expect(sha256(again)).toBe(sha256(wav))
+    },
+  )
+
+  it.each([16, 24] as const)(
+    'writes each sample of a %i-bit file within half a step of the sound, with no dither',
+    (bitDepth) => {
+      const steps = STEPS[bitDepth]
+      const source = second(1)
+      // The lowest and the highest a file holds: full scale down, and one step under it up.
+      source[0] = -1
+      source[1] = (steps - 1) / steps
+      const wav = encodeWav({ channels: [source], sampleRate: RATE }, { bitDepth })
+      const written = inSteps(wav, bitDepth)
+      const worst = Math.max(...written.map((code, i) => Math.abs(code - source[i] * steps)))
+      expect(worst).toBeLessThanOrEqual(0.5)
+      expect(worst).toBeGreaterThan(0.49)
+      expect(written.every(Number.isInteger)).toBe(true)
+      expect(written[0]).toBe(-steps)
+      expect(written[1]).toBe(steps - 1)
+      // Nothing is drawn: the same sound is the same file.
+      expect(sha256(encodeWav({ channels: [source], sampleRate: RATE }, { bitDepth }))).toBe(
+        sha256(wav),
+      )
+    },
+  )
+
+  it.each([16, 24] as const)(
+    'dithers a %i-bit file: within a step and a half, right on average, three values for silence',
+    (bitDepth) => {
+      const steps = STEPS[bitDepth]
+      const source = second()
+      const wav = encodeWav(
+        { channels: [source], sampleRate: RATE },
+        { bitDepth, dither: { seed: 7 } },
+      )
+      const errors = inSteps(wav, bitDepth).map((code, i) => code - source[i] * steps)
+      const worst = Math.max(...errors.map(Math.abs))
+      expect(worst).toBeLessThan(1.5)
+      // More than rounding alone can be off by: the noise is there.
+      expect(worst).toBeGreaterThan(1)
+      const mean = errors.reduce((sum, error) => sum + error, 0) / errors.length
+      expect(Math.abs(mean)).toBeLessThan(0.01)
+      // Half a step, as a level: a twelfth of a step squared for the rounding and a sixth for the noise.
+      const power = errors.reduce((sum, error) => sum + error * error, 0) / errors.length
+      expect(Math.sqrt(power)).toBeGreaterThan(0.49)
+      expect(Math.sqrt(power)).toBeLessThan(0.51)
+
+      const silence = encodeWav(
+        { channels: [new Float32Array(RATE)], sampleRate: RATE },
+        { bitDepth, dither: { seed: 7 } },
+      )
+      const values = [...new Set(inSteps(silence, bitDepth))].sort((a, b) => a - b)
+      expect(values).toEqual([-1, 0, 1])
+    },
+  )
+
+  it('draws the same noise for the same seed, another for another seed, and its own for each channel', () => {
+    const source = second()
+    const audio = { channels: [source, source], sampleRate: RATE }
+    for (const bitDepth of [16, 24] as const) {
+      const first = encodeWav(audio, { bitDepth, dither: { seed: 20261122 } })
+      const second_ = encodeWav(audio, { bitDepth, dither: { seed: 20261122 } })
+      const other = encodeWav(audio, { bitDepth, dither: { seed: 20261123 } })
+      const plain = encodeWav(audio, { bitDepth })
+      expect(second_.byteLength).toBe(first.byteLength)
+      expect(sha256(second_)).toBe(sha256(first))
+      expect(sha256(other)).not.toBe(sha256(first))
+      expect(sha256(plain)).not.toBe(sha256(first))
+      expect(other.byteLength).toBe(first.byteLength)
+      // The two channels hold one sound, and each has noise of its own.
+      const [left, right] = decodeWav(first).channels
+      expect(left.some((value, i) => value !== right[i])).toBe(true)
     }
   })
 
-  it('24-bit PCM round-trips within one step', () => {
-    const source = ramp(777, 0.9)
-    const wav = encodeWav({ channels: [source, source], sampleRate: 96000 }, { bitDepth: 24 })
-    expect(readWavInfo(wav)).toMatchObject({ bitDepth: 24, format: 'pcm', frames: 777 })
-    const decoded = decodeWav(wav)
-    for (let i = 0; i < source.length; i += 1) {
-      expect(Math.abs(decoded.channels[1][i] - source[i])).toBeLessThanOrEqual(1 / 8388608 + 1e-9)
+  it('holds a sample over full scale at full scale at 16 and 24 bits, dithered or not', () => {
+    for (const bitDepth of [16, 24] as const) {
+      const steps = STEPS[bitDepth]
+      const over = Float32Array.from({ length: 2000 }, (_, i) => (i % 2 === 0 ? 1.7 : -1.7))
+      for (const dither of [undefined, { seed: 3 }]) {
+        const written = inSteps(
+          encodeWav({ channels: [over], sampleRate: RATE }, { bitDepth, dither }),
+          bitDepth,
+        )
+        expect(written.every((code, i) => code === (i % 2 === 0 ? steps - 1 : -steps))).toBe(true)
+      }
+      // At full scale itself the noise has nowhere to go past the last whole number.
+      const edge = Float32Array.from({ length: 2000 }, (_, i) => (i % 2 === 0 ? 1 : -1))
+      const dithered = inSteps(
+        encodeWav({ channels: [edge], sampleRate: RATE }, { bitDepth, dither: { seed: 3 } }),
+        bitDepth,
+      )
+      expect(Math.max(...dithered)).toBe(steps - 1)
+      expect(Math.min(...dithered)).toBe(-steps)
     }
+  })
+
+  it('writes the 32-bit float file it always wrote, and the same one when dither is asked for', () => {
+    const tone = (hz: number, level: number): Float32Array =>
+      Float32Array.from({ length: 480 }, (_, i) => level * Math.sin((2 * Math.PI * hz * i) / RATE))
+    const left = tone(440, 0.5)
+    const right = tone(660, 0.25)
+    left[7] = 1.5
+    right[9] = -2
+    const audio = { channels: [left, right], sampleRate: RATE }
+    const wav = encodeWav(audio, { bitDepth: 32 })
+    // Taken from the writer as it was before it could dither, for this sound.
+    expect(wav.byteLength).toBe(3920)
+    expect(sha256(wav)).toBe('fcce9157c469b38a0fb2d729f535d37ab8281a4a2e388d8408030fe84c521635')
+    expect(sha256(encodeWav(audio, { bitDepth: 32, dither: { seed: 5 } }))).toBe(sha256(wav))
+    const decoded = decodeWav(wav)
+    expect(decoded.channels[0][7]).toBe(1.5)
+    expect(decoded.channels[1][9]).toBe(-2)
   })
 
   it('32-bit float is exact and uses the extensible header with a fact chunk', () => {
