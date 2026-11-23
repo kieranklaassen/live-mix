@@ -55,10 +55,9 @@ export const HYBRID_MODEL_SPEC: HybridModelSpec = {
  * spec's stems are no list of names: none, one twice, or a name that is no
  * stem's.
  */
-export function createHybridModel<Tensor>(runtime: ModelRuntime<Tensor>): SegmentModel
-export function createHybridModel<Tensor, Name extends string>(
+export function createHybridModel<Tensor, Name extends string = StemName>(
   runtime: ModelRuntime<Tensor>,
-  spec: HybridModelSpec<Name>,
+  spec?: HybridModelSpec<Name>,
 ): SegmentModel<Name>
 export function createHybridModel<Tensor>(
   runtime: ModelRuntime<Tensor>,

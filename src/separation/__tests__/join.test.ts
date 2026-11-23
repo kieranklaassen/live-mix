@@ -342,6 +342,21 @@ describe('what a set holds each separator’s answer to', () => {
     await expect(run).rejects.toThrow(/nothing for bass/)
   })
 
+  it('refuses a separator that answers nothing at all, and names its first stem', async () => {
+    for (const nothing of [undefined, null]) {
+      const silent: Separator<'drums' | 'bass'> = {
+        ...naming({ drums: 0.2, bass: 0.2 }),
+        separate: () => Promise.resolve(nothing as unknown as Record<'drums' | 'bass', Channels>),
+      }
+      const run = joinSeparators([
+        { separator: naming({ vocals: 0.3 }) },
+        { separator: silent },
+      ]).separate(track)
+      await expect(run).rejects.toThrow(SeparationError)
+      await expect(run).rejects.toThrow(/nothing for drums/)
+    }
+  })
+
   it('refuses an answer that leaves out a stem its separator names and the set does not keep', async () => {
     const run = joinSeparators([
       { separator: answering({ drums: 0.2, bass: 0.2 }, { drums: 0.2 }), take: ['drums'] },

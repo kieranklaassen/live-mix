@@ -53,7 +53,12 @@ async function keptOf(
   options: SeparateOptions,
 ): Promise<Record<string, Channels>> {
   const { separator, names, kept } = member
-  const answer: Partial<Record<string, Channels>> = await separator.separate(channels, options)
+  const given: Record<string, Channels> | null | undefined = await separator.separate(
+    channels,
+    options,
+  )
+  // A separator that answers nothing at all has answered no stem.
+  const answer: Partial<Record<string, Channels>> = given ?? {}
   // A stem the separator did not name would be left in the remainder without a word.
   const unnamed = unnamedKey(Object.keys(answer), names)
   if (unnamed !== undefined) {

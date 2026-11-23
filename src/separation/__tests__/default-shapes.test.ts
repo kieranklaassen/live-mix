@@ -100,7 +100,13 @@ describe('what a host of the four writes against the entry’s types', () => {
     const spec: HybridModelSpec = { ...HYBRID_MODEL_SPEC, segmentFrames: 4096 }
     const order: readonly StemName[] = HYBRID_MODEL_SPEC.stems
     const small: SegmentModel = createHybridModel(runtime(), spec)
+    // A host that passes a spec it may not have, as the one signature with a default took it.
+    const maybe = undefined as HybridModelSpec | undefined
+    const passed: SegmentModel = createHybridModel(runtime(), maybe)
+    const none: SegmentModel = createHybridModel(runtime(), undefined)
     expect(model.segmentFrames).toBe(343980)
+    expect(passed.segmentFrames).toBe(343980)
+    expect(none.segmentFrames).toBe(343980)
     expect(small.segmentFrames).toBe(4096)
     expect(order).toHaveLength(4)
     expect(made).toBeTypeOf('function')

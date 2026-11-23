@@ -108,8 +108,10 @@ export async function separatorStems<Name extends string>(
       options,
     )
   }
+  // A separator that answers nothing at all has answered no stem.
+  const given: Record<Name, Channels> | null | undefined = await ask()
   // The answer's own keys, and nothing it inherits.
-  const answer = new Map<string, Channels>(Object.entries(await ask()))
+  const answer = new Map<string, Channels>(Object.entries(given ?? {}))
   options.signal?.throwIfAborted()
   // A stem the separator did not name would be left in the remainder without a word.
   const unnamed = unnamedKey(answer.keys(), names)

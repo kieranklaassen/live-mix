@@ -144,6 +144,19 @@ describe('separating a track', () => {
     await expect(separateTrack(track, without)).rejects.toThrow(/nothing.*bass/)
   })
 
+  it('refuses a separator that answers nothing at all as it refuses one that leaves a stem out', async () => {
+    const track = { channels: [noise(3000, 14), noise(3000, 15)], sampleRate: 44100 }
+    for (const nothing of [undefined, null]) {
+      const silent: Separator = {
+        sampleRate: 44100,
+        separate: () => Promise.resolve(nothing as unknown as Record<StemName, Channels>),
+      }
+      const run = separateTrack(track, silent)
+      await expect(run).rejects.toThrow(SeparationError)
+      await expect(run).rejects.toThrow(/nothing.*vocals/)
+    }
+  })
+
   it('refuses a track with no frames or with three channels before asking the separator', async () => {
     const seen: Channels[] = []
     const separator = byGains(SPLIT, 44100, seen)
