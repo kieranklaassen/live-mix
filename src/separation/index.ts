@@ -20,6 +20,7 @@ export { partNames, stemNames } from './names'
 export { createSegmentSeparator, type SegmentModel, type SegmentSeparatorOptions } from './segments'
 export { HYBRID_MODEL_SPEC, createHybridModel, type HybridModelSpec } from './hybrid-model'
 export { createWaveformModel, type WaveformModelSpec } from './waveform-model'
+export { createSpectrogramModel, type SpectrogramModelSpec } from './spectrogram-model'
 export { separationTracks, type SeparationTracks, type SeparationTracksOptions } from './tracks'
 export {
   PART_NAMES,

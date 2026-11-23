@@ -4,8 +4,10 @@
 // weight on the middle of each, where a model is surest. The cutting and the
 // weights are the model's reference implementation's, since a model answers
 // best to what it was trained on, and so is the bringing of the track to a
-// mean of 0 and a deviation of 1 first. The runner knows nothing else about the
-// model: one of another kind takes its place by answering `run`.
+// mean of 0 and a deviation of 1 first. A model that was trained on sound as
+// it is says so, and is handed the track's own values. The runner knows
+// nothing else about the model: one of another kind takes its place by
+// answering `run`.
 //
 // A track can be gone over more than once. The first pass cuts it as above.
 // Each later one has some silence in front of the track, up to half a second
@@ -34,7 +36,9 @@ export interface SegmentModel<Name extends string = StemName> {
   readonly stems?: readonly Name[]
   /**
    * Whether the track is brought to a mean of 0 and a deviation of 1 before
-   * the model is run, and back after. One that says nothing is run so.
+   * the model is run, and its level brought back after. One that says
+   * nothing is run so. One that says `false` is handed the track's own
+   * values, and what it answers is kept at the level it answered.
    */
   readonly standardize?: boolean
   /**
@@ -149,8 +153,11 @@ export function createSegmentSeparator<Name extends string = StemName>(
       }
       const [left, right] = channels
       const length = left.length
-      // The track's own, taken once: the silence in front of a later pass is no part of them.
-      const { mean, scale } = standardOf(left, right)
+      // The track's own, taken once: the silence in front of a later pass is
+      // no part of them. A model that is run on sound as it is has 0 taken
+      // off and is divided by 1, which leaves every value the one it was.
+      const { mean, scale } =
+        model.standardize === false ? { mean: 0, scale: 1 } : standardOf(left, right)
       // Every pass's silence is drawn before the first segment, so the count of steps is known.
       const drawn = leads()
       const total = stepsOf(length, drawn)
@@ -221,7 +228,8 @@ export function createSegmentSeparator<Name extends string = StemName>(
       // mean to each stem, which leaves a track that stands off zero with
       // its offset in the stems once for each of them. Left out, the offset
       // is no stem's, and stays in what the track has over the stems. The
-      // passes are averaged here, by the weights all of them added.
+      // passes are averaged here, by the weights all of them added. For a
+      // model run on sound as it is the scale is 1, and nothing comes back.
       for (const name of names) {
         for (const channel of summed[name]) {
           for (let i = 0; i < length; i += 1) channel[i] = (channel[i] / weighed[i]) * scale

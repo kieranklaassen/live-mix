@@ -636,6 +636,7 @@ const separationSymbols = [
   'SeparationError',
   'createHybridModel',
   'createSegmentSeparator',
+  'createSpectrogramModel',
   'createWaveformModel',
   'joinSeparators',
   'partNames',

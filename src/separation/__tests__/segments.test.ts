@@ -599,3 +599,107 @@ describe('a track run more than once, at offsets drawn from a seed', () => {
     },
   )
 })
+
+/** The model of `passing`, saying that it is run on sound as it is. */
+function asItIs(calls: Channels[] = [], sampleRate = 44100): SegmentModel {
+  return { ...passing(calls, sampleRate), standardize: false }
+}
+
+describe('a model that says it is not run at a standard level', () => {
+  /** A track that stands off zero and is far from a deviation of one. */
+  const offZero = (length: number): Channels => [
+    noise(length, 71).map((v) => v * 0.1 + 0.2),
+    noise(length, 72).map((v) => v * 0.1),
+  ]
+
+  it('is handed the track’s own values, with silence past the track’s end', async () => {
+    const length = SEGMENT + 10
+    const track = offZero(length)
+    const calls: Channels[] = []
+    await createSegmentSeparator(asItIs(calls)).separate(track)
+    expect(calls.length).toBe(2)
+    for (const channel of [0, 1]) {
+      expect(calls[0][channel]).toEqual(track[channel].subarray(0, SEGMENT))
+      // The last 260 frames sit 370 into their segment, after the 370 frames
+      // of the track before them.
+      expect(calls[1][channel].subarray(0, 630)).toEqual(track[channel].subarray(380))
+      expect(Array.from(calls[1][channel].subarray(630))).toEqual(new Array(370).fill(0))
+    }
+  })
+
+  it('gives back what the model answered with no mean taken off and no level brought back', async () => {
+    const track = offZero(4321)
+    const stems = await createSegmentSeparator(asItIs()).separate(track)
+    const { mean } = standard(track)
+    for (const channel of [0, 1]) {
+      expect(stems.other[channel].length).toBe(4321)
+      // Measured: the answer is 150.5 dB under full scale from the track,
+      // which is the rounding of the weights. From the track with its mean
+      // taken off, which a standardized run answers, it is 20 dB under.
+      const about = track[channel].map((sample) => sample - mean)
+      expect(differenceDb(stems.other[channel], track[channel])).toBeLessThan(-120)
+      expect(differenceDb(stems.other[channel], about)).toBeGreaterThan(-120)
+      expect(peak(stems.vocals[channel])).toBe(0)
+    }
+  })
+
+  it('gives a level that stands still back as that level', async () => {
+    const level = (): Float32Array => new Float32Array(1500).fill(0.25)
+    const calls: Channels[] = []
+    const stems = await createSegmentSeparator(asItIs(calls)).separate([level(), level()])
+    expect(calls[0][0].every((sample) => sample === 0.25)).toBe(true)
+    // Measured: the level comes back to the bit. A standardized run answers
+    // silence, which is 12 dB under full scale from the level.
+    expect(differenceDb(stems.other[0], level())).toBeLessThan(-120)
+  })
+
+  it('is handed the track’s own values in every run, after each later run’s silence', async () => {
+    const length = 3000
+    const track = offZero(length)
+    const calls: Channels[] = []
+    const separator = createSegmentSeparator(asItIs(calls, SLOW), { shifts: 3, seed: 11 })
+    const stems = await separator.separate(track)
+    const leads = leadsFed(calls, length)
+    expect(leads.length).toBe(3)
+    expect(calls.length).toBe(separator.steps?.(length))
+    // The first segment of each run: the first run's, the second's and the third's.
+    const second = segmentsOf(length, 0)
+    const firsts = [0, second, second + segmentsOf(length, leads[1])]
+    for (const [index, lead] of leads.entries()) {
+      if (index > 0) expect(lead).toBeGreaterThan(0)
+      const segment = calls[firsts[index]]
+      for (const channel of [0, 1]) {
+        expect(silentHead(segment[channel])).toBe(lead)
+        expect(segment[channel].subarray(lead)).toEqual(track[channel].subarray(0, SEGMENT - lead))
+      }
+    }
+    for (const channel of [0, 1]) {
+      // Measured: 147 dB under full scale from the track.
+      expect(differenceDb(stems.other[channel], track[channel])).toBeLessThan(-120)
+    }
+  })
+
+  it('leaves a model that says it is run at a standard level to the run of one that says nothing', async () => {
+    const track = offZero(4321)
+    for (const options of [{}, { shifts: 3, seed: 5 }]) {
+      const unsaid = await createSegmentSeparator(ramped(), options).separate(track)
+      const said = await createSegmentSeparator(
+        { ...ramped(), standardize: true },
+        options,
+      ).separate(track)
+      const not = await createSegmentSeparator(
+        { ...ramped(), standardize: false },
+        options,
+      ).separate(track)
+      for (const name of STEM_NAMES) {
+        for (const channel of [0, 1]) expect(said[name][channel]).toEqual(unsaid[name][channel])
+      }
+      for (const channel of [0, 1]) {
+        expect(peak(unsaid.other[channel])).toBeGreaterThan(0)
+        // Measured: a run on the track as it is differs by 1.2 dB under
+        // full scale with one run and by 1.6 dB with three.
+        expect(differenceDb(not.other[channel], unsaid.other[channel])).toBeGreaterThan(-40)
+      }
+    }
+  })
+})
