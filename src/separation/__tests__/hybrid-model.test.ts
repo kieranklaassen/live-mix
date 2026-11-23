@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 
 import { HYBRID_MODEL_SPEC, createHybridModel, type HybridModelSpec } from '../hybrid-model'
 import { createSegmentTransform } from '../stft'
-import { SeparationError, type ModelSession } from '../types'
+import { STEM_NAMES, SeparationError, type ModelSession } from '../types'
 import { differenceDb, noise, peak, sine } from './support'
 
 class Tensor {
@@ -39,10 +39,11 @@ interface Answer {
 /** A session that answers with what `answer` makes of the two tensors it was fed. */
 function session(
   answer: (waveform: Tensor, spectrogram: Tensor) => Answer,
-  spec: HybridModelSpec = SMALL,
+  spec: HybridModelSpec<string> = SMALL,
 ): ModelSession<Tensor> & { feeds: Record<string, Tensor>[] } {
   const bins = spec.fftSize / 2
   const frames = Math.ceil(spec.segmentFrames / spec.hop)
+  const stems = spec.stems.length
   const feeds: Record<string, Tensor>[] = []
   return {
     feeds,
@@ -54,13 +55,13 @@ function session(
       return Promise.resolve({
         stems_spectrogram: new Tensor(
           'float32',
-          made.spectrogram ?? new Float32Array(4 * 4 * bins * frames),
-          [1, 4, 4, bins, frames],
+          made.spectrogram ?? new Float32Array(stems * 4 * bins * frames),
+          [1, stems, 4, bins, frames],
         ),
         stems: new Tensor(
           'float32',
-          made.waveform ?? new Float32Array(4 * 2 * spec.segmentFrames),
-          [1, 4, 2, spec.segmentFrames],
+          made.waveform ?? new Float32Array(stems * 2 * spec.segmentFrames),
+          [1, stems, 2, spec.segmentFrames],
         ),
       })
     },
@@ -168,10 +169,10 @@ describe('a hybrid model run through a host’s session', () => {
     expect(() => createHybridModel({ Tensor, session: three }, SMALL)).toThrow(/3 outputs/)
   })
 
-  it('refuses a spec whose stems are not the four, each once', () => {
+  it('refuses a spec that names a stem twice, and names the stem', () => {
     const spec = { ...SMALL, stems: ['drums', 'bass', 'other', 'other'] } as HybridModelSpec
     expect(() => createHybridModel({ Tensor, session: session(() => ({})) }, spec)).toThrow(
-      /vocals/,
+      /name other twice/,
     )
   })
 
@@ -202,5 +203,81 @@ describe('a hybrid model run through a host’s session', () => {
     await expect(
       createHybridModel({ Tensor, session: failing }, SMALL).run([sound(440), sound(440)]),
     ).rejects.toThrow('out of memory')
+  })
+
+  it('takes a spec of six stems: the same two tensors in, six stems out of an answer sized for six', async () => {
+    const spec = { ...SMALL, stems: ['drums', 'bass', 'other', 'vocals', 'guitar', 'piano'] }
+    const answered = new Float32Array(6 * 2 * SMALL.segmentFrames)
+    for (let stem = 0; stem < 6; stem += 1) {
+      answered.fill(stem + 1, stem * 2 * SMALL.segmentFrames, (stem + 1) * 2 * SMALL.segmentFrames)
+    }
+    const fed = session(() => ({ waveform: answered }), spec)
+    const model = createHybridModel({ Tensor, session: fed }, spec)
+    expect(model.stems).toEqual(['drums', 'bass', 'other', 'vocals', 'guitar', 'piano'])
+    const left = sound(440)
+    const right = sound(1500)
+    const stems = await model.run([left, right])
+
+    expect(Object.keys(fed.feeds[0])).toEqual(['mix', 'mix_spectrogram'])
+    expect(fed.feeds[0].mix.dims).toEqual([1, 2, SMALL.segmentFrames])
+    expect(fed.feeds[0].mix.data.subarray(0, SMALL.segmentFrames)).toEqual(left)
+    expect(fed.feeds[0].mix.data.subarray(SMALL.segmentFrames)).toEqual(right)
+    const transform = createSegmentTransform(SMALL.segmentFrames, SMALL.fftSize, SMALL.hop)
+    const expected = new Float32Array(2 * PLANE)
+    transform.forward(left, expected, 0)
+    transform.forward(right, expected, PLANE)
+    expect(fed.feeds[0].mix_spectrogram.dims).toEqual([1, 4, BINS, FRAMES])
+    expect(fed.feeds[0].mix_spectrogram.data).toEqual(expected)
+
+    expect(Object.keys(stems)).toEqual(['drums', 'bass', 'other', 'vocals', 'guitar', 'piano'])
+    expect(Object.values(stems).map((stem) => [stem[0][7], stem[1][4000]])).toEqual([
+      [1, 1],
+      [2, 2],
+      [3, 3],
+      [4, 4],
+      [5, 5],
+      [6, 6],
+    ])
+  })
+
+  it('refuses an answer sized for four when its spec names six', async () => {
+    const spec = { ...SMALL, stems: ['drums', 'bass', 'other', 'vocals', 'guitar', 'piano'] }
+    const four = session(() => ({ waveform: new Float32Array(4 * 2 * SMALL.segmentFrames) }), spec)
+    const run = createHybridModel({ Tensor, session: four }, spec).run([sound(440), sound(440)])
+    await expect(run).rejects.toThrow(SeparationError)
+    await expect(run).rejects.toThrow(/"stems".*32768.*49152/)
+  })
+
+  it('says the four in the order a desk lists them, whatever order its spec answers them in', () => {
+    const made = (spec?: HybridModelSpec) =>
+      spec === undefined
+        ? createHybridModel({ Tensor, session: session(() => ({}), HYBRID_MODEL_SPEC) })
+        : createHybridModel({ Tensor, session: session(() => ({}), spec) }, spec)
+    expect(HYBRID_MODEL_SPEC.stems).toEqual(['drums', 'bass', 'other', 'vocals'])
+    expect(made().stems).toEqual([...STEM_NAMES])
+    expect(made(SMALL).stems).toEqual(['vocals', 'drums', 'bass', 'other'])
+    expect(made({ ...SMALL, stems: ['other', 'bass', 'vocals', 'drums'] }).stems).toEqual([
+      'vocals',
+      'drums',
+      'bass',
+      'other',
+    ])
+  })
+
+  it('says other stems in the order its spec answers them in', () => {
+    const spec = { ...SMALL, stems: ['snare', 'kick'] }
+    const model = createHybridModel({ Tensor, session: session(() => ({}), spec) }, spec)
+    expect(model.stems).toEqual(['snare', 'kick'])
+  })
+
+  it.each<[string, string[], RegExp]>([
+    ['no stems', [], /stems are empty/],
+    ['a name of another shape', ['drums', 'Bass'], /"Bass"/],
+    ['the remainder', ['drums', 'remainder'], /name remainder/],
+  ])('refuses a spec with %s', (_name, stems, message) => {
+    const spec = { ...SMALL, stems }
+    const make = () => createHybridModel({ Tensor, session: session(() => ({}), spec) }, spec)
+    expect(make).toThrow(SeparationError)
+    expect(make).toThrow(message)
   })
 })

@@ -2,12 +2,14 @@
 // segment twice at once, as a waveform and as its spectrogram, and answers
 // twice: a spectrogram and a waveform for each stem. A stem is the waveform
 // of the first plus the second. The transform is done here and not inside
-// the model's graph, so the graph is one a browser's runtimes can run.
+// the model's graph, so the graph is one a browser's runtimes can run. The
+// stems are the ones its spec names, as many as the spec names.
 //
 // The library holds no model and no runtime. A host loads an ONNX runtime,
 // makes a session on an export of a model it has the right to use, and hands
 // both in (docs/separation.md says what an export has to look like).
 
+import { checkedNames } from './names'
 import { type SegmentModel } from './segments'
 import { createSegmentTransform } from './stft'
 import {
@@ -19,7 +21,7 @@ import {
 } from './types'
 
 /** What a hybrid model was trained with. An export of another model of the kind says its own. */
-export interface HybridModelSpec {
+export interface HybridModelSpec<Name extends string = StemName> {
   /** The sample rate of the sound the model was trained on. */
   sampleRate: number
   /** The frames of the segment the model takes. */
@@ -28,8 +30,8 @@ export interface HybridModelSpec {
   fftSize: number
   /** The frames from one frame of the transform to the next: a quarter of its size. */
   hop: number
-  /** The four stems in the order the model answers them. */
-  stems: readonly StemName[]
+  /** The stems in the order the model answers them: the order of its tensors, not a desk's. */
+  stems: readonly Name[]
 }
 
 /** The numbers of the four-stem hybrid model most exports are of: 7.8 s at 44.1 kHz. */
@@ -64,15 +66,27 @@ function answered(answer: Record<string, unknown>, name: string, length: number)
  * `createSegmentSeparator`. The session takes two inputs, the waveform
  * `[1, 2, segmentFrames]` and then its spectrogram `[1, 4, bins, frames]`
  * (for each channel its real parts, then its imaginary ones), and gives two
- * outputs, the stems' spectrograms `[1, 4, 4, bins, frames]` and then their
- * waveforms `[1, 4, 2, segmentFrames]`. They are fed and read by their place
- * in the session's lists, not by name: an export's names are whatever its
- * exporter left.
+ * outputs, the stems' spectrograms `[1, stems, 4, bins, frames]` and then
+ * their waveforms `[1, stems, 2, segmentFrames]`, `stems` being how many the
+ * spec names. They are fed and read by their place in the session's lists,
+ * not by name: an export's names are whatever its exporter left.
+ *
+ * With no spec the model is the four-stem one of `HYBRID_MODEL_SPEC`. A
+ * model whose spec names exactly the four says them as a desk lists them,
+ * vocals first, in whatever order its tensors hold them. A model of other
+ * stems says them in its spec's order. Throws a `SeparationError` when the
+ * spec's stems are no list of names: none, one twice, or a name that is no
+ * stem's.
  */
+export function createHybridModel<Tensor>(runtime: ModelRuntime<Tensor>): SegmentModel
+export function createHybridModel<Tensor, Name extends string>(
+  runtime: ModelRuntime<Tensor>,
+  spec: HybridModelSpec<Name>,
+): SegmentModel<Name>
 export function createHybridModel<Tensor>(
   runtime: ModelRuntime<Tensor>,
-  spec: HybridModelSpec = HYBRID_MODEL_SPEC,
-): SegmentModel {
+  spec: HybridModelSpec<string> = HYBRID_MODEL_SPEC,
+): SegmentModel<string> {
   const { session } = runtime
   if (session.inputNames.length !== 2 || session.outputNames.length !== 2) {
     throw new SeparationError(
@@ -80,12 +94,10 @@ export function createHybridModel<Tensor>(
         `${counted(session.inputNames.length, 'input')} and ${counted(session.outputNames.length, 'output')}`,
     )
   }
-  const missing = STEM_NAMES.filter((name) => !spec.stems.includes(name))
-  if (spec.stems.length !== STEM_NAMES.length || missing.length > 0) {
-    throw new SeparationError(
-      `a model's stems are ${STEM_NAMES.join(', ')}, each once: [${spec.stems.join(', ')}] leaves out ${missing.join(', ')}`,
-    )
-  }
+  /** The stems in the order of the session's tensors. */
+  const names = checkedNames(spec.stems, "a spec's stems")
+  const theFour =
+    names.length === STEM_NAMES.length && STEM_NAMES.every((name) => names.includes(name))
   const { segmentFrames } = spec
   const transform = createSegmentTransform(segmentFrames, spec.fftSize, spec.hop)
   const { bins, frames } = transform
@@ -97,6 +109,7 @@ export function createHybridModel<Tensor>(
   return {
     sampleRate: spec.sampleRate,
     segmentFrames,
+    stems: theFour ? [...STEM_NAMES] : names,
     async run(segment: Channels) {
       if (segment.length !== 2 || segment.some((channel) => channel.length !== segmentFrames)) {
         throw new SeparationError(
@@ -113,11 +126,11 @@ export function createHybridModel<Tensor>(
         [waveformIn]: new runtime.Tensor('float32', waveform, [1, 2, segmentFrames]),
         [spectrogramIn]: new runtime.Tensor('float32', spectrogram, [1, 4, bins, frames]),
       })
-      const spectrograms = answered(answer, spectrogramOut, spec.stems.length * 2 * plane)
-      const waveforms = answered(answer, waveformOut, spec.stems.length * 2 * segmentFrames)
+      const spectrograms = answered(answer, spectrogramOut, names.length * 2 * plane)
+      const waveforms = answered(answer, waveformOut, names.length * 2 * segmentFrames)
 
-      const stems = {} as Record<StemName, Channels>
-      spec.stems.forEach((name, stem) => {
+      const stems: Record<string, Channels> = {}
+      names.forEach((name, stem) => {
         stems[name] = [0, 1].map((channel) => {
           const at = stem * 2 + channel
           const out = waveforms.slice(at * segmentFrames, (at + 1) * segmentFrames)

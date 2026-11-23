@@ -1,5 +1,7 @@
-// What the separation tests share: sound made the same way every run, and
-// the measures a null is read with.
+// What the separation tests share: sound made the same way every run, a
+// separator of plain arithmetic, and the measures a null is read with.
+
+import { STEM_NAMES, type Channels, type Separation, type Separator } from '../types'
 
 /** Noise between -0.5 and 0.5, the same for the same seed. */
 export function noise(length: number, seed = 0x1234_5678): Float32Array {
@@ -35,4 +37,52 @@ export function peak(channel: Float32Array): number {
   let largest = 0
   for (const sample of channel) largest = Math.max(largest, Math.abs(sample))
   return largest
+}
+
+export const scaled = (channels: Channels, gain: number): Channels =>
+  channels.map((channel) => channel.map((sample) => sample * gain))
+
+/**
+ * A separator that answers each stem of `gains` as the track times that
+ * stem's gain. It says no stems of its own, as a separator of the four may.
+ */
+export function byGains<Name extends string>(
+  gains: Record<Name, number>,
+  sampleRate = 44100,
+  seen: Channels[] = [],
+): Separator<Name> {
+  const names = Object.keys(gains) as Name[]
+  return {
+    sampleRate,
+    separate: (channels) => {
+      seen.push(channels)
+      const stems = {} as Record<Name, Channels>
+      for (const name of names) stems[name] = scaled(channels, gains[name])
+      return Promise.resolve(stems)
+    },
+  }
+}
+
+/** The same separator, saying its stems: the names of `gains` in the order they are written. */
+export function naming<Name extends string>(
+  gains: Record<Name, number>,
+  sampleRate = 44100,
+  seen: Channels[] = [],
+): Separator<Name> {
+  return { ...byGains(gains, sampleRate, seen), stems: Object.keys(gains) as Name[] }
+}
+
+/** A separation's parts added up as a mixer adds them, in single precision: its stems in order, then its remainder. */
+export function summed<Name extends string>(
+  separation: Separation<Name>,
+  channel: number,
+  leaveOut?: Name,
+): Float32Array {
+  const names = (separation.names ?? STEM_NAMES) as readonly Name[]
+  const stems = names.filter((name) => name !== leaveOut).map((name) => separation.stems[name])
+  const out = new Float32Array(separation.remainder[channel].length)
+  for (const part of [...stems, separation.remainder]) {
+    for (let i = 0; i < out.length; i += 1) out[i] += part[channel][i]
+  }
+  return out
 }

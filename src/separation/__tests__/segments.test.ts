@@ -213,3 +213,128 @@ describe('a model run over a whole track, segment by segment', () => {
     )
   })
 })
+
+/** A model that answers each stem of `gains` as the segment times that stem's gain. It says no stems of its own. */
+function byGains<Name extends string>(
+  gains: Record<Name, number>,
+  calls: Channels[] = [],
+): SegmentModel<Name> {
+  const names = Object.keys(gains) as Name[]
+  return {
+    sampleRate: 44100,
+    segmentFrames: SEGMENT,
+    run: (segment) => {
+      calls.push(segment)
+      const stems = {} as Record<Name, Channels>
+      for (const name of names) {
+        stems[name] = segment.map((channel) => channel.map((sample) => sample * gains[name]))
+      }
+      return Promise.resolve(stems)
+    },
+  }
+}
+
+/** The same model, saying its stems: the names of `gains` in the order they are written. */
+function naming<Name extends string>(
+  gains: Record<Name, number>,
+  calls: Channels[] = [],
+): SegmentModel<Name> {
+  return { ...byGains(gains, calls), stems: Object.keys(gains) as Name[] }
+}
+
+const FOUR = { vocals: 0.3, drums: 0.25, bass: 0.2, other: 0.15 }
+
+describe('a model that names its stems, run over a whole track', () => {
+  it('gives the same samples for a model that says no stems and for one that says the four', async () => {
+    const track = [noise(4321, 31), noise(4321, 32)]
+    const unsaid = createSegmentSeparator(byGains(FOUR))
+    const said = createSegmentSeparator(naming(FOUR))
+    const before = await unsaid.separate(track)
+    const after = await said.separate(track)
+    expect(Object.keys(after)).toEqual(Object.keys(before))
+    for (const name of STEM_NAMES) {
+      for (const channel of [0, 1]) {
+        expect(peak(before[name][channel])).toBeGreaterThan(0)
+        expect(after[name][channel]).toEqual(before[name][channel])
+      }
+    }
+    expect(unsaid.stems).toEqual(['vocals', 'drums', 'bass', 'other'])
+    expect(said.stems).toEqual(['vocals', 'drums', 'bass', 'other'])
+  })
+
+  it('answers with its model’s stems, in the model’s order, and says them', async () => {
+    const track = [noise(4321, 33), noise(4321, 34)]
+    const gains = { kick: 0.3, snare: 0.25, toms: 0.1, cymbals: 0.15, bass: 0.1, other: 0.05 }
+    const separator = createSegmentSeparator(naming(gains))
+    expect(separator.stems).toEqual(['kick', 'snare', 'toms', 'cymbals', 'bass', 'other'])
+    const stems = await separator.separate(track)
+    expect(Object.keys(stems)).toEqual(['kick', 'snare', 'toms', 'cymbals', 'bass', 'other'])
+    const { mean } = standard(track)
+    for (const channel of [0, 1]) {
+      const toms = track[channel].map((sample) => (sample - mean) * 0.1)
+      expect(stems.toms[channel].length).toBe(4321)
+      expect(differenceDb(stems.toms[channel], toms)).toBeLessThan(-120)
+    }
+  })
+
+  it('refuses an answer to a segment with a stem the model did not name, and names the stem', async () => {
+    const track = [noise(500, 35), noise(500, 36)]
+    // A model of the four that answers a fifth.
+    const fifth: SegmentModel = {
+      ...byGains(FOUR),
+      run: (segment) => byGains({ ...FOUR, guitar: 0.05 }).run(segment),
+    }
+    const run = createSegmentSeparator(fifth).separate(track)
+    await expect(run).rejects.toThrow(SeparationError)
+    await expect(run).rejects.toThrow(/guitar/)
+
+    const unnamed: SegmentModel<'kick' | 'snare'> = {
+      ...naming({ kick: 0.3, snare: 0.2 }),
+      run: (segment) => byGains({ kick: 0.3, snare: 0.2, toms: 0.1 }).run(segment),
+    }
+    await expect(createSegmentSeparator(unnamed).separate(track)).rejects.toThrow(/toms/)
+  })
+
+  it('refuses an answer to a segment without a stem the model named, and names the stem', async () => {
+    const model: SegmentModel<'kick' | 'snare'> = {
+      ...naming({ kick: 0.3, snare: 0.2 }),
+      run: (segment) =>
+        byGains({ kick: 0.3 }).run(segment) as Promise<Record<'kick' | 'snare', Channels>>,
+    }
+    const run = createSegmentSeparator(model).separate([noise(500, 37), noise(500, 38)])
+    await expect(run).rejects.toThrow(SeparationError)
+    await expect(run).rejects.toThrow(/nothing for snare/)
+  })
+
+  it.each<[string, string[], RegExp]>([
+    ['an empty list', [], /stems are empty/],
+    ['a name said twice', ['kick', 'kick'], /name kick twice/],
+    ['a name of another shape', ['Kick'], /"Kick"/],
+    ['the remainder', ['kick', 'remainder'], /name remainder/],
+  ])('refuses %s among a model’s stems before the model is asked', (_name, stems, message) => {
+    const calls: Channels[] = []
+    const model: SegmentModel<string> = { ...byGains(FOUR, calls), stems }
+    expect(() => createSegmentSeparator(model)).toThrow(SeparationError)
+    expect(() => createSegmentSeparator(model)).toThrow(message)
+    expect(calls).toEqual([])
+  })
+
+  it.each([
+    ['shorter than a segment', 400, 1],
+    ['several segments long', 4321, 6],
+  ])(
+    'says how many steps a track %s takes: the count its run reports',
+    async (_name, length, steps) => {
+      const separator = createSegmentSeparator(passing())
+      expect(separator.steps?.(length)).toBe(steps)
+      const seen: { done: number; total: number }[] = []
+      await separator.separate([noise(length, 1), noise(length, 2)], {
+        onProgress: (progress) => seen.push({ ...progress }),
+      })
+      expect(seen.map(({ done }) => done)).toEqual(
+        Array.from({ length: steps }, (_unused, index) => index + 1),
+      )
+      expect(seen.every(({ total }) => total === steps)).toBe(true)
+    },
+  )
+})

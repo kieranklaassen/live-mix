@@ -7,8 +7,8 @@
 // mean of 0 and a deviation of 1 first. The runner knows nothing else about the
 // model: one of another kind takes its place by answering `run`.
 
+import { saidNames, unnamedKey } from './names'
 import {
-  STEM_NAMES,
   SeparationError,
   type Channels,
   type SeparateOptions,
@@ -17,13 +17,23 @@ import {
 } from './types'
 
 /** A model that separates a segment of exactly `segmentFrames` frames. */
-export interface SegmentModel {
+export interface SegmentModel<Name extends string = StemName> {
   /** The sample rate the model was trained at. */
   readonly sampleRate: number
   /** The frames of a segment. */
   readonly segmentFrames: number
-  /** Two channels of `segmentFrames` in; for each stem, two channels of `segmentFrames` out. */
-  run(segment: Channels): Promise<Record<StemName, Channels>>
+  /** The stems the model answers with, in the order a desk lists them. One that says none answers the four. */
+  readonly stems?: readonly Name[]
+  /**
+   * Whether the track is brought to a mean of 0 and a deviation of 1 before
+   * the model is run, and back after. One that says nothing is run so.
+   */
+  readonly standardize?: boolean
+  /**
+   * Two channels of `segmentFrames` in; for each stem, two channels of
+   * `segmentFrames` out, and no stem the model does not name.
+   */
+  run(segment: Channels): Promise<Record<Name, Channels>>
 }
 
 export interface SegmentSeparatorOptions {
@@ -31,8 +41,8 @@ export interface SegmentSeparatorOptions {
   overlap?: number
 }
 
-/** A turn of the event loop, so a page or a worker can answer between segments. */
-function turn(): Promise<void> {
+/** A turn of the event loop, so a page or a worker can answer between two long steps. */
+export function turn(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
@@ -59,11 +69,16 @@ function standardOf(left: Float32Array, right: Float32Array): { mean: number; sc
   return { mean, scale: deviation + 1e-8 }
 }
 
-/** A separator that runs `model` over a track of any length, a segment at a time. */
-export function createSegmentSeparator(
-  model: SegmentModel,
+/**
+ * A separator that runs `model` over a track of any length, a segment at a
+ * time. Its stems are the model's. Throws a `SeparationError` when the
+ * model's stems are no list of names, or the overlap is not one.
+ */
+export function createSegmentSeparator<Name extends string = StemName>(
+  model: SegmentModel<Name>,
   options: SegmentSeparatorOptions = {},
-): Separator {
+): Separator<Name> {
+  const names = saidNames(model.stems, "a model's stems")
   const segmentFrames = model.segmentFrames
   const overlap = options.overlap ?? 0.25
   // Refused here and not found out later: at 1 a run would ask the model
@@ -73,9 +88,13 @@ export function createSegmentSeparator(
   }
   const stride = Math.max(1, Math.floor((1 - overlap) * segmentFrames))
   const weight = weights(segmentFrames)
+  /** The segments of a track of `frames` frames: one step each. */
+  const steps = (frames: number): number => Math.ceil(frames / stride)
 
   return {
     sampleRate: model.sampleRate,
+    stems: names,
+    steps,
     async separate(channels: Channels, run: SeparateOptions = {}) {
       if (channels.length !== 2) {
         throw new SeparationError(`a model takes two channels, not ${channels.length}`)
@@ -83,9 +102,9 @@ export function createSegmentSeparator(
       const [left, right] = channels
       const length = left.length
       const { mean, scale } = standardOf(left, right)
-      const total = Math.ceil(length / stride)
-      const summed = {} as Record<StemName, Float32Array[]>
-      for (const name of STEM_NAMES) {
+      const total = steps(length)
+      const summed = {} as Record<Name, Float32Array[]>
+      for (const name of names) {
         summed[name] = [new Float32Array(length), new Float32Array(length)]
       }
       const weighed = new Float32Array(length)
@@ -107,10 +126,18 @@ export function createSegmentSeparator(
             into[i] = at >= 0 && at < length ? (source[at] - mean) / scale : 0
           }
         }
-        const answer = await model.run(segment)
-        for (const name of STEM_NAMES) {
+        const answer: Partial<Record<string, Channels>> = await model.run(segment)
+        // A stem the model did not name would be left in the remainder without a word.
+        const unnamed = unnamedKey(Object.keys(answer), names)
+        if (unnamed !== undefined) {
+          throw new SeparationError(
+            `the model answered a stem it does not name, ${unnamed}: its stems are [${names.join(', ')}]`,
+          )
+        }
+        for (const name of names) {
+          const stem = Object.hasOwn(answer, name) ? answer[name] : undefined
           for (let channel = 0; channel < 2; channel += 1) {
-            const from = answer[name]?.[channel]
+            const from = stem?.[channel]
             if (from?.length !== segmentFrames) {
               throw new SeparationError(
                 `the model answered ${from?.length ?? 'nothing'} for ${name}, not a segment of ${segmentFrames} frames`,
@@ -126,10 +153,10 @@ export function createSegmentSeparator(
       }
 
       // The level comes back and the mean does not. The reference adds the
-      // mean to each of the four, which leaves a track that stands off zero
-      // with four times its offset in the stems. Left out, the offset is no
-      // stem's, and stays in what the track has over the stems.
-      for (const name of STEM_NAMES) {
+      // mean to each stem, which leaves a track that stands off zero with
+      // its offset in the stems once for each of them. Left out, the offset
+      // is no stem's, and stays in what the track has over the stems.
+      for (const name of names) {
         for (const channel of summed[name]) {
           for (let i = 0; i < length; i += 1) channel[i] = (channel[i] / weighed[i]) * scale
         }

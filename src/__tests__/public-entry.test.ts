@@ -636,8 +636,10 @@ const separationSymbols = [
   'SeparationError',
   'createHybridModel',
   'createSegmentSeparator',
+  'partNames',
   'separateTrack',
   'separationTracks',
+  'stemNames',
 ] as const
 
 // Every value `./analysis` exports: the measurer and the helper that walks a

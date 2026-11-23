@@ -1,14 +1,15 @@
-// The one call a host makes: a track in, its four stems and a remainder out.
+// The one call a host makes: a track in, its stems and a remainder out.
 // Whatever separator does the work, its answer passes through here, where it
-// is brought back to the track's rate, length and channels, refused when it
-// cannot be sound, and subtracted from the track to leave the remainder. So
-// the five parts added together are the track, whatever the separator got
-// wrong and whatever two resamplings lost.
+// is held to the stems the separator names, brought back to the track's
+// rate, length and channels, refused when it cannot be sound, and subtracted
+// from the track to leave the remainder. So the parts added together are the
+// track, whatever the separator got wrong and whatever two resamplings lost.
 
 import { type PlanarAudio } from '../core/render/encode'
+import { saidNames, unnamedKey } from './names'
 import { resample, resampledLength } from './resample'
+import { turn } from './segments'
 import {
-  STEM_NAMES,
   SeparationError,
   type Channels,
   type SeparateOptions,
@@ -45,22 +46,26 @@ function squaresOf(channels: Channels): number {
 }
 
 /**
- * `audio` as four stems and a remainder, each at the track's own sample
- * rate, length and channel count (one or two). The track goes to the
- * separator at the separator's rate and in two channels, a mono track on
- * both, and a mono track's stems are the mean of the two that come back.
+ * `audio` as the separator's stems and a remainder, each at the track's own
+ * sample rate, length and channel count (one or two). The stems are the ones
+ * the separator names, in its order, or the four when it names none, and the
+ * separation says them as its `names`. The track goes to the separator at
+ * the separator's rate and in two channels, a mono track on both, and a mono
+ * track's stems are the mean of the two that come back.
  *
  * Rejects with a `SeparationError`, and gives nothing, when the track has no
- * frames or more than two channels, or when a stem holds a value that is not
- * finite or is more than 12 dB over the track's largest sample: a model run
- * on a graphics card can answer with numbers that are not sound, and say
- * nothing. Rejects with the signal's reason when `options.signal` fires.
+ * frames or more than two channels, when the separator's stems are no list
+ * of names, when its answer leaves a named stem out or holds one it did not
+ * name, or when a stem holds a value that is not finite or is more than
+ * 12 dB over the track's largest sample: a model run on a graphics card can
+ * answer with numbers that are not sound, and say nothing. Rejects with the
+ * signal's reason when `options.signal` fires.
  */
-export async function separateTrack(
+export async function separateTrack<Name extends string = StemName>(
   audio: PlanarAudio,
-  separator: Separator,
+  separator: Separator<Name>,
   options: SeparateOptions = {},
-): Promise<Separation> {
+): Promise<Separation<Name>> {
   const { channels, sampleRate } = audio
   if (channels.length < 1 || channels.length > 2) {
     throw new SeparationError(`a track has one or two channels, not ${channels.length}`)
@@ -71,6 +76,7 @@ export async function separateTrack(
       `a track's channels have the same length, over zero: [${channels.map((channel) => channel.length).join(', ')}]`,
     )
   }
+  const names = saidNames(separator.stems, "a separator's stems")
   options.signal?.throwIfAborted()
 
   const modelRate = separator.sampleRate
@@ -79,8 +85,9 @@ export async function separateTrack(
   // What is held at the separator's rate is let go as soon as it has been
   // used: the track there once the separator has answered, and each stem
   // once it is back at the track's rate. Four minutes of stereo is 85 MB a
-  // part, and ten of them need not be held beside the five that are kept.
-  const ask = (): Promise<Record<StemName, Channels>> => {
+  // part, and the parts at the separator's rate need not be held beside the
+  // ones that are kept.
+  const ask = (): Promise<Record<Name, Channels>> => {
     const atModelRate = channels.map((channel) =>
       resample(channel, sampleRate, modelRate, modelFrames),
     )
@@ -89,14 +96,22 @@ export async function separateTrack(
       options,
     )
   }
-  const answer: Partial<Record<StemName, Channels>> = { ...(await ask()) }
+  // The answer's own keys, and nothing it inherits.
+  const answer = new Map<string, Channels>(Object.entries(await ask()))
   options.signal?.throwIfAborted()
+  // A stem the separator did not name would be left in the remainder without a word.
+  const unnamed = unnamedKey(answer.keys(), names)
+  if (unnamed !== undefined) {
+    throw new SeparationError(
+      `the separator answered a stem it does not name, ${unnamed}: its stems are [${names.join(', ')}]`,
+    )
+  }
 
   const limit = LOUDEST_STEM * peakOf(channels).peak + NEAR_SILENCE
-  const stems = {} as Record<StemName, Channels>
-  for (const name of STEM_NAMES) {
-    const stem = answer[name]
-    answer[name] = undefined
+  const stems = {} as Record<Name, Channels>
+  for (const name of names) {
+    const stem = answer.get(name)
+    answer.delete(name)
     if (stem?.length !== 2 || stem.some((channel) => channel.length !== modelFrames)) {
       throw new SeparationError(
         `the separator answered [${stem?.map((channel) => channel.length).join(', ') ?? 'nothing'}] for ${name}, ` +
@@ -115,10 +130,17 @@ export async function separateTrack(
         `the ${name} stem peaks at ${peak.toPrecision(3)}, more than 12 dB over the track`,
       )
     }
+    // Bringing a stem back to the track's rate takes seconds of a long
+    // track. A turn lets a page or a worker hear that the run is to stop,
+    // and the signal is looked at before the next stem.
+    if (resampled) {
+      await turn()
+      options.signal?.throwIfAborted()
+    }
   }
 
   const remainder = channels.map((channel, index) => {
-    const parts = STEM_NAMES.map((name) => stems[name][index])
+    const parts = names.map((name) => stems[name][index])
     const rest = new Float32Array(frames)
     for (let i = 0; i < frames; i += 1) {
       let sum = 0
@@ -131,6 +153,7 @@ export async function separateTrack(
   const remainderSquares = squaresOf(remainder)
   return {
     sampleRate,
+    names,
     stems,
     remainder,
     report: {

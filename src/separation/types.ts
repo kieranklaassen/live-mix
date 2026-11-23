@@ -1,6 +1,9 @@
 // What a separation is made of. A finished track goes in and comes back as
-// four stems and a remainder, the remainder being the track minus the four,
-// so the five added together are the track again.
+// its stems and a remainder, the remainder being the track minus every stem,
+// so the parts added together are the track again. A separator says which
+// stems it answers with, and one that says none answers the four: the types
+// here take the stems' names as a parameter that defaults to the four, so
+// what is written against four stems and a remainder reads as it did.
 
 /** The four stems, in the order a desk lists them. */
 export const STEM_NAMES = ['vocals', 'drums', 'bass', 'other'] as const
@@ -28,18 +31,30 @@ export interface SeparateOptions {
 }
 
 /**
- * Something that splits a track into its four stems. A model run in the
- * browser is one (`createSegmentSeparator`); a host that sends the track to a
+ * Something that splits a track into its stems. A model run in the browser
+ * is one (`createSegmentSeparator`); a host that sends the track to a
  * service of its own writes another.
  */
-export interface Separator {
+export interface Separator<Name extends string = StemName> {
   /** The sample rate the separator takes its sound at and returns its stems at. */
   readonly sampleRate: number
   /**
-   * Two channels at `sampleRate` in; for each stem, two channels of the same
-   * length out. The channels handed in are not written to.
+   * The stems the separator answers with, in the order a desk lists them. One
+   * that says none answers the four. A name is a lower-case letter, then
+   * lower-case letters, digits or hyphens, and `remainder` is no stem's name.
    */
-  separate(channels: Channels, options?: SeparateOptions): Promise<Record<StemName, Channels>>
+  readonly stems?: readonly Name[]
+  /**
+   * How many times a run over a track of `frames` frames, counted at
+   * `sampleRate`, calls `onProgress`. One that does not say is one step.
+   */
+  steps?(frames: number): number
+  /**
+   * Two channels at `sampleRate` in; for each stem, two channels of the same
+   * length out, and no stem the separator does not name. The channels handed
+   * in are not written to.
+   */
+  separate(channels: Channels, options?: SeparateOptions): Promise<Record<Name, Channels>>
 }
 
 /** What a run measured. */
@@ -57,11 +72,17 @@ export interface SeparationReport {
   resampled: boolean
 }
 
-/** A track as its four stems and a remainder, each at the track's rate, length and channel count. */
-export interface Separation {
+/** A track as its stems and a remainder, each at the track's rate, length and channel count. */
+export interface Separation<Name extends string = StemName> {
   sampleRate: number
-  stems: Record<StemName, Channels>
-  /** The track minus the four stems. */
+  /**
+   * The stems in order. `separateTrack` always says them. A separation
+   * written by hand may leave them out, and is then one of the four.
+   * `stemNames` and `partNames` read the order either way.
+   */
+  names?: readonly Name[]
+  stems: Record<Name, Channels>
+  /** The track minus every stem. */
   remainder: Channels
   report: SeparationReport
 }
