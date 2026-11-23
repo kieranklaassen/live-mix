@@ -637,6 +637,7 @@ const separationSymbols = [
   'createHybridModel',
   'createSegmentSeparator',
   'createWaveformModel',
+  'joinSeparators',
   'partNames',
   'separateTrack',
   'separationTracks',
