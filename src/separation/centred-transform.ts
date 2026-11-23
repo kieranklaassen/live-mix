@@ -12,8 +12,9 @@
 // counted over the reflected ends too, so a segment comes back whole from
 // its first frame to its last and not only in its middle.
 //
-// A size is a power of two or three times one, since one such model's size
-// is 6144.
+// A size is a power of two times 1, 3, 5 or 15: such models' sizes are 4096,
+// 5120, 6144, 7680, 8192 and 16384. A hop does not have to divide its size,
+// since the windows that cover a frame are counted frame by frame.
 
 import { Fft } from '../core/devices/native/cleanup/fft'
 import { SeparationError } from './types'
@@ -37,59 +38,74 @@ export interface CentredTransform {
 /** An unscaled complex transform of one size, in place. */
 type Turn = (re: Float64Array, im: Float64Array) => void
 
-/** The transform of `size` frames: a power of two, or three times one. */
+/** The odd numbers a size may be a power of two times. */
+const ODD_FACTORS: readonly number[] = [1, 3, 5, 15]
+
+/** What is left of a whole number from 1 with every factor of two taken out. */
+function oddFactor(size: number): number {
+  let odd = size
+  while (odd % 2 === 0) odd /= 2
+  return odd
+}
+
+/** The transform of `size` frames: a power of two times 1, 3, 5 or 15. */
 function createTurn(size: number): Turn {
-  if (size % 3 !== 0) {
+  const parts = size % 3 === 0 ? 3 : size % 5 === 0 ? 5 : 1
+  if (parts === 1) {
     const fft = new Fft(size)
     return (re, im) => {
       fft.forward(re, im)
     }
   }
-  // Every third frame from the first, from the second and from the third is
-  // a transform of a third of the size. Bin k of the whole is bin k of each
-  // of the three, counted round a third, with the second turned by k steps
-  // of the whole's circle and the third by 2k.
-  const third = size / 3
-  const fft = new Fft(third)
+  // A size with a factor of 3 or of 5 is that many transforms of the size
+  // without it: one of every third or fifth frame from the first, one from
+  // the second, and so on. Bin k of the whole is bin k of each part, counted
+  // round the part's size, with the part from frame r turned by r × k steps
+  // of the whole's circle. A size with both factors takes its thirds first,
+  // and each third its fifths.
+  const part = size / parts
+  const turnPart = createTurn(part)
   const cos = new Float64Array(size)
   const sin = new Float64Array(size)
   for (let k = 0; k < size; k += 1) {
     cos[k] = Math.cos((2 * Math.PI * k) / size)
     sin[k] = -Math.sin((2 * Math.PI * k) / size)
   }
-  const re0 = new Float64Array(third)
-  const im0 = new Float64Array(third)
-  const re1 = new Float64Array(third)
-  const im1 = new Float64Array(third)
-  const re2 = new Float64Array(third)
-  const im2 = new Float64Array(third)
+  const partRe = Array.from({ length: parts }, () => new Float64Array(part))
+  const partIm = Array.from({ length: parts }, () => new Float64Array(part))
   return (re, im) => {
-    for (let j = 0; j < third; j += 1) {
-      re0[j] = re[3 * j]
-      im0[j] = im[3 * j]
-      re1[j] = re[3 * j + 1]
-      im1[j] = im[3 * j + 1]
-      re2[j] = re[3 * j + 2]
-      im2[j] = im[3 * j + 2]
+    for (let r = 0; r < parts; r += 1) {
+      const real = partRe[r]
+      const imag = partIm[r]
+      for (let j = 0; j < part; j += 1) {
+        real[j] = re[parts * j + r]
+        imag[j] = im[parts * j + r]
+      }
+      turnPart(real, imag)
     }
-    fft.forward(re0, im0)
-    fft.forward(re1, im1)
-    fft.forward(re2, im2)
     for (let k = 0; k < size; k += 1) {
-      const j = k % third
-      const twice = (2 * k) % size
-      re[k] = re0[j] + re1[j] * cos[k] - im1[j] * sin[k] + re2[j] * cos[twice] - im2[j] * sin[twice]
-      im[k] = im0[j] + re1[j] * sin[k] + im1[j] * cos[k] + re2[j] * sin[twice] + im2[j] * cos[twice]
+      const j = k % part
+      let sumRe = partRe[0][j]
+      let sumIm = partIm[0][j]
+      let step = 0
+      for (let r = 1; r < parts; r += 1) {
+        step += k
+        if (step >= size) step -= size
+        const real = partRe[r][j]
+        const imag = partIm[r][j]
+        sumRe = sumRe + real * cos[step] - imag * sin[step]
+        sumIm = sumIm + real * sin[step] + imag * cos[step]
+      }
+      re[k] = sumRe
+      im[k] = sumIm
     }
   }
 }
 
-/** Whether `size` is 2^n or 3 × 2^n, with n from 1. */
+/** Whether `size` is 2^n times 1, 3, 5 or 15, with n from 1. */
 function isSize(size: number): boolean {
   if (!Number.isInteger(size) || size < 2 || size % 2 !== 0) return false
-  let odd = size
-  while (odd % 2 === 0) odd /= 2
-  return odd === 1 || odd === 3
+  return ODD_FACTORS.includes(oddFactor(size))
 }
 
 /**
@@ -104,13 +120,11 @@ export function createCentredTransform(
 ): CentredTransform {
   if (!isSize(size)) {
     throw new SeparationError(
-      `a centred transform's size (${size}) has to be 2^n or 3 × 2^n, with n from 1`,
+      `a centred transform's size (${size}) has to be 2^n times 1, 3, 5 or 15, with n from 1`,
     )
   }
-  if (!Number.isInteger(hop) || hop < 1 || size % hop !== 0) {
-    throw new SeparationError(
-      `a centred transform's hop (${hop}) has to be a whole number that divides its size (${size})`,
-    )
+  if (!Number.isInteger(hop) || hop < 1) {
+    throw new SeparationError(`a centred transform's hop (${hop}) has to be a whole number from 1`)
   }
   const half = size / 2
   if (!Number.isInteger(bins) || bins < 1 || bins > half + 1) {

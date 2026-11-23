@@ -20,9 +20,9 @@ import { SeparationError, type Channels, type ModelRuntime } from './types'
 export interface SpectrogramModelSpec<Name extends string = string> {
   /** The sample rate of the sound the model was trained on. */
   sampleRate: number
-  /** The size of the transform: a power of two, or three times one. */
+  /** The size of the transform: a power of two times 1, 3, 5 or 15. */
   fftSize: number
-  /** The frames from one frame of the transform to the next. It divides the size. */
+  /** The frames from one frame of the transform to the next. It does not have to divide the size. */
   hop: number
   /** How many of a frame's `fftSize / 2 + 1` bins the model takes, from the lowest up. */
   bins: number

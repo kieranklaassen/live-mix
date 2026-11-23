@@ -359,10 +359,10 @@ describe('a one-stem spectrogram model run through a host’s session', () => {
   })
 
   it('refuses a spec whose size the transform does not take, when the model is made', () => {
-    const spec = { ...SMALL, fftSize: 80, hop: 16, bins: 41 }
+    const spec = { ...SMALL, fftSize: 112, hop: 16, bins: 57 }
     const make = () => createSpectrogramModel({ Tensor, session: session(spec) }, spec)
     expect(make).toThrow(SeparationError)
-    expect(make).toThrow(/size \(80\)/)
+    expect(make).toThrow(/size \(112\)/)
     // And the transform's other refusals: here, more bins than a frame has.
     const bins = { ...SMALL, bins: 34 }
     expect(() => createSpectrogramModel({ Tensor, session: session(bins) }, bins)).toThrow(

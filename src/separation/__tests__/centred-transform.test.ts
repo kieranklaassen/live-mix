@@ -1,7 +1,7 @@
 // The transform a one-stem spectrogram model's segment goes through. Its
 // forward half is held here against a plain sum over every bin written out
-// from the definition, not against the code under test, so a size of three
-// times a power of two cannot be wrong in a way its own inverse would hide.
+// from the definition, not against the code under test, so a size with an
+// odd factor cannot be wrong in a way its own inverse would hide.
 
 import { describe, expect, it } from 'vitest'
 
@@ -111,14 +111,33 @@ describe('the centred transform of a segment', () => {
   })
 
   it.each([
-    { size: 8, hop: 2, segment: 22, part: 'a quarter' },
-    { size: 8, hop: 1, segment: 13, part: 'an eighth' },
-    { size: 12, hop: 3, segment: 21, part: 'a quarter' },
-    { size: 12, hop: 2, segment: 22, part: 'a sixth' },
-    { size: 6144, hop: 1536, segment: 4608, part: 'a quarter' },
-    { size: 6144, hop: 1024, segment: 4096, part: 'a sixth' },
+    // A power of two.
+    { size: 8, hop: 2, segment: 22 },
+    { size: 8, hop: 1, segment: 13 },
+    // Three times one.
+    { size: 12, hop: 3, segment: 21 },
+    { size: 12, hop: 2, segment: 22 },
+    { size: 6144, hop: 1536, segment: 4608 },
+    { size: 6144, hop: 1024, segment: 4096 },
+    // Five times one.
+    { size: 10, hop: 2, segment: 22 },
+    { size: 10, hop: 1, segment: 13 },
+    { size: 20, hop: 5, segment: 25 },
+    { size: 20, hop: 4, segment: 24 },
+    { size: 5120, hop: 1280, segment: 3840 },
+    { size: 5120, hop: 1024, segment: 3072 },
+    // Fifteen times one.
+    { size: 30, hop: 5, segment: 35 },
+    { size: 30, hop: 3, segment: 33 },
+    { size: 60, hop: 15, segment: 75 },
+    { size: 60, hop: 10, segment: 70 },
+    { size: 7680, hop: 1920, segment: 5760 },
+    // A hop that does not divide its size.
+    { size: 8, hop: 3, segment: 15 },
+    { size: 30, hop: 4, segment: 32 },
+    { size: 7680, hop: 1024, segment: 4096 },
   ])(
-    'is the plain sum over every bin and frame, at a size of $size with a hop of $part of it',
+    'is the plain sum over every bin and frame, at a size of $size with a hop of $hop',
     ({ size, hop, segment }) => {
       const x = noise(segment)
       const bins = size / 2 + 1
@@ -127,7 +146,8 @@ describe('the centred transform of a segment', () => {
       const out = new Float32Array(2 * bins * transform.frames)
       transform.forward(x, out, 0)
       // Single precision holds a value to about 6e-8 of itself. Measured:
-      // 5e-8 at worst, at a size of 8 with a hop of 1, and 4e-8 at 6144.
+      // 5e-8 at worst, at a size of 8 with a hop of 1, and under 4e-8 at
+      // 5120, 6144 and 7680.
       expect(worstAgainst(out, 0, slowForward(x, size, hop), bins, transform.frames)).toBeLessThan(
         2e-7,
       )
@@ -155,6 +175,8 @@ describe('the centred transform of a segment', () => {
     for (const [size, hop] of [
       [16, 4],
       [24, 4],
+      [20, 5],
+      [60, 10],
       [6144, 1024],
     ]) {
       const segment = 8 * size
@@ -176,16 +198,22 @@ describe('the centred transform of a segment', () => {
     { size: 12, hop: 2, segment: 60 },
     { size: 12, hop: 3, segment: 60 },
     { size: 16, hop: 8, segment: 64 },
+    { size: 10, hop: 2, segment: 60 },
+    { size: 60, hop: 10, segment: 120 },
+    { size: 8, hop: 3, segment: 66 },
     { size: 4096, hop: 1024, segment: 65536 },
     { size: 6144, hop: 1024, segment: 523264 },
+    { size: 5120, hop: 1024, segment: 261120 },
+    { size: 7680, hop: 1024, segment: 261120 },
   ])(
     'comes back from the inverse from frame 0 to the last with every bin kept, at $size and a hop of $hop',
     ({ size, hop, segment }) => {
       const x = noise(segment)
       const back = roundTrip(x, size, hop, size / 2 + 1)
-      // Measured: -156 dB at worst. With the windows' steady sum in the
-      // place of the windows that cover each frame: -43 dB to -17 dB, but at
-      // a hop of half the size, where no frame of a segment is short of one.
+      // Measured: -150 dB at worst, at 5120. With the windows' steady sum
+      // in the place of the windows that cover each frame: -61 dB to -17 dB,
+      // but at a hop of half the size, where no frame of a segment is short
+      // of one.
       expect(differenceDb(x, back)).toBeLessThan(-120)
     },
   )
@@ -270,18 +298,23 @@ describe('the centred transform of a segment', () => {
       expect(() => createCentredTransform(segment, size, hop, bins)).toThrow(words)
     }
 
-    it('a size that is neither a power of two nor three times one', () => {
-      refused(40, 10, 5, 6, /size \(10\)/)
+    it('a size that is not a power of two times 1, 3, 5 or 15', () => {
+      refused(56, 14, 7, 8, /size \(14\)/)
+      refused(448, 112, 16, 57, /size \(112\)/)
       refused(72, 18, 6, 10, /size \(18\)/)
-      refused(80, 20, 5, 11, /size \(20\)/)
+      refused(100, 50, 10, 26, /size \(50\)/)
+      // An odd size has no half to reflect.
       refused(9, 3, 1, 2, /size \(3\)/)
+      refused(30, 15, 5, 8, /size \(15\)/)
       expect(() => createCentredTransform(64, 16, 4, 9)).not.toThrow()
       expect(() => createCentredTransform(96, 24, 4, 13)).not.toThrow()
+      expect(() => createCentredTransform(40, 10, 5, 6)).not.toThrow()
+      expect(() => createCentredTransform(120, 30, 5, 16)).not.toThrow()
     })
 
-    it('a hop that does not divide the size', () => {
-      refused(30, 8, 3, 5, /hop \(3\).*size \(8\)/)
-      refused(40, 12, 5, 7, /hop \(5\).*size \(12\)/)
+    it('a hop that is not a whole number from 1', () => {
+      refused(30, 8, 0, 5, /hop \(0\)/)
+      refused(30, 8, 1.5, 5, /hop \(1\.5\)/)
     })
 
     it('more bins than a frame has', () => {
@@ -300,6 +333,7 @@ describe('the centred transform of a segment', () => {
 
     it('a hop under which a frame of the segment is covered by no window', () => {
       refused(64, 16, 16, 9, /hop of 16.*no window/)
+      refused(48, 16, 24, 9, /hop of 24.*no window/)
       expect(() => createCentredTransform(64, 16, 8, 9)).not.toThrow()
     })
   })
