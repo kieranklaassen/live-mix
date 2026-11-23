@@ -1,8 +1,8 @@
-// A separation laid on a score: the one step that adds its five tracks, the
-// sound each track plays, and what a render is told so that the untouched
-// tracks bounce back to the track. What the samples add up to is held in a
-// real browser (browser-tests/specs/separation.spec.ts): here, what the
-// score and the graph were told.
+// A separation laid on a score: the one step that adds a track for each of
+// its parts, the sound each track plays, and what a render is told so that
+// the untouched tracks bounce back to the track. What the samples add up to
+// is held in a real browser (browser-tests/specs/separation.spec.ts): here,
+// what the score and the graph were told.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -16,9 +16,10 @@ import {
   createMockOfflineContext,
   type MockOfflineAudioContext,
 } from '../../testing'
+import { partNames } from '../names'
 import { separationTracks, type SeparationTracksOptions } from '../tracks'
-import { PART_NAMES, type Channels, type Separation } from '../types'
-import { noise, peak } from './support'
+import { PART_NAMES, SeparationError, type Channels, type Separation } from '../types'
+import { differenceDb, noise, peak } from './support'
 
 const mockBuffers: SeparationTracksOptions = {
   createBuffer: (channels, length, sampleRate) =>
@@ -38,6 +39,99 @@ function separation(frames: number, sampleRate = 44100, channelCount = 2): Separ
     report: { remainderDb: -20, remainderPeak: 0.3, modelSampleRate: 44100, resampled: false },
   }
 }
+
+/** Six stems, as a model of six answers them. */
+const SIX = ['vocals', 'drums', 'bass', 'guitar', 'piano', 'other'] as const
+
+/** Ten stems: the four with the vocals split in two and the drums in four, each split followed by what it left. */
+const TEN = [
+  'lead-vocals',
+  'backing-vocals',
+  'vocals',
+  'kick',
+  'snare',
+  'toms',
+  'cymbals',
+  'drums',
+  'bass',
+  'other',
+] as const
+
+/**
+ * A separation written by hand of the stems `names` and a remainder, with the
+ * track they add up to. Each part is noise standing on a level, so it starts
+ * and ends away from zero, and every sample is a whole number of 256ths, so
+ * the parts add up in single precision with nothing rounded, in any order.
+ */
+function parted<Name extends string>(
+  names: readonly Name[],
+  frames = 1000,
+): { parts: Separation<Name>; track: Channels } {
+  const part = (seed: number): Channels =>
+    [0, 1].map((channel) =>
+      noise(frames, seed * 10 + channel).map((sample) => (Math.round(sample * 8) + 48) / 256),
+    )
+  const stems = {} as Record<Name, Channels>
+  names.forEach((name, index) => {
+    stems[name] = part(index + 1)
+  })
+  const remainder = part(names.length + 1)
+  const track = remainder.map((channel, index) => {
+    const sum = Float32Array.from(channel)
+    for (const name of names) {
+      stems[name][index].forEach((sample, frame) => {
+        sum[frame] += sample
+      })
+    }
+    return sum
+  })
+  return {
+    parts: {
+      sampleRate: 44100,
+      names,
+      stems,
+      remainder,
+      report: { remainderDb: -20, remainderPeak: 0.3, modelSampleRate: 44100, resampled: false },
+    },
+    track,
+  }
+}
+
+/** A score that holds one audio track, `id`. */
+function scoreWithTrack(id: string) {
+  const score = createScore()
+  score.tracks = [
+    {
+      kind: 'audio',
+      id,
+      name: 'Held',
+      destination: masterDestination(),
+      strip: defaultStrip(),
+      clips: [],
+    },
+  ]
+  return score
+}
+
+const MORE_PARTS = [
+  { names: SIX, called: ['Vocals', 'Drums', 'Bass', 'Guitar', 'Piano', 'Other', 'Remainder'] },
+  {
+    names: TEN,
+    called: [
+      'Lead vocals',
+      'Backing vocals',
+      'Vocals',
+      'Kick',
+      'Snare',
+      'Toms',
+      'Cymbals',
+      'Drums',
+      'Bass',
+      'Other',
+      'Remainder',
+    ],
+  },
+]
 
 describe('a separation laid on a score', () => {
   it('adds five sources and five audio tracks, a clip on each, as one step', () => {
@@ -131,7 +225,12 @@ describe('a separation laid on a score', () => {
         const silent = [new Float32Array(frames), new Float32Array(frames)]
         const { render } = separationTracks(
           createScore(),
-          { ...separation(1), sampleRate, remainder: silent },
+          {
+            ...separation(1),
+            sampleRate,
+            stems: { vocals: silent, drums: silent, bass: silent, other: silent },
+            remainder: silent,
+          },
           { createBuffer: () => ({ copyToChannel() {} }) as unknown as AudioBuffer },
         )
         expect(Math.ceil(render.durationSec * render.sampleRate)).toBe(frames)
@@ -150,10 +249,171 @@ describe('a separation laid on a score', () => {
     expect(() => separationTracks(createScore(), separation(1000))).toThrow(/createBuffer/)
   })
 
+  for (const { names, called } of MORE_PARTS) {
+    it(`lays ${names.length + 1} parts as that many tracks, the stems in the separation’s order and the remainder last, as one step`, () => {
+      const { parts } = parted<string>(names)
+      const order = [...names, 'remainder']
+      const laid = separationTracks(createScore(), parts, mockBuffers)
+      expect(laid.operation).toMatchObject({ type: 'batch', label: 'Add stems' })
+      const document = new ScoreDocument(createScore())
+      document.apply(laid.operation)
+      const { score } = document
+      expect(score.sources.map((source) => source.id)).toEqual(order)
+      expect(score.tracks.map((track) => [track.id, track.name, track.kind])).toEqual(
+        order.map((id, index) => [id, called[index], 'audio']),
+      )
+      expect([...laid.buffers.keys()]).toEqual(order)
+      // The order a caller reads is the order the tracks were laid in.
+      expect(partNames(parts)).toEqual(order)
+      for (const name of partNames(parts)) {
+        expect(laid.parts[name]).toEqual({ trackId: name, sourceId: name })
+      }
+
+      document.undo()
+      expect(document.score.tracks).toEqual([])
+      expect(document.score.sources).toEqual([])
+    })
+  }
+
+  it('refuses a separation written by hand with six stems and no names, by the fifth, and lays nothing', () => {
+    const four = separation(1000)
+    const six = {
+      ...four,
+      stems: { ...four.stems, guitar: four.stems.other, piano: four.stems.other },
+    }
+    const createBuffer = vi.fn(mockBuffers.createBuffer)
+    const lay = () => separationTracks(createScore(), six, { createBuffer })
+    expect(lay).toThrow(SeparationError)
+    expect(lay).toThrow(/\bguitar\b/)
+    expect(createBuffer).not.toHaveBeenCalled()
+  })
+
+  it('puts one suffix on every part where the score holds the id of one', () => {
+    const document = new ScoreDocument(scoreWithTrack('kick'))
+    const laid = separationTracks(document.score, parted(['kick', 'snare']).parts, mockBuffers)
+    document.apply(laid.operation)
+    expect(laid.parts).toEqual({
+      kick: { trackId: 'kick-2', sourceId: 'kick-2' },
+      snare: { trackId: 'snare-2', sourceId: 'snare-2' },
+      remainder: { trackId: 'remainder-2', sourceId: 'remainder-2' },
+    })
+    expect(document.score.tracks.map((track) => track.id)).toEqual([
+      'kick',
+      'kick-2',
+      'snare-2',
+      'remainder-2',
+    ])
+  })
+
+  it('puts the suffix on every part where a stem has the name a score keeps for its master', () => {
+    const laid = separationTracks(createScore(), parted(['vocals', 'master']).parts, mockBuffers)
+    const document = new ScoreDocument(createScore())
+    document.apply(laid.operation)
+    expect(document.score.tracks.map((track) => track.id)).toEqual([
+      'vocals-2',
+      'master-2',
+      'remainder-2',
+    ])
+    expect(document.score.sources.map((source) => source.id)).toEqual([
+      'vocals-2',
+      'master-2',
+      'remainder-2',
+    ])
+    expect(laid.parts.master).toEqual({ trackId: 'master-2', sourceId: 'master-2' })
+  })
+
+  it('gives stems named vocals and vocals-2 ids of their own on a score that holds vocals', () => {
+    const document = new ScoreDocument(scoreWithTrack('vocals'))
+    const laid = separationTracks(document.score, parted(['vocals', 'vocals-2']).parts, mockBuffers)
+    document.apply(laid.operation)
+    expect(laid.parts).toEqual({
+      vocals: { trackId: 'vocals-2', sourceId: 'vocals-2' },
+      'vocals-2': { trackId: 'vocals-2-2', sourceId: 'vocals-2-2' },
+      remainder: { trackId: 'remainder-2', sourceId: 'remainder-2' },
+    })
+    expect(document.score.tracks.map((track) => track.id)).toEqual([
+      'vocals',
+      'vocals-2',
+      'vocals-2-2',
+      'remainder-2',
+    ])
+  })
+
+  it('refuses a part of another length or channel count than the remainder, by its name', () => {
+    const whole = separation(1000)
+    const createBuffer = vi.fn(mockBuffers.createBuffer)
+    const withStem = (name: 'vocals' | 'drums' | 'bass' | 'other', channels: Channels) => () =>
+      separationTracks(
+        createScore(),
+        { ...whole, stems: { ...whole.stems, [name]: channels } },
+        { createBuffer },
+      )
+    const [left, right] = whole.stems.other
+
+    const short = withStem('bass', [left.subarray(0, 999), right.subarray(0, 999)])
+    expect(short).toThrow(SeparationError)
+    expect(short).toThrow(/\bbass\b.*\b999\b.*\b1000\b/)
+    // One channel of two is enough.
+    const long = withStem('drums', [left, new Float32Array(1001)])
+    expect(long).toThrow(/\bdrums\b.*\b1001\b.*\b1000\b/)
+
+    const mono = withStem('other', [left])
+    expect(mono).toThrow(SeparationError)
+    expect(mono).toThrow(/\bother\b.*\b1\b.*\b2\b/)
+    const three = withStem('vocals', [left, right, left])
+    expect(three).toThrow(/\bvocals\b.*\b3\b.*\b2\b/)
+
+    expect(createBuffer).not.toHaveBeenCalled()
+  })
+
+  it('names a track after its stem, with a capital first letter and a space for each hyphen', () => {
+    const laid = separationTracks(
+      createScore(),
+      parted(['guitar', 'lead-vocals']).parts,
+      mockBuffers,
+    )
+    const document = new ScoreDocument(createScore())
+    document.apply(laid.operation)
+    expect(document.score.tracks.map((track) => track.name)).toEqual([
+      'Guitar',
+      'Lead vocals',
+      'Remainder',
+    ])
+  })
+
   describe('rendered', () => {
     let contexts: MockOfflineAudioContext[] = []
     const createContext: OfflineContextFactory = (options) => {
       const ctx = createMockOfflineContext(options)
+      contexts.push(ctx)
+      return ctx as unknown as ReturnType<OfflineContextFactory>
+    }
+
+    /**
+     * The bounce of a context that adds up what it was told to play: every
+     * source's buffer from the frame it was started at. A level is not in the
+     * sum, so a case that reads it holds the levels beside it.
+     */
+    function played(ctx: MockOfflineAudioContext): MockAudioBuffer {
+      const bounce = new MockAudioBuffer(ctx.numberOfChannels, ctx.length, ctx.sampleRate)
+      for (const { buffer, startCalls } of ctx.sources) {
+        if (buffer === null) continue
+        for (const [when, offset] of startCalls.calls as number[][]) {
+          const at = Math.round(when * ctx.sampleRate)
+          const from = Math.round(offset * ctx.sampleRate) - at
+          for (let channel = 0; channel < ctx.numberOfChannels; channel += 1) {
+            const sound = buffer.getChannelData(channel)
+            const sum = bounce.getChannelData(channel)
+            for (let frame = at; frame < sum.length && from + frame < sound.length; frame += 1) {
+              sum[frame] += sound[from + frame]
+            }
+          }
+        }
+      }
+      return bounce
+    }
+    const createSummingContext: OfflineContextFactory = (options) => {
+      const ctx = createMockOfflineContext({ ...options, render: played })
       contexts.push(ctx)
       return ctx as unknown as ReturnType<OfflineContextFactory>
     }
@@ -169,16 +429,21 @@ describe('a separation laid on a score', () => {
     })
 
     /** What each voice's level was told up to the end of the track, once the tracks are rendered. */
-    async function told(laid: ReturnType<typeof separationTracks>, endSec: number) {
+    async function told(
+      laid: ReturnType<typeof separationTracks>,
+      endSec: number,
+      context = createContext,
+    ) {
       const document = new ScoreDocument(createScore())
       document.apply(laid.operation)
-      await renderScore(document.score, {
+      const { buffer } = await renderScore(document.score, {
         ...laid.render,
-        createContext,
+        createContext: context,
         renderer: { resolveSource: laid.resolveSource },
       })
       const snapshot = contexts[0].scheduleSnapshot()
       return {
+        bounce: buffer,
         sources: snapshot.sources,
         levels: snapshot.params.map((param) =>
           param.events
@@ -199,6 +464,27 @@ describe('a separation laid on a score', () => {
       // Held at 1 from the first frame to the last: whatever a voice is told after that is past the bounce.
       expect(levels).toEqual(new Array(5).fill(['setValueAtTime 1', 'setValueAtTime 1']))
     })
+
+    for (const { names } of MORE_PARTS) {
+      const count = names.length + 1
+      it(`plays ${count} parts from the start at full level, and what is played adds up to the track`, async () => {
+        const { parts, track } = parted<string>(names, 44100)
+        const laid = separationTracks(createScore(), parts, mockBuffers)
+        const { sources, levels, bounce } = await told(laid, 1, createSummingContext)
+        expect(sources).toHaveLength(count)
+        for (const source of sources) {
+          expect(source.start[0].slice(0, 2)).toEqual([0, 0])
+          expect(source.bufferLength).toBe(44100 + 882)
+        }
+        expect(levels).toEqual(new Array(count).fill(['setValueAtTime 1', 'setValueAtTime 1']))
+        expect(bounce).toMatchObject({ numberOfChannels: 2, length: 44100, sampleRate: 44100 })
+        for (const channel of [0, 1]) {
+          // Each part stands near 0.19, so a track of seven or more is past full scale and far from silence.
+          expect(peak(track[channel])).toBeGreaterThan(1)
+          expect(differenceDb(bounce.getChannelData(channel), track[channel])).toBe(-Infinity)
+        }
+      })
+    }
 
     it('would be eased in without the silence after it, which is what the silence is for', async () => {
       // The same parts in buffers that end where the sound does. A part that
