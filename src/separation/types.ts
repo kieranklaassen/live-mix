@@ -57,6 +57,25 @@ export interface Separator<Name extends string = StemName> {
   separate(channels: Channels, options?: SeparateOptions): Promise<Record<Name, Channels>>
 }
 
+/** What a split of one part measured. */
+export interface SplitReport {
+  /** The part that was split. */
+  part: string
+  /** What stands in its place, in order: the second separator's stems, then what they leave of the part. */
+  names: readonly string[]
+  /**
+   * The level of what is left against the part's, in dB, both as the mean
+   * square over every channel. `-Infinity` when the stems add up to the part.
+   */
+  restDb: number
+  /** The largest sample of what is left. */
+  restPeak: number
+  /** The sample rate the second separator worked at. */
+  modelSampleRate: number
+  /** Whether the part was resampled to that rate, and its stems back. */
+  resampled: boolean
+}
+
 /** What a run measured. */
 export interface SeparationReport {
   /**
@@ -70,6 +89,12 @@ export interface SeparationReport {
   modelSampleRate: number
   /** Whether the track was resampled to that rate, and the stems back. */
   resampled: boolean
+  /**
+   * One entry for each split made of the separation's parts, in the order
+   * they were made. Absent until a part is split. A split leaves the four
+   * figures above as they were: the remainder is not touched by one.
+   */
+  splits?: readonly SplitReport[]
 }
 
 /** A track as its stems and a remainder, each at the track's rate, length and channel count. */

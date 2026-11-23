@@ -640,6 +640,7 @@ const separationSymbols = [
   'partNames',
   'separateTrack',
   'separationTracks',
+  'splitPart',
   'stemNames',
 ] as const
 

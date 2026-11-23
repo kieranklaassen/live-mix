@@ -14,6 +14,7 @@
  */
 
 export { separateTrack } from './separate'
+export { splitPart, type SplitOptions } from './split'
 export { partNames, stemNames } from './names'
 export { createSegmentSeparator, type SegmentModel, type SegmentSeparatorOptions } from './segments'
 export { HYBRID_MODEL_SPEC, createHybridModel, type HybridModelSpec } from './hybrid-model'
@@ -32,5 +33,6 @@ export {
   type SeparationProgress,
   type SeparationReport,
   type Separator,
+  type SplitReport,
   type StemName,
 } from './types'
