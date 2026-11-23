@@ -80,18 +80,24 @@ A lesson's number is its place in the map, and its family gives its page and its
 
 ### Stem
 
-One of the four sounds a finished track is taken apart into: vocals, drums, bass, and other, which is everything a model does not put in the first three.
+One of the sounds a finished track is taken apart into, each under a name. A separator that names none answers four: vocals, drums, bass, and other, which is everything a model does not put in the first three. One that names its own answers those: a guitar, a piano, a kick.
 
-A stem has the track's sample rate, length and channel count. It is a model's answer and can be wrong: a voice in the drums, a cymbal in the other. The engine also calls the tracks of a mix bounced one at a time stems (`renderStems`). Those are made by the desk and are exact.
+A stem has the track's sample rate, length and channel count. It is a model's answer and can be wrong: a voice in the drums, a cymbal in the other. Its name is a lower-case letter followed by lower-case letters, digits or hyphens, and serves as the stem's key, its id on a score and its file name. The engine also calls the tracks of a mix bounced one at a time stems (`renderStems`). Those are made by the desk and are exact.
 
 ### Remainder
 
-The track minus its four Stems, sample by sample: the fifth part of a separation.
+The track minus every Stem, sample by sample: the last part of a separation, and the one part no Separator gives.
 
-The four stems and the remainder added together are the track, whatever the stems got wrong, so a separation laid on a score and left untouched bounces back to the track. What a model missed, what two resamplings lost and a recording's offset from zero are all in the remainder. It is a track on the desk like the others and is not an error.
+The stems and the remainder added together are the track, whatever the stems got wrong and however many there are, so a separation laid on a score and left untouched bounces back to the track. What a model missed, what lies above the frequency a model is cut off at, what two resamplings lost and a recording's offset from zero are all in the remainder. A separation has one, and a Split leaves it as it is. It is a track on the desk like the others and is not an error.
 
 ### Separator
 
-Whatever takes a track at one sample rate, in two channels, and answers with its four Stems.
+Whatever takes a track at one sample rate, in two channels, and answers with the Stems it names.
 
-A model run a segment at a time in the browser is one, and so is a host's call to a service of its own. The Remainder is never a separator's to give: it is taken from the track and the stems after the separator has answered.
+A model run a segment at a time in the browser is one, so is a host's call to a service of its own, and so are several separators joined as one, each kept for some of its stems. One that names no stems answers the four. The Remainder is never a separator's to give: it is taken from the track and the stems after the separator has answered.
+
+### Split
+
+One part of a separation taken apart further by a second Separator: the drums into a kick, a snare, toms and cymbals.
+
+The part is replaced, in its place, by the second separator's Stems and by what they leave of the part. Those add up to the part, so the parts still add up to the track, and the Remainder is not touched. What is left keeps the part's own name unless the host gives it another: after a split of the drums, the part named drums is only what the kick, the snare, the toms and the cymbals left of them.

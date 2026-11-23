@@ -96,6 +96,39 @@ Decided while it was built ([separation.md](./separation.md)).
 - **The model's reference is followed, but for the mean.** The reference adds
   the track's mean to every stem. Here it stays out of the stems.
 
+Decided when the entry took more stems than four (2026-11-23).
+
+- **The stem list is a type parameter that defaults to the four.**
+  `Separator`, `SegmentModel`, `Separation`, `SeparationTracks` and
+  `HybridModelSpec` take the stems' names as a parameter, and `STEM_NAMES`,
+  `StemName`, `PART_NAMES` and `PartName` stay the four and the five. A host
+  written against four stems and a remainder compiles and behaves as it did.
+  Widening `StemName` to any string would have slackened the types of every
+  such host, and a parameter with no default would have failed them.
+- **Names travel as optional lists, read in one place.** A separator's and a
+  model's `stems` and a separation's `names` may be left out, and absent
+  means the four. `stemNames` and `partNames` read a separation's order and
+  refuse one whose record is not its names, so a separation written by hand
+  with other stems and no names is never read as the four.
+- **An answer is held to its list.** A stem a separator answers and does not
+  name is refused by that stem's name. Left alone it would be in the
+  remainder without a word, which is where two stems of a six-part model run
+  without its list would have gone.
+- **What a split leaves keeps the part's name.** After `drums` is split, the
+  part named `drums` is what the sub-stems left of it, and the separation's
+  one remainder is not touched. Folding the rest into the remainder would
+  move part of the drums out of the drums. The cost is that a setting a host
+  keeps under the part's name lands on the leftover: `options.rest` gives it
+  another name. Whether the default should be a name of its own, such as
+  `drums-rest`, is open.
+- **More passes live in the segment runner.** Every pass adds into the same
+  weighted sums, so nothing is held twice, and the offsets come from a seed
+  and the pass's number, so a run is the same twice. One pass draws nothing
+  and is the run the entry made before.
+- **No constant for a six-part spec.** Published exports disagree on the
+  order of their last two stems, so a host writes the spec from its own
+  file.
+
 ## Still open (owned by a unit)
 
 - The session grid's `format: 3` and a scheduler-driven `StretchTrack` when
@@ -103,5 +136,9 @@ Decided while it was built ([separation.md](./separation.md)).
 - Felt's iPhone CPU measurement (U37); the meter/ducker iPhone budget (U16/U17).
 - Whether kkfonie vendors `cpp/` instead of keeping copies (KTD10).
 - Whether the offline renderer retires the tuin pipeline (U38; Kieran's call).
-- Stem separation: a model kind whose weights carry a stated license, a run
-  of a real model in a browser and on a graphics card, and a first listen.
+- Stem separation: weights whose license settles what a product may serve,
+  a run of a real model in a browser and on a graphics card, a waveform
+  export run with a real file, a figure against reference stems, a first
+  listen, the host's desk taking any number of
+  parts, a joined set whose separators run at different sample rates, and
+  whether what a split leaves should have a name of its own by default.

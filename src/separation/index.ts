@@ -1,7 +1,11 @@
 /**
- * `@kieranklaassen/live-mix/separation`: a finished track as four stems and a
- * remainder, and those five laid on a score as tracks that bounce back to
- * the track.
+ * `@kieranklaassen/live-mix/separation`: a finished track as the stems a
+ * separator names and a remainder, and those parts laid on a score as tracks
+ * that bounce back to the track. A separator that names none answers the four
+ * stems. Separators are joined into one, a part is split by a second
+ * separator, and a model can go over a track more than once. A model is one
+ * of three kinds: a hybrid model, one that answers every stem's sound, and
+ * one that answers one stem's spectrogram.
  *
  * An entry of its own on purpose. A model is run through an ONNX runtime,
  * which the library never imports: the host loads `onnxruntime-web`, makes
