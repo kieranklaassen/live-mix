@@ -14,9 +14,9 @@ const STRIDE = 750
 const silence = (length: number): Channels => [new Float32Array(length), new Float32Array(length)]
 
 /** A model that answers with what it was given as "other" and silence as the rest. */
-function passing(calls: Channels[] = []): SegmentModel {
+function passing(calls: Channels[] = [], sampleRate = 44100): SegmentModel {
   return {
-    sampleRate: 44100,
+    sampleRate,
     segmentFrames: SEGMENT,
     run: (segment) => {
       calls.push(segment.map((channel) => channel.slice()))
@@ -335,6 +335,267 @@ describe('a model that names its stems, run over a whole track', () => {
         Array.from({ length: steps }, (_unused, index) => index + 1),
       )
       expect(seen.every(({ total }) => total === steps)).toBe(true)
+    },
+  )
+})
+
+/**
+ * A model that answers "other" as what it was given plus a ramp along the
+ * segment, from 0 at its first frame up to 1, so that where a frame sits in
+ * its segment shows in the answer.
+ */
+function ramped(calls: Channels[] = [], sampleRate = 44100): SegmentModel {
+  return {
+    sampleRate,
+    segmentFrames: SEGMENT,
+    run: (segment) => {
+      calls.push(segment.map((channel) => channel.slice()))
+      return Promise.resolve({
+        vocals: silence(SEGMENT),
+        drums: silence(SEGMENT),
+        bass: silence(SEGMENT),
+        other: segment.map((channel) => channel.map((sample, i) => sample + i / SEGMENT)),
+      })
+    },
+  }
+}
+
+/** The frames of silence a channel begins with. */
+function silentHead(channel: Float32Array): number {
+  const at = channel.findIndex((sample) => sample !== 0)
+  return at < 0 ? channel.length : at
+}
+
+/** The segments of a pass over `length` frames with `lead` frames of silence in front. */
+const segmentsOf = (length: number, lead: number): number => Math.ceil((length + lead) / STRIDE)
+
+/**
+ * The silence each pass had in front of the track, read off what a model was
+ * fed. The first pass has none. A later pass's is the count of silent frames
+ * before the track's first, over as many segments as they fill, and the pass
+ * is as many segments as that silence and the track take. `length` is at
+ * least a segment, so the segment the track starts in is a whole one and not
+ * a short piece sat in its middle.
+ */
+function leadsFed(calls: Channels[], length: number): number[] {
+  const leads: number[] = []
+  let at = 0
+  while (at < calls.length) {
+    let lead = 0
+    if (leads.length > 0) {
+      let silent = 0
+      while (silentHead(calls[at + silent][0]) === SEGMENT) silent += 1
+      lead = silent * STRIDE + silentHead(calls[at + silent][0])
+    }
+    leads.push(lead)
+    at += segmentsOf(length, lead)
+  }
+  return leads
+}
+
+/** A model's rate at which half a second is 500 frames: the most silence a pass has in front, and less than a segment. */
+const SLOW = 1000
+
+describe('a track run more than once, at offsets drawn from a seed', () => {
+  const runs = [400, 751, 4321].flatMap((length) =>
+    [1, 2, 5].flatMap((shifts) =>
+      [44100, 48000].map((sampleRate) => ({ length, shifts, sampleRate })),
+    ),
+  )
+
+  it.each(runs)(
+    'gives back a track of $length frames as the model answered it, run $shifts times at $sampleRate Hz',
+    async ({ length, shifts, sampleRate }) => {
+      const track = [noise(length, 41), noise(length, 42)]
+      const calls: Channels[] = []
+      const separator = createSegmentSeparator(passing(calls, sampleRate), { shifts })
+      const stems = await separator.separate(track)
+      const { mean } = standard(track)
+      for (const channel of [0, 1]) {
+        expect(stems.other[channel].length).toBe(length)
+        const about = track[channel].map((sample) => sample - mean)
+        expect(differenceDb(stems.other[channel], about)).toBeLessThan(-120)
+        expect(peak(stems.vocals[channel])).toBe(0)
+      }
+      expect(calls.length).toBeGreaterThanOrEqual(shifts * Math.ceil(length / STRIDE))
+      expect(calls.length).toBe(separator.steps?.(length))
+    },
+  )
+
+  it('gives another answer with a second run where a frame’s place in its segment shows, the same for the same seed and another for another', async () => {
+    const track = [noise(4321, 43), noise(4321, 44)]
+    const once = await createSegmentSeparator(ramped()).separate(track)
+    const twice = await createSegmentSeparator(ramped(), { shifts: 2 }).separate(track)
+    const again = await createSegmentSeparator(ramped(), { shifts: 2 }).separate(track)
+    const seeded = await createSegmentSeparator(ramped(), { shifts: 2, seed: 0 }).separate(track)
+    const other = await createSegmentSeparator(ramped(), { shifts: 2, seed: 1 }).separate(track)
+    for (const channel of [0, 1]) {
+      // Measured: two runs are 19.6 dB under full scale from one, and the
+      // two seeds 27 dB from each other. A second run on the first one's
+      // grid measured 144 dB under, which is rounding.
+      expect(differenceDb(twice.other[channel], once.other[channel])).toBeGreaterThan(-40)
+      expect(again.other[channel]).toEqual(twice.other[channel])
+      expect(seeded.other[channel]).toEqual(twice.other[channel])
+      expect(differenceDb(other.other[channel], twice.other[channel])).toBeGreaterThan(-40)
+    }
+  })
+
+  it('brings a seed to a whole number', async () => {
+    const track = [noise(4321, 45), noise(4321, 46)]
+    const run = (seed: number): Promise<Record<StemName, Channels>> =>
+      createSegmentSeparator(ramped(), { shifts: 3, seed }).separate(track)
+    const whole = await run(2)
+    const between = await run(2.7)
+    const none = await run(Number.NaN)
+    const zero = await run(0)
+    for (const channel of [0, 1]) {
+      expect(between.other[channel]).toEqual(whole.other[channel])
+      expect(none.other[channel]).toEqual(zero.other[channel])
+      expect(differenceDb(whole.other[channel], zero.other[channel])).toBeGreaterThan(-40)
+    }
+  })
+
+  it('runs once as it does with no count of runs, whatever the seed', async () => {
+    const track = [noise(4321, 47), noise(4321, 48)]
+    const calls: Channels[] = []
+    const plain = await createSegmentSeparator(ramped()).separate(track)
+    const one = await createSegmentSeparator(ramped(calls), { shifts: 1, seed: 99 }).separate(track)
+    for (const name of STEM_NAMES) {
+      for (const channel of [0, 1]) expect(one[name][channel]).toEqual(plain[name][channel])
+    }
+    expect(peak(plain.other[0])).toBeGreaterThan(0)
+    expect(calls.length).toBe(6)
+  })
+
+  it('draws each later run’s offset from 0 to half a second, both ends among them, and the first run’s is 0', async () => {
+    const length = 3000
+    const track = [noise(length, 49), noise(length, 50)]
+    const calls: Channels[] = []
+    await createSegmentSeparator(passing(calls, SLOW), { shifts: 41 }).separate(track)
+    const leads = leadsFed(calls, length)
+    expect(leads.length).toBe(41)
+    expect(leads[0]).toBe(0)
+    for (const lead of leads) {
+      expect(lead).toBeGreaterThanOrEqual(0)
+      expect(lead).toBeLessThanOrEqual(500)
+    }
+    // Each run's offset is its own.
+    expect(new Set(leads.slice(1)).size).toBeGreaterThan(1)
+
+    // At 5 frames a second, half a second is two and a half frames: an
+    // offset is 0, 1 or 2, and forty draws give each of them.
+    const few: Channels[] = []
+    await createSegmentSeparator(passing(few, 5), { shifts: 41 }).separate(track)
+    const small = leadsFed(few, length)
+    expect(small[0]).toBe(0)
+    expect([...new Set(small.slice(1))].sort()).toEqual([0, 1, 2])
+  })
+
+  it('draws the same offsets for a second track and in a second separator of the same seed, and others for another seed', async () => {
+    const fed = async (seed: number, length: number, from?: Channels[]): Promise<number[]> => {
+      const calls = from ?? []
+      const first = calls.length
+      const separator = createSegmentSeparator(passing(calls, SLOW), { shifts: 4, seed })
+      await separator.separate([noise(length, 51), noise(length, 52)])
+      return leadsFed(calls.slice(first), length)
+    }
+    const calls: Channels[] = []
+    const separator = createSegmentSeparator(passing(calls, SLOW), { shifts: 4, seed: 3 })
+    await separator.separate([noise(3000, 53), noise(3000, 54)])
+    const first = leadsFed(calls, 3000)
+    const firstCalls = calls.length
+    await separator.separate([noise(2500, 55), noise(2500, 56)])
+    const second = leadsFed(calls.slice(firstCalls), 2500)
+    expect(first.length).toBe(4)
+    expect(second).toEqual(first)
+    expect(await fed(3, 3000)).toEqual(first)
+    expect(await fed(4, 3000)).not.toEqual(first)
+  })
+
+  it('hands a later run that much silence before the track, at the one scale of every run', async () => {
+    const length = 3000
+    // A track that stands off zero: silence in front of it would move its
+    // mean and its deviation, were they taken again for a run.
+    const track = [
+      noise(length, 57).map((v) => v * 0.1 + 0.2),
+      noise(length, 58).map((v) => v * 0.1),
+    ]
+    const calls: Channels[] = []
+    await createSegmentSeparator(passing(calls, SLOW), { shifts: 3, seed: 11 }).separate(track)
+    const { mean, deviation } = standard(track)
+    const leads = leadsFed(calls, length)
+    expect(leads.length).toBe(3)
+    expect(calls[0][0][17]).toBeCloseTo((track[0][17] - mean) / deviation, 4)
+    // The first segment of the second run, and of the third.
+    const second = segmentsOf(length, 0)
+    const firsts = [second, second + segmentsOf(length, leads[1])]
+    for (const [index, lead] of leads.slice(1).entries()) {
+      expect(lead).toBeGreaterThan(0)
+      const segment = calls[firsts[index]]
+      for (const channel of [0, 1]) {
+        expect(silentHead(segment[channel])).toBe(lead)
+        for (const frame of [0, 17, 499]) {
+          expect(segment[channel][lead + frame]).toBeCloseTo(
+            (track[channel][frame] - mean) / deviation,
+            4,
+          )
+        }
+      }
+    }
+  })
+
+  it.each([
+    ['at a rate where every offset is less than a segment', SLOW, 3000, 3],
+    ['at 44.1 kHz', 44100, 4321, 4],
+  ])(
+    'counts its steps across every run %s: the count it said before, and the segments it was fed',
+    async (_name, sampleRate, length, shifts) => {
+      const calls: Channels[] = []
+      const separator = createSegmentSeparator(passing(calls, sampleRate), { shifts, seed: 7 })
+      const said = separator.steps?.(length)
+      const seen: { done: number; total: number }[] = []
+      await separator.separate([noise(length, 59), noise(length, 60)], {
+        onProgress: (progress) => seen.push({ ...progress }),
+      })
+      const leads = leadsFed(calls, length)
+      expect(leads.length).toBe(shifts)
+      const segments = leads.reduce((sum, lead) => sum + segmentsOf(length, lead), 0)
+      expect(calls.length).toBe(segments)
+      expect(said).toBe(segments)
+      expect(separator.steps?.(length)).toBe(segments)
+      expect(seen.map(({ done }) => done)).toEqual(
+        Array.from({ length: segments }, (_unused, index) => index + 1),
+      )
+      expect(seen.every(({ total }) => total === segments)).toBe(true)
+    },
+  )
+
+  it('stops when its signal fires in the second run, and a run after it draws as one that was never stopped', async () => {
+    const track = [noise(3000, 61), noise(3000, 62)]
+    const controller = new AbortController()
+    const calls: Channels[] = []
+    const separator = createSegmentSeparator(ramped(calls, SLOW), { shifts: 3 })
+    // The first run of 3000 frames is four segments: the sixth is in the second.
+    const run = separator.separate(track, {
+      signal: controller.signal,
+      onProgress: ({ done }) => {
+        if (done === 6) controller.abort(new Error('the host gave up'))
+      },
+    })
+    await expect(run).rejects.toThrow('the host gave up')
+    expect(calls.length).toBe(6)
+
+    const after = await separator.separate(track)
+    const fresh = await createSegmentSeparator(ramped([], SLOW), { shifts: 3 }).separate(track)
+    for (const channel of [0, 1]) expect(after.other[channel]).toEqual(fresh.other[channel])
+  })
+
+  it.each([0, 1.5, -1, Number.NaN])(
+    'refuses a count of %s runs before a model is asked',
+    (shifts) => {
+      const calls: Channels[] = []
+      expect(() => createSegmentSeparator(passing(calls), { shifts })).toThrow(SeparationError)
+      expect(calls).toEqual([])
     },
   )
 })
