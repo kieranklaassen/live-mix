@@ -11,13 +11,22 @@
 // start and end: one on a level, one on a tone cut partway through a wave.
 // A track eases a clip whose sound would step where it starts or ends, and
 // five parts eased five ways would not add up.
+//
+// A case can ask for more parts than five. The stand-in then answers six
+// stems, the four with a guitar and a piano, or a part of the separation is
+// split by a second stand-in: the drums into a kick, a snare, toms and
+// cymbals, the vocals into a lead and a backing. Each split leaves a rest of
+// its part under the part's own name, far from nothing as the remainder is,
+// and some of what a split gives stands away from zero at both ends too.
 
 import { ScoreDocument, createScore, renderScore } from '@kieranklaassen/live-mix'
 import {
-  PART_NAMES,
+  partNames,
   separateTrack,
   separationTracks,
+  splitPart,
   type Channels,
+  type Separation,
   type Separator,
   type StemName,
 } from '@kieranklaassen/live-mix/separation'
@@ -25,8 +34,18 @@ import {
 export interface SeparationCase {
   sampleRate: number
   channels: 1 | 2
+  /** How many stems the stand-in answers: the four, or with 6 the four, a guitar and a piano. Default 4. */
+  stems?: 4 | 6
+  /**
+   * The parts that are split once the track is separated, in this order:
+   * `drums` in four and `vocals` in two, each with a rest that keeps the
+   * part's name.
+   */
+  splits?: readonly ('drums' | 'vocals')[]
   /** Mute the remainder's track: the bounce is then the stems alone. */
   muteRemainder?: boolean
+  /** Mute the track of the part of this name: the bounce is then the track without it. */
+  mute?: string
   /** Keep each part in a buffer that ends where its sound does, with no silence after it. */
   noTail?: boolean
 }
@@ -38,6 +57,10 @@ export interface SeparationMeasure {
   trackPeakDb: number
   /** The remainder against the track, as the library reports it. */
   remainderDb: number
+  /** The parts that were laid, in the order of their tracks. */
+  parts: readonly string[]
+  /** For each part that was split, what was left of it against the part, as the library reports it. */
+  restsDb: Record<string, number>
   /** Whether the bounce has the track's frames and channels. */
   sameShape: boolean
 }
@@ -93,20 +116,96 @@ const standIn: Separator = {
   },
 }
 
+type SixStemName = StemName | 'guitar' | 'piano'
+
+/** The four as the stand-in gives them, with two more stems after them. */
+const sixStems: Separator<SixStemName> = {
+  sampleRate: 44100,
+  stems: ['vocals', 'drums', 'bass', 'other', 'guitar', 'piano'],
+  separate: async (channels) => {
+    const each = (make: (channel: Float32Array) => Float32Array): Channels => channels.map(make)
+    return {
+      ...(await standIn.separate(channels)),
+      guitar: each((channel) => lowpassed(channel, 0.15, 0.15)),
+      // On a level under zero from the first frame to the last.
+      piano: each((channel) => channel.map((sample) => 0.1 * sample - 0.15)),
+    }
+  },
+}
+
+/** Splits the drums in four. What it is handed is a quarter of the track, and it leaves a good part of that. */
+const drumKit: Separator<'kick' | 'snare' | 'toms' | 'cymbals'> = {
+  sampleRate: 44100,
+  stems: ['kick', 'snare', 'toms', 'cymbals'],
+  separate: (channels) => {
+    const each = (make: (channel: Float32Array) => Float32Array): Channels => channels.map(make)
+    return Promise.resolve({
+      // A tone that is at its top on the first frame and wherever the last one falls.
+      kick: each((channel) =>
+        lowpassed(channel, 0.02, 0.8).map(
+          (sample, i) => sample + 0.05 * Math.cos((2 * Math.PI * 777.7 * i) / 44100),
+        ),
+      ),
+      // On a level from the first frame to the last.
+      snare: each((channel) => channel.map((sample) => 0.3 * sample + 0.04)),
+      toms: each((channel) => lowpassed(channel, 0.3, 0.4)),
+      // What a low-pass leaves out.
+      cymbals: each((channel) => {
+        const low = lowpassed(channel, 0.5, 1)
+        return channel.map((sample, i) => 0.3 * (sample - low[i]))
+      }),
+    })
+  },
+}
+
+/** Splits the vocals in two. The vocals stand on a level, so both of these do. */
+const voices: Separator<'lead' | 'backing'> = {
+  sampleRate: 44100,
+  stems: ['lead', 'backing'],
+  separate: (channels) => {
+    const each = (make: (channel: Float32Array) => Float32Array): Channels => channels.map(make)
+    return Promise.resolve({
+      lead: each((channel) => channel.map((sample) => 0.5 * sample)),
+      backing: each((channel) => lowpassed(channel, 0.1, 0.3)),
+    })
+  },
+}
+
+/** The track as the parts a case asks for: four stems or six, then each split in turn. */
+async function separated(
+  spec: SeparationCase,
+  channels: Float32Array[],
+): Promise<Separation<string>> {
+  const audio = { channels, sampleRate: spec.sampleRate }
+  let separation: Separation<string> =
+    spec.stems === 6 ? await separateTrack(audio, sixStems) : await separateTrack(audio, standIn)
+  for (const part of spec.splits ?? []) {
+    separation =
+      part === 'drums'
+        ? await splitPart(separation, 'drums', drumKit)
+        : await splitPart(separation, 'vocals', voices)
+  }
+  return separation
+}
+
 async function measure(spec: SeparationCase): Promise<SeparationMeasure> {
   const channels = track(spec.sampleRate, spec.channels)
-  const separation = await separateTrack({ channels, sampleRate: spec.sampleRate }, standIn)
+  const separation = await separated(spec, channels)
+  const parts = partNames(separation)
   const document = new ScoreDocument(createScore())
   const laid = separationTracks(document.score, separation)
   document.apply(laid.operation)
   if (spec.muteRemainder) {
     document.apply({ type: 'strip.mute', owner: laid.parts.remainder.trackId, mute: true })
   }
+  if (spec.mute !== undefined) {
+    document.apply({ type: 'strip.mute', owner: laid.parts[spec.mute].trackId, mute: true })
+  }
 
   let resolveSource = laid.resolveSource
   if (spec.noTail) {
     const bare = new Map(
-      PART_NAMES.map((name) => {
+      parts.map((name) => {
         const sound = name === 'remainder' ? separation.remainder : separation.stems[name]
         const buffer = new AudioBuffer({
           numberOfChannels: sound.length,
@@ -135,6 +234,10 @@ async function measure(spec: SeparationCase): Promise<SeparationMeasure> {
     differenceDb: db(largest),
     trackPeakDb: db(peak),
     remainderDb: separation.report.remainderDb,
+    parts,
+    restsDb: Object.fromEntries(
+      (separation.report.splits ?? []).map((split) => [split.part, split.restDb]),
+    ),
     sameShape:
       rendered.length === channels.length &&
       rendered.every((channel) => channel.length === channels[0].length),
