@@ -10,7 +10,7 @@ import { STEM_NAMES, SeparationError, type Channels, type Separation, type StemN
 const NAME = /^[a-z][a-z0-9-]*$/
 
 /** What a part that is no stem is called: the track minus every stem. */
-const REMAINDER = 'remainder'
+export const REMAINDER = 'remainder'
 
 /**
  * A copy of `names`, once it is seen to be a list of stems: at least one
@@ -51,6 +51,17 @@ export function saidNames<Name extends string>(
   whose: string,
 ): readonly Name[] {
   return checkedNames((said ?? STEM_NAMES) as readonly Name[], whose)
+}
+
+/**
+ * `names`, or the four as a desk lists them, vocals first, when `names` are
+ * exactly the four in whatever order.
+ */
+export function inDeskOrder<Name extends string>(names: readonly Name[]): readonly Name[] {
+  const said: readonly string[] = names
+  const theFour =
+    said.length === STEM_NAMES.length && STEM_NAMES.every((name) => said.includes(name))
+  return theFour ? ([...STEM_NAMES] as readonly string[] as readonly Name[]) : names
 }
 
 /** The first of `keys`, the own keys of a record of stems, that `names` does not say, or nothing. */

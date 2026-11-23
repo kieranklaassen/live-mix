@@ -196,7 +196,6 @@ export function createCentredTransform(
       summed.fill(0)
       const imaginary = offset + bins * frames
       for (let frame = 0; frame < frames; frame += 1) {
-        // The bins above the kept ones are silence.
         re.fill(0)
         im.fill(0)
         // Sound has no imaginary part at bin 0 or at the top bin, so none is read there.

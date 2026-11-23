@@ -9,7 +9,7 @@
 // What a split answers is a new separation. The one it was handed is not
 // written to, and the parts that were not split are the same arrays in both.
 
-import { checkedNames, partNames, saidNames } from './names'
+import { REMAINDER, checkedNames, partNames, saidNames } from './names'
 import { leftOf, separatorStems } from './separate'
 import {
   SeparationError,
@@ -19,9 +19,6 @@ import {
   type Separator,
   type SplitReport,
 } from './types'
-
-/** What the stems leave of a track, which no separator gave and no split takes apart. */
-const REMAINDER = 'remainder'
 
 export interface SplitOptions<Rest extends string = string> extends SeparateOptions {
   /**

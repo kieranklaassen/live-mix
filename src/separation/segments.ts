@@ -114,7 +114,6 @@ export function createSegmentSeparator<Name extends string = StemName>(
     throw new SeparationError(`an overlap is 0 or more and less than 1, not ${overlap}`)
   }
   const shifts = options.shifts ?? 1
-  // Refused here as an overlap is, before a model is asked.
   if (!(Number.isInteger(shifts) && shifts >= 1)) {
     throw new SeparationError(`a track is gone over a whole number of times from 1, not ${shifts}`)
   }

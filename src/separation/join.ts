@@ -156,7 +156,6 @@ export function joinSeparators(set: readonly JoinMember[]): Separator<string> {
         const from = before
         const kept = await keptOf(member, channels, {
           signal: run.signal,
-          // A separator that says no steps is handed nothing to report to.
           onProgress:
             count === undefined
               ? undefined

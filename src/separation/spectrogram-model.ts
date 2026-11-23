@@ -12,6 +12,7 @@
 // both in (docs/separation.md says what an export has to look like).
 
 import { createCentredTransform } from './centred-transform'
+import { answered, counted } from './model-session'
 import { checkedNames } from './names'
 import { type SegmentModel } from './segments'
 import { SeparationError, type Channels, type ModelRuntime } from './types'
@@ -32,10 +33,6 @@ export interface SpectrogramModelSpec<Name extends string = string> {
   stem: Name
   /** What the stem's sound is multiplied by. Default 1. */
   gain?: number
-}
-
-function counted(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? '' : 's'}`
 }
 
 /**
@@ -94,20 +91,14 @@ export function createSpectrogramModel<Tensor, Name extends string>(
       const answer = await session.run({
         [input]: new runtime.Tensor('float32', spectrogram, [1, 4, bins, frames]),
       })
-      const tensor = answer[output] as { data?: unknown; dims?: unknown } | undefined
-      const data = tensor?.data
-      if (!(data instanceof Float32Array) || data.length !== 2 * plane) {
-        const found =
-          data instanceof Float32Array
-            ? `${data.length} numbers (dimensions ${JSON.stringify(tensor?.dims)})`
-            : 'no float tensor'
-        throw new SeparationError(`the model's output "${output}" holds ${found}, not ${2 * plane}`)
-      }
+      const data = answered(answer, output, 2 * plane)
 
       const sound = [0, 1].map((channel) => {
         const out = new Float32Array(segmentFrames)
         transform.inverse(data, channel * plane, out)
-        for (let i = 0; i < segmentFrames; i += 1) out[i] *= gain
+        if (gain !== 1) {
+          for (let i = 0; i < segmentFrames; i += 1) out[i] *= gain
+        }
         return out
       })
       const stems = {} as Record<Name, Channels>

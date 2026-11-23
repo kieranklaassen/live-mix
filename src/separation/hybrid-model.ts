@@ -9,16 +9,11 @@
 // makes a session on an export of a model it has the right to use, and hands
 // both in (docs/separation.md says what an export has to look like).
 
-import { checkedNames } from './names'
+import { answered, counted } from './model-session'
+import { checkedNames, inDeskOrder } from './names'
 import { type SegmentModel } from './segments'
 import { createSegmentTransform } from './stft'
-import {
-  STEM_NAMES,
-  SeparationError,
-  type Channels,
-  type ModelRuntime,
-  type StemName,
-} from './types'
+import { SeparationError, type Channels, type ModelRuntime, type StemName } from './types'
 
 /** What a hybrid model was trained with. An export of another model of the kind says its own. */
 export interface HybridModelSpec<Name extends string = StemName> {
@@ -41,24 +36,6 @@ export const HYBRID_MODEL_SPEC: HybridModelSpec = {
   fftSize: 4096,
   hop: 1024,
   stems: ['drums', 'bass', 'other', 'vocals'],
-}
-
-function counted(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? '' : 's'}`
-}
-
-/** The numbers of an answer the session gave under `name`, which has to hold `length` of them. */
-function answered(answer: Record<string, unknown>, name: string, length: number): Float32Array {
-  const tensor = answer[name] as { data?: unknown; dims?: unknown } | undefined
-  const data = tensor?.data
-  if (!(data instanceof Float32Array) || data.length !== length) {
-    const found =
-      data instanceof Float32Array
-        ? `${data.length} numbers (dimensions ${JSON.stringify(tensor?.dims)})`
-        : 'no float tensor'
-    throw new SeparationError(`the model's output "${name}" holds ${found}, not ${length}`)
-  }
-  return data
 }
 
 /**
@@ -96,8 +73,6 @@ export function createHybridModel<Tensor>(
   }
   /** The stems in the order of the session's tensors. */
   const names = checkedNames(spec.stems, "a spec's stems")
-  const theFour =
-    names.length === STEM_NAMES.length && STEM_NAMES.every((name) => names.includes(name))
   const { segmentFrames } = spec
   const transform = createSegmentTransform(segmentFrames, spec.fftSize, spec.hop)
   const { bins, frames } = transform
@@ -109,7 +84,7 @@ export function createHybridModel<Tensor>(
   return {
     sampleRate: spec.sampleRate,
     segmentFrames,
-    stems: theFour ? [...STEM_NAMES] : names,
+    stems: inDeskOrder(names),
     async run(segment: Channels) {
       if (segment.length !== 2 || segment.some((channel) => channel.length !== segmentFrames)) {
         throw new SeparationError(

@@ -8,15 +8,10 @@
 // makes a session on an export of a model it has the right to use, and hands
 // both in (docs/separation.md says what an export has to look like).
 
-import { checkedNames } from './names'
+import { answered, counted } from './model-session'
+import { checkedNames, inDeskOrder } from './names'
 import { type SegmentModel } from './segments'
-import {
-  STEM_NAMES,
-  SeparationError,
-  type Channels,
-  type ModelRuntime,
-  type StemName,
-} from './types'
+import { SeparationError, type Channels, type ModelRuntime, type StemName } from './types'
 
 /** What a waveform model was trained with. An export says its own. */
 export interface WaveformModelSpec<Name extends string = StemName> {
@@ -26,10 +21,6 @@ export interface WaveformModelSpec<Name extends string = StemName> {
   segmentFrames: number
   /** The stems in the order the model answers them: the order of its tensor, not a desk's. */
   stems: readonly Name[]
-}
-
-function counted(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? '' : 's'}`
 }
 
 /**
@@ -61,9 +52,6 @@ export function createWaveformModel<Tensor, Name extends string = StemName>(
   }
   /** The stems in the order of the session's tensor. */
   const names = checkedNames(spec.stems, "a spec's stems")
-  const theFour =
-    names.length === STEM_NAMES.length &&
-    STEM_NAMES.every((name) => (names as readonly string[]).includes(name))
   const { segmentFrames } = spec
   const [input] = session.inputNames
   const [output] = session.outputNames
@@ -72,22 +60,14 @@ export function createWaveformModel<Tensor, Name extends string = StemName>(
   return {
     sampleRate: spec.sampleRate,
     segmentFrames,
-    stems: theFour ? ([...STEM_NAMES] as readonly string[] as readonly Name[]) : names,
+    stems: inDeskOrder(names),
     async run(segment: Channels) {
       const sound = new Float32Array(2 * segmentFrames)
       segment.forEach((channel, index) => sound.set(channel, index * segmentFrames))
       const answer = await session.run({
         [input]: new runtime.Tensor('float32', sound, [1, 2, segmentFrames]),
       })
-      const tensor = answer[output] as { data?: unknown; dims?: unknown } | undefined
-      const data = tensor?.data
-      if (!(data instanceof Float32Array) || data.length !== length) {
-        const found =
-          data instanceof Float32Array
-            ? `${data.length} numbers (dimensions ${JSON.stringify(tensor?.dims)})`
-            : 'no float tensor'
-        throw new SeparationError(`the model's output "${output}" holds ${found}, not ${length}`)
-      }
+      const data = answered(answer, output, length)
 
       const stems = {} as Record<Name, Channels>
       names.forEach((name, stem) => {
