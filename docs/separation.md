@@ -68,8 +68,8 @@ const bounce = await renderScore(document.score, {
 That is the default: one model of the four stems, run once. Every call
 written against four stems and a remainder compiles and behaves as it did
 before the entry took other stems, and for that run the samples are the same
-bits (`src/separation/__tests__/default-run.test.ts` holds them to a
-checksum).
+bits (`src/separation/__tests__/default-run.test.ts` holds a two-channel
+track's to a checksum, and `default-run-mono.test.ts` a one-channel track's).
 
 ## What comes back
 
@@ -1252,7 +1252,7 @@ models:
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | The transform and its inverse, the resampler, the segment runner, the hybrid adapter, the remainder and the guard, the tracks and what a render is told                              | `pnpm test` (`src/separation/__tests__`, stand-in models and the mock graph)                                                                           |
 | The entry reaches no ONNX runtime, `.` exports none of it, and every value it exports is pinned                                                                                      | `pnpm test` (`src/__tests__/public-entry.test.ts`)                                                                                                     |
-| The default run of the four gives the samples it gave before the entry took other stems, to the bit                                                                                  | `pnpm test` (`default-run.test.ts`, checksums written from the code before the change)                                                                 |
+| The default run of the four gives the samples it gave before the entry took other stems, to the bit                                                                                  | `pnpm test` (`default-run.test.ts` and `default-run-mono.test.ts`, checksums written from the code before the change)                                  |
 | What a host of the four writes against the types still compiles with no cast, and a separation of six names is not taken where the four are asked for                                | `pnpm typecheck` and `pnpm test` (`default-shapes.test.ts`)                                                                                            |
 | Names: the shape of a name, each refusal of a list, an answer held to its list, the two readers, one stem, six and twelve stems that add up to the track, a hybrid spec of six stems | `pnpm test` (`names.test.ts`, `separate.test.ts`, `segments.test.ts`, `hybrid-model.test.ts`), stand-ins                                               |
 | More than one pass: 1, 2 and 5 passes give the track back from a model that returns it, the same seed the same bits, another seed another answer, the steps                          | `pnpm test` (`segments.test.ts`), stand-in models                                                                                                      |
