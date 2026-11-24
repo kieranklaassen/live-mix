@@ -84,6 +84,7 @@ export {
   createPatchEffects,
   isInstrumentPatch,
   isPatch,
+  isPatchMaker,
   patchDeviceParams,
   patchDevices,
   replaceInserts,
@@ -95,6 +96,7 @@ export {
   type PatchDevice,
   type PatchInsertHost,
   type PatchIssue,
+  type PatchMaker,
   type ReplaceInsertsOptions,
 } from './patch'
 export {
