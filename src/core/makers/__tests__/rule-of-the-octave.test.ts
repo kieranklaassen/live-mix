@@ -35,7 +35,12 @@ function chords(
   params: Record<string, number> = {},
   key?: MakerKey,
 ): number[][] {
-  const phrase = made(RULE_OF_THE_OCTAVE, bassLine(bass), { ...APART, params, key }, 60)
+  const phrase = made(
+    RULE_OF_THE_OCTAVE,
+    bassLine(bass),
+    { ...APART, params, key },
+    2 * bass.length + 30,
+  )
   return bass.map((_, i) => upperAt(phrase, 2 * i + 1.9))
 }
 
@@ -498,6 +503,361 @@ describe('a chord played into it', () => {
     // Where a key is held already the voices go elsewhere if they can.
     expect(upperAt(phrase, 1)).toHaveLength(3)
     expect(names([upperAt(phrase, 1)])).toEqual(['C E G'])
+  })
+})
+
+describe('the voices over a long bass', () => {
+  /** A walk in the scale, mostly by step, with thirds, fourths and fifths in it. */
+  const walk = (length: number, key: MakerKey): number[] => {
+    const scale: number[] = []
+    for (let note = 36; note <= 60; note += 1)
+      if (key.steps.includes((note - key.root + 12) % 12)) scale.push(note)
+    const random = new MakerRandom(7)
+    const out: number[] = []
+    let at = 7
+    while (out.length < length) {
+      out.push(scale[at])
+      let by = [1, -1, 1, -1, 1, -1, 2, -2, 3, -3, 4, -4][random.below(12)]
+      if (at + by < 0 || at + by >= scale.length) by = -by
+      at += by
+    }
+    return out
+  }
+  const WHITE: MakerKey = { root: 0, steps: [0, 2, 4, 5, 7, 9, 11] }
+
+  it('stay near their place, and move by steps and thirds, for two hundred notes', () => {
+    for (const key of [WHITE, A_MINOR, PENTATONIC]) {
+      const bass = walk(200, key)
+      for (const rule of [IN_KEY, FULL, TRIADS]) {
+        for (const voices of [2, 3]) {
+          const rows = chords(bass, { rule, voices }, key)
+          const about = `${key.root} rule ${rule}, ${voices} voices`
+          let moved = 0
+          let leaps = 0
+          let alike = 0
+          for (let i = 1; i < rows.length; i += 1) {
+            const from = [bass[i - 1], ...rows[i - 1]]
+            const to = [bass[i], ...rows[i]]
+            expect(to.length, about).toBe(voices + 1)
+            for (let a = 0; a < to.length; a += 1) {
+              if (a > 0) moved += Math.abs(to[a] - from[a])
+              if (a > 0 && Math.abs(to[a] - from[a]) > 7) leaps += 1
+              for (let b = a + 1; b < to.length; b += 1) {
+                if (from[a] === to[a] || from[b] === to[b]) continue
+                const after = (to[b] - to[a]) % 12
+                if ((from[b] - from[a]) % 12 === after && (after === 0 || after === 7)) alike += 1
+              }
+            }
+          }
+          expect(alike, about).toBe(0)
+          expect(moved / (199 * voices), about).toBeLessThan(2.5)
+          expect(leaps, about).toBeLessThanOrEqual(6)
+          expect(Math.min(...rows.flat()), about).toBeGreaterThanOrEqual(50)
+          expect(Math.max(...rows.flat()), about).toBeLessThanOrEqual(88)
+        }
+      }
+    }
+  })
+
+  it('keep off a low bass: a fifth and more over it', () => {
+    for (let bass = 37; bass <= 47; bass += 1) {
+      const [row] = chords([bass], { height: -12 })
+      expect(row[0] - bass, `${bass}: ${String(row)}`).toBeGreaterThanOrEqual(6)
+    }
+  })
+
+  it('share a move of some size rather than have one of them leap', () => {
+    // From E and G to the C and G over E, not up to G and C.
+    expect(chords([48, 40], { voices: 2 })).toEqual([
+      [64, 67],
+      [60, 67],
+    ])
+  })
+
+  it('stay over a high bass, and fewer of them when there is no more room', () => {
+    for (const spacing of [0, 1, 2, 3]) {
+      for (let bass = 84; bass <= 119; bass += 1) {
+        const [row] = chords([bass], { spacing, voices: 4 })
+        for (const note of row) {
+          expect(note, `bass ${bass}`).toBeGreaterThan(bass)
+          expect(note).toBeLessThanOrEqual(119)
+        }
+        expect(new Set(row).size).toBe(row.length)
+        if (bass <= 100) expect(row).toHaveLength(4)
+      }
+    }
+    // A bass past what is played comes an octave lower, and its voices with it.
+    expect(chords([122])).toEqual([[113, 117]])
+  })
+
+  it('come within the spread of a bass that moves faster than it', () => {
+    const bass = [48, 50, 52, 53, 55, 57, 59, 60, 59, 57, 55, 53, 52, 50, 48]
+    const phrase = made(
+      RULE_OF_THE_OCTAVE,
+      bassLine(bass, 1),
+      { ...APART, params: { strum: 3 } },
+      40,
+    )
+    // All three are there after three seconds, and none keeps a note for long.
+    expect(upperAt(phrase, 3.1)).toHaveLength(3)
+    const rows = made(RULE_OF_THE_OCTAVE, bassLine(bass, 1), APART, 40)
+    for (let at = 3.1; at < 15; at += 0.5) {
+      const lately = new Set<number>()
+      for (let back = 0; back <= 3.1; back += 0.1)
+        for (const note of upperAt(rows, at - back)) lately.add(note % 12)
+      const row = upperAt(phrase, at)
+      expect(row).toHaveLength(3)
+      for (const note of row) expect(lately, `${note} at ${at}`).toContain(note % 12)
+    }
+  })
+
+  it('are rolled from the lowest up, when struck again, over a bass that comes before the top', () => {
+    const params = { hold: 1, strum: 0.6, voices: 4 }
+    const phrase = made(RULE_OF_THE_OCTAVE, bassLine([48, 50, 52, 53], 0.5), {
+      ...APART,
+      params,
+    }).filter((note) => note.part)
+    const chordAt = (at: number): MadePhraseNote[] =>
+      phrase.filter((note) => note.atSec >= at && note.atSec < at + 0.5)
+    for (const at of [0.03, 0.53, 1.53]) {
+      const roll = chordAt(at).map((note) => note.note)
+      expect(roll.slice(0, 3)).toEqual([...roll.slice(0, 3)].sort((a, b) => a - b))
+    }
+    // The top is put off once, and is there by the third chord.
+    expect(chordAt(0.03)).toHaveLength(3)
+    expect(upperAt(phrase, 1.22)).toHaveLength(3)
+    expect(upperAt(phrase, 1.24)).toHaveLength(4)
+  })
+
+  it('keep a note they were about to leave when the next chord has it', () => {
+    // C E G C: its top voice was to go to B at 3, and is asked back to C before.
+    const phrase = made(
+      RULE_OF_THE_OCTAVE,
+      [
+        { atSec: 0, durSec: 2, note: 48 },
+        { atSec: 2, durSec: 0.5, note: 50 },
+        { atSec: 2.5, durSec: 2, note: 48 },
+      ],
+      { ...APART, params: { strum: 1 } },
+    )
+    expect(phrase.filter((note) => note.part && note.note === 72)).toHaveLength(1)
+    expect(phrase.filter((note) => note.note === 71)).toEqual([])
+    expect(upperAt(phrase, 4)).toEqual([64, 67, 72])
+  })
+
+  it('end in time with the hand at its latest, most spread and longest', () => {
+    for (const delay of [0, 4]) {
+      for (const strum of [0, 3]) {
+        for (const sustain of [0.05, 8]) {
+          for (const linger of [0, 4]) {
+            for (const durSec of [0.01, 0.2, 1, 5]) {
+              const params = { delay, strum, sustain, linger, voices: 4 }
+              const { maker, emit, open } = hands(params)
+              let atSec = 0
+              let most = 0
+              for (const note of RISING) {
+                maker.noteOn(atSec, 1, note, 0.8)
+                atSec += durSec
+                maker.noteOff(atSec, 1)
+                maker.advance(atSec, emit)
+                most = Math.max(most, open.size)
+              }
+              // Once the hand is up what rings is a ringing chord or what a voice left before.
+              maker.advance(atSec + delay + Math.max(sustain, linger) + 0.01, emit)
+              expect(open.size, JSON.stringify({ ...params, durSec })).toBe(0)
+              expect(maker.next()).toBe(Infinity)
+              expect(most).toBeLessThanOrEqual(linger === 0 ? 5 : 24)
+            }
+          }
+        }
+      }
+    }
+  })
+})
+
+describe('the bass and the hand above it', () => {
+  it('takes a key pressed again at another pitch for a new bass', () => {
+    // By the same id, with and without its release, and a key held above.
+    for (const released of [true, false]) {
+      const { maker, emit, upper } = hands()
+      maker.noteOn(0, 9, 67, 0.8)
+      maker.noteOn(0, 1, 48, 0.8)
+      maker.advance(1, emit)
+      const classes = (): Set<number> => new Set(upper().map((note) => note % 12))
+      expect(classes()).toEqual(new Set([0, 4, 7]))
+      if (released) maker.noteOff(1, 1)
+      maker.noteOn(1.02, 1, 50, 0.8)
+      maker.advance(2, emit)
+      expect(classes()).toEqual(new Set([5, 7, 11]))
+      maker.noteOn(2, 1, 48, 0.8)
+      maker.advance(3, emit)
+      expect(classes()).toEqual(new Set([0, 4, 7]))
+    }
+  })
+
+  it('strikes the chord again for a bass repeated quickly under a held hand', () => {
+    const { maker, emit, started } = hands({ hold: 1 })
+    maker.noteOn(0, 9, 79, 0.8)
+    maker.noteOn(0, 1, 48, 0.8)
+    maker.advance(1, emit)
+    started.length = 0
+    maker.noteOff(1, 1)
+    maker.noteOn(1.02, 1, 48, 0.8)
+    maker.advance(2, emit)
+    expect(started).toEqual([48, 64, 67, 72])
+  })
+
+  it('reads a chord too short to read by its lowest key, whichever goes first', () => {
+    for (const order of [
+      [1, 2, 3],
+      [3, 2, 1],
+    ]) {
+      const { maker, emit, upper } = hands()
+      for (const [i, note] of [48, 65, 69].entries()) maker.noteOn(0, i + 1, note, 0.8)
+      for (const [i, id] of order.entries()) maker.noteOff(0.01 + 0.004 * i, id)
+      maker.advance(0.1, emit)
+      expect(new Set(upper().map((note) => note % 12))).toEqual(new Set([0, 4, 7]))
+    }
+  })
+
+  it('reads a chord too short to read that came from its top, lowest key first to go', () => {
+    const { maker, emit, upper } = hands()
+    for (const [i, note] of [69, 65, 48].entries()) maker.noteOn(0.002 * i, i, note, 0.8)
+    maker.noteOff(0.012, 2)
+    maker.noteOff(0.014, 1)
+    maker.noteOff(0.016, 0)
+    maker.advance(0.1, emit)
+    expect(new Set(upper().map((note) => note % 12))).toEqual(new Set([0, 4, 7]))
+  })
+
+  it('goes where the hand is not, when its keys sound', () => {
+    for (const hand of [
+      [48, 64, 67],
+      [48, 60, 64, 67],
+    ]) {
+      const { maker, emit, upper } = hands()
+      for (const [i, note] of hand.entries()) maker.noteOn(0, i, note, 0.8)
+      maker.advance(1, emit)
+      expect(upper()).toEqual([67, 72, 76])
+    }
+  })
+
+  it('takes a new key under a held one for the bass, and one over it when that goes', () => {
+    const { maker, emit, upper } = hands()
+    maker.noteOn(0, 1, 52, 0.8)
+    maker.noteOn(1, 2, 50, 0.8)
+    maker.advance(1.1, emit)
+    expect(new Set(upper().map((note) => note % 12))).toEqual(new Set([5, 7, 11]))
+    maker.noteOff(1.2, 1)
+    maker.noteOn(2, 3, 53, 0.8)
+    maker.advance(2.2, emit)
+    expect(new Set(upper().map((note) => note % 12))).toEqual(new Set([5, 7, 11]))
+    maker.noteOff(2.2, 2)
+    maker.advance(2.3, emit)
+    // It rose to F: D minor with its seventh.
+    expect(new Set(upper().map((note) => note % 12))).toEqual(new Set([0, 2, 9]))
+  })
+
+  it('puts the same voices over a silent hand as over the bass alone', () => {
+    const { maker, emit, upper } = hands({ keys: 2 })
+    for (const [i, note] of [48, 64, 67, 72].entries()) maker.noteOn(0, i, note, 0.8)
+    maker.advance(1, emit)
+    expect(upper()).toEqual([64, 67, 72])
+  })
+
+  it('keeps the chord under a tune when the bass is let go, and the direction with it', () => {
+    const { maker, emit, upper, started } = hands({ keys: 1 })
+    maker.noteOn(0, 1, 48, 0.8)
+    for (const [i, note] of [76, 80].entries()) maker.noteOn(0, 8 + i, note, 0.8)
+    maker.advance(1, emit)
+    expect(upper()).toEqual([64, 67, 72])
+    started.length = 0
+    maker.noteOff(1, 1)
+    maker.advance(1.5, emit)
+    // The tune moves on, down to the note beside it.
+    maker.noteOn(1.5, 10, 75, 0.8)
+    maker.noteOff(1.6, 8)
+    maker.noteOff(1.6, 9)
+    maker.advance(2, emit)
+    expect(upper()).toEqual([64, 67, 72])
+    expect(started).toEqual([75])
+    // F risen to from C, with D; fallen to from the tune it would have had B.
+    maker.noteOn(2, 1, 53, 0.8)
+    maker.advance(3, emit)
+    expect(new Set(upper().map((note) => note % 12))).toEqual(new Set([0, 2, 9]))
+    maker.noteOff(3, 1)
+    maker.noteOff(3, 10)
+    maker.advance(4, emit)
+    expect(upper()).toEqual([])
+    // With the hand up before, a high key is a bass like any other.
+    maker.noteOn(4, 1, 76, 0.8)
+    maker.advance(5, emit)
+    expect(upper()[0]).toBeGreaterThan(76)
+  })
+
+  it('keeps the chord under a whole hand an octave wide', () => {
+    const { maker, emit, upper } = hands({ keys: 1 })
+    for (const [i, note] of [48, 64, 67, 76].entries()) maker.noteOn(0, i, note, 0.8)
+    maker.advance(1, emit)
+    maker.noteOff(1, 0)
+    maker.advance(2, emit)
+    expect(upper()).toEqual([64, 67, 72])
+  })
+
+  it('has all its voices again once there is room for them', () => {
+    const { maker, emit, upper } = hands({ keys: 1 })
+    maker.noteOn(0, 1, 48, 0.8)
+    maker.noteOn(0, 2, 60, 0.8)
+    maker.advance(1, emit)
+    expect(upper()).toEqual([52, 55])
+    maker.noteOff(1, 2)
+    maker.noteOn(1, 3, 63, 0.8)
+    maker.noteOn(2, 1, 48, 0.8)
+    maker.advance(3, emit)
+    expect(upper()).toEqual([52, 55, 60])
+  })
+
+  it('takes no short note of the tune for a bass, and none that is the bass once more', () => {
+    const { maker, emit, upper, started } = hands({ keys: 1, hold: 1 })
+    maker.noteOn(0, 1, 48, 0.8)
+    maker.noteOn(0, 2, 76, 0.8)
+    maker.advance(1, emit)
+    maker.noteOn(1, 3, 48, 0.8)
+    maker.advance(1.1, emit)
+    started.length = 0
+    maker.noteOff(2, 3)
+    maker.advance(2.5, emit)
+    expect(started).toEqual([])
+    maker.noteOff(3, 1)
+    maker.advance(3.5, emit)
+    maker.noteOn(3.5, 4, 74, 0.8)
+    maker.noteOff(3.52, 4)
+    maker.advance(4, emit)
+    expect(started).toEqual([74])
+    expect(upper()).toEqual([64, 67, 72])
+  })
+
+  it('takes a key far under the tune for the bass', () => {
+    const { maker, emit, upper } = hands({ keys: 1 })
+    maker.noteOn(0, 1, 48, 0.8)
+    maker.noteOn(0, 2, 81, 0.8)
+    maker.noteOff(1, 1)
+    maker.noteOn(1.5, 1, 62, 0.8)
+    maker.advance(2, emit)
+    expect(new Set(upper().map((note) => note % 12))).toEqual(new Set([5, 7, 11]))
+  })
+
+  it('brings voices back up that a low tune pressed down, once it has gone up', () => {
+    const { maker, emit, upper } = hands({ keys: 1 })
+    maker.noteOn(0, 1, 48, 0.8)
+    maker.noteOn(0, 2, 62, 0.8)
+    maker.advance(1, emit)
+    expect(upper()).toEqual([52, 55, 60])
+    maker.noteOff(1, 2)
+    maker.noteOn(1, 3, 79, 0.8)
+    maker.noteOn(2, 1, 48, 0.8)
+    maker.advance(3, emit)
+    expect(upper()[0]).toBeGreaterThanOrEqual(60)
   })
 })
 
