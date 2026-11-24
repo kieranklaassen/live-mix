@@ -55,6 +55,8 @@ export type TaskHandle = { cancel(): void }
 
 /** Two starts of one pitch nearer than this are one attack: the voices meet, they do not strike twice. */
 const ONE_ATTACK_SEC = 0.02
+/** Unless the second is this much harder than the first: what is played hard is not lost under what is soft. */
+const HARDER = 1.5
 
 /** More done at one moment than this is a rule that never moves on. */
 const MOST_AT_ONCE = 4096
@@ -136,7 +138,8 @@ export abstract class MakerBase implements NoteMaker {
   /**
    * Start a note now. Held until `end` is called with what this returns. A
    * pitch that already sounds on the same instrument is one voice with it: struck again
-   * when it began a while ago, joined when both begin at once. It ends when
+   * when it began a while ago, joined when both begin at once (unless the second
+   * is much the harder, and not at the same instant). It ends when
    * the last who holds it lets go.
    */
   protected start(note: number, gain: number, part?: string): MadeNote {
@@ -160,7 +163,8 @@ export abstract class MakerBase implements NoteMaker {
       return made
     }
     there.holders.add(made)
-    if (this.nowSec - there.atSec >= ONE_ATTACK_SEC) {
+    const after = this.nowSec - there.atSec
+    if (after >= ONE_ATTACK_SEC || (after > 0 && loud > there.gain * HARDER)) {
       this.emitOff(there)
       there.id = this.nextId += 1
       there.atSec = this.nowSec
