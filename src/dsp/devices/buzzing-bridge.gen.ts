@@ -16,7 +16,7 @@ export const BUZZING_BRIDGE_PARAMS = {
     unit: '',
     choices: ['Grazing bridge', 'Membrane', 'Loose shell', 'Leather', 'Paper'],
     description:
-      'What the sound touches: a curved bridge whose buzz climbs as a note dies, a membrane that wakes on loud notes, shells knocked by attacks, a leather strip or a sheet of paper.',
+      'What the sound touches: a curved bridge whose buzz climbs as a note dies, a membrane that wakes on loud notes, shells knocked by attacks, a leather strip or paper.',
   },
   amount: {
     id: 1,
@@ -254,10 +254,10 @@ export const BUZZING_BRIDGE_DESCRIPTOR = wasmDeviceDescriptor(BUZZING_BRIDGE_DEV
     },
     'Loose caps': {
       model: 2,
-      amount: 0.8,
-      rattle: 90,
-      bounces: 5,
-      resonance: 3200,
+      amount: 1,
+      rattle: 140,
+      bounces: 6,
+      resonance: 4200,
       threshold: -50,
       fall: 1200,
     },
@@ -266,9 +266,10 @@ export const BUZZING_BRIDGE_DESCRIPTOR = wasmDeviceDescriptor(BUZZING_BRIDGE_DEV
       amount: 1,
       rattle: 170,
       bounces: 1,
-      resonance: 1000,
-      tone: 3000,
+      resonance: 700,
+      tone: 2500,
       threshold: -50,
+      curve: 0.3,
     },
     'Seeds in the next room': {
       model: 2,

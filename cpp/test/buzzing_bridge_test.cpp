@@ -289,6 +289,15 @@ static void test_shell() {
               db(peak(v, at(0.6), v.size())));
   EXPECT(peak(c, at(0.2), c.size()) < 1.0e-5, "nothing in a chord that beats");
   EXPECT(peak(v, at(0.6), v.size()) < 1.0e-5, "nothing in held voices");
+  // Eight notes a second, each ringing over the last: most are knocked.
+  Signal run_of_notes;
+  const double notes[] = {220, 277, 330, 440, 330, 277, 220, 165};
+  for (int i = 0; i < 8; ++i) lay(run_of_notes, pluck(notes[i], 1.5, 0.3, 2.0), at(0.125 * i));
+  const Signal knocked = buzz_of({{p::kModel, 2}, {p::kRattle, 10}, {p::kBounces, 1}, {p::kThreshold, -50}}, run_of_notes);
+  int heard = 0;
+  for (int i = 0; i < 8; ++i) heard += peak(knocked, at(0.125 * i), at(0.125 * i + 0.02)) > 0.01 ? 1 : 0;
+  std::printf("eight ringing notes a second: %d knocked\n", heard);
+  EXPECT(heard >= 7, "a fast run of ringing notes is heard as attacks");
 }
 
 static void test_paper_edge() {
@@ -503,7 +512,7 @@ static void test_sides() {
     EXPECT(worst < 1.0e-5, "Width leaves the two sides together as they were");
     char label[80];
     std::snprintf(label, sizeof label, "%s: Width spreads the buzz (correlation %.2f)", kNames[model], apart);
-    EXPECT(apart < 0.5, label);
+    EXPECT(apart < 0.55, label);
     set_up({m});
     out = run(device, x, none);
     EXPECT(peak(out.right) == 0.0, "a buzz comes from the side its sound is on");
