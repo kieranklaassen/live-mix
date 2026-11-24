@@ -39,6 +39,7 @@ import { ISOCHRONIC_PRESETS } from './isochronic'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
 import { MAGNET_PIANO_PRESETS } from './magnet-piano'
 import { MAKER_MIRROR_ON_D_PRESETS } from './maker-mirror-on-d'
+import { MAKER_SIX_VOICES_PRESETS } from './maker-six-voices'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
@@ -128,4 +129,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...BREATH_PACER_PRESETS,
   ...COLOURED_NOISE_PRESETS,
   ...MAKER_MIRROR_ON_D_PRESETS,
+  ...MAKER_SIX_VOICES_PRESETS,
 ]
