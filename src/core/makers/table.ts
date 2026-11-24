@@ -5,10 +5,11 @@ import { clampParam } from '../params'
 import { type PatchMaker } from '../devices/patch'
 import { presetParams, resolvePreset } from '../devices/presets'
 import { MIRROR_ON_D } from './mirror-on-d'
+import { RULE_OF_THE_OCTAVE } from './rule-of-the-octave'
 import { type NoteMakerDescriptor } from './types'
 
 /** Every note maker, in menu order. */
-export const NOTE_MAKERS: readonly NoteMakerDescriptor[] = [MIRROR_ON_D]
+export const NOTE_MAKERS: readonly NoteMakerDescriptor[] = [MIRROR_ON_D, RULE_OF_THE_OCTAVE]
 
 const byId = new Map(NOTE_MAKERS.map((maker) => [maker.id, maker]))
 for (const maker of NOTE_MAKERS) {
