@@ -6,17 +6,29 @@
 // resting note.
 //
 // What is played starts the melody and says where it lies: the resting note
-// is the one nearest the lowest key held. The melody goes on by itself for as
-// long as anything is held, in phrases with a silence after each, and how far
-// it may go from the resting note grows a step at a time and shrinks again.
+// is the one nearest the lowest key held, and a key that moves it takes the
+// melody along the road to there. The melody goes on by itself for as long as
+// anything is held, in phrases with a silence after each, and how far it may
+// go from the resting note grows a step at a time and shrinks again. A key
+// pressed in a silence begins the next phrase.
 //
 // A map takes the place of the key's scale: its notes are semitones above the
 // resting note, which by default is the degree of the key where the map
 // leaves the key least. Where a map has notes no such key has (a raised sixth
 // going up, an augmented second), the melody leaves the key on them, unless
-// the notes the key lacks are left out.
+// the notes the key lacks are left out. In C major melodic minor rests on A
+// and leaves the key on F# and G#, Rast on C on Bb, Bayati on D on Eb and Bb,
+// Hijaz on E on G# and C#, and Nahawand on A on G#. The ragas and the gapped
+// modes leave it nowhere, though most of them rest on another note than C.
 
-import { MakerBase, type HeldNote, type MadeNote, type TaskHandle } from './base'
+import {
+  HIGHEST_NOTE,
+  LOWEST_NOTE,
+  MakerBase,
+  type HeldNote,
+  type MadeNote,
+  type TaskHandle,
+} from './base'
 import { degreeClass, inKey, mod, nearestOfClass, snapNote } from './key'
 import { MakerRandom } from './random'
 import { type MakerKey, type MakerOptions, type NoteMakerDescriptor } from './types'
@@ -53,14 +65,17 @@ const MAJOR_PENTATONIC = [0, 2, 4, 7, 9]
 // form, d n r g for the lowered ones):
 //   Bhimpalasi  S g M P n S / S n D P M g R S, on D; strong Ma, partner Sa.
 //   Bageshri    S g M D n S / S n D M g R S, on D, with Pa touched coming
-//               down; strong Ma, partner Sa.
+//               down; strong Ma, partner Sa. Published descents have Pa in
+//               a turn of its own (M P D M g), which is not written: here it
+//               is touched on the straight way from Dha to Ma.
 //   Yaman       N R G M' D N S / S N D P M' G R S (M' is the raised fourth),
 //               on F; strong Ga, partner Ni.
 //   Bihag       S G M P N S / S N D P M G R S, on C; strong Ga, partner Ni,
 //               with Re and Dha touched coming down. The raised fourth that
 //               many players add is left out, as older practice does.
 //   Bilaskhani  Bilaskhani Todi: S r g P d S / S n d M g r S, on E; strong
-//               dha, partner ga. Its ornamental turns are not written.
+//               dha, partner ga. Its ornamental turns are not written, nor
+//               its descent from the upper re past Sa (r n d).
 //   Rageshri    S G M D n S / S n D M G M R S, on G; strong Ga, partner Ni,
 //               with Re touched on the way to Sa.
 //   Asavari     S R M P d S / S n d P M g R S, on A; strong Pa and partner Sa
@@ -254,6 +269,8 @@ export interface Roads {
   passing: ReadonlySet<number>
   /** Every note of either road, rising, in semitones above the resting note. */
   all: readonly number[]
+  /** The road with more notes, rising: the steps a range is counted in. */
+  steps: readonly number[]
   strong: number
   partner: number
   drone: number
@@ -261,7 +278,6 @@ export interface Roads {
 
 const TONIC_FIT = 0
 const TONIC_ROOT = 1
-const TONIC_PLAYED = 2
 
 /** The degree of the key (a pitch class) where a map leaves the key least. */
 export function bestTonic(map: RoadMap, key: MakerKey): number {
@@ -308,9 +324,11 @@ export function roadsOf(map: RoadMap, tonic: number, key: MakerKey | null): Road
   const partner = nearest(map.partner)
   const drone = nearest(map.drone)
   const stays = new Set([0, strong, partner])
+  const steps = [...(up.size > down.size ? up : down)].sort((a, b) => a - b)
   return {
     up,
     down,
+    steps,
     passing: new Set(map.passing.filter((note) => down.has(note) && !stays.has(note))),
     all,
     strong,
@@ -367,11 +385,11 @@ export function walk(
   return path
 }
 
-/** The highest note over `at`, and no higher than `top`, that a rise may land on. */
+/** The highest note over `at`, and no higher than `top`, that a rise may land on and a fall go on from. */
 function turnTo(roads: Roads, rest: number, at: number, top: number): number | null {
   for (let note = Math.floor(top); note > at; note -= 1) {
     const step = mod(note - rest, 12)
-    if (roads.up.has(step) && !roads.passing.has(step)) return note
+    if (roads.up.has(step) && roads.down.has(step) && !roads.passing.has(step)) return note
   }
   return null
 }
@@ -404,7 +422,7 @@ const PARAMS = {
       'La gapped',
     ],
     description:
-      'The way up and the way down: melodic minor, seven ragas, four maqam paths in twelve tones, four gapped modes. It replaces the scale of the key and may leave it.',
+      "The way up and down, in place of the key's scale. At best fit ragas and gapped modes stay in a major or natural minor key; melodic minor and the maqam paths leave it.",
   },
   tonic: {
     id: 1,
@@ -432,13 +450,13 @@ const PARAMS = {
   dwell: {
     id: 3,
     name: 'Dwell',
-    min: 0,
-    max: 0.6,
+    min: 0.1,
+    max: 0.5,
     default: 0.4,
     taper: 'linear',
     unit: '',
     description:
-      'The share of the singing time the strong note takes. Its partner takes half as much, and the other notes share the rest.',
+      'The share of the singing time the strong note takes. Its partner takes half as much, or more where it is the resting note, and the others share what is left.',
   },
   zigzag: {
     id: 4,
@@ -449,7 +467,7 @@ const PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How many of the falls of a fourth have a turn inside: G F E, back to G, and only then D. At zero every fall is straight.',
+      'How many of the falls of a fourth have a turn inside: G F E, back to G, and only then D. At zero every fall goes straight down.',
   },
   range: {
     id: 5,
@@ -461,7 +479,7 @@ const PARAMS = {
     unit: '',
     step: 1,
     description:
-      'How many steps of the map over the resting note the melody reaches at its widest. Under it, it goes half as far.',
+      'How many steps of the map over the resting note the melody reaches at its widest. Under it, half as many, or to the strong note when that is within a fifth.',
   },
   grow: {
     id: 6,
@@ -493,7 +511,8 @@ const PARAMS = {
     default: 2.5,
     taper: 'linear',
     unit: 's',
-    description: 'How long the melody is silent between two phrases, about. A drone goes on.',
+    description:
+      'How long the melody is silent between two phrases, about. A key pressed in it begins the next phrase. A drone goes on.',
   },
   tail: {
     id: 9,
@@ -533,6 +552,14 @@ const PARAMS = {
 
 /** Keys that come within this of the first are one chord: the lowest of them says where the melody lies. */
 const GATHER_SEC = 0.03
+/** Keys let go within this of one another are one chord let go: the lowest of them stays the lowest. */
+const LET_GO_SEC = 0.08
+/** A knob of the drone that has stood still for this long strikes it again at its new level. */
+const DRONE_STILL_SEC = 0.2
+/** A phrase that was asked for while the last one went home waits this long at the most. */
+const BREATH_SEC = 0.5
+/** A strong note no further than this under the resting note is inside the range from the start. */
+const FIFTH = 7
 /** The resting note is moved by octaves into this span, so the whole range is on the keyboard. */
 const LOWEST_REST = 36
 const HIGHEST_REST = 84
@@ -564,6 +591,9 @@ class TwoRoads extends MakerBase {
   private releasedSec: number | null = null
   private stop: TaskHandle | null = null
   private settling: TaskHandle | null = null
+  private striking: TaskHandle | null = null
+  /** A key was pressed while the phrase went home: the next one comes after a breath. */
+  private asked = false
 
   /** The next thing the melody does. */
   private upcoming: TaskHandle | null = null
@@ -596,18 +626,24 @@ class TwoRoads extends MakerBase {
     if (this.phase === 'idle') {
       this.phase = 'gather'
       this.beganSec = atSec
-      this.total = this.onStrong = this.onPartner = 0
+      this.forgetShares()
       this.position = null
       this.later(atSec + GATHER_SEC, (at) => this.beginPhrase(at))
-    } else if (this.phase !== 'gather' && this.lowest !== before) this.settleLater(atSec)
+      return
+    }
+    if (this.phase === 'gather') return
+    if (this.phase === 'silent') {
+      this.later(Math.min(this.nextSec, atSec + GATHER_SEC), (at) => this.beginPhrase(at))
+      return
+    }
+    if (this.homeward) this.asked = true
+    if (this.lowest !== before) this.settleLater(atSec + GATHER_SEC)
   }
 
   protected onRelease(atSec: number): void {
     if (this.phase === 'idle') return
     if (this.held.size > 0) {
-      const before = this.lowest
-      this.lowest = this.lowestHeld()
-      if (this.phase !== 'gather' && this.lowest !== before) this.settleLater(atSec)
+      this.settleLater(atSec + LET_GO_SEC)
       return
     }
     this.releasedSec = atSec
@@ -619,9 +655,10 @@ class TwoRoads extends MakerBase {
     if (name === 'seed') this.random = new MakerRandom(this.params.seed)
     if (this.phase === 'idle') return
     if (name === 'map' || name === 'tonic') this.resettle()
-    if (name === 'drone') this.strikeDrone()
+    if (name === 'dwell') this.forgetShares()
+    if (name === 'drone') this.turnDrone(atSec)
     if (name === 'pace' && this.phase === 'sing')
-      this.moveUp(Math.max(atSec, Math.min(this.nextSec, atSec + 2 * this.params.pace)))
+      this.moveUp(Math.min(this.nextSec, atSec + 2 * this.params.pace))
     if (name === 'phrase' && this.phase === 'sing')
       this.endsBy = Math.min(this.endsBy, atSec + this.params.phrase)
     if (name === 'rest' && this.phase === 'silent')
@@ -669,40 +706,75 @@ class TwoRoads extends MakerBase {
     this.roads = roadsOf(map, rest, kept ? this.key : null)
   }
 
-  /** The lowest key is another one. A played resting note follows it; any other waits for the next phrase. */
+  /** The keys held are others: where the lowest of them moves the resting note, the melody goes there. */
   private settleLater(atSec: number): void {
-    if (Math.floor(this.params.tonic / 2) !== TONIC_PLAYED) return
     this.settling?.cancel()
-    this.settling = this.at(atSec + GATHER_SEC, () => {
-      if (this.phase !== 'idle') this.resettle()
+    this.settling = this.at(atSec, () => {
+      this.lowest = this.lowestHeld()
+      if (this.phase !== 'sing' && this.phase !== 'silent') return
+      const { rest } = this
+      this.place()
+      if (this.rest === rest) return
+      this.takeRoad(true)
+      // Too far to walk: the next note is the resting note there.
+      if (Math.abs(this.rest - rest) > 12) this.path = [this.rest]
     })
   }
 
-  /** The map or its resting note moved: the melody takes the new road from where it is. */
+  /** The map, its resting note or the key is another one: the melody takes the new road from where it is. */
   private resettle(): void {
     if (this.phase === 'gather') return
     const { rest, roads } = this
     this.place()
+    this.takeRoad(rest !== this.rest || roads.drone !== this.roads.drone)
+  }
+
+  private takeRoad(drone: boolean): void {
     this.path =
       this.homeward && this.position !== null ? this.walkTo(this.position, this.rest, 0) : []
     if (this.phase === 'silent') this.position = this.rest
-    if (rest !== this.rest || roads.drone !== this.roads.drone) this.strikeDrone()
+    else this.moveUp(Math.min(this.nextSec, this.now + this.params.pace))
+    if (drone) this.strikeLater(this.now + GATHER_SEC)
   }
 
-  /** A step of the map, counted from the resting note. */
+  /** The note so many steps of the road over the resting note. */
   private stepNote(step: number): number {
-    const { all } = this.roads
-    return this.rest + 12 * Math.floor(step / all.length) + all[mod(step, all.length)]
+    const { steps } = this.roads
+    return this.rest + 12 * Math.floor(step / steps.length) + steps[mod(step, steps.length)]
   }
 
   /** How many steps over the resting note the melody may go at this moment. */
   private reach(atSec: number): number {
     const { range, grow } = this.params
-    const first = Math.min(range, Math.max(FIRST_REACH, this.roads.all.indexOf(this.roads.strong)))
+    const { steps, strong } = this.roads
+    const first = Math.min(range, Math.max(FIRST_REACH, steps.filter((s) => s < strong).length))
     const span = range - first
     if (grow <= 0 || span <= 0) return range
     const step = Math.floor((atSec - this.beganSec) / grow) % (2 * span)
     return first + (step <= span ? step : 2 * span - step)
+  }
+
+  /**
+   * The notes of either road the melody may go to at this moment, rising. Half
+   * as far under the resting note as over it; the strong note under it is
+   * reached from the start where it is near, for the part of an octave the
+   * roads part in is mostly the one just under the resting note.
+   */
+  private within(atSec: number): number[] {
+    const reach = this.reach(atSec)
+    const { all, strong } = this.roads
+    const high = Math.min(HIGHEST_NOTE, this.stepNote(reach))
+    let low = this.stepNote(-Math.floor(reach / 2))
+    if (12 - strong <= FIFTH) low = Math.min(low, this.rest + strong - 12)
+    const notes: number[] = []
+    for (let note = Math.max(LOWEST_NOTE, low); note <= high; note += 1)
+      if (all.includes(this.classOf(note))) notes.push(note)
+    return notes
+  }
+
+  /** The shares of the time begin anew: what was sung under other rules is not made up for. */
+  private forgetShares(): void {
+    this.total = this.onStrong = this.onPartner = 0
   }
 
   private classOf(note: number): number {
@@ -737,6 +809,7 @@ class TwoRoads extends MakerBase {
     this.place()
     this.phase = 'sing'
     this.homeward = false
+    this.asked = false
     this.written = 0
     this.path = []
     this.beat = 0
@@ -751,16 +824,14 @@ class TwoRoads extends MakerBase {
 
   /** Where a phrase begins: on the resting note, the strong one, its partner, or the note a rise to rest comes from. */
   private firstNote(atSec: number): number {
-    const reach = this.reach(atSec)
     const choices: [number, number][] = [[this.rest, 2]]
-    for (let step = -Math.floor(reach / 2); step <= reach; step += 1) {
-      const note = this.stepNote(step)
+    for (const note of this.within(atSec)) {
       if (note === this.rest) continue
       const at = this.classOf(note)
       if (at === this.roads.strong) choices.push([note, 2])
       else if (at === this.roads.partner) choices.push([note, 1.5])
       else if (
-        step < 0 &&
+        note < this.rest &&
         nextOn(this.roads, this.rest, note, 1) === this.rest &&
         this.roads.up.has(at)
       )
@@ -773,7 +844,8 @@ class TwoRoads extends MakerBase {
     const position = this.position ?? this.rest
     if (!this.homeward && this.mustGoHome(atSec, position)) {
       this.homeward = true
-      this.path = this.walkTo(position, this.rest)
+      if (this.path.length !== 1 || this.path[0] !== this.rest)
+        this.path = this.walkTo(position, this.rest)
     }
     // No time to walk: the resting note straight away.
     if (this.homeward && this.path.length > 1 && this.leftSec(atSec) < this.homeSec(position))
@@ -816,18 +888,17 @@ class TwoRoads extends MakerBase {
   private setOut(atSec: number, position: number): number[] {
     const { strong, partner, up, down, passing } = this.roads
     const { dwell } = this.params
-    const reach = this.reach(atSec)
-    const behind = this.total > 0 ? Math.max(0, dwell - this.onStrong / this.total) : dwell
+    const within = this.within(atSec)
+    const behind = this.total > 0 ? dwell - this.onStrong / this.total : dwell
     const choices: [number, number][] = []
-    for (let step = -Math.floor(reach / 2); step <= reach; step += 1) {
-      const note = this.stepNote(step)
+    for (const note of within) {
       if (note === position) continue
       const at = this.classOf(note)
       const road = note > position ? up : down
       if (!road.has(at) || passing.has(at)) continue
       if (at !== strong && at !== partner && !this.turnsOn(note)) continue
-      let weight = step === reach ? 1.2 : 0.6
-      if (at === strong) weight = 2 + 14 * behind
+      let weight = note === within[within.length - 1] ? 1.2 : 0.6
+      if (at === strong) weight = Math.max(0.2, 2 + 14 * behind)
       else if (at === partner) weight = 1.6
       else if (at === 0) weight = 1
       const far = Math.abs(note - position)
@@ -841,7 +912,10 @@ class TwoRoads extends MakerBase {
     this.beat = 0
     const far = Math.abs(goal - position)
     const firm = [0, strong, partner].includes(this.classOf(goal))
-    if (this.random.next() < 0.2 && firm && far >= 3 && far <= 7) return [goal]
+    const leaps = firm && far >= 3 && far <= FIFTH && far !== TRITONE
+    // A fall of a fourth that should have a turn in it is not leapt.
+    const straight = goal > position || far < FOURTH || this.random.next() >= this.params.zigzag
+    if (this.random.next() < 0.2 && leaps && straight) return [goal]
     return this.walkTo(position, goal)
   }
 
@@ -856,7 +930,7 @@ class TwoRoads extends MakerBase {
     const closing = this.homeward && this.path.length === 0
     // On the way home in a tail there is no time to dwell.
     const hurried = this.homeward && this.releasedSec !== null
-    const longest = Math.max(2 * pace, 0.45 * phrase)
+    const longest = Math.max(4 * pace, (0.25 + 0.7 * dwell) * phrase)
     let dur = pace * this.cell[this.beat % this.cell.length]
     let level = 0.85
     if (passing) {
@@ -893,8 +967,9 @@ class TwoRoads extends MakerBase {
 
   /** How long a note has to last to have its share of the time again. */
   private owed(share: number, had: number, longest: number): number {
+    if (this.total === 0) return this.params.pace
     const owed = (share * this.total - had) / (1 - share)
-    return Math.min(longest, Math.max(this.params.pace, owed))
+    return Math.min(longest, Math.max(0.6 * this.params.pace, owed))
   }
 
   private endPhrase(atSec: number): void {
@@ -908,7 +983,9 @@ class TwoRoads extends MakerBase {
     this.phase = 'silent'
     this.silentSec = atSec
     this.silenceShare = this.random.between(0.7, 1.4)
-    this.later(atSec + this.params.rest * this.silenceShare, (at) => this.beginPhrase(at))
+    const silence = this.params.rest * this.silenceShare
+    const wait = this.asked ? Math.min(BREATH_SEC, silence) : silence
+    this.later(atSec + wait, (at) => this.beginPhrase(at))
   }
 
   /** The last key was let go: the phrase comes home, within the tail. */
@@ -929,6 +1006,7 @@ class TwoRoads extends MakerBase {
     this.stop?.cancel()
     this.settling?.cancel()
     this.releasedSec = null
+    this.asked = false
     this.end(this.voice)
     this.voice = null
     this.endDrone()
@@ -939,8 +1017,21 @@ class TwoRoads extends MakerBase {
   // --- The drone ----------------------------------------------------------------
 
   private endDrone(): void {
+    this.striking?.cancel()
     for (const note of this.drones) this.end(note)
     this.drones = []
+  }
+
+  /** Struck again once, however often what asks for it is asked before then. */
+  private strikeLater(atSec: number): void {
+    this.striking?.cancel()
+    this.striking = this.at(atSec, () => this.strikeDrone())
+  }
+
+  /** The drone's own knob: off at once, on soon, and at its new level when the knob stands still. */
+  private turnDrone(atSec: number): void {
+    if (this.params.drone <= 0) this.endDrone()
+    else this.strikeLater(atSec + (this.drones.length > 0 ? DRONE_STILL_SEC : GATHER_SEC))
   }
 
   private strikeDrone(): void {
