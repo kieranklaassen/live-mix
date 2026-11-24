@@ -42,6 +42,7 @@ import { MAGNET_PIANO_PRESETS } from './magnet-piano'
 import { MAKER_MIRROR_ON_D_PRESETS } from './maker-mirror-on-d'
 import { MAKER_SIX_VOICES_PRESETS } from './maker-six-voices'
 import { BREATH_BUDGET_PRESETS } from './maker-breath-budget'
+import { HEXATONIC_WALKER_PRESETS } from './maker-hexatonic-walker'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
@@ -134,4 +135,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...MAKER_SIX_VOICES_PRESETS,
   ...COMPANION_VOICE_PRESETS,
   ...BREATH_BUDGET_PRESETS,
+  ...HEXATONIC_WALKER_PRESETS,
 ]
