@@ -96,7 +96,7 @@ export const WHEEL_AND_DOG_PARAMS = {
     unit: '',
     choices: ['First key', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'],
     description:
-      'The note the drones are tuned to. First key takes the lowest drone key held, and D until one has been played.',
+      'The note the drones are tuned to. First key takes the lowest drone key held, and D until one is played on the turning wheel.',
   },
   tuning: {
     id: 8,
@@ -140,7 +140,7 @@ export const WHEEL_AND_DOG_PARAMS = {
     taper: 'linear',
     unit: 'ct',
     description:
-      'Tunes the third drone sharp. A touch makes its fifth over the low drones pure; more beats slowly against them and against the melody.',
+      'Tunes the third drone sharp. A touch makes a fifth over the low drones pure; more beats slowly against them and against the melody.',
   },
   melody: {
     id: 12,
@@ -163,7 +163,7 @@ export const WHEEL_AND_DOG_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Loudness of the wooden key stopping the melody string: a short knock and breath of rosin at each change of note.',
+      'Loudness of the wooden key stopping the melody string: a short knock of noise at each change of note.',
   },
   rosin: {
     id: 14,
@@ -207,7 +207,7 @@ export const WHEEL_AND_DOG_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Blend from the bare strings to the wooden box they stand on, which adds hollow low and nasal middle resonances.',
+      'Blend from the bare strings to the wooden box they stand on, which takes off the lowest and highest tones and adds nasal middle resonances.',
   },
   spread: {
     id: 18,

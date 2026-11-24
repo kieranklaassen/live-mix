@@ -69,7 +69,7 @@
       "name": "Drone",
       "choices": ["First key", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
       "default": 0,
-      "description": "The note the drones are tuned to. First key takes the lowest drone key held, and D until one has been played."
+      "description": "The note the drones are tuned to. First key takes the lowest drone key held, and D until one is played on the turning wheel."
     },
     {
       "key": "tuning",
@@ -101,7 +101,7 @@
       "max": 12,
       "default": 2,
       "unit": "ct",
-      "description": "Tunes the third drone sharp. A touch makes its fifth over the low drones pure; more beats slowly against them and against the melody."
+      "description": "Tunes the third drone sharp. A touch makes a fifth over the low drones pure; more beats slowly against them and against the melody."
     },
     {
       "key": "melody",
@@ -116,7 +116,7 @@
       "min": 0,
       "max": 1,
       "default": 0.35,
-      "description": "Loudness of the wooden key stopping the melody string: a short knock and breath of rosin at each change of note."
+      "description": "Loudness of the wooden key stopping the melody string: a short knock of noise at each change of note."
     },
     {
       "key": "rosin",
@@ -148,7 +148,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "Blend from the bare strings to the wooden box they stand on, which adds hollow low and nasal middle resonances."
+      "description": "Blend from the bare strings to the wooden box they stand on, which takes off the lowest and highest tones and adds nasal middle resonances."
     },
     {
       "key": "spread",
@@ -452,6 +452,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit after the hurdy-gurdy: a wheel that bows melody strings, drones and one drone that stands on a loose, buzzing bridge. A signal model, with no sample and no measurement of an instrument in it. Each string is the ramp and slip of a string under a steady bow, band-limited at twice the sample rate, shaped by a low-pass and a shelf; there is no waveguide and no friction law, so nothing in it can go unstable or out of tune. Rosin moves a second slip in the period (little: it takes out the fundamental; much: it narrows the ramp) and adds uneven slips and drive. The wheel is an even clock with pushes on it; the jerk is the time derivative of the bow's speed and is what opens the dog; the bark is a one-sided contact on the third drone's own motion at twice the rate, then three resonances and a short diffuser for the bridge and its board. Choices and not measurements: the 22 ms rise of a push and its cubic fall, the dog's threshold law and its 90 ms chatter, the bridge's three resonances, the seven body resonances a side, the second slips' places, the lean of one melody string on the other (six cents at most), every level. Simplified: no sympathetic strings, the strings do not move the bridge for each other but for that lean, the wheel is round but for 2 % of level a turn, the dog stands under the third drone alone, tangents are a burst of noise. Equal-tempered intervals on a tonic at A = 440 Hz unless it is taken from a key. Nobody has listened to it."
+    "note": "Written for live-mix on cpp/kit after the hurdy-gurdy: a wheel that bows melody strings, drones and one drone that stands on a loose, buzzing bridge. A signal model, with no sample and no measurement of an instrument in it. Each string is the ramp and slip of a string under a steady bow, band-limited at twice the sample rate, shaped by a low-pass and a shelf; there is no waveguide and no friction law, so nothing in it can go unstable or out of tune. Rosin moves a second slip in the period (little: it takes out the fundamental; much: it narrows the ramp) and adds uneven slips and drive. The wheel is an even clock with pushes on it; the jerk is the time derivative of the bow's speed and is what opens the dog; the bark is a one-sided contact on the third drone's own motion, then three resonances, a short diffuser for the bridge and its board and a ceiling, all at twice the rate. Choices and not measurements: the 22 ms rise of a push and its cubic fall, the dog's threshold law and its 90 ms chatter, the bridge's three resonances, the seven body resonances a side, the second slips' places, the lean of one melody string on the other and of either on a drone of its own note (six cents at most), every level. Simplified: no sympathetic strings, the strings do not move the bridge for each other but for those leans, the wheel is round but for 2 % of level a turn, the dog stands under the third drone alone, tangents are a burst of noise. Equal-tempered intervals on a tonic at A = 440 Hz unless it is taken from a key. Nobody has listened to it."
   }
 }

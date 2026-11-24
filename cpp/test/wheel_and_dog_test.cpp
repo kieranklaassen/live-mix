@@ -361,6 +361,26 @@ void melody_rules() {
   std::printf("  unison after a duo: within %.2f dB of a plain one\n", worst);
   EXPECT(worst < 0.5, "a unison never stands cancelled");
 
+  // A melody string on a drone's own note leans on that drone: the note has
+  // one level whenever it comes, struck fresh or come to from another.
+  for (int legato = 0; legato < 2; ++legato) {
+    double low = 100.0, high = -200.0;
+    for (int k = 0; k < 8; ++k) {
+      fresh({{p::kAccents, 0.0f}, {p::kTangents, 0.0f}, {p::kNoise, 0.0f}});
+      key(38);
+      render(device, 0.5f, kRate);
+      if (legato) key(64);
+      render(device, 0.4f + 0.0371f * static_cast<float>(k), kRate);
+      key(50);
+      render(device, legato ? 2.0f : 0.1f, kRate);
+      const double level = line_at(render(device, 0.5f, kRate), 50, 0.0, 0.5);
+      low = std::min(low, level);
+      high = std::max(high, level);
+    }
+    std::printf("  the drone's own note on the melody, %s: %.2f to %.2f dB\n", legato ? "come to" : "struck", low, high);
+    EXPECT(high - low < 1.0, "a melody note on a drone's note never stands cancelled");
+  }
+
   // Tangents: a knock at the change of note and not between.
   auto knock = [&](float amount) {
     fresh(bare);
@@ -497,12 +517,12 @@ void cotton() {
   EXPECT(loud[0] < loud[1] && loud[1] - loud[0] < 9.0 && std::fabs(loud[2] - loud[1]) < 4.0, "and no jump of level");
 }
 
-// The dog's contact on a steady string: what folds back.
-void contact_folding() {
+// The whole dog on a steady string, its ceiling's bend too: what folds back.
+void dog_folding() {
   for (double rate : {44100.0, 48000.0, 96000.0}) {
     for (double tone : {220.0, 246.94, 587.33}) {
-      livemix::wheel_and_dog_detail::Contact contact;
-      contact.init(static_cast<float>(2.0 * rate));
+      livemix::wheel_and_dog_detail::Dog dog;
+      dog.init(static_cast<float>(2.0 * rate));
       // Put the tone where the images of its high harmonics fall between its
       // own: the rate is (n + 0.37) times the tone.
       const double f = rate / (std::floor(rate / tone) + 0.37);
@@ -514,19 +534,23 @@ void contact_folding() {
         for (float& h : half) {
           phase += step;
           if (phase >= 1.0) phase -= 1.0;
-          h = contact.beat(livemix::wheel_and_dog_detail::ramp(phase, step), 1.0f);
+          h = dog.half(livemix::wheel_and_dog_detail::ramp(phase, step), 1.0f);
         }
-        y = contact.down.down(half[0], half[1]);
+        y = dog.down.down(half[0], half[1]);
       }
       const size_t from = at(0.2, rate);
       double whole = 0.0, folded = 0.0;
       const int top = static_cast<int>(0.499 * rate / f);
       for (int n = 1; n <= top; ++n) whole = std::max(whole, tone_level(out, n * f, rate, from));
-      // Images lie at 0.37 of the way between the harmonics.
-      for (int n = 0; n < top; ++n) folded = std::max(folded, tone_level(out, (n + 0.37) * f, rate, from));
-      for (int n = 0; n < top; ++n) folded = std::max(folded, tone_level(out, (n + 0.63) * f, rate, from));
-      std::printf("  contact at %.0f Hz, %.0f Hz string: strongest image %.1f dB\n", rate, f, db(folded / whole));
-      EXPECT(folded < whole * 1.0e-3, "what the contact folds back is 60 dB down");
+      // What the halving folds lies at 0.37 of the way between the harmonics,
+      // what the doubled rate folds at 0.74. Over 20 kHz the halving's own
+      // slope lets some through.
+      const int heard = static_cast<int>(20000.0 / f) - 1;
+      for (double place : {0.37, 0.63, 0.74, 0.26}) {
+        for (int n = 0; n < heard; ++n) folded = std::max(folded, tone_level(out, (n + place) * f, rate, from));
+      }
+      std::printf("  dog at %.0f Hz, %.0f Hz string: strongest image under 20 kHz %.1f dB\n", rate, f, db(folded / whole));
+      EXPECT(folded < whole * 1.0e-3, "what the dog folds back is 60 dB down");
     }
   }
 }
@@ -650,6 +674,26 @@ void block_sizes() {
   key(62);
   const Stereo first = render(device, 2.0f, kRate);
   EXPECT(difference(first, second) == 0.0, "a note after a silence is the first note, to the sample");
+  for (int id = 0; id < p::kNumParams; ++id) {
+    for (float value : {p::kParamMin[id], p::kParamMax[id]}) {
+      fresh({});
+      device.set_param(id, value);
+      key(40, 0.9f);
+      key(64);
+      const Stereo told = render(device, 0.6f, kRate);
+      fresh({});
+      key(38);
+      key(65);
+      render(device, 0.737f, kRate);
+      device.note_off(38);
+      device.note_off(65);
+      render(device, 1.5f, kRate);
+      device.set_param(id, value);
+      key(40, 0.9f);
+      key(64);
+      EXPECT(difference(told, render(device, 0.6f, kRate)) == 0.0, "every knob moved in a silence has arrived");
+    }
+  }
 }
 
 // --- keys ----------------------------------------------------------------------------------------
@@ -853,6 +897,26 @@ void clicks() {
   EXPECT(suddenness(plain, [] { device.note_off(62); }) < 0.15, "a melody key up is gradual");
   EXPECT(suddenness(plain, [] { key(65); }) < 0.25, "a key change keeps the string's phase");
   EXPECT(suddenness(plain, [] { key(36); }) < 0.15, "a new drone root keeps it too");
+  // Accents and Pattern changed between two pushes: the bow goes over to the
+  // new ones gradually, and what no push made does not bark.
+  for (int id : {p::kAccents, p::kPattern}) {
+    for (float place : {0.47f, 0.51f, 0.55f, 0.62f}) {
+      fresh({{p::kDepth, 1.0f}, {p::kDog, 1.0f}, {p::kSpin, 0.05f}, {id, 0.0f}});
+      key(38);
+      render(device, 4.0f + 2.0f * place + 0.025f, kRate);
+      const float rest = device.meter(1);
+      float turning = device.meter(3), step = 0.0f, bark = 0.0f;
+      device.set_param(id, id == p::kAccents ? 2.0f : 1.0f);
+      for (int k = 0; k < 60; ++k) {
+        render(device, 0.00034f, kRate);
+        step = std::max(step, std::fabs(device.meter(3) - turning));
+        turning = device.meter(3);
+        bark = std::max(bark, device.meter(1));
+      }
+      EXPECT(bark <= rest + 0.01f, "Accents and Pattern turned do not bark");
+      EXPECT(step < 0.06f, "and the bow does not jump");
+    }
+  }
   // Knobs that set the pushes, moved under sound: the dog is not set off by a hand on a knob.
   fresh({{p::kAccents, 2.0f}, {p::kDepth, 0.0f}, {p::kDog, 1.0f}, {p::kNoise, 0.0f}});
   key(38);
@@ -879,6 +943,12 @@ void meters() {
     EXPECT(device.meter(0) >= 0.0f && device.meter(0) < 1.0f, "the place stays in a turn");
   }
   EXPECT(top > 0.5f && top <= 1.0f && low < 0.01f, "the bark's meter opens and shuts");
+  fresh({{p::kDepth, 1.0f}, {p::kDog, 1.0f}, {p::kTrompette, 0.0f}});
+  key(38);
+  for (int k = 0; k < 40; ++k) {
+    render(device, 0.05f, kRate);
+    EXPECT(device.meter(1) == 0.0f, "with no third drone there is no bark to show");
+  }
 }
 
 void cost() {
@@ -899,7 +969,7 @@ int main() {
   beating();
   drone_notes();
   cotton();
-  contact_folding();
+  dog_folding();
   run_down();
   block_sizes();
   keys_let_go();

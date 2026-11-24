@@ -7,7 +7,7 @@
 //                                                                  │
 //   melody 1, 2 ─┐                                                 ▼
 //   low, second ─┼─► strings at twice the rate ─► halve ─► body ─►(+)─► width ─► volume ─► out
-//   third drone ─┴──────────────► contact on the dog ─► halve ─► band ┘
+//   third drone ─┴──► contact on the dog ─► plate and board ─► halve ┘
 //
 // - A string under a turning wheel moves as a ramp and a slip, with no bow
 //   change, so a held note has no seam. Each string is that motion: a
@@ -24,8 +24,8 @@
 //   time derivative of the bow's speed, scaled so that a push of Depth d at
 //   full turning reads d. Over a threshold that falls as Dog rises the bridge
 //   foot comes loose and the third drone's own wave beats it: a one-sided
-//   contact on the string's motion, worked out at twice the rate, with a band
-//   of 2 to 6 kHz kept. As the wheel runs down its pushes shrink and the dog
+//   contact on the string's motion and the plate it rings, worked out at twice
+//   the rate, with a band of 2 to 6 kHz kept. As the wheel runs down its pushes shrink and the dog
 //   falls silent before the strings do.
 // - Keys below Split hold the drones, keys from it up play the melody; both
 //   turn the wheel. A key's side is settled when it is struck, so moving Split
@@ -33,7 +33,8 @@
 // - Two strings on one note (or on an octave) would stand at any phase to
 //   each other and some phases cancel. They are coupled as through a bridge:
 //   the second leans on the first by at most six cents until they agree, so
-//   a new unison beats for a moment and then stands.
+//   a new unison beats for a moment and then stands. A melody string on the
+//   very note of a drone leans on that drone the same way.
 // - Five strings sound however many keys are held, so there is no pool to fill
 //   and nothing to stack.
 //
@@ -65,27 +66,56 @@ inline float ramp(double phase, double step) {
   return y;
 }
 
-// The dog's foot on its board: what the third drone's own motion makes of a
-// one-sided contact. The motion is rounded off first, and all of it runs at
-// twice the host's rate, so what the contact makes stays under that Nyquist
-// and the halving takes off what would fold.
-struct Contact {
-  kit::Svf in;
+// The dog: what the third drone's own motion makes of a one-sided contact, then
+// the plate and the board the foot's beating rings, held under a ceiling. The
+// motion is rounded off first, and all of it, the ceiling's bend too, runs at
+// twice the host's rate, so what the bends make stays under that Nyquist and
+// the halving takes off what would fold.
+struct Dog {
+  static constexpr int kModes = 3;
+  static constexpr float kHz[kModes] = {2250.0f, 3150.0f, 4400.0f};
+  static constexpr float kQ[kModes] = {9.0f, 11.0f, 11.0f};
+  static constexpr float kGain[kModes] = {1.0f, -1.1f, 0.9f};
+  // The board spreads each knock over a few milliseconds.
+  static constexpr int kBoardSize = 512;
+  static constexpr float kBoardSeconds[2] = {0.00127f, 0.00079f};
+  static constexpr float kLevel = 44.0f;
+  static constexpr float kCeiling = 1.4f;  // times the string's own swing
+
+  kit::Svf in, high, mode[kModes], low;
+  kit::AllpassDelay<kBoardSize> board[2];
+  int board_delay[2] = {122, 76};
   kit::Halfband2x down;
 
   void init(float rate2) {
     in.set(3800.0f, 0.6f, rate2);
+    high.set(1500.0f, 0.7f, rate2);
+    for (int m = 0; m < kModes; ++m) mode[m].set(kHz[m], kQ[m], rate2);
+    low.set(6500.0f, 0.7f, rate2);
+    for (int b = 0; b < 2; ++b) {
+      board_delay[b] = kit::clamp_int(static_cast<int>(kBoardSeconds[b] * rate2 + 0.5f), 1, kBoardSize - 2);
+    }
     down.init();
     reset();
   }
   void reset() {
     in.reset();
+    high.reset();
+    for (kit::Svf& m : mode) m.reset();
+    low.reset();
+    for (auto& b : board) b.clear();
     down.reset();
   }
-  // The string at this half sample; `open` is how far the foot hangs loose.
-  float beat(float motion, float open) {
+  // One half sample of the bark, from the string there; `open` is how far the
+  // foot hangs loose.
+  float half(float motion, float open) {
     const float over = in.lowpass(motion) - (0.6f - 0.35f * open);
-    return over > 0.0f ? open * over * over / (over + 0.15f) : 0.0f;
+    const float beat = high.highpass(over > 0.0f ? open * over * over / (over + 0.15f) : 0.0f);
+    float plate = 0.25f * beat;
+    for (int m = 0; m < kModes; ++m) plate += kGain[m] * mode[m].bandpass(beat);
+    float y = low.lowpass(plate);
+    for (int b = 0; b < 2; ++b) y = board[b].process(y, board_delay[b], 0.6f);
+    return kCeiling * kit::fast_tanh(y * (kLevel / kCeiling));
   }
 };
 
@@ -109,6 +139,7 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
     kit::SineTable::init();
     spin_ = 0.0f;
     push_coeff_ = 1.0f - kit::time_to_coeff(0.002f, sr);
+    carry_fall_ = kit::time_to_coeff(0.03f, sr);
     sounding_ = false;
     tail_ = 0;
     tail_samples_ = static_cast<int>(kTailSeconds * sr);
@@ -131,14 +162,7 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
       rumble_[c].set_cutoff(25.0f, sr);
       rumble_[c].reset();
     }
-    contact_.init(2.0f * sr);
-    for (int m = 0; m < kDogModes; ++m) dog_mode_[m].set(kDogHz[m], kDogQ[m], sr);
-    dog_low_.set(6500.0f, 0.7f, sr);
-    dog_high_.set(1500.0f, 0.7f, sr);
-    for (int b = 0; b < 2; ++b) {
-      board_[b].clear();
-      board_delay_[b] = kit::clamp_int(static_cast<int>(kBoardSeconds[b] * sr + 0.5f), 1, kBoardSize - 2);
-    }
+    foot_.init(2.0f * sr);
     noise_scale_ = std::sqrt(sr / 48000.0f);
     kit::Smoother* const fast[] = {&depth_, &dog_, &drones_, &third_, &noise_, &body_amount_, &spread_, &volume_};
     for (kit::Smoother* s : fast) s->set_time(kSmoothingSeconds, sr);
@@ -157,7 +181,11 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
   }
 
   void set_param(int id, float value) {
-    if (store_param(id, value)) apply(id);
+    using namespace wheel_and_dog;
+    const int accents_before = choice(param(kAccents)), pattern_before = choice(param(kPattern));
+    if (!store_param(id, value)) return;
+    if (choice(param(kAccents)) != accents_before || choice(param(kPattern)) != pattern_before) new_pushes_ = true;
+    apply(id);
   }
 
   void note_on(int note_id, float frequency, float gain) {
@@ -196,7 +224,7 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
     if (!sounding_) return 0.0f;
     switch (index) {
       case 0: return static_cast<float>(turn_.phase);
-      case 1: return open_.value;
+      case 1: return open_.value * kit::min(1.0f, 2.0f * third_.value);  // nothing to hear, nothing to show
       case 2: return melody_gate_.target;
       case 3: return bow_speed_;
       default: return 0.0f;
@@ -238,7 +266,8 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
   static constexpr float kRiseSeconds = 0.022f;
   static constexpr float kRiseShare = 0.3f;
   static constexpr float kJump = 1.5f;
-  // The second melody string leans on the first by at most six cents.
+  // The second melody string leans on the first, and either on a drone of its
+  // own note, by at most six cents.
   static constexpr double kLean = 0.00347;
   // Where a string's second slip lies, in periods behind the first.
   static constexpr double kSecondSlip[kNumStrings] = {0.46, 0.43, 0.45, 0.44, 0.47};
@@ -252,19 +281,9 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
                                                   {171.0f, 251.0f, 388.0f, 604.0f, 815.0f, 1335.0f, 2050.0f}};
   static constexpr float kBodyQ[kBodyModes] = {5.0f, 6.0f, 7.0f, 8.0f, 8.0f, 7.0f, 5.0f};
   static constexpr float kBodyGain[kBodyModes] = {0.9f, 1.0f, 0.8f, 0.9f, 1.1f, 1.2f, 0.8f};
-  // The dog's own plate: three modes the foot's beating rings.
-  static constexpr int kDogModes = 3;
-  static constexpr float kDogHz[kDogModes] = {2250.0f, 3150.0f, 4400.0f};
-  static constexpr float kDogQ[kDogModes] = {9.0f, 11.0f, 11.0f};
-  static constexpr float kDogGain[kDogModes] = {1.0f, -1.1f, 0.9f};
-  // The board under it spreads each knock over a few milliseconds.
-  static constexpr int kBoardSize = 512;
-  static constexpr float kBoardSeconds[2] = {0.00127f, 0.00079f};
   // Levels before Volume.
   static constexpr float kLevel[kNumStrings] = {0.50f, 0.40f, 0.46f, 0.26f, 0.19f};
   static constexpr float kNoiseLevel = 0.5f;
-  static constexpr float kBuzzLevel = 44.0f;
-  static constexpr float kBarkCeiling = 1.4f;  // times the string's own swing
   static constexpr float kTangentLevel = 1.8f;
 
   struct Key {
@@ -384,6 +403,17 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
     aim(kMelody1, keys_[first].hz, land);
     aim(kMelody2, second_hz, land);
     lean_ = keys_[first].hz == second_hz ? 1 : (keys_[first].hz == 2.0f * second_hz ? 2 : 0);
+    for (int m = 0; m < 2; ++m) {
+      const int s = kMelody1 + m;
+      lean_drone_[m] = -1;
+      if (m == 1 && lean_ > 0) continue;
+      for (int d = kLow; d <= kThird; ++d) {
+        if (std::fabs(strings_[s].hz.target / strings_[d].hz.target - 1.0f) < 2.0e-5f) lean_drone_[m] = d;
+      }
+      // Not yet heard, it starts in step.
+      if (land && lean_drone_[m] >= 0) strings_[s].phase = strings_[lean_drone_[m]].phase;
+    }
+    if (land && lean_drone_[0] >= 0 && lean_ == 1) strings_[kMelody2].phase = strings_[kMelody1].phase;
     const float share = first == second ? kLevel[kMelody2] : kLevel[kMelody1];
     set_gain(0, kLevel[kMelody1] * keys_[first].gain, land);
     set_gain(1, share * keys_[second].gain, land);
@@ -414,7 +444,8 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
     turn_.reset();
     spin_ = 0.0f;
     spin_place_ = 0.0;
-    push_ = jerk_ = 0.0f;
+    push_ = push_carry_ = jerk_ = 0.0f;
+    new_pushes_ = false;
     bow_speed_ = 0.0f;
     bow_gain_ = 1.0f;
     tangent_ = 0.0f;
@@ -424,6 +455,7 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
     melody_gate_.snap(0.0f);
     string_key_[0] = string_key_[1] = -1;
     lean_ = 0;
+    lean_drone_[0] = lean_drone_[1] = -1;
     noise_rng_.seed(0x00D06A11u);
     for (int s = 0; s < kNumStrings; ++s) {
       Str& string = strings_[s];
@@ -452,11 +484,7 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
       edge_split_[c].reset();
       rumble_[c].reset();
     }
-    contact_.reset();
-    for (kit::Svf& mode : dog_mode_) mode.reset();
-    for (auto& board : board_) board.clear();
-    dog_low_.reset();
-    dog_high_.reset();
+    foot_.reset();
   }
 
   // --- the control clock -----------------------------------------------------------------------
@@ -542,9 +570,18 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
     const float place = static_cast<float>(turn_.phase);
     turn_.step(kit::SlowClock::increment(static_cast<double>(speed) * spin_place_, rate_));
     const float depth = kJump * depth_.next();
+    const float push = push_at(place, speed);
+    // Accents or Pattern moved: the bow goes over to the new pushes from the
+    // speed it has, and the difference, which no hand made, is not a jerk.
+    if (new_pushes_) {
+      new_pushes_ = false;
+      push_carry_ += push_ - push;
+      push_ = push;
+    }
+    push_carry_ = flush_denormal(push_carry_ * carry_fall_);
     const float last_push = push_;
-    push_ += (push_at(place, speed) - push_) * push_coeff_;
-    const float jump = depth * push_;
+    push_ += (push - push_) * push_coeff_;
+    const float jump = depth * kit::max(0.0f, push_ + push_carry_);
     bow_speed_ = spin_ * (1.0f + jump);
     bow_gain_ = 1.0f + jump * (0.8f - 0.053f * jump);
 
@@ -565,6 +602,13 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
     const float round = spin_ * spin_ * (3.0f - 2.0f * spin_);
     const float eccentric = 1.0f + 0.02f * kit::SineTable::lookup(place);
     return round * bow_gain_ * speed_level_ * eccentric;
+  }
+
+  // How far a string's pitch is drawn to close `apart`, a difference of phases.
+  static double lean(double apart) {
+    apart -= std::floor(apart + 0.5);
+    const double pull = 0.02 * apart;
+    return pull > kLean ? kLean : (pull < -kLean ? -kLean : pull);
   }
 
   // --- the strings -----------------------------------------------------------------------------
@@ -607,15 +651,16 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
 
     double step[kNumStrings];
     for (int s = 0; s < kNumStrings; ++s) step[s] = static_cast<double>(strings_[s].hz.next()) * inv_rate2_;
-    if (lean_ > 0) {
-      double apart = strings_[kMelody1].phase - static_cast<double>(lean_) * strings_[kMelody2].phase;
-      apart -= std::floor(apart + 0.5);
-      const double pull = 0.02 * apart;
-      step[kMelody2] *= 1.0 + (pull > kLean ? kLean : (pull < -kLean ? -kLean : pull));
+    for (int m = 0; m < 2; ++m) {
+      if (lean_drone_[m] < 0) continue;
+      const double pull = lean(strings_[lean_drone_[m]].phase - strings_[kMelody1 + m].phase);
+      step[kMelody1 + m] *= 1.0 + pull;
+      if (m == 0 && lean_ > 0) step[kMelody2] *= 1.0 + pull;
     }
+    if (lean_ > 0) step[kMelody2] *= 1.0 + lean(strings_[kMelody1].phase - static_cast<double>(lean_) * strings_[kMelody2].phase);
 
     const float open = open_.value;
-    float left[2], right[2], buzz[2];
+    float left[2], right[2], foot[2];
     for (int k = 0; k < 2; ++k) {
       left[k] = right[k] = 0.0f;
       for (int s = 0; s < kNumStrings; ++s) {
@@ -625,19 +670,13 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
         right[k] += x * strings_[s].right;
         if (s == kThird) {
           // The foot meets the board where the string swings past the gap.
-          buzz[k] = contact_.beat(bare * strings_[s].slip, open);
+          foot[k] = foot_.half(bare * strings_[s].slip, open);
         }
       }
     }
     float dry[2] = {down_[0].down(left[0], left[1]), down_[1].down(right[0], right[1])};
     for (int c = 0; c < 2; ++c) dry[c] += edge_ * edge_split_[c].highpass(dry[c]);
-    float bark = dog_high_.highpass(contact_.down.down(buzz[0], buzz[1]));
-    float plate = 0.25f * bark;
-    for (int m = 0; m < kDogModes; ++m) plate += kDogGain[m] * dog_mode_[m].bandpass(bark);
-    bark = dog_low_.lowpass(plate);
-    for (int b = 0; b < 2; ++b) bark = board_[b].process(bark, board_delay_[b], 0.6f);
-    bark = kBarkCeiling * kit::fast_tanh(bark * (kBuzzLevel / kBarkCeiling));
-    bark *= kLevel[kThird] * third * drone;
+    const float bark = foot_.down.down(foot[0], foot[1]) * kLevel[kThird] * third * drone;
     dry[0] += bark * strings_[kThird].left;
     dry[1] += bark * strings_[kThird].right;
 
@@ -696,7 +735,8 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
   int num_keys_ = 0;
   Str strings_[kNumStrings];
   int string_key_[2] = {-1, -1};
-  int lean_ = 0;
+  int lean_ = 0;                   // the second melody string's: 1 in unison, 2 an octave under
+  int lean_drone_[2] = {-1, -1};   // the drone a melody string stands on the note of
   float first_key_hz_ = 73.4162f;
 
   kit::SlowClock turn_;
@@ -704,6 +744,8 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
   double spin_place_ = 0.0;   // the same; a float would lose count of steps over eight seconds
   double spin_step_ = 0.0;
   float push_ = 0.0f, push_coeff_ = 1.0f;
+  float push_carry_ = 0.0f, carry_fall_ = 0.0f;
+  bool new_pushes_ = false;
   float jerk_ = 0.0f, jerk_fall_ = 0.0f;
   float bow_speed_ = 0.0f, bow_gain_ = 1.0f;
   float second_slip_ = 0.0f, raw_ = 0.0f, tone_ = 1.0f;
@@ -713,10 +755,7 @@ class WheelAndDog : public kit::DeviceBase<wheel_and_dog::kNumParams> {
   kit::Smoother melody_gain_[2], melody_gate_, drone_gain_, open_;
   kit::Drift drift_[kNumStrings];
   kit::Halfband2x down_[2];
-  wheel_and_dog_detail::Contact contact_;
-  kit::Svf dog_mode_[kDogModes], dog_low_, dog_high_;
-  kit::AllpassDelay<kBoardSize> board_[2];
-  int board_delay_[2] = {60, 38};
+  wheel_and_dog_detail::Dog foot_;
   kit::Svf body_[2][kBodyModes], hiss_[2];
   kit::OnePole knock_[2], rumble_[2], edge_split_[2];
   float edge_ = 0.0f;
