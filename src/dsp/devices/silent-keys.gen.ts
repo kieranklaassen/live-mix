@@ -1634,7 +1634,7 @@ export const SILENT_KEYS_PARAMS = {
     max: 6,
     default: -2,
     taper: 'linear',
-    unit: 'dB',
+    unit: 'dB/oct',
     description:
       'How strongly the upper partials answer against the low ones. Low is round and dark, high is glassy.',
   },
