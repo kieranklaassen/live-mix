@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { SIX_VOICES, voiceIndex } from '../six-voices'
 import { type MadePhraseNote, type PlayedNote } from '../phrase'
+import { makerParams } from '../table'
 import { WHITE_KEYS, type MadeEvent, type MakerKey } from '../types'
 import { A_MINOR, chord, line, made, makerContract, notesOf, PENTATONIC } from './support'
 
@@ -456,11 +457,286 @@ describe('Six voices: under the hands', () => {
     expect(maker.next()).toBe(Infinity)
   })
 
-  it('never has more than its share of voices at once', () => {
-    const { maker, to, open } = player({ ...PLAIN, hold: 1 })
-    for (let i = 0; i < 10; i += 1) maker.noteOn(0, i, 48 + i * 3, 0.7)
+  it('does not strike a note again that stays where it is while the centre walks', () => {
+    // C4 with an octave flip on C5: from D to E to G the flip is nearer, and is the same note.
+    const params = { ...only(), octaflip: 1, fall: 1, walk: 1, walkTime: 2 }
+    const phrase = mirrorsOf(chord([60], 9), params)
+    expect(timed(phrase)).toEqual([[0, 72, 9]])
+  })
+
+  it('strikes again at another fall, also after the centre has walked', () => {
+    const { maker, to, events } = player({ ...only(), octaflip: 1, fall: 1, walk: 1, walkTime: 2 })
+    maker.noteOn(0, 1, 60, 0.8)
+    to(5)
+    maker.setParam(5, 'fall', 0)
+    to(5.9)
+    const flips = events.filter((event) => event.on && event.part === 'octaflip')
+    expect(flips.map((event) => [event.note, Math.round(event.atSec * 100)])).toEqual([
+      [72, 0],
+      [72, 515],
+    ])
+    expect(flips[1].gain).toBeCloseTo(0.8, 6)
+  })
+
+  it('leaves a voice where it is that ends in a moment', () => {
+    // The centre walks at 2 s. The key of A4 is up, and its mirror ends at 2.2 s.
+    const params = { ...only('mirror'), delay: 0.3, walk: 1, walkTime: 2 }
+    expect(timed(mirrorsOf(chord([69], 1.9), params))).toEqual([[0.3, 55, 1.9]])
+    // One with a second left goes along.
+    const late = mirrorsOf(chord([69], 1.9), { ...params, delay: 1.2 })
+    expect(notesOf(late)).toEqual([55, 59])
+  })
+
+  it('follows a centre that never rests, once a second, and its levels when it rests', () => {
+    const { maker, to, events } = player({ ...only('mirror'), mirror: 0.8 })
+    maker.noteOn(0, 1, 69, 1)
+    for (let i = 0; i < 125; i += 1) {
+      const at = 1 + i * 0.02
+      maker.setParam(at, 'centre', i < 100 ? 2 + (i % 2) * 7 : 4 + (i % 2) * 7)
+      maker.setParam(at, 'mirror', 0.4 + (i % 2) * 0.001)
+    }
+    to(3.45)
+    const mirrors = () => events.filter((event) => event.on && event.part === 'mirror').length
+    const moving = mirrors()
+    expect(moving).toBeGreaterThanOrEqual(2)
+    expect(moving).toBeLessThanOrEqual(3)
+    maker.setParam(3.5, 'centre', 2)
+    to(6)
+    // Round E4 the mirror of A4 is B3.
+    const last = events.filter((event) => event.on && event.part === 'mirror').at(-1)
+    expect(last?.note).toBe(59)
+    expect(last?.gain).toBeCloseTo(0.4 * 0.75, 2)
+  })
+
+  it('plays a level that never rests once it does', () => {
+    const { maker, to, events } = player({ ...only('mirror') })
+    maker.noteOn(0, 1, 69, 1)
+    for (let i = 0; i <= 150; i += 1) maker.setParam(1 + i * 0.02, 'mirror', 1 - i * 0.005)
+    to(6)
+    const mirrors = events.filter((event) => event.on && event.part === 'mirror')
+    expect(mirrors.map((event) => Math.round(event.gain * 100))).toEqual([100, 25])
+    expect(mirrors[1].atSec).toBeCloseTo(4.15, 6)
+  })
+
+  it('holds a note that a key and three voices share until the last of them lets go', () => {
+    // E4: the middle, the mirror of it and the centre are all D4, which is played too.
+    const params = only('middle', 'mirrorMiddle', 'centreLevel')
+    for (const order of [
+      [1, 2],
+      [2, 1],
+    ]) {
+      const { maker, to, open, events } = player(params, [])
+      maker.noteOn(0, 1, 64, 0.8)
+      maker.noteOn(1, 2, 62, 0.8)
+      to(2)
+      expect(open()).toEqual(['line:62', 'line:64'])
+      maker.noteOff(2, order[0])
+      to(2.5)
+      expect(open()).toEqual(order[0] === 1 ? ['line:62'] : ['line:62', 'line:64'])
+      maker.noteOff(3, order[1])
+      to(3.5)
+      expect(open()).toEqual([])
+      // Struck by the voices and by the key, and no more.
+      expect(events.filter((event) => event.on && event.note === 62)).toHaveLength(2)
+    }
+  })
+
+  it('takes one id at another pitch, and a pitch under two ids, and ids it never had', () => {
+    const { maker, to, open } = player(only('mirror'))
+    maker.noteOff(0, 7)
+    maker.noteOn(0, 1, 69, 0.8)
+    maker.noteOn(1, 1, 64, 0.8)
+    to(1.5)
+    expect(open()).toEqual(['line:64', 'mirror:60'])
+    maker.noteOn(2, 1, 69, 0.8)
+    maker.noteOn(2, 2, 69, 0.8)
+    maker.noteOff(3, 1)
+    to(4)
+    expect(open()).toEqual(['line:69', 'mirror:55'])
+    maker.noteOff(4, 2)
+    to(5)
+    expect(open()).toEqual([])
+  })
+
+  it('has no more than 48 at once, and what moves there moves and is not lost', () => {
+    const keys = [48, 52, 55, 59, 62, 65, 69, 72, 76, 79, 83, 86]
+    const { maker, to, open } = player({ ...PLAIN, walk: 3, walkTime: 2 })
+    keys.forEach((note, id) => maker.noteOn(0, id, note, 0.8))
+    for (let sec = 0.5; sec < 60; sec += 0.5) {
+      to(sec)
+      expect(open().length).toBeGreaterThanOrEqual(46)
+      expect(open().length).toBeLessThanOrEqual(48)
+    }
+    keys.forEach((_, id) => maker.noteOff(60, id))
+    to(62)
+    expect(open()).toEqual([])
+    expect(maker.next()).toBe(Infinity)
+  })
+
+  it('moves the fewest notes with the walk: no pitch is let go and struck in one step', () => {
+    for (const name of [
+      'Slow hills',
+      'Slow valleys',
+      'Breathing',
+      'Two pillars',
+      'Turning chord',
+    ]) {
+      for (const keys of [[60], [50, 57, 65, 72], [50, 53, 57, 60, 64, 67, 71, 74]]) {
+        const { maker, to, events } = player(makerParams(SIX_VOICES, { preset: name }), [])
+        keys.forEach((note, id) => maker.noteOn(0, id, note, 0.8))
+        to(60)
+        const gone = new Map<number, number>()
+        for (const event of events) {
+          if (event.on && event.atSec > 2) {
+            expect(event.atSec - (gone.get(event.note) ?? -1), name).toBeGreaterThan(0.3)
+          }
+          if (!event.on) gone.set(event.note, event.atSec)
+        }
+        expect(events.filter((event) => event.on && event.atSec > 2).length).toBeLessThan(120)
+      }
+    }
+  })
+
+  it('does not strike a note again whose level changes in one of two voices on it', () => {
+    // E4: the middle and the mirror of it are D4.
+    const { maker, to, events, open } = player(only('middle', 'mirrorMiddle'), [])
+    maker.noteOn(0, 1, 64, 0.8)
     to(1)
-    expect(open().length).toBeLessThanOrEqual(58)
+    maker.setParam(1, 'middle', 0.3)
+    to(2)
+    expect(events.filter((event) => event.on).map((event) => event.note)).toEqual([64, 62])
+    maker.noteOff(2, 1)
+    to(3)
+    expect(open()).toEqual([])
+  })
+
+  it('strikes a key at once over a softer voice on its pitch, and two keys on one pitch once', () => {
+    const { maker, to, events } = player(only('mirror'), [])
+    // The mirror of C4 is E4, softly; 10 ms later E4 is played.
+    maker.noteOn(0, 1, 60, 0.2)
+    maker.noteOn(0.01, 2, 64, 0.8)
+    // C#5 is taken to C5, which is played with it.
+    maker.noteOn(1, 3, 72, 0.8)
+    maker.noteOn(1, 4, 73, 0.8)
+    to(2)
+    const on = events.filter((event) => event.on)
+    expect(on.filter((event) => event.note === 64).map((event) => event.gain)).toEqual([0.2, 0.8])
+    expect(on.filter((event) => event.note === 72)).toHaveLength(1)
+  })
+
+  it('moves a drone that a key took up again, after the end it would have had', () => {
+    const tune = [
+      { atSec: 0, durSec: 1, note: 69 },
+      { atSec: 3, durSec: 15, note: 69 },
+    ]
+    const params = { ...only('centreLevel'), hold: 3, walk: 1 }
+    expect(notesOf(mirrorsOf(tune, params))).toEqual([62, 64, 67])
+  })
+
+  it('brings a drone that still sounds back with the centre when a rest begins the walk again', () => {
+    const tune = [
+      { atSec: 0, durSec: 2.9, note: 69 },
+      { atSec: 5, durSec: 1.5, note: 69 },
+    ]
+    const params = { ...only('centreLevel'), hold: 8, walk: 1, walkTime: 2 }
+    // D, E at 2 and G at 4; D at 5, where the walk begins again.
+    const phrase = timed(mirrorsOf(tune, params))
+    expect(phrase.slice(0, 4).map(([at, note]) => [at, note])).toEqual([
+      [0, 62],
+      [2.03, 64],
+      [4.03, 67],
+      [5.15, 62],
+    ])
+  })
+
+  it('goes on from where it is in its walk at another walk time', () => {
+    const { maker, to, events } = player({ ...only('centreLevel'), walk: 1, walkTime: 2 })
+    maker.noteOn(0, 1, 59, 0.8)
+    to(5)
+    // Half through its third note, G: at twice the time it stays two seconds more.
+    maker.setParam(5, 'walkTime', 4)
+    to(10)
+    const centres = events.filter((event) => event.on && event.part === 'centre')
+    expect(centres.map((event) => [Math.round(event.atSec * 100), event.note])).toEqual([
+      [0, 62],
+      [203, 64],
+      [403, 67],
+      [703, 62],
+    ])
+  })
+
+  it('brings a made voice down that is past the top', () => {
+    // A0 is 24 steps under D4; G7 over it would be 103, which comes down to G6.
+    expect(notesOf(mirrorsOf(chord([21], 1), only('mirror')))).toEqual([91])
+  })
+
+  it('plays each voice a little louder or softer, up to a quarter, and the same after silence', () => {
+    const { maker, to, silence, events } = player({ ...only('mirror'), human: 1 })
+    const play = (from: number): number[] => {
+      events.length = 0
+      for (let i = 0; i < 8; i += 1) {
+        maker.noteOn(from + i, i, 69, 0.8)
+        maker.noteOff(from + i + 0.5, i)
+      }
+      to(from + 10)
+      return events
+        .filter((event) => event.on && event.part === 'mirror')
+        .map((event) => Math.round(event.gain * 1e6) / 1e6)
+    }
+    const first = play(0)
+    expect(new Set(first).size).toBe(8)
+    for (const gain of first) expect(Math.abs(gain - 0.8)).toBeLessThanOrEqual(0.2)
+    silence(10)
+    expect(play(11)).toEqual(first)
+  })
+
+  it('begins its walk again when it was silenced a moment ago', () => {
+    const { maker, to, silence, open } = player({ ...only('mirror'), walk: 1 })
+    maker.noteOn(0, 1, 69, 0.8)
+    maker.noteOff(8.8, 1)
+    silence(9)
+    maker.noteOn(9.5, 2, 69, 0.8)
+    to(10)
+    expect(open()).toEqual(['line:69', 'mirror:55'])
+  })
+
+  it('keeps every place it has when a full hand moves with the walk', () => {
+    const keys = [48, 52, 55, 59, 62, 65, 69, 72, 76, 79, 83, 86]
+    const { maker, to, open } = player(makerParams(SIX_VOICES, { preset: 'Turning chord' }))
+    keys.forEach((note, id) => maker.noteOn(0, id, note, 0.8))
+    for (let sec = 2; sec < 60; sec += 1) {
+      to(sec)
+      expect(open().length, `${sec} s`).toBe(48)
+    }
+  })
+
+  it('does not hold a key that was let go as loud as it was played, where the held centre is on it', () => {
+    const params = { ...only(), centreLevel: 0.4, hold: 3 }
+    const gains = (phrase: readonly MadePhraseNote[]) =>
+      phrase.map((event) => Math.round(event.gain * 100))
+    const alone = made(SIX_VOICES, chord([62], 1), { params })
+    expect(timed(alone)).toEqual([
+      [0, 62, 1],
+      [1, 62, 3],
+    ])
+    expect(gains(alone)).toEqual([80, 32])
+    // Played again under two keys, it waits for the second to go.
+    const twice = [
+      { atSec: 0, durSec: 4, note: 69, gain: 0.8 },
+      { atSec: 1, durSec: 1, note: 62, gain: 0.8 },
+      { atSec: 1.5, durSec: 1, note: 62, gain: 0.8 },
+    ]
+    const both = made(SIX_VOICES, twice, { params }).filter((event) => event.note === 62)
+    expect(timed(both)).toEqual([
+      [0, 62, 1],
+      [1, 62, 0.5],
+      [1.5, 62, 1],
+      [2.5, 62, 4.5],
+    ])
+    expect(gains(both)).toEqual([32, 80, 80, 32])
+    // One that was not much louder goes on.
+    const near = made(SIX_VOICES, chord([62], 1), { params: { ...params, centreLevel: 0.8 } })
+    expect(timed(near)).toEqual([[0, 62, 4]])
   })
 
   it('is silenced and plays again from the start of its walk', () => {

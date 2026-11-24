@@ -4,10 +4,10 @@
 // the key, so no voice leaves it. The centre is the key's second degree by
 // default (D4 on the white keys) and may walk while notes are held: what it
 // moves is voiced again one voice after another, softly, and a note that two
-// voices share is kept and not struck again. The further a voice lies from the
-// centre, the quieter it is played. The voices come one after another when
-// `delay` is over zero, which makes a canon of short delays and a strum of
-// very short ones.
+// voices share is kept and not struck again, nor is one that stays where it is.
+// The further a voice lies from the centre when it is struck, the quieter it is
+// played. The voices come one after another when `delay` is over zero, which
+// makes a canon of short delays and a strum of very short ones.
 //
 // The arithmetic is that of cpp/devices/thesis/ThesisTransform.h: the middle
 // is the lower of two where it falls between two steps, and the octave flip
@@ -225,8 +225,14 @@ const ONE_ATTACK_SEC = 0.02
 const MADE_ATTACK_SEC = 0.1
 /** After a control was moved, how long it has to rest before what sounds follows it. */
 const SETTLE_SEC = 0.12
+/** A control that never rests: the notes that sound go where it points this often, and their levels wait. */
+const FOLLOW_SEC = 1
+/** A voice whose key is let go and that ends this soon stays where it is. */
+const LAST_MOVE_SEC = 0.5
 /** A voice that moves with the centre is struck at this share of its level. */
 const SOFT = 0.75
+/** The held centre is struck again after a key on it that was so many times as hard. */
+const LOUD = 1.5
 /** The first voice moves this long after the centre, each next one this much later, all inside the last. */
 const MOVE_SEC = 0.03
 const MOVE_GAP_SEC = 0.06
@@ -286,8 +292,12 @@ interface Voice {
   delay: number
   state: 'waiting' | 'on' | 'over'
   pitch: number
+  /** How far from the centre it was when it was put on its note. */
+  steps: number
   level: number
   sound: Sound | null
+  /** When it ends, once its key is let go. */
+  until: number
 }
 
 class SixVoices extends MakerBase {
@@ -300,6 +310,8 @@ class SixVoices extends MakerBase {
   private drone: Voice | null = null
   private droneEnd: TaskHandle | null = null
   private settling: TaskHandle | null = null
+  /** Since when a control has moved without a rest. */
+  private restless: number | null = null
   private walking: TaskHandle | null = null
   /** The walk: when the stretch `walkFrom` began, and how long a stretch is. */
   private walkStart = 0
@@ -342,6 +354,7 @@ class SixVoices extends MakerBase {
     }
     this.droneEnd?.cancel()
     this.droneEnd = null
+    if (this.drone) this.drone.until = Infinity
     this.live.add(voices[0])
     this.byKey.set(held.id, voices)
     for (const voice of voices) this.beginAfter(atSec, voice)
@@ -352,6 +365,7 @@ class SixVoices extends MakerBase {
     const voices = this.byKey.get(held.id) ?? []
     this.byKey.delete(held.id)
     for (const voice of voices) {
+      voice.until = atSec + voice.delay
       if (voice.delay <= 0) this.finish(voice)
       else this.at(atSec + voice.delay, () => this.finish(voice))
     }
@@ -391,6 +405,7 @@ class SixVoices extends MakerBase {
     this.byKey.clear()
     this.live.clear()
     this.drone = this.droneEnd = this.settling = this.walking = null
+    this.restless = null
     this.random = new MakerRandom(6)
     this.begun = false
     this.walkFrom = 0
@@ -426,10 +441,10 @@ class SixVoices extends MakerBase {
     return folded
   }
 
-  private levelOf(voice: Voice): number {
+  private levelOf(voice: Voice, steps: number): number {
     const level = this.params[LEVELS[voice.kind]] * voice.gain
     if (voice.kind === 'line') return level
-    const octaves = Math.abs(this.place(voice.kind, voice.note).steps) / this.key.steps.length
+    const octaves = Math.abs(steps) / this.key.steps.length
     return level * Math.pow(2, -this.params.fall * octaves)
   }
 
@@ -455,7 +470,18 @@ class SixVoices extends MakerBase {
   // --- The voices -------------------------------------------------------------
 
   private voice(kind: Kind, note: number, gain: number, delay: number): Voice {
-    return { kind, note, gain, delay, state: 'waiting', pitch: 0, level: 0, sound: null }
+    return {
+      kind,
+      note,
+      gain,
+      delay,
+      state: 'waiting',
+      pitch: 0,
+      steps: 0,
+      level: 0,
+      sound: null,
+      until: Infinity,
+    }
   }
 
   private beginAfter(atSec: number, voice: Voice): void {
@@ -471,9 +497,16 @@ class SixVoices extends MakerBase {
 
   /** Put a voice on the note it has now, and let go of the one it had before. */
   private sing(voice: Voice, share: number, how: Coming): void {
-    const before = voice.sound
-    voice.level = this.levelOf(voice)
-    voice.pitch = this.place(voice.kind, voice.note).pitch
+    let before = voice.sound
+    const { steps, pitch } = this.place(voice.kind, voice.note)
+    voice.level = this.levelOf(voice, steps)
+    voice.pitch = pitch
+    voice.steps = steps
+    if (before?.voices === 1 && this.sounds.size >= MOST_SOUNDING) {
+      // No room for the old note and the new one.
+      this.leave(before)
+      before = null
+    }
     const part = voice.kind === 'line' ? undefined : PARTS[voice.kind]
     voice.sound = voice.level > 0 ? this.take(voice.pitch, part, voice.level * share, how) : null
     if (!before) return
@@ -485,15 +518,25 @@ class SixVoices extends MakerBase {
     if (voice.state === 'over') return
     voice.state = 'over'
     this.live.delete(voice)
-    this.leave(voice.sound)
+    const { sound } = voice
     voice.sound = null
+    this.leave(sound)
+    this.softenDrone(sound)
+  }
+
+  /** The held centre does not go on as loud as a key that was played on it and let go. */
+  private softenDrone(sound: Sound | null): void {
+    const drone = this.drone
+    if (!sound || drone?.sound !== sound || sound.voices > 1) return
+    if (sound.gain > drone.level * LOUD) this.strike(sound, drone.level, PARTS.centre)
   }
 
   private endDrone(): void {
     const drone = this.drone
     if (!drone) return
     this.droneEnd?.cancel()
-    this.droneEnd = this.at(this.lastUp + drone.delay + this.params.hold, () => {
+    drone.until = this.lastUp + drone.delay + this.params.hold
+    this.droneEnd = this.at(drone.until, () => {
       this.drone = this.droneEnd = null
       this.finish(drone)
     })
@@ -528,13 +571,16 @@ class SixVoices extends MakerBase {
         ? gain <= there.gain * (how === 'play' ? 1.1 : 2)
         : how === 'strike' && there.gain > gain * 1.25
     const joins = how === 'meet' || (how === 'again' && there.voices > 2) || enough
-    if (!joins) {
-      this.end(there.made)
-      there.made = this.start(pitch, gain, part)
-      there.gain = gain
-      there.atSec = this.now
-    }
+    if (!joins) this.strike(there, gain, part)
     return there
+  }
+
+  /** A pitch that sounds is struck again. */
+  private strike(sound: Sound, gain: number, part: string | undefined): void {
+    this.end(sound.made)
+    sound.made = this.start(sound.made.note, gain, part)
+    sound.gain = gain
+    sound.atSec = this.now
   }
 
   private leave(sound: Sound | null): void {
@@ -552,31 +598,45 @@ class SixVoices extends MakerBase {
     const gone = Math.floor((this.now - this.walkStart) / this.walkEvery + 1e-9)
     this.walking = this.at(this.walkStart + (gone + 1) * this.walkEvery, () => {
       this.walking = null
-      this.revoice()
+      this.revoice(true)
       this.keepWalking()
     })
   }
 
   private settleSoon(atSec: number): void {
     this.settling?.cancel()
-    this.settling =
-      this.live.size === 0
-        ? null
-        : this.at(atSec + SETTLE_SEC, () => {
-            this.settling = null
-            this.revoice()
-          })
+    this.settling = null
+    if (this.live.size === 0) {
+      this.restless = null
+      return
+    }
+    this.restless ??= atSec
+    const rest = atSec + SETTLE_SEC
+    const follow = this.restless + FOLLOW_SEC
+    const settle = (): void => {
+      this.settling = this.restless = null
+      this.revoice(true)
+    }
+    if (rest <= follow) {
+      this.settling = this.at(rest, settle)
+      return
+    }
+    this.settling = this.at(follow, (now) => {
+      this.revoice(false)
+      this.restless = now
+      this.settling = this.at(rest, settle)
+    })
   }
 
   /** What has moved, or come or gone by its level, goes there one voice after another. */
-  private revoice(): void {
-    const moving = [...this.live].filter((voice) => this.off(voice))
+  private revoice(levels: boolean): void {
+    const moving = [...this.live].filter((voice) => this.off(voice, levels))
     // Voices on one note move together.
     const turns = [...new Set(moving.map((voice) => voice.pitch))].sort((a, b) => a - b)
     const gap = Math.min(MOVE_GAP_SEC, MOVE_ALL_SEC / Math.max(1, turns.length))
     for (const voice of moving) {
       this.at(this.now + MOVE_SEC + turns.indexOf(voice.pitch) * gap, () => {
-        if (!this.off(voice)) return
+        if (!this.off(voice, levels)) return
         const moves = voice.pitch !== this.place(voice.kind, voice.note).pitch
         if (!voice.sound) this.sing(voice, SOFT, 'strike')
         else if (moves) this.sing(voice, SOFT, 'meet')
@@ -585,13 +645,17 @@ class SixVoices extends MakerBase {
     }
   }
 
-  /** Whether a voice is not where it should be, or not as loud. */
-  private off(voice: Voice): boolean {
-    if (voice.state !== 'on') return false
-    const level = this.levelOf(voice)
-    if (level <= 0 || !voice.sound) return level > 0 !== (voice.sound !== null)
+  /**
+   * Whether a voice is not where it should be, or (with `levels`) not as loud.
+   * One that stays on its note while the centre moves nearer or away is as
+   * loud as it was struck.
+   */
+  private off(voice: Voice, levels: boolean): boolean {
+    if (voice.state !== 'on' || this.now + LAST_MOVE_SEC > voice.until) return false
+    const level = this.levelOf(voice, voice.steps)
+    if (level <= 0 || !voice.sound) return levels && level > 0 !== (voice.sound !== null)
     if (voice.pitch !== this.place(voice.kind, voice.note).pitch) return true
-    return level > voice.level * 1.2 || level < voice.level / 1.2
+    return levels && (level > voice.level * 1.2 || level < voice.level / 1.2)
   }
 }
 
