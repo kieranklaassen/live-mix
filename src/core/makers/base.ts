@@ -71,6 +71,11 @@ export function foldNote(note: number): number {
   return folded
 }
 
+/** A loudness a note can have: nothing a maker reckons with is past 0 to 1, or no number. */
+function level(gain: number): number {
+  return Number.isFinite(gain) ? Math.min(1, Math.max(0, gain)) : 0
+}
+
 export abstract class MakerBase implements NoteMaker {
   protected key: MakerKey
   protected readonly params: Record<string, number>
@@ -139,19 +144,19 @@ export abstract class MakerBase implements NoteMaker {
     const on = part !== undefined && this.ownParts.has(part) ? part : undefined
     const made: MadeNote = { note: pitch, part, on }
     const key = this.soundKey(made)
-    const level = Math.min(1, Math.max(0, Number.isFinite(gain) ? gain : 0))
+    const loud = level(gain)
     const there = this.sounding.get(key)
     if (!there) {
       const id = (this.nextId += 1)
       this.sounding.set(key, {
         id,
         note: pitch,
-        gain: level,
+        gain: loud,
         part: on,
         atSec: this.nowSec,
         holders: new Set([made]),
       })
-      this.emitOn(id, pitch, level, on)
+      this.emitOn(id, pitch, loud, on)
       return made
     }
     there.holders.add(made)
@@ -159,8 +164,8 @@ export abstract class MakerBase implements NoteMaker {
       this.emitOff(there)
       there.id = this.nextId += 1
       there.atSec = this.nowSec
-      there.gain = level
-      this.emitOn(there.id, pitch, level, on)
+      there.gain = loud
+      this.emitOn(there.id, pitch, loud, on)
     }
     return made
   }
@@ -198,7 +203,7 @@ export abstract class MakerBase implements NoteMaker {
         this.held.delete(id)
         this.onRelease(at, before)
       }
-      const held: HeldNote = { id, note, gain, atSec: at }
+      const held: HeldNote = { id, note, gain: level(gain), atSec: at }
       this.held.set(id, held)
       this.onNote(at, held)
     })

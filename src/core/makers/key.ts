@@ -65,7 +65,8 @@ export function degreeClass(key: MakerKey, degree: number): number {
 /**
  * The triad on a degree of the key, as pitch classes: the degree, the key's
  * note nearest to a third above it and the key's note nearest to a fifth. In
- * a seven-note scale they are every other step, as a triad is written.
+ * a seven-note scale they are every other step, as a triad is written. A key of
+ * one note has only that note, three times over.
  */
 export function triadOn(key: MakerKey, degree: number): [number, number, number] {
   const size = key.steps.length
@@ -75,7 +76,7 @@ export function triadOn(key: MakerKey, degree: number): [number, number, number]
   const root = degreeClass(key, at)
   if (size === 7) return [root, mod(root + above(2), 12), mod(root + above(4), 12)]
   const nearest = (wanted: readonly number[]): number => {
-    let best = wanted[0]
+    let best = 0
     let distance = Infinity
     for (let i = 1; i < size; i += 1) {
       const away = Math.min(...wanted.map((want, rank) => Math.abs(above(i) - want) + rank * 0.1))

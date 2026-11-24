@@ -43,6 +43,7 @@ describe('counting in a key', () => {
     expect(triadOn(A_MINOR, 0)).toEqual([9, 0, 4])
     expect(triadOn(WHITE_KEYS, 6)).toEqual([11, 2, 5])
     expect(triadOn(PENTATONIC, 0)).toEqual([5, 9, 0])
+    expect(triadOn({ root: 2, steps: [0] }, 0)).toEqual([2, 2, 2])
   })
 
   it('finds notes of some pitch classes around a note', () => {
