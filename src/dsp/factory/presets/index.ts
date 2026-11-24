@@ -37,6 +37,7 @@ import { HORNS_PRESETS } from './horns'
 import { ICE_PRESETS } from './ice'
 import { ISOCHRONIC_PRESETS } from './isochronic'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
+import { COMPANION_VOICE_PRESETS } from './maker-companion-voice'
 import { MAGNET_PIANO_PRESETS } from './magnet-piano'
 import { MAKER_MIRROR_ON_D_PRESETS } from './maker-mirror-on-d'
 import { MAKER_SIX_VOICES_PRESETS } from './maker-six-voices'
@@ -130,4 +131,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...COLOURED_NOISE_PRESETS,
   ...MAKER_MIRROR_ON_D_PRESETS,
   ...MAKER_SIX_VOICES_PRESETS,
+  ...COMPANION_VOICE_PRESETS,
 ]
