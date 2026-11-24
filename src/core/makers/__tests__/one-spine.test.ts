@@ -134,16 +134,92 @@ describe('One Spine Five Roles: the other spines', () => {
 
   it('four: C F Fm C, the one chord that leaves the key', () => {
     expect(pads(3).slice(0, 4)).toEqual([
-      [52, 55, 60],
-      [53, 57, 60],
-      [53, 56, 60],
-      [52, 55, 60],
+      [55, 60, 64],
+      [57, 60, 65],
+      [56, 60, 65],
+      [55, 60, 64],
     ])
     // In a minor key the fourth is minor, and its other third is the major one.
     expect(pads(3, A_MINOR).slice(1, 3)).toEqual([
-      [50, 53, 57],
-      [50, 54, 57],
+      [53, 57, 62],
+      [54, 57, 62],
     ])
+  })
+
+  it('falls in the sevenths in every mode: C B A G on top in A minor, F E D C in D dorian', () => {
+    const dorian: MakerKey = { root: 2, steps: [0, 2, 3, 5, 7, 9, 10] }
+    const tops = (key: MakerKey) => pads(0, key).map((notes) => notes[2])
+    expect(tops(WHITE_KEYS)).toEqual([64, 62, 60, 59, 60, 62, 64, 62])
+    expect(tops(A_MINOR)).toEqual([60, 59, 57, 55, 57, 59, 60, 59])
+    expect(tops(dorian)).toEqual([65, 64, 62, 60, 62, 64, 65, 64])
+  })
+
+  it('lays the lament against its bass and not along with it in octaves', () => {
+    expect(pads(1)).toEqual([
+      [52, 57, 60],
+      [50, 55, 59],
+      [53, 57, 60],
+      [55, 59, 64],
+      [57, 62, 65],
+      [55, 59, 64],
+      [53, 57, 60],
+      [50, 55, 59],
+    ])
+    for (const key of [WHITE_KEYS, A_MINOR, PENTATONIC]) {
+      for (let spine = 0; spine < 16; spine += 1) {
+        const chords = voicedSpine(key, spine)
+        const along = chords.filter(({ close, bass }, i) => {
+          const next = chords[(i + 1) % 8]
+          const up = next.bass - bass
+          // The outer voices, for an inner one is hidden.
+          return [0, 2].some(
+            (v) => up !== 0 && next.close[v] - close[v] === up && (close[v] - bass) % 12 === 0,
+          )
+        })
+        expect(along.length, `spine ${spine}`).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+
+  it('gives the bell a line: never the same note more than five times running, nor a pad twice', () => {
+    expect(pads(3).map((notes) => notes[2] + 12)).toEqual([76, 77, 77, 76, 76, 76, 77, 77])
+    expect(pads(5).map((notes) => notes[2] + 12)).toEqual([74, 76, 74, 69, 72, 69, 72, 69])
+    // Tenths over the stairs: E D C B over C B A G.
+    expect(pads(13).map((notes) => notes[2] + 12)).toEqual([76, 74, 72, 71, 72, 76, 77, 74])
+    const dorian: MakerKey = { root: 2, steps: [0, 2, 3, 5, 7, 9, 10] }
+    for (const key of [WHITE_KEYS, A_MINOR, dorian]) {
+      for (let spine = 0; spine < 16; spine += 1) {
+        const tops = pads(spine, key).map((notes) => notes[2])
+        for (let i = 0; i < 8; i += 1) {
+          const run = [0, 1, 2, 3, 4, 5].map((on) => tops[(i + on) % 8])
+          expect(new Set(run).size, `spine ${spine}, from ${i}`).toBeGreaterThan(1)
+          expect(pads(spine, key)[i], `spine ${spine}, pad ${i}`).not.toEqual(
+            pads(spine, key)[(i + 1) % 8],
+          )
+        }
+      }
+    }
+  })
+
+  it('lays a ninth without a semitone inside: F3 C4 E4 in D dorian and not C4 E4 F4', () => {
+    const dorian: MakerKey = { root: 2, steps: [0, 2, 3, 5, 7, 9, 10] }
+    expect(pads(5, dorian)[0]).toEqual([53, 60, 64])
+    expect(pads(5, A_MINOR)[1]).toEqual([53, 60, 64])
+  })
+
+  it('keeps an open chord open where the fourth or the fifth over its root is not', () => {
+    // In A minor the fourth over F is B, and the fifth over B is F.
+    expect(pads(15, A_MINOR).map(classes)).toEqual([
+      [2, 4, 9],
+      [4, 9, 11],
+      [2, 4, 9],
+      [0, 5, 7],
+      [2, 4, 9],
+      [4, 9, 11],
+      [2, 4, 9],
+      [0, 5, 7],
+    ])
+    expect(basses(15, A_MINOR).map((n) => n % 12)).toEqual([9, 4, 11, 5, 2, 9, 11, 0])
   })
 
   it('walks the bass down the stairs under C G/B Am Em/G F C/E Dm G', () => {
@@ -164,7 +240,7 @@ describe('One Spine Five Roles: the other spines', () => {
 
   it('gives the same chords in twelve steps, and three-note chords in scales of five to twelve', () => {
     const chromatic: MakerKey = { root: 0, steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] }
-    expect(pads(1, chromatic).slice(0, 4)).toEqual(pads(1).slice(0, 4))
+    for (const spine of [0, 1, 2, 3]) expect(pads(spine, chromatic)).toEqual(pads(spine))
     const scales = [
       [0, 3, 5, 7, 10],
       [0, 1, 5, 7, 8],
@@ -187,6 +263,42 @@ describe('One Spine Five Roles: the other spines', () => {
         .slice(0, 4)
         .map((n) => n % 12),
     ).toEqual([9, 7, 5, 2])
+  })
+
+  it('changes with every chord in a scale of five, by the notes of the chord it stands for', () => {
+    const five: MakerKey = { root: 0, steps: [0, 2, 4, 7, 9] }
+    // C F Fm C: C E G, then A and C of F, then neither of them twice running.
+    expect(pads(3, five).slice(0, 4).map(classes)).toEqual([
+      [0, 4, 7],
+      [0, 4, 9],
+      [0, 4, 7],
+      [0, 2, 7],
+    ])
+    const scales = [
+      [0, 2, 4, 7, 9],
+      [0, 3, 5, 7, 10],
+      [0, 2, 3, 7, 8],
+      [0, 2, 4, 5, 7, 9],
+    ]
+    for (const steps of scales) {
+      for (let spine = 0; spine < 16; spine += 1) {
+        const chords = pads(spine, { root: 0, steps }).map((notes) => classes(notes).join())
+        chords.forEach((chord, i) =>
+          expect(chord, `${steps.join()}, spine ${spine}, chord ${i}`).not.toBe(
+            chords[(i + 1) % 8],
+          ),
+        )
+      }
+    }
+  })
+
+  it('reads a scale of five with a minor third as minor: the lament falls E D C A', () => {
+    const minor: MakerKey = { root: 9, steps: [0, 3, 5, 7, 10] }
+    expect(
+      basses(1, minor)
+        .slice(0, 4)
+        .map((n) => n % 12),
+    ).toEqual([4, 2, 0, 9])
   })
 
   it('moves the voices of the pad little, at the end of the round as well', () => {
@@ -237,6 +349,30 @@ describe('One Spine Five Roles: the voicings', () => {
     expect(first(4)).toEqual([57, 64])
   })
 
+  it('sets the note of the bass low where the chord has it, and nothing under the bass', () => {
+    const wide = (spine: number) =>
+      struck(made(ONE_SPINE, hold(8), { params: { voicing: 2, spine, chord: 1 } }, 8))
+    // G3 C4 E4 over C2, and A3 C4 E4 over A1.
+    expect(wide(2).slice(0, 2)).toEqual([
+      [48, 55, 64],
+      [45, 60, 64],
+    ])
+    for (let spine = 0; spine < 16; spine += 1) {
+      const chords = voicedSpine(WHITE_KEYS, spine)
+      wide(spine).forEach((notes, i) =>
+        expect(notes[0], `spine ${spine}, chord ${i}`).toBeGreaterThanOrEqual(chords[i].bass),
+      )
+    }
+    // C over E: E2 G3 C4, at the bass and not under it.
+    expect(wide(13)[5]).toEqual([40, 55, 60])
+    expect(wide(1).slice(0, 4)).toEqual([
+      [45, 52, 60],
+      [43, 50, 59],
+      [41, 57, 60],
+      [40, 55, 59],
+    ])
+  })
+
   it('gives the arpeggio the same tones', () => {
     const arp = made(ONE_SPINE, hold(4), { params: { role: 2, voicing: 3, steps: 8 } }, 4)
     expect(notesOf(arp)).toEqual([65, 69, 72, 76, 72, 69, 65, 69])
@@ -270,6 +406,33 @@ describe('One Spine Five Roles: what the keys do', () => {
     ])
   })
 
+  it('strikes nothing on its way to the chord it comes back in', () => {
+    const maker = ONE_SPINE.create({ params: { role: 1, chord: 2 } })
+    const events: MadeEvent[] = []
+    maker.noteOn(0, 1, 60, 0.8)
+    maker.noteOff(5.5, 1)
+    maker.noteOn(7, 1, 60, 0.8)
+    maker.noteOff(7.5, 1)
+    maker.advance(9, (event) => void events.push(event))
+    expect(events.filter((event) => event.on).map(({ atSec, note }) => [atSec, note])).toEqual([
+      [0, 41],
+      [2, 40],
+      [4, 38],
+      [7, 36],
+    ])
+  })
+
+  it('rings a late bell to the end of its chord and strikes it again, held notes or not', () => {
+    const params = { spine: 3, role: 3, common: 1 }
+    const played = [...hold(5), ...chord([60], 3, 7.5)]
+    expect(at(made(ONE_SPINE, played, { params }, 12))).toEqual([
+      [0, 76, 3],
+      [4, 77, 1],
+      [7.5, 77, 0.5],
+      [8, 77, 2.5],
+    ])
+  })
+
   it('strikes the chord that is running with every key of a line, where it stands', () => {
     const played = line([
       [60, 0.5],
@@ -291,6 +454,61 @@ describe('One Spine Five Roles: what the keys do', () => {
       const under = arp.filter((n) => n.atSec >= bell.atSec && n.atSec < bell.atSec + 3)
       expect(Math.max(...notesOf(under))).toBe(bell.note)
     }
+  })
+
+  it('agrees with every other role for ten minutes, with five clocks that tick as they please', () => {
+    const spine = voicedSpine(WHITE_KEYS, 2)
+    const length = 2.37
+    for (let role = 0; role < 5; role += 1) {
+      const maker = ONE_SPINE.create({ params: { spine: 2, role, chord: length } })
+      const ons: MadeEvent[] = []
+      const emit = (event: MadeEvent): void => void (event.on && ons.push(event))
+      maker.noteOn(0, 1, 60, 0.8)
+      for (let t = 0; t < 600; t += 0.7 + 0.11 * role) maker.advance(t, emit)
+      maker.advance(600, emit)
+      for (const { atSec, note } of ons) {
+        const index = Math.floor(atSec / length + 1e-6)
+        const { close, bass } = spine[index % 8]
+        const own = [close, [bass], close, [close[2]], [0]][role].map((n) => n % 12)
+        expect(own, `role ${role} at ${atSec}`).toContain(note % 12)
+        if (role !== 2) expect(Math.abs(atSec - index * length)).toBeLessThan(1e-9)
+      }
+      expect(ons.length).toBeGreaterThanOrEqual(254)
+    }
+  })
+
+  it('goes to the degree of the lowest key that is left, soon after one is let go', () => {
+    const params = { role: 1, keys: 2, chord: 8 }
+    const played = [...chord([60], 2), ...chord([62], 3, 1)]
+    expect(at(made(ONE_SPINE, played, { params }, 8))).toEqual([
+      [0, 41, 2.08],
+      [2.08, 43, 1.92],
+    ])
+    // Two fingers that leave together are not a change.
+    const together = [...chord([60], 2), ...chord([62], 1.05, 1)]
+    expect(at(made(ONE_SPINE, together, { params }, 8))).toEqual([[0, 41, 2.05]])
+  })
+
+  it('does nothing with the level of the main role, and says so', () => {
+    const roles = ['pad', 'bass', 'arp', 'bell', 'drone']
+    roles.forEach((name, role) => {
+      const at = (level: number) => made(ONE_SPINE, hold(8), { params: { role, [name]: level } }, 9)
+      expect(at(0)).toEqual(at(1))
+      expect(at(0).length).toBeGreaterThan(0)
+      const spec = Object.entries(ONE_SPINE.params).find(([key]) => key === name)?.[1]
+      expect(spec?.description).toContain(
+        `Does nothing while Role is ${['Pad', 'Bass', 'Arpeggio', 'Bell', 'Drone'][role]}`,
+      )
+    })
+  })
+
+  it('is as loud as the other keys when one has no loudness', () => {
+    const maker = ONE_SPINE.create({ params: bass })
+    const ons: MadeEvent[] = []
+    maker.noteOn(0, 1, 60, 0.8)
+    maker.noteOn(0, 2, 64, NaN)
+    maker.advance(3, (event) => void (event.on && ons.push(event)))
+    expect(ons.map((event) => event.gain)).toEqual([0.8, 0.8])
   })
 
   it('joins the arpeggio where it is when a key comes late in the chord', () => {
@@ -395,6 +613,51 @@ describe('One Spine Five Roles: a control moved while it plays', () => {
       ['off', 14, 40],
       ['on', 14, 38],
     ])
+  })
+
+  it('plays the chord of another spine at once', () => {
+    const { maker, to } = playing({ role: 1 })
+    to(1)
+    maker.setParam(1, 'spine', 1)
+    expect(to(4)).toEqual([
+      ['off', 1, 41],
+      ['on', 1, 45],
+      ['off', 4, 45],
+      ['on', 4, 43],
+    ])
+  })
+
+  it('moves the end of the bell with the chord length', () => {
+    const { maker, to } = playing({ role: 3 })
+    to(1)
+    maker.setParam(1, 'chord', 8)
+    // A quarter of the chord is over, and the bell has half of it left.
+    expect(to(4.9)).toEqual([])
+    expect(to(5)).toEqual([['off', 5, 76]])
+  })
+
+  it('strikes a late bell again at a chord whose time moved', () => {
+    const { maker, to } = playing({ role: 3, spine: 3, common: 1 })
+    maker.noteOff(5, 1)
+    maker.noteOn(7.5, 2, 60, 0.8)
+    to(7.75)
+    maker.setParam(7.75, 'chord', 8)
+    expect(to(8.25)).toEqual([
+      ['off', 8.25, 77],
+      ['on', 8.25, 77],
+    ])
+  })
+
+  it('strikes a held bass again at the next chord when its level moved', () => {
+    const { maker, to } = playing({ spine: 7, common: 1, bass: 0.5, voicing: 4 })
+    to(5)
+    maker.setParam(5, 'bass', 0.9)
+    expect(to(7.9)).toEqual([])
+    expect(to(8).filter(([, , note]) => note === 36)).toEqual([
+      ['off', 8, 36],
+      ['on', 8, 36],
+    ])
+    expect(to(12).filter(([, , note]) => note === 36)).toEqual([])
   })
 
   it('turns the arpeggio over without striking twice', () => {
