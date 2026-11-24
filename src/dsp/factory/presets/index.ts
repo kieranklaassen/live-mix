@@ -43,6 +43,7 @@ import { MAKER_MIRROR_ON_D_PRESETS } from './maker-mirror-on-d'
 import { MAKER_SIX_VOICES_PRESETS } from './maker-six-voices'
 import { BREATH_BUDGET_PRESETS } from './maker-breath-budget'
 import { HEXATONIC_WALKER_PRESETS } from './maker-hexatonic-walker'
+import { RULE_OF_THE_OCTAVE_PRESETS } from './maker-rule-of-the-octave'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
@@ -136,4 +137,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...COMPANION_VOICE_PRESETS,
   ...BREATH_BUDGET_PRESETS,
   ...HEXATONIC_WALKER_PRESETS,
+  ...RULE_OF_THE_OCTAVE_PRESETS,
 ]
