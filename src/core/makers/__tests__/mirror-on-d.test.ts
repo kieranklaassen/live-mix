@@ -151,6 +151,11 @@ describe('Mirror on D: where it lies', () => {
     expect(replaced([50, 57, 65], { fold: 0 })).toEqual([74, 67, 59])
   })
 
+  it('keeps the octaves of a phrase where no others would bring a note within reach', () => {
+    // With one octave the mirror of C6 can come no nearer than E3.
+    expect(replaced([50, 84], { fold: 1 })).toEqual([62, 28])
+  })
+
   it('folds each phrase anew after a rest', () => {
     const notes = [
       { atSec: 0, durSec: 1, note: 69 },
@@ -298,6 +303,72 @@ describe('Mirror on D: answering', () => {
     expect(answers({ rest: 4 })).toEqual([69, 71, 69, 71, 69, 71, 69])
   })
 
+  it('takes a rest of exactly the length asked for as one, whatever the sum rounds to', () => {
+    // 0.7 + 0.1 - 0.7 is a hair less than 0.1.
+    const notes = [
+      { atSec: 0, durSec: 0.7, note: 69 },
+      { atSec: 0.7 + 0.1, durSec: 1, note: 69 },
+    ]
+    expect(notesOf(made(MIRROR_ON_D, notes, { params: { ...ANSWER, rest: 0.1 } }))).toEqual([
+      69, 55,
+    ])
+  })
+
+  it('brings the third of the round back by up to three octaves', () => {
+    const notes = [0, 2, 4].map((atSec) => ({ atSec, durSec: 1, note: 40 }))
+    expect(notesOf(made(MIRROR_ON_D, notes, { params: { ...ANSWER, round: 1 } }))).toEqual([
+      40, 84, 48,
+    ])
+  })
+
+  it('counts two chords to a phrase, however many notes they have', () => {
+    const notes = [0, 1, 2, 3].flatMap((atSec) => chord([60, 64, 67], 1, atSec))
+    expect(notesOf(made(MIRROR_ON_D, notes, { params: { ...ANSWER, strikes: 2 } }))).toEqual([
+      60, 64, 67, 60, 64, 67, 64, 60, 57, 64, 60, 57,
+    ])
+  })
+
+  it('begins as played when it is turned on between two phrases, or over held ones', () => {
+    const { maker, at } = hand({ mode: 0, level: 1 })
+    for (const i of [0, 1, 2]) {
+      maker.noteOn(i * 2, i, 69, 0.8)
+      maker.noteOff(i * 2 + 1, i)
+    }
+    maker.setParam(7, 'mode', 2)
+    maker.noteOn(8, 4, 69, 0.8)
+    expect(at(8)).toEqual([69])
+    maker.noteOff(9, 4)
+    maker.noteOn(11, 5, 69, 0.8)
+    expect(at(11)).toEqual([55])
+    maker.noteOff(12, 5)
+    expect(at(12)).toEqual([])
+
+    const held = hand({ mode: 0, level: 1, strikes: 1 })
+    held.maker.noteOn(0, 1, 69, 0.8)
+    held.maker.noteOn(1, 2, 71, 0.8)
+    expect(held.at(1)).toEqual([53, 55])
+    held.maker.setParam(2, 'mode', 2)
+    expect(held.at(2)).toEqual([69, 71])
+    held.maker.noteOn(3, 3, 72, 0.8)
+    expect(held.at(3)).toEqual([52, 69, 71])
+
+    // One key held from an earlier phrase than the one that has just been let go.
+    for (const before of [true, false]) {
+      const { maker: apart, at: sounds } = hand({ mode: 0, level: 1, strikes: 1 })
+      if (before) {
+        apart.noteOn(0, 1, 64, 0.8)
+        apart.noteOff(0.5, 1)
+      }
+      apart.noteOn(0.6, 2, 69, 0.8)
+      apart.noteOn(1, 3, 71, 0.8)
+      apart.noteOff(1.5, 3)
+      apart.setParam(2, 'mode', 2)
+      expect(sounds(2)).toEqual([69])
+      apart.noteOn(3, 4, 72, 0.8)
+      expect(sounds(3)).toEqual([52, 69])
+    }
+  })
+
   it('counts the strikes of a phrase that has no rest, a chord being one', () => {
     const legato = [
       ...chord([48, 52, 55], 2),
@@ -410,6 +481,271 @@ describe('Mirror on D: under the hands', () => {
     expect(at(1.2 + 0.2)).toEqual([60])
     expect(at(1.2 + 0.3)).toEqual([])
     expect(maker.next()).toBe(Infinity)
+  })
+})
+
+describe('Mirror on D: fingers that do not land together', () => {
+  /** Every note begun so far, `[seconds, note, gain]`, to the millisecond and the hundredth. */
+  function struck(params: Record<string, number>, parts?: string[]) {
+    const maker = MIRROR_ON_D.create({ params, parts })
+    const begun: [number, number, number][] = []
+    const open = new Map<number, number>()
+    const to = (sec: number): number[] => {
+      maker.advance(sec, (event) => {
+        if (!event.on) {
+          open.delete(event.id)
+          return
+        }
+        open.set(event.id, event.note)
+        begun.push([
+          Math.round(event.atSec * 1000) / 1000,
+          event.note,
+          Math.round(event.gain * 100) / 100,
+        ])
+      })
+      return [...open.values()].sort((a, b) => a - b)
+    }
+    const spread = (notes: readonly number[], gapSec: number, gain = 0.8, atSec = 0): void => {
+      for (const [i, note] of notes.entries()) {
+        maker.noteOn(atSec + i * gapSec, i, note, gain)
+        to(atSec + i * gapSec)
+      }
+    }
+    return { maker, begun, to, spread }
+  }
+
+  it('strikes each mirror of a folded chord once, when the chord is whole', () => {
+    for (const gap of [0, 0.01, 0.02]) {
+      const { maker, begun, to, spread } = struck({ ...REPLACE, fold: 3 })
+      spread([50, 57, 65, 72], gap)
+      to(1)
+      expect(begun).toEqual([
+        [0.065, 74, 0.8],
+        [0.065, 67, 0.8],
+        [0.065, 59, 0.8],
+        [0.065, 52, 0.8],
+      ])
+      for (const i of [3, 1, 2, 0]) maker.noteOff(2, i)
+      expect(to(2)).toEqual([52, 59, 67, 74])
+      expect(to(2.07)).toEqual([])
+    }
+  })
+
+  it('waits for nothing where nothing can move a mirror', () => {
+    const settled: Record<string, number>[] = [
+      { fold: 0 },
+      { fold: 3, foldBy: 1 },
+      { fold: 3, turns: 1 },
+      { mode: 2, fold: 3 },
+    ]
+    for (const params of settled) {
+      const { begun, spread } = struck({ ...REPLACE, ...params })
+      spread([40], 0)
+      expect(begun.map(([sec]) => sec)).toEqual([0])
+    }
+    const { begun, spread, to } = struck({ ...REPLACE, fold: 3, delay: 0.5 })
+    spread([69], 0)
+    to(2)
+    expect(begun).toEqual([[0.5, 67, 0.8]])
+  })
+
+  it('folds a chord of taps by all of it, the keys let go before it was whole among them', () => {
+    const { maker, begun, to } = struck({ ...REPLACE, fold: 3 })
+    for (const [i, note] of [50, 57, 65, 72].entries()) {
+      maker.noteOn(i * 0.02, i, note, 0.8)
+      maker.noteOff(i * 0.02 + 0.015, i)
+    }
+    expect(to(1)).toEqual([])
+    expect(begun.map(([, note]) => note)).toEqual([74, 67, 59, 52])
+  })
+
+  it('strikes a note once that is played and mirrored in one chord', () => {
+    const { maker, begun, to, spread } = struck({ level: 0.7 })
+    spread([60, 64], 0.03)
+    to(1)
+    // The E was struck as the mirror of the C, and the E's mirror is the C that was played.
+    expect(begun).toEqual([
+      [0, 60, 0.8],
+      [0, 64, 0.56],
+    ])
+    // Each sounds for as long as either of its two keys is held.
+    maker.noteOff(2, 0)
+    expect(to(2)).toEqual([60, 64])
+    maker.noteOff(3, 1)
+    expect(to(3)).toEqual([])
+    spread([60, 64], 0.03, 0.8, 4)
+    maker.noteOff(5, 1)
+    expect(to(5)).toEqual([60, 64])
+    maker.noteOff(6, 0)
+    expect(to(6)).toEqual([])
+  })
+
+  it('strikes it again where the mirror was much the softer, or the two are further apart', () => {
+    const soft = struck({ level: 0.3 })
+    soft.spread([60, 64], 0.03)
+    expect(soft.begun).toEqual([
+      [0, 60, 0.8],
+      [0, 64, 0.24],
+      [0.03, 64, 0.8],
+    ])
+    const apart = struck({ level: 0.7 })
+    apart.spread([60, 64], 0.2)
+    expect(apart.begun.slice(2)).toEqual([
+      [0.2, 64, 0.8],
+      [0.2, 60, 0.56],
+    ])
+    // A mirror harder than the note that was played is struck.
+    const hard = struck({ level: 1 })
+    hard.maker.noteOn(0, 1, 60, 0.2)
+    hard.maker.noteOn(0.03, 2, 64, 0.9)
+    hard.to(1)
+    expect(hard.begun.filter(([, note]) => note === 60)).toEqual([
+      [0, 60, 0.2],
+      [0.03, 60, 0.9],
+    ])
+  })
+
+  it('is as hard as it was played when the two begin as one, the mirror of a key let go too', () => {
+    const { begun, spread } = struck({ level: 0.7 })
+    spread([60, 64], 0.01)
+    expect(begun.filter(([, note]) => note === 64)).toEqual([
+      [0, 64, 0.56],
+      [0.01, 64, 0.8],
+    ])
+    const late = struck({ level: 0.3, delay: 0.5 })
+    late.maker.noteOn(0, 1, 60, 0.8)
+    late.maker.noteOff(0.1, 1)
+    late.maker.noteOn(0.51, 2, 64, 0.8)
+    expect(late.to(0.55)).toEqual([64])
+    expect(late.begun.slice(1)).toEqual([
+      [0.5, 64, 0.24],
+      [0.51, 64, 0.8],
+    ])
+    // A softer note joins a harder mirror.
+    const hard = struck({ level: 1 })
+    hard.maker.noteOn(0, 1, 60, 1)
+    hard.maker.noteOn(0.01, 2, 64, 0.2)
+    hard.to(1)
+    expect(hard.begun.filter(([, note]) => note === 64)).toEqual([[0, 64, 1]])
+  })
+
+  it('ends a note three share with the last of them', () => {
+    const { maker, to } = struck({ level: 0.7 })
+    maker.noteOn(0, 1, 60, 0.8)
+    maker.noteOn(0.03, 2, 64, 0.8)
+    maker.noteOn(0.04, 3, 64, 0.8)
+    maker.noteOff(1, 1)
+    maker.noteOff(1, 2)
+    expect(to(1)).toEqual([60, 64])
+    maker.noteOff(2, 3)
+    expect(to(2)).toEqual([])
+    expect(maker.next()).toBe(Infinity)
+  })
+
+  it('strikes both where the mirror has an instrument of its own', () => {
+    const { begun, spread } = struck({ level: 0.7 }, ['mirror'])
+    spread([60, 64], 0.03)
+    expect(begun).toEqual([
+      [0, 60, 0.8],
+      [0, 64, 0.56],
+      [0.03, 64, 0.8],
+      [0.03, 60, 0.56],
+    ])
+  })
+
+  it('counts a chord spread over 60 ms as one strike, and a fast run as many', () => {
+    const { maker, begun, spread } = struck({ ...ANSWER, strikes: 1 })
+    spread([60, 64, 67], 0.03)
+    for (const i of [0, 1, 2]) maker.noteOff(1, i)
+    spread([60, 64, 67], 0.03, 0.8, 2)
+    expect(begun.map(([, note]) => note)).toEqual([60, 64, 67, 64, 60, 57])
+    const run = struck({ ...ANSWER, strikes: 1 })
+    run.spread([60, 62, 64, 65], 0.08)
+    expect(run.begun.map(([, note]) => note)).toEqual([60, 62, 64, 59])
+  })
+})
+
+describe('Mirror on D: what is still to come', () => {
+  it('leaves a held note as it was when its mirror has no level', () => {
+    const { maker, at, gain } = hand({ level: 0, delay: 1 })
+    maker.noteOn(0, 1, 62, 0.8)
+    expect(at(2)).toEqual([62])
+    expect(gain(62)).toBe(0.8)
+  })
+
+  it('brings the mirror of a key let go into a new key, sounding or to come', () => {
+    const { maker, at } = hand({ ...REPLACE, delay: 4 })
+    maker.noteOn(0, 1, 65, 0.8)
+    maker.noteOff(1, 1)
+    // D major turns round E4 (64), where F becomes E flat; on the white keys it becomes B.
+    maker.setKey(2, { root: 2, steps: [0, 2, 4, 5, 7, 9, 11] })
+    expect(at(4)).toEqual([63])
+    maker.setKey(4.5, WHITE_KEYS)
+    expect(at(4.5)).toEqual([59])
+    expect(at(5)).toEqual([])
+    expect(maker.next()).toBe(Infinity)
+  })
+
+  it('folds by what is held once a control has moved', () => {
+    const { maker, at } = hand({ ...REPLACE, fold: 3 })
+    maker.noteOn(0, 1, 55, 0.8)
+    maker.noteOn(1, 2, 60, 0.8)
+    expect(at(1)).toEqual([52, 57])
+    maker.noteOff(2, 1)
+    maker.setParam(3, 'round', 1)
+    expect(at(3)).toEqual([64])
+  })
+
+  it('moves held notes no oftener than twenty times a second, and ends where the control does', () => {
+    const maker = MIRROR_ON_D.create({ params: { mode: 0, level: 1 } })
+    const open = new Map<number, number>()
+    let begun = 0
+    const emit = (event: MadeEvent): void => {
+      if (event.on) {
+        begun += 1
+        open.set(event.id, event.note)
+      } else open.delete(event.id)
+    }
+    maker.noteOn(0, 1, 60, 0.8)
+    for (let i = 0; i < 200; i += 1) maker.setParam(1 + i * 0.005, 'octave', 3 + (i % 3))
+    maker.setParam(2, 'octave', 6)
+    maker.advance(2.06, emit)
+    expect(begun).toBeGreaterThan(10)
+    expect(begun).toBeLessThanOrEqual(23)
+    expect([...open.values()]).toEqual([112])
+    maker.noteOff(3, 1)
+    maker.advance(3, emit)
+    expect(open.size).toBe(0)
+    // Silenced with a move to come, it still moves afterwards.
+    maker.setParam(4, 'octave', 4)
+    maker.setParam(4.01, 'octave', 3)
+    maker.silence(4.02, emit)
+    maker.noteOn(5, 1, 60, 0.8)
+    maker.setParam(6, 'octave', 4)
+    maker.advance(6, emit)
+    expect([...open.values()]).toEqual([64])
+  })
+
+  it('keeps nothing of what was played, however long Answer goes on', () => {
+    const { maker, at } = hand({ ...ANSWER, rest: 0.3, delay: 1 })
+    for (let i = 0; i < 2000; i += 1) {
+      maker.noteOn(i * 0.5, i, 60 + (i % 5), 0.8)
+      maker.noteOff(i * 0.5 + 0.1, i)
+      at(i * 0.5 + 0.1)
+    }
+    const kept = maker as unknown as Record<'voices' | 'tails' | 'shared', { size: number }>
+    expect(at(1001.2)).toEqual([])
+    expect(maker.next()).toBe(Infinity)
+    const sizes = () => [kept.voices.size, kept.tails.size, kept.shared.size]
+    expect(sizes()).toEqual([0, 0, 0])
+    maker.setParam(1002, 'mode', 1)
+    maker.setParam(1002, 'delay', 0.03)
+    maker.noteOn(1002, 1, 60, 0.8)
+    maker.noteOn(1002.01, 2, 64, 0.8)
+    maker.noteOff(1002.035, 1)
+    expect(sizes()).toEqual([1, 1, 1])
+    maker.silence(1002.05, () => undefined)
+    expect(sizes()).toEqual([0, 0, 0])
   })
 })
 
