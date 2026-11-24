@@ -37,6 +37,7 @@ import { HORNS_PRESETS } from './horns'
 import { ICE_PRESETS } from './ice'
 import { ISOCHRONIC_PRESETS } from './isochronic'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
+import { COMPANION_VOICE_PRESETS } from './maker-companion-voice'
 import { MAGNET_PIANO_PRESETS } from './magnet-piano'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
@@ -126,4 +127,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...STILL_POINT_PRESETS,
   ...BREATH_PACER_PRESETS,
   ...COLOURED_NOISE_PRESETS,
+  ...COMPANION_VOICE_PRESETS,
 ]
