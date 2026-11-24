@@ -126,7 +126,7 @@ Turns what is played upside down round the note its scale reads the same from bo
 | `rest` | Rest (time) | 0.1 to 4 s | 0.6 | How long nothing has to be held before the next note begins a new phrase, which Answer turns by and Fold moves as one. |
 | `strikes` | Strikes | 0 to 8, by 1 | 0 | How many strikes a phrase has at the most, a chord being one: one turns every other chord, held or not. At zero only a rest ends a phrase. |
 | `round` | Round | Two, Three | Two | In Answer, two phrases to the round: as played, then mirrored. With three, a third is mirrored and brought back by octaves to where it was played. |
-| `foldBy` | Fold by | Phrase, Note | Phrase | What Fold moves as one: the phrase, by what suits its first note or chord, so a line keeps its shape; or each note by itself, so a bass stays a bass. |
+| `foldBy` | Fold by | Phrase, Note | Phrase | What Fold moves as one: the phrase, by its first chord, whose mirror waits a moment for all of it, so a line keeps its shape; or each note, so a bass stays a bass. |
 
 Parts: `mirror` (Mirror).
 
@@ -142,9 +142,9 @@ Writes a second voice beside a line by rule: the nearest note of one triad, like
 | `side` | Side | Below, Above, Alternate, Behind | Below | Which side of the line it keeps. Alternate changes at every note, from below. Behind is below while the line rises and above while it falls. |
 | `tonic` | Tonic | 1 to 7, by 1 | 1 | The degree of the key the triad stands on and cadences end on: 1 is the root, 6 of C is A minor. A scale of another size takes its note nearest to that degree of major. |
 | `octave` | Octave | -2 to 2 oct, by 1 | 0 | Moves the companion by whole octaves from where its rule puts it. |
-| `follow` | Follows | All, Top, Bottom | Top | Which notes of a chord have a companion: all of them, the highest held, or the lowest. Top and Bottom wait a thirtieth of a second to hear the whole chord. |
+| `follow` | Follows | All, Top, Bottom | Top | Which notes of a chord have a companion: all of them, the highest held, or the lowest. Top and Bottom wait a thirtieth of a second to hear the chord. |
 | `every` | Every | 1 to 4, by 1 | 1 | At 1 every note it follows is answered, at 2 every other one, and so on. |
-| `delay` | Delay (time) | 0 to 8 s | 0 | How long the companion waits after the note. At zero they sound together. |
+| `delay` | Delay (time) | 0 to 8 s | 0 | How long the companion waits after the note. At zero they sound together, within the moment that Follows waits. |
 | `level` | Level | 0 to 1 | 0.7 | How hard the companion is played, as a share of the note it goes with. |
 | `melody` | Line level | 0 to 1 | 1 | How hard the line itself is played, as a share of how it was struck. At zero the companion is heard alone. |
 | `ring` | Ring (time) | 0 to 8 s | 0 | How long the companion goes on after its note is let go. |
@@ -164,9 +164,9 @@ Plays the upper voices over a bass: each step of the scale has one chord when th
 | `rule` | Rule | In the key, Full rule, Triads, Sevenths, Sixths | In the key | The chord on each step: the old rule inside the key, the full rule with its notes outside the key, or a triad, a seventh or a sixth chord on every step. |
 | `turn` | Direction | As played, Rising, Falling | As played | Which chord a step has in the first two rules: by whether the bass rose or fell to it, always the rising one, or always the falling one. |
 | `voices` | Voices | 2 to 4, by 1 | 3 | How many upper voices there are over the bass. |
-| `spacing` | Spacing | Close, Half open, Open, Wide | Close | How far apart neighbouring upper voices lie: under a fourth, about a fifth, about a sixth as strings are laid, or about an octave. |
+| `spacing` | Spacing | Close, Half open, Open, Wide | Close | How far apart neighbouring upper voices lie: a fourth or less, about a fifth, about a sixth as strings are laid, or about an octave. |
 | `height` | Height | -12 to 24 st, by 1 | 7 | Where the upper voices lie, from the key's middle root to their middle. They stay above the bass, so a high bass lifts them. |
-| `keys` | Keys above | Play, Tune on top, Silent | Play | What held keys above the bass do: sound beside the voices, sound as a tune the voices stay under, or sound only once they are the bass. |
+| `keys` | Keys above | Play, Tune on top, Silent | Play | What held keys above the bass do: sound beside the voices, sound as a tune that the voices stay under and that outlasts the bass, or sound only as the bass. |
 | `hold` | Shared notes | Held, Restruck | Held | Whether a note that two chords share is held through the change or struck again with the new chord. |
 | `delay` | Late (time) | 0 to 4 s | 0 | How long the upper voices come after the bass. The old chord stays until then, so it is suspended over the new bass. |
 | `strum` | Spread (time) | 0 to 3 s | 0 | The time from the lowest upper voice to the highest. Each voice leaves its old note when its new one comes. |
@@ -184,18 +184,18 @@ Runs a progression of eight chords while a key is held, and plays one role of it
 
 | Id | Control | Range | Rest | What it does |
 | --- | --- | --- | --- | --- |
-| `spine` | Spine | Sevenths, Lament, Turning, Borrowed, Circle, Tides, Climb, Pedal, Rocking, Open road, Fifths up, Narrow gate, Bright sill, Stairs, Long stay, Open fourths | Sevenths | Which eight chords run. All are made of the notes of the key but Borrowed, which turns its fourth chord minor for one chord. |
+| `spine` | Spine | Sevenths, Lament, Turning, Borrowed, Circle, Tides, Climb, Pedal, Rocking, Open road, Fifths up, Narrow gate, Bright sill, Stairs, Long stay, Open fourths | Sevenths | Which eight chords run. All keep to the key but Borrowed, which plays the chord on the fourth degree with its other third: minor in major, major in minor. |
 | `role` | Role | Pad, Bass, Arpeggio, Bell, Drone | Pad | What the main instrument plays: the chords, their lowest notes, the chord tones one by one, the top note of each chord, or the tonic. |
 | `chord` | Chord length (time) | 1 to 24 s | 4 | How long each chord lasts. Sounds with the same spine and the same length, begun together, stay together. A rest longer than this starts over. |
-| `voicing` | Voicing | Close, Open, Wide, Full, Thin | Close | How the chord is laid out for the pad and the arpeggio: close, with its middle raised, with its floor lowered, with the bass note under it, or outer notes alone. |
+| `voicing` | Voicing | Close, Open, Wide, Full, Thin | Close | How the pad and the arpeggio lay the chord out: close, the middle an octave up, the root (or the lowest) set low, the bass note added below, or the outer two alone. |
 | `steps` | Arp notes | 2 to 16, by 1 | 4 | How many notes the arpeggio plays in each chord, going up through it and down. |
 | `keys` | Keys | Timing, Octave, Degree | Timing | What the lowest held key decides besides when the spine runs: nothing more, the octave of the main role, or the degree the spine stands on. |
 | `common` | Common notes | Struck, Held | Struck | A note of the pad, the bass or the drone that the next chord has too: struck again with it, or held on. |
-| `pad` | Pad | 0 to 1 | 0 | How hard the chords are played beside the main role. At zero there are none, unless the pad is the main role. |
-| `bass` | Bass | 0 to 1 | 0 | How hard the bass is played beside the main role. At zero there is none, unless the bass is the main role. |
-| `arp` | Arpeggio | 0 to 1 | 0 | How hard the arpeggio is played beside the main role. At zero there is none, unless the arpeggio is the main role. |
-| `bell` | Bell | 0 to 1 | 0 | How hard the bell line is played beside the main role. At zero there is none, unless the bell is the main role. |
-| `drone` | Drone | 0 to 1 | 0 | How hard the tonic is held beside the main role. At zero there is none, unless the drone is the main role. |
+| `pad` | Pad | 0 to 1 | 0 | How hard the chords are played beside the main role; none at zero. Does nothing while Role is Pad, which then plays as hard as the keys. |
+| `bass` | Bass | 0 to 1 | 0 | How hard the bass is played beside the main role; none at zero. Does nothing while Role is Bass, which then plays as hard as the keys. |
+| `arp` | Arpeggio | 0 to 1 | 0 | How hard the arpeggio is played beside the main role; none at zero. Does nothing while Role is Arpeggio, which then plays as hard as the keys. |
+| `bell` | Bell | 0 to 1 | 0 | How hard the bell line is played beside the main role; none at zero. Does nothing while Role is Bell, which then plays as hard as the keys. |
+| `drone` | Drone | 0 to 1 | 0 | How hard the tonic is held beside the main role; none at zero. Does nothing while Role is Drone, which then plays as hard as the keys. |
 
 Parts: `pad` (Pad), `bass` (Bass), `arp` (Arpeggio), `bell` (Bell), `drone` (Drone).
 
@@ -210,8 +210,8 @@ Walks a held chord by moves that change one note and keep two, C to C minor to A
 | `word` | Word | P L, L P, R L, L R, P R, P R R P, Keep root, Keep third, Keep fifth, Own word, Wander | P L | The moves, said over and over. Keep walks the six chords that share that note of the first one. Own word repeats moves drawn from the seed; Wander goes on drawing. |
 | `moves` | Moves | 1 to 3, by 1 | 1 | How many moves make one change of chord. One changes one note; two and three pass over the chords between, to the far side of the cycle. |
 | `time` | Chord time (time) | 0.5 to 24 s | 4 | How long each chord lasts before the next move. |
-| `rhythm` | Rhythm | Melt, Stagger, Up, Down, Rock | Melt | Melt strikes only the voice that moves. Stagger strikes it, then the voices that stay. Up, Down and Rock break the chord, beginning with the voice that moved. |
-| `step` | Step (time) | 0.1 to 4 s | 0.4 | The time from one voice to the next, where they come in one after another and where the chord is broken. |
+| `rhythm` | Rhythm | Melt, Stagger, Up, Down, Rock | Melt | Melt strikes only what moves, and a played chord whole. Stagger strikes the voice that moves, then those that stay. Up, Down and Rock break the chord, the mover first. |
+| `step` | Step (time) | 0.1 to 4 s | 0.4 | The time from voice to voice: in a broken chord, and between voices that move or are struck together, where it is never more than a quarter of the chord time. |
 | `ring` | Ring | 0.1 to 1 | 1 | In Up, Down and Rock, how long each note is held, as a share of the time to three steps later. At full it holds until its voice is struck again or moves. |
 | `keep` | Keep | Free, Nearly, In key | Free | Free leaves the key as the moves do. Nearly takes only chords with two notes in the key, In key only chords wholly in it, with another move where the word leaves. |
 | `turn` | Turn back | Goes on, After 8, After 6, After 4, After 3, After 2 | Goes on | Whether the walk goes on, or goes back the way it came after so many changes, to the chord it began on, and out again. |
@@ -230,15 +230,15 @@ A slow melody that goes up one road and down another, dwells on a strong note an
 
 | Id | Control | Range | Rest | What it does |
 | --- | --- | --- | --- | --- |
-| `map` | Map | Melodic minor, Bhimpalasi, Bageshri, Yaman, Bihag, Bilaskhani, Rageshri, Asavari, Rast, Bayati, Hijaz, Nahawand, Do gapped, Re gapped, Sol gapped, La gapped | Melodic minor | The way up and the way down: melodic minor, seven ragas, four maqam paths in twelve tones, four gapped modes. It replaces the scale of the key and may leave it. |
+| `map` | Map | Melodic minor, Bhimpalasi, Bageshri, Yaman, Bihag, Bilaskhani, Rageshri, Asavari, Rast, Bayati, Hijaz, Nahawand, Do gapped, Re gapped, Sol gapped, La gapped | Melodic minor | The way up and down, in place of the key's scale. At best fit ragas and gapped modes stay in a major or natural minor key; melodic minor and the maqam paths leave it. |
 | `tonic` | Resting note | Best fit, Fit, kept, Key root, Root, kept, Played, Played, kept | Best fit | Where phrases end: the degree on which the map leaves the key least, the root of the key, or the lowest key held. Kept leaves out the notes the key lacks. |
 | `pace` | Pace (time) | 0.2 to 6 s | 0.7 | How long an ordinary note lasts, about. Passing notes are shorter, the strong note and its partner longer. |
-| `dwell` | Dwell | 0 to 0.6 | 0.4 | The share of the singing time the strong note takes. Its partner takes half as much, and the other notes share the rest. |
-| `zigzag` | Zigzag | 0 to 1 | 0.5 | How many of the falls of a fourth have a turn inside: G F E, back to G, and only then D. At zero every fall is straight. |
-| `range` | Range | 3 to 15, by 1 | 9 | How many steps of the map over the resting note the melody reaches at its widest. Under it, it goes half as far. |
+| `dwell` | Dwell | 0.1 to 0.5 | 0.4 | The share of the singing time the strong note takes. Its partner takes half as much, or more where it is the resting note, and the others share what is left. |
+| `zigzag` | Zigzag | 0 to 1 | 0.5 | How many of the falls of a fourth have a turn inside: G F E, back to G, and only then D. At zero every fall goes straight down. |
+| `range` | Range | 3 to 15, by 1 | 9 | How many steps of the map over the resting note the melody reaches at its widest. Under it, half as many, or to the strong note when that is within a fifth. |
 | `grow` | Growth (time) | 0 to 90 s | 32 | How long the range takes to grow by one step; grown, it shrinks as slowly and grows again. At zero the whole range is there at once. |
 | `phrase` | Phrase (time) | 2 to 40 s | 8 | How long a phrase is, about. No two are quite the same length, and each ends on the resting note. |
-| `rest` | Silence (time) | 0 to 20 s | 2.5 | How long the melody is silent between two phrases, about. A drone goes on. |
+| `rest` | Silence (time) | 0 to 20 s | 2.5 | How long the melody is silent between two phrases, about. A key pressed in it begins the next phrase. A drone goes on. |
 | `tail` | Tail (time) | 0 to 30 s | 8 | How long the melody has to bring its phrase home after the last key is let go. At zero it stops at once. |
 | `drone` | Drone | 0 to 1 | 0.4 | How hard a drone under the melody is played: the resting note an octave down and one more, struck anew with each phrase. At zero there is none. |
 | `seed` | Take | 1 to 64, by 1 | 1 | Another number is another melody under the same rules. The same number plays it again. |
@@ -259,7 +259,7 @@ Gives every held note so many seconds of air, less the louder it is, and then a 
 | `register` | High spends | -1 to 1 | 0 | How much height costs, from the root near middle C: at 1 an octave higher lasts half as long and an octave lower twice, at -1 the other way. |
 | `vary` | Vary | 0 to 0.6 | 0.2 | How much one breath differs from another in how long it lasts, as a share of it. |
 | `scatter` | Start scatter | 0 to 0.9 | 0.75 | How far apart the first breaths of a chord are: the share of its air a voice may begin without. The first note always begins with all of it. |
-| `gap` | Apart (time) | 0 to 6 s | 1 | The least time from one voice stopping to the next, so the chord never lets go together. |
+| `gap` | Apart (time) | 0 to 6 s | 1 | The least time from one voice stopping to the next, so the chord never lets go together. Less by itself when a section has too little air for it. |
 | `most` | Silent at once | 1 to 6, by 1 | 1 | How many voices may be taking a breath at one time. One of a chord always sings, whatever this says. |
 | `back` | Return | Same, Next, Below, Octave, Neighbour, Any | Same | Where a voice comes back: its own note, the next free chord note up or down, its own in another octave, a step of the key away and home, or any. |
 | `reach` | Reach | 0 to 2 oct, by 1 | 1 | How many octaves over the highest note held a voice may come back. At zero the chord turns over inside itself. |
