@@ -280,18 +280,69 @@ describe('Two Roads: played live', () => {
     expect(first([108])).toBe(81)
   })
 
-  it('follows a lower key at the next phrase, and at once where the key itself is the resting note', () => {
-    const later = [...chord([69], 60), ...chord([57], 52, 8)]
-    const fit = phrases(melody(later, {}, 60))
-    expect(fit[0][fit[0].length - 1].note).toBe(69)
-    expect(fit[1][fit[1].length - 1].note).toBe(57)
-    const played = melody(
-      [...chord([69], 40), ...chord([62], 36, 4)],
+  it('goes to another resting note as soon as the keys held move it, on the road that leads there', () => {
+    const cases: [Record<string, number>, high: number][] = [
+      [{}, 69],
+      [{ tonic: KEY_ROOT }, 72],
+      [{ map: DO_GAPPED, tonic: PLAYED }, 69],
+    ]
+    for (const [params, high] of cases) {
+      const written = melody([...chord([69], 60), ...chord([57], 52, 8)], params, 60)
+      for (const { atSec, note } of written)
+        if (atSec > 30) expect(note).toBeLessThanOrEqual(high + 2)
+      const cut = phrases(written)
+      for (const phrase of cut)
+        if (phrase[0].atSec > 10 && phrase[phrase.length - 1].atSec < 50)
+          expect(phrase[phrase.length - 1].note).toBe(high - 12)
+      // It sets out within a note's length, and is down there soon.
+      expect(written.some(({ atSec }) => atSec > 8 && atSec < 8.03 + 0.71)).toBe(true)
+      expect(written.some(({ atSec, note }) => atSec > 8 && atSec < 16 && note <= high - 7)).toBe(
+        true,
+      )
+    }
+    // A key that leaves the resting note where it is changes nothing.
+    const alone = melody(chord([57], 20), {}, 20)
+    expect(
+      melody([...chord([57], 20), ...chord([55], 5, 1), ...chord([76], 1, 2)], {}, 20),
+    ).toEqual(alone)
+  })
+
+  it('keeps the lowest key of a chord let go, in whatever order its keys are', () => {
+    for (const order of [
+      [60, 64, 67],
+      [67, 64, 60],
+    ]) {
+      const keys = order.map((note, i) => ({ atSec: 0, durSec: 2 + i * 0.02, note, gain: 0.8 }))
+      const written = melody(keys, { tonic: PLAYED, map: DO_GAPPED }, 30)
+      expect(written[written.length - 1].note).toBe(60)
+    }
+    // One key of the chord let go and the others held: the next lowest is the resting note.
+    const held = melody(
+      [...chord([60], 2), ...chord([65, 69], 30)],
       { tonic: PLAYED, map: DO_GAPPED },
-      40,
+      30,
     )
-    for (const { atSec, note } of played)
-      if (atSec > 8) expect([2, 4, 6, 7, 9, 11]).toContain(note % 12)
+    for (const { atSec, note } of held)
+      if (atSec > 3) expect([5, 7, 9, 10, 0, 2]).toContain(note % 12)
+  })
+
+  it('begins the next phrase when a key is pressed in a silence', () => {
+    const params = { rest: 20, phrase: 4 }
+    const [phrase] = phrases(melody(chord([57], 60), params, 60))
+    const last = phrase[phrase.length - 1]
+    const end = last.atSec + last.durSec
+    const starts = (notes: readonly PlayedNote[], made = params): number[] =>
+      phrases(melody(notes, made, 60)).map(([first]) => first.atSec)
+    expect(starts(chord([57], 60))[1]).toBeGreaterThan(end + 13)
+    expect(starts([...chord([57], 60), ...chord([64], 50, end + 2)])[1]).toBeCloseTo(end + 2.03, 6)
+    // A new key is where it begins.
+    const lower = phrases(melody([...chord([57], 60), ...chord([45], 50, end + 2)], params, 60))
+    expect(lower[1][lower[1].length - 1].note).toBe(45)
+    // One pressed while the phrase goes home waits for it, and for a breath.
+    const asked = starts([...chord([57], 60), ...chord([64], 50, last.atSec + 0.1)])
+    expect(asked[1]).toBeCloseTo(end + 0.5, 6)
+    // A key let go there begins nothing.
+    expect(starts([...chord([57], 60), ...chord([64], end + 2)])[1]).toBeGreaterThan(end + 13)
   })
 
   it('comes home within the tail when the last key is let go', () => {
@@ -311,8 +362,7 @@ describe('Two Roads: played live', () => {
     const taken = melody([...chord([57], 5), ...chord([57], 60, 6)], {}, 60)
     expect(taken[taken.length - 1].atSec).toBeGreaterThan(50)
     // Let go in a silence there is nothing to bring home.
-    const whole = phrases(melody(chord([57], 60), { drone: 0.5 }, 60).filter((n) => n.note > 52))
-    const [phrase] = whole
+    const [phrase] = phrases(melody(chord([57], 60), {}, 60))
     const end = phrase[phrase.length - 1]
     const resting = made(TWO_ROADS, chord([57], end.atSec + end.durSec + 1), {}, 60)
     for (const { atSec, durSec } of resting)
@@ -414,6 +464,256 @@ describe('Two Roads: played live', () => {
     )
     const maps = new Set(listPresets(TWO_ROADS).map(({ params }) => params.map ?? 0))
     expect(maps.size).toBe(16)
+  })
+})
+
+describe('Two Roads: what a check of it asked for', () => {
+  /** The steps a melody takes inside its phrases: from, to, and the note after. */
+  function steps(phrase: readonly MadePhraseNote[]): [number, number, number | null][] {
+    return phrases(phrase).flatMap((cut) =>
+      cut
+        .slice(1)
+        .map((note, i): [number, number, number | null] => [
+          cut[i].note,
+          note.note,
+          cut[i + 2]?.note ?? null,
+        ]),
+    )
+  }
+
+  it('keeps to the two roads of every map for ten minutes, and never leaps a tritone', () => {
+    // Written out by hand, on the note each map rests on on the white keys.
+    const written: [up: string, down: string, rest: number][] = [
+      ['A B C D E F# G#', 'A G F E D C B', 57],
+      ['D F G A C', 'D C B A G F E', 62],
+      ['D F G B C', 'D C B A G F E', 62],
+      ['F G A B D E', 'F E D C B A G', 53],
+      ['C E F G B', 'C B A G F E D', 60],
+      ['E F G B C', 'E D C A G F', 52],
+      ['G B C E F', 'G F E C B A', 55],
+      ['A B D E F', 'A G F E D C B', 57],
+      ['C D E F G A B', 'C Bb A G F E D', 60],
+      ['D E F G A B C', 'D C Bb A G F Eb', 62],
+      ['E F G# A B C# D', 'E D C B A G# F', 52],
+      ['A B C D E F G#', 'A G F E D C B', 57],
+      ['C D E G A', 'C A G F E D', 60],
+      ['D E G A C', 'D C B A G E', 62],
+      ['G A C D E', 'G E D C B A', 55],
+      ['A C D E G', 'A G E D C B', 57],
+    ]
+    const names = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B']
+    const set = (notes: string): string[] => notes.split(' ').sort()
+    written.forEach(([up, down, rest], map) => {
+      const rising = new Set<string>()
+      const falling = new Set<string>()
+      for (const seed of [1, 2, 3]) {
+        for (const [from, to, next] of steps(
+          melody(chord([rest], 600), { map, seed, grow: 8, range: 12 }, 600),
+        )) {
+          expect(Math.abs(to - from)).not.toBe(6)
+          if (to > from) rising.add(names[to % 12])
+          else falling.add(names[to % 12])
+          // A note of the rising road alone is never turned down from.
+          if (to > from && next !== null && next < to)
+            expect(set(down), ROAD_MAPS[map].name).toContain(names[to % 12])
+        }
+      }
+      expect([...rising].sort(), ROAD_MAPS[map].name).toEqual(set(up))
+      expect([...falling].sort(), ROAD_MAPS[map].name).toEqual(set(down))
+    })
+    // From G, which only a fall has, there is no turn up to F# and down again.
+    expect(walk(roads(MELODIC_MINOR, 57), 57, 67, 62, crooked)).toEqual([65, 64, 62])
+  })
+
+  it('has both roads of melodic minor in the first minute and a half: the strong note under rest is in reach', () => {
+    let raised = 0
+    let natural = 0
+    for (let seed = 1; seed <= 12; seed += 1) {
+      const heard = notesOf(melody(chord([57], 90), { seed }, 90))
+      if (heard.some((note) => note === 54 || note === 56)) raised += 1
+      if (heard.some((note) => note === 53 || note === 55)) natural += 1
+      // E under A, and not yet the A over it.
+      expect(Math.min(...heard)).toBe(52)
+      expect(Math.max(...heard)).toBeLessThan(69)
+    }
+    expect(raised).toBe(12)
+    expect(natural).toBeGreaterThanOrEqual(10)
+    // Nine steps are A to the C of the second octave, at their widest after five steps of growth.
+    const top = (from: number, to: number): number =>
+      Math.max(
+        ...Array.from({ length: 24 }, (_, i) => i + 1).flatMap((seed) =>
+          notesOf(
+            melody(chord([57], 400), { seed }, 400).filter((n) => n.atSec >= from && n.atSec < to),
+          ),
+        ),
+      )
+    expect(top(0, 32)).toBe(64)
+    expect(top(97, 130)).toBeLessThanOrEqual(69)
+    expect(top(162, 222)).toBeGreaterThan(69)
+    expect(top(162, 222)).toBeLessThanOrEqual(72)
+    expect(top(290, 318)).toBeLessThanOrEqual(65)
+    expect(top(335, 350)).toBeLessThanOrEqual(65)
+    // The strong note of Yaman is a sixth under its rest, and waits for the range.
+    expect(Math.min(...notesOf(melody(chord([53], 60), { map: 3 }, 60)))).toBeGreaterThanOrEqual(50)
+  })
+
+  it('has a turn in every fall of a fourth with the zigzag full, and in none without', () => {
+    for (const map of [BHIMPALASI, 15, 11]) {
+      const straightDown = steps(melody(chord([57], 300), { map, zigzag: 0, grow: 0 }, 300))
+      const turned = steps(melody(chord([57], 300), { map, zigzag: 1, grow: 0 }, 300))
+      const leaps = (all: typeof turned): number =>
+        all.filter(([from, to]) => from - to >= 5).length
+      expect(leaps(straightDown)).toBeGreaterThan(0)
+      // Back to the top of the fall first: what falls a fourth at once has just risen to where it falls from.
+      turned.forEach(([from, to], i) => {
+        if (from - to >= 5 && i > 0) expect(turned[i - 1][0]).toBeLessThan(from)
+      })
+    }
+  })
+
+  /** The share of a melody held to `untilSec` that a pitch class has, of the notes begun after `fromSec`. */
+  function share(
+    pitchClass: number,
+    params: Record<string, number>,
+    turn: [name: string, value: number, before: number],
+    fromSec: number,
+    untilSec: number,
+  ): number {
+    const maker = TWO_ROADS.create({ params: { drone: 0, ...params, [turn[0]]: turn[2] } })
+    const events: MadeEvent[] = []
+    const emit = (event: MadeEvent): void => {
+      events.push(event)
+    }
+    maker.noteOn(0, 1, 57, 0.8)
+    maker.advance(600, emit)
+    maker.setParam(600, turn[0], turn[1])
+    maker.advance(untilSec, emit)
+    let on = 0
+    let all = 0
+    const began = new Map<number, number>()
+    for (const event of events) {
+      if (event.on) began.set(event.id, event.atSec)
+      const from = began.get(event.id) ?? 0
+      if (event.on || from < fromSec) continue
+      all += event.atSec - from
+      if (event.note % 12 === pitchClass) on += event.atSec - from
+    }
+    return on / all
+  }
+
+  it('sings the share that is asked for soon after the dwell is turned, from its least to its most', () => {
+    for (const dwell of [0.1, 0.2, 0.3, 0.4, 0.5]) {
+      const heard = share(4, {}, ['dwell', dwell, dwell > 0.3 ? 0.1 : 0.5], 601, 720)
+      expect(Math.abs(heard - dwell), `${dwell}: ${heard}`).toBeLessThan(0.05)
+    }
+    expect(share(4, {}, ['dwell', 0.1, 0.5], 601, 1200)).toBeLessThan(0.115)
+  })
+
+  it('keeps to the roads that are left where the notes a key lacks are left out', () => {
+    // One more way to be wrong: a strong note that only one of the two roads has kept.
+    const key = { root: 0, steps: [0, 2, 4, 6, 8, 10] }
+    for (let map = 0; map < 16; map += 1) {
+      const kept = roadsOf(ROAD_MAPS[map], 60, key)
+      const written = melody(chord([60], 200), { map, tonic: 3, grow: 0, range: 12 }, 200, key)
+      for (const [from, to] of steps(written)) {
+        const road = to > from ? kept.up : kept.down
+        expect([...road], `${ROAD_MAPS[map].name} ${from} ${to}`).toContain(to % 12)
+      }
+    }
+  })
+
+  it('strikes the drone once where its knob was turned just before a phrase', () => {
+    const [, second] = phrases(melody(chord([57], 30), {}, 30))
+    const maker = TWO_ROADS.create({ parts: ['drone'] })
+    const events: MadeEvent[] = []
+    maker.noteOn(0, 1, 57, 0.8)
+    maker.setParam(second[0].atSec - 0.1, 'drone', 0.6)
+    maker.advance(second[0].atSec + 1, (event) => events.push(event))
+    const struck = events.filter((e) => e.on && e.part === 'drone' && e.atSec > 5)
+    expect(struck.map(({ note }) => note)).toEqual([45, 52])
+  })
+
+  it('touches a passing note softly, ends a phrase on a longer and softer one, with the drone a step softer above', () => {
+    const written = made(
+      TWO_ROADS,
+      chord([62], 60),
+      { params: { map: BHIMPALASI, drone: 0.5 }, parts: { drone: { deviceId: 'tanpura' } } },
+      60,
+    )
+    const song = written.filter(({ part }) => part === undefined)
+    for (const { note, gain } of song) if (note % 12 === 4) expect(gain).toBeCloseTo(0.48, 9)
+    for (const phrase of phrases(song).slice(0, -1)) {
+      const last = phrase[phrase.length - 1]
+      expect(last.durSec).toBeGreaterThanOrEqual(1.4 - 1e-9)
+      expect(last.gain).toBeCloseTo(0.624, 9)
+    }
+    const [low, high] = written.filter(({ part }) => part === 'drone')
+    expect([low.note, low.gain, high.note]).toEqual([50, 0.4, 55])
+    expect(high.gain).toBeCloseTo(0.32, 9)
+  })
+
+  it('writes nothing after a tail shorter than it waits for a chord', () => {
+    expect(made(TWO_ROADS, chord([57], 0.001), { params: { tail: 0.01 } }, 20)).toEqual([])
+  })
+
+  it('stays on the keyboard in a key of few notes: no note is written twice over for being folded', () => {
+    for (const steps of [[0], [0, 7]]) {
+      const key = { root: 0, steps }
+      const written = melody(chord([84], 120), { tonic: 3, range: 15, grow: 0, drone: 0 }, 120, key)
+      for (const cut of phrases(written))
+        cut.slice(1).forEach((note, i) => expect(note.note).not.toBe(cut[i].note))
+    }
+  })
+
+  it('strikes the drone once for a knob that is turned, and not at all with it at zero', () => {
+    const maker = TWO_ROADS.create({ params: { pace: 3 }, parts: ['drone'] })
+    const events: MadeEvent[] = []
+    const emit = (event: MadeEvent): void => {
+      events.push(event)
+    }
+    const drones = (from: number, to: number): MadeEvent[] =>
+      events.filter((e) => e.on && e.part === 'drone' && e.atSec >= from && e.atSec < to)
+    maker.noteOn(0, 1, 57, 0.8)
+    maker.advance(1, emit)
+    for (let k = 0; k <= 50; k += 1) maker.setParam(1 + k * 0.016, 'drone', 0.4 + k * 0.01)
+    maker.advance(3, emit)
+    expect(drones(1, 3).map(({ note }) => note)).toEqual([45, 52])
+    expect(drones(1, 3)[0].atSec).toBeCloseTo(2, 6)
+    expect(drones(1, 3)[0].gain).toBeCloseTo(0.72, 6)
+    maker.setParam(3, 'drone', 0)
+    maker.advance(3, emit)
+    expect(events[events.length - 1]).toMatchObject({ on: false, atSec: 3, part: 'drone' })
+    maker.setParam(3.1, 'drone', 0.5)
+    maker.advance(3.2, emit)
+    expect(drones(3, 3.2)).toHaveLength(2)
+    // Another map every hundredth of a second: the drone waits for the last.
+    for (let k = 0; k < 100; k += 1) maker.setParam(4 + k * 0.01, 'map', k % 16)
+    maker.advance(4.99, emit)
+    expect(drones(4, 4.99)).toHaveLength(0)
+    maker.noteOff(5, 1)
+    maker.advance(30, emit)
+    expect(events.filter(({ on }) => on)).toHaveLength(events.filter(({ on }) => !on).length)
+  })
+
+  it('answers a key far from the last in its own register within a note or so', () => {
+    for (let at = 0.2; at < 14; at += 0.31) {
+      const written = melody([...chord([57], at), ...chord([81], 40, at + 0.2)], {}, 40)
+      const answer = written.find(({ atSec, note }) => atSec >= at && note >= 76)
+      expect(answer?.atSec ?? 99, `at ${at}`).toBeLessThan(at + 2.2)
+    }
+  })
+
+  it('leaves a major or natural minor key with melodic minor and the maqam paths, and with nothing else', () => {
+    const leaves = (map: (typeof ROAD_MAPS)[number], key: MakerKey): boolean => {
+      const inside = key.steps.map((step) => (key.root + step) % 12)
+      const tonic = bestTonic(map, key)
+      return [...map.up, ...map.down].some((step) => !inside.includes((tonic + step) % 12))
+    }
+    for (let root = 0; root < 12; root += 1)
+      for (const steps of [WHITE_KEYS.steps, A_MINOR.steps])
+        expect(
+          ROAD_MAPS.filter((map) => leaves(map, { root, steps })).map(({ name }) => name),
+        ).toEqual(['Melodic minor', 'Rast', 'Bayati', 'Hijaz', 'Nahawand'])
   })
 })
 
