@@ -14,7 +14,14 @@
 // are played as they come, kept on top as a tune, or left out.
 
 import { classNear, degreeClass, indexOf, inKey, mod, snapNote, triadOn } from './key'
-import { MakerBase, type HeldNote, type MadeNote, type TaskHandle } from './base'
+import {
+  HIGHEST_NOTE,
+  MakerBase,
+  foldNote,
+  type HeldNote,
+  type MadeNote,
+  type TaskHandle,
+} from './base'
 import { type MakerKey, type MakerOptions, type NoteMakerDescriptor } from './types'
 
 const PARAMS = {
@@ -63,7 +70,7 @@ const PARAMS = {
     unit: '',
     choices: ['Close', 'Half open', 'Open', 'Wide'],
     description:
-      'How far apart neighbouring upper voices lie: under a fourth, about a fifth, about a sixth as strings are laid, or about an octave.',
+      'How far apart neighbouring upper voices lie: a fourth or less, about a fifth, about a sixth as strings are laid, or about an octave.',
   },
   height: {
     id: 4,
@@ -87,7 +94,7 @@ const PARAMS = {
     unit: '',
     choices: ['Play', 'Tune on top', 'Silent'],
     description:
-      'What held keys above the bass do: sound beside the voices, sound as a tune the voices stay under, or sound only once they are the bass.',
+      'What held keys above the bass do: sound beside the voices, sound as a tune that the voices stay under and that outlasts the bass, or sound only as the bass.',
   },
   hold: {
     id: 6,
@@ -184,12 +191,15 @@ const HALF_SPAN = [5, 8, 11, 13] as const
 export interface FiguredChord {
   need: readonly number[]
   double: readonly number[]
+  /** What two voices can have of it as well, where that lets them move less. */
+  two?: readonly number[]
 }
 
 /**
  * The chord over `bass`. `rising` is whether the bass came to it from below;
- * null, it came from nowhere and a phrase begins on a chord of its own. Written in the steps of a seven-note scale; in any other scale a step has
- * the triad of its own scale.
+ * null, it came from nowhere and a phrase begins on a chord of its own. Written
+ * in the steps of a seven-note scale; in any other scale a step has the triad of
+ * its own scale.
  */
 export function chordOver(
   key: MakerKey,
@@ -212,6 +222,7 @@ export function chordOver(
   const triad: FiguredChord = {
     need: distinct([third, fifth, root]),
     double: distinct([root, fifth]),
+    two: [third, root],
   }
   if (rule === SEVENTHS) {
     const seventh = seventhOn(key, degree)
@@ -335,6 +346,7 @@ export function leadVoices(chord: FiguredChord, how: Leading): number[] {
 function shares(chord: FiguredChord, count: number): [readonly number[], number][] {
   const { need, double } = chord
   let rows: [readonly number[], number][] = [[need.slice(0, count), 0]]
+  if (count === 2 && chord.two) rows.push([chord.two, 3])
   const missing = count - Math.min(count, need.length)
   for (let i = 0; i < missing; i += 1) {
     rows = rows.flatMap(([classes, cost]) =>
@@ -350,7 +362,7 @@ function shares(chord: FiguredChord, count: number): [readonly number[], number]
 /** Every way of laying the classes out, as rising notes with no note twice. */
 function voicings(classes: readonly number[], how: Leading): number[][] {
   const low = Math.max(how.bass + 3, how.home - 22)
-  const high = Math.min(how.under - 1, how.home + 22)
+  const high = Math.min(how.under - 1, how.home + 22, HIGHEST_NOTE)
   const places = classes.map((pitchClass) => {
     const notes: number[] = []
     for (let note = low + mod(pitchClass - low, 12); note <= high; note += 12) notes.push(note)
@@ -382,9 +394,9 @@ function costOf(notes: readonly number[], how: Leading): number {
     if (gap > most) cost += 2 * (gap - most)
     if (gap < least) cost += 2 * (least - gap)
   }
-  // Whole numbers from the home note, so that it comes out the same in every key.
   // Low down a voice near the bass is thick.
   if (notes[0] < how.thick) cost += Math.max(0, how.bass + 7 - notes[0])
+  // Whole numbers from the home note, so that it comes out the same in every key.
   const away = Math.abs(notes.reduce((sum, note) => sum + (note - how.home), 0)) / notes.length
   cost += 0.5 * away + 2 * Math.max(0, away - 4)
   for (const note of notes) if (how.taken.includes(note)) cost += 4
@@ -428,6 +440,10 @@ interface Voice {
   made: MadeNote | null
   /** Set while it is still to come. */
   begin: TaskHandle | null
+  /** When it comes, or came. */
+  dueSec: number
+  /** When it has to have come, however often the bass moves on before. */
+  bySec: number
   /** The notes it takes over from when it comes. */
   before: Voice[]
   /** Set once it is let go and rings on. */
@@ -443,8 +459,15 @@ interface Bass {
 class RuleOfTheOctave extends MakerBase {
   /** What the keys themselves sound. */
   private readonly own = new Map<number, MadeNote>()
-  private bassId: number | null = null
+  /** The key that is the bass; null once it is let go. */
+  private bassKey: HeldNote | null = null
+  /** The keys that were held with a lower one: part of a chord, and no bass for being short. */
+  private readonly covered = new WeakSet<HeldNote>()
   private lastNote: number | null = null
+  /** No key has been the bass since the hand was last up. */
+  private rested = true
+  /** When the bass was last let go. */
+  private bassUpSec = 0
   /** Null until the bass has moved. */
   private rising: boolean | null = null
   private pending: { atSec: number; task: TaskHandle } | null = null
@@ -458,31 +481,41 @@ class RuleOfTheOctave extends MakerBase {
   private readonly tails = new Set<Voice>()
   private from: readonly number[] = []
   private fromBass = 0
+  private fromUnder = Infinity
+  private fromHome = 0
   private fromChord: FiguredChord | null = null
   /** A control moved since the voices were last led. */
   private stale = false
   private leading: number | null = null
 
   protected onNote(atSec: number, held: HeldNote): void {
+    for (const other of this.held.values()) {
+      if (other.note < held.note) this.covered.add(held)
+      else if (other.note > held.note) this.covered.add(other)
+    }
     if (this.params.keys !== SILENT) this.sound(held)
-    if (this.lowest()?.id === held.id || this.params.keys === TUNE) this.decide(atSec + GATHER_SEC)
+    if (this.lowest() === held || this.params.keys === TUNE) this.decide(atSec + GATHER_SEC)
   }
 
   protected onRelease(atSec: number, held: HeldNote): void {
     const lowest = this.lowest()
     // Pressed and let go before the hand was read: it was a bass all the same.
     const fresh = this.pending !== null && atSec - held.atSec < GATHER_SEC
-    if (fresh && held.id !== this.bassId && (!lowest || held.note < lowest.note)) {
-      this.takeBass(atSec, held)
-    }
+    const short = fresh && held !== this.bassKey && !this.covered.has(held)
+    if (short && !this.isTune(held)) this.takeBass(atSec, held)
     this.end(this.own.get(held.id))
     this.own.delete(held.id)
+    const wasBass = held === this.bassKey
+    if (wasBass) {
+      this.bassKey = null
+      this.bassUpSec = atSec
+    }
     if (!lowest) {
       this.pending?.task.cancel()
       this.pending = null
-      this.bassId = null
+      this.rested = true
       this.later(atSec, (at) => this.lift(at))
-    } else if (held.id === this.bassId || this.params.keys === TUNE) {
+    } else if (wasBass || this.params.keys === TUNE) {
       this.decide(atSec + LET_GO_SEC)
     }
   }
@@ -490,7 +523,7 @@ class RuleOfTheOctave extends MakerBase {
   protected override onParam(atSec: number, name: string): void {
     if (name === 'keys') {
       for (const held of this.held.values()) {
-        if (this.params.keys !== SILENT || held.id === this.bassId) this.sound(held)
+        if (this.params.keys !== SILENT || held === this.bassKey) this.sound(held)
         else {
           this.end(this.own.get(held.id))
           this.own.delete(held.id)
@@ -510,8 +543,9 @@ class RuleOfTheOctave extends MakerBase {
 
   protected override onSilence(): void {
     this.own.clear()
-    this.bassId = null
+    this.bassKey = null
     this.lastNote = null
+    this.rested = true
     this.rising = null
     this.pending = null
     this.done = this.asked
@@ -546,24 +580,37 @@ class RuleOfTheOctave extends MakerBase {
         this.pending = null
         const lowest = this.lowest()
         if (!lowest) return
-        if (lowest.id !== this.bassId) this.takeBass(at, lowest)
+        if (lowest !== this.bassKey && !this.isTune(lowest)) this.takeBass(at, lowest)
         else if (this.params.keys === TUNE && this.crossed()) this.lead(at, true)
       }),
     }
   }
 
+  /** Whether the lowest key left is the tune over a bass that was let go, and not the next bass. */
+  private isTune(lowest: HeldNote): boolean {
+    if (this.params.keys !== TUNE || this.bassKey !== null || this.lastNote === null) return false
+    if (this.rested || lowest.note - this.lastNote < 12) return false
+    // What was held over the bass, and what moves on near the tune.
+    return lowest.atSec <= this.bassUpSec || this.top() - lowest.note < 12
+  }
+
   private takeBass(atSec: number, held: HeldNote): void {
-    const before = this.bassId
-    this.bassId = held.id
-    if (this.params.keys === SILENT && before !== null && before !== held.id) {
-      this.end(this.own.get(before))
-      this.own.delete(before)
+    const before = this.bassKey
+    this.bassKey = held
+    this.rested = false
+    if (this.params.keys === SILENT && before !== null && before !== held) {
+      this.end(this.own.get(before.id))
+      this.own.delete(before.id)
     }
     this.sound(held)
     if (this.lastNote !== null && held.note !== this.lastNote)
       this.rising = held.note > this.lastNote
     this.lastNote = held.note
-    const bass: Bass = { note: Math.round(held.note), gain: held.gain, rising: this.rising }
+    const bass: Bass = {
+      note: foldNote(Math.round(held.note)),
+      gain: held.gain,
+      rising: this.rising,
+    }
     // Counted from the key, not from when the hand was read.
     this.later(Math.max(held.atSec, atSec - LET_GO_SEC), (at) => {
       this.bass = bass
@@ -584,10 +631,15 @@ class RuleOfTheOctave extends MakerBase {
 
   // --- The upper voices ---------------------------------------------------------
 
-  private tune(): number {
-    if (this.params.keys !== TUNE || !this.bass) return Infinity
+  private top(): number {
     let top = -Infinity
     for (const held of this.held.values()) top = Math.max(top, held.note)
+    return top
+  }
+
+  private tune(): number {
+    if (this.params.keys !== TUNE || !this.bass) return Infinity
+    const top = this.top()
     return top - this.bass.note >= 12 ? Math.ceil(top) : Infinity
   }
 
@@ -608,13 +660,18 @@ class RuleOfTheOctave extends MakerBase {
     const half = HALF_SPAN[spacing]
     const home = Math.min(Math.max(middle, bass.note + 4 + half), under - half)
     const taken: number[] = []
-    for (const held of this.held.values()) taken.push(held.note)
+    // A silent key is in nobody's way.
+    if (this.params.keys !== SILENT) for (const held of this.held.values()) taken.push(held.note)
+    // The tune that pressed them down has gone up.
+    const freed = under > this.fromUnder && home - this.fromHome > 4
     // The same chord over the same bass is the same notes.
     const stays =
       !again &&
       !this.stale &&
+      !freed &&
       bass.note === this.fromBass &&
       String(chord.need) === String(this.fromChord?.need) &&
+      this.from.length === voices &&
       this.from.every((note) => note < under)
     const notes = stays
       ? this.from
@@ -628,8 +685,8 @@ class RuleOfTheOctave extends MakerBase {
           taken,
           from: this.from,
           fromBass: this.fromBass,
-          // A control that moved may move the voices further than a chord would.
-          still: again || this.stale ? 0.3 : 1,
+          // A control that moved may move the voices further than a chord would, and so may room.
+          still: again || this.stale || freed ? 0.3 : 1,
           leading: this.leading,
         })
     this.stale = false
@@ -637,6 +694,8 @@ class RuleOfTheOctave extends MakerBase {
     if (notes.length === 0) return
     this.from = notes
     this.fromBass = bass.note
+    this.fromUnder = under
+    this.fromHome = home
     this.fromChord = chord
     const leading = mod(this.key.root + 11, 12)
     this.leading = chord.need.includes(leading) ? leading : null
@@ -646,7 +705,7 @@ class RuleOfTheOctave extends MakerBase {
     const { strum, linger } = this.params
     const keep = this.params.hold === 0 || again
     const left = this.upper
-    const free: { voice: Voice; atSec: number }[] = []
+    const free: Voice[] = []
     const next = notes.map((note, i) => {
       const same = keep ? this.already(note, left) : undefined
       if (same) {
@@ -655,16 +714,28 @@ class RuleOfTheOctave extends MakerBase {
         this.tails.delete(same)
         return same
       }
-      const voice: Voice = { note, made: null, begin: null, before: [], ends: null }
-      free.push({ voice, atSec: atSec + (strum * i) / Math.max(1, notes.length - 1) })
+      const dueSec = atSec + (strum * i) / Math.max(1, notes.length - 1)
+      // A roll that is struck again keeps its order if it can, and may be put off once.
+      const bySec = atSec + (keep ? strum : 2 * strum)
+      const voice: Voice = { note, made: null, begin: null, dueSec, bySec, before: [], ends: null }
+      free.push(voice)
       return voice
     })
-    const leaving = left.filter((voice) => !next.includes(voice))
-    free.forEach(({ voice, atSec: from }, i) => {
+    let leaving = left.filter((voice) => !next.includes(voice))
+    // One that has nothing to leave gives its place to one that sounds.
+    const idle = leaving
+      .filter((voice) => voice.begin && voice.before.length === 0)
+      .slice(0, Math.max(0, leaving.length - free.length))
+    for (const voice of idle) this.leave(voice, 0)
+    leaving = leaving.filter((voice) => !idle.includes(voice))
+    free.forEach((voice, i) => {
       if (i < leaving.length) {
         const old = leaving[i]
-        // A voice on its way to a note it never reached leaves the one it is on.
+        // A voice on its way to a note it never reached leaves the one it is on, and
+        // a bass that moves on and on does not put it off for ever.
         if (old.begin) {
+          voice.bySec = Math.min(voice.bySec, old.bySec)
+          voice.dueSec = Math.min(voice.dueSec, voice.bySec)
           old.begin.cancel()
           old.ends?.cancel()
           voice.before.push(...old.before)
@@ -680,18 +751,32 @@ class RuleOfTheOctave extends MakerBase {
         voice.before = []
         voice.made = this.start(voice.note, gain, 'upper')
       }
-      if (from <= this.now) begin()
-      else voice.begin = this.at(from, begin)
+      if (voice.dueSec <= this.now) begin()
+      else voice.begin = this.at(voice.dueSec, begin)
     })
-    for (const voice of leaving.slice(free.length)) this.leave(voice, linger)
+    for (const voice of leaving.slice(free.length)) {
+      // Its place is taken by one that kept its note; it stays for the one still to come.
+      const heir = next.find((other) => other.begin && other.before.length === 0)
+      if (heir && !voice.begin && voice.made) {
+        voice.ends?.cancel()
+        voice.ends = null
+        heir.before.push(voice)
+      } else this.leave(voice, linger)
+    }
     this.upper = next
   }
 
-  /** A voice that is on this note, or on its way to it. */
+  /** A voice that is on this note, or on its way to it, or still there as the next is late. */
   private already(note: number, upper: readonly Voice[]): Voice | undefined {
     const there = (voice: Voice): boolean =>
       voice.note === note && (voice.made !== null || voice.begin !== null)
-    return upper.find(there) ?? [...this.tails].find(there)
+    const found = upper.find(there) ?? [...this.tails].find(there)
+    if (found) return found
+    for (const voice of upper) {
+      const i = voice.before.findIndex((old) => old.note === note && old.made !== null)
+      if (i >= 0) return voice.before.splice(i, 1)[0]
+    }
+    return undefined
   }
 
   /** Let a note ring `seconds` more. */
