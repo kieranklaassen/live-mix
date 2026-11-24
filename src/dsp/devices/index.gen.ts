@@ -137,6 +137,7 @@ import { TAPE_ECHO_DESCRIPTOR, TAPE_ECHO_DEVICE } from './tape-echo.gen'
 import { TAPE_LOOP_DESCRIPTOR, TAPE_LOOP_DEVICE } from './tape-loop.gen'
 import { TAPE_ORCHESTRA_DESCRIPTOR, TAPE_ORCHESTRA_DEVICE } from './tape-orchestra.gen'
 import { THESIS_DESCRIPTOR, THESIS_DEVICE } from './thesis.gen'
+import { TIERCE_BELLS_DESCRIPTOR, TIERCE_BELLS_DEVICE } from './tierce-bells.gen'
 import { TINE_PIANO_DESCRIPTOR, TINE_PIANO_DEVICE } from './tine-piano.gen'
 import { TREMOLO_DESCRIPTOR, TREMOLO_DEVICE } from './tremolo.gen'
 import { TWIN_BARS_DESCRIPTOR, TWIN_BARS_DEVICE } from './twin-bars.gen'
@@ -289,6 +290,7 @@ export * from './tape-echo.gen'
 export * from './tape-loop.gen'
 export * from './tape-orchestra.gen'
 export * from './thesis.gen'
+export * from './tierce-bells.gen'
 export * from './tine-piano.gen'
 export * from './tremolo.gen'
 export * from './twin-bars.gen'
@@ -443,6 +445,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   TAPE_LOOP_DESCRIPTOR,
   TAPE_ORCHESTRA_DESCRIPTOR,
   THESIS_DESCRIPTOR,
+  TIERCE_BELLS_DESCRIPTOR,
   TINE_PIANO_DESCRIPTOR,
   TREMOLO_DESCRIPTOR,
   TWIN_BARS_DESCRIPTOR,
@@ -598,6 +601,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   TAPE_LOOP_DEVICE,
   TAPE_ORCHESTRA_DEVICE,
   THESIS_DEVICE,
+  TIERCE_BELLS_DEVICE,
   TINE_PIANO_DEVICE,
   TREMOLO_DEVICE,
   TWIN_BARS_DEVICE,
@@ -774,6 +778,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'tape-loop', instrument: false, samples: false, zones: false, meters: 5, memoryMb: 24 },
   { id: 'tape-orchestra', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'thesis', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'tierce-bells', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'tine-piano', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'tremolo', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'twin-bars', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },

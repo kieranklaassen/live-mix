@@ -278,6 +278,8 @@ build_generated_devices() {
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device thesis \
     cpp/devices/thesis/device_api.gen.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device tierce-bells \
+    cpp/devices/tierce-bells/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tine-piano \
     cpp/devices/tine-piano/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tremolo \
@@ -587,6 +589,8 @@ test_generated_devices() {
   native_test thesis_test \
     cpp/test/thesis_test.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  native_test tierce_bells_test \
+    cpp/test/tierce_bells_test.cpp
   native_test tine_piano_test \
     cpp/test/tine_piano_test.cpp
   native_test tremolo_test \
