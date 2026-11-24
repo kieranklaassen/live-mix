@@ -2,11 +2,33 @@
 // scale reads the same from both ways. On the white keys that note is D, so
 // note n becomes 124 - n: C E G becomes E C A, a rising line falls, and
 // nothing leaves the key. In any other key it is that key's own such note,
-// and a note outside the key is as far outside it on the other side.
+// and a note outside the key is as far outside it on the other side. A scale
+// that has no such note (a harmonic minor) is turned by its own steps round
+// its root, so it too stays in the key.
+//
+// A phrase is what is played between two rests. Answer turns every other one,
+// and the fold moves a whole phrase by the same octaves, so a line that rose
+// still falls without a leap, or every note by its own. A phrase that began
+// low and has climbed so far that its mirror lies out of reach of what is
+// played is folded anew from that note on.
 
-import { classNear, degreeClass, indexOf, mirrorDegree, noteAt } from './key'
-import { MakerBase, type HeldNote, type MadeNote } from './base'
+import { classNear, degreeClass, indexOf, mirrorDegree, mod, noteAt } from './key'
+import { foldNote, MakerBase, type HeldNote, type MadeNote } from './base'
 import { type MakerKey, type MakerOptions, type NoteMakerDescriptor } from './types'
+
+/** Notes that begin nearer together than this are one strike: a chord. */
+const STRIKE_SEC = 0.04
+/** Two starts of one pitch nearer than this are one attack, as ./base.ts has it. */
+const ONE_ATTACK_SEC = 0.02
+/** Room for the rounding of a sum of seconds: a rest of exactly the length asked for is one. */
+const ROUNDING_SEC = 1e-6
+
+/** A mirror further than this from what is played, two octaves, has a phrase folded anew. */
+const REACH = 24
+
+const REPLACE = 0
+const BOTH = 1
+const ANSWER = 2
 
 const PARAMS = {
   mode: {
@@ -54,7 +76,7 @@ const PARAMS = {
     unit: 'oct',
     step: 1,
     description:
-      'How many octaves a mirror may be moved back towards the note it came from, so a mirrored bass stays low. At zero it lies where it falls.',
+      'How many octaves a mirror may be moved back towards where it was played, so a mirrored bass stays low. At zero it lies where it falls.',
   },
   turns: {
     id: 4,
@@ -96,15 +118,59 @@ const PARAMS = {
     default: 0.6,
     taper: 'log',
     unit: 's',
-    description: 'In Answer, how long nothing has to be held before the next phrase begins.',
+    description:
+      'How long nothing has to be held before the next note begins a new phrase, which Answer turns by and Fold moves as one.',
+  },
+  strikes: {
+    id: 8,
+    name: 'Strikes',
+    min: 0,
+    max: 8,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    step: 1,
+    description:
+      'How many strikes a phrase has at the most, a chord being one: one turns every other chord, held or not. At zero only a rest ends a phrase.',
+  },
+  round: {
+    id: 9,
+    name: 'Round',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    choices: ['Two', 'Three'],
+    description:
+      'In Answer, two phrases to the round: as played, then mirrored. With three, a third is mirrored and brought back by octaves to where it was played.',
+  },
+  foldBy: {
+    id: 10,
+    name: 'Fold by',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    choices: ['Phrase', 'Note'],
+    description:
+      'What Fold moves as one: the phrase, by what suits its first note or chord, so a line keeps its shape; or each note by itself, so a bass stays a bass.',
   },
 } as const satisfies NoteMakerDescriptor['params']
 
-/** `note` turned round the axis `axis`, which may lie between two notes. */
+/**
+ * `note` turned round the axis `axis`, which may lie between two notes. Where
+ * the scale is not the same from both sides of the axis, it is turned by its
+ * own steps, so that a note of the key is always given a note of the key.
+ */
 export function mirrored(key: MakerKey, note: number, axis: number): number {
+  const even = key.steps.every((step) =>
+    key.steps.includes(mod(2 * axis - key.root - step - key.root, 12)),
+  )
+  if (even) return 2 * axis - note
   const centre = indexOf(key, note)
-  const inScale = noteAt(key, centre)
-  return 2 * axis - inScale - (note - inScale)
+  return noteAt(key, 2 * indexOf(key, axis) - centre) - (note - noteAt(key, centre))
 }
 
 /** Where the axis lies: the key's own centre in an octave (D of it on the white keys), or a tritone above. */
@@ -124,42 +190,71 @@ export function foldTowards(note: number, home: number, most: number): number {
   return folded
 }
 
+/** Notes that are moved by the same octaves: those of a phrase, until it goes out of reach. */
+interface Fold {
+  /** The notes it is measured by: those of its first strike that turn. */
+  opening: number[]
+  openedSec: number
+}
+
+/** What is played between two rests. */
+interface Phrase {
+  /** How many came before it since Answer began. */
+  index: number
+  strikes: number
+  fold: Fold
+}
+
 /** What one held key plays: its own note, and its mirror, which can be later than it. */
 interface Voice {
+  readonly held: HeldNote
+  readonly phrase: Phrase
+  readonly delay: number
+  fold: Fold
   own: MadeNote | null
   mirror: MadeNote | null
-  delay: number
+  /** The note its mirror is to play; null while it has none. */
+  turn: number | null
+  /** Whether the mirror's time has come. */
+  due: boolean
+  mirrorSec: number
 }
 
 class MirrorOnD extends MakerBase {
+  /** One for each held key, in the order they were played. */
   private readonly voices = new Map<number, Voice>()
-  /** In Answer, whether the phrase being played is one that is mirrored. */
-  private turned = false
-  private begun = false
+  private phrase: Phrase | null = null
+  private strikeSec = -Infinity
   private emptySince = 0
 
   protected onNote(atSec: number, held: HeldNote): void {
-    const { mode, octave, fold, turns, delay, level } = this.params
-    if (this.held.size === 1) {
-      if (this.begun && atSec - this.emptySince >= this.params.rest) this.turned = !this.turned
-      this.begun = true
-    }
-    const axis = axisNote(this.key, octave, this.params.axis === 1)
-    const stays = (turns === 1 && held.note < axis) || (turns === 2 && held.note > axis)
-    const plays = stays || mode === 1 || (mode === 2 && !this.turned)
+    const phrase = this.phraseOf(atSec)
     const voice: Voice = {
-      own: plays ? this.start(held.note, held.gain) : null,
+      held,
+      phrase,
+      delay: this.params.delay,
+      fold: phrase.fold,
+      own: null,
       mirror: null,
-      delay,
+      turn: null,
+      due: this.params.delay <= 0,
+      mirrorSec: -Infinity,
     }
     this.voices.set(held.id, voice)
-    if (stays || (mode === 2 && !this.turned)) return
-    const turn = foldTowards(mirrored(this.key, held.note, axis), held.note, fold)
-    const begin = (): void => {
-      voice.mirror = this.start(turn, held.gain * level, 'mirror')
+    if (!this.stays(held.note)) {
+      if (this.outOfReach(atSec, voice)) phrase.fold = { opening: [], openedSec: atSec }
+      const { fold } = phrase
+      if (fold.opening.length === 0) fold.openedSec = atSec
+      if (atSec - fold.openedSec < STRIKE_SEC) fold.opening.push(held.note)
+      voice.fold = fold
     }
-    if (delay <= 0) begin()
-    else this.at(atSec + delay, begin)
+    // A note that joins the first chord of a fold may move what that chord folds by.
+    for (const other of this.voices.values()) if (other.fold === voice.fold) this.place(other)
+    if (voice.due) return
+    this.at(atSec + voice.delay, () => {
+      voice.due = true
+      this.sound(voice)
+    })
   }
 
   protected onRelease(atSec: number, held: HeldNote): void {
@@ -172,10 +267,166 @@ class MirrorOnD extends MakerBase {
     this.at(atSec + voice.delay, () => this.end(voice.mirror))
   }
 
+  protected override onParam(_atSec: number, name: string): void {
+    // How hard and how late a mirror comes is settled when its note is played.
+    if (name === 'level' || name === 'delay' || name === 'rest' || name === 'strikes') return
+    if (name === 'mode' && this.params.mode === ANSWER) {
+      // Answer counts from the phrase it is turned on in, which is as played.
+      if (this.phrase) this.phrase.index = 0
+      for (const voice of this.voices.values()) voice.phrase.index = 0
+    }
+    this.replace()
+  }
+
+  protected override onKey(): void {
+    this.replace()
+  }
+
   protected override onSilence(): void {
     this.voices.clear()
-    this.turned = false
-    this.begun = false
+    this.phrase = null
+    this.strikeSec = -Infinity
+  }
+
+  /** The phrase a note that begins now belongs to. */
+  private phraseOf(atSec: number): Phrase {
+    const newStrike = atSec - this.strikeSec >= STRIKE_SEC
+    if (newStrike) this.strikeSec = atSec
+    const before = this.phrase
+    const rested =
+      this.held.size === 1 && atSec - this.emptySince >= this.params.rest - ROUNDING_SEC
+    const full =
+      before !== null &&
+      newStrike &&
+      this.params.strikes > 0 &&
+      before.strikes >= this.params.strikes
+    if (before && !rested && !full) {
+      if (newStrike) before.strikes += 1
+      return before
+    }
+    this.phrase = {
+      index: before ? before.index + 1 : 0,
+      strikes: 1,
+      fold: { opening: [], openedSec: -Infinity },
+    }
+    return this.phrase
+  }
+
+  private get axis(): number {
+    return axisNote(this.key, this.params.octave, this.params.axis === 1)
+  }
+
+  /** Whether a note is on the side of the axis that does not turn. */
+  private stays(note: number): boolean {
+    const { turns } = this.params
+    return (turns === 1 && note < this.axis) || (turns === 2 && note > this.axis)
+  }
+
+  /** `note` turned, before any fold. A tritone further up the axis is an octave further up the mirror. */
+  private turned(note: number): number {
+    const centre = axisNote(this.key, this.params.octave, false)
+    return mirrored(this.key, note, centre) + (this.params.axis === 1 ? 12 : 0)
+  }
+
+  /** Held keys placed anew after a control or the key moved. */
+  private replace(): void {
+    // What turns, and where to, may have changed: a phrase folds by what is held of it.
+    const phrases = new Set([...this.voices.values()].map((voice) => voice.phrase))
+    if (this.phrase) phrases.add(this.phrase)
+    for (const phrase of phrases) phrase.fold = { opening: [], openedSec: -Infinity }
+    for (const voice of this.voices.values()) {
+      voice.fold = voice.phrase.fold
+      if (this.stays(voice.held.note)) continue
+      voice.fold.opening.push(voice.held.note)
+      voice.fold.openedSec = voice.held.atSec
+    }
+    for (const voice of this.voices.values()) this.place(voice)
+  }
+
+  /** Whether a phrase that was folded by an earlier note puts the mirror of this one too far off. */
+  private outOfReach(atSec: number, { phrase, fold, held }: Voice): boolean {
+    if (fold.opening.length === 0 || atSec - fold.openedSec < STRIKE_SEC) return false
+    const most = this.mostOctaves(phrase)
+    const turn = this.turned(held.note)
+    return (
+      Math.abs(turn + this.shift(fold, most) - held.note) > REACH &&
+      Math.abs(foldTowards(turn, held.note, most) - held.note) <= REACH
+    )
+  }
+
+  /** Which phrase of the round it is in Answer: 0 as played, 1 mirrored, 2 mirrored and brought back. */
+  private pass({ index }: Phrase): number {
+    if (this.params.mode !== ANSWER) return 1
+    return index % (this.params.round === 1 ? 3 : 2)
+  }
+
+  /** How many octaves the mirrors of a phrase may be moved by. */
+  private mostOctaves(phrase: Phrase): number {
+    return this.pass(phrase) === 2 ? 3 : this.params.fold
+  }
+
+  /** The octaves a phrase is moved by, in semitones. */
+  private shift({ opening }: Fold, most: number): number {
+    if (opening.length === 0) return 0
+    const played = opening.reduce((sum, note) => sum + note, 0)
+    const turned = opening.reduce((sum, note) => sum + this.turned(note), 0)
+    const away = (turned - played) / opening.length
+    return 12 * Math.round((foldTowards(away, 0, most) - away) / 12)
+  }
+
+  /** What a held key plays now: its own note, its mirror or both. */
+  private place(voice: Voice): void {
+    const { mode, foldBy } = this.params
+    const pass = this.pass(voice.phrase)
+    const stays = this.stays(voice.held.note)
+    if (stays || pass === 0) voice.turn = null
+    else {
+      const most = this.mostOctaves(voice.phrase)
+      const turn = this.turned(voice.held.note)
+      voice.turn =
+        foldBy === 1
+          ? foldTowards(turn, voice.held.note, most)
+          : turn + this.shift(voice.fold, most)
+    }
+    if (stays || mode === BOTH || (mode !== REPLACE && pass === 0)) {
+      voice.own ??= this.strike(voice.held)
+    } else {
+      this.end(voice.own)
+      voice.own = null
+    }
+    this.sound(voice)
+  }
+
+  /**
+   * A played note. When the mirror of another has just begun at its pitch the
+   * two are one attack, and it is as hard as it was played, not as the mirror.
+   */
+  private strike(held: HeldNote): MadeNote {
+    const pitch = foldNote(held.note)
+    const meeting = [...this.voices.values()].filter(
+      ({ mirror, mirrorSec, held: other }) =>
+        mirror?.note === pitch &&
+        mirror.on === undefined &&
+        this.now - mirrorSec < ONE_ATTACK_SEC &&
+        other.gain * this.params.level < held.gain,
+    )
+    for (const voice of meeting) this.end(voice.mirror)
+    const own = this.start(held.note, held.gain)
+    for (const voice of meeting) voice.mirror = this.start(pitch, held.gain, 'mirror')
+    return own
+  }
+
+  /** The mirror of a key as it is to be: begun when its time has come, moved when its note has. */
+  private sound(voice: Voice): void {
+    if (!voice.due) return
+    const before = voice.mirror
+    if (voice.turn === null) {
+      voice.mirror = null
+    } else if (before?.note !== foldNote(voice.turn)) {
+      voice.mirror = this.start(voice.turn, voice.held.gain * this.params.level, 'mirror')
+      voice.mirrorSec = this.now
+    }
+    if (before !== voice.mirror) this.end(before)
   }
 }
 
@@ -188,9 +439,30 @@ export const MIRROR_ON_D: NoteMakerDescriptor<typeof PARAMS> = {
   version: 1,
   params: PARAMS,
   parts: [{ id: 'mirror', name: 'Mirror', description: 'The notes that were turned.' }],
-  timed: { delay: 'time' },
+  timed: { delay: 'time', rest: 'time' },
   presets: {
     'Both ways': {},
+    'Upside down': { mode: 0, level: 1 },
+    'In its own place': { mode: 0, level: 1, fold: 3, foldBy: 1 },
+    'The line falls': { mode: 0, level: 0.9, fold: 2 },
+    'The bass stays': { mode: 0, turns: 1, level: 0.85 },
+    'The bass rises': { mode: 1, turns: 2, level: 0.45 },
+    'Far side': { axis: 1, level: 0.45 },
+    'High water': { octave: 5, level: 0.35, delay: 0.12 },
+    'A deeper root': { octave: 3, axis: 1, turns: 1, level: 0.5 },
+    'Faint inner voices': { fold: 3, foldBy: 1, level: 0.35 },
+    'Fold by the phrase': { fold: 3, level: 0.55, delay: 0.25 },
+    'A second behind': { delay: 1, level: 0.6 },
+    'Slow ripple': { delay: 4, fold: 1, level: 0.5 },
+    'Reflected sky': { octave: 5, turns: 2, delay: 0.5, level: 0.4 },
+    'Canon over a bass': { turns: 1, delay: 2, fold: 2, level: 0.65 },
+    'Say and answer': { mode: 2, level: 0.8 },
+    'Answer in place': { mode: 2, level: 0.8, fold: 3, foldBy: 1 },
+    'Three sides': { mode: 2, round: 1, level: 0.85, rest: 0.3 },
+    'Long breaths': { mode: 2, rest: 1.5, octave: 5, fold: 1, level: 0.75 },
+    'Every other chord': { mode: 2, strikes: 1, rest: 4, fold: 2, foldBy: 1, level: 0.9 },
+    'Three at a time': { mode: 2, strikes: 3, fold: 2, round: 1, level: 0.85 },
+    'Answer over a bass': { mode: 2, turns: 1, strikes: 2, level: 0.8, axis: 1, fold: 1 },
   },
   create: (options?: MakerOptions) => new MirrorOnD(MIRROR_ON_D, options),
 }
