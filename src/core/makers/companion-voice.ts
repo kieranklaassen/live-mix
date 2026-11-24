@@ -7,7 +7,12 @@
 //
 // Fifths and fourths are perfect: where the scale has only a tritone, a fifth
 // gives way to a fourth and a fourth to a fifth. Fauxbourdon keeps the one
-// diminished triad, as it was sung.
+// diminished triad, as it was sung; a triad of the triad rules that would be
+// diminished has the sixth for its fifth.
+//
+// Where the companion is on the instrument of the line, a pitch the line holds
+// is the line's: the companion is silent there, as it already sounds, and comes
+// in when the line leaves it. So the line is never made softer or ended by it.
 //
 // A cadence is the last note before a rest, and a rest is not known before it
 // comes. So what counts as one is a note held for some time, a note on the
@@ -85,7 +90,7 @@ const PARAMS = {
     unit: '',
     choices: ['All', 'Top', 'Bottom'],
     description:
-      'Which notes of a chord have a companion: all of them, the highest held, or the lowest. Top and Bottom wait a thirtieth of a second to hear the whole chord.',
+      'Which notes of a chord have a companion: all of them, the highest held, or the lowest. Top and Bottom wait a thirtieth of a second to hear the chord.',
   },
   every: {
     id: 5,
@@ -106,7 +111,8 @@ const PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 's',
-    description: 'How long the companion waits after the note. At zero they sound together.',
+    description:
+      'How long the companion waits after the note. At zero they sound together, within the moment that Follows waits.',
   },
   level: {
     id: 7,
@@ -169,14 +175,32 @@ const [ABOVE, ALTERNATE, BEHIND] = [1, 2, 3]
 const [ALL, TOP] = [0, 1]
 const [HELD, ON_TONIC, HELD_TONIC] = [1, 2, 3]
 
-/** Follows hears a chord for so long before it says which of its notes is the top. */
+/**
+ * Follows hears a chord for so long before it says which of its notes is the
+ * top: at least the first, and up to the second where the companion is late
+ * anyway. Four notes of one hand lie within the first of each other nearly
+ * always, and within a third of it often not.
+ */
 const ONE_CHORD_SEC = 1 / 30
+const WIDE_CHORD_SEC = 0.06
+
+/** With All there is nothing to choose, and the notes of one moment are still let in first. */
+const ONE_MOMENT_SEC = 0.005
+
+/** A note struck under (or over) one that is let go this soon after is the line going on, played legato. */
+const LEGATO_SEC = 1
+
+/** Keys let go together are not let go at one moment: what follows on a release waits so long. */
+const SETTLED_SEC = 0.03
 
 /** Controls that are turned together, as a preset turns them, are one change. */
 const ONE_CHANGE_SEC = 0.03
 
 /** A note let go at the very moment it would be a cadence is none: it has to be held on past it. */
 const HELD_ON_SEC = 0.02
+
+/** An octave or a tonic that would be over sooner than this is not moved to. */
+const SHORTEST_SEC = 0.1
 
 /** The white keys' scale, to place a degree by in a scale of another size. */
 const MAJOR = [0, 2, 4, 5, 7, 9, 11]
@@ -234,6 +258,20 @@ export function tonicDegree(key: MakerKey, degree: number): number {
   return best
 }
 
+/**
+ * The triad on a degree of the key, every note of it in the key. Where its
+ * fifth is diminished and the key has the minor sixth, the sixth stands in.
+ */
+export function companionTriad(key: MakerKey, degree: number): number[] {
+  const root = degreeClass(key, degree)
+  const [, third, fifth] = triadOn(key, degree)
+  const sixth = mod(root + 8, 12)
+  const diminished = mod(third - root, 12) === 3 && mod(fifth - root, 12) === 6
+  return [root, third, diminished && inKey(key, sixth) ? sixth : fifth].filter((pitchClass) =>
+    inKey(key, pitchClass),
+  )
+}
+
 /** The `count`th note of `classes` strictly over or under `note`. */
 export function nthOfClasses(
   classes: readonly number[],
@@ -252,6 +290,7 @@ export function nthOfClasses(
 interface Beside {
   part: 'companion' | 'third'
   made: MadeNote
+  gain: number
 }
 
 /** One held key: its own note, and what goes beside it, which can be later. */
@@ -262,8 +301,12 @@ interface Voice {
   /** How much later the companion is. */
   lag: number
   own: MadeNote | null
+  ownGain: number
   beside: Beside[]
-  /** Whether the companion has begun. */
+  /** Whether its chord was heard, whether the companion goes with it, whether Every chose it, and whether the companion has begun. */
+  heard: boolean
+  followed: boolean
+  chosen: boolean
   begun: boolean
   /** When its key was let go, and whether its companion has ended too. */
   releasedAt: number
@@ -277,7 +320,12 @@ interface Voice {
 }
 
 class CompanionVoice extends MakerBase {
+  /** The held keys; every key whose companion has not ended; the keys struck in the last moments. */
   private readonly voices = new Map<number, Voice>()
+  private readonly answering = new Set<Voice>()
+  private recent: Voice[] = []
+  /** The parts that are on an instrument of their own. */
+  private readonly apart: ReadonlySet<string>
   /** Notes that were followed, for Every; companions written, for Alternate. */
   private followed = 0
   private answered = 0
@@ -285,16 +333,26 @@ class CompanionVoice extends MakerBase {
   private lastWay: 1 | -1 = -1
   private changing = false
 
+  constructor(descriptor: NoteMakerDescriptor, options?: MakerOptions) {
+    super(descriptor, options)
+    this.apart = new Set(options?.parts)
+  }
+
   protected onNote(atSec: number, held: HeldNote): void {
     const { follow, delay, melody } = this.params
-    const wait = follow === ALL ? 0 : ONE_CHORD_SEC
+    const wait =
+      follow === ALL ? ONE_MOMENT_SEC : Math.min(WIDE_CHORD_SEC, Math.max(ONE_CHORD_SEC, delay))
     const voice: Voice = {
       note: held.note,
       gain: held.gain,
       atSec,
       lag: Math.max(wait, delay),
-      own: melody > 0 ? this.start(held.note, held.gain * melody) : null,
+      own: null,
+      ownGain: 0,
       beside: [],
+      heard: false,
+      followed: false,
+      chosen: false,
       begun: false,
       releasedAt: Infinity,
       done: false,
@@ -304,22 +362,14 @@ class CompanionVoice extends MakerBase {
       opening: null,
     }
     this.voices.set(held.id, voice)
-    const decide = (): void => {
-      if (!this.follows(voice, held.id, follow)) return
-      if (this.last !== null && this.last !== voice.note) {
-        this.lastWay = voice.note > this.last ? -1 : 1
-      }
-      this.last = voice.note
-      voice.behind = this.lastWay
-      this.followed += 1
-      if ((this.followed - 1) % this.params.every !== 0) return
-      voice.alternate = this.answered % 2 === 0 ? -1 : 1
-      this.answered += 1
-      if (atSec + voice.lag <= this.now) this.begin(voice)
-      else this.at(atSec + voice.lag, () => this.begin(voice))
-    }
-    if (wait === 0) decide()
-    else this.at(atSec + wait, decide)
+    this.answering.add(voice)
+    this.recent = this.recent.filter((other) => other.atSec > atSec - 2 * WIDE_CHORD_SEC)
+    this.recent.push(voice)
+    if (melody > 0) this.strike(voice)
+    this.at(atSec + wait, () => {
+      voice.heard = true
+      if (this.follows(voice, follow)) this.answer(voice)
+    })
   }
 
   protected onRelease(atSec: number, held: HeldNote): void {
@@ -334,7 +384,9 @@ class CompanionVoice extends MakerBase {
       voice.opening?.cancel()
       for (const { made } of voice.beside) this.end(made)
       voice.beside = []
+      this.answering.delete(voice)
     })
+    this.at(atSec + SETTLED_SEC, () => this.left(voice))
   }
 
   protected override onParam(atSec: number, name: string): void {
@@ -348,6 +400,8 @@ class CompanionVoice extends MakerBase {
 
   protected override onSilence(): void {
     this.voices.clear()
+    this.answering.clear()
+    this.recent = []
     this.followed = 0
     this.answered = 0
     this.last = null
@@ -355,14 +409,83 @@ class CompanionVoice extends MakerBase {
     this.changing = false
   }
 
+  /** The line's own note. A softer companion on its instrument at that pitch gives way to it. */
+  private strike(voice: Voice): void {
+    const gain = voice.gain * this.params.melody
+    const pitch = foldNote(voice.note)
+    for (const other of this.answering) {
+      other.beside = other.beside.filter((now) => {
+        const gives = now.made.on === undefined && now.made.note === pitch && now.gain <= gain
+        if (gives) this.end(now.made)
+        return !gives
+      })
+    }
+    voice.own = this.start(voice.note, gain)
+    voice.ownGain = gain
+  }
+
+  /** Whether the line holds a pitch, and no softer than `gain`, on the instrument of a part. */
+  private lineHolds(part: Beside['part'], pitch: number, gain: number): boolean {
+    if (this.apart.has(part)) return false
+    for (const { own, ownGain } of this.voices.values())
+      if (own?.note === pitch && ownGain >= gain) return true
+    return false
+  }
+
+  /** A key was let go a moment ago: what it stood in the way of, for the keys that are still held. */
+  private left(gone: Voice): void {
+    for (const voice of this.voices.values()) {
+      if (voice.begun) this.write(voice)
+      if (voice.followed || this.params.follow === ALL) continue
+      const after = voice.atSec - gone.atSec > WIDE_CHORD_SEC
+      const overlapped = gone.releasedAt - voice.atSec <= LEGATO_SEC
+      if (voice.heard && after && overlapped && this.follows(voice, this.params.follow))
+        this.answer(voice)
+    }
+  }
+
   /** Whether a note is one the companion goes with, once its chord is all there. */
-  private follows(voice: Voice, id: number, follow: number): boolean {
+  private follows(voice: Voice, follow: number): boolean {
     if (follow === ALL) return true
-    for (const other of this.held.values()) {
-      if (other.id === id) continue
+    // Beside what is held, the notes of its chord, which a short one lets go of at once.
+    const chord = this.recent.filter((other) => Math.abs(other.atSec - voice.atSec) < ONE_CHORD_SEC)
+    for (const other of new Set([...this.voices.values(), ...chord])) {
+      if (other === voice) continue
       if (follow === TOP ? other.note > voice.note : other.note < voice.note) return false
     }
     return true
+  }
+
+  /** The companion goes with this note: which side it would be on, and when. */
+  private answer(voice: Voice): void {
+    voice.followed = true
+    // One pitch held under two keys is one note of the line, and counts once.
+    const twin = [...this.voices.values()].find(
+      (other) =>
+        other !== voice &&
+        other.followed &&
+        other.note === voice.note &&
+        Math.abs(other.atSec - voice.atSec) < ONE_CHORD_SEC,
+    )
+    if (twin) {
+      voice.chosen = twin.chosen
+      voice.alternate = twin.alternate
+      voice.behind = twin.behind
+    } else {
+      if (this.last !== null && this.last !== voice.note) {
+        this.lastWay = voice.note > this.last ? -1 : 1
+      }
+      this.last = voice.note
+      voice.behind = this.lastWay
+      voice.chosen = this.followed % this.params.every === 0
+      this.followed += 1
+      if (voice.chosen) {
+        voice.alternate = this.answered % 2 === 0 ? -1 : 1
+        this.answered += 1
+      }
+    }
+    if (!voice.chosen) return
+    this.at(voice.atSec + voice.lag, () => this.begin(voice))
   }
 
   private begin(voice: Voice): void {
@@ -386,7 +509,9 @@ class CompanionVoice extends MakerBase {
     }
     for (const { part, note } of wanted) {
       if (kept.some((now) => now.part === part)) continue
-      kept.push({ part, made: this.start(note, voice.gain * level, part) })
+      const gain = voice.gain * level
+      if (this.lineHolds(part, foldNote(note), gain)) continue
+      kept.push({ part, gain, made: this.start(note, gain, part) })
     }
     voice.beside = kept
   }
@@ -408,9 +533,11 @@ class CompanionVoice extends MakerBase {
     const outer = (note: number) => ({ part: 'companion' as const, note })
     if (rule <= THIRD_TRIAD) {
       const degree = tonicDegree(this.key, tonic)
-      const classes = voice.opened ? [degreeClass(this.key, degree)] : triadOn(this.key, degree)
+      const classes = voice.opened
+        ? [degreeClass(this.key, degree)]
+        : companionTriad(this.key, degree)
       const count = voice.opened ? 1 : rule + 1
-      return [outer(nthOfClasses(classes, voice.note, way, count) + shift)]
+      return [outer(nthOfClasses(classes, this.placed(voice), way, count) + shift)]
     }
     const octaveAway = snapNote(this.key, voice.note) + way * 12 + shift
     if (rule >= THIRDS && rule <= FOURTHS) {
@@ -429,28 +556,38 @@ class CompanionVoice extends MakerBase {
     ]
   }
 
+  /** Where a note of the line is taken to be: one sung between the keys is the note of the key beside it. */
+  private placed(voice: Voice): number {
+    const near = snapNote(this.key, voice.note)
+    return Math.abs(near - voice.note) <= 0.5 ? near : voice.note
+  }
+
   /** Whether a note is at its cadence now, and the thing to do that brings it there if it is not. */
   private planOpening(voice: Voice): void {
     voice.opening?.cancel()
     voice.opening = null
     const { cadence, opens, tonic } = this.params
     const home = degreeClass(this.key, tonicDegree(this.key, tonic))
-    const onTonic = mod(snapNote(this.key, voice.note) - home, 12) === 0
+    // A note outside the key is no cadence: the octave of the note beside it would grate.
+    const inside = inKey(this.key, this.placed(voice))
+    const onTonic = mod(this.placed(voice) - home, 12) === 0
     if (cadence === ON_TONIC) {
       voice.opened = onTonic
       return
     }
     voice.opened = false
-    if (cadence !== HELD && !(cadence === HELD_TONIC && onTonic)) return
+    if (!inside || (cadence !== HELD && !(cadence === HELD_TONIC && onTonic))) return
     const long = opens + HELD_ON_SEC
     const due = voice.atSec + voice.lag + long
+    // Late as the companion is, it opens only for a note that was held so long.
+    const open = (): boolean =>
+      voice.releasedAt >= voice.atSec + long + Math.min(voice.lag, SHORTEST_SEC)
     if (this.now >= due) {
-      voice.opened = true
+      voice.opened = open()
       return
     }
     voice.opening = this.at(due, () => {
-      // Late as the companion is, it opens only for a note that was held so long.
-      if (voice.releasedAt < voice.atSec + long) return
+      if (!open()) return
       voice.opened = true
       this.write(voice)
     })
@@ -467,8 +604,11 @@ class CompanionVoice extends MakerBase {
         if (melody <= 0) {
           this.end(voice.own)
           voice.own = null
-        } else voice.own ??= this.start(voice.note, voice.gain * melody)
-        if (!voice.begun) continue
+        } else if (!voice.own) this.strike(voice)
+      }
+      for (const voice of this.answering) {
+        // One whose key is up is moved for as long as its companion is held, and then only rings.
+        if (!voice.begun || this.now >= voice.releasedAt + voice.lag) continue
         this.planOpening(voice)
         this.write(voice)
       }

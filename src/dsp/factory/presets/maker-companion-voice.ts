@@ -44,7 +44,7 @@ export const COMPANION_VOICE_PRESETS: readonly FactoryPreset[] = [
     name: 'Harp in late sixths',
     category: 'plucked',
     description:
-      'A concert harp where every string is followed, three quarters of a second later, by the sixth over it, softer.',
+      'A concert harp where each string is followed, three quarters of a second later, by the sixth over it if that one is free, softer.',
     maker: {
       makerId: 'companion-voice',
       preset: 'Warm sixths',
