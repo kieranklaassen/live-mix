@@ -15,8 +15,11 @@
 // quarter of it at the most; the stops come closer together. A voice that
 // lost its turn sings on until the next one is free, which is about a breath
 // later. Only where all of that is not enough, such as ten loud voices with
-// lungs of two seconds, does it wait however long that is: the number silent
-// at once is never passed.
+// lungs of two seconds, does it wait longer, for a catch breath of each of the
+// others at the most: the number silent at once is never passed.
+//
+// A voice that comes back on another note of the chord takes one that nobody
+// sings, where there is one, so a chord that turns over stays the chord.
 
 import { above, classNear, degreeClass, inKey, stepFrom } from './key'
 import { foldNote, MakerBase, type HeldNote, type MadeNote, type TaskHandle } from './base'
@@ -98,7 +101,7 @@ const PARAMS = {
     taper: 'linear',
     unit: 's',
     description:
-      'The least time from one voice stopping to the next, so the chord never lets go together.',
+      'The least time from one voice stopping to the next, so the chord never lets go together. Less by itself when a section has too little air for it.',
   },
   most: {
     id: 7,
@@ -245,12 +248,13 @@ class BreathBudget extends MakerBase {
 
   protected onNote(atSec: number, held: HeldNote): void {
     const home = foldNote(held.note)
+    const gain = Math.min(1, Math.max(0, Number.isFinite(held.gain) ? held.gain : 0))
     const there = this.voices.get(home)
     if (there) {
       // The key again: it is struck again, on its own note and with new air.
       there.keys.add(held.id)
-      there.gain = held.gain
-      this.restart(there, atSec, home, held.gain)
+      there.gain = gain
+      this.restart(there, atSec, home, gain)
     } else {
       if (this.voices.size === 0) {
         this.count = 0
@@ -260,8 +264,8 @@ class BreathBudget extends MakerBase {
         home,
         keys: new Set([held.id]),
         order: this.count,
-        gain: held.gain,
-        sung: held.gain,
+        gain,
+        sung: gain,
         pitch: home,
         made: null,
         startedAt: atSec,
@@ -276,7 +280,7 @@ class BreathBudget extends MakerBase {
       }
       this.count += 1
       this.voices.set(home, voice)
-      this.sing(voice, atSec, home, held.gain)
+      this.sing(voice, atSec, home, gain)
       const without = this.params.scatter * ((voice.order * GOLDEN) % 1)
       voice.airEnd = atSec + Math.max(this.least(voice), voice.life * (1 - without))
     }
@@ -533,20 +537,49 @@ class BreathBudget extends MakerBase {
     return this.freeHome(voice, rungs, taken)
   }
 
+  /**
+   * The notes of the chord nobody sings in any octave, but for the one this voice left: it is
+   * free to leave that to another. So a chord that turns over does not lose one of its notes
+   * for longer than it takes the next that moves to come back.
+   */
+  private owed(voice: Voice): Set<number> {
+    const homes = [...this.voices.keys()]
+    const owed = new Set(homes.map((home) => home % 12))
+    for (const pitch of this.taken(voice)) owed.delete(pitch % 12)
+    owed.delete(voice.pitch % 12)
+    // The bass that stays comes back to its own.
+    if (this.params.bass === 1) owed.delete(Math.min(...homes) % 12)
+    return owed
+  }
+
   /** The note the rule of return sends a voice to, where there is one that suits. */
   private move(
-    { home, pitch }: Voice,
+    voice: Voice,
     rungs: readonly number[],
     taken: ReadonlySet<number>,
   ): number | undefined {
+    const { home, pitch } = voice
     const { back } = this.params
     const suits = (note: number): boolean => !taken.has(note) && !this.rubs(note, taken)
     if (back === SAME || (back === NEIGHBOUR && pitch !== home))
       return taken.has(home) ? undefined : home
     if (back === NEIGHBOUR) {
+      // Clear of what the others sing and of where they come home to.
+      const others = new Set(taken)
+      for (const other of this.voices.values()) if (other !== voice) others.add(other.home)
       return [stepFrom(this.key, home, 1), stepFrom(this.key, home, -1)].find(
-        (note) => suits(note) && !taken.has(note - 1) && !taken.has(note + 1),
+        (note) =>
+          foldNote(note) === note &&
+          suits(note) &&
+          !this.rubs(note, others) &&
+          !others.has(note - 1) &&
+          !others.has(note + 1),
       )
+    }
+    if (back !== OCTAVE) {
+      const owed = this.owed(voice)
+      const some = rungs.filter((note) => owed.has(note % 12) && suits(note))
+      if (some.length > 0) rungs = some
     }
     if (back === ANY) {
       const free = rungs.filter((note) => note !== pitch && suits(note))
@@ -647,7 +680,7 @@ export const BREATH_BUDGET: NoteMakerDescriptor<typeof PARAMS> = {
     'Six in a loft': { lung: 9, scatter: 0.9, vary: 0.25 },
     'Long lungs': { lung: 26, breath: 2.4, scatter: 0.9, vary: 0.3, gap: 2 },
     'Catch breaths': { lung: 7, breath: 0.35, gap: 0.8, vary: 0.35, level: 0.95 },
-    'Turning voicing': { lung: 9, back: 1, reach: 0, breath: 1.1 },
+    'Turning voicing': { lung: 9, back: 1, breath: 1.1 },
     'Climbing choir': { lung: 7, back: 1, reach: 2, breath: 0.9, level: 0.75, scatter: 0.85 },
     'Coming down': { lung: 8, back: 2, reach: 1, breath: 1.2, scatter: 0.85, level: 0.8 },
     'Octave relay': { lung: 7, back: 3, reach: 2, breath: 0.8, level: 0.65, scatter: 0.9 },

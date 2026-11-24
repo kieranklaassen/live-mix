@@ -117,7 +117,78 @@ describe('Breath Budget: air', () => {
   })
 })
 
+describe('Breath Budget: air under a control', () => {
+  const stopAfter = (
+    params: Record<string, number>,
+    note: number,
+    gain: number,
+    move: (maker: ReturnType<typeof BREATH_BUDGET.create>) => void,
+  ): number => {
+    const maker = BREATH_BUDGET.create({ params })
+    const events: MadeEvent[] = []
+    maker.noteOn(0, 1, note, gain)
+    move(maker)
+    maker.advance(60, (event) => events.push(event))
+    return events.find((event) => !event.on)?.atSec ?? Infinity
+  }
+
+  it('measures what is left anew when loudness or height costs more', () => {
+    // At 0 a loud note lasts its ten seconds; at 5 s, half gone, it lasts a quarter of them.
+    expect(
+      stopAfter({ ...PLAIN, weight: 0 }, 60, 0.7, (maker) => maker.setParam(5, 'weight', 2)),
+    ).toBeCloseTo(6.25, 6)
+    expect(stopAfter(PLAIN, 72, 0.35, (maker) => maker.setParam(5, 'register', 1))).toBeCloseTo(
+      7.5,
+      6,
+    )
+  })
+
+  it('counts height from the new root when the key moves', () => {
+    // C4 is the root, and then three semitones over the A under it.
+    expect(
+      stopAfter({ ...PLAIN, register: 1 }, 60, 0.35, (maker) => maker.setKey(5, A_MINOR)),
+    ).toBeCloseTo(5 + 5 * 2 ** (-3 / 12), 6)
+  })
+
+  it('breathes alike after a silence', () => {
+    const maker = BREATH_BUDGET.create({ params: { ...PLAIN, vary: 0.6 } })
+    const play = (from: number): number[] => {
+      const ends: number[] = []
+      maker.noteOn(from, 1, 60, 0.35)
+      maker.advance(from + 50, (event) => {
+        if (!event.on) ends.push(Math.round((event.atSec - from) * 1e6) / 1e6)
+      })
+      maker.silence(from + 50, () => {})
+      return ends
+    }
+    const first = play(0)
+    expect(first.length).toBeGreaterThan(2)
+    expect(play(100)).toEqual(first)
+  })
+})
+
 describe('Breath Budget: turns', () => {
+  it('keeps stops apart when the lungs shrink and all are out of air at once', () => {
+    const maker = BREATH_BUDGET.create({ params: { ...PLAIN, lung: 40, most: 6, gap: 0.5 } })
+    const ends: number[] = []
+    for (const [id, note] of [60, 64, 67, 72].entries()) maker.noteOn(0, id, note, 0.35)
+    maker.setParam(30, 'lung', 2)
+    maker.advance(60, (event) => {
+      if (!event.on) ends.push(event.atSec)
+    })
+    expect(ends.length).toBeGreaterThan(20)
+    expect(closest(ends)).toBeGreaterThanOrEqual(0.5 - 1e-9)
+  })
+
+  it('sings at least a second before a breath, however many come in', () => {
+    const notes = [48, 55, 60, 64, 67, 71, 74, 79]
+    const played = notes.map((note, i) => ({ atSec: i * 0.45, durSec: 40, note, gain: 0.35 }))
+    const params = { ...PLAIN, lung: 3, gap: 1, most: 6, scatter: 0.9 }
+    const phrase = made(BREATH_BUDGET, played, { params }, 39)
+    for (const note of phrase)
+      if (note.atSec + note.durSec < 38.9) expect(note.durSec).toBeGreaterThanOrEqual(1 - 1e-9)
+  })
+
   it('lets the first of two go early, so that it is back when the second stops', () => {
     const phrase = made(BREATH_BUDGET, held([60, 64], 0.35, 24), { params: PLAIN }, 24)
     expect(spans(phrase, 60)).toEqual([
@@ -275,6 +346,82 @@ describe('Breath Budget: where a voice comes back', () => {
     expect(new Set(notesOf(phrase)).size).toBeGreaterThan(6)
   })
 
+  it('keeps the chord while it turns over: a note nobody sings is the next to come back', () => {
+    const chord = [48, 55, 64, 71]
+    for (const back of [1, 2, 5]) {
+      for (const reach of [0, 1, 2]) {
+        const params = { lung: 8, breath: 0.8, vary: 0.4, scatter: 0.9, back, reach }
+        const phrase = made(BREATH_BUDGET, held(chord, 0.6, 300), { params }, 300)
+        for (const pitchClass of [0, 7, 4, 11]) {
+          const of = phrase
+            .filter((note) => note.note % 12 === pitchClass)
+            .sort((a, b) => a.atSec - b.atSec)
+          let sungTo = 0
+          let longest = 0
+          for (const note of of) {
+            longest = Math.max(longest, note.atSec - sungTo)
+            sungTo = Math.max(sungTo, note.atSec + note.durSec)
+          }
+          longest = Math.max(longest, 300 - sungTo)
+          expect(longest, `${back}, ${reach}, ${pitchClass}`).toBeLessThan(6)
+        }
+      }
+    }
+  })
+
+  it('takes a note that is missing before one that is nearer', () => {
+    const params = { ...PLAIN, back: 2, reach: 0 }
+    const phrase = made(BREATH_BUDGET, held([48, 55, 64, 71], 0.35, 11.5), { params }, 11.5)
+    // G3 comes down to E3, so there is no G: E4 passes over the C4 under it and takes G3.
+    expect(notesOf(phrase)).toEqual([48, 55, 64, 71, 48, 52, 55, 67])
+  })
+
+  it('leans clear of where a silent voice comes home to', () => {
+    // Over A3 is B3, a minor ninth under the C5 that is taking a breath. Under it is G3.
+    for (const vary of [0.3, 0.45, 0.6]) {
+      const params = { lung: 8, breath: 0.8, vary, scatter: 0.9, back: 4 }
+      const phrase = made(BREATH_BUDGET, held([50, 57, 65, 72], 0.6, 200), { params }, 200)
+      expect(notesOf(phrase)).not.toContain(59)
+    }
+  })
+
+  it('does not lean to a semitone from where another is at home, though it has leaned away', () => {
+    // F4 has gone to G4. Over D4 is E4, under the F: C4 it is.
+    const params = { ...PLAIN, back: 4 }
+    const phrase = made(BREATH_BUDGET, held([57, 65, 62], 0.35, 11.5), { params }, 11.5)
+    expect(notesOf(phrase)).toEqual([57, 65, 62, 57, 67, 60])
+  })
+
+  it('makes no third low down, and goes no higher than the C over the treble staff by itself', () => {
+    for (const back of [1, 2, 3, 5]) {
+      const at = (notes: readonly number[], reach: number): number[] =>
+        notesOf(
+          made(
+            BREATH_BUDGET,
+            held(notes, 0.7, 120),
+            { params: { ...PLAIN, vary: 0.3, back, reach } },
+            120,
+          ),
+        )
+      // E2 is a third over the C2 that stays.
+      expect(at([36, 43, 52], 0)).not.toContain(40)
+      const high = at([84, 88, 91], 2)
+      expect(Math.max(...high)).toBe(back === 3 ? 91 : 96)
+    }
+  })
+
+  it('leaves the bass its own note while it takes a breath', () => {
+    const params = { ...PLAIN, back: 2, reach: 0, most: 2 }
+    const phrase = made(BREATH_BUDGET, held([71, 64, 55, 48], 0.35, 12), { params }, 12)
+    // G3 comes back while C3 is silent: to the E under it, and to no C in the bass's place.
+    expect(notesOf(phrase)).toEqual([71, 64, 55, 48, 64, 59, 52, 48])
+  })
+
+  it('does not lean off the end of the keyboard', () => {
+    const params = { ...PLAIN, back: 4, bass: 0 }
+    expect(notesOf(made(BREATH_BUDGET, held([119], 0.35, 22), { params }, 22))).toEqual([119, 117])
+  })
+
   it('keeps the bass, or lets it move too', () => {
     const at = (bass: number): number[] =>
       notesOf(
@@ -323,6 +470,56 @@ describe('Breath Budget: under the hands', () => {
       [1, 4],
     ])
     expect(phrase.map((note) => note.gain)).toEqual([0.5, 0.7])
+    // Two keys of it at once are one attack.
+    const together = [0, 0.01].map((atSec) => ({ atSec, durSec: 3, note: 60, gain: 0.5 }))
+    expect(notesOf(made(BREATH_BUDGET, together, { params: PLAIN }, 5))).toEqual([60])
+  })
+
+  it('comes back as loud as it was last struck', () => {
+    const phrase = made(
+      BREATH_BUDGET,
+      [
+        { atSec: 0, durSec: 12, note: 60, gain: 0.35 },
+        { atSec: 1, durSec: 11, note: 60, gain: 0.7 },
+      ],
+      { params: PLAIN },
+      12,
+    )
+    expect(phrase.map((note) => note.gain)).toEqual([0.35, 0.7, 0.7])
+  })
+
+  it('takes a loudness that is none as silence, and the others still breathe', () => {
+    const maker = BREATH_BUDGET.create({ params: PLAIN })
+    const events: MadeEvent[] = []
+    maker.noteOn(0, 1, 60, Number.NaN)
+    maker.noteOn(0, 2, 64, 0.35)
+    maker.noteOn(0, 3, 67, 5)
+    maker.advance(12, (event) => events.push(event))
+    expect(events.slice(0, 3).map((event) => event.gain)).toEqual([0, 0.35, 1])
+    const firstStop = (note: number): number =>
+      events.find((event) => !event.on && event.note === note)?.atSec ?? Infinity
+    expect(firstStop(64)).toBeCloseTo(10, 6)
+    // Five is as loud as one.
+    expect(firstStop(67)).toBeCloseTo(3.5, 6)
+  })
+
+  it('starts nothing later for a key let go in its silence', () => {
+    for (const back of [0, 1, 5]) {
+      const phrase = made(
+        BREATH_BUDGET,
+        [
+          { atSec: 0, durSec: 30, note: 60, gain: 0.35 },
+          { atSec: 0, durSec: 9, note: 64, gain: 0.35 },
+          { atSec: 0, durSec: 30, note: 67, gain: 0.35 },
+        ],
+        { params: { ...PLAIN, back, reach: 0, bass: 0 } },
+        40,
+      )
+      // It had stopped at 8.6 and would have been back at 10.
+      const late = phrase.filter((note) => note.atSec > 8.6)
+      expect(late.length).toBeGreaterThan(2)
+      for (const note of late) expect([60, 67]).toContain(note.note)
+    }
   })
 
   it('ends with the keys, and what was silent stays silent', () => {
@@ -335,16 +532,28 @@ describe('Breath Budget: under the hands', () => {
     const phrase = made(
       BREATH_BUDGET,
       [
-        { atSec: 0, durSec: 12, note: 60, gain: 0.35 },
+        { atSec: 0, durSec: 15, note: 60, gain: 0.35 },
         { atSec: 0, durSec: 9, note: 64, gain: 0.35 },
       ],
       { params: PLAIN },
-      12,
+      15,
     )
+    // It had 0.48 of its 1.4 seconds, and so 3.43 of ten seconds of air.
     expect(spans(phrase, 60)).toEqual([
       [0, 8.6],
-      [9.08, 12],
+      [9.08, 12.51],
+      [13.91, 15],
     ])
+    const sooner = made(
+      BREATH_BUDGET,
+      [
+        { atSec: 0, durSec: 15, note: 60, gain: 0.35 },
+        { atSec: 0, durSec: 8.7, note: 64, gain: 0.35 },
+      ],
+      { params: PLAIN },
+      15,
+    )
+    expect(spans(sooner, 60)[1]).toEqual([8.78, 11.78])
   })
 
   it('does not cut short the breath a voice took alone', () => {
@@ -368,17 +577,19 @@ describe('Breath Budget: under the hands', () => {
       BREATH_BUDGET,
       [
         { atSec: 0, durSec: 10.7, note: 60, gain: 0.35 },
-        { atSec: 0, durSec: 14, note: 64, gain: 0.35 },
+        { atSec: 0, durSec: 24, note: 64, gain: 0.35 },
         { atSec: 0, durSec: 14, note: 67, gain: 0.35 },
       ],
       { params: { ...PLAIN, back: 1 } },
-      20,
+      24,
     )
     // E4 had gone up to C5, whose C was let go.
     expect(spans(phrase, 72)).toEqual([[10, 10.78]])
     expect(spans(phrase, 64)).toEqual([
       [0, 8.6],
-      [10.78, 14],
+      // On the air it took at ten.
+      [10.78, 20],
+      [21.4, 24],
     ])
   })
 
