@@ -5,7 +5,9 @@
 // over, is the walk: P L from C is C, Cm, Ab, Abm, E, Em and C again. Three
 // voices sing the chord, each to its nearest note, and a voice that stays is
 // held. P and L leave the key by nature, so the walk does too unless `keep`
-// holds it there. A key struck starts the walk again from the chord it makes.
+// holds it there. A key struck starts the walk again from the chord it makes:
+// over keys still held, a voice both chords have sounds on, and after they
+// were all let go every voice is struck.
 
 import { above, classNear, mod, snapNote } from './key'
 import { type HeldNote, MakerBase, type MadeNote, type TaskHandle } from './base'
@@ -69,7 +71,7 @@ const PARAMS = {
     unit: '',
     choices: ['Melt', 'Stagger', 'Up', 'Down', 'Rock'],
     description:
-      'Melt strikes only the voice that moves. Stagger strikes it, then the voices that stay. Up, Down and Rock break the chord, beginning with the voice that moved.',
+      'Melt strikes only what moves, and a played chord whole. Stagger strikes the voice that moves, then those that stay. Up, Down and Rock break the chord, the mover first.',
   },
   step: {
     id: 4,
@@ -80,7 +82,7 @@ const PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'The time from one voice to the next, where they come in one after another and where the chord is broken.',
+      'The time from voice to voice: in a broken chord, and between voices that move or are struck together, where it is never more than a quarter of the chord time.',
   },
   ring: {
     id: 5,
@@ -195,7 +197,11 @@ const STAGGER = 1
 const DOWN = 3
 const ROCK = 4
 
-/** Keys this near to one another are one chord. */
+/**
+ * Keys this near to one another are one chord. The last key up is taken as
+ * much later, so a chord is as long as it was played, and one that follows
+ * at once follows with no hole between.
+ */
 const GATHER_SEC = 0.03
 /** A chord let go before it was read, or just after, sounds this long. */
 const SHORTEST_SEC = 0.15
@@ -215,10 +221,19 @@ function same(a: Triad, b: Triad): boolean {
   return a.root === b.root && a.minor === b.minor
 }
 
+function level(gain: number): number {
+  return Number.isFinite(gain) ? Math.min(1, Math.max(0, gain)) : 0
+}
+
 /** How many of a triad's notes are in the key. */
 export function inKeyCount(key: MakerKey, triad: Triad): number {
   return classesOf(triad).filter((c) => key.steps.includes(mod(c - key.root, 12))).length
 }
+
+const TRIADS: readonly Triad[] = Array.from({ length: 24 }, (_, i) => ({
+  root: i >> 1,
+  minor: i % 2 === 1,
+}))
 
 /** A key that was played, for reading a chord: `fresh` where others were held before it. */
 export interface HeardKey {
@@ -244,14 +259,17 @@ export function readTriad(key: MakerKey, keys: readonly HeardKey[], need: number
     weights.set(pitchClass, Math.max(weights.get(pitchClass) ?? 0, fresh ? 7 : 4))
   }
   const lowest = mod(Math.min(...heard.map(({ note }) => note)), 12)
+  const struck = mod(Math.min(...heard.filter(({ fresh }) => fresh).map(({ note }) => note)), 12)
   const onLowest = weights.size === 1 ? 3.5 : 2.5
   let best: Triad = { root: lowest, minor: false }
   let bestScore = -Infinity
   // Counted from the key's root, so another key decides the same way.
-  for (let i = 0; i < 24; i += 1) {
-    const triad = { root: mod(key.root + (i >> 1), 12), minor: i % 2 === 1 }
+  for (const { root, minor } of TRIADS) {
+    const triad = { root: mod(key.root + root, 12), minor }
     let score = -10 * Math.max(0, need - inKeyCount(key, triad))
     if (triad.root === lowest) score += onLowest
+    // E struck while D is still down is E's own chord and not C's.
+    if (triad.root === struck) score += 0.5
     for (const pitchClass of classesOf(triad)) {
       const weight = weights.get(pitchClass)
       score += weight ?? (key.steps.includes(mod(pitchClass - key.root, 12)) ? 1 : -2)
@@ -307,6 +325,8 @@ class HexatonicWalker extends MakerBase {
   private shift = 0
   private gain = 0.8
   private spoken = 0
+  /** Where in the word the walk was at the chord it goes back to. */
+  private homeSpoken = 0
   private lastMove: Move | null = null
   private own = ''
   private random = new MakerRandom(1)
@@ -320,6 +340,10 @@ class HexatonicWalker extends MakerBase {
   private topNote: MadeNote | null = null
   private struck: HeldNote[] = []
   private gathering = false
+  /** Whether what is being gathered began with every key up. */
+  private anew = false
+  /** The voices that have just moved. */
+  private changed: readonly number[] = []
   private change: TaskHandle | null = null
   private later: TaskHandle[] = []
   private topTask: TaskHandle | null = null
@@ -330,9 +354,10 @@ class HexatonicWalker extends MakerBase {
   // --- What is played -----------------------------------------------------------
 
   protected onNote(atSec: number, held: HeldNote): void {
-    this.struck.push(held)
+    this.struck = [...this.struck.filter(({ id }) => id !== held.id), held]
     if (this.gathering) return
     this.gathering = true
+    this.anew = this.held.size === 1
     this.at(atSec + GATHER_SEC, (at) => this.begin(at))
   }
 
@@ -346,14 +371,18 @@ class HexatonicWalker extends MakerBase {
     this.gathering = false
   }
 
+  protected override onKey(): void {
+    if (this.wanted > 0) this.setOut()
+  }
+
   protected override onParam(atSec: number, name: string): void {
-    if (!this.chord) return
+    if (!this.chord || this.held.size === 0) return
     if (name === 'word' || name === 'seed') this.startWord(this.chord)
-    if (name === 'turn') {
-      this.path = []
-      this.returning = false
+    if (name === 'word' || name === 'seed' || name === 'turn' || name === 'keep') this.setOut()
+    if (name === 'time') {
+      this.await(atSec)
+      if (this.topTask) this.awaitTop(atSec)
     }
-    if (name === 'time') this.await(atSec)
     if (name === 'time' || name === 'step') this.awaitStep(atSec)
     if (name === 'octave') {
       const by = 12 * (this.params.octave - this.shift)
@@ -364,15 +393,21 @@ class HexatonicWalker extends MakerBase {
     if (name === 'bass') this.layBass(false)
     if (name === 'top') {
       if (this.params.top === 0) this.endTop()
-      else this.awaitTop(atSec, [])
+      else this.awaitTop(atSec)
     }
     if (name === 'rhythm' || name === 'octave') this.lay(atSec, [])
   }
 
   // --- The walk -------------------------------------------------------------------
 
-  private get need(): number {
+  /** How many notes of a chord `keep` wants in the key. */
+  private get wanted(): number {
     return [0, 2, 3][this.params.keep]
+  }
+
+  /** The same, in a key that may have no such chord. */
+  private get need(): number {
+    return Math.min(this.wanted, Math.max(...TRIADS.map((triad) => inKeyCount(this.key, triad))))
   }
 
   /** The chord that is played starts the walk. */
@@ -389,13 +424,11 @@ class HexatonicWalker extends MakerBase {
     this.chord = readTriad(
       this.key,
       read.map(({ id, note }) => ({ note, fresh: newer && fresh.has(id) })),
-      this.need,
+      this.wanted,
     )
     this.first = this.chord
     this.before = null
-    this.path = []
-    this.returning = false
-    this.gain = read.reduce((sum, held) => sum + held.gain, 0) / read.length
+    this.gain = read.reduce((sum, held) => sum + level(held.gain), 0) / read.length
     this.shift = this.params.octave
     // The middle of the hand, brought by octaves to where a chord is clear.
     const home = classNear(this.key.root, 60)
@@ -403,13 +436,16 @@ class HexatonicWalker extends MakerBase {
     while (middle < home - 5) middle += 12
     while (middle > home + 19) middle -= 12
     this.centre = middle + 12 * this.shift
+    if (this.anew) for (const voice of this.voices) this.hush(voice)
     this.place(closeVoicing(this.chord, this.centre))
     this.startWord(this.chord)
+    this.setOut()
     this.begunAt = atSec
     this.changedAt = atSec
+    this.changed = []
     this.layBass(true)
     this.lay(atSec, [])
-    this.awaitTop(atSec, [])
+    this.awaitTop(atSec)
     this.await(atSec)
     this.letGo?.cancel()
     if (this.held.size === 0) this.finish(atSec)
@@ -418,12 +454,15 @@ class HexatonicWalker extends MakerBase {
   /** The last key is up: the end of it, when the chord has sounded for long enough to be one. */
   private finish(atSec: number): void {
     this.letGo?.cancel()
+    // Nothing begins while it waits to end.
+    this.change?.cancel()
+    this.topTask?.cancel()
+    this.topTask = null
+    this.cancelLater()
     const end = (): void => {
       if (this.held.size === 0 && !this.gathering) this.stop()
     }
-    const at = this.begunAt + SHORTEST_SEC
-    if (at <= atSec) end()
-    else this.letGo = this.at(at, end)
+    this.letGo = this.at(Math.max(atSec + GATHER_SEC, this.begunAt + SHORTEST_SEC), end)
   }
 
   /** The voices on a new chord: one that sounds a note of it keeps that note, and the others are let go. */
@@ -472,28 +511,44 @@ class HexatonicWalker extends MakerBase {
       for (const move of [...(this.path.pop() ?? [])].reverse()) this.go(move)
       if (this.path.length === 0) {
         this.returning = false
-        this.spoken = 0
+        this.spoken = this.homeSpoken
         this.lastMove = null
       }
     } else {
+      const { moves } = this.params
       const taken: Move[] = []
-      for (let i = 0; i < this.params.moves; i += 1) {
+      // Two moves that undo each other are no change of chord: one more is.
+      for (let i = 0; i < moves || (i === moves && this.isOn(was)); i += 1) {
         const move = this.choose()
         if (!move) continue
         taken.push(move)
         this.go(move)
       }
-      if (turn > 0) {
+      // On its way into the key it does not mark the way: it would go back out.
+      if (inKeyCount(this.key, was) < this.need) this.setOut()
+      else if (turn > 0) {
         this.path.push(taken)
         this.returning = this.path.length >= turn
       }
     }
     const changed = this.voices.map((_, i) => i).filter((i) => this.voices[i].pitch !== home[i])
     this.changedAt = atSec
+    this.changed = changed
     this.layBass(this.params.rhythm !== MELT)
     this.lay(atSec, changed)
-    this.awaitTop(atSec, changed)
+    this.awaitTop(atSec)
     this.await(atSec)
+  }
+
+  /** From here on the way is kept, and this is the chord it goes back to. */
+  private setOut(): void {
+    this.path = []
+    this.returning = false
+    this.homeSpoken = this.spoken
+  }
+
+  private isOn(chord: Triad): boolean {
+    return this.chord !== null && same(this.chord, chord)
   }
 
   private startWord(chord: Triad): void {
@@ -601,7 +656,8 @@ class HexatonicWalker extends MakerBase {
       return
     }
     for (const voice of this.voices) voice.ring?.cancel()
-    const gap = Math.min(step, time / 4)
+    // In Melt a chord that is played sounds whole, however short it is.
+    const gap = rhythm === MELT && changed.length === 0 ? 0 : Math.min(step, time / 4)
     const order = [...first, ...stay].filter((i) => {
       const voice = this.voices[i]
       // In Melt a voice on its note already is left to sound.
@@ -610,7 +666,7 @@ class HexatonicWalker extends MakerBase {
     order.forEach((i, rank) => {
       const voice = this.voices[i]
       const gain = this.gain * (rhythm === STAGGER && rank > 0 && changed.length > 0 ? 0.75 : 1)
-      if (rank === 0) this.strike(voice, gain)
+      if (rank === 0 || gap === 0) this.strike(voice, gain)
       else this.later.push(this.at(atSec + rank * gap, () => this.strike(voice, gain)))
     })
   }
@@ -674,7 +730,7 @@ class HexatonicWalker extends MakerBase {
     this.topNote = null
   }
 
-  private awaitTop(atSec: number, changed: readonly number[]): void {
+  private awaitTop(atSec: number): void {
     this.topTask?.cancel()
     this.topTask = null
     // A high note the chord no longer has is let go, and one it still has rings into it.
@@ -684,8 +740,9 @@ class HexatonicWalker extends MakerBase {
     }
     if (this.params.top === 0) return
     this.topTask = this.at(Math.max(atSec, this.changedAt + this.params.time / 2), () => {
+      this.topTask = null
       const mover = this.params.top === 1
-      const open = this.voices.filter((_, i) => changed.includes(i) === mover)
+      const open = this.voices.filter((_, i) => this.changed.includes(i) === mover)
       const pitches = (open.length > 0 ? open : this.voices).map((voice) => voice.pitch)
       const over = Math.max(...this.voices.map((voice) => voice.pitch))
       const pitch = above([mod(Math.max(...pitches), 12)], over + 2)
@@ -721,7 +778,7 @@ export const HEXATONIC_WALKER: NoteMakerDescriptor<typeof PARAMS> = {
     'One root, six skies': { word: 6, time: 6, bass: 2, rhythm: 1, step: 0.9 },
     'One third, six ways': { word: 7, time: 5, step: 0.3, rhythm: 3, ring: 0.5 },
     'One fifth holding': { word: 8, time: 7, top: 2, bass: 1 },
-    'Far pole': { moves: 3, time: 8, step: 1.4 },
+    'Far pole': { moves: 3, time: 8, step: 1.4, bass: 1 },
     'Falling fifths': { word: 2, moves: 2, time: 4, rhythm: 2, step: 0.4, ring: 0.4, bass: 1 },
     'Major thirds': { moves: 2, time: 6, rhythm: 1, step: 0.75, octave: 1, bass: 1 },
     'There and back': { word: 4, turn: 3, time: 3.5, rhythm: 3, step: 0.7, top: 1 },
