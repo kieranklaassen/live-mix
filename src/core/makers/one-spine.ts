@@ -17,7 +17,8 @@
 // of the pad and the octave of the bass are decided for all eight chords
 // together, so that the round moves as little as it can and its end leads
 // into its beginning: the voicing does not depend on where a performance
-// came in.
+// came in. A pad that went along with the bass in octaves, or a top note that
+// stood still, costs as much as a farther move.
 
 import { below, classNear, indexOf, mod } from './key'
 import { MakerBase, type MadeNote, type TaskHandle } from './base'
@@ -38,7 +39,7 @@ const SPINES: readonly (readonly [name: string, chords: string])[] = [
   ['Borrowed', '1 4 4:turn 1 6 3 4 4:turn'],
   ['Circle', '6:7 2:7 5:7 1:7 4:7 7:7 3:sus4 3'],
   ['Tides', '1:9 4:9 1:9 4:9 6:7 4:9 6:7 4:9'],
-  ['Climb', '1 2:7 3:7 4 5:sus4 6 4:7 5'],
+  ['Climb', '1 2:7 3:7 4 5:sus4 6:7 4:7 5'],
   ['Pedal', '1 4/1 5/1 1:sus2 6/1 4/1 2/1 5/1'],
   ['Rocking', '2:7 5 2:7 5 4:7 1 4:7 1'],
   ['Open road', '6 4 1 5 6 1 4 2'],
@@ -47,7 +48,7 @@ const SPINES: readonly (readonly [name: string, chords: string])[] = [
   ['Bright sill', '4 5/4 6/4 5/4 4:9 5/4 3 1/3'],
   ['Stairs', '1 5/7 6 3/5 4 1/3 2 5'],
   ['Long stay', '6 6:9 4 4:7 1 1:9 5:sus4 5'],
-  ['Open fourths', '1:sus2 5:sus4 2:sus4 6:sus4 4:sus2 1:sus2 2:sus4 3:sus4'],
+  ['Open fourths', '1:sus4 5:sus4 2:sus4 6:sus4 4:sus2 1:sus2 2:sus4 3:sus4'],
 ]
 
 type Colour = 'triad' | '7' | '9' | 'sus2' | 'sus4' | 'turn'
@@ -77,14 +78,21 @@ const CHORDS = 8
 
 // --- The chords in a key ----------------------------------------------------
 
-/** Where the degrees of a seven-note spine lie in major, for a scale that has no seven of them. */
-const MAJOR_KEY: MakerKey = { root: 0, steps: [0, 2, 4, 5, 7, 9, 11] }
+/** The scales of seven that a scale of another size is taken for a part of. */
+const MAJOR: MakerKey = { root: 0, steps: [0, 2, 4, 5, 7, 9, 11] }
+const MINOR: MakerKey = { root: 0, steps: [0, 2, 3, 5, 7, 8, 10] }
+
+/** The scale of seven the spine is read in: the key's own, else major or minor by its third. */
+function readIn(key: MakerKey): MakerKey {
+  if (key.steps.length === 7) return key
+  return key.steps.includes(3) && !key.steps.includes(4) ? MINOR : MAJOR
+}
 
 /** The step of a scale that stands for a degree of the spine: itself in a scale of seven, else the nearest. */
 function stepFor(key: MakerKey, degree: number): number {
   const size = key.steps.length
   if (size === 7) return degree
-  return mod(indexOf({ root: 0, steps: key.steps }, MAJOR_KEY.steps[degree]), size)
+  return mod(indexOf({ root: 0, steps: key.steps }, readIn(key).steps[degree]), size)
 }
 
 /**
@@ -123,36 +131,89 @@ const TONES: Readonly<Record<Colour, readonly number[]>> = {
   sus4: [0, 3, 4],
 }
 
+/** The steps over its root a chord plays in a scale of seven. */
+function tonesOf(key: MakerKey, degree: number, colour: Colour): readonly number[] {
+  if (colour !== 'sus2' && colour !== 'sus4') return TONES[colour]
+  // A fourth or a fifth that is not perfect leaves no open chord: the other one
+  // is taken, and where neither is open, fourths one on the other over the root.
+  const open = (tones: readonly number[]): boolean =>
+    tones.every((count) => [0, 2, 5, 7].includes(semitones(key, degree, count)))
+  const other = colour === 'sus2' ? 'sus4' : 'sus2'
+  if (open(TONES[colour])) return TONES[colour]
+  return open(TONES[other]) ? TONES[other] : [3, 6, 9]
+}
+
+/** The third of a triad changed for the other one, where there is a perfect fifth over it. */
+function turned(over: readonly number[]): number[] {
+  const changes = over[2] === 7 && (over[1] === 3 || over[1] === 4)
+  return changes ? [over[0], 7 - over[1], over[2]] : [...over]
+}
+
+/** Semitones over its root of a chord on `degree` of a scale of seven, in the order its colour names them. */
+function overRoot(key: MakerKey, degree: number, colour: Colour): number[] {
+  const over = tonesOf(key, degree, colour).map((count) => semitones(key, degree, count))
+  return colour === 'turn' ? turned(over) : over
+}
+
 /**
- * The pitch classes of a chord over the tonic, in the order its colour names
- * them. A scale that has no seven steps gives, for each tone, the step of its
- * own nearest to where the tone lies in major, and no step twice.
+ * The steps that stand for a chord in a scale that has no seven: its root on
+ * `root`, for each other tone the step nearest to it, and no step twice. A
+ * chord never has the same notes as one of `unlike`, its neighbours: the next
+ * nearest steps are taken then, so that every chord is a change.
  */
-function chordClasses(key: MakerKey, step: number, { degree, colour }: SpineChord): number[] {
-  const size = key.steps.length
-  const root = key.steps[step]
-  if (size === 7) {
-    const over = TONES[colour].map((count) => semitones(key, step, count))
-    // Only a third under a perfect fifth has another to change places with.
-    if (colour === 'turn' && over[2] === 7 && (over[1] === 3 || over[1] === 4))
-      over[1] = 7 - over[1]
-    return over.map((semis) => mod(root + semis, 12))
-  }
-  const taken: number[] = []
-  for (const count of TONES[colour]) {
-    const wish = mod(semitones(MAJOR_KEY, degree, count), 12)
-    let best = -1
-    let distance = Infinity
-    // The root stays the root's: another tone near it takes the step beside it.
-    for (let i = count === 0 ? 0 : 1; i < (count === 0 ? 1 : size); i += 1) {
-      const over = semitones(key, step, i)
-      if (taken.includes(over) || Math.abs(over - wish) >= distance) continue
-      best = over
-      distance = Math.abs(over - wish)
+function nearestSteps(
+  key: MakerKey,
+  root: number,
+  { degree, colour }: SpineChord,
+  unlike: readonly (readonly number[])[],
+): number[] {
+  const parent = readIn(key)
+  const wishes = overRoot(parent, degree, colour)
+  let found: { cost: number; steps: number[] }[] = [{ cost: 0, steps: [] }]
+  for (const wish of wishes) {
+    if (wish === 0) {
+      found = found.map(({ cost, steps }) => ({ cost, steps: [...steps, root] }))
+      continue
     }
-    if (best >= 0) taken.push(best)
+    const at = parent.steps[degree] + wish
+    found = found.flatMap(({ cost, steps }) =>
+      key.steps.flatMap((semis, step) => {
+        // The root stays the root's: another tone near it takes the step beside it.
+        if (step === root || steps.includes(step)) return []
+        const apart = mod(semis - at, 12)
+        return [{ cost: cost + Math.min(apart, 12 - apart), steps: [...steps, step] }]
+      }),
+    )
   }
-  return (taken.length > 0 ? taken : [0]).map((semis) => mod(root + semis, 12))
+  if (found.length === 0) return [root]
+  found.sort((a, b) => a.cost - b.cost)
+  const same = (steps: readonly number[]): boolean =>
+    unlike.some((other) => steps.every((step) => other.includes(step)))
+  return (found.find(({ steps }) => !same(steps)) ?? found[0]).steps
+}
+
+/**
+ * The pitch classes over the tonic of the chords of a spine, `shift` steps
+ * up, each in the order its colour names them.
+ */
+function chordClasses(
+  key: MakerKey,
+  spine: readonly SpineChord[],
+  roots: readonly number[],
+  shift: number,
+): number[][] {
+  const size = key.steps.length
+  if (size === 7)
+    return spine.map(({ colour }, i) => {
+      const root = mod(roots[i] + shift, 7)
+      return overRoot(key, root, colour).map((over) => mod(key.steps[root] + over, 12))
+    })
+  const chords: number[][] = []
+  for (const [i, chord] of spine.entries()) {
+    const unlike = i === CHORDS - 1 ? [chords[i - 1], chords[0]] : chords.slice(-1)
+    chords.push(nearestSteps(key, roots[i], chord, unlike))
+  }
+  return chords.map((steps) => steps.map((step) => key.steps[mod(step + shift, size)]))
 }
 
 /**
@@ -205,12 +266,27 @@ export interface VoicedChord {
 
 interface PadOption {
   notes: number[]
-  /** Turned from the order its colour names, which is a little less to the point. */
-  turned: boolean
+  bass: number
+  /** What the notes cost by themselves, wherever they come from. */
+  cost: number
 }
 
-function padOptions(classes: readonly number[]): PadOption[] {
+/**
+ * A chord whose root is left to the bass is turned from the order its colour
+ * names only for a good reason: the seventh or the ninth belongs on top.
+ */
+const TURNED_COST = 2
+/** A semitone between neighbours of a close chord is a rub. */
+const RUB_COST = 1
+/** An outer voice of the pad that goes along with the bass in octaves is no voice of its own; an inner one is hidden. */
+const OUTER_OCTAVES_COST = 3
+const INNER_OCTAVES_COST = 1
+/** A top note that comes again gives the bell no line. */
+const SAME_TOP_COST = 1.2
+
+function padOptions(classes: readonly number[], colour: Colour, bass: number): PadOption[] {
   const options: PadOption[] = []
+  const rootless = colour === '7' || colour === '9'
   for (let first = 0; first < classes.length; first += 1) {
     for (let octave = -24; octave <= 24; octave += 12) {
       const notes = [classes[first] + octave]
@@ -219,36 +295,44 @@ function padOptions(classes: readonly number[]): PadOption[] {
         notes.push(last + mod(classes[(first + i) % classes.length] - last - 1, 12) + 1)
       }
       notes.sort((a, b) => a - b)
-      if (notes[0] >= PAD_LOWEST && notes[notes.length - 1] <= PAD_HIGHEST)
-        options.push({ notes, turned: first > 0 })
+      if (notes[0] < PAD_LOWEST || notes[notes.length - 1] > PAD_HIGHEST) continue
+      let cost = 0.25 * Math.abs(mean(notes) - PAD_CENTRE)
+      if (rootless && first > 0) cost += TURNED_COST
+      if (notes.some((note, i) => i > 0 && note - notes[i - 1] === 1)) cost += RUB_COST
+      options.push({ notes, bass, cost })
     }
   }
   if (options.length > 0) return options
-  return [{ notes: classes.map((semis) => semis - 12).sort((a, b) => a - b), turned: false }]
+  return [{ notes: classes.map((semis) => semis - 12).sort((a, b) => a - b), bass, cost: 0 }]
 }
 
 function mean(notes: readonly number[]): number {
   return notes.reduce((sum, note) => sum + note, 0) / notes.length
 }
 
+/** What it costs the pad to go from one chord to the next: how far its voices move, and how. */
+function padMove(a: PadOption, b: PadOption): number {
+  let cost = 0
+  const bassUp = b.bass - a.bass
+  const voices = Math.min(a.notes.length, b.notes.length)
+  for (let i = 0; i < voices; i += 1) {
+    const up = b.notes[i] - a.notes[i]
+    cost += Math.abs(up) / 3
+    if (up !== 0 && up === bassUp && mod(a.notes[i] - a.bass, 12) === 0)
+      cost += i > 0 && i < voices - 1 ? INNER_OCTAVES_COST : OUTER_OCTAVES_COST
+  }
+  if (a.notes[voices - 1] === b.notes[voices - 1]) cost += SAME_TOP_COST
+  return cost
+}
+
 /** The eight chords of a spine in a key, `shift` degrees up, as notes. */
 export function voicedSpine(key: MakerKey, spineIndex: number, shift = 0): VoicedChord[] {
   const spine = READ[spineIndex]
   const size = key.steps.length
-  const roots = rootSteps(key, spine).map((step) => mod(step + shift, size))
-  const pads = leastRound<PadOption>(
-    roots.map((step, i) => padOptions(chordClasses(key, step, spine[i]))),
-    ({ notes, turned }) => 0.25 * Math.abs(mean(notes) - PAD_CENTRE) + (turned ? 1 : 0),
-    (a, b) => {
-      let sum = 0
-      for (let i = 0; i < Math.min(a.notes.length, b.notes.length); i += 1)
-        sum += Math.abs(a.notes[i] - b.notes[i])
-      return sum / 3
-    },
-  )
+  const roots = rootSteps(key, spine)
   const basses = leastRound<number>(
     spine.map(({ degree, bass }, i) => {
-      const step = bass === degree ? roots[i] : mod(stepFor(key, bass) + shift, size)
+      const step = mod((bass === degree ? roots[i] : stepFor(key, bass)) + shift, size)
       const options: number[] = []
       for (let note = key.steps[step] - 48; note <= BASS_HIGHEST; note += 12)
         if (note >= BASS_LOWEST) options.push(note)
@@ -256,6 +340,13 @@ export function voicedSpine(key: MakerKey, spineIndex: number, shift = 0): Voice
     }),
     (note) => 0.3 * Math.abs(note - BASS_HOME),
     (a, b) => Math.abs(a - b),
+  )
+  const pads = leastRound<PadOption>(
+    chordClasses(key, spine, roots, shift).map((classes, i) =>
+      padOptions(classes, spine[i].colour, basses[i]),
+    ),
+    ({ cost }) => cost,
+    padMove,
   )
   const tonic = classNear(key.root, 60)
   return pads.map(({ notes }, i) => ({
@@ -266,6 +357,22 @@ export function voicedSpine(key: MakerKey, spineIndex: number, shift = 0): Voice
 
 const VOICINGS = ['Close', 'Open', 'Wide', 'Full', 'Thin'] as const
 
+/** How far under the rest of the chord a wide voicing has its floor, at least: a fifth. */
+const WIDE_SEMITONES = 7
+
+/**
+ * The chord with the note it shares with the bass well under the rest, or its
+ * lowest note an octave down where it shares none. Nothing goes under the bass.
+ */
+function lowered(close: readonly number[], bass: number): number[] {
+  const shared = close.findIndex((note) => mod(note - bass, 12) === 0)
+  const moved = Math.max(0, shared)
+  const rest = close.filter((_, i) => i !== moved)
+  let floor = close[moved] - (shared < 0 ? 12 : 0)
+  while (shared >= 0 && rest.length > 0 && rest[0] - floor < WIDE_SEMITONES) floor -= 12
+  return [floor >= bass ? floor : close[moved], ...rest].sort((a, b) => a - b)
+}
+
 /** A chord laid out: what the pad plays, and an octave up the arpeggio. */
 function laidOut({ close, bass }: VoicedChord, voicing: number): number[] {
   const last = close.length - 1
@@ -273,7 +380,7 @@ function laidOut({ close, bass }: VoicedChord, voicing: number): number[] {
     case 'Open':
       return close.map((note, i) => (i > 0 && i < last ? note + 12 : note)).sort((a, b) => a - b)
     case 'Wide':
-      return [close[0] - 12, ...close.slice(1)]
+      return lowered(close, bass)
     case 'Full':
       return [below([mod(bass, 12)], close[0]), ...close]
     case 'Thin':
@@ -307,7 +414,7 @@ const PARAMS = {
     unit: '',
     choices: SPINES.map(([name]) => name),
     description:
-      'Which eight chords run. All are made of the notes of the key but Borrowed, which turns its fourth chord minor for one chord.',
+      'Which eight chords run. All keep to the key but Borrowed, which plays the chord on the fourth degree with its other third: minor in major, major in minor.',
   },
   role: {
     id: 1,
@@ -342,7 +449,7 @@ const PARAMS = {
     unit: '',
     choices: VOICINGS,
     description:
-      'How the chord is laid out for the pad and the arpeggio: close, with its middle raised, with its floor lowered, with the bass note under it, or outer notes alone.',
+      'How the pad and the arpeggio lay the chord out: close, the middle an octave up, the root (or the lowest) set low, the bass note added below, or the outer two alone.',
   },
   steps: {
     id: 4,
@@ -388,7 +495,7 @@ const PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the chords are played beside the main role. At zero there are none, unless the pad is the main role.',
+      'How hard the chords are played beside the main role; none at zero. Does nothing while Role is Pad, which then plays as hard as the keys.',
   },
   bass: {
     id: 8,
@@ -399,7 +506,7 @@ const PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the bass is played beside the main role. At zero there is none, unless the bass is the main role.',
+      'How hard the bass is played beside the main role; none at zero. Does nothing while Role is Bass, which then plays as hard as the keys.',
   },
   arp: {
     id: 9,
@@ -410,7 +517,7 @@ const PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the arpeggio is played beside the main role. At zero there is none, unless the arpeggio is the main role.',
+      'How hard the arpeggio is played beside the main role; none at zero. Does nothing while Role is Arpeggio, which then plays as hard as the keys.',
   },
   bell: {
     id: 10,
@@ -421,7 +528,7 @@ const PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the bell line is played beside the main role. At zero there is none, unless the bell is the main role.',
+      'How hard the bell line is played beside the main role; none at zero. Does nothing while Role is Bell, which then plays as hard as the keys.',
   },
   drone: {
     id: 11,
@@ -432,7 +539,7 @@ const PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the tonic is held beside the main role. At zero there is none, unless the drone is the main role.',
+      'How hard the tonic is held beside the main role; none at zero. Does nothing while Role is Drone, which then plays as hard as the keys.',
   },
 } as const satisfies NoteMakerDescriptor['params']
 
@@ -445,6 +552,8 @@ const MOST_OCTAVES = 2
 const BELL_SHARE = 0.75
 /** Less than this left of an arpeggio's slot, and the note waits for the next one. */
 const LEAST_SLOT_SEC = 0.05
+/** How long after a key is let go the lowest of those left is asked for. */
+const LIFT_SEC = 0.08
 
 /** A note of a role as it should sound now. */
 interface Wanted {
@@ -476,6 +585,7 @@ class OneSpine extends MakerBase {
   private chordTask: TaskHandle | null = null
   private arpTask: TaskHandle | null = null
   private bellTask: TaskHandle | null = null
+  private liftTask: TaskHandle | null = null
 
   protected onNote(atSec: number): void {
     if (this.running) {
@@ -494,7 +604,15 @@ class OneSpine extends MakerBase {
   }
 
   protected onRelease(atSec: number): void {
-    if (this.held.size > 0 || !this.running) return
+    if (!this.running) return
+    if (this.held.size > 0) {
+      // Fingers of one chord leave a little apart: what is left then is what is held.
+      this.liftTask?.cancel()
+      this.liftTask = this.at(atSec + LIFT_SEC, (due) => {
+        if (this.listen()) this.revoice(due)
+      })
+      return
+    }
     this.running = false
     this.gapSince = atSec
     this.stop()
@@ -528,7 +646,7 @@ class OneSpine extends MakerBase {
     this.gapSince = -Infinity
     this.standing.clear()
     this.arpNote = null
-    this.chordTask = this.arpTask = this.bellTask = null
+    this.chordTask = this.arpTask = this.bellTask = this.liftTask = null
   }
 
   // --- The clock of the spine ------------------------------------------------
@@ -586,7 +704,7 @@ class OneSpine extends MakerBase {
 
   private loudest(): number {
     let gain = 0
-    for (const held of this.held.values()) gain = Math.max(gain, held.gain)
+    for (const held of this.held.values()) if (held.gain > gain) gain = held.gain
     return gain
   }
 
@@ -762,6 +880,8 @@ class OneSpine extends MakerBase {
     this.chordTask = null
     this.bellTask?.cancel()
     this.bellTask = null
+    this.liftTask?.cancel()
+    this.liftTask = null
     this.endArp()
     for (const notes of this.standing.values()) for (const had of notes) this.end(had.made)
     this.standing.clear()
