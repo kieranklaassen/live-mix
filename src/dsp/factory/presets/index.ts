@@ -45,6 +45,7 @@ import { BREATH_BUDGET_PRESETS } from './maker-breath-budget'
 import { HEXATONIC_WALKER_PRESETS } from './maker-hexatonic-walker'
 import { RULE_OF_THE_OCTAVE_PRESETS } from './maker-rule-of-the-octave'
 import { MAKER_ONE_SPINE_PRESETS } from './maker-one-spine'
+import { TWO_ROADS_PRESETS } from './maker-two-roads'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
@@ -140,4 +141,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...HEXATONIC_WALKER_PRESETS,
   ...RULE_OF_THE_OCTAVE_PRESETS,
   ...MAKER_ONE_SPINE_PRESETS,
+  ...TWO_ROADS_PRESETS,
 ]
