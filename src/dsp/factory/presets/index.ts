@@ -38,6 +38,7 @@ import { ICE_PRESETS } from './ice'
 import { ISOCHRONIC_PRESETS } from './isochronic'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
 import { MAGNET_PIANO_PRESETS } from './magnet-piano'
+import { RULE_OF_THE_OCTAVE_PRESETS } from './maker-rule-of-the-octave'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
@@ -126,4 +127,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...STILL_POINT_PRESETS,
   ...BREATH_PACER_PRESETS,
   ...COLOURED_NOISE_PRESETS,
+  ...RULE_OF_THE_OCTAVE_PRESETS,
 ]
