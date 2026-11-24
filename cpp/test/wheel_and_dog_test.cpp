@@ -222,7 +222,7 @@ void barks() {
     const std::vector<double> b = levels(bark, 0.02, 2.0), d = levels(without, 0.02, 2.0);
     const double over = *std::max_element(b.begin(), b.end()) - *std::max_element(d.begin(), d.end());
     std::printf("  dog 1, depth %.1f: loudest bark %.1f dB against the drones\n", depth, over);
-    EXPECT(over > -6.0 && over < 6.0, "the bark is heard and never dominates");
+    EXPECT(over > -6.0 && over < 0.5, "the bark is heard and never dominates");
   }
 
   // Long short: the second of each pair is late by a third of a gap.
@@ -710,6 +710,32 @@ void keys_let_go() {
   EXPECT(finite(mad.left) && finite(mad.right) && stereo_peak(mad) < 1.01, "nonsense stays finite");
   for (int k = 1; k <= 5; ++k) device.note_off(k);
   silent_after("and ends");
+  // An id struck at another pitch has left the first: duo hears one key.
+  fresh({{p::kAccents, 0.0f}, {p::kMelody, 2.0f}, {p::kDrones, 0.0f}, {p::kTrompette, 0.0f}, {p::kNoise, 0.0f}});
+  device.note_on(1, hz(62), 0.7f);
+  device.note_on(1, hz(68), 0.7f);
+  render(device, 1.0f, kRate);
+  const Stereo moved = render(device, 1.0f, kRate);
+  EXPECT(line_at(moved, 62, 0.0, 1.0) < line_at(moved, 68, 0.0, 1.0) - 50.0, "a key struck elsewhere leaves where it was");
+  // And does not push others off the list however often it is struck.
+  fresh({});
+  device.note_on(2, hz(38), 0.7f);
+  for (int k = 0; k < 500; ++k) device.note_on(1, hz(static_cast<float>(60 + k % 9)), 0.7f);
+  device.note_off(1);
+  render(device, 2.0f, kRate);
+  EXPECT(stereo_peak(render(device, 0.5f, kRate)) > 0.01, "a held drone outlasts five hundred strikes of another key");
+  device.note_off(2);
+  silent_after("and ends when it is let go");
+  // init in the middle of a bark leaves nothing of it.
+  fresh({{p::kDepth, 1.0f}, {p::kDog, 1.0f}, {p::kSpin, 0.05f}, {p::kSpeed, 3.0f}, {p::kNoise, 1.0f}});
+  key(38);
+  key(62);
+  const Stereo cold = render(device, 0.4037f, kRate);
+  for (int k = 0; k < 40 && device.meter(1) < 0.5f; ++k) render(device, 0.004f, kRate);
+  fresh({{p::kDepth, 1.0f}, {p::kDog, 1.0f}, {p::kSpin, 0.05f}, {p::kSpeed, 3.0f}, {p::kNoise, 1.0f}});
+  key(38);
+  key(62);
+  EXPECT(difference(cold, render(device, 0.4037f, kRate)) == 0.0, "init leaves nothing of what sounded");
   // More keys than the list holds.
   fresh({});
   for (int k = 0; k < 300; ++k) device.note_on(k, hz(static_cast<float>(30 + k % 60)), 0.8f);
@@ -825,8 +851,8 @@ void clicks() {
     EXPECT(s < 0.25, jump.name);
   }
   EXPECT(suddenness(plain, [] { device.note_off(62); }) < 0.15, "a melody key up is gradual");
-  EXPECT(suddenness(plain, [] { key(65); }) < 0.25, "a key change is a bend and not a cut");
-  EXPECT(suddenness(plain, [] { key(36); }) < 0.15, "a new drone root slides in");
+  EXPECT(suddenness(plain, [] { key(65); }) < 0.25, "a key change keeps the string's phase");
+  EXPECT(suddenness(plain, [] { key(36); }) < 0.15, "a new drone root keeps it too");
   // Knobs that set the pushes, moved under sound: the dog is not set off by a hand on a knob.
   fresh({{p::kAccents, 2.0f}, {p::kDepth, 0.0f}, {p::kDog, 1.0f}, {p::kNoise, 0.0f}});
   key(38);
