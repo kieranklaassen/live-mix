@@ -8,7 +8,10 @@ import { BREATH_BUDGET } from './breath-budget'
 import { COMPANION_VOICE } from './companion-voice'
 import { HEXATONIC_WALKER } from './hexatonic-walker'
 import { MIRROR_ON_D } from './mirror-on-d'
+import { ONE_SPINE } from './one-spine'
+import { RULE_OF_THE_OCTAVE } from './rule-of-the-octave'
 import { SIX_VOICES } from './six-voices'
+import { TWO_ROADS } from './two-roads'
 import { type NoteMakerDescriptor } from './types'
 
 /** Every note maker, in menu order. */
@@ -16,24 +19,12 @@ export const NOTE_MAKERS: readonly NoteMakerDescriptor[] = [
   SIX_VOICES,
   MIRROR_ON_D,
   COMPANION_VOICE,
+  RULE_OF_THE_OCTAVE,
+  ONE_SPINE,
+  HEXATONIC_WALKER,
+  TWO_ROADS,
   BREATH_BUDGET,
 ]
-export const NOTE_MAKERS: readonly NoteMakerDescriptor[] = [MIRROR_ON_D, HEXATONIC_WALKER]
-import { RULE_OF_THE_OCTAVE } from './rule-of-the-octave'
-import { type NoteMakerDescriptor } from './types'
-
-/** Every note maker, in menu order. */
-export const NOTE_MAKERS: readonly NoteMakerDescriptor[] = [MIRROR_ON_D, RULE_OF_THE_OCTAVE]
-import { ONE_SPINE } from './one-spine'
-import { type NoteMakerDescriptor } from './types'
-
-/** Every note maker, in menu order. */
-export const NOTE_MAKERS: readonly NoteMakerDescriptor[] = [MIRROR_ON_D, ONE_SPINE]
-import { TWO_ROADS } from './two-roads'
-import { type NoteMakerDescriptor } from './types'
-
-/** Every note maker, in menu order. */
-export const NOTE_MAKERS: readonly NoteMakerDescriptor[] = [MIRROR_ON_D, TWO_ROADS]
 
 const byId = new Map(NOTE_MAKERS.map((maker) => [maker.id, maker]))
 for (const maker of NOTE_MAKERS) {
