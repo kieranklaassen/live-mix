@@ -44,6 +44,8 @@ build_generated_devices() {
     cpp/devices/breath/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device breath-pacer \
     cpp/devices/breath-pacer/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device buzzing-bridge \
+    cpp/devices/buzzing-bridge/device_api.gen.cpp
   MEMORY_BYTES=33554432 EXTRA_EXPORTS=",_device_meter" build_device canon \
     cpp/devices/canon/device_api.gen.cpp
   MEMORY_BYTES=16777216 EXTRA_EXPORTS=",_device_meter" build_device cascade \
@@ -353,6 +355,8 @@ test_generated_devices() {
     cpp/test/breath_test.cpp
   native_test breath_pacer_test \
     cpp/test/breath_pacer_test.cpp
+  native_test buzzing_bridge_test \
+    cpp/test/buzzing_bridge_test.cpp
   native_test canon_test \
     cpp/test/canon_test.cpp
   native_test cascade_test \

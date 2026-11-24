@@ -21,6 +21,7 @@ import { BOWED_STRING_DESCRIPTOR, BOWED_STRING_DEVICE } from './bowed-string.gen
 import { BOWLS_DESCRIPTOR, BOWLS_DEVICE } from './bowls.gen'
 import { BREATH_DESCRIPTOR, BREATH_DEVICE } from './breath.gen'
 import { BREATH_PACER_DESCRIPTOR, BREATH_PACER_DEVICE } from './breath-pacer.gen'
+import { BUZZING_BRIDGE_DESCRIPTOR, BUZZING_BRIDGE_DEVICE } from './buzzing-bridge.gen'
 import { CANON_DESCRIPTOR, CANON_DEVICE } from './canon.gen'
 import { CASCADE_DESCRIPTOR, CASCADE_DEVICE } from './cascade.gen'
 import { CHAMBER_STRINGS_DESCRIPTOR, CHAMBER_STRINGS_DEVICE } from './chamber-strings.gen'
@@ -173,6 +174,7 @@ export * from './bowed-string.gen'
 export * from './bowls.gen'
 export * from './breath.gen'
 export * from './breath-pacer.gen'
+export * from './buzzing-bridge.gen'
 export * from './canon.gen'
 export * from './cascade.gen'
 export * from './chamber-strings.gen'
@@ -327,6 +329,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   BOWLS_DESCRIPTOR,
   BREATH_DESCRIPTOR,
   BREATH_PACER_DESCRIPTOR,
+  BUZZING_BRIDGE_DESCRIPTOR,
   CANON_DESCRIPTOR,
   CASCADE_DESCRIPTOR,
   CHAMBER_STRINGS_DESCRIPTOR,
@@ -482,6 +485,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   BOWLS_DEVICE,
   BREATH_DEVICE,
   BREATH_PACER_DEVICE,
+  BUZZING_BRIDGE_DEVICE,
   CANON_DEVICE,
   CASCADE_DEVICE,
   CHAMBER_STRINGS_DEVICE,
@@ -644,6 +648,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'bowls', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'breath', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'breath-pacer', instrument: true, samples: false, zones: false, meters: 3, memoryMb: 4 },
+  { id: 'buzzing-bridge', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'canon', instrument: false, samples: false, zones: false, meters: 7, memoryMb: 32 },
   { id: 'cascade', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 16 },
   { id: 'chamber-strings', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },

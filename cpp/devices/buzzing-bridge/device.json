@@ -1,0 +1,356 @@
+{
+  "id": "buzzing-bridge",
+  "name": "Buzzing Bridge",
+  "category": "texture",
+  "description": "Gives any sound the buzz of a curved bridge, a membrane, loose shells, leather or paper: set off by its level and pitch, and brighter as it dies away.",
+  "class": "BuzzingBridge",
+  "header": "buzzing_bridge.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "model",
+      "name": "Model",
+      "choices": ["Grazing bridge", "Membrane", "Loose shell", "Leather", "Paper"],
+      "default": 0,
+      "description": "What the sound touches: a curved bridge whose buzz climbs as a note dies, a membrane that wakes on loud notes, shells knocked by attacks, a leather strip or a sheet of paper."
+    },
+    {
+      "key": "amount",
+      "name": "Amount",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "How firmly the sound is touched. A little catches only the crest of each swing and leaves a thin edge; a lot is a broad buzz nearly as loud as the sound."
+    },
+    {
+      "key": "threshold",
+      "name": "Threshold",
+      "min": -60,
+      "max": 0,
+      "default": -36,
+      "unit": "dB",
+      "description": "How loud a note must be before it touches. Softer notes stay exactly as they were; in Membrane the buzz also grows with how far a note rises over it."
+    },
+    {
+      "key": "curve",
+      "name": "Curve",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Grazing: how far the buzz climbs as a note dies. Membrane: how late it speaks up. Shell: how fast bounces crowd together. Leather and Paper: how hard the touch is."
+    },
+    {
+      "key": "tracking",
+      "name": "Tracking",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How closely the buzz follows pitch. Down, it keeps to its own place and only level moves it; up, it sits on the partials of the note and moves as the note does."
+    },
+    {
+      "key": "resonance",
+      "name": "Resonance",
+      "min": 300,
+      "max": 6000,
+      "default": 2400,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Where the thing that buzzes rings: low is a big soft membrane or shell, high a small tight one. On the bridge it is the height the climb stops at."
+    },
+    {
+      "key": "rattle",
+      "name": "Rattle",
+      "min": 5,
+      "max": 400,
+      "default": 40,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long an attack keeps the touch bouncing. For Loose shell this is all there is; the others settle into a steady buzz once it is over."
+    },
+    {
+      "key": "bounces",
+      "name": "Bounces",
+      "min": 1,
+      "max": 8,
+      "default": 3,
+      "step": 1,
+      "description": "How many times the touch strikes after an attack, each sooner and softer than the last. One is a single knock, or no chatter before the steady buzz."
+    },
+    {
+      "key": "fall",
+      "name": "Fall",
+      "min": 30,
+      "max": 6000,
+      "default": 1000,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How the buzz dies after the sound. Short, it sinks sooner than the note does; long, it holds on while the note fades away beneath it."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 800,
+      "max": 16000,
+      "default": 9000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Takes the top off the buzz and leaves the sound itself alone. Low is felt and wood, high is wire and glass."
+    },
+    {
+      "key": "distance",
+      "name": "Distance",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Moves the buzz into the next room while the sound stays here: duller, later, softer and with walls round it."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Spreads the buzz around the sound, which stays where it is. Down, the buzz comes from exactly where the sound comes from."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How much of the buzz is laid over the untouched sound. The sound itself is never turned down or delayed."
+    },
+    {
+      "key": "output",
+      "name": "Output",
+      "min": -24,
+      "max": 12,
+      "default": 0,
+      "unit": "dB",
+      "description": "The level of everything that comes out, the sound and its buzz together."
+    }
+  ],
+  "meters": [
+    {
+      "key": "buzz",
+      "name": "Buzz",
+      "unit": "dB"
+    },
+    {
+      "key": "partial",
+      "name": "Partial the buzz sits on",
+      "display": true
+    },
+    {
+      "key": "place",
+      "name": "Where the buzz sits",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "over",
+      "name": "Level against Threshold",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "touch",
+      "name": "How far the touch is closed",
+      "display": true
+    },
+    {
+      "key": "pitch",
+      "name": "Pitch followed",
+      "unit": "Hz",
+      "display": true
+    }
+  ],
+  "presets": {
+    "Open bridge": {},
+    "Harp on a bridge": {
+      "amount": 0.25,
+      "curve": 0.6,
+      "fall": 1500,
+      "rattle": 12,
+      "bounces": 1
+    },
+    "Balafon skin": {
+      "model": 1,
+      "amount": 0.7,
+      "threshold": -26,
+      "curve": 0.35,
+      "resonance": 2400,
+      "fall": 600
+    },
+    "Three shells": {
+      "model": 2,
+      "amount": 1,
+      "rattle": 45,
+      "bounces": 3,
+      "tone": 6000,
+      "mix": 0.8,
+      "width": 0.6,
+      "threshold": -50
+    },
+    "Paper edge": {
+      "model": 4,
+      "amount": 0.08,
+      "threshold": -32,
+      "bounces": 1
+    },
+    "Sine into strings": {
+      "amount": 0.65,
+      "curve": 0.8,
+      "threshold": -56,
+      "fall": 3000,
+      "bounces": 1
+    },
+    "Flat bridge": {
+      "amount": 0.8,
+      "curve": 0,
+      "tone": 6000
+    },
+    "Long climb": {
+      "amount": 0.75,
+      "curve": 1,
+      "fall": 5000,
+      "tone": 14000,
+      "resonance": 3600
+    },
+    "Drone strings": {
+      "amount": 0.6,
+      "curve": 0.45,
+      "fall": 6000,
+      "width": 0.7,
+      "threshold": -50
+    },
+    "Bridge next door": {
+      "amount": 0.9,
+      "distance": 0.8,
+      "width": 0.6
+    },
+    "Bridge in one place": {
+      "amount": 0.8,
+      "tracking": 0,
+      "resonance": 4200,
+      "curve": 0.35
+    },
+    "Tight skin": {
+      "model": 1,
+      "amount": 0.6,
+      "threshold": -40,
+      "resonance": 5200,
+      "tone": 14000,
+      "curve": 0.2
+    },
+    "Great gourd": {
+      "model": 1,
+      "amount": 0.6,
+      "threshold": -42,
+      "resonance": 560,
+      "tone": 3500,
+      "fall": 1800
+    },
+    "Every note a skin": {
+      "model": 1,
+      "amount": 0.4,
+      "threshold": -58,
+      "curve": 0,
+      "resonance": 1700,
+      "width": 0.5,
+      "fall": 1500
+    },
+    "Shaken beads": {
+      "model": 2,
+      "amount": 0.8,
+      "rattle": 200,
+      "bounces": 8,
+      "resonance": 5200,
+      "tone": 15000,
+      "threshold": -50,
+      "width": 0.9,
+      "curve": 0.2,
+      "fall": 3000
+    },
+    "Loose caps": {
+      "model": 2,
+      "amount": 0.8,
+      "rattle": 90,
+      "bounces": 5,
+      "resonance": 3200,
+      "threshold": -50,
+      "fall": 1200
+    },
+    "Knock on wood": {
+      "model": 2,
+      "amount": 1,
+      "rattle": 170,
+      "bounces": 1,
+      "resonance": 1000,
+      "tone": 3000,
+      "threshold": -50
+    },
+    "Seeds in the next room": {
+      "model": 2,
+      "amount": 1,
+      "rattle": 330,
+      "bounces": 8,
+      "resonance": 1500,
+      "distance": 0.5,
+      "threshold": -54,
+      "width": 0.8,
+      "fall": 4000,
+      "curve": 0.3
+    },
+    "Lyre leather": {
+      "model": 3,
+      "amount": 0.6,
+      "threshold": -48
+    },
+    "Hard strap": {
+      "model": 3,
+      "amount": 0.8,
+      "curve": 1,
+      "resonance": 4800,
+      "tone": 12000,
+      "threshold": -48
+    },
+    "Soft strap": {
+      "model": 3,
+      "amount": 0.65,
+      "curve": 0.1,
+      "resonance": 1300,
+      "tone": 2500,
+      "threshold": -48,
+      "fall": 1500
+    },
+    "Paper on strings": {
+      "model": 4,
+      "amount": 0.5,
+      "threshold": -50
+    },
+    "Comb and paper": {
+      "model": 4,
+      "amount": 0.8,
+      "curve": 0.15,
+      "resonance": 1100,
+      "tone": 5000,
+      "threshold": -50
+    },
+    "Moth wings": {
+      "model": 4,
+      "amount": 0.35,
+      "curve": 0.9,
+      "resonance": 5600,
+      "tone": 16000,
+      "width": 1,
+      "distance": 0.25,
+      "threshold": -54,
+      "fall": 2500
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix. Contact buzz as an effect: the contact works on a low-passed copy of the sound normalised to its own envelope, four times oversampled, and only what it adds is put beside the untouched sound."
+  }
+}
