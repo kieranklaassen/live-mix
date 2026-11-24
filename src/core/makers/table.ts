@@ -5,6 +5,7 @@ import { clampParam } from '../params'
 import { type PatchMaker } from '../devices/patch'
 import { presetParams, resolvePreset } from '../devices/presets'
 import { COMPANION_VOICE } from './companion-voice'
+import { BREATH_BUDGET } from './breath-budget'
 import { MIRROR_ON_D } from './mirror-on-d'
 import { SIX_VOICES } from './six-voices'
 import { type NoteMakerDescriptor } from './types'
@@ -12,6 +13,7 @@ import { type NoteMakerDescriptor } from './types'
 /** Every note maker, in menu order. */
 export const NOTE_MAKERS: readonly NoteMakerDescriptor[] = [MIRROR_ON_D, SIX_VOICES]
 export const NOTE_MAKERS: readonly NoteMakerDescriptor[] = [MIRROR_ON_D, COMPANION_VOICE]
+export const NOTE_MAKERS: readonly NoteMakerDescriptor[] = [MIRROR_ON_D, BREATH_BUDGET]
 
 const byId = new Map(NOTE_MAKERS.map((maker) => [maker.id, maker]))
 for (const maker of NOTE_MAKERS) {
