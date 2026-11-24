@@ -302,6 +302,8 @@ build_generated_devices() {
     cpp/devices/weather/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device west-coast \
     cpp/devices/west-coast/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device wheel-and-dog \
+    cpp/devices/wheel-and-dog/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wind-harp \
     cpp/devices/wind-harp/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device winding-down \
@@ -611,6 +613,8 @@ test_generated_devices() {
     cpp/test/weather_test.cpp
   native_test west_coast_test \
     cpp/test/west_coast_test.cpp
+  native_test wheel_and_dog_test \
+    cpp/test/wheel_and_dog_test.cpp
   native_test wind_harp_test \
     cpp/test/wind_harp_test.cpp
   native_test winding_down_test \

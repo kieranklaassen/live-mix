@@ -149,6 +149,7 @@ import { WARP_DESCRIPTOR, WARP_DEVICE } from './warp.gen'
 import { WAVETABLE_DESCRIPTOR, WAVETABLE_DEVICE } from './wavetable.gen'
 import { WEATHER_DESCRIPTOR, WEATHER_DEVICE } from './weather.gen'
 import { WEST_COAST_DESCRIPTOR, WEST_COAST_DEVICE } from './west-coast.gen'
+import { WHEEL_AND_DOG_DESCRIPTOR, WHEEL_AND_DOG_DEVICE } from './wheel-and-dog.gen'
 import { WIND_HARP_DESCRIPTOR, WIND_HARP_DEVICE } from './wind-harp.gen'
 import { WINDING_DOWN_DESCRIPTOR, WINDING_DOWN_DEVICE } from './winding-down.gen'
 import { ZITHER_DESCRIPTOR, ZITHER_DEVICE } from './zither.gen'
@@ -301,6 +302,7 @@ export * from './warp.gen'
 export * from './wavetable.gen'
 export * from './weather.gen'
 export * from './west-coast.gen'
+export * from './wheel-and-dog.gen'
 export * from './wind-harp.gen'
 export * from './winding-down.gen'
 export * from './zither.gen'
@@ -455,6 +457,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   WAVETABLE_DESCRIPTOR,
   WEATHER_DESCRIPTOR,
   WEST_COAST_DESCRIPTOR,
+  WHEEL_AND_DOG_DESCRIPTOR,
   WIND_HARP_DESCRIPTOR,
   WINDING_DOWN_DESCRIPTOR,
   ZITHER_DESCRIPTOR,
@@ -610,6 +613,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   WAVETABLE_DEVICE,
   WEATHER_DEVICE,
   WEST_COAST_DEVICE,
+  WHEEL_AND_DOG_DEVICE,
   WIND_HARP_DEVICE,
   WINDING_DOWN_DEVICE,
   ZITHER_DEVICE,
@@ -793,6 +797,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'wavetable', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 5 },
   { id: 'weather', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'west-coast', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'wheel-and-dog', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'wind-harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'winding-down', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'zither', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
