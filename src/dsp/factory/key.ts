@@ -76,9 +76,10 @@ export function factoryTranspose(key: FactoryKey): number {
  * time or a size the pitch falls with (the milliseconds round a loop, how big
  * a body is): a semitone up is 2^(-1/12) of it. A `'hertz'` is a frequency: a
  * semitone up is 2^(1/12) of it. Either goes the octave that keeps it in the
- * parameter's range, which is still the key's note.
+ * parameter's range, which is still the key's note. A `'key'` is a note whose
+ * lowest place is no note at all: off stays off, and a note never moves there.
  */
-type PitchedParam = 'class' | 'note' | 'period' | 'hertz' | { readonly octave: string }
+type PitchedParam = 'class' | 'note' | 'key' | 'period' | 'hertz' | { readonly octave: string }
 
 /** The parameters that name a pitch, and so move with the key. */
 const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, PitchedParam>>>> = {
@@ -107,6 +108,24 @@ const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, PitchedPar
   // The loop sings whole multiples of 1000 / Distance hertz, and Body picks which: the two move
   // against each other, so the same overtone of the note sings in every key.
   howl: { distance: 'period', body: 'hertz' },
+  // The keys held down without a sound: the root of each chord of the list, and the six single
+  // keys, of which each may be off. A chord's shape is intervals and stays.
+  'silent-keys': {
+    root1: 'note',
+    root2: 'note',
+    root3: 'note',
+    root4: 'note',
+    root5: 'note',
+    root6: 'note',
+    root7: 'note',
+    root8: 'note',
+    key1: 'key',
+    key2: 'key',
+    key3: 'key',
+    key4: 'key',
+    key5: 'key',
+    key6: 'key',
+  },
 }
 
 function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
@@ -148,9 +167,11 @@ function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
       params[kind.octave] = Math.min(octaves.max, Math.max(octaves.min, octave))
       continue
     }
+    if (kind === 'key' && current[name] <= spec.min) continue
+    const lowest = kind === 'key' ? spec.min + 1 : spec.min
     let moved = current[name] + semitones
     while (moved > spec.max) moved -= 12
-    while (moved < spec.min) moved += 12
+    while (moved < lowest) moved += 12
     params[name] = moved
   }
   return { ...device, params }

@@ -451,3 +451,48 @@ describe.each([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6])(
     })
   },
 )
+
+describe.each([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6])('the silent keys moved by %i', (by) => {
+  const ROOTS = [1, 2, 3, 4, 5, 6, 7, 8].map((k) => `root${k}`)
+  const KEYS = [1, 2, 3, 4, 5, 6].map((k) => `key${k}`)
+
+  it('are the same chains with every chord of the list that far from where it stood', () => {
+    const chains = FACTORY_CHAINS.filter((chain) =>
+      chain.effects.some((effect) => effect.deviceId === 'silent-keys'),
+    )
+    expect(chains.length).toBeGreaterThan(0)
+    for (const chain of chains) {
+      const moved = transposePatch(chain, by)
+      expect(validatePatch(moved, registry), chain.id).toEqual([])
+      chain.effects.forEach((effect, at) => {
+        const descriptor = registry.get(effect.deviceId)
+        if (!descriptor || effect.deviceId !== 'silent-keys') {
+          expect(moved.effects[at], chain.id).toBe(effect)
+          return
+        }
+        const before = patchDeviceParams(descriptor, effect)
+        const after = patchDeviceParams(descriptor, moved.effects[at])
+        for (const [name, value] of Object.entries(before)) {
+          const where = `${chain.id}: ${name}`
+          const pitched =
+            ROOTS.includes(name) || (KEYS.includes(name) && value > descriptor.params[name].min)
+          if (pitched) expect(mod12(after[name] - value), where).toBe(mod12(by))
+          else expect(after[name], where).toBe(value)
+        }
+      })
+    }
+  })
+
+  it('leave a key that is off as it is and never turn one off', () => {
+    const one = (key1: number): number =>
+      transposePatch({ effects: [{ deviceId: 'silent-keys', params: { key1 } }] }, by).effects[0]
+        .params?.key1 ?? NaN
+    expect(one(0)).toBe(0)
+    const last = registry.get('silent-keys')?.params.key1.max ?? NaN
+    for (let key = 1; key <= last; key++) {
+      expect(one(key), `${key}`).toBeGreaterThanOrEqual(1)
+      expect(one(key), `${key}`).toBeLessThanOrEqual(last)
+      expect(mod12(one(key) - key), `${key}`).toBe(mod12(by))
+    }
+  })
+})

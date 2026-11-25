@@ -226,6 +226,8 @@ build_generated_devices() {
     cpp/devices/shortwave/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sift \
     cpp/devices/sift/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device silent-keys \
+    cpp/devices/silent-keys/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sine-shadow \
     cpp/devices/sine-shadow/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device size \
@@ -541,6 +543,8 @@ test_generated_devices() {
     cpp/test/shortwave_test.cpp
   native_test sift_test \
     cpp/test/sift_test.cpp
+  native_test silent_keys_test \
+    cpp/test/silent_keys_test.cpp
   native_test sine_shadow_test \
     cpp/test/sine_shadow_test.cpp
   native_test size_test \

@@ -112,6 +112,7 @@ import { SHAPED_REVERB_DESCRIPTOR, SHAPED_REVERB_DEVICE } from './shaped-reverb.
 import { SHIMMER_DESCRIPTOR, SHIMMER_DEVICE } from './shimmer.gen'
 import { SHORTWAVE_DESCRIPTOR, SHORTWAVE_DEVICE } from './shortwave.gen'
 import { SIFT_DESCRIPTOR, SIFT_DEVICE } from './sift.gen'
+import { SILENT_KEYS_DESCRIPTOR, SILENT_KEYS_DEVICE } from './silent-keys.gen'
 import { SINE_SHADOW_DESCRIPTOR, SINE_SHADOW_DEVICE } from './sine-shadow.gen'
 import { SIZE_DESCRIPTOR, SIZE_DEVICE } from './size.gen'
 import { SKIPPING_STONE_DESCRIPTOR, SKIPPING_STONE_DEVICE } from './skipping-stone.gen'
@@ -267,6 +268,7 @@ export * from './shaped-reverb.gen'
 export * from './shimmer.gen'
 export * from './shortwave.gen'
 export * from './sift.gen'
+export * from './silent-keys.gen'
 export * from './sine-shadow.gen'
 export * from './size.gen'
 export * from './skipping-stone.gen'
@@ -424,6 +426,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SHIMMER_DESCRIPTOR,
   SHORTWAVE_DESCRIPTOR,
   SIFT_DESCRIPTOR,
+  SILENT_KEYS_DESCRIPTOR,
   SINE_SHADOW_DESCRIPTOR,
   SIZE_DESCRIPTOR,
   SKIPPING_STONE_DESCRIPTOR,
@@ -582,6 +585,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SHIMMER_DEVICE,
   SHORTWAVE_DEVICE,
   SIFT_DEVICE,
+  SILENT_KEYS_DEVICE,
   SINE_SHADOW_DEVICE,
   SIZE_DEVICE,
   SKIPPING_STONE_DEVICE,
@@ -754,6 +758,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'shimmer', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'shortwave', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'sift', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
+  { id: 'silent-keys', instrument: false, samples: false, zones: false, meters: 16, memoryMb: 4 },
   { id: 'sine-shadow', instrument: false, samples: false, zones: false, meters: 48, memoryMb: 4 },
   { id: 'size', instrument: false, samples: false, zones: false, meters: 28, memoryMb: 4 },
   {
