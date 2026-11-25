@@ -6,7 +6,13 @@
 //
 // Everything here is arithmetic on notes and the bank's own data: no audio.
 
-import { type Patch, type PatchDevice, patchDeviceParams } from '../../core/devices/patch'
+import {
+  type Patch,
+  type PatchDevice,
+  type PatchMaker,
+  patchDeviceParams,
+} from '../../core/devices/patch'
+import { WHITE_KEYS } from '../../core/makers'
 import { type Phrase } from '../patch-render'
 import { describeStockWasmDevice } from '../registry'
 import { mod12, pitchClassName } from './words'
@@ -150,11 +156,30 @@ function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
   return { ...device, params }
 }
 
+/** A note maker in a key `semitones` away: its steps are counted from there, and its parts move with it. */
+function transposeMaker(maker: PatchMaker, semitones: number): PatchMaker {
+  const key = maker.key ?? WHITE_KEYS
+  return {
+    ...maker,
+    key: { root: mod12(key.root + Math.round(semitones)), steps: key.steps },
+    ...(maker.parts
+      ? {
+          parts: Object.fromEntries(
+            Object.entries(maker.parts).map(([part, device]) => [
+              part,
+              transposeDevice(device, semitones),
+            ]),
+          ),
+        }
+      : {}),
+  }
+}
+
 /**
  * A patch with every device that is set to a pitch moved by `semitones`. A move
  * that is not a number moves nothing.
  */
-export function transposePatch<T extends Pick<Patch, 'instrument' | 'effects'>>(
+export function transposePatch<T extends Pick<Patch, 'instrument' | 'maker' | 'effects'>>(
   patch: T,
   semitones: number,
 ): T {
@@ -162,6 +187,7 @@ export function transposePatch<T extends Pick<Patch, 'instrument' | 'effects'>>(
   return {
     ...patch,
     ...(patch.instrument ? { instrument: transposeDevice(patch.instrument, semitones) } : {}),
+    ...(patch.maker ? { maker: transposeMaker(patch.maker, semitones) } : {}),
     effects: patch.effects.map((effect) => transposeDevice(effect, semitones)),
   }
 }

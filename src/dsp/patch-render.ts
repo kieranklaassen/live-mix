@@ -10,7 +10,13 @@
 // patch with a Web Audio node device in it has to be heard live.
 
 import { type DeviceDescriptor } from '../core/devices'
-import { type Patch, type PatchDevice, patchDeviceParams } from '../core/devices/patch'
+import {
+  type Patch,
+  type PatchDevice,
+  patchDeviceParams,
+  patchDevices,
+} from '../core/devices/patch'
+import { makePhrase } from '../core/makers'
 import { type PlanarAudio } from '../core/render/encode'
 import { type DeviceExports } from './abi'
 import { compileWasm, type WasmSource } from './assets'
@@ -30,6 +36,8 @@ export interface PhraseNote {
   note: number
   /** Velocity, 0..1 (default `DEFAULT_PHRASE_GAIN`). */
   gain?: number
+  /** The part of the patch's note maker that plays it; absent, the patch's own instrument. */
+  part?: string
 }
 
 /** What is played on a patch's instrument. */
@@ -50,8 +58,14 @@ export interface RenderPatchOptions {
   durationSec: number
   /** Default 48000. */
   sampleRate?: number
-  /** What the instrument plays. Without one an instrument patch renders silence. */
+  /**
+   * What is played: on the instrument, or into the patch's note maker, which
+   * writes what the instrument plays. Without one an instrument patch renders
+   * silence.
+   */
   phrase?: Phrase
+  /** The phrase is what the patch's note maker wrote already (`madePhrase`), and is played as it is. */
+  made?: boolean
   /**
    * The tuning the phrase is played in (`tuneKey`): each note at its pitch in
    * the piece's tuning. Absent or Equal, the notes as written. A kit's notes
@@ -139,8 +153,7 @@ export function canRenderPatch(
   patch: Patch,
   describe: (deviceId: string) => DeviceDescriptor | undefined = describeStockWasmDevice,
 ): boolean {
-  const devices = patch.instrument ? [patch.instrument, ...patch.effects] : patch.effects
-  return devices.every((device) => {
+  return patchDevices(patch).every((device) => {
     const descriptor = describe(device.deviceId)
     return descriptor !== undefined && isWasmDescriptor(descriptor)
   })
@@ -152,6 +165,8 @@ class Stage {
   readonly inRight: Float32Array
   readonly outLeft: Float32Array
   readonly outRight: Float32Array
+  /** Played and not heard: an instrument of a part that is switched off. */
+  muted = false
 
   constructor(
     readonly device: DeviceExports,
@@ -209,8 +224,33 @@ async function createStage(
   return new Stage(exports, descriptor.id, Math.max(0, Math.round(latency)))
 }
 
+/** Whether a patch's notes go through a note maker: not those of a kit, whose keys are drums. */
+export function playsMaker(patch: Patch): boolean {
+  return (
+    patch.maker !== undefined &&
+    !patch.maker.bypass &&
+    patch.instrument !== undefined &&
+    !isKitInstrument(patch.instrument.deviceId)
+  )
+}
+
+/**
+ * What a patch's instrument plays of a phrase: the phrase as its note maker
+ * makes it over `durationSec`, or the phrase itself for a patch with none.
+ */
+export function madePhrase(patch: Patch, phrase: Phrase, durationSec: number): Phrase {
+  if (!playsMaker(patch) || !patch.maker) return phrase
+  return {
+    notes: makePhrase(phrase.notes, patch.maker, {
+      durationSec,
+      defaultGain: DEFAULT_PHRASE_GAIN,
+    }),
+  }
+}
+
 interface NoteEvent {
   frame: number
+  part: string | undefined
   on: boolean
   id: number
   frequency: number
@@ -244,8 +284,10 @@ function phraseEvents(
       : Math.max(0, Math.round(note.atSec * sampleRate))
     const frequency = noteFrequency(keyTuning ? tuneKey(note.note, keyTuning) : note.note)
     const gain = note.gain ?? DEFAULT_PHRASE_GAIN
-    events.push({ frame, on: true, id, frequency, gain })
+    const part = note.part
+    events.push({ frame, part, on: true, id, frequency, gain })
     events.push({
+      part,
       frame: frame + Math.max(1, Math.round(note.durSec * sampleRate)),
       on: false,
       id,
@@ -371,6 +413,19 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
     patch.instrument && !patch.instrument.bypass
       ? await createStage(patch.instrument, sampleRate, options)
       : null
+  // The voices of a note maker that have an instrument of their own.
+  const parts = new Map<string, Stage>()
+  if (instrument && playsMaker(patch)) {
+    for (const [part, device] of Object.entries(patch.maker?.parts ?? {})) {
+      const stage = await createStage(device, sampleRate, options)
+      if (!stage.device.device_note_on) throw new Error(`live-mix: ${stage.id} takes no notes`)
+      if (stage.device.device_sample_commit) {
+        throw new Error(`live-mix: ${stage.id} plays a loaded sound and cannot play a part`)
+      }
+      if (device.bypass) stage.muted = true
+      parts.set(part, stage)
+    }
+  }
   const effects: Stage[] = []
   for (const device of patch.effects) {
     if (!device.bypass) effects.push(await createStage(device, sampleRate, options))
@@ -388,8 +443,12 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   // Aborted before the call or while the modules were compiled: a short render never reaches the end of a slice.
   options.signal?.throwIfAborted()
 
+  const phrase =
+    options.phrase && !options.made
+      ? madePhrase(patch, options.phrase, total / sampleRate)
+      : options.phrase
   const events = instrument
-    ? phraseEvents(options.phrase, sampleRate, round, playedTuning(options.keyTuning, patch))
+    ? phraseEvents(phrase, sampleRate, round, playedTuning(options.keyTuning, patch))
     : []
   // The input as long as the render: what it lacks is the silence its tail rings into.
   const padded = (channel: Float32Array | undefined): Float32Array => {
@@ -409,8 +468,9 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   while (cursor < total) {
     while (nextEvent < events.length && events[nextEvent].frame <= cursor) {
       const event = events[nextEvent]
-      if (event.on) instrument?.device.device_note_on?.(event.id, event.frequency, event.gain)
-      else instrument?.device.device_note_off?.(event.id)
+      const played = (event.part === undefined ? undefined : parts.get(event.part)) ?? instrument
+      if (event.on) played?.device.device_note_on?.(event.id, event.frequency, event.gain)
+      else played?.device.device_note_off?.(event.id)
       nextEvent += 1
     }
     const untilEvent = nextEvent < events.length ? events[nextEvent].frame - cursor : BLOCK
@@ -422,6 +482,14 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
       instrument.device.device_process(count)
       blockLeft = instrument.outLeft
       blockRight = instrument.outRight
+      for (const part of parts.values()) {
+        part.device.device_process(count)
+        if (part.muted) continue
+        for (let i = 0; i < count; i += 1) {
+          blockLeft[i] += part.outLeft[i]
+          blockRight[i] += part.outRight[i]
+        }
+      }
     } else {
       blockLeft = inputLeft.subarray(cursor, cursor + count)
       blockRight = inputRight.subarray(cursor, cursor + count)
