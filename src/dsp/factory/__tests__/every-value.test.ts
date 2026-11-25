@@ -189,11 +189,12 @@ describe('every value of the factory', () => {
   })
 
   it('auditions every preset with a phrase there is', () => {
-    const problems = [...FACTORY_PRESETS, ...PACK_PRESETS]
-      .filter(
-        (preset) => preset.preview !== undefined && !Object.hasOwn(FACTORY_PHRASES, preset.preview),
-      )
-      .map((preset) => `${preset.id}: no phrase "${preset.preview}"`)
+    // A phrase written out is held to what can be played beside its pack (../packs/__tests__/support.ts).
+    const problems = [...FACTORY_PRESETS, ...PACK_PRESETS].flatMap(({ id, preview }) =>
+      typeof preview === 'string' && !Object.hasOwn(FACTORY_PHRASES, preview)
+        ? [`${id}: no phrase "${preview}"`]
+        : [],
+    )
     expect(problems).toEqual([])
   })
 })

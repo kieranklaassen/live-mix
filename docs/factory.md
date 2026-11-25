@@ -1174,12 +1174,24 @@ it is made. No artist names, trademarks or praise.
 
 ## Packs
 
-A pack is a hundred presets that share one idea of sound: a room, a way of
-working, a kind of tape. Every pack has at least two presets for each of the
-thirty-four instruments and gives the rest to the instruments its idea turns
-on, so whatever instrument is loaded, every pack has something for it.
+A pack is a hundred presets that share one idea. It stands on a shelf
+(`FactoryPack.shelf`), so a host can list the packs in groups: `scenes`,
+`harmony`, `melody`, `time` and `hands`.
 
-An instrument that comes after the packs shipped is not asked of them
+The twenty-five packs of the scenes share a sound: a room, a way of working, a
+kind of tape. Each has at least two presets for each of the thirty-four
+instruments and gives the rest to the instruments its idea turns on, so
+whatever instrument is loaded, every one of them has something for it. They
+have sounds and effect chains too.
+
+The other 95 packs are about one thing in music: a chord and how it moves, a
+way of making a melody, a rhythm, or what hands do on an instrument. Each has
+its presets on the few instruments that thing is for, at least three and at
+most 65 on one, and phrases of its own (`FactoryPreset.preview` may be a
+phrase written out), on which its presets are heard. They have no sounds and
+no chains (`sounds` and `chains` are 0).
+
+An instrument that comes after the packs shipped is not asked of the scenes
 (`AFTER_THE_PACKS` in `packs/__tests__/support.ts`, today `zone-sampler`, the
 three kits, the four bass instruments, the thirteen invented ones from
 `flock` on and the six beat and breath instruments from `binaural` on): a
@@ -1200,8 +1212,8 @@ const mine = presets.filter((preset) => preset.pack === FACTORY_PACKS[0].id)
 ```
 
 `FACTORY_PACKS` is a few lines of names and comes with the bank. The presets
-do not: all 2,500 of them are a module of their own
-(`src/dsp/factory/packs/all.ts`) behind a dynamic `import()`, which a bundler
+do not: all 12,000 of them are modules of their own, one for each shelf
+(`src/dsp/factory/packs/shelves/`), behind a dynamic `import()`, which a bundler
 keeps out of the script a page starts with. `loadFactoryPacks()` fetches them
 once and hands back the same list from then on; a fetch that fails is tried
 again by the next call. Each preset it gives carries the `pack` it belongs
@@ -1209,6 +1221,8 @@ to. A pack preset is an ordinary `FactoryPreset`: `renderPresetPreview`,
 `patchInKey` and `loadPatch` take it as they take the bank's, and its id
 starts with its pack's (`<pack id>-...`), so the ids of the bank, the chains
 and the packs never meet.
+
+#### Packs of a scene (`scenes`)
 
 | Pack                                           | What it is                                                                                                                                                           |
 | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1238,6 +1252,125 @@ and the packs never meet.
 | **Indiana Reel Room** (`reel-room`)            | Slow orchestral swells run through tape until they blur, over a drone low enough to feel: steep darkness, hiss and fades that take minutes.                          |
 | **Stairwell Choir of One** (`stairwell-choir`) | One voice sung into a looper again and again until it is a choir, in the kind of reverb a stairwell or a church gives you for nothing.                               |
 
+<!-- focused packs -->
+
+#### Packs about a harmony (`harmony`)
+
+| Pack                                                   | What it is                                                                                                                                              |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The Colour Note** (`colour-note`)                    | A chord that needs one note from outside the key, and the voices that make it glow: pianos, strings, organ and bass.                                    |
+| **The Mirror of D** (`mirror-of-d`)                    | The white keys read the same up and down from D. Voices that open and close by equal steps either side of it, with a centre that holds still.           |
+| **Bells Held Open** (`bells-held-open`)                | A bell is struck and other players step in on its partials, minor third and all, and hold the chord the metal began.                                    |
+| **Reeds That Never Stop** (`reeds-never-stop`)         | Mouth-organ chords that breathe in and out without a gap: reeds, bellows and pipes where one voice always leads the others in.                          |
+| **Suspension Chains** (`suspension-chains`)            | A note is tied over, becomes a dissonance, leans and sinks: voices that swell into the clash and soften out of it, in chains.                           |
+| **Hexatonic Poles** (`hexatonic-poles`)                | Major and minor chords that share no note and change by half steps in every voice: smooth pads that turn without a seam.                                |
+| **Falling Fifths** (`falling-fifths`)                  | Patterns that fall by fifths and by thirds and land a step lower each time: clear voices that keep their lines apart on the way down.                   |
+| **One Note, Many Names** (`one-note-many-names`)       | A high note is held while the root moves under it through pure intervals, so it is in turn fifth, third, seventh and eleventh.                          |
+| **Falling Inner Line** (`falling-inner-line`)          | One voice inside a held chord walks down by half steps while the rest stay: pianos that let the middle sing, strings and basses that darken it.         |
+| **One Note, Twelve Floors** (`one-note-twelve-floors`) | One held note asked to be twelve things: dark for a root, warm for a third, bright for a seventh, as the floor under it moves.                          |
+| **Borrowed Light** (`borrowed-light`)                  | Chords borrowed from the parallel minor, and the plain ones round them: every voice comes lit and in shade, so the change of mode is a change of light. |
+| **Rootless over Pedal** (`rootless-over-pedal`)        | A pedal that never moves and chords above it that leave their own roots out: deep drones, and keys thin enough to float on them.                        |
+| **Harmonic Twins** (`harmonic-twins`)                  | One chord stacked up the harmonic series and its twin hung down the subharmonic one: bright fused voices, and dark ones with the weight on top.         |
+| **Keys That Come Round** (`keys-come-round`)           | Scales that come back to themselves after a whole step or a minor third: colours in glass, wood, wind and brass for harmony without a home.             |
+| **Axis Twins** (`axis-twins`)                          | Every sound has its reflection: what is warm, slow and left in one is cold, quick and right in the other, as minor mirrors major across an axis.        |
+| **The Undecided Third** (`undecided-third`)            | A fifth that stands still and a third that drifts between minor and major without ever settling: one slow voice against a firm frame.                   |
+| **Seconds Held as Home** (`seconds-as-home`)           | Two voices a second apart and no wish to resolve: close, plain throat and reed tones where the beating is the rest.                                     |
+| **Table Song Thirds** (`table-song-thirds`)            | Three-part singing over a table, thirds between minor and major, fifths wide and true: chest voices and what sounds like them.                          |
+| **Three Pedals** (`three-pedals`)                      | Pedal steel with each pedal as a voice: pressed late, slowly or not all the way, with the strings that ring on while one of them moves.                 |
+| **Lament Grounds** (`lament-grounds`)                  | A bass that steps down a fourth and begins again, as laments have for four hundred years, with what may be laid over it.                                |
+| **Dominant Ladders** (`dominant-ladders`)              | Guide tones that fall by half steps over roots that fall by fifths: swelling voices for the thirds and sevenths, steady ones for the ground.            |
+| **Cadence Cards** (`cadence-cards`)                    | How a phrase ends: full, plagal, half, deceptive. Voices for the last two chords, from a door that closes to a nave that will not.                      |
+| **Chord Shed** (`chord-shed`)                          | A full chord that lets its notes go one at a time until a single voice is left holding: releases staggered from quick to very long.                     |
+| **Twenty-Eight Slashes** (`twenty-eight-slashes`)      | Seven triads over the four basses they do not own: upper voices in close and open spacing, and low voices that stay out of the way.                     |
+| **Dispersed Parts** (`dispersed-parts`)                | Open-throated parts spread wide, equally loud, with the tune in the tenor: four-square singing in choirs, horns, organs and reeds.                      |
+| **Slackened Strings** (`slackened-strings`)            | Guitars and their cousins let down to open chords: the rooms that five slack tunings make, under a thumb, a nail, a bar or a brush.                     |
+| **Walk-Up Amens** (`walk-up-amens`)                    | The bass walks up to the fourth, a diminished chord passes, and the amen settles: organ, piano, choir and bass, from quick to very slow.                |
+| **White Key Planing** (`white-key-planing`)            | Chords that slide in parallel along the white keys with no attack to break the slide: winds, strings and voices with a colour that stays put.           |
+| **Stacked Fourths** (`stacked-fourths`)                | Chords built in fourths, with no third to make them glad or sorry: hollow, even voices that stay apart when they are stacked.                           |
+| **Slow Waltz Sevenths** (`slow-waltz-sevenths`)        | A low note, a chord and a late tune, three in a bar and no hurry: soft sevenths on keys, harp, guitar and flute.                                        |
+| **One-Line Choirs** (`one-line-choirs`)                | One played line and its reflections round a centre: six voices from a single finger, as a fan, a canon or a chord that closes again.                    |
+| **Over a Played Bass** (`over-a-played-bass`)          | A finger plays the bass and the upper voices follow by the old keyboard rule, moving as little as they can.                                             |
+| **One Spine, Many Rooms** (`many-rooms-one-spine`)     | A held key runs eight chords, and each sound plays one role of them or several: sounds on one spine fit each other.                                     |
+| **One Voice Moves** (`one-voice-moves`)                | A chord that changes one note and keeps two, again and again, so each chord melts into the next and the key is left behind or kept.                     |
+
+#### Packs about a melody (`melody`)
+
+| Pack                                                     | What it is                                                                                                                                       |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Unmeasured Preludes** (`unmeasured-preludes`)          | Chords rolled and left to ring under one long slur, with no bar lines: plucked and struck strings held by pedal, hand and room.                  |
+| **Ragas on White Keys** (`ragas-on-white-keys`)          | Seven modes over a plucked drone, each with its strong note and its way up and down: voices that slide, shake and swell on that note.            |
+| **One Line, Six Players** (`one-line-six-players`)       | A single line passed from player to player every few notes: matched voices that hand it over without a step.                                     |
+| **Interlocking Pairs** (`interlocking-pairs`)            | Two players share one fast line, each playing every other note: pairs of leading and following voices on wood, steel, string and bell.           |
+| **Paths of a Maqam** (`paths-of-a-maqam`)                | A melody finds its way through a mode with steps between the keys: plucked, blown and bowed voices that slide and lean into them.                |
+| **Calls Across a Valley** (`calls-across-valley`)        | A call, and the same call from the far side, later and duller and a hair flat: near and far voices for horns, throats and reeds.                 |
+| **Songs in Bowl Tuning** (`songs-in-bowl-tuning`)        | Struck bowls and bars with their partials laid where the scale lies, so five notes that belong to no keyboard ring true.                         |
+| **The Bass Nobody Plays** (`bass-nobody-plays`)          | Two high pure tones close enough that the ear supplies a low third: clean voices, drive and distance set for the note that is not played.        |
+| **The Missing Tonic** (`missing-tonic`)                  | Evening melodies that circle the home note and will not say it, while the drone holds what they leave out.                                       |
+| **Thrush Ladder** (`thrush-ladder`)                      | A long whistled note and a ladder of pure intervals above it, as a woodland thrush sings: glassy voices at sixteen depths of forest.             |
+| **Only the Harmonics** (`only-the-harmonics`)            | Strings touched and never stopped: which partial, which string, how light the finger, on bows, harp, guitar and wind.                            |
+| **Any Two Fit** (`any-two-fit`)                          | Lines made so any two sound well together: eight players, each in a register of its own, dry enough to stack and soft enough to lie under.       |
+| **Mensuration Canons** (`mensuration-canons`)            | One tune at three speeds at once: short, middling and very long voices that belong together when the tune meets itself.                          |
+| **Melody of Holes** (`melody-of-holes`)                  | A held cluster from which one note at a time is taken away, so the gaps make the tune: pads that close exactly when a key comes up.              |
+| **Twelve Notes, Two Modes** (`twelve-notes-two-modes`)   | A bright mode going up and its dark mirror coming down, all twelve notes between them: pairs of one voice in two lights.                         |
+| **One Tune, Three Drones** (`one-tune-three-drones`)     | The same tune over three different drones means three different things: drones, and the voices that take their colour from them.                 |
+| **Questions and Answers** (`questions-and-answers`)      | A phrase that leans forward and one that sits back: paired voices on harp, guitar, flute, piano and zither.                                      |
+| **One Breath Each** (`one-breath-each`)                  | A phrase lasts as long as a breath: how a blown note opens, colours under a half-covered hole, and ends when the air does.                       |
+| **Same Fingers, Twelfth Up** (`same-fingers-twelfth-up`) | One tube, two registers a twelfth apart: the dark low notes and the clear high ones of reeds, pipes and voices, in pairs.                        |
+| **Rounds That Agree** (`rounds-that-agree`)              | A tune that fits itself however late it enters: matched voices at three distances on flute, strings, piano, harp and mallets.                    |
+| **Long Arch Melodies** (`long-arch-melodies`)            | One phrase that climbs to a single height and takes as long coming down: solo voices that brighten as they rise.                                 |
+| **Blue Thirds** (`blue-thirds`)                          | A third reached from below and left a little flat: steel, reed, horn and keys that can lean, slowly or all at once.                              |
+| **Lines and Reflections** (`lines-and-reflections`)      | What is played and the same turned upside down: together, in answer, a moment later, or the reflection alone.                                    |
+| **Companions by Rule** (`companions-by-rule`)            | A line and a second voice that keeps to a rule: the near notes of one triad, thirds, sixths, bare fifths, or three voices in old parallel style. |
+| **Up One Way, Down Another** (`up-one-way-down-another`) | Slow melodies that climb by one road and come down by another, rest on their home note and leave silence between phrases.                        |
+
+#### Packs about a rhythm (`time`)
+
+| Pack                                                  | What it is                                                                                                                             |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **The Handstroke Gap** (`handstroke-gap`)             | Bells in rounds and changes, with the breath that is left after every other row: rings of tower, hand, glass and bar.                  |
+| **Scales Played as Time** (`scales-played-as-time`)   | The steps of a mode used as a rhythm, long where the step is wide: struck voices, darker when long and brighter when short.            |
+| **Every Meter** (`every-meter`)                       | Fives, sevens and nines that keep their accent: quiet kits, bass and keys for loops that do not come out even.                         |
+| **Forty-Eight Pulses** (`forty-eight-pulses`)         | Plucked metal with its buzz, its board and its gourd, in parts that fit a cycle of forty-eight: leading, following, high and low.      |
+| **Prime Lengths** (`prime-lengths`)                   | Ten players each hold one note for a prime number of seconds, so the chord is never twice the same: held voices at ten distances.      |
+| **Seven Orbits** (`seven-orbits`)                     | Seven voices that come round at the ratios of seven orbits, from very high and quick to very low and slow.                             |
+| **Comma Down, Comma Home** (`comma-home`)             | Pure chords that let the pitch sink a comma and find the way back: voices without any vibrato, still enough for a comma to be heard.   |
+| **Rhythm without Attacks** (`rhythm-without-attacks`) | Nothing is struck: tones a few hertz apart beat against each other, and the beating is the pulse.                                      |
+| **The Rhythm of a Chord** (`rhythm-of-a-chord`)       | Each note of a chord pulses at the speed of its own ratio, so three against four is also a fourth: voices that decay with their pulse. |
+| **Slower and Fuller** (`slower-and-fuller`)           | One slow skeleton melody and players who fill it in at twice, four and eight times the speed: bronze, bar, pan, glass and string.      |
+| **Isorhythm Wheels** (`isorhythm-wheels`)             | A rhythm of one length and a row of notes of another, so each turn puts a new note on the beat: attacks and decays cut to fit.         |
+| **Slow Phase Slip** (`slow-phase-slip`)               | Two copies of one pattern drift apart and come back: twin struck voices a hair different in colour and place.                          |
+| **Four Against Five** (`four-against-five`)           | A layer in fours and a layer in fives that meet once a bar, set apart by brightness, side and length of ring.                          |
+| **Passacaglia in Layers** (`passacaglia-layers`)      | Eight bars of bass that go round while the weight above them grows: five players from a bare ground to a descant.                      |
+| **The Crooked Three** (`crooked-three`)               | A dance in three whose second beat comes early: fiddles with their under-strings ringing, stopped and open, near and far.              |
+| **Sapphic Hours** (`sapphic-hours`)                   | Old verse metres of longs and shorts set to plucked and struck strings, so the metre is in the tone as well as the time.               |
+| **The Thumb Keeps Four** (`thumb-keeps-four`)         | A thumb that never misses a beat and fingers that come between: two hands of one player on guitars, thumb pianos and strings.          |
+| **Cradle Rockings** (`cradle-rockings`)               | Two chords rocked to and fro, slower and softer until someone sleeps: piano, mallets, harp, choir and bells.                           |
+| **Never Breathe Together** (`never-breathe-together`) | A held chord as a section of players who each run out of air and never at the same moment, so it lasts and is never twice the same.    |
+
+#### Packs about what hands do on an instrument (`hands`)
+
+| Pack                                            | What it is                                                                                                                      |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **First Words** (`first-words`)                 | Nineteen instruments the packs had no presets for, each taught its first few words by one rule only it can keep.                |
+| **Only the Tail** (`only-the-tail`)             | What is left after the key comes up: strings in sympathy, halls, metal and breath, with the strike turned down to nothing.      |
+| **Sixteen Harp Pedals** (`sixteen-harp-pedals`) | Harp in all its pedal settings: low, middle and high on the string, nail and fingertip, damped and left to ring.                |
+| **Ninths for Octaves** (`ninths-for-octaves`)   | Bars and bells whose octaves are stretched or pinched until a ninth sounds like home: five sizes of octave, five mallets.       |
+| **Between the Keys** (`between-the-keys`)       | Melodies on the natural harmonics, where the eleventh lies between two keys: mouth, drone, bow, wind and reed.                  |
+| **Buried Jar** (`buried-jar`)                   | Water falling into a jar under the gravel: drops, shells, clay and the bamboo that knocks, wet and dry.                         |
+| **Thirteen Nodes** (`thirteen-nodes`)           | A silk-strung zither with thirteen marked places to touch it: open tones, harmonics and slides that are mostly breath.          |
+| **The Ornament Book** (`ornament-book`)         | Grace notes, mordents, slides, shakes, turns and crushed notes: the ways a note can begin, for players who decorate.            |
+| **Paired Bronze** (`paired-bronze`)             | Bronze tuned in pairs a few hertz apart so every note shimmers at one rate: five rates in five sizes of hall.                   |
+| **Only the Attack** (`only-the-attack`)         | The first forty milliseconds and no more: hammers, keys, tongues, nails and bow hair, dry or in a room that keeps the rest.     |
+| **Whispered Pairs** (`whispered-pairs`)         | Two strings brushed one after the other for each note: how far apart, how fast, how alike, on plucked and struck pairs.         |
+| **Bands of One** (`bands-of-one`)               | A whole group made of one instrument: floor, pad, line, pulse, sparkle, bass, breath and ending, for each of twelve.            |
+| **From Nothing** (`from-nothing`)               | Notes with no beginning: attacks taken away by swell, bow, breath, feedback or playing backwards, on fifteen players.           |
+| **Open String Quartet** (`open-string-quartet`) | Four bowed players: open strings, mutes, bow by the bridge, bow over the fingerboard, harmonics and plucks, near and in a hall. |
+| **Left Hands** (`left-hands`)                   | Only the accompanying hand: tenths, rocking fifths, broken chords, and how soft the bass and how short the chord are.           |
+| **Una Corda Family** (`una-corda-family`)       | Keyboards with the soft pedal down: two strings or three, felt in or out, magnets and bolts, lid open or shut.                  |
+| **Ten Ways to Bow It** (`ten-ways-to-bow`)      | Long, short, thrown, trembling, whispered, pressed: ten manners of the bow in a large section and in a small one.               |
+
+<!-- end of focused packs -->
+
 ### What a pack is held to
 
 `src/dsp/factory/packs/__tests__/<pack id>.pack.test.ts` renders every preset
@@ -1245,10 +1378,20 @@ of its pack, and `packs.test.ts` reads across them:
 
 | Entry  | Rule                                                                                                                                              |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pack   | Exactly 100 presets, at least two for each instrument, a kebab-case id, a name of at most 24 characters, a one-sentence description               |
+| Pack   | Exactly 100 presets, a kebab-case id, a name of at most 24 characters, a one-sentence description                                                 |
+| Scenes | At least two presets for each instrument (`AFTER_THE_PACKS` left out)                                                                             |
+| Others | At least 3 instruments and at most 65 presets on one, at least 4 phrases of its own with at least 50 presets heard on one                         |
 | Preset | The bank's rules, and tighter levels: raw preview peak at or below −8 dBFS, loudest 400 ms between −30 and −22 dBFS, no DC offset, 1 to 4 effects |
 | Words  | A name of 3 to 24 characters that does not end in a digit, a description of at most 140 characters, an id that starts with its pack's             |
 | Across | No id twice among bank, chains and packs; no name twice among bank and packs; no two presets with the same devices set to the same values         |
+
+A pack's own test renders one preset in five for its levels;
+`FACTORY_PACKS=all` renders them all, as the bench does. The bench also holds
+two presets of one instrument apart: both are played the same notes
+(`comparePhrase`), and they are alike when their prints (`soundPrint`,
+`printDistance`) are under `FOCUSED_LIMITS.nearestDb`, 1.35 dB, apart. No two
+of the 9,500 presets of these packs are, nor is one of them alike
+to a preset that was there before. Only the bench measures this; no test does.
 
 The levels are narrower than the bank's so that a list of thousands plays at
 one loudness. As with the bank, nothing here has been heard by the tests:
@@ -1273,6 +1416,19 @@ they hold a preset to what can be measured.
    name twice, two presets set alike. `FACTORY=<part of an id>` narrows it.
 
 3. `pnpm vitest run src/dsp/factory/packs` must pass.
+
+A pack about one thing has its line in `packs/focused.ts` with its shelf, its
+import in `packs/shelves/<shelf>.ts`, and a test of
+`describeFocusedPack('<pack id>', PRESETS)`. It is written at a bench that
+says what its words, its patches and its levels break, and which of its
+presets are alike to which of the pack, of the library and of every other pack
+that has been at the bench:
+
+```bash
+PACK_BENCH=library PACK_SHARD=1/1 pnpm vitest run src/dsp/factory/packs/__tests__/bench.test.ts # once
+PACK_BENCH=<pack id> pnpm vitest run src/dsp/factory/packs/__tests__/bench.test.ts
+cat tmp/bench/<pack id>.txt
+```
 
 A pack may take after a way of making music; it never says whose. Names,
 descriptions and ids hold no artist, record, track, label or maker's name:

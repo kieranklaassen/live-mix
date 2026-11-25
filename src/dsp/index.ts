@@ -199,6 +199,7 @@ export {
   type FactoryKey,
   type FactoryMode,
   type FactoryPack,
+  type FactoryPackShelf,
   type FactoryPhraseName,
   type FactoryPreset,
   type FactoryPresetCategory,

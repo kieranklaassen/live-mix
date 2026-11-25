@@ -9,8 +9,9 @@ import { paletteProblems } from './palette-check'
 import { PALETTES } from './palettes'
 
 describe('chain bench: the palettes', () => {
-  it("are one to a pack, in the packs' order", () => {
-    expect(PALETTES.map((palette) => palette.pack)).toEqual(FACTORY_PACKS.map((pack) => pack.id))
+  it("are one to a pack that has chains, in the packs' order", () => {
+    const packs = FACTORY_PACKS.filter((pack) => pack.chains > 0)
+    expect(PALETTES.map((palette) => palette.pack)).toEqual(packs.map((pack) => pack.id))
   })
 
   it.each(PALETTES.map((palette) => [palette.pack, palette] as const))(

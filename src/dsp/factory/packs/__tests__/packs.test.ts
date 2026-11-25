@@ -36,7 +36,7 @@ describe('packs', () => {
 
   it('load once, every preset stamped with its pack, in the order of the list', async () => {
     const presets = await loadFactoryPacks()
-    expect(presets).toBe(PACK_PRESETS)
+    expect(presets).toEqual(PACK_PRESETS)
     expect(await loadFactoryPacks()).toBe(presets)
     expect(presets).toHaveLength(FACTORY_PACKS.length * FACTORY_PACK_SIZE)
     const order = FACTORY_PACKS.map((pack) => pack.id)

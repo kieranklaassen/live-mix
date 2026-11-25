@@ -1,11 +1,11 @@
-// The packs: a hundred presets each, across every instrument, that share one
-// idea of sound. What is here is only their names, so a host can list them
-// with the rest of the bank; the presets themselves are a module of their own
-// (./all), fetched the first time someone asks for them. A pack's sounds to
-// paint with and its effect chains are fetched the same way (../sound-packs,
-// ../chain-packs).
+// The packs: a hundred presets each that share one idea of sound. What is here
+// is only their names, so a host can list them with the rest of the bank; the
+// presets themselves are modules of their own (./shelves), fetched the first
+// time someone asks for them. A pack's sounds to paint with and its effect
+// chains are fetched the same way (../sound-packs, ../chain-packs).
 
 import { type FactoryPack, type FactoryPreset } from '../types'
+import { FOCUSED_PACKS } from './focused'
 
 /** How many presets a pack holds. */
 export const FACTORY_PACK_SIZE = 100
@@ -46,12 +46,14 @@ const WITH_SOUNDS: ReadonlySet<string> = new Set<string>([
 ])
 
 /**
- * How many effect chains a pack holds (../chain-packs/<pack id>.ts): every
- * pack's are drawn, so a host knows the number before it fetches any of them.
+ * How many effect chains a pack of the scenes holds (../chain-packs/<pack
+ * id>.ts), which a host knows before it fetches any of them. A pack of another
+ * shelf has none.
  */
 export const FACTORY_CHAIN_PACK_SIZE = 100
 
-const PACKS: readonly Omit<FactoryPack, 'sounds' | 'chains'>[] = [
+/** The packs of the scenes, which were first. */
+const SCENES: readonly Omit<FactoryPack, 'shelf' | 'sounds' | 'chains'>[] = [
   {
     id: 'concourse',
     name: 'Empty Concourse',
@@ -229,11 +231,20 @@ const PACKS: readonly Omit<FactoryPack, 'sounds' | 'chains'>[] = [
   },
 ]
 
-export const FACTORY_PACKS: readonly FactoryPack[] = PACKS.map((pack) => ({
-  ...pack,
-  sounds: WITH_SOUNDS.has(pack.id) ? FACTORY_SOUND_PACK_SIZE : 0,
-  chains: FACTORY_CHAIN_PACK_SIZE,
-}))
+export const FACTORY_PACKS: readonly FactoryPack[] = [
+  ...SCENES.map((pack): FactoryPack => ({
+    ...pack,
+    shelf: 'scenes',
+    sounds: WITH_SOUNDS.has(pack.id) ? FACTORY_SOUND_PACK_SIZE : 0,
+    chains: FACTORY_CHAIN_PACK_SIZE,
+  })),
+  ...FOCUSED_PACKS.map((pack): FactoryPack => ({
+    ...pack,
+    count: FACTORY_PACK_SIZE,
+    sounds: 0,
+    chains: 0,
+  })),
+]
 
 export function factoryPack(id: string): FactoryPack | undefined {
   return FACTORY_PACKS.find((pack) => pack.id === id)
@@ -243,20 +254,29 @@ let loading: Promise<readonly FactoryPreset[]> | undefined
 
 /**
  * Every preset of every pack, in the order of `FACTORY_PACKS`, each with the
- * `pack` it belongs to. They are fetched once, on the first call, as one
- * module apart from the rest of the library: a bundler keeps them out of the
+ * `pack` it belongs to. They are fetched once, on the first call, a shelf to a
+ * module, apart from the rest of the library: a bundler keeps them out of the
  * script a page starts with. A fetch that fails is tried again by the next
  * call.
  */
 export function loadFactoryPacks(): Promise<readonly FactoryPreset[]> {
-  // eslint-disable-next-line no-restricted-syntax -- a chunk of its own on purpose: thousands of presets no page should start with
-  loading ??= import('./all').then(
-    (module) => module.PACK_PRESETS,
-    (failure: unknown) => {
-      // A fetch that failed is tried again by the next call.
-      loading = undefined
-      throw failure
-    },
-  )
+  loading ??= fetched().catch((failure: unknown) => {
+    // A fetch that failed is tried again by the next call.
+    loading = undefined
+    throw failure
+  })
   return loading
 }
+
+/* eslint-disable no-restricted-syntax -- chunks of their own on purpose: thousands of presets no page should start with */
+async function fetched(): Promise<readonly FactoryPreset[]> {
+  const shelves = await Promise.all([
+    import('./shelves/scenes').then((module) => module.SCENES),
+    import('./shelves/harmony').then((module) => module.HARMONY),
+    import('./shelves/melody').then((module) => module.MELODY),
+    import('./shelves/time').then((module) => module.TIME),
+    import('./shelves/hands').then((module) => module.HANDS),
+  ])
+  return shelves.flat()
+}
+/* eslint-enable no-restricted-syntax */
