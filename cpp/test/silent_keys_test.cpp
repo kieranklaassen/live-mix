@@ -306,6 +306,27 @@ static void test_change() {
   EXPECT(c3 > g3 + 40.0, "a key both chords hold rings on through the change");
 }
 
+// A key let go and held again before it has died rings on from where it is.
+static void test_held_again() {
+  fresh(device, 57, kSingle);
+  device.set_param(p::kRoot2, 63.0f - 24.0f);
+  device.set_param(p::kShape2, kSingle);
+  device.set_param(p::kDamper, 2000.0f);
+  device.set_param(p::kRing, 20.0f);
+  run(device, note(220.0, 0.4, 0.5, kRate, 0.2, 1));
+  const Stereo before = render(device, 0.2f, kRate);
+  device.set_param(p::kChord, 2.0f);
+  render(device, 0.2f, kRate);
+  EXPECT(device.sounding_strings() == 2, "the old string and the new");
+  device.set_param(p::kChord, 1.0f);
+  render(device, 0.1f, kRate);
+  EXPECT(device.sounding_strings() == 1 && device.meter(0) > 0.01f, "held again it is the same string, still ringing");
+  const Stereo again = render(device, 1.0f, kRate);
+  const double fell = loud(again, at(0.8)) - loud(before);
+  MEASURED("held again after 0.2 s of a 2 s damper: %.1f dB under, a second later", fell);
+  EXPECT(fell > -12.0, "with its damper off again");
+}
+
 // Which of the walk's chords sounds at each moment: a full-band noise would
 // do, but the meter says it exactly.
 static void test_walk() {
@@ -339,6 +360,22 @@ static void test_walk() {
   EXPECT(device.meter(14) == 1.0f, "the first chord is held for its whole time");
   run(device, noise(0.1f, kRate, 0.2f));
   EXPECT(device.meter(14) == 2.0f, "and then the second");
+  // A chord named again as it is does not start the walk again; a move does (below).
+  set(device);
+  run(device, noise(0.6f, kRate, 0.2f));
+  device.set_param(p::kChord, 1.0f);
+  EXPECT(device.meter(14) == 2.0f, "Chord sent again at the same value leaves the walk alone");
+  // The quickest walk is a quarter of a second a chord; under half of that the list stands.
+  set(device);
+  device.set_param(p::kEvery, 0.15f);
+  run(device, noise(0.2f, kRate, 0.2f));
+  EXPECT(device.meter(14) == 1.0f, "the quickest walk holds a chord a quarter of a second");
+  run(device, noise(0.1f, kRate, 0.2f));
+  EXPECT(device.meter(14) == 2.0f, "and then goes on");
+  set(device);
+  device.set_param(p::kEvery, 0.1f);
+  run(device, noise(0.6f, kRate, 0.2f));
+  EXPECT(device.meter(14) == 1.0f && device.meter(15) == 0.0f, "next to zero the list stands");
   // A short Ring does not hold the walk at its first chord: sounds a second
   // apart, with a rest after each, find the chord of their own second.
   set(device);
@@ -354,6 +391,16 @@ static void test_walk() {
   }
   MEASURED("sounds a second apart at Ring 0.2 s: chords %d %d %d %d %d", seen[0], seen[1], seen[2], seen[3], seen[4]);
   EXPECT((seen == std::vector<int>{1, 2, 3, 1, 2}), "the walk goes on through short rests");
+  // Nor does a rest of two Everys, while it is no long silence.
+  set(device);
+  device.set_param(p::kRing, 0.2f);
+  seen.clear();
+  for (int k = 0; k < 4; ++k) {
+    run(device, noise(0.02f, kRate, 0.3f));
+    seen.push_back(static_cast<int>(device.meter(14)));
+    render(device, 0.98f, kRate);
+  }
+  EXPECT((seen == std::vector<int>{1, 3, 2, 1}), "a quick walk goes two chords on in a short rest");
   // A silence shorter than Every does not restart it either.
   set(device);
   device.set_param(p::kEvery, 4.0f);
@@ -607,6 +654,32 @@ static void test_tone() {
   MEASURED("the bass strings move the chord by %+.2f dB", chord[1] - chord[0]);
   EXPECT(chord[1] > chord[0] - 0.5, "the bass strings take nothing from the chord");
   EXPECT(device.meter(12) > 0.001f && device.meter(13) > 0.001f, "and the meters read both");
+  // The bass strings have a level law of their own: a loud key of the chord
+  // does not turn them down.
+  double under_chord[2];
+  for (int loud_key = 0; loud_key < 2; ++loud_key) {
+    fresh(device, 57, kMinor);
+    device.set_param(p::kBass, 1.0f);
+    std::vector<float> low = note(hz(33), 0.8, 2.0, kRate, 0.2, 1);
+    if (loud_key) add(low, note(hz(57), 0.8, 2.0, kRate, 0.3, 1));
+    under_chord[loud_key] = tone(run(device, low), hz(33), at(1.0), at(1.9));
+  }
+  MEASURED("a loud A3 moves the low bass string by %+.1f dB", under_chord[1] - under_chord[0]);
+  EXPECT(under_chord[1] > under_chord[0] - 1.0, "what the chord holds takes nothing from the bass strings");
+  // Ring leaves the level under noise alone.
+  double hissing[3];
+  int which = 0;
+  for (double ring : {0.5, 4.0, 20.0}) {
+    fresh(device, 45, kMinor9);
+    device.set_param(p::kLift, 6.0f);
+    device.set_param(p::kSharpness, 0.2f);
+    device.set_param(p::kRing, static_cast<float>(ring));
+    rng_state() = 16u;
+    hissing[which++] = loud(run(device, noise(12.0f, kRate, 0.3f)), at(4.0));
+  }
+  MEASURED("noise under Ring 0.5, 4, 20 s: %.1f, %.1f, %.1f dB", hissing[0], hissing[1], hissing[2]);
+  EXPECT_NEAR(hissing[0], hissing[1], 3.0, "steady noise is answered as loudly at a short Ring");
+  EXPECT_NEAR(hissing[2], hissing[1], 3.0, "and at a long one");
   // Lift, on noise.
   last = -200.0;
   for (double lift : {0.0, 9.0, 18.0, 27.0, 36.0}) {
@@ -656,6 +729,17 @@ static void test_tone() {
     EXPECT(together < last - 0.01, "Width opens them");
     last = together;
   }
+  // Low keys to the left, high keys to the right.
+  fresh(device, 45, kFifths);
+  device.set_param(p::kWidth, 1.0f);
+  device.set_param(p::kSharpness, 0.0f);
+  device.set_param(p::kPartials, 1.0f);
+  rng_state() = 17u;
+  const Stereo placed = run(device, bursts(0.3, 1.0, 1, 1.5, 0.4f));
+  EXPECT(tone_level(placed.left, hz(45), kRate, at(0.4), at(1.4)) > 30.0 * tone_level(placed.right, hz(45), kRate, at(0.4), at(1.4)),
+         "the lowest key stands on the left");
+  EXPECT(tone_level(placed.right, hz(59), kRate, at(0.4), at(1.4)) > 30.0 * tone_level(placed.left, hz(59), kRate, at(0.4), at(1.4)),
+         "and the highest on the right");
   // Output and spacing.
   fresh(device, 48, kMajor);
   device.set_param(p::kOutput, -12.0f);
@@ -672,6 +756,26 @@ static void test_tone() {
     }
     EXPECT(device.meter(9) == -1.0f, "and holds three keys");
   }
+  // Each shape is the chord its name in device.json says, over C3.
+  const std::vector<std::vector<int>> chords = {
+      {0},           {0, 4, 7},     {0, 3, 7},  {0, 4, 7, 11},   {0, 4, 7, 10}, {0, 3, 7, 10}, {0, 4, 7, 11, 14},     {0, 3, 7, 10, 14},
+      {0, 4, 7, 14}, {0, 2, 7},     {0, 5, 7},  {0, 4, 7, 9},    {0, 3, 7, 9},  {0, 7, 14},    {0, 7, 12},            {0, 12, 24, 36},
+      {0, 5, 10, 15}, {0, 3, 6},    {0, 3, 6, 9}, {0, 3, 6, 10}, {0, 4, 8},     {0, 4, 7, 11, 14, 18}, {0, 3, 7, 10, 14, 17}, {0, 1, 2, 3}};
+  EXPECT(chords.size() == 24 && p::kParamMax[p::kShape1] == 24.0f, "twenty-four shapes and the six keys");
+  bool named = true;
+  for (size_t shape = 0; shape < chords.size(); ++shape) {
+    fresh(device, 48, static_cast<int>(shape) + 1);
+    for (int k = 0; k < 6; ++k) {
+      const float key = k < static_cast<int>(chords[shape].size()) ? 48.0f + chords[shape][k] : -1.0f;
+      if (device.meter(6 + k) != key) named = false;
+    }
+  }
+  EXPECT(named, "every shape holds the keys its name says");
+  // Two keys of one's own on one note are one string, and the order they are set in is nothing.
+  device.init(kRate);
+  device.set_param(p::kShape1, kKeys);
+  for (int k = 0; k < 3; ++k) device.set_param(p::kKey1 + k, k == 1 ? 40.0f : 50.0f);
+  EXPECT(device.meter(6) == 51.0f && device.meter(7) == 61.0f && device.meter(8) == -1.0f, "a key set twice is held once");
   // Every shape holds at least one key and at most six, for every spacing and root.
   bool sound = true;
   for (int shape = 1; shape < 25; ++shape) {
@@ -797,6 +901,21 @@ static void test_level() {
 }
 
 static void test_rates() {
+  // A partial over the band is left out: the sixth of C8 would fold to 19 kHz at 44.1.
+  device.init(44100.0f);
+  device.set_param(p::kShape1, kKeys);
+  device.set_param(p::kKey1, 97.0f);
+  device.set_param(p::kMix, 1.0f);
+  device.set_param(p::kSharpness, 0.0f);
+  device.set_param(p::kTilt, 6.0f);
+  device.set_param(p::kPartials, 12.0f);
+  rng_state() = 18u;
+  const Stereo highest = run(device, noise(1.0f, 44100.0f, 0.4f));
+  double over = 0.0;
+  for (double f = 16500.0; f < 22000.0; f += 20.0) over = std::max(over, tone_level(highest.left, f, 44100.0, at(0.3, 44100.0f)));
+  const double there = tone_level(highest.left, hz(108), 44100.0, at(0.3, 44100.0f));
+  MEASURED("C8 at 44.1 kHz: %.1f dB, the loudest over 16.5 kHz %.1f dB", db(there), db(over));
+  EXPECT(over < 0.05 * there, "nothing rings over the band");
   double level[3], hiss[3], time[3];
   int index = 0;
   for (float rate : {44100.0f, 48000.0f, 96000.0f}) {
@@ -836,6 +955,7 @@ static void test_bad_input() {
     for (size_t i = 4000; i < 4100; ++i) in[i] = value;
     const Stereo out = run(device, in);
     EXPECT(finite(out.left) && finite(out.right), "a bad sample does not get through");
+    EXPECT(top(out) <= 16.0 && top(out, at(0.1)) < 1.5, "and the dry sound is bounded");
     const Stereo rest = render(device, 25.0f, kRate);
     EXPECT(finite(rest.left) && top(rest, at(24.0)) == 0.0, "or stay: the device comes to rest");
     twin.init(kRate);
@@ -953,6 +1073,19 @@ static void test_meters() {
   EXPECT(c3 > 3.0 * e3 && g3 > 3.0 * e3, "and the keys light up as they answer");
   EXPECT_NEAR(std::sqrt(c3 * c3 + g3 * g3 + e3 * e3), std::hypot(rms(out.left, at(0.5)), rms(out.right, at(0.5))) * std::sqrt(2.0),
               0.2 * c3, "the levels are what comes out");
+  // A bass string's reading is what is heard of it, its level and all.
+  float low[2];
+  for (int half = 0; half < 2; ++half) {
+    fresh(device, 57, kMinor);
+    device.set_param(p::kBass, half ? 0.25f : 1.0f);
+    run(device, note(hz(45), 0.3, 0.5));
+    EXPECT(device.sounding_strings() == 5, "three keys and two bass strings are worked out");
+    low[half] = device.meter(12);
+  }
+  EXPECT_NEAR(low[1] / low[0], 0.25, 0.02, "the bass strings' meters carry Bass");
+  fresh(device, 57, kMinor);
+  run(device, note(hz(45), 0.3, 0.5));
+  EXPECT(device.sounding_strings() == 3, "at Bass 0 the three keys alone");
   EXPECT(device.meter(-1) == 0.0f && device.meter(16) == 0.0f, "an index that is none reads 0");
 }
 
@@ -972,6 +1105,7 @@ int main() {
   test_channels();
   test_empty();
   test_change();
+  test_held_again();
   test_walk();
   test_blocks();
   test_rest();
