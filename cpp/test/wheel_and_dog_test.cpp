@@ -779,6 +779,7 @@ void bow_and_places() {
   }
   std::printf("  between the partials %.0f dB firm, %.0f dB raw; crest %.2f firm, %.2f raw\n", between[0], between[1], crest[0], crest[1]);
   EXPECT(between[1] > -100.0 && between[0] < -130.0, "a raw string slips unevenly");
+  EXPECT(crest[1] > crest[0] + 0.8 && crest[1] < 4.2, "a raw string is sharper, and its drive bends the peaks over");
 
   // The run up: an eighth of the way in level after a quarter of Spin.
   const Stereo up = held({{p::kAccents, 0.0f}, {p::kSpin, 4.0f}, {p::kNoise, 0.0f}}, {38}, 6.0f);
