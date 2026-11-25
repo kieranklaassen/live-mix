@@ -64,6 +64,7 @@ import { SUB_BASS_PRESETS } from './sub-bass'
 import { TANPURA_PRESETS } from './tanpura'
 import { TAPE_ORCHESTRA_PRESETS } from './tape-orchestra'
 import { THESIS_PRESETS } from './thesis'
+import { TIERCE_BELLS_PRESETS } from './tierce-bells'
 import { TINE_PIANO_PRESETS } from './tine-piano'
 import { TWIN_BARS_PRESETS } from './twin-bars'
 import { WAVETABLE_PRESETS } from './wavetable'
@@ -142,4 +143,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...RULE_OF_THE_OCTAVE_PRESETS,
   ...MAKER_ONE_SPINE_PRESETS,
   ...TWO_ROADS_PRESETS,
+  ...TIERCE_BELLS_PRESETS,
 ]
