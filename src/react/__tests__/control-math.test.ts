@@ -355,6 +355,7 @@ describe('the stock devices', () => {
     // The counts, which have no names to give: every other stepped parameter names its choices.
     expect(stepped.sort()).toEqual([
       'bowls.bowls',
+      'buzzing-bridge.bounces',
       'canon.followers',
       'cascade.repeats',
       'chamber-strings.players',

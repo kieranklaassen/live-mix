@@ -578,4 +578,15 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'prism', preset: 'Low to high' },
     ],
   },
+  {
+    id: 'buzzing-bridge-seeds',
+    name: 'Seeds in the echo',
+    category: 'echo',
+    description:
+      'Every attack shakes eight seeds that crowd together over a third of a second, and a clean echo brings note and seeds round again.',
+    effects: [
+      { deviceId: 'buzzing-bridge', preset: 'Seeds in the next room', params: { distance: 0.2 } },
+      { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 480, mix: 0.25 } },
+    ],
+  },
 ]

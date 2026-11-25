@@ -556,4 +556,15 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'scale-filter', preset: 'High bells', params: { mix: 0.6 } },
     ],
   },
+  {
+    id: 'buzzing-bridge-strap',
+    name: 'Leather strap on tape',
+    category: 'tape',
+    description:
+      'Made for plucked strings: a leather strap lies on them and catches every other swing less, heard off a quarter inch tape.',
+    effects: [
+      { deviceId: 'buzzing-bridge', preset: 'Lyre leather', params: { amount: 0.8 } },
+      { deviceId: 'tape', preset: 'Quarter inch' },
+    ],
+  },
 ]

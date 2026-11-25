@@ -88,6 +88,7 @@ import { TIERCE_BELLS_FACES } from './tierce-bells'
 import { HAND_HORN_FACES } from './hand-horn'
 import { WHEEL_AND_DOG_FACES } from './wheel-and-dog'
 import { SILENT_KEYS_FACES } from './silent-keys'
+import { BUZZING_BRIDGE_FACES } from './buzzing-bridge'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -177,4 +178,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...HAND_HORN_FACES,
   ...WHEEL_AND_DOG_FACES,
   ...SILENT_KEYS_FACES,
+  ...BUZZING_BRIDGE_FACES,
 }

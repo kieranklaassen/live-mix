@@ -1035,4 +1035,15 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
+  {
+    id: 'buzzing-bridge-moth',
+    name: 'Moths round the notes',
+    category: 'motion',
+    description:
+      'Paper wings flutter high over each note and die more slowly than it does; a slow circle carries note and wings round the head.',
+    effects: [
+      { deviceId: 'buzzing-bridge', preset: 'Moth wings', params: { amount: 0.7, output: 1.5 } },
+      { deviceId: 'around', preset: 'Slow circle' },
+    ],
+  },
 ]
