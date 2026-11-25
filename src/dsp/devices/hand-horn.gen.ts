@@ -227,6 +227,7 @@ export const HAND_HORN_DESCRIPTOR = wasmDeviceDescriptor(HAND_HORN_DEVICE, {
       release: 1.1,
       breath: 0.15,
       distance: 0,
+      volume: -6.6,
     },
     'Open tube only': {
       hand: 0,
@@ -246,7 +247,7 @@ export const HAND_HORN_DESCRIPTOR = wasmDeviceDescriptor(HAND_HORN_DEVICE, {
       attack: 0.1,
       release: 0.8,
       distance: 0.05,
-      volume: -2,
+      volume: -3.2,
     },
     'One colour': {
       volume: -7.4,
@@ -381,7 +382,7 @@ export const HAND_HORN_DESCRIPTOR = wasmDeviceDescriptor(HAND_HORN_DEVICE, {
       shadow: 1,
       crook: 3,
       distance: 0,
-      volume: -5,
+      volume: -6.2,
     },
     'Long swell': { attack: 2.8, release: 4.5, blow: 0.95, crook: 8, spread: 0.6 },
     'Dark corner': {
