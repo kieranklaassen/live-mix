@@ -18,6 +18,7 @@ import { PRESETS as OPEN_STRING_QUARTET } from '../open-string-quartet'
 import { PRESETS as LEFT_HANDS } from '../left-hands'
 import { PRESETS as UNA_CORDA_FAMILY } from '../una-corda-family'
 import { PRESETS as TEN_WAYS_TO_BOW } from '../ten-ways-to-bow'
+import { PRESETS as BUZZ_LEFT_IN } from '../buzz-left-in'
 
 const stamped = (pack: string, presets: readonly FactoryPreset[]): FactoryPreset[] =>
   presets.map((preset) => ({ ...preset, pack }))
@@ -41,4 +42,5 @@ export const HANDS: readonly FactoryPreset[] = [
   ...stamped('left-hands', LEFT_HANDS),
   ...stamped('una-corda-family', UNA_CORDA_FAMILY),
   ...stamped('ten-ways-to-bow', TEN_WAYS_TO_BOW),
+  ...stamped('buzz-left-in', BUZZ_LEFT_IN),
 ]

@@ -26,6 +26,7 @@ import { PRESETS as BLUE_THIRDS } from '../blue-thirds'
 import { PRESETS as LINES_AND_REFLECTIONS } from '../lines-and-reflections'
 import { PRESETS as COMPANIONS_BY_RULE } from '../companions-by-rule'
 import { PRESETS as UP_ONE_WAY_DOWN_ANOTHER } from '../up-one-way-down-another'
+import { PRESETS as COVERED_AND_OPEN } from '../covered-and-open'
 
 const stamped = (pack: string, presets: readonly FactoryPreset[]): FactoryPreset[] =>
   presets.map((preset) => ({ ...preset, pack }))
@@ -57,4 +58,5 @@ export const MELODY: readonly FactoryPreset[] = [
   ...stamped('lines-and-reflections', LINES_AND_REFLECTIONS),
   ...stamped('companions-by-rule', COMPANIONS_BY_RULE),
   ...stamped('up-one-way-down-another', UP_ONE_WAY_DOWN_ANOTHER),
+  ...stamped('covered-and-open', COVERED_AND_OPEN),
 ]

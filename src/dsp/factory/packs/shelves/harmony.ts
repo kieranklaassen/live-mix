@@ -35,6 +35,8 @@ import { PRESETS as ONE_LINE_CHOIRS } from '../one-line-choirs'
 import { PRESETS as OVER_A_PLAYED_BASS } from '../over-a-played-bass'
 import { PRESETS as MANY_ROOMS_ONE_SPINE } from '../many-rooms-one-spine'
 import { PRESETS as ONE_VOICE_MOVES } from '../one-voice-moves'
+import { PRESETS as BELLS_IN_THE_KEY } from '../bells-in-the-key'
+import { PRESETS as KEYS_HELD_SILENTLY } from '../keys-held-silently'
 
 const stamped = (pack: string, presets: readonly FactoryPreset[]): FactoryPreset[] =>
   presets.map((preset) => ({ ...preset, pack }))
@@ -75,4 +77,6 @@ export const HARMONY: readonly FactoryPreset[] = [
   ...stamped('over-a-played-bass', OVER_A_PLAYED_BASS),
   ...stamped('many-rooms-one-spine', MANY_ROOMS_ONE_SPINE),
   ...stamped('one-voice-moves', ONE_VOICE_MOVES),
+  ...stamped('bells-in-the-key', BELLS_IN_THE_KEY),
+  ...stamped('keys-held-silently', KEYS_HELD_SILENTLY),
 ]

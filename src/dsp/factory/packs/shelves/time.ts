@@ -20,6 +20,7 @@ import { PRESETS as SAPPHIC_HOURS } from '../sapphic-hours'
 import { PRESETS as THUMB_KEEPS_FOUR } from '../thumb-keeps-four'
 import { PRESETS as CRADLE_ROCKINGS } from '../cradle-rockings'
 import { PRESETS as NEVER_BREATHE_TOGETHER } from '../never-breathe-together'
+import { PRESETS as THE_DRONE_THAT_BARKS } from '../the-drone-that-barks'
 
 const stamped = (pack: string, presets: readonly FactoryPreset[]): FactoryPreset[] =>
   presets.map((preset) => ({ ...preset, pack }))
@@ -45,4 +46,5 @@ export const TIME: readonly FactoryPreset[] = [
   ...stamped('thumb-keeps-four', THUMB_KEEPS_FOUR),
   ...stamped('cradle-rockings', CRADLE_ROCKINGS),
   ...stamped('never-breathe-together', NEVER_BREATHE_TOGETHER),
+  ...stamped('the-drone-that-barks', THE_DRONE_THAT_BARKS),
 ]

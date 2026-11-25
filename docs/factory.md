@@ -1184,7 +1184,7 @@ instruments and gives the rest to the instruments its idea turns on, so
 whatever instrument is loaded, every one of them has something for it. They
 have sounds and effect chains too.
 
-The other 95 packs are about one thing in music: a chord and how it moves, a
+The other 100 packs are about one thing in music: a chord and how it moves, a
 way of making a melody, a rhythm, or what hands do on an instrument. Each has
 its presets on the few instruments that thing is for, at least three and at
 most 65 on one, and phrases of its own (`FactoryPreset.preview` may be a
@@ -1213,7 +1213,7 @@ const mine = presets.filter((preset) => preset.pack === FACTORY_PACKS[0].id)
 ```
 
 `FACTORY_PACKS` is a few lines of names and comes with the bank. The presets
-do not: all 12,000 of them are modules of their own, one for each shelf
+do not: all 12,500 of them are modules of their own, one for each shelf
 (`src/dsp/factory/packs/shelves/`), behind a dynamic `import()`, which a bundler
 keeps out of the script a page starts with. `loadFactoryPacks()` fetches them
 once and hands back the same list from then on; a fetch that fails is tried
@@ -1293,6 +1293,8 @@ and the packs never meet.
 | **Over a Played Bass** (`over-a-played-bass`)          | A finger plays the bass and the upper voices follow by the old keyboard rule, moving as little as they can.                                             |
 | **One Spine, Many Rooms** (`many-rooms-one-spine`)     | A held key runs eight chords, and each sound plays one role of them or several: sounds on one spine fit each other.                                     |
 | **One Voice Moves** (`one-voice-moves`)                | A chord that changes one note and keeps two, again and again, so each chord melts into the next and the key is left behind or kept.                     |
+| **Bells in the Key** (`bells-in-the-key`)              | Bells whose third follows the key or is set by hand: tower, hand and clock bells, rubbed rims, and the players who stand under them.                    |
+| **Keys Held Silently** (`keys-held-silently`)          | A chord held open without a sound: whatever is played into it comes back as that chord, from dry strokes, knocks, rain and tunes.                       |
 
 #### Packs about a melody (`melody`)
 
@@ -1323,6 +1325,7 @@ and the packs never meet.
 | **Lines and Reflections** (`lines-and-reflections`)      | What is played and the same turned upside down: together, in answer, a moment later, or the reflection alone.                                    |
 | **Companions by Rule** (`companions-by-rule`)            | A line and a second voice that keeps to a rule: the near notes of one triad, thirds, sixths, bare fifths, or three voices in old parallel style. |
 | **Up One Way, Down Another** (`up-one-way-down-another`) | Slow melodies that climb by one road and come down by another, rest on their home note and leave silence between phrases.                        |
+| **Covered and Open** (`covered-and-open`)                | A horn with a crook and a hand: some notes open and bright, others stopped and dark by what they need, in calls, chorales and long swells.       |
 
 #### Packs about a rhythm (`time`)
 
@@ -1347,28 +1350,30 @@ and the packs never meet.
 | **The Thumb Keeps Four** (`thumb-keeps-four`)         | A thumb that never misses a beat and fingers that come between: two hands of one player on guitars, thumb pianos and strings.          |
 | **Cradle Rockings** (`cradle-rockings`)               | Two chords rocked to and fro, slower and softer until someone sleeps: piano, mallets, harp, choir and bells.                           |
 | **Never Breathe Together** (`never-breathe-together`) | A held chord as a section of players who each run out of air and never at the same moment, so it lasts and is never twice the same.    |
+| **The Drone That Barks** (`the-drone-that-barks`)     | A wheel-bowed string whose loose bridge buzzes in time: drones that are their own drum, dance tunes over them, and whispers of cotton. |
 
 #### Packs about what hands do on an instrument (`hands`)
 
-| Pack                                            | What it is                                                                                                                      |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **First Words** (`first-words`)                 | Nineteen instruments the packs had no presets for, each taught its first few words by one rule only it can keep.                |
-| **Only the Tail** (`only-the-tail`)             | What is left after the key comes up: strings in sympathy, halls, metal and breath, with the strike turned down to nothing.      |
-| **Sixteen Harp Pedals** (`sixteen-harp-pedals`) | Harp in all its pedal settings: low, middle and high on the string, nail and fingertip, damped and left to ring.                |
-| **Ninths for Octaves** (`ninths-for-octaves`)   | Bars and bells whose octaves are stretched or pinched until a ninth sounds like home: five sizes of octave, five mallets.       |
-| **Between the Keys** (`between-the-keys`)       | Melodies on the natural harmonics, where the eleventh lies between two keys: mouth, drone, bow, wind and reed.                  |
-| **Buried Jar** (`buried-jar`)                   | Water falling into a jar under the gravel: drops, shells, clay and the bamboo that knocks, wet and dry.                         |
-| **Thirteen Nodes** (`thirteen-nodes`)           | A silk-strung zither with thirteen marked places to touch it: open tones, harmonics and slides that are mostly breath.          |
-| **The Ornament Book** (`ornament-book`)         | Grace notes, mordents, slides, shakes, turns and crushed notes: the ways a note can begin, for players who decorate.            |
-| **Paired Bronze** (`paired-bronze`)             | Bronze tuned in pairs a few hertz apart so every note shimmers at one rate: five rates in five sizes of hall.                   |
-| **Only the Attack** (`only-the-attack`)         | The first forty milliseconds and no more: hammers, keys, tongues, nails and bow hair, dry or in a room that keeps the rest.     |
-| **Whispered Pairs** (`whispered-pairs`)         | Two strings brushed one after the other for each note: how far apart, how fast, how alike, on plucked and struck pairs.         |
-| **Bands of One** (`bands-of-one`)               | A whole group made of one instrument: floor, pad, line, pulse, sparkle, bass, breath and ending, for each of twelve.            |
-| **From Nothing** (`from-nothing`)               | Notes with no beginning: attacks taken away by swell, bow, breath, feedback or playing backwards, on fifteen players.           |
-| **Open String Quartet** (`open-string-quartet`) | Four bowed players: open strings, mutes, bow by the bridge, bow over the fingerboard, harmonics and plucks, near and in a hall. |
-| **Left Hands** (`left-hands`)                   | Only the accompanying hand: tenths, rocking fifths, broken chords, and how soft the bass and how short the chord are.           |
-| **Una Corda Family** (`una-corda-family`)       | Keyboards with the soft pedal down: two strings or three, felt in or out, magnets and bolts, lid open or shut.                  |
-| **Ten Ways to Bow It** (`ten-ways-to-bow`)      | Long, short, thrown, trembling, whispered, pressed: ten manners of the bow in a large section and in a small one.               |
+| Pack                                            | What it is                                                                                                                                                |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **First Words** (`first-words`)                 | Nineteen instruments the packs had no presets for, each taught its first few words by one rule only it can keep.                                          |
+| **Only the Tail** (`only-the-tail`)             | What is left after the key comes up: strings in sympathy, halls, metal and breath, with the strike turned down to nothing.                                |
+| **Sixteen Harp Pedals** (`sixteen-harp-pedals`) | Harp in all its pedal settings: low, middle and high on the string, nail and fingertip, damped and left to ring.                                          |
+| **Ninths for Octaves** (`ninths-for-octaves`)   | Bars and bells whose octaves are stretched or pinched until a ninth sounds like home: five sizes of octave, five mallets.                                 |
+| **Between the Keys** (`between-the-keys`)       | Melodies on the natural harmonics, where the eleventh lies between two keys: mouth, drone, bow, wind and reed.                                            |
+| **Buried Jar** (`buried-jar`)                   | Water falling into a jar under the gravel: drops, shells, clay and the bamboo that knocks, wet and dry.                                                   |
+| **Thirteen Nodes** (`thirteen-nodes`)           | A silk-strung zither with thirteen marked places to touch it: open tones, harmonics and slides that are mostly breath.                                    |
+| **The Ornament Book** (`ornament-book`)         | Grace notes, mordents, slides, shakes, turns and crushed notes: the ways a note can begin, for players who decorate.                                      |
+| **Paired Bronze** (`paired-bronze`)             | Bronze tuned in pairs a few hertz apart so every note shimmers at one rate: five rates in five sizes of hall.                                             |
+| **Only the Attack** (`only-the-attack`)         | The first forty milliseconds and no more: hammers, keys, tongues, nails and bow hair, dry or in a room that keeps the rest.                               |
+| **Whispered Pairs** (`whispered-pairs`)         | Two strings brushed one after the other for each note: how far apart, how fast, how alike, on plucked and struck pairs.                                   |
+| **Bands of One** (`bands-of-one`)               | A whole group made of one instrument: floor, pad, line, pulse, sparkle, bass, breath and ending, for each of twelve.                                      |
+| **From Nothing** (`from-nothing`)               | Notes with no beginning: attacks taken away by swell, bow, breath, feedback or playing backwards, on fifteen players.                                     |
+| **Open String Quartet** (`open-string-quartet`) | Four bowed players: open strings, mutes, bow by the bridge, bow over the fingerboard, harmonics and plucks, near and in a hall.                           |
+| **Left Hands** (`left-hands`)                   | Only the accompanying hand: tenths, rocking fifths, broken chords, and how soft the bass and how short the chord are.                                     |
+| **Una Corda Family** (`una-corda-family`)       | Keyboards with the soft pedal down: two strings or three, felt in or out, magnets and bolts, lid open or shut.                                            |
+| **Ten Ways to Bow It** (`ten-ways-to-bow`)      | Long, short, thrown, trembling, whispered, pressed: ten manners of the bow in a large section and in a small one.                                         |
+| **The Buzz Left In** (`buzz-left-in`)           | Sounds that touch something as they ring: a curved bridge, a membrane, loose shells, leather or paper, as close as the string or as far as the next room. |
 
 <!-- end of focused packs -->
 
@@ -1391,7 +1396,7 @@ A pack's own test renders one preset in five for its levels;
 two presets of one instrument apart: both are played the same notes
 (`comparePhrase`), and they are alike when their prints (`soundPrint`,
 `printDistance`) are under `FOCUSED_LIMITS.nearestDb`, 1.35 dB, apart. No two
-of the 9,500 presets of these packs are, nor is one of them alike
+of the 10,000 presets of these packs are, nor is one of them alike
 to a preset that was there before. Only the bench measures this; no test does.
 
 The levels are narrower than the bank's so that a list of thousands plays at

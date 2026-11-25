@@ -244,6 +244,20 @@ export const FOCUSED_PACKS: readonly Pick<FactoryPack, 'id' | 'name' | 'descript
       shelf: 'harmony',
     },
     {
+      id: 'bells-in-the-key',
+      name: 'Bells in the Key',
+      description:
+        'Bells whose third follows the key or is set by hand: tower, hand and clock bells, rubbed rims, and the players who stand under them.',
+      shelf: 'harmony',
+    },
+    {
+      id: 'keys-held-silently',
+      name: 'Keys Held Silently',
+      description:
+        'A chord held open without a sound: whatever is played into it comes back as that chord, from dry strokes, knocks, rain and tunes.',
+      shelf: 'harmony',
+    },
+    {
       id: 'unmeasured-preludes',
       name: 'Unmeasured Preludes',
       description:
@@ -419,6 +433,13 @@ export const FOCUSED_PACKS: readonly Pick<FactoryPack, 'id' | 'name' | 'descript
       shelf: 'melody',
     },
     {
+      id: 'covered-and-open',
+      name: 'Covered and Open',
+      description:
+        'A horn with a crook and a hand: some notes open and bright, others stopped and dark by what they need, in calls, chorales and long swells.',
+      shelf: 'melody',
+    },
+    {
       id: 'handstroke-gap',
       name: 'The Handstroke Gap',
       description:
@@ -552,6 +573,13 @@ export const FOCUSED_PACKS: readonly Pick<FactoryPack, 'id' | 'name' | 'descript
       shelf: 'time',
     },
     {
+      id: 'the-drone-that-barks',
+      name: 'The Drone That Barks',
+      description:
+        'A wheel-bowed string whose loose bridge buzzes in time: drones that are their own drum, dance tunes over them, and whispers of cotton.',
+      shelf: 'time',
+    },
+    {
       id: 'first-words',
       name: 'First Words',
       description:
@@ -668,6 +696,13 @@ export const FOCUSED_PACKS: readonly Pick<FactoryPack, 'id' | 'name' | 'descript
       name: 'Ten Ways to Bow It',
       description:
         'Long, short, thrown, trembling, whispered, pressed: ten manners of the bow in a large section and in a small one.',
+      shelf: 'hands',
+    },
+    {
+      id: 'buzz-left-in',
+      name: 'The Buzz Left In',
+      description:
+        'Sounds that touch something as they ring: a curved bridge, a membrane, loose shells, leather or paper, as close as the string or as far as the next room.',
       shelf: 'hands',
     },
   ]
