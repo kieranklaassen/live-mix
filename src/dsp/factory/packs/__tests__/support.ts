@@ -12,6 +12,7 @@ import {
   validatePatch,
   type Patch,
 } from '../../../../core/devices/patch'
+import { describeMaker, makerParams } from '../../../../core/makers'
 import { DeviceRegistry } from '../../../../core/devices/registry'
 import {
   compileFromDisk,
@@ -72,6 +73,9 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'still-point',
   'breath-pacer',
   'coloured-noise',
+  'tierce-bells',
+  'hand-horn',
+  'wheel-and-dog',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(
@@ -119,16 +123,31 @@ export function levelProblems(measured: AudioMeasurement): string[] {
  * same text are the same sound under two names, however each was spelled.
  */
 export function patchSettings(patch: Patch): string {
-  return JSON.stringify(
-    patchDevices(patch).map((device) => {
-      const descriptor = registry.get(device.deviceId)
-      const params = descriptor ? patchDeviceParams(descriptor, device) : (device.params ?? {})
-      const sorted = Object.keys(params)
-        .sort()
-        .map((name) => [name, Number(params[name].toPrecision(6))])
-      return [device.deviceId, device.bypass === true, sorted]
-    }),
-  )
+  const settings: unknown[] = patchDevices(patch).map((device) => {
+    const descriptor = registry.get(device.deviceId)
+    const params = descriptor ? patchDeviceParams(descriptor, device) : (device.params ?? {})
+    return [device.deviceId, device.bypass === true, sortedParams(params)]
+  })
+  // Two presets that differ only in what their note maker writes are two presets.
+  if (patch.maker) {
+    const { makerId, bypass, key, parts } = patch.maker
+    const descriptor = describeMaker(makerId)
+    const params = descriptor ? makerParams(descriptor, patch.maker) : (patch.maker.params ?? {})
+    settings.push([
+      makerId,
+      bypass === true,
+      sortedParams(params),
+      key ?? null,
+      Object.keys(parts ?? {}),
+    ])
+  }
+  return JSON.stringify(settings)
+}
+
+function sortedParams(params: Readonly<Record<string, number>>): [string, number][] {
+  return Object.keys(params)
+    .sort()
+    .map((name) => [name, Number(params[name].toPrecision(6))])
 }
 
 /** The ids of patches that set their devices exactly as one before them does. */

@@ -31,13 +31,22 @@ import { GLITCH_KIT_PRESETS } from './glitch-kit'
 import { GRAFT_PRESETS } from './graft'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
 import { GUITAR_PRESETS } from './guitar'
+import { HAND_HORN_PRESETS } from './hand-horn'
 import { HANDPAN_PRESETS } from './handpan'
 import { HARP_PRESETS } from './harp'
 import { HORNS_PRESETS } from './horns'
 import { ICE_PRESETS } from './ice'
 import { ISOCHRONIC_PRESETS } from './isochronic'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
+import { COMPANION_VOICE_PRESETS } from './maker-companion-voice'
 import { MAGNET_PIANO_PRESETS } from './magnet-piano'
+import { MAKER_MIRROR_ON_D_PRESETS } from './maker-mirror-on-d'
+import { MAKER_SIX_VOICES_PRESETS } from './maker-six-voices'
+import { BREATH_BUDGET_PRESETS } from './maker-breath-budget'
+import { HEXATONIC_WALKER_PRESETS } from './maker-hexatonic-walker'
+import { RULE_OF_THE_OCTAVE_PRESETS } from './maker-rule-of-the-octave'
+import { MAKER_ONE_SPINE_PRESETS } from './maker-one-spine'
+import { TWO_ROADS_PRESETS } from './maker-two-roads'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
@@ -56,10 +65,12 @@ import { SUB_BASS_PRESETS } from './sub-bass'
 import { TANPURA_PRESETS } from './tanpura'
 import { TAPE_ORCHESTRA_PRESETS } from './tape-orchestra'
 import { THESIS_PRESETS } from './thesis'
+import { TIERCE_BELLS_PRESETS } from './tierce-bells'
 import { TINE_PIANO_PRESETS } from './tine-piano'
 import { TWIN_BARS_PRESETS } from './twin-bars'
 import { WAVETABLE_PRESETS } from './wavetable'
 import { WEST_COAST_PRESETS } from './west-coast'
+import { WHEEL_AND_DOG_PRESETS } from './wheel-and-dog'
 import { WIND_HARP_PRESETS } from './wind-harp'
 import { ZITHER_PRESETS } from './zither'
 import { ZONE_SAMPLER_PRESETS } from './zone-sampler'
@@ -126,4 +137,15 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...STILL_POINT_PRESETS,
   ...BREATH_PACER_PRESETS,
   ...COLOURED_NOISE_PRESETS,
+  ...HAND_HORN_PRESETS,
+  ...MAKER_MIRROR_ON_D_PRESETS,
+  ...MAKER_SIX_VOICES_PRESETS,
+  ...COMPANION_VOICE_PRESETS,
+  ...BREATH_BUDGET_PRESETS,
+  ...HEXATONIC_WALKER_PRESETS,
+  ...RULE_OF_THE_OCTAVE_PRESETS,
+  ...MAKER_ONE_SPINE_PRESETS,
+  ...TWO_ROADS_PRESETS,
+  ...TIERCE_BELLS_PRESETS,
+  ...WHEEL_AND_DOG_PRESETS,
 ]

@@ -1951,6 +1951,10 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'winding-down': { ...PLATE_PALETTES['winding-down'], finish: 'linen', cap: 'pointer' },
   'breath-pacer': { ...PLATE_PALETTES['breath-pacer'], finish: 'fade', cap: 'dot' },
   'coloured-noise': { ...PLATE_PALETTES['coloured-noise'], finish: 'speckle', cap: 'dot' },
+  'tierce-bells': { ...PLATE_PALETTES['tierce-bells'], finish: 'grain', cap: 'skirt' },
+  'hand-horn': { ...PLATE_PALETTES['hand-horn'], finish: 'brushed', cap: 'disc' },
+  'wheel-and-dog': { ...PLATE_PALETTES['wheel-and-dog'], finish: 'grain', cap: 'skirt' },
+  'silent-keys': { ...PLATE_PALETTES['silent-keys'], finish: 'gloss', cap: 'skirt' },
 }
 
 /**

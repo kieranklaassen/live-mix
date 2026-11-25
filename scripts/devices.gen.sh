@@ -128,6 +128,8 @@ build_generated_devices() {
     cpp/devices/guitar/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device half-speed \
     cpp/devices/half-speed/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device hand-horn \
+    cpp/devices/hand-horn/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device handpan \
     cpp/devices/handpan/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device harp \
@@ -226,6 +228,8 @@ build_generated_devices() {
     cpp/devices/shortwave/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sift \
     cpp/devices/sift/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device silent-keys \
+    cpp/devices/silent-keys/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sine-shadow \
     cpp/devices/sine-shadow/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device size \
@@ -280,6 +284,8 @@ build_generated_devices() {
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device thesis \
     cpp/devices/thesis/device_api.gen.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device tierce-bells \
+    cpp/devices/tierce-bells/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tine-piano \
     cpp/devices/tine-piano/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tremolo \
@@ -304,6 +310,8 @@ build_generated_devices() {
     cpp/devices/weather/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device west-coast \
     cpp/devices/west-coast/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device wheel-and-dog \
+    cpp/devices/wheel-and-dog/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wind-harp \
     cpp/devices/wind-harp/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device winding-down \
@@ -439,6 +447,8 @@ test_generated_devices() {
     cpp/test/guitar_test.cpp
   native_test half_speed_test \
     cpp/test/half_speed_test.cpp
+  native_test hand_horn_test \
+    cpp/test/hand_horn_test.cpp
   native_test handpan_test \
     cpp/test/handpan_test.cpp
   native_test harp_test \
@@ -537,6 +547,8 @@ test_generated_devices() {
     cpp/test/shortwave_test.cpp
   native_test sift_test \
     cpp/test/sift_test.cpp
+  native_test silent_keys_test \
+    cpp/test/silent_keys_test.cpp
   native_test sine_shadow_test \
     cpp/test/sine_shadow_test.cpp
   native_test size_test \
@@ -591,6 +603,8 @@ test_generated_devices() {
   native_test thesis_test \
     cpp/test/thesis_test.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  native_test tierce_bells_test \
+    cpp/test/tierce_bells_test.cpp
   native_test tine_piano_test \
     cpp/test/tine_piano_test.cpp
   native_test tremolo_test \
@@ -615,6 +629,8 @@ test_generated_devices() {
     cpp/test/weather_test.cpp
   native_test west_coast_test \
     cpp/test/west_coast_test.cpp
+  native_test wheel_and_dog_test \
+    cpp/test/wheel_and_dog_test.cpp
   native_test wind_harp_test \
     cpp/test/wind_harp_test.cpp
   native_test winding_down_test \

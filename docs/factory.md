@@ -83,6 +83,9 @@ const ops = patchInstrumentOps(document.score, 'synth', preset)
 arbiter.apply({ type: 'batch', ops, label: `Load ${preset.name}` })
 ```
 
+A patch may name a note maker in front of its instrument (`Patch.maker`),
+which writes the notes the instrument plays: see [makers.md](./makers.md).
+
 ## Rendering without an audio context
 
 `renderPatch` (`./dsp`) instantiates the device modules directly and calls the

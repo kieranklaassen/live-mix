@@ -1,0 +1,466 @@
+{
+  "id": "tierce-bells",
+  "name": "Tierce Bells",
+  "category": "instrument",
+  "description": "Cast bells whose third is a control: set it anywhere from narrow minor to a fourth, let it follow the key of the music, or let it glide from one third to another inside a single strike.",
+  "class": "TierceBells",
+  "header": "tierce_bells.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "tierce",
+      "name": "Tierce now",
+      "unit": "ct",
+      "display": true
+    },
+    {
+      "key": "place",
+      "name": "Tierce to come",
+      "unit": "ct",
+      "display": true
+    },
+    {
+      "key": "level",
+      "name": "Bell level",
+      "display": true
+    },
+    {
+      "key": "prime",
+      "name": "Prime",
+      "unit": "Hz",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "bell",
+      "name": "Bell",
+      "choices": ["Tower", "Handbell", "Small clock", "Rubbed"],
+      "default": 0,
+      "description": "Which kind of bell is rung. Each has its own partials, striker and way of dying; a rubbed bell swells while its key is held. Heard from the next bell."
+    },
+    {
+      "key": "tierce",
+      "name": "Tierce",
+      "min": 266.8,
+      "max": 498.1,
+      "default": 315.6,
+      "unit": "ct",
+      "description": "How far the bell's third is above its note, from narrow minor through major to a fourth. With Follow on Key it sets only the notes Root and Scale leave open."
+    },
+    {
+      "key": "follow",
+      "name": "Follow",
+      "choices": ["Off", "Key"],
+      "default": 1,
+      "description": "With Key each bell takes the third that Root and Scale give its note, major or minor. A note outside the scale takes the Tierce knob, as every bell does when off."
+    },
+    {
+      "key": "root",
+      "name": "Root",
+      "choices": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
+      "default": 0,
+      "description": "The note the scale starts on when Follow is on. Bells that are ringing glide to their new thirds."
+    },
+    {
+      "key": "scale",
+      "name": "Scale",
+      "choices": ["Major", "Minor", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Harmonic minor"],
+      "default": 0,
+      "description": "The scale that decides which bells ring major and which minor when Follow is on. Bells that are ringing glide to their new thirds."
+    },
+    {
+      "key": "lean",
+      "name": "Lean",
+      "min": -231,
+      "max": 231,
+      "default": 0,
+      "unit": "ct",
+      "description": "Starts each strike's third above or below its place and lets it glide there, like a suspension resolving inside one bell. A third that still rings joins it."
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 0.02,
+      "max": 20,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a third takes to reach its place, after a strike that leans and after Tierce, Root or Scale moves under bells that are ringing."
+    },
+    {
+      "key": "humPitch",
+      "name": "Hum pitch",
+      "min": 0.4,
+      "max": 0.6,
+      "default": 0.5,
+      "description": "Pitch of the low hum tone against the note. The centre is an octave below; higher passes a minor seventh below, as in older bells, and lower passes a ninth."
+    },
+    {
+      "key": "humLevel",
+      "name": "Hum level",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How loud the low hum tone under the note is. At zero the bell has no hum."
+    },
+    {
+      "key": "quint",
+      "name": "Quint",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How loud the fifth inside the bell is. At zero the fifth is gone, which leaves the third by itself."
+    },
+    {
+      "key": "upper",
+      "name": "Upper",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How loud the partials from the octave up are. Low leaves hum, note and third; high rings bright, with the third heard again an octave higher."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.5,
+      "max": 60,
+      "default": 14,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the hum of a bell rings. The partials above it die sooner, by an amount the kind of bell and Damping set."
+    },
+    {
+      "key": "damping",
+      "name": "Damping",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How much sooner the upper partials die than the hum. Low keeps the whole bell ringing; high goes dull quickly, like a heavy or a cracked bell."
+    },
+    {
+      "key": "hardness",
+      "name": "Hardness",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How hard the clapper is. Soft wakes the low partials gently; hard is quick and bright, and the clapper itself is heard. A rubbed bell only gets brighter."
+    },
+    {
+      "key": "doublet",
+      "name": "Doublet",
+      "min": 0,
+      "max": 4,
+      "default": 0.5,
+      "unit": "Hz",
+      "description": "Splits the main partials into pairs a little apart, so they beat at this rate. A true round bell is still; a worn one warbles."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0,
+      "max": 1,
+      "default": 0.1,
+      "description": "How quickly a bell is choked when its key is let go. At zero it rings on untouched; at the top a hand stops it."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Places the partials across the stereo field. With more of it the beating pairs turn from side to side between the speakers."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
+  ],
+  "presets": {
+    "Tower in C major": {},
+    "Four to three": {
+      "tierce": 386.31,
+      "follow": 0,
+      "lean": 111.73,
+      "glide": 8,
+      "quint": 0,
+      "upper": 0.4,
+      "decay": 24,
+      "damping": 0.2,
+      "doublet": 0.3,
+      "release": 0
+    },
+    "Neutral tower": {
+      "tierce": 347.41,
+      "follow": 0,
+      "decay": 24,
+      "doublet": 0.7,
+      "release": 0.05
+    },
+    "Old tower": {
+      "tierce": 305,
+      "follow": 0,
+      "humPitch": 0.561,
+      "humLevel": 0.7,
+      "upper": 0.4,
+      "decay": 30,
+      "damping": 0.5,
+      "hardness": 0.4,
+      "doublet": 1.1,
+      "release": 0.05
+    },
+    "Hum a ninth below": {
+      "humPitch": 0.445,
+      "humLevel": 0.9,
+      "quint": 0.2,
+      "upper": 0.3,
+      "decay": 36,
+      "damping": 0.35,
+      "hardness": 0.3,
+      "doublet": 0.25,
+      "release": 0,
+      "volume": -6.5
+    },
+    "New tower": {
+      "quint": 0.3,
+      "upper": 0.6,
+      "decay": 20,
+      "damping": 0.1,
+      "hardness": 0.7,
+      "doublet": 0.08,
+      "release": 0.05,
+      "spread": 0.7,
+      "volume": -9.5
+    },
+    "Cracked tower": {
+      "tierce": 284,
+      "follow": 0,
+      "humPitch": 0.43,
+      "quint": 1,
+      "upper": 0.8,
+      "decay": 4,
+      "damping": 0.95,
+      "hardness": 0.85,
+      "doublet": 4,
+      "release": 0.15,
+      "spread": 0.3,
+      "volume": -8.2
+    },
+    "Major bell": {
+      "tierce": 386.31,
+      "follow": 0,
+      "quint": 0.6,
+      "decay": 10,
+      "damping": 0.5,
+      "hardness": 0.6,
+      "doublet": 0.35
+    },
+    "Narrow third": {
+      "tierce": 266.87,
+      "follow": 0,
+      "humLevel": 0.3,
+      "quint": 0.8,
+      "upper": 0.35,
+      "decay": 18,
+      "hardness": 0.35,
+      "doublet": 0.15,
+      "spread": 0.8,
+      "volume": -5.0
+    },
+    "Open fourth": {
+      "tierce": 498.04,
+      "follow": 0,
+      "quint": 0,
+      "humLevel": 0.3,
+      "upper": 0.75,
+      "decay": 22,
+      "damping": 0.25,
+      "hardness": 0.35,
+      "doublet": 0.4,
+      "release": 0,
+      "volume": -7.5
+    },
+    "Falling thirds": {
+      "tierce": 315.64,
+      "follow": 0,
+      "lean": 70.67,
+      "glide": 5,
+      "quint": 0.15,
+      "decay": 26,
+      "damping": 0.3,
+      "hardness": 0.25,
+      "doublet": 0.6,
+      "release": 0.02,
+      "spread": 0.9,
+      "volume": -4.0
+    },
+    "Carillon in D minor": {
+      "root": 2,
+      "scale": 1,
+      "quint": 0.6,
+      "upper": 0.55,
+      "decay": 6,
+      "damping": 0.5,
+      "hardness": 0.8,
+      "doublet": 0.5,
+      "release": 0.3,
+      "volume": -7.0
+    },
+    "Lydian carillon": {
+      "tierce": 386.31,
+      "root": 5,
+      "scale": 4,
+      "humLevel": 0.2,
+      "upper": 0.7,
+      "decay": 9,
+      "damping": 0.2,
+      "hardness": 0.65,
+      "doublet": 1.6,
+      "release": 0.2,
+      "spread": 1,
+      "volume": -10.0
+    },
+    "Changing keys": {
+      "root": 9,
+      "scale": 6,
+      "glide": 3,
+      "humLevel": 0.6,
+      "upper": 0.45,
+      "decay": 34,
+      "damping": 0.15,
+      "hardness": 0.2,
+      "doublet": 0.9,
+      "release": 0,
+      "volume": -5.0
+    },
+    "Muffled peal": {
+      "root": 7,
+      "scale": 5,
+      "humLevel": 0.8,
+      "upper": 0.2,
+      "decay": 3,
+      "damping": 0.75,
+      "hardness": 0.05,
+      "doublet": 0.4,
+      "release": 0.35,
+      "spread": 0.2,
+      "volume": -4.5
+    },
+    "Handbells in C": {
+      "bell": 1,
+      "decay": 7,
+      "damping": 0.4,
+      "hardness": 0.5,
+      "doublet": 0.2,
+      "release": 0.3
+    },
+    "Soft handbells": {
+      "bell": 1,
+      "root": 9,
+      "scale": 1,
+      "upper": 0.35,
+      "decay": 14,
+      "damping": 0.3,
+      "hardness": 0.05,
+      "doublet": 0.4,
+      "release": 0.1,
+      "spread": 0.8,
+      "volume": -3.5
+    },
+    "Rising handbells": {
+      "bell": 1,
+      "tierce": 386.31,
+      "follow": 0,
+      "lean": -70.67,
+      "glide": 2.5,
+      "humLevel": 1,
+      "upper": 0.6,
+      "decay": 12,
+      "damping": 0.2,
+      "hardness": 0.7,
+      "doublet": 0.1,
+      "release": 0,
+      "volume": -8.5
+    },
+    "Mantel clock": {
+      "bell": 2,
+      "decay": 8,
+      "hardness": 0.7,
+      "doublet": 0.6,
+      "release": 0.05
+    },
+    "Hall clock": {
+      "bell": 2,
+      "tierce": 315.64,
+      "follow": 0,
+      "humLevel": 1,
+      "upper": 0.35,
+      "decay": 40,
+      "damping": 0.2,
+      "hardness": 0.4,
+      "doublet": 0.9,
+      "release": 0,
+      "spread": 0.3,
+      "volume": -5.0
+    },
+    "Tiny carillon": {
+      "bell": 2,
+      "root": 7,
+      "scale": 0,
+      "humLevel": 0,
+      "upper": 0.6,
+      "decay": 9,
+      "damping": 0.1,
+      "hardness": 0.75,
+      "doublet": 0,
+      "release": 0.4,
+      "spread": 0.9,
+      "volume": -8.0
+    },
+    "Rubbed in C major": {
+      "bell": 3,
+      "decay": 10,
+      "hardness": 0.4,
+      "doublet": 0.35,
+      "release": 0.15,
+      "spread": 0.7,
+      "volume": -4.0
+    },
+    "Rubbed suspension": {
+      "bell": 3,
+      "lean": 111.73,
+      "glide": 5,
+      "humLevel": 0.35,
+      "quint": 0,
+      "upper": 0.3,
+      "decay": 12,
+      "hardness": 0.25,
+      "doublet": 0.2,
+      "release": 0.1,
+      "volume": -4.0
+    },
+    "Rubbed old rim": {
+      "bell": 3,
+      "tierce": 347.41,
+      "follow": 0,
+      "humPitch": 0.561,
+      "quint": 0.8,
+      "upper": 0.7,
+      "decay": 16,
+      "hardness": 0.9,
+      "doublet": 2.2,
+      "release": 0.05,
+      "spread": 1,
+      "volume": -7.0
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Each partial is a rotating complex one-pole, the form modal-bells uses; partial names and places are the textbook ones of a tuned bell (hum, prime, tierce, quint, nominal, deciem), and the third is a parameter. Levels and ring times are voiced by measurement, not taken from a particular bell."
+  }
+}
