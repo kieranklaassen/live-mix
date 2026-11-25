@@ -276,10 +276,11 @@
       "tierce": 498.04,
       "follow": 0,
       "quint": 0,
-      "upper": 0.6,
+      "humLevel": 0.3,
+      "upper": 0.75,
       "decay": 22,
       "damping": 0.25,
-      "hardness": 0.45,
+      "hardness": 0.35,
       "doublet": 0.4,
       "release": 0,
       "volume": -7.5
@@ -427,7 +428,8 @@
       "hardness": 0.4,
       "doublet": 0.35,
       "release": 0.15,
-      "spread": 0.7
+      "spread": 0.7,
+      "volume": -4.0
     },
     "Rubbed suspension": {
       "bell": 3,
@@ -454,7 +456,7 @@
       "doublet": 2.2,
       "release": 0.05,
       "spread": 1,
-      "volume": -8.0
+      "volume": -7.0
     }
   },
   "origin": {

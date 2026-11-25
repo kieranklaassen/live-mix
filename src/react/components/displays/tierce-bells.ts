@@ -23,6 +23,7 @@
 import {
   INK,
   clamp,
+  crisp,
   dot,
   fillRect,
   ground,
@@ -43,7 +44,6 @@ import {
   type PlateFace,
 } from '../plate-display'
 import { levelFoot, meanOutShare, pitchName, type HeardLevel } from './instrument-parts'
-import { secondsText } from './tails'
 
 type Size = Pick<DisplayView, 'width' | 'height'>
 
@@ -388,7 +388,7 @@ const LADDER_LOW = 0.385
 const LADDER_HIGH = 3.15
 /** The length of a rung: dB against a full strike of a partial of level 1. */
 const RUNG_FLOOR_DB = -42
-const RUNG_TOP_DB = 6
+const RUNG_TOP_DB = 2
 /** The tick on a rung is what is left this long after the strike. */
 export const TIERCE_TICK_SEC = 2
 /** The scale of the third, in cents. */
@@ -503,6 +503,9 @@ interface TierceState extends HeardLevel {
 function ringingNow(frame: DisplayFrame<TierceState>): Ringing | null {
   const { state, now } = frame
   const hz = frame.meter('prime')
+  const followed = state.strike !== null && now - state.strike.taken < TIERCE_FOLLOWS_SEC
+  // A bell that has died within the half second it is followed for stands till that is over.
+  if (frame.powered && !(hz >= 20) && followed && state.ringing) return state.ringing
   if (!frame.powered || !(hz >= 20)) {
     state.strike = null
     state.ringing = null
@@ -522,7 +525,7 @@ function ringingNow(frame: DisplayFrame<TierceState>): Ringing | null {
     const at = now - note.age
     const same = strike !== null && strike.id === note.id && Math.abs(strike.at - at) < 0.1
     if (!same) {
-      if (strike && state.ringing && now - strike.taken < TIERCE_FOLLOWS_SEC) return state.ringing
+      if (followed && state.ringing) return state.ringing
       state.strike = { id: note.id, at, taken: now, gain: note.gain }
     }
   }
@@ -590,7 +593,7 @@ function drawLadder(
   TIERCE_BELLS[set.bell].partials.forEach((partial, k) => {
     const ratio = tierceRatio(set, partial, cents)
     if (ratio > LADDER_HIGH) return
-    const y = tierceRungY(ratio, ladder)
+    const y = crisp(tierceRungY(ratio, ladder))
     const moves = partial.role === 'third' || partial.role === 'deciem'
     if (moves) tied.push(y)
     const colour = moves ? colours.accent : colours.ink
@@ -649,7 +652,9 @@ function drawLane(
   for (const { name, cents } of TIERCE_NAMED) {
     const y = tierceLaneY(cents, lane)
     rule(ctx, lane.x, y, right + 4, y, { colour: colours.ink, alpha: INK.grid })
-    text(frame, name, at.marks, Math.round(y) + 3, { align: 'right' })
+    // 6/5 and 11/9 lie seven pixels apart: each name is set a pixel away from the other.
+    const apart = name === '11/9' ? -1 : name === '6/5' ? 1 : 0
+    text(frame, name, at.marks, Math.round(y) + 3 + apart, { align: 'right' })
   }
   const strikeX = tierceLaneX(0, lane)
   rule(ctx, strikeX, lane.y, strikeX, lane.y + lane.h, { colour: colours.ink, alpha: INK.rule })

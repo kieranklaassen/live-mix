@@ -223,7 +223,7 @@ export const TIERCE_BELLS_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'tierce-bells', preset: 'Open fourth' },
     effects: [
       { deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.3 } },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 6.5 } },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 7.2 } },
     ],
     preview: 'line',
   },
@@ -312,7 +312,7 @@ export const TIERCE_BELLS_PRESETS: readonly FactoryPreset[] = [
     category: 'pad',
     description:
       'A held chord of rubbed bells that swell while the keys are down, each with its third in C major, in a hall.',
-    instrument: { deviceId: 'tierce-bells', preset: 'Rubbed in C major' },
+    instrument: { deviceId: 'tierce-bells', preset: 'Rubbed in C major', params: { volume: -6 } },
     effects: [
       { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.35 } },
       { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 1 } },
@@ -327,7 +327,7 @@ export const TIERCE_BELLS_PRESETS: readonly FactoryPreset[] = [
     instrument: { deviceId: 'tierce-bells', preset: 'Rubbed old rim' },
     effects: [
       { deviceId: 'fog', preset: 'Thin veil' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 2.5 } },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 1.5 } },
     ],
   },
   {
@@ -344,7 +344,7 @@ export const TIERCE_BELLS_PRESETS: readonly FactoryPreset[] = [
     effects: [
       { deviceId: 'spectral-blur', preset: 'Faint haze' },
       { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 7 } },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 5 } },
     ],
   },
 ]
