@@ -1,0 +1,457 @@
+{
+  "id": "wheel-and-dog",
+  "name": "Wheel and Dog",
+  "category": "instrument",
+  "description": "A wheel that bows two melody strings and three drones without end, with a loose bridge that barks each time the wheel jerks.",
+  "class": "WheelAndDog",
+  "header": "wheel_and_dog.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "speed",
+      "name": "Speed",
+      "min": 0.1,
+      "max": 3,
+      "default": 0.5,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How many times a second the wheel turns. The accents come round with it, and a faster wheel bows a little harder and brighter."
+    },
+    {
+      "key": "spin",
+      "name": "Spin",
+      "min": 0.05,
+      "max": 8,
+      "default": 0.4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the wheel takes to come up to speed at the first key and to stop after the last. The accents stretch out as it slows."
+    },
+    {
+      "key": "accents",
+      "name": "Accents",
+      "choices": ["None", "2", "3", "4", "6"],
+      "default": 2,
+      "description": "How many times the hand pushes the wheel in one turn. With none it turns evenly and the strings hold still."
+    },
+    {
+      "key": "pattern",
+      "name": "Pattern",
+      "choices": ["Even", "Long short", "First strong"],
+      "default": 0,
+      "description": "How the pushes lie in the turn: evenly, every second one late, or the first one stronger than the rest."
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How far the wheel's speed jumps at each push. The strings swell with it, and a jump over the dog's threshold makes it bark."
+    },
+    {
+      "key": "dog",
+      "name": "Dog",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "How loose the buzzing bridge stands under the third drone. Looser, it barks at smaller pushes, and louder and longer at large ones."
+    },
+    {
+      "key": "split",
+      "name": "Split",
+      "choices": ["None", "C2", "F2", "C3", "F3", "C4", "F4", "C5", "All"],
+      "default": 3,
+      "description": "Keys below this note hold the drones and play no melody. Keys from it up play the melody, and the drones sound under them."
+    },
+    {
+      "key": "drone",
+      "name": "Drone",
+      "choices": ["First key", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
+      "default": 0,
+      "description": "The note the drones are tuned to. First key takes the lowest drone key held, and D until one is played on the turning wheel."
+    },
+    {
+      "key": "tuning",
+      "name": "Tuning",
+      "choices": ["Octave fifth", "Octave fourth", "Octaves", "Fifth octave"],
+      "default": 0,
+      "description": "Where the second and third drones stand over the low one, named in that order: an octave then the fifth over it, and so on."
+    },
+    {
+      "key": "drones",
+      "name": "Drones",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Level of the two plain drones, the low one and the second one."
+    },
+    {
+      "key": "trompette",
+      "name": "Third drone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Level of the third drone, the string that stands on the dog. The bark is made by this string, so it goes with it."
+    },
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 12,
+      "default": 2,
+      "unit": "ct",
+      "description": "Tunes the third drone sharp. A touch makes a fifth over the low drones pure; more beats slowly against them and against the melody."
+    },
+    {
+      "key": "melody",
+      "name": "Melody",
+      "choices": ["Unison", "Octave", "Duo"],
+      "default": 0,
+      "description": "What the two melody strings play: both the newest key, the second one an octave lower, or the two newest keys held."
+    },
+    {
+      "key": "tangents",
+      "name": "Tangents",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Loudness of the wooden key stopping the melody string: a short knock of noise at each change of note."
+    },
+    {
+      "key": "rosin",
+      "name": "Rosin",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How hard the wheel grips the strings. Little rosin is thin and whispering, some is firm, and a lot is raw and rough."
+    },
+    {
+      "key": "noise",
+      "name": "Bow noise",
+      "min": 0,
+      "max": 1,
+      "default": 0.18,
+      "description": "Hiss of the wheel on the strings, let in with each slip of the string. It grows with the wheel's speed."
+    },
+    {
+      "key": "brightness",
+      "name": "Brightness",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much of the upper overtones the strings give, from a covered hum to a bright edge."
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Blend from the bare strings to the wooden box they stand on, which takes off the lowest and highest tones and adds nasal middle resonances."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Places the five strings across the stereo field. At zero all of them sit in the centre."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -12,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when it is turned far up."
+    }
+  ],
+  "meters": [
+    {
+      "key": "wheel",
+      "name": "Wheel place",
+      "display": true
+    },
+    {
+      "key": "buzz",
+      "name": "Bark",
+      "display": true
+    },
+    {
+      "key": "melodyOn",
+      "name": "Melody",
+      "display": true
+    },
+    {
+      "key": "turning",
+      "name": "Wheel speed",
+      "display": true
+    }
+  ],
+  "presets": {
+    "Turning wheel": {},
+    "Still wheel": {
+      "accents": 0,
+      "depth": 0,
+      "dog": 0,
+      "detune": 2,
+      "drones": 0.9,
+      "trompette": 0.7,
+      "body": 0.75,
+      "brightness": 0.42,
+      "spread": 0.7,
+      "noise": 0.1,
+      "spin": 1.2
+    },
+    "Three barks a turn": {
+      "depth": 0.3,
+      "dog": 0.7,
+      "trompette": 0.75,
+      "drones": 0.5,
+      "spread": 0.3,
+      "brightness": 0.58,
+      "body": 0.35
+    },
+    "Even trembling": {
+      "accents": 4,
+      "depth": 0.15,
+      "dog": 0.2,
+      "speed": 0.9,
+      "detune": 3,
+      "drones": 0.8,
+      "rosin": 0.5,
+      "body": 0.3,
+      "spread": 1,
+      "brightness": 0.45,
+      "melody": 1,
+      "volume": -13
+    },
+    "Slow heartbeat": {
+      "accents": 1,
+      "pattern": 1,
+      "depth": 0.65,
+      "dog": 0.35,
+      "drones": 0.8,
+      "brightness": 0.35,
+      "spin": 1,
+      "volume": -13.5
+    },
+    "Cotton whisper": {
+      "accents": 0,
+      "dog": 0,
+      "rosin": 0.1,
+      "noise": 0.5,
+      "brightness": 0.4,
+      "tangents": 0.2,
+      "spin": 0.8,
+      "volume": -10
+    },
+    "Beating fifth": {
+      "accents": 0,
+      "detune": 5,
+      "trompette": 1,
+      "drones": 0.35,
+      "dog": 0,
+      "spread": 0.15,
+      "brightness": 0.6,
+      "tangents": 0.1,
+      "spin": 0.6
+    },
+    "Two voices": {
+      "melody": 2,
+      "split": 4,
+      "accents": 2,
+      "depth": 0.2,
+      "dog": 0.5,
+      "tuning": 2,
+      "drones": 0.4,
+      "trompette": 0.25,
+      "spread": 1,
+      "rosin": 0.3,
+      "body": 0.7,
+      "volume": -9
+    },
+    "Octave below": {
+      "melody": 1,
+      "rosin": 0.5,
+      "depth": 0.25,
+      "brightness": 0.3,
+      "drones": 0.35,
+      "trompette": 0.35,
+      "body": 0.8,
+      "spread": 0.4,
+      "volume": -10
+    },
+    "Raw wheel": {
+      "rosin": 1,
+      "brightness": 0.62,
+      "dog": 0.75,
+      "depth": 0.45,
+      "noise": 0.35,
+      "drones": 0.75,
+      "spin": 0.12,
+      "volume": -13
+    },
+    "Four to the turn": {
+      "speed": 0.75,
+      "accents": 3,
+      "pattern": 2,
+      "depth": 0.6,
+      "dog": 0.8,
+      "drones": 0.45,
+      "trompette": 0.85,
+      "brightness": 0.4,
+      "body": 0.65,
+      "volume": -13.5
+    },
+    "Limping dance": {
+      "speed": 0.9,
+      "accents": 4,
+      "pattern": 1,
+      "depth": 0.5,
+      "dog": 0.75,
+      "spin": 0.2,
+      "drones": 0.3,
+      "body": 0.2,
+      "spread": 0.75
+    },
+    "Open fourth": {
+      "tuning": 1,
+      "drone": 3,
+      "trompette": 0.8,
+      "drones": 0.9,
+      "depth": 0.25,
+      "dog": 0.45,
+      "rosin": 0.32,
+      "spread": 0.8,
+      "spin": 0.9
+    },
+    "Chapel octaves": {
+      "tuning": 2,
+      "accents": 0,
+      "dog": 0,
+      "rosin": 0.3,
+      "spread": 1,
+      "body": 0.85,
+      "detune": 1,
+      "spin": 2,
+      "drones": 0.75,
+      "volume": -11
+    },
+    "Low fifths": {
+      "tuning": 3,
+      "drone": 1,
+      "melody": 1,
+      "speed": 0.35,
+      "accents": 1,
+      "depth": 0.3,
+      "body": 0.8,
+      "brightness": 0.35,
+      "drones": 0.8
+    },
+    "Mad dog": {
+      "speed": 1.2,
+      "accents": 3,
+      "depth": 1,
+      "dog": 1,
+      "rosin": 0.6,
+      "trompette": 0.9,
+      "drones": 0.4,
+      "spread": 0.7,
+      "volume": -17.5
+    },
+    "Long run down": {
+      "spin": 6,
+      "speed": 1.4,
+      "accents": 3,
+      "depth": 0.5,
+      "dog": 0.7,
+      "volume": -11
+    },
+    "Only the drones": {
+      "split": 8,
+      "drones": 0.8,
+      "trompette": 0.7,
+      "detune": 4,
+      "depth": 0.3,
+      "dog": 0.6,
+      "spread": 0.8
+    },
+    "Only the melody": {
+      "split": 0,
+      "drones": 0,
+      "trompette": 0,
+      "accents": 2,
+      "depth": 0.3,
+      "tangents": 0.6,
+      "melody": 1,
+      "rosin": 0.5,
+      "volume": -9
+    },
+    "Wooden keys": {
+      "split": 0,
+      "drone": 3,
+      "tangents": 1,
+      "spin": 0.08,
+      "rosin": 0.35,
+      "accents": 0,
+      "dog": 0,
+      "drones": 0.35,
+      "trompette": 0.25,
+      "volume": -9.5
+    },
+    "Fast flutter": {
+      "speed": 3,
+      "accents": 4,
+      "depth": 0.35,
+      "dog": 0.6,
+      "brightness": 0.65,
+      "spread": 0.9,
+      "drones": 0.35,
+      "trompette": 0.4,
+      "rosin": 0.3,
+      "body": 0.2
+    },
+    "Ten seconds a turn": {
+      "speed": 0.1,
+      "accents": 1,
+      "depth": 0.8,
+      "dog": 0.5,
+      "spin": 3,
+      "drones": 0.7,
+      "noise": 0.3,
+      "volume": -11.5
+    },
+    "Bright reel": {
+      "speed": 1.5,
+      "accents": 1,
+      "pattern": 2,
+      "depth": 0.4,
+      "dog": 0.65,
+      "brightness": 0.9,
+      "rosin": 0.6,
+      "body": 0.15,
+      "drones": 0.4,
+      "trompette": 0.55,
+      "spin": 0.2,
+      "volume": -15.5
+    },
+    "Behind the wall": {
+      "brightness": 0.08,
+      "body": 1,
+      "spread": 0.15,
+      "noise": 0.05,
+      "depth": 0.45,
+      "dog": 0.4,
+      "drones": 0.8,
+      "rosin": 0.25,
+      "volume": -11
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit after the hurdy-gurdy: a wheel that bows melody strings, drones and one drone that stands on a loose, buzzing bridge. A signal model, with no sample and no measurement of an instrument in it. Each string is the ramp and slip of a string under a steady bow, band-limited at twice the sample rate, shaped by a low-pass and a shelf; there is no waveguide and no friction law, so nothing in it can go unstable or out of tune. Rosin moves a second slip in the period (little: it takes out the fundamental; much: it narrows the ramp) and adds uneven slips and drive. The wheel is an even clock with pushes on it; the jerk is the time derivative of the bow's speed and is what opens the dog; the bark is a one-sided contact on the third drone's own motion, then three resonances, a short diffuser for the bridge and its board and a ceiling, all at twice the rate. Choices and not measurements: the 22 ms rise of a push and its cubic fall, the dog's threshold law and its 90 ms chatter, the bridge's three resonances, the seven body resonances a side, the second slips' places, the lean of one melody string on the other and of either on a drone of its own note (six cents at most), every level. Simplified: no sympathetic strings, the strings do not move the bridge for each other but for those leans, the wheel is round but for 2 % of level a turn, the dog stands under the third drone alone, tangents are a burst of noise. Equal-tempered intervals on a tonic at A = 440 Hz unless it is taken from a key. Nobody has listened to it."
+  }
+}

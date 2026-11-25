@@ -1953,6 +1953,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'coloured-noise': { ...PLATE_PALETTES['coloured-noise'], finish: 'speckle', cap: 'dot' },
   'tierce-bells': { ...PLATE_PALETTES['tierce-bells'], finish: 'grain', cap: 'skirt' },
   'hand-horn': { ...PLATE_PALETTES['hand-horn'], finish: 'brushed', cap: 'disc' },
+  'wheel-and-dog': { ...PLATE_PALETTES['wheel-and-dog'], finish: 'grain', cap: 'skirt' },
 }
 
 /**

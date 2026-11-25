@@ -191,6 +191,7 @@ export const PLATE_PALETTES = {
   'coloured-noise': { plate: '#b5503e', ink: '#fff5e9', accent: '#0d1540' },
   'tierce-bells': { plate: '#3cc6a8', ink: '#02231c', accent: '#9a2a10' },
   'hand-horn': { plate: '#cfa600', ink: '#1a1500', accent: '#a50f24' },
+  'wheel-and-dog': { plate: '#8b1200', ink: '#fff1e2', accent: '#ffc861' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
