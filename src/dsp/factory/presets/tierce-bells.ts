@@ -102,9 +102,9 @@ export const TIERCE_BELLS_PRESETS: readonly FactoryPreset[] = [
       params: { release: 0.5 },
     },
     effects: [
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 6.5 } },
       { deviceId: 'tape', preset: 'Quarter inch' },
       { deviceId: 'ether-reverb', preset: 'Room', params: { mix: 0.2 } },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 6.5 } },
     ],
   },
   // Suspensions: the third moves inside the strike.
@@ -209,9 +209,9 @@ export const TIERCE_BELLS_PRESETS: readonly FactoryPreset[] = [
       params: { lean: -31.77, glide: 8, quint: 0.2, hardness: 0.3, humLevel: 0.6 },
     },
     effects: [
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 5.5 } },
       { deviceId: 'tape', preset: 'Worn thin' },
       { deviceId: 'fdn-reverb', preset: 'Dark cave', params: { mix: 0.3 } },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 5.5 } },
     ],
   },
   {
@@ -261,9 +261,9 @@ export const TIERCE_BELLS_PRESETS: readonly FactoryPreset[] = [
       'A cracked bell with a flat hum and pairs that beat four times a second, on a worn disc from a market.',
     instrument: { deviceId: 'tierce-bells', preset: 'Cracked tower' },
     effects: [
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 11.5 } },
       { deviceId: 'vinyl', preset: 'Charity shop find' },
       { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.2 } },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { ceiling: -8, gain: 11.5 } },
     ],
   },
   // Small clocks.
