@@ -201,10 +201,9 @@ export const BUZZING_BRIDGE_DESCRIPTOR = wasmDeviceDescriptor(BUZZING_BRIDGE_DEV
     'Three shells': {
       model: 2,
       amount: 1,
-      rattle: 45,
+      rattle: 60,
       bounces: 3,
-      tone: 6000,
-      mix: 0.8,
+      resonance: 3400,
       width: 0.6,
       threshold: -50,
     },

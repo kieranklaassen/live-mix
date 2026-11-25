@@ -372,7 +372,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     // the sound it came from, by a gain, since a curve here would fold.
     const float loudest = kit::max(std::fabs(y[0]), std::fabs(y[1]));
     crest_ = flush_denormal(loudest + (crest_ - loudest) * (loudest > crest_ ? crest_up_ : crest_down_));
-    const float bound = kit::max(model_ == kShell ? jump_ : loud_, 1.0e-6f);
+    const float bound = kit::max(model_ == kShell ? jump_ : (model_ == kMembrane ? loud_ * open_ : loud_), 1.0e-6f);
     const float over = kit::min(crest_ / (kCeiling * bound), 1.0e4f);
     const float over2 = over * over;
     const float hold = 1.0f / std::sqrt(std::sqrt(1.0f + over2 * over2));

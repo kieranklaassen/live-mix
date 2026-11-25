@@ -380,7 +380,7 @@ static void test_level() {
   std::printf("Amount 1: output over input %.1f dB rms, %.1f dB peak; buzz against the sound %.1f to %.1f dB\n", worst_rms,
               worst_peak, least_buzz, worst_buzz);
   EXPECT(worst_rms < 4.0, "at Amount 1 no more than 4 dB louder");
-  EXPECT(worst_peak < 7.5, "at Amount 1 peaks no more than 7.5 dB over");
+  EXPECT(worst_peak < 6.02, "at Amount 1 peaks no more than 6 dB over");
   EXPECT(worst_buzz < 0.5, "the buzz is no louder than the sound");
   EXPECT(least_buzz > -16.0, "nor lost under it");
 
@@ -723,6 +723,203 @@ static void test_meters() {
   EXPECT_NEAR(device.meter(2) / device.meter(1), 146.83, 3.0, "and where that is");
 }
 
+// --- levels, runs, chords and what is left over --------------------------------------------------
+
+// Detuned saws under a soft slope with a slow start: a held pad.
+static Signal pad(const std::vector<double>& notes, double seconds, double amp) {
+  Signal x(at(seconds), 0.0f);
+  int voice = 1;
+  for (double note : notes) {
+    for (double detune : {-0.0035, 0.0, 0.0041}) {
+      const double hz = note * (1 + detune);
+      for (int k = 1; k < 30 && k * hz < 9000; ++k) {
+        const double a = amp * std::pow(k, -1.5) / (1 + std::pow(k * hz / 3000, 2));
+        for (size_t i = 0; i < x.size(); ++i) {
+          x[i] += static_cast<float>(a * std::min(1.0, i / (0.4 * kRate)) * std::sin(2 * kPi * hz * k * i / kRate + 1.7 * k * voice));
+        }
+      }
+      ++voice;
+    }
+  }
+  return x;
+}
+
+// Whatever it is set to, the peaks are at most twice those of the sound: a
+// search over corners and at random, on the sounds that stood highest.
+static void test_ceiling() {
+  Signal square(at(0.4), 0.0f);
+  for (size_t i = 0; i < square.size(); ++i) square[i] = i % 400 < 200 ? 0.4f : -0.4f;
+  Signal leaps;
+  for (int n = 0; n < 4; ++n) lay(leaps, bar(n % 2 ? 880 : 220, 0.2, n % 2 ? 0.6 : 0.15, 0.4), at(0.1 * n));
+  const std::vector<Signal> sounds = {square, sine(82, 0.4f, kRate, 0.5f), sine(700, 0.4f, kRate, 0.5f), noise(0.3f, kRate, 0.5f),
+                                      leaps, pluck(220, 0.4, 0.6, 1.0)};
+  rng_state() = 4242;
+  double worst = -99.0;
+  for (int n = 0; n < 60; ++n) {
+    set_up({});
+    std::vector<Setting> s;
+    for (int id = 0; id < p::kNumParams; ++id) {
+      double u = 0.5 * (1.0 + white());
+      if (n < 40) u = u < 0.4 ? 0.0 : 1.0;
+      s.push_back({id, static_cast<float>(p::kParamMin[id] + u * (p::kParamMax[id] - p::kParamMin[id]))});
+    }
+    s[p::kModel].value = static_cast<float>(n % BuzzingBridge::kModels);
+    s[p::kAmount].value = s[p::kMix].value = 1.0f;
+    s[p::kThreshold].value = -60.0f;
+    s[p::kOutput].value = 0.0f;
+    for (const Signal& x : sounds) {
+      const Stereo out = through(s, x);
+      worst = std::max(worst, db(std::max(peak(out.left), peak(out.right)) / peak(x)));
+    }
+  }
+  std::printf("peaks over the sound's, worst of 360 renders: %.2f dB\n", worst);
+  EXPECT(worst < 6.02, "no peak is over twice the sound's");
+  EXPECT(worst > 4.5, "and the search finds patches that stand high");
+}
+
+static void test_after_loud() {
+  // Soft notes between loud ones are plain, however long the buzz of the loud
+  // ones is held.
+  const bool loud[8] = {true, false, true, false, false, false, true, false};
+  Signal x(at(2.0), 0.0f);
+  for (int n = 0; n < 8; ++n) lay(x, bar(n % 2 ? 327 : 262, 0.2, loud[n] ? 0.32 : 0.03, 0.15), at(0.25 * n));
+  for (float fall : {300.0f, 1000.0f, 6000.0f}) {
+    const Signal b = buzz_of({{p::kModel, 1}, {p::kThreshold, -26}, {p::kFall, fall}}, x);
+    double worst = 0.0, least = 1.0;
+    for (int n = 0; n < 8; ++n) {
+      const double top = peak(b, at(0.25 * n + (loud[n] ? 0.0 : 0.02)), at(0.25 * n + 0.2));
+      if (loud[n]) least = std::min(least, top);
+      else worst = std::max(worst, top);
+    }
+    std::printf("soft notes after loud ones, Fall %.0f ms: loud %.1f dBFS of buzz at least, soft %.1f at most\n", fall, db(least), db(worst));
+    EXPECT(db(worst) < -70.0, "a soft note after a loud one is plain");
+    EXPECT(db(least) > -32.0, "and each loud one buzzes");
+  }
+  // Curve: how far over Threshold a note must be.
+  const Signal y = sine(220, 0.5f, kRate, 0.1f);
+  const double early = rms(buzz_of({{p::kModel, 1}, {p::kThreshold, -30}, {p::kCurve, 0.0f}}, y), at(0.3), at(0.5));
+  const double late = rms(buzz_of({{p::kModel, 1}, {p::kThreshold, -30}, {p::kCurve, 1.0f}}, y), at(0.3), at(0.5));
+  EXPECT(db(early / late) > 8.0, "Curve is how late the skin speaks up");
+  EXPECT(late > 0.0, "and late is not never");
+}
+
+static void test_accents() {
+  // Every other note half as strong, all ringing on, eight a second.
+  for (int kind = 0; kind < 2; ++kind) {
+    Signal x;
+    for (int n = 0; n < 8; ++n) {
+      const double amp = n % 2 ? 0.15 : 0.3;
+      lay(x, kind == 0 ? pluck(220, 1.5, amp, 2.0) : bar(220 * (1 + 0.12 * (n % 2)), 1.5, amp, 1.0), at(0.125 * n + 0.05));
+    }
+    const Signal b = buzz_of({{p::kModel, 2}, {p::kRattle, 10}, {p::kBounces, 1}, {p::kThreshold, -50}}, x);
+    int heard = 0;
+    for (int n = 0; n < 8; ++n) heard += peak(b, at(0.125 * n + 0.05), at(0.125 * n + 0.08)) > 0.008 ? 1 : 0;
+    std::printf("eight a second, every other at half strength, %s: %d knocked\n", kind == 0 ? "plucks" : "bars", heard);
+    EXPECT(heard == 8, "weak notes among strong ones are attacks too");
+  }
+}
+
+static void test_chords() {
+  int leaps = 0;
+  const std::vector<std::vector<double>> chords = {{220, 277.2, 329.6}, {98, 130.8, 146.8, 196}, {130.8, 164.8, 196, 246.9}, {174.6, 220, 261.6, 329.6}};
+  for (const auto& chord : chords) {
+    const Signal x = pad(chord, 4.0, 0.06);
+    set_up({});
+    double last = 0.0;
+    for (size_t done = 0; done + 128 <= x.size(); done += 128) {
+      for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = x[done + i];
+      device.process(128);
+      const double hz = device.meter(5);
+      if (done > at(0.7) && last > 0.0 && std::fabs(std::log2(hz / last)) > 0.1) ++leaps;
+      last = hz;
+    }
+  }
+  std::printf("four held chords, 3.3 s each: the pitch leaps %d times\n", leaps);
+  EXPECT(leaps <= 5, "the buzz does not go from note to note of a chord");
+  // A slur is followed, and a slide.
+  for (int slide = 0; slide < 2; ++slide) {
+    Signal x(at(1.8), 0.0f);
+    double phase = 0.0;
+    for (size_t i = 0; i < x.size(); ++i) {
+      const double t = i / kRate, hz = slide ? 220 * std::exp2(std::min(1.0, std::max(0.0, (t - 1) / 0.3))) : (t < 1 ? 220 : 330);
+      phase += 2 * kPi * hz / kRate;
+      for (int k = 1; k < 8; ++k) x[i] += static_cast<float>(0.2 / k * std::sin(k * phase));
+    }
+    set_up({});
+    Signal first(x.begin(), x.begin() + at(1.2));
+    run(device, first);
+    if (slide) EXPECT(device.meter(5) > 300.0f, "a slide is followed as it goes");
+    run(device, Signal(x.begin() + at(1.2), x.begin() + at(1.45)));
+    EXPECT_NEAR(device.meter(5), slide ? 440.0 : 330.0, 6.0, "and a note reached with no attack is believed once it stands");
+  }
+}
+
+static void test_default() {
+  // The first thing heard: a pluck and a held pad, both with what they lacked.
+  auto over = [](const Signal& x, double hz, double from, double to) {
+    const Stereo out = through({}, x);
+    return db(above(out.left, hz, at(from), at(to)) / above(x, hz, at(from), at(to)));
+  };
+  const Signal note = pluck(146.83, 2.0, 0.5, 3.0), held = pad({110}, 3.0, 0.1);
+  const double pl = over(note, 1200, 0.4, 0.8), pd = over(held, 2000, 1.0, 2.5);
+  set_up({});
+  run(device, saw(146.83, 0.4, 0.2));
+  const double start = device.meter(1);
+  set_up({});
+  run(device, saw(146.83, 4.0, 0.2));
+  const double end = device.meter(1);
+  std::printf("default: a dying pluck gains %.1f dB over 1.2 kHz, a held pad %.1f dB over 2 kHz; a held note goes from partial %.1f to %.1f\n", pl, pd, start, end);
+  EXPECT(pl > 10.0, "a dying pluck opens");
+  EXPECT(pd > 1.0, "a held pad is edged");
+  EXPECT(start < 4.0 && end > 4.8 && end < 6.5, "a held note climbs half of the way");
+}
+
+static void test_left_overs() {
+  // Distance let down before what was sent into the next room has come out:
+  // it comes out, and is not found there later.
+  Signal x = pluck(220, 2.0, 0.5, 9.0);
+  set_up({{p::kModel, 2}, {p::kThreshold, -60}, {p::kDistance, 1.0f}, {p::kRattle, 5}, {p::kBounces, 1}});
+  double soon = 0.0, late = 0.0;
+  for (size_t done = 0; done + 64 <= x.size(); done += 64) {
+    if (done == 64 * 23) device.set_param(p::kDistance, 0.0f);
+    if (done == 64 * 1000) device.set_param(p::kDistance, 1.0f);
+    for (int i = 0; i < 64; ++i) device.in_left()[i] = device.in_right()[i] = x[done + i];
+    device.process(64);
+    for (int i = 0; i < 64; ++i) {
+      const double d = std::fabs(static_cast<double>(device.out_left()[i]) - x[done + i]);
+      if (done > 64 * 26 && done < 64 * 600) soon = std::max(soon, d);
+      if (done > 64 * 1000) late = std::max(late, d);
+    }
+  }
+  std::printf("the next room, let down: %.1f dBFS comes out, %.1f dBFS is left for later\n", db(soon), db(late));
+  EXPECT(soon > 1.0e-3, "what is on its way arrives");
+  EXPECT(late < 1.0e-6, "and nothing of it is kept");
+
+  // Width turned up in a held note brings no edge.
+  Signal y(at(1.2), 0.0f);
+  for (int k = 1; k < 8; ++k) {
+    for (size_t i = 0; i < y.size(); ++i) y[i] += static_cast<float>(0.18 / (k * k) * std::sin(2 * kPi * 196 * k * i / kRate + k));
+  }
+  set_up({{p::kWidth, 1.0f}, {p::kAmount, 0.8f}});
+  const Stereo always = run(device, y);
+  set_up({{p::kAmount, 0.8f}});
+  Stereo moved = run(device, Signal(y.begin(), y.begin() + 38400));
+  device.set_param(p::kWidth, 1.0f);
+  moved = concat(moved, run(device, Signal(y.begin() + 38400, y.end())));
+  auto edge = [](const Signal& z, size_t from, size_t to) {
+    livemix::kit::Biquad a, b;
+    a.set_highpass(9000, 0.541f, kRate);
+    b.set_highpass(9000, 1.307f, kRate);
+    double top = 0.0;
+    for (size_t i = 0; i < to; ++i) {
+      const double v = std::fabs(b.process(a.process(z[i])));
+      if (i >= from) top = std::max(top, v);
+    }
+    return top;
+  };
+  EXPECT(edge(moved.left, 38300, 40000) < 2.0 * edge(always.left, 30000, 50000), "Width comes up with no click");
+}
+
 int main() {
   Conformance spec;
   spec.name = "buzzing-bridge";
@@ -751,6 +948,12 @@ int main() {
   test_rates();
   test_moves();
   test_meters();
+  test_ceiling();
+  test_after_loud();
+  test_accents();
+  test_chords();
+  test_default();
+  test_left_overs();
 
   const Signal x = pluck(146.83, 10.0, 0.5, 10.0);
   for (int model = 0; model < BuzzingBridge::kModels; ++model) {
