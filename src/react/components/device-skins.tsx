@@ -1952,6 +1952,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'breath-pacer': { ...PLATE_PALETTES['breath-pacer'], finish: 'fade', cap: 'dot' },
   'coloured-noise': { ...PLATE_PALETTES['coloured-noise'], finish: 'speckle', cap: 'dot' },
   'tierce-bells': { ...PLATE_PALETTES['tierce-bells'], finish: 'grain', cap: 'skirt' },
+  'hand-horn': { ...PLATE_PALETTES['hand-horn'], finish: 'brushed', cap: 'disc' },
 }
 
 /**

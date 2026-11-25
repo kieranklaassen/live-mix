@@ -62,6 +62,7 @@ import { GRAIN_DELAY_DESCRIPTOR, GRAIN_DELAY_DEVICE } from './grain-delay.gen'
 import { GRAIN_SYNTH_DESCRIPTOR, GRAIN_SYNTH_DEVICE } from './grain-synth.gen'
 import { GUITAR_DESCRIPTOR, GUITAR_DEVICE } from './guitar.gen'
 import { HALF_SPEED_DESCRIPTOR, HALF_SPEED_DEVICE } from './half-speed.gen'
+import { HAND_HORN_DESCRIPTOR, HAND_HORN_DEVICE } from './hand-horn.gen'
 import { HANDPAN_DESCRIPTOR, HANDPAN_DEVICE } from './handpan.gen'
 import { HARP_DESCRIPTOR, HARP_DEVICE } from './harp.gen'
 import { HAZE_DESCRIPTOR, HAZE_DEVICE } from './haze.gen'
@@ -215,6 +216,7 @@ export * from './grain-delay.gen'
 export * from './grain-synth.gen'
 export * from './guitar.gen'
 export * from './half-speed.gen'
+export * from './hand-horn.gen'
 export * from './handpan.gen'
 export * from './harp.gen'
 export * from './haze.gen'
@@ -370,6 +372,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   GRAIN_SYNTH_DESCRIPTOR,
   GUITAR_DESCRIPTOR,
   HALF_SPEED_DESCRIPTOR,
+  HAND_HORN_DESCRIPTOR,
   HANDPAN_DESCRIPTOR,
   HARP_DESCRIPTOR,
   HAZE_DESCRIPTOR,
@@ -526,6 +529,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   GRAIN_SYNTH_DEVICE,
   GUITAR_DEVICE,
   HALF_SPEED_DEVICE,
+  HAND_HORN_DEVICE,
   HANDPAN_DEVICE,
   HARP_DEVICE,
   HAZE_DEVICE,
@@ -689,6 +693,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'grain-synth', instrument: true, samples: true, zones: false, meters: 0, memoryMb: 12 },
   { id: 'guitar', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'half-speed', instrument: false, samples: false, zones: false, meters: 5, memoryMb: 8 },
+  { id: 'hand-horn', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'handpan', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'haze', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },

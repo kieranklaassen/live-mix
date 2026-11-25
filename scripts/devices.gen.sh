@@ -126,6 +126,8 @@ build_generated_devices() {
     cpp/devices/guitar/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device half-speed \
     cpp/devices/half-speed/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device hand-horn \
+    cpp/devices/hand-horn/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device handpan \
     cpp/devices/handpan/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device harp \
@@ -437,6 +439,8 @@ test_generated_devices() {
     cpp/test/guitar_test.cpp
   native_test half_speed_test \
     cpp/test/half_speed_test.cpp
+  native_test hand_horn_test \
+    cpp/test/hand_horn_test.cpp
   native_test handpan_test \
     cpp/test/handpan_test.cpp
   native_test harp_test \
