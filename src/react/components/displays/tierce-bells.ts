@@ -380,3 +380,467 @@ export function tierceLevels(
 /** The level of the whole bell as the device reports it (`follow`): its partials added as power. */
 export const tierceTotal = (levels: readonly number[]): number =>
   Math.sqrt(levels.reduce((sum, level) => sum + level * level, 0))
+
+// --- The picture ---------------------------------------------------------------
+
+/** The ladder's scale of pitch, as ratios of the prime: what lies above the twelfth is not drawn. */
+const LADDER_LOW = 0.385
+const LADDER_HIGH = 3.15
+/** The length of a rung: dB against a full strike of a partial of level 1. */
+const RUNG_FLOOR_DB = -42
+const RUNG_TOP_DB = 6
+/** The tick on a rung is what is left this long after the strike. */
+export const TIERCE_TICK_SEC = 2
+/** The scale of the third, in cents. */
+const CENTS_LOW = 255
+const CENTS_HIGH = 510
+/** The scale of the glide: a root of time, so that a second and twenty both show. */
+export const TIERCE_TIME_SEC = 24
+/** The strike stands this far into the lane; the point before it is Lean's. */
+const LANE_STRIKE = 8
+/** A drag that comes this near to a named third lands on it, in pixels. */
+const SNAP_PX = 1.6
+/** A bell is followed for at least this long, so a roll does not shake the picture. */
+export const TIERCE_FOLLOWS_SEC = 0.5
+/** The level in the foot is the mean over this long. */
+const LEVEL_SEC = 1
+/** A key's pitch at rest: the octave from middle C. */
+const C4_HZ = 261.6256
+
+export interface TierceLayout {
+  head: { left: number; right: number; baseline: number }
+  /** The rungs stand in `ladder`; their names begin at `names`. */
+  ladder: Box
+  names: number
+  /** The names of the thirds end at `marks`; the lane is right of them. */
+  marks: number
+  lane: Box
+  keys: Box
+  foot: Box
+}
+
+export function tierceLayout(size: Size): TierceLayout {
+  const box: Box = { x: 4, y: 4, w: size.width - 8, h: size.height - 8 }
+  const top = box.y + 12
+  const foot: Box = { x: box.x, y: box.y + box.h - 4, w: box.w, h: 4 }
+  const keys: Box = { x: box.x, y: foot.y - 11, w: box.w, h: 8 }
+  const h = keys.y - 4 - top
+  // The names take what they need; what is left is shared between the rungs and the lane.
+  const spare = box.w - 4 - 31 - 4 - 17 - 5
+  const rungs = Math.round(spare * 0.44)
+  const ladder: Box = { x: box.x + 4, y: top, w: rungs, h }
+  const names = ladder.x + rungs + 3
+  const marks = names + 28 + 4 + 17
+  const left = marks + 6
+  return {
+    head: { left: box.x, right: box.x + box.w, baseline: box.y + 8 },
+    ladder,
+    names,
+    marks,
+    lane: { x: left, y: top, w: box.x + box.w - 4 - left, h },
+    keys,
+    foot,
+  }
+}
+
+/** Where a pitch, as a ratio of the prime, stands on the ladder. */
+export function tierceRungY(ratio: number, ladder: Box): number {
+  const share = Math.log(ratio / LADDER_LOW) / Math.log(LADDER_HIGH / LADDER_LOW)
+  return ladder.y + ladder.h * (1 - share)
+}
+
+/** How long a rung is for a level as the device puts it out before Volume. */
+export function tierceRungWidth(level: number, ladder: Box): number {
+  if (!(level > 0)) return 0
+  const db = 20 * Math.log10(level / TIERCE_LEVEL)
+  return clamp((db - RUNG_FLOOR_DB) / (RUNG_TOP_DB - RUNG_FLOOR_DB), 0, 1) * ladder.w
+}
+
+/** The place the picture shows at rest: the third of the key that Root names. */
+export const tierceRest = (set: TierceSettings): number => tiercePlace(set, set.root)
+
+/** Where a third, in cents, stands in its lane; a third off the scale stands at its edge. */
+export function tierceLaneY(cents: number, lane: Box): number {
+  return lane.y + clamp((CENTS_HIGH - cents) / (CENTS_HIGH - CENTS_LOW), 0, 1) * lane.h
+}
+
+/** Where a time after the strike stands in the lane. */
+export function tierceLaneX(seconds: number, lane: Box): number {
+  const from = lane.x + LANE_STRIKE
+  return from + Math.sqrt(clamp(seconds / TIERCE_TIME_SEC, 0, 1)) * (lane.w - LANE_STRIKE)
+}
+
+/** A third as it is said: its name when it is one of the named ones, else cents. */
+export function tierceName(cents: number): string {
+  const named = TIERCE_NAMED.find((each) => Math.abs(each.cents - cents) < 1)
+  return named ? named.name : `${Math.round(cents)} ct`
+}
+
+/** The newest bell, as the device reports it and the notes date it. */
+interface Ringing {
+  tierce: number
+  place: number
+  level: number
+  hz: number
+  gain: number
+  age: number
+  released: number
+}
+
+interface TierceState extends HeardLevel {
+  /** The strike that is followed: when it was struck and when it was taken up, on the display's clock. */
+  strike: { id: number; at: number; taken: number; gain: number } | null
+  ringing: Ringing | null
+  /** The words of the third, and since when they stand. */
+  said: { words: string; at: number } | null
+}
+
+/**
+ * The bell that is shown on this frame. A new strike is taken up only when the
+ * one followed has been followed for `TIERCE_FOLLOWS_SEC`; until then what was
+ * shown last stands, so fast playing moves the picture twice a second at most.
+ */
+function ringingNow(frame: DisplayFrame<TierceState>): Ringing | null {
+  const { state, now } = frame
+  const hz = frame.meter('prime')
+  if (!frame.powered || !(hz >= 20)) {
+    state.strike = null
+    state.ringing = null
+    return null
+  }
+  // The newest note on the reported bell, else (the reading is a frame behind) the newest of all.
+  const newest = (notes: readonly DisplayNote[]): DisplayNote | null => {
+    let found: DisplayNote | null = null
+    for (const note of notes) if (!found || note.age <= found.age) found = note
+    return found
+  }
+  const note =
+    newest(frame.notes.filter((each) => Math.abs(each.frequency / hz - 1) < 1e-3)) ??
+    newest(frame.notes)
+  const strike = state.strike
+  if (note) {
+    const at = now - note.age
+    const same = strike !== null && strike.id === note.id && Math.abs(strike.at - at) < 0.1
+    if (!same) {
+      if (strike && state.ringing && now - strike.taken < TIERCE_FOLLOWS_SEC) return state.ringing
+      state.strike = { id: note.id, at, taken: now, gain: note.gain }
+    }
+  }
+  state.ringing = {
+    tierce: frame.meter('tierce'),
+    place: frame.meter('place'),
+    level: Math.max(frame.meter('level'), 0),
+    hz,
+    gain: state.strike?.gain ?? 1,
+    // A bell the plate has no note of is taken to have rung for as long as the ticks are dated.
+    age: state.strike ? now - state.strike.at : TIERCE_TICK_SEC,
+    released: note?.released ?? 0,
+  }
+  return state.ringing
+}
+
+/** The words of the third, which change twice a second at most while it glides. */
+function saidNow(state: TierceState, words: string, now: number): string {
+  if (!state.said || (state.said.words !== words && now - state.said.at >= TIERCE_FOLLOWS_SEC))
+    state.said = { words, at: now }
+  return state.said.words
+}
+
+/** The partials that are named beside the ladder; the third and the deciem are told by their colour. */
+const RUNG_NAMES: readonly { role: TierceRole; ratio: number; name: string }[] = [
+  { role: 'hum', ratio: 0.5, name: 'hum' },
+  { role: 'prime', ratio: 1, name: 'prime' },
+  { role: 'fifth', ratio: 1.5, name: 'quint' },
+  { role: 'over', ratio: 2, name: 'nominal' },
+]
+
+function drawLadder(
+  frame: DisplayFrame<TierceState>,
+  at: TierceLayout,
+  set: TierceSettings,
+  cents: number,
+  hz: number,
+  ringing: Ringing | null,
+): void {
+  const { ctx, colours, sampleRate } = frame
+  const { ladder } = at
+  const full = tierceLevels(set, hz, 1, cents, 0, 0, sampleRate)
+  const later = tierceLevels(set, hz, 1, cents, TIERCE_TICK_SEC, 0, sampleRate)
+  let now: number[] | null = null
+  if (ringing) {
+    const shape = tierceLevels(
+      set,
+      hz,
+      ringing.gain,
+      cents,
+      ringing.age,
+      ringing.released,
+      sampleRate,
+    )
+    const total = tierceTotal(shape)
+    if (total > 0) now = shape.map((level) => (level * ringing.level) / total)
+  }
+  rule(ctx, ladder.x, ladder.y, ladder.x, ladder.y + ladder.h, {
+    colour: colours.ink,
+    alpha: INK.rule,
+  })
+  const tied: number[] = []
+  TIERCE_BELLS[set.bell].partials.forEach((partial, k) => {
+    const ratio = tierceRatio(set, partial, cents)
+    if (ratio > LADDER_HIGH) return
+    const y = tierceRungY(ratio, ladder)
+    const moves = partial.role === 'third' || partial.role === 'deciem'
+    if (moves) tied.push(y)
+    const colour = moves ? colours.accent : colours.ink
+    const wide = tierceRungWidth(full[k], ladder)
+    if (wide > 0) {
+      rule(ctx, ladder.x, y, ladder.x + wide, y, { colour, alpha: moves ? INK.trace : INK.text })
+      const left = tierceRungWidth(later[k], ladder)
+      if (left > 0)
+        rule(ctx, ladder.x + left, y - 1.5, ladder.x + left, y + 1.5, { colour, alpha: INK.trace })
+    }
+    if (!now) return
+    const lit = tierceRungWidth(now[k], ladder)
+    if (lit > 0) fillRect(ctx, { x: ladder.x, y: y - 1.5, w: lit, h: 3 }, colour)
+  })
+  // The third and the deciem are an octave apart, always: one line ties them.
+  if (tied.length === 2)
+    trace(
+      ctx,
+      [
+        [ladder.x, tied[0]],
+        [ladder.x - 3, tied[0]],
+        [ladder.x - 3, tied[1]],
+        [ladder.x, tied[1]],
+      ],
+      { colour: colours.accent, width: 1 },
+    )
+  for (const { role, ratio, name } of RUNG_NAMES) {
+    const y = tierceRungY(role === 'hum' ? set.humPitch : ratio, ladder)
+    text(frame, name, at.names, Math.round(y) + 3)
+  }
+}
+
+/** The way of a strike's third to `place`: level before the strike, then the glide on the lane's root of time. */
+function lanePoints(set: TierceSettings, place: number, lane: Box): Point[] {
+  const points: Point[] = [[lane.x, tierceLaneY(place + set.lean, lane)]]
+  const steps = Math.max(8, Math.round(lane.w))
+  for (let i = 0; i <= steps; i++) {
+    const seconds = TIERCE_TIME_SEC * (i / steps) ** 2
+    points.push([
+      tierceLaneX(seconds, lane),
+      tierceLaneY(tierceGlide(place, set.lean, set.glide, seconds), lane),
+    ])
+  }
+  return points
+}
+
+function drawLane(
+  frame: DisplayFrame<TierceState>,
+  at: TierceLayout,
+  set: TierceSettings,
+  ringing: Ringing | null,
+): void {
+  const { ctx, colours } = frame
+  const { lane } = at
+  const right = lane.x + lane.w
+  for (const { name, cents } of TIERCE_NAMED) {
+    const y = tierceLaneY(cents, lane)
+    rule(ctx, lane.x, y, right + 4, y, { colour: colours.ink, alpha: INK.grid })
+    text(frame, name, at.marks, Math.round(y) + 3, { align: 'right' })
+  }
+  const strikeX = tierceLaneX(0, lane)
+  rule(ctx, strikeX, lane.y, strikeX, lane.y + lane.h, { colour: colours.ink, alpha: INK.rule })
+  // A strike's third from Lean away to its place: at rest, and over it the bell that rings.
+  const rest = tierceRest(set)
+  trace(ctx, lanePoints(set, rest, lane), { colour: colours.ink, width: 1.5 })
+  if (ringing && Math.abs(ringing.place - rest) > 1)
+    trace(ctx, lanePoints(set, ringing.place, lane), { colour: colours.accent, width: 1 })
+  // Where it starts off the scale, a mark at the edge says which way it is.
+  const start = rest + set.lean
+  if (start > CENTS_HIGH || start < CENTS_LOW) {
+    const up = start > CENTS_HIGH
+    const y = up ? lane.y : lane.y + lane.h
+    const back = up ? 4 : -4
+    trace(
+      ctx,
+      [
+        [strikeX + 3, y + back],
+        [strikeX + 6, y],
+        [strikeX + 9, y + back],
+      ],
+      { colour: colours.ink, width: 1 },
+    )
+  }
+  // The knob, where the bell at rest does not take its third from it.
+  const [third, lean] = tierceHandles(frame)
+  if (Math.abs(rest - set.tierce) > 1)
+    trace(
+      ctx,
+      [
+        [third.x, third.y],
+        [right + 4, third.y],
+      ],
+      { colour: colours.ink, width: 1, alpha: INK.text, dash: [2, 2] },
+    )
+  if (ringing) {
+    const x = tierceLaneX(ringing.age, lane)
+    dot(ctx, x, tierceLaneY(ringing.tierce, lane), 3, colours.accent, { ring: colours.ink })
+  }
+  handle(frame, lean.x, lean.y, { hot: frame.hot === 'lean', radius: 2.5 })
+  handle(frame, third.x, third.y, { hot: frame.hot === 'tierce' })
+}
+
+function drawKeys(
+  frame: DisplayFrame<TierceState>,
+  at: TierceLayout,
+  set: TierceSettings,
+  key: number,
+  ringing: Ringing | null,
+): void {
+  const { ctx, colours } = frame
+  const { keys } = at
+  const cell = keys.w / 12
+  for (let k = 0; k < 12; k++) {
+    const kind = tierceKind(set, k)
+    const h = kind === 'major' ? keys.h : kind === 'minor' ? keys.h / 2 : 1
+    const lit = ringing !== null && k === key
+    fillRect(
+      ctx,
+      { x: keys.x + k * cell + 1, y: keys.y + keys.h - h, w: cell - 2, h },
+      lit ? colours.accent : colours.ink,
+      lit ? INK.trace : INK.back,
+    )
+  }
+  // The root of the scale, marked under its key while Follow is on.
+  if (set.follow)
+    fillRect(
+      ctx,
+      { x: keys.x + set.root * cell + cell / 2 - 1.5, y: keys.y + keys.h + 1, w: 3, h: 1 },
+      colours.ink,
+    )
+}
+
+const centsPerPixel = (lane: Box): number => (CENTS_HIGH - CENTS_LOW) / lane.h
+
+/**
+ * A point dragged upright moves from the setting it was taken at, so one whose
+ * setting lies off the scale does not jump to the edge it stands on.
+ */
+function dragged(y: number, from: { y: number; value: number }, lane: Box, hold?: DisplayHold) {
+  const start = hold ? (hold.value ??= from.value) : from.value
+  const pressed = hold ? (hold.y ??= from.y) : from.y
+  const moved = pressed - y
+  return { value: start + moved * centsPerPixel(lane), moved }
+}
+
+function tierceHandles(view: DisplayView): [DisplayHandle, DisplayHandle] {
+  const set = tierceSettings((name) => view.value(name))
+  const { lane } = tierceLayout(view)
+  const third = { y: tierceLaneY(set.tierce, lane), value: set.tierce }
+  const thirdX = tierceLaneX(set.glide, lane)
+  const place = tierceRest(set)
+  const lean = { y: tierceLaneY(place + set.lean, lane), value: set.lean }
+  const bounded = (cents: number): number => clamp(cents, TIERCE_LOW, TIERCE_HIGH)
+  return [
+    {
+      key: 'tierce',
+      name: 'Tierce and Glide',
+      x: thirdX,
+      y: third.y,
+      drag: (x, y, hold) => {
+        const { value, moved } = dragged(y, third, lane, hold)
+        let tierce = bounded(value)
+        if (Math.abs(moved) > 0.5) {
+          const near = TIERCE_NAMED.find(
+            (each) => Math.abs(each.cents - tierce) < SNAP_PX * centsPerPixel(lane),
+          )
+          if (near) tierce = bounded(near.cents)
+        }
+        const startX = hold ? (hold.x ??= thirdX) : thirdX
+        const seconds = hold ? (hold.glide ??= set.glide) : set.glide
+        // The same step of the pointer is the same step along the lane's root of time.
+        const share = Math.sqrt(seconds / TIERCE_TIME_SEC) + (x - startX) / (lane.w - LANE_STRIKE)
+        const spec = view.spec('glide')
+        const glide =
+          Math.abs(x - startX) < 0.5 ? seconds : TIERCE_TIME_SEC * Math.max(share, 0) ** 2
+        return { tierce, glide: clamp(glide, spec?.min ?? SHORTEST_GLIDE, spec?.max ?? 20) }
+      },
+      wheel: (steps) => ({ tierce: bounded(set.tierce + steps) }),
+      reset: () => ({
+        tierce: view.spec('tierce')?.default ?? TIERCE_MINOR,
+        glide: view.spec('glide')?.default ?? 1.5,
+      }),
+    },
+    {
+      key: 'lean',
+      name: 'Lean',
+      x: lane.x,
+      y: lean.y,
+      drag: (_x, y, hold) => {
+        const spec = view.spec('lean')
+        const { value, moved } = dragged(y, lean, lane, hold)
+        const near = Math.abs(value) < SNAP_PX * centsPerPixel(lane) && Math.abs(moved) > 0.5
+        return { lean: near ? 0 : clamp(value, spec?.min ?? -231, spec?.max ?? 231) }
+      },
+      wheel: (steps) => ({ lean: clamp(set.lean + steps, -231, 231) }),
+      reset: () => ({ lean: 0 }),
+    },
+  ]
+}
+
+const tierceBells = plateDisplay<TierceState>({
+  place: 'window',
+  columns: 2,
+  params: [
+    'bell',
+    'tierce',
+    'follow',
+    'root',
+    'scale',
+    'lean',
+    'glide',
+    'humPitch',
+    'humLevel',
+    'quint',
+    'upper',
+    'decay',
+    'damping',
+    'hardness',
+  ],
+  live: { meters: true, signal: true, notes: true },
+  info: "Left, a bell's partials by pitch, the third tied to the deciem an octave up; ticks mark what is left after two seconds. Right, the third from Lean to its place over Glide; drag either point. Below, the third each key gets: tall is major, half is minor, a line is the Tierce knob.",
+  init: () => ({ strike: null, ringing: null, said: null, heard: [], shown: 0 }),
+  draw(frame) {
+    ground(frame)
+    const set = tierceSettings((name) => frame.value(name))
+    const at = tierceLayout(frame)
+    const ringing = ringingNow(frame)
+    const hz = ringing?.hz ?? C4_HZ * Math.pow(2, set.root / 12)
+    const cents = ringing?.tierce ?? tierceRest(set)
+
+    text(frame, TIERCE_BELLS[set.bell].name, at.head.left, at.head.baseline)
+    const words = `${pitchName(hz)}  ${tierceName(cents)}`
+    text(frame, saidNow(frame.state, words, frame.now), at.head.right, at.head.baseline, {
+      align: 'right',
+    })
+    drawLadder(frame, at, set, cents, hz, ringing)
+    drawLane(frame, at, set, ringing)
+    drawKeys(frame, at, set, tierceKey(hz), ringing)
+    levelFoot(frame, at.foot, meanOutShare(frame.state, frame, LEVEL_SEC))
+  },
+  handles: (view) => tierceHandles(view),
+})
+
+export const TIERCE_BELLS_FACES: Readonly<Record<string, PlateFace>> = {
+  'tierce-bells': {
+    display: tierceBells,
+    face: ['tierce', 'follow', 'lean', 'glide'],
+    sections: [
+      ['bell', 'hardness', 'decay', 'damping', 'doublet', 'release'],
+      ['tierce', 'follow', 'lean', 'root', 'scale', 'glide'],
+      ['humPitch', 'humLevel', 'quint', 'upper'],
+      ['spread', 'volume'],
+    ],
+  },
+}
