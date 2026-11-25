@@ -16,7 +16,7 @@ export const SILENT_KEYS_PARAMS = {
     unit: '',
     step: 1,
     description:
-      'Which chord of the list is held. Turning it lets the old keys go and holds the new ones; while the list walks it starts again from here.',
+      'Which chord of the list is held. Turning it lets the old keys go and holds the new ones; a list that walks starts again from here.',
   },
   count: {
     id: 1,
@@ -39,7 +39,7 @@ export const SILENT_KEYS_PARAMS = {
     taper: 'linear',
     unit: 's',
     description:
-      'How long each chord is held before the next one is. At zero the chord stays. After a full silence the walk starts again from Chord.',
+      'How long each chord is held before the list walks on; at zero one chord stays. After a long silence the walk starts again from Chord.',
   },
   spacing: {
     id: 3,
@@ -125,7 +125,7 @@ export const SILENT_KEYS_PARAMS = {
       'C6',
     ],
     description:
-      'The key the first chord is built up from. A low root gives more partials for the sound to meet.',
+      'The lowest key of the first chord, which its shape is built up from. A low key brings more partials for the sound to meet.',
   },
   shape1: {
     id: 5,
@@ -163,7 +163,7 @@ export const SILENT_KEYS_PARAMS = {
       'Cluster',
     ],
     description:
-      'The keys held over the root of the first chord. Keys holds the six single keys instead and leaves the root out.',
+      'Which keys are held over the root of the first chord. Keys holds the six single keys instead, and then the root does nothing.',
   },
   root2: {
     id: 6,
@@ -237,7 +237,7 @@ export const SILENT_KEYS_PARAMS = {
       'C6',
     ],
     description:
-      'The key the second chord is built up from. A low root gives more partials for the sound to meet.',
+      'The lowest key of the second chord, which its shape is built up from. A low key brings more partials for the sound to meet.',
   },
   shape2: {
     id: 7,
@@ -275,7 +275,7 @@ export const SILENT_KEYS_PARAMS = {
       'Cluster',
     ],
     description:
-      'The keys held over the root of the second chord. Keys holds the six single keys instead and leaves the root out.',
+      'Which keys are held over the root of the second chord. Keys holds the six single keys instead, and then the root does nothing.',
   },
   root3: {
     id: 8,
@@ -349,7 +349,7 @@ export const SILENT_KEYS_PARAMS = {
       'C6',
     ],
     description:
-      'The key the third chord is built up from. A low root gives more partials for the sound to meet.',
+      'The lowest key of the third chord, which its shape is built up from. A low key brings more partials for the sound to meet.',
   },
   shape3: {
     id: 9,
@@ -387,7 +387,7 @@ export const SILENT_KEYS_PARAMS = {
       'Cluster',
     ],
     description:
-      'The keys held over the root of the third chord. Keys holds the six single keys instead and leaves the root out.',
+      'Which keys are held over the root of the third chord. Keys holds the six single keys instead, and then the root does nothing.',
   },
   root4: {
     id: 10,
@@ -461,7 +461,7 @@ export const SILENT_KEYS_PARAMS = {
       'C6',
     ],
     description:
-      'The key the fourth chord is built up from. A low root gives more partials for the sound to meet.',
+      'The lowest key of the fourth chord, which its shape is built up from. A low key brings more partials for the sound to meet.',
   },
   shape4: {
     id: 11,
@@ -499,7 +499,7 @@ export const SILENT_KEYS_PARAMS = {
       'Cluster',
     ],
     description:
-      'The keys held over the root of the fourth chord. Keys holds the six single keys instead and leaves the root out.',
+      'Which keys are held over the root of the fourth chord. Keys holds the six single keys instead, and then the root does nothing.',
   },
   root5: {
     id: 12,
@@ -573,7 +573,7 @@ export const SILENT_KEYS_PARAMS = {
       'C6',
     ],
     description:
-      'The key the fifth chord is built up from. A low root gives more partials for the sound to meet.',
+      'The lowest key of the fifth chord, which its shape is built up from. A low key brings more partials for the sound to meet.',
   },
   shape5: {
     id: 13,
@@ -611,7 +611,7 @@ export const SILENT_KEYS_PARAMS = {
       'Cluster',
     ],
     description:
-      'The keys held over the root of the fifth chord. Keys holds the six single keys instead and leaves the root out.',
+      'Which keys are held over the root of the fifth chord. Keys holds the six single keys instead, and then the root does nothing.',
   },
   root6: {
     id: 14,
@@ -685,7 +685,7 @@ export const SILENT_KEYS_PARAMS = {
       'C6',
     ],
     description:
-      'The key the sixth chord is built up from. A low root gives more partials for the sound to meet.',
+      'The lowest key of the sixth chord, which its shape is built up from. A low key brings more partials for the sound to meet.',
   },
   shape6: {
     id: 15,
@@ -723,7 +723,7 @@ export const SILENT_KEYS_PARAMS = {
       'Cluster',
     ],
     description:
-      'The keys held over the root of the sixth chord. Keys holds the six single keys instead and leaves the root out.',
+      'Which keys are held over the root of the sixth chord. Keys holds the six single keys instead, and then the root does nothing.',
   },
   root7: {
     id: 16,
@@ -797,7 +797,7 @@ export const SILENT_KEYS_PARAMS = {
       'C6',
     ],
     description:
-      'The key the seventh chord is built up from. A low root gives more partials for the sound to meet.',
+      'The lowest key of the seventh chord, which its shape is built up from. A low key brings more partials for the sound to meet.',
   },
   shape7: {
     id: 17,
@@ -835,7 +835,7 @@ export const SILENT_KEYS_PARAMS = {
       'Cluster',
     ],
     description:
-      'The keys held over the root of the seventh chord. Keys holds the six single keys instead and leaves the root out.',
+      'Which keys are held over the root of the seventh chord. Keys holds the six single keys instead, and then the root does nothing.',
   },
   root8: {
     id: 18,
@@ -909,7 +909,7 @@ export const SILENT_KEYS_PARAMS = {
       'C6',
     ],
     description:
-      'The key the eighth chord is built up from. A low root gives more partials for the sound to meet.',
+      'The lowest key of the eighth chord, which its shape is built up from. A low key brings more partials for the sound to meet.',
   },
   shape8: {
     id: 19,
@@ -947,7 +947,7 @@ export const SILENT_KEYS_PARAMS = {
       'Cluster',
     ],
     description:
-      'The keys held over the root of the eighth chord. Keys holds the six single keys instead and leaves the root out.',
+      'Which keys are held over the root of the eighth chord. Keys holds the six single keys instead, and then the root does nothing.',
   },
   key1: {
     id: 20,
@@ -1058,7 +1058,7 @@ export const SILENT_KEYS_PARAMS = {
       'C8',
     ],
     description:
-      'The first of six single keys, held whenever the shape of a chord is Keys. Off holds nothing.',
+      "The first of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing.",
   },
   key2: {
     id: 21,
@@ -1169,7 +1169,7 @@ export const SILENT_KEYS_PARAMS = {
       'C8',
     ],
     description:
-      'The second of six single keys, held whenever the shape of a chord is Keys. Off holds nothing.',
+      "The second of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing.",
   },
   key3: {
     id: 22,
@@ -1280,7 +1280,7 @@ export const SILENT_KEYS_PARAMS = {
       'C8',
     ],
     description:
-      'The third of six single keys, held whenever the shape of a chord is Keys. Off holds nothing.',
+      "The third of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing.",
   },
   key4: {
     id: 23,
@@ -1391,7 +1391,7 @@ export const SILENT_KEYS_PARAMS = {
       'C8',
     ],
     description:
-      'The fourth of six single keys, held whenever the shape of a chord is Keys. Off holds nothing.',
+      "The fourth of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing.",
   },
   key5: {
     id: 24,
@@ -1502,7 +1502,7 @@ export const SILENT_KEYS_PARAMS = {
       'C8',
     ],
     description:
-      'The fifth of six single keys, held whenever the shape of a chord is Keys. Off holds nothing.',
+      "The fifth of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing.",
   },
   key6: {
     id: 25,
@@ -1613,7 +1613,7 @@ export const SILENT_KEYS_PARAMS = {
       'C8',
     ],
     description:
-      'The sixth of six single keys, held whenever the shape of a chord is Keys. Off holds nothing.',
+      "The sixth of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing.",
   },
   partials: {
     id: 26,
@@ -1643,11 +1643,11 @@ export const SILENT_KEYS_PARAMS = {
     name: 'Sharpness',
     min: 0,
     max: 1,
-    default: 0.55,
+    default: 0.5,
     taper: 'linear',
     unit: '',
     description:
-      'How closely a sound has to match a partial to wake it. Low lets noise, clicks and near misses in; high answers only held, matching tones.',
+      'How closely a sound has to match a partial to wake it. Low lets near misses and glides in; at the top noise and clicks wake next to nothing, only held, matching tones do.',
   },
   ring: {
     id: 29,
@@ -1680,14 +1680,14 @@ export const SILENT_KEYS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Adds two free strings, one and two octaves under the lowest key, at this level. They answer more of what is played, their partials lying closer.',
+      'Adds free strings one and two octaves under the lowest key, where the keyboard goes that far. They answer more of what is played, their partials lying closer.',
   },
   lift: {
     id: 32,
     name: 'Lift',
     min: 0,
     max: 36,
-    default: 18,
+    default: 22,
     taper: 'linear',
     unit: 'dB',
     description:
@@ -1832,9 +1832,9 @@ export const SILENT_KEYS_DESCRIPTOR = wasmDeviceDescriptor(SILENT_KEYS_DEVICE, {
       partials: 12,
       lowCut: 400,
       sharpness: 0.2,
-      lift: 30,
+      lift: 23,
       ring: 6,
-      output: 2,
+      output: 1.5,
     },
     'Dark strings': {
       root1: 21,

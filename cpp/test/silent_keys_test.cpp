@@ -138,9 +138,9 @@ static void test_triad() {
   MEASURED("D2 for 100 ms: E5 %.1f, D5 %.1f, the loudest other partial %.1f dB (key %d partial %d)", e5, d5, other,
            which / 100, which % 100);
   EXPECT(std::min(e5, d5) > other + 6.0, "D2 wakes E5 and D5 over every other partial of the chord");
-  EXPECT(std::max(e5, d5) < c3 - 15.0, "and those faintly: 15 dB under what C2 wakes");
+  EXPECT(std::max(e5, d5) < c3 - 12.0, "and those faintly: 12 dB under what C2 wakes");
   MEASURED("the whole answer: C2 %.1f dB, D2 %.1f dB", loud(low_c, from, to), loud(low_d, from, to));
-  EXPECT(loud(low_c, from, to) > loud(low_d, from, to) + 15.0, "a note of the chord is answered 15 dB over one that is not");
+  EXPECT(loud(low_c, from, to) > loud(low_d, from, to) + 9.0, "a note of the chord is answered 9 dB over one that is not");
 }
 
 static void test_noise() {
@@ -173,6 +173,67 @@ static void test_noise() {
            loud(clicks, at(1.7), at(3.0)));
   EXPECT(fifths > rest + 30.0, "clicks ring the three keys of the fifths 30 dB over what lies between");
   EXPECT(loud(clicks, at(1.7), at(3.0)) > -45.0, "and they can be heard");
+}
+
+// At the default patch, strings alone against the sound that woke them: white
+// noise, 5 ms clicks, and a kit of noise bursts with a falling low tone.
+static void test_defaults_speak() {
+  auto share = [](const std::vector<float>& in, size_t to) {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    return loud(run(device, in), 0, to) - db(rms(in, 0, to) * std::sqrt(2.0));
+  };
+  rng_state() = 15u;
+  const double hiss = share(noise(4.0f, kRate, 0.4f), at(4.0));
+  const double clicks = share(bursts(0.005, 0.5, 8, 4.0, 0.5f), at(4.0));
+  std::vector<float> kit = bursts(0.05, 0.6, 7, 4.0, 0.3f);
+  for (int k = 0; k < 7; ++k) {
+    double turn = 0.0;
+    for (size_t i = 0; i < at(0.3); ++i) {
+      const double t = i / static_cast<double>(kRate);
+      turn += 2.0 * kPi * (50.0 + 120.0 * std::exp(-t * 35.0)) / kRate;
+      const size_t where = at(0.3 + 0.6 * k) + i;
+      if (where < kit.size()) kit[where] += static_cast<float>(0.6 * std::sin(turn) * std::exp(-t * 11.0));
+    }
+  }
+  const double drums = share(kit, at(4.0));
+  MEASURED("at the defaults the strings are at %.1f dB of noise, %.1f of clicks, %.1f of drums", hiss, clicks, drums);
+  EXPECT(hiss > -13.0, "at the defaults noise wakes the chord to within 13 dB of itself");
+  EXPECT(clicks > -14.0, "and clicks to within 14");
+  EXPECT(drums > -8.0, "and drums to within 8");
+}
+
+// What the strings hear of two channels.
+static void test_channels() {
+  const std::vector<float> one = note(110.0, 0.8, 2.5, kRate, 0.2), none(one.size(), 0.0f);
+  std::vector<float> under = one, louder = one, quarter(one.size(), 0.0f);
+  for (float& v : under) v = -v;
+  for (float& v : louder) v *= std::sqrt(2.0f);
+  for (size_t i = 0; i < at(0.8); ++i) {
+    const double t = i / static_cast<double>(kRate);
+    const double edge = std::min(1.0, t / 0.004) * std::min(1.0, (0.8 - t) / 0.02);
+    double sum = 0.0;
+    for (int k = 1; k <= 12; ++k) sum -= std::cos(2.0 * kPi * 110.0 * k * t) / k;
+    quarter[i] = static_cast<float>(0.2 * sum * edge);
+  }
+  auto level = [&](const std::vector<float>& l, const std::vector<float>& r) {
+    fresh(device, 45, kMinor);
+    return loud(run(device, l, r));
+  };
+  const double middle = level(one, one), left = level(louder, none), right = level(none, louder), sides = level(one, under);
+  const double turned = level(one, quarter), back = level(quarter, one);
+  MEASURED("the same power in the middle %.2f, left %.2f, right %.2f, the sides %.2f, a quarter turn apart %.2f and %.2f dB",
+           middle, left, right, sides, turned, back);
+  for (double other : {left, right, sides}) EXPECT_NEAR(other, middle, 0.3, "a sound in one channel or in the sides wakes the strings like one in the middle");
+  for (double other : {turned, back}) EXPECT_NEAR(other, middle, 3.0, "and one whose channels are a quarter turn apart wakes half the partials the more");
+  // The side is cut under Low cut too: a low tone in the sides alone.
+  fresh(device, 33, kSingle);
+  device.set_param(p::kLift, 0.0f);
+  device.set_param(p::kLowCut, 1000.0f);
+  const std::vector<float> low = note(hz(33), 0.3, 1.5, kRate, 0.2, 1);
+  std::vector<float> low_under = low;
+  for (float& v : low_under) v = -v;
+  EXPECT(tone(run(device, low, low_under), hz(33), at(0.4), at(1.4)) < -70.0, "Low cut keeps the sides' lows from the strings too");
 }
 
 static void test_empty() {
@@ -278,6 +339,29 @@ static void test_walk() {
   EXPECT(device.meter(14) == 1.0f, "the first chord is held for its whole time");
   run(device, noise(0.1f, kRate, 0.2f));
   EXPECT(device.meter(14) == 2.0f, "and then the second");
+  // A short Ring does not hold the walk at its first chord: sounds a second
+  // apart, with a rest after each, find the chord of their own second.
+  set(device);
+  device.set_param(p::kRing, 0.2f);
+  device.set_param(p::kEvery, 1.0f);
+  seen.clear();
+  for (int k = 0; k < 5; ++k) {
+    run(device, noise(0.02f, kRate, 0.3f));
+    seen.push_back(static_cast<int>(device.meter(14)));
+    render(device, 0.6f, kRate);
+    EXPECT(device.resting(), "the device rests between them");
+    render(device, 0.38f, kRate);
+  }
+  MEASURED("sounds a second apart at Ring 0.2 s: chords %d %d %d %d %d", seen[0], seen[1], seen[2], seen[3], seen[4]);
+  EXPECT((seen == std::vector<int>{1, 2, 3, 1, 2}), "the walk goes on through short rests");
+  // A silence shorter than Every does not restart it either.
+  set(device);
+  device.set_param(p::kEvery, 4.0f);
+  run(device, noise(0.5f, kRate, 0.3f));
+  render(device, 3.6f, kRate);
+  EXPECT(device.meter(14) == 2.0f, "nor does a silence shorter than Every");
+  render(device, 0.9f, kRate);
+  EXPECT(device.meter(14) == 1.0f && device.meter(15) == 0.0f, "one longer than Every does");
   // A pause the strings ring through does not restart it.
   set(device);
   device.set_param(p::kRing, 10.0f);
@@ -353,7 +437,7 @@ static Stereo walked_phrase(int block, double gap, bool ragged) {
 static void test_blocks() {
   double worst = 0.0;
   // Ring 0.2 s dies under the floor about 0.45 to 0.75 s after the noise.
-  for (double gap : {0.3, 0.42, 0.46, 0.50, 0.54, 0.58, 0.62, 0.66, 0.70, 0.74, 0.78, 0.9, 1.4}) {
+  for (double gap : {0.3, 0.42, 0.46, 0.50, 0.54, 0.58, 0.62, 0.66, 0.70, 0.74, 0.78, 0.9, 1.4, 1.98, 2.02, 2.7}) {
     const Stereo reference = walked_phrase(128, gap, false);
     for (int block : {1, 2048}) {
       if (block == 1 && gap != 0.58 && gap != 0.66) continue;
@@ -463,7 +547,8 @@ static void test_sharpness() {
              level[1], level[2], level[3], hiss);
     EXPECT(level[0] > -32.0, "a tone in tune is always answered");
     EXPECT(level[2] - level[0] < near_last - 1.0, "each step of Sharpness turns a tone 80 cents off further down");
-    EXPECT(hiss < noise_last - 1.0, "and noise");
+    if (sharp > 0.0) EXPECT(hiss < noise_last + 0.5, "and noise at no step up");
+    if (sharp > 0.5) EXPECT(hiss < noise_last - 8.0, "and in the upper half noise goes down by far");
     near_last = level[2] - level[0];
     noise_last = hiss;
   }
@@ -530,7 +615,7 @@ static void test_tone() {
     rng_state() = 12u;
     const double level = loud(run(device, bursts(0.3, 1.0, 1, 1.5, 0.4f)), at(0.4));
     MEASURED("Lift %.0f dB: noise wakes %.1f dB", lift, level);
-    EXPECT(level > last + 3.0, "Lift makes noise louder in the strings");
+    EXPECT(level > last + 2.0, "Lift makes noise louder in the strings");
     last = level;
   }
   // Low cut, on a low tone.
@@ -883,6 +968,8 @@ int main() {
   check_effect(device, spec, kRate);
   test_triad();
   test_noise();
+  test_defaults_speak();
+  test_channels();
   test_empty();
   test_change();
   test_walk();

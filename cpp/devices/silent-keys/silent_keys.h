@@ -7,7 +7,7 @@
 //
 //   in --+-----------------------------------------------------------> dry --+
 //        |                                                                   (+)-> Output
-//        +-> mono -> low cut -+-> listeners -> gate -> strings -> pan -> ceiling
+//        +-> both -> low cut -+-> listeners -> gate -> strings -> pan -> ceiling
 //                             |   (one a partial)  ^   (one mode a partial)
 //                             +-> level follower --+
 //
@@ -55,17 +55,25 @@
 //   sixteen dying. Only when those run out (the chord knob swept) is the
 //   oldest dying string faded in 20 ms, and the change waits for it.
 // - The walk. With Every over zero the list goes 1..Count from Chord, a chord
-//   each Every seconds of the device's own sample count. The rule: the walk
-//   starts again from Chord, with a whole Every to go, on the first sample of
-//   sound after a rest, and on a move of the Chord knob. A rest begins when
-//   the input has been exact zero for kRestSeconds and every string is under
-//   the floor, both counted in samples and control ticks (which are counted
-//   from the last start), so it does not depend on the block size. Until the
-//   strings have died the walk goes on through a pause.
+//   each Every seconds of the device's own sample count, through pauses and
+//   through rest too. The rule: it starts again from Chord, with a whole Every
+//   to go, on a move of the Chord knob, and where the strings have died and
+//   the input has been exact zero for kPauseSeconds or a whole Every,
+//   whichever is longer; it then stands there until the first sample of sound.
+//   All of it is counted in samples and control ticks (which are counted from
+//   the first sample after a rest), so it does not depend on the block size.
+//   A rest begins when the input has been exact zero for kRestSeconds and
+//   every string is under the floor.
 // - Rest is also the sleep: at rest every state is zero, nothing is worked
 //   out, and a knob moved is in place for the next sound.
-// - The strings hear the middle of the sound, (left + right) / 2: what is only
-//   in the sides wakes nothing.
+// - The strings hear both channels. The middle, (left + right) / 2, is the real
+//   part of what a listener hears and the side, (left - right) / 2, its
+//   imaginary part, a quarter turn away: the two add as powers, so a sound in
+//   one channel or in the sides alone wakes the strings as one in the middle
+//   of the same power does. Only a sound whose channels are a quarter turn
+//   apart meets itself there, and every second partial hears the side the
+//   other way round, so half of them answer it whatever it is. A sound alike
+//   in both channels has no side.
 // - A sample that is not a number is heard as silence; the dry path is held to
 //   +-kBound and what the strings hear to +-kDriveBound.
 //
@@ -86,9 +94,10 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
   static constexpr int kChords = 8;
   static constexpr int kTick = 32;                 // control period, samples
   static constexpr float kRestSeconds = 0.25f;
+  static constexpr float kPauseSeconds = 2.0f;     // the shortest silence the walk starts again after
   static constexpr float kFloorEnergy = 1.0e-14f;  // of one string: -140 dBFS
-  static constexpr float kLevelShare = 0.3f;       // c, where the drive is down by half, as a share of the sound's power
-  static constexpr float kLevelPower = 0.05f;      // and at the most
+  static constexpr float kLevelShare = 0.2f;       // c, where the drive is down by half, as a share of the sound's power
+  static constexpr float kLevelPower = 0.035f;     // and at the most
   static constexpr float kDriveScale = 5.0f;       // growth per second of a mode on a tone of 1, at a 4 s decay
   static constexpr float kInharmonicity = 1.5e-5f;
   static constexpr float kFadeSeconds = 0.02f;     // a dying string whose place is needed
@@ -102,6 +111,8 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     rest_after_ = static_cast<long>(kRestSeconds * sr);
+    pause_ = static_cast<long>(kPauseSeconds * sr);
+    silent_ = kLongSilence;
     fade_length_ = static_cast<int>(kFadeSeconds * sr / kTick) + 1;
     dry_gain_.set_time(kSmoothingSeconds, sr);
     wet_gain_.set_time(kSmoothingSeconds, sr);
@@ -154,25 +165,17 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
   void process(int frames) {
     frames = begin_block(frames);
     int i = 0;
-    if (resting_) {
-      // Every state is at rest: wait for the first sample that carries sound.
-      while (i < frames && guard(in_left_[i]) == 0.0f && guard(in_right_[i]) == 0.0f) {
-        in_left_[i] = in_right_[i] = 0.0f;
-        out_left_[i] = out_right_[i] = 0.0f;
-        ++i;
-      }
-      if (i == frames) return;
-      arrive();
-    }
     while (i < frames) {
       if (resting_) {
-        // Rest began inside this block; sound may come back inside it too.
-        if (guard(in_left_[i]) == 0.0f && guard(in_right_[i]) == 0.0f) {
+        // Every state is at rest: wait for the first sample that carries sound.
+        const int from = i;
+        while (i < frames && guard(in_left_[i]) == 0.0f && guard(in_right_[i]) == 0.0f) {
           in_left_[i] = in_right_[i] = 0.0f;
           out_left_[i] = out_right_[i] = 0.0f;
           ++i;
-          continue;
         }
+        pass(i - from);
+        if (i == frames) return;
         arrive();
       }
       if (tick_left_ == 0) {
@@ -195,13 +198,15 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
   static constexpr float kListenFrom = 0.004f;  // the listener's time at 220 Hz, Sharpness 0
   static constexpr float kListenSpan = 30.0f;   // times this at 1
   static constexpr float kGateFrom = 6.0e-5f;   // the gate's knee as a share of the sound's power
-  static constexpr float kGateSpan = 800.0f;    // times this at Sharpness 1
+  static constexpr float kGateSpan = 800.0f;    // times this at Sharpness 1, as its square goes up
 
   static constexpr float kOffFrom = 120.0f;     // how many cents off a sound may be, Sharpness 0
   static constexpr float kOffSpan = 1.0f / 15.0f;  // times this at 1
   static constexpr float kLeastOffHz = 0.7f;
   static constexpr float kNearSeconds = 0.008f;  // the second hearing, for how far off a sound is
   static constexpr float kLeanSeconds = 0.03f;   // and how long that is averaged over, at the least (the listener's time)
+
+  static constexpr long kLongSilence = 1L << 24;  // samples: over a whole Every at the longest, at 192 kHz
 
   enum State : int { kFree = 0, kHeldDown, kDying, kFading };
 
@@ -508,16 +513,33 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
     resting_ = true;
     for (int s = 0; s < kStrings; ++s) strings_[s].state = kFree;
     tick_left_ = 0;
-    silent_ = rest_after_;
     heard_ = loud_ = 0.0f;
+    pass(0);
     settle_at_rest();
   }
 
-  // At rest a knob is where it points, and the walk stands at its start.
+  // `count` samples of rest: the walk goes on, until it has been long enough
+  // to start again.
+  void pass(int count) {
+    const int before = now_;
+    silent_ = silent_ < kLongSilence ? silent_ + count : kLongSilence;
+    if (silent_ >= pause_ && silent_ >= step_length_) {
+      now_ = chord_of(param(silent_keys::kChord));
+      walked_ = 0;
+    } else if (walking()) {
+      walked_ += count;
+      while (walked_ >= step_length_) {
+        walked_ -= step_length_;
+        now_ = after(now_);
+      }
+    }
+    if (now_ != before) settle_at_rest();
+  }
+
+  int after(int chord) const { return chord + 1 < whole(param(silent_keys::kCount)) ? chord + 1 : 0; }
+
+  // At rest a knob is where it points.
   void settle_at_rest() {
-    using namespace silent_keys;
-    now_ = chord_of(param(kChord));
-    walked_ = 0;
     dry_gain_.snap(dry_gain_.target);
     wet_gain_.snap(wet_gain_.target);
     output_.snap(output_.target);
@@ -531,12 +553,18 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
     resting_ = false;
     settle_at_rest();
     low_cut_.reset();
+    side_cut_.reset();
     low_cut_hz_ = param(silent_keys::kLowCut);
-    low_cut_.set(low_cut_hz_, kit::kSqrtHalf, sample_rate());
+    set_low_cut();
     chord_due_ = tune_due_ = listen_due_ = decay_due_ = weigh_due_ = false;
     chord_due_ = !hold();
     tick_left_ = 0;
     silent_ = 0;
+  }
+
+  void set_low_cut() {
+    low_cut_.set(low_cut_hz_, kit::kSqrtHalf, sample_rate());
+    side_cut_.set(low_cut_hz_, kit::kSqrtHalf, sample_rate());
   }
 
   bool all_dead() const {
@@ -553,7 +581,7 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
       if (walked_ >= step_length_) {
         walked_ -= step_length_;
         if (walked_ >= step_length_) walked_ = 0;
-        now_ = now_ + 1 < whole(param(kCount)) ? now_ + 1 : 0;
+        now_ = after(now_);
         chord_due_ = true;
       }
       walked_ += kTick;
@@ -573,7 +601,7 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
     if (low_cut_hz_ != param(kLowCut)) {
       low_cut_hz_ += (param(kLowCut) - low_cut_hz_) * pan_move_;
       if (std::fabs(low_cut_hz_ - param(kLowCut)) < 0.01f) low_cut_hz_ = param(kLowCut);
-      low_cut_.set(low_cut_hz_, kit::kSqrtHalf, sample_rate());
+      set_low_cut();
     }
 
     // What the strings hold, and what that leaves of the drive: the chord's
@@ -600,7 +628,7 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
     if (heard_ < 1.0e-20f) heard_ = 0.0f;
     if (loud_ < 1.0e-20f) loud_ = 0.0f;
     const float sharp = param(kSharpness);
-    const float knee = sharp > 0.0f ? kGateFrom * std::pow(kGateSpan, sharp) * kit::min(1.0f, 10.0f * sharp) : 0.0f;
+    const float knee = sharp > 0.0f ? kGateFrom * std::pow(kGateSpan, sharp * sharp) * kit::min(1.0f, 10.0f * sharp) : 0.0f;
     const float open = kit::min(1.0f, 10.0f * sharp);
     const float floor = 2.0f * heard_ * knee + 1.0e-20f;
     const float lift = kit::db_to_gain(param(kLift));
@@ -661,22 +689,23 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
 
   // n samples from `from`, all inside one control tick.
   void render(int from, int n) {
-    float drive[kTick], dry_left[kTick], dry_right[kTick], wet_left[kTick], wet_right[kTick], sum[kTick];
+    float middle[kTick], side[kTick], other_side[kTick], dry_left[kTick], dry_right[kTick], wet_left[kTick], wet_right[kTick], sum[kTick];
     for (int i = 0; i < n; ++i) {
       float l, r;
       take_input(from + i, &l, &r);
       dry_left[i] = l = guard(l);
       dry_right[i] = r = guard(r);
       if (l == 0.0f && r == 0.0f) {
-        if (silent_ < rest_after_) ++silent_;
+        if (silent_ < kLongSilence) ++silent_;
       } else {
         silent_ = 0;
       }
-      const float x = low_cut_.highpass(kit::clamp(0.5f * (l + r), -kDriveBound, kDriveBound));
-      const float power = x * x;
+      middle[i] = low_cut_.highpass(kit::clamp(0.5f * (l + r), -kDriveBound, kDriveBound));
+      side[i] = side_cut_.highpass(kit::clamp(0.5f * (l - r), -kDriveBound, kDriveBound));
+      other_side[i] = -side[i];
+      const float power = middle[i] * middle[i] + side[i] * side[i];
       heard_ += (power - heard_) * (power > heard_ ? follow_up_ : follow_down_);
       loud_ += (power - loud_) * (power > loud_ ? follow_up_ : loud_down_);
-      drive[i] = x;
       wet_left[i] = wet_right[i] = 0.0f;
     }
     for (int s = 0; s < kStrings; ++s) {
@@ -684,7 +713,7 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
       if (string.state == kFree) continue;
       for (int i = 0; i < n; ++i) sum[i] = 0.0f;
       if (string.state == kHeldDown) {
-        ring_held(string, drive, sum, n);
+        ring_held(string, middle, (string.note & 1) == 0 ? side : other_side, sum, n);
       } else {
         ring_free(string, sum, n);
       }
@@ -708,7 +737,7 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
   // listener. (One partial's samples each wait for the one before, so two
   // side by side cost little more than one.) An odd last one runs beside a
   // silent mode past the count.
-  static void ring_held(String& string, const float* x, float* sum, int n) {
+  static void ring_held(String& string, const float* middle, const float* side, float* sum, int n) {
     for (int m = 0; m < string.count; m += 2) {
       const int k = m + 1;
       const float hr = string.hear_re[m], hi = string.hear_im[m], hg = string.hear_in[m];
@@ -718,11 +747,11 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
       float yr = string.y_re[m], yi = string.y_im[m], zr = string.z_re[m], zi = string.z_im[m];
       float ur = string.y_re[k], ui = string.y_im[k], wr = string.z_re[k], wi = string.z_im[k];
       for (int i = 0; i < n; ++i) {
-        const float in = x[i];
+        const float in = middle[i], across = side[i];
         const float nyr = hr * yr - hi * yi + hg * in;
         const float nur = kr * ur - ki * ui + kg * in;
-        yi = hi * yr + hr * yi;
-        ui = ki * ur + kr * ui;
+        yi = hi * yr + hr * yi + hg * across;
+        ui = ki * ur + kr * ui - kg * across;
         yr = nyr;
         ur = nur;
         const float nzr = ar * zr - ai * zi + ad * yr;
@@ -820,7 +849,7 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
   }
 
   String strings_[kStrings];
-  kit::Svf low_cut_;
+  kit::Svf low_cut_, side_cut_;
   kit::Smoother dry_gain_, wet_gain_, output_;
   int held_note_[kKeys] = {-1, -1, -1, -1, -1, -1};
   int now_ = 0;             // the chord held
@@ -829,6 +858,7 @@ class SilentKeys : public kit::DeviceBase<silent_keys::kNumParams> {
   long serial_ = 0;         // counts dampers coming down
   long silent_ = 0;         // samples of exact silence at the input
   long rest_after_ = 1;
+  long pause_ = 1;
   int fade_length_ = 1;
   int tick_left_ = 0;
   float heard_ = 0.0f;      // the power of what the strings hear

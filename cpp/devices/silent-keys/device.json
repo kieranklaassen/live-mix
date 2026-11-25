@@ -14,7 +14,7 @@
       "max": 8,
       "default": 1,
       "step": 1,
-      "description": "Which chord of the list is held. Turning it lets the old keys go and holds the new ones; while the list walks it starts again from here."
+      "description": "Which chord of the list is held. Turning it lets the old keys go and holds the new ones; a list that walks starts again from here."
     },
     {
       "key": "count",
@@ -32,7 +32,7 @@
       "max": 30,
       "default": 0,
       "unit": "s",
-      "description": "How long each chord is held before the next one is. At zero the chord stays. After a full silence the walk starts again from Chord."
+      "description": "How long each chord is held before the list walks on; at zero one chord stays. After a long silence the walk starts again from Chord."
     },
     {
       "key": "spacing",
@@ -108,7 +108,7 @@
         "C6"
       ],
       "default": 21,
-      "description": "The key the first chord is built up from. A low root gives more partials for the sound to meet."
+      "description": "The lowest key of the first chord, which its shape is built up from. A low key brings more partials for the sound to meet."
     },
     {
       "key": "shape1",
@@ -141,7 +141,7 @@
         "Cluster"
       ],
       "default": 6,
-      "description": "The keys held over the root of the first chord. Keys holds the six single keys instead and leaves the root out."
+      "description": "Which keys are held over the root of the first chord. Keys holds the six single keys instead, and then the root does nothing."
     },
     {
       "key": "root2",
@@ -210,7 +210,7 @@
         "C6"
       ],
       "default": 17,
-      "description": "The key the second chord is built up from. A low root gives more partials for the sound to meet."
+      "description": "The lowest key of the second chord, which its shape is built up from. A low key brings more partials for the sound to meet."
     },
     {
       "key": "shape2",
@@ -243,7 +243,7 @@
         "Cluster"
       ],
       "default": 4,
-      "description": "The keys held over the root of the second chord. Keys holds the six single keys instead and leaves the root out."
+      "description": "Which keys are held over the root of the second chord. Keys holds the six single keys instead, and then the root does nothing."
     },
     {
       "key": "root3",
@@ -312,7 +312,7 @@
         "C6"
       ],
       "default": 24,
-      "description": "The key the third chord is built up from. A low root gives more partials for the sound to meet."
+      "description": "The lowest key of the third chord, which its shape is built up from. A low key brings more partials for the sound to meet."
     },
     {
       "key": "shape3",
@@ -345,7 +345,7 @@
         "Cluster"
       ],
       "default": 7,
-      "description": "The keys held over the root of the third chord. Keys holds the six single keys instead and leaves the root out."
+      "description": "Which keys are held over the root of the third chord. Keys holds the six single keys instead, and then the root does nothing."
     },
     {
       "key": "root4",
@@ -414,7 +414,7 @@
         "C6"
       ],
       "default": 19,
-      "description": "The key the fourth chord is built up from. A low root gives more partials for the sound to meet."
+      "description": "The lowest key of the fourth chord, which its shape is built up from. A low key brings more partials for the sound to meet."
     },
     {
       "key": "shape4",
@@ -447,7 +447,7 @@
         "Cluster"
       ],
       "default": 12,
-      "description": "The keys held over the root of the fourth chord. Keys holds the six single keys instead and leaves the root out."
+      "description": "Which keys are held over the root of the fourth chord. Keys holds the six single keys instead, and then the root does nothing."
     },
     {
       "key": "root5",
@@ -516,7 +516,7 @@
         "C6"
       ],
       "default": 26,
-      "description": "The key the fifth chord is built up from. A low root gives more partials for the sound to meet."
+      "description": "The lowest key of the fifth chord, which its shape is built up from. A low key brings more partials for the sound to meet."
     },
     {
       "key": "shape5",
@@ -549,7 +549,7 @@
         "Cluster"
       ],
       "default": 8,
-      "description": "The keys held over the root of the fifth chord. Keys holds the six single keys instead and leaves the root out."
+      "description": "Which keys are held over the root of the fifth chord. Keys holds the six single keys instead, and then the root does nothing."
     },
     {
       "key": "root6",
@@ -618,7 +618,7 @@
         "C6"
       ],
       "default": 21,
-      "description": "The key the sixth chord is built up from. A low root gives more partials for the sound to meet."
+      "description": "The lowest key of the sixth chord, which its shape is built up from. A low key brings more partials for the sound to meet."
     },
     {
       "key": "shape6",
@@ -651,7 +651,7 @@
         "Cluster"
       ],
       "default": 14,
-      "description": "The keys held over the root of the sixth chord. Keys holds the six single keys instead and leaves the root out."
+      "description": "Which keys are held over the root of the sixth chord. Keys holds the six single keys instead, and then the root does nothing."
     },
     {
       "key": "root7",
@@ -720,7 +720,7 @@
         "C6"
       ],
       "default": 28,
-      "description": "The key the seventh chord is built up from. A low root gives more partials for the sound to meet."
+      "description": "The lowest key of the seventh chord, which its shape is built up from. A low key brings more partials for the sound to meet."
     },
     {
       "key": "shape7",
@@ -753,7 +753,7 @@
         "Cluster"
       ],
       "default": 11,
-      "description": "The keys held over the root of the seventh chord. Keys holds the six single keys instead and leaves the root out."
+      "description": "Which keys are held over the root of the seventh chord. Keys holds the six single keys instead, and then the root does nothing."
     },
     {
       "key": "root8",
@@ -822,7 +822,7 @@
         "C6"
       ],
       "default": 17,
-      "description": "The key the eighth chord is built up from. A low root gives more partials for the sound to meet."
+      "description": "The lowest key of the eighth chord, which its shape is built up from. A low key brings more partials for the sound to meet."
     },
     {
       "key": "shape8",
@@ -855,7 +855,7 @@
         "Cluster"
       ],
       "default": 22,
-      "description": "The keys held over the root of the eighth chord. Keys holds the six single keys instead and leaves the root out."
+      "description": "Which keys are held over the root of the eighth chord. Keys holds the six single keys instead, and then the root does nothing."
     },
     {
       "key": "key1",
@@ -961,7 +961,7 @@
         "C8"
       ],
       "default": 0,
-      "description": "The first of six single keys, held whenever the shape of a chord is Keys. Off holds nothing."
+      "description": "The first of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing."
     },
     {
       "key": "key2",
@@ -1067,7 +1067,7 @@
         "C8"
       ],
       "default": 0,
-      "description": "The second of six single keys, held whenever the shape of a chord is Keys. Off holds nothing."
+      "description": "The second of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing."
     },
     {
       "key": "key3",
@@ -1173,7 +1173,7 @@
         "C8"
       ],
       "default": 0,
-      "description": "The third of six single keys, held whenever the shape of a chord is Keys. Off holds nothing."
+      "description": "The third of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing."
     },
     {
       "key": "key4",
@@ -1279,7 +1279,7 @@
         "C8"
       ],
       "default": 0,
-      "description": "The fourth of six single keys, held whenever the shape of a chord is Keys. Off holds nothing."
+      "description": "The fourth of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing."
     },
     {
       "key": "key5",
@@ -1385,7 +1385,7 @@
         "C8"
       ],
       "default": 0,
-      "description": "The fifth of six single keys, held whenever the shape of a chord is Keys. Off holds nothing."
+      "description": "The fifth of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing."
     },
     {
       "key": "key6",
@@ -1491,7 +1491,7 @@
         "C8"
       ],
       "default": 0,
-      "description": "The sixth of six single keys, held whenever the shape of a chord is Keys. Off holds nothing."
+      "description": "The sixth of the six single keys, held when a chord's shape is Keys; the same six serve every such chord. Off holds nothing."
     },
     {
       "key": "partials",
@@ -1516,8 +1516,8 @@
       "name": "Sharpness",
       "min": 0,
       "max": 1,
-      "default": 0.55,
-      "description": "How closely a sound has to match a partial to wake it. Low lets noise, clicks and near misses in; high answers only held, matching tones."
+      "default": 0.5,
+      "description": "How closely a sound has to match a partial to wake it. Low lets near misses and glides in; at the top noise and clicks wake next to nothing, only held, matching tones do."
     },
     {
       "key": "ring",
@@ -1545,14 +1545,14 @@
       "min": 0,
       "max": 1,
       "default": 0,
-      "description": "Adds two free strings, one and two octaves under the lowest key, at this level. They answer more of what is played, their partials lying closer."
+      "description": "Adds free strings one and two octaves under the lowest key, where the keyboard goes that far. They answer more of what is played, their partials lying closer."
     },
     {
       "key": "lift",
       "name": "Lift",
       "min": 0,
       "max": 36,
-      "default": 18,
+      "default": 22,
       "unit": "dB",
       "description": "How hard the sound drives the strings. Noise and soft playing need a lot; strings that already ring loudly take less, so it stays level."
     },
@@ -1745,9 +1745,9 @@
       "partials": 12,
       "lowCut": 400,
       "sharpness": 0.2,
-      "lift": 30,
+      "lift": 23,
       "ring": 6,
-      "output": 2
+      "output": 1.5
     },
     "Dark strings": {
       "root1": 21,
