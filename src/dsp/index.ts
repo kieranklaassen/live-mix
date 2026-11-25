@@ -115,8 +115,10 @@ export {
   DEFAULT_PHRASE_GAIN,
   canRenderPatch,
   foldLoop,
+  madePhrase,
   noteFrequency,
   peakOf,
+  playsMaker,
   renderPatch,
   type LoopFold,
   type Phrase,
@@ -221,6 +223,21 @@ export {
   type WayTakes,
 } from './factory'
 export {
+  MakerPlayer,
+  NOTE_MAKERS,
+  WHITE_KEYS,
+  describeMaker,
+  makePhrase,
+  makerAtTempo,
+  makerParams,
+  type MadeEvent,
+  type MadePhraseNote,
+  type MakerKey,
+  type NoteMaker,
+  type NoteMakerDescriptor,
+  type PlayedNote,
+} from '../core/makers'
+export {
   capturePatch,
   createPatchDevice,
   createPatchEffects,
@@ -233,6 +250,7 @@ export {
   type PatchCategory,
   type PatchDevice,
   type PatchIssue,
+  type PatchMaker,
 } from '../core/devices'
 export { type PlanarAudio } from '../core/render/encode'
 export {

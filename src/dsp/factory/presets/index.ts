@@ -37,7 +37,15 @@ import { HORNS_PRESETS } from './horns'
 import { ICE_PRESETS } from './ice'
 import { ISOCHRONIC_PRESETS } from './isochronic'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
+import { COMPANION_VOICE_PRESETS } from './maker-companion-voice'
 import { MAGNET_PIANO_PRESETS } from './magnet-piano'
+import { MAKER_MIRROR_ON_D_PRESETS } from './maker-mirror-on-d'
+import { MAKER_SIX_VOICES_PRESETS } from './maker-six-voices'
+import { BREATH_BUDGET_PRESETS } from './maker-breath-budget'
+import { HEXATONIC_WALKER_PRESETS } from './maker-hexatonic-walker'
+import { RULE_OF_THE_OCTAVE_PRESETS } from './maker-rule-of-the-octave'
+import { MAKER_ONE_SPINE_PRESETS } from './maker-one-spine'
+import { TWO_ROADS_PRESETS } from './maker-two-roads'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
@@ -126,4 +134,12 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...STILL_POINT_PRESETS,
   ...BREATH_PACER_PRESETS,
   ...COLOURED_NOISE_PRESETS,
+  ...MAKER_MIRROR_ON_D_PRESETS,
+  ...MAKER_SIX_VOICES_PRESETS,
+  ...COMPANION_VOICE_PRESETS,
+  ...BREATH_BUDGET_PRESETS,
+  ...HEXATONIC_WALKER_PRESETS,
+  ...RULE_OF_THE_OCTAVE_PRESETS,
+  ...MAKER_ONE_SPINE_PRESETS,
+  ...TWO_ROADS_PRESETS,
 ]
