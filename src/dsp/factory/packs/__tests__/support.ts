@@ -19,9 +19,9 @@ import {
   measureAudio,
   type AudioMeasurement,
 } from '../../../__tests__/render-support'
-import { canRenderPatch, renderPatch } from '../../../patch-render'
+import { canRenderPatch, renderPatch, type Phrase } from '../../../patch-render'
 import { STOCK_WASM_DEVICES } from '../../../registry'
-import { PREVIEW_SECONDS, previewPhrase } from '../../phrases'
+import { FACTORY_PHRASES, PREVIEW_SECONDS, previewPhrase } from '../../phrases'
 import { type FactoryPreset, type FactoryPresetCategory } from '../../types'
 import { FACTORY_PACK_SIZE, factoryPack } from '../index'
 
@@ -34,8 +34,23 @@ export const PACK_LIMITS = {
   dc: 0.01,
   /** Characters of a description at most: it is one line at the foot of a list. */
   description: 140,
-  /** Presets every instrument has at least. */
+  /** Presets every instrument has at least, in a pack of the scenes. */
   perInstrument: 2,
+} as const
+
+/** What a pack of any other shelf is held to beside the levels. */
+export const FOCUSED_LIMITS = {
+  /** Instruments at least: a pack is about one thing, and not about one knob. */
+  instruments: 3,
+  /** Presets on one instrument at most. */
+  perInstrument: 65,
+  /** Phrases of its own, at least, and how many of its presets are heard on one. */
+  phrases: 4,
+  onOwnPhrase: 50,
+  /** How near two presets of one instrument may be on the phrase all are compared on (`comparePhrase`), dB. */
+  nearestDb: 1.35,
+  /** One preset in so many is rendered by its test; all of them with FACTORY_PACKS=all, as the bench does. */
+  rendered: 5,
 } as const
 
 /**
@@ -107,6 +122,61 @@ export function renderPackPreset(preset: FactoryPreset) {
   })
 }
 
+const KITS: ReadonlySet<string> = new Set(['drum-kit', 'club-kit', 'glitch-kit'])
+const BASSES: ReadonlySet<string> = new Set([
+  'sub-bass',
+  'fm-bass',
+  'acid-bass',
+  'ladder-bass',
+  'string-bass',
+])
+
+/** Two held notes, three that come in over them, a short one and a last long one: every other instrument's comparison. */
+const COMPARED: Phrase = {
+  notes: [
+    { atSec: 0, durSec: 3.6, note: 50 },
+    { atSec: 0, durSec: 3.6, note: 57, gain: 0.6 },
+    { atSec: 0.9, durSec: 2.6, note: 65, gain: 0.6 },
+    { atSec: 1.8, durSec: 1.6, note: 72, gain: 0.7 },
+    { atSec: 3.4, durSec: 0.2, note: 69, gain: 0.9 },
+    { atSec: 4, durSec: 1.8, note: 62, gain: 0.5 },
+  ],
+}
+
+/**
+ * The phrase the presets of one instrument are compared on: the same for all
+ * of them, whatever each is auditioned with, or two would differ by their
+ * tunes and not by what they are.
+ */
+export function comparePhrase(deviceId: string): Phrase {
+  if (KITS.has(deviceId)) return FACTORY_PHRASES.drum
+  if (BASSES.has(deviceId)) return FACTORY_PHRASES.bass
+  return COMPARED
+}
+
+/** A preset on that phrase, for its print. */
+export function renderCompared(preset: FactoryPreset) {
+  return renderPatch(preset, {
+    phrase: comparePhrase(preset.instrument.deviceId),
+    durationSec: PREVIEW_SECONDS,
+    compile: compileFromDisk,
+    sliceMs: 0,
+  })
+}
+
+/** What a phrase written out breaks: notes a key sends, inside the preview with room for the tail. */
+export function phraseProblems(phrase: Phrase): string[] {
+  const problems: string[] = []
+  if (phrase.notes.length < 1 || phrase.notes.length > 64) problems.push('1 to 64 notes')
+  for (const { atSec, durSec, note, gain = 0.8 } of phrase.notes) {
+    if (!(atSec >= 0 && durSec > 0 && atSec + durSec <= PREVIEW_SECONDS - 0.5))
+      problems.push(`time ${atSec}+${durSec}`)
+    if (!(note >= 21 && note <= 108)) problems.push(`note ${note}`)
+    if (!(gain > 0 && gain <= 1)) problems.push(`gain ${gain}`)
+  }
+  return problems
+}
+
 /** Where a measured preview leaves the limits; empty when it is inside them. */
 export function levelProblems(measured: AudioMeasurement): string[] {
   const [quietest, loudest] = PACK_LIMITS.loudestDb
@@ -163,8 +233,89 @@ export function repeatedSettings(patches: readonly Patch[]): string[] {
   return repeats
 }
 
+/** The same for a pack of any shelf but the scenes: what makes one whole is in `FOCUSED_LIMITS`. */
+export function describeFocusedPack(packId: string, presets: readonly FactoryPreset[]): void {
+  describe(`pack ${packId}`, () => {
+    it('is a whole pack', () => {
+      const pack = factoryPack(packId)
+      expect(pack, `pack ${packId} is listed in FACTORY_PACKS`).toBeDefined()
+      expect(pack?.shelf).not.toBe('scenes')
+      expect(presets).toHaveLength(FACTORY_PACK_SIZE)
+      expect(pack?.count).toBe(presets.length)
+      expect(focusProblems(presets)).toEqual([])
+    })
+
+    it('names each preset once and sets no two alike', () => {
+      expect(new Set(presets.map((preset) => preset.id)).size).toBe(presets.length)
+      expect(new Set(presets.map((preset) => preset.name)).size).toBe(presets.length)
+      expect(repeatedSettings(presets), 'presets set exactly like another').toEqual([])
+    })
+
+    it('lists each preset properly', () => {
+      const problems = presets.flatMap((preset) =>
+        presetProblems(packId, preset).map((problem) => `${preset.id}: ${problem}`),
+      )
+      expect(problems).toEqual([])
+    })
+
+    const every = process.env.FACTORY_PACKS === 'all' ? 1 : FOCUSED_LIMITS.rendered
+    it.each(
+      presets
+        .filter((_preset, index) => index % every === 0)
+        .map((preset) => [preset.id, preset] as const),
+    )(
+      '%s plays at the level of the rest',
+      async (_id, preset) => {
+        const measured = measureAudio(await renderPackPreset(preset))
+        expect(levelProblems(measured), JSON.stringify(measured)).toEqual([])
+      },
+      30_000,
+    )
+  })
+}
+
+/** What a pack of one thing breaks as a whole. */
+export function focusProblems(presets: readonly FactoryPreset[]): string[] {
+  const problems: string[] = []
+  const counts = new Map<string, number>()
+  for (const { instrument } of presets)
+    counts.set(instrument.deviceId, (counts.get(instrument.deviceId) ?? 0) + 1)
+  if (counts.size < FOCUSED_LIMITS.instruments) problems.push(`${counts.size} instruments`)
+  for (const [id, count] of counts)
+    if (count > FOCUSED_LIMITS.perInstrument) problems.push(`${count} on ${id}`)
+  const own = presets.flatMap(({ preview }) => (typeof preview === 'object' ? [preview] : []))
+  const phrases = new Set(own.map((phrase) => JSON.stringify(phrase))).size
+  if (phrases < FOCUSED_LIMITS.phrases) problems.push(`${phrases} phrases of its own`)
+  if (own.length < FOCUSED_LIMITS.onOwnPhrase)
+    problems.push(`${own.length} presets on a phrase of its own`)
+  return problems
+}
+
+/** What one preset of such a pack breaks before it is rendered. */
+export function presetProblems(packId: string, preset: FactoryPreset): string[] {
+  const problems: string[] = []
+  const hold = (ok: boolean, problem: string) => {
+    if (!ok) problems.push(problem)
+  }
+  hold(KEBAB.test(preset.id) && preset.id.startsWith(`${packId}-`), 'id')
+  hold(preset.name.length > 2 && preset.name.length <= 24, `name of ${preset.name.length}`)
+  hold(!/\d$/.test(preset.name), 'name ends in a number')
+  hold(/^[A-Z].{24,}\.$/.test(preset.description), 'description is a sentence')
+  hold(
+    preset.description.length <= PACK_LIMITS.description,
+    `description of ${preset.description.length}`,
+  )
+  hold([...CATEGORIES, 'bass', 'drum'].includes(preset.category), `category ${preset.category}`)
+  problems.push(...validatePatch(preset, registry).map((problem) => JSON.stringify(problem)))
+  hold(canRenderPatch(preset), 'a device that does not render')
+  hold(preset.effects.length >= 1 && preset.effects.length <= 4, `${preset.effects.length} effects`)
+  if (typeof preset.preview === 'object')
+    problems.push(...phraseProblems(preset.preview).map((problem) => `phrase: ${problem}`))
+  return problems
+}
+
 /**
- * The tests of one pack: called from `<pack id>.pack.test.ts` with the
+ * The tests of one pack of the scenes: called from `<pack id>.pack.test.ts` with the
  * presets as its own module lists them, so a pack is tested without the
  * others being read.
  */

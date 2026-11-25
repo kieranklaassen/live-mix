@@ -124,6 +124,7 @@ export {
   type FactoryChain,
   type FactoryChainCategory,
   type FactoryPack,
+  type FactoryPackShelf,
   type FactoryPhraseName,
   type FactoryPreset,
   type FactoryPresetCategory,

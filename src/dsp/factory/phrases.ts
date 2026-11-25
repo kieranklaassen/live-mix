@@ -123,9 +123,11 @@ const CATEGORY_PHRASE: Readonly<Record<FactoryPresetCategory, FactoryPhraseName>
 /** The phrase a preset is auditioned with: its own, else its category's. */
 export function previewPhrase(preset: {
   category: FactoryPresetCategory
-  preview?: FactoryPhraseName
+  preview?: FactoryPhraseName | Phrase
 }): Phrase {
-  return FACTORY_PHRASES[preset.preview ?? CATEGORY_PHRASE[preset.category]]
+  const { preview } = preset
+  if (typeof preview === 'object') return preview
+  return FACTORY_PHRASES[preview ?? CATEGORY_PHRASE[preset.category]]
 }
 
 /**

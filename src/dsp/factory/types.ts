@@ -6,6 +6,9 @@ import { type Patch, type PatchDevice } from '../../core/devices/patch'
 import { type SoundKind } from '../../core/analysis/sound-kind'
 import { type LoopFold, type Phrase } from '../patch-render'
 
+/** What a preview plays, from here for the packs: from the renderer itself it would bring the renderer into their chunks. */
+export { type Phrase }
+
 /** The groups a preset browser lists instrument presets under. */
 export type FactoryPresetCategory =
   | 'pad'
@@ -29,17 +32,30 @@ export type FactoryPhraseName =
 export interface FactoryPreset extends Patch {
   category: FactoryPresetCategory
   instrument: PatchDevice
-  /** What its preview plays; the category decides when absent. */
-  preview?: FactoryPhraseName
+  /**
+   * What its preview plays: one of the library's phrases by its name, or a
+   * phrase written out, as a pack about a melody or a harmony has. The
+   * category decides when absent.
+   */
+  preview?: FactoryPhraseName | Phrase
   /** The id of the pack it belongs to (./packs); absent for a preset of the bank itself. */
   pack?: string
 }
 
 /**
- * A pack: a hundred presets across every instrument that share one idea of
- * sound, a hundred sounds to paint with that are those presets played, and a
- * hundred effect chains in the same idea for any channel. Its name and
- * description say what that is by a sound, a place or a mood; a host lists
+ * The shelf a pack stands on, for a host that lists the packs in groups: the
+ * packs about a place or a mood, then those about a harmony, a melody, a
+ * rhythm, and what hands do on an instrument.
+ */
+export type FactoryPackShelf = 'scenes' | 'harmony' | 'melody' | 'time' | 'hands'
+
+/**
+ * A pack: a hundred presets that share one idea of sound. A pack of the scenes
+ * has some on every instrument, a hundred sounds to paint with that are those
+ * presets played, and a hundred effect chains in the same idea for any
+ * channel. A pack of another shelf is about one thing in music and has its
+ * presets on the few instruments that thing is for. Its name and description
+ * say what it is by a sound, a place, a mood or what is played; a host lists
  * the packs before any of their presets, sounds or chains are loaded.
  */
 export interface FactoryPack {
@@ -48,6 +64,7 @@ export interface FactoryPack {
   name: string
   /** What the pack sounds like and where its idea comes from, in a sentence or two. */
   description: string
+  shelf: FactoryPackShelf
   /** How many presets it holds, known before they are loaded. */
   count: number
   /**
