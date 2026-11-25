@@ -625,6 +625,7 @@ export {
   createPatchEffects,
   isInstrumentPatch,
   isPatch,
+  isPatchMaker,
   patchDeviceParams,
   patchDevices,
   replaceInserts,
@@ -636,8 +637,31 @@ export {
   type PatchDevice,
   type PatchInsertHost,
   type PatchIssue,
+  type PatchMaker,
   type ReplaceInsertsOptions,
 } from './core/devices'
+
+// Note makers: what stands in front of an instrument and writes its notes
+export {
+  MakerPlayer,
+  NOTE_MAKERS,
+  WHITE_KEYS,
+  describeMaker,
+  makePhrase,
+  makerAtTempo,
+  makerParams,
+  type EmitMade,
+  type MadeEvent,
+  type MadePhraseNote,
+  type MakePhraseOptions,
+  type MakerKey,
+  type MakerOptions,
+  type MakerPart,
+  type MakerPlayerOptions,
+  type MakerTimer,
+  type NoteMaker,
+  type NoteMakerDescriptor,
+} from './core/makers'
 export {
   ABSOLUTE_GATE_LUFS,
   Biquad,
