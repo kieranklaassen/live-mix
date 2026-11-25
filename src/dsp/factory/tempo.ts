@@ -9,6 +9,7 @@
 // Everything here is arithmetic on the bank's own data: no audio.
 
 import { type Patch, type PatchDevice, patchDeviceParams } from '../../core/devices/patch'
+import { makerAtTempo } from '../../core/makers'
 import { type Phrase } from '../patch-render'
 import { describeStockWasmDevice } from '../registry'
 
@@ -86,7 +87,7 @@ function deviceAtTempo(device: PatchDevice, ratio: number, own?: TimedParams): P
  * `instrumentTimed` names controls of the instrument that follow the tempo in this
  * patch beside the ones that always do (a sound's `timedParams`).
  */
-export function patchAtTempo<T extends Pick<Patch, 'instrument' | 'effects'>>(
+export function patchAtTempo<T extends Pick<Patch, 'instrument' | 'maker' | 'effects'>>(
   patch: T,
   ratio: number,
   instrumentTimed?: TimedParams,
@@ -97,6 +98,7 @@ export function patchAtTempo<T extends Pick<Patch, 'instrument' | 'effects'>>(
     ...(patch.instrument
       ? { instrument: deviceAtTempo(patch.instrument, ratio, instrumentTimed) }
       : {}),
+    ...(patch.maker ? { maker: makerAtTempo(patch.maker, ratio) } : {}),
     effects: patch.effects.map((effect) => deviceAtTempo(effect, ratio)),
   }
 }

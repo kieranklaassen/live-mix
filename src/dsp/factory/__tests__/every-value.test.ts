@@ -136,6 +136,9 @@ function deviceProblems(at: string, device: PatchDevice): string[] {
 function placed(patch: Patch): (readonly [place: string, device: PatchDevice])[] {
   return [
     ...(patch.instrument ? [['instrument', patch.instrument] as const] : []),
+    ...Object.entries(patch.maker?.parts ?? {}).map(
+      ([part, device]) => [`maker.parts.${part}`, device] as const,
+    ),
     ...patch.effects.map((device, index) => [`effects[${index}]`, device] as const),
   ]
 }

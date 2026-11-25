@@ -7,6 +7,7 @@ import { type PatchCategory } from '../../core/devices/patch'
 import { type PlanarAudio } from '../../core/render/encode'
 import {
   type Phrase,
+  madePhrase,
   peakOf,
   playedTuning,
   renderPatch,
@@ -421,8 +422,14 @@ export async function renderFactorySound(
     sample = await renderFactorySound(source, { ...render, transpose, keyTuning })
   }
   // A sound made from another one keeps its own notes, as it does in another key.
-  const phrase = settledPhrase(
+  // What the patch's note maker makes of them is tuned, and not what goes into it.
+  const played = madePhrase(
+    patch,
     inKey.phrase,
+    (inKey.skipSec ?? 0) + inKey.durationSec + (inKey.loopCrossfadeSec ?? 0),
+  )
+  const phrase = settledPhrase(
+    played,
     sound.source === undefined ? playedTuning(keyTuning, patch) : undefined,
     inKey.tuning === 'whole-cycles' ? inKey.durationSec : undefined,
   )
@@ -430,6 +437,7 @@ export async function renderFactorySound(
     ...render,
     sample,
     phrase,
+    made: true,
     durationSec: inKey.durationSec,
     skipSec: inKey.skipSec,
     loopCrossfadeSec: inKey.loopCrossfadeSec,
