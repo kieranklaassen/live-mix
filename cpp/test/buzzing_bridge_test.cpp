@@ -827,7 +827,7 @@ static void test_accents() {
   EXPECT(heard >= 28, "weak notes among strong ones are attacks too");
   // A sound that swells and sinks is not one attack after another.
   Signal swell = sine(300, 3.0f, kRate, 0.4f);
-  for (size_t i = 0; i < swell.size(); ++i) swell[i] *= static_cast<float>(0.55 - 0.45 * std::cos(2 * kPi * 5.0 * i / kRate));
+  for (size_t i = 0; i < swell.size(); ++i) swell[i] *= static_cast<float>(0.51 - 0.49 * std::cos(2 * kPi * 3.0 * i / kRate));
   const Signal b = buzz_of({{p::kModel, 2}, {p::kRattle, 10}, {p::kBounces, 1}, {p::kThreshold, -60}}, swell);
   std::printf("shell in a deep tremolo after its start: %.1f dBFS\n", db(peak(b, at(0.3), b.size())));
   EXPECT(peak(b, at(0.3), b.size()) < 1.0e-5, "nothing in a deep tremolo");

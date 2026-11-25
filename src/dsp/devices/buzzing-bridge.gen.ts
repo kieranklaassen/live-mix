@@ -27,7 +27,7 @@ export const BUZZING_BRIDGE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How firmly the sound is touched. A little catches only the crest of each swing and leaves a thin edge; a lot is a broad buzz nearly as loud as the sound.',
+      'How firmly the sound is touched. A little catches only the crest of each swing and leaves a thin edge; a lot is a broad buzz that stands close under the sound.',
   },
   threshold: {
     id: 2,
