@@ -363,8 +363,8 @@ void melody_rules() {
 
   // A melody string on a drone's own note leans on that drone: the note has
   // one level whenever it comes, struck fresh or come to from another.
+  double low = 100.0, high = -200.0;
   for (int legato = 0; legato < 2; ++legato) {
-    double low = 100.0, high = -200.0;
     for (int k = 0; k < 8; ++k) {
       fresh({{p::kAccents, 0.0f}, {p::kTangents, 0.0f}, {p::kNoise, 0.0f}});
       key(38);
@@ -377,9 +377,9 @@ void melody_rules() {
       low = std::min(low, level);
       high = std::max(high, level);
     }
-    std::printf("  the drone's own note on the melody, %s: %.2f to %.2f dB\n", legato ? "come to" : "struck", low, high);
-    EXPECT(high - low < 1.0, "a melody note on a drone's note never stands cancelled");
   }
+  std::printf("  the drone's own note on the melody, struck or come to: %.2f to %.2f dB\n", low, high);
+  EXPECT(high - low < 1.0, "a melody note on a drone's note never stands cancelled");
 
   // Tangents: a knock at the change of note and not between.
   auto knock = [&](float amount) {
@@ -585,7 +585,7 @@ void run_down() {
     std::printf("  barks on the way down: %zu, gaps from %.3f to %.3f s, the last at %.2f s\n", times.size(), first, last,
                 times.back());
     EXPECT(last > 1.3 * first, "further and further apart");
-    EXPECT(times.back() < 3.6, "and the dog is silent before the strings");
+    EXPECT(times.back() < 2.2, "and the dog is silent well before the strings");
   }
   render(device, 0.05f, kRate);
   EXPECT(device.meter(3) == 0.0f, "the wheel stands");
@@ -693,6 +693,154 @@ void block_sizes() {
       key(64);
       EXPECT(difference(told, render(device, 0.6f, kRate)) == 0.0, "every knob moved in a silence has arrived");
     }
+  }
+}
+
+// --- what the bow's speed does, and where things stand -------------------------------------------
+
+Stereo apart(Stereo x, const Stereo& y) {
+  for (size_t i = 0; i < x.size(); ++i) {
+    x.left[i] -= y.left[i];
+    x.right[i] -= y.right[i];
+  }
+  return x;
+}
+
+void bow_and_places() {
+  auto held = [](Sets sets, std::initializer_list<int> keys, float seconds) {
+    fresh(sets);
+    for (int k : keys) key(k);
+    return render(device, seconds, kRate);
+  };
+  // A faster wheel is louder and its hiss grows with it.
+  double loud[2], hiss[2];
+  for (int i = 0; i < 2; ++i) {
+    const float speed = i ? 3.0f : 0.1f;
+    const Stereo plain = held({{p::kSpeed, speed}, {p::kAccents, 0.0f}, {p::kNoise, 0.0f}}, {38, 62}, 3.0f);
+    const Stereo rubbed = held({{p::kSpeed, speed}, {p::kAccents, 0.0f}, {p::kNoise, 0.5f}}, {38, 62}, 3.0f);
+    loud[i] = db(stereo_rms(plain, at(1.0), at(3.0)));
+    hiss[i] = db(stereo_rms(apart(rubbed, plain), at(1.0), at(3.0)));
+  }
+  std::printf("  speed 0.1 to 3: strings %+.1f dB, hiss %+.1f dB\n", loud[1] - loud[0], hiss[1] - hiss[0]);
+  EXPECT(loud[1] - loud[0] > 2.5 && loud[1] - loud[0] < 6.0, "a faster wheel bows a little harder");
+  EXPECT(hiss[1] - hiss[0] > 6.0, "and hisses more");
+  // In a push the bow is brighter, the hiss up, and the speed's meter over one.
+  const Sets pushed = {{p::kAccents, 1.0f}, {p::kDepth, 1.0f}, {p::kDog, 0.0f}, {p::kNoise, 0.0f}, {p::kBrightness, 0.4f}};
+  const Stereo push = held(pushed, {38, 62}, 4.0f);
+  const Stereo with_hiss = [&] {
+    fresh(pushed);
+    device.set_param(p::kNoise, 0.6f);
+    key(38);
+    key(62);
+    return render(device, 4.0f, kRate);
+  }();
+  const Stereo rub = apart(with_hiss, push);
+  // The wheel is at 0.5 turns a second less what the run up took: a push every second.
+  fresh(pushed);
+  key(38);
+  double top = 0.0, when = 0.0;
+  for (int k = 0; k < 400; ++k) {
+    render(device, 0.01f, kRate);
+    if (k > 200 && device.meter(3) > top + 1.0e-4) {
+      top = device.meter(3);
+      when = 0.01 * (k + 1);
+    }
+  }
+  EXPECT(top > 2.0 && top < 2.6, "the bow's speed is over one in a push");
+  const std::vector<float> m = mono(push);
+  const double bright = energy_above(m, 1500.0, kRate, at(when), at(when + 0.1)) / energy_above(m, 1500.0, kRate, at(when - 0.3), at(when - 0.1));
+  const double hissed = db(stereo_rms(rub, at(when), at(when + 0.06)) / stereo_rms(rub, at(when - 0.3), at(when - 0.1)));
+  std::printf("  in a push: share over 1.5 kHz times %.2f, hiss %+.1f dB\n", bright, hissed);
+  EXPECT(bright > 1.06, "a push is brighter");
+  EXPECT(hissed > 4.5, "and hisses more");
+
+  // Hiss is let in with each slip: it beats at the second drone's pitch.
+  const Sets bare = {{p::kAccents, 0.0f}, {p::kBody, 0.0f}, {p::kSpread, 0.0f}, {p::kNoise, 1.0f}};
+  const Stereo noisy = held(bare, {38}, 6.0f);
+  const Stereo clean = [&] {
+    fresh(bare);
+    device.set_param(p::kNoise, 0.0f);
+    key(38);
+    return render(device, 6.0f, kRate);
+  }();
+  std::vector<float> power = mono(apart(noisy, clean));
+  for (float& v : power) v *= v;
+  const double beat = tone_level(power, 146.832, kRate, at(1.0)) / mean(power, at(1.0));
+  std::printf("  the hiss's power moves %.0f %% at the slips\n", 100.0 * beat);
+  EXPECT(beat > 0.4, "hiss is let in with each slip");
+
+  // Rosin at its most: every slip is another, and the wave is driven.
+  double between[2], crest[2];
+  for (int i = 0; i < 2; ++i) {
+    const std::vector<float> x = mono(held({{p::kAccents, 0.0f}, {p::kDrones, 0.0f}, {p::kTrompette, 0.0f}, {p::kNoise, 0.0f},
+                                            {p::kBody, 0.0f}, {p::kRosin, i ? 1.0f : 0.4f}}, {62}, 4.0f));
+    between[i] = db(tone_level(x, 1.5 * hz(62), kRate, at(1.0)) / tone_level(x, hz(62), kRate, at(1.0)));
+    crest[i] = peak(x, at(1.0)) / rms(x, at(1.0));
+  }
+  std::printf("  between the partials %.0f dB firm, %.0f dB raw; crest %.2f firm, %.2f raw\n", between[0], between[1], crest[0], crest[1]);
+  EXPECT(between[1] > -100.0 && between[0] < -130.0, "a raw string slips unevenly");
+
+  // The run up: an eighth of the way in level after a quarter of Spin.
+  const Stereo up = held({{p::kAccents, 0.0f}, {p::kSpin, 4.0f}, {p::kNoise, 0.0f}}, {38}, 6.0f);
+  const double early = db(stereo_rms(up, at(0.95), at(1.05)) / stereo_rms(up, at(5.0), at(6.0)));
+  EXPECT_NEAR(early, -16.1, 1.2, "the level of a wheel a quarter run up");
+
+  // The touch of the key that holds the drones.
+  const Stereo hard = [&] {
+    fresh({{p::kAccents, 0.0f}});
+    key(43, 0.1f);
+    render(device, 1.0f, kRate);
+    key(38, 1.0f);
+    render(device, 1.0f, kRate);
+    return render(device, 1.0f, kRate);
+  }();
+  fresh({{p::kAccents, 0.0f}});
+  key(38, 1.0f);
+  render(device, 2.0f, kRate);
+  EXPECT_NEAR(db(stereo_rms(hard, 0, at(1.0)) / stereo_rms(render(device, 1.0f, kRate), 0, at(1.0))), 0.0, 0.3,
+              "a drone key's touch sets the drones");
+
+  // Places: second drone left, third right; a string keeps its key in Duo.
+  auto side = [](const Stereo& x, double f) {
+    return db(tone_level(x.left, f, kRate, at(0.3)) / tone_level(x.right, f, kRate, at(0.3)));
+  };
+  const Stereo wide = held({{p::kAccents, 0.0f}, {p::kSpread, 1.0f}, {p::kBody, 0.0f}, {p::kTrompette, 1.0f}}, {38}, 2.0f);
+  EXPECT(side(wide, 146.832) > 2.0 && side(wide, 220.255) < -2.0, "the second drone stands left and the third right");
+  fresh({{p::kAccents, 0.0f}, {p::kSpread, 1.0f}, {p::kBody, 0.0f}, {p::kDrones, 0.0f}, {p::kTrompette, 0.0f}, {p::kMelody, 2.0f}});
+  key(62);
+  render(device, 0.5f, kRate);
+  key(66);
+  const Stereo two = render(device, 1.0f, kRate);
+  key(69);
+  const Stereo three = render(device, 1.0f, kRate);
+  EXPECT(side(two, hz(62)) > 1.0 && side(two, hz(66)) < -1.0, "the string of the older key stays on it");
+  EXPECT(side(three, hz(69)) > 1.0 && side(three, hz(66)) < -1.0, "and the other string takes the next");
+
+  // Back to a held key the tangent meets the string again.
+  Stereo back[2];
+  for (int i = 0; i < 2; ++i) {
+    fresh({{p::kTangents, i ? 1.0f : 0.0f}});
+    key(62);
+    key(66);
+    render(device, 1.0f, kRate);
+    device.note_off(66);
+    back[i] = render(device, 0.03f, kRate);
+  }
+  EXPECT(stereo_rms(apart(back[1], back[0]), 0, at(0.03)) > 0.2 * stereo_rms(back[0], 0, at(0.03)), "the return has its knock");
+
+  // Nothing is cut off: what rings is under -140 dBFS where the zeros begin.
+  for (float held_for : {0.002f, 1.0f}) {
+    fresh({{p::kTangents, 1.0f}, {p::kSpin, 0.05f}, {p::kBody, 1.0f}, {p::kVolume, 6.0f}});
+    key(38, 1.0f);
+    key(62, 1.0f);
+    render(device, held_for, kRate);
+    device.note_off(38);
+    device.note_off(62);
+    const Stereo end = render(device, 1.5f, kRate);
+    size_t last = end.size();
+    while (last > 0 && end.left[last - 1] == 0.0f && end.right[last - 1] == 0.0f) --last;
+    EXPECT(last < end.size() && std::max(peak(end.left, last - at(0.002), last), peak(end.right, last - at(0.002), last)) < 1.0e-7,
+           "the tail is over before it is cut");
   }
 }
 
@@ -972,6 +1120,7 @@ int main() {
   dog_folding();
   run_down();
   block_sizes();
+  bow_and_places();
   keys_let_go();
   level();
   clicks();
