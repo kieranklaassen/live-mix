@@ -46,7 +46,7 @@
       "max": 498.04,
       "default": 315.64,
       "unit": "ct",
-      "description": "How far the bell's third lies above its note. Low is a narrow minor third, the middle sits between minor and major, and the top is a fourth."
+      "description": "How far the bell's third is above its note, from narrow minor through major to a fourth. With Follow on Key it sets only the notes Root and Scale leave open."
     },
     {
       "key": "follow",
@@ -76,7 +76,7 @@
       "max": 231,
       "default": 0,
       "unit": "ct",
-      "description": "Starts each strike's third above or below its place and lets it glide there, like a suspension that resolves inside one bell. Glide sets how long it takes."
+      "description": "Starts each strike's third above or below its place and lets it glide there, like a suspension resolving inside one bell. A third that still rings joins it."
     },
     {
       "key": "glide",
@@ -94,7 +94,7 @@
       "min": 0.4,
       "max": 0.6,
       "default": 0.5,
-      "description": "Pitch of the low hum tone against the note. The centre is an octave below; higher nears a minor seventh below, as in older bells, and lower passes a ninth."
+      "description": "Pitch of the low hum tone against the note. The centre is an octave below; higher passes a minor seventh below, as in older bells, and lower passes a ninth."
     },
     {
       "key": "humLevel",
@@ -144,7 +144,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How hard the clapper is. Soft wakes the low partials gently; hard brings a quick, bright strike. On a rubbed bell it brings up the upper partials."
+      "description": "How hard the clapper is. Soft wakes the low partials gently; hard is quick and bright, and the clapper itself is heard. A rubbed bell only gets brighter."
     },
     {
       "key": "doublet",
@@ -249,7 +249,7 @@
       "doublet": 4,
       "release": 0.15,
       "spread": 0.3,
-      "volume": -6.5
+      "volume": -8.2
     },
     "Major bell": {
       "tierce": 386.31,

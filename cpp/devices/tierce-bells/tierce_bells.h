@@ -35,9 +35,18 @@
 // - One pitch is one bell. The same pitch struck again (by the same note id
 //   or another) strikes the bell that rings: the new strike goes in a
 //   quarter turn from what the mode does, so the two add as power and never
-//   cancel or double, and what rang is damped over 3 ms just as far as keeps
-//   each mode under kStack of a full strike. The bell is let go when the last
-//   id holding it is.
+//   cancel or double, and the same ramp takes from what rang just as much as
+//   keeps each mode under kStack of a full strike. The bell is let go when
+//   the last id holding it is.
+// - A strike that puts the third somewhere else than it rings (Lean, or a
+//   glide under way) does not bend what rings by a jump: the third and deciem
+//   that ring are moved to slots of their own (the ghosts), glide to the new
+//   strike's third in kGhostSeconds and are added to it there. The new strike
+//   is turned so that they meet a quarter turn apart, so they too add as
+//   power.
+// - A hard clapper is heard for itself: a few milliseconds of filtered noise,
+//   by Hardness and how hard the strike is. Its seed is the note's, so a bell
+//   is the same bell each time.
 // - Doublets: the halves of a pair stand Doublet hertz apart, with the
 //   pair's mean (by level) on the partial, and start at different points of
 //   the beat, so the partials of one bell do not swell together.
@@ -61,7 +70,9 @@ namespace livemix {
 class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
  public:
   static constexpr int kMaxVoices = 12;
-  static constexpr int kSlots = 17;
+  static constexpr int kModes = 17;
+  static constexpr int kGhosts = 4;  // two of the third, two of the deciem
+  static constexpr int kSlots = kModes + kGhosts;
   static constexpr int kHolders = 16;  // note ids one bell remembers
   enum Bell : int { kTower = 0, kHandbell, kSmallClock, kRubbed, kNumBells };
   enum Meter : int { kMeterTierce = 0, kMeterPlace, kMeterLevel, kMeterPrime };
@@ -74,13 +85,14 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     for (Voice& voice : voices_) voice = Voice();
-    tuning_serial_ = gain_serial_ = place_serial_ = 1;
+    tuning_serial_ = gain_serial_ = place_serial_ = hum_serial_ = 1;
     stamp_ = 0;
     chunk_left_ = 0;
     tick_seconds_ = static_cast<float>(kChunk) / sr;
     pump_step_ = 1.0f / (kRubSeconds * sr);
     steal_step_ = 1.0f / (kStealSeconds * sr);
-    duck_ticks_ = kit::clamp_int(static_cast<int>(kDuckSeconds / tick_seconds_ + 0.5f), 1, 1000);
+    ghost_ticks_ = kit::clamp_int(static_cast<int>(kGhostSeconds / tick_seconds_ + 0.5f), 1, 10000);
+    noise_scale_ = std::sqrt(sr * (1.0f / 48000.0f));
     for (kit::Smoother* knob : {&hum_pitch_, &hum_gain_, &quint_gain_, &upper_gain_, &spread_}) {
       knob->set_time(kKnobSeconds, sr / static_cast<float>(kChunk));
     }
@@ -149,7 +161,7 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
         same->pending_gain = together(same->pending_gain, gain);
         same->follow = expected_level(bell, same->pending_gain);
       } else {
-        strike_again(*same, gain);
+        strike_again(*same, gain, chunk_left_);
       }
       return;
     }
@@ -236,7 +248,7 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
   static constexpr float kEdgeHz = 15000.0f;
   static constexpr float kTopHz = 18000.0f;
   static constexpr float kLevel = 0.122f;        // a full strike of a partial of level 1
-  static constexpr float kStack = 1.0f;          // the most a partial may reach by being struck again, of a full strike
+  static constexpr float kStack = 1.12f;         // the most a partial may reach by being struck again, of a full strike
   static constexpr float kSoftContact = 1.5f;    // clapper contact, periods of the note
   static constexpr float kHardContact = 0.08f;
   static constexpr float kMakeup = 0.7f;         // how much of what a soft clapper costs the note is given back
@@ -249,7 +261,10 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
   static constexpr float kRubbedHit = 0.22f;     // what is left of the strike of a rubbed bell
   static constexpr float kFarSide = 0.8f;        // how far past its side a pair's second half goes
   static constexpr float kStealSeconds = 0.002f;
-  static constexpr float kDuckSeconds = 0.003f;
+  static constexpr float kGhostSeconds = 0.12f;  // how long a ringing third takes to join a strike that leans
+  static constexpr float kGhostCents = 3.0f;     // less than this and it is simply there
+  static constexpr float kNoiseLevel = 0.18f;    // the clapper itself, at its hardest
+  static constexpr float kNoiseSeconds = 0.022f; // to -60 dB, at 220 Hz
   static constexpr float kKnobSeconds = 0.015f;
   static constexpr float kShortestGlide = 0.02f;
   static constexpr float kSilence = 1.0e-6f;
@@ -268,13 +283,14 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
     int count;
     float gain;     // evens out the loudness of the four
     float striker;  // how long this bell's clapper rests on it
-    Mode modes[kSlots];
+    float clack;    // how much of the clapper itself is heard
+    Mode modes[kModes];
   };
 
   static const Table& table(int bell) {
     static const Table kTables[kNumBells] = {
         // Tower: deep hum, a third that outlasts everything but the hum.
-        {17, 1.0f, 1.0f,
+        {17, 1.0f, 1.0f, 1.0f,
          {{kHum, 0.5f, 0.26f, 1.0f, 0.4f, 0.00f, 0.0f},      {kHum, 0.5f, 0.17f, 1.0f, -0.6f, 0.00f, 0.0f},
           {kPrime, 1.0f, 0.36f, 0.62f, 0.4f, 0.00f, 0.0f},  {kPrime, 1.0f, 0.24f, 0.62f, -0.6f, 0.15f, 0.0f},
           {kThird, 1.2f, 0.50f, 0.80f, 0.4f, 0.00f, 0.0f},  {kThird, 1.2f, 0.33f, 0.80f, -0.6f, -0.10f, 0.0f},
@@ -285,7 +301,7 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
           {kOver, 4.0f, 0.30f, 0.15f, 0.0f, 0.00f, 0.0f},   {kOver, 5.1f, 0.20f, 0.10f, 0.0f, 0.00f, 0.0f},
           {kOver, 6.3f, 0.14f, 0.07f, 0.0f, 0.00f, 0.0f},   {kOver, 7.6f, 0.09f, 0.05f, 0.0f, 0.00f, 0.0f}}},
         // Handbell: the note and its twelfth, little hum.
-        {14, 0.96f, 0.8f,
+        {14, 0.96f, 0.8f, 0.6f,
          {{kHum, 0.5f, 0.07f, 1.0f, 0.4f, 0.00f, 0.0f},      {kHum, 0.5f, 0.05f, 1.0f, -0.6f, 0.00f, 0.0f},
           {kPrime, 1.0f, 0.60f, 0.90f, 0.4f, 0.00f, 0.0f},  {kPrime, 1.0f, 0.40f, 0.90f, -0.6f, 0.15f, 0.0f},
           {kThird, 1.2f, 0.33f, 0.60f, 0.4f, 0.00f, 0.0f},  {kThird, 1.2f, 0.22f, 0.60f, -0.6f, -0.10f, 0.0f},
@@ -295,7 +311,7 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
           {kOver, 3.0f, 0.60f, 0.50f, 0.4f, 0.00f, 0.0f},   {kOver, 3.0f, 0.40f, 0.50f, -0.6f, 0.08f, 0.0f},
           {kOver, 5.2f, 0.16f, 0.16f, 0.0f, 0.00f, 0.0f},   {kOver, 7.4f, 0.10f, 0.08f, 0.0f, 0.00f, 0.0f}}},
         // Small clock: a hammer on a little bell, bright and soon over.
-        {13, 0.95f, 0.6f,
+        {13, 0.95f, 0.6f, 1.2f,
          {{kHum, 0.5f, 0.08f, 1.0f, 0.4f, 0.00f, 0.0f},      {kHum, 0.5f, 0.05f, 1.0f, -0.6f, 0.00f, 0.0f},
           {kPrime, 1.0f, 0.34f, 0.28f, 0.4f, 0.00f, 0.0f},  {kPrime, 1.0f, 0.23f, 0.28f, -0.6f, 0.15f, 0.0f},
           {kThird, 1.2f, 0.36f, 0.26f, 0.4f, 0.00f, 0.0f},  {kThird, 1.2f, 0.24f, 0.26f, -0.6f, -0.10f, 0.0f},
@@ -305,7 +321,7 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
           {kOver, 4.1f, 0.44f, 0.11f, 0.0f, 0.00f, 0.0f},   {kOver, 5.6f, 0.28f, 0.08f, 0.0f, 0.00f, 0.0f},
           {kOver, 7.1f, 0.17f, 0.06f, 0.0f, 0.00f, 0.0f}}},
         // Rubbed: a stick drawn round the rim, all low partials.
-        {12, 0.86f, 1.3f,
+        {12, 0.86f, 1.3f, 0.0f,
          {{kHum, 0.5f, 0.30f, 1.0f, 0.4f, 0.00f, 0.42f},     {kHum, 0.5f, 0.20f, 1.0f, -0.6f, 0.00f, 0.28f},
           {kPrime, 1.0f, 0.36f, 0.80f, 0.4f, 0.00f, 0.46f}, {kPrime, 1.0f, 0.24f, 0.80f, -0.6f, 0.15f, 0.31f},
           {kThird, 1.2f, 0.40f, 0.80f, 0.4f, 0.00f, 0.50f}, {kThird, 1.2f, 0.27f, 0.80f, -0.6f, -0.10f, 0.33f},
@@ -358,7 +374,7 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
     // Per mode: the unit turn a sample, the decay a sample (and in nepers),
     // the turn with this tick's decay, what puts rounding right once a tick,
     // the state, the output gains and their ramps, the strike that is going
-    // in, the damping a second strike does, and what a rub is after.
+    // in, and what a rub is after. The ghosts come after the bell's own modes.
     float turn_re[kSlots] = {}, turn_im[kSlots] = {};
     float radius[kSlots] = {}, nepers[kSlots] = {};
     float step_re[kSlots] = {}, step_im[kSlots] = {};
@@ -369,27 +385,36 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
     float left_to[kSlots] = {}, right_to[kSlots] = {};
     float edge[kSlots] = {};
     float push_re[kSlots] = {}, push_im[kSlots] = {};
-    float duck[kSlots] = {};
     float rub[kSlots] = {};
+    float joined[kModes] = {};  // see join_ghosts
     Glider third;
     int count = 0, bell = 0;
+    int ghosts = 0;            // 0 or kGhosts: slots count to count + ghosts - 1
+    int ghost_of[kGhosts] = {};  // the mode each was
+    float apart = 0.0f, apart_from = 0.0f;  // the ghosts' third less the bell's, as ratios of the prime
+    float lead = 0.0f;  // what a strike is turned by to meet them
+    int ghost_tick = 0;
+    kit::Rng rng;
+    kit::Svf clack;
+    float noise = 0.0f, noise_step = 0.0f;
     float frequency = 440.0f;
     float turned = 0.0f;    // what every phase of this bell is turned by
     float strength = 0.0f;  // of the last strike, for the rub
     float hit = 0.0f, queued = 0.0f;
     int pulse_at = 0, pulse_length = 0;
-    int duck_left = 0;
     float floor = 0.0f, follow = 0.0f;
     float steal = 1.0f;
     float pending_frequency = 440.0f, pending_gain = 0.0f;
     int pending_bell = 0;
-    uint32_t stamp = 0, tuned = 0, gained = 0, placed = 0;
+    uint32_t stamp = 0, tuned = 0, gained = 0, placed = 0, hummed = 0;
     int holders = 0;
     int ids[kHolders] = {};
     bool tuned_released = false;
     bool ramping = false;
     bool sounding = false, pending = false;
 
+    int live() const { return count + ghosts; }
+    int mode_of(int k) const { return k < count ? k : ghost_of[k - count]; }
     bool released() const { return holders == 0; }
     bool struck() const { return pulse_at < pulse_length; }
     void hold(int id) {
@@ -493,16 +518,91 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
     return minor ? kMinorThird : knob;
   }
 
-  void strike_third(Voice& voice) {
+  // Where the next strike puts the third, and the way it goes from there.
+  // `ahead` is how many samples go by before the next tick.
+  void strike_third(Voice& voice, bool rings, int ahead) {
     using namespace tierce_bells;
     const float place = place_for(voice.frequency);
     const float lean = param(kLean);
     voice.placed = place_serial_;
+    if (rings) {
+      for (float& level : voice.joined) level = 0.0f;
+      join_ghosts(voice);
+      const float from = voice.third.value;
+      if (std::fabs(from - (place + lean)) > kGhostCents) {
+        send_ghosts(voice, kit::cents_to_ratio(from) - kit::cents_to_ratio(place + lean), ahead);
+      }
+    }
     if (lean == 0.0f) {
       voice.third.rest(place);
     } else {
       voice.third.go(place + lean, 0.0f, place, kit::max(param(kGlide), kShortestGlide));
     }
+  }
+
+  // What rings of the third and the deciem goes on in slots of its own, from
+  // `apart` (a ratio of the prime) away from where the bell's third now starts.
+  void send_ghosts(Voice& voice, float apart, int ahead) {
+    const Table& bell = table(voice.bell);
+    int g = 0;
+    for (int k = 0; k < voice.count && g < kGhosts; ++k) {
+      const int role = bell.modes[k].role;
+      if (role != kThird && role != kDeciem) continue;
+      const int slot = voice.count + g;
+      voice.ghost_of[g++] = k;
+      voice.turn_re[slot] = voice.turn_re[k];
+      voice.turn_im[slot] = voice.turn_im[k];
+      voice.radius[slot] = voice.radius[k];
+      voice.nepers[slot] = voice.nepers[k];
+      voice.step_re[slot] = voice.step_re[k];
+      voice.step_im[slot] = voice.step_im[k];
+      voice.correction[slot] = voice.correction[k];
+      voice.re[slot] = voice.re[k];
+      voice.im[slot] = voice.im[k];
+      voice.left[slot] = voice.left[k];
+      voice.right[slot] = voice.right[k];
+      voice.left_step[slot] = voice.left_step[k];
+      voice.right_step[slot] = voice.right_step[k];
+      voice.left_to[slot] = voice.left_to[k];
+      voice.right_to[slot] = voice.right_to[k];
+      voice.edge[slot] = voice.edge[k];
+      voice.push_re[slot] = voice.push_im[slot] = voice.rub[slot] = 0.0f;
+      voice.re[k] = voice.im[k] = 0.0f;
+    }
+    voice.ghosts = g;
+    voice.apart = voice.apart_from = apart;
+    voice.ghost_tick = 0;
+    // How far the ghost gets ahead of the third before they meet, in turns of
+    // the third: `ahead` samples at `apart`, then what the cubic leaves of it.
+    voice.lead = apart * voice.frequency *
+                 (static_cast<float>(ahead) + 0.5f * static_cast<float>(kChunk * (ghost_ticks_ - 1))) / sample_rate();
+  }
+
+  // The ghosts are added to the modes they came from. At the end of their way
+  // the two are at one pitch and a quarter turn apart, and this cannot be
+  // heard. A strike that comes sooner may find them in step, so it is told
+  // what they make as power and takes off the rest.
+  void join_ghosts(Voice& voice) {
+    for (int g = 0; g < voice.ghosts; ++g) {
+      const int k = voice.ghost_of[g], slot = voice.count + g;
+      voice.joined[k] = std::sqrt(voice.re[k] * voice.re[k] + voice.im[k] * voice.im[k] + voice.re[slot] * voice.re[slot] +
+                                  voice.im[slot] * voice.im[slot]);
+      voice.re[k] += voice.re[slot];
+      voice.im[k] += voice.im[slot];
+    }
+    voice.ghosts = 0;
+    voice.apart = 0.0f;
+  }
+
+  // Once a tick: the ghosts close on the third on a cubic at rest at both ends.
+  void step_ghosts(Voice& voice) {
+    if (voice.ghosts == 0) return;
+    if (++voice.ghost_tick >= ghost_ticks_) {
+      join_ghosts(voice);
+      return;
+    }
+    const float t = static_cast<float>(voice.ghost_tick) / static_cast<float>(ghost_ticks_);
+    voice.apart = voice.apart_from * (1.0f - t * t * (3.0f - 2.0f * t));
   }
 
   // --- strikes -------------------------------------------------------------
@@ -540,31 +640,42 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
     voice.turned = kit::hz_to_midi(frequency) * 0.46f;
     for (int k = 0; k < kSlots; ++k) {
       voice.re[k] = voice.im[k] = voice.push_re[k] = voice.push_im[k] = 0.0f;
-      voice.duck[k] = 1.0f;
     }
+    voice.ghosts = 0;
+    voice.apart = 0.0f;
+    voice.noise = 0.0f;
+    voice.clack.reset();
+    voice.rng.seed(0x7E1CE5u + static_cast<uint32_t>(frequency * 8.0f) * 2654435761u);
     voice.sounding = true;
     voice.pending = false;
     voice.steal = 1.0f;
     voice.follow = voice.floor = voice.queued = voice.hit = 0.0f;
-    voice.pulse_at = voice.pulse_length = voice.duck_left = 0;
+    voice.pulse_at = voice.pulse_length = 0;
     voice.strength = gain;
-    strike_third(voice);
+    strike_third(voice, false, 0);
     tune(voice);
     gains(voice, true);
     strike(voice, gain, true);
   }
 
-  void strike_again(Voice& voice, float gain) {
+  // A strike on a bell that rings, `ahead` samples before the next tick.
+  void strike_again(Voice& voice, float gain, int ahead) {
+    const bool begun = voice.struck() && voice.pulse_at > 0;
     voice.strength = voice.struck() ? together(voice.strength, gain) : gain;
-    strike_third(voice);
-    tune(voice);
-    if (voice.struck() && voice.pulse_at > 0) {
-      // In the middle of a strike (8 ms at most): the next follows it.
+    if (begun) {
+      // In the middle of a strike (11 ms at most): the next follows it.
       voice.queued = together(voice.queued, gain);
       voice.follow = kit::max(voice.follow, expected_level(voice.bell, gain));
       return;
     }
-    strike(voice, voice.struck() ? together(voice.hit, gain) : gain, false);
+    // A strike that has not begun (the same block) becomes one with this.
+    if (voice.struck()) {
+      strike(voice, together(voice.hit, gain), false);
+      return;
+    }
+    strike_third(voice, true, ahead);
+    tune(voice);
+    strike(voice, gain, false);
   }
 
   void strike(Voice& voice, float gain, bool fresh) {
@@ -576,7 +687,7 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
     const float hardness = param(tierce_bells::kHardness);
     voice.hit = gain;
     float power = 0.0f;
-    bool ducks = false;
+    int ghost = 0;
     for (int k = 0; k < voice.count; ++k) {
       const Mode& mode = bell.modes[k];
       const float amount = hit * hit_of(gain) * mode.level * strike_share(mode.ratio, touch);
@@ -585,28 +696,42 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
       voice.rub[k] = mode.rub * tilt;
       float most = kStack * hit * mode.level * strike_share(mode.ratio, hardest);
       if (voice.bell == kRubbed) most = kit::max(most, kStack * kRubLevel * bell.gain * voice.rub[k]);
-      float ringing = fresh ? 0.0f : std::sqrt(voice.re[k] * voice.re[k] + voice.im[k] * voice.im[k]);
-      voice.duck[k] = 1.0f;
+      // Where what rang of this partial now is, and how far it will get ahead
+      // before the strike meets it.
+      int was = k;
+      float lead = 0.0f;
+      if (ghost < voice.ghosts && voice.ghost_of[ghost] == k) {
+        was = voice.count + ghost++;
+        lead = mode.role == kDeciem ? 2.0f * voice.lead : voice.lead;
+      }
+      const float re = voice.re[was], im = voice.im[was];
+      float ringing = fresh ? 0.0f : std::sqrt(re * re + im * im);
+      if (was != k) voice.push_re[was] = voice.push_im[was] = 0.0f;
       if (ringing < 1.0e-9f) {
         const float phase = mode.phase + voice.turned;
         voice.push_re[k] = amount * kit::SineTable::cos_lookup(phase);
         voice.push_im[k] = amount * kit::SineTable::lookup(phase);
         ringing = 0.0f;
       } else {
-        voice.push_re[k] = -amount * voice.im[k] / ringing;
-        voice.push_im[k] = amount * voice.re[k] / ringing;
-        const float room = std::sqrt(kit::max(most * most - amount * amount, 0.0f));
+        const float turn = lead - std::floor(lead) + 0.25f;
+        const float c = kit::SineTable::cos_lookup(turn), n = kit::SineTable::lookup(turn);
+        voice.push_re[k] = amount * (c * re - n * im) / ringing;
+        voice.push_im[k] = amount * (n * re + c * im) / ringing;
+        // What a harder clapper left may stay as loud as it is, no louder.
+        const float cap = kit::max(most, voice.joined[k] > 0.0f ? kit::min(voice.joined[k], ringing) : ringing);
+        const float room = std::sqrt(kit::max(cap * cap - amount * amount, 0.0f));
         if (ringing > room) {
-          const float share = kit::max(room / ringing, 1.0e-3f);
-          voice.duck[k] = std::pow(share, 1.0f / static_cast<float>(duck_ticks_ * kChunk));
-          ringing *= share;
-          ducks = true;
+          // The same ramp that brings the strike takes what there is no room for.
+          const float less = room / ringing - 1.0f;
+          voice.push_re[was] += less * re;
+          voice.push_im[was] += less * im;
+          ringing = room;
         }
       }
       const float gain_left = voice.left_to[k], gain_right = voice.right_to[k];
       power += (amount * amount + ringing * ringing) * (gain_left * gain_left + gain_right * gain_right);
     }
-    voice.duck_left = ducks ? duck_ticks_ : 0;
+    clack(voice, bell, gain, hardness);
     // The clapper's own speed: quicker when harder, and on higher notes.
     const float seconds = kSoftAttack * std::pow(kHardAttack / kSoftAttack, hardness) * (1.3f - 0.5f * gain) *
                           std::sqrt(kit::min(220.0f / voice.frequency, 1.0f));
@@ -616,6 +741,19 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
     voice.floor = std::sqrt(power);
     if (voice.bell == kRubbed) voice.floor = kit::max(voice.floor, expected_level(kRubbed, gain));
     voice.follow = kit::max(kit::max(voice.follow, voice.floor), kSilence);
+  }
+
+  // The clapper heard for itself: noise round 2.4 kHz (a hard clapper's
+  // higher), lower and longer on a big bell than on a small one, nothing from
+  // a soft clapper.
+  void clack(Voice& voice, const Table& bell, float gain, float hardness) {
+    const float amount = kNoiseLevel * bell.clack * hardness * hardness * gain * hit_of(gain);
+    if (amount <= 0.0f) return;
+    const float sr = sample_rate();
+    const float size = std::sqrt(kit::clamp(220.0f / voice.frequency, 0.05f, 8.0f));
+    voice.clack.set(kit::clamp((1600.0f + 1600.0f * hardness) / std::sqrt(size), 1200.0f, 6000.0f), 0.8f, sr);
+    voice.noise = kit::max(voice.noise, amount * noise_scale_);
+    voice.noise_step = std::exp(-kSixtyDb / (kNoiseSeconds * size * sr));
   }
 
   // --- pitch, decay and place of the partials ------------------------------
@@ -643,7 +781,9 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
         1.0 - kChunk * (static_cast<double>(voice.nepers[k]) + 0.5 * std::log(re * re + im * im)));
   }
 
-  float mode_hz(const Voice& voice, const Mode& mode, float third_ratio) const {
+  float mode_hz(const Voice& voice, int k, float third_ratio) const {
+    const Mode& mode = table(voice.bell).modes[voice.mode_of(k)];
+    if (k >= voice.count) third_ratio += voice.apart;
     float ratio = mode.ratio;
     if (mode.role == kHum) ratio = hum_pitch_.value;
     if (mode.role == kThird) ratio = third_ratio;
@@ -667,24 +807,23 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
       choke = kSixtyDb / seconds - kSixtyDb / decay;
     }
     const float third_ratio = kit::cents_to_ratio(voice.third.value);
-    for (int k = 0; k < voice.count; ++k) {
-      const Mode& mode = bell.modes[k];
-      const float seconds = decay * std::pow(mode.keep, power);
+    for (int k = 0; k < voice.live(); ++k) {
+      const float seconds = decay * std::pow(bell.modes[voice.mode_of(k)].keep, power);
       voice.nepers[k] = (kSixtyDb / seconds + choke) / sr;
       voice.radius[k] = std::exp(-voice.nepers[k]);
-      turn_to(voice, k, mode_hz(voice, mode, third_ratio));
+      turn_to(voice, k, mode_hz(voice, k, third_ratio));
     }
     voice.tuned = tuning_serial_;
     voice.tuned_released = voice.released();
   }
 
-  // Only what a moving third carries: itself and the deciem.
-  void tune_third(Voice& voice) {
+  // Only what moves: the third with its deciem, or the hum.
+  void tune_moving(Voice& voice, bool third, bool hum) {
     const Table& bell = table(voice.bell);
     const float third_ratio = kit::cents_to_ratio(voice.third.value);
-    for (int k = 0; k < voice.count; ++k) {
-      const Mode& mode = bell.modes[k];
-      if (mode.role == kThird || mode.role == kDeciem) turn_to(voice, k, mode_hz(voice, mode, third_ratio));
+    for (int k = 0; k < voice.live(); ++k) {
+      const int role = bell.modes[voice.mode_of(k)].role;
+      if (role == kHum ? hum : third && (role == kThird || role == kDeciem)) turn_to(voice, k, mode_hz(voice, k, third_ratio));
     }
   }
 
@@ -709,12 +848,20 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
       } else if (mode.mate == 0.0f) {
         kit::pan_gains(((k & 1) ? 0.8f : -0.8f) * spread, &left, &right);
       }
-      float level = voice.edge[k];
+      float level = 1.0f;
       if (mode.role == kHum) level *= hum_gain_.value;
       if (mode.role == kFifth) level *= quint_gain_.value;
       if (mode.role == kOver || mode.role == kDeciem) level *= upper_gain_.value;
       voice.left_to[k] = level * left;
       voice.right_to[k] = level * right;
+    }
+    for (int k = voice.count; k < voice.live(); ++k) {
+      voice.left_to[k] = voice.left_to[voice.mode_of(k)];
+      voice.right_to[k] = voice.right_to[voice.mode_of(k)];
+    }
+    for (int k = 0; k < voice.live(); ++k) {
+      voice.left_to[k] *= voice.edge[k];
+      voice.right_to[k] *= voice.edge[k];
       if (snap) {
         voice.left[k] = voice.left_to[k];
         voice.right[k] = voice.right_to[k];
@@ -733,7 +880,7 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
   void move_knobs() {
     if (!hum_pitch_.settled()) {
       hum_pitch_.next();
-      ++tuning_serial_;
+      ++hum_serial_;
     }
     bool moved = false;
     for (kit::Smoother* knob : {&hum_gain_, &quint_gain_, &upper_gain_, &spread_}) {
@@ -759,7 +906,7 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
 
   static void land_gains(Voice& voice) {
     if (!voice.ramping) return;
-    for (int k = 0; k < voice.count; ++k) {
+    for (int k = 0; k < voice.live(); ++k) {
       voice.left[k] = voice.left_to[k];
       voice.right[k] = voice.right_to[k];
       voice.left_step[k] = voice.right_step[k] = 0.0f;
@@ -776,35 +923,42 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
                        kit::max(param(tierce_bells::kGlide), kShortestGlide));
       }
     }
-    const bool glides = voice.third.moving;
-    if (glides) voice.third.step(tick_seconds_);
+    const bool glides = voice.third.moving || voice.ghosts > 0;
+    if (voice.third.moving) voice.third.step(tick_seconds_);
+    step_ghosts(voice);
     if (voice.tuned != tuning_serial_ || voice.tuned_released != voice.released()) {
       tune(voice);
-    } else if (glides) {
-      tune_third(voice);
+    } else if (glides || voice.hummed != hum_serial_) {
+      tune_moving(voice, glides, voice.hummed != hum_serial_);
     }
-    if (voice.gained != gain_serial_) gains(voice, false);
+    voice.hummed = hum_serial_;
     if (!voice.struck() && voice.queued > 0.0f) {
       const float gain = voice.queued;
       voice.queued = 0.0f;
+      strike_third(voice, true, kChunk);
+      tune(voice);
       strike(voice, gain, false);
+    }
+    if (voice.gained != gain_serial_) gains(voice, false);
+    if (voice.noise < 1.0e-6f && voice.noise > 0.0f) {
+      voice.noise = 0.0f;
+      voice.clack.reset();
     }
     // Rubbing: a partial under its level grows toward it (r a little over
     // 1), one over it is left to ring. The push is the partial itself, so it
     // needs no phase.
     const bool rubbing = voice.bell == kRubbed && !voice.released();
     const float rub_level = kRubLevel * table(voice.bell).gain * voice.strength * (0.8f + 0.2f * voice.strength);
-    const bool ducking = voice.duck_left > 0;
     bool fed = false;
     float energy = 0.0f;
-    for (int k = 0; k < voice.count; ++k) {
+    for (int k = 0; k < voice.live(); ++k) {
       voice.re[k] *= voice.correction[k];
       voice.im[k] *= voice.correction[k];
       const float power = voice.re[k] * voice.re[k] + voice.im[k] * voice.im[k];
       float radius = voice.radius[k];
       if (voice.turn_re[k] == 0.0f && voice.turn_im[k] == 0.0f) {
         voice.re[k] = voice.im[k] = 0.0f;  // out of the band: it does not exist
-      } else if (rubbing && voice.rub[k] > 0.0f && rub_level > 0.0f) {
+      } else if (rubbing && k < voice.count && voice.rub[k] > 0.0f && rub_level > 0.0f) {
         fed = true;
         const float target = voice.rub[k] * rub_level;
         float amplitude = std::sqrt(power);
@@ -820,15 +974,13 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
       } else if (power < 1.0e-24f) {
         voice.re[k] = voice.im[k] = 0.0f;
       }
-      if (ducking) radius *= voice.duck[k];
       voice.step_re[k] = radius * voice.turn_re[k];
       voice.step_im[k] = radius * voice.turn_im[k];
       energy += power * (voice.left_to[k] * voice.left_to[k] + voice.right_to[k] * voice.right_to[k]);
     }
-    if (ducking) --voice.duck_left;
     const float ringing = std::sqrt(energy);
     voice.follow = voice.struck() || (fed && rubbing) ? kit::max(voice.floor, ringing) : ringing;
-    if (!fed && !voice.struck() && voice.queued <= 0.0f && ringing < kSilence) retire(voice);
+    if (!fed && !voice.struck() && voice.queued <= 0.0f && voice.noise == 0.0f && ringing < kSilence) retire(voice);
   }
 
   void retire(Voice& voice) {
@@ -852,7 +1004,7 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
       }
     }
     float out_left[kChunk] = {}, out_right[kChunk] = {};
-    for (int k = 0; k < voice.count; ++k) {
+    for (int k = 0; k < voice.live(); ++k) {
       float re = voice.re[k], im = voice.im[k];
       if (re == 0.0f && im == 0.0f && !struck) continue;
       const float step_re = voice.step_re[k], step_im = voice.step_im[k];
@@ -861,12 +1013,14 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
       if (struck) {
         float push_re = voice.push_re[k], push_im = voice.push_im[k];
         for (int i = 0; i < n; ++i) {
-          const float turned = step_re * re - step_im * im + push_re * pulse[i];
-          im = step_re * im + step_im * re + push_im * pulse[i];
-          re = turned;
+          // The push turns with the mode before it goes in, so it stays at
+          // its angle to what rings, whatever the pitch.
           const float pushed = step_re * push_re - step_im * push_im;
           push_im = step_re * push_im + step_im * push_re;
           push_re = pushed;
+          const float turned = step_re * re - step_im * im + push_re * pulse[i];
+          im = step_re * im + step_im * re + push_im * pulse[i];
+          re = turned;
           out_left[i] += gain_left * im;
           out_right[i] += gain_right * im;
           gain_left += ramp_left;
@@ -890,6 +1044,14 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
       voice.left[k] = gain_left;
       voice.right[k] = gain_right;
     }
+    if (voice.noise > 0.0f) {
+      for (int i = 0; i < n; ++i) {
+        const float x = voice.clack.bandpass(voice.rng.bipolar() * voice.noise);
+        voice.noise *= voice.noise_step;
+        out_left[i] += x;
+        out_right[i] += x;
+      }
+    }
     if (!voice.pending) {
       for (int i = 0; i < n; ++i) {
         left[i] += out_left[i];
@@ -909,10 +1071,11 @@ class TierceBells : public kit::DeviceBase<tierce_bells::kNumParams> {
   kit::Smoother hum_pitch_, hum_gain_, quint_gain_, upper_gain_, spread_;  // once a tick
   kit::Smoother volume_;                                                   // every sample
   kit::IdleGate idle_;
-  uint32_t tuning_serial_ = 1, gain_serial_ = 1, place_serial_ = 1;
+  uint32_t tuning_serial_ = 1, gain_serial_ = 1, place_serial_ = 1, hum_serial_ = 1;
   uint32_t stamp_ = 0;
   int chunk_left_ = 0;
-  int duck_ticks_ = 1;
+  int ghost_ticks_ = 1;
+  float noise_scale_ = 1.0f;
   float tick_seconds_ = 0.0f;
   float pump_step_ = 0.0f;
   float steal_step_ = 0.0f;

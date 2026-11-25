@@ -27,7 +27,7 @@ export const TIERCE_BELLS_PARAMS = {
     taper: 'linear',
     unit: 'ct',
     description:
-      "How far the bell's third lies above its note. Low is a narrow minor third, the middle sits between minor and major, and the top is a fourth.",
+      "How far the bell's third is above its note, from narrow minor through major to a fourth. With Follow on Key it sets only the notes Root and Scale leave open.",
   },
   follow: {
     id: 2,
@@ -74,7 +74,7 @@ export const TIERCE_BELLS_PARAMS = {
     taper: 'linear',
     unit: 'ct',
     description:
-      "Starts each strike's third above or below its place and lets it glide there, like a suspension that resolves inside one bell. Glide sets how long it takes.",
+      "Starts each strike's third above or below its place and lets it glide there, like a suspension resolving inside one bell. A third that still rings joins it.",
   },
   glide: {
     id: 6,
@@ -96,7 +96,7 @@ export const TIERCE_BELLS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Pitch of the low hum tone against the note. The centre is an octave below; higher nears a minor seventh below, as in older bells, and lower passes a ninth.',
+      'Pitch of the low hum tone against the note. The centre is an octave below; higher passes a minor seventh below, as in older bells, and lower passes a ninth.',
   },
   humLevel: {
     id: 8,
@@ -161,7 +161,7 @@ export const TIERCE_BELLS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the clapper is. Soft wakes the low partials gently; hard brings a quick, bright strike. On a rubbed bell it brings up the upper partials.',
+      'How hard the clapper is. Soft wakes the low partials gently; hard is quick and bright, and the clapper itself is heard. A rubbed bell only gets brighter.',
   },
   doublet: {
     id: 14,
@@ -292,7 +292,7 @@ export const TIERCE_BELLS_DESCRIPTOR = wasmDeviceDescriptor(TIERCE_BELLS_DEVICE,
       doublet: 4,
       release: 0.15,
       spread: 0.3,
-      volume: -6.5,
+      volume: -8.2,
     },
     'Major bell': {
       tierce: 386.31,
