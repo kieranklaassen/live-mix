@@ -68,6 +68,7 @@ import { TINE_PIANO_PRESETS } from './tine-piano'
 import { TWIN_BARS_PRESETS } from './twin-bars'
 import { WAVETABLE_PRESETS } from './wavetable'
 import { WEST_COAST_PRESETS } from './west-coast'
+import { WHEEL_AND_DOG_PRESETS } from './wheel-and-dog'
 import { WIND_HARP_PRESETS } from './wind-harp'
 import { ZITHER_PRESETS } from './zither'
 import { ZONE_SAMPLER_PRESETS } from './zone-sampler'
@@ -142,4 +143,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...RULE_OF_THE_OCTAVE_PRESETS,
   ...MAKER_ONE_SPINE_PRESETS,
   ...TWO_ROADS_PRESETS,
+  ...WHEEL_AND_DOG_PRESETS,
 ]
