@@ -23,7 +23,7 @@ export const BUZZING_BRIDGE_PARAMS = {
     name: 'Amount',
     min: 0,
     max: 1,
-    default: 0.45,
+    default: 0.55,
     taper: 'linear',
     unit: '',
     description:

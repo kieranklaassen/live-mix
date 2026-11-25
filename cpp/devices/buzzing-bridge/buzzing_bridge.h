@@ -282,6 +282,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     settle_ticks_ = quiet_ticks_ = letting_go_ = 0;
     jump_ = from_ = 0.0f;
     climb_ = held_climb_ = 0.0f;
+    curve_ = -1.0f;
     sink_ = sink_target_ = 1.0f;
     open_ = open_target_ = 0.0f;
     place_hz_ = 0.0f;
@@ -385,8 +386,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     const float width = width_.next();
     float mid = 0.5f * (y[0] + y[1]);
     float side = 0.5f * (y[0] - y[1]);
-    float apart = 0.0f;
-    if (width > 0.0f) apart = spread_line_[1].process(spread_line_[0].process(mid, spread_[0], 0.6f), spread_[1], -0.6f);
+    const float apart = spread_line_[1].process(spread_line_[0].process(mid, spread_[0], 0.6f), spread_[1], -0.6f);
     side += width * (model_ == kShell ? pan_ * mid : 0.65f * apart);
 
     // The last word on how high the buzz may stand, for whatever the filters,
@@ -646,7 +646,9 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
   void place() {
     using namespace buzzing_bridge;
     const float sr = sample_rate();
-    const float curve = param(kCurve), tracking = param(kTracking), resonance = param(kResonance);
+    curve_ = curve_ < 0.0f ? param(kCurve) : curve_;
+    glide(&curve_, param(kCurve), 0.015f, 0.015f);
+    const float curve = curve_, tracking = param(kTracking), resonance = param(kResonance);
     const float followed = pitch_.hz();
     // With no pitch to go by: 220 Hz, or half of what a sine as steep would be.
     const float steepness = steep_ / kit::max(swing_, 1.0e-5f);
@@ -665,7 +667,8 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     // goes on touching until it is gone.
     open_target_ = 0.0f;
     if (model_ == kMembrane) {
-      if (loud_ > threshold_) open_target_ = std::pow(1.0f - threshold_ / loud_, 0.5f + 1.5f * curve);
+      // All the way open 4 dB over Threshold at Curve 0, 32 dB over it at 1.
+      if (loud_ > threshold_) open_target_ = kit::min(1.0f, kit::gain_to_db(loud_ / threshold_) / (4.0f + 28.0f * curve));
     } else if (strike_ > threshold_) {
       open_target_ = kit::min(1.0f, kit::gain_to_db(strike_ / threshold_) * (1.0f / 3.0f));
     }
@@ -795,7 +798,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
   float jump_ = 0.0f, from_ = 0.0f;
 
   // The touch.
-  float climb_ = 0.0f, held_climb_ = 0.0f, partial_ = 0.0f, place_hz_ = 0.0f, open_ = 0.0f;
+  float climb_ = 0.0f, held_climb_ = 0.0f, curve_ = -1.0f, partial_ = 0.0f, place_hz_ = 0.0f, open_ = 0.0f;
   float edge_[2][2] = {};
   float grip_[2] = {};
   bool closed_[2] = {}, odd_[2] = {};
