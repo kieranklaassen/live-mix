@@ -786,4 +786,142 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'vessel', preset: 'Glass tube' },
     ],
   },
+  {
+    id: 'silent-keys-under-drums',
+    name: 'Chord under the drums',
+    category: 'texture',
+    description:
+      'Made for drums: each hit wakes a D minor ninth held down without a sound, and what lies under 120 hertz is kept off the strings.',
+    effects: [
+      {
+        deviceId: 'silent-keys',
+        preset: 'Minor nine in noise',
+        params: { lowCut: 120, mix: 0.6, output: -3 },
+      },
+    ],
+  },
+  {
+    id: 'silent-keys-in-the-rain',
+    name: 'Rain on silent strings',
+    category: 'texture',
+    description:
+      'Light rain falls over the playing, and a stack of fourths held down without a sound rings out of the drops and the notes alike.',
+    effects: [
+      { deviceId: 'weather', preset: 'Light rain', params: { voice: 0.7 } },
+      {
+        deviceId: 'silent-keys',
+        preset: 'Fourths in the air',
+        params: { sharpness: 0.1, lift: 36, mix: 0.6 },
+      },
+    ],
+  },
+  {
+    id: 'silent-keys-crackle',
+    name: 'Fifths out of crackle',
+    category: 'texture',
+    description:
+      'A worn record crackles over the playing, and each click and each note wakes three strings a fifth apart: A, E and B.',
+    effects: [
+      { deviceId: 'vinyl', preset: 'Dust and scratches' },
+      { deviceId: 'silent-keys', preset: 'Fifths out of clicks', params: { mix: 0.55 } },
+    ],
+  },
+  {
+    id: 'silent-keys-staccato',
+    name: 'Triad after short notes',
+    category: 'texture',
+    description:
+      'Made for short dry notes: each rings on in a C major triad held down without a sound, loudest where it shares partials, in a room.',
+    effects: [
+      { deviceId: 'silent-keys', preset: 'Triad under staccato', params: { mix: 0.65 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
+    ],
+  },
+  {
+    id: 'silent-keys-speech',
+    name: 'Spoken into a chord',
+    category: 'texture',
+    description:
+      'Made for a voice: each word wakes a G six held down without a sound, set to ring for two seconds, on a dark plate.',
+    effects: [
+      { deviceId: 'silent-keys', preset: 'Speech into a chord', params: { output: 1.5 } },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.15 } },
+    ],
+  },
+  {
+    id: 'buzzing-bridge-harp',
+    name: 'Harp on a wide bridge',
+    category: 'texture',
+    description:
+      'Made for a harp: the buzz of each plucked note climbs from its third partial towards its twelfth as the note dies, in a small room.',
+    effects: [
+      {
+        deviceId: 'buzzing-bridge',
+        preset: 'Harp on a bridge',
+        params: { amount: 0.5, threshold: -50 },
+      },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.18 } },
+    ],
+  },
+  {
+    id: 'buzzing-bridge-marimba',
+    name: 'Skin under the marimba',
+    category: 'texture',
+    description:
+      'Made for struck bars: loud notes wake a skin at 2.4 kilohertz and soft ones stay as they were; Threshold is the line between.',
+    effects: [{ deviceId: 'buzzing-bridge', preset: 'Balafon skin', params: { amount: 0.9 } }],
+  },
+  {
+    id: 'buzzing-bridge-kalimba',
+    name: 'Shells on the tongues',
+    category: 'texture',
+    description:
+      'Made for plucked metal tongues: each attack shakes six loose shells, each sooner and softer, then nothing while the note rings.',
+    effects: [
+      { deviceId: 'buzzing-bridge', preset: 'Loose caps' },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.15 } },
+    ],
+  },
+  {
+    id: 'buzzing-bridge-choir',
+    name: 'Paper edge on voices',
+    category: 'texture',
+    description:
+      'Made for a choir: a thin edge of paper over three kilohertz comes and goes with the voices, which stay as they are under it; in a hall.',
+    effects: [
+      {
+        deviceId: 'buzzing-bridge',
+        preset: 'Paper edge',
+        params: { amount: 0.12, threshold: -50 },
+      },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.2 } },
+    ],
+  },
+  {
+    id: 'buzzing-bridge-sub',
+    name: 'Strings from a low sine',
+    category: 'texture',
+    description:
+      'Made for a low sine: the bridge makes partials of it, strongest from the fourth to the sixth, so small speakers have something to play.',
+    effects: [{ deviceId: 'buzzing-bridge', preset: 'Sine into strings' }],
+  },
+  {
+    id: 'buzzing-bridge-drone',
+    name: 'Drone with living bridge',
+    category: 'texture',
+    description:
+      'Made for held chords and drones: the buzz climbs half of its way over some seconds and stays, wide, with a long hall round it.',
+    effects: [
+      { deviceId: 'buzzing-bridge', preset: 'Drone strings', params: { amount: 0.9 } },
+      { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.22 } },
+    ],
+  },
+  {
+    id: 'buzzing-bridge-comb',
+    name: 'Comb and paper tune',
+    category: 'texture',
+    description:
+      "Made for one line at a time: the tune is played against paper round two kilohertz, which is tuned to each note's own partials.",
+    effects: [{ deviceId: 'buzzing-bridge', preset: 'Comb and paper' }],
+  },
 ]

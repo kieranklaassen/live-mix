@@ -1,0 +1,410 @@
+{
+  "id": "hand-horn",
+  "name": "Hand Horn",
+  "category": "instrument",
+  "description": "A natural horn with a crook and a hand in the bell. Notes the tube gives are bright and open; every other key is stopped by the hand, and is darker the further it moved.",
+  "class": "HandHorn",
+  "header": "hand_horn.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "covering",
+      "name": "Hand over the bell",
+      "display": true
+    },
+    {
+      "key": "partial",
+      "name": "Partial of the crook",
+      "display": true
+    },
+    {
+      "key": "place",
+      "name": "Place on the ladder",
+      "display": true
+    },
+    {
+      "key": "level",
+      "name": "Level of the newest note",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "crook",
+      "name": "Crook",
+      "choices": [
+        "B flat basso",
+        "C",
+        "D",
+        "E flat",
+        "E",
+        "F",
+        "G",
+        "A flat",
+        "A",
+        "B flat alto",
+        "C alto"
+      ],
+      "default": 1,
+      "description": "The tube in use. Its own notes sound open and the keys between them are stopped, so each crook puts the bright and the dark keys in other places."
+    },
+    {
+      "key": "hand",
+      "name": "Hand",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How far the hand corrects. At zero every key falls to the nearest note of the tube at its own pitch, all open; at full every key is in tune and stopped as it needs."
+    },
+    {
+      "key": "lip",
+      "name": "Lip",
+      "min": 5,
+      "max": 60,
+      "default": 35,
+      "unit": "ct",
+      "description": "How far the lips alone bend a note before the hand has to help. Keys go over to open one by one as it widens, so a small turn may change none; one pulled up is thinner."
+    },
+    {
+      "key": "shadow",
+      "name": "Shadow",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How dark, small and nasal the hand makes a stopped note. At zero stopped and open notes have one colour."
+    },
+    {
+      "key": "blow",
+      "name": "Blow",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How bright the horn is blown. Low is a soft round hum; high turns brassy as a note swells or is played harder."
+    },
+    {
+      "key": "breath",
+      "name": "Breath",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Air heard around the tone. The hand covers it along with the note."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.005,
+      "max": 3,
+      "default": 0.06,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to speak. The highs come in after the lows, and low notes always take a little longer."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.03,
+      "max": 5,
+      "default": 0.3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to fade once its key is let go. It darkens as it fades."
+    },
+    {
+      "key": "play",
+      "name": "Play",
+      "choices": ["Solo", "Chords"],
+      "default": 1,
+      "description": "Solo is one horn: keys that overlap slide into each other and the last key held wins. Chords is a horn to each key, six at most."
+    },
+    {
+      "key": "slide",
+      "name": "Lip slide",
+      "min": 0,
+      "max": 3,
+      "default": 0.25,
+      "unit": "s",
+      "description": "Time a slide takes between overlapping keys in Solo. The lips pass every note of the tube on the way, up or down, and stop a moment on each."
+    },
+    {
+      "key": "rip",
+      "name": "Rip",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "A rough start on every fresh note. It scoops up to pitch with a crack on the way; high starts lower, at full from the next lower note of the tube, and takes longer."
+    },
+    {
+      "key": "tremble",
+      "name": "Tremble",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "The hand opening and closing in the bell. Pitch and colour move together: lower and darker, then higher and more open."
+    },
+    {
+      "key": "trembleRate",
+      "name": "Tremble rate",
+      "min": 0.2,
+      "max": 8,
+      "default": 3,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How fast the hand opens and closes. It is heard only with Tremble up."
+    },
+    {
+      "key": "distance",
+      "name": "Distance",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "How far off the bell is. Farther is softer and duller, and at the far end the ground and the walls answer about as loudly as the horn itself."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Places low notes to the left and high notes to the right, and widens what comes back in Distance. At zero all is in the middle."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Hand on the C crook": {
+      "crook": 1,
+      "hand": 1,
+      "attack": 0.06,
+      "release": 0.4,
+      "spread": 0.2
+    },
+    "Crook in F": {
+      "crook": 5,
+      "blow": 0.85,
+      "shadow": 0.9,
+      "attack": 0.04,
+      "release": 1.1,
+      "breath": 0.15,
+      "distance": 0,
+      "volume": -6.6
+    },
+    "Open tube only": {
+      "hand": 0,
+      "shadow": 0,
+      "blow": 0.85,
+      "spread": 0.9,
+      "attack": 0.02,
+      "release": 0.2,
+      "breath": 0
+    },
+    "All in the hand": {
+      "crook": 7,
+      "lip": 5,
+      "shadow": 1,
+      "blow": 0.9,
+      "breath": 0.5,
+      "attack": 0.1,
+      "release": 0.8,
+      "distance": 0.05,
+      "volume": -3.2
+    },
+    "One colour": {
+      "volume": -7.4,
+      "shadow": 0,
+      "blow": 0.35,
+      "breath": 0,
+      "attack": 0.25,
+      "release": 0.6,
+      "crook": 2,
+      "distance": 0
+    },
+    "Half a hand": {
+      "crook": 3,
+      "hand": 0.5,
+      "shadow": 1,
+      "attack": 0.15,
+      "release": 1.6,
+      "spread": 0.7,
+      "blow": 0.6
+    },
+    "Wide lips": {
+      "crook": 6,
+      "lip": 60,
+      "blow": 0.5,
+      "attack": 0.09,
+      "breath": 0.65,
+      "release": 0.3,
+      "distance": 0.3,
+      "spread": 0.6,
+      "volume": -4
+    },
+    "Ladder of a tenth": {
+      "play": 0,
+      "slide": 2.4,
+      "blow": 0.85,
+      "attack": 0.18,
+      "release": 0.9,
+      "breath": 0.55,
+      "distance": 0.3,
+      "spread": 0.6,
+      "volume": -1
+    },
+    "Quick lip slurs": {
+      "play": 0,
+      "slide": 0.35,
+      "crook": 5,
+      "blow": 0.9,
+      "attack": 0.012,
+      "release": 0.15,
+      "volume": -1.5,
+      "breath": 0.2
+    },
+    "Slow climb at dusk": {
+      "play": 0,
+      "slide": 3,
+      "blow": 0.35,
+      "attack": 0.8,
+      "release": 2.5,
+      "distance": 0.5,
+      "volume": 1
+    },
+    "Two horns apart": {
+      "crook": 4,
+      "spread": 1,
+      "blow": 0.6,
+      "attack": 0.12,
+      "release": 0.9,
+      "distance": 0.1,
+      "breath": 0.3
+    },
+    "Far horn": {
+      "distance": 1,
+      "release": 2.2,
+      "attack": 0.12,
+      "spread": 0.8,
+      "volume": 2
+    },
+    "Across the water": {
+      "crook": 2,
+      "distance": 0.65,
+      "spread": 1,
+      "attack": 0.02,
+      "release": 0.12,
+      "blow": 0.95,
+      "volume": -1
+    },
+    "Hunting call": {
+      "crook": 2,
+      "hand": 0,
+      "blow": 1,
+      "rip": 0.45,
+      "attack": 0.005,
+      "release": 0.1,
+      "breath": 0.1,
+      "distance": 0.05,
+      "spread": 0.1,
+      "volume": -6
+    },
+    "Rough start": {
+      "rip": 1,
+      "blow": 0.8,
+      "attack": 0.005,
+      "release": 0.25,
+      "shadow": 0.9,
+      "breath": 0.6,
+      "crook": 8,
+      "distance": 0.25,
+      "spread": 0.5,
+      "volume": -4
+    },
+    "Hand tremble": {
+      "tremble": 1,
+      "trembleRate": 4.2,
+      "attack": 0.2,
+      "release": 0.7,
+      "crook": 6,
+      "blow": 0.65
+    },
+    "Slow hand wave": {
+      "tremble": 1,
+      "trembleRate": 0.45,
+      "attack": 0.5,
+      "release": 1.8,
+      "shadow": 1
+    },
+    "Basso crook": {
+      "crook": 0,
+      "blow": 1,
+      "breath": 0.45,
+      "attack": 0.12,
+      "release": 0.5,
+      "spread": 0.2
+    },
+    "Alto crook": {
+      "volume": -6.2,
+      "crook": 10,
+      "blow": 0.3,
+      "breath": 0.1,
+      "attack": 0.03,
+      "release": 0.15,
+      "distance": 0,
+      "spread": 0.1
+    },
+    "Air in the tube": {
+      "volume": -7,
+      "blow": 0.1,
+      "breath": 1,
+      "attack": 0.3,
+      "release": 1.2,
+      "shadow": 0.6
+    },
+    "Round hum": {
+      "blow": 0,
+      "breath": 0.05,
+      "attack": 0.2,
+      "release": 1,
+      "shadow": 0.5,
+      "crook": 9
+    },
+    "Blown to brass": {
+      "blow": 1,
+      "breath": 0,
+      "attack": 0.35,
+      "release": 0.6,
+      "shadow": 1,
+      "crook": 3,
+      "distance": 0,
+      "volume": -6.2
+    },
+    "Long swell": {
+      "attack": 2.8,
+      "release": 4.5,
+      "blow": 0.95,
+      "crook": 8,
+      "spread": 0.6
+    },
+    "Dark corner": {
+      "crook": 7,
+      "shadow": 1,
+      "breath": 0.75,
+      "blow": 0.5,
+      "attack": 0.7,
+      "release": 2.5,
+      "distance": 0.45,
+      "tremble": 0.2,
+      "trembleRate": 1,
+      "volume": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. No recording, sample, circuit or measurement of an instrument was used: it is the textbook physics of a horn with no valves, whose partials stand at whole multiples of the crook's fundamental, with a hand in the bell that lowers a note as it closes. The rule is exact: a key within Lip cents of its nearest partial is open and lipped to pitch, any other is the next partial above lowered by the hand, and covering is the cents lowered over 120. Simplified: the tone is a closed form harmonic series whose brightness follows the breath, not a model of lips and air in a tube; the bell is a fixed shelf, peak and low-pass after three allpasses that only spread the peaks; the hand is a low-pass, a nasal band and a fall in level, so a note stopped fully is not raised by a half step as a hand pushed hard into a real bell can do; covering stays full below the fourth partial, where gaps are wider than a hand can close, and the pitch is right anyway; the distance is a duller horn and eight fixed answers a side, not a room. Choices, not measurements: 120 cents for a hand fully in, 60 cents for the thinnest lipped note, every filter figure of the hand and the bell, the brightness law and the levels by pitch, the rests of a slide, the rip's times, 28 cents of tremble, 14 cents of settling at the start of a note and half a cent of drift. Keys within two cents of each other sound as one horn, the newest. Tuned by measurement only: nobody has listened to it."
+  }
+}

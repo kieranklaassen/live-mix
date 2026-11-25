@@ -21,6 +21,7 @@ import { BOWED_STRING_DESCRIPTOR, BOWED_STRING_DEVICE } from './bowed-string.gen
 import { BOWLS_DESCRIPTOR, BOWLS_DEVICE } from './bowls.gen'
 import { BREATH_DESCRIPTOR, BREATH_DEVICE } from './breath.gen'
 import { BREATH_PACER_DESCRIPTOR, BREATH_PACER_DEVICE } from './breath-pacer.gen'
+import { BUZZING_BRIDGE_DESCRIPTOR, BUZZING_BRIDGE_DEVICE } from './buzzing-bridge.gen'
 import { CANON_DESCRIPTOR, CANON_DEVICE } from './canon.gen'
 import { CASCADE_DESCRIPTOR, CASCADE_DEVICE } from './cascade.gen'
 import { CHAMBER_STRINGS_DESCRIPTOR, CHAMBER_STRINGS_DEVICE } from './chamber-strings.gen'
@@ -62,6 +63,7 @@ import { GRAIN_DELAY_DESCRIPTOR, GRAIN_DELAY_DEVICE } from './grain-delay.gen'
 import { GRAIN_SYNTH_DESCRIPTOR, GRAIN_SYNTH_DEVICE } from './grain-synth.gen'
 import { GUITAR_DESCRIPTOR, GUITAR_DEVICE } from './guitar.gen'
 import { HALF_SPEED_DESCRIPTOR, HALF_SPEED_DEVICE } from './half-speed.gen'
+import { HAND_HORN_DESCRIPTOR, HAND_HORN_DEVICE } from './hand-horn.gen'
 import { HANDPAN_DESCRIPTOR, HANDPAN_DEVICE } from './handpan.gen'
 import { HARP_DESCRIPTOR, HARP_DEVICE } from './harp.gen'
 import { HAZE_DESCRIPTOR, HAZE_DEVICE } from './haze.gen'
@@ -111,6 +113,7 @@ import { SHAPED_REVERB_DESCRIPTOR, SHAPED_REVERB_DEVICE } from './shaped-reverb.
 import { SHIMMER_DESCRIPTOR, SHIMMER_DEVICE } from './shimmer.gen'
 import { SHORTWAVE_DESCRIPTOR, SHORTWAVE_DEVICE } from './shortwave.gen'
 import { SIFT_DESCRIPTOR, SIFT_DEVICE } from './sift.gen'
+import { SILENT_KEYS_DESCRIPTOR, SILENT_KEYS_DEVICE } from './silent-keys.gen'
 import { SINE_SHADOW_DESCRIPTOR, SINE_SHADOW_DEVICE } from './sine-shadow.gen'
 import { SIZE_DESCRIPTOR, SIZE_DEVICE } from './size.gen'
 import { SKIPPING_STONE_DESCRIPTOR, SKIPPING_STONE_DEVICE } from './skipping-stone.gen'
@@ -137,6 +140,7 @@ import { TAPE_ECHO_DESCRIPTOR, TAPE_ECHO_DEVICE } from './tape-echo.gen'
 import { TAPE_LOOP_DESCRIPTOR, TAPE_LOOP_DEVICE } from './tape-loop.gen'
 import { TAPE_ORCHESTRA_DESCRIPTOR, TAPE_ORCHESTRA_DEVICE } from './tape-orchestra.gen'
 import { THESIS_DESCRIPTOR, THESIS_DEVICE } from './thesis.gen'
+import { TIERCE_BELLS_DESCRIPTOR, TIERCE_BELLS_DEVICE } from './tierce-bells.gen'
 import { TINE_PIANO_DESCRIPTOR, TINE_PIANO_DEVICE } from './tine-piano.gen'
 import { TREMOLO_DESCRIPTOR, TREMOLO_DEVICE } from './tremolo.gen'
 import { TWIN_BARS_DESCRIPTOR, TWIN_BARS_DEVICE } from './twin-bars.gen'
@@ -149,6 +153,7 @@ import { WARP_DESCRIPTOR, WARP_DEVICE } from './warp.gen'
 import { WAVETABLE_DESCRIPTOR, WAVETABLE_DEVICE } from './wavetable.gen'
 import { WEATHER_DESCRIPTOR, WEATHER_DEVICE } from './weather.gen'
 import { WEST_COAST_DESCRIPTOR, WEST_COAST_DEVICE } from './west-coast.gen'
+import { WHEEL_AND_DOG_DESCRIPTOR, WHEEL_AND_DOG_DEVICE } from './wheel-and-dog.gen'
 import { WIND_HARP_DESCRIPTOR, WIND_HARP_DEVICE } from './wind-harp.gen'
 import { WINDING_DOWN_DESCRIPTOR, WINDING_DOWN_DEVICE } from './winding-down.gen'
 import { ZITHER_DESCRIPTOR, ZITHER_DEVICE } from './zither.gen'
@@ -173,6 +178,7 @@ export * from './bowed-string.gen'
 export * from './bowls.gen'
 export * from './breath.gen'
 export * from './breath-pacer.gen'
+export * from './buzzing-bridge.gen'
 export * from './canon.gen'
 export * from './cascade.gen'
 export * from './chamber-strings.gen'
@@ -214,6 +220,7 @@ export * from './grain-delay.gen'
 export * from './grain-synth.gen'
 export * from './guitar.gen'
 export * from './half-speed.gen'
+export * from './hand-horn.gen'
 export * from './handpan.gen'
 export * from './harp.gen'
 export * from './haze.gen'
@@ -263,6 +270,7 @@ export * from './shaped-reverb.gen'
 export * from './shimmer.gen'
 export * from './shortwave.gen'
 export * from './sift.gen'
+export * from './silent-keys.gen'
 export * from './sine-shadow.gen'
 export * from './size.gen'
 export * from './skipping-stone.gen'
@@ -289,6 +297,7 @@ export * from './tape-echo.gen'
 export * from './tape-loop.gen'
 export * from './tape-orchestra.gen'
 export * from './thesis.gen'
+export * from './tierce-bells.gen'
 export * from './tine-piano.gen'
 export * from './tremolo.gen'
 export * from './twin-bars.gen'
@@ -301,6 +310,7 @@ export * from './warp.gen'
 export * from './wavetable.gen'
 export * from './weather.gen'
 export * from './west-coast.gen'
+export * from './wheel-and-dog.gen'
 export * from './wind-harp.gen'
 export * from './winding-down.gen'
 export * from './zither.gen'
@@ -327,6 +337,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   BOWLS_DESCRIPTOR,
   BREATH_DESCRIPTOR,
   BREATH_PACER_DESCRIPTOR,
+  BUZZING_BRIDGE_DESCRIPTOR,
   CANON_DESCRIPTOR,
   CASCADE_DESCRIPTOR,
   CHAMBER_STRINGS_DESCRIPTOR,
@@ -368,6 +379,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   GRAIN_SYNTH_DESCRIPTOR,
   GUITAR_DESCRIPTOR,
   HALF_SPEED_DESCRIPTOR,
+  HAND_HORN_DESCRIPTOR,
   HANDPAN_DESCRIPTOR,
   HARP_DESCRIPTOR,
   HAZE_DESCRIPTOR,
@@ -417,6 +429,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SHIMMER_DESCRIPTOR,
   SHORTWAVE_DESCRIPTOR,
   SIFT_DESCRIPTOR,
+  SILENT_KEYS_DESCRIPTOR,
   SINE_SHADOW_DESCRIPTOR,
   SIZE_DESCRIPTOR,
   SKIPPING_STONE_DESCRIPTOR,
@@ -443,6 +456,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   TAPE_LOOP_DESCRIPTOR,
   TAPE_ORCHESTRA_DESCRIPTOR,
   THESIS_DESCRIPTOR,
+  TIERCE_BELLS_DESCRIPTOR,
   TINE_PIANO_DESCRIPTOR,
   TREMOLO_DESCRIPTOR,
   TWIN_BARS_DESCRIPTOR,
@@ -455,6 +469,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   WAVETABLE_DESCRIPTOR,
   WEATHER_DESCRIPTOR,
   WEST_COAST_DESCRIPTOR,
+  WHEEL_AND_DOG_DESCRIPTOR,
   WIND_HARP_DESCRIPTOR,
   WINDING_DOWN_DESCRIPTOR,
   ZITHER_DESCRIPTOR,
@@ -482,6 +497,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   BOWLS_DEVICE,
   BREATH_DEVICE,
   BREATH_PACER_DEVICE,
+  BUZZING_BRIDGE_DEVICE,
   CANON_DEVICE,
   CASCADE_DEVICE,
   CHAMBER_STRINGS_DEVICE,
@@ -523,6 +539,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   GRAIN_SYNTH_DEVICE,
   GUITAR_DEVICE,
   HALF_SPEED_DEVICE,
+  HAND_HORN_DEVICE,
   HANDPAN_DEVICE,
   HARP_DEVICE,
   HAZE_DEVICE,
@@ -572,6 +589,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SHIMMER_DEVICE,
   SHORTWAVE_DEVICE,
   SIFT_DEVICE,
+  SILENT_KEYS_DEVICE,
   SINE_SHADOW_DEVICE,
   SIZE_DEVICE,
   SKIPPING_STONE_DEVICE,
@@ -598,6 +616,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   TAPE_LOOP_DEVICE,
   TAPE_ORCHESTRA_DEVICE,
   THESIS_DEVICE,
+  TIERCE_BELLS_DEVICE,
   TINE_PIANO_DEVICE,
   TREMOLO_DEVICE,
   TWIN_BARS_DEVICE,
@@ -610,6 +629,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   WAVETABLE_DEVICE,
   WEATHER_DEVICE,
   WEST_COAST_DEVICE,
+  WHEEL_AND_DOG_DEVICE,
   WIND_HARP_DEVICE,
   WINDING_DOWN_DEVICE,
   ZITHER_DEVICE,
@@ -644,6 +664,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'bowls', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'breath', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'breath-pacer', instrument: true, samples: false, zones: false, meters: 3, memoryMb: 4 },
+  { id: 'buzzing-bridge', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'canon', instrument: false, samples: false, zones: false, meters: 7, memoryMb: 32 },
   { id: 'cascade', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 16 },
   { id: 'chamber-strings', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
@@ -685,6 +706,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'grain-synth', instrument: true, samples: true, zones: false, meters: 0, memoryMb: 12 },
   { id: 'guitar', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'half-speed', instrument: false, samples: false, zones: false, meters: 5, memoryMb: 8 },
+  { id: 'hand-horn', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'handpan', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'haze', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
@@ -741,6 +763,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'shimmer', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'shortwave', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'sift', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
+  { id: 'silent-keys', instrument: false, samples: false, zones: false, meters: 16, memoryMb: 4 },
   { id: 'sine-shadow', instrument: false, samples: false, zones: false, meters: 48, memoryMb: 4 },
   { id: 'size', instrument: false, samples: false, zones: false, meters: 28, memoryMb: 4 },
   {
@@ -774,6 +797,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'tape-loop', instrument: false, samples: false, zones: false, meters: 5, memoryMb: 24 },
   { id: 'tape-orchestra', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'thesis', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'tierce-bells', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'tine-piano', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'tremolo', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'twin-bars', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
@@ -793,6 +817,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'wavetable', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 5 },
   { id: 'weather', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'west-coast', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'wheel-and-dog', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'wind-harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'winding-down', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'zither', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
