@@ -1955,6 +1955,13 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'hand-horn': { ...PLATE_PALETTES['hand-horn'], finish: 'brushed', cap: 'disc' },
   'wheel-and-dog': { ...PLATE_PALETTES['wheel-and-dog'], finish: 'grain', cap: 'skirt' },
   'silent-keys': { ...PLATE_PALETTES['silent-keys'], finish: 'gloss', cap: 'skirt' },
+  'buzzing-bridge': {
+    ...PLATE_PALETTES['buzzing-bridge'],
+    finish: 'hammered',
+    cap: 'pointer',
+    // The whole name leaves the longer presets' names no room at the foot.
+    name: 'Bridge',
+  },
 }
 
 /**

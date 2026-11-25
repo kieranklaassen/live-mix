@@ -482,4 +482,12 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
     ],
   },
+  {
+    id: 'buzzing-bridge-next-door',
+    name: 'Buzz behind the wall',
+    category: 'space',
+    description:
+      'The playing stays here and dry; the buzz of a bridge comes from the next room, softer, later and spread to both sides.',
+    effects: [{ deviceId: 'buzzing-bridge', preset: 'Bridge next door', params: { amount: 1 } }],
+  },
 ]
