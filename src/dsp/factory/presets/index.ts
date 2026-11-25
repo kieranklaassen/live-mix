@@ -31,6 +31,7 @@ import { GLITCH_KIT_PRESETS } from './glitch-kit'
 import { GRAFT_PRESETS } from './graft'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
 import { GUITAR_PRESETS } from './guitar'
+import { HAND_HORN_PRESETS } from './hand-horn'
 import { HANDPAN_PRESETS } from './handpan'
 import { HARP_PRESETS } from './harp'
 import { HORNS_PRESETS } from './horns'
@@ -134,6 +135,7 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...STILL_POINT_PRESETS,
   ...BREATH_PACER_PRESETS,
   ...COLOURED_NOISE_PRESETS,
+  ...HAND_HORN_PRESETS,
   ...MAKER_MIRROR_ON_D_PRESETS,
   ...MAKER_SIX_VOICES_PRESETS,
   ...COMPANION_VOICE_PRESETS,

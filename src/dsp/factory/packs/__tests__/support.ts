@@ -73,6 +73,7 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'still-point',
   'breath-pacer',
   'coloured-noise',
+  'hand-horn',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(
