@@ -463,4 +463,23 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
       },
     ],
   },
+  {
+    id: 'silent-keys-long-bass',
+    name: 'Long fifth with bass',
+    category: 'space',
+    description:
+      'An open fifth on A and two bass strings under it take up the playing and ring for twenty seconds and more; Ring shortens them.',
+    effects: [{ deviceId: 'silent-keys', preset: 'Open fifth and bass', params: { ring: 20 } }],
+  },
+  {
+    id: 'silent-keys-wide-ninth',
+    name: 'Wide ninth in a hall',
+    category: 'space',
+    description:
+      'The strings of an F major ninth spread over nearly three octaves and across the stereo field answer the playing from a hall.',
+    effects: [
+      { deviceId: 'silent-keys', preset: 'Wide major nine', params: { lift: 26 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
+    ],
+  },
 ]

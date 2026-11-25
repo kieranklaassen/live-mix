@@ -1002,4 +1002,37 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
     ],
   },
+  {
+    id: 'silent-keys-walk-of-four',
+    name: 'Four silent chords',
+    category: 'motion',
+    description:
+      'Four chords are held down in turn, three seconds each, and what plays rings only the one that is held; the old one is damped. In a hall.',
+    effects: [
+      { deviceId: 'silent-keys', preset: 'Walk of four' },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.2 } },
+    ],
+  },
+  {
+    id: 'silent-keys-quick-walk',
+    name: 'Eight chords turning',
+    category: 'motion',
+    description:
+      'Eight chords held down three quarters of a second each turn under the playing with short dampers, and a clean echo comes after.',
+    effects: [
+      { deviceId: 'silent-keys', preset: 'Quick walk of eight' },
+      { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 562, mix: 0.25 } },
+    ],
+  },
+  {
+    id: 'silent-keys-blurred-walk',
+    name: 'Chords left ringing',
+    category: 'motion',
+    description:
+      'Five chords of two and a half seconds each, let go so slowly that every chord still rings under the next one; a hall carries them on.',
+    effects: [
+      { deviceId: 'silent-keys', preset: 'Slow blurred walk' },
+      { deviceId: 'fdn-reverb', preset: 'Hall', params: { mix: 0.25 } },
+    ],
+  },
 ]

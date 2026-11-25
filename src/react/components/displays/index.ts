@@ -84,6 +84,7 @@ import { STILL_POINT_FACES } from './still-point'
 import { WINDING_DOWN_FACES } from './winding-down'
 import { BREATH_PACER_FACES } from './breath-pacer'
 import { COLOURED_NOISE_FACES } from './coloured-noise'
+import { SILENT_KEYS_FACES } from './silent-keys'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -169,4 +170,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...WINDING_DOWN_FACES,
   ...BREATH_PACER_FACES,
   ...COLOURED_NOISE_FACES,
+  ...SILENT_KEYS_FACES,
 }

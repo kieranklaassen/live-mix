@@ -786,4 +786,66 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'vessel', preset: 'Glass tube' },
     ],
   },
+  {
+    id: 'silent-keys-under-drums',
+    name: 'Chord under the drums',
+    category: 'texture',
+    description:
+      'Made for drums: each hit wakes a D minor ninth held down without a sound, and what lies under 120 hertz is kept off the strings.',
+    effects: [
+      {
+        deviceId: 'silent-keys',
+        preset: 'Minor nine in noise',
+        params: { lowCut: 120, mix: 0.6, output: -3 },
+      },
+    ],
+  },
+  {
+    id: 'silent-keys-in-the-rain',
+    name: 'Rain on silent strings',
+    category: 'texture',
+    description:
+      'Light rain falls over the playing, and a stack of fourths held down without a sound rings out of the drops and the notes alike.',
+    effects: [
+      { deviceId: 'weather', preset: 'Light rain', params: { voice: 0.7 } },
+      {
+        deviceId: 'silent-keys',
+        preset: 'Fourths in the air',
+        params: { sharpness: 0.1, lift: 36, mix: 0.6 },
+      },
+    ],
+  },
+  {
+    id: 'silent-keys-crackle',
+    name: 'Fifths out of crackle',
+    category: 'texture',
+    description:
+      'A worn record crackles over the playing, and each click and each note wakes three strings a fifth apart: A, E and B.',
+    effects: [
+      { deviceId: 'vinyl', preset: 'Dust and scratches' },
+      { deviceId: 'silent-keys', preset: 'Fifths out of clicks', params: { mix: 0.55 } },
+    ],
+  },
+  {
+    id: 'silent-keys-staccato',
+    name: 'Triad after short notes',
+    category: 'texture',
+    description:
+      'Made for short dry notes: each rings on in a C major triad held down without a sound, loudest where it shares partials, in a room.',
+    effects: [
+      { deviceId: 'silent-keys', preset: 'Triad under staccato', params: { mix: 0.65 } },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
+    ],
+  },
+  {
+    id: 'silent-keys-speech',
+    name: 'Spoken into a chord',
+    category: 'texture',
+    description:
+      'Made for a voice: each word wakes a G six held down without a sound, set to ring for two seconds, on a dark plate.',
+    effects: [
+      { deviceId: 'silent-keys', preset: 'Speech into a chord', params: { output: 1.5 } },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.15 } },
+    ],
+  },
 ]
