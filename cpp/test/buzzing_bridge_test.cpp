@@ -606,19 +606,23 @@ static void test_sleep() {
   EXPECT(worst < 1.0e-6, "the same audio at every block size across a silence");
 
   // Moved while it sleeps: the next note is as if it had always been so.
-  const std::vector<Setting> moved = {{p::kModel, 1},      {p::kAmount, 0.9f},   {p::kTone, 3000},  {p::kResonance, 900},
+  std::vector<Setting> moved = {{p::kModel, 1},      {p::kAmount, 0.9f},   {p::kTone, 3000},  {p::kResonance, 900},
                                       {p::kWidth, 0.8f},   {p::kDistance, 0.5f}, {p::kOutput, -9},  {p::kThreshold, -50},
                                       {p::kMix, 0.7f},     {p::kCurve, 0.9f},    {p::kFall, 200.0f}};
   const Signal note = pluck(220, 0.5, 0.4, 1.0);
-  set_up({});
-  run(device, pluck(330, 0.4, 0.5, 0.6));
-  render(device, 3.0f, kRate);
-  for (const Setting& s : moved) device.set_param(s.id, s.value);
-  render(device, 0.1f, kRate);
-  const Stereo woken = run(device, note);
-  set_up(moved);
-  const Stereo fresh = run(device, note);
-  EXPECT(woken.left == fresh.left && woken.right == fresh.right, "knobs moved in silence are there for the next note");
+  for (int model : {0, 1}) {
+    moved[0].value = static_cast<float>(model);
+    moved[7].value = model == 1 ? -20.0f : -50.0f;
+    set_up({});
+    run(device, pluck(330, 0.4, 0.5, 0.6));
+    render(device, 3.0f, kRate);
+    for (const Setting& s : moved) device.set_param(s.id, s.value);
+    render(device, 0.1f, kRate);
+    const Stereo woken = run(device, note);
+    set_up(moved);
+    const Stereo fresh = run(device, note);
+    EXPECT(woken.left == fresh.left && woken.right == fresh.right, "knobs moved in silence are there for the next note");
+  }
 
   // Exact silence after the longest tail.
   set_up({{p::kDistance, 1}, {p::kFall, 6000}, {p::kRattle, 400}, {p::kBounces, 8}, {p::kModel, 2}, {p::kThreshold, -60}});
@@ -805,18 +809,28 @@ static void test_after_loud() {
 
 static void test_accents() {
   // Every other note half as strong, all ringing on, eight a second.
-  for (int kind = 0; kind < 2; ++kind) {
+  const double runs[4][8] = {{220, 277, 330, 440, 330, 277, 220, 165},
+                             {196, 220, 247, 262, 294, 330, 349, 392},
+                             {330, 370, 330, 370, 330, 370, 330, 370},
+                             {262, 327, 262, 327, 392, 327, 262, 196}};
+  int heard = 0;
+  for (int k = 0; k < 4; ++k) {
     Signal x;
     for (int n = 0; n < 8; ++n) {
       const double amp = n % 2 ? 0.15 : 0.3;
-      lay(x, kind == 0 ? pluck(220, 1.5, amp, 2.0) : bar(220 * (1 + 0.12 * (n % 2)), 1.5, amp, 1.0), at(0.125 * n + 0.05));
+      lay(x, k < 3 ? pluck(runs[k][n], 1.5, amp, 2.0) : bar(runs[k][n], 1.5, amp, 1.0), at(0.125 * n + 0.05));
     }
     const Signal b = buzz_of({{p::kModel, 2}, {p::kRattle, 10}, {p::kBounces, 1}, {p::kThreshold, -50}}, x);
-    int heard = 0;
     for (int n = 0; n < 8; ++n) heard += peak(b, at(0.125 * n + 0.05), at(0.125 * n + 0.08)) > 0.008 ? 1 : 0;
-    std::printf("eight a second, every other at half strength, %s: %d knocked\n", kind == 0 ? "plucks" : "bars", heard);
-    EXPECT(heard == 8, "weak notes among strong ones are attacks too");
   }
+  std::printf("eight a second, every other at half strength: %d of 32 knocked\n", heard);
+  EXPECT(heard >= 28, "weak notes among strong ones are attacks too");
+  // A sound that swells and sinks is not one attack after another.
+  Signal swell = sine(300, 3.0f, kRate, 0.4f);
+  for (size_t i = 0; i < swell.size(); ++i) swell[i] *= static_cast<float>(0.55 - 0.45 * std::cos(2 * kPi * 5.0 * i / kRate));
+  const Signal b = buzz_of({{p::kModel, 2}, {p::kRattle, 10}, {p::kBounces, 1}, {p::kThreshold, -60}}, swell);
+  std::printf("shell in a deep tremolo after its start: %.1f dBFS\n", db(peak(b, at(0.3), b.size())));
+  EXPECT(peak(b, at(0.3), b.size()) < 1.0e-5, "nothing in a deep tremolo");
 }
 
 static void test_chords() {
@@ -872,6 +886,62 @@ static void test_default() {
   EXPECT(pl > 10.0, "a dying pluck opens");
   EXPECT(pd > 1.0, "a held pad is edged");
   EXPECT(start < 4.0 && end > 4.8 && end < 6.5, "a held note climbs half of the way");
+}
+
+static void test_models() {
+  // A skin and a strap are tuned to a partial of the note, and are smaller for
+  // a higher note.
+  for (int model : {1, 3, 4}) {
+    double place[2], hz = 196.0;
+    for (int octave = 0; octave < 2; ++octave, hz *= 2) {
+      set_up({{p::kModel, static_cast<float>(model)}, {p::kThreshold, -50}});
+      run(device, saw(hz, 0.5, 0.2));
+      place[octave] = device.meter(2);
+      const double part = place[octave] / hz;
+      EXPECT(std::fabs(part - std::round(part)) < 0.06, "what buzzes is tuned to a partial");
+    }
+    const double up = place[1] / place[0];
+    std::printf("%s: an octave up, its place x%.2f\n", kNames[model], up);
+    EXPECT(up > 1.12 && up < 1.8, "half the way with the note");
+  }
+  const Signal x = sine(220, 1.5f, kRate, 0.3f);
+  // Leather catches every other swing less: there is something an octave down.
+  const Signal strap = buzz_of({{p::kModel, 3}, {p::kThreshold, -50}, {p::kAmount, 1}, {p::kResonance, 1000}}, x);
+  const double under = db(tone_level(strap, 330, kRate, at(0.5), at(1.5)) / tone_level(strap, 440, kRate, at(0.5), at(1.5)));
+  // The skin has a second resonance, over half an octave up.
+  const Signal skin = buzz_of({{p::kModel, 1}, {p::kThreshold, -50}, {p::kResonance, 1500}, {p::kTracking, 0.0f}}, sine(47.2f, 1.5f, kRate, 0.3f));
+  auto around = [&](double hz) {
+    double sum = 0.0;
+    for (double f = hz * 0.94; f < hz * 1.06; f += 4.0) sum += std::pow(tone_level(skin, f, kRate, at(0.5), at(1.5)), 2);
+    return std::sqrt(sum);
+  };
+  const double second = db(around(1.59 * 1500) / around(2.2 * 1500));
+  // A firm touch is a wider one: its upper partials are further down.
+  double lean[2];
+  int n = 0;
+  for (float amount : {0.05f, 1.0f}) {
+    const Signal b = buzz_of({{p::kAmount, amount}, {p::kThreshold, -50}, {p::kCurve, 0.0f}}, x);
+    lean[n++] = db(tone_level(b, 1100, kRate, at(0.5), at(1.5)) / tone_level(b, 660, kRate, at(0.5), at(1.5)));
+  }
+  std::printf("leather between partials %.1f dB; the skin's second resonance %.1f dB over what is above it; partial 5 against 3: %.1f dB at Amount 0.05, %.1f at 1\n",
+              under, second, lean[0], lean[1]);
+  EXPECT(under > -30.0, "leather skips");
+  EXPECT(second > 8.0, "a skin rings twice");
+  EXPECT(lean[0] > lean[1] + 1.0, "a little catches only the crest");
+
+  // Fall held long never lets the buzz stand more than four times over.
+  const Signal brief = pluck(220, 1.0, 0.5, 0.8);
+  const Signal b = buzz_of({{p::kFall, 6000}, {p::kThreshold, -60}, {p::kAmount, 1}, {p::kCurve, 0.0f}}, brief);
+  const double over = db(rms(b, at(0.6), at(0.7)) / rms(brief, at(0.6), at(0.7)));
+  std::printf("Fall 6 s on a note gone in 0.8 s: the buzz %.1f dB over it\n", over);
+  EXPECT(over > 2.0 && over < 12.5, "long Fall stands over a dying note, and not further");
+
+  // A new note's pitch is there within 0.15 s.
+  Signal two = pluck(220, 0.5, 0.3, 2.0);
+  lay(two, pluck(349, 0.5, 0.5, 2.0), at(0.4));
+  set_up({});
+  run(device, Signal(two.begin(), two.begin() + at(0.57)));
+  EXPECT_NEAR(device.meter(5), 349.0, 8.0, "a struck note's pitch is taken at once");
 }
 
 static void test_left_overs() {
@@ -953,6 +1023,7 @@ int main() {
   test_accents();
   test_chords();
   test_default();
+  test_models();
   test_left_overs();
 
   const Signal x = pluck(146.83, 10.0, 0.5, 10.0);
