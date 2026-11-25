@@ -200,9 +200,9 @@ describe('the figures against the device itself', () => {
               throw new Error(`scale ${scale} root ${root} key ${key}: ${place}`)
             asked += 1
           }
-          // Only every sixth key is let ring out between; the device takes voices as it needs them.
+          // Let go and choked, so that the next round finds every voice idle.
           player.up(1)
-          player.run(0.02)
+          player.run(0.25)
         }
     expect(asked).toBe(4 * 7 * 12 * 12)
     // Off, every key takes the knob.
@@ -356,12 +356,15 @@ describe('the figures against the device itself', () => {
         }
         player.run(0.064)
         time = (n + 1) * 0.064
-        // The level of a rubbed bell does not fall under what it will be while the key is down.
-        if (set.bell === 3 && !freed && time < 1) continue
         const off = offAt === null ? 0 : Math.max(0, time - Math.ceil(offAt / 0.064) * 0.064)
-        const want = tierceTotal(tierceLevels(set, hz, 0.8, place, time, off, RATE))
+        const worked = tierceTotal(tierceLevels(set, hz, 0.8, place, time, off, RATE))
+        // `floor`: a rubbed bell whose key is down reports no less than this, or than its strike.
+        const floor = Math.max(
+          0.86 * 0.105 * 0.8,
+          tierceTotal(tierceLevels(set, hz, 0.8, place, 0, 0, RATE)),
+        )
+        const want = set.bell === 3 && !freed ? Math.max(worked, floor) : worked
         const is = player.meter('level')
-        if (set.bell === 3 && !freed && is > want && time < 2.5) continue
         expect(is / want, `${JSON.stringify(values)} at ${time.toFixed(2)}`).toBeGreaterThan(0.95)
         expect(is / want, `${JSON.stringify(values)} at ${time.toFixed(2)}`).toBeLessThan(1.05)
       }

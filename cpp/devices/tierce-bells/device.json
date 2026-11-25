@@ -42,9 +42,9 @@
     {
       "key": "tierce",
       "name": "Tierce",
-      "min": 266.87,
-      "max": 498.04,
-      "default": 315.64,
+      "min": 266.8,
+      "max": 498.1,
+      "default": 315.6,
       "unit": "ct",
       "description": "How far the bell's third is above its note, from narrow minor through major to a fourth. With Follow on Key it sets only the notes Root and Scale leave open."
     },

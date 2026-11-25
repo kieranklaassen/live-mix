@@ -3,7 +3,7 @@
 // Parameter ids and ranges of Tierce Bells, shared with
 // src/dsp/devices/tierce-bells.gen.ts:
 //    0  bell: 0 Tower, 1 Handbell, 2 Small clock, 3 Rubbed, default 0
-//    1  tierce: 266.87..498.04 ct, default 315.64
+//    1  tierce: 266.8..498.1 ct, default 315.6
 //    2  follow: 0 Off, 1 Key, default 1
 //    3  root: 0 C, 1 C#, 2 D, 3 D#, 4 E, 5 F, 6 F#, 7 G, 8 G#, 9 A, 10 A#, 11 B, default 0
 //    4  scale: 0 Major, 1 Minor, 2 Dorian, 3 Phrygian, 4 Lydian, 5 Mixolydian, 6 Harmonic minor, default 0
@@ -48,9 +48,9 @@ enum Param : int {
   kNumParams = 18,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 266.87f, 0.0f, 0.0f, 0.0f, -231.0f, 0.02f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -48.0f};
-inline constexpr float kParamMax[kNumParams] = {3.0f, 498.04f, 1.0f, 11.0f, 6.0f, 231.0f, 20.0f, 0.6f, 1.0f, 1.0f, 1.0f, 60.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 6.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 315.64f, 1.0f, 0.0f, 0.0f, 0.0f, 1.5f, 0.5f, 0.5f, 0.5f, 0.5f, 14.0f, 0.4f, 0.5f, 0.5f, 0.1f, 0.5f, -6.0f};
+inline constexpr float kParamMin[kNumParams] = {0.0f, 266.8f, 0.0f, 0.0f, 0.0f, -231.0f, 0.02f, 0.4f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -48.0f};
+inline constexpr float kParamMax[kNumParams] = {3.0f, 498.1f, 1.0f, 11.0f, 6.0f, 231.0f, 20.0f, 0.6f, 1.0f, 1.0f, 1.0f, 60.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 6.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 315.6f, 1.0f, 0.0f, 0.0f, 0.0f, 1.5f, 0.5f, 0.5f, 0.5f, 0.5f, 14.0f, 0.4f, 0.5f, 0.5f, 0.1f, 0.5f, -6.0f};
 
 }  // namespace tierce_bells
 }  // namespace livemix

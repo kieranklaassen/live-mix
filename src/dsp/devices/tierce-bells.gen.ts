@@ -21,9 +21,9 @@ export const TIERCE_BELLS_PARAMS = {
   tierce: {
     id: 1,
     name: 'Tierce',
-    min: 266.87,
-    max: 498.04,
-    default: 315.64,
+    min: 266.8,
+    max: 498.1,
+    default: 315.6,
     taper: 'linear',
     unit: 'ct',
     description:

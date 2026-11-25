@@ -61,8 +61,8 @@ export const TIERCE_NAMED: readonly { name: string; cents: number }[] = [
   { name: '4/3', cents: 498.045 },
 ]
 /** The two ends of the Tierce knob. */
-const TIERCE_LOW = 266.87
-const TIERCE_HIGH = 498.04
+const TIERCE_LOW = 266.8
+const TIERCE_HIGH = 498.1
 
 const SIXTY_DB = 6.907755279
 const EDGE_HZ = 15000
@@ -578,7 +578,9 @@ function drawLadder(
       sampleRate,
     )
     const total = tierceTotal(shape)
-    if (total > 0) now = shape.map((level) => (level * ringing.level) / total)
+    // A rubbed bell whose key is down reports no less than it was struck with, so it is drawn as worked out.
+    if (set.bell === RUBBED && ringing.released === 0) now = shape
+    else if (total > 0) now = shape.map((level) => (level * ringing.level) / total)
   }
   rule(ctx, ladder.x, ladder.y, ladder.x, ladder.y + ladder.h, {
     colour: colours.ink,
