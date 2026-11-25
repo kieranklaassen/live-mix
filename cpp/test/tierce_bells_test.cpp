@@ -341,6 +341,24 @@ static void test_moving_thirds() {
   render(device, 1.2f, kRate);
   EXPECT_NEAR(device.meter(TierceBells::kMeterTierce), kMinor, 0.1, "Scale to minor brings it back");
 
+  // Sent somewhere else on the way, it turns with the speed it has.
+  plain(device);
+  device.set_param(p::kTierce, 270.0f);
+  device.set_param(p::kGlide, 2.0f);
+  device.note_on(1, 440.0f, 0.8f);
+  render(device, 0.2f, kRate);
+  device.set_param(p::kTierce, 490.0f);
+  render(device, 1.0f, kRate);
+  double was = device.meter(TierceBells::kMeterTierce);
+  render(device, 0.02f, kRate);
+  const double speed = (device.meter(TierceBells::kMeterTierce) - was) / 0.02;
+  device.set_param(p::kTierce, 300.0f);
+  was = device.meter(TierceBells::kMeterTierce);
+  render(device, 0.02f, kRate);
+  const double after_turn = (device.meter(TierceBells::kMeterTierce) - was) / 0.02;
+  std::printf("a third at %.0f ct a second sent back: %.0f ct a second\n", speed, after_turn);
+  EXPECT(speed > 120.0 && after_turn > 0.8 * speed, "a third sent back turns round, it does not stop dead");
+
   // A target moved again and again on the way: no jump in pitch, no runaway.
   plain(device);
   device.set_param(p::kGlide, 2.0f);
@@ -993,6 +1011,23 @@ static void test_clapper_and_levels() {
     std::printf("%s\n", label);
     EXPECT(worst < 0.5, label);
   }
+  // Struck again and again they hold: the same sets, four strikes of each.
+  for (int bell = 0; bell < 4; ++bell) {
+    double worst = 0.0;
+    for (const auto& set : sets) {
+      for (float base : {65.4f, 130.8f, 220.0f}) {
+        device.init(kRate);
+        device.set_param(p::kBell, static_cast<float>(bell));
+        device.set_param(p::kVolume, p::kParamDefault[p::kVolume] - 30.0f);
+        for (int hit = 0; hit < 4; ++hit) {
+          for (int n = 0; n < 12; ++n) device.note_on(n, base * std::exp2(set[n] / 12.0f), 1.0f);
+          worst = std::max(worst, loudest(render(device, bell == TierceBells::kRubbed ? 2.0f : 0.4f, kRate)) * std::pow(10.0, 1.5));
+        }
+      }
+    }
+    std::printf("bell %d: the same struck four times, %.3f\n", bell, worst);
+    EXPECT(worst < 0.72, "a full pool struck four times is at most 3 dB over the knee");
+  }
   // The clip is there.
   device.init(kRate);
   device.set_param(p::kVolume, 6.0f);
@@ -1024,6 +1059,33 @@ static void test_clapper_and_levels() {
     last = sides;
   }
 
+  // Single partials lean to a side.
+  plain(device);
+  device.set_param(p::kSpread, 1.0f);
+  device.note_on(1, 440.0f, 0.8f);
+  Stereo single = render(device, 1.0f, kRate);
+  const double quint_side = db(bin_level(single.left, kRate, 660.0, at(0.1), at(0.5)) / bin_level(single.right, kRate, 660.0, at(0.1), at(0.5)));
+  std::printf("the quint at full Spread: %.1f dB left against right\n", quint_side);
+  EXPECT(std::fabs(quint_side) > 8.0, "a single partial leans to a side");
+  // A level knob thrown under a low soft bell moves with no steps in it.
+  double zipper = 0.0;
+  for (int id : {p::kHumLevel, p::kUpper, p::kSpread}) {
+    double moved = 0.0, still = 0.0;
+    for (int pass = 0; pass < 3; ++pass) {
+      plain(device);
+      device.set_param(p::kHardness, 0.2f);
+      device.set_param(id, pass == 2 ? 1.0f : 0.0f);
+      device.note_on(1, 220.0f, 0.8f);
+      render(device, 0.6f, kRate);
+      if (pass == 0) device.set_param(id, 1.0f);
+      const double k = kink(render(device, 0.05f, kRate).left);
+      (pass == 0 ? moved : still) = std::max(pass == 0 ? moved : still, k);
+    }
+    zipper = std::max(zipper, moved / still);
+  }
+  std::printf("level knobs thrown: third difference at most %.1fx of the sound's own\n", zipper);
+  EXPECT(zipper < 4.0, "level knobs move with no steps");
+
   // Everything at its extremes, at the ends of the keyboard, at 44.1 kHz.
   for (int bell = 0; bell < 4; ++bell) {
     device.init(44100.0f);
@@ -1038,6 +1100,255 @@ static void test_clapper_and_levels() {
       EXPECT(finite(out.left) && finite(out.right) && loudest(out) <= 1.0, "everything at its end stays finite and bounded");
     }
   }
+}
+
+// --- strikes on a bell that rings ----------------------------------------------------------------
+
+static void test_restrikes() {
+  // Struck again as hard as before, or at full gain, no partial comes out
+  // quieter than one strike left it, whatever the clapper; half a second on
+  // the two have added as power, up to what a bell may hold.
+  double least = 1.0e9, most = 0.0;
+  for (int bell = 0; bell < TierceBells::kNumBells; ++bell) {
+    for (float hardness : {0.0f, 0.5f, 1.0f}) {
+      for (float gain : {0.5f, 0.9f, 1.0f}) {
+        double level[2][3];
+        for (int pass = 0; pass < 2; ++pass) {
+          plain(device, bell);
+          device.set_param(p::kHardness, hardness);
+          device.set_param(p::kDecay, 60.0f);
+          device.set_param(p::kDamping, 0.0f);
+          device.note_on(1, 220.0f, gain);
+          render(device, 0.3f, kRate);
+          if (pass == 1) device.note_on(1, 220.0f, gain);
+          Stereo out = render(device, 0.5f, kRate);
+          const double hz[3] = {110.0, 220.0, 440.0};
+          for (int k = 0; k < 3; ++k) level[pass][k] = bin_level(out.left, kRate, hz[k], at(0.05), at(0.4));
+        }
+        for (int k = 0; k < 3; ++k) {
+          if (bell == TierceBells::kRubbed) continue;  // the rub brings it to its own level
+          least = std::min(least, level[1][k] / level[0][k]);
+          most = std::max(most, level[1][k] / level[0][k]);
+        }
+      }
+    }
+  }
+  std::printf("a bell struck twice alike, three bells, clappers and strengths: partials between %.2fx and %.2fx of one strike's\n", least, most);
+  EXPECT(least > 1.02 && most < 1.55, "a second strike as strong adds to every partial, at full gain too");
+  // A quarter turn at every pitch: two equal strikes add alike at the bottom
+  // of the keyboard and at the top.
+  double low = 1.0e9, high = 0.0;
+  for (float hz : {110.0f, 880.0f, 3520.0f, 7000.0f}) {
+    double level[2];
+    for (int pass = 0; pass < 2; ++pass) {
+      plain(device);
+      device.set_param(p::kDecay, 60.0f);
+      device.set_param(p::kDamping, 0.0f);
+      device.note_on(1, hz, 0.6f);
+      render(device, 0.3f, kRate);
+      if (pass == 1) device.note_on(1, hz, 0.6f);
+      Stereo out = render(device, 0.6f, kRate);
+      level[pass] = bin_level(out.left, kRate, 1.2005 * hz, at(0.05), at(0.5)) + bin_level(out.left, kRate, hz, at(0.05), at(0.5));
+    }
+    low = std::min(low, level[1] / level[0]);
+    high = std::max(high, level[1] / level[0]);
+  }
+  std::printf("the same from 110 to 7000 Hz: %.3fx to %.3fx\n", low, high);
+  EXPECT(high - low < 0.03, "the second strike is a quarter turn from the first at every pitch");
+  // A soft clapper on what a hard one left does not damp it.
+  plain(device);
+  device.set_param(p::kHardness, 1.0f);
+  device.set_param(p::kDecay, 60.0f);
+  device.set_param(p::kDamping, 0.0f);
+  device.note_on(1, 220.0f, 1.0f);
+  Stereo hard = render(device, 0.5f, kRate);
+  device.set_param(p::kHardness, 0.0f);
+  device.note_on(1, 220.0f, 0.3f);
+  Stereo soft = render(device, 0.5f, kRate);
+  const double kept = db(bin_level(soft.left, kRate, 880.0, at(0.05), at(0.3)) / bin_level(hard.left, kRate, 880.0, at(0.15), at(0.3)));
+  std::printf("a soft touch after a hard strike: the fourth partial at %+.1f dB\n", kept);
+  EXPECT(kept > -2.5, "a soft clapper leaves what a hard one rang");
+
+  // A strike that leans, on a bell whose third has come to rest: what rings
+  // glides to the new place, it does not jump, and is as loud there as the
+  // two add up to.
+  double before_deciem = 0.0;
+  const auto third_after = [&before_deciem](float hz, float gain, float lean, Stereo* out, double* before) {
+    plain(device);
+    device.set_param(p::kTierce, 386.31f);
+    device.set_param(p::kLean, lean);
+    device.set_param(p::kGlide, 8.0f);
+    device.set_param(p::kQuint, 0.0f);
+    device.set_param(p::kDecay, 60.0f);
+    device.set_param(p::kDamping, 0.0f);
+    device.note_on(1, hz, 0.8f);
+    Stereo first = render(device, 8.2f, kRate);
+    device.process(5);  // off the control clock's beat
+    *before = bin_level(first.left, kRate, hz * std::exp2(386.31 / 1200.0), at(8.0), at(0.2));
+    before_deciem = bin_level(first.left, kRate, 2.0 * hz * std::exp2(386.31 / 1200.0), at(8.0), at(0.2));
+    if (gain > 0.0f) device.note_on(1, hz, gain);
+    *out = render(device, 1.0f, kRate);
+  };
+  Stereo out;
+  double before = 0.0;
+  third_after(440.0f, 0.1f, 111.73f, &out, &before);
+  const double early = cents(pitch_at(out.left, 440.0 * std::exp2(395.0 / 1200.0), 0.02, 0.04, 0.06), 440.0);
+  const double later = cents(pitch_at(out.left, 440.0 * std::exp2(497.0 / 1200.0), 0.4, 0.25), 440.0);
+  std::printf("a soft strike with Lean on a third at rest: it is at %.0f ct after 20 ms and %.1f after 0.4 s\n", early, later);
+  EXPECT(early < 425.0, "what rings does not jump to the lean");
+  EXPECT_NEAR(later, 497.5, 1.5, "and has joined it");
+  const double moving = kink(out.left, 0, at(0.3));
+  third_after(440.0f, 0.1f, 0.0f, &out, &before);
+  const double resting = kink(out.left, 0, at(0.3));
+  EXPECT(moving < 1.6 * resting, "with no click on the way");
+  for (bool deciem : {false, true}) {
+    low = 1.0e9;
+    high = 0.0;
+    for (float hz : {164.8f, 440.0f, 1760.0f, 3520.0f, 5500.0f}) {
+      third_after(hz, 0.5f, 111.73f, &out, &before);
+      const double octave = deciem ? 2.0 : 1.0;
+      const double loud = deciem ? before_deciem : before;
+      const double joined = bin_level(out.left, kRate, octave * hz * std::exp2(497.9 / 1200.0), at(0.14), at(0.08));
+      low = std::min(low, joined / loud);
+      high = std::max(high, joined / loud);
+    }
+    std::printf("and its %s is %.3fx to %.3fx as loud there as it was, 165 to 5500 Hz\n", deciem ? "deciem" : "third", low, high);
+    EXPECT(high / low < 1.05, "the two add as power whatever the pitch");
+    EXPECT(low > 1.6 && high < 1.85, "and as much as they would at rest");
+  }
+  // A rubbed bell the same, with no swell or hole when they meet.
+  plain(device, TierceBells::kRubbed);
+  device.set_param(p::kTierce, 386.31f);
+  device.set_param(p::kLean, 111.73f);
+  device.set_param(p::kGlide, 2.0f);
+  device.note_on(1, 220.0f, 0.8f);
+  Stereo rub = render(device, 4.0f, kRate);
+  device.note_on(1, 220.0f, 0.8f);
+  const double held = rms(rub.left, at(3.5));
+  rub = render(device, 1.0f, kRate);
+  double worst = 0.0;
+  for (double t = 0.0; t < 0.85; t += 0.05) worst = std::max(worst, std::fabs(db(rms(rub.left, at(t), at(t + 0.1)) / held)));
+  std::printf("a rubbed bell rubbed again with Lean: within %.2f dB of its level\n", worst);
+  EXPECT(worst < 0.5, "a rubbed bell keeps its level when it leans again");
+  // Rubbed again harder it grows, softer it sinks to the softer level.
+  double rubbed[3];
+  plain(device, TierceBells::kRubbed);
+  device.set_param(p::kDecay, 2.0f);
+  for (int which = 0; which < 3; ++which) {
+    device.note_on(1, 220.0f, which == 1 ? 0.9f : 0.4f);
+    render(device, 4.0f, kRate);
+    rubbed[which] = loud_after(0.5, 0.4);
+  }
+  std::printf("rubbed at 0.4, 0.9 and 0.4 again: %.1f %.1f %.1f dB\n", db(rubbed[0]), db(rubbed[1]), db(rubbed[2]));
+  EXPECT(db(rubbed[1] / rubbed[0]) > 5.0 && std::fabs(db(rubbed[2] / rubbed[0])) < 0.5, "a bell rubbed again takes the new strength");
+  // A strike in the middle of a strike follows it and is not lost.
+  double follow[2];
+  for (int pass = 0; pass < 2; ++pass) {
+    plain(device);
+    device.set_param(p::kHardness, 0.0f);
+    device.note_on(1, 110.0f, 0.4f);
+    device.process(130);
+    if (pass == 1) device.note_on(2, 110.0f, 0.8f);
+    follow[pass] = loud_after(0.5, 0.4);
+  }
+  std::printf("a hard strike in the middle of a soft one: %+.1f dB\n", db(follow[1] / follow[0]));
+  EXPECT(db(follow[1] / follow[0]) > 5.0, "a strike in the middle of a strike is not lost");
+  // Leaning or not, quick or slow, strikes do not pile up.
+  double pile = 0.0;
+  for (float lean : {-231.0f, 20.0f, 111.0f}) {
+    for (float glide : {0.02f, 0.3f, 5.0f}) {
+      for (double gap : {0.004, 0.031, 0.09, 0.125}) {
+        double loud[2] = {0.0, 0.0};
+        for (int pass = 0; pass < 2; ++pass) {
+          plain(device);
+          device.set_param(p::kLean, lean);
+          device.set_param(p::kGlide, glide);
+          device.set_param(p::kDecay, 60.0f);
+          device.set_param(p::kDamping, 0.0f);
+          device.set_param(p::kVolume, -24.0f);
+          for (int hit = 0; hit < (pass == 0 ? 1 : 40); ++hit) {
+            device.note_on(1, 220.0f, 1.0f);
+            loud[pass] = std::max(loud[pass], loudest(render(device, static_cast<float>(pass == 0 ? 0.5 : gap), kRate)));
+          }
+        }
+        pile = std::max(pile, db(loud[1] / loud[0]));
+      }
+    }
+  }
+  std::printf("struck 40 times with Lean: at most %+.1f dB over one strike\n", pile);
+  EXPECT(pile < 4.0, "strikes that lean do not stack without limit");
+  // Block sizes, with strikes that lean falling anywhere.
+  double block_worst = 0.0;
+  Stereo base;
+  for (int mode = 0; mode < 4; ++mode) {
+    const int sizes[4] = {128, 1, 2048, 37};
+    plain(device);
+    device.set_param(p::kLean, 111.0f);
+    device.set_param(p::kGlide, 0.2f);
+    device.set_param(p::kHardness, 0.9f);
+    Stereo all;
+    for (int hit = 0; hit < 12; ++hit) {
+      device.note_on(1, 220.0f, 0.3f + 0.05f * hit);
+      all = concat(all, render(device, 0.0173f * (1 + hit), kRate, sizes[mode]));
+    }
+    if (mode == 0) base = all;
+    block_worst = std::max(block_worst, worst_difference(base, all));
+  }
+  EXPECT(block_worst == 0.0, "strikes that lean do not depend on the block size");
+}
+
+// What is heard of the clapper itself: between 2 and 5 kHz, where an A2 has
+// no partial.
+static double clack_level(int bell, float hardness, float gain, float rate, double from, double to) {
+  plain(device, bell, rate);
+  device.set_param(p::kHardness, hardness);
+  device.note_on(1, 110.0f, gain);
+  Stereo out = render(device, 0.1f, rate);
+  double power = 0.0;
+  for (double hz = 2000.0; hz <= 5000.0; hz += 100.0) power += std::pow(bin_level(out.left, rate, hz, at(from, rate), at(to - from, rate)), 2.0);
+  return std::sqrt(power);
+}
+
+static void test_clack() {
+  double level[5];
+  for (int which = 0; which < 5; ++which) level[which] = db(clack_level(0, 0.25f * which, 0.9f, kRate, 0.0005, 0.0125));
+  std::printf("the clapper itself, Hardness in quarters: %.1f %.1f %.1f %.1f %.1f dB", level[0], level[1], level[2], level[3], level[4]);
+  for (int which = 2; which < 5; ++which) EXPECT(level[which] > level[which - 1] + 2.5, "a harder clapper is heard more");
+  EXPECT(level[4] > level[0] + 25.0 && level[4] > -52.0 && level[4] < -34.0, "hard it is heard, soft it is not");
+  const double late = db(clack_level(0, 1.0f, 0.9f, kRate, 0.06, 0.072)), soft = db(clack_level(0, 1.0f, 0.3f, kRate, 0.0005, 0.0125));
+  const double rubbed = db(clack_level(3, 1.0f, 0.9f, kRate, 0.0005, 0.0125)), hand = db(clack_level(1, 1.0f, 0.9f, kRate, 0.0005, 0.0125));
+  std::printf("; 60 ms on %.1f; a light strike %.1f; handbell %.1f, rubbed %.1f\n", late, soft, hand, rubbed);
+  EXPECT(late < level[4] - 35.0, "and is over at once");
+  EXPECT(soft < level[4] - 12.0, "a light strike has little of it");
+  EXPECT(hand < level[4] - 2.0 && rubbed < level[4] - 20.0, "a handbell's is softer and a rubbed bell has none");
+  double least = 1.0e9, most = -1.0e9;
+  for (float rate : {44100.0f, 48000.0f, 96000.0f, 192000.0f}) {
+    double power = 0.0;
+    for (int n = 0; n < 24; ++n) {  // noise: over several notes' seeds
+      plain(device, 0, rate);
+      device.set_param(p::kHardness, 1.0f);
+      device.note_on(1, 100.0f + 0.7f * n, 1.0f);
+      Stereo out = render(device, 0.02f, rate);
+      for (double hz = 2000.0; hz <= 5000.0; hz += 150.0) power += std::pow(bin_level(out.left, rate, hz, at(0.0005, rate), at(0.012, rate)), 2.0);
+    }
+    least = std::min(least, 0.5 * db(power));
+    most = std::max(most, 0.5 * db(power));
+  }
+  std::printf("44.1 to 192 kHz it is within %.2f dB\n", most - least);
+  EXPECT(most - least < 1.2, "and as loud at every sample rate");
+  // The same bell twice from silence is the same sound.
+  Stereo first, second;
+  for (int pass = 0; pass < 2; ++pass) {
+    if (pass == 0) plain(device);
+    device.set_param(p::kHardness, 1.0f);
+    device.set_param(p::kRelease, 1.0f);
+    device.set_param(p::kDecay, 0.5f);
+    device.note_on(1, 220.0f, 0.9f);
+    (pass == 0 ? first : second) = render(device, 0.3f, kRate);
+    device.note_off(1);
+    render(device, 1.0f, kRate);
+  }
+  EXPECT(worst_difference(first, second) == 0.0, "a bell struck again from silence is the same bell");
 }
 
 int main() {
@@ -1061,6 +1372,8 @@ int main() {
   test_doublets();
   test_decay();
   test_one_bell();
+  test_restrikes();
+  test_clack();
   test_voices();
   test_rules();
   test_bells();
