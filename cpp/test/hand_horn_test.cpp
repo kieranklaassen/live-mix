@@ -250,31 +250,60 @@ void test_pitch() {
 
 void test_shadow() {
   // F4, A4 and F sharp 4 in the order the hand moves: 51, 69 and 102 cents.
+  // The centroid is ordered in hertz too, though A4 is the higher note.
   struct Row {
     float midi;
     const char* name;
   };
-  double last_level = 1.0, last_centroid = 2.0, last_amplitude = 2.0;
+  // How far 1000 to 1500 Hz stands over what is above it.
+  auto nasal_of = [](const Tone& t, double hz) {
+    double band = 0.0, above = 0.0;
+    for (size_t h = 1; h < t.harmonic.size(); ++h) {
+      const double f = static_cast<double>(h) * hz, power = std::pow(10.0, t.harmonic[h] / 10.0);
+      if (f >= 1500.0) {
+        above += power;
+      } else if (f >= 1000.0) {
+        band += power;
+      }
+    }
+    return 10.0 * std::log10(band / above);
+  };
+  double last_level = 1.0, last_centroid = 2.0, last_amplitude = 2.0, last_hertz = 1.0e9, last_nasal = -1.0;
   for (const Row& row : {Row{67, "G4 open"}, Row{65, "F4, 51"}, Row{69, "A4, 69"}, Row{66, "F#4, 102"}}) {
     const Tone stopped = held_tone(row.midi), bare = held_tone(row.midi, 0.0f);
     const double level = stopped.level - bare.level;
     const double centroid = stopped.centroid / bare.centroid;
     const double amplitude = stopped.amplitude_centroid / bare.amplitude_centroid;
-    // What the hand does to the harmonic nearest 1200 Hz against the one an
-    // octave or so above it: the nasal band stands out of the dark.
-    const int h = static_cast<int>(std::lround(1220.0 / key(row.midi)));
-    const int up = static_cast<int>(std::lround(1950.0 / key(row.midi)));
-    const double nasal = (stopped.harmonic[h] - bare.harmonic[h]) - (stopped.harmonic[up] - bare.harmonic[up]);
+    const double nasal = nasal_of(stopped, key(row.midi)) - nasal_of(bare, key(row.midi));
     std::printf("  %-9s level %+.2f dB, centroid %.0f Hz (x %.3f of the open tone), by amplitude x %.3f, "
-                "nasal band %+.1f dB over the octave above\n",
+                "nasal band %+.1f dB over what is above it\n",
                 row.name, level, stopped.centroid, centroid, amplitude, nasal);
-    EXPECT(level < last_level - (last_level < 0.5 ? 0.5 : 0.0), "a note is smaller the further the hand moved");
-    EXPECT(centroid < last_centroid - 0.005, "a note is darker the further the hand moved");
-    EXPECT(amplitude < last_amplitude - 0.005, "a note is darker by amplitude too");
-    if (last_level < 0.5) EXPECT(nasal > 5.0, "a stopped note keeps its nasal band over what lies above it");
+    const bool first = last_hertz > 1.0e8;
+    EXPECT(level < last_level - (first ? 0.0 : 0.7), "a note is smaller the further the hand moved");
+    EXPECT(stopped.centroid < last_hertz - 20.0, "a note's centroid is lower the further the hand moved");
+    EXPECT(centroid < last_centroid - 0.02, "a note is darker than its open tone the further the hand moved");
+    EXPECT(amplitude < last_amplitude - 0.007, "a note is darker by amplitude too");
+    EXPECT(nasal > last_nasal + (first ? 0.0 : 0.1), "a note is more nasal the further the hand moved");
+    if (!first) EXPECT(nasal > 8.0, "a stopped note keeps its nasal band over what lies above it");
     last_level = level;
     last_centroid = centroid;
     last_amplitude = amplitude;
+    last_hertz = stopped.centroid;
+    last_nasal = nasal;
+  }
+  // The same at every stretch of the hand's way: no step of Shadow on a
+  // stopped key is brighter or louder than the one before it.
+  for (float midi : {33.0f, 45.0f, 53.0f, 57.0f, 63.0f, 66.0f, 69.0f}) {
+    Tone before;
+    bool falls = true;
+    for (int step = 0; step <= 12; ++step) {
+      const Tone t = held_tone(midi, static_cast<float>(step) / 12.0f);
+      if (step > 0) falls = falls && t.centroid < before.centroid && t.level < before.level;
+      before = t;
+    }
+    char label[100];
+    std::snprintf(label, sizeof label, "key %g is darker and smaller with each step of the hand", midi);
+    EXPECT(falls, label);
   }
   // The nasal band is a band: at a full stop what the hand leaves at 1100 to
   // 1250 Hz stands over what it leaves below and above.
@@ -284,7 +313,8 @@ void test_shadow() {
   std::printf("  full stop by harmonic of F3:");
   for (int h = 1; h < 13; ++h) std::printf(" %.1f", hand[h]);
   std::printf("\n");
-  EXPECT(hand[7] > hand[5] + 1.5 && hand[7] > hand[10] + 6.0, "a full stop leaves a nasal band near 1200 Hz");
+  EXPECT(hand[7] > hand[5] + 2.0 && hand[7] > hand[10] + 10.0, "a full stop leaves a nasal band near 1200 Hz");
+  EXPECT(hand[1] > -3.5, "and leaves the fundamental");
 
   // Shadow at five points: darker and smaller each time.
   double level = 100.0, centroid = 1.0e9;
@@ -316,6 +346,7 @@ void test_shadow() {
   EXPECT(body(b4) - body(b4_bare) < body(c5) - body(c5_bare) - 0.5, "B4 is thinner than C5");
   EXPECT(b4.level < c5.level - 0.5, "B4 is smaller than C5");
   EXPECT(body(bb4) - body(bb4_bare) < body(b4) - body(b4_bare) - 1.0, "B flat 4, lipped further, is thinner still");
+  EXPECT(bb4.level - bb4_bare.level < -1.7, "and smaller by what it lost of the fundamental and by more");
   EXPECT_NEAR(body(d4) - body(d4_bare), 0.0, 0.1, "lipping down does not thin");
 
   // The F crook puts the shadows elsewhere.
@@ -749,6 +780,9 @@ void test_headroom() {
     loudest = std::max(loudest, p);
   }
   std::printf("  one key at gain 0.7, C2 to C6: peaks %.1f to %.1f dBFS\n", quietest, loudest);
+  device.init(kRate);
+  const double low = db(both_peak(play(device, 36.0f, 1.5f)));
+  EXPECT(low > -24.0 && quietest > -29.0, "an open low key is as loud as any, a stopped one not far under");
   EXPECT(loudest < -10.0 && loudest > -24.0, "one note is in the range an instrument has");
 }
 
@@ -947,6 +981,7 @@ void test_voice() {
     while (when < 3.9 && rms(out.left, at(when), at(when + 0.01)) < 0.7 * full) when += 0.004;
     std::printf("  Attack %.3f s reaches its level after %.3f s\n", attack, when);
     EXPECT(when > before + 0.004, "Attack is longer all the way");
+    if (attack < 0.006f) EXPECT(when < 0.03, "the shortest attack is a few periods");
     before = when;
   }
   before = 0.0;
@@ -1085,6 +1120,170 @@ void test_voice() {
     EXPECT(spread == 0.0f ? sides > 0.999999 : sides < before - 0.01, "Spread is wider all the way");
     before = sides;
   }
+}
+
+// What a first pass of breaking the device on purpose got past the rest.
+void test_details() {
+  // Between two stopped keys far apart the hand is open the whole way.
+  plain(device);
+  device.set_param(kPlay, kSolo);
+  device.set_param(kSlide, 2.0f);
+  device.note_on(1, key(65.0f), 0.7f);
+  render(device, 0.5f, kRate);
+  device.note_on(2, key(82.0f), 0.7f);
+  render(device, 0.4f, kRate);
+  float most = 0.0f;
+  for (int i = 0; i < 120; ++i) {
+    render(device, 0.01f, kRate);
+    most = std::max(most, device.meter(0));
+  }
+  EXPECT(most < 0.01f, "the hand is open on every rung and between them");
+  // A slide climbs the crook that is in: on F the rungs are the F tube's.
+  plain(device);
+  device.set_param(kCrook, kF);
+  device.set_param(kPlay, kSolo);
+  device.set_param(kSlide, 1.0f);
+  device.note_on(1, key(65.0f), 0.7f);  // its 8th
+  render(device, 0.5f, kRate);
+  device.note_on(2, key(72.0f), 0.7f);  // its 12th
+  double rest[13] = {};
+  for (int i = 0; i < 200; ++i) {
+    render(device, 0.005f, kRate);
+    for (int n = 9; n <= 11; ++n) {
+      if (std::fabs(1200.0 * std::log2(device.meter(2)) - rung(n)) < 3.0) rest[n] += 0.005;
+    }
+  }
+  EXPECT(rest[9] > 0.1 && rest[10] > 0.1 && rest[11] > 0.1, "a slide rests on the rungs of its own crook");
+  // The level meter follows the breath.
+  plain(device);
+  device.set_param(kAttack, 1.0f);
+  device.set_param(kRelease, 1.0f);
+  device.note_on(1, key(60.0f), 0.8f);
+  render(device, 0.1f, kRate);
+  const float begun = device.meter(3);
+  render(device, 1.4f, kRate);
+  const float full = device.meter(3);
+  device.note_off(1);
+  render(device, 0.3f, kRate);
+  EXPECT(begun > 0.0f && begun < 0.5f * full && device.meter(3) < 0.3f * full, "the level meter follows the breath");
+  // Low keys stand left, high keys right.
+  for (float midi : {36.0f, 84.0f}) {
+    device.init(kRate);
+    device.set_param(kSpread, 1.0f);
+    const Stereo out = play(device, midi, 0.8f);
+    const double lean = db(rms(out.right, at(0.3))) - db(rms(out.left, at(0.3)));
+    EXPECT(midi < 60.0f ? lean < -3.0 : lean > 3.0, "low keys stand left and high keys right");
+  }
+  // Of two ids on one key it is the newer that sounds.
+  double lone[2];
+  for (int both = 0; both < 2; ++both) {
+    plain(device);
+    if (both) device.note_on(1, key(60.0f), 0.1f);
+    render(device, 0.5f, kRate);
+    device.note_on(2, key(60.0f), 1.0f);
+    render(device, 0.5f, kRate);
+    lone[both] = db(rms(render(device, 0.5f, kRate).left));
+  }
+  EXPECT_NEAR(lone[1], lone[0], 0.6, "the newer of two ids on one key is heard");
+  // A rip is rough: its level jitters while it is held under the pitch, and a
+  // plain note's does not.
+  double rough[2] = {};
+  for (int rip = 0; rip < 2; ++rip) {
+    for (int trial = 0; trial < 5; ++trial) {
+      plain(device);
+      device.set_param(kAttack, 0.005f);
+      device.set_param(kRip, static_cast<float>(rip));
+      for (int i = 0; i < trial; ++i) device.note_on(50 + i, key(40.0f), 0.0f), device.note_off(50 + i);
+      render(device, 1.0f, kRate);
+      const Stereo out = play(device, 79.0f, 0.12f, 0.8f);
+      // Over whole periods, or nearly: 784 Hz less a whole tone or not.
+      for (double t = 0.03; t < 0.10; t += 0.006) {
+        rough[rip] += std::fabs(db(rms(out.left, at(t), at(t + 0.004))) - db(rms(out.left, at(t + 0.006), at(t + 0.010))));
+      }
+    }
+  }
+  std::printf("  the level moves %.2f dB a step in a rip, %.2f in a plain start\n", rough[1] / 60.0, rough[0] / 60.0);
+  EXPECT(rough[1] > 2.0 * rough[0], "a rip is rough");
+  // A note settles up into its pitch in the first tenth of a second.
+  plain(device);
+  device.note_on(1, key(67.0f), 0.7f);
+  render(device, 0.005f, kRate);
+  const double early = 1200.0 * std::log2(device.meter(2) / 12.0);
+  render(device, 0.2f, kRate);
+  EXPECT(early < -6.0 && std::fabs(1200.0 * std::log2(device.meter(2) / 12.0) + 2.0) < 2.0,
+         "a note settles up into its pitch");
+  // The tremble waits for the note to be there.
+  plain(device);
+  device.set_param(kTremble, 1.0f);
+  device.set_param(kTrembleRate, 8.0f);
+  device.note_on(1, key(67.0f), 0.7f);
+  float soon = 0.0f;
+  for (int i = 0; i < 14; ++i) {
+    render(device, 0.01f, kRate);
+    soon = std::max(soon, device.meter(0));
+  }
+  EXPECT(soon == 0.0f, "the hand does not tremble before a note is there");
+  // Solo is one horn after a key is let go as well: its long tail ends where
+  // the next key begins.
+  plain(device);
+  device.set_param(kPlay, kSolo);
+  device.set_param(kRelease, 5.0f);
+  device.note_on(1, key(60.0f), 0.8f);
+  render(device, 0.6f, kRate);
+  device.note_off(1);
+  render(device, 0.05f, kRate);
+  device.note_on(2, key(66.0f), 0.8f);
+  render(device, 0.2f, kRate);
+  const Stereo next = render(device, 0.5f, kRate);
+  EXPECT(level_of(next, 60.0, 0, at(0.5)) < level_of(next, 66.0, 0, at(0.5)) - 60.0, "Solo lets the last tail go");
+  // And a key let go before the horn it took had begun goes back to the key
+  // beneath it.
+  plain(device);
+  device.set_param(kPlay, kSolo);
+  for (int i = 0; i < 7; ++i) {
+    device.note_on(i, key(50.0f + static_cast<float>(i)), 0.8f);
+    device.process(64);
+    device.note_off(i);
+  }
+  device.note_on(100, key(60.0f), 0.8f);
+  device.note_on(101, key(67.0f), 0.8f);
+  device.process(16);
+  device.note_off(101);
+  render(device, 0.4f, kRate);
+  EXPECT_NEAR(device.meter(2), 8.0, 0.02, "a key let go before it began goes back to the one beneath");
+  device.note_off(100);
+  render(device, 2.5f, kRate);
+  EXPECT(both_peak(render(device, 0.2f, kRate)) == 0.0, "and that one is let go by its own id");
+  // Far off, the field answers when the horn has stopped.
+  double answered[2];
+  for (int far = 0; far < 2; ++far) {
+    plain(device);
+    device.set_param(kDistance, static_cast<float>(far));
+    device.set_param(kRelease, 0.03f);
+    device.note_on(1, key(60.0f), 0.8f);
+    render(device, 0.6f, kRate);
+    device.note_off(1);
+    const Stereo tail = render(device, 0.3f, kRate);
+    answered[far] = db(rms(tail.left, at(0.06), at(0.10)));
+  }
+  EXPECT(answered[1] > answered[0] + 25.0 && answered[1] > -60.0, "far off, the field answers");
+  // The air comes in puffs, once a turn of the lips.
+  Stereo with_air[2];
+  for (int air = 0; air < 2; ++air) {
+    plain(device);
+    device.set_param(kBreath, static_cast<float>(air));
+    with_air[air] = play(device, 60.0f, 2.5f);
+  }
+  double re = 0.0, im = 0.0, power = 0.0;
+  for (size_t i = at(0.5); i < at(2.5); ++i) {
+    const double a = with_air[1].left[i] - with_air[0].left[i];
+    const double p = 2.0 * kPi * key(60.0f) * static_cast<double>(i) / kRate;
+    re += a * a * std::cos(p);
+    im += a * a * std::sin(p);
+    power += a * a;
+  }
+  std::printf("  air: %.2f of its power in step with the lips\n", std::sqrt(re * re + im * im) / power);
+  EXPECT(std::sqrt(re * re + im * im) > 0.12 * power, "the air comes in puffs");
 }
 
 void test_sweeps() {
@@ -1268,6 +1467,7 @@ int main() {
   test_blocks();
   test_sleep();
   test_voice();
+  test_details();
   test_sweeps();
   test_clicks();
   test_aliasing();

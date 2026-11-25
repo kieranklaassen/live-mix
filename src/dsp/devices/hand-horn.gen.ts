@@ -50,7 +50,7 @@ export const HAND_HORN_PARAMS = {
     taper: 'linear',
     unit: 'ct',
     description:
-      'How far the lips alone bend an open note before the hand has to help. Wide leaves more keys open, and the ones pulled upward are a little thinner.',
+      'How far the lips alone bend a note before the hand has to help. Keys go over to open one by one as it widens, so a small turn may change none; one pulled up is thinner.',
   },
   shadow: {
     id: 3,
@@ -126,7 +126,7 @@ export const HAND_HORN_PARAMS = {
     taper: 'linear',
     unit: 's',
     description:
-      'Time a slide takes between overlapping keys in Solo. The lips climb every note of the tube on the way and stop a moment on each.',
+      'Time a slide takes between overlapping keys in Solo. The lips pass every note of the tube on the way, up or down, and stop a moment on each.',
   },
   rip: {
     id: 10,
@@ -137,7 +137,7 @@ export const HAND_HORN_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'A rough start on every fresh note. It scoops up from the next lower note of the tube with a crack on the way; high starts lower and takes longer.',
+      'A rough start on every fresh note. It scoops up to pitch with a crack on the way; high starts lower, at full from the next lower note of the tube, and takes longer.',
   },
   tremble: {
     id: 11,
@@ -169,7 +169,7 @@ export const HAND_HORN_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far off the bell is. Farther is softer and duller, with the ground and the walls answering more than the horn itself.',
+      'How far off the bell is. Farther is softer and duller, and at the far end the ground and the walls answer about as loudly as the horn itself.',
   },
   spread: {
     id: 14,

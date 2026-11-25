@@ -63,7 +63,7 @@
       "max": 60,
       "default": 35,
       "unit": "ct",
-      "description": "How far the lips alone bend an open note before the hand has to help. Wide leaves more keys open, and the ones pulled upward are a little thinner."
+      "description": "How far the lips alone bend a note before the hand has to help. Keys go over to open one by one as it widens, so a small turn may change none; one pulled up is thinner."
     },
     {
       "key": "shadow",
@@ -123,7 +123,7 @@
       "max": 3,
       "default": 0.25,
       "unit": "s",
-      "description": "Time a slide takes between overlapping keys in Solo. The lips climb every note of the tube on the way and stop a moment on each."
+      "description": "Time a slide takes between overlapping keys in Solo. The lips pass every note of the tube on the way, up or down, and stop a moment on each."
     },
     {
       "key": "rip",
@@ -131,7 +131,7 @@
       "min": 0,
       "max": 1,
       "default": 0,
-      "description": "A rough start on every fresh note. It scoops up from the next lower note of the tube with a crack on the way; high starts lower and takes longer."
+      "description": "A rough start on every fresh note. It scoops up to pitch with a crack on the way; high starts lower, at full from the next lower note of the tube, and takes longer."
     },
     {
       "key": "tremble",
@@ -157,7 +157,7 @@
       "min": 0,
       "max": 1,
       "default": 0.15,
-      "description": "How far off the bell is. Farther is softer and duller, with the ground and the walls answering more than the horn itself."
+      "description": "How far off the bell is. Farther is softer and duller, and at the far end the ground and the walls answer about as loudly as the horn itself."
     },
     {
       "key": "spread",
@@ -192,7 +192,8 @@
       "attack": 0.04,
       "release": 1.1,
       "breath": 0.15,
-      "distance": 0
+      "distance": 0,
+      "volume": -6.6
     },
     "Open tube only": {
       "hand": 0,
@@ -212,7 +213,7 @@
       "attack": 0.1,
       "release": 0.8,
       "distance": 0.05,
-      "volume": -2
+      "volume": -3.2
     },
     "One colour": {
       "volume": -7.4,
@@ -380,7 +381,7 @@
       "shadow": 1,
       "crook": 3,
       "distance": 0,
-      "volume": -5
+      "volume": -6.2
     },
     "Long swell": {
       "attack": 2.8,

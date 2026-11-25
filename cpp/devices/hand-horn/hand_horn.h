@@ -23,7 +23,7 @@
 //   (LevelTable), so neither Blow nor the pitch is a volume control. What
 //   the hand takes is outside that: a stopped note is smaller.
 // - The hand is a filter per note (HandFilter): the highs go, a band at
-//   1220 Hz stays, and the whole is turned down, all by covering · Shadow.
+//   1190 Hz stays, and the whole is turned down, all by covering · Shadow.
 // - A note lipped up loses some of its fundamental and a little level, in
 //   proportion to the cents.
 // - Solo is one voice with a stack of keys. An overlapping key slides: the
@@ -321,7 +321,7 @@ class HandHorn : public kit::DeviceBase<hand_horn::kNumParams> {
   static constexpr float kColourPower = 0.5f;
   static constexpr float kCapDb = 55.0f;
   static constexpr float kQuietest = 0.45f;
-  static constexpr float kVoiceGain = 0.142f;
+  static constexpr float kVoiceGain = 0.15f;
   static constexpr float kEdgePower = 0.6f;  // 3.6 dB an octave under middle C
   // Lipped up by the most there is: this much of the fundamental and this
   // much level is lost.

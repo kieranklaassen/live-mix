@@ -155,21 +155,29 @@ class LevelTable {
 // The hand in the bell of one note. Closing it takes the highs away, leaves
 // a narrow nasal band standing over what lies either side of it and makes
 // the whole smaller. Wide open it is not there at all.
+//
+// The period of the low-pass, not its frequency, grows in step with the
+// closing, from far over the bell's own. So the filter is fully in from the
+// first sliver of covering, and no dry tone has to be blended with a late,
+// low one: that blend had a dip in it, and a note a little more covered was
+// brighter than one a little less. Now the centroid falls all the way, and
+// on the C crook F4, A4 and F sharp 4 (51, 69 and 102 cents) are each darker
+// than the one before in hertz as well as against their own open tone.
 class HandFilter {
  public:
-  static constexpr float kOpenHz = 2300.0f;
-  static constexpr float kShutHz = 300.0f;
-  static constexpr float kLowQ = 0.5f;
-  static constexpr float kNasalHz = 1220.0f;
-  static constexpr float kNasalQ = 4.0f;
-  static constexpr float kNasalLift = 4.2f;
-  static constexpr float kSmallerDb = -2.5f;
+  static constexpr float kOpenSeconds = 1.0f / 12000.0f;
+  static constexpr float kShutSeconds = 3.0e-3f;  // of a full stop, on top
+  static constexpr float kLowQ = 0.6f;
+  static constexpr float kNasalHz = 1190.0f;
+  static constexpr float kNasalQ = 4.6f;
+  static constexpr float kNasalLift = 4.6f;
+  static constexpr float kSmallerDb = -1.0f;
   // The low-pass comes in over this much of the way.
-  static constexpr float kInBy = 1.0f / 6.0f;
+  static constexpr float kInBy = 0.02f;
 
   void prepare(float sample_rate) {
     nasal_.set(kNasalHz, kNasalQ, sample_rate);
-    low_.set(kOpenHz, kLowQ, sample_rate);
+    low_.set(1.0f / kOpenSeconds, kLowQ, sample_rate);
   }
   void reset() {
     low_.reset();
@@ -189,7 +197,7 @@ class HandFilter {
     }
     if (shut == shut_) return;
     shut_ = shut;
-    low_.set(kOpenHz * std::exp(shut * kShutLog), kLowQ, sample_rate);
+    low_.set(1.0f / (kOpenSeconds + kShutSeconds * shut), kLowQ, sample_rate);
     gain_ = kit::db_to_gain(kSmallerDb * shut);
   }
   float gain() const { return gain_; }
@@ -202,7 +210,6 @@ class HandFilter {
   }
 
  private:
-  static constexpr float kShutLog = -2.0368819f;  // log(kShutHz / kOpenHz)
   kit::Svf low_, nasal_;
   float shut_ = 0.0f;
   float wet_ = 0.0f, lift_ = 0.0f, gain_ = 1.0f;
