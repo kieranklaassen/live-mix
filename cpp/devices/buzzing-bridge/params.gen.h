@@ -3,7 +3,7 @@
 // Parameter ids and ranges of Buzzing Bridge, shared with
 // src/dsp/devices/buzzing-bridge.gen.ts:
 //    0  model: 0 Grazing bridge, 1 Membrane, 2 Loose shell, 3 Leather, 4 Paper, default 0
-//    1  amount: 0..1, default 0.45
+//    1  amount: 0..1, default 0.55
 //    2  threshold: -60..0 dB, default -36
 //    3  curve: 0..1, default 0.5
 //    4  tracking: 0..1, default 1
@@ -42,7 +42,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, -60.0f, 0.0f, 0.0f, 300.0f, 5.0f, 1.0f, 30.0f, 800.0f, 0.0f, 0.0f, 0.0f, -24.0f};
 inline constexpr float kParamMax[kNumParams] = {4.0f, 1.0f, 0.0f, 1.0f, 1.0f, 6000.0f, 400.0f, 8.0f, 6000.0f, 16000.0f, 1.0f, 1.0f, 1.0f, 12.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.45f, -36.0f, 0.5f, 1.0f, 2400.0f, 40.0f, 3.0f, 1000.0f, 9000.0f, 0.0f, 0.0f, 1.0f, 0.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.55f, -36.0f, 0.5f, 1.0f, 2400.0f, 40.0f, 3.0f, 1000.0f, 9000.0f, 0.0f, 0.0f, 1.0f, 0.0f};
 
 }  // namespace buzzing_bridge
 }  // namespace livemix

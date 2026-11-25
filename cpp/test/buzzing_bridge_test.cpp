@@ -731,7 +731,7 @@ int main() {
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
   spec.tail_seconds = 1.0f;
-  spec.max_peak = 5.0f;
+  spec.max_peak = 8.0f;  // Output at +12 dB, and twice the sound
   check_effect(device, spec, kRate);
 
   test_climb();

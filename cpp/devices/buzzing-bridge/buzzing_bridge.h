@@ -26,8 +26,9 @@
 //   sound by a gain (a curve at the base rate would fold).
 // - Grazing bridge: two bands on a partial that climbs as the note falls
 //   below its strike: the third at the strike and, over kClimbDb of fall, up
-//   to 3 x 2^(10/3 Curve), which is the twelfth at Curve 0.6. Less of each
-//   swing touches as it climbs. With Tracking at 0 the partials are those of
+//   to 3 x 2^(10/3 Curve), which is the twelfth at Curve 0.6. A held note
+//   climbs half of that way over some seconds, and the end of the climb is
+//   heard a little throughout. Less of each swing touches as it climbs. With Tracking at 0 the partials are those of
 //   a note at Resonance / 16. The climb bends over towards twice Resonance.
 // - Membrane: closes by how far the level passes Threshold and is exactly
 //   zero under it; two resonances (1 and 1.59) and some breath. Leather:
@@ -47,10 +48,12 @@
 //   silence in and out everything is put back to the start on that very
 //   sample, so the next note is the same whatever the block size, and
 //   whatever was moved meanwhile is already where it points.
-// - Level: at Amount 1 the steady buzz is 3 to 14 dB under the sound (RMS,
-//   sines and saws from 55 Hz to 1.8 kHz), the output at most 2.5 dB over the
-//   input and its peak 7.5 dB. Fall over a second lets the buzz stand up to
-//   four times over a note that is dying, never over what the note was.
+// - Level: at Amount 1 the steady buzz is 3 to 15 dB under the sound (RMS,
+//   sines and saws from 55 Hz to 1.8 kHz) and the output at most 2.5 dB over
+//   the input. No sample of the buzz passes 0.96 of the level it is set off
+//   by, so the peaks are at most 5.9 dB over those of the input. Fall over a
+//   second lets the buzz stand up to four times over a note that is dying,
+//   never over what the note was.
 
 #include "../../kit/kit.h"
 #include "contact_oversampler.h"
@@ -68,6 +71,9 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
   // it climbs all the way.
   static constexpr float kFirstPartial = 3.0f;
   static constexpr float kClimbDb = 22.0f;
+  // A note that is held and does not die climbs part of the way by itself.
+  static constexpr float kHeldClimb = 0.5f;
+  static constexpr float kHeldSeconds = 1.0f;
   // Control runs this often whatever the sample rate.
   static constexpr float kTicksPerSecond = 1500.0f;
   // Silence this long, in and out, puts everything back to the start.
@@ -187,6 +193,8 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
   static constexpr float kStruckReach[kBands] = {7.0f, 3.5f};
   // Where the buzz is held, of the sound's own level.
   static constexpr float kCeiling = 0.8f;
+  // How much of the bridge's buzz sits at the end of its climb throughout.
+  static constexpr float kEndShare = 0.3f, kEndWidth = 1.0f, kEndHz = 6500.0f;
   // No sample of the buzz passes this much of the sound's level, so that the
   // two together are never more than twice the sound.
   static constexpr float kMost = 0.96f;
@@ -273,7 +281,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     before_ = strike_ = 0.0f;
     settle_ticks_ = quiet_ticks_ = letting_go_ = 0;
     jump_ = from_ = 0.0f;
-    climb_ = 0.0f;
+    climb_ = held_climb_ = 0.0f;
     sink_ = sink_target_ = 1.0f;
     open_ = open_target_ = 0.0f;
     place_hz_ = 0.0f;
@@ -470,7 +478,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
       switch (model_) {
         case kGrazing: {
           const float wide = band_[c][0].bandpass(contact * level);
-          y[c] = norm_ * (band_[c][1].bandpass(wide) + 0.2f * wide);
+          y[c] = norm_ * (band_[c][1].bandpass(wide) + 0.2f * wide) + end_norm_ * band_[c][2].bandpass(contact * level);
           break;
         }
         case kMembrane: {
@@ -598,6 +606,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
       const bool loud_enough = model_ != kShell || top > threshold_;
       if ((rose || struck > 0.0f) && loud_enough) {
         quiet_ticks_ = static_cast<int>(0.060f * tick_rate_);
+        held_climb_ = 0.0f;
         letting_go_ = static_cast<int>(0.030f * sample_rate());
         pitch_.struck();
         settle_ticks_ = static_cast<int>(0.020f * tick_rate_);
@@ -639,10 +648,13 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     const float sr = sample_rate();
     const float curve = param(kCurve), tracking = param(kTracking), resonance = param(kResonance);
     const float followed = pitch_.hz();
-    const float hz = followed > 0.0f ? followed : 220.0f;
+    // With no pitch to go by: 220 Hz, or half of what a sine as steep would be.
+    const float steepness = steep_ / kit::max(swing_, 1.0e-5f);
+    const float hz = followed > 0.0f ? followed : kit::clamp(0.08f * steepness * sr, 220.0f, 4000.0f);
 
     const float drop = strike_ > 1.0e-6f ? kit::gain_to_db(strike_ / kit::max(top_all_, 1.0e-6f)) : 0.0f;
-    glide(&climb_, kit::clamp(drop / kClimbDb, 0.0f, 1.0f), 0.050f, 0.012f);
+    glide(&held_climb_, kHeldClimb, kHeldSeconds, kHeldSeconds);
+    glide(&climb_, kit::clamp(drop / kClimbDb, held_climb_, 1.0f), 0.050f, 0.012f);
     partial_ = kFirstPartial * std::exp2(curve * 3.3333f * climb_);
 
     sink_target_ = sink_power_ > 0.0f && strike_ > 1.0e-6f
@@ -688,6 +700,14 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
           b[1].set(place_hz_, 1.5f, sr);
         }
         norm_ = 1.25f * pulse_norm(k, 1.5f);
+        {
+          // Where the climb ends is heard a little from the start, so that a
+          // held note, which never dies, has its buzz as well.
+          const float left = curve * 3.3333f * (1.0f - climb_);
+          const float end = kit::min(place_hz_ * std::exp2(left), kit::min(2.0f * resonance, kEndHz));
+          for (auto& b : band_) b[2].set(end, kEndWidth, sr);
+          end_norm_ = kEndShare * kit::min(1.0f, left) * pulse_norm(kit::min(end / hz, 24.0f), kEndWidth);
+        }
         break;
       case kMembrane:
         half_turn = 0.8f;
@@ -775,11 +795,11 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
   float jump_ = 0.0f, from_ = 0.0f;
 
   // The touch.
-  float climb_ = 0.0f, partial_ = 0.0f, place_hz_ = 0.0f, open_ = 0.0f;
+  float climb_ = 0.0f, held_climb_ = 0.0f, partial_ = 0.0f, place_hz_ = 0.0f, open_ = 0.0f;
   float edge_[2][2] = {};
   float grip_[2] = {};
   bool closed_[2] = {}, odd_[2] = {};
-  float thresh_u_ = 0.6f, per_width_ = 5.0f, norm_ = 1.0f, noise_norm_ = 1.0f, last_inverse_ = 0.0f, open_target_ = 0.0f;
+  float thresh_u_ = 0.6f, per_width_ = 5.0f, norm_ = 1.0f, noise_norm_ = 1.0f, end_norm_ = 0.0f, last_inverse_ = 0.0f, open_target_ = 0.0f;
 
   // The bounces.
   int hits_left_ = 0, hit_index_ = 0;

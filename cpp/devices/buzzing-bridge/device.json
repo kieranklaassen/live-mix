@@ -19,7 +19,7 @@
       "name": "Amount",
       "min": 0,
       "max": 1,
-      "default": 0.45,
+      "default": 0.55,
       "description": "How firmly the sound is touched. A little catches only the crest of each swing and leaves a thin edge; a lot is a broad buzz nearly as loud as the sound."
     },
     {
