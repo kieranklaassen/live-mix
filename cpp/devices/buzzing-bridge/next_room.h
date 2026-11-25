@@ -31,6 +31,7 @@ class NextRoom {
     wall_[0].reset();
     wall_[1].reset();
     ringing_ = false;
+    quiet_ = 0;
   }
 
   void set(float distance) {
@@ -63,7 +64,13 @@ class NextRoom {
     *mid = 0.9f * far + tail_ * (v[0] + v[1] - v[2] + v[3]);
     *side = tail_ * (v[0] - v[1] + v[2] + v[3]);
     const float held = std::fabs(*mid) + std::fabs(*side) + std::fabs(v[2]);
-    ringing_ = held > 1.0e-8f;
+    // Not at rest before what was put in has come through the longest way.
+    if (std::fabs(x) > 1.0e-8f || held > 1.0e-8f) {
+      quiet_ = static_cast<int>(0.12f * rate_);
+    } else if (quiet_ > 0) {
+      --quiet_;
+    }
+    ringing_ = quiet_ > 0;
     kit::hadamard<kLines>(v);
     for (int i = 0; i < kLines; ++i) {
       lines_[i].write(flush_denormal(damp_[i].lowpass(v[i] * gain_[i]) + 0.5f * in));
@@ -83,6 +90,7 @@ class NextRoom {
   int diffuse_[2] = {1, 1};
   float gain_[kLines] = {};
   float rate_ = 48000.0f, delay_ = 1.0f, wanted_ = 1.0f, distance_ = -1.0f, tail_ = 0.75f;
+  int quiet_ = 0;
   bool ringing_ = false;
 };
 

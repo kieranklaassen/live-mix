@@ -7,7 +7,9 @@
 // about 6 kHz, 43 ms long, a hundred times a second, its lags spread over the
 // control ticks so that no block carries the whole of one. It answers from
 // 40 Hz to 2 kHz and keeps its last answer while it is unsure (noise, a
-// chord with no common period, silence).
+// chord with no common period, silence). Once it has one it follows a bend or
+// a slide at once, and takes a leap only after an attack or when the new
+// pitch has stood: the notes of a chord do not take turns.
 
 namespace livemix {
 namespace buzzing_bridge_dsp {
@@ -30,13 +32,17 @@ class SwingPitch {
     for (float& v : ring_) v = 0.0f;
     for (float& v : frame_) v = 0.0f;
     for (float& v : score_) v = 0.0f;
-    write_ = phase_ = fresh_ = 0;
+    write_ = phase_ = fresh_ = run_ = 0;
+    open_ = kOpen;
     lag_ = -1;
     hz_ = asked_ = 0.0f;
   }
 
   // 0 until a pitch has been found.
   float hz() const { return hz_; }
+
+  // A note was struck: for a while a leap is believed at once.
+  void struck() { open_ = kOpen; }
 
   void push(float x) {
     const float y = filter_[1].lowpass(filter_[0].lowpass(x));
@@ -53,6 +59,7 @@ class SwingPitch {
     if (lag_ < 0) {
       if (fresh_ < kHop) return;
       fresh_ = 0;
+      if (open_ > 0) --open_;
       float energy = 0.0f;
       for (int i = 0; i < kFrame; ++i) {
         frame_[i] = ring_[(write_ - kFrame + i) & kRingMask];
@@ -87,6 +94,10 @@ class SwingPitch {
   static constexpr int kHop = 60;
   static constexpr int kLagsPerTick = 12;
   static constexpr int kMultiples = 6;
+  // Readings after an attack for which a leap is taken at its second reading,
+  // and how many in a row a leap at any other time must stand for.
+  static constexpr int kOpen = 16;
+  static constexpr int kStands = 20;
   static constexpr float kSure = 0.75f;
   // The first peak this near the best is the period; a peak a few lags wide
   // is read too low by the parabola through it.
@@ -173,8 +184,10 @@ class SwingPitch {
     if (hz < 38.0f || hz > 2100.0f) return;
     // Taken at its word when the next reading says the same: one that stands
     // alone is the seam between two notes, or a chord's parts passing.
-    if (asked_ > 0.0f && std::fabs(hz / asked_ - 1.0f) < 0.03f) hz_ = hz;
+    run_ = asked_ > 0.0f && std::fabs(hz / asked_ - 1.0f) < 0.03f ? (run_ < kStands ? run_ + 1 : kStands) : 1;
     asked_ = hz;
+    const bool near = hz_ > 0.0f && std::fabs(hz / hz_ - 1.0f) < 0.07f;
+    if (run_ >= (near || open_ > 0 || hz_ == 0.0f ? 2 : kStands)) hz_ = hz;
   }
 
   kit::Svf filter_[2];
@@ -183,7 +196,7 @@ class SwingPitch {
   float score_[kLags] = {};
   float window_[kFrame] = {};
   float rate_ = 6000.0f, head_ = 0.0f, tail_ = 0.0f, hz_ = 0.0f, asked_ = 0.0f;
-  int step_ = 8, write_ = 0, phase_ = 0, fresh_ = 0, lag_ = -1;
+  int step_ = 8, write_ = 0, phase_ = 0, fresh_ = 0, lag_ = -1, run_ = 0, open_ = kOpen;
 };
 
 }  // namespace buzzing_bridge_dsp

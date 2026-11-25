@@ -89,6 +89,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     sink_k_ = 1.0f - kit::time_to_coeff(0.005f, sr);
     hit_k_ = 1.0f - kit::time_to_coeff(0.00025f, sr);
     touch_k_ = 1.0f - kit::time_to_coeff(0.001f, sr);
+    let_go_k_ = 1.0f - kit::time_to_coeff(0.004f, sr);
     edge_k_ = 1.0f - std::exp(-kit::kTwoPi * kEdgeHz / (4.0f * sr));
     edge_k_ = kit::clamp(edge_k_, 0.0f, 1.0f);
     noise_scale_ = std::sqrt(sr / 48000.0f);
@@ -99,6 +100,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     steep_k_ = kit::time_to_coeff(0.020f, sr);
     crest_up_ = kit::time_to_coeff(0.00015f, sr);
     crest_down_ = kit::time_to_coeff(0.040f, sr);
+    guard_k_ = kit::time_to_coeff(0.025f, sr);
     match_k_ = 1.0f - kit::time_to_coeff(0.030f, sr);
     for (int b = 0; b < kBands; ++b) {
       for (kit::Svf& h : high_[b]) h.set(kStruckHz[b], kit::kSqrtHalf, sr);
@@ -180,11 +182,14 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
   // The tops a struck note is heard in, how far each must jump and how far
   // up the whole sound a full knock of it would be.
   static constexpr int kBands = 2;
-  static constexpr float kStruckHz[kBands] = {1800.0f, 600.0f};
-  static constexpr float kStruckJump[kBands] = {1.7f, 1.7f};
-  static constexpr float kStruckReach[kBands] = {6.0f, 3.0f};
+  static constexpr float kStruckHz[kBands] = {2500.0f, 700.0f};
+  static constexpr float kStruckJump[kBands] = {2.1f, 2.0f};
+  static constexpr float kStruckReach[kBands] = {7.0f, 3.5f};
   // Where the buzz is held, of the sound's own level.
   static constexpr float kCeiling = 0.8f;
+  // No sample of the buzz passes this much of the sound's level, so that the
+  // two together are never more than twice the sound.
+  static constexpr float kMost = 0.96f;
 
   // What is not a sound is silence: a NaN, an infinity, or 60 dB over full
   // scale.
@@ -266,7 +271,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     side_[0] = side_[1] = 0.0f;
     steep_ = drive_was_[0] = drive_was_[1] = 0.0f;
     before_ = strike_ = 0.0f;
-    settle_ticks_ = quiet_ticks_ = 0;
+    settle_ticks_ = quiet_ticks_ = letting_go_ = 0;
     jump_ = from_ = 0.0f;
     climb_ = 0.0f;
     sink_ = sink_target_ = 1.0f;
@@ -296,6 +301,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     }
     last_inverse_ = 0.0f;
     crest_ = 0.0f;
+    guard_ = 1.0f;
   }
 
   // --- one sample ----------------------------------------------------------------------
@@ -317,6 +323,12 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
 
     follow(&level_, kit::max(top_all_, now_all_));
     follow(&swing_, kit::max(top_drive_, now_drive_));
+    // A note struck after another has its own loudness to fall from, not what
+    // was held of the last one.
+    if (letting_go_ > 0) {
+      --letting_go_;
+      loud_ += (level_ - loud_) * let_go_k_;
+    }
     loud_ = kit::max(level_, flush_denormal(loud_ * fall_k_));
     open_ += (open_target_ - open_) * touch_k_;
     if (open_target_ == 0.0f && open_ < 1.0e-5f) open_ = 0.0f;
@@ -351,7 +363,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     // the sound it came from, by a gain, since a curve here would fold.
     const float loudest = kit::max(std::fabs(y[0]), std::fabs(y[1]));
     crest_ = flush_denormal(loudest + (crest_ - loudest) * (loudest > crest_ ? crest_up_ : crest_down_));
-    const float bound = kit::max(model_ == kShell ? 1.05f * jump_ : loud_, 1.0e-6f);
+    const float bound = kit::max(model_ == kShell ? jump_ : loud_, 1.0e-6f);
     const float over = kit::min(crest_ / (kCeiling * bound), 1.0e4f);
     const float over2 = over * over;
     const float hold = 1.0f / std::sqrt(std::sqrt(1.0f + over2 * over2));
@@ -368,6 +380,13 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     float apart = 0.0f;
     if (width > 0.0f) apart = spread_line_[1].process(spread_line_[0].process(mid, spread_[0], 0.6f), spread_[1], -0.6f);
     side += width * (model_ == kShell ? pan_ * mid : 0.65f * apart);
+
+    // The last word on how high the buzz may stand, for whatever the filters,
+    // the turning round and the spreading have added up to.
+    guard_ = 1.0f + (guard_ - 1.0f) * guard_k_;
+    guard_ = kit::max(guard_, (std::fabs(mid) + std::fabs(side)) / (kMost * bound));
+    mid /= guard_;
+    side /= guard_;
 
     const float distance = distance_.next();
     if (distance > 0.0f || room_.ringing()) {
@@ -564,19 +583,23 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
         sharp_ = kit::max(sharp_, suddenness(top));
       }
     } else {
-      const bool rose = top > 1.45f * before_ + 1.0e-5f;
+      // The level rises, and within six milliseconds: notes that beat rise
+      // again and again, and take longer over it.
+      const bool rose = top > 1.45f * before_ + 1.0e-5f && highest(hold_all_, 9) > 1.25f * highest(hold_all_, 62, 9);
       // A soft note over ringing ones hardly lifts the level. Its top end
       // jumps, within three milliseconds and over all it was in the last
       // thirty-seven: beats and vibrato never do that.
       float struck = 0.0f;
       for (int b = 0; b < kBands; ++b) {
-        if (top_high_[b] > kStruckJump[b] * last_high_[b] + 1.0e-5f && top_high_[b] > 0.012f * top) {
+        if (top_high_[b] > kStruckJump[b] * last_high_[b] + 1.0e-5f && top_high_[b] > 0.01f * top) {
           struck = kit::max(struck, kStruckReach[b] * top_high_[b]);
         }
       }
       const bool loud_enough = model_ != kShell || top > threshold_;
       if ((rose || struck > 0.0f) && loud_enough) {
         quiet_ticks_ = static_cast<int>(0.060f * tick_rate_);
+        letting_go_ = static_cast<int>(0.030f * sample_rate());
+        pitch_.struck();
         settle_ticks_ = static_cast<int>(0.020f * tick_rate_);
         from_ = before_;
         jump_ = kit::min(top, kit::max(top - 0.7f * from_, struck));
@@ -731,7 +754,7 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
     float both = 0.0f, own = 0.0f;
   };
   Match agree_[2];
-  float crest_ = 0.0f, crest_up_ = 0.0f, crest_down_ = 0.0f;
+  float crest_ = 0.0f, crest_up_ = 0.0f, crest_down_ = 0.0f, guard_ = 1.0f, guard_k_ = 0.0f;
   float match_k_ = 0.0f, place_k_ = 1.0f;
   kit::OnePole drive_[2];
   kit::AllpassDelay<2048> spread_line_[2];
@@ -747,7 +770,8 @@ class BuzzingBridge : public kit::DeviceBase<buzzing_bridge::kNumParams> {
   float steep_ = 0.0f, steep_k_ = 0.0f, drive_was_[2] = {}, side_[2] = {};
   float before_ = 0.0f;
   float strike_ = 0.0f;
-  int settle_ticks_ = 0, quiet_ticks_ = 0;
+  int settle_ticks_ = 0, quiet_ticks_ = 0, letting_go_ = 0;
+  float let_go_k_ = 0.0f;
   float jump_ = 0.0f, from_ = 0.0f;
 
   // The touch.

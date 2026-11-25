@@ -657,7 +657,7 @@ static void test_rates() {
     for (float rate : {44100.0f, 48000.0f, 96000.0f, 192000.0f}) {
       // Several notes, so that what is drawn at random evens out.
       Signal x(at(2.4, rate), 0.0f);
-      for (int k = 0; k < 8; ++k) lay(x, pluck(146.83 * (1 + 0.2 * k), 0.3, 0.4, 1.0, rate), at(0.3 * k, rate));
+      for (int k = 0; k < 8; ++k) lay(x, pluck(146.83 * (1 + 0.2 * k), 1.2, 0.4, 1.0, rate), at(0.3 * k, rate));
       const Signal b = buzz_of({{p::kModel, static_cast<float>(model)}, {p::kAmount, 0.6f}, {p::kThreshold, -50}, {p::kRattle, 150}}, x, rate);
       level[n] = db(rms(b) / rms(x));
       top[n++] = db(above(b, 3000, 0, b.size(), rate) / rms(x));
