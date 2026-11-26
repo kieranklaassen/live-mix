@@ -189,24 +189,25 @@ export function validateDescriptor(descriptor: DeviceDescriptor): void {
   }
   const ids = new Set<number>()
   for (const [name, spec] of entries) {
-    const where = `live-mix: device ${id} param "${name}"`
-    if (ids.has(spec.id)) throw new Error(`${where} reuses param id ${spec.id}`)
+    // Said only where something is wrong: every parameter of every device comes by here as the page opens.
+    const where = (): string => `live-mix: device ${id} param "${name}"`
+    if (ids.has(spec.id)) throw new Error(`${where()} reuses param id ${spec.id}`)
     ids.add(spec.id)
-    if (!(spec.min < spec.max)) throw new Error(`${where} needs min < max`)
+    if (!(spec.min < spec.max)) throw new Error(`${where()} needs min < max`)
     if (spec.default < spec.min || spec.default > spec.max) {
-      throw new Error(`${where} default ${spec.default} is outside [${spec.min}, ${spec.max}]`)
+      throw new Error(`${where()} default ${spec.default} is outside [${spec.min}, ${spec.max}]`)
     }
     if (spec.taper === 'log' && spec.min <= 0) {
-      throw new Error(`${where} has a log taper but min ${spec.min} is not positive`)
+      throw new Error(`${where()} has a log taper but min ${spec.min} is not positive`)
     }
     // An empty list means "no labels" (WAM tables always carry the field).
     if (spec.choices !== undefined && spec.choices.length > 0) {
       const steps = spec.max - spec.min + 1
       if (!Number.isInteger(spec.min) || !Number.isInteger(spec.max)) {
-        throw new Error(`${where} has choices but a non-integer range`)
+        throw new Error(`${where()} has choices but a non-integer range`)
       }
       if (spec.choices.length !== steps) {
-        throw new Error(`${where} has ${spec.choices.length} choices for ${steps} steps`)
+        throw new Error(`${where()} has ${spec.choices.length} choices for ${steps} steps`)
       }
     }
   }
@@ -214,10 +215,10 @@ export function validateDescriptor(descriptor: DeviceDescriptor): void {
     for (const [name, value] of Object.entries(preset.params)) {
       // Its own parameters only: `constructor` is on every object.
       const spec = Object.hasOwn(descriptor.params, name) ? descriptor.params[name] : undefined
-      const where = `live-mix: device ${id} preset "${preset.name}"`
-      if (!spec) throw new Error(`${where} sets unknown param "${name}"`)
+      const where = (): string => `live-mix: device ${id} preset "${preset.name}"`
+      if (!spec) throw new Error(`${where()} sets unknown param "${name}"`)
       if (!Number.isFinite(value) || value < spec.min || value > spec.max) {
-        throw new Error(`${where} sets "${name}" to ${value}, outside [${spec.min}, ${spec.max}]`)
+        throw new Error(`${where()} sets "${name}" to ${value}, outside [${spec.min}, ${spec.max}]`)
       }
     }
   }
