@@ -5,6 +5,7 @@
   "description": "A hand-played steel pan and tongue drum: each note rings with its octave and the fifth above, over a low thump of air, and ringing notes answer each other. Most at home from D3 to C5.",
   "class": "Handpan",
   "header": "handpan.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

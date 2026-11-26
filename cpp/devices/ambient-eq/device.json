@@ -5,6 +5,7 @@
   "description": "Broad tone controls for sustained sound, and a slow ear that turns down whatever rings out above the rest as layers stack.",
   "class": "AmbientEq",
   "header": "ambient_eq.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

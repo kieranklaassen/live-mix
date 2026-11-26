@@ -5,6 +5,7 @@
   "description": "On headphones each key is a pair of warm tones a few hertz apart, one to an ear, heard as a beat between the ears. Ears at 0 puts the beat in the air for speakers.",
   "class": "Binaural",
   "header": "binaural.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

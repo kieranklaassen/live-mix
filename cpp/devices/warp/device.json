@@ -5,6 +5,7 @@
   "description": "Stretches or squeezes the spacing of the partials around a pivot note that stays put, so strings turn into bells and bells into dense beating clusters.",
   "class": "Warp",
   "header": "warp.h",
+  "vector": true,
   "sources": [],
   "latencySamples": 4608,
   "meters": [

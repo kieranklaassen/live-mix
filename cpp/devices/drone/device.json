@@ -5,6 +5,7 @@
   "description": "Sustained tones that never sit still: each key is a small ensemble of partials in a just-intoned shape, every one wandering in pitch, level and pan, with a sub octave, tuned air and a latch.",
   "class": "Drone",
   "header": "drone.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

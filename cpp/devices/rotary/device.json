@@ -5,6 +5,7 @@
   "description": "A Leslie cabinet: a horn and a bass drum that spin at their own speeds, heard through two microphones, with the slow run-up between chorale and tremolo.",
   "class": "Rotary",
   "header": "rotary.h",
+  "vector": true,
   "sources": [],
   "meters": [
     { "key": "hornAngle", "name": "Horn angle", "display": true },

@@ -12,7 +12,7 @@ build_generated_devices() {
     cpp/devices/afterglow/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-comp \
     cpp/devices/ambient-comp/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-eq \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-eq \
     cpp/devices/ambient-eq/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-limiter \
     cpp/devices/ambient-limiter/device_api.gen.cpp
@@ -30,15 +30,15 @@ build_generated_devices() {
     cpp/devices/auto-filter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device band-pulse \
     cpp/devices/band-pulse/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device binaural \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device binaural \
     cpp/devices/binaural/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device bloom-reverb \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device bloom-reverb \
     cpp/devices/bloom-reverb/device_api.gen.cpp \
     cpp/devices/spectral-drifter/SpectralDrifter.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device bowed-string \
     cpp/devices/bowed-string/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device bowls \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device bowls \
     cpp/devices/bowls/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device breath \
     cpp/devices/breath/device_api.gen.cpp
@@ -64,7 +64,7 @@ build_generated_devices() {
     cpp/devices/club-kit/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device coloured-noise \
     cpp/devices/coloured-noise/device_api.gen.cpp
-  MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device common-tones \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device common-tones \
     cpp/devices/common-tones/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device constellation \
     cpp/devices/constellation/device_api.gen.cpp
@@ -72,7 +72,7 @@ build_generated_devices() {
     cpp/devices/currents/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device distance \
     cpp/devices/distance/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drone \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drone \
     cpp/devices/drone/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device droplets \
     cpp/devices/droplets/device_api.gen.cpp
@@ -88,7 +88,7 @@ build_generated_devices() {
     cpp/devices/ember/device_api.gen.cpp
   MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device expanse \
     cpp/devices/expanse/device_api.gen.cpp
-  MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device falling \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device falling \
     cpp/devices/falling/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device feedback \
     cpp/devices/feedback/device_api.gen.cpp
@@ -100,7 +100,7 @@ build_generated_devices() {
     cpp/devices/flute/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device fm-bass \
     cpp/devices/fm-bass/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device fm-glass \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device fm-glass \
     cpp/devices/fm-glass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device fog \
     cpp/devices/fog/device_api.gen.cpp
@@ -108,7 +108,7 @@ build_generated_devices() {
     cpp/devices/freq-shifter/device_api.gen.cpp
   MEMORY_BYTES=33554432 EXTRA_EXPORTS=",_device_meter" build_device generations \
     cpp/devices/generations/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device glimmer \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device glimmer \
     cpp/devices/glimmer/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device glints \
     cpp/devices/glints/device_api.gen.cpp
@@ -130,7 +130,7 @@ build_generated_devices() {
     cpp/devices/half-speed/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device hand-horn \
     cpp/devices/hand-horn/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device handpan \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device handpan \
     cpp/devices/handpan/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device harp \
     cpp/devices/harp/device_api.gen.cpp
@@ -140,7 +140,7 @@ build_generated_devices() {
     cpp/devices/horns/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device howl \
     cpp/devices/howl/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ice \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ice \
     cpp/devices/ice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device imprint \
     cpp/devices/imprint/device_api.gen.cpp
@@ -148,13 +148,13 @@ build_generated_devices() {
     cpp/devices/isochronic/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ladder-bass \
     cpp/devices/ladder-bass/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device late-vibrato \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device late-vibrato \
     cpp/devices/late-vibrato/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device lattice \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device lattice \
     cpp/devices/lattice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device lift \
     cpp/devices/lift/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device low-bitrate \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device low-bitrate \
     cpp/devices/low-bitrate/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device magnet-piano \
     cpp/devices/magnet-piano/device_api.gen.cpp
@@ -166,7 +166,7 @@ build_generated_devices() {
     cpp/devices/micro-looper/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device modal-bells \
     cpp/devices/modal-bells/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device murmuration \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device murmuration \
     cpp/devices/murmuration/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device noise-floor \
     cpp/devices/noise-floor/device_api.gen.cpp
@@ -178,11 +178,11 @@ build_generated_devices() {
     cpp/devices/organ/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device outdoors \
     cpp/devices/outdoors/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device overtone \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device overtone \
     cpp/devices/overtone/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device overtone-singer \
     cpp/devices/overtone-singer/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device pad-follower \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device pad-follower \
     cpp/devices/pad-follower/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device patina \
     cpp/devices/patina/device_api.gen.cpp
@@ -192,9 +192,9 @@ build_generated_devices() {
     cpp/devices/phaser/device_api.gen.cpp
   MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device pitch-shifter \
     cpp/devices/pitch-shifter/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device prepared-piano \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device prepared-piano \
     cpp/devices/prepared-piano/device_api.gen.cpp
-  MEMORY_BYTES=16777216 EXTRA_EXPORTS=",_device_meter" build_device prism \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=16777216 EXTRA_EXPORTS=",_device_meter" build_device prism \
     cpp/devices/prism/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device pulses \
     cpp/devices/pulses/device_api.gen.cpp
@@ -202,7 +202,7 @@ build_generated_devices() {
     cpp/devices/radio/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device re-amp \
     cpp/devices/re-amp/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device reveal \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device reveal \
     cpp/devices/reveal/device_api.gen.cpp
   MEMORY_BYTES=20971520 EXTRA_EXPORTS=",_device_meter" build_device reverse-delay \
     cpp/devices/reverse-delay/device_api.gen.cpp
@@ -210,33 +210,33 @@ build_generated_devices() {
     cpp/devices/rewind/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ring \
     cpp/devices/ring/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device rotary \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device rotary \
     cpp/devices/rotary/device_api.gen.cpp
   MEMORY_BYTES=25165824 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit" build_device sampler \
     cpp/devices/sampler/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device saturator \
     cpp/devices/saturator/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device scale-filter \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device scale-filter \
     cpp/devices/scale-filter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device seasons \
     cpp/devices/seasons/device_api.gen.cpp
-  MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device shaped-reverb \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device shaped-reverb \
     cpp/devices/shaped-reverb/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device shimmer \
     cpp/devices/shimmer/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device shortwave \
     cpp/devices/shortwave/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sift \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sift \
     cpp/devices/sift/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device silent-keys \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device silent-keys \
     cpp/devices/silent-keys/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sine-shadow \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sine-shadow \
     cpp/devices/sine-shadow/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device size \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device size \
     cpp/devices/size/device_api.gen.cpp
   MEMORY_BYTES=12582912 EXTRA_EXPORTS=",_device_meter" build_device skipping-stone \
     cpp/devices/skipping-stone/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device spectral-blur \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device spectral-blur \
     cpp/devices/spectral-blur/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device spiral \
     cpp/devices/spiral/device_api.gen.cpp
@@ -250,9 +250,9 @@ build_generated_devices() {
     cpp/devices/stereo-detune/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device still-point \
     cpp/devices/still-point/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stops \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stops \
     cpp/devices/stops/device_api.gen.cpp
-  MEMORY_BYTES=25165824 EXTRA_EXPORTS=",_device_meter" build_device stretch \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=25165824 EXTRA_EXPORTS=",_device_meter" build_device stretch \
     cpp/devices/stretch/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-bass \
     cpp/devices/string-bass/device_api.gen.cpp
@@ -260,7 +260,7 @@ build_generated_devices() {
     cpp/devices/string-machine/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device sub-bass \
     cpp/devices/sub-bass/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sustainer \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sustainer \
     cpp/devices/sustainer/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device swarm-reverb \
     cpp/devices/swarm-reverb/device_api.gen.cpp
@@ -269,7 +269,7 @@ build_generated_devices() {
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sympathetic \
     cpp/devices/sympathetic/device_api.gen.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tamer \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tamer \
     cpp/devices/tamer/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tanpura \
     cpp/devices/tanpura/device_api.gen.cpp
@@ -286,7 +286,7 @@ build_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device tierce-bells \
     cpp/devices/tierce-bells/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tine-piano \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tine-piano \
     cpp/devices/tine-piano/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tremolo \
     cpp/devices/tremolo/device_api.gen.cpp
@@ -296,13 +296,13 @@ build_generated_devices() {
     cpp/devices/underwater/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device vessel \
     cpp/devices/vessel/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device vintage-digital \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device vintage-digital \
     cpp/devices/vintage-digital/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device vinyl \
     cpp/devices/vinyl/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device vowel-reverb \
     cpp/devices/vowel-reverb/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device warp \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device warp \
     cpp/devices/warp/device_api.gen.cpp
   MEMORY_BYTES=5242880 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wavetable \
     cpp/devices/wavetable/device_api.gen.cpp
@@ -316,7 +316,7 @@ build_generated_devices() {
     cpp/devices/wind-harp/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device winding-down \
     cpp/devices/winding-down/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device zither \
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device zither \
     cpp/devices/zither/device_api.gen.cpp
   MEMORY_BYTES=67108864 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit,_device_zone_capacity,_device_zone_pool_capacity,_device_zones_begin,_device_zone_sample,_device_zone_sample_buffer,_device_zone_fields,_device_zone_add" build_device zone-sampler \
     cpp/devices/zone-sampler/device_api.gen.cpp

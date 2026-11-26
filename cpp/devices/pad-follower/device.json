@@ -5,6 +5,7 @@
   "description": "Grows a soft string-section pad out of whatever you play: the same chord swells in behind you, follows your harmony as it changes and fades when you stop.",
   "class": "PadFollower",
   "header": "pad_follower.h",
+  "vector": true,
   "sources": [],
   "meters": [
     { "key": "heard", "name": "Partials heard", "display": true },

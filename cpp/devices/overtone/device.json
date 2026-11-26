@@ -5,6 +5,7 @@
   "description": "Overtone drone voice: a low or middle note is held while its mouth picks single harmonics out of its own tone, so a whistled melody floats over the drone and walks by itself.",
   "class": "Overtone",
   "header": "overtone.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

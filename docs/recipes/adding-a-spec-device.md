@@ -55,7 +55,7 @@ The `.wasm` must come from Emscripten 4.0.15 (CI rebuilds it and compares bytes)
 - `formerPresets`: when a preset is renamed, the name it had and the name of today (`{ "Space echo": "Warm repeats" }`). A saved score names its presets, and one that names the old one still loads; lists show only the names of today.
 - `retiredPresets`: when a preset is retuned. A shipped name never changes what it loads, because a saved score names its presets: the retune goes into `presets` under a new name, and the old name goes here with the settings it had (`{ "Studio master": { "drive": 0.4 } }`). It still loads by name and no list shows it. `shipped-presets.test.ts` fails when a shipped preset's values or a default change.
 - `sources`: extra `.cpp` files, repo-relative. Prefer header-only.
-- `memoryMb` (default 4): raise it when the static storage needs it (the linker says so). `samples: true` adds the sample entry points (see `cpp/kit/sample.h`). `experimental: true` marks a device over the CPU budget. `latencySamples` when the device delays its output by a fixed count.
+- `memoryMb` (default 4): raise it when the static storage needs it (the linker says so). `samples: true` adds the sample entry points (see `cpp/kit/sample.h`). `experimental: true` marks a device over the CPU budget. `latencySamples` when the device delays its output by a fixed count. `vector: true` builds it with the vector instructions: see [Work of the same shape](#work-of-the-same-shape).
 - `meters`: readings the device reports about its own work, for a meter beside its knobs: `[{ "key": "reduction", "name": "Gain reduction", "unit": "dB" }]`. Array order is the meter id. A device with meters adds `float meter(int index) const` to its class; it is called on the audio thread after `process`, about 30 times a second and only while someone is watching, so it returns a value the device already has (no work, no state change). At rest and asleep a meter reads its resting value (0 dB of reduction). On the web side the device is a `MeteredDevice` (`meters`, `meter(name)`, `watchMeters()`), `useDeviceMeter(device, name)` follows one reading, and the generated `DevicePanel` shows each in its title bar. A reading that is only for the device's display on its plate (an LFO's phase, where a playhead stands) takes `"display": true` and is printed nowhere; after adding one, `node scripts/same-sound.mjs <id>` proves the sound is the same sample for sample.
 - `origin`: `{ "kind": "new", "note": … }`, or for a port `{ "kind": "port", "repository": "kieranklaassen/kkfonie", "commit": "<sha>", "files": [{ "path", "sha256", "portedTo", "deviations": [...] }], "note": … }`. A port records every deviation from the source.
 
@@ -106,6 +106,18 @@ Faults the conformance pass does not see, each found while building a device and
 - **Noise is scaled by `sqrt(sample_rate / 48000)`**, or it drops 3 dB against the tone at 96 kHz ([write-up](../solutions/logic-errors/noise-level-falls-with-sample-rate.md)).
 - **`kit::BlepOsc` folds more than its comment says at the top of the keyboard**: measure fold-back at C6 with the filters open, and use a closed-form band-limited wave or a longer correction where it matters ([write-up](../solutions/design-patterns/polyblep-folded-energy-and-closed-form-pulse.md)).
 - **A click check needs a reference with no event in it**, and a harness is only worth what it fails on: break the device on purpose and see which checks notice ([click checks](../solutions/best-practices/click-checks-need-an-event-free-reference.md), [mutation checks](../solutions/best-practices/mutation-check-a-measuring-harness.md)).
+
+## Work of the same shape
+
+A device that does one thing to eight grains, eight lines or sixteen partials can do it four at a time. `"vector": true` in its `device.json` builds it with the vector instructions (`-msimd128`), and by itself that often changes nothing: the compiler needs the loop in a shape it can take.
+
+- One array for each part of the state (`grain_phase[8]`, `grain_position[8]`), not an array of structs.
+- One plain loop for each step, over all eight, with no call, no `break` and no early `continue`. A choice is a `?:` with both sides worked out first. Reads out of a delay line or a table are a loop of their own, into local arrays.
+- The sums in the order they had, in a loop of their own: adding in another order changes the last bit.
+- An FFT of the kit (`kit/fft.h`, `kit/stft.h`) is four bins at a time in a device built this way.
+- `sin_turn_8` and `tanh_8` (`cpp/common/vector_math.h`) give what `std::sin` and `std::tanh` give, bit for bit.
+
+Every lane does the same arithmetic the plain loop did, so the sound is the same to the last bit: `node scripts/same-sound.mjs <id>` shows it. The spectral drifter's eight grains went from 48 to 20 microseconds a block this way, and the bloom reverb from 72 to 30.
 
 ## Spectral devices
 

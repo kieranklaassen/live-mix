@@ -5,6 +5,7 @@
   "description": "A reverb whose level follows a drawn shape instead of dying away: it can hold and stop dead, rise backwards into a cut, swell and fade, fall in a straight line or breathe in waves.",
   "class": "ShapedReverb",
   "header": "shaped_reverb.h",
+  "vector": true,
   "sources": [],
   "memoryMb": 6,
   "params": [

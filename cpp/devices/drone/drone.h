@@ -197,23 +197,38 @@ class Drone : public kit::DeviceBase<drone::kNumParams> {
         if (!voice.env.active()) continue;
         const float env = voice.env.next() * voice.gain;
         float sum_left = 0.0f, sum_right = 0.0f;
+        int index[kMaxPartials];
+        float fraction[kMaxPartials];
         for (int k = 0; k < voice.count; ++k) {
-          float phase = voice.phase[k] + voice.increment[k];
-          if (phase >= 1.0f) phase -= 1.0f;
+          const float next = voice.phase[k] + voice.increment[k];
+          const float phase = next >= 1.0f ? next - 1.0f : next;
           voice.phase[k] = phase;
           const float at = phase * scale;
-          const int index = static_cast<int>(at);
-          const float fraction = at - static_cast<float>(index);
-          const float* a = from[voice.mip[k]];
-          float sample = a[index] + (a[index + 1] - a[index]) * fraction;
-          if (morph > 0.0f) {
-            const float* b = to[voice.mip[k]];
-            sample += (b[index] + (b[index + 1] - b[index]) * fraction - sample) * morph;
-          }
+          index[k] = static_cast<int>(at);
+          fraction[k] = at - static_cast<float>(index[k]);
           voice.gain_left[k] += voice.step_left[k];
           voice.gain_right[k] += voice.step_right[k];
-          sum_left += sample * voice.gain_left[k];
-          sum_right += sample * voice.gain_right[k];
+        }
+        float low[kMaxPartials], high[kMaxPartials], sample[kMaxPartials];
+        for (int k = 0; k < voice.count; ++k) {
+          const float* a = from[voice.mip[k]] + index[k];
+          low[k] = a[0];
+          high[k] = a[1];
+        }
+        for (int k = 0; k < voice.count; ++k) sample[k] = low[k] + (high[k] - low[k]) * fraction[k];
+        if (morph > 0.0f) {
+          for (int k = 0; k < voice.count; ++k) {
+            const float* b = to[voice.mip[k]] + index[k];
+            low[k] = b[0];
+            high[k] = b[1];
+          }
+          for (int k = 0; k < voice.count; ++k) {
+            sample[k] += (low[k] + (high[k] - low[k]) * fraction[k] - sample[k]) * morph;
+          }
+        }
+        for (int k = 0; k < voice.count; ++k) {
+          sum_left += sample[k] * voice.gain_left[k];
+          sum_right += sample[k] * voice.gain_right[k];
         }
         left += sum_left * env;
         right += sum_right * env;

@@ -5,6 +5,7 @@
   "description": "Compares the sound with what was playing a moment ago and lets through only what the two share, so held tones hang on and changes vanish.",
   "class": "CommonTones",
   "header": "common_tones.h",
+  "vector": true,
   "sources": [],
   "memoryMb": 8,
   "latencySamples": 4608,

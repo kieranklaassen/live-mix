@@ -5,6 +5,7 @@
   "description": "Finds the strongest partials of the sound and plays each as a pure sine that swells in behind it and lingers after it.",
   "class": "SineShadow",
   "header": "sine_shadow.h",
+  "vector": true,
   "sources": [],
   "meters": [
     {

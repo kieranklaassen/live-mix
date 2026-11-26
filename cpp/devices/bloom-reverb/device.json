@@ -5,6 +5,7 @@
   "description": "Reverb with evolving spectral tails: the tail is read through reversed, pitch-shifted grains and fed back into itself, so the shift grows the longer a sound has been ringing.",
   "class": "BloomReverb",
   "header": "bloom_reverb.h",
+  "vector": true,
   "sources": [
     "cpp/devices/spectral-drifter/SpectralDrifter.cpp",
     "cpp/devices/stereo-widener/StereoWidener.cpp"

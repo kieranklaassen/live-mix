@@ -108,28 +108,9 @@ public:
     bool isSilentState() const;
 
 private:
-    struct Grain
-    {
-        float phase = 0.0f;           // Read position within grain window (0-1)
-        float targetPitchRatio = 1.0f; // Target playback speed (assigned at grain start)
-        float smoothedPitchRatio = 1.0f; // Smoothed pitch ratio for artifact-free transitions
-        float readPos = 0.0f;         // Position in delay buffer
-        int assignedInterval = 0;     // Semitone interval assigned to this grain (for tonal mode)
-    };
-
     // Pre-computed Hann window lookup table (avoids cos() per grain per sample)
     std::array<float, HANN_TABLE_SIZE> hannTable{};
     bool hannTableInitialized = false;
-
-    // Lookup Hann window from table with linear interpolation
-    float hannWindow(float phase) const
-    {
-        float idx = phase * static_cast<float>(HANN_TABLE_SIZE - 1);
-        int i0 = static_cast<int>(idx);
-        int i1 = std::min(i0 + 1, HANN_TABLE_SIZE - 1);
-        float frac = idx - static_cast<float>(i0);
-        return hannTable[i0] * (1.0f - frac) + hannTable[i1] * frac;
-    }
 
     // Build Hann table once
     void initHannTable()
@@ -247,8 +228,13 @@ private:
     Seed seed = Seed::Fundamental;
     Interval interval = Interval::Octave;  // Default to octave shimmer
 
-    // Grain state
-    std::array<Grain, NUM_GRAINS> grains;
+    void restartGrain(int index, float intensityFactor);
+
+    // Grain state, one array for each part of it
+    std::array<float, NUM_GRAINS> grainPhase{};        // Read position within grain window (0-1)
+    std::array<float, NUM_GRAINS> grainTargetRatio{};  // Target playback speed (assigned at grain start)
+    std::array<float, NUM_GRAINS> grainRatio{};        // Smoothed pitch ratio for artifact-free transitions
+    std::array<float, NUM_GRAINS> grainReadPos{};      // Position in delay buffer
 
     // Delay buffer for granular reading
     std::array<float, MAX_DELAY> delayBuffer{};

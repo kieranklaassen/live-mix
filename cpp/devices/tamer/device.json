@@ -5,6 +5,7 @@
   "description": "Finds the tones that ring out above the bed of sound around them, as they happen, and turns only those down. Leaves clean notes alone. Adds no delay.",
   "class": "Tamer",
   "header": "tamer.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

@@ -1,9 +1,37 @@
 #pragma once
 
+#if defined(__wasm_simd128__)
+#include <wasm_simd128.h>
+#endif
+
 #include "math.h"
 
 namespace livemix {
 namespace kit {
+
+// In a device built with the vector instructions ("vector": true in its
+// device.json) the butterflies below are worked four bins at a time. Each lane
+// does what the plain loop does for its bin, in the same order, so every float
+// is the same one.
+#if defined(__wasm_simd128__)
+namespace fft_lanes {
+inline v128_t load(const float* p) { return wasm_v128_load(p); }
+inline void store(float* p, v128_t x) { wasm_v128_store(p, x); }
+inline v128_t turned_about(v128_t x) { return wasm_i32x4_shuffle(x, x, 3, 2, 1, 0); }
+// Four floats read or written downwards from `p`: p[0], p[-1], p[-2], p[-3].
+inline v128_t load_down(const float* p) { return turned_about(wasm_v128_load(p - 3)); }
+inline void store_down(float* p, v128_t x) { wasm_v128_store(p - 3, turned_about(x)); }
+inline v128_t add(v128_t a, v128_t b) { return wasm_f32x4_add(a, b); }
+inline v128_t sub(v128_t a, v128_t b) { return wasm_f32x4_sub(a, b); }
+// The real and the imaginary part of (r + j i) (wr + j wi).
+inline v128_t times_re(v128_t r, v128_t i, v128_t wr, v128_t wi) {
+  return sub(wasm_f32x4_mul(r, wr), wasm_f32x4_mul(i, wi));
+}
+inline v128_t times_im(v128_t r, v128_t i, v128_t wr, v128_t wi) {
+  return add(wasm_f32x4_mul(r, wi), wasm_f32x4_mul(i, wr));
+}
+}  // namespace fft_lanes
+#endif
 
 // In-place radix-2 complex FFT of a fixed power-of-two size with its own
 // twiddle and bit-reversal tables (filled by init, no allocation). The
@@ -29,6 +57,14 @@ class Fft {
       cos_[i] = static_cast<float>(std::cos(angle));
       sin_[i] = static_cast<float>(std::sin(angle));
     }
+#if defined(__wasm_simd128__)
+    for (int half = 1; half < N; half <<= 1) {
+      for (int k = 0; k < half; ++k) {
+        near_cos_[half + k] = cos_[k * (N / (2 * half))];
+        near_sin_[half + k] = sin_[k * (N / (2 * half))];
+      }
+    }
+#endif
   }
 
   void forward(float* re, float* im) const { transform(re, im, false); }
@@ -108,7 +144,25 @@ class Fft {
       const float qr = odd[quarter] * cq;
       odd[quarter] = odd[quarter] * sq;
       even[quarter] += qr;
-      for (int k = 1; k < quarter; ++k) {
+      int k = 1;
+#if defined(__wasm_simd128__)
+      using namespace fft_lanes;
+      for (; k + 4 <= quarter; k += 4) {
+        const v128_t wr = load(near_cos_ + half + k);
+        const v128_t wi = load(near_sin_ + half + k);
+        const v128_t ar = load(even + k);
+        const v128_t ai = load_down(even + half - k);
+        const v128_t br = load(odd + k);
+        const v128_t bi = load_down(odd + half - k);
+        const v128_t xr = times_re(br, bi, wr, wi);
+        const v128_t xi = times_im(br, bi, wr, wi);
+        store(even + k, add(ar, xr));
+        store_down(odd + half - k, add(ai, xi));
+        store_down(even + half - k, sub(ar, xr));
+        store(odd + k, sub(xi, ai));
+      }
+#endif
+      for (; k < quarter; ++k) {
         const float wr = cos_[k * stride];
         const float wi = sin_[k * stride];
         const float ar = even[k];
@@ -172,7 +226,51 @@ class Fft {
         p[quarter + half] = yr - xr;
         q[quarter] = xi - yi;
       }
-      for (int k = 1; k < quarter; ++k) {
+      int k = 1;
+#if defined(__wasm_simd128__)
+      using namespace fft_lanes;
+      for (; k + 4 <= quarter; k += 4) {
+        const v128_t wr = load(near_cos_ + half + k);
+        const v128_t wi = load(near_sin_ + half + k);
+        const v128_t ar = load(p + k);
+        const v128_t ai = load_down(p + half - k);
+        const v128_t br = load(p + half + k);
+        const v128_t bi = load_down(p + size - k);
+        const v128_t xr = times_re(br, bi, wr, wi);
+        const v128_t xi = times_im(br, bi, wr, wi);
+        const v128_t yr = add(ar, xr);
+        const v128_t yi = add(ai, xi);
+        const v128_t ur = sub(ar, xr);
+        const v128_t ui = sub(xi, ai);
+        const v128_t er = load(q + k);
+        const v128_t ei = load_down(q + half - k);
+        const v128_t fr = load(q + half + k);
+        const v128_t fi = load_down(q + size - k);
+        const v128_t gr = times_re(fr, fi, wr, wi);
+        const v128_t gi = times_im(fr, fi, wr, wi);
+        const v128_t zr = add(er, gr);
+        const v128_t zi = add(ei, gi);
+        const v128_t vr = sub(er, gr);
+        const v128_t vi = sub(gi, ei);
+        const v128_t w2r = load(near_cos_ + size + k);
+        const v128_t w2i = load(near_sin_ + size + k);
+        const v128_t tr = times_re(zr, zi, w2r, w2i);
+        const v128_t ti = times_im(zr, zi, w2r, w2i);
+        store(p + k, add(yr, tr));
+        store_down(q + size - k, add(yi, ti));
+        store_down(p + size - k, sub(yr, tr));
+        store(q + k, sub(ti, yi));
+        const v128_t w3r = load_down(near_cos_ + size + half - k);
+        const v128_t w3i = load_down(near_sin_ + size + half - k);
+        const v128_t sr = times_re(vr, vi, w3r, w3i);
+        const v128_t si = times_im(vr, vi, w3r, w3i);
+        store_down(p + half - k, add(ur, sr));
+        store(q + half + k, add(ui, si));
+        store(p + half + k, sub(ur, sr));
+        store_down(q + half - k, sub(si, ui));
+      }
+#endif
+      for (; k < quarter; ++k) {
         // First stage, bins k and half-k of both transforms.
         const float wr = cos_[k * stride];
         const float wi = sin_[k * stride];
@@ -234,7 +332,28 @@ class Fft {
       const int half = size >> 1;
       const int stride = N / size;
       for (int start = 0; start < N; start += size) {
-        for (int k = 0; k < half; ++k) {
+        int k = 0;
+#if defined(__wasm_simd128__)
+        using namespace fft_lanes;
+        for (; k + 4 <= half; k += 4) {
+          const v128_t wr = load(near_cos_ + half + k);
+          const v128_t sine = load(near_sin_ + half + k);
+          const v128_t wi = inverse ? wasm_f32x4_neg(sine) : sine;
+          float* ar = re + start + k;
+          float* ai = im + start + k;
+          const v128_t br = load(ar + half);
+          const v128_t bi = load(ai + half);
+          const v128_t xr = times_re(br, bi, wr, wi);
+          const v128_t xi = times_im(br, bi, wr, wi);
+          const v128_t was_r = load(ar);
+          const v128_t was_i = load(ai);
+          store(ar + half, sub(was_r, xr));
+          store(ai + half, sub(was_i, xi));
+          store(ar, add(was_r, xr));
+          store(ai, add(was_i, xi));
+        }
+#endif
+        for (; k < half; ++k) {
           const float wr = cos_[k * stride];
           const float wi = inverse ? -sin_[k * stride] : sin_[k * stride];
           const int a = start + k;
@@ -253,6 +372,12 @@ class Fft {
   int reverse_[N] = {};
   float cos_[N / 2] = {};
   float sin_[N / 2] = {};
+#if defined(__wasm_simd128__)
+  // The same twiddles side by side for each size in turn: those of a size
+  // start at half of it.
+  float near_cos_[N] = {};
+  float near_sin_[N] = {};
+#endif
 };
 
 }  // namespace kit

@@ -5,6 +5,7 @@
   "description": "Makes the body of a sound smaller or larger and leaves its notes where they are, from a music box to a giant, or moves the notes and keeps the body.",
   "class": "Size",
   "header": "size.h",
+  "vector": true,
   "sources": [],
   "latencySamples": 2304,
   "meters": [

@@ -20,11 +20,7 @@ void SpectralDrifter::prepare(double sr)
     // Initialize grains with staggered phases
     for (int i = 0; i < NUM_GRAINS; ++i)
     {
-        grains[i].phase = static_cast<float>(i) / NUM_GRAINS;
-        grains[i].targetPitchRatio = 1.0f;
-        grains[i].smoothedPitchRatio = 1.0f;
-        grains[i].readPos = 0.0f;
-        grains[i].assignedInterval = 0;
+        grainPhase[i] = static_cast<float>(i) / NUM_GRAINS;
     }
 
     // Calculate output smoothing coefficient based on sample rate (~4kHz cutoff)
@@ -46,13 +42,9 @@ void SpectralDrifter::reset()
     outputSmoothState2 = 0.0f;
     currentDrift = 0.0f;
 
-    for (auto& grain : grains)
-    {
-        grain.readPos = 0.0f;
-        grain.targetPitchRatio = 1.0f;
-        grain.smoothedPitchRatio = 1.0f;
-        grain.assignedInterval = 0;
-    }
+    grainReadPos.fill(0.0f);
+    grainTargetRatio.fill(1.0f);
+    grainRatio.fill(1.0f);
 }
 
 float SpectralDrifter::calculatePitchRatio(float driftAmount, int grainIndex) const
@@ -177,6 +169,50 @@ float SpectralDrifter::applySeedFilter(float input)
     return output;
 }
 
+// When grain resets, assign FIXED pitch ratio based on interval mode
+void SpectralDrifter::restartGrain(int i, float intensityFactor)
+{
+    grainPhase[i] -= 1.0f;
+    grainReadPos[i] = static_cast<float>(writePos);
+
+    // Determine target interval based on mode (FIXED, not dynamic)
+    int semitones = 0;
+
+    switch (interval)
+    {
+        case Interval::Fifth:
+            semitones = (direction == Direction::Down) ? -7 : 7;
+            break;
+
+        case Interval::Octave:
+            semitones = (direction == Direction::Down) ? -12 : 12;
+            break;
+
+        case Interval::FifthOctave:
+            // Alternate grains between 5th and octave for richness
+            if (i % 2 == 0)
+                semitones = (direction == Direction::Down) ? -12 : 12;
+            else
+                semitones = (direction == Direction::Down) ? -7 : 7;
+            break;
+
+        case Interval::Atonal:
+            // Continuous smooth drift based on bloom (no fixed interval)
+            grainTargetRatio[i] = calculatePitchRatio(intensityFactor, i);
+            break;
+    }
+
+    // For tonal modes, set fixed target ratio
+    if (interval != Interval::Atonal)
+    {
+        // Scatter mode: some grains go opposite direction
+        if (direction == Direction::Scatter && i % 3 == 0)
+            semitones = -semitones;
+
+        grainTargetRatio[i] = semitonesToRatio(static_cast<float>(semitones));
+    }
+}
+
 float SpectralDrifter::process(float input, float ageNormalized)
 {
     // Write input to delay buffer
@@ -193,85 +229,65 @@ float SpectralDrifter::process(float input, float ageNormalized)
 
     for (int i = 0; i < NUM_GRAINS; ++i)
     {
-        auto& grain = grains[i];
-
         // Advance grain phase
-        grain.phase += 1.0f / grainSize;
+        grainPhase[i] += 1.0f / grainSize;
+        if (grainPhase[i] >= 1.0f)
+            restartGrain(i, intensityFactor);
+    }
 
-        // When grain resets, assign FIXED pitch ratio based on interval mode
-        if (grain.phase >= 1.0f)
-        {
-            grain.phase -= 1.0f;
-            grain.readPos = static_cast<float>(writePos);
-
-            // Determine target interval based on mode (FIXED, not dynamic)
-            int semitones = 0;
-
-            switch (interval)
-            {
-                case Interval::Fifth:
-                    semitones = (direction == Direction::Down) ? -7 : 7;
-                    break;
-
-                case Interval::Octave:
-                    semitones = (direction == Direction::Down) ? -12 : 12;
-                    break;
-
-                case Interval::FifthOctave:
-                    // Alternate grains between 5th and octave for richness
-                    if (i % 2 == 0)
-                        semitones = (direction == Direction::Down) ? -12 : 12;
-                    else
-                        semitones = (direction == Direction::Down) ? -7 : 7;
-                    break;
-
-                case Interval::Atonal:
-                    // Continuous smooth drift based on bloom (no fixed interval)
-                    grain.targetPitchRatio = calculatePitchRatio(intensityFactor, i);
-                    grain.assignedInterval = 0;
-                    break;
-            }
-
-            // For tonal modes, set fixed target ratio
-            if (interval != Interval::Atonal)
-            {
-                // Scatter mode: some grains go opposite direction
-                if (direction == Direction::Scatter && i % 3 == 0)
-                    semitones = -semitones;
-
-                grain.assignedInterval = semitones;
-                grain.targetPitchRatio = semitonesToRatio(static_cast<float>(semitones));
-            }
-        }
-
+    // The grains are worked through a step at a time, all eight of each step,
+    // which is what the vector instructions want.
+    int readIdx[NUM_GRAINS];
+    int hannIdx[NUM_GRAINS];
+    float frac[NUM_GRAINS];
+    float hannFrac[NUM_GRAINS];
+    for (int i = 0; i < NUM_GRAINS; ++i)
+    {
         // === KEY FIX: Blend from unison toward target based on bloom ===
         // This makes the bloom control smooth - no jumps!
-        float targetRatio = grain.targetPitchRatio;
-        float blendedRatio = 1.0f + (targetRatio - 1.0f) * intensityFactor;
+        float blendedRatio = 1.0f + (grainTargetRatio[i] - 1.0f) * intensityFactor;
 
         // Extra smooth pitch transitions (prevents metallic artifacts)
-        grain.smoothedPitchRatio = grain.smoothedPitchRatio * 0.997f + blendedRatio * 0.003f;
+        grainRatio[i] = grainRatio[i] * 0.997f + blendedRatio * 0.003f;
 
         // Calculate read position with smoothed pitch ratio
-        grain.readPos -= grain.smoothedPitchRatio;
-        if (grain.readPos < 0.0f)
-            grain.readPos += static_cast<float>(MAX_DELAY);
-        if (grain.readPos >= static_cast<float>(MAX_DELAY))
-            grain.readPos -= static_cast<float>(MAX_DELAY);
+        float readPos = grainReadPos[i] - grainRatio[i];
+        readPos = readPos < 0.0f ? readPos + static_cast<float>(MAX_DELAY) : readPos;
+        readPos = readPos >= static_cast<float>(MAX_DELAY) ? readPos - static_cast<float>(MAX_DELAY) : readPos;
+        grainReadPos[i] = readPos;
 
-        // Interpolated read from delay buffer
-        int readIdx = static_cast<int>(grain.readPos);
-        float frac = grain.readPos - static_cast<float>(readIdx);
-        int nextIdx = (readIdx + 1) % MAX_DELAY;
+        readIdx[i] = static_cast<int>(readPos);
+        frac[i] = readPos - static_cast<float>(readIdx[i]);
 
-        float sample = delayBuffer[readIdx] * (1.0f - frac) + delayBuffer[nextIdx] * frac;
-
-        // Apply Hann window envelope
-        float envelope = hannWindow(grain.phase);
-
-        // Accumulate to output
-        output += sample * envelope;
+        // Where the Hann window is read
+        float idx = grainPhase[i] * static_cast<float>(HANN_TABLE_SIZE - 1);
+        hannIdx[i] = static_cast<int>(idx);
+        hannFrac[i] = idx - static_cast<float>(hannIdx[i]);
     }
+
+    float near[NUM_GRAINS];
+    float far[NUM_GRAINS];
+    float hannNear[NUM_GRAINS];
+    float hannFar[NUM_GRAINS];
+    for (int i = 0; i < NUM_GRAINS; ++i)
+    {
+        near[i] = delayBuffer[readIdx[i]];
+        far[i] = delayBuffer[readIdx[i] + 1 == MAX_DELAY ? 0 : readIdx[i] + 1];
+        hannNear[i] = hannTable[hannIdx[i]];
+        hannFar[i] = hannTable[std::min(hannIdx[i] + 1, HANN_TABLE_SIZE - 1)];
+    }
+
+    // Interpolated read from delay buffer, under the Hann window envelope
+    float windowed[NUM_GRAINS];
+    for (int i = 0; i < NUM_GRAINS; ++i)
+    {
+        float sample = near[i] * (1.0f - frac[i]) + far[i] * frac[i];
+        float envelope = hannNear[i] * (1.0f - hannFrac[i]) + hannFar[i] * hannFrac[i];
+        windowed[i] = sample * envelope;
+    }
+
+    // Accumulate to output
+    for (int i = 0; i < NUM_GRAINS; ++i) output += windowed[i];
 
     // Normalize by number of overlapping grains
     output *= (2.0f / NUM_GRAINS);

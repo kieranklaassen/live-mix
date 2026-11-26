@@ -5,6 +5,7 @@
   "description": "Turns up what is quiet inside a sound, frequency by frequency, so overtones, breath and room come forward while what is already loud stays where it is.",
   "class": "Reveal",
   "header": "reveal.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

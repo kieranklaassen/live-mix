@@ -5,6 +5,7 @@
   "description": "Sifts a sound into its tones, its attacks and its air as it plays, with a level and a blur for each: tones that ring on, attacks made soft or late, air spread wide.",
   "class": "Sift",
   "header": "sift.h",
+  "vector": true,
   "sources": [],
   "meters": [
     {

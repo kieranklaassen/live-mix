@@ -72,7 +72,7 @@ build_device true-peak-limiter \
   cpp/devices/true-peak-limiter/true_peak_limiter_device.cpp \
   cpp/devices/true-peak-limiter/device_api.cpp
 
-build_device spectral-drifter \
+EXTRA_FLAGS="-msimd128" build_device spectral-drifter \
   cpp/devices/spectral-drifter/SpectralDrifter.cpp \
   cpp/devices/spectral-drifter/spectral_drifter_device.cpp \
   cpp/devices/spectral-drifter/device_api.cpp

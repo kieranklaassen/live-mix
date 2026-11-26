@@ -5,6 +5,7 @@
   "description": "What a starving audio stream does to sound: quiet detail is thrown away until the rest swirls and warbles as if behind glass, with lost and stuck packets on top.",
   "class": "LowBitrate",
   "header": "low_bitrate.h",
+  "vector": true,
   "sources": [],
   "latencySamples": 4096,
   "meters": [
