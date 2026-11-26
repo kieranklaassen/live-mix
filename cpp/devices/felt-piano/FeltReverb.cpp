@@ -1,5 +1,6 @@
 #include "FeltReverb.h"
 #include "../../common/dsp_util.h"
+#include "../../common/vector_math.h"
 #include <cmath>
 
 void FeltReverb::prepare(double sampleRate)
@@ -134,13 +135,19 @@ void FeltReverb::processSample(float& left, float& right, float mix) noexcept
     }
 
     // Modulated delay reads.
-    std::array<float, kChannels> delayOut{};
+    float lfo[kChannels];
     for (int ch = 0; ch < kChannels; ++ch)
     {
         lfoPhases[ch] += lfoIncrements[ch];
         if (lfoPhases[ch] >= 1.0f)
             lfoPhases[ch] -= 1.0f;
-        const float mod = std::sin(lfoPhases[ch] * 6.2831853f) * kModDepthSamples;
+        lfo[ch] = lfoPhases[ch] * 6.2831853f;
+    }
+    livemix::sin_turn_8(lfo, lfo);
+    std::array<float, kChannels> delayOut{};
+    for (int ch = 0; ch < kChannels; ++ch)
+    {
+        const float mod = lfo[ch] * kModDepthSamples;
         delayOut[ch] = readDelayInterpolated(ch, static_cast<float>(baseDelays[ch]) + mod);
     }
 

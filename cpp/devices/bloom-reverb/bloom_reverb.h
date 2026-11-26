@@ -243,33 +243,42 @@ class BloomReverb : public kit::DeviceBase<bloom_reverb::kNumParams> {
       diffused = delayed - kDiffusion[a] * diffused;
     }
 
-    float out[kLines];
-    float loudest = 0.0f;
+    int whole[kLines];
+    float coefficient[kLines];
     for (int ch = 0; ch < kLines; ++ch) {
       // The line's LFO as a coupled-form oscillator: a sine of fixed
       // amplitude (the modulation depth) for two multiplies.
       lfo_sin_[ch] += lfo_step_[ch] * lfo_cos_[ch];
       lfo_cos_[ch] -= lfo_step_[ch] * lfo_sin_[ch];
       const float delay = base_delay_[ch] + lfo_sin_[ch];
+      whole[ch] = static_cast<int>(delay);
+      const float fraction = delay - static_cast<float>(whole[ch]);
+      coefficient[ch] = (1.0f - fraction) / (1.0f + fraction);
+    }
+    float near[kLines];
+    float far[kLines];
+    for (int ch = 0; ch < kLines; ++ch) {
+      near[ch] = line_[ch].read(whole[ch]);
+      far[ch] = line_[ch].read(whole[ch] + 1);
+    }
+    float out[kLines];
+    float magnitude[kLines];
+    for (int ch = 0; ch < kLines; ++ch) {
       // First-order Thiran allpass between the two neighbouring samples:
       // fractional delay with a flat magnitude, so the modulation does not
       // dull the loop the way linear interpolation would.
-      const int whole = static_cast<int>(delay);
-      const float fraction = delay - static_cast<float>(whole);
-      const float coefficient = (1.0f - fraction) / (1.0f + fraction);
-      const float sample = flush_denormal(line_[ch].read(whole + 1) +
-                                          coefficient * (line_[ch].read(whole) - interp_[ch]));
+      const float sample = flush_denormal(far[ch] + coefficient[ch] * (near[ch] - interp_[ch]));
       interp_[ch] = sample;
       out[ch] = sample;
-
-      const float magnitude = sample < 0.0f ? -sample : sample;
-      if (magnitude > loudest) loudest = magnitude;
-      if (magnitude > kAgeThreshold) {
-        age_[ch] += age_step_;
-        if (age_[ch] > max_age_) age_[ch] = max_age_;
-      } else {
-        age_[ch] = flush_denormal(age_[ch] * age_decay_);
-      }
+      magnitude[ch] = sample < 0.0f ? -sample : sample;
+      const float older = age_[ch] + age_step_;
+      const float aged = older > max_age_ ? max_age_ : older;
+      const float younger = flush_denormal(age_[ch] * age_decay_);
+      age_[ch] = magnitude[ch] > kAgeThreshold ? aged : younger;
+    }
+    float loudest = 0.0f;
+    for (int ch = 0; ch < kLines; ++ch) {
+      if (magnitude[ch] > loudest) loudest = magnitude[ch];
     }
 
     const float inverse_max_age = 1.0f / max_age_;
@@ -285,14 +294,16 @@ class BloomReverb : public kit::DeviceBase<bloom_reverb::kNumParams> {
     float mixed[kLines];
     hadamard8(out, mixed);
     const float inject[2] = {drifted[0] * bloom * kDriftInjection, drifted[1] * bloom * kDriftInjection};
+    float written[kLines];
     for (int ch = 0; ch < kLines; ++ch) {
       const float back = diffused + mixed[ch] * feedback_ + inject[ch & 1];
       damp_[ch] = flush_denormal((1.0f - damping_) * back + damping_ * damp_[ch]);
       const float blocked = flush_denormal(damp_[ch] - dc_x_[ch] + dc_pole_ * dc_y_[ch]);
       dc_x_[ch] = damp_[ch];
       dc_y_[ch] = blocked;
-      line_[ch].write(blocked);
+      written[ch] = blocked;
     }
+    for (int ch = 0; ch < kLines; ++ch) line_[ch].write(written[ch]);
 
     wet[0] = drifted[0];
     wet[1] = drifted[1];

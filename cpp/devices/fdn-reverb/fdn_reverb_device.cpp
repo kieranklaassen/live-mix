@@ -8,6 +8,7 @@ void FdnReverbDevice::init(float sample_rate) {
   primed_ = false;
   mix_.set_time(kSmoothingSeconds, sample_rate);
   mix_.snap(kDefaultMix);
+  gain_mix_ = -1.0f;
   for (int i = 0; i < kMaxBlockFrames; ++i) {
     in_left_[i] = 0.0f;
     in_right_[i] = 0.0f;
@@ -78,12 +79,15 @@ void FdnReverbDevice::process(int frames) {
     reverb_.process((dry_left + dry_right) * 0.5f, &wet_left, &wet_right);
     if (wet_left != 0.0f || wet_right != 0.0f) ringing = true;
 
-    const float mix_angle = mix_.next() * kHalfPi;
-    const float dry_gain = std::cos(mix_angle);
-    const float wet_gain = std::sin(mix_angle);
+    const float mix = mix_.next();
+    if (mix != gain_mix_) {
+      gain_mix_ = mix;
+      dry_gain_ = std::cos(mix * kHalfPi);
+      wet_gain_ = std::sin(mix * kHalfPi);
+    }
 
-    out_left_[i] = dry_left * dry_gain + wet_left * wet_gain;
-    out_right_[i] = dry_right * dry_gain + wet_right * wet_gain;
+    out_left_[i] = dry_left * dry_gain_ + wet_left * wet_gain_;
+    out_right_[i] = dry_right * dry_gain_ + wet_right * wet_gain_;
   }
   // Exact silence, not the gate's floor: only then are the lines empty.
   idle_.settle(ringing ? 1.0f : 0.0f, frames);

@@ -5,6 +5,7 @@
   "description": "A table of metal singing bowls tuned to a key: play in the key and the bowls you touch sing with you and ring on after, each with its own slow beat and its place between the sides.",
   "class": "Bowls",
   "header": "bowls.h",
+  "vector": true,
   "sources": [],
   "meters": [
     {

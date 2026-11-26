@@ -5,6 +5,7 @@
   "description": "The converters of an early sampler: a sample rate reducer and bit crusher with true aliasing, hold images, companding and clock jitter, from a soft twelve-bit glaze to folded metal.",
   "class": "VintageDigital",
   "header": "vintage_digital.h",
+  "vector": true,
   "sources": [],
   "latencySamples": 129,
   "params": [

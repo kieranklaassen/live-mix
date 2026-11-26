@@ -63,6 +63,10 @@ class FdnReverbDevice {
   static constexpr float kSmoothingSeconds = 0.005f;
 
   FdnReverb::Smoother mix_;
+  // The dry and wet gains, and the mix they were worked out from.
+  float gain_mix_ = -1.0f;
+  float dry_gain_ = 0.0f;
+  float wet_gain_ = 0.0f;
   bool primed_ = false;
   FdnReverb reverb_;
   kit::IdleGate idle_;

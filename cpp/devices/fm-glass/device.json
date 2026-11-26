@@ -5,6 +5,7 @@
   "description": "Four-operator FM voiced for ambient: glass bells, crystalline pads and mallets, with slow beating between detuned operator pairs.",
   "class": "FmGlass",
   "header": "fm_glass.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

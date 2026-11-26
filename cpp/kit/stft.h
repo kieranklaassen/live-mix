@@ -172,6 +172,14 @@ class Stft {
       cos_[i] = static_cast<float>(std::cos(step * i));
       sin_[i] = static_cast<float>(std::sin(step * i));
     }
+#if defined(__wasm_simd128__)
+    for (int half = 1; half < kHalf; half <<= 1) {
+      for (int k = 0; k < half; ++k) {
+        near_cos_[half + k] = cos_[k * (Frame / (2 * half))];
+        near_sin_[half + k] = sin_[k * (Frame / (2 * half))];
+      }
+    }
+#endif
     int bits = 0;
     while ((1 << bits) < kHalf) ++bits;
     for (int i = 0; i < kHalf; ++i) {
@@ -392,6 +400,19 @@ class Stft {
     const uint32_t out_start = position_ - stagger_ + kMaxStagger;
     for (int m = 0; m < kHalf; ++m) {
       const uint32_t at = out_start + 2 * static_cast<uint32_t>(m);
+#if defined(__wasm_simd128__)
+      // Two of each at a time, but where the ring's end comes between.
+      if ((at & kMask) + 4 <= kMask + 1 && m + 1 < kHalf) {
+        const v128_t pair = wasm_i32x4_shuffle(wasm_v128_load64_zero(zr + m),
+                                               wasm_v128_load64_zero(zi + m), 0, 4, 1, 5);
+        const v128_t windowed = wasm_f32x4_mul(
+            wasm_f32x4_mul(pair, wasm_f32x4_splat(kOutputScale)), wasm_v128_load(window_ + 2 * m));
+        float* out = output_ + (at & kMask);
+        wasm_v128_store(out, wasm_f32x4_add(wasm_v128_load(out), windowed));
+        ++m;
+        continue;
+      }
+#endif
       output_[at & kMask] += zr[m] * kOutputScale * window_[2 * m];
       output_[(at + 1) & kMask] += zi[m] * kOutputScale * window_[2 * m + 1];
     }
@@ -407,7 +428,25 @@ class Stft {
       float* ai = zi_ + start;
       float* br = ar + half;
       float* bi = ai + half;
-      for (int k = 0; k < half; ++k) {
+      int k = 0;
+#if defined(__wasm_simd128__)
+      using namespace fft_lanes;
+      for (; k + 4 <= half; k += 4) {
+        const v128_t wr = load(near_cos_ + half + k);
+        const v128_t wi = load(near_sin_ + half + k);
+        const v128_t r = load(br + k);
+        const v128_t i = load(bi + k);
+        const v128_t xr = times_re(r, i, wr, wi);
+        const v128_t xi = times_im(r, i, wr, wi);
+        const v128_t was_r = load(ar + k);
+        const v128_t was_i = load(ai + k);
+        store(br + k, sub(was_r, xr));
+        store(bi + k, sub(was_i, xi));
+        store(ar + k, add(was_r, xr));
+        store(ai + k, add(was_i, xi));
+      }
+#endif
+      for (; k < half; ++k) {
         const float wr = cos_[k * stride];
         const float wi = sin_[k * stride];
         const float xr = br[k] * wr - bi[k] * wi;
@@ -436,7 +475,41 @@ class Stft {
       float* ci = ai + size;
       float* dr = cr + half;
       float* di = ci + half;
-      for (int k = 0; k < half; ++k) {
+      int k = 0;
+#if defined(__wasm_simd128__)
+      using namespace fft_lanes;
+      for (; k + 4 <= half; k += 4) {
+        const v128_t wr = load(near_cos_ + half + k);
+        const v128_t wi = load(near_sin_ + half + k);
+        const v128_t ber = load(br + k), bei = load(bi + k);
+        const v128_t tr = times_re(ber, bei, wr, wi);
+        const v128_t ti = times_im(ber, bei, wr, wi);
+        const v128_t aer = load(ar + k), aei = load(ai + k);
+        const v128_t a1r = add(aer, tr), a1i = add(aei, ti);
+        const v128_t b1r = sub(aer, tr), b1i = sub(aei, ti);
+        const v128_t der = load(dr + k), dei = load(di + k);
+        const v128_t ur = times_re(der, dei, wr, wi);
+        const v128_t ui = times_im(der, dei, wr, wi);
+        const v128_t cer = load(cr + k), cei = load(ci + k);
+        const v128_t c1r = add(cer, ur), c1i = add(cei, ui);
+        const v128_t d1r = sub(cer, ur), d1i = sub(cei, ui);
+        const v128_t w2r = load(near_cos_ + size + k);
+        const v128_t w2i = load(near_sin_ + size + k);
+        const v128_t pr = times_re(c1r, c1i, w2r, w2i);
+        const v128_t pi = times_im(c1r, c1i, w2r, w2i);
+        const v128_t qr = times_re(d1r, d1i, w2r, w2i);
+        const v128_t qi = times_im(d1r, d1i, w2r, w2i);
+        store(ar + k, add(a1r, pr));
+        store(ai + k, add(a1i, pi));
+        store(cr + k, sub(a1r, pr));
+        store(ci + k, sub(a1i, pi));
+        store(br + k, sub(b1r, qi));
+        store(bi + k, add(b1i, qr));
+        store(dr + k, add(b1r, qi));
+        store(di + k, sub(b1i, qr));
+      }
+#endif
+      for (; k < half; ++k) {
         const float wr = cos_[k * stride];
         const float wi = sin_[k * stride];
         const float tr = br[k] * wr - bi[k] * wi;
@@ -471,6 +544,12 @@ class Stft {
   float window_[Frame] = {};
   float cos_[kHalf] = {};  // one turn in Frame steps, the first half of it
   float sin_[kHalf] = {};
+#if defined(__wasm_simd128__)
+  // The same twiddles side by side for each size in turn: those of a size
+  // start at half of it.
+  float near_cos_[kHalf] = {};
+  float near_sin_[kHalf] = {};
+#endif
   uint16_t reverse_[kHalf] = {};  // bit reversal of the half-size transform
   float input_[kRing] = {};
   float output_[kRing] = {};

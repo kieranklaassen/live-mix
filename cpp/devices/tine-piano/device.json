@@ -5,6 +5,7 @@
   "description": "Modelled tine electric piano: struck tines and tone bars read by a pickup that barks when played hard, through a suitcase amplifier with stereo tremolo.",
   "class": "TinePiano",
   "header": "tine_piano.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

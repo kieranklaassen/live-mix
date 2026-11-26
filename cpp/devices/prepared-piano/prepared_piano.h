@@ -733,6 +733,44 @@ class PreparedPiano : public kit::DeviceBase<prepared_piano::kNumParams> {
     for (int k = 0; k < kSlots; ++k) voice.re[k] = voice.im[k] = 0.0f;
   }
 
+  // Whether the four partials from `first` hold nothing.
+  static bool still(const Voice& voice, int first) {
+    for (int k = first; k < kSlots && k < first + kSide; ++k) {
+      if (voice.re[k] != 0.0f || voice.im[k] != 0.0f) return false;
+    }
+    return true;
+  }
+
+  // `n` samples of `kFours` fours of partials from `first` on, added to `out`.
+  template <int kFours>
+  static void turn(Voice& voice, int first, const float* fed, int n, float* out) {
+    constexpr int kCount = kFours * kSide;
+    const int count = kSlots - first < kCount ? kSlots - first : kCount;
+    float re[kCount] = {}, im[kCount] = {}, step_re[kCount] = {}, step_im[kCount] = {};
+    for (int j = 0; j < count; ++j) {
+      re[j] = voice.re[first + j];
+      im[j] = voice.im[first + j];
+      step_re[j] = voice.step_re[first + j];
+      step_im[j] = voice.step_im[first + j];
+    }
+    for (int i = 0; i < n; ++i) {
+      const float push = fed != nullptr ? fed[i] : 0.0f;
+      for (int j = 0; j < kCount; ++j) {
+        const float turned = step_re[j] * re[j] - step_im[j] * im[j] + push;
+        im[j] = step_re[j] * im[j] + step_im[j] * re[j];
+        re[j] = turned;
+      }
+      for (int four = 0; four < kCount; four += kSide) {
+        out[i] += ((im[four] + im[four + 1]) + im[four + 2]) + im[four + 3];
+      }
+    }
+    for (int j = 0; j < count; ++j) {
+      const bool there = step_im[j] != 0.0f;  // a slot with no partial in it holds nothing
+      voice.re[first + j] = there ? re[j] : 0.0f;
+      voice.im[first + j] = there ? im[j] : 0.0f;
+    }
+  }
+
   // `n` samples of one note, starting `offset` samples into the control period.
   void render_voice(Voice& voice, int offset, int n, float* left, float* right) {
     // The partials, four at a time: each is a chain from one sample to the
@@ -745,45 +783,28 @@ class PreparedPiano : public kit::DeviceBase<prepared_piano::kNumParams> {
     float low[kChunk];
     const float* fed = voice.fed + offset;
     for (int first = 0; first < kSlots; first += kSide) {
-      const int count = kSlots - first < kSide ? kSlots - first : kSide;
       const bool swings = first == 0 || first == kFree;
       const bool pushed = voice.feeding && !swings && first < kFree + kLoaded;
-      float re[kSide] = {}, im[kSide] = {}, step_re[kSide] = {}, step_im[kSide] = {};
-      bool still = !pushed;
-      for (int j = 0; j < count; ++j) {
-        re[j] = voice.re[first + j];
-        im[j] = voice.im[first + j];
-        step_re[j] = voice.step_re[first + j];
-        step_im[j] = voice.step_im[first + j];
-        still = still && re[j] == 0.0f && im[j] == 0.0f;
-      }
-      if (still) continue;
+      if (!pushed && still(voice, first)) continue;
       float* whole = string[first < kFree ? 0 : 1];
-      float* out = swings ? low : whole;
       if (swings) {
         for (int i = 0; i < n; ++i) low[i] = 0.0f;
-      }
-      for (int i = 0; i < n; ++i) {
-        const float push = pushed ? fed[i] : 0.0f;
-        float sum = 0.0f;
-        for (int j = 0; j < kSide; ++j) {
-          const float turned = step_re[j] * re[j] - step_im[j] * im[j] + push;
-          im[j] = step_re[j] * im[j] + step_im[j] * re[j];
-          re[j] = turned;
-          sum += im[j];
-        }
-        out[i] += sum;
-      }
-      for (int j = 0; j < count; ++j) {
-        const bool there = step_im[j] != 0.0f;  // a slot with no partial in it holds nothing
-        voice.re[first + j] = there ? re[j] : 0.0f;
-        voice.im[first + j] = there ? im[j] : 0.0f;
-      }
-      if (swings) {
+        turn<1>(voice, first, nullptr, n, low);
         for (int i = 0; i < n; ++i) {
           swing[i] += low[i];
           whole[i] += low[i];
         }
+        continue;
+      }
+      // Two fours of one string together where both sound: a chain waits for
+      // its own last sample, and eight wait no longer than four.
+      const int next = first + kSide;
+      const bool both = next != kFree && next < kFree + kLoaded && (pushed || !still(voice, next));
+      if (both) {
+        turn<2>(voice, first, pushed ? fed : nullptr, n, whole);
+        first = next;
+      } else {
+        turn<1>(voice, first, pushed ? fed : nullptr, n, whole);
       }
     }
 

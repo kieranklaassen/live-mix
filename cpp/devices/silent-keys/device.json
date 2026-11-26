@@ -5,6 +5,7 @@
   "description": "Strings under a chord held down without a sound: whatever plays wakes only the partials it shares with them, so anything dry blooms into that chord and dies away.",
   "class": "SilentKeys",
   "header": "silent_keys.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

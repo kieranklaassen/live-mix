@@ -33,27 +33,20 @@ class Halfband2x {
   }
 
   void reset() {
-    for (float& value : up_) value = 0.0f;
-    for (float& value : down_) value = 0.0f;
-    up_index_ = 0;
-    down_index_ = 0;
+    up_.clear();
+    down_.clear();
+    for (float& value : between_) value = 0.0f;
+    between_index_ = 0;
   }
 
   // One base-rate sample in, two 2x-rate samples out.
   void up(float x, float* first, float* second) {
-    up_[up_index_] = x;
     // Polyphase: with the zeros stuffed in, one output sees only the odd
     // taps (the sample halfway between two inputs) and the other only the
     // centre tap (0.5, times the interpolation gain of 2: the input itself).
-    float sum = 0.0f;
-    for (int k = 0; k < kHalf; ++k) {
-      const float newer = up_[(up_index_ - (kHalf - 1 - k)) & kMask];
-      const float older = up_[(up_index_ - (kHalf + k)) & kMask];
-      sum += odd_[k] * (newer + older);
-    }
-    *first = 2.0f * sum;
-    *second = up_[(up_index_ - (kHalf - 1)) & kMask];
-    up_index_ = (up_index_ + 1) & kMask;
+    const float* past = up_.take(x);
+    *first = 2.0f * odd_taps(past, 0.0f);
+    *second = past[kHalf];
   }
 
   // Two 2x-rate samples in (in order), one base-rate sample out. The output
@@ -61,23 +54,47 @@ class Halfband2x {
   // samples `up` passed straight through and makes the round trip a whole
   // number of base-rate samples.
   float down(float first, float second) {
-    down_[down_index_] = first;
-    float sum = 0.5f * down_[(down_index_ - kCentre) & kDownMask];
-    for (int k = 0; k < kHalf; ++k) {
-      const int offset = 2 * k + 1;
-      sum += odd_[k] * (down_[(down_index_ - kCentre + offset) & kDownMask] +
-                        down_[(down_index_ - kCentre - offset) & kDownMask]);
-    }
-    down_index_ = (down_index_ + 1) & kDownMask;
-    down_[down_index_] = second;
-    down_index_ = (down_index_ + 1) & kDownMask;
+    // The odd taps fall on the first of every pair and the centre on a
+    // second, so the two are kept apart.
+    const float* past = down_.take(first);
+    const float sum = odd_taps(past, 0.5f * between_[between_index_]);
+    between_[between_index_] = second;
+    between_index_ = (between_index_ + 1) & (kHalf - 1);
     return sum;
   }
 
  private:
   static constexpr int kHalf = 16;
-  static constexpr int kMask = 31;
-  static constexpr int kDownMask = 63;
+  static constexpr int kPast = 2 * kHalf;
+
+  // The last kPast samples, always in a row: each is written twice, kPast
+  // apart, and the row is read from wherever it starts.
+  class Past {
+   public:
+    void clear() {
+      for (float& value : data_) value = 0.0f;
+      index_ = 0;
+    }
+    // Takes a sample and gives the row, oldest first.
+    const float* take(float x) {
+      data_[index_] = x;
+      data_[index_ + kPast] = x;
+      index_ = (index_ + 1) & (kPast - 1);
+      return data_ + index_;
+    }
+
+   private:
+    float data_[2 * kPast] = {};
+    int index_ = 0;
+  };
+
+  // The taps out from the centre, added to `sum` in that order.
+  float odd_taps(const float* past, float sum) const {
+    float tap[kHalf];
+    for (int k = 0; k < kHalf; ++k) tap[k] = odd_[k] * (past[kHalf + k] + past[kHalf - 1 - k]);
+    for (int k = 0; k < kHalf; ++k) sum += tap[k];
+    return sum;
+  }
 
   static double bessel_i0(double x) {
     double sum = 1.0;
@@ -90,10 +107,9 @@ class Halfband2x {
   }
 
   float odd_[kHalf] = {};
-  float up_[32] = {};
-  float down_[64] = {};
-  int up_index_ = 0;
-  int down_index_ = 0;
+  Past up_, down_;
+  float between_[kHalf] = {};  // the seconds of the last pairs
+  int between_index_ = 0;
 };
 
 }  // namespace kit

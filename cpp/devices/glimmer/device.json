@@ -5,6 +5,7 @@
   "description": "Gives every band of the spectrum its own small tremolo. Through narrow bands a rich sound holds its level while its partials catch the light; a plain note, or anything through broad bands, swells and fades. Attacks that stand out pass untouched.",
   "class": "Glimmer",
   "header": "glimmer.h",
+  "vector": true,
   "sources": [],
   "meters": [
     {

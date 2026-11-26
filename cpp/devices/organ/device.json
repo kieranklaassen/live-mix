@@ -5,6 +5,7 @@
   "description": "Harmonium and small pipe organ for held chords and drones: five ranks from flute to reed, a beating celeste, wind noise, a breathing bellows and a tremulant.",
   "class": "Organ",
   "header": "organ.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

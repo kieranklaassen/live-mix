@@ -44,6 +44,10 @@
 //
 // The instrument sleeps when no key sounds.
 
+#if defined(__wasm_simd128__)
+#include <wasm_simd128.h>
+#endif
+
 #include "../../kit/kit.h"
 #include "params.gen.h"
 
@@ -213,10 +217,34 @@ class Organ : public kit::DeviceBase<organ::kNumParams> {
         sine[4] = 2.0f * sine[2] * cosine[2];
         cosine[4] = 1.0f - 2.0f * sine[2] * sine[2];
         float pipes = 0.0f;
+        float other_rank = 0.0f;
+        float other_sine = 0.0f, other_cosine = 0.0f;
+        if (celeste != 0.0f) {
+          other_sine = kit::SineTable::lookup(voice.celeste_phase);
+          other_cosine = kit::SineTable::cos_lookup(voice.celeste_phase);
+        }
+#if defined(__wasm_simd128__)
+        {
+          // Four ranks together, then the fifth with the celeste.
+          const v128_t reeds = wasm_f32x4_splat(reed);
+          float four[4];
+          wasm_v128_store(four, wasm_f32x4_mul(wasm_v128_load(level),
+                                               ranks(wasm_v128_load(sine), wasm_v128_load(cosine),
+                                                     wasm_f32x4_pmin(wasm_v128_load(voice.reed), reeds))));
+          const v128_t two = ranks(
+              wasm_f32x4_make(sine[4], other_sine, 0.0f, 0.0f),
+              wasm_f32x4_make(cosine[4], other_cosine, 0.0f, 0.0f),
+              wasm_f32x4_pmin(wasm_f32x4_make(voice.reed[4], voice.reed[1], 0.0f, 0.0f), reeds));
+          pipes = (((four[0] + four[1]) + four[2]) + four[3]) + level[4] * wasm_f32x4_extract_lane(two, 0);
+          other_rank = wasm_f32x4_extract_lane(two, 1);
+        }
+#else
         for (int r = 0; r < kNumRanks; ++r) {
           if (level[r] == 0.0f) continue;
           pipes += level[r] * rank(sine[r], cosine[r], kit::min(reed, voice.reed[r]));
         }
+        if (celeste != 0.0f) other_rank = rank(other_sine, other_cosine, kit::min(reed, voice.reed[1]));
+#endif
         const float amount = envelope * voice.gain * registration;
         float own = pipes * amount;
         if (voice.chiff > 0.0f) {
@@ -228,10 +256,7 @@ class Organ : public kit::DeviceBase<organ::kNumParams> {
         right += own * voice.right;
         if (celeste != 0.0f) {
           // The celeste stands on the other side.
-          const float other = celeste * amount *
-                              rank(kit::SineTable::lookup(voice.celeste_phase),
-                                   kit::SineTable::cos_lookup(voice.celeste_phase),
-                                   kit::min(reed, voice.reed[1]));
+          const float other = celeste * amount * other_rank;
           left += other * voice.right;
           right += other * voice.left;
         }
@@ -294,6 +319,19 @@ class Organ : public kit::DeviceBase<organ::kNumParams> {
     const float power = 1.0f - a2 * (0.5f + a2 * (0.125f + 0.0625f * a2));
     return sine * power / (1.0f - 2.0f * a * cosine + a2);
   }
+
+#if defined(__wasm_simd128__)
+  static v128_t ranks(v128_t sine, v128_t cosine, v128_t a) {
+    const v128_t one = wasm_f32x4_const_splat(1.0f);
+    const v128_t a2 = wasm_f32x4_mul(a, a);
+    const v128_t inner = wasm_f32x4_add(wasm_f32x4_const_splat(0.125f),
+                                        wasm_f32x4_mul(wasm_f32x4_const_splat(0.0625f), a2));
+    const v128_t outer = wasm_f32x4_add(wasm_f32x4_const_splat(0.5f), wasm_f32x4_mul(a2, inner));
+    const v128_t power = wasm_f32x4_sub(one, wasm_f32x4_mul(a2, outer));
+    const v128_t twice = wasm_f32x4_mul(wasm_f32x4_mul(wasm_f32x4_const_splat(2.0f), a), cosine);
+    return wasm_f32x4_div(wasm_f32x4_mul(sine, power), wasm_f32x4_add(wasm_f32x4_sub(one, twice), a2));
+  }
+#endif
 
   // Every 32 samples: envelope times of the sounding keys and the tone filter.
   void control(float sr) {

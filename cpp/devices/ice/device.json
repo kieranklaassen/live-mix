@@ -5,6 +5,7 @@
   "description": "A frozen lake tuned to the keys: each strike arrives as a falling chirp that settles on a ringing note, echoes come back off far shores, and the ice goes on cracking by itself while a key is held.",
   "class": "Ice",
   "header": "ice.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

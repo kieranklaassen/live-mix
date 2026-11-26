@@ -5,6 +5,7 @@
   "description": "A vibrato that waits: a held note begins straight and sways more the longer it lasts, and each new note sends everything sounding back to straight.",
   "class": "LateVibrato",
   "header": "late_vibrato.h",
+  "vector": true,
   "sources": [],
   "latencySamples": 960,
   "meters": [

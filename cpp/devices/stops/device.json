@@ -5,6 +5,7 @@
   "description": "Organ stops for any sound: copies of what is playing an octave below, a fifth, an octave, a twelfth and two octaves above, each on its own drawbar, speaking a little after the note as pipes do.",
   "class": "Stops",
   "header": "stops.h",
+  "vector": true,
   "sources": [],
   "latencySamples": 4608,
   "meters": [

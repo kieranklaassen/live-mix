@@ -5,6 +5,7 @@
   "description": "A filter that lets through only the notes of a key and scale, in every octave, so noise, a field recording or a drum loop comes out as a chord.",
   "class": "ScaleFilter",
   "header": "scale_filter.h",
+  "vector": true,
   "sources": [],
   "latencySamples": 9216,
   "meters": [

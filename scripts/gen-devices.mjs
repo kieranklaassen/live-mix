@@ -232,6 +232,8 @@ function loadManifest(dir) {
   const memoryMb = manifest.memoryMb ?? DEFAULT_MEMORY_MB
   if (!Number.isInteger(memoryMb) || memoryMb < 1 || memoryMb > 256)
     fail(id, 'memoryMb must be 1..256')
+  if (manifest.vector !== undefined && manifest.vector !== true)
+    fail(id, 'vector is true or left out')
   const test = `cpp/test/${snakeCase(id)}_test.cpp`
   if (!existsSync(join(root, test))) fail(id, `native harness ${test} not found`)
 
@@ -250,6 +252,7 @@ function loadManifest(dir) {
     experimental: manifest.experimental === true,
     latencySamples: manifest.latencySamples,
     memoryMb,
+    vector: manifest.vector === true,
     params,
     meters,
     presets,
@@ -557,7 +560,8 @@ function shellEntries(devices) {
       if (device.meters.length > 0) extras.push('_device_meter')
       const extra = extras.length > 0 ? `,${extras.join(',')}` : ''
       const sources = [`cpp/devices/${device.id}/device_api.gen.cpp`, ...device.sources]
-      return `  MEMORY_BYTES=${device.memoryMb * 1024 * 1024} EXTRA_EXPORTS="${extra}" build_device ${device.id} \\\n    ${sources.join(' \\\n    ')}`
+      const flags = device.vector ? 'EXTRA_FLAGS="-msimd128" ' : ''
+      return `  ${flags}MEMORY_BYTES=${device.memoryMb * 1024 * 1024} EXTRA_EXPORTS="${extra}" build_device ${device.id} \\\n    ${sources.join(' \\\n    ')}`
     })
     .join('\n')
   const tests = devices

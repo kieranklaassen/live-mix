@@ -5,6 +5,7 @@
   "description": "Catches what you play and holds it as an endless, even pad: play a chord and it hangs there, play the next and it glides over.",
   "class": "Sustainer",
   "header": "sustainer.h",
+  "vector": true,
   "sources": [],
   "meters": [
     { "key": "level", "name": "Level going in", "display": true },

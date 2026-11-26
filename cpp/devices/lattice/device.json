@@ -5,6 +5,7 @@
   "description": "Scale-aware harmonizer: tracks a single line and adds up to four voices on the steps of a scale, by interval or by Thesis voicing around a centre note, each with its own delay, feedback, level and pan.",
   "class": "Lattice",
   "header": "lattice.h",
+  "vector": true,
   "sources": [],
   "meters": [
     {

@@ -5,6 +5,7 @@
   "description": "Smears and freezes the spectrum: every frequency hangs for as long as Blur says, phases dissolve into a diffuse wash, and Freeze holds the moment as a slowly living drone.",
   "class": "SpectralBlur",
   "header": "spectral_blur.h",
+  "vector": true,
   "sources": [],
   "meters": [
     { "key": "hang1", "name": "Held share 20 to 63 Hz", "display": true },

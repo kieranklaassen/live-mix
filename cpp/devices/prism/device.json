@@ -5,6 +5,7 @@
   "description": "Splits the sound into colours and delays each by a different time, so a chord unfolds from low to high like light through glass and every repeat fans out further.",
   "class": "Prism",
   "header": "prism.h",
+  "vector": true,
   "sources": [],
   "meters": [
     {

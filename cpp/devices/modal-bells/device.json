@@ -5,6 +5,7 @@
   "description": "Struck and rubbed metal, glass and wood: church bells, singing bowls, vibraphone and chime bars, kalimba, glass and gongs, each a bank of ringing modes at the ratios of the real thing.",
   "class": "ModalBells",
   "header": "modal_bells.h",
+  "vector": true,
   "sources": [],
   "params": [
     {

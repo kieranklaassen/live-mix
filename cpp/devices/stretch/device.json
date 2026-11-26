@@ -5,6 +5,7 @@
   "description": "Plays what you play many times slower at the same pitch: a phrase becomes a slow cloud that trails far behind you and, when it has fallen too far back, runs up to the present again.",
   "class": "Stretch",
   "header": "stretch.h",
+  "vector": true,
   "sources": [],
   "memoryMb": 24,
   "meters": [

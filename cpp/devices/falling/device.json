@@ -5,6 +5,7 @@
   "description": "Catches small pieces of the sound and lets each one fall or rise in pitch as it fades, like leaves or sighs.",
   "class": "Falling",
   "header": "falling.h",
+  "vector": true,
   "sources": [],
   "meters": [
     {

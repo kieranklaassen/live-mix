@@ -5,6 +5,7 @@
   "description": "Turns one voice into a flock of up to sixteen that fly around the listener, each with its own distance, delay and bend in pitch.",
   "class": "Murmuration",
   "header": "murmuration.h",
+  "vector": true,
   "sources": [],
   "meters": [
     {
