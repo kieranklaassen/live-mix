@@ -12,7 +12,9 @@ namespace livemix {
 // the vector instructions (EXTRA_FLAGS="-msimd128" in scripts/build-wasm.sh).
 // They give what std::sin and std::tanh give of each number by itself, bit for
 // bit: the same polynomials in the same order as the C library the devices are
-// built with. A device moves to these with its sound unchanged.
+// built with. A device moves to these with its sound unchanged. No test of the
+// suite holds that, since the native tests build without the instructions:
+// scripts/vector-sound.mjs compares whole devices built both ways.
 
 #if defined(__wasm_simd128__)
 namespace vector_math {

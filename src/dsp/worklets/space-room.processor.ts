@@ -19,19 +19,6 @@ import {
   type SpaceRoomProcessorOptions,
 } from '../../core/tracks/space-kernel-abi'
 
-// One instance on this thread for each memory: an engine's rooms all lie in one.
-const instances = new WeakMap<WebAssembly.Memory, SpaceRoomExports>()
-
-function instanceOn(memory: WebAssembly.Memory, module: WebAssembly.Module): SpaceRoomExports {
-  let exports = instances.get(memory)
-  if (!exports) {
-    exports = new WebAssembly.Instance(module, { env: { memory } })
-      .exports as unknown as SpaceRoomExports
-    instances.set(memory, exports)
-  }
-  return exports
-}
-
 class SpaceRoomProcessor extends AudioWorkletProcessor {
   private readonly kernel: SpaceRoomExports
   private readonly room: number
@@ -42,7 +29,10 @@ class SpaceRoomProcessor extends AudioWorkletProcessor {
   constructor(options?: AudioWorkletNodeOptions) {
     super()
     const { module, memory, room } = options?.processorOptions as SpaceRoomProcessorOptions
-    const exports = instanceOn(memory, module)
+    // One for each room, some microseconds of work: a memory comes to every node as an object of its own, so there
+    // is nothing to know an instance of the same memory by. The bytes under all of them are the same.
+    const exports = new WebAssembly.Instance(module, { env: { memory } })
+      .exports as unknown as SpaceRoomExports
     this.kernel = exports
     this.room = room
     const pair = (at: number): [Float32Array, Float32Array] => [

@@ -468,7 +468,9 @@
         "path": "Thesis/Source/StereoWidener.cpp",
         "sha256": "77e05e78cb217ecf90c36ebcfb4a15f7790c70595328483e7a421d36a125a542",
         "portedTo": "../stereo-widener/StereoWidener.cpp",
-        "deviations": []
+        "deviations": [
+          "the bass crossover's two states are let go under 1e-30 (settle_to_zero), as WASM has no flush-to-zero"
+        ]
       },
       {
         "path": "Tatami/Presets/instruments/thesis.json",

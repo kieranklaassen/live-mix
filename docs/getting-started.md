@@ -85,7 +85,8 @@ export default defineConfig({
 ```
 
 The consumer apps ship exactly this. No COOP/COEP headers, no
-`crossOriginIsolated` requirement: the engine never needs `SharedArrayBuffer`.
+`crossOriginIsolated` requirement: the engine never needs `SharedArrayBuffer`
+(with `spaceKernel` it uses one where it may).
 
 ## 3. Worklet and `.wasm` asset resolution
 

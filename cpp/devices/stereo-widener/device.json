@@ -15,10 +15,13 @@
       {
         "path": "Felt/Source/StereoWidener.cpp",
         "copiedTo": "StereoWidener.cpp",
-        "sha256": "77e05e78cb217ecf90c36ebcfb4a15f7790c70595328483e7a421d36a125a542"
+        "sha256": "77e05e78cb217ecf90c36ebcfb4a15f7790c70595328483e7a421d36a125a542",
+        "deviations": [
+          "the bass crossover's two states are let go under 1e-30 (settle_to_zero), as WASM has no flush-to-zero"
+        ]
       }
     ],
     "identicalCopiesIn": ["Bloom/Source", "Sympathetic/Source", "Thesis/Source"],
-    "note": "StereoWidener.h/.cpp are byte-identical to kkfonie. stereo_widener_device.* and device_api.cpp are live-mix host code (width ramp, silence reset, ABI)."
+    "note": "StereoWidener.h is byte-identical to kkfonie, and StereoWidener.cpp but for what lets its states go. stereo_widener_device.* and device_api.cpp are live-mix host code (width ramp, silence reset, ABI)."
   }
 }

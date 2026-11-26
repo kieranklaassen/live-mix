@@ -146,6 +146,8 @@ export class SharedSpaces {
    * (`SpaceFeed.set`).
    */
   refresh(): void {
+    // Asking for the settings generates the impulse they hold.
+    if (this.rooms.size === 0) return
     const settings = this.clean()
     for (const { room } of this.rooms.values()) room.set(settings)
   }

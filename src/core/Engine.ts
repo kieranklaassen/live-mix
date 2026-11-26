@@ -320,7 +320,7 @@ export class Engine {
   private spaceKernel: SpaceKernel | null = null
   private readonly spaceConvolver: Pick<SpaceRoomHost, 'convolver' | 'convolverReady'> = {
     convolver: (impulse) => this.spaceKernel?.make(impulse) ?? null,
-    convolverReady: () => this.spaceKernel !== null,
+    convolverReady: (impulse) => this.spaceKernel?.takes(impulse) ?? false,
   }
   /** Settles once the rooms' kernel is in use, with whether it is (`EngineOptions.spaceKernel`). */
   readonly spaceKernelReady: Promise<boolean>

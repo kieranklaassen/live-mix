@@ -355,9 +355,11 @@
         "path": "Sympathetic/Source/StereoWidener.cpp",
         "sha256": "77e05e78cb217ecf90c36ebcfb4a15f7790c70595328483e7a421d36a125a542",
         "portedTo": "../stereo-widener/StereoWidener.cpp",
-        "deviations": []
+        "deviations": [
+          "the bass crossover's two states are let go under 1e-30 (settle_to_zero), as WASM has no flush-to-zero"
+        ]
       }
     ],
-    "note": "The Sympathetic plugin's DSP on cpp/kit. The signal path, parameters, ranges and defaults are the source's; the strings were retuned and their decay corrected so that they resonate with the notes they are named for (the measurements are in cpp/test/sympathetic_test.cpp), and the pitch detector runs in the audio callback. StereoWidener is the copy already in cpp/devices/stereo-widener, byte-identical to Sympathetic/Source and compiled from there. PluginEditor.h/.cpp (the JUCE interface) are not ported."
+    "note": "The Sympathetic plugin's DSP on cpp/kit. The signal path, parameters, ranges and defaults are the source's; the strings were retuned and their decay corrected so that they resonate with the notes they are named for (the measurements are in cpp/test/sympathetic_test.cpp), and the pitch detector runs in the audio callback. StereoWidener is the copy already in cpp/devices/stereo-widener, compiled from there, whose manifest records what it differs in. PluginEditor.h/.cpp (the JUCE interface) are not ported."
   }
 }

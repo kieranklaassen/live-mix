@@ -316,6 +316,10 @@ describe('waysFor', () => {
     const drum = sound('pulse-tongue-drum-g')
     expect(waysFor(drum)).toContain('turning-rests')
     expect(waysFor(drum, { far: 0 })).not.toContain('turning-rests')
+    for (const each of FACTORY_SOUNDS) {
+      const at = { far: 0, seed: 3 }
+      expect(hasWays(each, at), each.id).toBe(waysFor(each, at).length > 0)
+    }
   })
 })
 
