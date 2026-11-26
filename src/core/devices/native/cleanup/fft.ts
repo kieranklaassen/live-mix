@@ -1,6 +1,10 @@
 // An in-place radix-2 complex FFT of one size, its tables made once: what
 // the two spectral cleanup kernels turn a frame of sound with. Nothing
 // allocates after construction.
+//
+// The stages are taken two at a time, so a frame is walked half as often. Every
+// multiplication and addition is the one a stage by itself makes, so the
+// result is the same to the last bit.
 
 export class Fft {
   readonly size: number
@@ -45,8 +49,9 @@ export class Fft {
 
   private transform(re: Float64Array, im: Float64Array): void {
     const n = this.size
+    const { cos, sin, reversed } = this
     for (let i = 0; i < n; i += 1) {
-      const j = this.reversed[i]
+      const j = reversed[i]
       if (j > i) {
         let t = re[i]
         re[i] = re[j]
@@ -56,20 +61,70 @@ export class Fft {
         im[j] = t
       }
     }
-    for (let half = 1; half < n; half *= 2) {
-      const step = n / (2 * half)
-      for (let start = 0; start < n; start += 2 * half) {
+    let half = 1
+    // An odd number of stages: the first goes by itself.
+    if ((Math.clz32(n) & 1) === 0) {
+      const wr = cos[0]
+      const wi = sin[0]
+      for (let a = 0; a < n; a += 2) {
+        const b = a + 1
+        const tr = re[b] * wr - im[b] * wi
+        const ti = re[b] * wi + im[b] * wr
+        re[b] = re[a] - tr
+        im[b] = im[a] - ti
+        re[a] += tr
+        im[a] += ti
+      }
+      half = 2
+    }
+    for (; half < n; half *= 4) {
+      const stepB = n / (4 * half)
+      const stepA = 2 * stepB
+      const quarter = half * stepB
+      for (let start = 0; start < n; start += 4 * half) {
         for (let k = 0; k < half; k += 1) {
-          const wr = this.cos[k * step]
-          const wi = this.sin[k * step]
-          const a = start + k
-          const b = a + half
-          const tr = re[b] * wr - im[b] * wi
-          const ti = re[b] * wi + im[b] * wr
-          re[b] = re[a] - tr
-          im[b] = im[a] - ti
-          re[a] += tr
-          im[a] += ti
+          const ar = cos[k * stepA]
+          const ai = sin[k * stepA]
+          const br = cos[k * stepB]
+          const bi = sin[k * stepB]
+          const cr = cos[k * stepB + quarter]
+          const ci = sin[k * stepB + quarter]
+          const i0 = start + k
+          const i1 = i0 + half
+          const i2 = i1 + half
+          const i3 = i2 + half
+
+          // The stage of `half`: 0 with 1, and 2 with 3.
+          const r1 = re[i1]
+          const m1 = im[i1]
+          let tr = r1 * ar - m1 * ai
+          let ti = r1 * ai + m1 * ar
+          const p0 = re[i0] + tr
+          const q0 = im[i0] + ti
+          const p1 = re[i0] - tr
+          const q1 = im[i0] - ti
+          const r3 = re[i3]
+          const m3 = im[i3]
+          tr = r3 * ar - m3 * ai
+          ti = r3 * ai + m3 * ar
+          const p2 = re[i2] + tr
+          const q2 = im[i2] + ti
+          const p3 = re[i2] - tr
+          const q3 = im[i2] - ti
+
+          // The stage of twice that: 0 with 2, and 1 with 3.
+          tr = p2 * br - q2 * bi
+          ti = p2 * bi + q2 * br
+          re[i0] = p0 + tr
+          im[i0] = q0 + ti
+          re[i2] = p0 - tr
+          im[i2] = q0 - ti
+          tr = p3 * cr - q3 * ci
+          ti = p3 * ci + q3 * cr
+          re[i1] = p1 + tr
+          im[i1] = q1 + ti
+          re[i3] = p1 - tr
+          im[i3] = q1 - ti
         }
       }
     }

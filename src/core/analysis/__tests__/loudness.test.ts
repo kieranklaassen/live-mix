@@ -239,4 +239,68 @@ describe('LoudnessAnalyzer', () => {
     expect(loudnessFromMeanSquare(1)).toBeCloseTo(-0.691, 10)
     expect(loudnessFromMeanSquare(0.1)).toBeCloseTo(-10.691, 10)
   })
+
+  /** Noise whose level wanders, so that there are runs too quiet to pass the peak and runs that do. */
+  function wandering(frames: number, seed: number): Float32Array {
+    let state = seed
+    return Float32Array.from({ length: frames }, (_, i) => {
+      state = (Math.imul(state, 1664525) + 1013904223) | 0
+      return (state / 2 ** 31) * (0.05 + 0.9 * Math.abs(Math.sin(i / 700)))
+    })
+  }
+
+  it.each([44100, 48000, 96000, 192000])(
+    'answers for a block what one sample after another does, at %i Hz',
+    (rate) => {
+      const samples = wandering(5000, 7)
+      samples[1234] = NaN
+      const one = new TruePeakDetector(rate)
+      const many = new TruePeakDetector(rate)
+      let from = 0
+      let floor = 0
+      for (const frames of [1, 5, 11, 12, 31, 32, 33, 128, 700, 1, 2000, 1500]) {
+        // A reading begins from nothing now and then, as the meter's does.
+        if (frames === 128 || frames === 2000) floor = 0
+        let expected = floor
+        for (let i = from; i < from + frames; i += 1) {
+          const peak = one.push(samples[i])
+          if (peak > expected) expected = peak
+        }
+        floor = many.pushBlock(samples.subarray(from, from + frames), frames, floor)
+        expect(floor).toBe(expected)
+        from += frames
+      }
+      // And the next sample by itself goes on from the block.
+      expect(many.push(0.1)).toBe(one.push(0.1))
+      expect(many.push(0.9)).toBe(one.push(0.9))
+    },
+  )
+
+  it('weights each channel by the two filters in turn, to the last bit', () => {
+    const left = wandering(4800 * 5, 3)
+    const right = wandering(4800 * 5, 11)
+    const analyzer = new LoudnessAnalyzer(48000)
+    const { shelf, highpass } = kWeightingCoefficients(48000)
+    const filters = [left, right].map((samples) => ({
+      samples,
+      shelf: new Biquad(shelf),
+      highpass: new Biquad(highpass),
+    }))
+    const squares: number[] = []
+    for (let hop = 0; hop < 5; hop += 1) {
+      let sum = 0
+      for (let i = hop * 4800; i < (hop + 1) * 4800; i += 1) {
+        const [l, r] = filters.map((f) => f.highpass.process(f.shelf.process(f.samples[i])))
+        sum += l * l + r * r
+      }
+      squares.push(sum / 4800)
+    }
+    for (let i = 0; i < left.length; i += 1000) {
+      analyzer.process(left.subarray(i, i + 1000), right.subarray(i, i + 1000))
+    }
+    const last = squares.slice(-4).reverse()
+    expect(analyzer.momentary).toBe(
+      loudnessFromMeanSquare(last.reduce((sum, square) => sum + square, 0) / 4),
+    )
+  })
 })

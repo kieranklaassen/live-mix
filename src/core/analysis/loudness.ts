@@ -119,6 +119,8 @@ export const TRUE_PEAK_FIR_PHASES: readonly (readonly number[])[] = [
   ],
 ]
 export const TRUE_PEAK_FIR_TAPS = 12
+/** How many samples `TruePeakDetector.pushBlock` judges at a time. */
+const PEAK_RUN = 32
 
 /** Oversampling factor the spec asks for at a given rate: 4× to 48 kHz, 2× to 96 kHz, none above. */
 export function truePeakOversampling(sampleRate: number): 1 | 2 | 4 {
@@ -136,12 +138,106 @@ export class TruePeakDetector {
   // Twelve samples stored twice so any 12-tap window is contiguous.
   private readonly history = new Float64Array(TRUE_PEAK_FIR_TAPS * 2)
   private position = 0
+  /** The phases' taps in one list, each phase's last tap first: what `pushBlock` reads. */
+  private readonly taps: Float64Array
+  /** The most a phase can make of twelve samples, as a multiple of the loudest of them. */
+  private readonly gain: number
+  /** The eleven samples before a run and the run. */
+  private readonly run = new Float64Array(TRUE_PEAK_FIR_TAPS - 1 + PEAK_RUN)
 
   constructor(sampleRate: number) {
     const factor = truePeakOversampling(sampleRate)
     if (factor === 4) this.phases = TRUE_PEAK_FIR_PHASES
     else if (factor === 2) this.phases = [TRUE_PEAK_FIR_PHASES[0], TRUE_PEAK_FIR_PHASES[2]]
     else this.phases = []
+    this.taps = Float64Array.from(this.phases.flat())
+    // A hair over, so the rounding of a sum can never pass it.
+    this.gain =
+      Math.max(
+        1,
+        ...this.phases.map((phase) => phase.reduce((sum, tap) => sum + Math.abs(tap), 0)),
+      ) *
+      (1 + 1e-9)
+  }
+
+  /**
+   * Pushes `frames` samples, and returns the larger of `floor` and the largest
+   * `push` would have answered for them. A run too quiet to pass the peak so
+   * far is not interpolated: the taps cannot make more of it than their sum.
+   */
+  pushBlock(samples: Float32Array, frames: number, floor: number): number {
+    let peak = floor
+    const { taps, run, gain, history } = this
+    const phases = this.phases.length
+    const before = TRUE_PEAK_FIR_TAPS - 1
+    if (phases === 0) {
+      for (let i = 0; i < frames; i += 1) {
+        const magnitude = Math.abs(samples[i])
+        if (magnitude > peak) peak = magnitude
+      }
+      return peak
+    }
+    for (let i = 0; i < before; i += 1) {
+      run[i] = history[this.position + TRUE_PEAK_FIR_TAPS + 1 - before + i]
+    }
+    let count = 0
+    for (let from = 0; from < frames; from += count) {
+      count = frames - from < PEAK_RUN ? frames - from : PEAK_RUN
+      let carried = 0
+      for (let i = 0; i < before; i += 1) {
+        const magnitude = Math.abs(run[i])
+        if (magnitude > carried) carried = magnitude
+      }
+      let loudest = 0
+      for (let i = 0; i < count; i += 1) {
+        const x = samples[from + i]
+        run[before + i] = x
+        const magnitude = x < 0 ? -x : x
+        if (magnitude > loudest) loudest = magnitude
+      }
+      if (loudest > peak) peak = loudest
+      if ((loudest > carried ? loudest : carried) * gain > peak) {
+        for (let i = 0; i < count; i += 1) {
+          const n = before + i
+          const x0 = run[n]
+          const x1 = run[n - 1]
+          const x2 = run[n - 2]
+          const x3 = run[n - 3]
+          const x4 = run[n - 4]
+          const x5 = run[n - 5]
+          const x6 = run[n - 6]
+          const x7 = run[n - 7]
+          const x8 = run[n - 8]
+          const x9 = run[n - 9]
+          const x10 = run[n - 10]
+          const x11 = run[n - 11]
+          for (let t = 0; t < phases * TRUE_PEAK_FIR_TAPS; t += TRUE_PEAK_FIR_TAPS) {
+            const y =
+              taps[t] * x0 +
+              taps[t + 1] * x1 +
+              taps[t + 2] * x2 +
+              taps[t + 3] * x3 +
+              taps[t + 4] * x4 +
+              taps[t + 5] * x5 +
+              taps[t + 6] * x6 +
+              taps[t + 7] * x7 +
+              taps[t + 8] * x8 +
+              taps[t + 9] * x9 +
+              taps[t + 10] * x10 +
+              taps[t + 11] * x11
+            const magnitude = y < 0 ? -y : y
+            if (magnitude > peak) peak = magnitude
+          }
+        }
+      }
+      run.copyWithin(0, count, count + before)
+    }
+    this.position = TRUE_PEAK_FIR_TAPS - 1
+    for (let i = 0; i < before; i += 1) {
+      history[1 + i] = run[i]
+      history[1 + i + TRUE_PEAK_FIR_TAPS] = run[i]
+    }
+    return peak
   }
 
   push(x: number): number {
@@ -211,10 +307,9 @@ export function silentReading(): MeterReading {
 export class LoudnessAnalyzer {
   readonly sampleRate: number
   readonly hopFrames: number
-  private readonly shelfL: Biquad
-  private readonly shelfR: Biquad
-  private readonly highpassL: Biquad
-  private readonly highpassR: Biquad
+  private readonly weighting: KWeighting
+  /** The two filters' states, left then right: the shelf's two and the high-pass's two. */
+  private readonly states = new Float64Array(8)
   private readonly truePeakL: TruePeakDetector
   private readonly truePeakR: TruePeakDetector
 
@@ -241,11 +336,7 @@ export class LoudnessAnalyzer {
 
   constructor(sampleRate: number) {
     this.sampleRate = sampleRate
-    const coefficients = kWeightingCoefficients(sampleRate)
-    this.shelfL = new Biquad(coefficients.shelf)
-    this.shelfR = new Biquad(coefficients.shelf)
-    this.highpassL = new Biquad(coefficients.highpass)
-    this.highpassR = new Biquad(coefficients.highpass)
+    this.weighting = kWeightingCoefficients(sampleRate)
     this.truePeakL = new TruePeakDetector(sampleRate)
     this.truePeakR = new TruePeakDetector(sampleRate)
     this.hopFrames = Math.max(1, Math.round(GATING_HOP_SECONDS * sampleRate))
@@ -260,8 +351,18 @@ export class LoudnessAnalyzer {
     let hopCount = this.hopCount
     let samplePeakL = this.samplePeakL
     let samplePeakR = this.samplePeakR
-    let truePeakMaxL = this.truePeakMaxL
-    let truePeakMaxR = this.truePeakMaxR
+    const { states, hopFrames } = this
+    const { shelf, highpass } = this.weighting
+    const { b0, b1, b2, a1, a2 } = shelf
+    const { b0: c0, b1: c1, b2: c2, a1: d1, a2: d2 } = highpass
+    let ls1 = states[0]
+    let ls2 = states[1]
+    let lh1 = states[2]
+    let lh2 = states[3]
+    let rs1 = states[4]
+    let rs2 = states[5]
+    let rh1 = states[6]
+    let rh2 = states[7]
 
     for (let i = 0; i < frames; i += 1) {
       const l = left[i]
@@ -270,26 +371,44 @@ export class LoudnessAnalyzer {
       const absR = r < 0 ? -r : r
       if (absL > samplePeakL) samplePeakL = absL
       if (absR > samplePeakR) samplePeakR = absR
-      const tpL = this.truePeakL.push(l)
-      const tpR = this.truePeakR.push(r)
-      if (tpL > truePeakMaxL) truePeakMaxL = tpL
-      if (tpR > truePeakMaxR) truePeakMaxR = tpR
 
-      const kl = this.highpassL.process(this.shelfL.process(l))
-      const kr = this.highpassR.process(this.shelfR.process(r))
+      // The two filters of each channel, as `Biquad` computes them.
+      const sl = b0 * l + ls1
+      ls1 = b1 * l - a1 * sl + ls2
+      ls2 = b2 * l - a2 * sl
+      const kl = c0 * sl + lh1
+      lh1 = c1 * sl - d1 * kl + lh2
+      lh2 = c2 * sl - d2 * kl
+      const sr = b0 * r + rs1
+      rs1 = b1 * r - a1 * sr + rs2
+      rs2 = b2 * r - a2 * sr
+      const kr = c0 * sr + rh1
+      rh1 = c1 * sr - d1 * kr + rh2
+      rh2 = c2 * sr - d2 * kr
+
       hopSum += kl * kl + kr * kr
       hopCount += 1
-      if (hopCount === this.hopFrames) {
+      if (hopCount === hopFrames) {
         this.completeHop(hopSum / hopCount)
         hopSum = 0
         hopCount = 0
       }
     }
 
+    states[0] = ls1
+    states[1] = ls2
+    states[2] = lh1
+    states[3] = lh2
+    states[4] = rs1
+    states[5] = rs2
+    states[6] = rh1
+    states[7] = rh2
     this.hopSum = hopSum
     this.hopCount = hopCount
     this.samplePeakL = samplePeakL
     this.samplePeakR = samplePeakR
+    const truePeakMaxL = this.truePeakL.pushBlock(left, frames, this.truePeakMaxL)
+    const truePeakMaxR = this.truePeakR.pushBlock(right, frames, this.truePeakMaxR)
     this.truePeakMaxL = truePeakMaxL
     this.truePeakMaxR = truePeakMaxR
     const channelMax = truePeakMaxL > truePeakMaxR ? truePeakMaxL : truePeakMaxR
@@ -374,10 +493,7 @@ export class LoudnessAnalyzer {
 
   /** Forget everything: filters, windows, gating history, peaks. */
   reset(): void {
-    this.shelfL.reset()
-    this.shelfR.reset()
-    this.highpassL.reset()
-    this.highpassR.reset()
+    this.states.fill(0)
     this.truePeakL.reset()
     this.truePeakR.reset()
     this.hopRing.fill(0)
