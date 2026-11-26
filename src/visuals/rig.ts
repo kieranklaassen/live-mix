@@ -15,6 +15,14 @@ import {
   SHADER_FOOTER as footer,
   SHADER_SOURCES as sources,
 } from './shader-sources'
+import {
+  OWN_SLOTS,
+  worldKinds,
+  worldMap,
+  worldSignals,
+  worldUniforms,
+  type VisualWorld,
+} from './world'
 
 /** Where a drawn visual lies on the rig's canvas, for `drawImage`. */
 export interface DrawnAt {
@@ -32,6 +40,8 @@ export interface StyleDraw {
   glow: number
   hue: number
   palette: VisualPalette
+  /** The world it is drawn in; left out, as the style draws itself. */
+  world?: VisualWorld | null
 }
 
 export interface VisualRig {
@@ -86,16 +96,21 @@ function buildRig(): VisualRig | false {
     COMPLETION_STATUS_KHR: number
   } | null
   let map: WebGLTexture | null = null
+  // The piece in the colours of a world, made the first time a world has colours of its own.
+  let worldsMap: WebGLTexture | null = null
+  const worldBands = new Float32Array(SPECTRUM_BANDS)
+  const worldColours = new Float32Array(KIND_SLOTS.length * 3)
+  const worldCells = new Uint8Array(MAP_W * MAP_H * 4)
+  const noOwn = new Float32Array(OWN_SLOTS)
   let programs = new Map<string, Made>()
   // A style's text: undefined while it is being fetched, null where there is none.
   const texts = new Map<string, string | null | undefined>()
   let lost = false
   let toMake = 1
 
-  function start() {
-    programs = new Map()
-    map = context.createTexture()
-    context.bindTexture(context.TEXTURE_2D, map)
+  function texture(): WebGLTexture {
+    const made = context.createTexture()
+    context.bindTexture(context.TEXTURE_2D, made)
     context.texImage2D(
       context.TEXTURE_2D,
       0,
@@ -115,6 +130,12 @@ function buildRig(): VisualRig | false {
     ]) {
       context.texParameteri(context.TEXTURE_2D, name, value)
     }
+    return made
+  }
+  function start() {
+    programs = new Map()
+    map = texture()
+    worldsMap = null
   }
   start()
   // A phone takes the context away when the page is put aside; everything is made again when it comes back.
@@ -226,7 +247,7 @@ function buildRig(): VisualRig | false {
         signals.map,
       )
     },
-    draw(style, width, height, signals) {
+    draw(style, width, height, heard) {
       if (lost) return null
       const made = programOf(style.id)
       if (!made) return made
@@ -235,6 +256,32 @@ function buildRig(): VisualRig | false {
         canvas.height = Math.max(canvas.height, height)
       }
       const { at } = made
+      const world = style.world ?? null
+      const signals = world ? worldSignals(world, heard, worldBands) : heard
+      let kinds = signals.kindColours
+      let cells = map
+      if (world?.kinds) {
+        worldKinds(world, heard.kindColours, worldColours)
+        kinds = worldColours
+        if (at.uMap) {
+          worldsMap ??= texture()
+          worldMap(heard.map, heard.kindColours, worldColours, worldCells)
+          context.activeTexture(context.TEXTURE0)
+          context.bindTexture(context.TEXTURE_2D, worldsMap)
+          context.texSubImage2D(
+            context.TEXTURE_2D,
+            0,
+            0,
+            0,
+            MAP_W,
+            MAP_H,
+            context.RGBA,
+            context.UNSIGNED_BYTE,
+            worldCells,
+          )
+          cells = worldsMap
+        }
+      }
       const one = (name: string, value: number) => {
         if (at[name]) context.uniform1f(at[name], value)
       }
@@ -255,7 +302,7 @@ function buildRig(): VisualRig | false {
       one('uCue', signals.cue)
       one('uKeys', signals.keys)
       one('uMic', signals.input)
-      one('uEnergy', style.glow)
+      one('uEnergy', Math.min(1, Math.max(0, style.glow + (world?.energy ?? 0))))
       one('uSpace', signals.space)
       one('uTone', signals.tone)
       one('uSize', style.size)
@@ -267,10 +314,23 @@ function buildRig(): VisualRig | false {
       one('uArcWide', style.palette.arcWide)
       if (at.uRes) context.uniform2f(at.uRes, width, height)
       if (at.uBands) context.uniform1fv(at.uBands, signals.bands, 0, SPECTRUM_BANDS)
-      if (at.uKind) context.uniform3fv(at.uKind, signals.kindColours, 0, KIND_SLOTS.length * 3)
+      if (at.uKind) context.uniform3fv(at.uKind, kinds, 0, KIND_SLOTS.length * 3)
+      one('uWorld', world ? 1 : 0)
+      if (world) {
+        const as = worldUniforms(world)
+        if (at.uOwn) context.uniform1fv(at.uOwn, as.own)
+        if (at.uStand) context.uniform4f(at.uStand, ...as.stand)
+        if (at.uBend) context.uniform3f(at.uBend, ...as.bend)
+        if (at.uTones) context.uniform3fv(at.uTones, as.tones)
+        if (at.uTouch) context.uniform4f(at.uTouch, ...as.touch)
+        if (at.uMist) context.uniform4f(at.uMist, ...as.mist)
+        one('uToned', as.toned)
+        one('uMistFrom', as.from)
+        one('uEdge', as.edge)
+      } else if (at.uOwn) context.uniform1fv(at.uOwn, noOwn)
       if (at.uMap) {
         context.activeTexture(context.TEXTURE0)
-        context.bindTexture(context.TEXTURE_2D, map)
+        context.bindTexture(context.TEXTURE_2D, cells)
         context.uniform1i(at.uMap, 0)
       }
       context.drawArrays(context.TRIANGLES, 0, 3)

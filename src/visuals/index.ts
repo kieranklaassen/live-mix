@@ -67,6 +67,7 @@ export {
   setVisualKind,
   setVisualKnob,
   setVisualPalette,
+  setVisualPreset,
   setVisualVariation,
   visualBend,
   visualById,
@@ -98,6 +99,16 @@ export {
   type VisualGroupId,
   type VisualStyle,
 } from './styles'
+export {
+  PRESET_ID,
+  presetKnob,
+  presetName,
+  type PresetKnob,
+  type VisualPreset,
+  type VisualPresetWords,
+} from './preset'
+export { loadPresetWords, loadVisualPresets, visualPresetNow, visualPresetsNow } from './presets'
+export { OWN_SLOTS, WORLD_RANGES, type VisualWorld, type WorldColour } from './world'
 export {
   DEFAULT_PALETTE,
   VISUAL_PALETTES,

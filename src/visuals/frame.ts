@@ -10,6 +10,7 @@
 import {
   drawOrder,
   paints,
+  STYLE_KNOBS,
   visualBend,
   type Visual,
   type VisualKnob,
@@ -18,6 +19,7 @@ import {
 } from './model'
 import { visualPalette, type VisualPalette } from './palettes'
 import { stayShare, type VisualFilter } from './perform'
+import { presetKnob, type VisualPreset } from './preset'
 import { visualStyle } from './styles'
 
 /** The parts the spectrum is handed to a style in, low to high. */
@@ -63,7 +65,16 @@ export interface VisualSignals {
 
 /** A visual as it is painted this frame. */
 export type VisualLayer =
-  | { paint: string; variation: 0 | 1; level: number; size: number; glow: number; hue: number }
+  | {
+      paint: string
+      variation: 0 | 1
+      level: number
+      size: number
+      glow: number
+      hue: number
+      /** The preset whose world it is drawn in, by its id. */
+      preset?: string
+    }
   | { bend: 'trails'; length: number; push: number }
   | { bend: 'mirror'; fold: number }
   | { bend: 'spin'; turn: number }
@@ -171,6 +182,7 @@ export function frameOf(
         size: knob('size'),
         glow: knob('glow'),
         hue: knob('colour') - 0.5,
+        ...(visual.preset === undefined ? {} : { preset: visual.preset }),
       })
       continue
     }
@@ -194,13 +206,31 @@ export function frameOf(
   return { signals, layers, palette: visualPalette(set.palette), grain: set.grain }
 }
 
-/** The frame that shows one style alone, as the list shows it beside its name. */
+/** A knob of a style looked at alone: where its preset puts it, else where a new visual has it. */
+function sampleKnob(
+  preset: VisualPreset | null,
+  knob: 'size' | 'glow' | 'colour',
+  signals: VisualSignals,
+): number {
+  const put = preset?.[knob]
+  const first = STYLE_KNOBS.find((spec) => spec.id === knob)
+  return knobNow(
+    put === undefined
+      ? { value: first?.first ?? 0.5, follows: first?.follows ?? null }
+      : presetKnob(put),
+    signals,
+    0,
+  )
+}
+
+/** The frame that shows one style alone, or one preset of it, as the list shows it beside its name. */
 export function sampleFrame(
   kind: string,
   variation: 0 | 1,
   signals: VisualSignals,
   palette: VisualPalette,
   grain: number,
+  preset: VisualPreset | null = null,
 ): VisualFrame {
   return {
     signals,
@@ -210,9 +240,10 @@ export function sampleFrame(
             paint: kind,
             variation,
             level: 1,
-            size: 0.5,
-            glow: clamp01(0.7 * (0.15 + 1.35 * signals.energy)),
-            hue: 0,
+            size: sampleKnob(preset, 'size', signals),
+            glow: sampleKnob(preset, 'glow', signals),
+            hue: sampleKnob(preset, 'colour', signals) - 0.5,
+            ...(preset ? { preset: preset.id } : {}),
           },
         ]
       : [],

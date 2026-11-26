@@ -23,6 +23,7 @@ import {
   type PerformNow,
   type PerformReading,
 } from './perform'
+import type { VisualPreset } from './preset'
 
 /** The piece and the music as they are now. */
 export interface DeskReading {
@@ -158,8 +159,13 @@ export class VisualDesk {
       : { energy: reading.energy, space: reading.space, tone: reading.tone }
   }
 
-  /** The frame that shows one kind alone at `now`, in the piece's palette and grain: what the browser draws. */
-  sample(kind: string, variation: 0 | 1, now: number): VisualFrame {
+  /** The frame that shows one kind alone at `now`, or one preset of it, in the piece's palette and grain: what the browser draws. */
+  sample(
+    kind: string,
+    variation: 0 | 1,
+    now: number,
+    preset: VisualPreset | null = null,
+  ): VisualFrame {
     const frame = this.frame(now)
     // `frame` has just read it, or read it earlier in this same frame.
     const reading = this.reading ?? this.read()
@@ -171,6 +177,7 @@ export class VisualDesk {
       own ? frame.signals : this.standIn(now, reading),
       visualPalette(reading.set.palette),
       reading.set.grain,
+      preset,
     )
     return this.asked ? performedFrame(sample, this.asked.ask) : sample
   }
