@@ -492,10 +492,71 @@ class ModalBells : public kit::DeviceBase<modal_bells::kNumParams> {
     }
   }
 
+  static constexpr int kSide = 8;
+
   void retire(Voice& voice) {
     voice.sounding = voice.pending = voice.fading = false;
     voice.follow = 0.0f;
     for (int k = 0; k < kSlots; ++k) voice.re[k] = voice.im[k] = 0.0f;
+  }
+
+  // `kSide` modes from `first` on, side by side: each is a chain from one
+  // sample to the next, and a chain waits for itself only. The push goes in
+  // on the real side and the sound is the imaginary side, so a mode answers a
+  // pulse from zero, as a displacement does.
+  template <bool kStruck>
+  static void ring(Voice& voice, int first, int n, const float* pulse, float* out_left,
+                   float* out_right) {
+    float re[kSide] = {}, im[kSide] = {}, in[kSide] = {}, step_re[kSide] = {}, step_im[kSide] = {};
+    float gain_left[kSide] = {}, gain_right[kSide] = {}, ramp_left[kSide] = {}, ramp_right[kSide] = {};
+    bool sounds[kSide] = {};
+    bool any = false;
+    const int count = kit::clamp_int(voice.count - first, 0, kSide);
+    for (int j = 0; j < count; ++j) {
+      const int k = first + j;
+      const float push = kStruck ? voice.strike[k] : 0.0f;
+      sounds[j] = voice.re[k] != 0.0f || voice.im[k] != 0.0f || push != 0.0f;
+      if (!sounds[j]) continue;
+      any = true;
+      re[j] = voice.re[k];
+      im[j] = voice.im[k];
+      in[j] = push;
+      step_re[j] = voice.step_re[k];
+      step_im[j] = voice.step_im[k];
+      gain_left[j] = voice.left[k];
+      gain_right[j] = voice.right[k];
+      ramp_left[j] = voice.left_step[k];
+      ramp_right[j] = voice.right_step[k];
+    }
+    if (!any) return;
+    for (int i = 0; i < n; ++i) {
+      float heard_left[kSide], heard_right[kSide];
+      for (int j = 0; j < kSide; ++j) {
+        float turned = step_re[j] * re[j] - step_im[j] * im[j];
+        if (kStruck) turned += in[j] * pulse[i];
+        im[j] = step_re[j] * im[j] + step_im[j] * re[j];
+        re[j] = turned;
+        heard_left[j] = gain_left[j] * im[j];
+        heard_right[j] = gain_right[j] * im[j];
+        gain_left[j] += ramp_left[j];
+        gain_right[j] += ramp_right[j];
+      }
+      float sum_left = out_left[i], sum_right = out_right[i];
+      for (int j = 0; j < kSide; ++j) {
+        sum_left += heard_left[j];
+        sum_right += heard_right[j];
+      }
+      out_left[i] = sum_left;
+      out_right[i] = sum_right;
+    }
+    for (int j = 0; j < count; ++j) {
+      if (!sounds[j]) continue;
+      const int k = first + j;
+      voice.re[k] = re[j];
+      voice.im[k] = im[j];
+      voice.left[k] = gain_left[j];
+      voice.right[k] = gain_right[j];
+    }
   }
 
   void render_voice(Voice& voice, int n, float* left, float* right) {
@@ -514,40 +575,12 @@ class ModalBells : public kit::DeviceBase<modal_bells::kNumParams> {
       }
     }
     float out_left[kChunk] = {}, out_right[kChunk] = {};
-    for (int k = 0; k < voice.count; ++k) {
-      float re = voice.re[k], im = voice.im[k];
-      const float in = struck ? voice.strike[k] : 0.0f;
-      if (re == 0.0f && im == 0.0f && in == 0.0f) continue;
-      const float step_re = voice.step_re[k], step_im = voice.step_im[k];
-      float gain_left = voice.left[k], gain_right = voice.right[k];
-      const float ramp_left = voice.left_step[k], ramp_right = voice.right_step[k];
-      // The push goes in on the real side and the sound is the imaginary
-      // side, so a mode answers a pulse from zero, as a displacement does.
+    for (int k = 0; k < voice.count; k += kSide) {
       if (struck) {
-        for (int i = 0; i < n; ++i) {
-          const float turned = step_re * re - step_im * im + in * pulse[i];
-          im = step_re * im + step_im * re;
-          re = turned;
-          out_left[i] += gain_left * im;
-          out_right[i] += gain_right * im;
-          gain_left += ramp_left;
-          gain_right += ramp_right;
-        }
+        ring<true>(voice, k, n, pulse, out_left, out_right);
       } else {
-        for (int i = 0; i < n; ++i) {
-          const float turned = step_re * re - step_im * im;
-          im = step_re * im + step_im * re;
-          re = turned;
-          out_left[i] += gain_left * im;
-          out_right[i] += gain_right * im;
-          gain_left += ramp_left;
-          gain_right += ramp_right;
-        }
+        ring<false>(voice, k, n, pulse, out_left, out_right);
       }
-      voice.re[k] = re;
-      voice.im[k] = im;
-      voice.left[k] = gain_left;
-      voice.right[k] = gain_right;
     }
     if (!leaving) {
       for (int i = 0; i < n; ++i) {

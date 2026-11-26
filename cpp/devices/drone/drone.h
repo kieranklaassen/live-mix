@@ -36,6 +36,10 @@
 // Levels and pans are ramped per sample between control ticks (128 samples),
 // so the slow paths never zipper.
 
+#if defined(__wasm_simd128__)
+#include <wasm_simd128.h>
+#endif
+
 #include "../../kit/kit.h"
 #include "params.gen.h"
 
@@ -197,39 +201,7 @@ class Drone : public kit::DeviceBase<drone::kNumParams> {
         if (!voice.env.active()) continue;
         const float env = voice.env.next() * voice.gain;
         float sum_left = 0.0f, sum_right = 0.0f;
-        int index[kMaxPartials];
-        float fraction[kMaxPartials];
-        for (int k = 0; k < voice.count; ++k) {
-          const float next = voice.phase[k] + voice.increment[k];
-          const float phase = next >= 1.0f ? next - 1.0f : next;
-          voice.phase[k] = phase;
-          const float at = phase * scale;
-          index[k] = static_cast<int>(at);
-          fraction[k] = at - static_cast<float>(index[k]);
-          voice.gain_left[k] += voice.step_left[k];
-          voice.gain_right[k] += voice.step_right[k];
-        }
-        float low[kMaxPartials], high[kMaxPartials], sample[kMaxPartials];
-        for (int k = 0; k < voice.count; ++k) {
-          const float* a = from[voice.mip[k]] + index[k];
-          low[k] = a[0];
-          high[k] = a[1];
-        }
-        for (int k = 0; k < voice.count; ++k) sample[k] = low[k] + (high[k] - low[k]) * fraction[k];
-        if (morph > 0.0f) {
-          for (int k = 0; k < voice.count; ++k) {
-            const float* b = to[voice.mip[k]] + index[k];
-            low[k] = b[0];
-            high[k] = b[1];
-          }
-          for (int k = 0; k < voice.count; ++k) {
-            sample[k] += (low[k] + (high[k] - low[k]) * fraction[k] - sample[k]) * morph;
-          }
-        }
-        for (int k = 0; k < voice.count; ++k) {
-          sum_left += sample[k] * voice.gain_left[k];
-          sum_right += sample[k] * voice.gain_right[k];
-        }
+        sound(voice, from, to, morph, &sum_left, &sum_right);
         left += sum_left * env;
         right += sum_right * env;
 
@@ -292,6 +264,7 @@ class Drone : public kit::DeviceBase<drone::kNumParams> {
     kit::Adsr env;
     float phase[kMaxPartials] = {};
     float increment[kMaxPartials] = {};
+    float turn[kMaxPartials] = {};  // the increment of the partials in `count`, 0 past it
     float base_increment[kMaxPartials] = {};
     float rolloff[kMaxPartials] = {};
     float gain_left[kMaxPartials] = {};
@@ -323,6 +296,80 @@ class Drone : public kit::DeviceBase<drone::kNumParams> {
     bool releasing() const { return env.releasing(); }
     float level() const { return env.level(); }
   };
+
+  // One sample of a key's partials, the two sides apart.
+  static void sound(Voice& voice, const float (*from)[kSize + 1], const float (*to)[kSize + 1],
+                    float morph, float* sum_left, float* sum_right) {
+    constexpr float kScale = static_cast<float>(kSize);
+#if defined(__wasm_simd128__)
+    // Four partials at a time. Those past the count stand still at gain 0.
+    v128_t sums = wasm_f32x4_const_splat(0.0f);
+    for (int k = 0; k < voice.count; k += 4) {
+      const v128_t one = wasm_f32x4_const_splat(1.0f);
+      const v128_t next = wasm_f32x4_add(wasm_v128_load(voice.phase + k), wasm_v128_load(voice.turn + k));
+      const v128_t phase = wasm_f32x4_sub(next, wasm_v128_and(wasm_f32x4_ge(next, one), one));
+      wasm_v128_store(voice.phase + k, phase);
+      const v128_t at = wasm_f32x4_mul(phase, wasm_f32x4_const_splat(kScale));
+      const v128_t index = wasm_i32x4_trunc_sat_f32x4(at);
+      const v128_t fraction = wasm_f32x4_sub(at, wasm_f32x4_convert_i32x4(index));
+      v128_t sample = read(voice.mip + k, from, index, fraction);
+      if (morph > 0.0f) {
+        const v128_t other = read(voice.mip + k, to, index, fraction);
+        sample = wasm_f32x4_add(
+            sample, wasm_f32x4_mul(wasm_f32x4_sub(other, sample), wasm_f32x4_splat(morph)));
+      }
+      const v128_t gain_left =
+          wasm_f32x4_add(wasm_v128_load(voice.gain_left + k), wasm_v128_load(voice.step_left + k));
+      const v128_t gain_right =
+          wasm_f32x4_add(wasm_v128_load(voice.gain_right + k), wasm_v128_load(voice.step_right + k));
+      wasm_v128_store(voice.gain_left + k, gain_left);
+      wasm_v128_store(voice.gain_right + k, gain_right);
+      // Added one after another, left beside right, in the order they come.
+      const v128_t l = wasm_f32x4_mul(sample, gain_left);
+      const v128_t r = wasm_f32x4_mul(sample, gain_right);
+      const v128_t low = wasm_i32x4_shuffle(l, r, 0, 4, 1, 5);
+      const v128_t high = wasm_i32x4_shuffle(l, r, 2, 6, 3, 7);
+      sums = wasm_f32x4_add(sums, low);
+      sums = wasm_f32x4_add(sums, wasm_i32x4_shuffle(low, low, 2, 3, 2, 3));
+      sums = wasm_f32x4_add(sums, high);
+      sums = wasm_f32x4_add(sums, wasm_i32x4_shuffle(high, high, 2, 3, 2, 3));
+    }
+    *sum_left = wasm_f32x4_extract_lane(sums, 0);
+    *sum_right = wasm_f32x4_extract_lane(sums, 1);
+#else
+    for (int k = 0; k < voice.count; ++k) {
+      float phase = voice.phase[k] + voice.increment[k];
+      if (phase >= 1.0f) phase -= 1.0f;
+      voice.phase[k] = phase;
+      const float at = phase * kScale;
+      const int index = static_cast<int>(at);
+      const float fraction = at - static_cast<float>(index);
+      const float* a = from[voice.mip[k]];
+      float sample = a[index] + (a[index + 1] - a[index]) * fraction;
+      if (morph > 0.0f) {
+        const float* b = to[voice.mip[k]];
+        sample += (b[index] + (b[index + 1] - b[index]) * fraction - sample) * morph;
+      }
+      voice.gain_left[k] += voice.step_left[k];
+      voice.gain_right[k] += voice.step_right[k];
+      *sum_left += sample * voice.gain_left[k];
+      *sum_right += sample * voice.gain_right[k];
+    }
+#endif
+  }
+
+#if defined(__wasm_simd128__)
+  // Four table reads between neighbours, each in the table of its partial.
+  static v128_t read(const int* mip, const float (*table)[kSize + 1], v128_t index, v128_t fraction) {
+    v128_t front = wasm_v128_load64_zero(table[mip[0]] + wasm_i32x4_extract_lane(index, 0));
+    front = wasm_v128_load64_lane(table[mip[1]] + wasm_i32x4_extract_lane(index, 1), front, 1);
+    v128_t back = wasm_v128_load64_zero(table[mip[2]] + wasm_i32x4_extract_lane(index, 2));
+    back = wasm_v128_load64_lane(table[mip[3]] + wasm_i32x4_extract_lane(index, 3), back, 1);
+    const v128_t low = wasm_i32x4_shuffle(front, back, 0, 2, 4, 6);
+    const v128_t high = wasm_i32x4_shuffle(front, back, 1, 3, 5, 7);
+    return wasm_f32x4_add(low, wasm_f32x4_mul(wasm_f32x4_sub(high, low), fraction));
+  }
+#endif
 
   static constexpr int kControlPeriod = 128;
   // One key at velocity 0.7 peaks near -19 dBFS at the default volume.
@@ -424,6 +471,7 @@ class Drone : public kit::DeviceBase<drone::kNumParams> {
       if (gain > 0.0f || voice.gain_left[k] != 0.0f || voice.gain_right[k] != 0.0f) count = k + 1;
     }
     voice.count = count;
+    for (int k = 0; k < kMaxPartials; ++k) voice.turn[k] = k < count ? voice.increment[k] : 0.0f;
 
     const float air = air_.value * kAirGain * voice.air_scale *
                       kit::max(0.0f, 1.0f + 0.5f * movement * voice.air_drift.next(kControlPeriod));
