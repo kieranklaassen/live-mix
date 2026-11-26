@@ -82,7 +82,7 @@ export function bandsOf(
 /** The level of a stretch of the wave, 0 to 1. */
 export function levelOf(wave: Float32Array): number {
   let sum = 0
-  for (const sample of wave) sum += sample * sample
+  for (let n = 0, count = wave.length; n < count; n += 1) sum += wave[n] * wave[n]
   const rms = Math.sqrt(sum / Math.max(1, wave.length))
   if (rms < 1e-6) return 0
   return clamp01((20 * Math.log10(rms) - QUIET_DB) / (FULL_DB - QUIET_DB))

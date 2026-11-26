@@ -3186,7 +3186,9 @@ const lowBitrate = plateDisplay<CodecState>({
       if (state.turn === 0) {
         input.read(wave, state.since)
         let loudest = 0
-        for (const power of input.power) if (power > loudest) loudest = power
+        const { power } = input
+        for (let n = 0, count = power.length; n < count; n += 1)
+          if (power[n] > loudest) loudest = power[n]
         const loudestDb = db10(loudest)
         state.reference = Math.max(loudestDb, state.reference - (8.686 * state.since) / 1.5)
         state.sounding = loudestDb > -100

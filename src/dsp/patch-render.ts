@@ -343,8 +343,9 @@ export function foldLoop(
 export function peakOf(channels: readonly Float32Array[]): number {
   let peak = 0
   for (const channel of channels) {
-    for (const sample of channel) {
-      const value = Math.abs(sample)
+    // By index: it is the whole of a render, and an iterator takes several times as long.
+    for (let n = 0, count = channel.length; n < count; n += 1) {
+      const value = Math.abs(channel[n])
       // NaN is larger than nothing, so it is asked for by name: once it is the peak it stays.
       if (value > peak || Number.isNaN(value)) peak = value
     }

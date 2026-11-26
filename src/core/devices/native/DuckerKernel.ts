@@ -229,7 +229,8 @@ export class DuckerKernel {
   /** Recompute the running sum once per window pass so float drift never accumulates. */
   private resyncWindow(): void {
     let sum = 0
-    for (const square of this.squares) sum += square
+    const { squares } = this
+    for (let n = 0, count = squares.length; n < count; n += 1) sum += squares[n]
     this.sumSquares = sum
   }
 }

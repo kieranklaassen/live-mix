@@ -111,7 +111,7 @@ export class Ducker implements SidechainDucker {
     const samples = this.samples
     this.analyser.getFloatTimeDomainData(samples)
     let sum = 0
-    for (const sample of samples) sum += sample * sample
+    for (let n = 0, count = samples.length; n < count; n += 1) sum += samples[n] * samples[n]
     const rms = Math.sqrt(sum / samples.length)
 
     const tau = rms > this.envelopeValue ? this.attackMs : this.releaseMs

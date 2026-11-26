@@ -494,7 +494,7 @@ function mean(values: Float32Array, from: number, to: number): number {
 
 function maxOf(values: Float32Array): number {
   let max = 0
-  for (const value of values) if (value > max) max = value
+  for (let n = 0, count = values.length; n < count; n += 1) if (values[n] > max) max = values[n]
   return max
 }
 

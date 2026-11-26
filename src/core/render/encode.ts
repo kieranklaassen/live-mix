@@ -72,7 +72,7 @@ export function deinterleave(interleaved: Float32Array, channelCount: number): F
 /** Planar channels of an AudioBuffer (copies, so the buffer can be released). */
 export function planarFromAudioBuffer(buffer: AudioBuffer): PlanarAudio {
   const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) =>
-    Float32Array.from(buffer.getChannelData(index)),
+    buffer.getChannelData(index).slice(),
   )
   return { channels, sampleRate: buffer.sampleRate }
 }
@@ -149,18 +149,18 @@ export function encodeWav(audio: PlanarAudio, options: WavEncodeOptions = {}): A
   const draw = !isFloat && options.dither ? seededRandom(options.dither.seed, 'wav-dither') : null
   const noise = draw ? () => draw() - draw() : () => 0
   if (isFloat) {
-    for (const sample of interleaved) {
-      view.setFloat32(offset, sample, true)
+    for (let n = 0, count = interleaved.length; n < count; n += 1) {
+      view.setFloat32(offset, interleaved[n], true)
       offset += 4
     }
   } else if (bitDepth === 16) {
-    for (const sample of interleaved) {
-      view.setInt16(offset, toInt(sample, FULL_SCALE_STEPS[16], noise()), true)
+    for (let n = 0, count = interleaved.length; n < count; n += 1) {
+      view.setInt16(offset, toInt(interleaved[n], FULL_SCALE_STEPS[16], noise()), true)
       offset += 2
     }
   } else {
-    for (const sample of interleaved) {
-      const value = toInt(sample, FULL_SCALE_STEPS[24], noise())
+    for (let n = 0, count = interleaved.length; n < count; n += 1) {
+      const value = toInt(interleaved[n], FULL_SCALE_STEPS[24], noise())
       view.setUint8(offset, value & 0xff)
       view.setUint8(offset + 1, (value >> 8) & 0xff)
       view.setUint8(offset + 2, (value >> 16) & 0xff)

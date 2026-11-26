@@ -13,7 +13,7 @@ export function reversedBuffer(ctx: BaseAudioContext, buffer: AudioBuffer): Audi
   if (known) return known
   const copy = ctx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate)
   for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
-    const data = Float32Array.from(buffer.getChannelData(channel))
+    const data = buffer.getChannelData(channel).slice()
     data.reverse()
     copy.copyToChannel(data, channel)
   }

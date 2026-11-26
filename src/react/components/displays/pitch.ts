@@ -1934,7 +1934,8 @@ const spectralDrifter = plateDisplay<DriftState>({
       if (frame.powered && frame.signal) {
         const wave = (frame.signal.input ?? frame.signal.output).wave
         let active = 0
-        for (const sample of wave) if (sample > DRIFT_ACTIVE || sample < -DRIFT_ACTIVE) active++
+        for (let n = 0, count = wave.length; n < count; n += 1)
+          if (wave[n] > DRIFT_ACTIVE || wave[n] < -DRIFT_ACTIVE) active++
         const share = wave.length > 0 ? active / wave.length : 0
         state.age =
           Math.min(longest, state.age + share * frame.dt) *

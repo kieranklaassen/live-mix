@@ -170,7 +170,7 @@ export function soundFeatures(
   const durationSec = mono.length / sampleRate
   const hopSec = frames > 0 ? durationSec / frames : 0
   let peak = 0
-  for (const value of level) if (value > peak) peak = value
+  for (let n = 0; n < frames; n += 1) if (level[n] > peak) peak = level[n]
   if (frames === 0 || !(peak > 0)) {
     return { durationSec, attackSec: 0, tailRatio: 0, flatness: 1, tonality: 0, strongOnsets: 0 }
   }

@@ -32,7 +32,8 @@ function peakOf(channels: Channels): { peak: number; finite: boolean } {
   let peak = 0
   let finite = true
   for (const channel of channels) {
-    for (const sample of channel) {
+    for (let n = 0, count = channel.length; n < count; n += 1) {
+      const sample = channel[n]
       if (!Number.isFinite(sample)) finite = false
       const size = Math.abs(sample)
       if (size > peak) peak = size
@@ -44,7 +45,7 @@ function peakOf(channels: Channels): { peak: number; finite: boolean } {
 function squaresOf(channels: Channels): number {
   let sum = 0
   for (const channel of channels) {
-    for (const sample of channel) sum += sample * sample
+    for (let n = 0, count = channel.length; n < count; n += 1) sum += channel[n] * channel[n]
   }
   return sum
 }
