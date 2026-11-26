@@ -19,6 +19,7 @@ import { readMeter, type MeterSnapshot, type MeterSource } from '../hooks/useMet
 import { shallowEqual } from '../store'
 import { dbToMeterPosition, heldPeak, LUFS_FLOOR, METER_FLOOR_DB } from './control-math'
 import { infoProps } from './info'
+import { moversOf, type MeterMovers } from './meter-movers'
 import { cx } from './tokens'
 
 export type MeterBarKind = 'peak' | 'rms' | 'lufs' | 'truePeak'
@@ -152,6 +153,8 @@ interface MeterBarView {
   fillClass: string
   /** The value of the fill's one style property. */
   fill: string
+  /** Where the level stands on the bar, from 0 to 1: what `fill` says. */
+  position: number
 }
 
 /** One reading as the meter draws it: every string of the elements that follows the signal. */
@@ -165,6 +168,8 @@ interface MeterView {
   holdShown: boolean
   holdClass: string
   hold: string
+  /** Where the marker stands on the bar, from 0 to 1: what `hold` says. */
+  holdPosition: number
   clipped: boolean
   peakText: string
   /** With a LUFS meter there are two more bars by default and a second readout. */
@@ -182,6 +187,7 @@ function meterView(
   const { floorDb, hotDb, vertical, segments } = scale
   const kinds = scale.bars ?? (reading.hasLufs ? DEFAULT_BARS_WITH_LUFS : DEFAULT_BARS)
   const holdShown = Number.isFinite(holdDb)
+  const holdPosition = holdShown ? dbToMeterPosition(holdDb, floorDb, 0) : 0
   return {
     rootClass: clipping ? scale.clipClass : scale.rootClass,
     valueNow: Number.isFinite(reading.peakDb) ? reading.peakDb : floorDb,
@@ -203,11 +209,13 @@ function meterView(
             ? `inset(${cut} 0 0 0)`
             : `inset(0 ${cut} 0 0)`
           : `${position * 100}%`,
+        position,
       }
     }),
     holdShown,
     holdClass: cx('lm-meter__hold', holdDb > hotDb && 'lm-meter__hold--hot'),
-    hold: holdShown ? `${dbToMeterPosition(holdDb, floorDb, 0) * 100}%` : '',
+    hold: holdShown ? `${holdPosition * 100}%` : '',
+    holdPosition,
     clipped,
     peakText: formatDb(holdDb),
     hasLufs: reading.hasLufs,
@@ -287,13 +295,16 @@ function meterParts(root: HTMLElement): MeterParts {
   }
 }
 
-/** Visit every string of `view` with the element that carries it, in one fixed order. */
+/**
+ * Visit every string of `view` with the element that carries it, in one fixed
+ * order. A string that is a place along the bar comes with that place.
+ */
 function eachPlace(
   parts: MeterParts,
   view: MeterView,
   fillProperty: FillProperty,
   holdProperty: HoldProperty,
-  visit: (element: HTMLElement, place: MeterPlace, value: string) => void,
+  visit: (element: HTMLElement, place: MeterPlace, value: string, position?: number) => void,
 ): void {
   visit(parts.root, 'class', view.rootClass)
   visit(parts.root, 'aria-valuenow', String(view.valueNow))
@@ -305,11 +316,11 @@ function eachPlace(
     visit(bar, 'data-db', drawn.db)
     if (fill) {
       visit(fill, 'class', drawn.fillClass)
-      visit(fill, fillProperty, drawn.fill)
+      visit(fill, fillProperty, drawn.fill, drawn.position)
     }
     if (hold) {
       visit(hold, 'class', view.holdClass)
-      visit(hold, holdProperty, view.hold)
+      visit(hold, holdProperty, view.hold, view.holdPosition)
     }
   }
   if (parts.lamp) visit(parts.lamp, 'data-on', view.clipped ? 'on' : '')
@@ -407,25 +418,39 @@ function MeterBars({
 
   const root = useRef<HTMLDivElement>(null)
   const memos = useRef<Map<HTMLElement, PlaceMemo> | null>(null)
+  const movers = useRef<MeterMovers | null>(null)
+  useEffect(
+    () => () => {
+      movers.current?.end()
+      movers.current = null
+    },
+    [],
+  )
   // After every render of a meter on a source: note what each element holds,
   // and hand the frames a way to draw the readings that follow.
   useIsomorphicLayoutEffect(() => {
     if (!live || !root.current) return
     const parts = meterParts(root.current)
+    movers.current ??= moversOf(redraw)
+    const moved = movers.current
+    const released = moved.take(parts.bars, vertical, segments)
     // React writes a prop only when it differs from the one of its last
     // render. A place it left alone may hold a later reading a frame wrote,
     // and that one is brought up to this render here.
     const before = memos.current
     const held = new Map<HTMLElement, PlaceMemo>()
-    eachPlace(parts, view, fillProperty, holdProperty, (element, place, value) => {
+    eachPlace(parts, view, fillProperty, holdProperty, (element, place, value, position) => {
       let memo = held.get(element)
       if (!memo) {
         memo = { rendered: {}, shown: {} }
         held.set(element, memo)
       }
       const last = before?.get(element)
-      if (last?.rendered[place] === value && last.shown[place] !== value) {
-        writePlace(element, place, value)
+      if (position === undefined || !moved.put(element, position)) {
+        const left = last?.rendered[place] === value && last.shown[place] !== value
+        if (left || (position !== undefined && released.has(element))) {
+          writePlace(element, place, value)
+        }
       }
       memo.rendered[place] = value
       memo.shown[place] = value
@@ -438,10 +463,12 @@ function MeterBars({
         redraw()
         return
       }
-      eachPlace(parts, target, fillProperty, holdProperty, (element, place, value) => {
+      eachPlace(parts, target, fillProperty, holdProperty, (element, place, value, position) => {
         const memo = held.get(element)
         if (!memo || memo.shown[place] === value) return
-        writePlace(element, place, value)
+        if (position === undefined || !moved.put(element, position)) {
+          writePlace(element, place, value)
+        }
         memo.shown[place] = value
       })
     }
@@ -484,11 +511,12 @@ function MeterBars({
             data-kind={bar.kind}
             data-db={bar.db}
           >
-            <span
-              aria-hidden="true"
-              className={bar.fillClass}
-              style={{ [fillProperty]: bar.fill }}
-            />
+            {/* What a meter on a source moves its fill in (`meter-movers`). */}
+            <span aria-hidden="true" className="lm-meter__window">
+              <span>
+                <span className={bar.fillClass} style={{ [fillProperty]: bar.fill }} />
+              </span>
+            </span>
             {bar.kind === 'peak' && view.holdShown ? (
               <span
                 aria-hidden="true"

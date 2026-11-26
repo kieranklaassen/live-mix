@@ -1426,6 +1426,36 @@
   width: 100%;
 }
 
+/* What the fill of a meter on a source is moved in (`meter-movers.ts`). It is
+ * the bar itself until then. */
+.lm-meter__window,
+.lm-meter__window > span {
+  position: absolute;
+  inset: 0;
+}
+
+.lm-meter__window[data-moved] {
+  overflow: clip;
+}
+
+/* A solid fill slides: what is out of the window is not shown. */
+.lm-meter__window[data-moved='slide'] {
+  border-radius: var(--lm-radius);
+}
+
+/* A segmented fill is cut: the window is moved along the bar and what is in it
+ * moved back, so the fill stands still under the edge. The radius is there for
+ * the edge: the browser draws a rounded clip to parts of a pixel, as it draws
+ * a `clip-path`, and a square one to whole ones. */
+.lm-meter__window[data-moved='cut'] {
+  border-radius: 0.01px;
+  will-change: transform;
+}
+
+.lm-meter__window[data-moved='cut'] > span {
+  will-change: transform;
+}
+
 .lm-meter__fill {
   position: absolute;
   background: var(--lm-meter);
