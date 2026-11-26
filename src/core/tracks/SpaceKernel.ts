@@ -191,7 +191,7 @@ class Ground {
   private join(index: number): void {
     const gap = this.gaps[index]
     const after = this.gaps.at(index + 1)
-    if (!after || gap.at + gap.bytes !== after.at) return
+    if (after?.at !== gap.at + gap.bytes) return
     gap.bytes += after.bytes
     this.gaps.splice(index + 1, 1)
   }
