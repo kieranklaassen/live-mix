@@ -59,7 +59,7 @@ build_device plate-reverb \
   cpp/devices/plate-reverb/plate_reverb_device.cpp \
   cpp/devices/plate-reverb/device_api.cpp
 
-build_device fdn-reverb \
+EXTRA_FLAGS="-msimd128" build_device fdn-reverb \
   cpp/devices/fdn-reverb/fdn_reverb_device.cpp \
   cpp/devices/fdn-reverb/device_api.cpp
 

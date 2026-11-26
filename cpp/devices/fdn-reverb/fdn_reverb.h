@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "../../common/dsp_util.h"
+#include "../../common/vector_math.h"
 
 namespace livemix {
 
@@ -156,7 +157,6 @@ class FdnReverb {
     }
   };
 
-  float read_interpolated(int channel, float delay_samples);
   static void hadamard8(const float* in, float* out);
   void assign(Smoother& smoother, float value) {
     if (primed_) {
@@ -191,6 +191,11 @@ class FdnReverb {
   float dc_y1_[kChannels] = {};
 
   float breath_phase_ = 0.0f;
+
+  // The feedback gain, and the decay and size it was worked out from.
+  float gain_decay_ = -1.0f;
+  float gain_size_ = -1.0f;
+  float feedback_gain_ = 0.0f;
 };
 
 inline void FdnReverb::init(float sample_rate) {
@@ -198,6 +203,8 @@ inline void FdnReverb::init(float sample_rate) {
   sample_rate_ = sample_rate;
   inverse_sample_rate_ = 1.0f / sample_rate;
   primed_ = false;
+  gain_decay_ = -1.0f;
+  gain_size_ = -1.0f;
   const float rate_ratio = sample_rate / kReferenceRate;
 
   predelay_.clear();
@@ -278,19 +285,6 @@ inline void FdnReverb::set_breath_rate(float hz) {
 
 inline void FdnReverb::set_breath_depth(float depth) { assign(breath_depth_, clamp01(depth)); }
 
-// Tides' readDelayInterpolated (:178-196): first-order allpass interpolation,
-// smoother than linear for modulated delays.
-inline float FdnReverb::read_interpolated(int channel, float delay_samples) {
-  const int whole = static_cast<int>(delay_samples);
-  const float frac = delay_samples - static_cast<float>(whole);
-  const float y0 = lines_[channel].read(whole);
-  const float y1 = lines_[channel].read(whole + 1);
-  const float coefficient = (1.0f - frac) / (1.0f + frac);
-  const float output = y1 + coefficient * (y0 - interp_state_[channel]);
-  interp_state_[channel] = flush_denormal(output);
-  return output;
-}
-
 // Tides' applyHadamard8 (:202-228): fast Hadamard transform, 1/sqrt(8) scaled.
 inline void FdnReverb::hadamard8(const float* x, float* out) {
   constexpr float scale = 0.353553390593f;
@@ -324,7 +318,13 @@ inline void FdnReverb::process(float in, float* wet_left, float* wet_right) {
   const float breath_rate = breath_rate_.next();
   const float breath_depth = breath_depth_.next();
 
-  const float feedback_gain = feedback_gain_for(decay, average_delay_seconds_ * size);
+  // Worked out again only while the decay or the size is on its way.
+  if (decay != gain_decay_ || size != gain_size_) {
+    gain_decay_ = decay;
+    gain_size_ = size;
+    feedback_gain_ = feedback_gain_for(decay, average_delay_seconds_ * size);
+  }
+  const float feedback_gain = feedback_gain_;
 
   predelay_.write(in);
   const float delayed_in = predelay_samples_ > 0 ? predelay_.read(predelay_samples_) : in;
@@ -332,7 +332,8 @@ inline void FdnReverb::process(float in, float* wet_left, float* wet_right) {
   // Breathing LFO (Tides :329-337), style 0: gate the input.
   breath_phase_ += breath_rate * inverse_sample_rate_;
   if (breath_phase_ >= 1.0f) breath_phase_ -= 1.0f;
-  const float gate_amount = breath_law(breath_phase_, breath_depth);
+  const float gate_amount =
+      breath_depth == 0.0f ? 1.0f : breath_law(breath_phase_, breath_depth);
 
   // Input diffusion (Tides :340-351).
   float diffused = delayed_in * gate_amount;
@@ -342,24 +343,46 @@ inline void FdnReverb::process(float in, float* wet_left, float* wet_right) {
   diffused = input_allpass_[3].process(diffused, kInputDiffusion2);
 
   // Read the modulated lines (Tides :356-372).
-  float delay_out[kChannels];
+  float modulator[kChannels];
   for (int ch = 0; ch < kChannels; ++ch) {
     lfo_phase_[ch] += lfo_increment_[ch];
     if (lfo_phase_[ch] >= 1.0f) lfo_phase_[ch] -= 1.0f;
-
-    const float modulation = std::sin(lfo_phase_[ch] * kTwoPi) * kLineModulationSamples;
-    float delay = static_cast<float>(base_delays_[ch]) * size + modulation;
+    modulator[ch] = lfo_phase_[ch] * kTwoPi;
+  }
+  sin_turn_8(modulator, modulator);
+  int whole[kChannels];
+  float coefficient[kChannels];
+  for (int ch = 0; ch < kChannels; ++ch) {
+    float delay = static_cast<float>(base_delays_[ch]) * size +
+                  modulator[ch] * kLineModulationSamples;
     if (delay < 1.0f) delay = 1.0f;
     if (delay > static_cast<float>(kMaxDelaySamples - 2)) {
       delay = static_cast<float>(kMaxDelaySamples - 2);
     }
-    delay_out[ch] = read_interpolated(ch, delay);
+    whole[ch] = static_cast<int>(delay);
+    const float frac = delay - static_cast<float>(whole[ch]);
+    coefficient[ch] = (1.0f - frac) / (1.0f + frac);
+  }
+
+  // Tides' readDelayInterpolated (:178-196): first-order allpass
+  // interpolation, smoother than linear for modulated delays.
+  float near[kChannels];
+  float far[kChannels];
+  for (int ch = 0; ch < kChannels; ++ch) {
+    near[ch] = lines_[ch].read(whole[ch]);
+    far[ch] = lines_[ch].read(whole[ch] + 1);
+  }
+  float delay_out[kChannels];
+  for (int ch = 0; ch < kChannels; ++ch) {
+    delay_out[ch] = far[ch] + coefficient[ch] * (near[ch] - interp_state_[ch]);
+    interp_state_[ch] = flush_denormal(delay_out[ch]);
   }
 
   float mixed[kChannels];
   hadamard8(delay_out, mixed);
 
   // Feedback path (Tides :382-400): damping, DC block, soft limit, write.
+  float fed_back[kChannels];
   for (int ch = 0; ch < kChannels; ++ch) {
     const float input = diffused + mixed[ch] * feedback_gain;
 
@@ -368,9 +391,10 @@ inline void FdnReverb::process(float in, float* wet_left, float* wet_right) {
     const float dc_blocked = lp_state_[ch] - dc_x1_[ch] + kDcBlockerR * dc_y1_[ch];
     dc_x1_[ch] = lp_state_[ch];
     dc_y1_[ch] = flush_denormal(dc_blocked);
-
-    lines_[ch].write(std::tanh(dc_blocked));
+    fed_back[ch] = dc_blocked;
   }
+  tanh_8(fed_back);
+  for (int ch = 0; ch < kChannels; ++ch) lines_[ch].write(fed_back[ch]);
 
   // Decorrelated stereo taps (Tides :405-406), swell fixed at 1 (style 0).
   const float wet_l = (delay_out[0] + delay_out[2] + delay_out[4] + delay_out[6]) * 0.25f;
