@@ -218,9 +218,14 @@ describe('SpaceKernel', () => {
     }
     expect(room.rest?.()).toBe(true)
     expect(node.isConnectedTo(gate)).toBe(false)
+    // It leads somewhere that leads nowhere: with nothing connected at all a browser goes on calling it.
+    const deadEnd = ctx.gains[1]
+    expect(node.isConnectedTo(deadEnd)).toBe(true)
+    expect(deadEnd.connectCalls.count).toBe(0)
     expect(room.rest?.()).toBe(true)
     room.wake?.()
     expect(node.isConnectedTo(gate)).toBe(true)
+    expect(node.isConnectedTo(deadEnd)).toBe(false)
     const before = node.connectCalls.count
     room.wake?.()
     expect(node.connectCalls.count).toBe(before)

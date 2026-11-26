@@ -190,6 +190,9 @@ export class SpaceKernel {
   private refilling = false
   private disposed = false
   private readonly setTimeoutFn: (callback: () => void, ms: number) => unknown
+  // Where a resting room leads: nowhere. A browser may go on calling a worklet that has no output connected at
+  // all, as it would one whose work is done for its own sake; one that leads to what is not heard is left alone.
+  private deadEnd: GainNode | null = null
 
   private constructor(
     private readonly context: BaseAudioContext,
@@ -347,11 +350,13 @@ export class SpaceKernel {
         if (state[SPACE_ROOM_QUIET] < state[SPACE_ROOM_TAIL]) return false
         resting = true
         node.disconnect()
+        node.connect((this.deadEnd ??= this.context.createGain()), 0)
         return true
       },
       wake: () => {
         if (over || !resting) return
         resting = false
+        node.disconnect()
         join()
       },
       dispose: () => {
