@@ -305,11 +305,7 @@ export {
   type SpaceRoomHost,
   type SpaceRoomSettings,
 } from './core/tracks/SpaceRoom'
-export {
-  SpaceKernel,
-  type RoomConvolver,
-  type SpaceKernelOptions,
-} from './core/tracks/SpaceKernel'
+export { SpaceKernel, type RoomConvolver, type SpaceKernelOptions } from './core/tracks/SpaceKernel'
 export {
   SharedSpaces,
   SpaceFeed,
