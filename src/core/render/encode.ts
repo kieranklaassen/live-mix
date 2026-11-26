@@ -69,10 +69,15 @@ export function deinterleave(interleaved: Float32Array, channelCount: number): F
   return channels
 }
 
-/** Planar channels of an AudioBuffer (copies, so the buffer can be released). */
+/**
+ * Planar channels of an AudioBuffer: copies, so the buffer can be released.
+ * They are arrays of this page also when the buffer is of a frame's context
+ * (`framed-context.ts`), where `slice` would answer with the frame's own.
+ */
 export function planarFromAudioBuffer(buffer: AudioBuffer): PlanarAudio {
-  const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) =>
-    buffer.getChannelData(index).slice(),
+  const channels = Array.from(
+    { length: buffer.numberOfChannels },
+    (_, index) => new Float32Array(buffer.getChannelData(index)),
   )
   return { channels, sampleRate: buffer.sampleRate }
 }

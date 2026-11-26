@@ -282,7 +282,7 @@
         "sha256": "ac428084c62eaa724cb934a969a90f5f2f1cafd0eceb873c84d3a1dccef6c63b",
         "portedTo": "../spectral-drifter/SpectralDrifter.h",
         "deviations": [
-          "reused unchanged from cpp/devices/spectral-drifter, whose manifest records its de-JUCE edits (jlimit to std::clamp, MathConstants to kPi, two test hooks)"
+          "reused unchanged from cpp/devices/spectral-drifter, whose manifest records its de-JUCE edits (jlimit to std::clamp, MathConstants to kPi, two test hooks, the grains as arrays)"
         ]
       },
       {
@@ -290,7 +290,7 @@
         "sha256": "531205b32a043ec23b3daf56b8db34b33bddc4e5c73cfaeaecc7b0357f2b9824",
         "portedTo": "../spectral-drifter/SpectralDrifter.cpp",
         "deviations": [
-          "reused unchanged from cpp/devices/spectral-drifter, whose manifest records its edits (MathConstants to kPi, flush_denormal on the eight one-pole states)"
+          "reused unchanged from cpp/devices/spectral-drifter, whose manifest records its edits (MathConstants to kPi, flush_denormal on the eight one-pole states, the grains in loops for the vector instructions)"
         ]
       },
       {
@@ -303,7 +303,9 @@
         "path": "Bloom/Source/StereoWidener.cpp",
         "sha256": "77e05e78cb217ecf90c36ebcfb4a15f7790c70595328483e7a421d36a125a542",
         "portedTo": "../stereo-widener/StereoWidener.cpp",
-        "deviations": []
+        "deviations": [
+          "the bass crossover's two states are let go under 1e-30 (settle_to_zero), as WASM has no flush-to-zero"
+        ]
       }
     ],
     "note": "bloom_reverb.h is Bloom's processBlock rebuilt on cpp/kit: the algorithm, its constants and its quirks are the plugin's (the four input diffusers are Schroeder allpasses without the (1 - k^2) term and therefore resonant combs; the wet path is the drifters' output only). SpectralDrifter and StereoWidener are the copies live-mix already builds for spectral-drifter, stereo-widener and felt-piano, compiled in through `sources`. PluginEditor.h/.cpp (the WebView UI) are not ported."

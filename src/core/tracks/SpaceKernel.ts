@@ -11,10 +11,10 @@
 // All of an engine's rooms lie in one memory, which the page and the audio
 // thread share. The page lays a room out in it, makes the spectra of the
 // impulse (once for all the rooms that hold it), and hands the audio thread
-// an address, so making a room costs that thread nothing. Sharing a memory
+// an address, so making a room costs that thread next to nothing. Sharing a memory
 // takes a page that is cross-origin isolated. Where it is not, or the context
-// renders offline, or anything of it does not load, a room has the browser's
-// node as it always had.
+// renders offline, or anything of it does not load, or the memory is full, a
+// room has the browser's node as it always had.
 
 import { ensureProcessor } from '../worklet-loader'
 import { createWorkletNode } from '../worklet-node'
@@ -93,35 +93,42 @@ export function spaceTransformTables(size: number): Float32Array {
   return Float32Array.from(table)
 }
 
-/** Where things lie in the memory: handed out in lines of 64 bytes, and back again by their size. */
+const PAGE_BYTES = 65_536
+/** How far a memory may grow: 1 GB. */
+const MAXIMUM_PAGES = 16_384
+/** How many pages it grows by at least, so a piece that makes its rooms one by one does not grow it for each. */
+const GROWN_AHEAD_PAGES = 128
+/**
+ * Where the first thing lies. Under it is the stack the linker put there (`-z stack-size` in
+ * `scripts/build-wasm.sh`) and as much again. The page's instance and the audio thread's share that stack, and
+ * neither has a use for it: nothing in the kernel is put on a stack.
+ */
+const GROUND_FROM = 131_072
+
+/** A stretch of the memory that nothing lies in. */
+interface Gap {
+  at: number
+  bytes: number
+}
+
+/**
+ * Where things lie in the memory: handed out in lines of 64 bytes, at the
+ * first place that is free and large enough. What is given back joins what
+ * is free beside it, so rooms of one length have the ground of another's.
+ */
 class Ground {
-  private next: number
-  private readonly free = new Map<number, number[]>()
+  private next = GROUND_FROM
+  /** What was handed out and given back, in the order it lies. No two of them touch. */
+  private readonly gaps: Gap[] = []
   private readonly sizes = new Map<number, number>()
 
-  constructor(private readonly memory: WebAssembly.Memory) {
-    // Below this is the stack the linker put there. The page's instance and the audio thread's would share it,
-    // and neither has a use for it: nothing in the kernel is put on a stack.
-    this.next = 131_072
-  }
+  constructor(private readonly memory: WebAssembly.Memory) {}
 
-  /** Room for `count` floats, all zero. */
+  /** Room for `count` floats, all zero. Throws when the memory can not grow that far. */
   floats(count: number): number {
     const bytes = Math.max(64, Math.ceil((count * 4) / 64) * 64)
-    const again = this.free.get(bytes)?.pop()
-    if (again !== undefined) {
-      new Uint8Array(this.memory.buffer, again, bytes).fill(0)
-      this.sizes.set(again, bytes)
-      return again
-    }
-    const at = this.next
-    const end = at + bytes
-    if (end > this.memory.buffer.byteLength) {
-      // A little ahead, so a piece that makes its rooms one by one does not grow it for each.
-      const pages = Math.ceil((end - this.memory.buffer.byteLength) / 65_536)
-      this.memory.grow(pages)
-    }
-    this.next = end
+    const index = this.gaps.findIndex((gap) => gap.bytes >= bytes)
+    const at = index === -1 ? this.beyond(bytes) : this.within(index, bytes)
     this.sizes.set(at, bytes)
     return at
   }
@@ -136,9 +143,57 @@ class Ground {
     const bytes = this.sizes.get(at)
     if (bytes === undefined) return
     this.sizes.delete(at)
-    const of = this.free.get(bytes)
-    if (of) of.push(at)
-    else this.free.set(bytes, [at])
+    const later = this.gaps.findIndex((gap) => gap.at > at)
+    const index = later === -1 ? this.gaps.length : later
+    this.gaps.splice(index, 0, { at, bytes })
+    this.join(index)
+    if (index > 0) this.join(index - 1)
+  }
+
+  private within(index: number, bytes: number): number {
+    const gap = this.gaps[index]
+    const { at } = gap
+    new Uint8Array(this.memory.buffer, at, bytes).fill(0)
+    gap.at += bytes
+    gap.bytes -= bytes
+    if (gap.bytes === 0) this.gaps.splice(index, 1)
+    return at
+  }
+
+  /** Past all that was ever handed out, or from the gap that ends there. */
+  private beyond(bytes: number): number {
+    const last = this.gaps.at(-1)
+    const gap = last && last.at + last.bytes === this.next ? last : null
+    const at = gap ? gap.at : this.next
+    this.reach(at + bytes)
+    if (gap) {
+      new Uint8Array(this.memory.buffer, at, gap.bytes).fill(0)
+      this.gaps.pop()
+    }
+    this.next = at + bytes
+    return at
+  }
+
+  private reach(end: number): void {
+    const pages = this.memory.buffer.byteLength / PAGE_BYTES
+    const needed = Math.ceil(end / PAGE_BYTES) - pages
+    if (needed <= 0) return
+    const ahead = Math.min(GROWN_AHEAD_PAGES, MAXIMUM_PAGES - pages)
+    try {
+      this.memory.grow(Math.max(needed, ahead))
+    } catch (error) {
+      if (ahead <= needed) throw error
+      this.memory.grow(needed)
+    }
+  }
+
+  /** Makes one of the gap at `index` and the next, where they touch. */
+  private join(index: number): void {
+    const gap = this.gaps[index]
+    const after = this.gaps.at(index + 1)
+    if (after?.at !== gap.at + gap.bytes) return
+    gap.bytes += after.bytes
+    this.gaps.splice(index + 1, 1)
   }
 }
 
@@ -232,11 +287,15 @@ export class SpaceKernel {
       compileKernel(options.wasm ?? new URL('./wasm/space-room.wasm', import.meta.url)),
       ensureProcessor(context, url),
     ])
-    const memory = new WebAssembly.Memory({ initial: 16, maximum: 16_384, shared: true })
+    const memory = new WebAssembly.Memory({
+      initial: 16,
+      maximum: MAXIMUM_PAGES,
+      shared: true,
+    })
     return new SpaceKernel(context, module, memory, options)
   }
 
-  /** A convolution with `impulse`, or null for an impulse it does not take: it takes two channels at the context's own rate. */
+  /** A convolution with `impulse`, or null for an impulse it does not take (it takes two channels at the context's own rate) and where there is no room for it. */
   make(impulse: AudioBuffer): RoomConvolver | null {
     if (this.disposed || !this.takes(impulse)) return null
     const at = this.spares.findIndex((spare) => spare.buffer === impulse)
@@ -253,6 +312,8 @@ export class SpaceKernel {
       if (this.spares[index].buffer === impulse) continue
       this.spares.splice(index, 1)[0].convolver.dispose()
     }
+    // One that no room was left of while it was wanted.
+    for (const left of this.impulses.filter(({ rooms }) => rooms === 0)) this.drop(left)
     this.refill()
   }
 
@@ -261,7 +322,8 @@ export class SpaceKernel {
     for (const spare of this.spares.splice(0)) spare.convolver.dispose()
   }
 
-  private takes(impulse: AudioBuffer): boolean {
+  /** Whether it takes an impulse: one of two channels at the rate of its context. */
+  takes(impulse: AudioBuffer): boolean {
     return (
       impulse.numberOfChannels === 2 &&
       impulse.length > 0 &&
@@ -277,16 +339,31 @@ export class SpaceKernel {
       this.refilling = false
       const impulse = this.wanted
       if (this.disposed || !impulse || this.spares.length >= SPARE_ROOMS) return
-      this.spares.push({ buffer: impulse, convolver: this.build(impulse) })
+      const convolver = this.build(impulse)
+      if (!convolver) return
+      this.spares.push({ buffer: impulse, convolver })
       this.refill()
     }, 0)
   }
 
-  private build(buffer: AudioBuffer): RoomConvolver {
-    const impulse = this.impulse(buffer)
-    impulse.rooms += 1
-    const { ground, exports } = this
+  /** A room of `buffer`, or null where the memory has no place for it or its node can not be made. Nothing is left of one that failed. */
+  private build(buffer: AudioBuffer): RoomConvolver | null {
     const held: number[] = []
+    let impulse: Impulse | null = null
+    try {
+      impulse = this.impulse(buffer)
+      impulse.rooms += 1
+      return this.lay(impulse, held)
+    } catch {
+      for (const at of held) this.ground.back(at)
+      if (impulse) this.letGo(impulse)
+      return null
+    }
+  }
+
+  /** Lays a room out, with what it takes of the memory added to `held`. */
+  private lay(impulse: Impulse, held: number[]): RoomConvolver {
+    const { ground, exports } = this
     const take = (count: number): number => {
       const at = ground.floats(count)
       held.push(at)
@@ -294,7 +371,7 @@ export class SpaceKernel {
     }
     const room = take(exports.room_bytes() / 4)
     const last = SPACE_PARTITIONS[SPACE_PARTITIONS.length - 1]
-    exports.room_init(room, Math.ceil((buffer.length + 3 * last) / SPACE_ROOM_QUANTUM) + 1)
+    exports.room_init(room, Math.ceil((impulse.buffer.length + 3 * last) / SPACE_ROOM_QUANTUM) + 1)
     impulse.cut.forEach(({ size, partitions }, index) => {
       const hops = index === 0 ? 2 : 3
       // Rooms start their hops apart: the blocks in which one has the most to do are not the others'.
@@ -316,6 +393,10 @@ export class SpaceKernel {
       )
     })
     this.made += 1
+    // Open while the room sounds: its value is 0 and the node's second output is added to it.
+    const gate = this.context.createGain()
+    gate.gain.automationRate = 'k-rate'
+    gate.gain.value = 0
     const processorOptions: SpaceRoomProcessorOptions = {
       module: this.module,
       memory: this.memory,
@@ -330,10 +411,6 @@ export class SpaceKernel {
       channelInterpretation: 'speakers',
       processorOptions,
     })
-    // Open while the room sounds: its value is 0 and the node's second output is added to it.
-    const gate = this.context.createGain()
-    gate.gain.automationRate = 'k-rate'
-    gate.gain.value = 0
     const join = (): void => {
       node.connect(gate, 0)
       node.connect(gate.gain, 1)
@@ -394,10 +471,16 @@ export class SpaceKernel {
     if (known) return known
     const { ground, exports, memory } = this
     const cut = spacePartitions(buffer.length)
-    const spectra = cut.map(({ size, from, partitions }) => {
+    const taken: number[] = []
+    const take = (count: number): number => {
+      const at = ground.floats(count)
+      taken.push(at)
+      return at
+    }
+    const spectraOf = ({ size, from, partitions }: SpacePartition): number => {
       const tables = this.table(size)
-      const at = ground.floats(2 * partitions * 2 * size)
-      const samples = ground.floats(2 * size)
+      const at = take(2 * partitions * 2 * size)
+      const samples = take(2 * size)
       for (let channel = 0; channel < 2; channel += 1) {
         const data = buffer.getChannelData(channel)
         for (let p = 0; p < partitions; p += 1) {
@@ -416,7 +499,14 @@ export class SpaceKernel {
       }
       ground.back(samples)
       return at
-    })
+    }
+    let spectra: number[]
+    try {
+      spectra = cut.map(spectraOf)
+    } catch (error) {
+      for (const at of taken) ground.back(at)
+      throw error
+    }
     const impulse: Impulse = { buffer, cut, spectra, rooms: 0 }
     this.impulses.push(impulse)
     return impulse
@@ -425,7 +515,11 @@ export class SpaceKernel {
   /** A room of `impulse` is gone; the last of one that is not wanted any more takes its spectra with it. */
   private letGo(impulse: Impulse): void {
     impulse.rooms -= 1
-    if (impulse.rooms > 0 || impulse.buffer === this.wanted) return
+    if (impulse.rooms === 0) this.drop(impulse)
+  }
+
+  private drop(impulse: Impulse): void {
+    if (impulse.buffer === this.wanted) return
     for (const at of impulse.spectra) this.ground.back(at)
     this.impulses.splice(this.impulses.indexOf(impulse), 1)
   }

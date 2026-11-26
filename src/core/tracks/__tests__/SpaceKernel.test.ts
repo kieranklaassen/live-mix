@@ -252,6 +252,111 @@ describe('SpaceKernel', () => {
     expect(runner(ctx.workletNodes[2])(silence, silence)).toBeNull()
   })
 
+  describe('in a memory that fills', () => {
+    const memoryOf = (ctx: MockAudioContext): WebAssembly.Memory =>
+      optionsOf(ctx.workletNodes[0]).memory
+    const endAll = (ctx: MockAudioContext): void => {
+      for (const node of ctx.workletNodes)
+        if (node.port.posted.count > 0) node.port.receive('ended')
+    }
+
+    it('has the rooms of one length lie where those of another lay', async () => {
+      const ctx = context()
+      const kernel = await kernelOn(ctx)
+      const ring = (frames: number): void => {
+        const impulse = impulseOf(ctx, frames)
+        kernel.prepare(impulse)
+        const rooms = [0, 1, 2, 3].map(() => made(kernel, impulse))
+        for (const room of rooms) room.dispose()
+        endAll(ctx)
+      }
+      ring(200_000)
+      const pages = memoryOf(ctx).buffer.byteLength
+      for (let frames = 100_000; frames < 200_000; frames += 9000) ring(frames)
+      ring(200_000)
+      expect(memoryOf(ctx).buffer.byteLength).toBe(pages)
+    })
+
+    it('finds nothing in a room of what lay there before', async () => {
+      const ctx = context()
+      const kernel = await kernelOn(ctx)
+      const random = noise(5)
+      const loud = [0, 1].map(() => Float32Array.from({ length: 600 * QUANTUM }, random))
+      for (const frames of [60_000, 45_000, 60_000, 30_000]) {
+        const at = ctx.workletNodes.length
+        const impulse = impulseOf(ctx, frames)
+        kernel.prepare(impulse)
+        const room = made(kernel, impulse)
+        const run = runner(ctx.workletNodes[at])
+        const click = new Float32Array(QUANTUM)
+        click[0] = 1
+        const silence = new Float32Array(QUANTUM)
+        // What comes of one sample is the impulse itself.
+        let worst = 0
+        for (let from = 0; from < frames + 2 * QUANTUM; from += QUANTUM) {
+          const out = run(from === 0 ? click : silence, silence)
+          for (let i = 0; out && i < QUANTUM && from + i < frames; i += 1)
+            worst = Math.max(worst, Math.abs(out[i] - impulse.getChannelData(0)[from + i]))
+        }
+        expect(worst).toBeLessThan(1e-6)
+        through(ctx.workletNodes[at], loud)
+        room.dispose()
+        endAll(ctx)
+      }
+    })
+
+    it('is grown ahead, and not again for each thing a room is made of', async () => {
+      const grow = vi.spyOn(WebAssembly.Memory.prototype, 'grow')
+      const ctx = context()
+      const kernel = await kernelOn(ctx)
+      const impulse = impulseOf(ctx, 240_000)
+      kernel.prepare(impulse)
+      for (let room = 0; room < 4; room += 1) made(kernel, impulse)
+      expect(grow.mock.calls.length).toBeLessThan(5)
+      grow.mockRestore()
+    })
+
+    it('answers with no room where there is no place for one, and keeps nothing of it', async () => {
+      const ctx = context()
+      const kernel = await kernelOn(ctx)
+      const small = impulseOf(ctx, 1000)
+      kernel.prepare(small)
+      const room = made(kernel, small)
+      const { room: at } = optionsOf(ctx.workletNodes[0])
+      const grow = vi.spyOn(WebAssembly.Memory.prototype, 'grow').mockImplementation(() => {
+        throw new RangeError('no more')
+      })
+      const large = impulseOf(ctx, 240_000)
+      expect(kernel.make(large)).toBeNull()
+      expect(kernel.make(large)).toBeNull()
+      expect(ctx.workletNodes).toHaveLength(1)
+      // The room that is there goes on, and its ground is had again once it is gone.
+      expect(
+        runner(ctx.workletNodes[0])(new Float32Array(QUANTUM).fill(1), new Float32Array(QUANTUM)),
+      ).not.toBeNull()
+      room.dispose()
+      endAll(ctx)
+      kernel.prepare(small)
+      made(kernel, small)
+      expect(optionsOf(ctx.workletNodes[1]).room).toBe(at)
+      grow.mockRestore()
+      expect(kernel.make(large)).not.toBeNull()
+    })
+
+    it('makes no room ahead of time where there is no place for one, and asks no more', async () => {
+      const turns: (() => void)[] = []
+      const ctx = context()
+      const kernel = await kernelOn(ctx, ((turn: () => void) => turns.push(turn)) as never)
+      const grow = vi.spyOn(WebAssembly.Memory.prototype, 'grow').mockImplementation(() => {
+        throw new RangeError('no more')
+      })
+      kernel.prepare(impulseOf(ctx, 240_000))
+      for (let turn = turns.shift(); turn; turn = turns.shift()) turn()
+      expect(ctx.workletNodes).toHaveLength(0)
+      grow.mockRestore()
+    })
+  })
+
   it('keeps rooms of the impulse in use ready, and lets go of those of another', async () => {
     const turns: (() => void)[] = []
     const ctx = context()
@@ -355,6 +460,69 @@ describe('EngineOptions.spaceKernel', () => {
     expect(track.spaceTailSec).toBeCloseTo(engine.spaceImpulse().duration)
     expect(ctx.workletNodes.map((node) => node.name)).toEqual(['live-mix-space-room'])
     expect(ctx.gains.some((gain) => gain.isConnectedTo(ctx.workletNodes[0]))).toBe(true)
+  })
+
+  it("has the browser's node once the memory is full, also in the middle of a piece", async () => {
+    const ctx = context()
+    const engine = createEngine({
+      context: asAudioContext(ctx),
+      spaceKernel: { wasm, processorUrl: 'room.js', setTimeoutFn: () => 0 },
+    })
+    await engine.spaceKernelReady
+    const track = play(ctx, engine)
+    expect(track.space).toBeNull()
+    const grow = vi.spyOn(WebAssembly.Memory.prototype, 'grow').mockImplementation(() => {
+      throw new RangeError('no more')
+    })
+    engine.setSpace({ decaySec: 11 })
+    expect(track.space).toBe(ctx.convolvers[0])
+    expect(ctx.convolvers[0].buffer).toBe(engine.spaceImpulse())
+    grow.mockRestore()
+    // With room again, the next change of the room takes it back to the kernel.
+    engine.setSpace({ decaySec: 3 })
+    expect(track.space).toBeNull()
+  })
+
+  it("leaves a room on an impulse it does not take to the browser's node, and has it glide to another drift", async () => {
+    const ctx = context()
+    const engine = createEngine({
+      context: asAudioContext(ctx),
+      spaceKernel: { wasm, processorUrl: 'room.js', setTimeoutFn: () => 0 },
+    })
+    expect(await engine.spaceKernelReady).toBe(true)
+    const mono = impulseOf(ctx, 1000, 1)
+    const track = engine.addAudioTrack('pads', { spaceImpulse: () => mono })
+    track.play(
+      'k',
+      {
+        buffer: ctx.createBuffer(2, RATE, RATE) as unknown as AudioBuffer,
+        offsetSec: 0,
+        durationSec: 1,
+        fadeInSec: 0,
+        fadeOutSec: 0,
+        fadeCurve: 'linear',
+        spaceDb: -6,
+      },
+      1,
+    )
+    expect(track.space).toBe(ctx.convolvers[0])
+    engine.setSpace({ driftCents: 5 })
+    const drifting = ctx.convolvers.length
+    engine.setSpace({ driftCents: 9 })
+    expect(ctx.convolvers).toHaveLength(drifting)
+    expect(ctx.workletNodes).toHaveLength(0)
+  })
+
+  it('makes no impulse for a room nothing has been sent to', async () => {
+    const ctx = context()
+    const buffers = vi.spyOn(ctx, 'createBuffer')
+    const engine = createEngine({
+      context: asAudioContext(ctx),
+      sharedSpace: true,
+      spaceKernel: { wasm, processorUrl: 'room.js', setTimeoutFn: () => 0 },
+    })
+    expect(await engine.spaceKernelReady).toBe(true)
+    expect(buffers).not.toHaveBeenCalled()
   })
 
   it("makes a room that was the browser's anew once it is there", async () => {

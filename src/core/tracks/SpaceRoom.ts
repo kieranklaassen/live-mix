@@ -83,8 +83,8 @@ export interface SpaceRoomHost {
    * it does not take, and while there is none.
    */
   convolver?: (impulse: AudioBuffer) => RoomConvolver | null
-  /** True when `convolver` would answer with one: a room on the browser's node is then made anew when it is next set. */
-  convolverReady?: () => boolean
+  /** True when `convolver` takes this impulse: a room on the browser's node is then made anew when it is next set. */
+  convolverReady?: (impulse: AudioBuffer) => boolean
   /** Timers for taking an old room down; the page's by default. */
   setTimeoutFn?: (callback: () => void, ms: number) => unknown
   clearTimeoutFn?: (handle: unknown) => void
@@ -188,18 +188,19 @@ export class SpaceRoom {
    */
   set(settings: SpaceRoomSettings): AudioNode | null {
     const before = this.settings
-    this.settings = { ...settings }
     const nodes = this.nodes
     const sameShape =
       settings.impulse === before.impulse &&
-      !(nodes.native !== null && this.host.convolverReady?.() === true) &&
+      !(nodes.native !== null && this.host.convolverReady?.(settings.impulse) === true) &&
       settings.driveDb > 0 === (nodes.drive !== null) &&
       settings.driftCents > 0 === (nodes.drift !== null)
     if (sameShape) {
+      this.settings = { ...settings }
       this.colour(nodes, settings)
       return null
     }
     this.nodes = this.build(settings)
+    this.settings = { ...settings }
     this.retire(nodes)
     if (this.idle) this.waitToRest()
     return nodes.entry
