@@ -639,6 +639,7 @@ one another, to be played in turn:
 ```ts
 import {
   describeTake,
+  hasWays,
   playSound,
   renderFactorySound,
   takeOrder,
@@ -647,6 +648,7 @@ import {
 } from '@kieranklaassen/live-mix/dsp'
 
 waysFor(sound) // ['rising', 'there-and-back', …]: the ways with something to play on it
+hasWays(sound) // true: whether it names any, asked no further than the first
 const way = { way: 'rising', seed: 4711 }
 const takes = wayTakes(sound, way) // { takes: 4, round: [0, 1, 2, 3], cut: false }
 const audio = await renderFactorySound(sound, { plays: { ...way, take: 1 }, transpose })

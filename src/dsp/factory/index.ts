@@ -106,6 +106,7 @@ export {
   WAYS,
   WAY_FAMILIES,
   describeTake,
+  hasWays,
   lentNotes,
   playAndVarySound,
   playSound,

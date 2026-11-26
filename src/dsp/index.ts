@@ -166,6 +166,7 @@ export {
   factorySound,
   factoryTranspose,
   generateSound,
+  hasWays,
   isKitInstrument,
   keyChord,
   lentNotes,

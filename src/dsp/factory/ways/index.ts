@@ -200,6 +200,20 @@ export function waysFor(
 }
 
 /**
+ * Whether one way or more has something to play on `sound`: that `waysFor`
+ * names any. It asks no further than the first that has, which is most often
+ * the first way of the menu.
+ */
+export function hasWays(
+  sound: VariedPlaying,
+  at: Partial<Pick<WayPlaying, 'seed' | 'far' | 'key'>> = {},
+): boolean {
+  const reading = readFor(sound, at.key)
+  if (typeof reading === 'string') return false
+  return RULES.some((way) => hasTakes(reading, way, { seed: 0, ...at, way: way.id }))
+}
+
+/**
  * The notes a way is lent on `sound`, low to high: a held sound of one note
  * or two has no chord to deal, so every way reads it with notes of its key
  * above the note it stands on, the third, the fifth and the octave where it

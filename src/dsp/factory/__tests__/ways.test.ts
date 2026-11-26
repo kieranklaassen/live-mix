@@ -8,7 +8,16 @@ import { describe, expect, it } from 'vitest'
 import { FACTORY_SOUNDS, factorySound } from '..'
 import { cycled, looped, played } from '../sounds/recipe'
 import { type FactorySound } from '../types'
-import { WAYS, WAY_FAMILIES, describeTake, lentNotes, playSound, wayTakes, waysFor } from '../ways'
+import {
+  WAYS,
+  WAY_FAMILIES,
+  describeTake,
+  hasWays,
+  lentNotes,
+  playSound,
+  wayTakes,
+  waysFor,
+} from '../ways'
 import { alongKey, readSound } from '../ways/reading'
 import { wayRule } from '../ways/table'
 import { countTakes } from '../ways/takes'
@@ -148,6 +157,7 @@ describe('playSound', () => {
         refusal,
       })
       expect(waysFor(each)).toEqual([])
+      expect(hasWays(each)).toBe(false)
       expect(playSound(each, { way: 'rising', seed: 1, take: 1 })).toBe(each)
     }
     expect(wayTakes(looped(16, 4, 15, [48, 55, 64, 71]), { way: 'rising', seed: 1 }).takes).toBe(3)
@@ -293,6 +303,12 @@ describe('waysFor', () => {
     for (const way of ['rising', 'there-and-back', 'outside-in', 'carry-on']) {
       expect(waysFor(kit), kit.id).not.toContain(way)
     }
+  })
+
+  it('is said of a sound by hasWays, which is whether it names any', () => {
+    for (const each of FACTORY_SOUNDS) expect(hasWays(each), each.id).toBe(waysFor(each).length > 0)
+    expect(hasWays(chord)).toBe(true)
+    expect(hasWays(top)).toBe(false)
   })
 
   it('asks each way at the far a host names', () => {

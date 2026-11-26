@@ -541,6 +541,7 @@ const dspSymbols = [
   'WAY_FAMILIES',
   'TAKE_ORDERS',
   'waysFor',
+  'hasWays',
   'wayTakes',
   'playSound',
   'playAndVarySound',
