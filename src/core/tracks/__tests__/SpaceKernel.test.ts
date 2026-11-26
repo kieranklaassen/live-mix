@@ -483,6 +483,36 @@ describe('EngineOptions.spaceKernel', () => {
     expect(track.space).toBeNull()
   })
 
+  it("leaves a room on an impulse it does not take to the browser's node, and has it glide to another drift", async () => {
+    const ctx = context()
+    const engine = createEngine({
+      context: asAudioContext(ctx),
+      spaceKernel: { wasm, processorUrl: 'room.js', setTimeoutFn: () => 0 },
+    })
+    expect(await engine.spaceKernelReady).toBe(true)
+    const mono = impulseOf(ctx, 1000, 1)
+    const track = engine.addAudioTrack('pads', { spaceImpulse: () => mono })
+    track.play(
+      'k',
+      {
+        buffer: ctx.createBuffer(2, RATE, RATE) as unknown as AudioBuffer,
+        offsetSec: 0,
+        durationSec: 1,
+        fadeInSec: 0,
+        fadeOutSec: 0,
+        fadeCurve: 'linear',
+        spaceDb: -6,
+      },
+      1,
+    )
+    expect(track.space).toBe(ctx.convolvers[0])
+    engine.setSpace({ driftCents: 5 })
+    const drifting = ctx.convolvers.length
+    engine.setSpace({ driftCents: 9 })
+    expect(ctx.convolvers).toHaveLength(drifting)
+    expect(ctx.workletNodes).toHaveLength(0)
+  })
+
   it('makes no impulse for a room nothing has been sent to', async () => {
     const ctx = context()
     const buffers = vi.spyOn(ctx, 'createBuffer')
