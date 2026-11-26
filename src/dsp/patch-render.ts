@@ -312,6 +312,11 @@ export function playedTuning(
     : undefined
 }
 
+/** The first `count` samples of a block: the block itself where it is that long, which nearly every one is. */
+function firstOf(block: Float32Array, count: number): Float32Array {
+  return block.length === count ? block : block.subarray(0, count)
+}
+
 function nextTask(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
@@ -332,8 +337,8 @@ export function foldLoop(
   for (let i = 0; i < span; i += 1) {
     const along = (i + 0.5) / span
     const position = along * (Math.PI / 2)
-    const [rise, fall] =
-      fold === 'linear' ? [along, 1 - along] : [Math.sin(position), Math.cos(position)]
+    const rise = fold === 'linear' ? along : Math.sin(position)
+    const fall = fold === 'linear' ? 1 - along : Math.cos(position)
     out[i] = channel[i] * rise + channel[frames + i] * fall
   }
   return out
@@ -451,9 +456,10 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   const events = instrument
     ? phraseEvents(phrase, sampleRate, round, playedTuning(options.keyTuning, patch))
     : []
-  // The input as long as the render: what it lacks is the silence its tail rings into.
+  // The input as long as the render: what it lacks is the silence its tail rings into. An instrument has none.
   const padded = (channel: Float32Array | undefined): Float32Array => {
-    const out = new Float32Array(total)
+    const out = new Float32Array(instrument ? 0 : total)
+    if (instrument) return out
     if (channel) out.set(channel.subarray(0, total))
     return out
   }
@@ -496,14 +502,14 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
       blockRight = inputRight.subarray(cursor, cursor + count)
     }
     for (const effect of effects) {
-      effect.inLeft.set(blockLeft.subarray(0, count))
-      effect.inRight.set(blockRight.subarray(0, count))
+      effect.inLeft.set(firstOf(blockLeft, count))
+      effect.inRight.set(firstOf(blockRight, count))
       effect.device.device_process(count)
       blockLeft = effect.outLeft
       blockRight = effect.outRight
     }
-    left.set(blockLeft.subarray(0, count), cursor)
-    right.set(blockRight.subarray(0, count), cursor)
+    left.set(firstOf(blockLeft, count), cursor)
+    right.set(firstOf(blockRight, count), cursor)
     cursor += count
 
     if (sliceMs > 0 && performance.now() - sliceStart >= sliceMs) {
