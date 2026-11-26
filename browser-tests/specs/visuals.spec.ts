@@ -17,9 +17,9 @@ function expectPicture(seen: Measured, what: string): void {
 }
 
 test.describe('the visuals, in a real browser', () => {
-  // Some forty shaders are made one after another, and a machine without a
+  // A hundred and forty shaders are made one after another, and a machine without a
   // graphics card makes and draws each in software.
-  test.setTimeout(900_000)
+  test.setTimeout(3_600_000)
 
   test('every style draws a picture in both its variations', async ({ page }) => {
     const errors = collectPageErrors(page)
@@ -28,7 +28,7 @@ test.describe('the visuals, in a real browser', () => {
     expect(await page.evaluate(() => window.visualsHarness.ready())).toBe(true)
 
     const styles = await page.evaluate(() => window.visualsHarness.styles())
-    expect(styles).toHaveLength(41)
+    expect(styles).toHaveLength(141)
     for (const id of styles) {
       for (const variation of [0, 1] as const) {
         const seen = await page.evaluate(

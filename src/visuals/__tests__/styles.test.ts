@@ -28,8 +28,8 @@ function headerOf(text: string): Record<string, string> {
 }
 
 describe('the list of styles', () => {
-  it('has forty-one styles', () => {
-    expect(VISUAL_STYLES).toHaveLength(41)
+  it('has a hundred and forty-one styles', () => {
+    expect(VISUAL_STYLES).toHaveLength(141)
   })
 
   it('gives each style an id of its own, in lowercase with dashes', () => {

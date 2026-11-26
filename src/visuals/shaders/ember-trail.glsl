@@ -1,0 +1,303 @@
+// name: Ember trail
+// a: Powder maze
+// b: Hung coil
+// what: Seen from above, a tray of white ash with a combed edge and a winding line of brown incense powder: behind one small ember it has burned to pale ash, far ahead it is laid again, and a thread of smoke leans away; or great coils of incense hung in rows under a smoky ceiling, each with a red point, pale ash and a slip of paper.
+// follows: An ember burns on with the loop; powder and coils are thick and coloured where the piece is loud. Drone brightens embers, and each hung one answers a kind of sound; pad widens smoke, phrase curls it, bands sway it, texture roughens ash, keys spark or light the slips. A hit flares embers and drops ash; a cue glows along old ash, or from near coils to far.
+// The maze, one closed line on ten by eight cells: which step a cell is, and which cell a step is; four to a number.
+const uvec4 etAt[5] = uvec4[5](uvec4(0x4d4e4f00u, 0x494a4b4cu, 0x06014748u, 0x3a393807u), uvec4(0x463d3c3bu, 0x37080502u, 0x3f403536u, 0x0403453eu), uvec4(0x340b0a09u, 0x44434241u, 0x191a1b1cu, 0x3132330cu), uvec4(0x161d2b2cu, 0x0e0d1817u, 0x2a2d300fu, 0x1314151eu), uvec4(0x2f101112u, 0x201f292eu, 0x24232221u, 0x28272625u));
+const uvec4 etWay[5] = uvec4[5](uvec4(0x1e140a00u, 0x0c0b151fu, 0x22212016u, 0x3837362cu), uvec4(0x3f404142u, 0x34333d3eu, 0x292a2b35u, 0x463c3228u), uvec4(0x4a494847u, 0x4e4d4c4bu, 0x313b454fu, 0x43443a30u), uvec4(0x2d2e2f39u, 0x17181923u, 0x100f0e0du, 0x1b1c1211u), uvec4(0x2625241au, 0x09131d27u, 0x05060708u, 0x01020304u));
+const float etCell = .094, etR = .24, etLen = 1. - 2. * etR + .5 * PI * etR;
+float etPx;
+float etOff(float a, float b, float x) { return 1. - smoothstep(a, b, x); }
+float etBell(float x) { return exp(-x * x); }
+int etByte(uint four, int i) { return int((four >> uint(8 * (i & 3))) & 255u); }
+vec2 etStep(int i) { i = i % 80; int k = etByte(etWay[i >> 4][(i >> 2) & 3], i); return vec2(k % 10, k / 10); }
+// Laid by hand: never quite straight.
+vec2 etHand(vec2 u) { return .085 * vec2(sin(u.y * 1.7 + 1. + .6 * sin(u.x * .9)), sin(u.x * 1.5 + .4 + .7 * sin(u.y * 1.1))) + .012 * vec2(sin(u.y * 4.1), sin(u.x * 3.7 + 2.)); }
+// Nearest place on the line: x to its side, y along it in cells.
+vec2 etLine(vec2 u) {
+  vec2 c = floor(u);
+  if (c.x < 0. || c.y < 0. || c.x > 9. || c.y > 7.) return vec2(9., 0.);
+  int k = int(c.y) * 10 + int(c.x), i = etByte(etAt[k >> 4][(k >> 2) & 3], k);
+  vec2 a = etStep(i + 79) - c, b = etStep(i + 1) - c, f = u - c - .5;
+  if (dot(a, b) < -.5) return vec2(a.x * f.y - a.y * f.x, float(i) + .5 + dot(f, b));
+  float A = dot(f, a), B = dot(f, b), turn = sign(a.x * b.y - a.y * b.x), t, side;
+  if (A < etR && B < etR) {
+    side = etR - length(vec2(A, B) - etR);
+    t = .5 - etR + etR * atan(etR - A + 1e-4, etR - B + 1e-4);
+  } else if (A > B) { side = B; t = .5 - A; }
+  else { side = A; t = etLen - .5 + B; }
+  return vec2(side * turn, float(i) + t / etLen);
+}
+// Where a place along the line lies.
+vec2 etPlace(float s) {
+  s = mod(s, 80.);
+  int i = int(s);
+  float t = s - float(i);
+  vec2 c = etStep(i), a = etStep(i + 79) - c, b = etStep(i + 1) - c;
+  if (dot(a, b) < -.5) return c + .5 + b * (t - .5);
+  t *= etLen;
+  if (t < .5 - etR) return c + .5 + a * (.5 - t);
+  if (t > etLen - .5 + etR) return c + .5 + b * (t - etLen + .5);
+  float w = (t - .5 + etR) / etR;
+  return c + .5 + a * (etR - etR * sin(w)) + b * (etR - etR * cos(w));
+}
+// How many cells behind the ember; under 0 it is still to burn.
+float etBehind(float s) { float d = mod(uLoop * 80. - s, 80.); return d > 72. ? d - 80. : d; }
+// How high the powder or its ash stands here.
+float etHigh(vec2 u, float w) {
+  vec2 l = etLine(u);
+  if (abs(l.x) > .5) return 0.;
+  float d = etBehind(l.y), crumb = noise(u * 5.) * .04 + noise(u * 15.) * .06 - .05;
+  float h = etOff(w - .065, w + .075, abs(l.x) + crumb);
+  float ash = smoothstep(-.1, .5, d), gone = smoothstep(46., 52., d), laid = smoothstep(53., 64., d);
+  float rough = noise(vec2(l.y * 7., l.x * 8.));
+  float ashH = .66 - (.2 + .4 * uTexture) * rough * rough;
+  return h * mix(mix(1., ashH, ash), mix(.12, 1., laid), gone);
+}
+// Where that is in the picture.
+vec2 etScreen(vec2 u, mat2 turn, float zoom) {
+  vec2 q = (u - vec2(5., 4.)) * etCell * turn + vec2(.03, 0.);
+  float y = (sqrt(max(1. + .6 * q.y / (1.1 * zoom), 0.)) - 1.) / .3;
+  return vec2(q.x / (zoom * (1. + .15 * y)), y);
+}
+// A thread of smoke: two thin sheets that turn about each other as they rise.
+float etSmoke(vec2 q, float carry) {
+  float h = q.y;
+  if (h < 0. || h > .95) return 0.;
+  float t = uTime, up = smoothstep(0., .5, h);
+  float x = q.x - carry * up * .8;
+  float sway = .012 + .05 * uLevel + .1 * band(h * 1.5);
+  float bend = .16 * h + .22 * h * h - .06 * uMic * h + h * sway * sin(h * 8. - t * .7) + .5 * h * sway * sin(h * 17. - t * 1.1 + 1.3);
+  bend += uPhrase * (.12 * h * h + .03 * h) * sin(h * 24. - t * 1.5 + 2. * sin(h * 7. - t * .4));
+  x -= bend;
+  float w = .0025 + (.035 + .07 * uPad + .02 * uSpace) * h, soft = .0014 + .012 * h, d = 0.;
+  if (abs(x) > w * 1.5 + soft * 3.) return 0.;
+  for (int i = 0; i < 2; i++) {
+    float f = float(i), k = h * (11. + 4. * f) - t * (.8 + .17 * f) + f * 2.;
+    float a = w * (sin(k) + .35 * sin(k * 2.3 + 1.)), b = w * (sin(k + 1.4 + sin(h * 5. - t * .31)) - .3 * sin(k * 1.7));
+    float lo = min(a, b), hi = max(a, b);
+    float fill = smoothstep(lo - soft, lo + soft, x) * etOff(hi - soft, hi + soft, x);
+    float ea = (x - a) / soft, eb = (x - b) / soft;
+    d += fill * (.25 + .6 * soft / (hi - lo + soft)) + .42 * exp(-ea * ea) + .28 * exp(-eb * eb);
+  }
+  return d * .55 * smoothstep(0., .02, h) * exp(-h * 1.5) * etOff(.55, .95, h);
+}
+vec3 etMaze(vec2 p) {
+  float asp = uRes.x / uRes.y, zoom = asp < 1. ? max(1., 1.16 / asp) : max(1., 1.35 / asp);
+  mat2 turn = rot(asp < 1. ? 1.44 : .12);
+  vec2 q = p * vec2(1., 1.1) * (1. + .15 * p.y) * zoom;
+  vec2 m = turn * (q - vec2(.03, 0.)), u = m / etCell + vec2(5., 4.);
+  vec2 L = turn * normalize(vec2(-.8, .55));
+  // the tray: a dark lacquered rim, a straw mat under it
+  vec2 bx = abs(m) - vec2(.62, .5);
+  float tray = length(max(bx, 0.)) + min(max(bx.x, bx.y), 0.) - .02;
+  vec2 bl = abs(m + L * .03) - vec2(.62, .5);
+  float trayL = length(max(bl, 0.)) + min(max(bl.x, bl.y), 0.) - .02;
+  vec3 col;
+  // daylight from the upper left, crossed by two soft bars
+  float wx = p.x * .8 - p.y * .62 + .012 * sin(uTime * .05), wide = .05 + .05 * uSpace;
+  float bars = etBell((wx - .34) / wide) + etBell((wx + .2) / wide);
+  float light = (1.06 - .52 * smoothstep(-.4, .95, wx)) * (1. - .16 * bars) * (.96 + .08 * uTone);
+  vec2 eu = etPlace(uLoop * 80.), ev = eu - etHand(eu - etHand(eu));
+  float ed = length(u - ev);
+  if (tray < 0.) {
+    float soft = noise(u * .55) - noise(u * .55 + L * .35) + .5 * (noise(u * 1.9 + 3.) - noise(u * 1.9 + 3. + L * .3));
+    float fine = noise(u * 22.) - noise(u * 22. + L * .6);
+    vec2 v = u + etHand(u), l = etLine(v);
+    float d = etBehind(l.y), s = fract(l.y / 80.);
+    float w = .17, full = 0.; vec4 here = vec4(0.);
+    vec2 gu = rot(.6) * u * 26.; gu.x += .37 * floor(gu.y);
+    vec2 gid = floor(gu); float g = hash21(gid), g2 = hash21(gid + 71.3), dome = 1. - 1.7 * length(gu - gid - .5 - .3 * vec2(g - .5, g2 - .5));
+    if (abs(l.x) < .5) {
+      full = piece(vec2(s, .2)).a + piece(vec2(s, .5)).a + piece(vec2(s, .8)).a;
+      full = 1. - exp(-full * 1.2);
+      here = piece(vec2(fract(s + (g2 - .5) * .004), sat(.5 + .28 * l.x / w + .5 * (g - .5))));
+      w += .11 * full;
+    }
+    float h = etHigh(v, w), hl = etHigh(v + L * .1, w), hf = max(etHigh(v + L * .26, w) - .25, hl - .1);
+    // the margin is combed, stroke by stroke, inside a pressed line
+    vec2 lane = bx.x > bx.y ? m.yx : m; float edge = max(bx.x, bx.y);
+    float comb = smoothstep(-.062, -.054, edge) * etOff(-.014, -.004, edge);
+    float tooth = sin((lane.x + .0016 * noise(lane * 60.)) * 330. + 2. * noise(vec2(floor(lane.x * 12.), 3.)));
+    float groove = etBell((edge + .066) / .0035);
+    float shade = 1. + .28 * soft + .12 * fine + .1 * comb * tooth * etOff(.8, 2.2, 330. * etPx * zoom) - .16 * groove;
+    col = vec3(.885, .875, .86) * light * shade;
+    col *= 1. - vec3(.42, .4, .36) * etOff(-.04, .03, -trayL - .02);
+    // powder, char, ash
+    float on = smoothstep(.12, .4, h);
+    float cover = 0., crack = 0., laid = 0.;
+    if (on > 0.) {
+    float ash = smoothstep(.05, .7, d + .35 * (g - .5)); laid = smoothstep(g * 8., g * 8. + 2., d - 54.);
+    float gone = smoothstep(46. + 3. * g, 50. + 3. * g, d);
+    vec3 tint = here.rgb / max(max(here.r, max(here.g, here.b)), .05);
+    vec3 powder = mix(vec3(.43, .275, .15), vec3(.25, .14, .07), g2) * (.72 + .5 * g2 * g + .3 * dome);
+    powder = mix(powder, tint * vec3(.8, .7, .62) * (.5 + .5 * g2), sat(here.a * 2.) * .62);
+    vec3 grey = mix(vec3(.17, .16, .155), vec3(.69, .68, .665), smoothstep(.2, 3.2, d + g));
+    grey *= .82 + .28 * g2 * g + .12 * dome;
+    crack = noise(vec2(l.y * 9. + 2. * noise(v * 5.), l.x * 5.));
+    grey *= 1. - (.1 + .3 * uTexture) * smoothstep(.6, .8, crack);
+    vec3 stuff = mix(powder, grey, ash * (1. - laid));
+    cover = on * mix(1., laid * smoothstep(0., .4, dome + smoothstep(56., 66., d)), gone);
+    stuff *= (1. + .22 * fine) * min(light * 1.06, 1.);
+    col = mix(col, stuff, cover);
+    }
+    col *= clamp(1. + .75 * (h - hl), .45, 1.3);
+    col *= 1. - vec3(.5, .48, .44) * smoothstep(.02, .5, hf - h);
+    // the ember, and a cue breathing back along the ash
+    float power = .5 + .05 * sin(uTime * .8) + (.5 + uEnergy) * (.5 * uLevel + .5 * uDrone + .2 * uMic) + 1.2 * uHits;
+    float coal = etBell((d - .1 + .25 * (g - .5)) / (.2 + .18 * uDrone)) * cover * etOff(.1, .35, abs(l.x));
+    coal *= .55 + .6 * noise(u * 7. + 2. * vec2(sin(uTime * .19), cos(uTime * .15)));
+    float back = etBell((d - 46. * (1. - uCue)) / 3.5) * uCue * cover * (1. - laid) * (.4 + .8 * crack);
+    float flare = uHits * etBell(ed * .6), hot = sat(coal * power * 1.1);
+    col = mix(col, vec3(.75, .1, .02) + vec3(.25, .42, .1) * hot + vec3(0., .26, .3) * hot * hot * hot * hot, sat(coal * 1.8));
+    col = mix(col, vec3(.86, .23, .06), sat(back * 1.1));
+    col += col * vec3(.5, .13, 0.) * (power * (.4 * exp(-ed * ed * 1.3) + .16 * exp(-ed * .9)) + .9 * flare) - col * vec3(0., .25, .42) * flare;
+  } else {
+      vec2 w = rot(.12) * q * 84.;
+    float rib = abs(fract(w.y) - .5) * 2., run = noise(vec2(w.x * .5 + floor(w.y) * 7.3, floor(w.y) * 3.1));
+    col = mix(vec3(.47, .42, .32), vec3(.57, .515, .4), run) * mix(.95, .86 + .16 * smoothstep(0., .8, rib), etOff(.3, .9, 84. * etPx * zoom)) * light;
+    col *= 1. - .55 * etOff(-.02, .05, trayL - .028);
+  }
+  float rim = etOff(-etPx * zoom, etPx * zoom, abs(tray) - .017);
+  vec2 gm = bx.x > bx.y ? vec2(sign(m.x), 0.) : vec2(0., sign(m.y));
+  float lit = dot(gm, L) * tray / .017;
+  vec3 lac = vec3(.14, .085, .065) * (1. + .7 * lit + .3 * noise(m * 90.)) + .22 * smoothstep(.35, .8, lit) * vec3(.9, .9, 1.);
+  col = mix(col, lac * light, rim);
+  col *= mix(vec3(.84, .92, 1.07), vec3(1.05, 1., .93), smoothstep(.5, 1.05, light));
+  // the smoke, and its shadow lying away from the window
+  vec2 e = etScreen(ev, turn, zoom), far = vec2(0.);
+  for (int i = -2; i <= 2; i++) far += etScreen(etPlace(uLoop * 80. + 3. * float(i) + 80.), turn, zoom) * .2;
+  vec2 sh = p - e; float along = dot(sh, vec2(.848, -.53)), off = dot(sh, vec2(.53, .848));
+  float soft = .006 + .05 * along;
+  if (along > 0.) col *= 1. - .1 * etBell(off / soft) * exp(-along * 5.) * smoothstep(0., .03, along);
+  col = mix(col, vec3(.43, .475, .54), sat(etSmoke(p - e, far.x - e.x)));
+  // a hit lets a flake of ash fall; keys throw sparks
+  float fall = 1. - uHits;
+  vec2 fl = p - e - vec2(.02 + .05 * fall, -.012 - .06 * fall * fall);
+  fl.y *= 1.7;
+  col = mix(col, vec3(.36, .34, .33), etOff(.0055, .0075, length(fl) + .003 * noise(fl * 300.)) * smoothstep(0., .2, uHits) * smoothstep(0., .15, fall));
+  if (uKeys > .01) for (int i = 0; i < 5; i++) {
+    float f = float(i), age = fract(uTime * .9 + f * .2), way = f * 2.4 + .7;
+    vec2 at = e + vec2(cos(way), sin(way) * .7 + .5) * (.01 + .07 * age);
+    float spark = etOff(.0012, .0032, length(p - at)) * uKeys * (1. - age);
+    col = mix(col, vec3(1., .5, .12), sat(spark * 1.4));
+  }
+  return col;
+}
+// A coil hung by its tip, seen from below; q from the middle of its foot.
+const float etTall = .6, etTurns = 8.;
+vec4 etSide(vec3 at, vec3 rd, float aa, float burnt, vec3 stuff, float thick, float glow, float flush, vec2 keep) {
+  float ang = atan(at.z, at.x + 1e-5) / TAU, u = at.y / etTall * etTurns + ang, n = floor(u), f = u - n - .5;
+  float place = n + .5 - ang, r = max(1. - at.y / etTall, .02);
+  vec3 nor = vec3(at.x / r * etTall, 1., at.z / r * etTall) * .8575;
+  float look = dot(nor, rd), facing = abs(look), pitch = 1.166 / etTurns;
+  float along = (place - burnt) * TAU * r; // under 0 is ash
+  float ash = etOff(-.03, .03, along) * keep.y;
+  float w = .14 + .05 * thick;
+  float a = aa / (pitch * max(facing, .05)), far = smoothstep(.2, .55, a);
+  if ((far <= 0. && abs(f) > .1 + 2. * w) || place < .34 || place > etTurns - .3) return vec4(0.);
+  float wob = noise(vec2(place * 150., f * 12. + n * 5.));
+  w += ash * (.015 + .1 * uTexture) * (wob - .5);
+  float hw = w / max(facing, .5);
+  float cover = mix(etOff(hw - a, hw + a, abs(f)), min(2. * hw, 1.), far);
+  cover *= smoothstep(.35, .357, place);
+  cover *= sat(facing / (6. * aa));
+  float x = clamp(f / hw, -1., 1.) * sign(-look) * (1. - far);
+  float lit = .5 + .42 * x - .22 * x * x - .2 * at.x;
+  vec3 c = stuff * (.3 + .9 * lit) * (.85 + .3 * wob);
+  c = mix(c, vec3(.68, .665, .64) * (.75 + .35 * lit) * (.88 + .24 * wob), ash);
+  c = mix(c, vec3(.82, .2, .06), sat(flush * ash * (.2 + wob)));
+  c = mix(c, vec3(.1, .07, .06), etOff(.02, .14, abs(along)) * .8 * keep.x);
+  c = mix(c, vec3(.86, .09, .02) + vec3(.14, .42, .15) * glow * glow, sat(1.8 * exp(-along * along / (.0016 + aa * aa * 3.) - x * x * .7)) * sat(.75 + glow) * keep.x);
+  return vec4(c, cover);
+}
+vec4 etCoil(vec2 q, float ce, float se, float aa, float burnt, vec3 stuff, float thick, float glow, float flush, vec2 keep) {
+  float k2 = 1. / (etTall * etTall), y0 = etTall - q.y * ce;
+  float A = ce * ce - k2 * se * se, B = -q.y * se * ce + k2 * se * y0, C = q.x * q.x + q.y * q.y * se * se - k2 * y0 * y0;
+  if (abs(A) < .01) A = .01;
+  float disc = B * B - A * C;
+  vec4 sum = vec4(0.);
+  if (disc < 0.) return sum;
+  disc = sqrt(disc);
+  for (int i = 0; i < 2; i++) { // the near side, then what its gaps show of the far one
+    float t = -B / A + (i == 0 ? -disc : disc) / abs(A);
+    vec3 at = vec3(q.x, q.y * ce + t * se, t * ce - q.y * se);
+    if (at.y < -.08 || at.y > etTall) continue;
+    vec4 s = etSide(at, vec3(0., se, ce), aa, burnt, stuff, thick, glow, flush, keep);
+    sum += vec4(s.rgb, 1.) * s.a * (1. - sum.a);
+    if (sum.a > .98) break;
+  }
+  return sum;
+}
+vec3 etHall(vec2 p) {
+  float asp = uRes.x / uRes.y, narrow = min(1., asp / 1.5);
+  vec2 vp = vec2(-.32 * narrow, -.775), d = p - vp;
+  // the ceiling: boards and beams sinking into pale smoke, the far end full of daylight
+  float far = exp(-length((p - vec2(vp.x, -.5)) * vec2(.75, 1.)) * 2.1);
+  vec3 haze = mix(vec3(.43, .395, .35), vec3(.98, .925, .83), sat(far * (1.45 + .3 * uTone) + .02 + .05 * uLevel));
+  float Z = 1. / max(d.y, .08), X = d.x * Z;
+  float bx = abs(fract(X * 1.1 + .2) - .5), bz = abs(fract(Z * 1.9 + .3) - .5);
+  float aX = etPx * Z * 1.6, aZ = etPx * Z * Z * 2.8;
+  float beam = max(.75 * etOff(.07 - aX, .07 + aX, bx), etOff(.1 - aZ, .1 + aZ, bz));
+  vec3 wood = mix(vec3(.4, .35, .3), vec3(.15, .115, .095), beam);
+  vec3 col = mix(haze, wood, .85 * exp(-Z * .75));
+  float drift = uTime * .012, near = .3147, fall = 1. - uHits;
+  for (int j = 3; j >= 0; j--) {
+    float f = float(j), sc = near, foot = vp.y + sc;
+    near /= .655;
+    // smoke lying between the rows
+    float veil = j == 3 ? .5 : noise(vec2(p.x * 3.4 / (.4 + sc) - drift * (1. + sc) + f * 7., p.y * 6.5 + 1.1 * sin(p.x * 2.6 + f * 2. - drift) + f * 3. - drift));
+    col = mix(col, haze * 1.03, (.22 + .24 * uPad + .16 * uSpace) * smoothstep(.2, .9, veil) + .06);
+    float gx = d.x / sc + .5 * mod(f, 2.) + .02, id = floor(gx);
+    float h = hash21(vec2(id + 40., f + 3.)), h2 = hash21(vec2(id + 11., f + 23.));
+    float R = (.37 + .05 * h2) * sc;
+    vec2 q = (vec2(gx - id - .5 + .1 * (h - .5), (p.y - foot) / sc - .1 * (h2 - .5))) * sc / R;
+    if (abs(q.x) > 1.3 || q.y < -1. || q.y > 1.6) continue;
+    float own = uBands[int(h2 * 15.99)];
+    q.x -= (.006 + .006 * uLow) * sin(uTime * (.5 + .2 * h) + h * 20.) * (2. - q.y);
+    int kind = int(h * 4.999);
+    float lv = kind == 0 ? uDrone : kind == 1 ? uPad : kind == 2 ? uTexture : kind == 3 ? uPhrase : uHits;
+    float at = fract(uLoop + h2 + .17 * f), renew = smoothstep(0., .05, at) * etOff(.93, 1., at), burnt = .34 + 2.7 * at;
+    vec4 here = piece(vec2(fract((id + .5) * .19 + h * .1), .95 - .22 * f));
+    vec3 tint = here.rgb / max(max(here.r, max(here.g, here.b)), .05);
+    vec3 stuff = mix(vec3(.34, .21, .12), tint * tint * vec3(.46, .36, .3), .6 * sat(here.a * 2.));
+    float aa = etPx / R, ce = inversesqrt(1. + sc * sc), se = sc * ce;
+    float front = etBell((f - 5. * (1. - uCue)) / 1.1) * uCue, hit = j == 1 ? uHits : 0.;
+    float glow = renew * (.25 + .12 * sin(uTime * (.7 + h) + h2 * 30.) + (.4 + uEnergy) * (.8 * lv + .4 * uDrone) + front + hit);
+    float fade = 1. - exp(-sc * 3.), tip = etTall * ce;
+    float cord = etOff(.012 - aa, .012 + aa, abs(q.x)) * step(tip, q.y) * etOff(.8, 1.6, q.y);
+    col = mix(col, vec3(.12, .1, .09), cord * fade * .8);
+    vec4 c = q.y > .75 || abs(q.x) > 1.12 ? vec4(0.) : etCoil(q, ce, se, aa, burnt, stuff, sat(here.a * 1.6), sat(glow), front, vec2(renew, etOff(.86, 1., at)));
+    col = col * (1. - c.a) + mix(haze * c.a, c.rgb, fade);
+    // a paper slip on a thread from the tip
+    float sway = .05 * (.3 + 1.5 * own) * sin(uTime * .6 + h * 30.);
+    vec2 s = vec2(q.x - sway * (tip - q.y), q.y);
+    if (abs(s.x) < .1) {
+      float thread = etOff(.006 - aa, .006 + aa, abs(s.x)) * step(s.y, tip) * step(-.2 * ce, s.y);
+      float slip = etOff(-aa, aa, abs(s.x + .012 * sin(s.y * 7. + h * 9.)) - .058) * etOff(-aa, aa, abs(s.y + .42 * ce) - .24 * ce);
+      vec3 kc = uKind[kind]; kc /= max(max(kc.r, max(kc.g, kc.b)), .05);
+      vec3 paper = mix(vec3(.72, .16, .1), kc * vec3(.8, .62, .55), .45) * (.78 - .35 * s.y + 2.2 * s.x * sin(s.y * 5. + h * 9.) + .3 * lv + .3 * uKeys * step(.5, h2));
+      col = mix(col, vec3(.15), thread * .6 * fade);
+      col = mix(col, mix(haze, paper, fade), slip);
+    }
+    // the ember's own light and its thread of smoke
+    float te = -TAU * (burnt - .5), re = 1. - burnt / etTurns, ye = etTall * burnt / etTurns;
+    vec2 e = vec2(re * cos(te), ye * ce - re * sin(te) * se);
+    float ed = length(q - e);
+    if (ed < 1.2) col += col * vec3(.9, .16, 0.) * sat(glow) * fade * (.5 * exp(-ed * ed * 40.) + 1.1 * hit * exp(-ed * ed * 20.)) * etOff(1., 1.2, abs(q.x));
+    vec2 up = q - e, fl = up - vec2(.12, -.9 * fall) * fall;
+    if (j == 1) col = mix(col, vec3(.42, .4, .38), etOff(.022, .03, length(fl * vec2(1., 1.8))) * smoothstep(0., .2, uHits) * smoothstep(0., .15, fall));
+    if (j < 3 && up.y > 0. && up.y < 1.8 && abs(up.x - .06 * up.y) < .12 + .12 * up.y) {
+      float wind = .06 * up.y + up.y * (.025 + .05 * own + .07 * uPhrase) * sin(up.y * 7. - uTime * .8 + h * 20.) + up.y * .02 * sin(up.y * 15. - uTime * 1.1);
+      float wide = .008 + aa + (.018 + .05 * uPad + .03 * uMic) * up.y, off = (up.x - wind) / wide;
+      float wisp = exp(-off * off) * (.6 + .4 * sin(off * 2.5 + up.y * 9. - uTime * .5));
+      col = mix(col, haze * 1.15 + .08, sat(fade * renew * wisp * smoothstep(0., .05, up.y) * etOff(.2, 1.8, up.y) * etOff(.9, 1.6, q.y) * .8));
+    }
+  }
+  return col;
+}
+vec3 render(vec2 p) {
+  etPx = 1. / uRes.y;
+  return uVar < .5 ? etMaze(p) : etHall(p);
+}
