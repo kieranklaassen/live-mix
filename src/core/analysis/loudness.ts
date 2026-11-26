@@ -299,6 +299,9 @@ export function silentReading(): MeterReading {
   }
 }
 
+/** A filter's state under this is nothing: what it adds to a level, its square, is no number a double can hold. */
+const ASLEEP = 1e-170
+
 /**
  * Stereo BS.1770-4 analyser. Feed blocks with `process`, take snapshots with
  * `read` at UI rate. Fixed memory: gating uses a 0.01 LU histogram rather than
@@ -392,6 +395,16 @@ export class LoudnessAnalyzer {
         this.completeHop(hopSum / hopCount)
         hopSum = 0
         hopCount = 0
+        // Into silence the filters ring down towards nothing for good, and numbers that small take the machine ten
+        // times as long to add. Well before that their squares are nothing, and they are laid down to rest.
+        if (-ASLEEP < ls1 && ls1 < ASLEEP) ls1 = 0
+        if (-ASLEEP < ls2 && ls2 < ASLEEP) ls2 = 0
+        if (-ASLEEP < lh1 && lh1 < ASLEEP) lh1 = 0
+        if (-ASLEEP < lh2 && lh2 < ASLEEP) lh2 = 0
+        if (-ASLEEP < rs1 && rs1 < ASLEEP) rs1 = 0
+        if (-ASLEEP < rs2 && rs2 < ASLEEP) rs2 = 0
+        if (-ASLEEP < rh1 && rh1 < ASLEEP) rh1 = 0
+        if (-ASLEEP < rh2 && rh2 < ASLEEP) rh2 = 0
       }
     }
 

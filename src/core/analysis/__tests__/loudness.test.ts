@@ -276,9 +276,7 @@ describe('LoudnessAnalyzer', () => {
     },
   )
 
-  it('weights each channel by the two filters in turn, to the last bit', () => {
-    const left = wandering(4800 * 5, 3)
-    const right = wandering(4800 * 5, 11)
+  const toTheLastBit = (hops: number, left: Float32Array, right: Float32Array) => {
     const analyzer = new LoudnessAnalyzer(48000)
     const { shelf, highpass } = kWeightingCoefficients(48000)
     const filters = [left, right].map((samples) => ({
@@ -287,7 +285,7 @@ describe('LoudnessAnalyzer', () => {
       highpass: new Biquad(highpass),
     }))
     const squares: number[] = []
-    for (let hop = 0; hop < 5; hop += 1) {
+    for (let hop = 0; hop < hops; hop += 1) {
       let sum = 0
       for (let i = hop * 4800; i < (hop + 1) * 4800; i += 1) {
         const [l, r] = filters.map((f) => f.highpass.process(f.shelf.process(f.samples[i])))
@@ -302,5 +300,17 @@ describe('LoudnessAnalyzer', () => {
     expect(analyzer.momentary).toBe(
       loudnessFromMeanSquare(last.reduce((sum, square) => sum + square, 0) / 4),
     )
+  }
+
+  it('weights each channel by the two filters in turn, to the last bit', () => {
+    toTheLastBit(5, wandering(4800 * 5, 3), wandering(4800 * 5, 11))
+  })
+
+  it('reads a sound after a long silence as if its filters had rung on', () => {
+    // Twenty seconds: past where the filters' state is too small to count and is let go.
+    const [left, right] = [wandering(4800 * 200, 3), wandering(4800 * 200, 11)]
+    left.fill(0, 4800 * 3 + 100, 4800 * 197 + 50)
+    right.fill(0, 4800 * 3 + 100, 4800 * 197 + 50)
+    toTheLastBit(200, left, right)
   })
 })

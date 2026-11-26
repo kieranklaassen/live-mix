@@ -17,6 +17,7 @@ import {
   measureAudio,
   soundPrint,
   toDb,
+  type AudioMeasurement,
   type SoundPrint,
 } from '../../__tests__/render-support'
 import { isWasmDescriptor } from '../../descriptor'
@@ -176,6 +177,7 @@ describe('preset previews', () => {
 
 describe('effect chains', () => {
   let dry: PlanarAudio
+  let before: AudioMeasurement
 
   it('renders the dry phrase they are measured on', async () => {
     dry = await renderPatch(CHAIN_TEST_PATCH, {
@@ -183,6 +185,7 @@ describe('effect chains', () => {
       phrase: CHAIN_TEST_PHRASE,
       durationSec: 10,
     })
+    before = measureAudio(dry)
     expect(peakOf(dry.channels)).toBeGreaterThan(0.01)
   })
 
@@ -194,7 +197,6 @@ describe('effect chains', () => {
       expect(chain.effects.length).toBeLessThanOrEqual(5)
 
       const wet = await renderPatch(chain, { ...node, input: dry, durationSec: 10 })
-      const before = measureAudio(dry)
       const after = measureAudio(wet)
       expect(chainProblems(chain.id, after, before), JSON.stringify(after)).toEqual([])
       // The shipped exception to the level is still held to the limit the bank began with.

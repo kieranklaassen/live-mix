@@ -50,6 +50,22 @@ export interface AudioMeasurement {
   dc: number
 }
 
+/** The cosines and the sines a transform of each size turns by, worked out once. */
+const turns = new Map<number, { cos: Float64Array; sin: Float64Array }>()
+
+function turnsOf(size: number): { cos: Float64Array; sin: Float64Array } {
+  let known = turns.get(size)
+  if (!known) {
+    const angle = (-2 * Math.PI) / size
+    known = {
+      cos: Float64Array.from({ length: size / 2 }, (_, k) => Math.cos(angle * k)),
+      sin: Float64Array.from({ length: size / 2 }, (_, k) => Math.sin(angle * k)),
+    }
+    turns.set(size, known)
+  }
+  return known
+}
+
 export function fft(re: Float64Array, im: Float64Array): void {
   const n = re.length
   for (let i = 1, j = 0; i < n; i += 1) {
@@ -62,11 +78,11 @@ export function fft(re: Float64Array, im: Float64Array): void {
     }
   }
   for (let size = 2; size <= n; size <<= 1) {
-    const angle = (-2 * Math.PI) / size
+    const { cos: coses, sin: sines } = turnsOf(size)
     for (let start = 0; start < n; start += size) {
       for (let k = 0; k < size / 2; k += 1) {
-        const cos = Math.cos(angle * k)
-        const sin = Math.sin(angle * k)
+        const cos = coses[k]
+        const sin = sines[k]
         const a = start + k
         const b = a + size / 2
         const tr = re[b] * cos - im[b] * sin
