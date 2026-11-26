@@ -1,4 +1,5 @@
 #include "StereoWidener.h"
+#include "../../common/dsp_util.h"
 #include <algorithm>
 
 void StereoWidener::prepare(double sr) {
@@ -91,8 +92,8 @@ void StereoWidener::updateParameters() {
 
 void StereoWidener::process(float& left, float& right) {
     // 1. Split into bass (to keep narrow) and everything else
-    float bassL = bassLpStateL = bassLpCoeff * bassLpStateL + (1.0f - bassLpCoeff) * left;
-    float bassR = bassLpStateR = bassLpCoeff * bassLpStateR + (1.0f - bassLpCoeff) * right;
+    float bassL = bassLpStateL = livemix::settle_to_zero(bassLpCoeff * bassLpStateL + (1.0f - bassLpCoeff) * left);
+    float bassR = bassLpStateR = livemix::settle_to_zero(bassLpCoeff * bassLpStateR + (1.0f - bassLpCoeff) * right);
     float highL = left - bassL;
     float highR = right - bassR;
 

@@ -91,6 +91,8 @@ The rules every device keeps (the conformance pass checks most of them):
 5. **Consume the input**: `take_input` per sample, or `clear_input(frames)` for an instrument.
 6. **Sleep when idle** with `kit::IdleGate`: exact zero out once nothing excites the device and its tail is below -140 dBFS. The hold must be longer than the longest silent gap the device can produce (its longest delay).
 7. **Flush denormals in every feedback path** (`flush_denormal`); the kit's filters and allpasses already do.
+   An envelope of your own that only multiplies itself down (`level *= decay`) needs it as well, held notes
+   too: it never reaches zero by itself. `settle_to_zero` does it far under what a sum can feel.
 8. **Stay bounded.** Any parameter combination with full-scale input (or 96 stacked notes) stays finite and under the harness's `max_peak`. Feedback above unity needs a saturator in the loop. Instruments end in `kit::soft_clip`.
 9. **Levels.** Effects are unity gain for the dry path and do not get louder than their input by more than a few dB at defaults. One instrument note at gain 0.7 peaks between -24 and -10 dBFS at the default volume; ten held notes stay under the clip knee.
 10. **Bad input is survivable**: NaN, infinite and out-of-range parameter values (`store_param` clamps), unknown ids, NaN or absurd note frequencies and gains (ignore or clamp), `note_off` for notes that are not playing.

@@ -262,6 +262,8 @@ void FeltPianoDevice::process(int frames) {
 
     // Sympathetic resonance: strictly additive (resonance = 0 is bit-transparent).
     sympathetic_.processAdd(mono, l, r);
+    l = flush_denormal(l);
+    r = flush_denormal(r);
 
     // Grit: rational-tanh drive with makeup, plus a close-mic noise floor
     // gated by bus energy so idle stays digitally silent.
@@ -269,7 +271,7 @@ void FeltPianoDevice::process(int frames) {
     if (g > 0.0005f) {
       grit_env_ = flush_denormal(std::max(std::fabs(mono), grit_env_ * grit_env_decay_));
       grit_noise_lp_ = flush_denormal(grit_noise_lp_ + grit_noise_coeff_ * (grit_rng_.nextBipolar() - grit_noise_lp_));
-      const float floor_noise = grit_noise_lp_ * g * g * grit_env_ * 0.012f;
+      const float floor_noise = flush_denormal(grit_noise_lp_ * g * g * grit_env_ * 0.012f);
       const float drive = 1.0f + 3.0f * g;
       const float inv = (1.0f + 0.4f * g) / drive;
       const float wl = FeltMath::rationalTanh((l + floor_noise) * drive) * inv;

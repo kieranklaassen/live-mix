@@ -553,6 +553,9 @@ class BowedString : public kit::DeviceBase<bowed_string::kNumParams> {
   // the next 16 samples (as ramps, so nothing steps).
   void steer(Voice& voice, String& string) {
     const float inv = 1.0f / kChunk;
+    // What the ramps leave of a drive that has gone.
+    string.push = settle_to_zero(string.push);
+    string.partial = settle_to_zero(string.partial);
     // The triangle that just closed, through the four poles.
     float re = string.sum[0] * inv, im = string.sum[1] * inv;
     string.sum[0] = string.sum[2];
@@ -751,7 +754,7 @@ class BowedString : public kit::DeviceBase<bowed_string::kNumParams> {
       voice.table_mix = kit::min(1.0f, voice.table_mix + mix_step_);
       mix[i] = voice.table_mix;
       env[i] = voice.env.next();
-      if (voice.released) voice.bow_on *= lift_coeff_;
+      if (voice.released) voice.bow_on = settle_to_zero(voice.bow_on * lift_coeff_);
       touch[i] = voice.bow_on;
       if (voice.pending) voice.steal = kit::max(0.0f, voice.steal - steal_step_);
       fade[i] = voice.steal;

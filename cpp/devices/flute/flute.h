@@ -420,7 +420,7 @@ class Flute : public kit::DeviceBase<flute::kNumParams> {
       voice.speech = flush_denormal(voice.speech + (pressure - voice.speech) * voice.speech_coeff);
       voice.chiff *= voice.chiff_coeff;
       if (voice.chiff < 1.0e-4f) voice.chiff = 0.0f;
-      voice.scoop *= voice.scoop_coeff;
+      voice.scoop = settle_to_zero(voice.scoop * voice.scoop_coeff);
 
       const float cents = voice.scoop + type.vibrato_cents * wobble +
                           kPitchPerPressure * (pressure - kReferencePressure) +

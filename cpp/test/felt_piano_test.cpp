@@ -14,6 +14,10 @@
 #include <cstdio>
 #include <vector>
 
+#if defined(__SSE__)
+#include <xmmintrin.h>
+#endif
+
 #include "../devices/felt-piano/felt_piano_device.h"
 
 namespace {
@@ -445,6 +449,29 @@ void test_idle_flush_reaches_exact_zero() {
   EXPECT(device.idle() && render(device, 0.5f, kSampleRate) == 0.0f, "pedal noise rings out to exact zero");
 }
 
+// WASM has no flush-to-zero, and a number too small to be whole costs ten to
+// a hundred times as much to work with. The processor says when it met one.
+void test_rings_out_without_denormals() {
+#if defined(__SSE__)
+  FeltPianoDevice& device = g_test_device;
+  device.init(kSampleRate);
+  for (int key = 0; key < 8; ++key) device.note_on(key, note_hz(45 + 3 * key), 0.7f);
+  render(device, 2.0f, kSampleRate);
+  for (int key = 0; key < 8; ++key) device.note_off(key);
+  int blocks = 0;
+  int slowed = 0;
+  for (; blocks < 8000 && !device.idle(); ++blocks) {
+    _mm_setcsr(_mm_getcsr() & ~0x3fu);
+    device.process(kBlock);
+    if ((_mm_getcsr() & 0x2u) != 0) ++slowed;
+  }
+  _mm_setcsr(_mm_getcsr() & ~0x3fu);
+  EXPECT(device.idle(), "the last notes ring out");
+  std::printf("felt-piano: %d of %d blocks met a denormal on the way out\n", slowed, blocks);
+  EXPECT(slowed * 5 < blocks, "and hardly a block of it on denormals");
+#endif
+}
+
 void test_idle_only_clears_and_wakes_where_it_was() {
   // Two devices play the same notes and flush. One hears the next note at
   // once; the other after ten more seconds idle, where process() only clears
@@ -548,6 +575,7 @@ int main() {
   test_same_note_retrigger_and_stealing();
   test_output_gain_width_and_room();
   test_idle_flush_reaches_exact_zero();
+  test_rings_out_without_denormals();
   test_idle_only_clears_and_wakes_where_it_was();
   test_sample_rate_independence();
   report_cpu_cost();

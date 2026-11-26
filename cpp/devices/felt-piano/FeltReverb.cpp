@@ -1,4 +1,5 @@
 #include "FeltReverb.h"
+#include "../../common/dsp_util.h"
 #include <cmath>
 
 void FeltReverb::prepare(double sampleRate)
@@ -66,7 +67,7 @@ float FeltReverb::processAllpass(float input, float* buffer, int bufferSize,
         readIdx += bufferSize;
     const float delayed = buffer[readIdx];
     const float output = -coeff * input + delayed;
-    buffer[writeIdx] = input + coeff * delayed;
+    buffer[writeIdx] = livemix::flush_denormal(input + coeff * delayed);
     if (++writeIdx >= bufferSize)
         writeIdx = 0;
     return output;
@@ -85,7 +86,7 @@ float FeltReverb::readDelayInterpolated(int channel, float delaySamples) noexcep
 
     // Thiran first-order allpass interpolation — avoids chorusing artifacts.
     const float coeff = (1.0f - frac) / (1.0f + frac);
-    const float output = y1 + coeff * (y0 - interpState[channel]);
+    const float output = livemix::flush_denormal(y1 + coeff * (y0 - interpState[channel]));
     interpState[channel] = output;
     return output;
 }
@@ -152,10 +153,10 @@ void FeltReverb::processSample(float& left, float& right, float mix) noexcept
     {
         float fb = diffused + mixed[ch] * feedbackGain;
 
-        lpState[ch] = (1.0f - lpCoeff) * fb + lpCoeff * lpState[ch];
+        lpState[ch] = livemix::flush_denormal((1.0f - lpCoeff) * fb + lpCoeff * lpState[ch]);
         fb = lpState[ch];
 
-        const float dcBlocked = fb - dcX1[ch] + dcR * dcY1[ch];
+        const float dcBlocked = livemix::flush_denormal(fb - dcX1[ch] + dcR * dcY1[ch]);
         dcX1[ch] = fb;
         dcY1[ch] = dcBlocked;
 

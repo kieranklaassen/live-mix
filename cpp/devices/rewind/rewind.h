@@ -791,8 +791,8 @@ class Rewind : public kit::DeviceBase<rewind::kNumParams> {
     // The strike's own surge and the hammer, both set from the time left.
     float burst = 0.0f;
     if (regime == kAfter) {
-      voice.prompt *= prompt_fall_;
-      voice.burst_shape *= burst_fall_;
+      voice.prompt = settle_to_zero(voice.prompt * prompt_fall_);
+      voice.burst_shape = settle_to_zero(voice.burst_shape * burst_fall_);
       if (voice.burst_shape < 1.0e-7f) voice.burst_shape = 0.0f;
     } else if (voice.ticks_left >= 0) {
       voice.prompt = voice.ticks_left <= prompt_ticks_

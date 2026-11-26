@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include "../../common/dsp_util.h"
 #include "FeltMath.h"
 
 // Global bus-level sympathetic resonance: a fixed bank of Karplus-Strong
@@ -61,19 +62,22 @@ public:
             const float y1 = s.buffer[readIndexM1];
 
             // Thiran first-order allpass interpolation (sub-sample tuning).
-            const float interpolated = s.allpassCoeff * y0 + y1 - s.allpassCoeff * s.allpassState;
+            // What rings down is let go long before it is too small for the
+            // machine to be quick with (WASM has no flush-to-zero).
+            const float interpolated =
+                livemix::flush_denormal(s.allpassCoeff * y0 + y1 - s.allpassCoeff * s.allpassState);
             s.allpassState = interpolated;
 
             // In-loop one-pole damping (coefficient SR-derived in prepare —
             // a fixed per-sample constant would double the cutoff at 96 kHz).
-            s.dampState = dampCoeff * interpolated + (1.0f - dampCoeff) * s.dampState;
+            s.dampState = livemix::flush_denormal(dampCoeff * interpolated + (1.0f - dampCoeff) * s.dampState);
 
             // Feedback with rational-tanh safety clip (bounded loop energy).
             float fb = drive + s.dampState * s.feedback;
             fb = FeltMath::rationalTanh(fb);
 
             // DC blocker.
-            const float dcBlocked = fb - s.dcX1 + 0.995f * s.dcY1;
+            const float dcBlocked = livemix::flush_denormal(fb - s.dcX1 + 0.995f * s.dcY1);
             s.dcX1 = fb;
             s.dcY1 = dcBlocked;
 

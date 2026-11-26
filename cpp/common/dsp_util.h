@@ -10,6 +10,10 @@ inline float flush_denormal(float x) {
   return (x > -kDenormalThreshold && x < kDenormalThreshold) ? 0.0f : x;
 }
 
+// The same for what only dies away: a level no sum can feel long before it is
+// this small, let go before it is too small for the machine to be quick with.
+inline float settle_to_zero(float x) { return (x > -1.0e-30f && x < 1.0e-30f) ? 0.0f : x; }
+
 inline float clamp01(float x) {
   if (x < 0.0f) return 0.0f;
   if (x > 1.0f) return 1.0f;

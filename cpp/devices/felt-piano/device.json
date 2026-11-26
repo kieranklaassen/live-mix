@@ -41,7 +41,10 @@
       {
         "path": "Felt/Source/SympatheticBank.h",
         "copiedTo": "SympatheticBank.h",
-        "sha256": "099c65d78178eaaff9efe77e9882de565e1e97a2762a5a30b1338331fe6ae3c4"
+        "sha256": "099c65d78178eaaff9efe77e9882de565e1e97a2762a5a30b1338331fe6ae3c4",
+        "deviations": [
+          "what rings down is let go under 1e-15 (flush_denormal), as WASM has no flush-to-zero: for two seconds after the last note the twelve strings ran on denormals, at ten times the cost"
+        ]
       },
       {
         "path": "Felt/Source/SympatheticBank.cpp",
@@ -56,7 +59,10 @@
       {
         "path": "Felt/Source/FeltReverb.cpp",
         "copiedTo": "FeltReverb.cpp",
-        "sha256": "0f1a06a91570e71445a9675ca79d61fde2b6b9eb3fdeaf02ca786ac3eef8b3ad"
+        "sha256": "0f1a06a91570e71445a9675ca79d61fde2b6b9eb3fdeaf02ca786ac3eef8b3ad",
+        "deviations": [
+          "the input allpasses, the delay reads, the damping and the DC blockers let what rings down go under 1e-15 (flush_denormal), as WASM has no flush-to-zero"
+        ]
       },
       {
         "path": "Felt/Source/StereoWidener.h",
