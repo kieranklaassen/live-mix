@@ -133,6 +133,17 @@ rings out and is then taken down, so nothing is cut off and nothing clicks.
 a test needs. An offline engine takes the same options, so a render is in
 the same room.
 
+With `spaceKernel` an engine convolves its rooms itself, in WebAssembly on
+the audio thread (`SpaceKernel`), in place of a `ConvolverNode` each. The
+node's cost grows with the length of the impulse: a room of five seconds in
+stereo took 280 µs of a 2.9 ms block in Chromium 141 on Linux, and the
+kernel's 15 to 20 µs, with what the two put out 130 dB apart. The impulse is
+cut into parts of 128, 1,024 and 8,192 samples, so a room is as immediate as
+the node's, and the rooms of one impulse share its spectra. A room that has
+rung out leaves the graph until something is sent into it. It takes a
+live context on a page that is cross-origin isolated; a render and any other
+page have the node. Safari and Firefox have not been tried.
+
 A change to a placed clip's `pan`, `lowpassHz`, `spaceDb` or
 `gainDb` is heard while the clip sounds (`AudioTrack.place`): the level and
 the send glide there in 40 ms, the pan and the low-pass approach. A clip

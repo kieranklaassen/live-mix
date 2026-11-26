@@ -6,7 +6,8 @@
 //                                                                    ▲
 //                                                         two slow sines move its time
 //
-// A clean, still room is the convolver alone. A room can be changed while it
+// A clean, still room is the convolver alone: the browser's own node, or the
+// engine's kernel where it has one (`SpaceKernel.ts`). A room can be changed while it
 // sounds (`set`). When only how hard it is driven or how far it drifts
 // changed, the nodes that are there take the new values. Otherwise a second
 // set of nodes is made: the sends move over to it at once, and what was
@@ -27,6 +28,7 @@
 // room has been tilted.
 
 import { ParamGlide } from '../automation/scheduled-param'
+import type { RoomConvolver } from './SpaceKernel'
 import { spaceDrift, spaceDriveCurve, spaceDriveGains, type SpaceColour } from './space'
 
 /** A room as a track plays it: the impulse and what is done on the way through. */
@@ -52,7 +54,11 @@ interface RoomNodes {
   entry: AudioNode
   /** What feeds the strip. */
   exit: AudioNode
-  convolver: ConvolverNode
+  convolver: RoomConvolver
+  /** The browser's own node, where that is what convolves. */
+  native: ConvolverNode | null
+  /** How long what was sent goes on coming back, in seconds. */
+  tailSec: number
   drive: { into: GainNode; shaper: WaveShaperNode; outOf: GainNode } | null
   drift: { delay: DelayNode; oscillators: OscillatorNode[]; depths: GainNode[] } | null
   /** The gains either side of the convolver once the room has been tilted: `post` is k, `pre` 1/k. */
@@ -71,9 +77,30 @@ export interface SpaceRoomHost {
   connect(node: AudioNode): void
   /** Takes a node the room has disconnected out of the strip's bookkeeping. */
   forget(node: AudioNode): void
+  /**
+   * What the room convolves with in place of the browser's own node
+   * (`SpaceKernel.make`), read each time it is made anew. Null for an impulse
+   * it does not take, and while there is none.
+   */
+  convolver?: (impulse: AudioBuffer) => RoomConvolver | null
+  /** True when `convolver` would answer with one: a room on the browser's node is then made anew when it is next set. */
+  convolverReady?: () => boolean
   /** Timers for taking an old room down; the page's by default. */
   setTimeoutFn?: (callback: () => void, ms: number) => unknown
   clearTimeoutFn?: (handle: unknown) => void
+}
+
+/** The browser's own convolution with an impulse. */
+function nativeConvolver(
+  ctx: BaseAudioContext,
+  impulse: AudioBuffer,
+): Pick<RoomNodes, 'convolver' | 'native'> {
+  const native = ctx.createConvolver()
+  // The impulse carries its own level; the node's scaling would undo it.
+  native.normalize = false
+  native.buffer = impulse
+  const dispose = (): void => native.disconnect()
+  return { convolver: { input: native, output: native, dispose }, native }
 }
 
 export class SpaceRoom {
@@ -85,6 +112,9 @@ export class SpaceRoom {
   private readonly clearTimeoutFn: (handle: unknown) => void
   // One table for every saturator this room ever makes.
   private curve: Float32Array<ArrayBuffer> | null = null
+  // True while nothing sends into it, with the timer that then has it rest once its tail is over.
+  private idle = false
+  private resting: unknown = null
   // True once the nodes in use have been left to ring out, or taken down.
   private left = false
 
@@ -105,9 +135,50 @@ export class SpaceRoom {
     return this.nodes.entry
   }
 
-  /** The convolver the room is: what was sent comes back from here. */
-  get convolver(): ConvolverNode {
-    return this.nodes.convolver
+  /** The browser's convolver, where that is what the room is; null where it convolves in the engine's kernel. */
+  get convolver(): ConvolverNode | null {
+    return this.nodes.native
+  }
+
+  /** How long what was sent in goes on coming back, in seconds. */
+  get tailSec(): number {
+    return this.nodes.tailSec
+  }
+
+  /** A send is about to connect to `entry`. */
+  wake(): void {
+    this.idle = false
+    this.stopWaiting()
+    this.nodes.convolver.wake?.()
+  }
+
+  /**
+   * No send is connected any more. Once the room has rung out, a convolver
+   * that knows how to rests until `wake`, and with it all that comes after.
+   */
+  rest(): void {
+    if (this.left) return
+    this.idle = true
+    this.waitToRest()
+  }
+
+  private waitToRest(): void {
+    this.stopWaiting()
+    const { convolver, tailSec } = this.nodes
+    if (!convolver.rest) return
+    this.resting = this.setTimeoutFn(
+      () => {
+        this.resting = null
+        // The clock of a context that fell behind runs late: what still rings is asked again.
+        if (convolver.rest?.() === false) this.waitToRest()
+      },
+      (tailSec + SPACE_RETIRE_MARGIN_SECONDS) * 1000,
+    )
+  }
+
+  private stopWaiting(): void {
+    if (this.resting !== null) this.clearTimeoutFn(this.resting)
+    this.resting = null
   }
 
   /**
@@ -121,6 +192,7 @@ export class SpaceRoom {
     const nodes = this.nodes
     const sameShape =
       settings.impulse === before.impulse &&
+      !(nodes.native !== null && this.host.convolverReady?.() === true) &&
       settings.driveDb > 0 === (nodes.drive !== null) &&
       settings.driftCents > 0 === (nodes.drift !== null)
     if (sameShape) {
@@ -129,6 +201,7 @@ export class SpaceRoom {
     }
     this.nodes = this.build(settings)
     this.retire(nodes)
+    if (this.idle) this.waitToRest()
     return nodes.entry
   }
 
@@ -178,6 +251,7 @@ export class SpaceRoom {
   leave(): void {
     if (this.left) return
     this.left = true
+    this.stopWaiting()
     this.retire(this.nodes)
   }
 
@@ -187,19 +261,22 @@ export class SpaceRoom {
       this.takeDown(nodes)
     }
     this.retired.clear()
+    this.stopWaiting()
     if (!this.left) this.takeDown(this.nodes)
     this.left = true
   }
 
   private build(settings: SpaceRoomSettings): RoomNodes {
-    const convolver = this.ctx.createConvolver()
-    // The impulse carries its own level; the node's scaling would undo it.
-    convolver.normalize = false
-    convolver.buffer = settings.impulse
+    const given = this.host.convolver?.(settings.impulse) ?? null
+    const { convolver, native } = given
+      ? { convolver: given, native: null }
+      : nativeConvolver(this.ctx, settings.impulse)
     const nodes: RoomNodes = {
-      entry: convolver,
-      exit: convolver,
+      entry: convolver.input,
+      exit: convolver.output,
       convolver,
+      native,
+      tailSec: settings.impulse.duration,
       drive: null,
       drift: null,
       tilt: null,
@@ -217,7 +294,7 @@ export class SpaceRoom {
       outOf.gain.value = gains.outOf
       into.connect(shaper)
       shaper.connect(outOf)
-      outOf.connect(convolver)
+      outOf.connect(convolver.input)
       nodes.entry = into
       nodes.drive = { into, shaper, outOf }
     }
@@ -239,7 +316,7 @@ export class SpaceRoom {
         oscillators.push(oscillator)
         depths.push(depth)
       })
-      convolver.connect(delay)
+      convolver.output.connect(delay)
       nodes.exit = delay
       nodes.drift = { delay, oscillators, depths }
     }
@@ -263,7 +340,7 @@ export class SpaceRoom {
     nodes.exit = post
     // Ahead of the convolver and after the saturator, which is not linear.
     const before = nodes.entry
-    pre.connect(nodes.convolver)
+    pre.connect(nodes.convolver.input)
     if (nodes.drive) {
       nodes.drive.outOf.disconnect()
       nodes.drive.outOf.connect(pre)
@@ -313,7 +390,7 @@ export class SpaceRoom {
       this.retired.set(nodes, null)
       return
     }
-    const tailSec = (nodes.convolver.buffer?.duration ?? 0) + SPACE_RETIRE_MARGIN_SECONDS
+    const tailSec = nodes.tailSec + SPACE_RETIRE_MARGIN_SECONDS
     const timer = this.setTimeoutFn(() => {
       this.retired.delete(nodes)
       this.takeDown(nodes)
@@ -326,7 +403,7 @@ export class SpaceRoom {
       nodes.drive?.into.disconnect()
       nodes.drive?.shaper.disconnect()
       nodes.drive?.outOf.disconnect()
-      nodes.convolver.disconnect()
+      nodes.convolver.dispose()
       for (const oscillator of nodes.drift?.oscillators ?? []) {
         oscillator.stop()
         oscillator.disconnect()

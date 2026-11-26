@@ -203,3 +203,127 @@ describe('SpaceRoom.tilt', () => {
     expect(connected.size).toBe(0)
   })
 })
+
+describe('SpaceRoom on a convolver that was handed to it', () => {
+  function handed(colour: Partial<SpaceRoomSettings> = {}) {
+    const ctx = createMockContext({ sampleRate: 48000 })
+    const strip = ctx.createGain()
+    const timers = new Map<number, { callback: () => void; ms: number }>()
+    let handle = 0
+    const build = () => {
+      const input = ctx.createGain()
+      const output = ctx.createGain()
+      const convolver = {
+        input: input as unknown as AudioNode,
+        output: output as unknown as AudioNode,
+        rest: vi.fn(() => true),
+        wake: vi.fn(),
+        dispose: vi.fn(),
+      }
+      return { input, output, convolver }
+    }
+    const made: ReturnType<typeof build>[] = []
+    const settings: SpaceRoomSettings = {
+      impulse: ctx.createBuffer(2, 2 * 48000, 48000) as unknown as AudioBuffer,
+      driveDb: 0,
+      driftCents: 0,
+      driftHz: 0.1,
+      ...colour,
+    }
+    const room = new SpaceRoom(
+      asAudioContext(ctx),
+      {
+        connect: (node) => void node.connect(strip as unknown as AudioNode),
+        forget: () => undefined,
+        convolver: () => {
+          made.push(build())
+          return made[made.length - 1].convolver
+        },
+        setTimeoutFn: (callback, ms) => {
+          handle += 1
+          timers.set(handle, { callback, ms })
+          return handle
+        },
+        clearTimeoutFn: (which) => void timers.delete(which as number),
+      },
+      settings,
+    )
+    const due = (): void => {
+      for (const [which, { callback }] of [...timers]) {
+        timers.delete(which)
+        callback()
+      }
+    }
+    return { ctx, strip, room, made, settings, timers, due }
+  }
+
+  it('is that convolver between the sends and the strip', () => {
+    const { ctx, strip, room, made } = handed()
+    expect(ctx.convolvers).toHaveLength(0)
+    expect(room.convolver).toBeNull()
+    expect(room.tailSec).toBe(2)
+    expect(room.entry).toBe(made[0].input)
+    expect(made[0].output.isConnectedTo(strip)).toBe(true)
+  })
+
+  it('goes through the drift, and through the gains of a tilt', () => {
+    const { ctx, strip, room, made } = handed({ driftCents: 10, driveDb: 6 })
+    const [delay] = ctx.delays
+    expect(made[0].output.isConnectedTo(delay)).toBe(true)
+    expect(ctx.gains.some((gain) => gain.isConnectedTo(made[0].input))).toBe(true)
+    room.tilt(0.5, 1, 0.04)
+    expect(delay.isConnectedTo(strip)).toBe(false)
+    expect(delay.reaches(strip)).toBe(true)
+  })
+
+  it('rests once nothing sends into it and its tail is over', () => {
+    const { room, made, timers, due } = handed()
+    room.rest()
+    expect([...timers.values()].map(({ ms }) => ms)).toEqual([expect.any(Number)])
+    expect([...timers.values()][0].ms).toBeGreaterThan(2000)
+    expect(made[0].convolver.rest).not.toHaveBeenCalled()
+    due()
+    expect(made[0].convolver.rest).toHaveBeenCalledTimes(1)
+    expect(timers.size).toBe(0)
+    room.wake()
+    expect(made[0].convolver.wake).toHaveBeenCalledTimes(1)
+  })
+
+  it('waits again for one that still rings, and not for one that is sent to', () => {
+    const { room, made, timers, due } = handed()
+    made[0].convolver.rest.mockReturnValueOnce(false)
+    room.rest()
+    due()
+    expect(timers.size).toBe(1)
+    due()
+    expect(made[0].convolver.rest).toHaveBeenCalledTimes(2)
+    room.rest()
+    room.wake()
+    expect(timers.size).toBe(0)
+  })
+
+  it('has a room made anew while nothing sends into it rest as well', () => {
+    const { ctx, room, made, settings, due } = handed()
+    room.rest()
+    due()
+    room.set({ ...settings, impulse: ctx.createBuffer(2, 48000, 48000) as unknown as AudioBuffer })
+    due()
+    expect(made[1].convolver.rest).toHaveBeenCalledTimes(1)
+    expect(made[0].convolver.dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('waits for nothing once it is left or gone', () => {
+    const left = handed()
+    left.room.rest()
+    left.room.leave()
+    // What is left is the timer that takes it down.
+    expect(left.timers.size).toBe(1)
+    left.room.rest()
+    expect(left.timers.size).toBe(1)
+    const gone = handed()
+    gone.room.rest()
+    gone.room.dispose()
+    expect(gone.timers.size).toBe(0)
+    expect(gone.made[0].convolver.dispose).toHaveBeenCalledTimes(1)
+  })
+})

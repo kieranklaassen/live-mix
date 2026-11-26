@@ -27,6 +27,7 @@ import {
   trimGain,
 } from '../AudioTrack'
 import { SampleStore } from '../SampleStore'
+import { SpaceRoom } from '../SpaceRoom'
 import { spaceDrift, spaceDriveGains } from '../space'
 
 function setup(
@@ -2192,6 +2193,28 @@ describe('AudioTrack placed clips', () => {
     track.dispose()
     expect(ctx.convolvers[0].isConnectedTo(dest)).toBe(false)
     expect(track.space).toBeNull()
+  })
+
+  it('tells a room on a convolver of its own when nothing sends into it, and when something will', () => {
+    const rest = vi.spyOn(SpaceRoom.prototype, 'rest')
+    const wake = vi.spyOn(SpaceRoom.prototype, 'wake')
+    const { ctx, track } = setup()
+    const play = (key: string, spaceDb?: number) =>
+      track.play(key, { ...voice, buffer: buffer(ctx, 10), pan: 0, spaceDb }, 1)
+    play('a', 0)
+    play('b', -6)
+    play('dry')
+    expect(wake).toHaveBeenCalledTimes(1)
+    track.stop('dry')
+    track.stop('a')
+    expect(rest).not.toHaveBeenCalled()
+    track.stop('b')
+    expect(rest).toHaveBeenCalledTimes(1)
+    play('c', 0)
+    expect(wake).toHaveBeenCalledTimes(2)
+    rest.mockRestore()
+    wake.mockRestore()
+    track.dispose()
   })
 
   it('a driven, drifting room is a saturator ahead of the convolver and a moving delay after it', () => {

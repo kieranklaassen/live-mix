@@ -110,7 +110,7 @@ import { reversedBuffer } from './reversed-buffer'
 import { type SampleSource, type SampleStore } from './SampleStore'
 import { isObservableDevice } from '../devices/Device'
 import { SpaceFeed, stripOnlySetsLevel, type SharedSpaces } from './SharedSpace'
-import { SpaceRoom } from './SpaceRoom'
+import { SpaceRoom, type SpaceRoomHost } from './SpaceRoom'
 import { generateSpaceImpulse, spaceColour, type SpaceColour } from './space'
 
 // --- Constants shared with Breathwork Live (re-exported for its adapter) -----
@@ -567,6 +567,11 @@ export interface AudioTrackOptions {
    */
   spaceColour?: () => SpaceColour
   /**
+   * What the track's room convolves with in place of the browser's own node:
+   * the engine's kernel (`EngineOptions.spaceKernel`).
+   */
+  spaceConvolver?: Pick<SpaceRoomHost, 'convolver' | 'convolverReady'>
+  /**
    * An engine's shared rooms (`EngineOptions.sharedSpace`). With them the
    * track sends into the room of whatever it feeds for as long as its strip
    * only sets a level, and into a room of its own otherwise.
@@ -604,7 +609,10 @@ export class AudioTrack implements StripHost {
   private readonly voiceClips = new Map<string, string>()
   private readonly spaceImpulse: () => AudioBuffer
   private readonly spaceColour: () => SpaceColour
+  private readonly spaceConvolver: AudioTrackOptions['spaceConvolver']
   private room: SpaceRoom | null = null
+  // The sends that are connected to it: with none, it may rest.
+  private readonly sends = new Set<GainNode>()
   private readonly sharedSpaces: SharedSpaces | null
   private readonly joinClips: boolean
   // The track's way into a shared room, and what that room feeds; null while it has a room of its own, or none.
@@ -649,6 +657,7 @@ export class AudioTrack implements StripHost {
     this.resolveSource = options.resolveSource ?? null
     this.spaceImpulse = options.spaceImpulse ?? (() => generateSpaceImpulse(ctx))
     this.spaceColour = options.spaceColour ?? (() => spaceColour())
+    this.spaceConvolver = options.spaceConvolver
     this.sharedSpaces = options.sharedSpaces ?? null
     this.joinClips = options.joinClips ?? false
     this.clips = new ClipList(() => {
@@ -803,10 +812,19 @@ export class AudioTrack implements StripHost {
 
   /**
    * The convolver every placed clip's `spaceDb` sends into, ahead of the
-   * strip; null until a clip first sends there.
+   * strip; null until a clip first sends there, and where the engine's kernel
+   * convolves in its place (`EngineOptions.spaceKernel`).
    */
   get space(): ConvolverNode | null {
     return this.room?.convolver ?? this.feed?.nodes.room.convolver ?? null
+  }
+
+  /**
+   * How long what the track's clips send into their space goes on coming
+   * back, in seconds, whatever convolves it; 0 until a clip first sends there.
+   */
+  get spaceTailSec(): number {
+    return (this.room ?? this.feed?.nodes.room)?.tailSec ?? 0
   }
 
   /**
@@ -1670,6 +1688,7 @@ export class AudioTrack implements StripHost {
     placement.lowpass.connect(send)
     send.connect(this.ensureSpace())
     placement.send = send
+    this.sends.add(send)
     placement.sendGlide = new ParamGlide(send.gain, level)
     return send
   }
@@ -1681,7 +1700,10 @@ export class AudioTrack implements StripHost {
    */
   private ensureSpace(): AudioNode {
     if (this.feed) return this.feed.nodes.entry
-    if (this.room) return this.room.entry
+    if (this.room) {
+      this.room.wake()
+      return this.room.entry
+    }
     const spaces = this.sharedSpaces
     if (spaces) this.watchStrip()
     if (spaces && stripOnlySetsLevel(this.strip)) {
@@ -1701,6 +1723,7 @@ export class AudioTrack implements StripHost {
       {
         connect: (node) => this.strip.connectSource(node),
         forget: (node) => this.strip.forgetSource(node),
+        ...this.spaceConvolver,
       },
       { impulse: this.spaceImpulse(), ...this.spaceColour() },
     )
@@ -1877,7 +1900,9 @@ export class AudioTrack implements StripHost {
     if (placement) {
       placement.lowpass.disconnect()
       placement.panner.disconnect()
-      placement.send?.disconnect()
+      const { send } = placement
+      send?.disconnect()
+      if (send && this.sends.delete(send) && this.sends.size === 0) this.room?.rest()
     }
     this.strip.forgetSource(placement?.panner ?? voice.trim ?? voice.gain)
   }

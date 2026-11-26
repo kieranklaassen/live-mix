@@ -34,6 +34,7 @@ import {
   SPACE_COLOUR_RAMP_SECONDS,
   SPACE_RETIRE_MARGIN_SECONDS,
   SpaceRoom,
+  type SpaceRoomHost,
   type SpaceRoomSettings,
 } from './SpaceRoom'
 import { spaceDriveCurve, spaceDriveGains, type SpaceColour } from './space'
@@ -64,6 +65,9 @@ interface SharedRoom {
 export interface SharedSpacesOptions {
   /** The engine's room as it is now. */
   settings: () => SpaceRoomSettings
+  /** What the rooms convolve with in place of the browser's own node, when there is one (`SpaceRoomHost`). */
+  convolver?: SpaceRoomHost['convolver']
+  convolverReady?: SpaceRoomHost['convolverReady']
   /** Timers for taking an unused room down; the page's by default. */
   setTimeoutFn?: (callback: () => void, ms: number) => unknown
   clearTimeoutFn?: (handle: unknown) => void
@@ -80,7 +84,7 @@ export class SharedSpaces {
 
   constructor(
     private readonly ctx: BaseAudioContext,
-    options: SharedSpacesOptions,
+    private readonly options: SharedSpacesOptions,
   ) {
     this.settings = options.settings
     this.setTimeoutFn = options.setTimeoutFn ?? ((callback, ms) => setTimeout(callback, ms))
@@ -100,6 +104,8 @@ export class SharedSpaces {
         {
           connect: (node) => node.connect(destination),
           forget: () => undefined,
+          convolver: this.options.convolver,
+          convolverReady: this.options.convolverReady,
           setTimeoutFn: this.setTimeoutFn,
           clearTimeoutFn: this.clearTimeoutFn,
         },
@@ -126,7 +132,7 @@ export class SharedSpaces {
     shared.users = Math.max(0, shared.users - 1)
     if (shared.users > 0 || shared.leaving !== null) return
     if (typeof (this.ctx as Partial<OfflineAudioContext>).startRendering === 'function') return
-    const tailSec = (shared.room.convolver.buffer?.duration ?? 0) + SPACE_RETIRE_MARGIN_SECONDS
+    const tailSec = shared.room.tailSec + SPACE_RETIRE_MARGIN_SECONDS
     shared.leaving = this.setTimeoutFn(() => {
       if (this.rooms.get(destination) !== shared) return
       this.rooms.delete(destination)

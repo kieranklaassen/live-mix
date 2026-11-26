@@ -56,6 +56,8 @@ import {
   type SpaceOptions,
 } from './tracks/space'
 import { SharedSpaces } from './tracks/SharedSpace'
+import { SpaceKernel, type SpaceKernelOptions } from './tracks/SpaceKernel'
+import type { SpaceRoomHost } from './tracks/SpaceRoom'
 import { ElementTrack, type ElementTrackOptions } from './sources/ElementTrack'
 import { EngineStats, type EngineStatsOptions } from './stats'
 import { TempoMap } from './time/TempoMap'
@@ -102,6 +104,16 @@ export interface EngineOptions extends ClockOptions {
    * it. Default false: every track convolves for itself.
    */
   sharedSpace?: boolean
+  /**
+   * Convolve the rooms in the engine's own kernel on the audio thread instead
+   * of in a `ConvolverNode` each (`SpaceKernel`): the same sound, for a tenth
+   * of the time or less. It is loaded as the engine is made
+   * (`Engine.spaceKernelReady`); a room made before it is there is made anew
+   * once it is, and what rings in it rings out where it is. It takes a page
+   * that is cross-origin isolated and a live context: elsewhere, and where it
+   * does not load, the rooms stay the browser's. Default: the browser's.
+   */
+  spaceKernel?: boolean | SpaceKernelOptions
   /**
    * Every audio track joins clips of one sound that lie end to end, so a
    * clip cut in two sounds as it did whole (`AudioTrackOptions.joinClips`;
@@ -305,6 +317,13 @@ export class Engine {
   private spaceValue: Required<SpaceOptions>
   private spaceBuffer: AudioBuffer | null = null
   private readonly sharedSpaces: SharedSpaces | null
+  private spaceKernel: SpaceKernel | null = null
+  private readonly spaceConvolver: Pick<SpaceRoomHost, 'convolver' | 'convolverReady'> = {
+    convolver: (impulse) => this.spaceKernel?.make(impulse) ?? null,
+    convolverReady: () => this.spaceKernel !== null,
+  }
+  /** Settles once the rooms' kernel is in use, with whether it is (`EngineOptions.spaceKernel`). */
+  readonly spaceKernelReady: Promise<boolean>
   private readonly joinClips: boolean
   private disposed = false
   /** The pitch keeper of each audio track, once `preparePitch` made them. */
@@ -345,8 +364,12 @@ export class Engine {
     this.sharedSpaces = options.sharedSpace
       ? new SharedSpaces(options.context, {
           settings: () => ({ impulse: this.spaceImpulse(), ...this.spaceColour() }),
+          ...this.spaceConvolver,
         })
       : null
+    this.spaceKernelReady = options.spaceKernel
+      ? this.loadSpaceKernel(options.spaceKernel === true ? {} : options.spaceKernel)
+      : Promise.resolve(false)
     this.keepPitch = options.keepPitch ?? null
     // After the scheduler's own listener: the voices are retimed, then the keepers take the new rate.
     this.transport.onChange((change) => {
@@ -456,6 +479,21 @@ export class Engine {
     for (const track of this.trackMap.values()) track.refreshSpace()
   }
 
+  private async loadSpaceKernel(options: SpaceKernelOptions): Promise<boolean> {
+    const kernel = await SpaceKernel.create(this.context, options).catch(() => null)
+    if (!kernel) return false
+    if (this.disposed) {
+      kernel.dispose()
+      return false
+    }
+    this.spaceKernel = kernel
+    // An impulse is made when a clip first sends there, not for this.
+    if (this.spaceBuffer) kernel.prepare(this.spaceBuffer)
+    this.sharedSpaces?.refresh()
+    for (const track of this.trackMap.values()) track.refreshSpace()
+    return true
+  }
+
   /** Create a clip track feeding the master (or a bus), registered with the scheduler. */
   addAudioTrack(name: string, options: AddAudioTrackOptions = {}): AudioTrack {
     this.assertLive()
@@ -465,6 +503,7 @@ export class Engine {
     const track = new AudioTrack(this.context, {
       spaceImpulse: () => this.spaceImpulse(),
       spaceColour: () => this.spaceColour(),
+      spaceConvolver: this.spaceConvolver,
       ...options,
       // A track that says nothing of it, or `undefined`, joins as the engine does.
       joinClips: options.joinClips ?? this.joinClips,
@@ -1020,6 +1059,8 @@ export class Engine {
     for (const track of this.trackMap.values()) track.dispose()
     this.trackMap.clear()
     this.sharedSpaces?.dispose()
+    this.spaceKernel?.dispose()
+    this.spaceKernel = null
     for (const track of this.stretchTrackMap.values()) track.dispose()
     this.stretchTrackMap.clear()
     for (const track of this.elementTrackMap.values()) track.dispose()

@@ -96,3 +96,22 @@ build_device fet-limiter cpp/faust/fet-limiter.device.cpp
 # its parameter table. scripts/gen-devices.mjs writes the list below.
 source scripts/devices.gen.sh
 build_generated_devices
+
+# The convolution behind a room (src/core/tracks/SpaceKernel.ts). It is no
+# device and has no C ABI of one: the page and the audio thread each have an
+# instance of it on one memory they share, which the page hands both, so it is
+# linked to import a shared memory and to bring nothing of its own, no static
+# data and no allocator.
+build_space_room() {
+  local object
+  object="$(mktemp -d)/space_room.o"
+  emcc -c cpp/space-room/space_room.cpp \
+    -std=c++17 -O3 -msimd128 -matomics -mbulk-memory -fno-exceptions -fno-rtti \
+    -o "$object"
+  "$(em-config LLVM_ROOT)/wasm-ld" "$object" \
+    --no-entry --import-memory --shared-memory --strip-all \
+    --initial-memory=1048576 --max-memory=1073741824 -z stack-size=65536 \
+    -o "$out_dir/space-room.wasm"
+  echo "Built $out_dir/space-room.wasm ($(wc -c < "$out_dir/space-room.wasm") bytes)"
+}
+build_space_room

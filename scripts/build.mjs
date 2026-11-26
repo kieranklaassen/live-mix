@@ -21,6 +21,7 @@ const worklets = {
   cleanup: 'src/dsp/worklets/cleanup.processor.ts',
   meter: 'src/dsp/worklets/meter.processor.ts',
   recorder: 'src/dsp/worklets/recorder.processor.ts',
+  'space-room': 'src/dsp/worklets/space-room.processor.ts',
   'native-bridge': 'src/native/worklets/native-bridge.processor.ts',
   // Not a worklet but a worker; it ships next to them as one more
   // self-contained script a host page loads by URL.

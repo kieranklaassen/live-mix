@@ -186,7 +186,8 @@ function round(value) {
 }
 
 const ids = readdirSync(wasmDir)
-  .filter((name) => name.endsWith('.wasm'))
+  // The kernel of a room is no device.
+  .filter((name) => name.endsWith('.wasm') && name !== 'space-room.wasm')
   .map((name) => name.slice(0, -5))
   .filter((id) => only.length === 0 || only.includes(id))
   .sort()
