@@ -1,5 +1,5 @@
 /**
- * `@kieranklaassen/live-mix/visuals` — pictures that follow the music: forty-one
+ * `@kieranklaassen/live-mix/visuals` — pictures that follow the music: a hundred and forty-one
  * shader styles, four bends, sixteen palettes and film grain, drawn from what a
  * piece is doing at that moment (docs/visuals.md).
  *
