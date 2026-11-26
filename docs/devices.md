@@ -1105,12 +1105,15 @@ two seconds costs **5.7 % native / 8.2 % wasm**; Felt's README worst case (32
 voices ff under the pedal, restruck every second) **12.7 % native / 19.2 %
 wasm**. Both exceed the 5 % gate, so the descriptor is `experimental: true`
 until the iPhone figure is recorded. Levers, in order: `polyphony` (cost is
-close to linear in sounding voices); an `-msimd128` build (measured: 7.3 % /
-13.5 % with LLVM auto-vectorisation alone — hand-written `wasm_simd128`
-intrinsics in `ModalBank::process` would approach Felt's NEON figure of 2.7 %
-on Apple Silicon — but it needs a feature-detected second artefact, Safari <
-16.4 cannot instantiate SIMD); and skipping the ghost pool render when no slot
-is active. The memory footprint is 2.4 MB static (32 voices × 31 KB, 1 MB of
+close to linear in sounding voices); and skipping the ghost pool render when no
+slot is active. The wasm figures above are from before `ModalBank::process` ran
+its modes four at a time (`wasm_simd128`, built with `-msimd128`, 26 November
+2026): `scripts/bench-devices.mjs` then read 252 µs a block before and 79 µs
+after, and 17 million samples of notes, pedals and moving parameters through
+both builds were the same to the last bit. A browser without WASM SIMD (Safari
+before 16.4) cannot load the device. The loop without vectors is what the native
+tests build.
+The memory footprint is 2.4 MB static (32 voices × 31 KB, 1 MB of
 room delay lines), inside the 4 MB module.
 
 Verification: `cpp/test/felt_piano_test.cpp` checks frequency→key mapping,

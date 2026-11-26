@@ -37,6 +37,7 @@ exported_functions=${exported_functions:1}
 instrument_exports=",_device_note_on,_device_note_off"
 
 # build_device <name> <sources...>; set EXTRA_EXPORTS for additional symbols
+# EXTRA_FLAGS for a device whose sources use the vector instructions (-msimd128),
 # and MEMORY_BYTES for a device that needs more than the default 4 MiB of
 # fixed linear memory (long delay lines, sample buffers).
 build_device() {
@@ -44,7 +45,7 @@ build_device() {
   shift
   emcc "$@" \
     -I cpp/common \
-    -std=c++17 -O3 -fno-exceptions -fno-rtti --no-entry \
+    -std=c++17 -O3 ${EXTRA_FLAGS:-} -fno-exceptions -fno-rtti --no-entry \
     -s "EXPORTED_FUNCTIONS=${exported_functions}${EXTRA_EXPORTS:-}" \
     -s "INITIAL_MEMORY=${MEMORY_BYTES:-4194304}" \
     -s ALLOW_MEMORY_GROWTH=0 \
@@ -80,7 +81,7 @@ build_device ether-reverb \
   cpp/devices/ether-reverb/ether_reverb_device.cpp \
   cpp/devices/ether-reverb/device_api.cpp
 
-EXTRA_EXPORTS="$instrument_exports" build_device felt-piano \
+EXTRA_FLAGS="-msimd128" EXTRA_EXPORTS="$instrument_exports" build_device felt-piano \
   cpp/devices/felt-piano/felt_piano_device.cpp \
   cpp/devices/felt-piano/SympatheticBank.cpp \
   cpp/devices/felt-piano/FeltReverb.cpp \

@@ -63,6 +63,10 @@ private:
     std::array<int, kNumInputAP> inputApDelays{};
     std::array<int, kNumInputAP> inputApWriteIdx{};
 
+    // The gains of the mix they were last worked out for.
+    float gainsMix = -1.0f;
+    float dryGain = 1.0f;
+    float wetGain = 0.0f;
     float lpCoeff = 0.45f;
     float dcR = 0.995f;
     float feedbackGain = 0.7f;

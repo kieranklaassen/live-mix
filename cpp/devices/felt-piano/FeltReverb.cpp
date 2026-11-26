@@ -172,8 +172,12 @@ void FeltReverb::processSample(float& left, float& right, float mix) noexcept
     const float wetR = (delayOut[1] + delayOut[3] + delayOut[5] + delayOut[7]) * 0.25f;
 
     // Equal-power wet/dry with wet headroom.
-    const float dryGain = std::cos(mix * 1.5707963f);
-    const float wetGain = std::sin(mix * 1.5707963f) * kOutputHeadroom;
+    if (mix != gainsMix)
+    {
+        gainsMix = mix;
+        dryGain = std::cos(mix * 1.5707963f);
+        wetGain = std::sin(mix * 1.5707963f) * kOutputHeadroom;
+    }
 
     left = inL * dryGain + wetL * wetGain;
     right = inR * dryGain + wetR * wetGain;
