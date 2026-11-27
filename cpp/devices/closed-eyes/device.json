@@ -1,0 +1,455 @@
+{
+  "id": "closed-eyes",
+  "name": "Closed Eyes",
+  "category": "instrument",
+  "description": "A pad and keys that tire as you hold them: each note pales while it is looked at, and when you let it go its opposite appears and floats away.",
+  "class": "ClosedEyes",
+  "header": "closed_eyes.h",
+  "sources": [],
+  "vector": true,
+  "meters": [
+    {
+      "key": "tired",
+      "name": "Tired",
+      "display": true
+    },
+    {
+      "key": "after",
+      "name": "After-image",
+      "display": true
+    },
+    {
+      "key": "lids",
+      "name": "Lids",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "source",
+      "name": "Source",
+      "choices": ["Lamp", "Reed", "Bowl", "Vowel", "Struck", "String"],
+      "default": 0,
+      "description": "What is looked at: a glowing lamp, a reed, a rubbed bowl, a sung vowel, a struck bar or bell, or a plucked string. Heard from the next key."
+    },
+    {
+      "key": "opposite",
+      "name": "Opposite",
+      "choices": ["Even", "Mirror", "Sides", "Rough", "Breath", "Below"],
+      "default": 1,
+      "description": "What is left behind: even partials, the note across the keyboard, its two trembling sides, torn bands, breath in waves, or a hollow octave below."
+    },
+    {
+      "key": "form",
+      "name": "Form",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "The shape of the source: hollow to octaves, thin to full reed, dark to bright rim, oo to ee, wood to bell to glass, a string from wiry and long to hollow and short."
+    },
+    {
+      "key": "colour",
+      "name": "Colour",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How bright the source is, and how dark its opposite: what is bright tires in its upper partials too, and leaves a rounder outline behind."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": 0,
+      "max": 1,
+      "default": 0.12,
+      "description": "Breath and contact round the source: hiss in the lamp and the voice, the bow of the bowl, the mallet, the finger on the string."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.01,
+      "max": 5,
+      "default": 0.35,
+      "taper": "log",
+      "unit": "s",
+      "description": "How slowly a key blooms. A quick one also speaks with a brighter beginning. Struck bars and strings are far sooner, and only soften."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.15,
+      "max": 12,
+      "default": 0.7,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the note itself takes to fall away when its key is let go. Short leaves the opposite bare; long lets the two overlap. Bowls and voices take longer."
+    },
+    {
+      "key": "tire",
+      "name": "Tire",
+      "min": 0.08,
+      "max": 20,
+      "default": 1.2,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a held note takes to tire. The more it has tired when it is let go, the stronger its opposite."
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.42,
+      "description": "How far a tired partial sinks. The strong ones tire most, so a held note pales and thins; at the top mostly what was faint is left."
+    },
+    {
+      "key": "recover",
+      "name": "Recover",
+      "min": 0.2,
+      "max": 20,
+      "default": 4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a pitch stays tired after it was held. A key that returns sooner comes back paler, with its opposite already showing."
+    },
+    {
+      "key": "memory",
+      "name": "Memory",
+      "choices": ["Note", "Octave", "Chord"],
+      "default": 0,
+      "description": "What tires together: each key alone, the same note in every octave, or everything held, so a full chord tires sooner than one key."
+    },
+    {
+      "key": "after",
+      "name": "After Level",
+      "min": 0,
+      "max": 1,
+      "default": 0.72,
+      "description": "How loud the opposite is against the note that left it. At zero there is none."
+    },
+    {
+      "key": "length",
+      "name": "After Length",
+      "min": 0.4,
+      "max": 40,
+      "default": 10,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the opposite takes to fade once it is seen. The bells of Mirror go in about half of it, breath and bands a little sooner."
+    },
+    {
+      "key": "rise",
+      "name": "After Rise",
+      "min": 0.04,
+      "max": 10,
+      "default": 0.22,
+      "taper": "log",
+      "unit": "s",
+      "description": "How slowly the opposite comes up when the note goes: at once like a flash, or later, out of the silence."
+    },
+    {
+      "key": "edge",
+      "name": "Edge",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How sharp the opposite's outline is: round and dark, or bright, with rougher bands and more hiss where it has them."
+    },
+    {
+      "key": "seep",
+      "name": "Seep",
+      "min": 0,
+      "max": 1,
+      "default": 0.22,
+      "description": "How much of the opposite already shows through while the key is held. As the note tires it gives way to it."
+    },
+    {
+      "key": "drift",
+      "name": "Drift",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How much everything floats: note and opposite swell partial by partial, and the opposite's pairs part in pitch and beat."
+    },
+    {
+      "key": "blink",
+      "name": "Blink",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Closes the eyes again and again while keys are held: each time the note goes dark and its opposite flashes. Tired notes rest a little meanwhile."
+    },
+    {
+      "key": "blinkRate",
+      "name": "Blink Rate",
+      "min": 0.1,
+      "max": 12,
+      "default": 1,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How often the eyes close when Blink is up: from a slow change of light to a flutter. All keys blink together."
+    },
+    {
+      "key": "safe",
+      "name": "Safe",
+      "choices": ["Stay", "Move"],
+      "default": 1,
+      "description": "With Move an opposite that lingers under a new chord crosses over to the nearest tone that is held. With Stay it keeps its own."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far note and opposite spread to the sides. The lowest partial stays near the middle; the two sides and the torn bands go widest."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
+  ],
+  "presets": {
+    "Opposite light": {},
+    "Amber then blue": {
+      "opposite": 0,
+      "form": 0.1,
+      "colour": 0.35,
+      "attack": 0.9,
+      "tire": 2.2,
+      "length": 18,
+      "rise": 0.6,
+      "edge": 0.55,
+      "seep": 0.1,
+      "width": 0.75
+    },
+    "Struck after-bells": {
+      "source": 4,
+      "form": 0.5,
+      "colour": 0.55,
+      "tire": 0.6,
+      "depth": 0.8,
+      "length": 24,
+      "rise": 0.1,
+      "edge": 0.6,
+      "drift": 0.3,
+      "release": 1.5,
+      "volume": -5
+    },
+    "Vowel ghost": {
+      "source": 3,
+      "opposite": 2,
+      "form": 0.28,
+      "air": 0.29,
+      "attack": 0.7,
+      "tire": 1.8,
+      "length": 12,
+      "rise": 0.9,
+      "edge": 0.3,
+      "drift": 0.5,
+      "width": 1,
+      "volume": -8.5
+    },
+    "Tiring bass": {
+      "source": 1,
+      "form": 0.3,
+      "colour": 0.2,
+      "attack": 0.02,
+      "release": 0.25,
+      "tire": 0.35,
+      "depth": 0.9,
+      "recover": 1.2,
+      "after": 0.5,
+      "length": 3,
+      "rise": 0.05,
+      "seep": 0.05,
+      "drift": 0.15,
+      "width": 0.3,
+      "air": 0.07,
+      "volume": -3
+    },
+    "Blinking pulse": {
+      "opposite": 0,
+      "form": 0.75,
+      "colour": 0.6,
+      "attack": 0.1,
+      "tire": 0.8,
+      "blink": 0.9,
+      "blinkRate": 2.4,
+      "length": 6,
+      "edge": 0.7,
+      "seep": 0,
+      "width": 0.9
+    },
+    "Bowl drone": {
+      "source": 2,
+      "opposite": 5,
+      "form": 0.35,
+      "colour": 0.4,
+      "attack": 2,
+      "release": 3,
+      "tire": 9,
+      "depth": 0.8,
+      "length": 26,
+      "rise": 2,
+      "seep": 0.3,
+      "drift": 0.6,
+      "air": 0.26
+    },
+    "Breath after": {
+      "opposite": 4,
+      "form": 0.35,
+      "colour": 0.7,
+      "attack": 0.25,
+      "release": 0.3,
+      "tire": 0.9,
+      "depth": 0.75,
+      "after": 0.75,
+      "length": 9,
+      "rise": 0.35,
+      "edge": 0.3,
+      "seep": 0.1,
+      "air": 0.1
+    },
+    "Keys that leave": {
+      "source": 5,
+      "opposite": 5,
+      "form": 0.3,
+      "colour": 0.5,
+      "attack": 0.01,
+      "release": 0.5,
+      "tire": 2.5,
+      "depth": 0.5,
+      "length": 8,
+      "rise": 0.5,
+      "seep": 0.05,
+      "drift": 0.2,
+      "air": 0.26
+    },
+    "Remembered texture": {
+      "source": 2,
+      "opposite": 3,
+      "form": 0.75,
+      "colour": 0.6,
+      "memory": 2,
+      "attack": 1.4,
+      "tire": 2.5,
+      "recover": 20,
+      "depth": 0.95,
+      "length": 20,
+      "rise": 1.5,
+      "edge": 0.2,
+      "seep": 0.5,
+      "drift": 0.8,
+      "width": 1
+    },
+    "Pluck and shade": {
+      "source": 5,
+      "opposite": 0,
+      "form": 0.85,
+      "colour": 0.35,
+      "attack": 0.01,
+      "release": 0.2,
+      "tire": 0.2,
+      "depth": 0.9,
+      "length": 4,
+      "rise": 0.04,
+      "edge": 0.25,
+      "seep": 0.6,
+      "drift": 0.1,
+      "width": 0.5,
+      "memory": 1
+    },
+    "Torn curtain": {
+      "source": 1,
+      "opposite": 3,
+      "form": 0.8,
+      "colour": 0.55,
+      "attack": 0.6,
+      "tire": 1.5,
+      "depth": 0.6,
+      "length": 7,
+      "rise": 0.2,
+      "edge": 0.75,
+      "seep": 0.15,
+      "drift": 0.4,
+      "width": 0.8,
+      "after": 0.65,
+      "volume": -4
+    },
+    "Choir looking down": {
+      "source": 3,
+      "opposite": 5,
+      "form": 0.55,
+      "colour": 0.45,
+      "attack": 1.2,
+      "release": 1.2,
+      "tire": 3,
+      "length": 14,
+      "rise": 1.4,
+      "seep": 0.35,
+      "drift": 0.55,
+      "width": 0.8,
+      "after": 0.6
+    },
+    "Glass flutter": {
+      "source": 4,
+      "opposite": 2,
+      "form": 0.95,
+      "colour": 0.75,
+      "tire": 0.3,
+      "depth": 0.7,
+      "blink": 0.7,
+      "blinkRate": 7,
+      "length": 9,
+      "rise": 0.05,
+      "edge": 0.75,
+      "seep": 0.4,
+      "drift": 0.5,
+      "width": 1,
+      "air": 0.07,
+      "volume": -2.5
+    },
+    "Slow eclipse": {
+      "opposite": 4,
+      "form": 0.6,
+      "colour": 0.15,
+      "attack": 4,
+      "release": 4,
+      "tire": 5,
+      "depth": 1,
+      "length": 30,
+      "rise": 4,
+      "edge": 0.1,
+      "seep": 0.6,
+      "drift": 0.7,
+      "air": 0.33,
+      "width": 0.9
+    },
+    "Wooden shadow": {
+      "source": 4,
+      "opposite": 3,
+      "form": 0.04,
+      "colour": 0.4,
+      "attack": 0.01,
+      "tire": 0.15,
+      "depth": 0.4,
+      "release": 0.3,
+      "length": 3,
+      "rise": 0.04,
+      "edge": 0.1,
+      "seep": 0.2,
+      "air": 0.45,
+      "after": 0.8,
+      "width": 0.5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. After sensory adaptation and opponent colour: each partial carries a slow state that takes itself away from the sound and drives an opposite bank when the note stops. Spectra are closed forms voiced by measurement; mode ratios of bar, bell and glass are textbook values."
+  }
+}

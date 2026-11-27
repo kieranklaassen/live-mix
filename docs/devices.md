@@ -102,28 +102,37 @@ hold 8 notes).
 | `aurora`          | Aurora             | live-mix            | instrument | 10     | 23,749 B  | 34.3 µs, 1.29 %       | 28.9 µs, 1.08 %            | 0                 | 4           |
 | `auto-filter`     | Auto Filter        | kkfonie Tatami      | eq         | 12     | 23,170 B  | 21.0 µs, 0.79 %       | 22.8 µs, 0.86 %            | 31                | 4           |
 | `band-pulse`      | Band Pulse         | live-mix            | modulation | 7      | 15,707 B  | 14.7 µs, 0.55 %       | 11.0 µs, 0.41 %            | 0                 | 4           |
+| `bent-blade`      | Bent Blade         | live-mix            | instrument | 21     | 50,474 B  | 72.8 µs, 2.73 %       | 67.7 µs, 2.54 %            | 0                 | 4           |
 | `binaural`        | Binaural           | live-mix            | instrument | 11     | 33,141 B  | 21.7 µs, 0.81 %       | 32.7 µs, 1.23 %            | 0                 | 4           |
 | `bloom-reverb`    | Bloom              | kkfonie Bloom       | reverb     | 8      | 25,205 B  | 68.9 µs, 2.58 %       | 82.4 µs, 3.09 %            | 0                 | 4           |
 | `bowed-string`    | Bow                | live-mix            | instrument | 12     | 34,141 B  | 85.8 µs, 3.22 %       | 108.2 µs, 4.06 %           | 0                 | 4           |
 | `bowls`           | Bowls              | live-mix            | reverb     | 10     | 37,560 B  | 35.7 µs, 1.34 %       | 25.9 µs, 0.97 %            | 0                 | 4           |
 | `breath`          | Breath             | live-mix            | modulation | 11     | 24,103 B  | 6.2 µs, 0.23 %        | 6.4 µs, 0.24 %             | 0                 | 4           |
 | `breath-pacer`    | Breath Pacer       | live-mix            | instrument | 13     | 39,281 B  | 34.4 µs, 1.29 %       | 28.4 µs, 1.06 %            | 0                 | 4           |
+| `bronze-vowels`   | Bronze Vowels      | live-mix            | instrument | 22     | 59,636 B  | 64.8 µs, 2.43 %       | 50.8 µs, 1.91 %            | 0                 | 4           |
 | `canon`           | Canon              | live-mix            | delay      | 12     | 32,045 B  | 13.3 µs, 0.50 %       | 10.0 µs, 0.37 %            | 0                 | 32          |
 | `cascade`         | Cascade            | live-mix            | texture    | 12     | 29,332 B  | 23.3 µs, 0.87 %       | 28.6 µs, 1.07 %            | 0                 | 16          |
 | `chamber-strings` | Chamber Strings    | live-mix            | instrument | 10     | 38,707 B  | 55.5 µs, 2.08 %       | 44.3 µs, 1.66 %            | 0                 | 4           |
 | `choir`           | Choir              | live-mix            | instrument | 12     | 33,143 B  | 66.9 µs, 2.51 %       | 46.7 µs, 1.75 %            | 0                 | 4           |
+| `chord-clock`     | Chord Clock        | live-mix            | instrument | 22     | 43,365 B  | 60.6 µs, 2.27 %       | 63.5 µs, 2.38 %            | 0                 | 4           |
 | `chord-harp`      | Chord Harp         | live-mix            | instrument | 8      | 28,108 B  | 90.2 µs, 3.38 %       | 15.4 µs, 0.58 %            | 0                 | 4           |
 | `chorus`          | Chorus             | kkfonie Tatami      | modulation | 8      | 12,666 B  | 24.3 µs, 0.91 %       | 18.7 µs, 0.70 %            | 0                 | 4           |
 | `clarinet`        | Clarinet           | live-mix            | instrument | 8      | 26,190 B  | 86.2 µs, 3.23 %       | 39.6 µs, 1.49 %            | 0                 | 4           |
+| `climbing-gong`   | Climbing Gong      | live-mix            | instrument | 21     | 58,048 B  | 58.3 µs, 2.19 %       | 52.6 µs, 1.97 %            | 0                 | 4           |
+| `clock-room`      | Clock Room         | live-mix            | instrument | 21     | 66,792 B  | 68.3 µs, 2.56 %       | 64.1 µs, 2.41 %            | 0                 | 4           |
+| `closed-eyes`     | Closed Eyes        | live-mix            | instrument | 22     | 67,179 B  | 39.4 µs, 1.48 %       | 43.1 µs, 1.62 %            | 0                 | 4           |
 | `club-kit`        | Club Kit           | live-mix            | instrument | 10     | 35,998 B  | 24.1 µs, 0.90 %       | 1.8 µs, 0.07 %             | 0                 | 4           |
+| `common-air`      | Common Air         | live-mix            | instrument | 22     | 61,100 B  | 74.6 µs, 2.80 %       | 78.2 µs, 2.93 %            | 0                 | 4           |
 | `common-tones`    | Common Tones       | live-mix            | texture    | 9      | 22,763 B  | 18.7 µs, 0.70 %       | 28.3 µs, 1.06 %            | 4608              | 8           |
 | `coloured-noise`  | Coloured Noise     | live-mix            | instrument | 10     | 40,480 B  | 21.5 µs, 0.81 %       | 16.8 µs, 0.63 %            | 0                 | 4           |
 | `constellation`   | Constellation      | live-mix            | delay      | 10     | 33,746 B  | 17.8 µs, 0.67 %       | 21.5 µs, 0.80 %            | 0                 | 8           |
 | `currents`        | Currents           | live-mix            | modulation | 10     | 20,109 B  | 14.9 µs, 0.56 %       | 9.4 µs, 0.35 %             | 0                 | 4           |
+| `deep-roots`      | Deep Roots         | live-mix            | instrument | 22     | 56,888 B  | 25.0 µs, 0.94 %       | 24.1 µs, 0.90 %            | 0                 | 4           |
 | `distance`        | Distance           | live-mix            | spatial    | 9      | 31,693 B  | 19.7 µs, 0.74 %       | 27.5 µs, 1.03 %            | 0                 | 4           |
 | `drone`           | Drone              | live-mix            | instrument | 13     | 32,220 B  | 56.1 µs, 2.11 %       | 73.5 µs, 2.75 %            | 0                 | 4           |
 | `droplets`        | Droplets           | live-mix            | instrument | 12     | 30,128 B  | 6.0 µs, 0.22 %        | 8.7 µs, 0.33 %             | 0                 | 4           |
 | `drum-kit`        | Drum Kit           | live-mix            | instrument | 10     | 29,156 B  | 17.9 µs, 0.67 %       | 0.7 µs, 0.03 %             | 0                 | 4           |
+| `dry-brush`       | Dry Brush          | live-mix            | instrument | 21     | 57,758 B  | 81.4 µs, 3.05 %       | 61.8 µs, 2.32 %            | 0                 | 4           |
 | `dusk`            | Dusk               | live-mix            | instrument | 10     | 23,428 B  | 36.8 µs, 1.38 %       | 31.7 µs, 1.19 %            | 0                 | 4           |
 | `ear-shift`       | Ear Shift          | live-mix            | spatial    | 4      | 15,710 B  | 27.7 µs, 1.04 %       | 15.2 µs, 0.57 %            | 0                 | 4           |
 | `echo-memory`     | Echo Memory        | live-mix            | delay      | 12     | 25,341 B  | 27.2 µs, 1.02 %       | 16.4 µs, 0.61 %            | 0                 | 20          |
@@ -131,6 +140,7 @@ hold 8 notes).
 | `expanse`         | Expanse            | live-mix            | reverb     | 11     | 31,432 B  | 60.4 µs, 2.27 %       | 33.3 µs, 1.25 %            | 0                 | 6           |
 | `falling`         | Falling            | live-mix            | texture    | 11     | 22,598 B  | 14.5 µs, 0.54 %       | 29.3 µs, 1.10 %            | 0                 | 10          |
 | `feedback`        | Feedback           | live-mix            | instrument | 11     | 30,214 B  | 15.7 µs, 0.59 %       | 33.1 µs, 1.24 %            | 0                 | 4           |
+| `flame-organ`     | Flame Organ        | live-mix            | instrument | 18     | 55,970 B  | 70.9 µs, 2.66 %       | 88.9 µs, 3.33 %            | 0                 | 4           |
 | `flanger`         | Flanger            | kkfonie Tatami      | modulation | 7      | 11,926 B  | 11.9 µs, 0.45 %       | 10.4 µs, 0.39 %            | 0                 | 4           |
 | `flock`           | Flock              | live-mix            | instrument | 11     | 31,243 B  | 16.0 µs, 0.60 %       | 32.5 µs, 1.22 %            | 0                 | 4           |
 | `flute`           | Flute              | live-mix            | instrument | 9      | 25,369 B  | 76.8 µs, 2.88 %       | 44.2 µs, 1.66 %            | 0                 | 4           |
@@ -168,6 +178,7 @@ hold 8 notes).
 | `micro-looper`    | Micro Looper       | live-mix            | delay      | 10     | 40,216 B  | 40.5 µs, 1.52 %       | 43.2 µs, 1.62 %            | 0                 | 16          |
 | `modal-bells`     | Bells              | live-mix            | instrument | 12     | 24,210 B  | 58.5 µs, 2.20 %       | 40.6 µs, 1.52 %            | 0                 | 4           |
 | `murmuration`     | Murmuration        | live-mix            | modulation | 10     | 23,818 B  | 25.9 µs, 0.97 %       | 19.4 µs, 0.73 %            | 0                 | 4           |
+| `night-drum`      | Night Drum         | live-mix            | instrument | 21     | 56,166 B  | 58.7 µs, 2.20 %       | 51.7 µs, 1.94 %            | 0                 | 4           |
 | `noise-floor`     | Noise Floor        | live-mix            | texture    | 8      | 44,023 B  | 20.0 µs, 0.75 %       | 15.7 µs, 0.59 %            | 0                 | 4           |
 | `octaves`         | Octaves            | live-mix            | pitch      | 10     | 65,517 B  | 95.7 µs, 3.59 %       | 48.2 µs, 1.81 %            | 0                 | 4           |
 | `orbits`          | Orbits             | live-mix            | delay      | 9      | 29,264 B  | 17.1 µs, 0.64 %       | 20.6 µs, 0.77 %            | 0                 | 32          |
@@ -185,27 +196,36 @@ hold 8 notes).
 | `pulses`          | Pulses             | live-mix            | modulation | 12     | 13,470 B  | 5.5 µs, 0.21 %        | 7.6 µs, 0.29 %             | 0                 | 4           |
 | `radio`           | Radio              | live-mix            | texture    | 9      | 33,188 B  | 25.8 µs, 0.97 %       | 22.2 µs, 0.83 %            | 0                 | 4           |
 | `re-amp`          | Re-amp             | live-mix            | drive      | 10     | 53,528 B  | 98.6 µs, 3.70 %       | 62.5 µs, 2.34 %            | 39                | 4           |
+| `returning-wave`  | Returning Wave     | live-mix            | instrument | 22     | 53,937 B  | 54.0 µs, 2.02 %       | 48.5 µs, 1.82 %            | 0                 | 4           |
 | `reveal`          | Reveal             | live-mix            | dynamics   | 9      | 25,441 B  | 18.1 µs, 0.68 %       | 18.7 µs, 0.70 %            | 2304              | 4           |
 | `reverse-delay`   | Reverse Delay      | live-mix            | delay      | 8      | 15,057 B  | 17.1 µs, 0.64 %       | 13.2 µs, 0.50 %            | 0                 | 20          |
 | `rewind`          | Rewind             | live-mix            | instrument | 12     | 33,769 B  | 4.9 µs, 0.18 %        | 8.2 µs, 0.31 %             | 0                 | 4           |
+| `ridge-lines`     | Ridge Lines        | live-mix            | instrument | 22     | 66,348 B  | 97.7 µs, 3.66 %       | 66.2 µs, 2.48 %            | 0                 | 4           |
 | `ring`            | Ring               | live-mix            | modulation | 12     | 21,746 B  | 9.2 µs, 0.35 %        | 7.1 µs, 0.27 %             | 0                 | 4           |
+| `ringing-order`   | Ringing Order      | live-mix            | instrument | 21     | 60,010 B  | 42.9 µs, 1.61 %       | 49.2 µs, 1.85 %            | 0                 | 4           |
+| `rose-window`     | Rose Window        | live-mix            | instrument | 22     | 53,711 B  | 72.0 µs, 2.70 %       | 56.8 µs, 2.13 %            | 0                 | 4           |
 | `rotary`          | Rotary             | live-mix            | modulation | 9      | 16,495 B  | 25.3 µs, 0.95 %       | 27.2 µs, 1.02 %            | 0                 | 4           |
 | `sampler`         | Sampler            | live-mix            | instrument | 13     | 27,588 B  | 46.8 µs, 1.76 %       | 30.9 µs, 1.16 %            | 0                 | 24          |
 | `saturator`       | Saturator          | kkfonie Tatami      | drive      | 9      | 23,626 B  | 46.1 µs, 1.73 %       | 40.5 µs, 1.52 %            | 39                | 4           |
 | `scale-filter`    | Scale Filter       | live-mix            | eq         | 11     | 26,396 B  | 32.5 µs, 1.22 %       | 30.9 µs, 1.16 %            | 9216              | 4           |
 | `seasons`         | Seasons            | live-mix            | texture    | 10     | 33,248 B  | 28.9 µs, 1.08 %       | 41.3 µs, 1.55 %            | 0                 | 4           |
+| `setting-glass`   | Setting Glass      | live-mix            | instrument | 22     | 47,862 B  | 50.7 µs, 1.90 %       | 52.7 µs, 1.98 %            | 0                 | 4           |
 | `shaped-reverb`   | Shaped Reverb      | live-mix            | reverb     | 12     | 34,325 B  | 57.2 µs, 2.15 %       | 35.5 µs, 1.33 %            | 0                 | 6           |
 | `shimmer`         | Shimmer            | live-mix            | reverb     | 10     | 26,901 B  | 70.4 µs, 2.64 %       | 39.1 µs, 1.47 %            | 0                 | 4           |
 | `shortwave`       | Shortwave          | live-mix            | instrument | 12     | 34,955 B  | 14.3 µs, 0.53 %       | 20.0 µs, 0.75 %            | 0                 | 4           |
 | `sift`            | Sift               | live-mix            | texture    | 10     | 27,130 B  | 39.0 µs, 1.46 %       | 50.8 µs, 1.91 %            | 4352              | 4           |
 | `sine-shadow`     | Sine Shadow        | live-mix            | texture    | 10     | 54,445 B  | 19.0 µs, 0.71 %       | 19.5 µs, 0.73 %            | 0                 | 4           |
+| `singing-sand`    | Singing Sand       | live-mix            | instrument | 21     | 58,057 B  | 133.4 µs, 5.00 %      | 75.3 µs, 2.82 %            | 0                 | 4           |
 | `size`            | Size               | live-mix            | pitch      | 9      | 25,645 B  | 24.8 µs, 0.93 %       | 33.6 µs, 1.26 %            | 2304              | 4           |
 | `skipping-stone`  | Skipping Stone     | live-mix            | delay      | 10     | 23,593 B  | 8.6 µs, 0.32 %        | 9.4 µs, 0.35 %             | 0                 | 12          |
+| `slow-accord`     | Slow Accord        | live-mix            | instrument | 22     | 63,686 B  | 35.3 µs, 1.32 %       | 36.9 µs, 1.39 %            | 0                 | 4           |
 | `spectral-blur`   | Spectral Blur      | live-mix            | texture    | 9      | 18,615 B  | 42.8 µs, 1.60 %       | 53.1 µs, 1.99 %            | 2304              | 4           |
 | `spiral`          | Spiral             | live-mix            | reverb     | 9      | 36,414 B  | 67.7 µs, 2.54 %       | 69.4 µs, 2.60 %            | 0                 | 4           |
 | `spread`          | Spread             | live-mix            | spatial    | 10     | 18,739 B  | 26.7 µs, 1.0 %        | 14.1 µs, 0.53 %            | 0                 | 4           |
 | `spring-reverb`   | Spring             | live-mix            | reverb     | 9      | 22,946 B  | 33.2 µs, 1.25 %       | 26.1 µs, 0.98 %            | 0                 | 4           |
+| `spun-wire`       | Spun Wire          | live-mix            | instrument | 22     | 50,041 B  | 75.3 µs, 2.82 %       | 89.0 µs, 3.34 %            | 0                 | 4           |
 | `staircase`       | Staircase          | live-mix            | instrument | 11     | 28,945 B  | 18.1 µs, 0.68 %       | 34.9 µs, 1.31 %            | 0                 | 4           |
+| `standing-water`  | Standing Water     | live-mix            | instrument | 20     | 66,342 B  | 69.1 µs, 2.59 %       | 45.9 µs, 1.72 %            | 0                 | 4           |
 | `stereo-detune`   | Stereo Detune      | live-mix            | spatial    | 8      | 25,561 B  | 51.9 µs, 1.95 %       | 28.9 µs, 1.08 %            | 0                 | 4           |
 | `still-point`     | Still Point        | live-mix            | instrument | 8      | 26,426 B  | 16.2 µs, 0.61 %       | 20.9 µs, 0.78 %            | 0                 | 4           |
 | `stops`           | Stops              | live-mix            | pitch      | 12     | 26,397 B  | 14.3 µs, 0.54 %       | 18.7 µs, 0.70 %            | 4608              | 4           |
@@ -226,18 +246,23 @@ hold 8 notes).
 | `thesis`          | Thesis             | kkfonie Thesis      | instrument | 15     | 36,421 B  | 21.1 µs, 0.79 %       | 19.6 µs, 0.73 %            | 0                 | 4           |
 | `tine-piano`      | Tine               | live-mix            | instrument | 11     | 17,742 B  | 76.9 µs, 2.88 %       | 44.9 µs, 1.68 %            | 0                 | 4           |
 | `tremolo`         | Tremolo            | live-mix            | modulation | 9      | 12,884 B  | 7.7 µs, 0.29 %        | 8.1 µs, 0.30 %             | 0                 | 4           |
+| `turned-time`     | Turned Time        | live-mix            | instrument | 22     | 47,569 B  | 52.0 µs, 1.95 %       | 45.6 µs, 1.71 %            | 0                 | 4           |
 | `twin-bars`       | Twin Bars          | live-mix            | instrument | 9      | 25,988 B  | 40.5 µs, 1.52 %       | 18.3 µs, 0.69 %            | 0                 | 4           |
+| `undervoice`      | Undervoice         | live-mix            | instrument | 22     | 55,534 B  | 65.2 µs, 2.44 %       | 67.2 µs, 2.52 %            | 0                 | 4           |
 | `underwater`      | Underwater         | live-mix            | texture    | 10     | 25,841 B  | 32.0 µs, 1.20 %       | 22.4 µs, 0.84 %            | 0                 | 4           |
+| `unsung-voice`    | Unsung Voice       | live-mix            | instrument | 22     | 71,693 B  | 48.5 µs, 1.82 %       | 42.7 µs, 1.60 %            | 0                 | 4           |
 | `vessel`          | Vessel             | live-mix            | texture    | 9      | 26,968 B  | 13.9 µs, 0.52 %       | 20.3 µs, 0.76 %            | 0                 | 4           |
 | `vintage-digital` | Vintage Digital    | live-mix            | texture    | 8      | 28,499 B  | 71.7 µs, 2.69 %       | 15.5 µs, 0.58 %            | 129               | 4           |
 | `vinyl`           | Vinyl              | live-mix            | texture    | 10     | 37,003 B  | 38.0 µs, 1.43 %       | 26.6 µs, 1.00 %            | 0                 | 8           |
 | `vowel-reverb`    | Vowel Reverb       | live-mix            | reverb     | 12     | 42,778 B  | 106.1 µs, 3.98 %      | 53.0 µs, 1.99 %            | 0                 | 4           |
+| `walking-voices`  | Walking Voices     | live-mix            | instrument | 22     | 74,645 B  | 143.5 µs, 5.38 %      | 42.1 µs, 1.58 %            | 0                 | 4           |
 | `warp`            | Warp               | live-mix            | pitch      | 9      | 32,438 B  | 12.9 µs, 0.48 %       | 12.7 µs, 0.48 %            | 4608              | 4           |
 | `wavetable`       | Wavetable          | live-mix            | instrument | 12     | 25,229 B  | 48.4 µs, 1.82 %       | 35.9 µs, 1.34 %            | 0                 | 5           |
 | `weather`         | Weather            | live-mix            | texture    | 10     | 30,937 B  | 12.0 µs, 0.45 %       | 11.9 µs, 0.45 %            | 0                 | 4           |
 | `west-coast`      | West Coast         | live-mix            | instrument | 12     | 31,237 B  | 115.7 µs, 4.34 %      | 8.2 µs, 0.31 %             | 0                 | 4           |
 | `wind-harp`       | Wind Harp          | live-mix            | instrument | 12     | 35,654 B  | 17.7 µs, 0.67 %       | 29.2 µs, 1.10 %            | 0                 | 4           |
 | `winding-down`    | Winding Down       | live-mix            | modulation | 7      | 15,604 B  | 13.1 µs, 0.49 %       | 17.1 µs, 0.64 %            | 0                 | 4           |
+| `wire-lantern`    | Wire Lantern       | live-mix            | instrument | 20     | 61,363 B  | 47.1 µs, 1.77 %       | 46.2 µs, 1.73 %            | 0                 | 4           |
 | `zither`          | Zither             | live-mix            | instrument | 13     | 50,006 B  | 50.8 µs, 1.91 %       | 27.9 µs, 1.05 %            | 0                 | 4           |
 | `zone-sampler`    | Zone Sampler       | live-mix            | instrument | 7      | 32,368 B  | 48.0 µs, 1.80 %       | 6.5 µs, 0.24 %             | 0                 | 64          |
 
@@ -480,6 +505,13 @@ What the table does not show:
   Tierce Bells 4.1 to 4.4 %, Hand Horn 1.4 to 2.0 %, Wheel and Dog 1.9 to
   2.4 %, Silent Keys 1.0 to 2.1 %, Buzzing Bridge 2.1 to 2.35 % and 4.05 % at
   96 kHz. Each keeps 4 MB and reports no latency.
+- **The twenty-five instruments from Walking Voices to Singing Sand**
+  (Bent Blade, Bronze Vowels, Chord Clock, Climbing Gong, Clock Room, Closed Eyes, Common Air, Deep Roots, Dry Brush, Flame Organ, Night Drum, Returning Wave, Ridge Lines, Ringing Order, Rose Window, Setting Glass, Singing Sand, Slow Accord, Spun Wire, Standing Water, Turned Time, Undervoice, Unsung Voice, Walking Voices, Wire Lantern) were measured in one run after the
+  others were built, on a shared cloud machine, so read them against each
+  other more than against the rows above. The native column is the first load
+  each harness prints, eight keys held for most; the wasm column is the smoke
+  test's load (eight notes held) for ten seconds, once. Wall clock, both. Each
+  reports no latency.
 - **Memory** is the module's fixed linear memory (`memoryMb`), which holds the
   delay and sample buffers: 20 to 24 MB for the long loops and the sampler,
   64 MB for the zone sampler's pool of sounds ([zone-sampler.md](./zone-sampler.md)).
@@ -740,6 +772,43 @@ left open:
 | `silent-keys`    | The figure that worries most is how tonal the answer stays when a rhythm is put through it: at the default patch the strings alone come out 1.7 dB under a made drum loop, 2.7 under made rain and made speech, 10.5 under white noise and 10.9 under 5 ms clicks, but a loop is answered mostly by the low drum gliding past the lowest keys, and a chord away from it falls (the list's seventh chord, rooted at E4, is 18.6 dB under the same loop), and a hat with nothing under 7 kHz wakes next to nothing (70 dB under itself), the strings having no partial up there. So whether the rhythm is heard as the chord's own, or as a chord under a loop, only an ear can say. The default Lift was raised from 18 to 22 dB and the default Sharpness lowered from 0.55 to 0.5 (with a gate that now bites only in the upper half of Sharpness) to make noise speak; the price is the contrast between notes. A low D into C3 E3 G3 wakes its two shared partials about 15 and 20 dB under the C3 a low C wakes, and the whole answer is 11 dB under, where it was 18; E3 stays 60 dB and more under C3, so the staccato example holds with room. Raised to 36 dB, Lift brings the two answers closer still. Also unproven by ear: the level of what rings depends on the loudness of the last second and not only on what wakes it. A tone held on a partial rises 7 dB over a third of a second when bursts of noise begin above it and then stays level under them, and the first quiet notes after a loud passage are answered as if they were louder. A steady tone near a partial at a part-way Mix stands against the string's own phase: it came out between 3.2 dB under its dry share and 1.6 dB over the input. Bass at full adds about 5 dB to a phrase whose notes are in the chord and all of it stands in the centre. A sound whose channels are a quarter turn apart is heard by every second partial only: a rich one loses 2.3 dB at the most, a lone sine on one partial can be missed (43 dB under in the worst case found). White noise up to the top of the band is answered 3 dB weaker at 192 kHz and 1 dB at 22 kHz, since the gate measures a share of all there is. At Ring 30 s with Every a quarter of a second, noise is answered 3 dB weaker than a chord that stays. A walk starts again after the strings have died and two seconds or one Every of exact silence; a source with a noise floor never gives it that silence, so the walk then runs on, and at a middling Ring (2 s, sounds 3 s apart) whether it starts again depends on whether the strings had died. Listen first, on headphones, to short brushed noise and speech on the default patch with Mix at 1, for whether the chord speaks with the syllables; then to one bass note every two seconds on Walk of four, for the change of chord under a ringing tail; then to Glass strings on anything with clicks in it, the brightest preset. |
 | `buzzing-bridge` | The figure that worries most is attacks, since Loose shell is nothing else. Of 1,344 notes in fast ringing runs made up for it (plucks, dull plucks, bars and soft sine bells, four to eleven a second, half of the runs with every other note at half strength) the shell is knocked by 926 (it was 816 before the check). Plucks and bars at eight a second are nearly all heard, bass plucks mostly, high plucks at eight a second about three in eight, and bells with a soft start at eight a second about two in eight. The other way round, a deep tremolo, vibrato, hiss, beating saws and held chords knock nothing after their start, but a held cluster of three notes a semitone apart, each of three detuned saws, still knocks twice in four seconds (18 dBFS down, 10 dB under the pad). Around the same listening also sits the pitch: on a held detuned chord with two or three possible roots it still leaps about once in four to five seconds (42 times in ten chords before, 9 now), and a note reached with no attack takes a quarter of a second to be believed, so a slur drags the bridge's place a little behind it. A chord with no common period has no pitch at all and the bridge sits where it would for Resonance / 16. The bridge on a held sound is the second thing. On a pluck the default is plain by any figure (buzz 12 dB under the sound, the dying upper partials 10 to 40 dB over what they were from half a second on), but a saw or a pad that does not die had only a 3 dB rise about its third partial, so now it climbs half of its way over some seconds (kHeldClimb) and the end of the climb is heard throughout (kEndShare): 4 to 6 dB about the fifth partial and 1.5 to 3 dB above 1.5 kHz on a pad. Whether that is a buzz or a colour only an ear can say; a steady bright saw gains under 1 dB up there. Peaks are now held to twice the sound by a gain that catches at once (5.85 dB over at the worst of 11,000 renders, up to 11.2 dB before), which at Amount 1 takes 0.5 to 1.4 dB off the buzz of Membrane, Paper and Loose shell and nothing off the default; that gain cuts the first crest that meets it, which is not measured for what it adds. On a pluck the octave under the bridge's place can sink 2 to 3 dB where the buzz meets the sound's own second partial. Measured at 44.1 to 192 kHz every model is within 1 dB in level, and Grazing at 192 kHz is 1.2 dB brighter above 3 kHz at the attack of a note over a ringing one. Listen first to the default on one plucked note left to ring, then on a held organ-like chord, then to Three shells on fast repeated plucks with soft notes among them.                                                                                                                                                                                                                                                           |
 
+### The twenty-five instruments of November: what measurement says is weak
+
+None of the twenty-five has been listened to. Each was built by one worker and
+checked by a second, who rebuilt it from clean, wrote measuring programs of
+their own and broke the device one trait at a time to see whether its harness
+noticed; what they found was mended. What each was left with is in full in
+`cpp/devices/<id>/WEAK.md`. The first thing to listen for, and the weakest
+point, in short:
+
+| Device           | Listen first, and what is weak                                                                                                                                                                                                         |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `walking-voices` | A slow chord change with one key held through, then a quick tune: two singers answer each key and the rest slide after them, softer, which may smear. Agreement, Vibrato and Reach move the print by 1 dB a quarter at most.           |
+| `unsung-voice`   | The defaults for ten seconds: a voice nobody sings, or a whistle laid on top? It stands 26 dB over its neighbours with the throat and 16 with the reed. Which meetings a chord has depends on the chord, so Tolerance works in stairs. |
+| `returning-wave` | One long low key: the return at twelve seconds should be heard as an arrival. Flow is mostly breath by pitch and can be very quiet, and Bowl's Wave and Density are under 2 dB apart.                                                  |
+| `climbing-gong`  | The default chord held for five seconds: does the climb read as one slow opening, or as two sounds? Fall back over a half with a roll may be too even, and felt, brush and yarn are just over 3 dB apart.                              |
+| `bronze-vowels`  | One held D3: does it say Ah, Oh, Oo, or only get darker? Formants say the vowels are there up to C5; Ee is the weakest under D3. On keys struck together, Contagion upward does little.                                                |
+| `turned-time`    | Slow playing: is a turn heard as a turn, and is the landing too bright with Strike up? The choices of Neck are 2.2 to 4.2 dB apart on short overlapping keys.                                                                          |
+| `night-drum`     | The default chord: a warm tone or a patter? Many drums at once stand back several dB, which must never be heard as pumping. Thread is barely heard under brush, rub or a bright hum.                                                   |
+| `undervoice`     | The default chord: the door to the octave below should read as dark voices that open and shut, and not as a level that wobbles. Whispers on bright vowels are hissy, and three low close keys lose most of their floor.                |
+| `dry-brush`      | The default chord for ten seconds: do the hairs blur into one warm stroke? Then Dryness at the top with little Ink. Soak, Lean and Bleed do little under Dry field.                                                                    |
+| `closed-eyes`    | A slow chord let go: does the opposite read as the light behind the note, or as another note that enters? Lamp and Reed, Reed and Vowel, Mirror and Sides are just under 4 dB apart.                                                   |
+| `common-air`     | The turn of the breath, two and a half seconds into a chord: it falls some ten decibels and comes back reed by reed, a breath or a hole. One random patch in four is bright or thin over 2 kHz.                                        |
+| `slow-accord`    | The slides: at most three overtones move at once, each a pure tone. Metal learning, or a whistle? One random patch in eight is harsh or muddy.                                                                                         |
+| `deep-roots`     | The default chord: the bass on D2 should grow in and feel like the chord's own. When a finger moves it may slide or swap for half a second, and which bass carries a chord is decided by a table of intervals.                         |
+| `rose-window`    | A slow chord while Fold, Curl and Turn move: whether Curl sounds like vowels is not known. Broken takes a whole key down for a second at a time. One random patch in nine is poor.                                                     |
+| `clock-room`     | The default chord for ten seconds: the clocks fall into step over two, and the level moves by about 8 dB with the swing, which may be taken for a tremolo. The gongs are voiced tables and not measured metal.                         |
+| `bent-blade`     | The default chord bowed and then breathed: is the breath air or hiss with Edge over three quarters? Straight and Nearest are 1 to 1.5 dB apart at the default Glide.                                                                   |
+| `ridge-lines`    | The default chord for ten seconds: do the overtones glide past each other, or do they only shimmer? Parallax, Vibrato and Company are heard more than the print shows.                                                                 |
+| `chord-clock`    | The default chord for ten seconds, then Octave stair keys and Sevens on the loom. Fully drawn ratios move keys up to 17 cents at the default and 49 with elevens: beside a tempered instrument turn Agree down.                        |
+| `setting-glass`  | The clearing, from breath near the tones down to the tones themselves: glass, or filtered noise over bells? Release on Remelt, and Neighbours at each new strike, are the next two.                                                    |
+| `standing-water` | The default chord: the splash, a dip of about 7 dB a fifth of a second later, and the swell. Water or a hole? A patch under its threshold with little Splash is quiet.                                                                 |
+| `ringing-order`  | The defaults for ten seconds: each overtone moves by 10 to 20 dB in its turn. The orders are about 3 dB apart, since long ringing hides them, and at Overlap near 1 they close up.                                                     |
+| `spun-wire`      | The seam where plucks become a rub, and the coast of a chord let go: its last five plucks should slow and soften together. Nail and Air are 3.1 dB apart.                                                                              |
+| `flame-organ`    | The default chord for ten seconds: whether the notes that lift by themselves are a gift or a mistake (Lift is the knob). Flared with Spirit and much Roar is the brightest corner.                                                     |
+| `wire-lantern`   | The default on a slow chord: every note carries its own fourth under its octave, which may cloud close chords. Bow models no friction, and the solids are 2 to 3 dB apart under Breath.                                                |
+| `singing-sand`   | Dry from the middle up in Far rain and Flint plucks, where single grains may sound like a bad line, and the bottom of Lockstep, which may be too weak to play a tune on.                                                               |
+
 ## Effect presets
 
 Every effect comes with presets of its own: sixteen each or more (Band Pulse,
@@ -847,9 +916,9 @@ listen:
 Every instrument comes with sixteen presets of its own or more (Ember has
 seventeen; of the six beat and breath instruments Binaural, Coloured Noise,
 Isochronic and Twin Bars have twenty-four, Breath Pacer and Still Point
-twenty-three, and Hand Horn, Tierce Bells and Wheel and Dog twenty-four),
-1,095 over the 64 instruments: the list a player steps through where the
-instrument stands, apart from the bank's sounds, which are an instrument with
+twenty-three, Hand Horn, Tierce Bells and Wheel and Dog twenty-four, and the
+twenty-five instruments of November sixteen each), 1,495 over the 89
+instruments: the list a player steps through where the instrument stands, apart from the bank's sounds, which are an instrument with
 effects after it. Until this list was filled most instruments had six.
 
 Each is played alone, with no effect after it and not normalised, on the

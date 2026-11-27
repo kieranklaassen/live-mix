@@ -40,21 +40,25 @@ export interface FactoryPreset extends Patch {
   preview?: FactoryPhraseName | Phrase
   /** The id of the pack it belongs to (./packs); absent for a preset of the bank itself. */
   pack?: string
+  /** In an instrument's set (./sets), the name of the direction it is one of. */
+  direction?: string
 }
 
 /**
  * The shelf a pack stands on, for a host that lists the packs in groups: the
  * packs about a place or a mood, then those about a harmony, a melody, a
- * rhythm, and what hands do on an instrument.
+ * rhythm, and what hands do on an instrument, and last the sets, each the
+ * presets of one instrument.
  */
-export type FactoryPackShelf = 'scenes' | 'harmony' | 'melody' | 'time' | 'hands'
+export type FactoryPackShelf = 'scenes' | 'harmony' | 'melody' | 'time' | 'hands' | 'instruments'
 
 /**
  * A pack: a hundred presets that share one idea of sound. A pack of the scenes
  * has some on every instrument, a hundred sounds to paint with that are those
  * presets played, and a hundred effect chains in the same idea for any
  * channel. A pack of another shelf is about one thing in music and has its
- * presets on the few instruments that thing is for. Its name and description
+ * presets on the few instruments that thing is for. A set is the presets of
+ * one instrument (./sets): several hundred, in directions. Its name and description
  * say what it is by a sound, a place, a mood or what is played; a host lists
  * the packs before any of their presets, sounds or chains are loaded.
  */
@@ -67,6 +71,10 @@ export interface FactoryPack {
   shelf: FactoryPackShelf
   /** How many presets it holds, known before they are loaded. */
   count: number
+  /** In a set: the instrument all its presets are on. */
+  instrument?: string
+  /** In a set: its directions by name, in order, each with the presets it holds. */
+  directions?: readonly { name: string; count: number }[]
   /**
    * How many sounds to paint with it holds (./sound-packs), known before they
    * are loaded: a hundred, or none for a pack whose sounds are not written yet.

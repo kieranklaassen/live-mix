@@ -4,6 +4,7 @@
 import { type FactoryPreset } from '../types'
 import { HANDS } from './shelves/hands'
 import { HARMONY } from './shelves/harmony'
+import { INSTRUMENTS } from './shelves/instruments'
 import { MELODY } from './shelves/melody'
 import { SCENES } from './shelves/scenes'
 import { TIME } from './shelves/time'
@@ -15,4 +16,5 @@ export const PACK_PRESETS: readonly FactoryPreset[] = [
   ...MELODY,
   ...TIME,
   ...HANDS,
+  ...INSTRUMENTS,
 ]

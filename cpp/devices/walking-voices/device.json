@@ -1,0 +1,420 @@
+{
+  "id": "walking-voices",
+  "name": "Walking Voices",
+  "category": "instrument",
+  "description": "A crowd of singers that is always the same people: change the chord and everyone walks to the nearest new note, so the voice leading is heard inside the sound.",
+  "class": "WalkingVoices",
+  "header": "walking_voices.h",
+  "sources": [],
+  "vector": true,
+  "params": [
+    {
+      "key": "people",
+      "name": "People",
+      "min": 2,
+      "max": 36,
+      "default": 26,
+      "step": 1,
+      "description": "How many people are in the crowd, shared out over the held notes. Every note keeps two of them; when there are too few, the second stands in the first one's shadow."
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "choices": ["Open", "Hum", "Hollow", "Whistle", "Reed", "Strings"],
+      "default": 0,
+      "description": "What everyone sounds with: an open mouth, a closed one, a hollow pipe, whistling, a reed or a bowed string. A crowd changes over one after another."
+    },
+    {
+      "key": "path",
+      "name": "Path",
+      "choices": ["Slide", "Steps", "Turn", "Leap", "Late"],
+      "default": 0,
+      "description": "How people get to a note: glide there, walk up in spoken steps, turn around it in waves, leap onto it at once, or hold back and settle after the others."
+    },
+    {
+      "key": "lag",
+      "name": "Lag",
+      "min": 0.01,
+      "max": 6,
+      "default": 0.45,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long people take to notice a new chord and walk to it, each in a time of their own. Two on each note answer soon; long lets the others follow one by one."
+    },
+    {
+      "key": "reach",
+      "name": "Reach",
+      "min": 0,
+      "max": 12,
+      "default": 1.5,
+      "unit": "st",
+      "description": "How far off a note people may start when they come in from silence or from a breath, and how wide a turn is. At zero they come in on the note."
+    },
+    {
+      "key": "stubborn",
+      "name": "Stubbornness",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "How long the slow ones stay on the old note when the harmony moves. High up some of them hold out for seconds and a few never give in."
+    },
+    {
+      "key": "agreement",
+      "name": "Agreement",
+      "min": 0,
+      "max": 1,
+      "default": 0.62,
+      "description": "How far people agree on tuning and vowel. Low is a quarrel of pitches, the middle a warm crowd, and at the top they lock onto pure intervals over the lowest note."
+    },
+    {
+      "key": "wander",
+      "name": "Wander",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How often someone leaves for another held note or an octave and comes back later. Nobody goes who would leave a note with fewer than two."
+    },
+    {
+      "key": "leader",
+      "name": "Leader",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "How far one person on each note stands out in front of the crowd. Leaders move first and stand in the middle; all the way up they sing nearly alone."
+    },
+    {
+      "key": "lowShare",
+      "name": "Low share",
+      "min": -1,
+      "max": 1,
+      "default": 0.15,
+      "description": "Where the crowd gathers. Turned up, the low notes are sung by more and louder, some an octave under the lowest; turned down it is the top and the octave over it."
+    },
+    {
+      "key": "vowel",
+      "name": "Vowel",
+      "min": 0,
+      "max": 1,
+      "default": 0.38,
+      "description": "The shape of the mouth, from closed and dark through open to bright. On the other bodies it moves the size and the pull of what they sound with."
+    },
+    {
+      "key": "vowelSpread",
+      "name": "Vowel spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How differently people shape the sound, and how much each one's shape moves by itself. At zero the whole crowd sings one vowel."
+    },
+    {
+      "key": "breath",
+      "name": "Breath length",
+      "min": 0.15,
+      "max": 12,
+      "default": 5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long each person sings before taking a breath and coming in again. Short turns a chord into murmured syllables, long into a wall with no seams."
+    },
+    {
+      "key": "fade",
+      "name": "Fade",
+      "min": 0,
+      "max": 1,
+      "default": 0.1,
+      "description": "How far each person sinks in the course of a breath. At zero they hold it full; all the way up every note dies away in one breath, like something struck."
+    },
+    {
+      "key": "effort",
+      "name": "Effort",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How hard people sing. Low is dark and close, high is bright and strong. A harder touch on the keys adds to it."
+    },
+    {
+      "key": "strain",
+      "name": "Strain",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How tense people get when they come in and while they are off their note: brighter, harder and rougher, easing once they have settled."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": 0,
+      "max": 1,
+      "default": 0.12,
+      "description": "How much breath is in the sound. It has the shape of the mouth and the beat of the note; all the way up the plain tone is gone and a whisper is left."
+    },
+    {
+      "key": "vibrato",
+      "name": "Vibrato",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How far each person's pitch swings once the note has been found, each at a pace of their own. The voice opens and brightens a little with it."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.01,
+      "max": 4,
+      "default": 0.3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a person takes to come up to full voice on a new note. Leaping and stepping people are quicker about it, and those who come late are slower."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.12,
+      "max": 15,
+      "default": 1.8,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the crowd takes to die away after the last key. Leaps and pipes let go sooner, turns and strings later. With keys still held, people walk over instead."
+    },
+    {
+      "key": "spread",
+      "name": "Room spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.65,
+      "description": "How far apart people stand in the room. At zero they share one spot in front; higher spreads them wide and deep, with the walls answering the ones at the back."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
+  ],
+  "presets": {
+    "Settling crowd": {
+      "people": 32,
+      "lag": 0.8,
+      "reach": 4,
+      "spread": 0.8,
+      "volume": -7
+    },
+    "Surge hymn": {
+      "path": 2,
+      "lag": 0.9,
+      "reach": 4,
+      "people": 36,
+      "effort": 0.6,
+      "vowel": 0.5,
+      "agreement": 0.5,
+      "leader": 0.35,
+      "attack": 0.5,
+      "release": 1.2,
+      "breath": 4,
+      "strain": 0.5,
+      "volume": -3.5
+    },
+    "Perfect pool": {
+      "body": 2,
+      "agreement": 1,
+      "vibrato": 0,
+      "vowelSpread": 0.05,
+      "wander": 0.1,
+      "reach": 0,
+      "stubborn": 0,
+      "air": 0.05,
+      "effort": 0.45,
+      "attack": 1.2,
+      "release": 6,
+      "fade": 0,
+      "people": 18
+    },
+    "Hummed vigil": {
+      "body": 1,
+      "path": 4,
+      "lag": 1.1,
+      "reach": 2,
+      "attack": 0.8,
+      "release": 2.5,
+      "effort": 0.3,
+      "air": 0.2,
+      "lowShare": 0.35,
+      "breath": 8
+    },
+    "Whistling field": {
+      "body": 3,
+      "reach": 5,
+      "wander": 0.7,
+      "lag": 1.4,
+      "vibrato": 0.45,
+      "spread": 1,
+      "agreement": 0.45,
+      "air": 0.35,
+      "people": 14,
+      "release": 3,
+      "volume": -5
+    },
+    "Leader alone": {
+      "leader": 0.95,
+      "path": 2,
+      "lag": 0.5,
+      "vibrato": 0.5,
+      "vowel": 0.5,
+      "effort": 0.55,
+      "people": 20,
+      "reach": 3,
+      "agreement": 0.7,
+      "release": 0.8,
+      "attack": 0.15,
+      "volume": -5
+    },
+    "Bass floor": {
+      "lowShare": 0.9,
+      "vowel": 0.1,
+      "effort": 0.3,
+      "lag": 0.6,
+      "people": 36,
+      "release": 2.5,
+      "attack": 0.5,
+      "vowelSpread": 0.15,
+      "air": 0.08
+    },
+    "Gathered keys": {
+      "path": 3,
+      "lag": 0.06,
+      "reach": 0,
+      "attack": 0.01,
+      "fade": 0.9,
+      "breath": 1.4,
+      "release": 2.2,
+      "effort": 0.5,
+      "wander": 0,
+      "vowel": 0.42,
+      "stubborn": 0.05,
+      "volume": -7.5
+    },
+    "Slow glacier": {
+      "lag": 4.5,
+      "reach": 9,
+      "stubborn": 0.4,
+      "people": 36,
+      "attack": 2.5,
+      "release": 8,
+      "breath": 12,
+      "fade": 0,
+      "effort": 0.25,
+      "vowel": 0.2,
+      "spread": 1,
+      "agreement": 0.5,
+      "volume": -7
+    },
+    "Strings on foot": {
+      "body": 5,
+      "lag": 0.7,
+      "reach": 2.5,
+      "vibrato": 0.35,
+      "effort": 0.45,
+      "attack": 0.35,
+      "release": 0.9,
+      "vowel": 0.35
+    },
+    "Quarrel": {
+      "stubborn": 0.95,
+      "agreement": 0.12,
+      "strain": 0.8,
+      "reach": 3,
+      "body": 4,
+      "path": 0,
+      "effort": 0.45,
+      "lag": 0.8,
+      "wander": 0.5,
+      "vibrato": 0.1,
+      "people": 20,
+      "release": 2.2,
+      "volume": -4
+    },
+    "Murmured prayers": {
+      "breath": 0.32,
+      "path": 1,
+      "lag": 0.3,
+      "fade": 0.25,
+      "vowelSpread": 0.8,
+      "effort": 0.35,
+      "air": 0.35,
+      "attack": 0.05,
+      "people": 36,
+      "reach": 1,
+      "release": 3,
+      "volume": -5
+    },
+    "Bottle plucks": {
+      "body": 2,
+      "path": 3,
+      "lag": 0.03,
+      "reach": 0,
+      "attack": 0.01,
+      "fade": 1,
+      "breath": 0.9,
+      "release": 8,
+      "air": 0.3,
+      "effort": 0.35,
+      "wander": 0,
+      "people": 12,
+      "agreement": 0.85,
+      "volume": -5
+    },
+    "Reed suspensions": {
+      "body": 4,
+      "path": 4,
+      "lag": 1.3,
+      "reach": 2,
+      "strain": 0.7,
+      "vowel": 0.08,
+      "effort": 0.2,
+      "vibrato": 0.15,
+      "release": 4.5,
+      "attack": 0.7,
+      "people": 14,
+      "volume": -4,
+      "lowShare": 0.3,
+      "spread": 0.9,
+      "air": 0.2
+    },
+    "Whispered night": {
+      "air": 0.95,
+      "body": 0,
+      "effort": 0.5,
+      "vowelSpread": 0.7,
+      "breath": 1.6,
+      "lag": 1.5,
+      "agreement": 0.3,
+      "wander": 0.6,
+      "attack": 0.6,
+      "release": 4,
+      "spread": 1,
+      "vibrato": 0,
+      "volume": -6.2
+    },
+    "Marching bows": {
+      "body": 5,
+      "path": 1,
+      "lag": 0.28,
+      "reach": 0,
+      "effort": 0.6,
+      "release": 2,
+      "attack": 0.02,
+      "people": 24,
+      "vibrato": 0.1,
+      "wander": 0.1,
+      "vowel": 0.55,
+      "volume": -3
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A fixed pool of 36 singers is dealt out to the held notes by least total motion; each singer is a set of grains in step with the pitch, of one of six kinds. Levels and tables are voiced by measurement, not taken from a recording."
+  }
+}

@@ -1,0 +1,457 @@
+{
+  "id": "setting-glass",
+  "name": "Setting Glass",
+  "category": "instrument",
+  "description": "A key is a gather of molten glass: dull warm pulses at first, then the highest tones clear and the clearing spreads downward as it cools, until the whole chord rings.",
+  "class": "SettingGlass",
+  "header": "setting_glass.h",
+  "sources": [],
+  "vector": true,
+  "meters": [
+    {
+      "key": "heat",
+      "name": "Heat now",
+      "display": true
+    },
+    {
+      "key": "front",
+      "name": "Setting front",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level",
+      "name": "Glass level",
+      "display": true
+    },
+    {
+      "key": "note",
+      "name": "Note",
+      "unit": "Hz",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "heat",
+      "name": "Heat",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How hot the glass is when a key goes down. Cold glass rings at once; hot glass is dull, and its highest tones are the first to clear as it cools."
+    },
+    {
+      "key": "cooling",
+      "name": "Cooling",
+      "min": 0.15,
+      "max": 40,
+      "default": 2.6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long hot glass takes to set from its highest tone down to its lowest. High notes are thin and are done sooner than low ones."
+    },
+    {
+      "key": "rest",
+      "name": "Rest",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "The heat the glass is kept at while the key is held. Higher stops the clearing partway, so the top rings while everything under it stays soft."
+    },
+    {
+      "key": "matter",
+      "name": "Matter",
+      "choices": ["Glass", "Crystal", "Salt", "Sugar", "Obsidian", "Bronze"],
+      "default": 0,
+      "description": "What is setting. Each has its own overtones, its own ring and its own way of cracking as it shrinks. Heard from the next key."
+    },
+    {
+      "key": "order",
+      "name": "Order",
+      "min": 0,
+      "max": 1,
+      "default": 0.9,
+      "description": "How well the overtones fit the note. At the top they are in tune; lower scatters them, sets them beating and leaves some out, as in a piece that set too soon."
+    },
+    {
+      "key": "stretch",
+      "name": "Stretch",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Draws the overtones together or apart without moving the note itself, from close and gong-like to wide and plate-like."
+    },
+    {
+      "key": "edge",
+      "name": "Edge",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How wide the border between soft and set is. Narrow clears one tone after another, each with a small ring; wide lets many tones come up together."
+    },
+    {
+      "key": "ticks",
+      "name": "Ticks",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "How much the shrinking glass sounds: a ping as each tone sets, and ticks that strike a few tones already set and come faster while it cools quickly."
+    },
+    {
+      "key": "breath",
+      "name": "Breath",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "The breath of the furnace. It is moving air on soft glass and keeps set glass singing while the key is held; a strong breath is brighter and less steady."
+    },
+    {
+      "key": "strike",
+      "name": "Strike",
+      "choices": ["Drop", "Rod", "Tap", "Pour"],
+      "default": 0,
+      "description": "What strikes the glass: a hot drop that falls in, a cold iron rod, a soft tap with the palm left on it, or a stream of glass poured over two seconds."
+    },
+    {
+      "key": "when",
+      "name": "Strike when",
+      "choices": ["Press", "Set", "Release", "Both"],
+      "default": 0,
+      "description": "When the strikes fall: from the press on, only once the glass has set, only as the key is let go and after it, or from the press on and again at the end."
+    },
+    {
+      "key": "blows",
+      "name": "Blows",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "How hard the glass is struck again and again: while the key is held, or after it is let go where the strikes fall there. They bring out each tone as it clears."
+    },
+    {
+      "key": "turn",
+      "name": "Turn",
+      "min": 0.2,
+      "max": 8,
+      "default": 1.2,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How often the blows come. Every key has a pace a little of its own, so a chord drifts instead of beating as one."
+    },
+    {
+      "key": "remelt",
+      "name": "Remelt",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "How far the glass is heated again at each visit to the fire. The lowest tones go soft first and are the last to come back."
+    },
+    {
+      "key": "every",
+      "name": "Every",
+      "min": 0.4,
+      "max": 10,
+      "default": 2.6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the glass is out of the fire between two visits. It is silent in its effect when Remelt is at zero."
+    },
+    {
+      "key": "ring",
+      "name": "Ring",
+      "min": 0.3,
+      "max": 30,
+      "default": 7,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a tone rings once it has set. Short is brittle and plucked, long lets every blow and tick hang in the air."
+    },
+    {
+      "key": "bright",
+      "name": "Bright",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much of the sound lies in the upper tones, soft or set, and how hard whatever strikes it is."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "choices": ["Quench", "Anneal", "Remelt"],
+      "default": 1,
+      "description": "What letting go does: water cracks it and flashes it, cooling rings it down evenly, or it melts from the bottom up and its tones fall one by one."
+    },
+    {
+      "key": "tail",
+      "name": "Tail",
+      "min": 0.3,
+      "max": 20,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the glass is heard after the key is let go, however that ends."
+    },
+    {
+      "key": "neighbours",
+      "name": "Neighbours",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How much keys share. A chord holds its heat longer than one key, a hot new key softens set ones, and a strike on one shakes the others."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far apart in the stereo field the tones of a piece of glass are placed. At zero they are all in the middle."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
+  ],
+  "presets": {
+    "Cooling by the door": {},
+    "Crystal dawn": {
+      "heat": 1,
+      "cooling": 6,
+      "matter": 1,
+      "ticks": 0.3,
+      "breath": 0.6,
+      "blows": 0.12,
+      "turn": 0.5,
+      "remelt": 0,
+      "ring": 14,
+      "bright": 0.22,
+      "tail": 7,
+      "edge": 0.45,
+      "width": 0.75,
+      "volume": -4
+    },
+    "Quenched keys": {
+      "heat": 0.35,
+      "cooling": 0.4,
+      "strike": 2,
+      "breath": 0.05,
+      "blows": 0,
+      "ring": 3.5,
+      "release": 0,
+      "tail": 1.2,
+      "remelt": 0,
+      "bright": 0.6,
+      "ticks": 0.2,
+      "width": 0.4,
+      "volume": -4
+    },
+    "Molten bass": {
+      "heat": 0.5,
+      "cooling": 6,
+      "rest": 0.36,
+      "strike": 0,
+      "breath": 0.25,
+      "blows": 0.3,
+      "turn": 0.6,
+      "remelt": 0,
+      "bright": 0.2,
+      "ring": 4,
+      "tail": 0.8,
+      "width": 0.2,
+      "ticks": 0.1,
+      "edge": 0.6,
+      "volume": -5.5
+    },
+    "Salt drone": {
+      "matter": 2,
+      "heat": 0.6,
+      "cooling": 4,
+      "breath": 0.95,
+      "ticks": 0.25,
+      "blows": 0,
+      "remelt": 0.35,
+      "every": 1.8,
+      "bright": 0.3,
+      "tail": 5,
+      "width": 0.8,
+      "volume": -11
+    },
+    "Shattered bells": {
+      "heat": 0.1,
+      "cooling": 0.6,
+      "order": 0.12,
+      "matter": 5,
+      "strike": 1,
+      "blows": 0,
+      "breath": 0.05,
+      "ring": 11,
+      "bright": 0.5,
+      "tail": 6,
+      "ticks": 0.7,
+      "remelt": 0,
+      "volume": -4
+    },
+    "Pouring texture": {
+      "strike": 3,
+      "turn": 0.45,
+      "blows": 0.9,
+      "breath": 0.3,
+      "heat": 0.9,
+      "cooling": 3,
+      "ticks": 0.8,
+      "ring": 4,
+      "bright": 0.6,
+      "width": 0.85,
+      "tail": 4,
+      "volume": -7.5
+    },
+    "Remelting swells": {
+      "heat": 0.75,
+      "cooling": 1.1,
+      "remelt": 0.95,
+      "every": 1.5,
+      "blows": 0,
+      "breath": 0.75,
+      "ring": 4,
+      "strike": 3,
+      "edge": 0.6,
+      "ticks": 0.15,
+      "tail": 3,
+      "release": 2,
+      "volume": -8.5
+    },
+    "Sugar plucks": {
+      "matter": 3,
+      "heat": 0.2,
+      "cooling": 0.5,
+      "strike": 2,
+      "blows": 0,
+      "breath": 0,
+      "ticks": 0.35,
+      "ring": 13,
+      "tail": 1.6,
+      "remelt": 0,
+      "bright": 0.4,
+      "width": 0.5,
+      "volume": -9.8
+    },
+    "Obsidian voices": {
+      "matter": 4,
+      "edge": 0.8,
+      "heat": 0.7,
+      "cooling": 2.5,
+      "breath": 0.8,
+      "blows": 0,
+      "strike": 3,
+      "bright": 0.6,
+      "remelt": 0.2,
+      "every": 2.2,
+      "ring": 3,
+      "tail": 2,
+      "ticks": 0,
+      "volume": -5
+    },
+    "Frozen pad": {
+      "heat": 0,
+      "strike": 3,
+      "blows": 0.5,
+      "turn": 0.4,
+      "breath": 0.6,
+      "ring": 18,
+      "tail": 7,
+      "bright": 0.35,
+      "order": 0.85,
+      "width": 0.85,
+      "ticks": 0.5,
+      "remelt": 0,
+      "volume": -13.6
+    },
+    "Bronze in the sand": {
+      "matter": 5,
+      "heat": 0.85,
+      "cooling": 1.8,
+      "strike": 2,
+      "blows": 0.85,
+      "turn": 1,
+      "ring": 8,
+      "breath": 0.4,
+      "bright": 0.5,
+      "tail": 4,
+      "release": 1,
+      "volume": -4,
+      "order": 0.8,
+      "neighbours": 0.7
+    },
+    "Let go to ring": {
+      "when": 2,
+      "heat": 0.8,
+      "cooling": 1.2,
+      "strike": 2,
+      "breath": 0.6,
+      "tail": 9,
+      "ring": 10,
+      "matter": 1,
+      "bright": 0.3,
+      "ticks": 0.2,
+      "edge": 0.5,
+      "volume": -10.2,
+      "blows": 0.35,
+      "turn": 1.6
+    },
+    "Cold top": {
+      "rest": 0.5,
+      "cooling": 1.2,
+      "heat": 0.95,
+      "blows": 0.8,
+      "turn": 2,
+      "breath": 0.5,
+      "ticks": 0.7,
+      "bright": 0.62,
+      "remelt": 0.1,
+      "tail": 2,
+      "release": 2,
+      "volume": -7.5
+    },
+    "Waiting chimes": {
+      "when": 1,
+      "cooling": 1.2,
+      "heat": 0.7,
+      "strike": 1,
+      "blows": 0.55,
+      "turn": 0.8,
+      "ring": 9,
+      "breath": 0.15,
+      "ticks": 0.5,
+      "tail": 6,
+      "stretch": 0.3,
+      "bright": 0.45,
+      "width": 0.8,
+      "volume": -5,
+      "neighbours": 0.6
+    },
+    "Grains on the floor": {
+      "matter": 3,
+      "heat": 0.9,
+      "cooling": 4,
+      "ticks": 1,
+      "blows": 0.35,
+      "turn": 5,
+      "strike": 2,
+      "breath": 0.3,
+      "bright": 0.7,
+      "ring": 12,
+      "edge": 0.1,
+      "width": 1,
+      "tail": 2,
+      "volume": -8
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A bank of complex one-poles a key, each with a loss that depends on where its frequency stands against a setting front which falls as the glass cools (the Maxwell picture: what is faster than the relaxation rings, what is slower flows, and the crossing is lossy). Levels, ratios and times are voiced by measurement and are not taken from any one material."
+  }
+}

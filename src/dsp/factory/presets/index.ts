@@ -74,6 +74,31 @@ import { WHEEL_AND_DOG_PRESETS } from './wheel-and-dog'
 import { WIND_HARP_PRESETS } from './wind-harp'
 import { ZITHER_PRESETS } from './zither'
 import { ZONE_SAMPLER_PRESETS } from './zone-sampler'
+import { CHORD_CLOCK_PRESETS } from './chord-clock'
+import { SETTING_GLASS_PRESETS } from './setting-glass'
+import { SLOW_ACCORD_PRESETS } from './slow-accord'
+import { WIRE_LANTERN_PRESETS } from './wire-lantern'
+import { SINGING_SAND_PRESETS } from './singing-sand'
+import { COMMON_AIR_PRESETS } from './common-air'
+import { STANDING_WATER_PRESETS } from './standing-water'
+import { RINGING_ORDER_PRESETS } from './ringing-order'
+import { WALKING_VOICES_PRESETS } from './walking-voices'
+import { UNSUNG_VOICE_PRESETS } from './unsung-voice'
+import { DEEP_ROOTS_PRESETS } from './deep-roots'
+import { SPUN_WIRE_PRESETS } from './spun-wire'
+import { FLAME_ORGAN_PRESETS } from './flame-organ'
+import { BRONZE_VOWELS_PRESETS } from './bronze-vowels'
+import { TURNED_TIME_PRESETS } from './turned-time'
+import { UNDERVOICE_PRESETS } from './undervoice'
+import { DRY_BRUSH_PRESETS } from './dry-brush'
+import { CLOSED_EYES_PRESETS } from './closed-eyes'
+import { BENT_BLADE_PRESETS } from './bent-blade'
+import { CLOCK_ROOM_PRESETS } from './clock-room'
+import { RIDGE_LINES_PRESETS } from './ridge-lines'
+import { NIGHT_DRUM_PRESETS } from './night-drum'
+import { RETURNING_WAVE_PRESETS } from './returning-wave'
+import { CLIMBING_GONG_PRESETS } from './climbing-gong'
+import { ROSE_WINDOW_PRESETS } from './rose-window'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -148,4 +173,29 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...TWO_ROADS_PRESETS,
   ...TIERCE_BELLS_PRESETS,
   ...WHEEL_AND_DOG_PRESETS,
+  ...CHORD_CLOCK_PRESETS,
+  ...SETTING_GLASS_PRESETS,
+  ...SLOW_ACCORD_PRESETS,
+  ...WIRE_LANTERN_PRESETS,
+  ...SINGING_SAND_PRESETS,
+  ...COMMON_AIR_PRESETS,
+  ...STANDING_WATER_PRESETS,
+  ...RINGING_ORDER_PRESETS,
+  ...WALKING_VOICES_PRESETS,
+  ...UNSUNG_VOICE_PRESETS,
+  ...DEEP_ROOTS_PRESETS,
+  ...SPUN_WIRE_PRESETS,
+  ...FLAME_ORGAN_PRESETS,
+  ...BRONZE_VOWELS_PRESETS,
+  ...TURNED_TIME_PRESETS,
+  ...UNDERVOICE_PRESETS,
+  ...DRY_BRUSH_PRESETS,
+  ...CLOSED_EYES_PRESETS,
+  ...BENT_BLADE_PRESETS,
+  ...CLOCK_ROOM_PRESETS,
+  ...RIDGE_LINES_PRESETS,
+  ...NIGHT_DRUM_PRESETS,
+  ...RETURNING_WAVE_PRESETS,
+  ...CLIMBING_GONG_PRESETS,
+  ...ROSE_WINDOW_PRESETS,
 ]

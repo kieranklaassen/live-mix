@@ -1,0 +1,437 @@
+{
+  "id": "singing-sand",
+  "name": "Singing Sand",
+  "category": "instrument",
+  "description": "A slope of sand that hums: grains slide at each key's pitch, fall into step until they sing one clear note, and come apart again as surges pass over the keys.",
+  "class": "SingingSand",
+  "header": "singing_sand.h",
+  "sources": [],
+  "vector": true,
+  "meters": [
+    {
+      "key": "lock",
+      "name": "Grains in step",
+      "display": true
+    },
+    {
+      "key": "flow",
+      "name": "Surge now",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "lockstep",
+      "name": "Lockstep",
+      "min": 0,
+      "max": 1,
+      "default": 0.75,
+      "description": "How many of the grains slide in step. Low is a breathing noise with a pitch in it, and at the top all of them sing one clear note."
+    },
+    {
+      "key": "grain",
+      "name": "Grain",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "How fine the sand is. Coarse grains give a dark round push at each slip, and fine ones a short bright one that hisses higher."
+    },
+    {
+      "key": "grit",
+      "name": "Grit",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How rough each grain rubs. Smooth grains drift slowly past each other, and rough ones jump at every slip and put a rasp on the note."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 90,
+      "default": 14,
+      "unit": "ct",
+      "description": "How far off the note the grains want to slide. The ones Lockstep cannot hold beat around the pitch this wide."
+    },
+    {
+      "key": "pulse",
+      "name": "Pulse",
+      "choices": ["Round", "Flint", "Squeak", "Wet", "Glassy"],
+      "default": 0,
+      "description": "What kind of grain slips, each with its own hiss and its own way of coming to rest: round, flint, sand that squeaks, wet sand that pops, or ground glass."
+    },
+    {
+      "key": "cluster",
+      "name": "Cluster",
+      "min": 1,
+      "max": 6,
+      "default": 1,
+      "step": 1,
+      "description": "How many groups the grains lock into. The groups slip in turn, so two raise the octave of the note over it, three its twelfth and five a third two octaves up."
+    },
+    {
+      "key": "layer",
+      "name": "Layer",
+      "min": 0,
+      "max": 1,
+      "default": 0.42,
+      "description": "How strongly the sliding layer rings. It picks out one overtone of every key and sings it, with the hiss drawn into it."
+    },
+    {
+      "key": "layerOrder",
+      "name": "Layer Order",
+      "min": 1,
+      "max": 9,
+      "default": 3,
+      "step": 1,
+      "description": "Which overtone the sliding layer rings at. A deep layer takes the low ones, and a thin one whistles at the high ones."
+    },
+    {
+      "key": "bury",
+      "name": "Bury",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "How deep under the surface the slope is heard from. Deep takes the top off the sound and opens it only as a surge goes by."
+    },
+    {
+      "key": "boom",
+      "name": "Boom",
+      "min": 0,
+      "max": 1,
+      "default": 0.12,
+      "description": "The whole slope moving as one: a deep tone an octave under the key, or on it for the lowest keys, that is there only while the grains are in step."
+    },
+    {
+      "key": "dry",
+      "name": "Dry",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How much loose dry sand runs along. First a soft hiss that follows the grains, then single ticks like far rain."
+    },
+    {
+      "key": "surge",
+      "name": "Surge",
+      "choices": ["Waves", "Slips", "Aftershocks"],
+      "default": 0,
+      "description": "How the slope moves: in waves across the keys, in sudden bright slips that pass from key to key, or in one deep shock and rarer and rarer ones after it."
+    },
+    {
+      "key": "slope",
+      "name": "Slope",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "How steep the slope is. Steeper makes a surge rise further above the rest, and between two the grains come further apart. At zero the slide is even."
+    },
+    {
+      "key": "pace",
+      "name": "Pace",
+      "min": 0.05,
+      "max": 8,
+      "default": 0.4,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How often a surge comes. Slow ones swell and fade through a chord, and fast ones are a pulse."
+    },
+    {
+      "key": "front",
+      "name": "Front",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How a surge crosses the keys. With none all of them move at once, and with more it reaches one after the other and runs from side to side."
+    },
+    {
+      "key": "onset",
+      "name": "Onset",
+      "min": 0.004,
+      "max": 8,
+      "default": 0.35,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the grains take to gather when a key goes down, from a hiss to a note. Short is a strike."
+    },
+    {
+      "key": "run",
+      "name": "Run",
+      "min": 0.08,
+      "max": 20,
+      "default": 4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the first rush of a key lasts before it settles to what Flow leaves of it."
+    },
+    {
+      "key": "flow",
+      "name": "Flow",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How much keeps sliding while a key is held. With none the sand runs out and the note ends by itself."
+    },
+    {
+      "key": "slump",
+      "name": "Slump",
+      "min": 0.08,
+      "max": 12,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the slope takes to come to rest after a key is let go. The grains fall out of step and the note goes back to a hiss."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far across the stereo field the grains of a key lie, down to mono at zero. Grains out of step sound wider."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
+  ],
+  "presets": {
+    "Dune pad": {},
+    "Bass slope": {
+      "onset": 0.02,
+      "run": 1.6,
+      "flow": 0.5,
+      "slump": 0.4,
+      "bury": 0.5,
+      "boom": 0.5,
+      "layer": 0.5,
+      "layerOrder": 2,
+      "grit": 0.15,
+      "slope": 0.12,
+      "dry": 0.1,
+      "width": 0.3,
+      "lockstep": 0.92,
+      "spread": 6,
+      "volume": -4.5
+    },
+    "Squeaking keys": {
+      "pulse": 2,
+      "onset": 0.008,
+      "run": 0.6,
+      "flow": 0.12,
+      "slump": 0.35,
+      "dry": 0.3,
+      "layer": 0.25,
+      "bury": 0.1,
+      "slope": 0,
+      "lockstep": 0.85,
+      "boom": 0,
+      "volume": 0.5
+    },
+    "Glass beach bells": {
+      "pulse": 4,
+      "onset": 0.004,
+      "run": 3.2,
+      "flow": 0,
+      "slump": 3,
+      "lockstep": 0.96,
+      "grit": 0.06,
+      "spread": 4,
+      "layer": 0.5,
+      "layerOrder": 4,
+      "dry": 0.12,
+      "slope": 0.1,
+      "bury": 0.05,
+      "width": 0.9,
+      "volume": 1.5
+    },
+    "Dissolving voices": {
+      "lockstep": 0.4,
+      "onset": 1.1,
+      "spread": 32,
+      "grain": 0.6,
+      "layer": 0.65,
+      "layerOrder": 4,
+      "grit": 0.45,
+      "slump": 5,
+      "pace": 0.2,
+      "slope": 0.7,
+      "flow": 0.9,
+      "width": 1,
+      "volume": -6.5,
+      "cluster": 4
+    },
+    "Aftershocks": {
+      "surge": 2,
+      "slope": 0.7,
+      "pace": 0.8,
+      "front": 0.85,
+      "onset": 0.05,
+      "grain": 0.35,
+      "dry": 0.4,
+      "boom": 0.15,
+      "flow": 1,
+      "run": 12,
+      "slump": 4,
+      "bury": 0.35,
+      "volume": -12.0
+    },
+    "Locked drone": {
+      "lockstep": 1,
+      "grit": 0.04,
+      "spread": 3,
+      "cluster": 2,
+      "boom": 0.45,
+      "onset": 2.5,
+      "slump": 6,
+      "layer": 0.6,
+      "layerOrder": 5,
+      "slope": 0.25,
+      "pace": 0.09,
+      "flow": 1,
+      "dry": 0.1,
+      "volume": -4.5
+    },
+    "Cluster organ": {
+      "cluster": 3,
+      "lockstep": 0.97,
+      "grit": 0.1,
+      "onset": 0.03,
+      "run": 20,
+      "flow": 1,
+      "slump": 0.3,
+      "slope": 0,
+      "layer": 0.15,
+      "dry": 0.08,
+      "bury": 0.15,
+      "boom": 0.2,
+      "volume": -3.0,
+      "grain": 0.6
+    },
+    "Flint plucks": {
+      "pulse": 1,
+      "onset": 0.004,
+      "run": 0.9,
+      "flow": 0,
+      "slump": 0.8,
+      "lockstep": 0.92,
+      "grit": 0.15,
+      "slope": 0,
+      "dry": 0.2,
+      "bury": 0.12,
+      "layer": 0.2,
+      "volume": -1.0
+    },
+    "Far rain": {
+      "dry": 1,
+      "spread": 70,
+      "lockstep": 0.05,
+      "grain": 0.9,
+      "bury": 0.2,
+      "layer": 0.12,
+      "onset": 1.5,
+      "slump": 5,
+      "grit": 0.8,
+      "slope": 0.35,
+      "boom": 0,
+      "width": 1,
+      "volume": -9.0
+    },
+    "Slips on the ridge": {
+      "surge": 1,
+      "slope": 0.75,
+      "pace": 1.5,
+      "front": 1,
+      "onset": 0.02,
+      "pulse": 1,
+      "grain": 0.3,
+      "flow": 1,
+      "run": 10,
+      "layer": 0.45,
+      "layerOrder": 2,
+      "lockstep": 0.88,
+      "width": 0.9,
+      "volume": -6.5
+    },
+    "Wet hollow": {
+      "pulse": 3,
+      "onset": 0.2,
+      "lockstep": 0.82,
+      "layer": 0.6,
+      "layerOrder": 3,
+      "slump": 4,
+      "slope": 0.25,
+      "pace": 0.25,
+      "boom": 0.05,
+      "dry": 0.35,
+      "flow": 0.9,
+      "volume": -7.5
+    },
+    "Whistling crest": {
+      "layer": 1,
+      "layerOrder": 8,
+      "onset": 0.25,
+      "bury": 0.08,
+      "grain": 0.75,
+      "lockstep": 0.82,
+      "dry": 0.5,
+      "boom": 0,
+      "slope": 0.45,
+      "pace": 0.7,
+      "slump": 1.2
+    },
+    "Night crossing": {
+      "bury": 0.72,
+      "boom": 0.4,
+      "onset": 3,
+      "slump": 8,
+      "pace": 0.12,
+      "slope": 0.75,
+      "front": 0.8,
+      "grain": 0.3,
+      "dry": 0.5,
+      "flow": 1,
+      "layer": 0.6,
+      "layerOrder": 2,
+      "volume": -3.5
+    },
+    "Running pulse": {
+      "pace": 3.6,
+      "slope": 0.85,
+      "front": 0.3,
+      "onset": 0.04,
+      "slump": 0.6,
+      "grain": 0.6,
+      "layer": 0.6,
+      "layerOrder": 6,
+      "lockstep": 0.9,
+      "flow": 1,
+      "volume": -7.5,
+      "cluster": 2
+    },
+    "Glass drift": {
+      "pulse": 4,
+      "cluster": 5,
+      "onset": 1.8,
+      "lockstep": 0.6,
+      "spread": 45,
+      "slump": 7,
+      "grit": 0.2,
+      "dry": 0.2,
+      "layer": 0.45,
+      "layerOrder": 7,
+      "width": 1,
+      "flow": 0.9,
+      "volume": -3.0,
+      "slope": 0.6
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit after booming dunes and squeaking beaches. Each key is 24 noisy phase oscillators held together through their mean field, the textbook model of grains falling into step; the mean of their frequencies is held on the key. Each slip plays a pulse from a table built for its key with nothing above the band. Simplified: the layer is one resonator on an overtone of the key, the slope is a shared clock and not a flow, and the pulses are drawn and not measured. Nobody has listened to it: the constants were chosen by measurement."
+  }
+}

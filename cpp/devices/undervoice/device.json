@@ -1,0 +1,417 @@
+{
+  "id": "undervoice",
+  "name": "Undervoice",
+  "category": "instrument",
+  "description": "A throat that sings under itself: an octave, a twelfth or two octaves below the key, down to single slow pulses that fall like tuned drips.",
+  "class": "Undervoice",
+  "header": "undervoice.h",
+  "vector": true,
+  "sources": [],
+  "params": [
+    {
+      "key": "division",
+      "name": "Division",
+      "choices": ["One", "Two", "Three", "Four", "Eight", "Drips", "Shared"],
+      "default": 1,
+      "description": "How many pulses the false folds count before they open again: two is an octave below, three a twelfth. Drips counts very many. Shared fits one slow pulse to all keys."
+    },
+    {
+      "key": "second",
+      "name": "Second division",
+      "min": 1,
+      "max": 8,
+      "default": 1,
+      "step": 1,
+      "description": "The other count of pulses the voice can sing with. One is the open voice with nothing under it. Turn and Breath say when it is heard."
+    },
+    {
+      "key": "turn",
+      "name": "Turn",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far the voice goes over to its second division and back by turns, like a door. At zero it keeps to the first."
+    },
+    {
+      "key": "breath",
+      "name": "Breath",
+      "min": 0,
+      "max": 1,
+      "default": 0.0,
+      "description": "How deeply the whole chord breathes: loud and full on the way out, quiet, dark and airy on the second division on the way in."
+    },
+    {
+      "key": "pace",
+      "name": "Pace",
+      "min": 0.05,
+      "max": 6,
+      "default": 0.3,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How often the voice turns from one division to the other and back, and how quickly it breathes."
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How far the false folds shut between the pulses they let through. At zero there is nothing under the voice, at the top only short bursts of it are left."
+    },
+    {
+      "key": "closure",
+      "name": "Closure",
+      "min": 0,
+      "max": 1,
+      "default": 0.52,
+      "description": "How hard the folds meet. Low is soft and round, high is tight, bright and brassy. A harder touch brightens in the same way."
+    },
+    {
+      "key": "skew",
+      "name": "Skew",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "How each group of pulses opens. Low is struck, bright and falls away, the middle opens and shuts evenly, high swells dark and is cut off."
+    },
+    {
+      "key": "ring",
+      "name": "Ring",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How long each pulse rings on at the harmonics of the key. Low is dry and creaking, high turns sparse pulses into tuned drops and the voice into a smooth tone."
+    },
+    {
+      "key": "vowel",
+      "name": "Vowel",
+      "min": 0,
+      "max": 1,
+      "default": 0.28,
+      "description": "The shape of the mouth, from Oo through Oh, Ah, Eh and Ee to a rounded Ue."
+    },
+    {
+      "key": "mouth",
+      "name": "Mouth",
+      "min": 0,
+      "max": 1,
+      "default": 0.68,
+      "description": "How far the mouth is open, from a closed hum through a covered tone to wide and clear."
+    },
+    {
+      "key": "throat",
+      "name": "Throat",
+      "min": 0.6,
+      "max": 1.7,
+      "default": 0.92,
+      "taper": "log",
+      "description": "The size of the throat. Low is a long dark throat, high a small one with its vowels far up."
+    },
+    {
+      "key": "chest",
+      "name": "Chest",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "How much the chest sounds: warm low modes under the voice, and a floor tuned to the undertone of each key or to its octave."
+    },
+    {
+      "key": "whisper",
+      "name": "Whisper",
+      "min": 0,
+      "max": 1,
+      "default": 0.14,
+      "description": "Air through the folds. High is nearly all breath, shaped by the vowel, the gate and the rings of the key."
+    },
+    {
+      "key": "roughness",
+      "name": "Roughness",
+      "min": 0,
+      "max": 1,
+      "default": 0.1,
+      "description": "How uneven the pulses and their groups are in strength and time, from a clean tone to a bright growl."
+    },
+    {
+      "key": "drift",
+      "name": "Drift",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How far the singers wander from the note and from each other, and how much the vowel and the mouth move by themselves."
+    },
+    {
+      "key": "singers",
+      "name": "Singers",
+      "min": 1,
+      "max": 4,
+      "default": 2,
+      "step": 1,
+      "description": "How many voices sing each key, a little apart in pitch and place."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.008,
+      "max": 6,
+      "default": 0.22,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to swell in."
+    },
+    {
+      "key": "fade",
+      "name": "Fade",
+      "min": 0.25,
+      "max": 30,
+      "default": 30,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a held note takes to die away. In the upper part of the range it keeps more and more of itself, and at the top it holds."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.08,
+      "max": 14,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to fade once the key is let go. The rings end with it."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far apart the keys of a chord, their singers and their rings stand. At zero everything is in the middle."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -5,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
+  ],
+  "presets": {
+    "Slow door": {
+      "turn": 1,
+      "pace": 0.14,
+      "attack": 0.9,
+      "release": 4,
+      "chest": 0.6,
+      "closure": 0.56,
+      "volume": -8.0
+    },
+    "Cave chant": {
+      "turn": 0.15,
+      "chest": 0.7,
+      "vowel": 0.24,
+      "throat": 0.8,
+      "singers": 4,
+      "closure": 0.8,
+      "attack": 0.5,
+      "release": 4.5,
+      "drift": 0.35,
+      "volume": -7.5,
+      "mouth": 0.75
+    },
+    "Tuned drip": {
+      "division": 5,
+      "turn": 0,
+      "ring": 0.6,
+      "skew": 0.05,
+      "depth": 1,
+      "attack": 0.01,
+      "whisper": 0.03,
+      "vowel": 0.36,
+      "singers": 1,
+      "drift": 0.08,
+      "width": 0.9,
+      "roughness": 0.05,
+      "volume": -5.5
+    },
+    "Twelfth under": {
+      "division": 2,
+      "turn": 0.15,
+      "closure": 0.36,
+      "depth": 0.85,
+      "attack": 0.7,
+      "vowel": 0.1,
+      "chest": 0.6,
+      "throat": 0.85,
+      "volume": -7.0
+    },
+    "Whisper floor": {
+      "whisper": 0.95,
+      "depth": 0.95,
+      "chest": 0.8,
+      "vowel": 0.12,
+      "attack": 1.4,
+      "release": 5,
+      "ring": 0.45,
+      "turn": 0.5,
+      "width": 1,
+      "volume": -5.5
+    },
+    "Sub pedal": {
+      "division": 3,
+      "turn": 0,
+      "closure": 0.22,
+      "mouth": 0.4,
+      "chest": 0.75,
+      "singers": 1,
+      "width": 0.2,
+      "attack": 0.04,
+      "release": 0.8,
+      "vowel": 0.1,
+      "whisper": 0,
+      "drift": 0.05,
+      "volume": -8.0
+    },
+    "Creak piano": {
+      "division": 4,
+      "turn": 0,
+      "attack": 0.008,
+      "fade": 3,
+      "release": 0.9,
+      "ring": 0.42,
+      "skew": 0.08,
+      "roughness": 0.35,
+      "singers": 1,
+      "closure": 0.5,
+      "vowel": 0.2,
+      "volume": 0.5
+    },
+    "Bronze throat": {
+      "closure": 0.86,
+      "vowel": 0.47,
+      "mouth": 0.8,
+      "turn": 0.2,
+      "depth": 0.95,
+      "ring": 0.1,
+      "attack": 0.07,
+      "release": 1.2,
+      "singers": 1,
+      "throat": 1.1,
+      "chest": 0.4,
+      "volume": -6.5
+    },
+    "Two monks": {
+      "drift": 0.6,
+      "turn": 1,
+      "second": 3,
+      "pace": 0.5,
+      "width": 1,
+      "throat": 0.74,
+      "closure": 0.6,
+      "chest": 0.7,
+      "attack": 0.4,
+      "vowel": 0.34,
+      "volume": -6.0
+    },
+    "Woodpecker pad": {
+      "division": 4,
+      "turn": 0.35,
+      "skew": 0.02,
+      "depth": 1,
+      "closure": 0.7,
+      "singers": 3,
+      "width": 1,
+      "ring": 0.05,
+      "throat": 0.8,
+      "attack": 0.5,
+      "volume": -3.0
+    },
+    "Open sky": {
+      "division": 0,
+      "vowel": 0.38,
+      "mouth": 0.9,
+      "whisper": 0.35,
+      "attack": 1.6,
+      "release": 6,
+      "singers": 4,
+      "width": 1,
+      "closure": 0.4,
+      "drift": 0.45,
+      "turn": 0.3,
+      "volume": -5.5
+    },
+    "Cat asleep": {
+      "division": 6,
+      "breath": 0.5,
+      "pace": 0.3,
+      "turn": 0,
+      "closure": 0.55,
+      "whisper": 0.4,
+      "attack": 0.4,
+      "vowel": 0.45,
+      "volume": -7.0
+    },
+    "Breathing together": {
+      "turn": 0,
+      "breath": 1,
+      "pace": 0.22,
+      "singers": 4,
+      "whisper": 0.3,
+      "vowel": 0.4,
+      "attack": 1,
+      "release": 5,
+      "width": 1,
+      "chest": 0.6,
+      "volume": -3.0
+    },
+    "Throat bells": {
+      "division": 0,
+      "turn": 0,
+      "attack": 0.008,
+      "fade": 4,
+      "ring": 0.85,
+      "release": 6,
+      "vowel": 0.5,
+      "closure": 0.85,
+      "mouth": 0.95,
+      "singers": 2,
+      "whisper": 0.02,
+      "drift": 0.12,
+      "volume": -3.0
+    },
+    "Reed calf": {
+      "division": 2,
+      "closure": 0.85,
+      "throat": 1.5,
+      "vowel": 0.5,
+      "roughness": 0.4,
+      "attack": 0.04,
+      "fade": 9,
+      "release": 0.5,
+      "turn": 0.6,
+      "pace": 1.4,
+      "second": 1,
+      "ring": 0.08,
+      "volume": -1.5
+    },
+    "Elephant dusk": {
+      "division": 3,
+      "breath": 0.45,
+      "pace": 0.35,
+      "throat": 0.72,
+      "roughness": 0.6,
+      "closure": 0.75,
+      "attack": 0.9,
+      "release": 4,
+      "chest": 0.8,
+      "singers": 3,
+      "turn": 0.2,
+      "volume": -1.0,
+      "vowel": 0.36
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Each key is a pulse train gated by a second, slower closure that counts whole cycles of the key, as the false folds of a singing throat do, through a shared throat of six parallel formants with six chest modes beside it and eight tuned resonators a key. Vowel places are the ones commonly measured for sung vowels; the rest is voiced by measurement and is not a model of any one singer."
+  }
+}

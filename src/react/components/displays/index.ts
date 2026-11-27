@@ -89,6 +89,31 @@ import { HAND_HORN_FACES } from './hand-horn'
 import { WHEEL_AND_DOG_FACES } from './wheel-and-dog'
 import { SILENT_KEYS_FACES } from './silent-keys'
 import { BUZZING_BRIDGE_FACES } from './buzzing-bridge'
+import { CHORD_CLOCK_FACES } from './chord-clock'
+import { SETTING_GLASS_FACES } from './setting-glass'
+import { SLOW_ACCORD_FACES } from './slow-accord'
+import { WIRE_LANTERN_FACES } from './wire-lantern'
+import { SINGING_SAND_FACES } from './singing-sand'
+import { COMMON_AIR_FACES } from './common-air'
+import { STANDING_WATER_FACES } from './standing-water'
+import { RINGING_ORDER_FACES } from './ringing-order'
+import { WALKING_VOICES_FACES } from './walking-voices'
+import { UNSUNG_VOICE_FACES } from './unsung-voice'
+import { DEEP_ROOTS_FACES } from './deep-roots'
+import { SPUN_WIRE_FACES } from './spun-wire'
+import { FLAME_ORGAN_FACES } from './flame-organ'
+import { BRONZE_VOWELS_FACES } from './bronze-vowels'
+import { TURNED_TIME_FACES } from './turned-time'
+import { UNDERVOICE_FACES } from './undervoice'
+import { DRY_BRUSH_FACES } from './dry-brush'
+import { CLOSED_EYES_FACES } from './closed-eyes'
+import { BENT_BLADE_FACES } from './bent-blade'
+import { CLOCK_ROOM_FACES } from './clock-room'
+import { RIDGE_LINES_FACES } from './ridge-lines'
+import { NIGHT_DRUM_FACES } from './night-drum'
+import { RETURNING_WAVE_FACES } from './returning-wave'
+import { CLIMBING_GONG_FACES } from './climbing-gong'
+import { ROSE_WINDOW_FACES } from './rose-window'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -179,4 +204,29 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...WHEEL_AND_DOG_FACES,
   ...SILENT_KEYS_FACES,
   ...BUZZING_BRIDGE_FACES,
+  ...CHORD_CLOCK_FACES,
+  ...SETTING_GLASS_FACES,
+  ...SLOW_ACCORD_FACES,
+  ...WIRE_LANTERN_FACES,
+  ...SINGING_SAND_FACES,
+  ...COMMON_AIR_FACES,
+  ...STANDING_WATER_FACES,
+  ...RINGING_ORDER_FACES,
+  ...WALKING_VOICES_FACES,
+  ...UNSUNG_VOICE_FACES,
+  ...DEEP_ROOTS_FACES,
+  ...SPUN_WIRE_FACES,
+  ...FLAME_ORGAN_FACES,
+  ...BRONZE_VOWELS_FACES,
+  ...TURNED_TIME_FACES,
+  ...UNDERVOICE_FACES,
+  ...DRY_BRUSH_FACES,
+  ...CLOSED_EYES_FACES,
+  ...BENT_BLADE_FACES,
+  ...CLOCK_ROOM_FACES,
+  ...RIDGE_LINES_FACES,
+  ...NIGHT_DRUM_FACES,
+  ...RETURNING_WAVE_FACES,
+  ...CLIMBING_GONG_FACES,
+  ...ROSE_WINDOW_FACES,
 }
