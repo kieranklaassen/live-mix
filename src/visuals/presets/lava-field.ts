@@ -1,0 +1,135 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'basalt-columns-from-above',
+    name: 'Basalt columns from above',
+    what: 'The tops of six sided basalt columns fit together, with green sea water between them.',
+    variation: 0,
+    world: {
+      own: [0.75, 1, 0.2, 1, 0, -1, 0.85, -1],
+      kinds: ['#3a6a66', '#8ab0a8', '#8a7a68', '#d8e0d0', '#f0ead8'],
+      keep: 0.06,
+      pace: 0.5,
+      contrast: 0.2,
+      light: -0.1,
+    },
+  },
+  {
+    id: 'fresh-ash-on-red-seams',
+    name: 'Fresh ash on red seams',
+    what: 'White ash lies on every plate, and only the thin seams between them still glow red.',
+    variation: 0,
+    world: {
+      own: [-0.2, 0, -1, 0, 0.3, -0.35, 0.5, -1],
+      kinds: ['#8a8480', '#c8b0a0', '#a89890', '#f0c8a0', '#ffe0c0'],
+      keep: 0.1,
+      contrast: 0.25,
+      light: -0.1,
+    },
+  },
+  {
+    id: 'obsidian-under-a-blue-hour',
+    name: 'Obsidian under a blue hour',
+    what: 'Great plates of black glass seen from above hold a blue evening, with fire in every gap.',
+    variation: 0,
+    world: {
+      own: [-0.6, 0, 0, 0, 1, -0.8, 0, -1],
+      kinds: ['#2a4a7a', '#5a80b8', '#4a5a80', '#d8a070', '#f0d0a0'],
+      keep: 0.06,
+      pace: 0.5,
+      light: 0.1,
+      contrast: 0.2,
+    },
+  },
+  {
+    id: 'last-rafts-on-the-melt',
+    name: 'Last rafts on the melt',
+    what: 'Nearly everything is molten gold, and small dark rafts of crust turn on it as they go.',
+    variation: 0,
+    world: {
+      own: [0.35, 0, 0, -1, 0, -0.6, -0.5, 0],
+      kinds: ['#a8421a', '#d8782a', '#b85a20', '#f4b850', '#ffe8a8'],
+      keep: 0.1,
+    },
+  },
+  {
+    id: 'teal-fire-of-a-far-moon',
+    name: 'Teal fire of a far moon',
+    what: 'On a violet plain teal light runs in the cracks, out to low hills and a pale near planet.',
+    variation: 0,
+    world: {
+      own: [0.1, 0, 1, 0, 0, 1, 0, 0],
+      kinds: ['#5a3a78', '#2f9f98', '#8a4a70', '#7fc8b8', '#f4e8d0'],
+      keep: 0.04,
+    },
+  },
+  {
+    id: 'cone-above-a-still-strait',
+    name: 'Cone above a still strait',
+    what: 'A steep cone stands on its own island, red threads down its sides and itself in the water.',
+    variation: 1,
+    world: {
+      own: [0.1, 1, 0, 0, 1, -1, 0, -1],
+      kinds: ['#2a2f58', '#8a4a50', '#5a4a70', '#f0d0a8', '#ffe0b0'],
+      keep: 0.08,
+    },
+  },
+  {
+    id: 'white-falls-to-a-dark-beach',
+    name: 'White falls to a dark beach',
+    what: 'Five white falls come down green cliffs into a grey morning sea.',
+    variation: 1,
+    world: {
+      own: [0.2, 0, 0.8, 1, -0.35, 0.5, 1, -0.6],
+      kinds: ['#3f6a50', '#93b0b4', '#b0c8c0', '#f0e0c8', '#f4f4ec'],
+      keep: 0.06,
+      light: -0.1,
+      contrast: 0.2,
+    },
+  },
+  {
+    id: 'ash-cone-at-first-light',
+    name: 'Ash cone at first light',
+    what: 'One broad stream of fire and a few thin ones run down a cone of pale ash to a grey sea.',
+    variation: 1,
+    world: {
+      own: [-0.85, 1, -1, 0, 0.45, -0.9, 0.6, 0.3],
+      kinds: ['#8aa4c0', '#e8b8a0', '#c8d0dc', '#f6dcc0', '#ffe8d0'],
+      answer: 2,
+      near: 1.3,
+      at: [0.12, 0.05],
+      keep: 0.1,
+      pace: 0.6,
+      light: -0.12,
+      contrast: 0.25,
+      vivid: 0.2,
+    },
+  },
+  {
+    id: 'blue-sulphur-shore',
+    name: 'Blue sulphur shore',
+    what: 'Blue and violet fire runs in broad sheets down a dark slope to a rough black sea.',
+    variation: 1,
+    world: {
+      own: [1, 0, 1, -1, -0.6, 0.5, 0, -0.6],
+      kinds: ['#3f5a9a', '#3a6ab8', '#6a8ac8', '#8a6ac8', '#c8d0f0'],
+      keep: 0.04,
+    },
+  },
+  {
+    id: 'plume-in-a-rose-morning',
+    name: 'Plume in a rose morning',
+    what: 'A huge soft plume stands over a low coast in a rose and cream morning.',
+    variation: 1,
+    world: {
+      own: [0, -0.8, 0, 0, 0.4, 0, 0.85, 1],
+      kinds: ['#8a98b8', '#e8b0a0', '#f0d0c0', '#f0c890', '#ffe8d0'],
+      keep: 0.06,
+      light: -0.1,
+      contrast: 0.15,
+    },
+  },
+]
+
+export default presets

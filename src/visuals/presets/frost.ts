@@ -1,0 +1,138 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'snow-star-under-glass',
+    name: 'Snow star under glass',
+    what: 'One great snow crystal of many arms lies on deep blue, white at its heart and finely barbed.',
+    variation: 0,
+    size: 0.5,
+    world: {
+      own: [0.05, -1, -0.35, 0, -1, 0, -1, 0],
+      kinds: ['#24405e', '#8fb0cc', '#b8ccd8', '#e2ecf0', '#c8dcea'],
+      keep: 0.05,
+      fold: 6,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'bracken-in-sun',
+    name: 'Bracken in sun',
+    what: 'Young green fern stands thick along a bank with bright hazy daylight behind it.',
+    variation: 0,
+    world: {
+      own: [0.4, 0.3, 0.3, 0.8, 0, 1, 1, 0],
+      kinds: ['#3a6a2c', '#6a9436', '#96a83e', '#3f7a4a', '#e6e8b8'],
+      keep: 0.08,
+      pace: 0.8,
+    },
+  },
+  {
+    id: 'ink-plumes-on-cream',
+    name: 'Ink plumes on cream',
+    what: 'Black plumes as from a brush lean in over plain cream paper, with much of it left bare.',
+    variation: 0,
+    world: {
+      own: [0.25, 0.8, -0.5, 1, -1, -1, 0, 0],
+      kinds: ['#2a2622', '#4a3a34', '#3a3a3a', '#6a3a2c', '#e8dcc4'],
+      keep: 0.05,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'tram-stop-in-sleet',
+    name: 'Tram stop in sleet',
+    what: 'Round red, amber and green lights of a street hang behind a pane rimmed with ice as snow goes by.',
+    variation: 0,
+    world: {
+      own: [-0.75, 0, 0, 0, 1, 0, 0, 0.55],
+      kinds: ['#c85a3a', '#e0a04a', '#5a8f7a', '#e8d0a0', '#b84a44'],
+      keep: 0.1,
+    },
+  },
+  {
+    id: 'copper-fronds-at-dusk',
+    name: 'Copper fronds at dusk',
+    what: 'Great rust and copper fronds cross before the last orange light over a black wood.',
+    variation: 0,
+    world: {
+      own: [0.7, 0.3, -0.5, -1, -0.15, 0.85, 0, 0],
+      vivid: 0.35,
+      contrast: 0.2,
+      kinds: ['#8a3416', '#c4602a', '#d8944a', '#6a2418', '#f09a58'],
+      keep: 0.06,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'reeds-in-first-snow',
+    name: 'Reeds in first snow',
+    what: 'Straight grey reeds stand along white water while the first soft flakes come down.',
+    variation: 1,
+    world: {
+      own: [-0.5, -0.7, -0.8, 1, 0, 0.5, 1, 0.7],
+      kinds: ['#6a6a5c', '#8a7f68', '#5a6468', '#9a8a6a', '#d6dee2'],
+      keep: 0.06,
+      pace: 0.7,
+    },
+  },
+  {
+    id: 'barley-beards-at-sundown',
+    name: 'Barley beards at sundown',
+    what: 'Long bearded barley leans one way in the wind with a low sun of gold behind it.',
+    variation: 1,
+    world: {
+      own: [0.1, 0.2, 1, -0.9, 0, 1, -1, 0],
+      kinds: ['#a8742e', '#c8944a', '#d8b060', '#b8663a', '#f0b878'],
+      keep: 0.06,
+      pace: 1.4,
+      vivid: 0.15,
+    },
+  },
+  {
+    id: 'thorns-before-thunder',
+    name: 'Thorns before thunder',
+    what: 'Black thorny stems cross each other against a sulphur yellow sky before a storm.',
+    variation: 1,
+    world: {
+      own: [0.45, -0.75, 0.2, -0.8, 0, -1, 0.35, 0],
+      near: 1.35,
+      at: [-0.12, -0.02],
+      kinds: ['#4a4468', '#6a5a80', '#3a3a52', '#a88aa0', '#b8a248'],
+      keep: 0.06,
+      tones: ['#0c0c12', '#6a6646', '#f2e8b0'],
+      toned: 0.5,
+      pace: 0.6,
+      contrast: 0.42,
+    },
+  },
+  {
+    id: 'bubbles-in-a-still-pond',
+    name: 'Bubbles in a still pond',
+    what: 'Broad smooth blue green leaves arch in dark water and round air bubbles hang among them.',
+    variation: 1,
+    world: {
+      own: [1, 0.3, -1, 0, -1, 0.9, 0, -0.8],
+      kinds: ['#16403c', '#3f7a64', '#2f6a5a', '#8ab07a', '#c8dcc4'],
+      keep: 0.06,
+      pace: 0.3,
+    },
+  },
+  {
+    id: 'red-vines-hang-down',
+    name: 'Red vines hang down',
+    what: 'Broad red tongues of leaf curl down from above into pale sea green light.',
+    variation: 1,
+    size: 0.6,
+    world: {
+      own: [0.55, 0.75, -0.9, 0.8, -1, 1, 0, 0],
+      kinds: ['#a83a34', '#c4573e', '#7a2438', '#d8794e', '#b4d8cc'],
+      keep: 0.06,
+      roll: 180,
+      pace: 0.8,
+      contrast: 0.15,
+    },
+  },
+]
+
+export default presets

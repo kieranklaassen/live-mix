@@ -153,6 +153,14 @@ export function worldUniforms(world: VisualWorld): WorldUniforms {
 
 const clamp01 = (value: number): number => clamp(value, 0, 1)
 
+/** A style's text with its own numbers written in. It reads each by a plain number only (a test holds every style to that). */
+export function withOwn(text: string, own: ArrayLike<number>): string {
+  return text.replace(/\buOwn\[(\d)\]/g, (_, slot: string) => {
+    const value = String(own[Number(slot)] ?? 0)
+    return `(${/^-?\d+$/.test(value) ? `${value}.0` : value})`
+  })
+}
+
 /** The colours of the kinds in this world, from the sounds' own. */
 export function worldKinds(world: VisualWorld, own: Float32Array, into: Float32Array): void {
   into.set(own)

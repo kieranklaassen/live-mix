@@ -3,6 +3,7 @@
 // b: Crossed bars
 // what: Two tilted brass hoops on posts, strung with silk, stand on a round linen-white plinth in window light; the straight threads twist into a waisted skin, and the shadow of every one lies on the wall. Or two dark bars tipped with brass, crossed in bright fog, the threads between them drawing one long curve.
 // follows: The drone and the tone dial twist the form. Each sheet is two kinds, dyed as deep as they are loud; the piece tints threads where it sounds. Sixteen bands blur sixteen groups. The phrase and the keys run glints, a hit plucks a group and sends its colour down, a cue passes light and turns the form. The playhead is a small light, low notes move the window's.
+// own: 0 the threads: 1 very many and fine, -1 a few thick cords; 1 the two rims: 1 the upper draws in to a tent, -1 it opens to a cup (b: 1 one bar short, the threads a fan; -1 two upright posts side by side); 2 the twist: 1 hard, the waist nearly shut, -1 none; 3 how it stands: 1 facing us, one rim inside the other (b: nearly flat), -1 lying on its side (b: deep, the bars far apart); 4 the place: 1 open ground under a sky, -1 a dark room; 5 the eye: 1 far off, with more of them in a row, -1 from low down; 6 the stuff: 1 threads of light, -1 dark hemp; 7 between them: 1 beads along every thread, -1 a sheer skin
 float sfLv[4]; // how loud each kind of thread is
 vec3 sfL; // towards the light
 float sfMid; // how far away the middle of the form is
@@ -12,6 +13,7 @@ vec3 sfA0, sfA1, sfA2;  // one rim (or bar): its middle and the two ways it goes
 vec3 sfB0, sfB1, sfB2;  // the other
 vec4 sfS0, sfS1; vec2 sfT; // threads behind the middle and before it; what they let through
 float sfShade;
+float sfThick;
 vec2 sfQ; float sfPx, sfReach;
 
 vec3 sfRich(vec3 c, float k) { return max(mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, k), 0.0); }
@@ -21,15 +23,16 @@ vec3 sfDye(vec3 c) {
  return c * (0.09 / max(dot(c, vec3(0.3, 0.59, 0.11)), 0.04) + 0.06);
 }
 // The thread from a to b as they are seen; e its place on the rims, i its number of n, w1 and w2 the second rim's ways.
-void sfThread(vec3 a, vec3 b, vec2 e, vec3 w1, vec3 w2, float fam, float i, float n, bool shadow) {
+void sfThread(vec3 a, vec3 b, vec2 e, vec3 w1, vec3 w2, float fam, float i, float n, bool shadow, bool skin) {
  vec2 sa = a.xy / a.z, ab = b.xy / b.z - sa, qa = sfQ - sa;
  float l2 = max(dot(ab, ab), 1e-6), il = inversesqrt(l2), s = dot(qa, ab) / l2;
  float d = abs(qa.x * ab.y - qa.y * ab.x) * il;
  float over = shadow ? sfPx + 0.012 + 0.045 * uSpace * uSpace : sfPx * 1.5;
  float ends = sat(0.5 + (s + 0.012) * 0.6 / (over * il)) * sat(0.5 + (1.012 - s) * 0.6 / (over * il));
- if (shadow) sfShade += ends * (clamp(d + 0.011, -over, over) - clamp(d - 0.011, -over, over)) / (2.0 * over);
+ if (shadow) sfShade += ends * (clamp(d + 0.011 * sfThick, -over, over) - clamp(d - 0.011 * sfThick, -over, over)) / (2.0 * over);
  bool isA = uVar < 0.5;
- if (!shadow && ends > 0.0 && d < sfReach) {
+ if (shadow && skin && uOwn[7] < 0.0) sfShade -= ends * uOwn[7] * 0.4;
+ if (!shadow && ends > 0.0 && (d < sfReach || (skin && uOwn[7] < 0.0))) {
   float t = s * a.z / max(b.z + s * (a.z - b.z), 1e-3), w = mix(a.z, b.z, sat(t));
   float g = i * 16.0 / n, k = sfLen / w, hd = g - 11.5;
   float hit = fam > 0.5 == isA ? 0.0 : uHits * exp(-hd * hd * 0.5), bd = uBands[int(clamp(g, 0.0, 15.0))];
@@ -38,18 +41,31 @@ void sfThread(vec3 a, vec3 b, vec2 e, vec3 w1, vec3 w2, float fam, float i, floa
   float lp = i / n, which = smoothstep(-0.25, 0.25, isA ? cos(TAU * 2.0 * lp + 1.0 + fam) : cos(PI * lp - 0.25 + 0.4 * fam));
   int f0 = int(fam) * 2;
   float loud = mix(sfLv[f0], sfLv[f0 + 1], which);
-  float r = (isA ? 0.011 : 0.0095 + 0.003 * loud) * k * (1.0 + 0.5 * hit), h = max(sfPx * 0.75, amp * k);
+  float r = (isA ? 0.011 : 0.0095 + 0.003 * loud) * k * (1.0 + 0.5 * hit) * sfThick, h = max(sfPx * 0.75, amp * k);
   float c = ends * (clamp(d + r, -h, h) - clamp(d - r, -h, h)) / (2.0 * h);
   c *= mix(1.0, 0.8 + 0.75 * d * d / (h * h), sat(amp * k / sfPx - 0.5));
   vec3 T = normalize(sfB0 + w1 * e.x + w2 * e.y - sfA0 - sfA1 * e.x - sfA2 * e.y);
   float tl = dot(T, sfL), th = dot(T, normalize(sfL + vec3(0.0, 0.0, -1.0)));
   float sheen = pow(max(1.0 - th * th, 0.0), mix(12.0, 50.0, uTone));
+  float round_ = clamp(d / max(r, 1e-5), 0.0, 1.0), bead = 0.0;
+  if (uOwn[7] > 0.0) {
+   // beads strung along it, each thread's a little shifted
+   float many = 9.0, bt = fract(t * many + hash11(i * 1.7 + fam * 9.0) * 0.7) - 0.5, rb = max(r * 1.6, 0.0085 * sqrt(sfThick)) * (0.65 + 0.5 * loud) * sqrt(max(uOwn[7], 1e-4));
+   float dl = bt / many / il, bd2 = length(vec2(d, dl));
+   bead = smoothstep(rb + sfPx * 0.7, rb - sfPx * 0.7, bd2) * step(0.02, t) * step(t, 0.98);
+   c = max(c * (1.0 - 0.45 * uOwn[7]), bead * ends);
+   round_ = mix(round_, sat(bd2 / rb), bead);
+  }
   // where the piece has a sound tied there, its colour is in the thread
   vec4 pc = piece(vec2(fract(lp + 0.0001), 0.3 + 0.4 * fam));
   vec3 rest = fam > 0.5 ? vec3(0.075, 0.09, 0.11) : isA ? vec3(0.50, 0.47, 0.41) : vec3(0.25, 0.22, 0.185);
   vec3 dye = mix(rest, sfDye(mix(uKind[f0], uKind[f0 + 1], which)), sat(1.6 * loud / (0.35 + loud)));
   dye = mix(dye, sfDye(pc.rgb / max(pc.a, 0.03)), sat(pc.a * 1.6) * 0.6);
   vec3 col = dye * (0.3 + sqrt(max(1.0 - tl * tl, 0.0)) + 0.5 * bd) + sheen * vec3(1.0, 0.95, 0.88) * (0.05 + 0.2 * loud * uEnergy);
+  if (uOwn[6] > 0.0) col = mix(col, (mix(uKind[f0], uKind[f0 + 1], which) * mix(uKind[f0], uKind[f0 + 1], which) + 0.03) * (0.16 + 0.6 * loud + 0.4 * bd + 0.4 * pc.a), uOwn[6]);
+  if (uOwn[6] < 0.0) col = mix(col, (dye * 0.3 + vec3(0.022, 0.017, 0.012)) * (0.7 + 0.5 * bd) * (1.15 - 0.6 * round_ * round_) * (0.8 + 0.3 * sin(t * 260.0 * sat(sfThick - 1.0))), -uOwn[6]);
+  if (sfThick > 1.0 || bead > 0.0) col *= mix(1.0, 1.2 - 0.65 * round_ * round_, max(bead, sat(sfThick - 1.0)) * (1.0 - 0.6 * max(uOwn[6], 0.0)));
+  col += bead * (0.25 + 0.6 * loud) * vec3(1.0, 0.97, 0.92) * smoothstep(0.55, 0.0, length(qa - ab * s + vec2(0.35, -0.35) * r) / max(r * 3.0, 1e-5)) * 0.6;
   // a glint runs along a few single threads; a hit's and a cue's light go down the form
   float hi = hash11(i + 31.0 * fam), gl = t - (fract(uTime * (0.05 + 0.025 * floor(hi * 3.0)) + hi * 7.0) * 1.6 - 0.3);
   float run = t - 1.0 + uHits, cue = t - 1.2 * (1.0 - uCue) + 0.1;
@@ -57,6 +73,11 @@ void sfThread(vec3 a, vec3 b, vec2 e, vec3 w1, vec3 w2, float fam, float i, floa
   col = mix(col, sfDye(uKind[4]) * 3.0 + 0.25, sat(hit * 0.7 + 0.5 * uHits * exp(-run * run * 16.0)));
   col += vec3(1.0, 0.94, 0.84) * uCue * 0.5 * exp(-cue * cue * 30.0);
   col = mix(col, sfHaze.rgb, sat((w - 5.8) * sfHaze.a));
+  if (uOwn[7] < 0.0 && skin) {
+   vec3 film = (uOwn[6] > 0.0 ? col : dye * (0.9 + 1.3 * loud)) * (0.75 + 0.6 * sheen) + 0.1 * sheen;
+   float cf = -uOwn[7] * ends * smoothstep(1.6 / n, 0.9 / n, d) * (0.45 + 0.3 * loud);
+   float was = c; c = max(c, cf); col = mix(mix(film, sfHaze.rgb, sat((w - 5.8) * sfHaze.a)), col, sat(was / max(c, 1e-3)));
+  }
   float f = (1.0 - smoothstep(-0.12, 0.12, w - sfMid)), c0 = min(c * (1.0 - f), 0.97), c1 = min(c * f, 0.97);
   sfS0 += vec4(col, 1.0) * c0; sfT.x *= 1.0 - c0;
   sfS1 += vec4(col, 1.0) * c1; sfT.y *= 1.0 - c1;
@@ -66,6 +87,7 @@ void sfThread(vec3 a, vec3 b, vec2 e, vec3 w1, vec3 w2, float fam, float i, floa
 // root of f; the threads next to each root are drawn.
 void sfSheets(vec2 q, mat4x3 M, float px, float turn, float n, bool shadow, bool on) {
  sfQ = q; sfPx = px; sfReach = px + 0.3 * (0.018 + 0.02 * (0.4 + uEnergy) + 0.03 * uHits);
+ if (uOwn[0] != 0.0 || uOwn[7] > 0.0) sfReach += 0.004 * sfThick + 0.014 * max(uOwn[7], 0.0) * max(sfThick, 1.0);
  vec3 a0 = M * vec4(sfA0, 1.0), a1 = M * vec4(sfA1, 0.0), a2 = M * vec4(sfA2, 0.0), h = vec3(q, 1.0);
  vec3 c0 = cross(h, a0), c1 = cross(h, a1), c2 = cross(h, a2);
  bool ring = uVar < 0.5;
@@ -117,7 +139,7 @@ void sfSheets(vec2 q, mat4x3 M, float px, float turn, float n, bool shadow, bool
     if (!none && i > last && (ring || (i >= 0.0 && i <= n - 1.0))) {
      last = i;
      vec2 e = ring ? vec2(cos(i / per), sin(i / per)) : vec2(i / per - 1.0, 0.0);
-     sfThread(a0 + a1 * e.x + a2 * e.y, b0 + b1 * e.x + b2 * e.y, e, w1, w2, float(fam), ring ? mod(i, n) : i, n, shadow);
+     sfThread(a0 + a1 * e.x + a2 * e.y, b0 + b1 * e.x + b2 * e.y, e, w1, w2, float(fam), ring ? mod(i, n) : i, n, shadow, m == 0 && wr > 0.0);
     }
    } while (++m < 2);
   } while (++j < nr && on);
@@ -160,8 +182,22 @@ vec3 render(vec2 p) {
  bool a = uVar < 0.5;
  float hw = 0.5 * uRes.x / uRes.y, zoom = a ? clamp(0.5 / hw, 1.0, 1.8) : clamp(0.66 / hw, 1.0, 2.4);
  p = p * zoom + vec2(0.0, a ? (zoom - 1.0) * 0.06 : 0.0);
+ vec2 whole = p; float cell = 0.0, apart = 1.0;
+ float lie = max(uOwn[5], 0.0);
+ if (lie > 0.0) {
+  // farther off, and more of them to either side
+  float per = (a ? 0.78 : 1.16) + 3.0 * (1.0 - lie) * (1.0 - lie), k = 1.0 + (a ? 0.85 : 1.25) * lie, oy = a ? 0.02 : 0.05;
+  zoom *= k; p = p * k + vec2(a ? -0.2 * sat(hw * 1.6 - 0.5) : 0.0, oy) * lie;
+  whole = p; cell = floor(p.x / per + (a ? 0.78 : 0.58)); p.x -= cell * per;
+  float e = (p.x / per + (a ? 0.28 : 0.08)); apart = smoothstep(0.5, 0.4, abs(e));
+ }
  float px = zoom / uRes.y, camY = a ? 2.75 : 1.5, shy = a ? 0.375 : 0.03, ox = a ? -0.2 * sat(hw * 1.6 - 0.5) : 0.0;
- const float ZW = 1.95, PR = 1.42, HC = 0.86, OFF = 0.8;
+ if (uOwn[5] < 0.0) { float was = camY; camY = mix(camY, a ? 0.25 : 0.4, -uOwn[5]); shy -= (was - camY) * (a ? 0.2556 : 0.2625); }
+ float tent = max(uOwn[1], 0.0), cup = max(-uOwn[1], 0.0), face = max(uOwn[3], 0.0), side_ = max(-uOwn[3], 0.0), air = max(uOwn[4], 0.0), dark = max(-uOwn[4], 0.0);
+ sfThick = uOwn[0] == 0.0 ? 1.0 : exp2(-uOwn[0] * (uOwn[0] > 0.0 ? 0.9 : 1.7));
+ if (uOwn[6] < 0.0) sfThick *= 1.0 + 0.45 * uOwn[6];
+ const float ZW = 1.95, PR = 1.42, HC = 0.86;
+ float OFF = 0.8 - 0.7 * face + 0.7 * side_;
  const vec3 up = vec3(0.0, 1.0, 0.0);
  sfMid = a ? 9.0 : 8.0; sfLen = a ? 2.3 : 2.1;
  sfL = normalize(a ? vec3(-0.70 - 0.06 * uLow, 0.25, -0.60) : vec3(-0.45, 0.8, 0.5));
@@ -171,24 +207,48 @@ vec3 render(vec2 p) {
  mat4x3 Mw = mat4x3(1, 0, 0, 0, 1, 0, -sfL.x / sfL.z, -sfL.y / sfL.z, 0.0, sfL.x / sfL.z * ZW, sfL.y / sfL.z * ZW, 1.0);
  vec3 ro = vec3(0.0, camY, -sfMid), rd = vec3((p.x - ox) / sfLen, (p.y - shy) / sfLen, 1.0);
  float tg = camY / max(-rd.y, 1e-3), drone = uDrone / (0.35 + uDrone), turn = 1.0;
- vec3 g = ro + rd * tg, q = ro + rd * (sfMid + ZW);
+ vec3 g = ro + rd * tg, q = ro + rd * (sfMid + ZW), qw = q;
+ if (lie > 0.0) qw.x = (whole.x - ox) / sfLen * (sfMid + ZW) * 0.6;
 
  // the form: two hoops hung on one axis between posts, or two bars that cross; a cue turns it a little and back
  float yaw = (a ? 0.5 + 0.28 * sin(uTime * 0.021) : -0.42 + 0.16 * sin(uTime * 0.019)) + 0.56 * uCue * (1.0 - uCue);
+ if (cell != 0.0) yaw += 0.9 * (fract(cell * 0.618 + 0.3) - 0.5);
+ yaw += a ? side_ * 0.35 - 0.3 * face * yaw : -0.75 * side_ - face * yaw;
  vec3 ax = vec3(cos(yaw), 0.0, sin(yaw)), fz = vec3(-ax.z, 0.0, ax.x), foot[2], head[2];
  if (a) {
-  float t1 = 0.40 + 0.06 * sin(uTime * 0.047), t2 = -0.08 + 0.04 * sin(uTime * 0.039 + 2.0);
+  float t1 = 0.40 + 0.06 * sin(uTime * 0.047), t2 = -0.08 + 0.04 * sin(uTime * 0.039 + 2.0) - 0.34 * min(uOwn[5], 0.0);
   sfA0 = up * 2.25; sfA1 = ax; sfA2 = fz * cos(t1) + up * sin(t1);
   sfB0 = up * 0.58; sfB1 = ax; sfB2 = fz * cos(t2) + up * sin(t2);
   turn = 0.75 + 1.3 * drone + 0.3 * uTone + 0.05 * sin(uTime * 0.11);
-  foot[0] = ax * -1.075; foot[1] = ax * 1.075;
-  head[0] = foot[0] + up * 2.42; head[1] = foot[1] + up * 2.42;
+  if (uOwn[2] > 0.0) turn = mix(turn, 2.72 + 0.12 * drone + 0.05 * sin(uTime * 0.11), uOwn[2]);
+  if (uOwn[2] < 0.0) turn = mix(turn, 0.06 + 0.3 * drone + 0.04 * sin(uTime * 0.11), -uOwn[2]);
+  float post = 1.0;
+  if (tent > 0.0) { sfA0 += up * 0.12 * tent; sfA1 *= 1.0 - 0.9 * tent; sfA2 *= 1.0 - 0.9 * tent; sfB0 -= up * 0.28 * tent; sfB1 *= 1.0 + 0.12 * tent; sfB2 *= 1.0 + 0.12 * tent; post = 1.0 + 0.12 * tent; }
+  if (cup > 0.0) { sfB1 *= 1.0 - 0.72 * cup; sfB2 *= 1.0 - 0.72 * cup; sfB0 -= up * 0.3 * cup; sfA1 *= 1.0 + 0.16 * cup; sfA2 *= 1.0 + 0.16 * cup; post = 1.0 + 0.16 * cup; }
+  if (face > 0.0) {
+   float sw = 0.1 * sin(uTime * 0.047);
+   sfA0 = mix(sfA0, up * 1.36, face); sfB0 = mix(sfB0, up * 1.36 - vec3(0.0, 0.0, 0.62), face);
+   sfA1 *= 1.0 + 0.22 * face; sfA2 = mix(sfA2, (up * cos(sw) + fz * sin(sw)) * length(sfA2) * 1.22, face); post *= 1.0 + 0.2 * face; sfB1 = mix(sfB1, sfB1 * 0.45, face); sfB2 = mix(sfB2, 0.45 * (up * cos(0.5 - sw) - fz * sin(0.5 - sw)) * length(sfB2), face);
+  }
+  if (side_ > 0.0) {
+   float la = length(sfA1), lb = length(sfB1);
+   sfA0 = mix(sfA0, up * 1.05 + ax * 0.95, side_); sfB0 = mix(sfB0, up * 1.05 - ax * 0.95, side_);
+   sfA1 = mix(sfA1, up * la, side_); sfA2 = mix(sfA2, fz * la, side_); sfB1 = mix(sfB1, up * lb, side_); sfB2 = mix(sfB2, fz * lb, side_);
+  }
+  foot[0] = ax * -1.075 * post; foot[1] = ax * 1.075 * post;
+  float tall = 2.42 * (1.0 - 0.97 * side_) + 0.1 * tent;
+  head[0] = foot[0] + up * (side_ > 0.0 || tent > 0.0 ? tall : 2.42); head[1] = foot[1] + up * (side_ > 0.0 || tent > 0.0 ? tall : 2.42);
  } else {
   float tw = 0.05 + 0.5 * drone + 0.12 * uTone + 0.03 * sin(uTime * 0.09);
-  vec3 dp = vec3(-1.12, 1.0, 0.0), dq = vec3(0.86, 1.0, 0.0), x0 = vec3(0.12, HC, 0.0);
+  if (uOwn[2] > 0.0) tw += 0.5 * uOwn[2];
+  vec3 dp = vec3(-1.12, 1.0, 0.0), dq = vec3(0.86, 1.0, 0.0), x0 = vec3(0.12, HC, 0.0), wide = vec3(0.0);
+  if (uOwn[2] > 0.0) { dp = mix(dp, vec3(-1.36, 0.62, 0.0), uOwn[2]); dq = mix(dq, vec3(1.2, 0.66, 0.0), uOwn[2]); x0.y = mix(HC, 0.6, uOwn[2]); }
+  if (uOwn[2] < 0.0) { x0.x -= 0.3 * -uOwn[2]; dp.x = mix(dp.x, 0.42, -uOwn[2]); dq.x = mix(dq.x, 0.3, -uOwn[2]); wide.x -= 0.75 * uOwn[2]; }
+  if (cup > 0.0) { dp.x = mix(dp.x, -0.12, cup); dq.x = mix(dq.x, 0.2, cup); wide.x = mix(wide.x, 0.95, cup); }
   dp.xz *= rot(yaw + tw); dq.xz *= rot(yaw - tw);
-  foot[0] = x0 - fz * OFF - dp * HC; head[0] = foot[0] + dp * 2.62;
-  foot[1] = x0 + fz * OFF - dq * HC; head[1] = foot[1] + dq * 2.4;
+  foot[0] = x0 - wide - fz * OFF - dp * HC; head[0] = foot[0] + dp * 2.62;
+  foot[1] = x0 + wide + fz * OFF - dq * HC; head[1] = foot[1] + dq * 2.4;
+  if (tent > 0.0) foot[1] = mix(foot[1], head[1] - dq * 0.12, tent);
   sfA0 = 0.5 * (foot[0] + head[0]); sfA1 = 0.48 * (head[0] - foot[0]); sfA2 = vec3(0.0);
   sfB0 = 0.5 * (foot[1] + head[1]); sfB1 = 0.48 * (head[1] - foot[1]); sfB2 = vec3(0.0);
  }
@@ -202,14 +262,31 @@ vec3 render(vec2 p) {
  vec2 wd = q.xy - (Mw * vec4(0.0, 1.42, 0.0, 1.0)).xy;
  float ex = (p.x - ox) / sfLen * sfMid;
  float n = a ? 60.0 : 56.0;
+ if (uOwn[0] != 0.0) n = floor(n * exp2(uOwn[0] * (uOwn[0] > 0.0 ? 1.15 : 1.7)) + 0.5);
+ float bent = 1.2 * step(0.001, abs(uOwn[1]) + abs(uOwn[2]) + abs(uOwn[3]) + abs(uOwn[5]));
  bool onWall = a && tcov <= 0.0 && scov < 1.0;
- bool near = a ? abs(p.x - ox) < 0.28 && p.y > -0.27 && p.y < 0.4
-  : ex > min(min(head[0].x, foot[1].x), foot[0].x) * 1.25 - 0.1 && ex < max(max(head[1].x, foot[0].x), foot[1].x) * 1.25 + 0.1 && p.y > -0.42 && p.y < 0.48;
- bool dim = a ? onWall && abs(wd.x) < 1.9 && wd.y > -1.65 && wd.y < 1.9 && wd.x + wd.y < 1.8 && wd.x + wd.y > -2.6 : rd.y < -0.02 && g.x > -1.8 && g.x < 3.2 && g.z < 1.2 && g.z > -6.0;
- vec2 fd = vec2(rd.x + 0.18 - 0.06 * uLow, rd.y - 0.10) * vec2(2.8, 3.4);
+ bool near = a ? abs(p.x - ox) < 0.28 + 0.12 * bent && p.y > -0.27 - 0.2 * bent && p.y < 0.4 + 0.15 * bent
+  : ex > min(min(head[0].x, foot[1].x), foot[0].x) * 1.25 - 0.1 && ex < max(max(head[1].x, foot[0].x), foot[1].x) * 1.25 + 0.1 && p.y > -0.42 - 0.2 * bent && p.y < 0.48 + 0.3 * bent;
+ bool dim = a ? onWall && abs(wd.x) < 1.9 + bent && wd.y > -1.65 && wd.y < 1.9 + bent && wd.x + wd.y < 1.8 + bent && wd.x + wd.y > -2.6 - bent : rd.y < -0.02 && g.x > -1.8 && g.x < 3.2 && g.z < 1.2 && g.z > -6.0;
+ if (dark > 0.99 || (a && air > 0.99)) dim = false;
+ vec2 fd = vec2((whole.x - p.x) / sfLen + rd.x + 0.18 - 0.06 * uLow, rd.y - 0.10) * vec2(2.8, 3.4);
  vec3 fog = mix(vec3(0.31, 0.335, 0.35), vec3(0.86, 0.855, 0.83), exp(-dot(fd, fd)) * (0.86 + 0.12 * uLevel + 0.06 * uMic));
+ if (dark > 0.0) fog = mix(fog, vec3(0.0035, 0.004, 0.006) + 0.035 * uKind[0] * uKind[0] * exp(-dot(fd, fd) * 0.7) * (0.6 + uLevel), dark);
+ vec3 low = vec3(0.0);
+ if (air > 0.0) {
+  // a sky, and the ground it lies on
+  low = mix(vec3(0.86, 0.8, 0.72), uKind[1] * uKind[1], 0.65) * (0.85 + 0.2 * uLevel);
+  vec3 high = mix(vec3(0.3, 0.36, 0.45), uKind[0] * uKind[0], 0.65);
+  fog = mix(fog, mix(low, high, smoothstep(0.0, 0.5, (whole.y - shy) * 0.9 + 0.04)), air);
+ }
  sfHaze = a ? vec4(0.0) : vec4(fog, 0.06 + 0.07 * uSpace);
  sfS0 = sfS1 = vec4(0.0); sfT = vec2(1.0); sfShade = 0.0;
+ float onGround = 0.0;
+ bool open_ = a && air > 0.0 && rd.y < -0.01;
+ if (open_) {
+  if (g.x > -1.8 && g.x < 8.0 && g.z > -2.0 && g.z < 8.0) sfSheets(g.xz, Mf, px * tg, turn, n, true, true);
+  onGround = 1.0 - exp(-1.3 * sfShade); sfShade = 0.0;
+ }
  bool sh = dim, more = dim || near;
  do {
   sfSheets(!sh ? p : a ? q.xy : g.xz, !sh ? M : a ? Mw : Mf, !sh ? px : a ? px * 4.0 : px * tg, turn, n, sh, more);
@@ -226,20 +303,41 @@ vec3 render(vec2 p) {
     sfShade += 1.1 * (1.0 - smoothstep(0.015, 0.085, abs(h.x)));
    }
    vec2 pc = (Mw * vec4(foot[k], 1.0)).xy, d = g.xz - foot[k].xz, ld = -normalize(sfL.xz);
-   ps = max(ps, (1.0 - smoothstep(0.01, 0.07, abs(q.x - pc.x))) * (1.0 - smoothstep(-0.05, 0.05, q.y - pc.y - 2.42)) * 0.8);
+   ps = max(ps, (1.0 - smoothstep(0.01, 0.07, abs(q.x - pc.x))) * (1.0 - smoothstep(-0.05, 0.05, q.y - pc.y - (side_ > 0.0 || tent > 0.0 ? head[k].y : 2.42))) * 0.8);
    float al = dot(d, ld), ac = abs(d.x * ld.y - d.y * ld.x);
    if (tcov > 0.0) sfShade += (1.0 - smoothstep(0.015, 0.05 + 0.012 * max(al, 0.0), ac)) * smoothstep(-0.02, 0.02, al) * 2.0 + 1.2 * exp(-dot(d, d) * 90.0);
   } while (++k < 2);
   ps = max(ps, (1.0 - smoothstep(-0.12, 0.12, abs(wd.x) - PR)) * (1.0 - smoothstep(-0.12, 0.12, wd.y + 1.42)));
   // the wall in the window's light
-  vec2 wq = vec2(q.x + 3.3 - 0.7 * uLow, q.y - 2.2) * vec2(0.25, 0.24);
+  vec2 wq = vec2(qw.x + 3.3 - 0.7 * uLow, q.y - 2.2) * vec2(0.25, 0.24);
   col = mix(vec3(0.15, 0.162, 0.17), vec3(0.45, 0.45, 0.43), exp(-dot(wq, wq))) * (0.98 + 0.1 * uLevel + 0.1 * uMic);
   col *= 0.97 + 0.06 * noise(q.xy * 3.0);
+  if (lie > 0.0) { sfShade *= apart; ps *= apart; }
+  if (dark > 0.0) col = mix(col, fog * (0.4 + col * 2.0), dark);
   if (onWall) col *= 1.0 - (0.5 * (1.0 - exp(-1.5 * sfShade)) * (1.0 - ps) + 0.52 * ps) * vec3(1.0, 0.96, 0.92);
+  if (air > 0.0) {
+   vec3 out_ = fog;
+   if (open_) {
+    vec2 gd = vec2(g.x + (whole.x - p.x) * tg / sfLen, g.z), ld = -normalize(sfL.xz);
+    float nz = noise(gd * vec2(1.3, 2.4)), rp = 0.5 + 0.5 * sin(gd.y * 9.0 + 2.5 * noise(gd * 0.9));
+    vec3 gr2 = mix(vec3(0.5, 0.46, 0.4), uKind[2] * uKind[2], 0.4) * (0.82 + 0.2 * nz + 0.09 * rp * exp(-tg * 0.06)) + 0.04 * noise(gd * 40.0);
+    int k = 0; do {
+     vec2 d = g.xz - foot[k].xz; float al = dot(d, ld), ac = abs(d.x * ld.y - d.y * ld.x);
+     onGround = max(onGround, 0.75 * (1.0 - smoothstep(0.015, 0.06 + 0.02 * max(al, 0.0), ac)) * smoothstep(-0.02, 0.02, al) * smoothstep(0.0, 0.5, (head[k].y - foot[k].y) * 3.9 - al));
+     vec4 h = sfHoop(g.xz, Mf, k == 0 ? sfA0 : sfB0, k == 0 ? sfA1 : sfB1, k == 0 ? sfA2 : sfB2);
+     onGround = max(onGround, 0.6 * (1.0 - smoothstep(0.015, 0.1, abs(h.x))));
+    } while (++k < 2);
+    gr2 *= 1.0 - 0.62 * onGround * apart * vec3(1.0, 0.93, 0.84);
+    out_ = mix(fog, gr2, exp(-max(tg - 8.0, 0.0) * 0.055));
+   }
+   col = mix(col, out_, air);
+   tcov *= 1.0 - air; scov *= 1.0 - air;
+  }
   // the linen-white plinth
   vec3 N = vec3(clamp(sx, -1.0, 1.0), 0.0, -sqrt(max(1.0 - sx * sx, 0.0)));
-  col = mix(col, vec3(0.62, 0.595, 0.55) * (0.96 + 0.07 * noise(vec2(sx * 45.0, p.y * 150.0))) * (sat(dot(N, sfL)) * 1.05 + 0.16 + 0.1 * sat(sx)), scov);
+  col = mix(col, vec3(0.62, 0.595, 0.55) * (0.96 + 0.07 * noise(vec2(sx * 45.0, p.y * 150.0))) * (sat(dot(N, sfL)) * 1.05 + 0.16 + 0.1 * sat(sx)) * (1.0 - 0.9 * dark), scov);
   vec3 t = vec3(0.74, 0.715, 0.67) * (0.83 - 0.10 * g.x + 0.05 * noise(g.xz * vec2(9.0, 30.0))) * (1.0 - 0.5 * (1.0 - exp(-1.3 * sfShade))) + 0.10 * smoothstep(-5.0 * px, -px, rim);
+  if (dark > 0.0) t *= 1.0 - 0.9 * dark;
   col = mix(col, t, tcov);
  }
  if (!a && rd.y < -0.02) {
@@ -250,7 +348,13 @@ vec3 render(vec2 p) {
    sfShade += 1.6 * (1.0 - smoothstep(0.02, 0.05 + 0.08 * s, length(d - ab * s)));
   } while (++k < 2);
   vec3 fl = vec3(0.62, 0.625, 0.62) * (1.0 - vec3(0.5, 0.48, 0.46) * (1.0 - exp(-1.4 * sfShade)));
-  col = mix(fog, fl, exp(-max(tg - 6.5, 0.0) * 0.16));
+  if (lie > 0.0) fl = mix(fl, vec3(0.62, 0.625, 0.62), 1.0 - apart);
+  if (dark > 0.0) fl *= 1.0 - 0.93 * dark;
+  if (air > 0.0) {
+   vec2 gd = vec2(g.x + (whole.x - p.x) * tg / sfLen, g.z);
+   fl = mix(fl, fl * mix(vec3(0.85, 0.78, 0.68), uKind[2] * uKind[2] * 1.5, 0.4) * (0.82 + 0.25 * noise(gd * vec2(1.3, 2.6)) + 0.1 * noise(gd * 30.0)), air);
+  }
+  col = mix(fog, fl, exp(-max(tg - 6.5, 0.0) * (0.16 - 0.1 * air)));
  }
  // brass hoops
  vec4 ring[2], bar[2];
@@ -268,6 +372,8 @@ vec3 render(vec2 p) {
     vec3 silk = sfDye(pc.rgb / max(pc.a, 0.03)) * (0.6 + 1.4 * sat(0.5 - 0.7 * h.y * x + 0.3 * h.z * x)) * (0.85 + 0.15 * sin(h.w * 150.0));
     m = mix(m, silk, smoothstep(0.3, 0.5, pc.a) * 0.9);
     float b = abs(fract(lp - uLoop + 0.5) - 0.5) * TAU, s = sin(h.w * 0.5 - uTime * 0.2);
+    if (dark > 0.0) m *= 1.0 - 0.55 * dark;
+    if (uOwn[6] < 0.0) m = mix(m, vec3(0.05, 0.036, 0.025) * (0.4 + 1.6 * sat(0.5 - 0.7 * h.y * x + 0.3 * h.z * x)), -uOwn[6]);
     m += vec3(1.0, 0.9, 0.7) * (k == 0 ? exp(-b * b * 70.0) * 0.9 : 0.0) + vec3(1.0, 0.8, 0.5) * uCue * 0.6 * exp(-s * s * 7.0);
     ring[w < sfMid ? 1 : 0] += vec4(m, 1.0) * cov * (1.0 - ring[w < sfMid ? 1 : 0].a);
    }
@@ -280,6 +386,8 @@ vec3 render(vec2 p) {
   float kl = length(kd), kc = a ? smoothstep(-px, px, (1.0 - kl) * 0.062 * sfLen / hd.z) : 0.0;
   if (r.y + kc > 0.0) {
    vec3 N = kc > 0.5 ? vec3(kd, -sqrt(max(1.0 - kl * kl, 0.0))) : vec3(side * r.x, -sqrt(1.0 - r.x * r.x)), c = sfMetal(N);
+   if (dark > 0.0) c *= 1.0 - 0.55 * dark;
+   if (a && uOwn[6] < 0.0) c = mix(c, vec3(0.05, 0.036, 0.025) * (0.35 + 2.0 * sat(dot(N, sfL))), -uOwn[6]);
    if (!a) {
     float edge = sat(dot(N, vec3(-0.62, 0.78, -0.1))), tick = abs(fract(((r.z - 0.02) / 0.96) * 55.0 + 0.5) - 0.5), cue = r.z - 1.2 * (1.0 - uCue) + 0.1;
     float at = 0.5 - 0.5 * cos(TAU * uLoop), at2 = r.z - uLoop; // the playhead is a light that climbs the bars

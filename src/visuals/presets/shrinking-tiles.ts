@@ -1,0 +1,137 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'leaded-leaf-transom',
+    name: 'Leaded leaf transom',
+    what: 'A long band of leaves in amber, green and smoke glass, leaded in black, with evening behind.',
+    variation: 0,
+    glow: 0.4,
+    world: {
+      own: [-1, 0, 0, 0.9, 1, 0.1, 0, 0],
+      kinds: ['#4f7a5a', '#3f6a80', '#d9a24a', '#e8c98a', '#2a2622'],
+      keep: 0.08,
+      answer: 0.55,
+      light: 0.12,
+      contrast: -0.1,
+      pace: 0.7,
+    },
+  },
+  {
+    id: 'plaster-leaf-ceiling',
+    name: 'Plaster leaf ceiling',
+    what: 'White plaster leaves stand well off a white ground and say everything with their shadows.',
+    variation: 0,
+    world: {
+      own: [0, 0, 0, 0, -1, -0.45, 1, 0],
+      kinds: ['#b8b0a0', '#a8b0b8', '#d8d0c4', '#e4dcd0', '#c8a890'],
+      pace: 0.5,
+      light: -0.16,
+      contrast: 0.3,
+    },
+  },
+  {
+    id: 'oak-mould-to-the-root',
+    name: 'Oak mould to the root',
+    what: 'Lobed leaves in rust, ochre and olive lie one in another and crumble small to a dark edge.',
+    variation: 0,
+    world: {
+      own: [1, 1, 0, 0, 1, 0, 0.5, 0],
+      kinds: ['#6a3a22', '#5a5a30', '#c98a3f', '#e0bf86', '#241a14'],
+      keep: 0.08,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'cut-lace-at-first-stars',
+    name: 'Cut lace at first stars',
+    what: 'A small round of cut paper hangs in the evening, the thin moon beside it, stars in its holes.',
+    variation: 0,
+    world: {
+      own: [0, 0, 0, 0, 0, 0.75, 0, -1],
+      kinds: ['#22375a', '#c08a8a', '#e8d8c8', '#f4e8d4', '#d98a5a'],
+      keep: 0.08,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'whirl-of-leaves-in-sepia',
+    name: 'Whirl of leaves in sepia',
+    what: 'A round of leaves drawn in brown pen on cream, all of it whirled like water round a drain.',
+    variation: 0,
+    world: {
+      own: [0, 0, 0, 0, 0, 0.8, -1, 0.8],
+      kinds: ['#8a7a4a', '#9a6a4a', '#c8a878', '#b89868', '#a8472e'],
+      tones: ['#3a2418', '#a8845c', '#f2e4c8'],
+      toned: 0.5,
+      answer: 1.4,
+      light: -0.12,
+      contrast: 0.15,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'indigo-cloth-with-wax-dots',
+    name: 'Indigo cloth with wax dots',
+    what: 'Straight cut patches of indigo and white, every one filled with rows of round wax dots.',
+    variation: 0,
+    world: {
+      own: [0, -1, -1, 0, 1, -0.35, 0, 0],
+      kinds: ['#1f2f5c', '#3f5a8a', '#e8e4d8', '#b8c8d8', '#141c34'],
+      keep: 0.08,
+      pace: 0.8,
+    },
+  },
+  {
+    id: 'leaf-lamp-by-the-bed',
+    name: 'Leaf lamp by the bed',
+    what: 'A low dome of leaded leaves lit from within, rose and honey, its light lying on a dark table.',
+    variation: 1,
+    world: {
+      own: [-0.8, 0, 0, 1, 1, 0, 0, 0],
+      kinds: ['#a84a52', '#6f8f58', '#f5c878', '#fce4b8', '#8a6238'],
+      keep: 0.08,
+    },
+  },
+  {
+    id: 'glazed-tureen-lid',
+    name: 'Glazed tureen lid',
+    what: 'A round lid seen from straight above, its leaves moulded and glazed in green, cream and blue.',
+    variation: 1,
+    world: {
+      own: [1, 0.4, 0, -1, 1, 0, 0, 0],
+      kinds: ['#4a7a52', '#2f6a7a', '#e8dcb0', '#c8b060', '#d8c8b0'],
+      keep: 0.08,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'swirled-marble-on-felt',
+    name: 'Swirled marble on felt',
+    what: 'One small glass ball on green felt, its leaves wound round and round as the twist in a marble.',
+    variation: 1,
+    world: {
+      own: [0.4, 0, 0, 0, 1, 0.65, 0, 1],
+      kinds: ['#2f5f9a', '#d8e8ec', '#f0b060', '#fff6e4', '#2f5a46'],
+      keep: 0.08,
+      light: 0.12,
+      contrast: 0.1,
+    },
+  },
+  {
+    id: 'plated-hill-of-a-moon',
+    name: 'Plated hill of a moon',
+    what: 'A clear hill cut in rings stands at dusk on some other world, its neighbour hanging in the sky.',
+    variation: 1,
+    world: {
+      own: [-1, -0.5, 1, 0, 1, -0.3, 0, -1],
+      kinds: ['#5a3a5a', '#e0a080', '#8ac0c0', '#f4e0b8', '#d98a6a'],
+      keep: 0.08,
+      light: 0.1,
+      contrast: 0.15,
+      pace: 1.4,
+    },
+  },
+]
+
+export default presets

@@ -5,6 +5,9 @@
 // first time it is asked for, one new shader a frame, so a long list of styles does not freeze the page as it opens; a
 // style that cannot be made is given up on alone, and the others still draw.
 //
+// A style's own numbers are written into its shader before it is made: every set of them is a shader of its own, which
+// holds only what that world draws, so a style with no world costs what it would with none to its name.
+//
 // Browser only.
 
 import { KIND_SLOTS, MAP_H, MAP_W, SPECTRUM_BANDS, type VisualSignals } from './frame'
@@ -17,6 +20,7 @@ import {
 } from './shader-sources'
 import {
   OWN_SLOTS,
+  withOwn,
   worldKinds,
   worldMap,
   worldSignals,
@@ -30,6 +34,8 @@ export interface DrawnAt {
   y: number
   w: number
   h: number
+  /** Drawn in the numbers of another world of the style, while the shader of the one asked for is being made. */
+  stand?: true
 }
 
 /** What one style is drawn with, beside the signals. */
@@ -50,7 +56,8 @@ export interface VisualRig {
   hear(signals: VisualSignals): void
   /**
    * Draws one style `width` by `height` pixels. Says where, for `drawImage`; null where this style cannot be drawn
-   * here; undefined while its shader is still being made, when it is asked for again next frame.
+   * here; undefined while its shader is still being made, when it is asked for again next frame. A style already
+   * drawn in another world goes on in that one's numbers meanwhile (`stand`).
    */
   draw(
     style: StyleDraw,
@@ -62,6 +69,9 @@ export interface VisualRig {
 
 /** How long a style whose shader could not be fetched is left alone before it is asked for again. */
 const FETCH_AGAIN_MS = 5000
+
+/** How many shaders are kept: a piece shows a few, and a person going through a style's presets makes one for each. */
+const KEPT_PROGRAMS = 64
 
 const VERTEX =
   '#version 300 es\nvoid main() { vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2); gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); }'
@@ -103,6 +113,8 @@ function buildRig(): VisualRig | false {
   const worldCells = new Uint8Array(MAP_W * MAP_H * 4)
   const noOwn = new Float32Array(OWN_SLOTS)
   let programs = new Map<string, Made>()
+  // The shader each style was last drawn with: its key among the programs.
+  const lately = new Map<string, string>()
   // A style's text: undefined while it is being fetched, null where there is none.
   const texts = new Map<string, string | null | undefined>()
   let lost = false
@@ -134,6 +146,7 @@ function buildRig(): VisualRig | false {
   }
   function start() {
     programs = new Map()
+    lately.clear()
     map = texture()
     worldsMap = null
   }
@@ -163,11 +176,7 @@ function buildRig(): VisualRig | false {
       () => {
         // Not fetched, as on a line that dropped for a moment: given up on for now and asked for again in a while.
         texts.set(id, null)
-        programs.set(id, null)
-        setTimeout(() => {
-          texts.delete(id)
-          if (programs.get(id) === null) programs.delete(id)
-        }, FETCH_AGAIN_MS)
+        setTimeout(() => texts.delete(id), FETCH_AGAIN_MS)
       },
     )
     return undefined
@@ -180,10 +189,28 @@ function buildRig(): VisualRig | false {
     return made
   }
 
-  function programOf(id: string): Made | undefined {
-    const known = programs.get(id)
+  /** Drops the shaders that were drawn with longest ago, down to the number kept. */
+  function dropOld() {
+    for (const [key, old] of programs) {
+      if (programs.size <= KEPT_PROGRAMS) return
+      programs.delete(key)
+      if (!old) continue
+      for (const part of context.getAttachedShaders(old.program) ?? []) context.deleteShader(part)
+      context.deleteProgram(old.program)
+    }
+  }
+
+  function programOf(id: string, own: Float32Array): Made | undefined {
+    const key = `${id} ${own.join(' ')}`
+    const known = programs.get(key)
     if (known !== undefined) {
-      if (known === null || known.done) return known
+      if (known === null || known.done) {
+        // The last drawn with are last in the list.
+        programs.delete(key)
+        programs.set(key, known)
+        if (known) lately.set(id, key)
+        return known
+      }
       // Being made: where the browser can say so, it is not waited for.
       if (parallel && !context.getProgramParameter(known.program, parallel.COMPLETION_STATUS_KHR))
         return undefined
@@ -196,7 +223,7 @@ function buildRig(): VisualRig | false {
           .map((log) => (log ?? '').replace(/\0/g, '').trim())
           .filter((log) => log !== '')
         console.warn(`The visual ${id} could not be made:`, said.join('\n'))
-        programs.set(id, null)
+        programs.set(key, null)
         return null
       }
       for (
@@ -212,21 +239,23 @@ function buildRig(): VisualRig | false {
         known.at[name] = context.getUniformLocation(known.program, name)
       }
       known.done = true
+      lately.set(id, key)
       return known
     }
     const text = textOf(id)
-    if (text === null) {
-      programs.set(id, null)
-      return null
-    }
+    if (text === null) return null
     if (text === undefined || toMake < 1) return undefined
     toMake--
     const program = context.createProgram()
     context.attachShader(program, shader(context.VERTEX_SHADER, VERTEX))
-    context.attachShader(program, shader(context.FRAGMENT_SHADER, common + text + footer))
+    context.attachShader(
+      program,
+      shader(context.FRAGMENT_SHADER, common + withOwn(text, own) + footer),
+    )
     context.linkProgram(program)
-    programs.set(id, { program, at: {}, done: false })
-    return parallel ? undefined : programOf(id)
+    programs.set(key, { program, at: {}, done: false })
+    dropOld()
+    return parallel ? undefined : programOf(id, own)
   }
 
   return {
@@ -249,14 +278,15 @@ function buildRig(): VisualRig | false {
     },
     draw(style, width, height, heard) {
       if (lost) return null
-      const made = programOf(style.id)
-      if (!made) return made
+      const world = style.world ?? null
+      const asked = programOf(style.id, world ? worldUniforms(world).own : noOwn)
+      const made = asked ?? (asked === null ? null : programs.get(lately.get(style.id) ?? ''))
+      if (!made) return asked === null ? null : undefined
       if (canvas.width < width || canvas.height < height) {
         canvas.width = Math.max(canvas.width, width)
         canvas.height = Math.max(canvas.height, height)
       }
       const { at } = made
-      const world = style.world ?? null
       const signals = world ? worldSignals(world, heard, worldBands) : heard
       let kinds = signals.kindColours
       let cells = map
@@ -318,7 +348,6 @@ function buildRig(): VisualRig | false {
       one('uWorld', world ? 1 : 0)
       if (world) {
         const as = worldUniforms(world)
-        if (at.uOwn) context.uniform1fv(at.uOwn, as.own)
         if (at.uStand) context.uniform4f(at.uStand, ...as.stand)
         if (at.uBend) context.uniform3f(at.uBend, ...as.bend)
         if (at.uTones) context.uniform3fv(at.uTones, as.tones)
@@ -327,14 +356,16 @@ function buildRig(): VisualRig | false {
         one('uToned', as.toned)
         one('uMistFrom', as.from)
         one('uEdge', as.edge)
-      } else if (at.uOwn) context.uniform1fv(at.uOwn, noOwn)
+      }
       if (at.uMap) {
         context.activeTexture(context.TEXTURE0)
         context.bindTexture(context.TEXTURE_2D, cells)
         context.uniform1i(at.uMap, 0)
       }
       context.drawArrays(context.TRIANGLES, 0, 3)
-      return { x: 0, y: canvas.height - height, w: width, h: height }
+      const drawn: DrawnAt = { x: 0, y: canvas.height - height, w: width, h: height }
+      if (!asked) drawn.stand = true
+      return drawn
     },
   }
 }

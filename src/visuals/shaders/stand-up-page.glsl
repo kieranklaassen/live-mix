@@ -3,12 +3,14 @@
 // b: Towers of paper
 // what: A book of thick white card lies open under one lamp on a pale table, and out of its fold rise sheets one behind another: grass, reeds, waves, leaves, arches, a sun and a row of trees, each throwing its shadow on the next; or a single white page folded upright, with stairs and towers of boxes cut and pushed out of it.
 // follows: Each kind has its own sheet, or its own tower: quiet lies in the page, loud stands up. The phrase slides the sun on its arc, the spectrum cuts the tops of the trees or the page, and the piece tints the page. A hit lights the front sheet or the small house, a cue lifts all once, keys light reeds or windows, and as the loop ends a leaf turns over all.
+// own: 0 1 the sheets are cut as mountain ridges (b: thin tall towers under a peaked page), -1 as a town of gables with windows (b: broad low flights of steps); 1 1 the eye low before them, -1 high above; 2 1 card dyed deep in its sound's colour, -1 black card; 3 the table: 1 black, -1 a cloth in the drone's colour; 4 1 the lamp stands behind and the paper glows (b: windows lit, dusk), -1 a low sun and long shadows; 5 1 many fine cuts (b: many small steps), -1 few broad ones; 6 1 no book, the paper runs out of the picture, -1 (of a) a narrow card; 7 1 printed with stripes and dots, -1 mist between the sheets (b: about their feet)
 const float spV = .3; // the fold down each sheet's middle
-const float spZF = -.74, spZB = 1.62, spXB = 1.06, spBs = -.15;
-const float spG = .55, spFD = 1.02; // the card of b: its gutter, and how deep its lying page is
-const vec3 spPa = vec3(.95, .935, .905);
+float spZF = -.74, spZB = 1.62, spXB = 1.06, spFin = 1.; const float spBs = -.15;
+float spG = .55, spFD = 1.02; // the card of b: its gutter, and how deep its lying page is
+vec3 spPa = vec3(.95, .935, .905);
 float spZ[7], spWd[7], spS[7], spC[7]; // each sheet: its hinge, half width, angle
 vec4 spI[9]; vec3 spL, spK, spA;
+vec3 spHz; // the mist
 vec4 spTw[5]; vec2 spTs[5]; vec4 spTz[5]; // each tower: left, right, depth, height; its steps, how loud; a step
 vec2 spSun, spW; float spPhi, spBow, spPx, spPen, spGr, spWa, spWi; vec2 spE, spO; // the sun, the standing page's lean; the turning leaf, its bow, a pixel, softness, grain
 float spH(float n) { return fract(n*.618034+n*n*.0837); }
@@ -80,6 +82,26 @@ float spCut6(vec2 q) { // cypresses and round crowns, as high as their bands
  s = max(s, .055+.025*r - length(vec2(x, (q.y - h)*.8)));
  return max(max(s, min(.012 - abs(x), h - q.y)), .17 - q.y);
 }
+// What else a sheet may be cut as: i is which of them it is.
+float spTri(float x) { return abs(fract(x) - .5)*2.; }
+float spElse(float i, vec2 q, float was) {
+ if (uOwn[0] > .0 && i != 5.) {
+  float x = q.x*spFin*.9+i*2.37;
+  float y = .46*spTri(x)+.3*spTri(x*1.63+.3)+.15*spTri(x*3.7)+.06*spTri(x*9.1+.2);
+  was = mix(was, (.05+.066*i+(.3+.03*i+.1*uMid*step(5.5, i))*y - q.y)*.55, uOwn[0]);
+ }
+ if (uOwn[0] < .0 && i != 5.) {
+  float c = .17/spFin, u = q.x/c+i*.37, id = floor(u), h = spH(id+i*7.3), x = (u - id - .5)*c, hi = .09+.052*i+(.16+.02*i)*h;
+  float k = fract(h*13.7), hw = c*(k > .75 ? .34 : .5), s = min((hi+(k > .75 ? .16 : .0)+(.5+k)*(hw - abs(x)) - q.y)*.7, hw - abs(x)+(k > .75 ? .0 : .004));
+  s = max(s, .07 - q.y);
+  vec2 w = vec2(abs(fract(x/(c*.34)+.5) - .5)*c*.34, abs(fract(q.y/.075) - .5)*.075);
+  float o = max(w.x - .2*c*.34, w.y - .02);
+  if (q.y > .075 && q.y < floor(hi/.075)*.075 && abs(x) < hw*.8) s = min(s, o);
+  was = mix(was, s, -uOwn[0]);
+ }
+ return was;
+}
+#define SP_CUT(i, CUT) (uOwn[0] == .0 && uOwn[5] == .0 ? CUT(q) : spElse(float(i), q, (i == 5 ? CUT(q) : CUT(vec2(q.x*spFin, q.y))/max(spFin, 1.))))
 // The sheet's place on a ray: both halves of its fold are planes, and the ray is in once it is past both.
 float spHit(float s, float c, float z, vec3 ro, vec3 rd) {
  float sx = spV*s, f = (ro.z - z)*s - ro.y*c, d = rd.z*s - rd.y*c;
@@ -104,21 +126,25 @@ float spShut(vec2 o, vec2 L, float R, float z) {
  float den = dot(L, m), t = abs(den) > 1e-3 ? -dot(o, m)/den : -1., r = dot(o+L*t, spE), w = .02+spPen*max(t, .0);
  return t < .005 ? 1. : 1. - sat(2.*spBow)*smoothstep(-w, w, min(min(r+.02, R - r), z));
 }
-float spPg(float x) { float k = 1.+9.*abs(x); return -.075/(k*k) - .035*x*x; }
+float spPg(float x) { if (uOwn[6] > .0) x *= 1. - .8*uOwn[6]; float k = 1.+9.*abs(x); return -.075/(k*k) - .035*x*x; }
 vec3 spTb(vec3 q, float za, float zb) {
  vec3 L = normalize(spL - q);
  vec2 s = q.xz+L.xz*(.11/L.y);
  float d = min(spXB - abs(s.x), min(s.y - za, zb - s.y)), near = min(spXB - abs(q.x), min(q.z - za, zb - q.z));
- return vec3(.75, .71, .655)*(spK*L.y*(1. - smoothstep(-.07, .06, d))*spNear(q)+spA*(1. - .5/(1. - 20.*min(near, .0))));
+ vec3 wood = vec3(.75, .71, .655);
+ if (uOwn[3] > .0) wood = mix(wood, vec3(.035, .033, .036), min(1., 1.15*uOwn[3]));
+ if (uOwn[3] < .0) { vec2 u = rot(.5)*q.xz; vec2 fu = fwidth(u); float px = max(fu.x, fu.y)*14.; vec3 k = uKind[0]*uKind[0];
+  wood = mix(wood, k*(.82+.2*noise(u*3.)+.16*(1. - smoothstep(.12, .35, px))*sin(u.x*90.)*sin(u.y*90.))*mix(1., 1.35, smoothstep(.44, .46, abs(fract(u.x*1.6) - .5))), min(1., -1.2*uOwn[3])); }
+ return wood*(spK*L.y*(1. - smoothstep(-.07, .06, d))*spNear(q)+spA*(1. - .5/(1. - 20.*min(near, .0))));
 }
 vec3 spFr(vec3 q, float top) {
- vec3 al = mix(spPa*(.9+.1*sin((q.y - top)*190.)*sat(1.5 - 300.*spPx)), vec3(.4, .42, .44), smoothstep(-.034, -.03, spBs - q.y));
+ vec3 al = mix(spPa*(.9+.1*sin((q.y - top)*190.)*sat(1.5 - 300.*spPx)), (uOwn[2] < .0 ? mix(vec3(.4, .42, .44), spPa*1.6, -uOwn[2]) : vec3(.4, .42, .44)), smoothstep(-.034, -.03, spBs - q.y));
  return al*(spK*.42+spA*.75*sat(.5+(q.y - spBs)*5.));
 }
 // One sheet met by the ray: where its edge faces up the card's thickness shows. The two nearest are kept.
 // Its foot darkens the page, and its colour falls before it.
 #define SP_ME(i, CUT) { float s = spS[i], c = spC[i], z = spZ[i], t = spHit(s, c, z, ro, rd), px = t*spPx; \
- vec2 q = spOn(s, c, z, ro+rd*t); float v = min(CUT(q), spWd[i] - abs(q.x)), up = sat(-dFdy(v)/px); \
+ vec2 q = spOn(s, c, z, ro+rd*t); float v = min(SP_CUT(i, CUT), spWd[i] - abs(q.x)), up = sat(-dFdy(v)/px); \
  vec4 me = vec4(t, sat(.5+v/px)*sat(.5+(tp - t)/(2.*px)), sat(.5+(.013*up - v)/px)*up, float(i)); \
  if (t > .0 && me.y > .02 && q.y > -.09) { if (t < l1.x) { l2 = l1; l1 = me; } else if (t < l2.x) l2 = me; } \
  float d = z+abs(P.x)*spV - P.z, k = max(1. - abs(d)*6., .0)*s*foot; k *= k*smoothstep(-.02, .1, spWd[i] - abs(P.x)); \
@@ -127,12 +153,14 @@ vec3 spFr(vec3 q, float top) {
 #define SP_SH(i, CUT) { float s = spS[i], c = spC[i], z = spZ[i], f0 = (pos.z - z)*s - pos.y*c, sx = spV*s, d0 = L.z*s - L.y*c; \
  float fa = f0 - sx*pos.x, fb = f0+sx*pos.x, a = d0 - sx*L.x, b = d0+sx*L.x; \
  float t = min(fa/max(-a, 1e-3), fb/max(-b, 1e-3)), w = .006+spPen*t; vec2 q = spOn(s, c, z, pos+L*t); \
- float k = smoothstep(-w, w, min(CUT(q), spWd[i] - abs(q.x))); \
- if (min(fa, fb) > .004 && t < 2.5 && q.y > -.05) sh *= 1. - k; }
+ bool on = min(fa, fb) > .004; \
+ if (uOwn[4] > .0 && min(a, b) > .0) { t = spHit(s, c, z, pos, L); w = .006+spPen*max(t, .0); q = spOn(s, c, z, pos+L*t); on = t > .012; } \
+ float k = smoothstep(-w, w, min(SP_CUT(i, CUT), spWd[i] - abs(q.x))); \
+ if (on && t < 2.5 && q.y > -.05) sh *= 1. - k; }
 // b, in the card's own measure: across, out from the standing page, and up along it.
 vec3 spToD(vec3 d) { float v = d.y*spWi; return vec3(d.x, v*spW.y - d.z, v); }
 vec3 spTo(vec3 q) { return spToD(q)+vec3(.0, spG, .0); }
-float spTop(float x) { float id = floor(x*6.5+.5); return 0.96+.12*spH(id+60.)+.18*band((id+7.)/14.); }
+float spTop(float x) { float id = floor(x*6.5+.5); return 0.96+.12*spH(id+60.)+.18*band((id+7.)/14.)+(uOwn[0] > .0 ? uOwn[0]*(.75*spTri(x*1.1+.35)+.35*spTri(x*3.1) - .35) : .0)+max(uOwn[6], .0)*1.6; }
 float spIn(vec2 g, float n, vec2 z) {
  float k = clamp(floor(.5*(n - g.x+g.y)), .0, n - 1.);
  return min((n - k - g.x)*z.x, (k+1. - g.y)*z.y);
@@ -168,15 +196,17 @@ vec2 spSee(vec3 ro, vec3 rd) {
  vec3 c = o+d*k; \
  sh *= 1. - sat(.5*min(spIn(c.yz*z.zw, spTs[i].x, z.xy), c.y+w)/w)*sat((o.x - U.x)/(.02+w)); \
  vec3 v = max(vec3(max(U.x - q.x, q.x - U.y), q.yz - U.zw), .0); float l = max(1. - 12.*dot(v, v), .0); l *= l*l*page; \
- alb = mix(alb, spI[i].rgb, .4*spTs[i].y*l); }
+ alb = mix(alb, spI[i].rgb, (uOwn[2] < .0 ? .4+.32*uOwn[2] : .4)*spTs[i].y*l); }
 vec3 spLit(vec3 pos, vec3 n, vec3 alb, float ao, float nl, float sh, float thin) {
  return alb*spGr*(spK*(nl > .0 ? nl*sh : -nl*thin)*spNear(pos)+spA*ao*(.72+.28*n.y));
 }
 vec3 spPic(vec3 ro, vec3 rd, vec3 fr, vec3 fu, vec4 leaf, vec3 ln, vec3 under, bool card) {
- float tp = -ro.y/rd.y; tp = (spPg(ro.x+rd.x*tp) - ro.y)/rd.y; tp = (spPg(ro.x+rd.x*tp) - ro.y)/rd.y;
+ float gy = min(rd.y, -.02), tp = -ro.y/gy; tp = (spPg(ro.x+rd.x*tp) - ro.y)/gy; tp = (spPg(ro.x+rd.x*tp) - ro.y)/gy;
  vec3 P = ro+rd*tp;
  float onPage = sat(.5+min(min(spXB - abs(P.x), spZB - P.z), P.z - spZF)/(tp*spPx)), pao = 1. - .5*exp(-abs(P.x)*16.);
  spGr = .97+.06*noise(P.xz*130.);
+ if (rd.y > -.021) onPage = .0;
+ if (uOwn[1] > .0 && uOwn[6] > .0) onPage *= 1. - smoothstep(-.26, -.08, rd.y)*min(1., 2.*uOwn[1]*uOwn[6]);
  vec4 l1 = leaf, l2 = vec4(1e4, .0, .0, 8.), m = piece(vec2(.5+.52*P.x, (card ? -P.z : -.14 - P.z)/.56));
  vec3 palb = spPa*mix(vec3(1.), spT(m.rgb+.02, .8), .7*sat(1.6*m.a)*spWa); // the piece, printed on the page like a wash
  float foot = card ? .0 : 1.;
@@ -204,16 +234,24 @@ vec3 spPic(vec3 ro, vec3 rd, vec3 fr, vec3 fu, vec4 leaf, vec3 ln, vec3 under, b
    n = normalize(mix(vec3((pos.x > .0 ? spV : -spV)*ink.w, sqrt(max(1. - ink.w*ink.w, .0)), -ink.w), vec3(-.4, .85, -.1), .75*ed));
    ao = mix(.65+.35*sat(pos.y*4.), 1., ed);
    alb = mix(ink.rgb*(1. - .08*max(1. - abs(pos.x)*90., .0)), vec3(.97), .6*ed);
+   if (uOwn[7] > .0 && l1.x < 50.) {
+    vec2 q = spOn(spS[kg], spC[kg], spZ[kg], pos);
+    float m = mod(float(kg), 3.), w = spPx*l1.x*40., pat = m < .5 ? sin(q.y*95.) : m < 1.5 ? .36 - length(fract(q*vec2(17., 17.)) - .5) : sin((q.x*sign(q.x)+q.y)*75.);
+    if (m > .5 && m < 1.5) pat *= 5.;
+    alb = mix(alb, mix(alb*alb*.45, spPa, uOwn[2] > .0 ? .8*uOwn[2] : .0), uOwn[7]*smoothstep(-.3 - w, .3+w, pat)*(1. - .7*ed)*sat(1.4 - w));
+   }
    add = ink.rgb*((kg == 0 ? uHits*(.4+ed)*(.6+uEnergy) : .0)*uKind[4]+ed*(kg == 1 ? .4*uKeys : .0)+ed*.3*uCue);
   } else if (kg == 7) n = dot(ln, rd) > .0 ? -ln : ln;
   else {
    pos = P; cov = 1.; alb = palb; ao = pao; add = uKind[4]*uHits*hk*hk*(.5+uEnergy);
    n = normalize(vec3((spPg(P.x - .01) - spPg(P.x+.01))/.02, 1., .0));
   }
+  if (uOwn[2] < .0) add *= 1.+.7*uOwn[2];
   vec3 L = normalize(spL - pos);
   SP_SH(0, spCut0) SP_SH(1, spCut1) SP_SH(2, spCut2) SP_SH(3, spCut3) SP_SH(4, spCut4) SP_SH(5, spCut5)
-  sh = kg == 7 ? 1. : sh*spShut(pos.xy, L.xy, spXB, 1.18 - abs(pos.z - .44));
-  vec3 c = spLit(pos, n, alb, ao, dot(n, L), sh, kg == 7 ? .5 : .12)+add;
+  sh = kg == 7 ? 1. : sh*spShut(pos.xy, L.xy, min(spXB, 1.06), 1.18 - abs(pos.z - .44));
+  vec3 c = spLit(pos, n, alb, ao, dot(n, L), sh, kg == 7 ? .5 : uOwn[4] > .0 ? mix(.12, .62*(.35+.65*sh), uOwn[4]) : .12)+add;
+  if (uOwn[7] < .0) c = mix(c, spHz, -uOwn[7]*(1. - exp(-1.5*max(pos.z+.62, .0)))*(1. - .35*sat(pos.y*1.2)));
   col += left*cov*(kg == 8 ? mix(under, c, onPage) : c);
   left *= 1. - cov;
   l1 = l2; l2 = vec4(1e4, .0, .0, 8.);
@@ -245,17 +283,27 @@ vec3 spPic(vec3 ro, vec3 rd, vec3 fr, vec3 fu, vec4 leaf, vec3 ln, vec3 under, b
    lit = 1. - o2;
    ao = mix(mix(.6, 1., smoothstep(.0, .2, y)), .25, o2);
    add = ink*(.12+.6*S.y+.3*max(uKeys, uCue))*o2;
+   if (uOwn[4] > .0) add += mix(ink, vec3(1., .72, .4), .45)*uOwn[4]*(.7+1.6*S.y)*o2;
   } else if (fc > 1.5) ao = mix(.65, 1., fract(k.x+.001));
   if (ki == 0 && fc > -.5) add += ink*uHits*(.3+uEnergy)*(fc > 1.5 ? .25 : .7 - .6*lit);
   alb *= mix(vec3(1.), spI[0].rgb, uHits*page*sat(1.7 - 2.1*length(q - vec3(-.09, .5, .0))));
+  if (uOwn[2] < .0 && id > 4.5 && id < 5.5) alb = mix(alb, spPa*2.+.04, -uOwn[2]);
+  if (uOwn[2] < .0 && fc > -.5) alb = mix(alb, I.rgb*I.rgb*.9*lit, -.7*uOwn[2]);
+  if (uOwn[2] > .0 && fc > -.5) alb = mix(alb, I.rgb*I.rgb*(fc > .5 && fc < 1.5 ? 1. - .9*(1. - lit) : .95), uOwn[2]);
+  if (uOwn[7] > .0 && id > 1.5 && id != 6.) {
+   vec2 u = id < 2.5 ? q.xy : fc > 1.5 || id < 4.5 ? vec2(q.x, id < 4.5 ? q.z : q.y) : vec2(q.x+q.y, q.z);
+   float w = px*40., m = fc > -.5 ? mod(float(ki), 2.) : 2., pat = m < .5 ? sin(u.x*110.) : m < 1.5 ? sin((u.x+u.y)*90.) : 6.*(.3 - length(fract(u*13.) - .5));
+   alb *= mix(vec3(1.), fc > -.5 ? I.rgb*.5 : mix(vec3(.8), spI[4].rgb, .7), uOwn[7]*smoothstep(-.3 - w, .3+w, pat)*lit*sat(1.4 - w));
+  }
   bool turning = id == 6.;
   if (turning) n = dot(ln, rd) > .0 ? -ln : ln;
   vec3 L = normalize(spL - pos), o = spTo(pos+n*.006), d = spToD(L);
   float dx = 1./min(d.x, -1e-3);
   SP_P(0) SP_P(1) SP_P(2) SP_P(3) SP_P(4)
-  sh = turning ? 1. : sh*spShut(vec2(spG - pos.z, pos.y), vec2(-L.z, L.y), .95, spXB - abs(pos.x));
+  sh = turning ? 1. : sh*spShut(vec2(spG - pos.z, pos.y), vec2(-L.z, L.y), .95, min(spXB, 1.06) - abs(pos.x));
   float nl = dot(n, L);
   vec3 c = spLit(pos, n, alb, ao, nl > .0 ? nl*lit : nl, sh, turning ? .5 : .1*lit)+add;
+  if (uOwn[7] < .0) c = mix(c, spHz, -uOwn[7]*exp(-3.2*max(q.z, .0))*(.75+.25*noise(q.xy*3.+vec2(mod(uTime*.05, 64.), 0.))));
   float share = abs(ids.x - ids.y) < .5 ? 1. : .5;
   col += share*(id < .5 ? under : id < 1.5 ? front : c); left += share;
   id = ids.y; t = ts.y;
@@ -278,9 +326,16 @@ vec3 render(vec2 p) {
  spBow = sin(PI*turn); spPhi = turn*(card ? .5*PI+lean : PI);
  spE = vec2(cos(spPhi), sin(spPhi)); spO = card ? vec2(-.02) : vec2(.0, -.07); spW = vec2(cos(lean), sin(lean)); spWi = 1./spW.x;
  spPen = mix(.11, .04, uTone);
+ spFin = exp2(uOwn[5]*(uOwn[5] > .0 ? .9 : 1.));
+ if (uOwn[2] < .0) spPa = mix(spPa, vec3(.032, .034, .042)+.05*uKind[0]*uKind[0], min(1., -1.1*uOwn[2]));
+ if (uOwn[6] > .0) { spXB += 2.2*uOwn[6]; spZF -= 2.2*uOwn[6]; spZB += 9.*uOwn[6]; if (uOwn[2] > .0) spPa = mix(spPa, uKind[0]*(.4+.6*uKind[0])+.02, .9*uOwn[6]*uOwn[2]); }
+ if (uOwn[6] > .0 && card) spFD += 2.5*uOwn[6];
+ if (uOwn[6] < .0 && !card) spXB += .42*uOwn[6];
  spL = card ? vec3(-2.7, 2.1, -1.1) : vec3(-2.3, 2.5, -1.5);
  spK = vec3(1., .91, .75)*(2.25+.5*uCue);
  spA = vec3(.25, .28, .35);
+ if (uOwn[4] > .0) { if (!card) { spL = mix(spL, vec3(.5, 1.55, 3.1), uOwn[4]); spK *= 1.+.35*uOwn[4]; spA *= 1. - .35*uOwn[4]; } else { spK *= mix(vec3(1.), vec3(.1, .15, .26), uOwn[4]); spA *= mix(vec3(1.), vec3(.36, .45, .66), uOwn[4]); } }
+ if (uOwn[4] < .0) { spL = mix(spL, card ? vec3(-3.4, .95, -.9) : vec3(-3.3, .92, -.75), -uOwn[4]); spK *= mix(vec3(1.), vec3(1.32, 1.1, .82), -uOwn[4]); spA *= mix(vec3(1.), vec3(.72, .8, 1.), -uOwn[4]); }
  spL.y -= .6*(uSpace - .5);
  float foc = card ? 1.42 : 1.54;
  spPx = zoom/(foc*uRes.y);
@@ -293,24 +348,46 @@ vec3 render(vec2 p) {
  SP_S(4, .46, .94, rp, b.y) SP_TW(4, -.3, .1, .48, .88, 4., uPad, rp, b.y)
  SP_S(5, .66, .93, max(rf, .8*rl), b.z)
  SP_S(6, .84, .96, rl, b.x)
+ if (uOwn[6] != .0 && !card) for (int i = 0; i < 7; i++) spWd[i] *= uOwn[6] > .0 ? 1.+1.5*uOwn[6] : 1.+.45*uOwn[6];
+ if (card && (uOwn[0] != .0 || uOwn[5] != .0)) for (int i = 0; i < 5; i++) {
+  vec4 T = spTw[i]; float m = .5*(T.x+T.y), h = .5*(T.y - T.x)*(uOwn[0] > .0 ? 1. - .45*uOwn[0] : 1. - .3*uOwn[0]), n = max(floor(spTs[i].x*exp2(uOwn[5])+.5), 1.);
+  T = vec4(m - h, m+h, T.z*(uOwn[0] > .0 ? 1. - .35*uOwn[0] : 1. - .12*uOwn[0]), T.w*(uOwn[0] > .0 ? 1.+(i == 0 ? 1.2 : i == 3 ? .12 : .32)*uOwn[0] : 1.+.4*uOwn[0]));
+  spTw[i] = T; spTs[i].x = n; spTz[i].xy = T.zw/n; spTz[i].zw = 1./spTz[i].xy;
+ }
  float k = card ? .3 : .0;
  #define SP_I(i, c, l) spI[i] = vec4(spT(c, l), card ? spTs[min(i, 4)].x+.95*spTs[min(i, 4)].y : spS[i]);
  SP_I(0, uKind[4], .35+1.5*k) SP_I(1, uKind[2], .5+k+.2*uTexture) SP_I(2, uKind[0], .5+k+.2*uDrone) SP_I(3, uKind[3], .45+k+.2*uPhrase)
  SP_I(4, uKind[1], .4+k+.2*uPad) SP_I(5, mix(uKind[3], vec3(1., .75, .25), .75), .6) SP_I(6, mix(uKind[0], uKind[3], .6), .28)
+ if (uOwn[2] > .0 && !card) {
+  for (int i = 0; i < 7; i++) { vec3 c = i == 0 ? uKind[4] : i == 1 ? uKind[2] : i == 2 ? uKind[0] : i == 3 ? uKind[3] : i == 4 ? uKind[1] : i == 5 ? mix(uKind[3], vec3(1., .7, .28), .75) : mix(uKind[0], uKind[3], .6); spI[i].rgb = mix(spI[i].rgb, c*c*1.05+.01, uOwn[2]); }
+ }
+ if (uOwn[2] < .0 && !card) for (int i = 0; i < 7; i++) if (i != 5) spI[i].rgb = mix(spI[i].rgb, spPa, -uOwn[2]*(.96 - .12*float(i)));
  spI[7] = spI[8] = vec4(spPa, 1.);
+ spHz = mix(vec3(dot(spPa, vec3(.33))), spPa*(.3+uKind[1]), .7)*(uOwn[2] < .0 ? .75 : .92)*mix(vec3(1.), card ? vec3(.36, .45, .66) : vec3(.6), max(uOwn[4], .0));
  float yaw = (card ? .5 : .16)+.03*sin(uTime*.04);
  spSun = vec2(.0, 1.)*rot(.6 - uPhrase+.12*sin(uTime*.05));
  vec3 tgt = card ? vec3(.05, .33, .12) : vec3(.0, .18, .14);
  vec3 ro = tgt+3.5*vec3(sin(yaw)*.82, .57, -cos(yaw)*.82);
+ if (uOwn[1] != .0) {
+  float s = uOwn[1] > .0 ? mix(.57, card ? .4 : .16, uOwn[1]) : mix(.57, card ? .86 : .93, -uOwn[1]), c = sqrt(1. - s*s)/.82;
+  if (card) yaw -= .4*abs(uOwn[1]);
+  tgt.y += (card ? .08 : .2)*max(uOwn[1], .0);
+  ro = tgt+3.5*vec3(sin(yaw)*.82*c, s, -cos(yaw)*.82*c);
+ }
  vec3 f = normalize(tgt - ro), r = normalize(vec3(f.z, .0, -f.x)), u = cross(f, r);
  vec3 rd = f*foc+(r*p.x+u*p.y)*zoom;
- rd.y = min(rd.y, -.05); rd.z = max(rd.z, .05); rd = normalize(rd);
- float lr, R = card ? .95 : spXB - .02; vec2 l2;
+ rd.y = min(rd.y, uOwn[1] > .0 && !card ? 1. : -.05); rd.z = max(rd.z, .05); rd = normalize(rd);
+ float lr, xb = min(spXB, 1.06), R = card ? .95 : xb - .02; vec2 l2;
  float lt = spTurn(card ? vec2(spG - ro.z, ro.y) : ro.xy, card ? vec2(-rd.z, rd.y) : rd.xy, R, lr, l2);
  vec3 lp = ro+rd*lt;
  vec4 leaf = vec4(1e4, .0, .0, 8.);
- if (spPhi > .0 && lt > .0 && lr > .0 && lr < R) leaf = vec4(lt, sat(.5+min(min(lr+.01, R - lr), card ? spXB - abs(lp.x) : 1.18 - abs(lp.z - .44))/(lt*spPx)), .0, 7.);
- vec3 col = spTb(ro+rd*((spBs - ro.y)/rd.y), card ? spG - spFD : spZF, card ? spG : spZB);
+ if (spPhi > .0 && lt > .0 && lr > .0 && lr < R) leaf = vec4(lt, sat(.5+min(min(lr+.01, R - lr), card ? xb - abs(lp.x) : 1.18 - abs(lp.z - .44))/(lt*spPx)), .0, 7.);
+ vec3 col = spTb(ro+rd*((spBs - ro.y)/min(rd.y, -.02)), card ? spG - spFD : spZF, card ? spG : spZB);
+ if (uOwn[1] > .0 && !card) {
+  vec3 k1 = uKind[1]*uKind[1], far = mix(mix(vec3(dot(k1, vec3(.33))), k1, .8)*1.1+.1, vec3(.02, .02, .03), max(uOwn[3], .0))*(1. - .6*smoothstep(-.1, .55, rd.y))*(1. - .3*max(uOwn[4], .0));
+  if (uOwn[7] < .0) far = mix(far, spHz, -.8*uOwn[7]*(1. - smoothstep(.0, .4, rd.y)));
+  col = mix(col, far, smoothstep(-.3, -.03, rd.y)*sat(3.*uOwn[1]));
+ } else if (uOwn[7] < .0) col = mix(col, spHz, -.3*uOwn[7]);
  col = spPic(ro, rd, r, u, leaf, card ? vec3(.0, l2.y, -l2.x) : vec3(l2, .0), col, card);
  col *= 1.12; col = sqrt(col*(1.4+col)/(1.+1.4*col+col*col));
  return mix(col, col*col*(3. - 2.*col), .6);

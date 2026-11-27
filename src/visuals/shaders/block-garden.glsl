@@ -3,14 +3,16 @@
 // b: Shelf of houses
 // what: A little town of painted wooden blocks on a pale table in morning light from a window: houses, round towers, arches, trees and street lamps with long soft shadows, the paint rubbed off at the edges; or the same blocks seen level, standing along two shelves with the sun coming in from the side.
 // follows: Houses rise where the piece sounds and their windows light with their own kind of sound; a row of round towers stands as high as the bands; a hit lights one tower, a cue lights lamps and windows street by street, or house by house along the shelf; the loop swings the sun and the shadows; keys and voice colour the trees and light windows.
+// own: 0 1 tall as towers, -1 low and flat; 1 1 a wood of trees in place of the houses, -1 bare square blocks side by side with no roof or window; 2 1 crowded as far as one sees, -1 a few left with room about them; 3 1 snow on everything, -1 the ground (b: the wall too) in the drone's colour; 4 1 night with lit windows, -1 a low late sun and long shadows; 5 the eye: 1 straight above (b: close, with deep perspective), -1 low along the ground (b: looking down on the boards); 6 1 strewn and turned any way, of every size, -1 in strict rows, all alike; 7 1 paper lanterns lit from inside, -1 drawn in ink on paper
 // What stands in one place of the grid: a lower piece and one on top.
-vec4 bgH, bgD0 = vec4(1.0), bgD1 = vec4(1.0), bgF1 = vec4(0.0);  // its numbers; half width, half depth, height, radius of each piece; how its faces lean
-vec2 bgCs, bgMid;                  // its turn, its middle
+vec4 bgH, bgD0 = vec4(1.0), bgD1 = vec4(1.0), bgF1 = vec4(0.0);  // its numbers, sizes, how its faces lean
+vec2 bgCs, bgMid; 
 float bgFt, bgKi = 0.0, bgPx, bgSf;
-vec4 bgM;                          // the piece, here
+vec4 bgM;       
+float bgDye, bgNight, bgDraw, bgStrict;   // own: how far the paint is of the kinds' colours; night; drawn; in rows
 bool bgB, bgHo, bgTr, bgLm, bgPeg, bgAr, bgAny;
 vec3 bgL, bgSun, bgSky;
-vec2 bgHt;                         // the block a hit lights
+vec2 bgHt;
 
 float bgOff(float lo, float hi, float x) { return 1.0 - smoothstep(lo, hi, x); }
 float bgIn(float x) { return 1.0 - smoothstep(-bgPx, bgPx, x); }
@@ -36,7 +38,7 @@ void bgFe(vec2 c) {
     tall = 0.4 + 0.4 * bgH.x + (back ? 0.35 + 0.15 * bgH.x : 0.0);
   } else {
     float r = dot(bgMid * bgMid, vec2(0.74, 1.0)), f = r + (bgH.x - 0.5) * 17.0;
-    bool street = min(fract(c.x * 0.25 + 0.25), fract(c.y * 0.3333334 + 0.01) - 0.1) < 0.1, in_ = f < 24.0;
+    bool street = bgH.w >= uOwn[2] && min(fract(c.x * 0.25 + 0.25), fract(c.y * 0.3333334 + 0.01) - 0.1) < 0.1, in_ = f < (uOwn[2] > 0.0 ? 24.0 * exp2(4.0 * uOwn[2]) : 24.0);
     at = vec2((c.x + 6.0) * 0.0833333, 0.5 - c.y * 0.1);
     bgPeg = c.y == 3.0 && abs(bgMid.x) < 5.0;
     bgLm = in_ && street && !bgPeg && fract((c.x + c.y * 2.0) * 0.3333334 + 0.01) < 0.3;
@@ -49,20 +51,36 @@ void bgFe(vec2 c) {
   bool bell = c == bgHt && bgSf < 0.5;
   bgHo = bgHo || bell; bgTr = bgTr && !bell; bgLm = bgLm && !bell;
   t = bell ? 0.1 : t;
+  float cubes = max(-uOwn[1], 0.0), loose = max(uOwn[6], 0.0), go = fract(bgH.x * 41.0 + bgH.y * 17.0);
+  if (bgDye > 0.0) {
+    if (!bell && go < -0.9 * uOwn[2]) bgHo = bgTr = bgLm = bgPeg = false;
+    if (bgB && uOwn[2] > 0.0 && !bgPeg && !bgTr && abs(c.y - 0.5) < 1.0 && go < uOwn[2]) bgHo = true;
+    if (bgHo && !bell && go < uOwn[1]) { bgHo = false; bgTr = true; }
+    turn = (turn + (bgH.y - 0.5) * 1.5 * loose) * (1.0 - max(cubes, bgStrict));
+    size *= mix(1.0, 0.45 + 0.4 * bgH.w, loose);
+    bgMid += (bgH.zx - 0.5) * 0.22 * loose;
+    t = mix(t, 0.3, bgStrict);
+  }
   bgAny = bgHo || bgTr || bgPeg || bgLm;
-  bgM = bgHo ? piece(at) : vec4(0.0);
+  bgM = bgHo || bgTr && uOwn[1] > 0.0 ? piece(at) : vec4(0.0);
   bgCs = vec2(1.0, bgPeg ? 0.0 : turn); bgCs *= inversesqrt(1.0 + bgCs.y * bgCs.y);
   bgKi = bgPeg ? fract(c.x * 0.25) * 4.0 : floor(bgH.z * 3.99);
   tall += 0.65 * bgM.a * (1.7 - tall);
   tall = bgPeg ? 0.42 + (bgB ? 0.06 * c.x : 0.2 * bgH.x) + 0.75 * uBands[int(clamp(bgB ? c.x * 2.6 - 2.0 : c.x * 1.6 + 8.0, 0.0, 15.0))] : bell ? 1.0 + 0.15 * bgM.a + 0.4 * uHits * (1.0 - uHits) : tall;
+  if (bgDye > 0.0) {
+    tall = mix(tall, (0.55 + 0.6 * bgM.a) * (bgB && back ? 1.5 : 1.0), bgPeg || bell ? 0.0 : bgStrict);
+    tall *= exp2(uOwn[0] * (uOwn[0] < 0.0 ? 1.7 : bgB ? 0.75 : 1.1)) * mix(1.0, 0.5 + bgH.z, loose);
+  }
   tall = bgTr ? 0.2 : bgLm ? 0.56 : rim ? tall : tall + b;
-  // below: a box or something round; on it: a roof, a cap, a crown
-  bool rnd = t < 0.2 || bgPeg || bgTr || bgLm, cone = bgPeg ? odd : !bgLm && (fract(bgH.w * 5.0) < 0.6 || bell), ball = bgLm || bgTr && !cone;
+  bool rnd = (t < 0.2 || bgPeg) && uOwn[1] > -0.5 || bgTr || bgLm, cone = bgPeg ? odd : !bgLm && (fract(bgH.w * 5.0) < 0.6 || bell), ball = bgLm || bgTr && !cone;
   float w = bgPeg ? 0.3 : bgTr ? 0.055 : bgLm ? 0.03 : (0.34 + 0.07 * bgH.z) * size, d = w * (0.82 + 0.18 * bgH.w);
-  bool gable = t < 0.5, hip = t < 0.7 && !gable, lean = gable || hip;
-  bgAr = bgHo && t > 0.7 && t < 0.84;
+  if (bgHo || bgPeg) { w = mix(mix(w, 0.36, bgStrict), 0.495, cubes); d = mix(mix(d, 0.36, bgStrict), 0.495, cubes); }
+  bool gable = t < 0.5 && !(cubes > 0.5), hip = t < 0.7 && !gable && !(cubes > 0.5), lean = gable || hip;
+  bgAr = bgHo && t > 0.7 && t < 0.84 && cubes < 0.5;
   float r2 = bgTr ? 0.3 : bgLm ? 0.1 : w * 1.12, up2 = cone ? bgTr ? 2.9 : 1.7 : 1.0, h2 = rnd ? r2 * up2 : gable ? w : hip ? w * 1.25 : bgAr ? 0.18 : 0.3;
-  vec2 hf = lean ? vec2(w, d) + 0.035 : bgAr ? vec2(w * 0.5, d * 0.97) : vec2(w, d) * 0.62;
+  if (bgTr && bgDye > 0.0) { float grow = (1.0 + 0.4 * go * max(uOwn[1], 0.0)) * (1.0 - 0.3 * loose * bgH.w) * (1.0 + 0.3 * bgM.a); r2 *= grow; up2 *= exp2(0.5 * uOwn[0]); h2 = r2 * up2; }
+  if (cubes > 0.0 && !bgTr && !bgLm) { h2 *= 1.0 - 0.97 * cubes; }
+  vec2 hf = lean ? vec2(w, d) + 0.035 : bgAr ? vec2(w * 0.5, d * 0.97) : vec2(w, d) * mix(0.62, -0.1, cubes);
   bgFt = ball ? -r2 : 0.0;
   bgD0 = vec4(rnd ? vec2(99.0) : vec2(w, d), tall, rnd ? w : 99.0);
   bgD1 = vec4(rnd ? vec2(99.0) : hf, h2, rnd ? r2 : 99.0);
@@ -70,15 +88,13 @@ void bgFe(vec2 c) {
   bgF1 = rnd ? vec4(0.0, 0.0, cone ? -k * k : 1.0, cone ? k * r2 : 0.0) : vec4(lean ? hf.x / h2 : 0.0, hip ? hf.y / h2 : 0.0, 0.0, 0.0);
 }
 vec2 bgTu(vec2 v) { return vec2(bgCs.x * v.x + bgCs.y * v.y, bgCs.x * v.y - bgCs.y * v.x); }
-// Where a ray comes into each piece and goes out (x, y), and how much of the pixel it covers (z). For the sun the two
-// are one block, and only the first answer counts.
+// Where a ray comes into each piece and goes out (x, y), and how much of the pixel it covers (z).
 vec3 bgIn0, bgIn1;
 void bgMeet(vec3 o, vec3 d, float a0, bool sun, float lid) {
   o.xz = bgTu(o.xz - bgMid); d.xz = bgTu(d.xz);
   vec2 id = 1.0 / (d.xz + 1e-6), m = -o.xz * id, w = abs(id) * bgD0.xy, lo = m - w, hi = m + w;
   float iy = 1.0 / (d.y + 1e-6), b0 = dot(o.xz, d.xz), c0 = dot(o.xz, o.xz), e = b0 * b0 - a0 * (c0 - bgD0.w * bgD0.w), q = sqrt(max(e, 0.0)), ia = 1.0 / a0;
   float top = (bgD0.z - o.y) * iy, t0 = max(max(lo.x, lo.y), (-b0 - q) * ia), t1 = min(min(hi.x, hi.y), (-b0 + q) * ia);
-  // the one on top
   float y = o.y - bgD0.z;
   vec2 s = bgF1.xy * d.y, r = bgF1.xy * y - bgD1.xy;
   vec4 nd = vec4(d.xz + s, s - d.xz) + 1e-6, t = -vec4(r + o.xz, r - o.xz) / nd;
@@ -101,7 +117,7 @@ void bgMeet(vec3 o, vec3 d, float a0, bool sun, float lid) {
   }
 }
 // How high anything stands near two places: out on the open table things are low.
-float bgHigh(vec2 a, vec2 b) { vec2 k = vec2(0.8, 1.0); a *= k; b *= k; return !bgB && min(dot(a, a), dot(b, b)) > 38.0 ? 1.1 : 1.96; }
+float bgHigh(vec2 a, vec2 b) { vec2 k = vec2(0.8, 1.0); a *= k; b *= k; return bgDye > 0.0 ? 1.96 + 1.7 * max(uOwn[0], 0.0) : !bgB && min(dot(a, a), dot(b, b)) > 38.0 ? 1.1 : 1.96; }
 // The sun at a place (x), its shadows softer the farther they fall, and the sky (y).
 float bgLn;
 vec2 bgShade(vec3 o, float face, bool sun) {
@@ -111,13 +127,14 @@ vec2 bgShade(vec3 o, float face, bool sun) {
   vec2 q0 = vec2(0.0), h0 = vec2(-9.0); bool lamp = false;
   vec2 run = d.xz / d.y;
   float a0 = dot(d.xz, d.xz), lim = bgHigh(o.xz + run * max(1.0 - o.y, 0.0), o.xz + run * max(1.96 - o.y, 0.0));
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 20; i++) {
+    if (i > 9 && uOwn[0] < 0.5 && uOwn[4] > -0.3) break;
     bgFe(c);
     for (int k = 0; k < 1 && bgAny; k++) bgMeet(o, d, a0, true, i == 0 ? 0.0 : 0.55);
     float from = max(bgIn0.x, 0.0), len = bgAny && bgIn0.z > 0.0 && bgIn0.y > from ? bgIn0.y - from : 0.0;
     sh *= 1.0 - smoothstep(0.0, base + soft * from, len);
     ao *= 1.0 - 0.5 * min(len * 2.0, 1.0) / (1.0 + from * 2.5);
-    if (i == 0) { q0 = bgTu(o.xz - bgMid); h0 = bgAny ? min(bgD0.xy, bgD0.ww) : vec2(-9.0); lamp = bgLm; }
+    if (i == 0) { q0 = bgTu(o.xz - bgMid); h0 = bgAny ? min(bgD0.xy, bgD0.ww) : vec2(-9.0); lamp = bgLm || uOwn[7] > 0.0 && bgHo && !bgB; }
     if (tm.x < tm.y) { t = tm.x; tm.x += id.x; c.x += st.x; } else { t = tm.y; tm.y += id.y; c.y += st.y; }
     if (!sun && i > 1 || o.y + d.y * t > lim || sh < 0.02 || (bgB && c.y < -0.5)) break;
   }
@@ -127,7 +144,10 @@ vec2 bgShade(vec3 o, float face, bool sun) {
   return vec2(sh, ao);
 }
 const vec3 bgPs[8] = vec3[8](vec3(0.86, 0.76, 0.55), vec3(0.52, 0.073, 0.036), vec3(0.76, 0.41, 0.05), vec3(0.25, 0.36, 0.18), vec3(0.115, 0.24, 0.385), vec3(0.8, 0.68, 0.45), vec3(0.72, 0.3, 0.22), vec3(0.06, 0.08, 0.115));
-vec3 bgPt(float h) { return bgPs[int(h * 7.99)]; }
+vec3 bgPt(float h) {
+  vec3 k = uKind[1 + int(fract(h * 3.0) * 3.99)];
+  return bgDye > 0.0 ? mix(bgPs[int(h * 7.99)], k * k * 0.9 + 0.03, bgDye) : bgPs[int(h * 7.99)];
+}
 vec3 bgMute(vec3 c, float k) { c = max(mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, k), 0.0); return c * c; }
 // How lit a lamp or a window is as a cue runs through: first the near street, then the next. x is its place in the row.
 float bgLit(float x) { return smoothstep(x - 0.3, x - 0.05, 1.45 - 1.3 * uCue) * smoothstep(0.0, 0.35, uCue); }
@@ -150,6 +170,10 @@ BgSeen bgLook(vec3 ro, vec3 rd, BgMet m, float ground) {
   s.n = ground < 1.5 ? vec3(0.0, 1.0, 0.0) : ground < 2.5 ? vec3(0.0, 0.0, -1.0) : vec3(0.0, -1.0, 0.0);
   s.alb = (table ? vec3(0.86, 0.8, 0.7) : wall ? vec3(0.63, 0.68, 0.6) : ground > 2.5 ? vec3(0.5, 0.36, 0.22) : vec3(0.66, 0.5, 0.33)) * (1.0 + (0.112 * noise(gq * vec2(1.7, 17.0)) + 0.048 * noise(gq * 11.0 + 5.0) - 0.12) * (wall ? 0.6 : 1.0));
   s.glow = vec3(0.0);
+  float snow = max(uOwn[3], 0.0), dyed = max(-uOwn[3], 0.0);
+  if (dyed > 0.0) s.alb = mix(s.alb, (uKind[0] * uKind[0] * 0.85 + 0.02) * (0.8 + 0.35 * noise(gq * 3.0) + 0.1 * noise(gq * 23.0)), dyed * (wall || table ? 1.0 : 0.35));
+  if (snow > 0.0 && !wall) s.alb = mix(s.alb, vec3(0.86, 0.89, 0.95) * (0.93 + 0.1 * noise(gq * 2.0)), snow * step(0.5, s.n.y));
+  if (bgDraw > 0.0) s.alb = mix(s.alb, vec3(0.92, 0.89, 0.82) * (0.96 + 0.06 * noise(gq * 29.0)), bgDraw);
   for (int once = 0; once < 1 && m.k > -0.5; once++) { // a block
   bgFe(m.c);
   bool top = m.k > 0.5;
@@ -157,7 +181,6 @@ BgSeen bgLook(vec3 ro, vec3 rd, BgMet m, float ground) {
   vec3 q = s.pos; q.xz = bgTu(s.pos.xz - bgMid);
   if (top) q.y -= bgD0.z - bgFt;
   vec2 sg = vec2(q.x < 0.0 ? -1.0 : 1.0, q.z < 0.0 ? -1.0 : 1.0);
-  // the face met, its nearest edge, a small rounding there
   vec2 il = inversesqrt(1.0 + F.xy * F.xy);
   vec3 ds = vec3((abs(q.x) - D.x + F.x * q.y) * il.x, q.y - D.z, (abs(q.z) - D.y + F.y * q.y) * il.y);
   vec3 nA = vec3(sg.x, F.x, 0.0) * il.x, nC = vec3(0.0, F.y, sg.y) * il.y;
@@ -179,32 +202,48 @@ BgSeen bgLook(vec3 ro, vec3 rd, BgMet m, float ground) {
   paint = roof || bell ? paint : mix(paint, kc * kc * 0.8 + 0.06, 0.35);
   if (bgPeg) paint = top ? bgMute(kc, 0.8) * 0.85 : vec3(0.84, 0.74, 0.56);
   if (bgTr) paint = !top ? beech * 0.5 : F.z < 0.0 ? vec3(0.1, 0.19, 0.1) : mix(vec3(0.26, 0.33, 0.1), bgMute(uKind[3], 0.9), 0.2 + 0.6 * uKeys);
+  if (bgTr && top && bgDye > 0.0) paint = mix(paint, bgPt(bgH.w) * 0.8, bgDye * max(abs(uOwn[1]), 0.5));
   if (bgLm) paint = top ? vec3(0.85, 0.78, 0.6) : vec3(0.04);
   float wear = max(bgOff(0.0, 0.05, e + (wn - 0.4) * 0.07) * 0.85, smoothstep(0.82, 0.92, wn) * 0.6);
   if (fract(bgH.z * 9.0 + bgH.w) < 0.26 && bgHo) wear = 1.0;
   if (bgTr || bgLm) wear = 0.0;
   paint *= mix(vec3(1.0), 0.7 + bgM.rgb, sat(bgM.a * 0.8));
-  s.alb = mix(paint * (0.88 + 0.22 * g), beech, wear);
-  // windows, two rows of them under the eaves
+  s.alb = mix(paint * (0.88 + 0.22 * g), beech, wear * (1.0 - 0.9 * max(-uOwn[1], 0.0)));
   float w = isZ ? D.x : D.y, u = isZ ? q.x : q.z, down = D.z - q.y - 0.05, row = floor(down / 0.34);
   float dv = abs(down - (row + 0.5) * 0.34) - 0.1, du = rnd ? min(abs(q.x), abs(q.z)) - 0.06 : abs(abs(u) - 0.5 * w) - 0.078;
   float fit = !top && side && (bgHo || bgPeg) && !bgAr && row > -0.5 && row < 1.5 ? smoothstep(0.02, 0.08, D.z - (row + 0.78) * 0.34 - 0.05) : 0.0;
+  if (uOwn[1] < 0.0) fit *= 1.0 + uOwn[1];
   float win = bgIn(max(du, dv)) * fit, frame = bgIn(max(du, dv) - 0.024) * fit;
   float lv = bgKi < 0.5 ? uDrone : bgKi < 1.5 ? uPad : bgKi < 2.5 ? uTexture : uPhrase;
   float own = fract(bgH.y * 5.0 + row * 0.37 + (u > 0.0 ? 0.43 : 0.0) + (isZ ? 0.21 : 0.0));
   float lit = lv * smoothstep(own * 0.6 - 0.1, own * 0.6 + 0.2, lv + 0.1);
+  if (bgNight > 0.0) lit = max(lit, bgNight * 1.4 * smoothstep(0.3, 0.45, own));
+  if (bgDye > 0.0) lit = max(lit, bgDye * uHits * step(fract(bgH.y * 13.0), 0.3));
   lit = max(max(lit, bgLit(bgOr(m.c))), uMic * step(0.5, own));
   s.alb = mix(mix(s.alb, vec3(0.75, 0.7, 0.6), frame - win), vec3(0.04, 0.05, 0.075), win);
   s.glow = mix(bgMute(kc, 1.25), vec3(1.0, 0.62, 0.25), 0.35) * (win + 0.2 * fit * exp2(-max(max(du, dv), 0.0) * 18.0) * bgOff(0.52, 0.71, down)) * lit * (0.8 + 1.4 * uEnergy);
-  // the mouth of an arch
   if (bgAr && !top && isZ) {
     float ar = D.x * 0.55, sy = max(D.z - 0.14 - ar, 0.0), ma = q.y < sy ? abs(q.x) - ar : length(vec2(q.x, q.y - sy)) - ar;
     float deep = bgIn(ma);
     s.alb *= mix(1.0, 0.16 + 0.3 * sat(0.4 - q.y * 1.2), deep); s.sun = 1.0 - deep;
   }
-  if (bgLm && top) s.glow = vec3(1.0, 0.62, 0.25) * bgLit(bgOr(m.c)) * 2.6;
+  if (bgLm && top) s.glow = vec3(1.0, 0.62, 0.25) * max(bgLit(bgOr(m.c)), bgNight * 0.6) * 2.6;
   n.xz = vec2(bgCs.x * n.x - bgCs.y * n.z, bgCs.y * n.x + bgCs.x * n.z);
   s.n = n;
+  if (snow > 0.0) s.alb = mix(s.alb, vec3(0.88, 0.91, 0.96), snow * smoothstep(0.2, 0.5, n.y + 0.3 * (wn - 0.5)) * (bgLm ? 0.0 : 1.0));
+  if (bgTr && top && uOwn[1] > 0.0) s.glow = uOwn[1] * (s.alb * (0.25 * lv + 0.4 * bgM.a) + bgMute(uKind[4], 1.1) * uHits * step(bgH.y, 0.35) * 0.7);
+  if (uOwn[7] > 0.0 && (bgHo || bgPeg)) {       // a lantern: ribs, and the light in it
+    float rib = 0.72 + 0.28 * smoothstep(0.0, 0.25, abs(fract(q.y * 9.0) - 0.5) * 2.0);
+    vec3 warm = mix(bgMute(kc, 1.2), vec3(1.0, 0.72, 0.42), 0.3);
+    s.glow = mix(s.glow, warm * rib * (0.22 + 1.5 * lv + 0.5 * bgM.a + 0.8 * bgLit(bgOr(m.c))) * (top ? 0.45 : 0.6 + 0.6 * exp2(-3.0 * abs(q.y - 0.35))), uOwn[7]);
+    s.alb *= 1.0 - 0.5 * uOwn[7];
+  }
+  if (bgDraw > 0.0) {                           // drawn: paper, a line along each edge, its windows filled as they sound
+    float thick = bgPx * 0.5 + 0.004, ink = max(bgOff(thick, thick + bgPx, e), frame - win);
+    vec3 page = mix(vec3(0.92, 0.89, 0.82), kc * kc * 0.8 + 0.1, win * sat(0.15 + lit * 1.5));
+    page = mix(page, mix(page, bgM.rgb / max(bgM.a, 0.02), 0.55), bgHo && (top || bgAr) ? sat(bgM.a * 1.5) : 0.0);
+    s.alb = mix(s.alb, mix(page, vec3(0.05, 0.06, 0.09), 0.9 * ink), bgDraw); s.glow *= 1.0 - bgDraw; s.sun = mix(s.sun, 1.0, bgDraw);
+  }
   s.alb *= mix(0.7, 1.0, smoothstep(0.0, 0.3, s.pos.y));
   // the block a hit lights
   if (bell) s.glow += mix(bgMute(uKind[4], 1.1), vec3(1.0, 0.8, 0.5), 0.35) * uHits * (top || isY ? 1.5 : 0.15);
@@ -224,33 +263,46 @@ vec3 bgLight(BgSeen s, vec2 sh, float pane) {
   light += bgSun * vec3(0.17, 0.145, 0.11) * sat(0.6 - 0.6 * s.n.y) * exp2(-max(s.pos.y, 0.0) * 1.7) * (0.3 + 0.7 * pane) * s.sun;
   vec3 v = vec3(bgHt.x + 0.5, 0.9, bgHt.y + (bgB ? 0.4 : 0.5)) - s.pos;
   light += bgMute(uKind[4], 1.2) * uHits * (abs(bgSf) < 0.5 ? 2.0 : 0.0) * exp2(-dot(v, v) * 0.7);
+  if (bgNight > 0.0) light += vec3(1.0, 0.58, 0.2) * bgNight * bgLn * 1.8;
+  if (uOwn[7] > 0.0) light += vec3(1.0, 0.66, 0.36) * uOwn[7] * bgLn * (0.5 + uLevel);
   light += vec3(1.0, 0.58, 0.2) * (bgLn * 2.2 + 0.28 * exp2(-max(s.pos.y, 0.0) * 0.8)) * bgLit(bgOr(s.pos.xz));
   return s.alb * light + s.glow;
 }
 vec3 render(vec2 p) {
+  bgNight = max(uOwn[4], 0.0); bgDraw = max(-uOwn[7], 0.0); bgStrict = max(-uOwn[6], 0.0);
+  bgDye = min(abs(uOwn[0]) + abs(uOwn[1]) + abs(uOwn[2]) + abs(uOwn[3]) + abs(uOwn[4]) + abs(uOwn[5]) + abs(uOwn[6]) + abs(uOwn[7]), 1.0);
   bgB = uVar > 0.5; bgSf = 0.0; bgHt = bgB ? vec2(-3.0, 1.0) : vec2(0.0, -1.0);
   float sway = sin(TAU * uLoop), t, tEnd, ground = 0.0;
   bgSun = mix(vec3(1.0, 0.78, 0.53), vec3(1.0, 0.9, 0.78), uTone) * (2.1 + 0.5 * uLevel);
   bgSky = vec3(0.48, 0.5, 0.6) * 0.9;
+  float late = max(-uOwn[4], 0.0);
+  if (bgNight > 0.0) { bgSun *= mix(vec3(1.0), vec3(0.11, 0.15, 0.24), bgNight); bgSky *= mix(vec3(1.0), vec3(0.16, 0.2, 0.32), bgNight); }
+  if (late > 0.0) { bgSun *= mix(vec3(1.0), vec3(1.25, 0.95, 0.66), late); bgSky *= mix(vec3(1.0), vec3(0.7, 0.68, 0.8), late); }
   vec3 ro, rd;
   float edge = 0.0, ye = 0.0;
   if (!bgB) {
     float S = mix(8.2, 9.4, uSpace), az = 0.66 + 0.05 * sin(uTime * 0.021), el = 0.74;
     bgPx = S / uRes.y;
     vec2 ca = vec2(cos(az), sin(az)), ce = vec2(cos(el), sin(el));
+    if (uOwn[5] != 0.0) { float to = el + (uOwn[5] > 0.0 ? 0.7 : 0.4) * uOwn[5]; ce = vec2(cos(to), sin(to)); }
     rd = vec3(ca.y * ce.x, -ce.y, ca.x * ce.x);
     vec3 rt = vec3(ca.x, 0.0, -ca.y), up = cross(rd, rt);
     float sa = az - 1.15 + 0.22 * sway;
-    bgL = normalize(vec3(sin(sa) * 0.84, 0.55, cos(sa) * 0.84));
+    bgL = normalize(vec3(sin(sa) * 0.84, 0.55 - 0.33 * late, cos(sa) * 0.84));
     ro = vec3(0.2, 0.0, 0.3) + (rt * (p.x - 0.03) + up * (p.y + 0.03)) * S - rd * 20.0;
     vec2 run = rd.xz / rd.y, g0 = ro.xz - run * ro.y;
     t = (bgHigh(g0 + run * 1.96, g0 + run) - ro.y) / rd.y; tEnd = -ro.y / rd.y;
   } else {
     float S = mix(7.4, 8.4, uSpace), u0 = 0.65, l0 = -3.0, th = 0.22, fy;
     bgPx = S / uRes.y;
-    bgL = normalize(vec3(-0.8 + 0.1 * sway, 0.4, -0.74));
+    bgL = normalize(vec3(-0.8 + 0.1 * sway, 0.4 - 0.26 * late, -0.74 + 0.4 * late));
     ro = vec3(0.3 + 0.35 * sin(uTime * 0.019), -0.1, -11.0); rd = normalize(vec3(p.x * S - 0.3, p.y * S, 11.0));
+    if (uOwn[5] != 0.0) {
+      float D = 11.0 - 6.2 * max(uOwn[5], 0.0), rise = 4.2 * max(-uOwn[5], 0.0);
+      ro.z = -D; ro.y += rise; rd = normalize(vec3(p.x * S - 0.3, p.y * S - rise, D));
+    }
     t = 11.0 / rd.z; tEnd = 13.0 / rd.z; ground = 2.0;
+    if (uOwn[5] > 0.0) { t = -ro.z / rd.z; tEnd = (2.0 - ro.z) / rd.z; }
     float y = ro.y + rd.y * t;
     if (y > u0) fy = u0; else if (y > l0) { fy = l0; bgSf = 1.0; } else { fy = l0 - th - 3.43; bgSf = -1.0; }
     if (y < u0 && y > u0 - th) { edge = 1.0; ye = u0 - y; } else if (y < l0 && y > l0 - th) { edge = 1.0; ye = l0 - y; bgSf = 1.0; }
@@ -264,7 +316,8 @@ vec3 render(vec2 p) {
   vec2 tm = (st * (c + 0.5 - ro.xz) + 0.5) * id;
   BgMet base = BgMet(tEnd, 1.0, -1.0, 0.0, vec2(1e3)), m1 = base, m2 = base; int got = 0;
   float a0 = dot(rd.xz, rd.xz);
-  for (int i = 0; i < 12; i++) {
+  for (int i = 0; i < 24; i++) {
+    if (i > 11 && bgDye == 0.0) break;
     bgFe(c);
     for (int k = 0; k < 1 && bgAny; k++) bgMeet(ro, rd, a0, false, 0.0);
     vec3 a = bgIn0, b = bgIn1;
@@ -291,8 +344,12 @@ vec3 render(vec2 p) {
   if (bgB && bare && ground > 1.5) sh.y *= 1.0 - 0.4 * exp2(-max(pos.y, 0.0) * 5.0);
   if (bgB && bare && ground < 1.5) sh.y *= 1.0 - 0.45 * exp2(-(2.0 - pos.z) * 4.0);
   if (bgB && abs(bgSf) > 0.5) sh.y *= 1.0 - 0.45 * exp2(-max(3.43 - pos.y, 0.0) * 2.5);
-  // what is behind an edge, for the part of the pixel the edge leaves free
-  float by = sh.x * smoothstep(0.1, 0.4, dot(s.n, bgL)); // a face turned from the sun hides its shadow
+  float by = sh.x * smoothstep(0.1, 0.4, dot(s.n, bgL));
+  if (bgDraw > 0.0) { sh = mix(sh, vec2(0.75 + 0.25 * sh.x, 0.8 + 0.2 * sh.y), 0.8 * bgDraw); pane = mix(pane, 1.0, bgDraw); }
   vec3 col = bgLight(s, sh, pane), back = m2.c == m1.c && m2.k > -0.5 ? col * 0.7 : m2.k > -0.5 ? mix(vec3(0.6, 0.2, 0.1), vec3(0.4, 0.45, 0.45), m2.key) * (bgSky * (0.5 + 0.3 * by) + bgSun * (0.06 + 0.4 * by) * pane) : (ground < 0.5 ? vec3(0.8, 0.73, 0.64) : vec3(0.55, 0.59, 0.52)) * (bgSky * (0.45 + 0.4 * by) + bgSun * 0.45 * by * pane);
+  if (bgDye > 0.0 && m2.k < -0.5) {
+    vec3 g = uOwn[3] < 0.0 ? mix(vec3(0.7), uKind[0] * uKind[0], -uOwn[3]) : vec3(0.75);
+    back = mix(back, g * (bgSky * (0.45 + 0.4 * by) + bgSun * 0.45 * by * pane), bgDye);
+  }
   return screenOf(bare ? col : mix(back, col, m1.cv));
 }

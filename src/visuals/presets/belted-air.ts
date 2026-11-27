@@ -1,0 +1,135 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'gourd-in-stubble',
+    name: 'Gourd in stubble',
+    what: 'One great ribbed gourd, tied with thin cords, lies on a straw field under an evening sky.',
+    variation: 0,
+    world: {
+      own: [-0.45, 0.9, -0.8, -0.6, 0, -1, 0, 0],
+      kinds: ['#b08a4a', '#8a7a9a', '#c8622c', '#f0c898', '#6a4a2a'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'silver-parcel-by-lamp',
+    name: 'Silver parcel by lamp',
+    what: 'A square parcel of crumpled silver foil gleams beside a single low lamp in a dark room.',
+    variation: 0,
+    world: {
+      own: [0, -1, -0.6, -0.95, 1, 1, 0, 0],
+      kinds: ['#6a3a30', '#8a5a4a', '#c8c4bc', '#a88a60', '#b04a3a'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'lantern-above-a-floor',
+    name: 'Lantern above a floor',
+    what: 'A ribbed paper lantern hangs over a dark floor and lights it from within.',
+    variation: 0,
+    world: {
+      own: [0.15, 0.7, -1, -0.85, 0, 1, -1, -0.45],
+      kinds: ['#5a3020', '#6a3a28', '#dc8030', '#f0c890', '#d8603a'],
+      keep: 0.05,
+      pace: 0.8,
+    },
+  },
+  {
+    id: 'wool-bales-in-snow',
+    name: 'Wool bales in snow',
+    what: 'A row of square woollen bales stands strapped on blue snow before a pale winter sky.',
+    variation: 0,
+    world: {
+      own: [0, -0.9, 0.1, -0.8, -1, -1, 0, 1],
+      kinds: ['#c4d0dc', '#9ab0c4', '#e8e0d0', '#f0e4d4', '#9a4a3c'],
+      keep: 0.1,
+      pace: 0.4,
+      near: 1.3,
+      at: [0.25, -0.06],
+    },
+  },
+  {
+    id: 'striped-balloon-over-dunes',
+    name: 'Striped balloon over dunes',
+    what: 'A tall balloon striped in teal and cream floats just over rose sand under a clear sky.',
+    variation: 0,
+    world: {
+      own: [0.6, 0, -0.5, -0.8, 0, -1, 1, -1],
+      kinds: ['#d09a7c', '#5f9ab0', '#1f7076', '#f2e2c4', '#c8553a'],
+      keep: 0.05,
+    },
+  },
+  {
+    id: 'moss-hummock-at-dusk',
+    name: 'Moss hummock at dusk',
+    what: 'A low mound of green moss, drawn into lumps by thin roots, lies in the last warm light.',
+    variation: 0,
+    world: {
+      own: [-1, 0.2, -1, -0.1, -1, 1, 0, 0],
+      kinds: ['#a8864a', '#7a6a4a', '#6c8438', '#b89868', '#8a5a3a'],
+      keep: 0.05,
+      near: 1.1,
+      at: [0.02, -0.06],
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'linen-in-a-niche',
+    name: 'Linen in a niche',
+    what: 'Broad white bandages hold a bundle of white linen in a white niche, all light and shadow.',
+    variation: 1,
+    world: {
+      own: [0.2, 0, 1, 0.4, 0, 0, 0, 0],
+      kinds: ['#d8d2c8', '#e4ded2', '#f0ece2', '#dcd4c6', '#c8bcae'],
+      keep: 0,
+      contrast: 0.2,
+      pace: 0.4,
+      near: 1.5,
+      at: [0.05, -0.06],
+    },
+  },
+  {
+    id: 'indigo-in-clay-alcoves',
+    name: 'Indigo in clay alcoves',
+    what: 'Bundles of indigo cloth fill a long row of alcoves in a red clay wall.',
+    variation: 1,
+    world: {
+      own: [0.6, 0, 0.2, -0.2, -0.3, -1, 0, 1],
+      kinds: ['#c47a54', '#d8b070', '#3a4f8a', '#e8d8b8', '#d05a3a'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'red-plush-seen-close',
+    name: 'Red plush seen close',
+    what: 'Deep red plush, seen close, swells between its narrow gold straps in the light of one low lamp.',
+    variation: 1,
+    world: {
+      own: [0.9, 0.5, -0.7, 0.2, -0.8, 1, 0, 0],
+      kinds: ['#5a2a2a', '#b08a4a', '#a02a2c', '#c8a060', '#e0b878'],
+      keep: 0.05,
+      near: 2.3,
+      at: [-0.06, 0.02],
+      pace: 0.7,
+    },
+  },
+  {
+    id: 'copper-bale-in-a-recess',
+    name: 'Copper bale in a recess',
+    what: 'A bale of polished copper lies pressed into a low recess, strapped in grey and verdigris.',
+    variation: 1,
+    world: {
+      own: [-0.8, -0.6, -0.4, -0.3, 0.55, 1, 0, 0],
+      kinds: ['#4a3a30', '#54707e', '#b8683a', '#e8c8a0', '#3f8a80'],
+      keep: 0.05,
+      near: 1.15,
+      pace: 0.5,
+    },
+  },
+]
+
+export default presets

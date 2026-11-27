@@ -1,0 +1,136 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'allotments-from-a-kite',
+    name: 'Allotments from a kite',
+    what: 'Beds of beans, barley and bare earth lie cut by dark paths, seen from straight above.',
+    variation: 0,
+    world: {
+      own: [0, 0.35, 0, 1, 0.15, 1, -0.5, -0.3],
+      kinds: ['#5b6b3a', '#8a9a58', '#b9a15a', '#7a5238', '#c9b880'],
+      keep: 0.05,
+      near: 1.3,
+      light: -0.06,
+      at: [-0.12, -0.08],
+      pace: 0.3,
+      contrast: 0.15,
+    },
+  },
+  {
+    id: 'hexagons-by-a-night-lamp',
+    name: 'Hexagons by a night lamp',
+    what: 'A quilt of hexagons lies in the round warm light of one lamp, the rest of the room dark.',
+    variation: 0,
+    world: {
+      own: [-1, 0.1, 0, 0.35, -1, 0.3, 0, 0],
+      kinds: ['#6a2f2c', '#c98a4a', '#7a6f4a', '#d8b88a', '#f0d8a8'],
+      keep: 0.05,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'satin-triangles-on-a-cold-morning',
+    name: 'Satin triangles on a cold morning',
+    what: 'Great triangles of grey, blue and mauve satin meet in stars, plump and cool in white light.',
+    variation: 0,
+    world: {
+      own: [1, -0.8, -1, 1, 1, -0.4, -0.6, 0],
+      kinds: ['#9fb8c9', '#c9d8df', '#a9b8c8', '#e6ecec', '#d8c4cf'],
+      keep: 0.03,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'indigo-mended-futon',
+    name: 'Indigo mended futon',
+    what: 'A worn indigo cover is mended all over in stepped white stitches and thrown in soft folds.',
+    variation: 0,
+    world: {
+      own: [0, -0.4, 0, -1, 0.2, 0.3, 1, 1],
+      kinds: ['#2f456f', '#4f6a94', '#3a5578', '#8fa3b8', '#e8e0cc'],
+      keep: 0.03,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'clay-tiles-in-a-larder',
+    name: 'Clay tiles in a larder',
+    what: 'Six-sided tiles of rose, ochre and grey clay lie in wide grey joints on a larder floor.',
+    variation: 0,
+    world: {
+      own: [-1, -0.3, 0, 1, 1, 0.7, -1, -0.6],
+      kinds: ['#a8654a', '#c99a78', '#8f7a68', '#d8bfa0', '#e0cdb0'],
+      keep: 0.03,
+      near: 1.35,
+      at: [-0.15, -0.1],
+      pace: 0.3,
+    },
+  },
+  {
+    id: 'ramie-in-a-doorway',
+    name: 'Ramie in a doorway',
+    what: 'A great cloth of sheer ramie scraps hangs close, the field and the sky seen faintly through it.',
+    variation: 1,
+    world: {
+      own: [0, -0.3, 1, 1, 0.4, 0.8, 0, 0.2],
+      kinds: ['#a8b89a', '#d8c9a0', '#c9a8a0', '#e8e0d0', '#f0c9a8'],
+      keep: 0.05,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'wash-day-over-the-wheat',
+    name: 'Wash day over the wheat',
+    what: 'Quilt after quilt hangs along one long line over a wide gold field.',
+    variation: 1,
+    world: {
+      own: [0.2, 0, 0, 0.3, 0, -0.88, 0, 0.15],
+      kinds: ['#8a3f30', '#c9963f', '#4a6a80', '#e8dcc0', '#f0e0b8'],
+      keep: 0.05,
+      tones: ['#3a2a1c', '#c9a468', '#f8ecd0'],
+      toned: 0.2,
+      vivid: 0.25,
+    },
+  },
+  {
+    id: 'pinwheels-in-a-gale',
+    name: 'Pinwheels in a gale',
+    what: 'A bold quilt of turning triangles flies out from its line in a hard wind.',
+    variation: 1,
+    world: {
+      own: [1, -0.1, 0, 1, 0, 0, 0, 1],
+      kinds: ['#2f4a5c', '#c9512f', '#d9a441', '#efe4cc', '#8a2f2a'],
+      keep: 0.03,
+      pace: 1.4,
+    },
+  },
+  {
+    id: 'red-work-in-first-flakes',
+    name: 'Red work in first flakes',
+    what: 'A quilt of two cloths, madder red and white, hangs stiff over new snow as more comes down.',
+    variation: 1,
+    world: {
+      own: [-1, 0.2, 0, -1, 1, 0, 0, 0.2],
+      kinds: ['#e8483a', '#f4ece4', '#c9c9c9', '#e8dcd8', '#f8f0e8'],
+      keep: 0.02,
+      pace: 0.6,
+      vivid: 0.2,
+    },
+  },
+  {
+    id: 'scraps-hung-out-by-moon',
+    name: 'Scraps hung out by moon',
+    what: 'Loose scraps of silk hang one by one in the air under a moon, with dark between them.',
+    variation: 1,
+    world: {
+      own: [0, 0.2, -0.5, 1, -1, 0, 0, -1],
+      kinds: ['#8fa3d0', '#c0b5d8', '#a8c9c4', '#e8dcc0', '#d8948a'],
+      keep: 0.05,
+      light: 0.12,
+      pace: 0.5,
+    },
+  },
+]
+
+export default presets

@@ -1,0 +1,136 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'straw-sun-on-a-red-wall',
+    name: 'Straw sun on a red wall',
+    what: 'A sun plaited of straw turns slowly on a dark red wall, its knotted rays long and short.',
+    variation: 0,
+    world: {
+      own: [-0.15, 1, 0, -1, -1, 0, -0.35, 0],
+      kinds: ['#5a231e', '#8a4030', '#c0742a', '#efc468', '#fff0b8'],
+      keep: 0.05,
+      pace: 1.2,
+    },
+  },
+  {
+    id: 'rushes-in-morning-vapour',
+    name: 'Rushes in morning vapour',
+    what: 'Green rushes spread up from one tuft, and a paler tuft stands behind them in the vapour.',
+    variation: 0,
+    world: {
+      own: [-0.3, 0, -1, -1, -1, 0, 0.2, 1],
+      kinds: ['#d8d6c0', '#aebfb8', '#8a9a5a', '#7f9a58', '#c8783a'],
+      keep: 0.05,
+      roll: 180,
+      pace: 0.7,
+    },
+  },
+  {
+    id: 'auburn-hair-let-down',
+    name: 'Auburn hair let down',
+    what: 'Fine copper strands sweep round in one long curl out of the dark, lit from the left.',
+    variation: 0,
+    world: {
+      own: [-1, -1, -1, 1, -1, 0.7, 1, -0.7],
+      kinds: ['#3a1c14', '#7a3a22', '#a8562f', '#d88a50', '#ffdca0'],
+      keep: 0.05,
+      pace: 0.8,
+      light: 0.2,
+    },
+  },
+  {
+    id: 'bead-collar-on-indigo',
+    name: 'Bead collar on indigo',
+    what: 'A collar of round coral, sand and sky coloured beads lies spread on deep indigo cloth.',
+    variation: 0,
+    world: {
+      own: [0, 0.25, 1, -1, 1, 0, -0.5, 0],
+      kinds: ['#27325f', '#3c4a80', '#c9634a', '#e3c9a0', '#8fb4c4'],
+      keep: 0.05,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'mooring-ropes-on-chalk',
+    name: 'Mooring ropes on chalk',
+    what: 'Heavy bleached ropes lie fanned on white chalk, each with one clean shadow.',
+    variation: 0,
+    world: {
+      own: [1, 0, -0.5, -0.8, -1, 0, 0.4, 0],
+      kinds: ['#f0ece2', '#e6e4e0', '#d8d0c0', '#efe8d8', '#8a7060'],
+      keep: 0.05,
+      pace: 0.3,
+      vivid: -0.3,
+    },
+  },
+  {
+    id: 'dew-on-strings-before-day',
+    name: 'Dew on strings before day',
+    what: 'Round drops of clear water hang on threads of glass in front of a blue dark.',
+    variation: 1,
+    world: {
+      own: [0.25, 0, 1, 1, -0.7, -1, 1, 0.8],
+      kinds: ['#2f5590', '#5f8ac0', '#8fb0d0', '#b8d4ea', '#f4c890'],
+      keep: 0.1,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'barley-sheaf-bound',
+    name: 'Barley sheaf bound',
+    what: 'Long gold stalks are drawn together at the waist and spread again under a pale sky.',
+    variation: 1,
+    world: {
+      own: [-1, 1, -1, -1, -1, 0, 1, 0],
+      kinds: ['#e8d6a8', '#b8c8cc', '#c89a48', '#d8a850', '#a84a2a'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'wrack-in-a-tide-race',
+    name: 'Wrack in a tide race',
+    what: 'Long weed in amber, olive and sea green streams to one side in dark water.',
+    variation: 1,
+    world: {
+      own: [-0.6, -1, -0.6, 0.95, 1, 0, 1, 0.2],
+      kinds: ['#2f5f54', '#7a7a34', '#a06a2a', '#d09a48', '#d8c890'],
+      keep: 0.05,
+      tones: ['#031a1e', '#5f7a64', '#f0e2b0'],
+      toned: 0.3,
+      light: 0.2,
+      contrast: 0.2,
+    },
+  },
+  {
+    id: 'tassels-in-the-stage-box',
+    name: 'Tassels in the stage box',
+    what: 'A waving hem of gold and crimson tassels hangs from its rail before deep red plush.',
+    variation: 1,
+    world: {
+      own: [-0.6, 0, 0.2, -1, 1, 0.3, -1, -0.6],
+      kinds: ['#6a141f', '#8f2430', '#d09a3c', '#f0cc80', '#fff0c0'],
+      keep: 0.05,
+      near: 1.15,
+      at: [-0.2, 0.08],
+      light: 0.2,
+    },
+  },
+  {
+    id: 'bronze-cables-on-sea-green',
+    name: 'Bronze cables on sea green',
+    what: 'Great bronze cables hang from out of sight and draw together a little before a sea green wall.',
+    variation: 1,
+    world: {
+      own: [0.9, 0.35, -1, -1, -1, 1, 1, 0],
+      kinds: ['#24484a', '#3f6a66', '#b0602f', '#c8803f', '#e8c890'],
+      keep: 0.05,
+      pace: 0.5,
+      light: 0.05,
+      contrast: 0.3,
+    },
+  },
+]
+
+export default presets

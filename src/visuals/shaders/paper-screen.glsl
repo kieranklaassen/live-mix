@@ -3,8 +3,11 @@
 // b: Lamp within
 // what: A sliding screen of fibrous paper in a dark lattice, with the sun behind it: bamboo close by lies sharp on the paper, stalks and leaves further off are soft, and a bare branch reaches in; or night, the lamp inside, a jug with a budding branch and a steaming bowl vague behind the paper, and black leaves before it.
 // follows: The phrase brings the bamboo, or the branch, close and sharp, pads the soft leaves or the jug, drones the far stalks or a low ember glow. Texture brings up fibre and steam; low is wind, the level sun or lamp. The piece tints the panes. A hit is a bird and its branch dips, or a moth; a cue is a cloud, or someone passing; the loop slants the sun.
+// own: 0 1 many small panes, -1 a few great ones; 1 1 the screen fills a round window in a wall, -1 upright slats with no bars across; 2 1 the lattice is turned to diamonds, -1 cracked into uneven panes like ice; 3 1 round broad leaves (b: and a squat bowl of a jug), -1 thin needles and reeds (b: and a tall bottle); 4 1 crowded with leaves, -1 nothing before the paper or behind it; 5 1 every pane is coloured glass in the colours of the sounds, -1 the light itself and the wood take those colours; 6 1 a great round sun or moon over ridges of hills, -1 petals or snow falling past; 7 1 the screen seen aslant going away to the right, -1 a screen of folding leaves
 float psPx, psT, psA, psGust, psPen; // the pixel; the sun and the sky that still get through; the wind; how soft distance makes a shadow
 vec2 psSlant;                        // how far a shadow lies aside for each step away from the paper
+float psDens, psLit;                 // how much of the plants there is; how lit this leaf of the screen
+vec2 psId;                           // the pane
 vec2 psWood;                         // the lattice here: how much is wood, and its lit side
 
 // Like smoothstep, and it may also run down.
@@ -13,6 +16,7 @@ float psS(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x 
 float psStrip(float y, float w, float s) { return psS(-s, s, y + w) - psS(-s, s, y - w); }
 // A thing h away from the paper keeps the sun off, and close by the light of the sky.
 void psLay(float cover, float h, float dens) {
+  cover *= psDens;
   psT *= 1.0 - cover * dens;
   psA *= 1.0 - cover * dens * 0.62 / (1.0 + 18.0 * h * (1.0 + h));
 }
@@ -41,6 +45,7 @@ void psSpray(vec2 p, vec2 at, float ax, float sc, float fat, float h, float dens
     float r = fract(seed * 0.7549 + float(i) * 0.5698), r2 = fract(r * 37.7), r3 = fract(r * 91.3);
     float u = float(i) / float(n - 1), side = u > 0.99 ? 0.15 : float(i & 1) * 2.0 - 1.0;
     float len = sc * (0.085 + 0.06 * r2 + 0.035 * u);
+    if (uOwn[3] != 0.0) len *= uOwn[3] > 0.0 ? 1.0 - 0.12 * uOwn[3] : 1.0 - 0.25 * uOwn[3];
     vec2 o = q - way * 0.1 * sc * u;
     if (dot(o, o) > 1.7 * len * len) continue;
     float turn = side * (1.5 - 0.9 * u) + (r - 0.5) * 1.1 + dot(beat, vec2(r2, r3) - 0.5);
@@ -51,7 +56,10 @@ void psSpray(vec2 p, vec2 at, float ax, float sc, float fat, float h, float dens
     float hl = h * (0.15 + 1.5 * r3 * r3), s = psSoft(hl * mix(1.5, 0.6, sat(d.x))) / len;
     d.y += (0.14 + 0.12 * r3) * v.x * d.x * d.x;
     float x = sat((d.x + s) / (1.0 + 2.0 * s));
-    psLay(psStrip(d.y, fat * 2.6 * sqrt(x) * (1.0 - x) * (1.15 - 0.4 * x), s), hl, dens);
+    float wide = fat * 2.6 * sqrt(x) * (1.0 - x) * (1.15 - 0.4 * x);
+    if (uOwn[3] > 0.0) wide = mix(wide, 0.40 * sqrt(x * (1.0 - x)) * (1.12 - 0.35 * x), uOwn[3]);
+    if (uOwn[3] < 0.0) wide *= 1.0 + 0.68 * uOwn[3];
+    psLay(psStrip(d.y, wide, s), hl, dens);
   }
 }
 // A spray far off, and one close by on its twig: its place, the way it points, how big.
@@ -70,6 +78,7 @@ void psNear(vec2 p, vec2 root, vec4 t, float h, float dens, float bow, float see
 // A stalk: x = x0 + lean * y, jointed at y = first + k * gap.
 void psStalk(vec2 p, float x0, float lean, float w, float first, float gap, float h, float dens) {
   float s = psSoft(h), x = p.x - x0 - lean * p.y;
+  w *= exp2(0.9 * uOwn[3]);
   if (abs(x) > w * 1.5 + s + 0.02) return;
   x -= 0.02 * sin(p.y * 2.0 + x0 * 9.0);
   float j = abs(fract((p.y - first) / gap + 0.5) - 0.5) * gap;
@@ -82,12 +91,33 @@ float psEll(vec2 p, vec2 r) { float k = length(p / r); return (k - 1.0) * min(r.
 
 // The wood: cells c wide and tall from o, with a broad upright every per cells.
 void psLattice(vec2 p, vec2 c, vec2 o, float thin, float thick, float per) {
+  if (uOwn[2] > 0.0) { p = rot(0.7853982 * uOwn[2]) * p; thick = mix(thick, thin * 1.5, uOwn[2]); }
+  psId = floor((p - o) / c);
+  thin *= exp2(-0.5 * uOwn[0]); thick *= exp2(-0.3 * uOwn[0]);
+  if (uOwn[2] < 0.0) {                  // panes of every shape: the nearest of points strewn about the middles of the panes
+    vec2 at = (p - o) / c, from = vec2(0.0), id = psId, best = vec2(9.0);
+    float j = -uOwn[2], e = 9.0;
+    for (int n = 0; n < 9; n++) {
+      vec2 k = psId + vec2(float(n % 3 - 1), float(n / 3 - 1)), v = (k + 0.5 + j * 0.8 * (hash22(k + 3.0) - 0.5) - at) * c;
+      if (dot(v, v) < best.x) { best.x = dot(v, v); id = k; from = v; }
+    }
+    for (int n = 0; n < 25; n++) {
+      vec2 k = id + vec2(float(n % 5 - 2), float(n / 5 - 2)), v = (k + 0.5 + j * 0.8 * (hash22(k + 3.0) - 0.5) - at) * c, w = v - from;
+      float l = dot(w, w);
+      if (l > 1e-6) e = min(e, dot(0.5 * (from + v), w) * inversesqrt(l));
+    }
+    psId = id;
+    float b0 = psS(psPx, -psPx, e - thin), b1 = psS(psPx, -psPx, e - thin * 2.2);
+    psWood = vec2(b1, b1 * (1.0 - b0) * 0.6);
+    return;
+  }
   vec2 g = (p - o) / c, k = floor(g + 0.5), d = p - o - k * c;
   float stile = 1.0 - step(0.5, abs(mod(k.x + 0.5, per) - 0.5));
   float wx = mix(thin, thick, stile), wy = thin;
+  if (uOwn[1] < 0.0) wy = mix(thin, -2.0 * psPx - 0.001, uOwn[1] * uOwn[1]);
   float bx = psS(psPx, -psPx, abs(d.x) - wx), by = psS(psPx, -psPx, abs(d.y) - wy);
   // the lit side of a bar
-  float sx = clamp(-(p.x) * 0.012, -0.008, 0.008), sy = clamp(-(p.y) * 0.014, -0.006, 0.006);
+  float sx = clamp(-(p.x) * 0.012, -0.008, 0.008), sy = clamp(-(p.y) * 0.014, -0.006, 0.006) * (1.0 + min(uOwn[1], 0.0));
   float lx = psS(psPx, -psPx, abs(d.x - sx * 0.5) - wx - abs(sx) * 0.5), ly = psS(psPx, -psPx, abs(d.y - sy * 0.5) - wy - abs(sy) * 0.5);
   psWood = vec2(max(lx, ly), max(lx * (1.0 - bx), ly * (1.0 - by)) * (1.0 - max(bx, by)));
 }
@@ -106,13 +136,26 @@ float psPaper(vec2 p, float much) {
   }
   return 1.0 + (cloud - 0.5) * 0.15 * (1.0 + much) - f * 0.28 * (0.3 + 0.7 * much);
 }
+float psOwn() {
+  float a = hash21(psId + 5.0);
+  if (uOwn[1] < 0.0) a = mix(a, hash21(vec2(psId.x + 5.0, 5.0)), sat(-1.7 * uOwn[1]));
+  return a;
+}
 // The dye of a pane: the colour of the piece at its place, and how strong.
 vec4 psDye(vec2 p, vec2 c, vec2 o, float own, vec2 hitAt) {
-  vec2 at = mix((floor((p - o) / c) + 0.5) * c + o, p, 0.3), near = (p - hitAt) / vec2(0.2, 0.16);
+  vec2 mid = (psId + 0.5) * c + o;
+  if (uOwn[2] > 0.0) mid = rot(-0.7853982 * uOwn[2]) * mid;
+  if (uOwn[1] < 0.0) mid.y = mix(mid.y, p.y, sat(-1.7 * uOwn[1]));
+  vec2 at = mix(mid, p, 0.3), near = (p - hitAt) / vec2(0.2, 0.16);
   vec4 m = piece(vec2(sat(at.x / 1.76 + 0.5), sat(0.5 - at.y / 0.9)));
   vec3 k = m.rgb / (m.a + 0.02);
   k = sqrt(max(k / (max(k.r, max(k.g, k.b)) + 0.02), 0.0));
   float much = sat(m.a * 1.5) * (0.3 + 0.2 * uEnergy) * (0.14 + 1.1 * psS(0.3, 0.75, own)), hit = 0.55 * uHits * exp(-dot(near, near));
+  if (uOwn[5] > 0.0) {
+    float r = fract(own * 17.3);
+    vec3 g = kindColour(floor(r * 4.0)) * (0.85 + 0.5 * fract(own * 53.7));
+    k = mix(k, mix(g, m.rgb / (m.a + 0.02), 0.5 * sat(m.a * 1.4)), uOwn[5]); much = mix(much, 1.0 + 0.2 * sat(m.a), uOwn[5]);
+  }
   vec3 hk = sqrt(uKind[4] / (max(uKind[4].r, max(uKind[4].g, uKind[4].b)) + 0.02));
   return vec4(mix(k, hk, hit / (hit + much + 0.01)), much + hit);
 }
@@ -126,15 +169,54 @@ float psBird(vec2 p, float leaving) {
   vec2 w = rot(-0.5) * (p - vec2(0.012, 0.016 * leaving));
   return smin(d, psEll(w, vec2(0.016 + 0.03 * leaving, 0.006)), 0.006);
 }
+// What is further off behind the paper: ridges under a great disc, or things that fall. Back comes the disc.
+float psBehind(vec2 p) {
+  if (uOwn[6] > 0.0) {
+    for (int i = 0; i < 3; i++) {
+      float f = float(i), x = p.x * (1.1 + 0.5 * f) + 2.7 * f + psSlant.x * (3.0 - f);
+      float y = -0.06 - 0.12 * f + 0.10 * sin(x * 1.9 + 0.8) + 0.07 * sin(x * 4.3 + 2.0 * f) + 0.018 * sin(x * 11.0);
+      psLay(psS(0.012, -0.012, p.y - y), 0.6 - 0.2 * f, uOwn[6] * (0.34 + 0.18 * f));
+    }
+    return uOwn[6] * psS(0.205, 0.195, length(p - vec2(-0.2, 0.13) + psSlant * 0.6));
+  }
+  if (uOwn[6] < 0.0) {
+    for (int i = 0; i < 3; i++) {
+      float f = float(i), h = 0.04 + 0.2 * f, size = 0.23 - 0.03 * f;
+      vec2 q = p + psSlant * h + vec2(0.03 * sin(uTime * 0.31 + f + p.y * 3.0) + uTime * (0.008 + 0.004 * f), uTime * (0.045 + 0.012 * f));
+      q = rot(0.3 - 0.35 * f) * q / size; vec2 id = floor(q);
+      float a = hash21(id + 17.0 * f), b = fract(a * 57.3);
+      if (a > 0.75) continue;
+      vec2 d = (q - id - 0.5 - 0.5 * (vec2(b, fract(a * 91.7)) - 0.5)) * size;
+      d = rot(TAU * b + (b - 0.5) * 2.0 * uTime * 0.6) * d;
+      float s = psSoft(h), w = 0.013 + 0.011 * fract(b * 31.0);
+      psLay(psS(s, -s, length(d * vec2(1.0, 1.6)) - w), h, -uOwn[6] * 0.8);
+    }
+  }
+  return 0.0;
+}
+// The wall round a round window: how far off its rim, below 0 in the window; and its colour there, glow being the light.
+float psRim(vec2 p) { return length(p - vec2(0.02, 0.02)) - mix(1.5, 0.425, uOwn[1] * (2.0 - uOwn[1])); }
+vec3 psWall(vec2 p, float d, vec3 glow) {
+  vec3 c = mix(vec3(0.34, 0.31, 0.28), uKind[2], 0.8) * (0.78 + 0.3 * fbm(p * 9.0) + 0.1 * noise(p * 130.0));
+  c *= 0.34 + 0.7 * glow * exp(-d * 2.4);
+  float rim = psS(0.022, 0.018, d);
+  return mix(c, vec3(0.06, 0.045, 0.035) * (0.5 + glow * (0.6 + 14.0 * max(0.012 - d, 0.0))), rim) * (1.0 - 0.4 * psS(0.05, 0.02, d) * (1.0 - rim));
+}
 vec3 psDay(vec2 p) {
-  const vec2 cell = vec2(0.236, 0.202), org = vec2(-0.502, -0.418);
+  vec2 cell = vec2(0.236, 0.202) * exp2(-1.25 * uOwn[0]), org = vec2(-0.502, -0.418);
   float sun = 0.83 + 0.17 * uLevel;
   // the sun behind it, and a cloud that passes over
   vec2 hot = p - vec2(0.26, 0.2) + psSlant * 0.8;
   float fall = exp(-dot(hot, hot) * (1.8 - 0.6 * uMic));
   float cloud = psS(0.5, 0.15, abs(p.x - 0.95 + 2.2 * (1.0 - uCue) + 0.15 * sin(p.y * 4.0 + 1.0))) * psS(0.0, 0.3, uCue);
   vec3 lit = mix(vec3(0.74, 0.65, 0.51), vec3(1.05, 0.99, 0.85), fall);
+  if (uOwn[5] < 0.0) lit = mix(lit, mix(uKind[1], uKind[3] * 1.05 + 0.06, fall), -uOwn[5]);
   float low = p.y - org.y;
+  if (uOwn[1] > 0.0) {
+    float d = psRim(p);
+    if (d > 0.0) return psWall(p, d, lit * sun);
+    low = max(low, 0.4 * uOwn[1] - 0.1);
+  }
   if (low < 0.0) {
     float g = noise(vec2(p.x * 3.0 + 0.7 * sin(p.y * 31.0), p.y * 110.0));
     vec3 board = vec3(0.15, 0.105, 0.072) * (0.6 + 0.7 * g) + lit * vec3(0.2, 0.15, 0.1) * exp(low * 22.0) * fall;
@@ -142,7 +224,10 @@ vec3 psDay(vec2 p) {
   }
   psLattice(p, cell, org, 0.0034, 0.013, 3.0);
   vec3 wood = vec3(0.1, 0.075, 0.058);
+  if (uOwn[5] < 0.0) wood = mix(wood, uKind[2] * 0.5, -uOwn[5]);
   if (psWood.x > 0.99 && psWood.y < 0.01) return wood * (0.8 + 0.4 * noise(p * vec2(40.0, 8.0)));
+  float disc = psBehind(p);
+  psDens = 1.0 + min(uOwn[4], 0.0);
   // the stalks and the leaves far off
   float hf = 0.75 + 0.35 * uSpace - 0.3 * uDrone, dd = 0.3 + 0.42 * uDrone;
   vec2 sh = psSlant * hf;
@@ -175,6 +260,10 @@ vec3 psDay(vec2 p) {
     psNear(pn, vec2(0.465, 0.46), vec4(0.56, 0.45, -0.5, 1.0), hn * 0.652, dn, 0.028, 47.0);
     psNear(pn, vec2(0.4, -0.06), vec4(0.31, -0.13, -2.8, 0.9), hn * 1.517, dn, -0.0161, 49.7);
   }
+  for (int i = 0; uOwn[4] > 0.0 && i < 8; i++) {                // a thicket
+    float f = float(i), x = -0.86 + 0.24 * f, y = 0.62 * fract(f * 0.618 + 0.1) - 0.28;
+    psNear(pn, vec2(x - 0.1, y + 0.16), vec4(x, y, -0.6 - 1.9 * fract(f * 0.382), 1.15), hn * (0.4 + fract(f * 0.71)), 0.9 * uOwn[4], 0.01, 60.0 + 2.7 * f);
+  }
   // a bare bent branch from the left, where the bird comes down
   float c = uHits, dip = 4.0 * c * (1.0 - c), hb = 0.2;
   vec2 pb = p + psSlant * hb - 0.6 * psWind(vec2(-0.5, 0.0), 0.5);
@@ -185,6 +274,7 @@ vec3 psDay(vec2 p) {
   psTwig(pb, vec2(-0.56, -0.045), vec2(-0.4, 0.12), 0.1, 0.005, hb, 0.85);
   psTwig(pb, vec2(-0.45, -0.02), vec2(-0.28, -0.18), -0.08, 0.004, hb, 0.85);
   psTwig(pb, vec2(-0.8, -0.03), vec2(-0.7, 0.13), -0.1, 0.006, hb, 0.85);
+  psDens = 1.0;
   const vec2 perch = vec2(-0.335, -0.065);
   float gone = 1.0 - c;
   vec2 pq = pb - perch - gone * vec2(-0.05, 0.11);
@@ -195,15 +285,18 @@ vec3 psDay(vec2 p) {
   // light
   float T = mix(psT, 0.7, cloud * 0.5) * (1.0 - 0.6 * cloud);
   vec3 shade = mix(vec3(0.36, 0.375, 0.385), vec3(0.54, 0.51, 0.46), fall) * (0.35 + 0.65 * psA);
+  if (uOwn[5] < 0.0) shade = mix(shade, uKind[0] * mix(0.62, 0.85, fall) * (0.35 + 0.65 * psA), -uOwn[5]);
   vec3 col = mix(shade, lit, T * sun * (0.72 + 0.28 * fall));
+  if (uOwn[6] > 0.0) { col *= 1.0 - 0.22 * uOwn[6]; col = mix(col, mix(vec3(1.06, 0.99, 0.84), uKind[3] * 1.1 + 0.1, 0.5 - 0.5 * min(uOwn[5], 0.0)), disc * 0.85 * T); }
   col *= psPaper(p, 0.2 + 0.8 * uTexture);
-  float own = hash21(floor((p - org) / cell) + 5.0);
+  float own = psOwn();
   vec4 dye = psDye(p, cell, org, own, perch + vec2(0.02, 0.03));
   vec3 tint = mix(vec3(1.0), dye.rgb, dye.a * 0.75) * (1.0 + 0.05 * uTexture);
+  if (uOwn[5] > 0.0) tint = mix(tint, dye.rgb * 1.12, uOwn[5]);
   col *= tint * psSheet(own);
   wood = mix(wood, lit * tint * 0.45, psWood.y * 0.8);
   col = mix(col, wood, psWood.x);
-  return col;
+  return col * psLit;
 }
 // A jug on the table: how wide it is at u, 0 its foot, 1 its lip.
 float psJug(float u) {
@@ -212,7 +305,7 @@ float psJug(float u) {
 }
 // Leaves outside, black against it.
 vec3 psOutside(vec2 p, vec3 col) {
-  psT = 1.0;
+  psT = 1.0; psDens = 1.0 + min(uOwn[4], 0.0);
   const vec4 spray[4] = vec4[4](vec4(-0.8, 0.4, -0.5, 1.25), vec4(-0.6, 0.46, -0.9, 1.1), vec4(-0.9, 0.22, -0.7, 1.2), vec4(0.84, 0.46, -2.3, 1.1));
   const vec2 root[4] = vec2[4](vec2(-1.1, 0.5), vec2(-0.8, 0.56), vec2(-1.1, 0.34), vec2(1.0, 0.6));
   for (int i = 0; abs(p.x) > 0.3 && i < 4; i++) {
@@ -220,14 +313,26 @@ vec3 psOutside(vec2 p, vec3 col) {
     psTwig(p, root[i] + 0.4 * mv, at, 0.06, 0.004, 0.02, 1.0);
     psSpray(p, at, spray[i].z + mv.x * 3.0, spray[i].w, 0.064, 0.02, 1.0, 50.0 + float(i) * 2.7, 7);
   }
-  return screenOf(mix(vec3(0.0015, 0.0025, 0.003), col, psT));
+  for (int i = 0; uOwn[4] > 0.0 && i < 8; i++) {                // a thicket
+    float f = float(i), x = -0.86 + 0.24 * f, y = 0.5 * fract(f * 0.618 + 0.1) - 0.36 + 0.5 * abs(x);
+    vec2 mv = psWind(vec2(x, y), 0.0), at = vec2(x, y) + mv;
+    psTwig(p, vec2(x - 0.12, y + 0.2) + 0.4 * mv, at, 0.05, 0.004, 0.02, uOwn[4]);
+    psSpray(p, at, -0.6 - 1.9 * fract(f * 0.382) + mv.x * 3.0, 1.15, 0.064, 0.02, uOwn[4], 70.0 + 2.7 * f, 6);
+  }
+  return screenOf(mix(vec3(0.0015, 0.0025, 0.003), col, psT)) * psLit;
 }
 vec3 psNight(vec2 p) {
-  const vec2 cell = vec2(0.134, 0.2105), org = vec2(-0.464, -0.4);
+  vec2 cell = vec2(0.134, 0.2105) * exp2(-1.25 * uOwn[0]), org = vec2(-0.464, -0.4);
   vec2 lampAt = vec2(0.29 + 0.012 * sin(uTime * 0.05), -0.07);
   float lit = (0.6 + 0.4 * uLevel + 0.15 * uMic) * (1.0 - 0.15 * uCue);
   // the boards before the screen
   float low = p.y - org.y + 0.004;
+  if (uOwn[1] > 0.0) {
+    float d = psRim(p);
+    vec2 gl = p - lampAt;
+    if (d > 0.0) return psOutside(p, psWall(p, d, vec3(1.0, 0.72, 0.5) * lit * 0.5 / (1.0 + 3.0 * dot(gl, gl))) * 0.42);
+    low = max(low, 0.4 * uOwn[1] - 0.1);
+  }
   if (low < 0.0) {
     float g = noise(vec2(p.x * 3.0, p.y * 90.0)), side = p.x - lampAt.x;
     float seam = psS(0.0, 0.004, abs(fract(p.x / 0.31 + 0.2) - 0.5) * 0.31);
@@ -236,11 +341,15 @@ vec3 psNight(vec2 p) {
   }
   psLattice(p, cell, org, 0.0032, 0.014, 4.0);
   if (psWood.x > 0.99 && psWood.y < 0.01) return psOutside(p, vec3(0.004, 0.003, 0.0025));
+  float disc = psBehind(p);
+  psDens = 1.0 + min(uOwn[4], 0.0);
   // things on a low table
   float hv = 0.5 - 0.4 * uPad + 0.15 * uSpace, sv = psSoft(hv), ty = -0.292;
   vec2 aside = vec2(0.25 * psSlant.x, 0.0), q = p - vec2(-0.17, ty) - aside;
   if (abs(q.x) < 0.2) {
-    float v = psStrip(q.x, 1.15 * psJug(sat(q.y / 0.31)), sv) * psS(-sv, sv, q.y) * psS(sv, -sv, q.y - 0.31);
+    float tall = 0.31, broad = 1.15;
+    if (uOwn[3] != 0.0) { tall *= uOwn[3] > 0.0 ? 1.0 - 0.45 * uOwn[3] : 1.0 - 0.12 * uOwn[3]; broad *= uOwn[3] > 0.0 ? 1.0 + 0.6 * uOwn[3] : 1.0 + 0.5 * uOwn[3]; }
+    float v = psStrip(q.x, broad * psJug(sat(q.y / tall)), sv) * psS(-sv, sv, q.y) * psS(sv, -sv, q.y - tall);
     psLay(v, hv, 0.66 + 0.3 * uPad);
   }
   psLay(psStrip(p.y - ty + 0.012, 0.012, sv) * psStrip(p.x - 0.18, 0.62, sv), hv, 0.85);
@@ -276,6 +385,7 @@ vec3 psNight(vec2 p) {
     }
     psLay(min(steam, 1.0), 0.5, 0.26 + 0.4 * uTexture);
   }
+  psDens = 1.0;
   // someone goes by
   float away = 1.0 - uCue;
   if (uCue > 0.004) {
@@ -298,25 +408,39 @@ vec3 psNight(vec2 p) {
   // light
   vec2 l = (p - lampAt) * vec2(1.0, 1.1);
   float r2 = dot(l, l), L = lit * (1.35 / (1.0 + 34.0 * r2) + 0.27 * exp(-4.2 * r2)), T = 0.055 + 0.945 * psT;
+  if (uOwn[6] > 0.0) L = mix(L, 0.42 * lit, 0.75 * uOwn[6]) + 0.95 * disc;
   L *= T;
   vec2 ld = p - vec2(-0.66, -0.3);
   vec3 col = vec3(1.75 * L, 0.84 * L * sqrt(L), 0.36 * L * L);
+  if (uOwn[5] < 0.0) { vec3 k = mix(uKind[1], uKind[3], sat(L * 0.8)); col = mix(col, k * k * (1.5 * L + 0.02) + uKind[0] * uKind[0] * 0.12 * (1.0 - T), -uOwn[5]); }
   col += mix(vec3(0.6, 0.15, 0.04), uKind[0] * uKind[0], 0.2) * 0.3 * uDrone * exp(-5.0 * dot(ld, ld)) * (0.3 + 0.7 * psT);
   col += vec3(0.012, 0.006, 0.006);
   col *= 1.0 + steam * (0.7 + 1.2 * uTexture) * psS(0.015, 0.12, r2);
-  float paper = psPaper(p, 0.2 + 0.5 * uTexture), own = hash21(floor((p - org) / cell) + 5.0);
+  float paper = psPaper(p, 0.2 + 0.5 * uTexture), own = psOwn();
   vec4 dye = psDye(p, cell, org, own, perch);
   float lum = dot(col, vec3(0.4, 0.45, 0.15));
   col = mix(col, dye.rgb * dye.rgb * dye.rgb * vec3(1.15, 0.95, 0.75) * (1.4 * lum + 0.022 * psT), sat(dye.a * 1.45));
+  if (uOwn[5] > 0.0) col = mix(col, dye.rgb * dye.rgb * (1.5 * lum + 0.02), uOwn[5]);
   col += vec3(0.5, 0.3, 0.15) * uHits * exp(-dot(p - perch, p - perch) * 40.0) * T;
   col *= paper * paper * psSheet(own);
   vec3 wood = vec3(0.0025, 0.002, 0.002) + col * 0.015;
+  if (uOwn[5] < 0.0) wood += -uOwn[5] * uKind[2] * uKind[2] * 0.12;
   col = mix(col, wood, max(psWood.x - psWood.y, 0.0));
   return psOutside(p, col);
 }
 vec3 render(vec2 p) {
   psPx = 0.75 / uRes.y;
-  psT = 1.0; psA = 1.0; psWood = vec2(0.0);
+  psT = 1.0; psA = 1.0; psWood = vec2(0.0); psDens = 1.0; psLit = 1.0; psId = vec2(0.0);
+  if (uOwn[7] > 0.0) {                  // seen aslant
+    float w = max(1.0 - 0.62 * uOwn[7] * p.x, 0.18);
+    p = p * (1.0 + 0.1 * uOwn[7]) / w; p.x -= 0.25 * uOwn[7]; psPx /= w;
+    psLit = mix(1.0, sat(0.45 + 0.6 * w), uOwn[7]);
+  }
+  if (uOwn[7] < 0.0) {                  // leaves that fold, each turned the other way
+    float g = p.x / 0.46 + 0.5, k = floor(g), x = g - k - 0.5, way = mod(k, 2.0) * 2.0 - 1.0, t = -uOwn[7];
+    p.y *= 1.0 + 0.30 * t * way * x;
+    psLit = 1.0 + t * (0.16 * way - 0.16) - t * 0.7 * psS(0.016, 0.0, (0.5 - abs(x)) * 0.46);
+  }
   psPen = 0.05 * (1.35 - 0.7 * uTone);
   psGust = (0.004 + 0.016 * uLow) * (0.75 + 0.25 * sin(uTime * 0.17 + p.x));
   psSlant = vec2(0.05 * sin(TAU * uLoop) + 0.05 * sin(uTime * 0.013), 0.02 * cos(TAU * uLoop)) * (0.6 + 0.8 * uSpace);

@@ -1,0 +1,137 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'sunrise-lily-pads',
+    name: 'Sunrise lily pads',
+    what: 'Round pads, green and a few rose, lie apart on still blue green water seen from above.',
+    variation: 0,
+    world: {
+      own: [-0.8, -1, -1, 0, -0.8, 0.5, 0.95, 0.5],
+      kinds: ['#4f8a54', '#c9788a', '#3f7f86', '#8fbcb4', '#f4d8c0'],
+      contrast: 0.2,
+      keep: 0.06,
+      pace: 0.7,
+    },
+  },
+  {
+    id: 'ripe-barley-close',
+    name: 'Ripe barley close',
+    what: 'Ripe barley stands close and tall, gold and white, leaning a little in a warm haze.',
+    variation: 0,
+    world: {
+      own: [-0.65, 0.95, 0.1, 0, -0.75, 0.75, 0.1, -0.75],
+      kinds: ['#b0742a', '#c8963a', '#7aa0b8', '#ecc878', '#f4dca0'],
+      keep: 0.05,
+      pace: 1.2,
+    },
+  },
+  {
+    id: 'orchard-under-snow',
+    name: 'Orchard under snow',
+    what: 'Bare round trees stand in long rows in deep snow, their blue shadows beside them.',
+    variation: 0,
+    world: {
+      own: [-0.35, 0, -0.4, -0.75, 0.95, 0.9, -1, 0.1],
+      kinds: ['#2f4a64', '#54648f', '#7a5040', '#8a3428', '#c9604a'],
+      keep: 0.08,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'cypress-ridge-dusk',
+    name: 'Cypress ridge dusk',
+    what: 'Tall dark trees on rolling ridges stand in front of a low red sun.',
+    variation: 0,
+    world: {
+      own: [-0.4, 0.75, 0.5, 0, -0.8, -1, 1, -0.65],
+      contrast: 0.5,
+      light: -0.12,
+      vivid: 0.3,
+      kinds: ['#7a3f3a', '#4a4470', '#d8703a', '#f0a860', '#f8d8a0'],
+      keep: 0.04,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'squid-boat-lamps',
+    name: 'Squid boat lamps',
+    what: 'Amber, white and blue lamps lie scattered over dark blue water under a faint moon.',
+    variation: 0,
+    world: {
+      own: [-0.75, 0, -0.9, 0.1, -0.3, 0, 1, 0.28],
+      kinds: ['#f0a848', '#d8783a', '#20406a', '#5a7aa0', '#f8dca0'],
+      keep: 0.05,
+      pace: 0.5,
+      light: 0.02,
+      contrast: 0.35,
+      vivid: 0.2,
+    },
+  },
+  {
+    id: 'balloon-race-morning',
+    name: 'Balloon race morning',
+    what: 'Round balloons in brick, blue and straw hang at every height over a wet meadow.',
+    variation: 0,
+    world: {
+      own: [-1, -0.12, 0.1, 1, -0.75, 0.8, 0.75, -0.6],
+      kinds: ['#b8452f', '#3f7ab8', '#6fa0c8', '#e8c890', '#d87a3a'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'kelp-between-tides',
+    name: 'Kelp between tides',
+    what: 'Green kelp sways up from the sea floor and down from its own mirror in the surface.',
+    variation: 1,
+    world: {
+      own: [-0.6, 0.95, 0.15, 0, -0.3, 0.15, 0.5, -0.2],
+      kinds: ['#2f6a4a', '#1f5a5f', '#7a8a3a', '#a8c07a', '#e0e0a8'],
+      keep: 0.06,
+    },
+  },
+  {
+    id: 'toadstool-cellar',
+    name: 'Toadstool cellar',
+    what: 'Cream and red toadstools on thick stalks stand on the floor and hang from the roof of a dim cellar.',
+    variation: 1,
+    world: {
+      own: [-0.7, -0.6, 0.3, -0.9, -0.22, 0.8, 0.7, -0.22],
+      kinds: ['#6a5a48', '#a85c4c', '#4a4852', '#e8d0a4', '#f4e0b8'],
+      keep: 0.05,
+      pace: 0.5,
+      contrast: 0.35,
+      light: -0.03,
+    },
+  },
+  {
+    id: 'plankton-layer',
+    name: 'Plankton layer',
+    what: 'Small round lives drift at every depth of blue water, each with a bright edge.',
+    variation: 1,
+    world: {
+      own: [-0.5, 0, 0, 1, -0.3, -0.5, 0.8, 0],
+      kinds: ['#1f5f9a', '#3a4f9a', '#2f8f9a', '#7fd0c0', '#e8e0b0'],
+      vivid: 0.2,
+      contrast: 0.2,
+      keep: 0.05,
+      pace: 0.8,
+    },
+  },
+  {
+    id: 'chalk-plains-noon',
+    name: 'Chalk plains noon',
+    what: 'Two white plains face each other, with small coloured stones laid out along both.',
+    variation: 1,
+    world: {
+      own: [-0.1, -0.55, -0.9, 0, 1, 0.8, 0.5, -0.1],
+      kinds: ['#2f6a80', '#a85a3a', '#c98a2f', '#5f7a3a', '#a03a2f'],
+      contrast: 0.15,
+      keep: 0.08,
+      pace: 0.6,
+    },
+  },
+]
+
+export default presets

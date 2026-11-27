@@ -1,0 +1,136 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'rust-bracken-on-blotter',
+    name: 'Rust bracken on blotter',
+    what: 'Broad fronds of bracken in rust, ochre and olive, laid to dry on a pale sheet of blotter.',
+    variation: 0,
+    world: {
+      own: [-1, 1, 0, -0.55, -1, 0, 0, 0],
+      kinds: ['#9c4a22', '#b98232', '#6d6a34', '#7d3a2a', '#c9a15a'],
+      keep: 0.04,
+      light: -0.12,
+      contrast: 0.2,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'moon-laid-behind-oats',
+    name: 'Moon laid behind oats',
+    what: 'Oats and flower heads stand white against a great pale moon on a sheet of plum dye.',
+    variation: 0,
+    world: {
+      own: [1, 1, 0, 0.1, 1, 0, 1, 0],
+      kinds: ['#4a2a4f', '#7a3f5c', '#d8b9a0', '#f0dcc2', '#e8a98f'],
+      keep: 0.04,
+      contrast: 0.15,
+    },
+  },
+  {
+    id: 'lone-frond-on-a-green-disc',
+    name: 'Lone frond on a green disc',
+    what: 'A single fern frond crosses a round coat of deep bottle green brushed on bare paper.',
+    variation: 0,
+    world: {
+      own: [1, -1, -1, 0.5, -0.3, 0, 0, 0],
+      kinds: ['#1f5a44', '#2f7a5c', '#b9c9a0', '#d8e0c2', '#e8e2c8'],
+      keep: 0.04,
+      pace: 0.4,
+      roll: 12,
+    },
+  },
+  {
+    id: 'sprigged-madder-cotton',
+    name: 'Sprigged madder cotton',
+    what: 'Small white sprigs of fern and flower lie scattered over cotton dyed a warm madder red.',
+    variation: 0,
+    world: {
+      own: [1, 1, 1, -0.3, 0, 0, 0, 0],
+      kinds: ['#a8402f', '#c0583c', '#e8c7a0', '#f0d8b8', '#f3e6d0'],
+      keep: 0.04,
+      vivid: 0.1,
+      light: 0.08,
+      contrast: 0.15,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'oats-on-torn-paper-hills',
+    name: 'Oats on torn paper hills',
+    what: 'Long hills of torn paper go back in paler and paler gold behind tall oats and flower heads.',
+    variation: 0,
+    world: {
+      own: [0.9, 1, 0, 0, 0.9, 0, -1, 0.3],
+      kinds: ['#7d6226', '#c2903c', '#d8c38a', '#efe0b4', '#f3ead0'],
+      keep: 0.04,
+      light: 0.1,
+    },
+  },
+  {
+    id: 'chalked-ribbons-of-weed',
+    name: 'Chalked ribbons of weed',
+    what: 'Only the edges and veins of kelp and forked weed, drawn thin and white on near black.',
+    variation: 1,
+    world: {
+      own: [1, 1, 0, -0.5, -1, 0, 0, -1],
+      kinds: ['#2a2d31', '#33373b', '#b9bab4', '#d0cfc6', '#e8e6dc'],
+      keep: 0.02,
+      vivid: -0.4,
+      light: -0.1,
+      contrast: 0.25,
+    },
+  },
+  {
+    id: 'red-weeds-floated-on-paper',
+    name: 'Red weeds floated on paper',
+    what: 'Rose, wine and olive seaweeds, fine as hair, floated out flat on a clean white sheet.',
+    variation: 1,
+    world: {
+      own: [-1, 1, 0, -0.1, 1, 0, 0, 0],
+      kinds: ['#8a2f45', '#b0506a', '#6a6a3a', '#9a3a3a', '#c98a8f'],
+      keep: 0.04,
+      light: -0.12,
+      contrast: 0.2,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'kelp-print-left-in-rain',
+    name: 'Kelp print left in rain',
+    what: 'A print of kelp left out wet: turquoise has run down the sheet and the weed sways in it.',
+    variation: 1,
+    world: {
+      own: [0.9, 0.6, 0, -0.2, -0.5, 1, 0, 0.8],
+      kinds: ['#16708a', '#3a9a94', '#d8e0c8', '#e8d8b0', '#f0e6cf'],
+      keep: 0.04,
+      pace: 1.2,
+    },
+  },
+  {
+    id: 'weed-kept-in-a-sea-chart',
+    name: 'Weed kept in a sea chart',
+    what: 'One forked weed, printed brown long ago on a sheet now creased, spotted and worn at the folds.',
+    variation: 1,
+    world: {
+      own: [1, 0, -1, -0.3, -1, -1, 0, 0],
+      kinds: ['#5c3f28', '#7a5836', '#c9b083', '#dcc89a', '#e8d8b0'],
+      keep: 0.02,
+      pace: 0.2,
+    },
+  },
+  {
+    id: 'kelp-across-a-low-moon',
+    name: 'Kelp across a low moon',
+    what: 'A blade of kelp and branching weeds sway in deep green over the pale round of a moon.',
+    variation: 1,
+    world: {
+      own: [1, 1, 0, 0, -0.45, 0, 1, 0.6],
+      kinds: ['#1f4a44', '#3f7a6a', '#b9c9a0', '#d8e0c2', '#e8d0a0'],
+      keep: 0.04,
+      contrast: 0.15,
+    },
+  },
+]
+
+export default presets

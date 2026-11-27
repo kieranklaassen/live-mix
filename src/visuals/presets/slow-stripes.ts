@@ -1,0 +1,135 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'contour-sheet-of-a-moor',
+    name: 'Contour sheet of a moor',
+    what: 'Fine brown lines close round hills and hollows, as on a walking map of a wide moor.',
+    variation: 0,
+    world: {
+      own: [0.35, 0, 1, 0, -1, -0.8, 0, 0],
+      kinds: ['#e9e0c8', '#7a5233', '#9a6b3c', '#4f6a52', '#3f6f86'],
+      keep: 0.05,
+      pace: 0.5,
+      contrast: 0.2,
+      light: -0.05,
+    },
+  },
+  {
+    id: 'beet-rows-under-rime',
+    name: 'Beet rows under rime',
+    what: 'Frozen furrows run away under a pale rose sky to where the land ends.',
+    variation: 1,
+    world: {
+      own: [-0.3, 0, -0.85, 0.9, -0.9, 0.2, 0, 1],
+      kinds: ['#2f3d52', '#8fa3ba', '#b9c5d2', '#dcd6d6', '#ecc9c2'],
+      keep: 0.05,
+      pace: 0.3,
+    },
+  },
+  {
+    id: 'ripple-tank',
+    name: 'Ripple tank',
+    what: 'Rings of cold light widen in a black tank of water and bend where the waves cross.',
+    variation: 0,
+    world: {
+      own: [-0.1, 1, -0.45, 0, 1, -0.1, 0, 0],
+      kinds: ['#3f6f86', '#8fb7c2', '#c8d8d4', '#f0e6cf', '#ffffff'],
+      keep: 0.08,
+      pace: 1.2,
+    },
+  },
+  {
+    id: 'gorge-of-cut-card',
+    name: 'Gorge of cut card',
+    what: 'Layers of rust, coral and cream card step down into a winding gorge.',
+    variation: 1,
+    world: {
+      own: [-0.75, 0, 0.75, -1, -1, 1, 0, 0],
+      kinds: ['#5b2230', '#c0563a', '#e0a070', '#f2dcb8', '#8c3a34'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'tent-roof-from-the-sawdust',
+    name: 'Tent roof from the sawdust',
+    what: 'Faded red, ochre and cream canvas spreads in broad strips from one pole overhead.',
+    variation: 1,
+    world: {
+      own: [-0.75, -1, -0.9, -0.5, -1, 0.25, 0, 0],
+      kinds: ['#f0e6d0', '#b04a3a', '#b9523e', '#c8604a', '#d9a552'],
+      keep: 0.04,
+      pace: 0.5,
+      energy: -0.7,
+      contrast: 0.25,
+      light: -0.14,
+      edge: 0.4,
+    },
+  },
+  {
+    id: 'lettuce-rows-at-noon',
+    name: 'Lettuce rows at noon',
+    what: 'Round heads of lettuce, green and wine red, stand in rows on dark earth to the horizon.',
+    variation: 1,
+    world: {
+      own: [-0.55, 0, -0.55, 1, -1, 0.3, 1, 0.8],
+      kinds: ['#4a3626', '#7f9d4a', '#a7b866', '#7a2f3f', '#cfdbe2'],
+      keep: 0.05,
+      pace: 0.3,
+    },
+  },
+  {
+    id: 'saddle-blanket',
+    name: 'Saddle blanket',
+    what: 'A thick woven blanket in madder, ochre and teal goes back and forth in sharp points.',
+    variation: 0,
+    world: {
+      own: [-0.1, 0, 0, 1, -1, 0.8, 0, -1],
+      kinds: ['#2b2320', '#a5382e', '#d39a3c', '#2f6f6e', '#e9dcc0'],
+      keep: 0.03,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'zebra-flank',
+    name: 'Zebra flank',
+    what: 'Black stripes branch and close over a white flank that slowly breathes.',
+    variation: 1,
+    world: {
+      own: [-0.6, -0.4, 0.45, 0, -1, 0.15, -0.35, 0],
+      kinds: ['#efe9df', '#1b1817', '#26211f', '#3a2d27', '#57463b'],
+      keep: 0.0,
+      pace: 0.5,
+      contrast: 0.2,
+      light: -0.1,
+      vivid: -0.4,
+    },
+  },
+  {
+    id: 'moon-track-on-a-slow-swell',
+    name: 'Moon track on a slow swell',
+    what: 'Lines of moonlight ride a long slow swell out to a dim horizon.',
+    variation: 0,
+    world: {
+      own: [0.2, 0, -0.5, 0, 1, -0.3, 0, 1],
+      kinds: ['#27405c', '#5c7a94', '#a9bccb', '#e8dfc6', '#ffffff'],
+      keep: 0.05,
+      pace: 0.8,
+    },
+  },
+  {
+    id: 'jet-and-pearl-bead-fan',
+    name: 'Jet and pearl bead fan',
+    what: 'Rows of small beads in dove grey, copper and ivory spread as a fan out of the dark.',
+    variation: 0,
+    world: {
+      own: [-0.2, -1, -0.8, 1, 1, 0.5, 1, 0],
+      kinds: ['#2a3a64', '#c08a6a', '#d0b08a', '#8aa0b8', '#f0e0c8'],
+      keep: 0.04,
+      pace: 0.5,
+    },
+  },
+]
+
+export default presets

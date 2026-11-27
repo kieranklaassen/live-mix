@@ -219,7 +219,7 @@ export function createStage(): Stage {
             drawnHeight,
             frame.signals,
           )
-          if (at === undefined) later = rig !== null
+          if (at === undefined || at?.stand) later = rig !== null
           if (!at || !rig) continue
           sumContext.globalAlpha = clamp01(step.level)
           sumContext.globalCompositeOperation = 'lighter'

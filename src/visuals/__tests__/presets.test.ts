@@ -122,6 +122,13 @@ describe('the presets', () => {
     }
   })
 
+  it('read their own numbers by a plain number only, as they are written into the shader', () => {
+    for (const { style } of all)
+      expect(readFileSync(join(SHADERS, `${style}.glsl`), 'utf8'), style).not.toMatch(
+        /\buOwn(?!\[[0-7]\])/,
+      )
+  })
+
   it('are listed with their words as they are written', async () => {
     const words = await loadPresetWords()
     expect(words).toEqual(
