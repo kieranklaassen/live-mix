@@ -97,6 +97,7 @@ import { CLOCK_ROOM_PRESETS } from './clock-room'
 import { RIDGE_LINES_PRESETS } from './ridge-lines'
 import { NIGHT_DRUM_PRESETS } from './night-drum'
 import { RETURNING_WAVE_PRESETS } from './returning-wave'
+import { CLIMBING_GONG_PRESETS } from './climbing-gong'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -194,4 +195,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...RIDGE_LINES_PRESETS,
   ...NIGHT_DRUM_PRESETS,
   ...RETURNING_WAVE_PRESETS,
+  ...CLIMBING_GONG_PRESETS,
 ]

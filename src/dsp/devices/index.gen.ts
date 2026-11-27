@@ -32,6 +32,7 @@ import { CHORD_CLOCK_DESCRIPTOR, CHORD_CLOCK_DEVICE } from './chord-clock.gen'
 import { CHORD_HARP_DESCRIPTOR, CHORD_HARP_DEVICE } from './chord-harp.gen'
 import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
 import { CLARINET_DESCRIPTOR, CLARINET_DEVICE } from './clarinet.gen'
+import { CLIMBING_GONG_DESCRIPTOR, CLIMBING_GONG_DEVICE } from './climbing-gong.gen'
 import { CLOCK_ROOM_DESCRIPTOR, CLOCK_ROOM_DEVICE } from './clock-room.gen'
 import { CLOSED_EYES_DESCRIPTOR, CLOSED_EYES_DEVICE } from './closed-eyes.gen'
 import { CLUB_KIT_DESCRIPTOR, CLUB_KIT_DEVICE } from './club-kit.gen'
@@ -212,6 +213,7 @@ export * from './chord-clock.gen'
 export * from './chord-harp.gen'
 export * from './chorus.gen'
 export * from './clarinet.gen'
+export * from './climbing-gong.gen'
 export * from './clock-room.gen'
 export * from './closed-eyes.gen'
 export * from './club-kit.gen'
@@ -394,6 +396,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   CHORD_HARP_DESCRIPTOR,
   CHORUS_DESCRIPTOR,
   CLARINET_DESCRIPTOR,
+  CLIMBING_GONG_DESCRIPTOR,
   CLOCK_ROOM_DESCRIPTOR,
   CLOSED_EYES_DESCRIPTOR,
   CLUB_KIT_DESCRIPTOR,
@@ -577,6 +580,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   CHORD_HARP_DEVICE,
   CHORUS_DEVICE,
   CLARINET_DEVICE,
+  CLIMBING_GONG_DEVICE,
   CLOCK_ROOM_DEVICE,
   CLOSED_EYES_DEVICE,
   CLUB_KIT_DEVICE,
@@ -767,6 +771,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'chord-harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'chorus', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'clarinet', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'climbing-gong', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'clock-room', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'closed-eyes', instrument: true, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'club-kit', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },

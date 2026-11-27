@@ -72,6 +72,24 @@ const SETS: readonly Set_[] = [
     ],
   },
   {
+    device: 'climbing-gong',
+    name: 'Climbing Gong',
+    description:
+      'Gongs whose energy climbs register by register after the stroke: dawns, temples, soft plates, bowed metal and rolling walls.',
+    directions: [
+      'Dawn gongs',
+      'Soft plates',
+      'Bowed metal',
+      'Temple courts',
+      'Choked mallets',
+      'Silver glass',
+      'Sub earth',
+      'Brushed air',
+      'Rolling walls',
+      'Velvet bells',
+    ],
+  },
+  {
     device: 'bronze-vowels',
     name: 'Bronze Vowels',
     description:

@@ -1985,6 +1985,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'ridge-lines': { ...PLATE_PALETTES['ridge-lines'], finish: 'grain', cap: 'pointer' },
   'night-drum': { ...PLATE_PALETTES['night-drum'], finish: 'fade', cap: 'disc' },
   'returning-wave': { ...PLATE_PALETTES['returning-wave'], finish: 'fade', cap: 'dot' },
+  'climbing-gong': { ...PLATE_PALETTES['climbing-gong'], finish: 'hammered', cap: 'disc' },
 }
 
 /**

@@ -112,6 +112,7 @@ import { CLOCK_ROOM_FACES } from './clock-room'
 import { RIDGE_LINES_FACES } from './ridge-lines'
 import { NIGHT_DRUM_FACES } from './night-drum'
 import { RETURNING_WAVE_FACES } from './returning-wave'
+import { CLIMBING_GONG_FACES } from './climbing-gong'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -225,4 +226,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...RIDGE_LINES_FACES,
   ...NIGHT_DRUM_FACES,
   ...RETURNING_WAVE_FACES,
+  ...CLIMBING_GONG_FACES,
 }

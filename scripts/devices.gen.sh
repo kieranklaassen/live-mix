@@ -66,6 +66,8 @@ build_generated_devices() {
     cpp/devices/chorus/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device clarinet \
     cpp/devices/clarinet/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device climbing-gong \
+    cpp/devices/climbing-gong/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device clock-room \
     cpp/devices/clock-room/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device closed-eyes \
@@ -431,6 +433,8 @@ test_generated_devices() {
     cpp/test/chorus_test.cpp
   native_test clarinet_test \
     cpp/test/clarinet_test.cpp
+  native_test climbing_gong_test \
+    cpp/test/climbing_gong_test.cpp
   native_test clock_room_test \
     cpp/test/clock_room_test.cpp
   native_test closed_eyes_test \

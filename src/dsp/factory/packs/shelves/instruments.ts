@@ -5,6 +5,7 @@ import { type FactoryPreset } from '../../types'
 import { SET as WALKING_VOICES } from '../../sets/walking-voices'
 import { SET as UNSUNG_VOICE } from '../../sets/unsung-voice'
 import { SET as RETURNING_WAVE } from '../../sets/returning-wave'
+import { SET as CLIMBING_GONG } from '../../sets/climbing-gong'
 import { SET as BRONZE_VOWELS } from '../../sets/bronze-vowels'
 import { SET as TURNED_TIME } from '../../sets/turned-time'
 import { SET as NIGHT_DRUM } from '../../sets/night-drum'
@@ -31,6 +32,7 @@ export const SETS: readonly InstrumentSet[] = [
   WALKING_VOICES,
   UNSUNG_VOICE,
   RETURNING_WAVE,
+  CLIMBING_GONG,
   BRONZE_VOWELS,
   TURNED_TIME,
   NIGHT_DRUM,
