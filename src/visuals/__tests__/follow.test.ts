@@ -670,6 +670,17 @@ describe('the picture of the piece', () => {
     expect(blue).toBeLessThanOrEqual(0.8 * 255)
   })
 
+  it('says which kind each place is of, whatever its colour, and whether it sounds or waits', () => {
+    const cell = (Math.floor(0.5 * MAP_H) * MAP_W + Math.floor((6 / 16) * MAP_W)) * 5
+    const kindsAt = (sec: number) => {
+      const red = stroke({ slot: 'texture', colour: [0.78, 0.36, 0.32] })
+      const { signals } = new VisualFollower().step(frame({ playheadSec: sec, strokes: [red] }))
+      return [...(signals.mapKinds ?? []).slice(cell, cell + 5)]
+    }
+    expect(kindsAt(6)).toEqual([0, 0, 255, 0, 0])
+    expect(kindsAt(1)).toEqual([0, 0, 255, 0, 0])
+  })
+
   it('shows a stroke faintly while it waits and brightly while it plays', () => {
     const waiting = new VisualFollower().step(
       frame({ playheadSec: 1, strokes: [stroke()] }),

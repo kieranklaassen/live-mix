@@ -224,14 +224,15 @@ export function worldKinds(world: VisualWorld, own: Float32Array, into: Float32A
 const NEAR = 24
 
 /**
- * The picture of the piece in this world's colours: each cell keeps how loud it is, and its colour goes where the
- * kinds nearest to it went.
+ * The picture of the piece in this world's colours: each cell keeps how loud it is, in the colours of the kinds it is
+ * of. Where that is not known, its colour goes where the kinds nearest to it went.
  */
 export function worldMap(
   map: Uint8Array,
   was: Float32Array,
   now: Float32Array,
   into: Uint8Array,
+  whose?: Uint8Array,
 ): void {
   const kinds = KIND_SLOTS.length
   for (let cell = 0; cell < MAP_W * MAP_H * 4; cell += 4) {
@@ -244,6 +245,7 @@ export function worldMap(
     const r = map[cell] / loud
     const g = map[cell + 1] / loud
     const b = map[cell + 2] / loud
+    const first = (cell / 4) * kinds
     let all = 1e-9
     let toR = 0
     let toG = 0
@@ -252,7 +254,9 @@ export function worldMap(
       const dr = r - was[kind]
       const dg = g - was[kind + 1]
       const db = b - was[kind + 2]
-      const share = Math.exp(-NEAR * (dr * dr + dg * dg + db * db))
+      const share = whose
+        ? whose[first + kind / 3]
+        : Math.exp(-NEAR * (dr * dr + dg * dg + db * db))
       all += share
       toR += share * now[kind]
       toG += share * now[kind + 1]

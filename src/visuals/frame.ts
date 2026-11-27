@@ -62,6 +62,11 @@ export interface VisualSignals {
   kindColours: Float32Array
   /** `MAP_W` by `MAP_H` pixels of red, green, blue and how loud, the back of the room first. */
   map: Uint8Array
+  /**
+   * How much of each pixel of `map` is each kind's, in `KIND_SLOTS`, five numbers of 0 to 255 a pixel: what a world
+   * with colours of its own for the kinds goes by. Left out, it goes by the colours themselves.
+   */
+  mapKinds?: Uint8Array
 }
 
 /** A visual as it is painted this frame. */
@@ -287,5 +292,6 @@ export function quietSignals(): VisualSignals {
     bands: new Float32Array(SPECTRUM_BANDS),
     kindColours: new Float32Array(KIND_SLOTS.length * 3),
     map: new Uint8Array(MAP_W * MAP_H * 4),
+    mapKinds: new Uint8Array(MAP_W * MAP_H * KIND_SLOTS.length),
   }
 }
