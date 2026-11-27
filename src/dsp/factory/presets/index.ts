@@ -85,6 +85,8 @@ import { RINGING_ORDER_PRESETS } from './ringing-order'
 import { WALKING_VOICES_PRESETS } from './walking-voices'
 import { UNSUNG_VOICE_PRESETS } from './unsung-voice'
 import { DEEP_ROOTS_PRESETS } from './deep-roots'
+import { SPUN_WIRE_PRESETS } from './spun-wire'
+import { FLAME_ORGAN_PRESETS } from './flame-organ'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -170,4 +172,6 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...WALKING_VOICES_PRESETS,
   ...UNSUNG_VOICE_PRESETS,
   ...DEEP_ROOTS_PRESETS,
+  ...SPUN_WIRE_PRESETS,
+  ...FLAME_ORGAN_PRESETS,
 ]

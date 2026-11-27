@@ -180,6 +180,42 @@ const SETS: readonly Set_[] = [
     ],
   },
   {
+    device: 'spun-wire',
+    name: 'Spun Wire',
+    description:
+      'Wheels of tuned wires spun past a plucker, from single plucks to sung tones: ladders, gears, woven voices and the last few turns.',
+    directions: [
+      'Feather wheels',
+      'Last turns',
+      'Overtone fans',
+      'Card keys',
+      'Skin basses',
+      'Nail bells',
+      'Air drones',
+      'Geared figures',
+      'Woven voices',
+      'Plain plucks',
+    ],
+  },
+  {
+    device: 'flame-organ',
+    name: 'Flame Organ',
+    description:
+      'Small flames that make their glass tubes sing: candle flutes, coal basses, beating pairs, furnace choirs and dying embers.',
+    directions: [
+      'Warm flame pads',
+      'Candle flutes',
+      'Coal basses',
+      'Beating pairs',
+      'Octave lifters',
+      'Roaring drones',
+      'Glass taps',
+      'Dying embers',
+      'Furnace choirs',
+      'Blue bells',
+    ],
+  },
+  {
     device: 'wire-lantern',
     name: 'Wire Lantern',
     description:

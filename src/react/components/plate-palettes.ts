@@ -205,6 +205,8 @@ export const PLATE_PALETTES = {
   'walking-voices': { plate: '#be82d6', ink: '#14081a', accent: '#800c26' },
   'unsung-voice': { plate: '#beca82', ink: '#14180a', accent: '#a3271c' },
   'deep-roots': { plate: '#0a643a', ink: '#f4f8ee', accent: '#f2b65c' },
+  'spun-wire': { plate: '#be8eac', ink: '#170a12', accent: '#93002f' },
+  'flame-organ': { plate: '#b26410', ink: '#0a0300', accent: '#fff4dc' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

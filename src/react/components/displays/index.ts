@@ -100,6 +100,8 @@ import { RINGING_ORDER_FACES } from './ringing-order'
 import { WALKING_VOICES_FACES } from './walking-voices'
 import { UNSUNG_VOICE_FACES } from './unsung-voice'
 import { DEEP_ROOTS_FACES } from './deep-roots'
+import { SPUN_WIRE_FACES } from './spun-wire'
+import { FLAME_ORGAN_FACES } from './flame-organ'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -201,4 +203,6 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...WALKING_VOICES_FACES,
   ...UNSUNG_VOICE_FACES,
   ...DEEP_ROOTS_FACES,
+  ...SPUN_WIRE_FACES,
+  ...FLAME_ORGAN_FACES,
 }

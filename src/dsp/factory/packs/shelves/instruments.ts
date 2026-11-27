@@ -11,6 +11,8 @@ import { SET as CHORD_CLOCK } from '../../sets/chord-clock'
 import { SET as SETTING_GLASS } from '../../sets/setting-glass'
 import { SET as STANDING_WATER } from '../../sets/standing-water'
 import { SET as RINGING_ORDER } from '../../sets/ringing-order'
+import { SET as SPUN_WIRE } from '../../sets/spun-wire'
+import { SET as FLAME_ORGAN } from '../../sets/flame-organ'
 import { SET as WIRE_LANTERN } from '../../sets/wire-lantern'
 import { SET as SINGING_SAND } from '../../sets/singing-sand'
 
@@ -25,6 +27,8 @@ export const SETS: readonly InstrumentSet[] = [
   SETTING_GLASS,
   STANDING_WATER,
   RINGING_ORDER,
+  SPUN_WIRE,
+  FLAME_ORGAN,
   WIRE_LANTERN,
   SINGING_SAND,
 ]

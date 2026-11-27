@@ -98,6 +98,8 @@ build_generated_devices() {
     cpp/devices/falling/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device feedback \
     cpp/devices/feedback/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device flame-organ \
+    cpp/devices/flame-organ/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device flanger \
     cpp/devices/flanger/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device flock \
@@ -258,6 +260,8 @@ build_generated_devices() {
     cpp/devices/spread/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device spring-reverb \
     cpp/devices/spring-reverb/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device spun-wire \
+    cpp/devices/spun-wire/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device staircase \
     cpp/devices/staircase/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device standing-water \
@@ -439,6 +443,8 @@ test_generated_devices() {
     cpp/test/falling_test.cpp
   native_test feedback_test \
     cpp/test/feedback_test.cpp
+  native_test flame_organ_test \
+    cpp/test/flame_organ_test.cpp
   native_test flanger_test \
     cpp/test/flanger_test.cpp
   native_test flock_test \
@@ -599,6 +605,8 @@ test_generated_devices() {
     cpp/test/spread_test.cpp
   native_test spring_reverb_test \
     cpp/test/spring_reverb_test.cpp
+  native_test spun_wire_test \
+    cpp/test/spun_wire_test.cpp
   native_test staircase_test \
     cpp/test/staircase_test.cpp
   native_test standing_water_test \

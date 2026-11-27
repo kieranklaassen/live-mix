@@ -48,6 +48,7 @@ import { EMBER_DESCRIPTOR, EMBER_DEVICE } from './ember.gen'
 import { EXPANSE_DESCRIPTOR, EXPANSE_DEVICE } from './expanse.gen'
 import { FALLING_DESCRIPTOR, FALLING_DEVICE } from './falling.gen'
 import { FEEDBACK_DESCRIPTOR, FEEDBACK_DEVICE } from './feedback.gen'
+import { FLAME_ORGAN_DESCRIPTOR, FLAME_ORGAN_DEVICE } from './flame-organ.gen'
 import { FLANGER_DESCRIPTOR, FLANGER_DEVICE } from './flanger.gen'
 import { FLOCK_DESCRIPTOR, FLOCK_DEVICE } from './flock.gen'
 import { FLUTE_DESCRIPTOR, FLUTE_DEVICE } from './flute.gen'
@@ -128,6 +129,7 @@ import { SPECTRAL_BLUR_DESCRIPTOR, SPECTRAL_BLUR_DEVICE } from './spectral-blur.
 import { SPIRAL_DESCRIPTOR, SPIRAL_DEVICE } from './spiral.gen'
 import { SPREAD_DESCRIPTOR, SPREAD_DEVICE } from './spread.gen'
 import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.gen'
+import { SPUN_WIRE_DESCRIPTOR, SPUN_WIRE_DEVICE } from './spun-wire.gen'
 import { STAIRCASE_DESCRIPTOR, STAIRCASE_DEVICE } from './staircase.gen'
 import { STANDING_WATER_DESCRIPTOR, STANDING_WATER_DEVICE } from './standing-water.gen'
 import { STEREO_DETUNE_DESCRIPTOR, STEREO_DETUNE_DEVICE } from './stereo-detune.gen'
@@ -216,6 +218,7 @@ export * from './ember.gen'
 export * from './expanse.gen'
 export * from './falling.gen'
 export * from './feedback.gen'
+export * from './flame-organ.gen'
 export * from './flanger.gen'
 export * from './flock.gen'
 export * from './flute.gen'
@@ -296,6 +299,7 @@ export * from './spectral-blur.gen'
 export * from './spiral.gen'
 export * from './spread.gen'
 export * from './spring-reverb.gen'
+export * from './spun-wire.gen'
 export * from './staircase.gen'
 export * from './standing-water.gen'
 export * from './stereo-detune.gen'
@@ -386,6 +390,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   EXPANSE_DESCRIPTOR,
   FALLING_DESCRIPTOR,
   FEEDBACK_DESCRIPTOR,
+  FLAME_ORGAN_DESCRIPTOR,
   FLANGER_DESCRIPTOR,
   FLOCK_DESCRIPTOR,
   FLUTE_DESCRIPTOR,
@@ -466,6 +471,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SPIRAL_DESCRIPTOR,
   SPREAD_DESCRIPTOR,
   SPRING_REVERB_DESCRIPTOR,
+  SPUN_WIRE_DESCRIPTOR,
   STAIRCASE_DESCRIPTOR,
   STANDING_WATER_DESCRIPTOR,
   STEREO_DETUNE_DESCRIPTOR,
@@ -557,6 +563,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   EXPANSE_DEVICE,
   FALLING_DEVICE,
   FEEDBACK_DEVICE,
+  FLAME_ORGAN_DEVICE,
   FLANGER_DEVICE,
   FLOCK_DEVICE,
   FLUTE_DEVICE,
@@ -637,6 +644,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SPIRAL_DEVICE,
   SPREAD_DEVICE,
   SPRING_REVERB_DEVICE,
+  SPUN_WIRE_DEVICE,
   STAIRCASE_DEVICE,
   STANDING_WATER_DEVICE,
   STEREO_DETUNE_DEVICE,
@@ -735,6 +743,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'expanse', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 6 },
   { id: 'falling', instrument: false, samples: false, zones: false, meters: 11, memoryMb: 10 },
   { id: 'feedback', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'flame-organ', instrument: true, samples: false, zones: false, meters: 7, memoryMb: 4 },
   { id: 'flanger', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'flock', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'flute', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
@@ -829,6 +838,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'spiral', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'spread', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'spring-reverb', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'spun-wire', instrument: true, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'staircase', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'standing-water', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'stereo-detune', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
