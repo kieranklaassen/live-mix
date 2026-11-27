@@ -102,6 +102,12 @@ import { UNSUNG_VOICE_FACES } from './unsung-voice'
 import { DEEP_ROOTS_FACES } from './deep-roots'
 import { SPUN_WIRE_FACES } from './spun-wire'
 import { FLAME_ORGAN_FACES } from './flame-organ'
+import { BRONZE_VOWELS_FACES } from './bronze-vowels'
+import { TURNED_TIME_FACES } from './turned-time'
+import { UNDERVOICE_FACES } from './undervoice'
+import { DRY_BRUSH_FACES } from './dry-brush'
+import { CLOSED_EYES_FACES } from './closed-eyes'
+import { BENT_BLADE_FACES } from './bent-blade'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -205,4 +211,10 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DEEP_ROOTS_FACES,
   ...SPUN_WIRE_FACES,
   ...FLAME_ORGAN_FACES,
+  ...BRONZE_VOWELS_FACES,
+  ...TURNED_TIME_FACES,
+  ...UNDERVOICE_FACES,
+  ...DRY_BRUSH_FACES,
+  ...CLOSED_EYES_FACES,
+  ...BENT_BLADE_FACES,
 }

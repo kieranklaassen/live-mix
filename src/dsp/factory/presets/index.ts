@@ -87,6 +87,12 @@ import { UNSUNG_VOICE_PRESETS } from './unsung-voice'
 import { DEEP_ROOTS_PRESETS } from './deep-roots'
 import { SPUN_WIRE_PRESETS } from './spun-wire'
 import { FLAME_ORGAN_PRESETS } from './flame-organ'
+import { BRONZE_VOWELS_PRESETS } from './bronze-vowels'
+import { TURNED_TIME_PRESETS } from './turned-time'
+import { UNDERVOICE_PRESETS } from './undervoice'
+import { DRY_BRUSH_PRESETS } from './dry-brush'
+import { CLOSED_EYES_PRESETS } from './closed-eyes'
+import { BENT_BLADE_PRESETS } from './bent-blade'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -174,4 +180,10 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...DEEP_ROOTS_PRESETS,
   ...SPUN_WIRE_PRESETS,
   ...FLAME_ORGAN_PRESETS,
+  ...BRONZE_VOWELS_PRESETS,
+  ...TURNED_TIME_PRESETS,
+  ...UNDERVOICE_PRESETS,
+  ...DRY_BRUSH_PRESETS,
+  ...CLOSED_EYES_PRESETS,
+  ...BENT_BLADE_PRESETS,
 ]

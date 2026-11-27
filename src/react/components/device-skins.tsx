@@ -1975,6 +1975,12 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'deep-roots': { ...PLATE_PALETTES['deep-roots'], finish: 'grain', cap: 'skirt' },
   'spun-wire': { ...PLATE_PALETTES['spun-wire'], finish: 'brushed', cap: 'pointer' },
   'flame-organ': { ...PLATE_PALETTES['flame-organ'], finish: 'hammered', cap: 'skirt' },
+  'bronze-vowels': { ...PLATE_PALETTES['bronze-vowels'], finish: 'hammered', cap: 'skirt' },
+  'turned-time': { ...PLATE_PALETTES['turned-time'], finish: 'grain', cap: 'pointer' },
+  undervoice: { ...PLATE_PALETTES.undervoice, finish: 'grain', cap: 'skirt' },
+  'dry-brush': { ...PLATE_PALETTES['dry-brush'], finish: 'brushed', cap: 'pointer' },
+  'closed-eyes': { ...PLATE_PALETTES['closed-eyes'], finish: 'matte', cap: 'disc' },
+  'bent-blade': { ...PLATE_PALETTES['bent-blade'], finish: 'brushed', cap: 'skirt' },
 }
 
 /**

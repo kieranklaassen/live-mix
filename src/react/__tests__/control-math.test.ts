@@ -390,6 +390,8 @@ describe('the stock devices', () => {
       'spiral.voices',
       'spun-wire.gear',
       'spun-wire.strung',
+      'undervoice.second',
+      'undervoice.singers',
       'walking-voices.people',
       'wind-harp.strings',
       'winding-down.layers',

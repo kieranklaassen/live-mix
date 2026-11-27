@@ -30,6 +30,8 @@ build_generated_devices() {
     cpp/devices/auto-filter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device band-pulse \
     cpp/devices/band-pulse/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device bent-blade \
+    cpp/devices/bent-blade/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device binaural \
     cpp/devices/binaural/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device bloom-reverb \
@@ -44,6 +46,8 @@ build_generated_devices() {
     cpp/devices/breath/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device breath-pacer \
     cpp/devices/breath-pacer/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device bronze-vowels \
+    cpp/devices/bronze-vowels/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device buzzing-bridge \
     cpp/devices/buzzing-bridge/device_api.gen.cpp
   MEMORY_BYTES=33554432 EXTRA_EXPORTS=",_device_meter" build_device canon \
@@ -62,6 +66,8 @@ build_generated_devices() {
     cpp/devices/chorus/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device clarinet \
     cpp/devices/clarinet/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device closed-eyes \
+    cpp/devices/closed-eyes/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device club-kit \
     cpp/devices/club-kit/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device coloured-noise \
@@ -84,6 +90,8 @@ build_generated_devices() {
     cpp/devices/droplets/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drum-kit \
     cpp/devices/drum-kit/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device dry-brush \
+    cpp/devices/dry-brush/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device dusk \
     cpp/devices/dusk/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device ear-shift \
@@ -310,8 +318,12 @@ build_generated_devices() {
     cpp/devices/tine-piano/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tremolo \
     cpp/devices/tremolo/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device turned-time \
+    cpp/devices/turned-time/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device twin-bars \
     cpp/devices/twin-bars/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device undervoice \
+    cpp/devices/undervoice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device underwater \
     cpp/devices/underwater/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device unsung-voice \
@@ -375,6 +387,8 @@ test_generated_devices() {
     cpp/test/auto_filter_test.cpp
   native_test band_pulse_test \
     cpp/test/band_pulse_test.cpp
+  native_test bent_blade_test \
+    cpp/test/bent_blade_test.cpp
   native_test binaural_test \
     cpp/test/binaural_test.cpp
   native_test bloom_reverb_test \
@@ -389,6 +403,8 @@ test_generated_devices() {
     cpp/test/breath_test.cpp
   native_test breath_pacer_test \
     cpp/test/breath_pacer_test.cpp
+  native_test bronze_vowels_test \
+    cpp/test/bronze_vowels_test.cpp
   native_test buzzing_bridge_test \
     cpp/test/buzzing_bridge_test.cpp
   native_test canon_test \
@@ -407,6 +423,8 @@ test_generated_devices() {
     cpp/test/chorus_test.cpp
   native_test clarinet_test \
     cpp/test/clarinet_test.cpp
+  native_test closed_eyes_test \
+    cpp/test/closed_eyes_test.cpp
   native_test club_kit_test \
     cpp/test/club_kit_test.cpp
   native_test coloured_noise_test \
@@ -429,6 +447,8 @@ test_generated_devices() {
     cpp/test/droplets_test.cpp
   native_test drum_kit_test \
     cpp/test/drum_kit_test.cpp
+  native_test dry_brush_test \
+    cpp/test/dry_brush_test.cpp
   native_test dusk_test \
     cpp/test/dusk_test.cpp
   native_test ear_shift_test \
@@ -655,8 +675,12 @@ test_generated_devices() {
     cpp/test/tine_piano_test.cpp
   native_test tremolo_test \
     cpp/test/tremolo_test.cpp
+  native_test turned_time_test \
+    cpp/test/turned_time_test.cpp
   native_test twin_bars_test \
     cpp/test/twin_bars_test.cpp
+  native_test undervoice_test \
+    cpp/test/undervoice_test.cpp
   native_test underwater_test \
     cpp/test/underwater_test.cpp
   native_test unsung_voice_test \

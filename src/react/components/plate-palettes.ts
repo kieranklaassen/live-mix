@@ -207,6 +207,12 @@ export const PLATE_PALETTES = {
   'deep-roots': { plate: '#0a643a', ink: '#f4f8ee', accent: '#f2b65c' },
   'spun-wire': { plate: '#be8eac', ink: '#170a12', accent: '#93002f' },
   'flame-organ': { plate: '#b26410', ink: '#0a0300', accent: '#fff4dc' },
+  'bronze-vowels': { plate: '#9a6a28', ink: '#0c0500', accent: '#fff3d0' },
+  'turned-time': { plate: '#3440ac', ink: '#fbf7ec', accent: '#ffc861' },
+  undervoice: { plate: '#820a5e', ink: '#fdf1f7', accent: '#f2b84b' },
+  'dry-brush': { plate: '#706a5e', ink: '#ffffff', accent: '#ffc24a' },
+  'closed-eyes': { plate: '#9446ac', ink: '#ffffff', accent: '#ffe27a' },
+  'bent-blade': { plate: '#7ca68e', ink: '#0f1a14', accent: '#94102a' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

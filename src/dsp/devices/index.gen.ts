@@ -15,12 +15,14 @@ import { ATMOSPHERE_DESCRIPTOR, ATMOSPHERE_DEVICE } from './atmosphere.gen'
 import { AURORA_DESCRIPTOR, AURORA_DEVICE } from './aurora.gen'
 import { AUTO_FILTER_DESCRIPTOR, AUTO_FILTER_DEVICE } from './auto-filter.gen'
 import { BAND_PULSE_DESCRIPTOR, BAND_PULSE_DEVICE } from './band-pulse.gen'
+import { BENT_BLADE_DESCRIPTOR, BENT_BLADE_DEVICE } from './bent-blade.gen'
 import { BINAURAL_DESCRIPTOR, BINAURAL_DEVICE } from './binaural.gen'
 import { BLOOM_REVERB_DESCRIPTOR, BLOOM_REVERB_DEVICE } from './bloom-reverb.gen'
 import { BOWED_STRING_DESCRIPTOR, BOWED_STRING_DEVICE } from './bowed-string.gen'
 import { BOWLS_DESCRIPTOR, BOWLS_DEVICE } from './bowls.gen'
 import { BREATH_DESCRIPTOR, BREATH_DEVICE } from './breath.gen'
 import { BREATH_PACER_DESCRIPTOR, BREATH_PACER_DEVICE } from './breath-pacer.gen'
+import { BRONZE_VOWELS_DESCRIPTOR, BRONZE_VOWELS_DEVICE } from './bronze-vowels.gen'
 import { BUZZING_BRIDGE_DESCRIPTOR, BUZZING_BRIDGE_DEVICE } from './buzzing-bridge.gen'
 import { CANON_DESCRIPTOR, CANON_DEVICE } from './canon.gen'
 import { CASCADE_DESCRIPTOR, CASCADE_DEVICE } from './cascade.gen'
@@ -30,6 +32,7 @@ import { CHORD_CLOCK_DESCRIPTOR, CHORD_CLOCK_DEVICE } from './chord-clock.gen'
 import { CHORD_HARP_DESCRIPTOR, CHORD_HARP_DEVICE } from './chord-harp.gen'
 import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
 import { CLARINET_DESCRIPTOR, CLARINET_DEVICE } from './clarinet.gen'
+import { CLOSED_EYES_DESCRIPTOR, CLOSED_EYES_DEVICE } from './closed-eyes.gen'
 import { CLUB_KIT_DESCRIPTOR, CLUB_KIT_DEVICE } from './club-kit.gen'
 import { COLOURED_NOISE_DESCRIPTOR, COLOURED_NOISE_DEVICE } from './coloured-noise.gen'
 import { COMMON_AIR_DESCRIPTOR, COMMON_AIR_DEVICE } from './common-air.gen'
@@ -41,6 +44,7 @@ import { DISTANCE_DESCRIPTOR, DISTANCE_DEVICE } from './distance.gen'
 import { DRONE_DESCRIPTOR, DRONE_DEVICE } from './drone.gen'
 import { DROPLETS_DESCRIPTOR, DROPLETS_DEVICE } from './droplets.gen'
 import { DRUM_KIT_DESCRIPTOR, DRUM_KIT_DEVICE } from './drum-kit.gen'
+import { DRY_BRUSH_DESCRIPTOR, DRY_BRUSH_DEVICE } from './dry-brush.gen'
 import { DUSK_DESCRIPTOR, DUSK_DEVICE } from './dusk.gen'
 import { EAR_SHIFT_DESCRIPTOR, EAR_SHIFT_DEVICE } from './ear-shift.gen'
 import { ECHO_MEMORY_DESCRIPTOR, ECHO_MEMORY_DEVICE } from './echo-memory.gen'
@@ -153,7 +157,9 @@ import { THESIS_DESCRIPTOR, THESIS_DEVICE } from './thesis.gen'
 import { TIERCE_BELLS_DESCRIPTOR, TIERCE_BELLS_DEVICE } from './tierce-bells.gen'
 import { TINE_PIANO_DESCRIPTOR, TINE_PIANO_DEVICE } from './tine-piano.gen'
 import { TREMOLO_DESCRIPTOR, TREMOLO_DEVICE } from './tremolo.gen'
+import { TURNED_TIME_DESCRIPTOR, TURNED_TIME_DEVICE } from './turned-time.gen'
 import { TWIN_BARS_DESCRIPTOR, TWIN_BARS_DEVICE } from './twin-bars.gen'
+import { UNDERVOICE_DESCRIPTOR, UNDERVOICE_DEVICE } from './undervoice.gen'
 import { UNDERWATER_DESCRIPTOR, UNDERWATER_DEVICE } from './underwater.gen'
 import { UNSUNG_VOICE_DESCRIPTOR, UNSUNG_VOICE_DEVICE } from './unsung-voice.gen'
 import { VESSEL_DESCRIPTOR, VESSEL_DEVICE } from './vessel.gen'
@@ -185,12 +191,14 @@ export * from './atmosphere.gen'
 export * from './aurora.gen'
 export * from './auto-filter.gen'
 export * from './band-pulse.gen'
+export * from './bent-blade.gen'
 export * from './binaural.gen'
 export * from './bloom-reverb.gen'
 export * from './bowed-string.gen'
 export * from './bowls.gen'
 export * from './breath.gen'
 export * from './breath-pacer.gen'
+export * from './bronze-vowels.gen'
 export * from './buzzing-bridge.gen'
 export * from './canon.gen'
 export * from './cascade.gen'
@@ -200,6 +208,7 @@ export * from './chord-clock.gen'
 export * from './chord-harp.gen'
 export * from './chorus.gen'
 export * from './clarinet.gen'
+export * from './closed-eyes.gen'
 export * from './club-kit.gen'
 export * from './coloured-noise.gen'
 export * from './common-air.gen'
@@ -211,6 +220,7 @@ export * from './distance.gen'
 export * from './drone.gen'
 export * from './droplets.gen'
 export * from './drum-kit.gen'
+export * from './dry-brush.gen'
 export * from './dusk.gen'
 export * from './ear-shift.gen'
 export * from './echo-memory.gen'
@@ -323,7 +333,9 @@ export * from './thesis.gen'
 export * from './tierce-bells.gen'
 export * from './tine-piano.gen'
 export * from './tremolo.gen'
+export * from './turned-time.gen'
 export * from './twin-bars.gen'
+export * from './undervoice.gen'
 export * from './underwater.gen'
 export * from './unsung-voice.gen'
 export * from './vessel.gen'
@@ -357,12 +369,14 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   AURORA_DESCRIPTOR,
   AUTO_FILTER_DESCRIPTOR,
   BAND_PULSE_DESCRIPTOR,
+  BENT_BLADE_DESCRIPTOR,
   BINAURAL_DESCRIPTOR,
   BLOOM_REVERB_DESCRIPTOR,
   BOWED_STRING_DESCRIPTOR,
   BOWLS_DESCRIPTOR,
   BREATH_DESCRIPTOR,
   BREATH_PACER_DESCRIPTOR,
+  BRONZE_VOWELS_DESCRIPTOR,
   BUZZING_BRIDGE_DESCRIPTOR,
   CANON_DESCRIPTOR,
   CASCADE_DESCRIPTOR,
@@ -372,6 +386,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   CHORD_HARP_DESCRIPTOR,
   CHORUS_DESCRIPTOR,
   CLARINET_DESCRIPTOR,
+  CLOSED_EYES_DESCRIPTOR,
   CLUB_KIT_DESCRIPTOR,
   COLOURED_NOISE_DESCRIPTOR,
   COMMON_AIR_DESCRIPTOR,
@@ -383,6 +398,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   DRONE_DESCRIPTOR,
   DROPLETS_DESCRIPTOR,
   DRUM_KIT_DESCRIPTOR,
+  DRY_BRUSH_DESCRIPTOR,
   DUSK_DESCRIPTOR,
   EAR_SHIFT_DESCRIPTOR,
   ECHO_MEMORY_DESCRIPTOR,
@@ -495,7 +511,9 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   TIERCE_BELLS_DESCRIPTOR,
   TINE_PIANO_DESCRIPTOR,
   TREMOLO_DESCRIPTOR,
+  TURNED_TIME_DESCRIPTOR,
   TWIN_BARS_DESCRIPTOR,
+  UNDERVOICE_DESCRIPTOR,
   UNDERWATER_DESCRIPTOR,
   UNSUNG_VOICE_DESCRIPTOR,
   VESSEL_DESCRIPTOR,
@@ -530,12 +548,14 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   AURORA_DEVICE,
   AUTO_FILTER_DEVICE,
   BAND_PULSE_DEVICE,
+  BENT_BLADE_DEVICE,
   BINAURAL_DEVICE,
   BLOOM_REVERB_DEVICE,
   BOWED_STRING_DEVICE,
   BOWLS_DEVICE,
   BREATH_DEVICE,
   BREATH_PACER_DEVICE,
+  BRONZE_VOWELS_DEVICE,
   BUZZING_BRIDGE_DEVICE,
   CANON_DEVICE,
   CASCADE_DEVICE,
@@ -545,6 +565,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   CHORD_HARP_DEVICE,
   CHORUS_DEVICE,
   CLARINET_DEVICE,
+  CLOSED_EYES_DEVICE,
   CLUB_KIT_DEVICE,
   COLOURED_NOISE_DEVICE,
   COMMON_AIR_DEVICE,
@@ -556,6 +577,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   DRONE_DEVICE,
   DROPLETS_DEVICE,
   DRUM_KIT_DEVICE,
+  DRY_BRUSH_DEVICE,
   DUSK_DEVICE,
   EAR_SHIFT_DEVICE,
   ECHO_MEMORY_DEVICE,
@@ -668,7 +690,9 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   TIERCE_BELLS_DEVICE,
   TINE_PIANO_DEVICE,
   TREMOLO_DEVICE,
+  TURNED_TIME_DEVICE,
   TWIN_BARS_DEVICE,
+  UNDERVOICE_DEVICE,
   UNDERWATER_DEVICE,
   UNSUNG_VOICE_DEVICE,
   VESSEL_DEVICE,
@@ -710,12 +734,14 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'aurora', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'auto-filter', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'band-pulse', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'bent-blade', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'binaural', instrument: true, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'bloom-reverb', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'bowed-string', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'bowls', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'breath', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'breath-pacer', instrument: true, samples: false, zones: false, meters: 3, memoryMb: 4 },
+  { id: 'bronze-vowels', instrument: true, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'buzzing-bridge', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'canon', instrument: false, samples: false, zones: false, meters: 7, memoryMb: 32 },
   { id: 'cascade', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 16 },
@@ -725,6 +751,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'chord-harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'chorus', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'clarinet', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'closed-eyes', instrument: true, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'club-kit', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'coloured-noise', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'common-air', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
@@ -736,6 +763,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'drone', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'droplets', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'drum-kit', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'dry-brush', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'dusk', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'ear-shift', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'echo-memory', instrument: false, samples: false, zones: false, meters: 5, memoryMb: 20 },
@@ -862,7 +890,9 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'tierce-bells', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'tine-piano', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'tremolo', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
+  { id: 'turned-time', instrument: true, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'twin-bars', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'undervoice', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'underwater', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'unsung-voice', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'vessel', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
