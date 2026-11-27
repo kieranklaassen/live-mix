@@ -3,7 +3,7 @@
 // b: Snowed veranda
 // what: A long house seen from above with its roofs left off: straw mats, painted walls, blinds, the rooms slanting down to the left between banks of worn gold cloud, a robe's five-edged hem lying out from under a blind by a lamp; or its veranda on a snowy evening, a blue stream, a bridge of planks in a zigzag and a bent plum.
 // follows: Drone and loudness draw back the gold clouds, a cue parts them. Pad warms the rooms, texture stirs the mats or thickens the snow, a phrase carries a lantern along the veranda with the loop. Each kind spreads one edge of the hem, patterned by the piece. Bands raise the blinds, a hit slides a panel open, keys add gold flecks and blossom.
-// own: 0 a pale spring morning at -1 (no snow, the plum in flower), night at 1; 1 no cloud at -1, gold over most of it at 1; 2 far off at -1, close at 1; 3 the house lies flat at -1, steep at 1; 4 ink lines on bare paper, the robe in colour, at -1, gold lines on blue-black at 1; 5 the inner walls gone and the stream dry at -1, blinds down and the stream broad at 1
+// own: 0 a pale spring morning at -1 (no snow, the plum in flower), night at 1; 1 no cloud at -1, gold over most of it at 1; 2 far off at -1, close at 1; 3 the house lies flat at -1, steep at 1; 4 ink lines on bare paper, the robe in colour, at -1, gold lines on blue-black at 1; 5 the inner walls gone and the stream dry at -1, blinds down and the stream broad at 1; 6 autumn, red leaves fallen on ground and water and the tree a maple, no snow, at -1, the house on posts in a lake of round leaves at 1; 7 roofs of bark laid back over most of the rooms at -1, many houses one behind the other at 1
 const float lfL = .36, lfD = .36, lfE = .34, lfV = .2; // a room's length; the depth of front rooms, back rooms, veranda
 const vec3 lfBlk = vec3(.13, .1, .085), lfPap = vec3(.71, .61, .44), lfLac = vec3(.14, .09, .08), lfWh = vec3(.9, .91, .92);
 vec3 lfC;                     // the painting so far
@@ -12,6 +12,10 @@ float lfPx, lfPp, lfDry;      // a pixel, and how many to 1; where the brush ran
 vec2 lfA, lfB;                // which way the house runs, and which way across it
 float lfDet, lfH, lfHp, lfCa, lfCb; // the angle between them; the height of a beam, of a wall; a step along and across, on the screen
 float lfNt, lfSp, lfSn;       // night, spring, snow
+#define lfFall max(-uOwn[6], 0.)
+#define lfLake max(uOwn[6], 0.)
+#define lfRoofed max(-uOwn[7], 0.)
+#define lfMany max(uOwn[7], 0.)
 float lfS(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x * (3. - 2. * x); }
 float lfIn(float d) { return sat(.5 - d * lfPp); }
 void lfPut(vec3 c, float a) { lfC = mix(lfC, c, a); lfK *= 1. - a; lfT *= 1. - a; }
@@ -246,7 +250,7 @@ float lfCloud(vec2 p, float open, bool few) {
 // Grasses in the garden, in tufts.
 void lfGrass(vec2 p) {
  vec2 id = floor(p / vec2(.23, .15)), q = p - (id + .5) * vec2(.23, .15), h = hash22(id + 3.);
- if (h.x > .7) return;
+ if (h.x > .7 - lfLake) return;
  q -= (h - .35) * vec2(.1, .05) + vec2(0., -.05);
  for (int i = 0; i < 6; i++) {
   float f = float(i) - 2.5, t = q.y / (.09 - .008 * f * f);
@@ -255,12 +259,70 @@ void lfGrass(vec2 p) {
   lfInk(.8 * lfLine(d, .0022 * (1. - t)));
  }
 }
+// A leaf with five points in each cell of size g that has one; here is how many have.
+void lfLeaves(vec2 p, float g, float here) {
+ for (int i = 0; i < 2; i++) {
+  vec2 q = p / g + float(i) * vec2(.5, .37), id = floor(q), h = hash22(id + 41. + 9. * float(i));
+  if (h.x > here) continue;
+  q -= id + .5 + .4 * (h - .5);
+  float l = length(q), a = atan(q.y, q.x + 1e-5) + 6.3 * h.y, d = l - (.2 + .16 * fract(h.y * 9.)) * (.62 + .38 * abs(cos(2.5 * a)));
+  vec3 c = mix(mix(vec3(.84, .2, .11), vec3(.96, .64, .2), fract(h.y * 17.) * fract(h.y * 17.)), lfPig(int(fract(h.y * 31.) * 4.9)), .4);
+  float al = lfIn(d * g);
+  lfPut(c * (.8 + .4 * fract(h.x * 23.)), al);
+  lfK = max(lfK, .3 * lfLine(d * g, .0008));
+  lfT = max(lfT, al);
+ }
+}
+// Round leaves lying on the lake, and a few flowers.
+void lfPads(vec2 q) {
+ if (lfLake < .01) return;
+ for (int i = 0; i < 2; i++) {
+  float g = .13 - .045 * float(i);
+  vec2 v = q / g + .5 * float(i), id = floor(v), h = hash22(id + 5. + 20. * float(i));
+  v = (v - id - .5 - .35 * (h.yx - .5) - .02 * sin(uTime * .2 + 6. * h.x)) * vec2(1., 1.45);
+  float l = length(v), R = (.2 + .16 * h.y) * lfS(.2, .9, lfLake) * step(h.x, .5 + .35 * lfS(.35, .7, noise(q * 2.3 + 4.))), a = atan(v.y, v.x + 1e-5), d = max(l - R, .03 - abs(a - 4. * h.x + 2.) * l);
+  if (R <= 0. || l > .4) continue;
+  lfC *= 1. - .3 * lfIn((length(v - vec2(.03, -.06)) - R) * g);
+  lfDraw(mix(vec3(.2, .38, .27), vec3(.52, .6, .34), h.y) * (.85 + .3 * l / max(R, .01)), d * g, 1.);
+  lfInk(.45 * lfIn(d * g) * lfLine(sin(a * 4.5) * l * .22 * g, .0006));
+  if (fract(h.y * 13.) < .22 + .3 * uKeys + .15 * uPhrase) {
+   float fl = l - .5 * R * (.8 + .22 * cos(8. * a));
+   lfDraw(mix(vec3(.93, .6, .62), vec3(.97, .92, .86), lfS(0., .5 * R, l)), fl * g, 1.);
+   lfPut(vec3(.88, .7, .34), lfIn((l - .12 * R) * g));
+   lfT = max(lfT, lfIn(fl * g));
+  }
+ }
+}
+// One slope of a roof, from its ridge at o down along v; lo and hi are where it ends along the house.
+void lfSlope(vec2 p, vec2 o, vec2 v, float lo, float hi, float dim) {
+ float det = lfA.x * v.y - lfA.y * v.x;
+ if (abs(det) < 1e-4) return;
+ vec2 q = p - o;
+ float a = (q.x * v.y - q.y * v.x) / det, t = (lfA.x * q.y - lfA.y * q.x) / det, u = abs(det) / length(v);
+ float d = max(max(lo - a, a - hi) * u, max(-t, t - 1.) * abs(det)), al = lfIn(d);
+ lfC *= 1. - .4 * lfS(.05, 0., max(max(lo - a, a - hi) * u, max(-t, t - 1.12) * abs(det))) * (1. - al);
+ if (al <= 0.) return;
+ float row = floor(t * 9.), f = fract(t * 9.), st = noise(vec2(a * 150., t * 30.)), pa = noise(vec2(a * 3., t * 4.) + o);
+ vec3 c = mix(vec3(.36, .27, .2), vec3(.5, .42, .32), .6 * st + .4 * pa) * (.8 + .25 * f) * dim;
+ c = mix(c, vec3(.35, .4, .25), .5 * lfS(.5, .8, pa));
+ c = mix(c, vec3(.66, .32, .17), .5 * lfFall * lfS(.4, .8, pa));
+ c = mix(c, mix(vec3(.7, .74, .82), vec3(.88, .9, .95), dim * .7 + .22 * pa + .08 * st), lfSn * lfS(.05, .0, abs(t - .5) - .46 + .06 * st));
+ lfPut(mix(lfLamp(c, .62 + .2 * uPad), c * (1. - .12 * lfNt), lfSn), al);
+ lfInk(.55 * al * lfLine((f - .5) * abs(det) / 9., .0008) * (1. - .8 * lfSn));
+ lfPut(lfLac * 1.6, al * max(lfIn((1. - t) * abs(det) - .006), lfIn(t * abs(det) - .007)));
+ lfInk(lfLine(d, .0013));
+}
+void lfRoof(vec2 p, float b0, float b1, float lo, float hi) {
+ vec2 up = vec2(0., lfH), m = mix(b0, b1, .45) * lfB + up + vec2(0., .13 * lfDet);
+ lfSlope(p, m, b0 * lfB + up - m, lo, hi, .8);
+ lfSlope(p, m, b1 * lfB + up - m, lo, hi, 1.08);
+}
 void lfWater(float d, vec2 q) {
  if (d < .004) {
   float w = q.y * 26., row = floor(w), n = noise(q * vec2(5., 16.));
   lfPut(mix(vec3(.17, .31, .46), vec3(.3, .46, .54), n), lfIn(d));
   w = fract(w + .5 * sin(q.x * 13. - uTravel * .3) + .25 * sin(q.x * 31. + row));
-  lfPut(vec3(.72, .79, .8), (.6 + .4 * uLow) * lfIn(d + .006) * lfLine((w - .5) / 26., .0012) * lfS(.35, .6, noise(vec2(q.x * 7. - uTravel * .15, row * 3.1))));
+  lfPut(vec3(.72, .79, .8), (1. - .5 * lfLake) * (.6 + .4 * uLow) * lfIn(d + .006) * lfLine((w - .5) / 26., .0012) * lfS(.35, .6, noise(vec2(q.x * 7. - uTravel * .15, row * 3.1))));
   lfInk(.9 * lfLine(d, .0013));
  }
 }
@@ -282,7 +344,8 @@ void lfPlum(vec2 q) {
  if (d < .003) lfPut(mix(vec3(.17, .13, .12), vec3(.4, .33, .27), lfS(.4, .9, noise(q * vec2(70., 38.)))), lfIn(d));
  lfInk(lfLine(d, .0011));
  lfPut(lfWh, lfSn * lfIn(up) * (1. - lfIn(d + .0035)));
- if (d < .035) for (int i = 0; i < 16; i++) {
+ if (uOwn[6] < 0.) lfLeaves(q, .026, lfFall * .95 * lfS(.16, .02, d + .08 * noise(q * 9.)) * step(.2, q.y));
+ if (uOwn[6] > -1. && d < .035) for (int i = 0; i < 16; i++) {
   float f = float(i), h = hash11(f + .7), R = (.009 + .006 * h) * (.75 + .35 * uKeys + .5 * lfSp + .2 * uPhrase);
   vec4 e = lfTree[4 + int(mod(f + .5, 11.))];
   vec2 g = q - mix(e.xy, e.zw, .25 + .75 * fract(h * 7.3)) - .026 * (vec2(fract(h * 13.), fract(h * 29.)) - .5);
@@ -301,7 +364,7 @@ void lfPlum(vec2 q) {
 }
 // The garden: banks, a stream, a bridge of planks in a zigzag.
 void lfGarden(vec2 p, vec2 ab, float n) {
- lfC = mix(mix(vec3(.6, .6, .4), vec3(.45, .53, .33), n), mix(vec3(.65, .675, .71), vec3(.79, .79, .78), n), lfSn);
+ lfC = mix(mix(mix(vec3(.6, .6, .4), vec3(.45, .53, .33), n), mix(vec3(.66, .56, .36), vec3(.56, .47, .29), n), lfFall), mix(vec3(.65, .675, .71), vec3(.79, .79, .78), n), lfSn);
  // low banks, each a line with its shade beneath
  for (int i = 0; i < 3; i++) {
   float f = float(i), y = .31 - .19 * f - .08 * step(1.5, f) + .035 * sin(p.x * (3. + f) + f * 2.) - (f < 1.5 ? .25 : .12) * p.x - p.y;
@@ -313,9 +376,12 @@ void lfGarden(vec2 p, vec2 ab, float n) {
  vec2 gl = ab - vec2(.22, .25);
  lfC *= mix(vec3(1), vec3(1.12, .96, .72), (.55 + .5 * uPad + .6 * uHits) / (1. + 14. * dot(gl, gl)));
  float yc = -.05 - .45 * p.x + .05 * sin(p.x * 5. + .6), wd = .055 + .022 * sin(p.x * 3.3 + 1.) + .09 * uOwn[5] + .012 * uDrone;
- float d = (abs(p.y - yc) - wd) * .9;
+ float d = (abs(p.y - yc) - wd) * .9 - 1.6 * lfLake;
+ const float dry_ = 1. - max(uOwn[6], 0.);
  lfWater(d, vec2(p.x, p.y - yc));
- lfC *= 1. - .4 * lfIn(d) * lfS(.03, 0., yc + wd - p.y);
+ lfC *= 1. - .4 * dry_ * lfIn(d) * lfS(.03, 0., yc + wd - p.y);
+ if (uOwn[6] > 0. && d < 0.) lfPads(vec2(p.x, p.y - .4 * p.x));
+ if (uOwn[6] < 0.) lfLeaves(p, .03, lfFall * (.08 + .5 * lfS(.35, .75, noise(p * 3.1 + 2.) + .25 * n)));
  lfPut(lfWh, lfSn * lfS(-.02, .01, wd) * lfIn(abs(d - .004) - .005));
  vec2 lift = vec2(lfB.x, -lfA.x) / lfDet * .024, q = ab + lift;
  if (abs(q.x - .23) < .12 && abs(q.y - .6) < .4) for (int i = 0; i < 4; i++) {
@@ -333,7 +399,7 @@ vec3 render(vec2 p) {
  vec2 at = p, w = rot(.6) * p;
  float n1 = noise(w * 5. + 3.), n2 = noise(w * 92.);
  lfDry = .6 + .4 * lfS(.2, .45, n2);
- lfNt = max(uOwn[0], 0.); lfSp = max(-uOwn[0], 0.); lfSn = snow ? 1. - lfSp : 0.;
+ lfNt = max(uOwn[0], 0.); lfSp = max(-uOwn[0], 0.); lfSn = snow ? (1. - lfSp) * (1. - lfFall) : 0.;
  float zoom = (snow ? 1. : 1.18) * (1. + .25 * uOwn[2]) / (1. - .25 * uOwn[2]);
  lfA = normalize(vec2(-1, -.51 - .26 * uOwn[3])); lfB = normalize(vec2(1, -.288 - .09 * uOwn[3]));
  lfCa = -lfA.x; lfCb = lfB.x; lfDet = lfCa * -lfB.y - lfA.y * lfCb; lfH = .175 * lfDet; lfHp = mix(lfH + .002, -.01, max(-uOwn[5], 0.));
@@ -348,16 +414,33 @@ vec3 render(vec2 p) {
   lfPp = uRes.y * zoom / 1.1; lfPx = 1. / lfPp;
   vec2 ab = vec2(hp.x * lfB.y - hp.y * lfB.x, lfA.x * hp.y - lfA.y * hp.x) / lfDet;
   if (snow) lfGarden(gp, ab, n1);
+  if (uOwn[7] > 0.) {
+   const float per = 1.5 + 4. * (1. - max(uOwn[7], 0.));
+   float n = floor((ab.y + .95 + .4 * (per - 1.5)) / per);
+   if (snow) n = min(n, 0.);
+   ab.y -= n * per; hp -= n * per * lfB;
+   ab.x += n * .47; hp += n * .47 * lfA;
+  }
   if (!snow && (ab.y > lfV || ab.y < -lfD - lfE)) {
    lfC *= mix(vec3(1), vec3(.82, .9, .7), lfS(.3, .85, n1 + .35 * (n2 - .5)));
    float run = ab.y - .05 * sin(ab.x * 5.);
-   lfWater((abs(run - .5) - .05 - .07 * uOwn[5] - .015 * sin(ab.x * 9.)) * lfDet, vec2(ab.x, run));
+   lfWater((abs(run - .5 + .12 * lfMany) - .05 - .07 * uOwn[5] - .015 * sin(ab.x * 9.)) * lfDet - 2. * lfLake, vec2(ab.x, run));
+   if (uOwn[6] > 0.) lfPads(ab * vec2(.9, .8));
    lfGrass(gp);
+   if (uOwn[6] < 0.) lfLeaves(gp, .034, lfFall * (.1 + .55 * lfS(.35, .75, noise(gp * 3.1 + 2.) + .25 * n1)));
   }
   if (ab.y < lfV + .12) lfHouse(hp, ab);
+  if (uOwn[7] < 0.) {
+   float back = 1.4 * (lfRoofed - 1.);
+   if (ab.y < .3 && ab.y > -1.8) {
+    lfRoof(hp, -lfD - lfE - .09 + back, -lfD + .07 + back, -4., 4.);
+    lfRoof(hp, -lfD - .05 + back * 1.5, .1 + back * 1.5, snow ? .4 : .5, 4.);
+    lfRoof(hp, -lfD - .05 + back * 1.5, .1 + back * 1.5, -4., snow ? -.3 : -.5);
+   }
+  }
   vec2 q = gp + vec2(min(.66, .34 * uRes.x / uRes.y), .48);
   if (snow && q.x > -.32 && q.x < .56 && q.y < (q.x < -.12 || q.x > .2 ? .6 : .72) && (q.y > .12 || abs(q.x - .04) < .16)) lfPlum(q);
-  lfC = mix(lfC, snow ? vec3(.7, .69, .66) : lfPap * .9, .5 * flake * (1. - .6 * lfT));
+  lfC = mix(lfC, snow ? vec3(.7, .69, .66) : lfPap * .9, .5 * flake * (1. - .6 * lfT) * (1. - .8 * max(max(lfLake, lfFall), lfSp)));
   lfK *= 1. - .5 * flake;
   lfC *= (.96 + .08 * n2) * (1. - .35 * shade * shade);
   lfC *= mix(vec3(1), vec3(.4, .46, .62), lfNt * lfS(.95, .5, lfC.r - .3 * lfC.b + .1));
@@ -391,6 +474,18 @@ vec3 render(vec2 p) {
   vec3 blue = mix(vec3(.045, .06, .13) + vec3(.13, .15, .2) * l * l * 1.5, vec3(.93, .76, .42), max(k, .4 * cl * n2 * (.5 + n1)));
   lfC = mix(lfC, mix(bare, lfC, .9 * lfT), lfS(0., .9, -uOwn[4]));
   lfC = mix(lfC, mix(blue, lfC, .6 * lfT), lfS(0., .9, uOwn[4]));
+ }
+ // in those worlds the piece runs over it as a wash, and a hit is a drop let fall in it
+ const float wet = max(max(-uOwn[0], abs(uOwn[4])), uOwn[6]);
+ if (wet > 0.) {
+  vec2 sc = (gl_FragCoord.xy - .5 * uRes) / uRes.y, v = sc - vec2(.12, -.06);
+  vec2 at_ = vec2(.5 + .5 * sc.x, .5 - .95 * sc.y) + .1 * (n1 - .5);
+  vec4 m = vec4(0);
+  for (int i = -2; i < 3; i++) m += .2 * piece(at_ + vec2(.022, .012) * float(i)); // a wash has no cut edge
+  float l = dot(lfC, vec3(.33)), a = wet * sat(1.6 * m.a) * (1. - .7 * lfT) * (.7 + .5 * n1), ring = length(v) + .07 * (n1 - .5) - .06 - .34 * (1. - uHits);
+  vec3 tint = m.rgb / max(m.a, .02), drop = uKind[4];
+  lfC = mix(lfC, lfC * (tint * .9 + .25) + .12 * tint * (1. - l), .62 * a);
+  lfC = mix(lfC, drop * (.3 + .75 * l), .6 * wet * uHits * exp(-90. * max(ring, 0.) * max(ring, 0.) - 14. * ring * ring) * (1. - .5 * lfT));
  }
  return lfC * (.94 + .12 * uTone);
 }

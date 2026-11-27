@@ -3,13 +3,17 @@
 // b: Night fountain
 // what: A long low whitewashed wall under a pale sky, a bare tree far right, and behind it unseen hands juggling: painted balls rise and fall in crossing arcs, each with a trail of dots where it was; or looking down a round brick shaft at night, where pale balls fountain up from a small lamp, turn just under us and fall back to points.
 // follows: Each kind is a juggler of its own: louder brings in more of its balls, and the bands swell them. The piece tints the sky or the bricks, the pad the foot of the sky. A hit lights one ball at its top; a cue passes a soft light along the wall, or sends one up the shaft. The low band warms the sky or feeds the lamp, keys chalk an arc or brighten the rims.
-// own: 0 moonlit night at -1, red dusk at 1, or a cold lamp, a whitewashed shaft by day; 1 few great balls at -1, many small ones at 1; 2 seen straight on at -1, along the wall or from close to one side at 1; 3 arcs tall and narrow at -1, low and wide at 1, or turning near the eye, farther down; 4 the wall a kerb at -1, high at 1, or the shaft shallow, square; 5 the wall bare earth at -1, washed blue at 1, or the balls sharp, very soft
+// own: 0 moonlit night at -1, red dusk at 1, or a cold lamp, a whitewashed shaft by day; 1 few great balls at -1, many small ones at 1; 2 seen straight on at -1, along the wall or from close to one side at 1; 3 arcs tall and narrow at -1, low and wide at 1, or turning near the eye, farther down; 4 the wall a kerb at -1, high at 1, or the shaft shallow, square; 5 the wall bare earth at -1, washed blue at 1, or the balls sharp, very soft; 6 snow lying and falling at -1, mountains behind at 1, or the shaft of smooth ice, of painted tiles, and the balls dyed; 7 hoops in place of balls at -1, a great sun or moon behind at 1, or looking up to a round of sky in place of the lamp
 // For each kind of sound: where its hands are, how many balls, how long a flight, how far apart the hands, how big a ball.
 const float JG_AT[5] = float[5](-0.73, -0.37, -0.05, 0.27, 0.53);
 const float JG_N[5] = float[5](3.0, 6.0, 7.0, 7.0, 7.0);
 const float JG_T[5] = float[5](4.7, 3.9, 3.4, 5.1, 5.7);
 const float JG_WIDE[5] = float[5](0.15, 0.1, 0.17, 0.15, 0.19);
 const float JG_BIG[5] = float[5](0.040, 0.031, 0.0205, 0.028, 0.0235);
+#define JG_SNOW max(-uOwn[6], 0.0)
+#define JG_HIGH max(uOwn[6], 0.0)
+#define JG_HOOP max(-uOwn[7], 0.0)
+#define JG_DISC max(uOwn[7], 0.0)
 const float JG_FALL = 0.234;       // slower than on the moon
 const float JG_HZ = -0.315;        // how high the eye is
 float jgPx, jgRake, jgNight, jgDusk;
@@ -25,6 +29,8 @@ vec3 jgPaint(int i, float b) {
   return mix(k, vec3(0.80, 0.66, 0.50), 0.12 + 0.2 * fract(b * 0.618));
 }
 vec3 jgHour(vec3 day, vec3 night, vec3 dusk) { return mix(mix(day, night, jgNight), dusk, jgDusk); }
+// A hoop's round, v as of a ball, l its length.
+vec2 jgRound(vec2 v, float l) { return mix(v, v / max(l, 1e-3) * clamp((l - 0.5 - 0.35 * JG_HOOP) / (0.5 - 0.35 * JG_HOOP), -1.0, 1.0), sat(JG_HOOP * 3.0)); }
 
 // ---- a ----
 // A bare tree: q stands on its root, about 1 tall. Below 0 is wood; lean is which side of a limb.
@@ -52,6 +58,7 @@ vec3 jgSky(vec2 p) {
   vec3 low = jgHour(vec3(1.0, 0.87, 0.735), vec3(0.21, 0.29, 0.40), vec3(0.99, 0.64, 0.28));
   low *= mix(vec3(1.0), 0.62 + 0.7 * uKind[1], 0.75 * jgMore(1));        // the pad colours the foot of it
   vec3 c = mix(low, mix(mid, top, smoothstep(0.3, 1.1, h)), smoothstep(-0.1, 0.64 + 0.03 * sin(uTime * 0.23) + 0.12 * uLow, h));
+  if (JG_SNOW > 0.0) c = mix(c, jgHour(vec3(0.80, 0.83, 0.85), vec3(0.13, 0.16, 0.22), vec3(0.80, 0.66, 0.66)), JG_SNOW * (0.85 - 0.3 * h));
   // stars at night
   vec2 sc = p * 42.0, si = floor(sc);
   float sh = hash21(si + 7.0);
@@ -63,7 +70,23 @@ vec3 jgSky(vec2 p) {
   c = mix(c, jgHour(vec3(0.97, 0.95, 0.90), vec3(0.2, 0.25, 0.34), vec3(0.98, 0.66, 0.5)), veil * 0.4);
   vec4 m = piece(vec2(sat(p.x / 1.9 + 0.5 + 0.22 * (n - 0.5)), sat(1.0 - h + 0.3 * (n - 0.5))));
   float now = p.x / 1.9 + 0.5 - uLoop; now -= floor(now + 0.5);
-  return mix(c, c * (0.5 + 0.8 * mix(m.rgb / max(m.a, 0.05), vec3(0.85, 0.62, 0.48), 0.25)), 0.8 * sat(m.a * (0.4 + 0.7 * n) * (0.4 + 0.5 * uEnergy) * (0.8 + 0.5 * exp(-now * now * 30.0))));
+  c = mix(c, c * (0.5 + 0.8 * mix(m.rgb / max(m.a, 0.05), vec3(0.85, 0.62, 0.48), 0.25)), 0.8 * sat(m.a * (0.4 + 0.7 * n) * (0.4 + 0.5 * uEnergy) * (0.8 + 0.5 * exp(-now * now * 30.0))));
+  if (JG_DISC > 0.0) {
+    vec2 d = p - vec2(0.10, 0.02 + 0.16 * max(uOwn[4], 0.0));
+    float l = length(d), r = 0.06 + 0.30 * JG_DISC, n2 = noise(d * 9.0 + 40.0) * 0.6 + 0.4 * noise(d * 23.0 + 9.0);
+    vec3 face = jgHour(vec3(1.0, 0.95, 0.82), vec3(0.86, 0.87, 0.84) * (1.0 - 0.35 * smoothstep(0.4, 0.75, n2)), mix(vec3(0.95, 0.30, 0.16), vec3(1.0, 0.62, 0.26), sat(0.5 + d.y / r * 0.6)));
+    face = mix(face, face * (0.45 + 1.1 * m.rgb / max(m.a, 0.05)), 0.75 * sat(m.a * (0.5 + 0.6 * uEnergy)));
+    c += face * 0.12 * (1.0 + 0.6 * uLow) * exp(-max(l - r, 0.0) * 7.0) * sat(JG_DISC * 4.0);
+    c = mix(c, face * (0.96 + 0.08 * uPad), jgIn(l - r, 1.5 * jgPx) * sat(JG_DISC * 4.0) * (0.94 - 0.3 * veil));
+  }
+  if (JG_HIGH > 0.0) for (int k = 0; k < 3; k++) {
+    float f = float(k), x = p.x * (1.5 + 0.8 * f) + 11.0 * f + 33.0;
+    float y = -0.3 + JG_HIGH * (0.56 - 0.15 * f) * (0.55 * noise(vec2(x, f)) + 0.32 * (1.0 - abs(2.0 * noise(vec2(x * 2.3, f + 3.0)) - 1.0)) + 0.13 * noise(vec2(x * 9.0, f)) + 0.16);
+    vec3 rock = jgHour(vec3(0.50, 0.60, 0.69), vec3(0.08, 0.12, 0.21), vec3(0.50, 0.27, 0.36)) * (1.08 - 0.24 * f) * (0.93 + 0.12 * noise(p * vec2(23.0, 37.0) + f * 5.0));
+    rock = mix(rock, low * 0.9 + 0.05, (0.75 - 0.2 * f) * jgDown(-0.02, 0.3 - 0.07 * f, p.y + 0.22));
+    c = mix(c, rock, jgIn(p.y - y, 1.5 * jgPx));
+  }
+  return c;
 }
 // One ball in daylight, v from its middle and within 1: two halves, one a little paler.
 vec3 jgBall(vec2 v, vec3 paint, float spin, vec3 sky, float lit) {
@@ -80,7 +103,7 @@ vec3 jgWall(vec2 p, vec2 u, float s, float top, float foot) {
   float grain = noise(u.y < foot ? vec2(1.7, 13.0) * vec2(p.x, 0.12) / max(JG_HZ - p.y, 0.01) : u * vec2(60.0, 240.0));
   if (u.y < foot + 0.01) {
     float gn = grain;
-    gr = mix(vec3(0.80, 0.72, 0.60), vec3(0.93, 0.865, 0.755), gn) * (1.0 - 0.38 * exp(-max(foot - u.y, 0.0) * 70.0));
+    gr = mix(mix(vec3(0.80, 0.72, 0.60), vec3(0.93, 0.865, 0.755), gn), vec3(0.95, 0.965, 0.99) * (0.93 + 0.08 * gn), JG_SNOW) * (1.0 - 0.38 * exp(-max(foot - u.y, 0.0) * 70.0));
   }
   if (u.y > foot - 0.01) {
   float l0 = noise(u * vec2(22.0, 25.0)), l = 0.6 * l0 + 0.4 * noise(u * vec2(47.0, 53.0) + 5.0), l1 = noise(u * vec2(22.0, 25.0) + vec2(-0.12, 0.12));
@@ -97,8 +120,10 @@ vec3 jgWall(vec2 p, vec2 u, float s, float top, float foot) {
   c *= (1.0 + (0.9 * (l0 - l1) + 0.12 * (grain - 0.5)) * (0.35 + 0.4 * uTone) * jgDown(0.006, 0.02, px)) * (0.94 + 0.06 * h);
   // clay tiles along the top, and their shade
   float cop = top - u.y, ti = u.x / 0.023, tf = fract(ti) - 0.5, lip = 0.0145 + 0.0028 * cos(TAU * ti) * sat(1.0 - px * 150.0);
+  if (JG_SNOW > 0.0) lip += JG_SNOW * (0.012 + 0.022 * noise(vec2(u.x * 9.0, 1.0)));
   vec3 clay = mix(vec3(0.70, 0.44, 0.31), vec3(0.83, 0.60, 0.44), hash11(mod(floor(ti), 97.0)));
   clay *= mix(0.92, 0.66 + 0.5 * sqrt(max(0.0, 1.0 - 4.0 * tf * tf)) - 0.45 * tf, sat(1.0 - px * 90.0));
+  if (JG_SNOW > 0.0) clay = mix(clay, vec3(0.96, 0.975, 1.0), JG_SNOW);
   c *= 1.0 - 0.5 * jgIn(cop - lip - 0.016 - 0.004 * (l - 0.5), 0.010 - 0.006 * uTone);
   c = mix(c, clay * (0.8 + 0.3 * jgDown(0.0, lip, cop)), jgIn(cop - lip, 1.5 * px));
   gr = mix(c, gr, jgIn((u.y - foot - 0.003 * (l - 0.5)) * s, 1.5 * jgPx));
@@ -121,11 +146,12 @@ vec3 jgDay(vec2 p) {
     // a day moon
     vec2 mq = p - vec2(-0.27, 0.335);
     float moon = jgIn(length(mq) - 0.017, jgPx * 1.5) * (1.0 - jgIn(length(mq - vec2(0.009, 0.004)) - 0.0185, 0.012));
-    col = mix(col, vec3(0.99, 0.97, 0.90), moon * mix(0.6, 1.0, jgNight));
+    col = mix(col, vec3(0.99, 0.97, 0.90), moon * mix(0.6, 1.0, jgNight) * (1.0 - sat(4.0 * JG_DISC)));
     // the tree, far off behind the wall
-    vec2 tq = (p - vec2(0.70, -0.275)) / 0.46;
+    const float size = 0.46 * (1.0 + 0.5 * JG_SNOW);
+    vec2 tq = (p - vec2(0.70 - 0.12 * JG_SNOW - 1.36 * JG_HIGH, -0.275)) / size;
     if (abs(tq.x) < 0.75 && tq.y < 1.25) {
-      float lean, d = jgTree(tq, lean) * 0.46;
+      float lean, d = jgTree(tq, lean) * size;
       vec3 bark = mix(vec3(0.27, 0.215, 0.20), vec3(0.47, 0.40, 0.35), sat(0.5 - 0.5 * lean)) * mix(1.0, 0.3, jgNight);
       col = mix(col, bark, jgIn(d, 1.5 * jgPx) * 0.9);
     }
@@ -205,12 +231,18 @@ vec3 jgDay(vec2 p) {
               float w = max(1.0 / s0 + jgRake * x1, 0.05), rr = max(r / w, 1e-4), over = i == 0 ? 1.0 : 1.0 - wallIn;
               vec2 d = p - vec2(u0 + x1, y1 - up0 + u.y) / w - vec2(0.0, JG_HZ);
               float l = length(d);
+              if (JG_HOOP > 0.0) { over *= 1.0 - jgIn(l - 0.7 * JG_HOOP * rr, 1.5 * jgPx) * sat(JG_HOOP * 3.0); d = jgRound(d / rr, l / rr) * rr; }
               if (l < rr + 2.0 * jgPx) col = mix(col, jgBall(d / rr, paint, 0.23 * uTime + fj * 1.9 + float(i), air, lit), jgIn(l - rr, 1.5 * jgPx) * over);
             }
           }
         }
       }
     }
+  }
+  if (JG_SNOW > 0.0) for (int k = 0; k < 3; k++) {
+    float f = float(k), S = 30.0 - 7.5 * f;
+    vec2 q = p * S + vec2(0.8 * sin(uTime * 0.11 + f) + 0.3 * sin(p.y * 5.0 + uTime * 0.2), uTime * (0.35 + 0.1 * f) + 13.0 * f), c2 = floor(q), o = hash22(c2 + 31.0);
+    col = mix(col, jgHour(vec3(1.0), vec3(0.62, 0.70, 0.82), vec3(1.0, 0.9, 0.86)), JG_SNOW * (0.5 + 0.2 * f) * step(0.66, o.x) * jgDown(0.03, 0.08 + S * jgPx, length(q - c2 - 0.2 - 0.6 * fract(o * 7.3))));
   }
   return col;
 }
@@ -224,7 +256,7 @@ const float JG_RB[5] = float[5](0.056, 0.047, 0.04, 0.046, 0.042);
 const float JG_OUT[5] = float[5](0.80, 0.9, 0.98, 0.88, 1.0);   // how far out it falls
 vec3 jgShaft(vec2 p) {
   const float F = 0.62;
-  float plumb = sat(-uOwn[2]), aside = sat(uOwn[2]), deep = 10.0 - 4.5 * sat(-uOwn[4]), many = exp2(0.6 * uOwn[1]);
+  float plumb = sat(-uOwn[2]), aside = sat(uOwn[2]), deep = 10.0 - 4.5 * sat(-uOwn[4]) - 2.2 * JG_DISC, many = exp2(0.6 * uOwn[1]);
   vec2 c = mix(vec2(0.19, 0.05), vec2(0.0), plumb) + vec2(0.14, 0.06) * aside, eye = mix(vec2(0.23, 0.13), vec2(0.0), plumb) + vec2(0.22, 0.10) * aside;
   vec2 q = (p - c) / F;
   // where the look down meets the wall
@@ -235,6 +267,7 @@ vec3 jgShaft(vec2 p) {
   float t = 1.0 / max(near, 1e-3);
   float lamp = 0.8 + 0.5 * uLow + 0.06 * sin(uTime * 0.9) * sin(uTime * 0.37);
   vec3 fire = jgHour(vec3(1.0, 0.50, 0.17), vec3(0.42, 0.72, 1.0), vec3(1.0, 0.62, 0.3)), moonC = jgHour(vec3(0.21, 0.31, 0.45), vec3(0.16, 0.22, 0.36), vec3(0.86, 0.80, 0.72)), col;
+  if (JG_DISC > 0.0) fire = mix(fire, jgHour(vec3(0.72, 0.86, 0.95), vec3(0.34, 0.46, 0.72), vec3(1.0, 0.72, 0.5)), JG_DISC);
   if (t < deep) {
     vec2 hit = eye + q * t;
     float ang = atan(hit.y, hit.x) / TAU, row = t / 0.085, foot = t * t / F * jgPx, ri = floor(row);
@@ -248,21 +281,46 @@ vec3 jgShaft(vec2 p) {
     brick = mix(brick, vec3(0.29, 0.24, 0.22), 0.8 * step(0.84, fract(id * 7.3))) * (0.7 + 0.6 * noise(vec2(id * 90.0 + b.x * 7.0, row * 3.0)));
     brick = mix(vec3(0.33, 0.185, 0.13), mix(vec3(0.13, 0.11, 0.10), brick, mortar), fine);
     brick = mix(brick, vec3(0.80, 0.765, 0.70) * (0.75 + 0.6 * jgGrey(brick)), jgDusk * 0.92);
+    if (JG_SNOW > 0.0) {
+      float n = noise(vec3(hit * 1.6, t * 1.1)), s = sin(t * 7.0 + 5.0 * n + 1.5 * noise(vec3(hit * 5.0, t * 4.0)));
+      brick = mix(brick, mix(vec3(0.20, 0.36, 0.45), vec3(0.62, 0.78, 0.82), sat(0.5 + 0.28 * s + 0.5 * (n - 0.5) + 0.35 * (noise(vec3(hit * 15.0, t * 5.0)) - 0.5)) * (0.85 + 0.3 * noise(vec3(hit * 40.0, t * 11.0)))), JG_SNOW);
+      float cr = 1.0 - abs(2.0 * noise(vec3(hit * 2.7 + 4.0, t * 3.1 + n)) - 1.0), c2 = 1.0 - abs(2.0 * noise(vec3(hit * 5.5, t * 6.5 + 2.0 * n)) - 1.0);
+      brick = mix(brick, vec3(0.86, 0.93, 0.94), JG_SNOW * (0.75 * smoothstep(0.9, 1.0, cr) + 0.45 * smoothstep(0.86, 1.0, c2) * jgDown(0.02, 0.1, foot)));
+      brick *= mix(vec3(1.0), mix(vec3(0.45, 0.72, 0.86), vec3(1.1), smoothstep(0.35, 0.65, noise(vec3(hit * 3.3 + 9.0, t * 9.0)))), 0.7 * JG_SNOW);
+      mortar *= 1.0 - JG_SNOW;
+    }
+    if (JG_HIGH > 0.0) {
+      vec2 k = abs(b - 0.5);
+      vec3 glaze = kindColour(floor(fract(id * 3.7) * 4.99)); glaze *= glaze;
+      glaze = mix(glaze, vec3(0.86, 0.83, 0.74), smoothstep(0.47, 0.53 + e, k.x + k.y) * (1.0 - 0.6 * step(0.6, fract(id * 9.1))));
+      glaze = mix(vec3(0.36, 0.35, 0.31), glaze, 0.35 + 0.65 * fine);
+      brick = mix(brick, glaze * (0.6 + 0.4 * mortar) * mix(1.0, 1.2, fract(id * 5.0)), JG_HIGH);
+    }
     // the lower edge of each brick takes the lamp, the upper one the moon
     float edge = smoothstep(0.74, 0.92, b.y) * mortar * fine, lip = jgDown(0.08, 0.26, b.y) * mortar * fine;
     float az = 0.5 + 0.5 * dot(hit, vec2(-0.75, -0.66)), up = (t - mix(0.5, 0.36 * deep, uCue)) / 0.8;
     col = brick * (fire * lamp * (3.6 * exp(-(deep - t) * 0.60) * jgDown(deep - 2.8, deep, t) + 0.004) * (0.7 + 1.5 * edge * (0.5 + id))
       + moonC * exp(-t * 0.5) * (0.04 + 0.16 * jgDusk + 3.0 * az * az * az) * (0.65 + 0.9 * lip)
+      + fire * lamp * JG_DISC * (0.95 * exp(-(deep - t) * 1.1) + 0.06)
       + m.rgb * m.a * (0.05 + 0.3 * uEnergy) * exp(-0.3 * t)
       + fire * 0.9 * smoothstep(0.0, 0.25, uCue) * exp(-up * up));      // a cue climbs the wall
   }
-  if (t >= deep) {
+  float rim = JG_DISC > 0.0 ? jgIn(near - 1.0 / deep - 1.2 * jgPx / F, 2.4 * jgPx / F) : 0.0;
+  if (t >= deep || rim > 0.0) {
     vec2 f = eye + q * deep;
+    vec3 wall = col;
     col = fire * lamp * 0.3 * exp(-6.0 * dot(f, f));
+    if (JG_DISC > 0.0) {
+      vec3 up = jgHour(mix(vec3(0.55, 0.75, 0.92), vec3(0.98, 0.97, 0.95), smoothstep(0.35, 0.75, noise(f * 1.7 + uTime * 0.03))), vec3(0.03, 0.05, 0.12), vec3(1.0, 0.62, 0.36)) * (0.9 + 0.35 * lamp);
+      vec2 g = f * 5.0, gi = floor(g), go = hash22(gi + 20.0);
+      up += jgNight * step(0.45, go.x) * jgDown(0.05, 0.16, length(g - gi - 0.2 - 0.6 * go)) * 1.4;
+      col = mix(col, up, JG_DISC);
+      if (t < deep) col = mix(wall, col, rim);
+    }
   }
   vec2 from = -eye / deep * F, lq = p - c - from;
   float ld = dot(lq, lq);
-  col += fire * lamp * (t < deep ? 1.0 : 0.45) * (0.0005 / (ld + 0.0009) + (0.0016 + 0.004 * uMic) / (ld + 0.03)) + vec3(1.0, 0.85, 0.6) * jgDown(0.0045, 0.0075, sqrt(ld)) * 1.5;
+  col += (1.0 - 0.94 * JG_DISC) * fire * lamp * (t < deep ? 1.0 : 0.45) * (0.0005 / (ld + 0.0009) + (0.0016 + 0.004 * uMic) / (ld + 0.03)) + vec3(1.0, 0.85, 0.6) * jgDown(0.0045, 0.0075, sqrt(ld)) * 1.5 * (1.0 - JG_DISC);
   // the fountains: each kind throws in five ways, seven balls in each
   vec2 dir = vec2(0.94, 0.34);
   vec4 one = vec4(0.0), two = one;
@@ -272,7 +330,7 @@ vec3 jgShaft(vec2 p) {
     float lv = jgMore(i), top = JG_TOP[i] * exp2(0.5 * uOwn[3]), R = JG_RB[i] / many, far = JG_OUT[i] * spread;
     float bulge = 0.26 * F * far / sqrt(top * (deep - top)), reach0 = R * F / top, turn = uTime * 7.0 / JG_TB[i];
     float out1 = 0.1 + 0.5 * far, fan = 0.52 * F * out1 / top;
-    vec3 kind = mix(vec3(0.95, 0.92, 0.87), jgPaint(i, 0.0) * 1.5, 0.5);
+    vec3 kind = mix(vec3(0.95, 0.92, 0.87), jgPaint(i, 0.0) * (1.5 - 0.45 * max(abs(uOwn[6]), JG_DISC)), 0.5 + 0.45 * max(abs(uOwn[6]), JG_DISC));
     vec2 mid = JG_STEP * (JG_STEP2 * dir), ba = (mid * out1 - eye) / top * F - from;
     vec2 first = dir;
     dir = JG_STEP * (JG_STEP2 * (JG_STEP2 * dir));
@@ -304,11 +362,12 @@ vec3 jgShaft(vec2 p) {
         rr *= (0.3 + 0.7 * smoothstep(0.0, 0.6, see)) * (0.85 + 0.3 * band(ball / 35.0));
         float l = sqrt(dd), al = see * jgDown(rr - blur, rr + blur, l) * sat((rr * rr + 0.3 * jgPx * jgPx) / (rr * rr + 0.2 * blur * blur));
         col += lit * vec3(1.0, 0.7, 0.35) * 0.9 * exp(-dd / (rr * rr * 1.6));
+        if (JG_HOOP > 0.0) { al *= 1.0 - sat(JG_HOOP * 3.0) * jgDown(0.68 * JG_HOOP * rr - blur, 0.68 * JG_HOOP * rr + blur, l); d = jgRound(d / rr, l / rr) * rr; l = length(d); }
         vec3 nn = vec3(d / max(max(rr, l), 1e-4), 0.0); nn.z = sqrt(max(0.0, 1.0 - dot(nn.xy, nn.xy)));
         vec2 toL = from - at; toL /= max(length(toL), 1e-3);
         float rim = smoothstep(0.0, 1.1, dot(nn.xy, toL) - 0.3 * nn.z), glow = exp(-(deep - z) * 0.36);
-        vec3 pale = mix(kind, vec3(0.95, 0.92, 0.87), 0.15 * mod(ball, 3.0));
-        vec3 bc = pale * (sky * (0.07 + 1.9 * pow(sat(dot(nn, vec3(-0.56, 0.60, 0.57))), 1.4)) * exp(-z * 0.1) + fire * lamp * (1.5 * glow + (1.9 + 3.0 * uKeys) * rim + 0.03)) + lit * vec3(1.6, 1.2, 0.75) * (0.4 + 0.6 * nn.z);
+        vec3 pale = mix(kind, vec3(0.95, 0.92, 0.87), 0.15 * mod(ball, 3.0) * (1.0 - 0.8 * max(abs(uOwn[6]), JG_DISC)));
+        vec3 bc = pale * (sky * (0.07 + 1.9 * pow(sat(dot(nn, vec3(-0.56, 0.60, 0.57))), 1.4)) * exp(-z * 0.1) * (1.0 - 0.45 * JG_DISC) + fire * lamp * (1.5 * glow * (1.0 - 0.6 * JG_DISC) + (1.9 + 3.0 * uKeys) * rim + 0.03)) + lit * vec3(1.6, 1.2, 0.75) * (0.4 + 0.6 * nn.z);
         // the nearer ball lies over the farther: the two nearest are kept aside
         vec4 ball4 = vec4(bc, al);
         if (al < 0.002 || z > z2) col = mix(col, bc, al);

@@ -3,7 +3,7 @@
 // b: Ice boats
 // what: A white salt plain cracked into six-sided plates, and a caravan of carts under patched sails, the nearest so near that the late sun glows through its cloth, and far ahead one small blue sail; or night on a frozen lake: ice boats under tall pale sails, stars and moonlight in black ice, the white scratches of their runners.
 // follows: Each kind has a sail: its level fills the cloth and lights it in its colour. Drone lengthens shadows and mirage, pad is the sun or moon behind, texture blows salt or frost, phrase passes a gust along. A hit lights one sail, a cue leans them all and runs light over them. Bands are battens, the piece is the patches, loop moves the blue sail, keys glint.
-// own: 0 white noon at -1, red dusk at 1 (b: winter day, rose dusk); 1 red clay at -1, black gravel at 1 (b: snow on the ice, clear green ice); 2 pointed sails at -1, broad square ones at 1 (b: gaff sails, square heads); 3 only the nearest and the blue one at -1, all six abreast at 1; 4 an eye near the ground at -1, high above at 1; 5 a cloudy sky at -1, blowing salt or frost at 1
+// own: 0 white noon at -1, red dusk at 1 (b: winter day, rose dusk); 1 red clay at -1, black gravel at 1 (b: snow on the ice, clear green ice); 2 pointed sails at -1, broad square ones at 1 (b: gaff sails, square heads); 3 only the nearest and the blue one at -1, all six abreast at 1; 4 an eye near the ground at -1, high above at 1; 5 a cloudy sky at -1, blowing salt or frost at 1; 6 flat-topped rocks behind, or a shore of black firs, at -1, a sheet of water that mirrors the sails, or high snow mountains, at 1; 7 close under one great sail at -1, a fleet winding far away at 1, its cloth dyed in the sounds' colours at both ends
 
 #define scZ smoothstep
 float scPx, scQ, scFx, scHz, scE, scHa, scNt, scTn, scAl, scFl, scLv, scGu, scS, scSd, scW, scPan, scRo, scSpan;
@@ -125,7 +125,8 @@ void scSail(inout vec3 col, vec2 p, vec2 q) {
 		float thin = 1./(1.+dye.a*(1.+.8*dye.a));
 		float thru = (.62+.4/(1.+3.*rr)+1.1*near*(.8+.5*uPad)+(1. - uVar)*2.2*core*(.7+.6*uPad))*(1.+.4*scLv*(.4+uEnergy));
 		thru *= (1.+.4*scGu)*(1.+1.1*uCue*scNr(.45, abs(uv.y - 1.2+1.3*(1. - uCue))));
-		if (scK == 1) thru *= 1.+.6*uHits;
+		if (scK == 1) thru *= 1.+.6*uHits*(1.+1.5*max(uOwn[5], 0.));
+			if (uOwn[3] < 0. && scK == 0) thru *= 1. - .55*uOwn[3]*uHits*scNr(.5, abs(scUv.y - 1.1+1.2*(1. - uHits)));
 		vec3 c = alb*(scGl*thru*thin*mix(.78, .85, scNt)+mix(scSh, scLit, .3*scNt)*.34)*shade;
 		// in b a lantern at the foot, its sound's colour
 		if (scB) c += mix(vec3(1., .72, .42), scKc, .75*sat(scLv*1.5))*alb*exp(-length(vec2((uv.x - .35)*scW, uv.y*scSpan))*2.8)*(.1+.75*scLv*(.5+uEnergy))*(1. - .5*abs(panel));
@@ -224,9 +225,50 @@ void scTake(int k) {
 	scDyB = k == 1 ? vec3(.84, .68, .5) : k == 2 ? vec3(.5, .5, .56) : k > 2 ? rust : ochre;
 	scDyC = k == 0 ? bone : k == 2 ? rust : slate;
 	if (scB) { scDyA = vec3(.83, .86, .9); scDyB = scDyA*.96; scDyC = scDyA*1.04; }
-	if (k == 5) { scDyA = scDyB = scDyC = scB ? vec3(.3, .5, 1.) : vec3(.06, .22, .78); scKc = vec3(.2, .4, 1.); }
+	if (uOwn[7] != 0.) { // dyed as the sounds are
+			vec3 k0 = uKind[scKind(k)], k1 = uKind[scKind((k+2)%6)], k2 = uKind[scKind((k+3)%6)];
+			float d = sat(abs(uOwn[7])*1.4);
+			scDyA = mix(scDyA, k0*.95+.05, d); scDyB = mix(scDyB, mix(k0, uOwn[7] < 0. ? k1 : vec3(.9), uOwn[7] < 0. ? .85 : .3), d); scDyC = mix(scDyC, mix(k0, uOwn[7] < 0. ? k2 : k1, .8), d);
+		}
+		if (k == 5) { scDyA = scDyB = scDyC = scB ? vec3(.3, .5, 1.) : vec3(.06, .22, .78); scKc = vec3(.2, .4, 1.); }
 }
 
+// What stands behind: p.y over the horizon.
+void scLand(inout vec3 col, vec2 p, float px) {
+	float o6 = uOwn[6], x = p.x, y = p.y - scHz;
+	if (!scB && o6 < 0.) { // flat-topped rocks, the far ones paler
+		for (int i = 0; i < 2; i++) {
+			float f = float(i), n = noise(vec2(x*(3.4 - 1.3*f)+23.+5.*f, 1.)), n2 = noise(vec2(x*(19. - 8.*f), 4.+f));
+			float m = scZ(.5, .56 - .02*f, n+.06*n2)*(.13+.13*f)*(.75+.4*noise(vec2(floor(x*(1.7 - .6*f)+.3+f)*3.1, 2.)))+scZ(.3, .62, n)*(.05+.02*f)*(.6+.4*n2);
+			m = m*-o6+.006;
+			float flute = noise(vec2(x*(60. - 20.*f), y*4.+f)), st = .5+.5*sin(y*190.+6.*n2+f);
+			vec3 c = mix(scSh*.8, scLit*mix(vec3(1., .72, .55), vec3(.9), max(uOwn[1], 0.)), .2+.45*flute+.12*st);
+			c = mix(c, scMs, (i == 0 ? .62 : .22)+.35*scNr(.1, y));
+			col = mix(col, c, sat(.5 - (y - m)/px)*step(0., y+px)*sat(-o6*4.));
+		}
+	}
+	if (scB && o6 < 0.) { // firs, three ranks
+		for (int i = 0; i < 3; i++) {
+			float f = float(i), w = .034+.016*f, u = x/w+f*7.3, j = floor(u), d = 1.;
+			for (int k = -1; k <= 1; k++) {
+				float h1 = hash11(j+float(k)+f*31.), lx = (u - j - float(k) - .3 - .4*h1)*w, h = (.045+.1*h1*h1+.035*f)*-o6*(.35+.9*noise(vec2(x*1.4+f*3., f)));
+				float v = y/h, tier = fract(v*(5.+2.*f)+h1);
+				d = min(d, max(abs(lx) - (1. - v)*(.011+.007*f)*(.55+.6*(1. - tier)), y - h));
+			}
+			d = min(d, y - .012 - .02*noise(vec2(x*5., f)));
+			col = mix(col, mix(scDk*1.3, scMs, (.62 - .28*f)*(.5+.5*scHa)), sat(.5 - d/px)*step(0., y+px)*sat(-o6*4.));
+		}
+	}
+	if (scB && o6 > 0.) { // mountains with snow on them
+		float m = 0., a = 1., q = x*1.7+4.3, ms = 0.;
+		for (int i = 0; i < 5; i++) { float n = 1. - abs(2.*noise(vec2(q, 3.+float(i))) - 1.); m += a*n; ms += a; q = q*2.1+1.7; a *= .42; }
+		m = o6*(.05+.36*m*m/(ms*ms));
+		float g = noise(vec2(x*9.+y*14., y*7.)) - noise(vec2(x*9.+y*14.+.5, y*7.)), g2 = noise(vec2(x*31. - y*40., y*24.)) - .5;
+		vec3 c = mix(mix(scSh*.9, scTop, .4)+scLit*.06, scLit*(.75+.25*scGl)*(1. - .4*scNt), sat(.42+1.5*g+.5*g2)*scZ(-.05, .09, y - .3*m*(1.+g2)));
+		c = mix(c, scMs, .25+.6*scNr(.16, y));
+		col = mix(col, c, sat(.5 - (y - m)/px)*step(0., y+px));
+	}
+}
 // The plain: salt and shadows, or ice that mirrors sky.
 vec3 scGround(vec2 p, vec3 sky) {
 	float s = max((scHz - p.y)/scE, .004), fz = 1.1*scPx/(s*s*scE), fx = scPx/s, o1 = uOwn[1], hi = max(o1, 0.), lo = max(-o1, 0.);
@@ -292,6 +334,10 @@ vec3 scGround(vec2 p, vec3 sky) {
 			c += mix(scLit, scLit*scHue(k), .5*sat(lv))*m*(.36+.45*lv*(.5+uEnergy)+.9*run)*(1.+1.5*road)*(.55+.75*gr);
 		}
 	}
+	if (!scB && uOwn[6] > 0.) {
+		float rip = noise(vec2(gm.x*1.7, gm.y*3.1))+noise(vec2(gm.x*6.+uTime*.2, gm.y*9.)) - 1.;
+		c = mix(c, sky*(.9+.06*rip*(1. - far))+scGl*road*.14, uOwn[6]*(.6+.36*far)*scZ(.02, .2, uOwn[6]));
+	}
 	// keys are crystals that catch the light
 	vec2 kg = gm*vec2(13., 8.);
 	float kh = hash21(mod(floor(kg), 64.)+.7);
@@ -335,11 +381,20 @@ vec3 render(vec2 p) {
 	scAt = vec2[6](vec2(.48+.4*max(.9 - scFx, 0.), .86), vec2(-.17, .39), vec2(-.475, .215), vec2(-.335, .12), vec2(-.61, .084), vec2(-.755, .06));
 	if (scB) scAt = vec2[6](vec2(-.43, .62), vec2(.1, .31), vec2(.375, .18), vec2(.66, .12), vec2(.25, .088), vec2(.77, .055));
 	for (int k = 0; k < 6; k++) scAt[k] = mix(scAt[k], vec2((scB ? -1. : 1.)*(.68 - .285*float(k)), .32 - .02*float(k)), max(uOwn[3], 0.))*vec2(scFx, 1.);
+	if (uOwn[7] != 0.) {
+		vec2 far[6] = vec2[6](vec2(.52, .27), vec2(.12, .2), vec2(-.26, .15), vec2(-.5, .108), vec2(-.3, .08), vec2(-.06, .06));
+		vec2 near[6] = vec2[6](vec2(-.3, 1.75), vec2(.6, .3), vec2(.34, .2), vec2(.78, .15), vec2(.5, .1), vec2(.66, .07));
+		for (int k = 0; k < 6; k++) scAt[k] = mix(scAt[k], (uOwn[7] < 0. ? near[k]*vec2(scB ? -1. : 1., 1.) : far[k]*vec2(scB ? -1. : 1., 1.))*vec2(scFx, 1.), abs(uOwn[7]));
+	}
 	scAt[5].x += .025*sin(TAU*uLoop);
 	scForm();
 	bool under = p.y < scHz;
 	vec3 col = vec3(0.), sky = vec3(0.);
-	if (!under || scB) sky = scSky(under ? vec2(p.x, 2.*scHz - p.y) : p);
+	if (!under || scB || uOwn[6] > 0.) {
+		vec2 sp = under ? vec2(p.x, 2.*scHz - p.y) : p;
+		sky = scSky(sp);
+		if (under && uOwn[6] != 0.) scLand(sky, sp, scPx*3.);
+	}
 	if (!under) {
 		col = sky;
 		float y = p.y - scHz;
@@ -359,6 +414,7 @@ vec3 render(vec2 p) {
 			col += mix(vec3(1., .66, .3), pm.rgb/max(pm.a, .1), pm.a*.6)*exp(-dot(lq, lq)*(90000./(1.+2.*pm.a)))*sat(town+.25 - fract(h*13.))*(.7+1.5*pm.a)*(.3+.7*scNt);
 		}
 	}
+	if (!under && uOwn[6] != 0.) scLand(col, p, scPx);
 	if (under) col = scGround(p, sky);
 	// the caravan, far to near: hull, rig, sail
 	float cueUp = uCue*(1. - uCue);
@@ -368,6 +424,7 @@ vec3 render(vec2 p) {
 	for (int k = 5; k >= 0; k--) {
 		vec2 q = vec2(p.x - scAt[k].x, p.y - scHz)/scAt[k].y+vec2(0., scE);
 		if (scB) q = vec2(-q.x, q.y < 0. ? -1.5*q.y : q.y);
+		else if (uOwn[6] > 0. && q.y < 0.) q.y = -q.y;
 		vec2 t = turn*(q - o)+o;
 		float y = t.y - scT.y;
 		bool hull = abs(q.x) < .62 && q.y > -.02 && q.y < .32;
@@ -380,6 +437,7 @@ vec3 render(vec2 p) {
 			float low = 1.;
 			vec2 q = vec2(p.x - scAt[scK].x, p.y - scHz)/scS+vec2(0., scE);
 			scQ = scPx/scS;
+			if (!scB && uOwn[6] > 0. && q.y < 0.) { low = .72*uOwn[6]*(1. - scZ(.2, 1.5, -q.y)); q.y = -q.y; scQ *= 1.+3.*q.y; q.x += .012*sin(q.y*40.+3.*sin(q.x*7.+uTime*.5))*sat(q.y*4.); }
 			if (scB) {
 				q.x = -q.x;
 				if (q.y < 0.) { low = .5*(1. - .7*max(-uOwn[1], 0.))*(1. - scZ(0., 1.1, -q.y)); q.y = -q.y; scQ *= 1.+3.*q.y; q.x += .02*sin(q.y*50.+3.*sin(q.x*9.))*sat(q.y*4.); }
@@ -399,6 +457,7 @@ vec3 render(vec2 p) {
 		float st = scDrift(vec2(p.x*2.2+mod(uTime*.22, 64.), p.y*26.))*(.4+.6*scDrift(vec2(p.x*6.+mod(uTime*.5, 64.), p.y*60.+p.x*4.)));
 		col = mix(col, mix(scLit, scLow, .4), sat(low*scZ(.25, .7, st))*(.6 - .3*scNt)*scZ(.045, .12, low));
 	}
-	col = mix(col, mix(scMs, scLit, .3*scNt), max(o5, 0.)*.6*exp(-abs(p.y - scHz)*2.5));
+	col = mix(col, mix(scMs, scLit, .3*scNt), max(o5, 0.)*.6*exp(-abs(p.y - scHz)*2.5)*(o5 > 0. ? 1. - .65*uHits*exp(-14.*dot(p - scAt[1]*vec2(1., .5) - vec2(0., scHz - .3*scE*scAt[1].y), p - scAt[1]*vec2(1., .5) - vec2(0., scHz - .3*scE*scAt[1].y))) : 1.));
+	if (o5 > 0.) { vec2 hp = p - scAt[1] - vec2(0., scHz - .6*scE*scAt[1].y - .6*scAt[1].y); col += mix(scHue(1), scGl, .5)*.22*o5*uHits*exp(-dot(hp, hp)*20.); }
 	return sat(col);
 }

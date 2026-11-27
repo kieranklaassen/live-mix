@@ -3,7 +3,7 @@
 // b: Coming through
 // what: Inside a weave of beaded rings, each threaded through every other: huge ivory, rust and slate beads overhead, small ones far back in grey haze, and low down an opening where a warm glow comes in and one straight string crosses; or, on pale bone, a bunch of tiny rings at the left opens, sweeps past the frame and comes back.
 // follows: Each kind of sound beads four rings: the louder, the fatter and the more dyed. The piece tints each bead by its place, bands swell the small beads, travel carries all along, and the loop turns the weave through a fourth direction. A hit sends a lit bead round four rings, a cue opens the weave and brightens it, keys and voice fill the straight string.
-// own: 0 night with an amber glow at -1 (terracotta ground outside), snow light at 1 (grey-blue ground outside); 1 the weave turned back the fourth way, rounder and closed, at -1, all rings gathered into one narrow coil at 1; 2 jet, coral and bone at -1, glazed sea green at 1; 3 seed pearls far apart on bare thread at -1, plump even beads that touch at 1; 4 from further off through a long lens at -1, close and wide at 1; 5 thick mist at -1, clear air at 1
+// own: 0 night with an amber glow at -1 (terracotta ground outside), snow light at 1 (grey-blue ground outside); 1 the weave turned back the fourth way, rounder and closed, at -1, all rings gathered into one narrow coil at 1; 2 jet, coral and bone at -1, glazed sea green at 1; 3 seed pearls far apart on bare thread at -1, plump even beads that touch at 1; 4 from further off through a long lens at -1, close and wide at 1; 5 thick mist at -1, clear air at 1; 6 the eye outside and level, the weave seen from its side as one round lantern on its spindle, at -1, straight above the whole rosette at 1; 7 three families of strings gone and the rest of few huge balls at -1, beads (and air) dyed in the sounds' colours at 0.5 and pressed to flat painted lentils at 1
 // Everything lies on the round space around us, laid out flat: there every ring is a great circle and every bead a ball, and they
 // stay a circle and a ball here. Five families of four rings lie about one common middle ring, on three nested tubes.
 // A sixth string is the one ring that passes through infinity: a straight line.
@@ -14,6 +14,11 @@ mat3 brM;              // both, as the rings see them
 vec3 brLine;           // the straight string's place among the rings
 vec4 brLineF;
 float brPx, brCreep, brThr;
+#define brDye clamp(2.0 * uOwn[7], 0.0, 1.0)
+#define brFlat clamp(2.0 * uOwn[7] - 1.0, 0.0, 1.0)
+#define brSq (1.0 - 0.66 * brFlat)
+#define brFew clamp(-2.0 * uOwn[7], 0.0, 1.0)
+#define brHuge clamp(-2.0 * uOwn[7] - 1.0, 0.0, 1.0)
 vec3 brG, brL;         // towards the glow, towards the light
 int brI; vec3 brN;
 
@@ -62,13 +67,18 @@ BrHit brTest(vec3 ro, vec3 rd, float t, float k) {
   h.ball = vec4(b.xyz, sin(r)) / max(cos(r) - b.w, 0.02);
   vec3 oc = h.ball.xyz - ro;
   h.ax = normalize(pa.xyz / max(1.0 - pa.w, 1e-3) - h.ball.xyz + 1e-5);
-  float m = dot(oc, rd), d2 = dot(oc, oc) - m * m, px = brPx * t, rr = h.ball.w;
+  float m = dot(oc, rd), d2 = dot(oc, oc) - m * m, px = brPx * t, rr = h.ball.w, rq = 1.0;
+  if (brFlat > 0.0) {
+    vec3 of = oc + h.ax * (dot(oc, h.ax) * (1.0 / brSq - 1.0)), rf = rd + h.ax * (dot(rd, h.ax) * (1.0 / brSq - 1.0));
+    rq = dot(rf, rf); m = dot(of, rf) / rq; d2 = dot(of, of) - m * m * rq;
+  }
   h.cov = 1.0 - smoothstep(rr - px * 0.9, rr + px * 0.6, sqrt(max(d2, 0.0))); h.j = mod(j, 2.0 * brBd[brI]);
   float hh = sqrt(max(rr * rr - d2, 0.0));
+  if (brFlat > 0.0) hh /= sqrt(rq);
   h.t = m - hh;
   if (h.cov > 0.04 && h.t > 0.35) { h.what = odd ? 2 : 1; return h; }
   // between two beads: the thread
-  if (abs(th0 - j) * len > 0.85 * r) {
+  if (abs(th0 - j) * len > 0.85 * brSq * r) {
     vec2 u = w / max(length(w), 1e-4);
     c = vec4(brMul(fb.xy, u), brMul(fb.zw, u)); b = brBack(c); pa = brBack(c + 0.02 * vec4(-c.y, c.x, -c.w, c.z));
     oc = b.xyz / max(1.0 - b.w, 1e-3) - ro;
@@ -78,7 +88,7 @@ BrHit brTest(vec3 ro, vec3 rd, float t, float k) {
     h.cov = 1.0 - smoothstep(wide - px * 0.6, wide + px * 0.6, abs(dot(oc, cr)) / max(length(cr), 1e-3));
     h.t = dot(oc, dq) / max(dot(dq, dq), 1e-3);
     float off = length(ro + rd * h.t - h.ball.xyz);
-    if (h.cov > 0.04 && h.t > 0.35 && off > 0.96 * rr && off < rr + 1.2 * max(len - big - small, 0.0) * r / ((big + small) * k)) h.what = 3;
+    if (h.cov > 0.04 && h.t > 0.35 && off > 0.96 * brSq * rr && off < rr + 1.2 * max(len - big - small, 0.0) * r / ((big + small) * k)) h.what = 3;
   }
   return h;
 }
@@ -93,6 +103,10 @@ vec3 brShade(BrHit h, vec3 ro, vec3 rd) {
   vec3 x = ro + rd * h.t, n = normalize(h.what == 3 ? h.ax * dot(rd, h.ax) - rd : x - h.ball.xyz);
   bool thread = h.what == 3, small = h.what == 2;
   float pole = thread ? 0.0 : abs(dot(n, h.ax)), rnd = hash21(vec2(h.j + 3.0, h.r * 3.0 + float(h.f) + 11.0));
+  if (brFlat > 0.0 && !thread) {
+    vec3 v = x - h.ball.xyz; float va = dot(v, h.ax);
+    pole = abs(va) / max(brSq * h.ball.w, 1e-4) * 0.97; n = normalize(v + h.ax * (va * (1.0 / (brSq * brSq) - 1.0)) + 1e-6);
+  }
   int kd = h.f == 0 ? 0 : h.f == 1 ? 1 : h.f == 3 ? 2 : h.f == 2 ? 3 : 4;
   float lv = brLv[h.f];
   // ivory, rust and slate; jet, coral and bone; or sea glass
@@ -108,6 +122,15 @@ vec3 brShade(BrHit h, vec3 ro, vec3 rd) {
   a = mix(a, brPaint(uKind[kd]), (small ? 0.42 : 0.2) * lv);
   a = mix(a, brPaint(here.rgb / max(here.a, 0.05)), 0.45 * here.a);
   a *= 0.84 + 0.3 * fract(rnd * 7.0);
+  if (brDye > 0.0) {
+    vec3 ka = brPaint(uKind[kd]), kb = brPaint(uKind[(kd + 1 + int(rnd * 2.0)) % 5]);
+    if (h.f == 5) { ka = brPaint(uKind[3]); kb = brPaint(uKind[4]); }
+    vec3 dye = small ? kb : ka;
+    dye = mix(dye, vec3(0.78, 0.72, 0.6), step(0.86, fract(rnd * 13.0)) * 0.85);
+    // rings painted about the drilled ends of the large ones
+    if (!small) dye = mix(dye, mix(kb, vec3(0.8, 0.74, 0.62), 0.5), 0.8 * smoothstep(0.02, 0.07, 0.15 - abs(pole - 0.52)) * step(0.45, fract(rnd * 5.0)));
+    a = mix(a, dye * (0.75 + 0.45 * lv + 0.3 * here.a), brDye * 0.94);
+  }
   if (h.f == 5 && uVar > 0.5) a = mix(a, small ? slate : rust, 0.9 * sat(1.2 * uKeys + uMic));
   if (thread) a = vec3(0.10, 0.085, 0.07);
   float sc = 0.5 * (1.0 + dot(x, x));
@@ -129,7 +152,7 @@ vec3 brShade(BrHit h, vec3 ro, vec3 rd) {
   // a hit sends a lit bead round each of four rings; the keys light the straight string
   if (h.f == 1) {
     float d = fract(h.j / (2.0 * brBd[1]) + brCreep / TAU - 0.5 * (1.0 - uHits) + 0.02) - 0.5;
-    c += mix(uKind[4], vec3(1.0, 0.8, 0.5), 0.6) * uHits * exp(-d * d * 600.0) * 1.7 * max(0.15 - 0.85 * dot(n, rd), 0.0);
+    c += mix(uKind[4], vec3(1.0, 0.8, 0.5), 0.6) * uHits * exp(-d * d * 600.0 * (1.0 - 0.93 * max(-uOwn[3], 0.0)) * (1.0 - 0.85 * max(-uOwn[0], 0.0))) * 1.7 * (1.0 + max(-uOwn[3], 0.0) + max(-uOwn[0], 0.0)) * max(0.15 - 0.85 * dot(n, rd), 0.0);
   }
   if (h.f == 5) c += a * (mix(uKeys * 0.8 + uMic * 0.5, 0.0, uVar) + uCue * 0.6) * vec3(1.2, 1.0, 0.75);
   return c;
@@ -143,6 +166,8 @@ vec3 render(vec2 p) {
   float cue = 4.0 * uCue * (1.0 - uCue), R[6];
   lat[0] -= 0.10 * cue; lat[3] += 0.12 * cue; lat[4] += 0.12 * cue;
   for (int i = 0; i < 5; i++) lat[i] *= 1.0 - 0.45 * max(uOwn[1], 0.0);
+  if (brHuge > 0.0) for (int i = 0; i < 6; i++) bd[i] = floor(mix(bd[i], i == 5 ? 20.0 : 15.0, brHuge) + 0.5);
+  if (brFlat > 0.0) for (int i = 0; i < 6; i++) bd[i] = floor(bd[i] * (1.0 + 0.9 * brFlat) + 0.5);
   float tiny = max(-uOwn[3], 0.0), even = max(uOwn[3], 0.0);
   for (int i = 0; i < 6; i++) {
     float h = PI / bd[i], b = uBands[i * 3], l = sat(lv[i]);
@@ -150,14 +175,20 @@ vec3 render(vec2 p) {
     float big = 0.45 + 0.2 * l, small = 0.25 + 0.04 * l + 0.1 * min(b, 1.0);
     if (away && i == 5) { big += 0.15 * l; small += 0.12 * l; }
     big = mix(mix(big, 0.23 + 0.12 * l, tiny), 0.51, even); small = mix(mix(small, 0.10 + 0.06 * b, tiny), 0.36 + 0.15 * l, even);
+    if (brFlat > 0.0) { big *= 1.0 + 0.65 * brFlat; small *= 1.0 + 0.5 * brFlat; }
+    float gone = brFew * (i == 0 || i == 2 || i == 4 ? 1.0 : 0.0);
+    if (uOwn[6] > 0.0 && i == 5) gone = min(1.6 * uOwn[6], 1.0);
+    if (brFew > 0.0 || uOwn[6] > 0.0) { big *= 1.0 - gone; small *= 1.0 - gone; }
     brBd[i] = bd[i]; brBig[i] = h * big; brSmall[i] = h * small; R[i] = max(brBig[i], brSmall[i]) + 0.002;
+    if (brFew > 0.0 || uOwn[6] > 0.0) R[i] -= 0.3 * max(gone - 0.9, 0.0) * 10.0;
     brCh[i] = cos(0.5 * lat[i]); brSh[i] = sin(0.5 * lat[i]);
   }
   brR = vec4(R[0], R[1], R[2], R[3]); brR2 = vec2(R[4], R[5]);
   vec4 l4 = vec4(lat[0], lat[1], lat[2], lat[3]); brSinL = sin(l4); brCosL = cos(l4);
-  brThr = 0.0045; brCreep = mod(0.006 * uTravel + 0.004 * uTime, TAU);
+  brThr = 0.0045 * (1.0 - 0.5 * tiny); brCreep = mod(0.006 * uTravel + 0.004 * uTime, TAU);
   float spin = away ? 0.3 + mod(0.012 * uTime, TAU) : 0.3 + 0.1 * sin(0.031 * uTime);
   float psi = (away ? 0.62 : 0.29) + 0.045 * sin(TAU * uLoop) + 0.03 * sin(0.05 * uTime) + 0.3 * min(uOwn[1], 0.0);
+  if (uOwn[6] != 0.0) psi = mix(psi, 0.2 * psi + 0.03, abs(uOwn[6]));
   brG1 = vec2(cos(psi), sin(psi)); brG2 = vec2(cos(spin), sin(spin));
   float c2 = cos(2.0 * psi), s2 = sin(2.0 * psi);
   brM = mat3(brG2.x, brG2.y, 0.0, -brG2.y, brG2.x, 0.0, 0.0, 0.0, 1.0) * mat3(c2, 0.0, -s2, 0.0, 1.0, 0.0, s2, 0.0, c2);
@@ -165,7 +196,15 @@ vec3 render(vec2 p) {
   vec3 ro = away ? vec3(-5.0, 1.2, 1.8) : vec3(0.63, -0.51, 2.37), ta = away ? vec3(0.0, -0.8, 0.2) : vec3(-0.96, -0.2, 0.0);
   float foc = (away ? 1.7 : 1.1) * exp2(-0.5 * uOwn[4]);
   ro *= 1.0 - 0.22 * uOwn[4];
-  vec3 fw = normalize(ta - ro), rt = normalize(cross(fw, vec3(0.0, 0.0, 1.0))), up = cross(rt, fw);
+  vec3 upw = vec3(0.0, 0.0, 1.0);
+  if (uOwn[6] > 0.0) {
+    ro = mix(ro, away ? vec3(0.9, -1.1, 5.6) : vec3(0.35, -0.3, 3.9), uOwn[6]); ta = mix(ta, vec3(0.0), uOwn[6]);
+    upw = normalize(mix(upw, vec3(-0.5, 0.86, 0.0), uOwn[6]));
+  }
+  if (uOwn[6] < 0.0) {
+    ro = mix(ro, away ? vec3(-0.6, -5.2, -0.5) : vec3(-0.8, -6.6, 1.0), -uOwn[6]); ta = mix(ta, vec3(0.0), -uOwn[6]);
+  }
+  vec3 fw = normalize(ta - ro), rt = normalize(cross(fw, upw)), up = cross(rt, fw);
   brPx = zoom / (uRes.y * foc);
   vec3 rd = normalize(fw * foc + (rt * p.x + up * p.y) * zoom);
   brG = normalize(fw + 0.42 * rt - 0.3 * up);
@@ -185,8 +224,13 @@ vec3 render(vec2 p) {
     brKey = mix(vec3(2.7, 2.1, 1.5), vec3(0.75, 0.55, 0.4), night) * (1.0 + 0.25 * uLevel); brSky = mix(mix(vec3(0.24, 0.275, 0.325), vec3(0.06, 0.08, 0.13), night), vec3(0.6, 0.64, 0.7), white);
     brFog = 0.22;
   }
+  if (brDye > 0.0) {
+    vec3 kd = brPaint(uKind[0]); kd /= max(dot(kd, vec3(0.3, 0.59, 0.11)), 0.03); kd = min(kd, 2.4);
+    brA0 = mix(brA0, kd * dot(brA0, vec3(0.3, 0.59, 0.11)) * 0.85, 0.75 * brDye); brA1 = mix(brA1, kd * dot(brA1, vec3(0.3, 0.59, 0.11)), 0.6 * brDye);
+  }
   brFog *= mix(1.25, 0.8, uSpace) * (1.0 - 0.25 * cue) * exp2(-1.4 * uOwn[5]);
-  float t = 0.1, far = away ? 9.0 : 7.0;
+  brFog *= 1.0 - 0.6 * abs(uOwn[6]);
+  float t = 0.1, far = away ? 9.0 : 7.0 + max(uOwn[6], 0.0) + 4.0 * max(-uOwn[6], 0.0);
   BrHit h, A, B; A.what = B.what = 0;
   int n = 0;
   // on to the next string; what is in it; and on again if the ray slips between two beads

@@ -3,10 +3,15 @@
 // b: Whole yard
 // what: A wooden paddle over a mint table, painted hens in a ring on it with strings to a ball that swings below, so they peck in turn at scattered grain; or a shelf by a pale wall: four hens on crossed slats, two small geese behind, a hare that rocks on a bow, and two large soft hens near the eye.
 // follows: Each hen has her kind and pecks deeper as it sounds. Drone swings the ball or works the slats, pad tips the paddle or the far slats, texture, keys and voice hop the grain, phrase rocks the hare; a hit makes a hen peck in a ring of light, a cue runs along the birds; bands lengthen tails and petals; the piece is the grain, or leaves on the shelf.
-// own: 0 a lamp at night at -1, low red sun at 1; 1 table or wall brick at -1, deep blue at 1; 2 bare wood at -1, black lacquer at 1; 3 fewer birds at -1, more at 1; 4 the eye low at -1 and from above at 1 in a, farther and closer in b; 5 round chicks at -1, long-necked geese at 1
+// own: 0 a lamp at night at -1, low red sun at 1; 1 table or wall brick at -1, deep blue at 1; 2 bare wood at -1, black lacquer at 1; 3 fewer birds at -1, more at 1; 4 the eye low at -1 and from above at 1 in a, farther and closer in b; 5 round chicks at -1, long-necked geese at 1; 6 a lily pond below, or far hills in place of the wall, at -1, checked cloth or painted tiles at 1; 7 black birds before a lit board or a lit paper screen at -1, great wheels of tails at 1
+#define phPea sat(uOwn[7])
+#define phPup sat(-uOwn[7])
+#define phTile sat(uOwn[6])
+#define phPond sat(-uOwn[6])
+const float phFull = .5 + .48 * clamp(9. * (phPup + sat(-uOwn[2]) + abs(uOwn[4])), 0., 1.); // how much of a pixel a piece fills to hide what is behind it
 vec3 phSun, phSunC, phSky; // the way to the sun, its light, the sky's
 vec3 phP[5], phT[2], phRed, phWood, phGold; // paints, second colours, combs, wood, beaks
-float phBall, phGo, phCh, phBare, phInk, phDim, phEve;
+float phEar, phBall, phGo, phCh, phBare, phInk, phDim, phEve;
 float phUp(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x * (3. - 2. * x); }
 // x, resting at whole numbers
 float phRest(float x) { float f = floor(x); return f + phUp(.3, .7, x - f); }
@@ -43,11 +48,12 @@ void phPut(int i, vec3 paint, float cut) {
   phC = mix(phC, vec4(paint, 1.), a);
   vec3 n = phHit * phV * phV * phMin; phN = mix(phN, vec3(phF * n.xy, n.z), a);
   if (i > 3) phOver = max(phOver, a);
-  if (a > phBest || (a > .5 && uVar > .5)) { phBest = min(a, .5); phQ = phHit; phI = i; if (i == 3) phOver = 0.; phK = -1; if (a > .5) { phNext = t + .001; if (uVar < .5) phFar = phNext; } }
+  if (a > phBest || (a > .5 && uVar > .5)) { phBest = min(a, .5); phQ = phHit; phI = i; if (i == 3) phOver = 0.; phK = -1; if (a > phFull) { phNext = t + .001; if (uVar < .5) phFar = phNext; } }
 }
 // Four slats of a tail, longer with their bands: how far off, which.
 vec2 phFan(vec2 q, int k) {
-  float a = atan(q.y, q.x - 1e-4) - 1.83, i = floor(clamp(a / .29, 0., 3.9)), l = length(q), e = a - .29 * i - .145;
+  float pea = phPea * (1. - phEar), wd = .29 - .06 * pea, a = atan(q.y, q.x - 1e-4) - 1.83 + .83 * pea, i = floor(clamp(a / wd, 0., pea > 0. ? 8.9 : 3.9)), l = length(q), e = a - wd * i - .5 * wd;
+  if (pea > 0.) { float g = sat(4. + 5. * pea - i), n = (.145 + .022 * sat(uBands[(4 * k + int(i)) % 16])) * mix(.2, 1., g); return vec2((length(vec2(l - n, l * e) / vec2(n + .02, .012 + .022 * pea)) - 1.) * .03, i); }
   float len = .105 - .04 * phCh + .055 * sat(uBands[(4 * k + int(i)) % 16] * (.6 + uEnergy));
   return vec2((length(vec2(l - len, l * e) / vec2(len + .02, .03)) - 1.) * .03, i);
 }
@@ -58,7 +64,7 @@ void phHen(int k, float dip, float h) {
   vec3 N = vec3(dot(w, n) - phNeck, dot(w, s), phO.z), D = vec3(dot(phD.xy, n), dot(phD.xy, s), phD.z), body = phP[k % 5], trim = phT[k % 2], gold = mix(phGold, body, h), r;
   phF = mat2(1.);
   phCut(phO - vec3(.01 * h, .065, 0.), phD, vec3(.09 + .12 * h, .095, .02)); phPut(0, gold, abs(abs(phHit.x) - .027 - .07 * h) - .0135 - .009 * h);
-  phCut(phO - mix(vec3(-.085, .235, 0.), vec3(.2, .4, 0.), h), phD, vec3(.38, .38, .026)); f = phFan(phHit.xy, k); phPut(2, trim, f.x + h * step(1.5, f.y));
+  phCut(phO - mix(vec3(-.085, .235, 0.), vec3(.2, .4, 0.), h), phD, vec3(.38, .38, .026)); f = phFan(phHit.xy, k); phPut(2, trim, f.x + h * step(1.5, f.y) + (phFull - .5) * .1 * (1. - phUp(.03, .13, abs(phD.z))));
   phCut(phO - vec3(-.015, .218, 0.), phD, vec3(.175, .125, .12) + phGo * vec3(.04, -.005, -.015) + phCh * vec3(-.03, .025, .022)); phPut(3, body, -1.);
   phF = mat2(n, s); r = mix(vec3(.044, .058, .017) * sm, vec3(.05), h);
   phCut(N - mix(vec3(.075, -.006 * sm, 0.), vec3(-.25, -.28, 0.), h), D, r); phPut(4, mix(phRed, trim, h), (length(phHit.xy / r.xy) - .84 + .16 * cos(phHit.y / sm * 125.)) * .03 - h);
@@ -164,7 +170,7 @@ vec3 render(vec2 p) {
     phGo = !yard || k < 4 || k == 8 ? goose : k == 9 ? .5 : hare ? 0. : 1.; phNeck = .17 + .15 * phGo - .06 * phCh;
     phW = !shade ? vec3(phTurn.w, 0., 1.) : yard ? vec3(w1, 0., 0.) : vec3(.004, soft, 0.);
     int who = !yard ? k : k < 4 ? k + 1 : k < 7 ? k - 2 : hare ? 1 : 3 * k - 19;
-    phHen(who, hare ? 0. : phDip(who) * (yard && k > 7 ? .35 : 1.), hare ? 1. : 0.); if (phK < 0) { phK = k; phTu = phTurn; kind = who; }
+    phEar = hare ? 1. : 0.; phHen(who, hare ? 0. : phDip(who) * (yard && k > 7 ? .35 : 1.), hare ? 1. : 0.); if (phK < 0) { phK = k; phTu = phTurn; kind = who; }
     if (yard) phFar = min(phFar, phNext);
     if (list < 1) break;
   }
@@ -172,9 +178,10 @@ vec3 render(vec2 p) {
   float cov = phC.a, spark = uHits * uHits, e = phTu.w * .8 + .001; bool hare = yard && phK == 7, close = yard && phK > 7;
   vec3 c3 = phC.rgb / max(cov, .001), q3 = phQ, hn = normalize(phN + 1e-4), trim = phT[kind % 2];
   hn.xz = hn.x * phTu.xy + hn.z * phTu.z * vec2(phTu.y, -phTu.x);
-  vec2 w = vec2(.95 * q3.x - .3 * q3.y + .028, .3 * q3.x + .95 * q3.y + .01), dq = vec2(fract(atan(abs(q3.z), q3.y + 1e-4) * 2.55) - .5, (q3.x - .1) * 26.), fan = phFan(q3.xy, kind);
+  vec2 w = vec2(.95 * q3.x - .3 * q3.y + .028, .3 * q3.x + .95 * q3.y + .01), dq = vec2(fract(atan(abs(q3.z), q3.y + 1e-4) * 2.55) - .5, (q3.x - .1) * 26.), fan = vec2(0.); phEar = hare ? 1. : 0.; fan = phFan(q3.xy, kind);
   float str = phUp(-.3 - 40. * e, .3 + 40. * e, sin(w.y * 165. + w.x * 22.)) * phUp(.06, -.06, w.x), wing = phOn((length(w / vec2(.1, .06)) - 1.) * .06, e) * step(.03, abs(q3.z));
   if (phI == 2) c3 = mix(trim, phP[kind % 5], mod(fan.y, 2.)) * (1. - .3 * phUp(-.012, 0., fan.x));
+  if (phI == 2 && phPea > 0. && !hare) c3 = mix(mix(c3, phP[(kind + 2) % 5], phPea * phOn(length(vec2(length(q3.xy) - .262, .6 * fan.x + .012)) - .03, e)), phT[1], phPea * phOn(abs(length(q3.xy) - .2) - .01, e));
   if (phI == 3 && !hare) c3 = mix(c3, mix(mix(c3, mix(trim, c3 * .55, str), wing), trim, phOn(length(dq) - .3, 20. * e) * (1. - wing)), sat(1. - 2. * phOver));
   if (phI == 7) c3 = mix(mix(c3, hare ? c3 : phRed, phOn(length(q3.xy - vec2(-.034, .042)) - .028, e) * phOn(length(q3.xy) - .064, e)), vec3(.06), phOn(length(q3.xy - vec2(.016, .014)) - .0125, e));
   vec2 rub = cov > .5 ? q3.xy * 20. + q3.z * 9. + float(phK) * 3. : yard ? y * 42. : c * 8., hw = yard ? y * vec2(2., 6.) : side > .01 ? hq : q.zx * vec2(.5, .3);
@@ -215,28 +222,77 @@ vec3 render(vec2 p) {
     float rope = dot(v3, tn) / ce, lean = dot(v3, toBoard * rt) / max(abs(rope), .05) * .95 + ball.x, line = abs(fract(lean / .2 + .5) - .5) * .2 * rope + step(.1 * phHens, abs(lean)) + step(rope, .1) + step(1., rope);
     float qq = length(q.xz), bar = dot(q.xz, vec2(.86, .5)), win = phUp(2.4, 2.7, bar) - phUp(2.9, 3.2, bar) + phUp(-1.9, -2.3, q.x * .86 - q.z * .3);
     float past = phUp(-soft, soft, phBoard(ps.xz)), sun = past * open * phUp(.14, .18, length(bo - dot(bo, phSun) * phSun)) * (1. - .85 * (1. - phDim) * sat(win));
+    if (phTile > 0.) {
+      // a checked cloth
+      vec2 tc = rot(.55) * q.xz / .42, tw = abs(fract(tc) - .5) - .25; float pt = pw / .42;
+      vec2 on = vec2(sat(.5 - tw.x / pt), sat(.5 - tw.y / pt)); float thr = .9 + .14 * (noise(vec2(tc.x * 30., tc.y * 6.)) + noise(vec2(tc.x * 6., tc.y * 30.)) - 1.) * sat(1.4 - 20. * pt);
+      pale = mix(pale, mix(mix(vec3(.96, .93, .86), phGround(phP[3]), .1 + .39 * (on.x + on.y)) * thr, pale, .1), phTile);
+    }
     col = phLin(pale * (.95 + .06 * grow)) * (phSunC * 1.2 * dot(tn, phSun) * sun * mix(1., phIn(qq, .16), phDim) + phSky * (1.15 - .5 * phIn(qq, .9)));
+    if (phPond > 0.) {
+      vec2 z = q.xz - ball.xz, id = floor(q.xz / .74), h = hash22(id + 5.), pc = (id + .5 + .22 * (h - .5)) * .74 + .015 * vec2(sin(uTime * .31 + h.x * 9.), cos(uTime * .27 + h.y * 9.)); float rb = length(z), rw = length(q.xz - pc), rr = .17 + .13 * h.y, ang = atan(q.z - pc.y, q.x - pc.x + 1e-5) + h.x * 6.;
+      float rip = sin(rb * 24. - uTime * 1.4) * exp(-1.3 * rb) * (.6 + .6 * uDrone) + 1.1 * (noise(q.xz * vec2(1.1, 3.2) + vec2(uTime * .12, 0.)) - .5) + .25 * (noise(q.xz * vec2(3., 11.) - uTime * .2) - .5);
+      vec3 wat = mix(phLin(phGround(vec3(.23, .37, .34))) * .5 * (phSky + .4 * phSunC * sun), phSky * .9 + phSunC * .28 * sun, phUp(-.2, .9, rip) * .6);
+      float lily = phOn(rw - rr, pw) * step(.3, h.x) * (1. - phOn(abs(sin(.5 * ang)) * rw - .022, pw));
+      vec3 lf = mix(vec3(.36, .52, .3), vec3(.56, .6, .33), h.y) * (.86 + .14 * noise(vec2(ang * 5., rw * 4.))) * (1. - .25 * phUp(rr - .03, rr, rw));
+      wat *= 1. - .5 * step(.3, h.x) * phOn(length(q.xz - pc - vec2(.05, -.03)) - rr - .01, .05) * (1. - lily);
+      wat = mix(wat, phLin(lf) * (phSunC * 1.2 * sun * mix(1., phIn(qq, .16), phDim) + phSky), lily);
+      wat += phLin(uKind[4]) * uHits * uHits * .9 * phIn(rb - .45 - 1.3 * (1. - uHits), 30.);
+      col = mix(col, wat, phPond);
+    }
     col = mix(col, vec3(.17, .13, .08) * phSunC, .9 * phOn(line - .006, px));
     col = mix(col, phLit(mix(phWood, phRed, .9 * phOn(abs(bp.y) - .035, px)), bp / max(length(bp), 1e-4), past, 1.), onBall);
     }
-    col = mix(col, mix(phLit(wood, gr, .8, .9), top, face), side);
+    vec3 edgeC = phLit(wood, gr, .8, .9);
+    if (phPup > 0.) {
+      // lit from within
+      vec3 in_ = phLin(fa) * mix(vec3(1., .8, .5), phP[1], .2) * (2.5 - 1.1 * r) * (.75 + .4 * uLevel) + phLin(uKind[4]) * uHits * uHits * phIn(r - 1.1 * (1. - uHits), 14.);
+      top = mix(top, in_, phPup * .95); edgeC = mix(edgeC, phLin(fa) * vec3(.9, .5, .22), .9 * phPup);
+      col *= 1. - .9 * phPup; col += phPup * vec3(.24, .14, .06) * phIn(max(length(q.xz) - 1.0, 0.), .9);
+    }
+    col = mix(col, mix(edgeC, top, face), side);
   } else {
     vec3 d1 = phRow((s1 - at1) / .5, f1, phN1), d3 = phBow(s1, tilt);
     float open = 1. - max(phMiss, phOn(min(min(d1.x, d1.y), min(d3.x, min(d3.y, d3.z))), w1) * step(.001, ds));
     float wl = y.x + .55 * y.y, win = phUp(-.95, -.86, wl) * phUp(.99, .9, wl) * (1. - .8 * phUp(.02, 0., abs(wl - .3) - .014)), sweep = wl + 1.2 - 2.6 * (1. - uCue);
     vec3 alb = wall ? phGround(vec3(.9, .885, .84)) * (.96 + .02 * grow + .03 * w2) : mix(mix(vec3(.54, .68, .58), phWood, .6 * phUp(.5, .75, grow)), vec3(.2), .6 * phInk);
+    if (wall && phTile > 0.) {
+      vec2 tu = y / .178, ti = floor(tu), tf = fract(tu) - .5; float pt = px / .178, edge = .5 - max(abs(tf.x), abs(tf.y)), corner = length(abs(tf) - .5), hh = hash21(ti + 4.), pe = atan(tf.y, tf.x + 1e-5);
+      vec3 tl = mix(vec3(.95, .93, .87), vec3(.9, .88, .83), hh), ink = mix(phGround(phP[3]), phGround(phP[int(hh * 4.9)]), .45);
+      tl = mix(tl, ink, phOn(abs(corner - .3) - .04, pt)); tl = mix(tl, ink, phOn(length(tf) - .05, pt)); tl = mix(tl, ink, phOn(length(tf) - .2 - .07 * cos(4. * pe), pt) * phOn(.14 - length(tf), pt));
+      tl = mix(tl, phP[1], .8 * phOn(abs(tf.x) + abs(tf.y) - .075, pt));
+      tl *= .95 + .08 * noise(tu * 3.); tl = mix(tl, vec3(.7, .67, .6), phUp(.03 + pt, .012, edge));
+      alb = mix(alb, tl, phTile);
+    }
     col = phLin(alb) * (phSunC * (wall ? .68 : .78) * (.06 + .94 * open * mix(1., win, .75 * (1. - phDim))) * (1. + .4 * uCue * phIn(sweep, 26.)) + phSky * (1. - .3 * exp(-abs(y.y - PHWALL) * 30.)));
+    if (wall && phPond > 0.) {
+      // far hills
+      float up = y.y - PHWALL; vec3 hz = mix(mix(vec3(.96, .86, .66), vec3(1., .66, .38), phEve), vec3(.2, .24, .36), phDim), zen = mix(mix(vec3(.42, .62, .78), vec3(.5, .45, .6), phEve), vec3(.03, .05, .12), phDim);
+      vec3 sk = mix(hz, zen, phUp(.02, .75, up)); float sd = length(y - vec2(.3, .23)); sk += (hz + .1) * (.32 * phOn(sd - .06, px * 3.) + .25 * phIn(sd, 12.) + .5 * uCue * phIn(sweep, 12.));
+      for (int i = 0; i < 4; i++) {
+        float fi = float(i), hx = y.x * (2.1 + .5 * fi) + fi * 7.3 + .004 * uTime * (fi + 1.), top = .33 - .085 * fi + (.14 - .02 * fi) * (noise(vec2(hx, fi)) - .3) + .012 * noise(vec2(hx * 7., fi)) + .012 * phUp(.35, .8, noise(vec2(hx * 30., fi + 3.)));
+        vec3 hc = mix(mix(zen, hz, .5 - .1 * fi), phGround(mix(vec3(.42, .52, .4), phP[i], .3)), .22 + .2 * fi) * (1. - .05 * fi) * mix(1., .4, phDim);
+        sk = mix(sk, hc * (.9 + .15 * sat((top - up) * 5.)), phOn(up - top, px * 1.5));
+      }
+      col = mix(col, phLin(sk) * 1.1, phPond);
+    }
+    if (phPup > 0.) {
+      float gl = phIn(length((y - vec2(.1, .12)) * vec2(.75, 1.)), 1.7); vec3 paper = phLin(phGround(vec3(.98, .86, .62))) * (.28 + 1.0 * gl) * (.92 + .1 * noise(y * vec2(160., 9.)) * .6 + .1 * w2) * (.8 + .35 * uLevel);
+      paper *= 1. - .35 * phOn(abs(fract(y.x / .62 + .15) - .5) * .62 - .006, .004) - .3 * phOn(abs(y.y - .13) - .004, .004);
+      col = mix(col, wall ? paper + .5 * spark * phIn(length(y - vec2(.05, -.06)), 12.) : col * .16 + paper * .05, phPup);
+    }
     // the shelf's edge, painted with the piece
     vec2 f = rot(.7 - 1.4 * mod(id.x, 2.)) * ((gg - id - .5) * vec2(1.7 / 44., .04));
     float now = phIn(fract(uv.x - uLoop + .5) - .5, 196.), leaf = length(f * vec2(1., 2.1)) - .006 - .01 * sat(m.a * 1.4) - .002 * now;
     vec3 fr = mix(phGround(vec3(.3, .46, .43)), phWood, worn * .8);
     fr = mix(fr, mix(phT[1], m.rgb, .6 * sat(m.a * 2.)), step(0., uv.y) * step(uv.y, 1.) * phOn(leaf, px * 1.5) * .9);
     fr = phLin(fr) * (phSunC * .5 * (1. + .6 * now * uLevel) + phSky * .8) * (1. - .35 * phUp(PHFRONT - .1, -.6, y.y));
+    fr *= 1. - .85 * phPup;
     col = mix(col, fr, phOn(y.y - PHFRONT, px)) * (1. + .5 * phUp(2.5 * px, 0., abs(y.y - PHFRONT)));
     phL = vec4(0.); phDark = 1.; vec3 bow = phBow(y, tilt); vec2 cell = (y - at1) / .5;
     phB = (px + .002) / .26; phSlats(phRow((y - at2) / .26, f2, phN2), phP[0]);
     phB = px * 2.2; phLay(bow.z, phRed, .85); phSlats(vec3(bow.xy, 1.), phP[3]); phSlats(phRow(cell, f1, phN1), phP[int(abs(mod(floor(cell.x / f1.x + .5 * phN1), 2.)))]);
-    col = mix(col, phLit(mix(phL.rgb / max(phL.a, .001), phWood, worn), vec3(0., .1, .995), phDark, phDark), phL.a);
+    col = mix(col, phLit(mix(phL.rgb / max(phL.a, .001), phWood, worn), vec3(0., .1, .995), phDark, phDark) * (1. - .93 * phPup), phL.a);
     float cx = (y.x + .9) / .026, ci = floor(cx), h = hash11(ci + 3.), hop = (.06 * uTexture + .1 * uKeys + .1 * uMic) * abs(sin(uTime * 1.6 + h * 20.)) + .25 * uHits * (1. - uHits) * h;
     vec2 gp = vec2((cx - ci - .5) * .026 - .008 * (h - .5), y.y - base + .012 + .02 * fract(h * 17.) - hop);
     col = mix(col, phLin(mix(vec3(.9, .66, .28), vec3(.72, .42, .2), h)) * (phSunC * .9 + phSky), phOn(length(gp * vec2(.7, 1.)) - .005, px) * step(.4, h));
@@ -245,6 +301,7 @@ vec3 render(vec2 p) {
     vec3 lamp = (1. + phLin(uKind[4]) * spark * (2. * phIn(hd, 80.) + 1.2 * phIn(run, 900.))) * mix(1., 1.25 * phIn(length(y - vec2(-.3, .05)), 2.4), phDim);
     col *= lamp; henC *= close ? vec3(1. - .65 * phDim) : lamp;
   }
+  henC *= 1. - .93 * phPup;
   col = mix(col, henC, cov);
   return sqrt(max(col, 0.) / (1. + .16 * max(col, 0.)));
 }

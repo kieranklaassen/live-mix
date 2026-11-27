@@ -3,7 +3,7 @@
 // b: Among the legs
 // what: A wide wet flat at evening, and across it a few fishing sheds on thin jointed legs going from right to left, each lifting one foot at a time out of its reflection, the nearest so near that only its legs and floor are seen; or deep dusk low down in the herd, plank floors overhead with light falling through the gaps.
 // follows: Travel is the walk. Each kind has a shed: its window and smoke take that colour and brighten. Loud bends the knees, drone brings water, texture roughens it, phrase passes a nod down the line, bands thicken smoke, keys light panes. A hit lifts the near foot and sends a ring, a cue makes all crouch. The loop swings the lantern; the piece lies on the flat.
-// own: 0 pale grey morning at -1, clear night at 1 (in b red sunset, silver moon); 1 bare ribbed sand at -1, flood water at 1; 2 short stout legs at -1, very tall ones at 1; 3 one shed alone at -1, all five side by side at 1; 4 eye down by the mud at -1, a higher view over the flat at 1; 5 long low barns at -1, tall narrow towers at 1
+// own: 0 pale grey morning at -1, clear night at 1 (in b red sunset, silver moon); 1 bare ribbed sand at -1, flood water at 1; 2 short stout legs at -1, very tall ones at 1; 3 one shed alone at -1, all five side by side at 1; 4 eye down by the mud at -1, a higher view over the flat at 1; 5 long low barns at -1, tall narrow towers at 1; 6 round straw domes at -1, glasshouses lit from inside at 1; 7 a range of high peaks behind the flat at -1, a huge sun or moon low over it at 1
 
 float wvPx, wvHz, wvE, wvF, wvD, wvWet, wvHaz, wvDim, wvFl;
 vec2 wvRip, wvSun;
@@ -33,6 +33,9 @@ float wvBox(vec2 q, vec2 c, vec2 h) { q = abs(q - c) - h; return max(q.x, q.y); 
 vec3 wvKind(int k) { vec3 c = uKind[k]; return mix(c/max(max(c.r, max(c.g, c.b)), .15), vec3(1., .72, .36), .55); }
 float wvLevel(int k) { return k == 0 ? uDrone : k == 1 ? uPad : k == 2 ? uTexture : k == 3 ? uPhrase : uHits; }
 
+float wvTri(float x) { float i = floor(x); return mix(hash11(i+31.), hash11(i+32.), x - i); }
+// The edge of a range of peaks.
+float wvRange(float x) { float a = wvTri(x); return .06+.5*a*a+.4*wvTri(x*2.9+3.)*(.3+a)+.16*wvTri(x*7.3+7.)+.07*wvTri(x*17.+2.)+.03*wvTri(x*41.); }
 // A shed's walk: where a foot is from its hip, how high, and how long since it came down (0 to 1 of a round).
 vec3 wvFoot(int k, int leg) {
   float f = fract(uTravel*.1417+float(k)*.37+float(leg)*.25);
@@ -109,7 +112,7 @@ void wvTake(vec2 p, int k, vec4 at) {
   wvDe = max(wvW+.08, .41); wvRise = .3*(1.+.7*f5)*(.8+.4*fract(fk*.37));
   wvLv = wvLevel(wvKd); wvTn = wvHaz*exp(-wvS*4.2); wvKc = wvKind(wvKd);
   if (wvKd == 3) wvKc = mix(vec3(1., .74, .27), wvKc, .6*wvLv);
-  wvOn = (wvKd == 3 ? .75 : .22)+(.6+.5*uEnergy)*wvLv+.6*uCue;
+  wvOn = (wvKd == 3 ? .75 : .22)+(.6+.5*uEnergy)*wvLv+.6*uCue+.7*uHits*abs(uOwn[3]);
   wvLamp = wvKc*(.1+.4*wvLv)*wvDim;
   wvNod = uPhrase*.04*sin(uTime*.8+fk*1.1);
   wvHip = wvF - .02*cos(TAU*(uTravel*.5668+fk*.37)) - .48*uCue*(1. - uCue) - .035*uLevel - wvFl;
@@ -130,12 +133,26 @@ void wvHouse(inout vec3 col) {
   float dn = exp(-sx*sx/(sw*sw))*exp(-u*1.15)*(.45+.75*noise(vec2(sx/sw*1.2+7., u*5. - uTime*.22+fk*9.)))*ss(0., .05, u);
   col = mix(col, mix(mix(wvMs, wvTop, .4)*.92, wvKc*(.35+.5*wvDim), .25+.45*wvLv), min(dn*(.4+.75*band(.1+.2*fk)), 1.)*.8*wvMir);
   float litG = ss(-.6, .35, -away), grain = noise(vec2(q.x*34.+fk*9.+40., q.y*3.));
+  float dome = max(-uOwn[6], 0.), glass = max(uOwn[6], 0.), full = wh;
+  vec3 pane0 = vec3(0.);
   vec3 side = mix(wvDk, wvLit, .06+.12*grain), gab = mix(wvDk, wvLit, .1+.42*litG+.14*grain);
   float pw = px*23., bd = ss(.1+pw, .0, abs(fract(q.x/.062) - .5))*sat(.1/(.1+pw)); // boards
   side *= (1. - .45*bd)*(.8+.35*sat(q.y/wh))*(1. - .45*ss(wh - .1, wh, q.y)); gab *= 1. - .35*bd;
+  if (uOwn[6] > 0.) { // glass, what grows behind it, and the bars
+    vec2 gp = q*vec2(11.5, 9.5);
+    float bw = .09+px*8., bars = max(ss(bw, bw*.4, abs(fract(gp.x+.5) - .5)), ss(bw, bw*.4, abs(fract(gp.y+.5) - .5)))*sat(.12/bw+.25);
+    float leaf = noise(q*vec2(9., 7.)+fk*5.)*.6+noise(q*vec2(21., 17.)+fk*3.+vec2(.15*sin(uTime*.4+q.y*3.), 0.))*.4;
+    float in1 = sat(.5+.6*wvOn), grow = ss(-.04, .1, leaf - .28 - .55*q.y/(wh+rise));
+    pane0 = mix(mix(wvMid, wvTop, .4)*.9, wvKc*(.8+.3*hash21(floor(gp+.5)+fk)), .25+.65*in1*mix(.6, 1., wvDim));
+    pane0 = mix(pane0, mix(vec3(.07, .12, .06), wvKc*vec3(.22, .34, .14), .6*in1), grow*.85);
+    pane0 = mix(pane0, wvDk*1.2+wvLit*.12, bars);
+    side = mix(side, pane0, glass); gab = mix(gab, pane0*(.82+.25*litG), glass);
+  }
+  if (uOwn[6] < 0.) wh *= 1. - .8*min(dome*1.5, 1.);
   // pipe, side, gable
   float d = min(wvBox(q, vec2(pipe.x, (pipe.y+top)*.5), vec2(.017, (top - pipe.y)*.5)), wvBox(q, vec2(pipe.x, top - .01), vec2(.028, .012)));
   wvPt(col, mix(wvDk, wvLit, .2+.3*ss(-.02, .02, (q.x - pipe.x)*away*9.)), d, tone);
+  if (uOwn[6] < 0.) rise *= 1. - .7*min(dome*1.5, 1.);
   wvPt(col, side, wvBox(q, vec2((xc+w)*.5, wh*.5), vec2((w - xc)*.5, wh*.5+.01)), tone);
   float gx = abs(q.x+w - gw*.5), gh = wh+rise*(1. - gx*2./gw);
   wvPt(col, gab, max(max(gx - gw*.5, (q.y - gh)*.7), -q.y), tone);
@@ -144,17 +161,31 @@ void wvHouse(inout vec3 col) {
   d = max(max(xc - t*gw*.5 - q.x, q.x - w - .05+t*gw*.27)*.8, max(-t - .12, t - 1.)*rise);
   float row = mix(.88, .75+.25*ss(0., .35, fract(t*5.)), ss(.12, .25, s));
   vec3 rc = mix(wvDk, wvLit, .24+.1*grain)*row*(.9+.25*noise(vec2(q.x*20.+50., floor(t*5.)*7.)));
+  if (uOwn[6] > 0.) rc = mix(rc, pane0*1.06, glass);
   wvPt(col, mix(rc, wvLit, ss(.1, 0., 1. - t)*.6), d, tone);
   wvPt(col, mix(wvDk, wvLit, .3+.3*litG), max(abs(q.y - gh - .012)*.7 - .02, gx - gw*.5 - .04), tone);
+  if (uOwn[6] < 0.) { // a dome of straw, tied round
+    float dh = (full+wvRise*1.05)*min(dome*1.4, 1.), dw = (w+.09)*(.8+.2*min(dome*1.4, 1.));
+    vec2 e = vec2(q.x/dw, (q.y+.03)/dh);
+    float bulge = .9+.1*sin(PI*sat(e.y)), rr = length(vec2(e.x/bulge, max(e.y, 0.)*(.92+.08*abs(e.x))));
+    float v = sat(e.y), sph = clamp(e.x/max(sqrt(max(1. - v*v, 0.)), .12), -1., 1.), sl = clamp(away*8.+.5, -1., 1.);
+    float strand = noise(vec2(asin(sph*.98)*30.+fk*7.+60., v*3.5))*.65+noise(vec2(asin(sph*.98)*75.+90., v*7.+fk))*.35, tie = ss(.028+px*2., 0., abs(fract(v*4.2+.04*sph*sph) - .1)), shag = .035*(noise(vec2(q.x*40.+fk*9.+30., 1.)) - .5);
+    vec3 st = mix(wvDk, wvLit, .16+.5*ss(-.9, 1., sph*sl)*(.5+.8*strand))*(.62+.7*strand)*(1. - .4*tie);
+    st = mix(st, wvLit*1.05, .55*ss(.72, 1., sph*sl)*strand);
+    wvPt(col, st, max((rr - 1.)*min(dw, dh)*.9, -q.y - .03+shag), tone);
+    wvPt(col, mix(wvDk, wvLit, .3), wvBox(q, vec2(0., dh), vec2(.028, .04)), tone);
+    wh = full;
+  }
   // a window of four panes, and a door
-  vec2 wq = q - vec2(mix(xc, w, .47), wh*.52), wz = vec2(min((w - xc)*.26, .13), min(.11, wh*.25)), pn = floor(wq/wz+1.);
+  vec2 wq = q - vec2(mix(xc, w, .47), wh*.52), wz = vec2(min((w - xc)*.26, .13), min(.11, wh*.25))*(1. - .99*max(uOwn[6], 0.)), pn = floor(wq/wz+1.);
   float bar = max(ss(.012+px, .012 - px, abs(wq.x)), ss(.012+px, .012 - px, abs(wq.y)));
   float pane = .75+.4*hash21(pn+fk*3.)+uKeys*step(.5, fract(dot(pn, vec2(.5, .25))+.3*fk));
   d = wvBox(wq, vec2(0.), wz);
-  wvPt(col, gab*.55, d - .025, tone);
-  wvPt(col, mix(mix(wvDk*.8+wvTop*.12, wvKc*(.75+.25*pane), sat(wvOn*pane)), wvDk, bar*.8), d, tone*.45);
-  wvPt(col, mix(gab*.5, wvKc, sat(wvOn - .45)*.3), wvBox(q, vec2(-w+gw*.5, wh*.42), vec2(gw*.17, wh*.4)), tone);
+  wvPt(col, gab*.55, d - .025*(1. - max(uOwn[6], 0.))+.02*max(uOwn[6], 0.), tone);
+  wvPt(col, mix(mix(wvDk*.8+wvTop*.12, wvKc*(.75+.25*pane), sat(wvOn*pane)), wvDk, bar*.8), d+.03*max(uOwn[6], 0.), tone*.45);
+  wvPt(col, mix(gab*.5, wvKc, sat(wvOn - .45)*.3), wvBox(q, vec2(-w+gw*.5, wh*.42), vec2(gw*.17*(1. - max(uOwn[6], 0.)), wh*.4)+.0)+.01*max(uOwn[6], 0.), tone);
   col += wvKc*min(wvOn, 1.2)*wvMir*(.04+.1*wvDim)*exp(-dot(wq, wq)*26.);
+  if (uOwn[6] > 0.) { vec2 hq = (q - vec2(0., top*.45))*vec2(1., .8); col += wvKc*glass*sat(.2+wvOn)*wvMir*(.03+.2*wvDim)*exp(-dot(hq, hq)*9.); }
 }
 // Deck, legs and what hangs.
 void wvBelow(inout vec3 col, vec2 p) {
@@ -224,7 +255,8 @@ vec3 render(vec2 p) {
   float bright = dot(wvMid, vec3(.33));
   wvDim = sat(1.15 - 1.5*bright);
   wvSun = deep ? vec2(.16*fx, .31) : vec2(.135*fx, wvHz+.07+.25*max(uOwn[0], 0.));
-  wvGlow = mix(wvLow, vec3(1., .86, .6), deep ? .2 : .5*(1. - abs(uOwn[0])))*(deep ? .35 : .8 - .5*max(-uOwn[0], 0.))*(.85+.25*uLevel+.3*uCue)*(1.+.1*uTone);
+  if (uOwn[7] > 0.) wvSun = mix(wvSun, vec2((deep ? -.06 : .06)*fx, wvHz+(deep ? .25 : .16)), uOwn[7]);
+  wvGlow = mix(wvLow, vec3(1., .86, .6), deep ? .2 : .5*(1. - abs(uOwn[0])))*(deep ? .35 : .8 - .5*max(-uOwn[0], 0.))*(.85+.25*uLevel+.3*uCue+.6*uHits*abs(uOwn[3]))*(1.+.1*uTone);
   wvHaz = (deep ? .62 : .78)*(.9+.25*uSpace)*(1. - .15*max(uOwn[0], 0.));
   wvHaz = min(wvHaz+.25*max(-uOwn[0], 0.), 1.1);
   float walk = uTravel*.085;
@@ -232,7 +264,7 @@ vec3 render(vec2 p) {
   for (int k = 0; k < 5; k++) {
     vec4 v = deep ? WV_B[k] : WV_A[k];
     if (o3 > 0.) v.xy = mix(v.xy, vec2(WV_ROW[k], .205+.01*float(k)), o3);
-    else if (k == (deep ? 4 : 3)) v.xy = mix(v.xy, deep ? vec2(-.2, .62) : vec2(-.08, .4), -o3);
+    else if (k == (deep ? 4 : 3)) v.xy = mix(v.xy, deep ? mix(vec2(-.2, .62), vec2(-.08, .3), max(uOwn[7], 0.)) : vec2(-.08, .4), -o3);
     else v.x -= o3*(v.x < 0. ? -2.4 : 2.4)/fx; // the others have walked off
     if (k == 4 && !deep) v.x -= .3*(1. - min(fx, 1.));
     if (k == 3 && !deep) v = mix(v, vec4(.44, .25, v.zw), (1. - min(fx, 1.))*1.4*(1. - abs(o3))); // clear of the near leg where it is narrow
@@ -253,7 +285,7 @@ vec3 render(vec2 p) {
     fine = exp(-foot*foot*900.);
     ridge = sin(ph)*fine;
     for (int i = 0; i < 2; i++) {
-      const int k = 4;
+      int k = uOwn[3] < -.5 && !deep ? 3 : 4;
       vec3 ft = wvFoot(k, i);
       vec2 c = vec2(at[k].x/at[k].y+float(i*2 - 1)*(max(wvHalf(at[k].z)+.08, .41) - .07)+ft.x, 1./at[k].y);
       ring += wvRing(g, c, .05+1.3*ft.z, .8*exp(-ft.z*6.)*sat(ft.z*30.));
@@ -275,12 +307,27 @@ vec3 render(vec2 p) {
     float st = fract(sin(dot(ci, vec2(12.99, 78.23)))*4375.85), tw = length(fract(ce) - .15 - .7*fract(st*vec2(713.1, 1931.7)));
     if (below < 0.) col += vec3(.75, .8, .9)*step(.88, st)*ss(.04+wvPx*38.+.05*fract(st*91.), 0., tw)*ss(.06, .3, p.y - wvHz)*(.3+.5*fract(st*37.))*(1. - max(-uOwn[0], 0.));
     else col += mix(wvLow, vec3(.8), .5)*.5*exp(-m.x*m.x*160.)*wvWet*ss(.0, .05, below)*ss(.4, .8, noise(vec2(gw.x*9., gw.y*17.+sin(uTime*.07)*4.)));
-    float disc = wvIn((md - .036)*(below > 0. ? .12 : 1.));
-    col = mix(col, mix(vec3(.93, .9, .8), wvLow*1.5, .2)*(.9+.1*noise(m*40.+9.)), disc*(below > 0. ? .6 : .95));
-    col += vec3(.4, .42, .42)*.5*exp(-md*11.);
+    float disc = wvIn((md - .036 - .24*max(uOwn[7], 0.))*(below > 0. ? .12 : 1.));
+    col = mix(col, mix(vec3(.93, .9, .8), wvLow*1.5, .2)*(.9+.1*noise(m*40.+9.))*(uOwn[7] > 0. ? 1. - .22*uOwn[7]*ss(.42, .62, noise(m*9.+4.)*.65+.35*noise(m*23.)) : 1.), disc*(below > 0. ? .6 : .95));
+    col += vec3(.4, .42, .42)*.5*exp(-md*11.)*(1. - .75*max(uOwn[7], 0.)*disc);
   } else {
-    float disc = wvIn((length(sp - wvSun) - .03)*(below > 0. ? .2 : 1.));
+    float disc = wvIn((length(sp - wvSun) - .03 - .19*max(uOwn[7], 0.))*(below > 0. ? .2 : 1.));
     col = mix(col, mix(wvLow, vec3(1., .97, .88), .93), disc*(below > 0. ? .6 : 1.)*(1. - .5*max(-uOwn[0], 0.)));
+  }
+  // high peaks, and the same in the wet
+  if (uOwn[7] < 0.) {
+    float o7 = -uOwn[7], y = abs(sp.y - wvHz), x = sp.x+walk*.012+20.;
+    for (int i = 0; i < 2; i++) {
+      float f = float(i), xx = x*(1.9+1.4*f)+f*5.3, top = o7*(.5 - .22*f);
+      float H0 = wvRange(xx), h = top*H0 - .01, dy = y - h;
+      float u = xx+dy*(1.6*(2.*abs(fract(xx*.7+f*.3) - .5) - .5)+.9)+.05*(noise(vec2(xx*9., y*22.)) - .5), cut = wvTri(xx*9.+y*14.+f);
+      float face = ss(-.006, .006, (wvRange(u+.02) - wvRange(u - .02))*(deep ? 1. : -1.)+.004*(noise(vec2(xx*13., y*25.)) - .5));
+      vec3 rock = mix(wvDk, wvLit, .1+.36*face), snow = mix(mix(wvTop, wvMid, .5)*1.02, wvLit*.35+wvLow*.75, face);
+      float sn = ss(.0, .006, y - o7*(.15 - .05*f)+.045*(cut - .5)+.1*(wvTri(xx*3.3+9.) - .5))*(1. - .3*f);
+      vec3 c = mix(rock, snow, sn);
+      c = mix(c, wvMs, (.5 - .2*f)*(.55+.45*exp(-y*9.)));
+      col = mix(col, c, wvIn(dy*(below > 0. ? .25 : 1.))*(below > 0. ? .92 : 1.));
+    }
   }
   // a far shore
   float shore = .012*noise(vec2(p.x*3.+walk*.05+9., 1.))+.006*noise(vec2(p.x*19.+walk*.05, 3.)) - .004;

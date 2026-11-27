@@ -3,7 +3,12 @@
 // b: Garden wall
 // what: Some two hundred and fifty painted wooden slabs stand in one line on a schoolroom floor in late sun, from close at the right through a double spiral to the far wall; a long fall runs along it and the fallen stand up again behind; or stone slabs on a stepped garden wall and across a plank, trees and sky behind, a ball at the end.
 // follows: The loop is where the fall has come to. Each kind paints a stretch of the line, the piece each slab, and the clouds; drone tints the low sky, melody the lawn and hills, pads lift the shade, texture the lichen. Lows and Tone brighten the sun, bands stir what stands. A hit lights and tips a few slabs, a cue shivers the line, keys light some. Space widens.
-// own: 0 moonlight at -1, a red low sun at 1; 1 squat thick blocks at -1, tall thin planks at 1; 2 slabs all chalk white before a cold blue wall, or in snow, at -1, in silence deep red with a few of gold before a dark green wall, or under autumn leaves, at 1; 3 seen from low down at -1, from high above at 1; 4 a white floor, or a whitewashed wall, at -1, a dark slate floor, or red brick, at 1
+// own: 0 moonlight at -1, a red low sun at 1; 1 squat thick blocks at -1, tall thin planks at 1; 2 slabs all chalk white before a cold blue wall, or in snow, at -1, in silence deep red with a few of gold before a dark green wall, or under autumn leaves, at 1; 3 seen from low down at -1, from high above at 1; 4 a white floor, or a whitewashed wall, at -1, a dark slate floor, or red brick, at 1; 5 a floor of still water, or bare ridges behind the wall, at -1, open ground under the sky, or a sea behind the wall, at 1; 6 few great slabs, or a level wall, at -1, the spiral drawn out in long rows, or steep steps, at 1; 7 slabs that grow along the line at -1, ragged ones at 1 (5, 6 and 7 dye the slabs as the sounds)
+#define DR_UP max(uOwn[5], 0.0)
+#define DR_DN max(-uOwn[5], 0.0)
+#define DR_L (2.3 * max(uOwn[6], 0.0))
+#define DR_BIG (1.0 + 0.9 * max(-uOwn[6], 0.0))
+#define DR_DYE max(max(abs(uOwn[5]), abs(uOwn[6])), abs(uOwn[7]))
 const float DR_R = 1.75, DR_D = 0.46, DR_OUT = 25.1327412; // between the turns of the spiral, from slab to slab, one arm of it
 // an if that is stepped over whole
 #define DR_IF(c) for (int go = (c) ? 1 : 0; go > 0; go--)
@@ -18,7 +23,16 @@ float drIn(float d, float e) { return sat(0.5 - d / max(e, 1e-5)); }
 // How high the wall stands under slab i.
 float drBase(float i) {
   if (!drG) return 0.0;
-  return 0.4 * (step(-9.5, i) + step(-6.5, i) + step(-3.5, i) - step(5.5, i) - step(7.5, i));
+  float b = 0.4 * (step(-9.5, i) + step(-6.5, i) + step(-3.5, i) - step(5.5, i) - step(7.5, i));
+  return uOwn[6] == 0.0 ? b : 1.2 - (1.0 + (uOwn[6] > 0.0 ? 0.75 : 1.0) * uOwn[6]) * (1.2 - b);
+}
+// How far from slab to slab, and how large slab i is beside the rest.
+float drGap() { return drG || uOwn[6] >= 0.0 ? DR_D : DR_D * DR_BIG; }
+vec3 drSize(float i) {
+  vec3 s = vec3(0.5 * drW, 0.5 * drH, 0.5 * drT);
+  if (uOwn[7] > 0.0) s *= mix(vec3(1.0), vec3(0.75 + 0.45 * hash11(i + 170.0), 0.42 + 0.75 * hash11(i + 41.0), 0.8 + 0.5 * hash11(i + 93.0)), uOwn[7]);
+  if (uOwn[7] < 0.0) s *= mix(1.0, mix(0.34, 1.25, drG ? (i - drFirst) / drN : 1.0 - abs(i) / 130.0 * min(1.0, 252.0 / drN)), -uOwn[7]);
+  return s;
 }
 // How many slabs back from the front slab i is; just ahead of the front it is nearly drN.
 float drBack(float i) { return drN * fract(drF - (i - drFirst) / drN); }
@@ -37,8 +51,17 @@ void drStand(float i) {
   float th = drLean(i);
   drC = cos(th); drS = sin(th);
   if (drG) { drP = vec3(i * DR_D, drBase(i), 0.0); drA = vec2(1.0, 0.0); return; }
-  float s = i * DR_D / DR_R, a = abs(s);
+  float s = i * drGap() / DR_R, a = abs(s);
   vec2 p;
+  if (uOwn[6] > 0.0) {
+    float L = DR_L, n = min(floor((sqrt(4.0 * L * L + TAU * (L + a)) - 2.0 * L) / PI), 4.0), g = a - 0.5 * PI * n * n - L * (2.0 * n + 1.0), w = mod(n, 2.0) > 0.5 ? -1.0 : 1.0;
+    if (g < 0.0 || n > 3.5) { p = w * vec2(-n, L + g); drA = w * vec2(0.0, 1.0); }
+    else { g /= n + 0.5; p = w * vec2(0.5 - (n + 0.5) * cos(g), L + (n + 0.5) * sin(g)); drA = w * vec2(sin(g), cos(g)); }
+    mat2 turn = rot(-0.5 * PI * uOwn[6]);
+    p = turn * p * (s < 0.0 ? -DR_R : DR_R); drA = turn * drA;
+    drP = vec3(p.x, 0.0, p.y);
+    return;
+  }
   if (a > DR_OUT) { p = vec2(-4.0, a - DR_OUT); drA = vec2(0.0, 1.0); }
   else {
     float n = floor(sqrt(a * 2.0 / PI)), g = (a - 0.5 * PI * n * n) / (n + 0.5), w = mod(n, 2.0) > 0.5 ? -1.0 : 1.0;
@@ -69,7 +92,8 @@ float drBox(vec3 o, vec3 d, vec3 h, float px, float foc, out float t) {
 void drMeet(vec3 ro, vec3 rd, float i, float px, float foc) {
   if (i == drOne.z || i == drTwo.z) return;
   drStand(i);
-  float t, c = drBox(drInto(ro - drP) - vec3(0.0, 0.5 * drH, -0.5 * drT), drInto(rd), vec3(0.5 * drW, 0.5 * drH, 0.5 * drT), px, foc, t);
+  vec3 hs = drSize(i);
+  float t, c = drBox(drInto(ro - drP) - vec3(0.0, hs.y, -hs.z), drInto(rd), hs, px, foc, t);
   if (c < 0.02) return;
   if (t < drOne.x) { drTwo = drOne; drOne = vec4(t, c, i, 0.0); }
   else if (t < drTwo.x) drTwo = vec4(t, c, i, 0.0);
@@ -78,6 +102,26 @@ void drMeet(vec3 ro, vec3 rd, float i, float px, float foc) {
 float drAlong(vec2 q, out float beside) {
   if (drG) { beside = 0.0; return q.x; }
   q /= DR_R;
+  if (uOwn[6] > 0.0) {
+    q = rot(0.5 * PI * uOwn[6]) * q;
+    float L = DR_L, n, w, o = 1.0;
+    if (q.y < 0.0) { q = -q; o = -1.0; }
+    float X = floor(q.x + 0.5), off = abs(q.x - X);
+    n = abs(X);
+    w = mod(n, 2.0) > 0.5 ? -1.0 : 1.0;
+    if ((q.y < L && n < 4.5) || (off < 0.5 && X == -4.0)) {
+      n = min(n, 4.0);
+      float side = n < 0.5 || (X < 0.0) == (w > 0.0) ? 1.0 : -1.0;
+      beside = abs(q.x - clamp(X, -4.0, 4.0)) * DR_R;
+      return o * side * (0.5 * PI * n * n + 2.0 * L * n + side * w * q.y) * DR_R;
+    }
+    vec2 v = vec2(q.x - 0.5, max(q.y - L, 0.0) - 1e-5);
+    float r = length(v);
+    n = min(floor(r), 3.0);
+    w = mod(n, 2.0) > 0.5 ? -1.0 : 1.0;
+    beside = abs(r - n - 0.5) * DR_R;
+    return o * w * (0.5 * PI * n * n + L * (2.0 * n + 1.0) + (n + 0.5) * atan(v.y, -v.x)) * DR_R;
+  }
   float w = q.y < 0.0 ? -1.0 : 1.0, o = w; q *= w;
   vec2 v = q - vec2(0.5, -1e-5);
   float r = length(v), n = min(floor(r), 3.0), run = abs(q.x + 4.0), a = 0.5 * PI * n * n + (n + 0.5) * atan(v.y, -v.x);
@@ -91,26 +135,26 @@ float drAlong(vec2 q, out float beside) {
 void drWalk(vec3 ro, vec3 rd, float t0, float t1, float px, float foc) {
   drOne = drTwo = vec4(1e4, 0.0, -1e4, 0.0); drTwo.z = -2e4;
   float go = (t1 - t0) * length(rd.xz);
-  int n = drG ? 1 : int(clamp(ceil(go / 0.7), 1.0, 8.0));
+  int n = drG ? 1 : int(clamp(ceil(go / 0.7), 1.0, 8.0 + floor(14.0 * max(-uOwn[3], 0.0))));
   float dt = (t1 - t0) / float(n), half0 = drG ? 0.5 : 0.5 * go / float(n);
   for (int k = 0; k < n; k++) {
     float t = t0 + (float(k) + 0.5) * dt, beside;
     if (drOne.y > 0.97 && t - 0.5 * dt > drOne.x + 1.0) break;
     vec3 q = ro + rd * t;
-    float s = drAlong(q.xz, beside), i = s / DR_D, b = drBack(i - 2.0);
+    float s = drAlong(q.xz, beside), i = s / drGap(), b = drBack(i - 2.0);
     bool down = b < drLie + drRise + 4.0;
-    if (beside > 0.5 * drW + min(half0, 0.36) + (down ? 0.3 : 0.05)) continue;
-    float lo = ceil((s - (down ? drH + 0.1 : 0.12) - half0) / DR_D), hi = floor((s + drT + 0.05 + half0) / DR_D);
+    if (beside > 0.5 * drW * (1.0 + 0.25 * abs(uOwn[7])) + min(half0, 0.36) + (down ? 0.3 : 0.05)) continue;
+    float lo = ceil((s - (down ? drH * (uOwn[7] < 0.0 ? 1.25 : 1.0) + 0.1 : 0.12) - half0) / drGap()), hi = floor((s + drT + 0.05 + half0) / drGap());
     lo = max(lo, drFirst); hi = min(hi, drFirst + drN - 1.0);
-    for (int j = 0; j < 6; j++) { float m = lo + float(j); if (m > hi) break; drMeet(ro, rd, m, px, foc); }
+    for (int j = 0; j < (uOwn[7] < 0.0 || uOwn[1] > 0.5 ? 9 : 6); j++) { float m = lo + float(j); if (m > hi) break; drMeet(ro, rd, m, px, foc); }
   }
 }
 // Sun through three tall windows on the left, barred; px is how soft the edge is.
 float drLit(vec3 w, float px) {
-  if (drG) return 1.0;
+  if (drG || uOwn[5] >= 1.0) return 1.0;
   float k = (w.x + 15.0) / max(-drSun.x, 0.1), h = w.y + k * drSun.y, z = w.z + k * drSun.z, soft = px + 0.012 * k;
   float f = abs(fract(z / 8.6 + 0.12) - 0.5) * 8.6, g = abs(fract(f / 2.1 + 0.5) - 0.5) * 2.1, r = abs(fract(h / 3.2 + 0.2) - 0.5) * 3.2;
-  return drIn(f - 3.15, soft) * (1.0 - 0.85 * drIn(g - 0.1, soft)) * (1.0 - 0.85 * drIn(r - 0.1, soft)) * drIn(1.6 - h, soft) ;
+  return DR_UP + (1.0 - DR_UP) * drIn(f - 3.15, soft) * (1.0 - 0.85 * drIn(g - 0.1, soft)) * (1.0 - 0.85 * drIn(r - 0.1, soft)) * drIn(1.6 - h, soft) ;
 }
 // The paint of slab i: five stretches, each with a kind's colour among the schoolroom's own five.
 vec3 drPaintOf(float i) {
@@ -125,12 +169,13 @@ vec3 drPaintOf(float i) {
   c = mix(c, min(ink, 0.9), 0.12 + lv[own] * (0.3 + 0.5 * uEnergy));
   vec4 m = piece(vec2(u, 0.12 + 0.76 * fract(i * 0.41)));
   c = mix(c, m.rgb / max(max(m.r, max(m.g, m.b)), 0.05) * 0.6, 0.4 * sat(m.a * 1.3));
+  if (DR_DYE > 0.0) c = mix(c, uKind[at] * uKind[at] * (0.9 + 0.5 * uEnergy * lv[at]), 0.85 * DR_DYE);
   return c * (0.88 + 0.24 * fract(i * 0.773));
 }
 // A slab as it is seen: paint worn to the wood along its edges, sun past its neighbours, light back from the ground.
 vec3 drSlab(vec4 hit, vec3 ro, vec3 rd) {
   float i = hit.z;
-  vec3 w = ro + rd * hit.x, alb = drPaintOf(i), h = 0.5 * vec3(drW, drH, drT);
+  vec3 w = ro + rd * hit.x, alb = drPaintOf(i), h = drSize(i);
   drStand(i);
   vec3 q = clamp(drInto(w - drP) - vec3(0.0, h.y, -h.z), -h, h), bev = vec3(max(0.022, drPx * hit.x * 1.2));
   vec3 on = smoothstep(h - bev, h, abs(q)), n = drOut(normalize(on * (step(0.0, q) * 2.0 - 1.0) + vec3(0.0, 1e-4, 0.0)));
@@ -142,7 +187,8 @@ vec3 drSlab(vec4 hit, vec3 ro, vec3 rd) {
     float m = i + (k == 0 ? way : lies > 0.5 ? -1.0 : 2.0 * way), t;
     if (m < drFirst || m > drFirst + drN - 1.0 || toSun < 0.0) break;
     drStand(m);
-    sh *= 1.0 - drBox(drInto(w + n * 0.012 - drP) - vec3(0.0, h.y, -h.z), drInto(drSun), h, 0.05, 0.0, t);
+    vec3 hm = drSize(m);
+    sh *= 1.0 - drBox(drInto(w + n * 0.012 - drP) - vec3(0.0, hm.y, -hm.z), drInto(drSun), hm, 0.05, 0.0, t);
   }
   float up = sat((w.y - base) / drH), ao = 0.45 + 0.55 * smoothstep(0.0, 0.7, up), u = (i - drFirst) / drN, e = i - drNear - (drG ? 5.0 : 12.0) * (1.0 - uHits);
   float lit = drLit(w, 0.02) * sh;
@@ -198,6 +244,7 @@ vec3 drBehind(vec2 p, vec3 ro, vec3 rd, float night, float gold) {
   float moon = length(vec2(p.x - 0.36, rd.y * 2.45 - 0.44));
   sky += night * vec3(0.5, 0.55, 0.6) * (drIn(moon - 0.032, 0.003) + 0.25 * exp(-6.0 * moon));
   sky = mix(sky, mix(lo * 1.1, m.rgb / max(drGrey(m.rgb), 0.1) * drGrey(lo) * 0.85, 0.62 * sat(m.a * 1.4)), 0.65 * smoothstep(0.5, 0.85, cl * 0.7 + cl2 * 0.35));
+  if (DR_UP + DR_DN > 0.0) sky = mix(sky, mix(uKind[1] * uKind[1] * 1.5, uKind[0] * uKind[0] * 0.75, smoothstep(0.0, 0.36, up + 0.08 * (cl - 0.5))) * (1.0 - 0.85 * night) * (0.85 + 0.35 * uPad) + night * hi, 0.6 * abs(uOwn[5]));
   vec3 air = mix(sky, 0.2 * drSky + vec3(0.03, 0.025, 0.025) * drKey, 0.6), c = sky, lawn = mix(mix(vec3(0.24, 0.3, 0.1), vec3(0.85, 0.87, 0.92), snow), vec3(0.5, 0.3, 0.08), leaf);
   float edge = 1.5 / uRes.y;
   vec3 tune = mix(vec3(1.0), uKind[3] / max(drGrey(uKind[3]), 0.1), 0.6 * min(uPhrase, 1.0)); // the hills and the pale stripes take the melody
@@ -206,6 +253,7 @@ vec3 drBehind(vec2 p, vec3 ro, vec3 rd, float night, float gold) {
   c = mix(c, air * mix(0.8, 0.45, left), mix(0.85, 0.95, left) * drIn(tree, edge * 1.6));
   vec2 tp = (vec2(p.x - mix(0.56, -0.4, left), rd.y * 2.5) / size - vec2(0.0, 0.4)) * vec2(0.85, 1.15);
   float lv = noise(p * 130.0), lump = noise(p * 26.0 + 4.0);
+  if (uOwn[2] > 0.0) lv = 0.4 * lv + 0.36 * noise(rot(0.6) * p * 210.0) + 0.34 * noise(rot(1.1) * p * 400.0) - 0.05;
   float crown = leaf * (1.0 - smoothstep(0.14, 0.31, length(tp) + 0.2 * (lump - 0.5)));
   c = mix(c, mix(vec3(0.55, 0.12, 0.03), vec3(0.8, 0.42, 0.05), sat(lump * 0.7 + lv * 0.5 + tp.y - tp.x)) * (drSky + drKey * 0.28), 0.9 * smoothstep(0.42, 0.6, lv + crown * 0.75 - 0.35) * smoothstep(0.0, 0.15, crown));
   // the lawn, mown in stripes
@@ -214,16 +262,50 @@ vec3 drBehind(vec2 p, vec3 ro, vec3 rd, float night, float gold) {
   vec3 g = lawn * mix(vec3(0.72), 1.15 * tune, stripe) * (drSky + drKey * 0.4);
   g = mix(g, mix(vec3(0.5, 0.42, 0.3), vec3(0.7, 0.71, 0.75), snow) * (0.85 + 0.3 * cl2) * (drSky + drKey * 0.5), drIn(abs(x - 0.9 - 0.004 * z * z * exp(-z * 0.03)) - 1.0, 0.1 + 2.0 * t * drPx));
   c = mix(c, mix(g, air, sqrt(far) * 0.75), drIn(rd.y + 0.006, edge));
+  if (uOwn[5] > 0.0) {
+    // a sea, with a headland
+    float sx = p.x * t * 0.4, gl = noise(vec2(sx * 2.0, z * 0.5 + uTime * 0.12)) * 0.6 + 0.4 * noise(vec2(sx * 7.0 + uTime * 0.1, z * 1.6));
+    vec3 sea = mix(uKind[0] * uKind[0] * 0.28, uKind[1] * uKind[1], 0.04 + 0.3 * far) * (drSky * 1.1 + drKey * 0.28);
+    sea += drKey * 0.16 * smoothstep(0.6, 0.95, gl) * exp(-abs(p.x + 0.15) * 2.2);
+    vec3 d = sky;
+    d = mix(d, mix(air, sky, 0.5), drIn(up - 0.11 * smoothstep(0.18, 0.75, p.x) - 0.012 * noise(vec2(p.x * 22.0, 3.0)) * step(0.16, p.x), edge * 2.0));
+    d = mix(d, sea, drIn(rd.y, edge));
+    c = mix(c, d, DR_UP);
+  }
+  if (uOwn[5] < 0.0) {
+    // ridge behind ridge
+    vec3 d = sky, body = mix(uKind[2] * uKind[2], uKind[0] * uKind[0], 0.35) * (drSky * 0.9 + drKey * 0.18);
+    for (int k = 0; k < 5; k++) {
+      float fk = float(k), x0 = p.x * (1.1 + 0.35 * fk) + fk * 7.3, rg = 0.26 - 0.082 * fk + (0.15 - 0.016 * fk) * (noise(vec2(x0 * 1.7, fk)) - 0.35) + 0.02 * (noise(vec2(x0 * 11.0, 9.0)) - 0.5);
+      d = mix(d, mix(mix(body, sky, 0.82 - 0.2 * fk), sky, 0.5 * (1.0 - smoothstep(-0.12, 0.0, up - rg)) * (1.0 - 0.15 * fk)), drIn(up - rg, edge * 2.0));
+    }
+    c = mix(c, d, DR_DN);
+  }
   float hedge = rd.y - 0.011 - 0.002 * sin(p.x * 31.0) - 0.004 * cl2;
-  return mix(c, mix(mix(lawn, vec3(0.1, 0.13, 0.12), 0.7 * snow) * 0.45 * (drSky + 0.25 * drKey), air, 0.16), drIn(hedge, edge * 2.0) * smoothstep(-0.03, -0.026, rd.y));
+  return mix(c, mix(mix(lawn, vec3(0.1, 0.13, 0.12), 0.7 * snow) * 0.45 * (drSky + 0.25 * drKey), air, 0.16), (1.0 - abs(uOwn[5])) * drIn(hedge, edge * 2.0) * smoothstep(-0.03, -0.026, rd.y));
+}
+// The sky over open ground, with far hills.
+vec3 drOpen(vec3 rd) {
+  float night = sat(-uOwn[0]), gold = sat(uOwn[0]), y = rd.y / max(length(rd.xz), 0.05), x = rd.x / max(rd.z, 0.1);
+  float cl = noise(vec2(x * 1.6 + uTime * 0.006, y * 9.0 + 2.0)) * 0.65 + 0.35 * noise(vec2(x * 5.0 + uTime * 0.01, y * 26.0));
+  vec3 hi = mix(vec3(0.3, 0.45, 0.65), uKind[0] * uKind[0], 0.6), lo = mix(vec3(1.1, 0.95, 0.75), uKind[1] * uKind[1] * 1.3, 0.65);
+  lo = mix(lo, vec3(1.5, 0.62, 0.28), 0.5 * gold);
+  vec3 c = mix(lo, hi, smoothstep(0.0, 0.5, y + 0.06 * (cl - 0.5))) * (0.9 + 0.35 * uPad) * (1.0 - 0.9 * night);
+  c = mix(c, lo * (1.0 - 0.9 * night) * 1.15, 0.5 * smoothstep(0.5, 0.8, cl) * smoothstep(0.0, 0.06, y));
+  float hill = 0.05 * noise(vec2(x * 2.1 + 4.0, 1.0)) + 0.012 * noise(vec2(x * 13.0, 7.0)) - 0.005;
+  return mix(c, mix(c * 0.55, mix(drSky, hi, 0.4) * 0.5, 0.5), drIn(y - hill, 0.003));
 }
 vec3 render(vec2 p) {
   drG = uVar > 0.5;
   float o0 = uOwn[0], o1 = uOwn[1], o2 = uOwn[2], o3 = uOwn[3], o4 = uOwn[4], night = sat(-o0), gold = sat(o0), low = sat(-o3), high = sat(o3);
   drH = 1.0 + (o1 < 0.0 ? 0.42 : drG ? 0.9 : 0.5) * o1; drT = 0.17 - (o1 < 0.0 ? 0.12 : 0.06) * o1; drW = 0.62 - (o1 < 0.0 ? 0.0 : 0.3) * o1;
-  drRest = 0.5 * PI - asin(drT / DR_D);
+  if (uOwn[6] < 0.0 && !drG) { drH *= DR_BIG; drT *= DR_BIG; drW *= 1.0 + 0.6 * max(-uOwn[6], 0.0); }
+  drRest = 0.5 * PI - asin(drT / drGap());
   if (drG) { drN = 23.0; drFirst = -12.0; drLie = 9.0; drRise = 6.0; drNear = 1.0; }
   else { drN = 252.0; drFirst = -124.0; drLie = 45.0; drRise = 34.0; drNear = 70.0; }
+  if (uOwn[6] != 0.0 && !drG) {
+    drN = floor((252.0 + DR_L * 14.0 * DR_R / DR_D + 40.0 * DR_L) / DR_BIG); drFirst = -floor(drN * 0.5); drLie *= drN / 252.0; drRise *= drN / 252.0; drNear = floor(70.0 / DR_BIG);
+  }
   drF = uLoop + 0.42 - 0.8 * sin(TAU * 6.0 * uLoop) / (TAU * 6.0);
   drStir = 0.03 * (0.3 + uEnergy) * (0.3 * uLow + 0.3 * uMid + 0.6 * uHigh); drCue = 0.28 * uCue * (1.0 - uCue); drKnock = 0.6 * uHits * (1.0 - uHits);
   float az = 0.12 * sin(uTravel * 0.02);
@@ -250,12 +332,12 @@ vec3 render(vec2 p) {
   float l0 = drTop(wall.x - 0.3 * e), l1 = drTop(wall.x + 0.3 * e), top = drG ? min(l0, l1) : 0.0, tf = (top - ro.y) / down;
   vec3 foot = ro + rd * tf;
   bool ground = rd.y < -1e-3 && (drG ? foot.z < 0.6 && foot.z > -0.62 : tf < tw);
-  float t0 = drG ? -ro.z / rd.z : max((drH * 1.02 - ro.y) / down, 0.3), t1 = drG ? t0 : min(min(tw, tf), 60.0);
+  float t0 = drG ? -ro.z / rd.z : max((drH * (uOwn[7] < 0.0 ? 1.27 : uOwn[7] > 0.0 ? 1.2 : 1.02) - ro.y) / down, 0.3), t1 = drG ? t0 : min(min(tw, tf), 60.0);
   drWalk(ro, rd, t0, max(t0, t1), drPx, drG ? 0.0 : 0.004);
   vec4 one = drOne, two = drTwo;
   float a = one.y, b = (1.0 - a) * two.y, rest = 1.0 - a - b;
   // the shadows on it
-  float beside, along = drAlong(foot.xz, beside), fp = drPx * tf / max(-rd.y, 0.08), lit = rest > 0.01 ? drLit(foot, fp) : 0.0, len = drH * 1.02 / drSun.y, sh = 1.0;
+  float beside, along = drAlong(foot.xz, beside), fp = drPx * tf / max(-rd.y, 0.08), lit = rest > 0.01 ? drLit(foot, fp) : 0.0, len = drH * (uOwn[7] < 0.0 ? 1.27 : uOwn[7] > 0.0 ? 1.2 : 1.02) / drSun.y, sh = 1.0;
   if (ground && rest > 0.02 && lit > 0.01 && beside < 0.5 * drW + len) {
     drWalk(foot + vec3(0.0, 0.003, 0.0), drSun, 0.0, len, 0.035, 0.0);
     sh = (1.0 - drOne.y) * (1.0 - drTwo.y);
@@ -281,19 +363,36 @@ vec3 render(vec2 p) {
     float gap = drIn(0.5 - abs(f - 0.5) - 0.012, fp / 0.9), end = drIn((0.5 - abs(fract(x) - 0.5)) * 7.0 - 0.012, drPx * tf * 2.0), keep = 1.0 / (1.0 + fp * 5.0);
     vec3 s = mix(vec3(0.4, 0.2, 0.075), vec3(0.62, 0.36, 0.15), h2) * (0.9 + keep * (0.34 * (nz.y - 0.5) + 0.3 * (nz.x - 0.5) + 0.12 * (nz.z - 0.5)));
     s = mix(s, o4 < 0.0 ? vec3(0.7, 0.68, 0.62) * (0.9 + 0.2 * h2 + 0.1 * nz.y * keep) : vec3(0.09, 0.12, 0.15) * (0.8 + 0.4 * h2 + 0.3 * nz.y * keep), abs(o4));
-    s *= 1.0 - 0.7 * max(gap, end * 0.8) * min(1.0, 0.03 / max(fp, 0.01));
+    s *= 1.0 - 0.7 * (1.0 - DR_UP) * max(gap, end * 0.8) * min(1.0, 0.03 / max(fp, 0.01));
+    if (uOwn[5] > 0.0) {
+      float big = noise(foot.xz * 0.16 + 3.0), rip = noise(vec2(foot.x * 0.9 + 3.0 * big, foot.z * 3.4 + foot.x));
+      s = mix(s, mix(mix(vec3(0.6, 0.46, 0.3), uKind[2] * uKind[2], 0.55), abs(o4) < 0.001 ? vec3(0.0) : o4 < 0.0 ? vec3(0.8, 0.8, 0.79) : vec3(0.07, 0.075, 0.085), abs(o4)) * (0.8 + 0.25 * big + 0.22 * rip * keep + 0.2 * nz.z * keep), DR_UP);
+    }
     float ao = 1.0 - 0.45 * exp(-max(beside - 0.25, 0.0) * 4.0);
     under = s * (drKey * drSun.y * 1.5 * lit * sh + drSky * ao) + (0.05 + 0.5 * pow(sat(1.0 + rd.y), 4.0)) * drSky * (0.7 + 0.5 * h2) * ao * 0.55;
+    if (uOwn[5] > 0.0) under = mix(under, drOpen(rd), DR_UP * smoothstep(12.0, 75.0, tf));
+    if (uOwn[5] < 0.0) {
+      // the slabs and the wall in the water
+      vec3 rr = normalize(vec3(rd.x, -rd.y, rd.z) + vec3(0.012, 0.0, 0.02) * (noise(foot.xz * 1.7 + vec2(0.0, uTime * 0.2)) + noise(foot.xz * 4.1 - uTime * 0.15) - 1.0));
+      drWalk(foot + vec3(0.0, 0.004, 0.0), rr, 0.0, min(drH * 1.27 / max(rr.y, 0.02), 14.0), drPx * 2.5, 0.0);
+      vec3 rw = foot + rr * ((19.0 - foot.z) / max(rr.z, 0.05)), sky = mix(uKind[0] * uKind[0], uKind[1] * uKind[1], drIn(3.2 - rw.y, 0.3)) * (drSky * 0.9 + drKey * 0.5 * drLit(rw, 0.1));
+      if (drOne.y > 0.02) sky = mix(sky, drSlab(drOne, foot, rr), drOne.y);
+      vec3 deep = uKind[0] * uKind[0] * 0.16 * drSky + under * 0.06;
+      under = mix(under, deep + sky * (0.42 + 0.5 * pow(sat(1.0 - rr.y), 3.0)) + drKey * 0.06 * lit * sh * uKind[1], DR_DN);
+    }
   }
   DR_IF(!drG && seen && !ground) {
     vec3 s = mix(vec3(0.3, 0.4, 0.36), vec3(0.75, 0.72, 0.62), drIn(3.2 - wall.y, e));
     s = mix(s, s * (o2 < 0.0 ? vec3(0.75, 0.9, 1.25) : vec3(0.3, 0.45, 0.4)), abs(o2));
+    if (DR_DYE > 0.0) s = mix(s, mix(uKind[0] * uKind[0], uKind[1] * uKind[1], drIn(3.2 - wall.y, e)), 0.7 * DR_DYE);
     under = mix(s, vec3(0.16, 0.09, 0.05), drIn(wall.y - 0.75, e)) * (drSky * 0.9 + drKey * 0.5 * drLit(wall, 0.05));
+    if (uOwn[5] > 0.0) under = mix(under, drOpen(rd), DR_UP);
   }
   DR_IF(drG) {
     // the ball at the end of the line
     float bk = drBack(drFirst + drN - 1.0), roll = smoothstep(0.5, 4.0, bk) * (1.0 - smoothstep(drLie, drLie + drRise, bk));
     vec3 ball = vec3(5.05 + 0.75 * roll, 0.84, 0.0) - ro;
+    if (uOwn[6] != 0.0) ball.y += drBase(9.0) - 0.4;
     float bb = dot(ball, rd), m = sqrt(max(dot(ball, ball) - bb * bb, 0.0)), bc = drIn(m - 0.44, drPx * bb);
     vec3 n = normalize(rd * (bb - sqrt(max(0.1936 - m * m, 0.0))) - ball);
     vec3 s = mix(vec3(0.7, 0.1, 0.06), uKind[4] * 0.8, 0.3 + 0.3 * uHits);

@@ -3,21 +3,22 @@
 // b: Rolling front
 // what: A station hall in grey morning light: over one waiting traveller hangs a long board of small round plates, black on one side and chalk yellow on the other, turning into dunes and weather. Or close along the board, near plates out of focus, each on its pins over a well, a front of turning rolling away from us.
 // follows: The piece turns plates bright in its colours, the loop along the board, the room up it. Bands stand along its foot. Each kind tints a window; its colour falls on the floor. The loop is a seam of plates on edge. A hit lights and tips a ring of plates; a cue turns every plate over in one slanting wave. Keys turn single plates; Space is haze and focus.
-// own: 0 blue night with the board lit at -1, low golden sun at 1; 1 a cream board with bottle green plates at -1, a red board with white plates at 1; 2 few big plates at -1, many small ones at 1; 3 square shutters and broad square windows at -1, slim blades and tall slits of windows at 1; 4 the weather is slanting rain bands at -1, drifting islands at 1; 5 right up under the board, or down along its face, at -1, far back in the hall, or high over it, at 1
+// own: 0 blue night with the board lit at -1, low golden sun at 1; 1 a cream board with bottle green plates at -1, a red board with white plates at 1; 2 few big plates at -1, many small ones at 1; 3 square shutters and broad square windows at -1, slim blades and tall slits of windows at 1; 4 the weather is slanting rain bands at -1, drifting islands at 1; 5 right up under the board, or down along its face, at -1, far back in the hall, or high over it, at 1; 6 the board a tall tower of plates (b: turned over our heads, at half a wall beside us) at -1, a wide wall square on to us (b: looked straight down on) at 1; 7 the floor under still water (b: round lamps out of focus behind) at -1, out of doors under an open sky at 1
 // A smooth step that may also run downward.
 float fdS(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x * (3.0 - 2.0 * x); }
-vec3 fdOn, fdOff, fdField;    // the two sides of a plate and the board between them
-float fdNight, fdGold;
-float fdRows;                 // how many plates high the board is
-
-void fdSet() {
-  fdNight = max(-uOwn[0], 0.0); fdGold = max(uOwn[0], 0.0);
-  float pale = max(-uOwn[1], 0.0), red = max(uOwn[1], 0.0);
-  fdOn = mix(mix(vec3(1.0, 0.86, 0.40), vec3(0.04, 0.36, 0.29), pale), vec3(0.97, 0.93, 0.85), red);
-  fdOff = mix(mix(vec3(0.125, 0.13, 0.14), vec3(0.87, 0.85, 0.79), pale), vec3(0.58, 0.15, 0.10), red);
-  fdField = mix(mix(vec3(0.075, 0.078, 0.085), vec3(0.62, 0.60, 0.55), pale), vec3(0.34, 0.075, 0.055), red);
-  fdRows = 22.0 * exp2((uOwn[2] < 0.0 ? 0.95 : 0.6) * uOwn[2]);
-}
+#define fdNight max(-uOwn[0], 0.0)
+#define fdGold max(uOwn[0], 0.0)
+#define FD_PALE max(-uOwn[1], 0.0)
+#define FD_RED max(uOwn[1], 0.0)
+// the two sides of a plate and the board between them
+#define fdOn mix(mix(vec3(1.0, 0.86, 0.40), vec3(0.04, 0.36, 0.29), FD_PALE), vec3(0.97, 0.93, 0.85), FD_RED)
+#define fdOff mix(mix(vec3(0.125, 0.13, 0.14), vec3(0.87, 0.85, 0.79), FD_PALE), vec3(0.58, 0.15, 0.10), FD_RED)
+#define fdField mix(mix(vec3(0.075, 0.078, 0.085), vec3(0.62, 0.60, 0.55), FD_PALE), vec3(0.34, 0.075, 0.055), FD_RED)
+#define fdRows (22.0 * exp2((uOwn[2] < 0.0 ? 0.95 : 0.6) * uOwn[2]))   // how many plates high the board is
+#define FD_TALL max(-uOwn[6], 0.0)
+#define FD_WALL max(uOwn[6], 0.0)
+#define FD_WET max(-uOwn[7], 0.0)
+#define FD_OPEN max(uOwn[7], 0.0)
 // How a kind of sound colours a window, 0 to 4 from the left.
 vec3 fdGlass(float k, vec3 pale) {
   int i = int(clamp(k, 0.0, 4.0));
@@ -28,6 +29,21 @@ vec3 fdGlass(float k, vec3 pale) {
   return pale * mix(vec3(1.0), 0.5 + 0.62 * c, 0.7 * sat(s * 1.2)) * (1.0 + 0.08 * s + 0.1 * uCue);
 }
 // How far the weather on the board has turned the plates at a place: below -1 all dark, above 1 all bright.
+vec3 fdSky(float k, vec3 pale) { float f = floor(clamp(k, 0.0, 3.999)); return mix(fdGlass(f, pale), fdGlass(f + 1.0, pale), smoothstep(0.0, 1.0, clamp(k, 0.0, 4.0) - f)); }
+// Open country: a sky with a low sun or a moon, hills one behind another. q is the way looked, q.y = 0 the far ground.
+vec3 fdOut(vec2 q, vec3 pale, vec3 stone, float soft) {
+  vec3 c = fdSky(2.0 + 2.4 * q.x, pale) * mix(0.95, mix(0.62, 0.5, fdNight), fdS(0.0, 0.75, q.y));
+  float cl = noise(vec2(q.x * 1.6 + uTime * 0.006, q.y * 6.0)) * 0.6 + noise(vec2(q.x * 3.7 - uTime * 0.008, q.y * 14.0)) * 0.4;
+  c *= 1.0 + (0.22 + 0.1 * uMic) * (cl - 0.5) * fdS(0.0, 0.1, q.y);
+  vec2 d = q - vec2(-0.43, 0.36 - 0.15 * fdGold);
+  float l = length(d);
+  c += mix(pale, vec3(1.0), 0.5) * (0.8 * fdS(0.05 + soft, 0.05 - 0.5 * soft, l) + 0.4 * exp(-l * 6.0)) * mix(1.0, 0.55, fdNight);
+  for (int i = 0; i < 3; i++) {
+    float f = float(i), h = 0.085 - 0.03 * f + (0.05 - 0.012 * f) * sin(q.x * (2.3 + 1.1 * f) + f * 2.1 + 0.5) + 0.02 * noise(vec2(q.x * 9.0, f * 5.0));
+    c = mix(c, mix(stone * (0.55 - 0.1 * f), c, 0.62 - 0.24 * f), fdS(soft + 0.002, -soft - 0.002, q.y - h));
+  }
+  return c;
+}
 float fdWeather(vec2 u) {
   float y = 1.0 - u.y, t = uTime;
   float rain = max(-uOwn[4], 0.0), isles = max(uOwn[4], 0.0), v;
@@ -136,8 +152,8 @@ vec3 fdHall(vec2 p) {
   vec3 ro = vec3(0.04 * sin(uTime * 0.05), 1.25 + 0.6 * far, -7.0 * far + 1.6 * near);
   vec3 rd = vec3(p - vp, FL);
   float e = 1.0 / uRes.y;                                   // a pixel
-  fdO = vec3(-3.3, 3.2, 15.0);
-  fdU = vec3(0.866, 0.0, -0.5);
+  fdO = mix(mix(vec3(-3.3, 3.2, 15.0), vec3(-6.7, 3.0, 15.0), FD_WALL), vec3(0.6, 0.9, 13.0), FD_TALL);
+  fdU = uOwn[6] == 0.0 ? vec3(0.866, 0.0, -0.5) : normalize(mix(mix(vec3(0.866, 0.0, -0.5), vec3(1.0, 0.0, 0.0), FD_WALL), vec3(0.94, 0.0, -0.34), FD_TALL));
   fdV = normalize(vec3(-0.05, 1.0, -0.0866));
   fdN = normalize(cross(fdV, fdU));
   fdLean = 0.5 - 0.12 * fdGold;
@@ -147,7 +163,7 @@ vec3 fdHall(vec2 p) {
 
   // the board
   vec3 b = fdBoard(ro, rd);
-  float LEN = 24.0, HI = 4.2, cell = HI / fdRows;
+  float LEN = 24.0 - 19.6 * FD_TALL - 2.8 * FD_WALL, tall = 1.0 + 1.4 * FD_TALL + 0.35 * FD_WALL, HI = 4.2 * tall, cell = 4.2 / fdRows, rows = fdRows * tall, span = 13.4 - 9.0 * FD_TALL + 7.8 * FD_WALL;
   vec3 bx = fdBoard(ro, rd + vec3(e, 0.0, 0.0)), by = fdBoard(ro, rd + vec3(0.0, e, 0.0));
   float bpx = 0.5 * (length(bx.xy - b.xy) + length(by.xy - b.xy));
   float edge = max(max(-b.x, b.x - LEN), max(-b.y, b.y - HI)) - 0.22;
@@ -205,8 +221,31 @@ vec3 fdHall(vec2 p) {
       vec3 rb = fdBoard(q, rr);
       if (rb.z > 0.0) {
         float ob = fdS(0.6, -0.3, max(max(-rb.x, rb.x - LEN), max(-rb.y, rb.y - HI)));
-        float v = sat(0.5 + 0.5 * fdWeather(vec2(rb.x / 13.4, 1.0 - rb.y / HI)));
+        float v = sat(0.5 + 0.5 * fdWeather(vec2(rb.x / span, 1.0 - rb.y / HI)));
         col = mix(col, mix(fdOff, fdOn, v) * (0.7 + 0.3 * stone), ob * f * 0.6);
+      }
+      if (FD_WET > 0.0) {
+        // still water over the tiles: all that stands over it stands in it
+        vec2 rip = (vec2(noise(vec2(q.x * 0.5, q.z * 1.3 - uTime * 0.21)), noise(vec2(q.x * 0.6 + 9.0, q.z * 1.7 + uTime * 0.17))) - 0.5) * (0.007 + 0.012 * uLow + 0.016 * uHits) * mix(1.0, 0.45, sat(q.z / 20.0));
+        vec3 wr = vec3(rr.x + rip.x, rr.y + rip.y, rr.z);
+        vec2 at = q.xy + wr.xy / wr.z * dz;
+        float dw = fdWindow(at, k2, w2), sw2 = 0.06 + 0.02 * dz;
+        vec3 mir = stone * (0.6 - 0.2 * fdS(3.0, 14.0, at.y)) + pale * 0.09 * exp(-max(dw, 0.0) * 0.9);
+        vec2 c2 = vec2(abs(fract(w2.x / 0.8 + 0.5) - 0.5) * 0.8, 0.8 - abs(fract(w2.y / 1.6) - 0.5) * 1.6);
+        mir = mix(mir, fdGlass(k2, pale) * 0.95 * (1.0 - 0.45 * fdS(0.12, 0.02, min(c2.x, c2.y))), fdS(sw2, -sw2, dw));
+        vec3 wb = fdBoard(q, wr);
+        if (wb.z > 0.0) {
+          float ob = fdS(0.1, -0.1, max(max(-wb.x, wb.x - LEN), max(-wb.y, wb.y - HI)) - 0.15);
+          vec2 wg = wb.xy / cell, wi = floor(wg), wf = wg - wi - 0.5;
+          float v = sat(0.5 + 0.5 * fdWeather(vec2((wi.x + 0.5) * cell / span, 1.0 - (wi.y + 0.5) / rows)));
+          vec4 pm = piece(vec2((wi.x + 0.5) * cell / span, 1.0 - (wi.y + 0.5) / rows));
+          v = max(v, sat(pm.a * 1.5));
+          mir = mix(mir, mix(fdField, mix(fdOff, fdPaint(pm), v) * (0.75 + 0.3 * stone), fdS(0.5, 0.36, length(wf))) * mix(1.1, 1.5, fdNight), ob);
+        }
+        float tz = (10.4 - q.z) / wr.z;
+        if (tz > 0.0) mir = mix(mir, stone * 0.16, fdS(0.04, -0.04, fdFigure((q + wr * tz).xy + vec2(0.15, 0.0))));
+        float fw = 0.42 + 0.55 * pow(1.0 - sat(-rd.y / length(rd)), 3.0);
+        col = mix(col, col * 0.4 * (1.0 - fw) + mir * fw * 1.02, FD_WET);
       }
       // where the floor meets the side walls
       col = mix(stone * 0.36, col, fdS(0.0, 1.5 * t * (1.0 + abs(rd.x) * t) * e, min(q.x + 14.5, 19.0 - q.x)));
@@ -225,19 +264,37 @@ vec3 fdHall(vec2 p) {
       float rib = abs(fract(q.z / 3.0) - 0.5) * 3.0;
       col = stone * (0.5 + 0.2 * fdS(0.3 + px, 0.3 - px, rib));
     }
+    if (FD_OPEN > 0.0) {
+      // no walls, no roof: ground out to the hills
+      vec3 outside = fdOut(rd.xy / rd.z + vec2(0.0, 0.012), pale, stone, 0.004);
+      if (rd.y < 0.0) {
+        vec3 g = ro + rd * tf;
+        float far2 = exp(-tf * 0.012), gr = noise(g.xz * 2.3) * 0.5 + noise(g.xz * vec2(0.5, 1.1)) * 0.5;
+        float sastr = sin(g.x * 1.1 + g.z * 2.1 + 5.0 * noise(g.xz * 0.35)) * exp(-tf * 0.06);
+        float sz = 10.4 - g.z, lit = 1.0;
+        if (sz > 0.0) lit = 1.0 - 0.85 * fdS(0.04 + 0.05 * sz, -0.02 - 0.02 * sz, fdFigure(vec2(g.x - 0.34 * sz + 0.15, fdLean * sz)));
+        vec3 sb = fdBoard(g, vec3(-0.34, fdLean, 1.0));
+        if (sb.z > 0.0) lit *= 1.0 - 0.8 * fdS(0.5, -0.4, max(max(-sb.x, sb.x - LEN), max(-sb.y, sb.y - HI)));
+        vec3 gc = mix(stone * 1.05, pale * 0.9, 0.35 - 0.2 * fdGold) * (0.82 + 0.2 * gr + 0.07 * sastr);
+        gc = gc * (0.5 + 0.62 * lit * sun) + 0.12 * lit * fdSky(2.0 + 0.16 * g.x, pale);
+        gc += fdNight * vec3(0.62, 0.46, 0.22) * 0.4 * exp(-0.03 * (g.z - 11.0) * (g.z - 11.0)) * fdS(-7.0, 1.0, g.x);
+        outside = mix(outside, gc, far2 * fdS(0.0, -0.01, rd.y));
+      }
+      col = mix(col, outside, FD_OPEN);
+    }
     // the light standing in the air
     float dith = hash21(mod(gl_FragCoord.xy, 977.0) + 3.7) * 0.8 + 0.1;
     vec3 air = vec3(0.0);
-    for (int i = 0; i < 8; i++) {
+    if (FD_OPEN < 1.0) for (int i = 0; i < 8; i++) {
       float s = (float(i) + dith) / 8.0;
       vec3 a = ro + rd * mix(0.25, 1.0, s) * t;
       float dz = FD_BACK - a.z, kk; vec2 ww;
       float d = fdWindow(vec2(a.x - 0.34 * dz, a.y + fdLean * dz), kk, ww);
       air += fdGlass(kk, pale) * fdS(1.0, -1.1, d);
     }
-    col += air / 8.0 * (0.16 + 0.15 * uSpace + 0.08 * uMic + 0.05 * uCue) * sun;
+    col += (1.0 - FD_OPEN) * air / 8.0 * (0.16 + 0.15 * uSpace + 0.08 * uMic + 0.05 * uCue) * sun;
     float haze = 1.0 - exp(-t * (0.006 + 0.014 * uSpace));
-    col = mix(col, pale * mix(0.62, 0.5, fdNight), haze * 0.5);
+    col = mix(col, pale * mix(0.62, 0.5, fdNight), haze * 0.5 * (1.0 - 0.6 * FD_OPEN));
     // the one who waits
     vec2 fq = (ro + rd * ((10.4 - ro.z) / rd.z)).xy;
     float fp = (10.4 - ro.z) * e / FL;
@@ -246,17 +303,18 @@ vec3 fdHall(vec2 p) {
     col = mix(col, coat, fdS(fp, -fp, fd));
     // the rods it hangs by
     for (int i = 0; i < 2; i++) {
-      vec3 at = fdO + fdU * (1.2 + 7.0 * float(i));
+      vec3 at = fdO + fdU * mix(mix(1.2 + 7.0 * float(i), 1.5 + 18.0 * float(i), FD_WALL), 0.6 + 3.2 * float(i), FD_TALL);
       float z = at.z - ro.z;
       float x = abs(p.x - vp.x - (at.x - ro.x) / z * FL) - 0.035 / z;
-      if (b.y > HI) col = mix(col, stone * 0.22, fdS(e, -e, x));
+      if (b.y > HI) col = mix(col, stone * 0.22, fdS(e, -e, x) * (1.0 - FD_OPEN));
+      if (FD_OPEN > 0.0 && b.y < 0.0 && ro.y + rd.y * z > 0.0) col = mix(col, stone * 0.2, FD_OPEN * fdS(e, -e, x - 0.07 / z));
     }
   }
   if (onBoard > 0.0) {
     vec2 g = b.xy / cell, id = floor(g), f = g - id - 0.5;
     float gp = bpx / cell;
-    vec2 u = vec2((id.x + 0.5) * cell / 13.4, 1.0 - (id.y + 0.5) / fdRows);
-    float grown = fdS(0.0, 1.0, fdRows - id.y) * step(0.0, id.y) * step(0.0, id.x);
+    vec2 u = vec2((id.x + 0.5) * cell / span, 1.0 - (id.y + 0.5) / rows);
+    float grown = fdS(0.0, 1.0, rows - id.y) * step(0.0, id.y) * step(0.0, id.x);
     vec3 face = fdField;
     // a lamp trough along the top lights the board from above, the windows from its left end
     float lamp = mix(1.0, 0.72, fdS(0.0, 1.0, 1.0 - b.y / HI));
@@ -289,19 +347,32 @@ vec3 fdHall(vec2 p) {
 }
 
 // ---- close to the board ----
+#define FD_ROLL (2.95 * FD_TALL)
 // The hall behind, far out of focus: p.y is the height over the far edge of the board.
 vec3 fdBehind(vec2 p, vec3 pale, vec3 stone) {
   float wx = p.x * 2.6 + 0.35, k = clamp(floor(wx + 2.5), 0.0, 4.0), q = abs(wx + 2.0 - k);
   float wide = 0.31 + 0.1 * max(-uOwn[3], 0.0) - 0.15 * max(uOwn[3], 0.0);
   float win = fdS(wide + 0.17, wide - 0.17, q) * fdS(0.0, 0.16, p.y);
   vec3 c = stone * (0.62 + 0.55 * fdS(0.0, 0.5, p.y)) + pale * 0.10 * exp(-p.x * p.x * 3.0 - p.y * p.y * 12.0);
+  if (FD_OPEN > 0.0) { vec2 o = rot(-FD_ROLL) * p; c = mix(c, fdOut(vec2(o.x, o.y + 0.05), pale, stone, 0.035), FD_OPEN); win *= 1.0 - FD_OPEN; }
+  if (FD_WET > 0.0) {
+    c *= 1.0 - 0.45 * FD_WET;
+    for (int i = 0; i < 2; i++) {
+      float f = float(i);
+      vec2 g = p * (4.2 + 2.6 * f) + vec2(3.7 * f + uTime * 0.012, 0.35 * f), n = floor(g);
+      vec2 h = hash22(n + 13.0 * f);
+      float l = length(fract(g) - 0.5 - 0.22 * (h - 0.5)), rr = 0.2 + 0.16 * h.x, k2 = floor(h.y * 4.99);
+      c += FD_WET * (0.25 * pale + 0.55 * mix(vec3(1.0, 0.68, 0.34), uKind[int(k2)], 0.55)) * (0.2 + 0.75 * h.x * h.x) * fdS(rr + 0.05, rr - 0.05, l) * (0.75 + 0.5 * l / rr) * fdS(-0.1, 0.1, p.y) * step(0.3, hash21(n + 5.0));
+    }
+    win *= 1.0 - FD_WET;
+  }
   return mix(c, fdGlass(k, pale) * (0.96 + 0.1 * uMic), win * (0.92 - 0.3 * fdS(0.15, 0.6, p.y)));
 }
 vec3 fdClose(vec2 p) {
   float low = max(-uOwn[5], 0.0), high = max(uOwn[5], 0.0);
-  p = rot(0.17 + 0.16 * low - 0.1 * high) * p;
+  p = rot(0.17 + 0.16 * low - 0.1 * high + FD_ROLL) * p;
   float sc = 22.0 / fdRows;                                  // how big a plate is
-  float H = (3.3 - 1.1 * low + 3.4 * high) / sc, FL = 1.15, hy = 0.27 - 0.04 * low + 0.2 * high;
+  float H = (3.3 - 1.1 * low + 3.4 * high + 24.0 * FD_WALL) / sc, FL = 1.15, hy = 0.27 - 0.04 * low + 0.2 * high + 1.7 * FD_WALL;
   float e = 1.0 / uRes.y;
   vec3 pale = mix(mix(vec3(0.95, 0.965, 0.96), vec3(0.17, 0.26, 0.42), fdNight), vec3(1.0, 0.80, 0.54), fdGold);
   vec3 stone = mix(mix(vec3(0.50, 0.52, 0.53), vec3(0.09, 0.10, 0.135), fdNight), vec3(0.54, 0.41, 0.30), fdGold);
@@ -323,7 +394,7 @@ vec3 fdClose(vec2 p) {
   vec2 stp = vec2(dir.x < 0.0 ? -1.0 : 1.0, dir.y < 0.0 ? -1.0 : 1.0), inv = 1.0 / max(abs(dir), 1e-4);
   vec2 tn = t0 + (stp * (id - at + 0.5) + 0.5) * inv;
   float px = z / FL * e;                                     // a pixel there, in plates
-  float fz = 11.0 / sc;                                      // the rows in focus
+  float fz = (11.0 + 5.0 * FD_WALL) / sc;                                      // the rows in focus
   float blur = min(abs(z - fz) / z * 0.10 * (0.6 + 0.8 * uSpace), 0.14);
   vec3 L = normalize(vec3(-0.55, 0.62, -0.28));
   L.xz = gr * L.xz;
@@ -332,7 +403,7 @@ vec3 fdClose(vec2 p) {
   for (int i = 0; i < 9; i++) {
     vec2 c = id + 0.5, back = c * gr;                        // the middle of this plate, and where it is seen from us
     bool last = min(tn.x, tn.y) >= t1;
-    vec2 u = vec2((back.y * sc - 4.0) / 46.0, 0.5 + back.x * sc / 34.0);
+    vec2 u = vec2((back.y * sc - 4.0 - 6.0 * FD_WALL) / (46.0 - 33.0 * FD_WALL), 0.5 + back.x * sc / 34.0);
     vec4 m;
     float a = fdTurn(u, id, m), ca = cos(a), sa = sin(a);
     vec3 n = vec3(0.0, ca, sa), lie = vec3(0.0, -sa, ca);
@@ -384,6 +455,5 @@ vec3 fdClose(vec2 p) {
   return mix(bg, acc, onB);
 }
 vec3 render(vec2 p) {
-  fdSet();
   return uVar < 0.5 ? fdHall(p) : fdClose(p);
 }

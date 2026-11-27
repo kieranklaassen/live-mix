@@ -3,13 +3,19 @@
 // b: Under the ropes
 // what: A winter garden across a black pond: old pines, each inside a cone of straw ropes that run down taut from the tip of a tall pole, snow on every bough, all of it upside down in the water; or under the biggest of them, looking up the trunk, ropes out like rays with snow along them, dark plates of needles against a pale sun.
 // follows: A rope shivers and takes colour where the piece sounds: round the cone is the loop, down the rope is the room. The drone brightens the day, the pad warms the sun, texture is the snowfall, a phrase brings a bird by, sixteen ropes shine with the bands, low ripples the pond. A hit drops a load of snow, a cue lights the ropes gold, keys glint on them.
-// own: 0 moonlit blue night with the ropes lit from below at -1, an orange dusk at 1; 1 late autumn, no snow, red leaves falling, at -1, deep snow and the pond frozen white at 1; 2 the garden from farther off, or the tip of the pole high in the corner, at -1, very near at 1; 3 tall narrow cones, or plates drawn in, at -1, wide low ones, or far apart, at 1; 4 thick mist at -1, a clear blue day at 1; 5 driven slanting snow at -1, big slow flakes at 1
+// own: 0 moonlit blue night with the ropes lit from below at -1, an orange dusk at 1; 1 late autumn, no snow, red leaves falling, at -1, deep snow and the pond frozen white at 1; 2 the garden from farther off, or the tip of the pole high in the corner, at -1, very near at 1; 3 tall narrow cones, or plates drawn in, at -1, wide low ones, or far apart, at 1; 4 thick mist at -1, a clear blue day at 1; 5 driven slanting snow at -1, big slow flakes at 1; 6 bare boughs and twigs at -1, in full bloom in the pad's colour at 1; 7 the ropes closed with cloth panels in the sounds' colours at -1, at 1 hung with small lamps in the sounds' colours
 #define rpS smoothstep
 float rpEdge, rpUnder, rpRing, rpSc, rpRoom, rpOff, rpClose, rpWet, rpIce, rpPx, rpW, rpSnow, rpNight, rpEve, rpFog, rpBlue;
 vec3 rpAmb, rpHaze, rpTop, rpSun, rpWhite;
 vec2 rpSunAt, rpWv, rpMv, rpBough;
 const vec3 rpGold = vec3(1., .7, .32);
 const float rpTall = 1.02, rpWide = 1.117; // a cone's height, and its half width for its depth
+#define rpBloom max(uOwn[6], 0.)
+#define rpBare max(-uOwn[6], 0.)
+#define rpCloth max(-uOwn[7], 0.)
+#define rpHung max(uOwn[7], 0.)
+#define rpChime (uHits*(max(uOwn[1], 0.) + rpBloom))
+float rpLv(int k) { return k == 0 ? uDrone : k == 1 ? uPad : k == 2 ? uTexture : k == 3 ? uPhrase : uHits; }
 float rpH(float n) { n = fract(n*.1031); n *= n + 33.33; return fract(n*(n + n)); }
 float rpN(float x) { float i = floor(x), f = x - i; return mix(rpH(i), rpH(i + 1.), f*f*(3. - 2.*f)); }
 vec3 rpDim(float k) { return mix(vec3(1.), rpAmb, k); }
@@ -62,6 +68,18 @@ vec2 rpTuft(vec2 q, vec2 env, float px) {
  }
  return got;
 }
+vec3 rpPetal() { return mix(vec3(.96, .74, .78), uKind[1], .75)*rpAmb; }
+// Twigs, a fan of them from below.
+float rpTwig(vec2 g, float seed, float px) {
+ float got = 0.;
+ for (int k = 0; k<2; k++) {
+  vec2 q = g - vec2(k<1?-.3:.25, k<1?-.4:-.5);
+  float r = length(q), a = atan(q.x, q.y + 1e-5) + .16*sin(r*5. + seed*9. + float(k)*3.), n = 2.4, id = round(a*n), h = rpH(id + seed*57. + float(k)*31. + 60.);
+  a = abs(abs(a - (id + .3*(h - .5))/n) - .36*max(r - .2 - .2*h, 0.)) - .22*max(r - .6, 0.);
+  got = max(got, rpLine(a*r, .034*(1. - .8*r), px)*step(r, .6 + .45*h)*step(abs(id), 4.));
+ }
+ return got;
+}
 // A bird in its own measure, wings about one across.
 float rpBird(vec2 q, float px) {
  float ax = abs(q.x), f = .5*sin(uTime*4.6) + .15;
@@ -77,7 +95,7 @@ vec3 rpStraw(vec4 m, float bd) {
 }
 // ---- a: the garden ----
 // The ropes of a cone, its far side and ours, and the knots' glint. v is from the tip of the pole.
-void rpCone(vec2 v, float seed, float px, out vec4 back, out vec4 front, out float glint) {
+void rpCone(vec2 v, float seed, float px, out vec4 back, out vec4 front, out float glint, out vec4 lamp) {
  float down = max(-v.y, 1e-3), c = clamp(v.x/(down*rpWide), -.9999, .9999), ph = acos(c)/PI, in_ = step(abs(v.x), 1.02*rpWide*down)*step(v.y, -.004);
  // our side
  float k = floor(ph*16.), h = hash21(vec2(k, seed)), h2 = fract(h*57.3), ck = cos((k + .5 + .5*(h - .5))*PI/16.), uk = ck*rpWide, at = abs(ck);
@@ -88,6 +106,22 @@ void rpCone(vec2 v, float seed, float px, out vec4 back, out vec4 front, out flo
  vec2 kn = vec2(d, (1. - t)*len);
  front = vec4(rpStraw(m, bd), in_*max(rpLine(d, .0026*(1. + .5*bd*uEnergy) + .0016*sh, px)*(1. - .3*sh)*rpIn(1. - t, px/len), rpIn(.0068 - length(kn*vec2(1., .7)), px)));
  glint = in_*exp(-dot(kn, kn)*5000.)*sat(uKeys*1.6 - 1.2*h2);
+ lamp = vec4(0.);
+ if (rpCloth>0.) {
+  // the panel of cloth here
+  int ki = int(5.*rpH(k + seed*13. + 2.)*.999);
+  float f = fract(ph*16.) - .5, hem = rpTall - .13 + .02*f*f*4. + .05*rpN(v.x*3. + seed*5. + 20.);
+  vec3 kc = mix(vec3(.72, .58, .38), uKind[ki], .8), lit = rpAmb*(.62 + .5*sat(-.6*c + .55))*(.8 + .2*cos(f*PI)) + rpGold*rpNight*(.75*exp(-rpSq(down - .75)*5.))*(.7 + .6*rpLv(ki));
+  lamp = vec4(kc*lit*(1. + .5*m.a) + rpGold*.2*uCue, in_*rpCloth*rpIn(hem - down, px)*(1. - rpS(.985, 1., abs(v.x)/(rpWide*down)))*(.96 - .22*rpNight));
+ }
+ if (rpHung>0.) {
+  float jn = fract(t*5. + h2*.5) - .5, jd = floor(t*5. + h2*.5), room = down*rpWide*sqrt(max(1. - ck*ck, 0.))*.08, rad = min(.024, room);
+  int ki = int(4.99*rpH(k*3. + jd*7. + seed*5.));
+  vec2 g = vec2(d, jn*len/5. + .012);
+  float l = length(g*vec2(1., .8)), there = in_*rpHung*step(.3, t)*step(t, .97)*rpS(.006, .012, rad), lv = min(.55 + .5*m.a + .5*rpLv(ki) + .5*uCue, 1.35);
+  vec3 kc = mix(vec3(1., .8, .5), uKind[ki], .7);
+  lamp = vec4(kc*(.55 + .25*(1. - rpNight)*rpAmb + (.35 + .45*rpNight)*lv*(1. - .6*sat(l/max(rad, 1e-3)))), there*max(rpIn(rad - l, px), (.18 + .4*rpNight)*lv*.5*sat(1. - l/(rad*2.2 + 1e-4))));
+ }
  // the far side
  k = floor(ph*13.); h = hash21(vec2(k, seed + 40.)); uk = rpWide*cos((k + .5 + .5*(h - .5))*PI/13.);
  d = (v.x - uk*down)*inversesqrt(1. + uk*uk);
@@ -108,12 +142,12 @@ void rpLay(inout vec3 col, vec3 c, float a) { col = mix(col, mix(c, rpHaze, rpMi
 vec3 rpTree(vec3 col, vec2 q, float seed, float px, float near) {
  vec2 v = q - vec2(.02, rpTall), lq = q - vec2(0., .2);
  float lamp = exp(-dot(lq, lq)*3.), y = q.y, glint;
- vec4 back, front;
- rpCone(v, seed, px, back, front, glint);
+ vec4 back, front, hung;
+ rpCone(v, seed, px, back, front, glint, hung);
  // the air and the light inside the cone, the ropes on its far side
  float inside = (1. - rpS(.92, 1., abs(v.x)/(max(-v.y, 1e-3)*rpWide)))*rpS(.1, .3, y)*step(v.y, 0.), glow = rpNight*(.3 + .7*lamp);
  col = mix(col, rpHaze*1.08, (.12 + .22*rpWet)*inside*(1. - rpNight));
- col += rpGold*inside*(.17*uCue + rpNight*.5*lamp)*(1. - .6*rpMist);
+ col += rpGold*inside*(.17*uCue + .2*rpChime + rpNight*.5*lamp)*(1. - .6*rpMist);
  rpLay(col, mix(back.rgb, rpGold, sat(.6*uCue + glow))*.95, back.a);
  // the pole, the straw tied at its tip, the trunk
  float pole = rpLine(v.x, .0062, px)*rpIn(.012 - v.y, px)*step(0., y);
@@ -146,24 +180,29 @@ vec3 rpTree(vec3 col, vec2 q, float seed, float px, float near) {
   float gp = px/a.z, dome = sqrt(max(1. - g.x*g.x, 0.)), T = a.w;
   float ga = g.x + 20. + i*7.3 + seed*3.1, n1 = rpN(ga*3.1), n2 = rpN(ga*8.), n3 = rpN(ga*17.);
   float crown = dome*(T*(.5 + .6*n1) + .04*n2), under = -dome*(T*(.25 + .6*n2) + .03), spike = .12*rpN(ga*46.)*dome;
-  float sn = rpSnow*(1. - (i==10.?.75*near*rpS(0., .3, uHits):0.));
+  float sn = mix(rpSnow, max(rpSnow, .8), rpBloom)*(1. - (i==10.?.75*near*rpS(0., .3, uHits):0.));
   float cap = crown + sn*dome*T*(.65 + .6*n1)*(1.1 + .5*rpIce);
   float hem = crown - sat(sn*2.)*T*dome*(.05 + (.35 + .8*sn)*rpS(.2, .85, n2*.65 + n3*.35));
   float tf = mix(rpTuft(g*8.5 + vec2(i*7., seed*5.), vec2(1e4), gp*8.5).x, .35, rpS(.02, .04, gp));
   float body = rpIn(min(crown + .6*spike - g.y, g.y - under + spike), gp);
-  float up = sat((g.y - under)/max(crown - under, .02)), on = step(0., i);
+  if (rpBare>0.) rpLay(col, mix(bark*1.1, rpWhite*.9, sat(rpSnow*1.6)*.55*rpS(-.1, .1, sin(g.x*23. + i) - .2)), rpTwig(g, i + seed, gp)*rpS(-.34, -.08, g.y - .3*n2*step(.2, abs(g.x)))*step(0., i)*sat(rpBare*2.));
+  float up = sat((g.y - under)/max(crown - under, .02)), on = step(0., i)*(1. - rpS(.4, 1., max(rpBare, rpCloth)));
   vec3 needle = mix(vec3(.045, .065, .062), mix(vec3(.16, .215, .17), vec3(.2, .27, .13), sat(-uOwn[1])), tf*(.3 + .7*up))*rpAmb;
+  needle = mix(needle, rpPetal()*(.34 + .22*up + .2*tf), rpBloom);
   needle += rpGold*(rpNight*.2*(1. - up)*(.3 + tf) + .13*uCue*tf);
   rpLay(col, needle, body*on);
   // snow, with needle points through it
   float st = sat((g.y - hem)/max(cap - hem, .02)), side = sat(.5 - .5*g.x);
   vec3 sc = mix(vec3(.66, .71, .78), vec3(1., .995, .975), rpS(0., .75, st + .25*(n3 - .5))*(.72 + .28*side))*rpAmb;
+  sc = mix(sc, mix(rpPetal()*.8, mix(rpPetal()*1.12, rpWhite, .25 + .5*sat(uOwn[1])), rpS(0., .8, st + .5*(noise(g*19. + i*5.) - .5))), rpBloom);
   sc += rpGold*rpNight*.25*(1. - st);
   sc = mix(sc, needle*1.3, .75*tf*(1. - rpS(.2, .55, st))*rpIn(hem + .1 - g.y, gp*8.));
   rpLay(col, sc, rpIn(min(cap - g.y, g.y - hem), gp)*rpS(0., .02, sn)*on);
  }
+ if (rpCloth>0.) rpLay(col, hung.rgb, hung.a);
  // the ropes on our side
- rpLay(col, mix(front.rgb, rpGold, sat(.75*uCue + glow)), front.a*(.97 - .3*rpMist));
+ rpLay(col, mix(front.rgb, rpGold, sat(.75*uCue + glow + .9*rpChime)), front.a*(.97 - .3*rpMist));
+ if (rpHung>0.) rpLay(col, hung.rgb, hung.a);
  return mix(col, vec3(1., .95, .8), sat(glint*1.3));
 }
 // The water's edge, nearer to us at the right where the big pine stands.
@@ -171,7 +210,7 @@ float rpShore(float x) { x /= rpW; return -.115 - .085*rpS(.08, .62, x) + .008*s
 // The ground: snow, or moss and fallen needles.
 vec3 rpGround(vec2 p, float shade) {
  vec3 moss = vec3(.3, .3, .16);
- if (rpSnow<.35) moss = mix(moss, vec3(.55, .27, .1), noise(p*vec2(9., 40.))*noise(p*70.));
+ if (rpSnow<.35) moss = mix(mix(moss, vec3(.3, .38, .2), rpBloom), mix(vec3(.55, .27, .1), rpPetal(), rpBloom), noise(p*vec2(9., 40.))*(rpBloom>0.?rpS(.45, .8, noise(rot(.6)*p*vec2(70., 190.)))*rpS(.2, .7, noise(p*vec2(8., 22.) + 4.)):noise(p*70.)));
  return mix(moss, mix(vec3(.76, .8, .86), vec3(.97, .97, .965), shade), rpS(0., .35, rpSnow))*rpAmb;
 }
 // The garden. In the pond each tree is mirrored about the water at its own foot.
@@ -180,7 +219,7 @@ vec3 rpGarden(vec3 col, vec2 b) {
  float edge = rpEdge, down = rpWet;
  // a far wooded hill, nearly lost
  float hx = p.x + 9., hill = .005 + .05*rpN(hx*2.2) + .02*rpN(hx*9.);
- vec3 wood = mix(vec3(.5, .53, .55), vec3(.6, .28, .14), sat(-uOwn[1]))*rpAmb*(.85 + .3*noise(p*vec2(40., 30.)));
+ vec3 wood = mix(vec3(.5, .53, .55), mix(vec3(.6, .28, .14), vec3(.5, .55, .42), rpBloom), sat(-uOwn[1]))*rpAmb*(.85 + .3*noise(p*vec2(40., 30.)));
  col = mix(col, mix(wood, rpHaze, sat(.45 + .4*rpFog - .15*rpBlue + .2*uOwn[1])), (1. - rpS(-.02, .012, b.y - hill))*.85);
  // the bank
  float bank = edge + .045 + .03*rpS(0., .6, p.x/rpW) + (.014 + .02*rpIce)*rpN(p.x*5. + 20.);
@@ -192,7 +231,7 @@ vec3 rpGarden(vec3 col, vec2 b) {
  vec4 far = x<-.865?vec4(-1.1, .2, .5, 5.):x<-.21?vec4(-.535, .34, .16, 3.):vec4(-.07, .14, .36, 4.);
  vec4 big = vec4(.61*rpW, .62*rpSc, 0., 1.);
  vec2 at = vec2(big.x, -.165), q = (p + vec2(0., 2.*down*(rpShore(at.x) - edge)) - at)/big.y;
- float out_ = abs(q.x)/broad - rpWide*(rpTall - max(q.y/high, .25)) - .07, near = step(out_, 0.);
+ float out_ = abs(q.x)/broad - rpWide*(rpTall - max(q.y/high, mix(.25, .08, rpCloth))) - .07, near = step(out_, 0.);
  far.x += shift;
  at = vec2(far.x, -.095 + .07*far.z);
  vec2 qf = (p + vec2(0., 2.*down*(rpShore(at.x) - edge)) - at)/far.y;
@@ -217,7 +256,8 @@ vec3 rpFall(vec3 col, vec2 p) {
   d = mix(d, rot(h*9. + uTime*.6)*d*vec2(.6, 1.6), leaf*(1. - wind));
   float r = (.03 + .026*h2)*(1. + .9*big + .4*leaf*(1. - wind)), soft = max(rpPx*s*.9, (k==0?.8:.35)*r*(1. - .6*leaf));
   float c = (1. - rpS(r - soft, r + soft, length(d)))*rpS(h*1.02, h*1.02 + .12, amt);
-  vec3 f = mix(mix(vec3(.99, .99, .985), uKind[2], .12*uTexture), mix(vec3(.62, .17, .08), vec3(.75, .42, .12), h2), leaf)*mix(vec3(1.), rpAmb*1.25, max(rpNight, leaf));
+  vec3 f = mix(mix(vec3(.99, .99, .985), uKind[2], .12*uTexture), mix(mix(vec3(.62, .17, .08), vec3(.75, .42, .12), h2), mix(vec3(.96, .74, .78), uKind[1], .75), rpBloom), leaf)*mix(vec3(1.), rpAmb*1.25, max(rpNight, leaf));
+  if (rpNight>0.) f = mix(f, max(f, col), rpNight); // a flake before a lamp is no speck
   col = mix(col, f, c*(k==0?.65:.9));
  }
  return mix(col, rpHaze*1.04, .3*wind);
@@ -277,7 +317,7 @@ vec3 rpB(vec3 col, vec2 p, vec2 C) {
  float px = rpPx/zoom, r = length(v), an = atan(v.y, v.x + 1e-6)/TAU;
  // the rope here and how far it runs, the limb here, the plates over it
  float n = 34., k = floor((an + .5)*n), h = hash21(vec2(k, 4.)), a = ((k + .5 + .55*(h - .5))/n - .5)*TAU;
- float cueAt = exp(-rpSq((r - 1.1*(1. - uCue))/.35))*uCue, end = 3., best = 9.;
+ float cueAt = exp(-rpSq((r - 1.1*(1. - uCue))/.35))*uCue + rpChime*exp(-rpSq((r - .8*(1. - uHits))/.3)), end = 3., best = 9.;
  vec2 d = vec2(cos(a), sin(a)), bent = vec2(0.);
  vec3 arm = vec3(0.);
  int first = -1, second = -1, third = -1;
@@ -298,6 +338,14 @@ vec3 rpB(vec3 col, vec2 p, vec2 C) {
  float bd = uBands[int(mod(k, 16.))], sh = sin(PI*t)*m.a*(.4 + .8*uEnergy);
  ac += sh*.0035*sin(al*25. + h*40.)*sin(uTime*5.1 + h*30.);
  al = max(al, 0.);
+ if (rpCloth>0.) {
+  end = mix(end, 3., rpCloth);
+  float id = mod(k + (ac>0.?1.:0.), n), f = rpH(id*3. + 5.);
+  int ki = int(4.99*f);
+  float bright = dot(col, vec3(.3, .6, .1)), fold = sat(abs(ac)/(.09*al + 1e-3));
+  vec3 kc = mix(vec3(.8, .68, .46), uKind[ki], .85);
+  col = mix(col, mix(kc, kc*kc, .5)*(.16 + .72*bright*(.75 + .3*fold))*(1. + .35*m.a + .25*rpLv(ki)) + rpNight*rpGold*kc*(.5*exp(-r*1.2) + .25*rpLv(ki)), rpCloth*.94);
+ }
  float w = .0011 + .0044*al*(1. + .35*bd*uEnergy), on = step(1e-4, al)*step(al, end), side = d.x >= 0.?1.:-1.;
  float tw = .9 + .16*sin(al*260./(.4 + al) + ac/w*1.9)*rpS(.0015, .003, w);
  vec3 c = rpStraw(m, bd)*tw*(1. - .35*sat(.3 - ac*side/w));
@@ -306,12 +354,19 @@ vec3 rpB(vec3 col, vec2 p, vec2 C) {
  col = mix(col, rpWhite, rpLine(ac*side - w - sw*.6, sw + 1e-5, px)*rpS(0., .1, lie)*on);
  col = mix(col, mix(c, rpHaze, .2*(1. - sat(al*2.)) + .4*rpFog), rpLine(ac, w + .002*sh, px)*on);
  col = mix(col, vec3(1., .95, .8), exp(-rpSq((al - end*.6)/.03))*on*sat(uKeys*1.5 - .8*h)*(1. - rpS(0., 3.*w, abs(ac))));
+ if (rpHung>0.) {
+  float js = log(max(al, .02)/.1)/.3 + h*.8, jf = fract(js) - .5, rad = .055*al;
+  int ki = int(4.99*rpH(floor(js)*5. + k*7. + 90.));
+  float l = length(vec2(ac + .3*rad, jf*.3*al)*vec2(1., .85)), lv = min(.55 + .5*m.a + .5*rpLv(ki) + .5*uCue, 1.35), at = .1*exp(.3*(floor(js) + .5 - h*.8)), lon = rpHung*step(.12, at)*step(at, end);
+  vec3 kc = mix(vec3(1., .8, .5), uKind[ki], .7);
+  col = mix(col, kc*(.6 + .2*(1. - rpNight) + (.35 + .4*rpNight)*lv*(1. - .6*sat(l/(rad + 1e-4)))), lon*max(rpIn(rad - l, px), (.18 + .4*rpNight)*lv*.5*sat(1. - l/(rad*1.5 + 1e-4))));
+ }
  // the pole and the straw tied at its tip
  float ps = sat((v.y + .9)/.9);
  col = mix(col, vec3(.36, .28, .19)*rpAmb, rpLine(v.x - .03*(1. - ps), mix(.016, .0022, sqrt(ps)), px)*step(v.y, 0.));
  col = mix(col, vec3(.5, .38, .22)*rpAmb, rpIn(.012 - r, px));
  // the limbs and the trunk, rising away from us
- vec3 bark = vec3(.12, .1, .09)*rpAmb;
+ vec3 bark = mix(vec3(.12, .1, .09)*rpAmb, rpHaze*.8, .55*rpFog);
  float lw = arm.z + 1e-4, lb = rpN(arm.x*50. + arm.y/lw + 20.), topside = -arm.y*(bent.x>0.?1.:-1.)*abs(bent.x);
  arm.y += lw*.5*sin(arm.x*45.);
  col = mix(col, bark*(.6 + .8*lb), rpIn(lw*(.9 + .2*lb) - abs(arm.y), px)*step(1e-3, arm.z));
@@ -329,17 +384,20 @@ vec3 rpB(vec3 col, vec2 p, vec2 C) {
   float hp = rpH(float(i)*3. + 2.);
   vec2 e = v - o.xy*spread - .004*vec2(sin(uTime*.4 + hp*9.), cos(uTime*.33 + hp*20.))*(.4 + uLow);
   vec2 rad = normalize(vec2(.2*o.x, o.y + (o.y<0.?-.15:.15))), tn = vec2(-rad.y, rad.x), g = vec2(dot(e, tn), dot(e, rad))/o.z, env = vec2(1.2, .68);
+  if (rpBare>0.) col = mix(col, bark*1.1, rpTwig(g, float(i), px/o.z)*sat(rpBare*2.));
   float gp = px/o.z, sc = 3.4 + 11.*o.z, gone = i==5?rpS(0., .3, uHits):0.;
   float fine = rpN(g.x*9. + g.y*4. + hp*90. + 40.), wob = .9*noise(rot(.6)*g*2.3 + hp*30.) + .35*noise(rot(1.1)*g*5.6 + hp*70.) - .62, in0 = 1. - length(g/env) + wob - 5.*rpSq(max(abs(g.x) - .95, 0.)) - 8.*rpSq(max(abs(g.y) - .5, 0.));
   float es = in0 - .1 + (.3 + .14*rpIce)*clamp(dot(vec2(tn.y, rad.y), g), -.5, .7) + .08*rpIce - .3*(1. - sat(rpSnow*2.)*(1. - .8*gone));
   vec3 snow = mix(vec3(1., .99, .97), vec3(.17, .2, .21), rpS(.02, .24, es))*rpAmb;
+  snow = mix(snow, rpPetal()*1.05, rpBloom);
   snow *= mix(vec3(1.), vec3(1.06, .95, .74), sat(cueAt + .4*uCue));
-  col = mix(col, mix(snow, rpHaze, .3*rpFog), rpIn(es, gp*2.)*rpS(0., .15, rpSnow));
+  col = mix(col, mix(snow, rpHaze, .3*rpFog), rpIn(es, gp*2.)*rpS(0., .15, max(rpSnow, rpBloom))*(1. - rpBare));
   float solid = rpS(0., .14, in0 - .16 - .36*fine);
   vec2 tuft = rpTuft(g*sc + wob, env*sc*1.1, gp*sc);
   vec3 green = mix(mix(vec3(.13, .18, .13), vec3(.25, .29, .11), sat(-uOwn[1])), vec3(.27, .27, .15), .5*exp(-dot(p - rpSunAt, p - rpSunAt)*5.));
   vec3 needle = mix(vec3(.04, .056, .05), green*(.4 + .85*tuft.y), tuft.x*(1. - .3*solid))*rpAmb + rpGold*(.2*uCue + .12*rpNight)*tuft.x;
-  col = mix(col, mix(needle, rpHaze, .42*rpFog + .1*(1. - sat(length(o.xy)*1.5))), max(solid, tuft.x));
+  if (rpBloom>0.) needle = mix(needle, rpPetal()*(.6 + .22*noise(g*7. + hp*40.) + .4*tuft.x*tuft.y)*(.82 + .3*sat(dot(e, vec2(-.6, .5))/o.z + .4)), rpBloom);
+  col = mix(col, mix(needle, rpHaze, .42*rpFog + .1*(1. - sat(length(o.xy)*1.5))), max(solid, tuft.x)*(1. - rpS(.4, 1., rpBare)));
  }
  return col;
 }
@@ -359,6 +417,6 @@ vec3 render(vec2 p) {
  vec2 at = turn<.5?rpOver(8).xy:rpOver(4).xy;
  float load = rpLoad(a?rpWv - rpBough:p - C - rpOver(5).xy, a?.17*rpSc:.19, a?.24*rpSc:.28, 1. - uHits)*rpS(0., .5, uHits);
  if (!a) load = max(load, rpLoad(p - C - at, .13, .35, f)*.6*rpSq(sin(PI*f))*sat(rpSnow*1.6));
- col = mix(col, rpWhite, load);
+ col = mix(col, mix(rpWhite, rpPetal(), rpBloom)*mix(vec3(1.), vec3(.68, .76, .88), rpIce*rpS(0., .6, dot(col, vec3(.35)))), load);
  return rpFall(col, a?rpWv:p);
 }

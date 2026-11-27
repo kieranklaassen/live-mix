@@ -3,7 +3,10 @@
 // b: Under the stage
 // what: A stage parlour in low gold light. Across it leans a sheet of glass, known by one cold seam, and in it stand pale things that are not there: a tree, a lilac, a cage, a lamp; or the trick from the side, with the pit where the real ones lean under lamps.
 // follows: Each kind is one ghost, as bright as it is loud: drone the tree, pad (or a voice) the lilac, texture falling petals, phrase the cage and its swing, hits the lamps. Bands light leaves and bars. The loop turns them to and fro. The sheen of the glass drifts, keys set glints on its edge, a cue dims the room round them.
-// own: 0 moonlight at -1, broad day at 1; 1 bare twigs and cold air at -1, heavy leaf and green air at 1; 2 small ghosts at -1, huge at 1; 3 close at -1, far and high at 1; 4 dark green paper and velvet at -1, rose at 1; 5 blue ghosts in line in a dim room at -1, full and gaslit at 1
+// own: 0 moonlight at -1, broad day at 1; 1 bare twigs and cold air at -1, heavy leaf and green air at 1; 2 small ghosts at -1, huge at 1; 3 close at -1, far and high at 1; 4 dark green paper and velvet at -1, rose at 1; 5 blue ghosts in line in a dim room at -1, full and gaslit at 1; 6 a bare black stage at -1, the walls gone and open country at 1 (b: the glass leans far at -1, stands up at 1); 7 cages hung in rows at -1, a wood of weeping trees at 1
+#define SG_BARE max(-uOwn[6], 0.0)
+#define SG_OPEN max(uOwn[6], 0.0)
+#define SG_WOOD max(uOwn[7], 0.0)
 float sgPx, sgE, sgFill, sgLeaf, sgTurn, sgVeil, sgLv[5]; // a pixel, and here; how full the ghosts are, leaf, turn, what they hide, lamps
 vec3 sgTint[5], sgLight, sgPale, sgDye, sgSun, sgSky, sgL; // the ghosts' colours and light; the paper, sun, sky, way to the sun
 float sgB[66]; // the boxes of the set: where, and half their size
@@ -26,7 +29,7 @@ float sgLeafy, sgStalk;
 vec4 sgOne, sgTwo;      // the two nearest twigs: the way to their ends, how near us, which
 vec3 sgOff(inout vec3 dir, vec3 from, float turned, float len, float wide) {
   sgWay = mat2(-0.62, 0.785, -0.785, -0.62) * sgWay;
-  dir = normalize(dir + turned * vec3(sgWay.x, 0.1, sgWay.y));
+  dir = normalize(dir + turned * vec3(sgWay.x, 0.1 - 3.0 * SG_WOOD * max(0.62 - len, 0.0), sgWay.y));
   vec3 to = from + dir * len * (0.97 + 0.17 * sgWay.y);
   vec2 pa = sgQ - from.xy, ba = to.xy - from.xy;
   float h = sat(dot(pa, ba) / (dot(ba, ba) + 1e-5)), r = wide * (1.0 - 0.45 * h), d = length(pa - ba * h);
@@ -47,7 +50,7 @@ void sgRing(float r, float a, float n, float lit) { // leaves round a twig's end
   sgStalk = max(sgStalk, 0.4 * sgIn(abs(m.y) - 0.5 * sgE) * step(m.x, 0.0) * step(-0.07, m.x));
 }
 void sgTree(vec2 q) {
-  bool crown = abs(q.x) < 1.35 && abs(q.y - 1.7) < 1.0;
+  bool crown = abs(q.x) < 1.35 + 0.2 * SG_WOOD && abs(q.y - 1.7 + 0.55 * SG_WOOD) < 1.0 + 0.5 * SG_WOOD;
   q += vec2((0.05 * sin(2.3 * q.y + 0.7) + 0.02 * sin(6.1 * q.y)) * sat(2.0 * q.y), 0.03 * sin(5.3 * q.x + 1.0));
   sgQ = q;
   sgOne = sgTwo = vec4(9.0);
@@ -78,6 +81,34 @@ void sgTree(vec2 q) {
   wood = max(wood, sgStalk);
   sgAdd(sgTint[0], sgLv[0] * wood * 0.85);
   sgAdd(mix(sgTint[0], vec3(1.0, 0.97, 0.9), 0.35), sgLv[0] * sgLeafy * 0.8);
+}
+// More of them: rows going off.
+float sgRow(inout vec2 q, float gap, float grow, float lit, int k) {
+  float c = floor(q.x * grow / gap + 0.5);
+  q *= grow;
+  q.x -= c * gap;
+  sgE *= grow;
+  sgLv[k] *= lit;
+  return c;
+}
+void sgWood(vec2 q) {
+  if (uOwn[7] > 0.0) {
+    vec3 was = vec3(sgTurn, sgE, sgLv[0]);
+    vec2 f = q - vec2(1.0, 0.45);
+    float gap = 2.6 / max(uOwn[7], 0.05);
+    sgTurn = was.x + 2.0 + 1.7 * sgRow(f, gap, 1.5, 0.32 * sat(2.5 * uOwn[7]), 0);
+    sgLv[0] *= sgDn(0.5 * gap, 0.5 * gap - 0.2, abs(f.x));
+    sgTree(f);
+    sgLv[0] = was.z;
+    sgE = was.y;
+    sgTurn = was.x + 1.3 * sgRow(q, gap, 1.0, 1.0, 0);
+    sgLv[0] *= sgDn(0.5 * gap, 0.5 * gap - 0.2, abs(q.x));
+    sgTree(q);
+    sgTurn = was.x;
+    sgLv[0] = was.z;
+    return;
+  }
+  sgTree(q);
 }
 void sgFlorets(vec2 g, float v, float lamp, inout float flower) {
   vec2 c = floor(g), h = hash22(c), f = fract(g) - 0.5 - (h - 0.5) * 0.36;
@@ -124,6 +155,19 @@ void sgCage(vec2 q) { // bars before and behind, hoops, a perch that swings
   best = max(best, sgIn(min(min(length(q - vec2(0.0, 0.785)) - 0.024, hook), swing)));
   sgAdd(sgTint[3], sgLv[3] * best * 1.1);
 }
+void sgCages(vec2 q) {
+  if (uOwn[7] < 0.0) for (float k = 1.0; k < 3.5; k++) {
+    vec2 was = vec2(sgE, sgLv[3]), f = q + vec2(0.31 * k, 0.22 * k - 0.5);
+    float h = hash11(sgRow(f, 0.95 / max(-uOwn[7], 0.05), 0.75 + 0.35 * k, (1.15 - 0.25 * k) * sat(-2.5 * uOwn[7]), 3) + 9.0 * k);
+    f.y += (uVar > 0.5 ? 0.35 : 1.0) * (0.8 - 1.4 * h);
+    sgTurn += 2.0 * h;
+    sgCage(f);
+    sgTurn -= 2.0 * h;
+    sgE = was.x;
+    sgLv[3] = was.y;
+  }
+  sgCage(q);
+}
 void sgLamp(vec2 q) {
   float l = sgLv[4], y = q.y, r = length(q - vec2(0.0, 0.47)) / 0.135, x = abs(q.x), R = max(max(0.105 - 1.4 * y, 0.02), 0.085 * sqrt(max(1.0 - sgSq((y - 0.25) / 0.06), 0.0)));
   float best = sgIn(x - R) * sgGlass(x / R) * step(0.0, y) * step(y, 0.355) + 0.15 * sgIn(max(x - 0.036, abs(y - 0.53) - 0.18));
@@ -161,11 +205,15 @@ vec3 sgPaper(vec2 at) {
   return sgDye * (y < 1.0 ? w * vec3(0.5, 0.39, 0.29) : vec3(c));
 }
 // b's glass: its foot, along it, out of it; up from the pit's bed; a seat in the house.
-const vec2 SG_LIP = vec2(-0.12, 0.02), SG_D = vec2(0.4794, 0.8776), SG_OUT = vec2(0.8776, -0.4794), SG_BED = vec2(0.8415, 0.5403), SG_EYE = vec2(1.75, 0.3);
+#define SG_A (1.0708 + 0.24 * uOwn[6])
+#define SG_D (uOwn[6] == 0.0 ? vec2(0.4794, 0.8776) : vec2(cos(SG_A), sin(SG_A)))
+#define SG_OUT (uOwn[6] == 0.0 ? vec2(0.8776, -0.4794) : vec2(sin(SG_A), -cos(SG_A)))
+#define SG_BED (uOwn[6] == 0.0 ? vec2(0.8415, 0.5403) : vec2(sin(2.0 * SG_A), -cos(2.0 * SG_A)))
+const vec2 SG_LIP = vec2(-0.12, 0.02), SG_EYE = vec2(1.75, 0.3);
 vec3 sgBulb(vec3 v, vec3 n, float bright) { float d2 = dot(v, v) + 1e-4; return vec3(1.0, 0.93, 0.78) * bright * sat(0.1 + dot(n, v) * inversesqrt(d2)) / (d2 + 0.02); }
 vec3 sgRoom(vec3 ro, vec3 rd, bool under, float power) {
   vec3 inv = sgSlab(rd), n = vec3(0, 0, -1), alb, at = vec3(0.0), size = vec3(1.0);
-  float t = ((under ? 0.52 : 3.0) - ro.z) * inv.z, tx = ((rd.x > 0.0 ? 2.75 : -2.6) - ro.x) * inv.x, ty = -ro.y * inv.y, tb = -dot(ro.xy - SG_LIP, SG_BED) / dot(rd.xy, SG_BED);
+  float t = ((under ? 0.52 : 3.0 + 45.0 * SG_OPEN) - ro.z) * inv.z, tx = ((rd.x > 0.0 ? 2.75 + 41.0 * SG_OPEN : -2.6 - 39.0 * SG_OPEN) - ro.x) * inv.x, ty = -ro.y * inv.y, tb = -dot(ro.xy - SG_LIP, SG_BED) / dot(rd.xy, SG_BED);
   if (!under && tx < t) { t = tx; n = vec3(-sign(rd.x), 0, 0); }
   if (!under && rd.y < 0.0 && ty < t) { t = ty; n = vec3(0, 1, 0); }
   int id = -1;
@@ -198,6 +246,28 @@ vec3 sgRoom(vec3 ro, vec3 rd, bool under, float power) {
   if (boards) alb = mix(vec3(0.19, 0.13, 0.08), vec3(0.4, 0.31, 0.21), 0.5 * fract(plank * 0.618) + 0.5 * grain) * (1.0 - 0.75 * sgLine((0.5 - abs(fract(pos.x / 0.21) - 0.5)) * 0.21, 0.004 + ew));
   if (wood) alb = mix(vec3(0.05, 0.022, 0.012), vec3(0.27, 0.13, 0.06), 0.24 + 0.6 * grain) * (under ? id == 1 || id > 7 ? 0.5 : 1.15 : id < 5 ? 1.0 : 0.7) * (1.0 + (under ? 0.3 : 1.1) * sgLine(min(min(rim.x, rim.y), rim.z), 0.008 + 0.7 * sgE));
   if (!under) {
+    float out_ = sat(3.0 * SG_OPEN);
+    vec3 far = vec3(0.0);
+    if (uOwn[6] > 0.0 && id < 0) { // country
+      far = sgSun * 0.26 * exp(-7.0 * max(rd.y, 0.0)) + sgSky * (0.2 + 0.25 * max(rd.y, 0.0));
+      if (n.y > 0.5) {
+        float near_ = exp(-0.16 * t), drift = noise(pos.xz * vec2(0.8, 1.7) + 3.0), blade = noise(pos.xz * vec2(34.0, 9.0));
+        vec3 g = sgBy(vec3(0.7, 0.75, 0.82), vec3(0.45, 0.33, 0.2), vec3(0.1, 0.17, 0.06), uOwn[1]) * (0.75 + 0.5 * drift);
+        alb = mix(alb, g * (1.0 + (0.5 + max(uOwn[1], 0.0)) * (blade - 0.5) * near_), out_);
+        far *= 1.0 - exp(-0.045 * t);
+        alb *= mix(1.0, exp(-0.045 * t), out_);
+      } else {
+        float az = rd.x / (rd.z + 0.6), h1 = 0.2 * noise(vec2(az * 3.0, 2.0)) + 0.02 * noise(vec2(az * 14.0, 5.0)), h2 = 0.09 * noise(vec2(az * 5.0 + 7.0, 4.0)) + 0.012 * noise(vec2(az * 60.0, 5.0));
+        float y = rd.y, soft = 1.5 * sgPx;
+        far *= 0.8 + 0.5 * smoothstep(0.3, 0.8, noise(vec2(az * 2.2 + 0.02 * uTime, rd.y * 13.0))) * sat(rd.y * 5.0);
+        far += step(uOwn[0], 0.0) * -uOwn[0] * vec3(0.8, 0.9, 1.0) * sgDn(0.09, 0.03, length(fract(rd.xy / rd.z * 24.0) - 0.5 - 0.35 * (hash22(floor(rd.xy / rd.z * 24.0)) - 0.5))) * step(0.86, hash21(floor(rd.xy / rd.z * 24.0) + 5.0));
+        far = mix(far, sgSky * 0.17 + sgSun * 0.07, sgDn(soft, -soft, y - h1));
+        far = mix(far, sgSky * 0.09 + sgSun * 0.04, sgDn(soft, -soft, y - h2));
+        alb *= 1.0 - out_;
+      }
+      far *= out_;
+    }
+    if (uOwn[6] < 0.0 && id < 0) alb *= mix(1.0, boards ? 0.75 : 0.12 + 0.5 * sgSq(0.5 + 0.5 * sin((pos.x + pos.z) * 15.0 + 2.0 * sin(pos.x * 3.1 + 0.4 * pos.y))), SG_BARE);
     if (id == 7 && n.z < -0.5) alb = mix(alb, vec3(0.6, 0.53, 0.38) * (1.0 - 1.5 * length(box.xy)), sgIn(length(box.xy) - 0.21));
     vec3 v = vec3(-2.5, 1.75, 0.1) - pos;
     float d2 = dot(v, v), open_ = 0.1 + sat(0.25 + 0.75 * dot(n, v) * inversesqrt(d2)) * 5.2 / (d2 + 3.2);
@@ -206,7 +276,13 @@ vec3 sgRoom(vec3 ro, vec3 rd, bool under, float power) {
     float k = (pos.x + 2.6) / max(-sgL.x, 0.05), blur = 0.02 + 0.02 * k * (1.6 - 1.2 * uTone);
     vec2 w = (pos + sgL * k).zy - vec2(-0.75, 0.35), bars = (0.5 - abs(fract(w / 0.85) - 0.5)) * 0.85;
     float beam = sgSpan(w.x, 0.0, 1.7, 2.0 * blur) * sgSpan(w.y, 0.0, 2.55, 2.0 * blur) * (1.0 - 0.85 * sgLine(min(bars.x, bars.y), 0.035 + 0.5 * blur)) * (0.35 + 0.65 * smoothstep(0.18, 0.48, noise(w * 2.3 + 0.12 * sin(uTime * vec2(0.21, 0.17)) + 4.0)));
-    return (alb + max(n.y, 0.0) * 0.02) * (sgSun * 2.1 * beam * sat(dot(n, sgL) + 0.02) * sh.x + (sgSky * open_ + sgSun * 0.2 * sgLine(length(pos - vec3(-0.9, 0.6, 2.2)), 1.3)) * sh.y) + sgSky * beam * max(n.x - 9.0 * abs(pos.x + 2.6), 0.0);
+    beam = mix(beam, 0.7, out_);
+    if (uOwn[6] < 0.0) {
+      beam = mix(beam, 1.4 * sgLine(length(pos.xz - vec2(-0.1, 1.2)), 1.3) * step(0.5, n.y), SG_BARE);
+      open_ *= 1.0 - 0.75 * SG_BARE;
+    }
+    open_ = mix(open_, 0.75 + 0.2 * n.y, out_);
+    return far + (alb + max(n.y, 0.0) * 0.02) * (sgSun * 2.1 * beam * sat(dot(n, sgL) + 0.02 + 0.6 * SG_BARE) * sh.x + (sgSky * open_ + sgSun * 0.2 * sgLine(length(pos - vec3(-0.9, 0.6, 2.2)), 1.3)) * sh.y) + sgSky * beam * max(n.x - 9.0 * abs(pos.x + 2.6), 0.0);
   }
   vec3 plush = mix(vec3(0.028, 0.022, 0.03), sgDye * 0.16, abs(uOwn[4]));
   bool pit = id == 20 || (dot(pos.xy - SG_LIP, SG_BED) > 0.0 && pos.y < 0.04 && pos.x < 0.63);
@@ -282,13 +358,19 @@ vec3 render(vec2 p) {
     v = p + vec2(0.0, 0.007) * sat(seam / sgPx + 0.5);
     at = vec3[5](vec3(-1.28, 0, 1.7), vec3(0, 0.75, 1.1), vec3(0, 1.5, 1), vec3(0.78, 1.72, 1.4), vec3(1.72, 0.48, 0.4));
     sgB = float[66](0.0, .71, 1.1, .66, .04, .42, -.56, .32, .8, .035, .32, .035, .56, .32, .8, .035, .32, .035, -.56, .32, 1.4, .035, .32, .035, .56, .32, 1.4, .035, .32, .035, 1.38, .24, 2.75, .31, .24, .2, 1.38, 1.0, 2.8, .22, .6, .16, 1.38, 1.96, 2.75, .28, .36, .2, 1.8, .45, .4, .27, .03, .26, 2.04, .95, .4, .03, .55, .26, 1.6, .21, .2, .025, .21, .025);
+    if (uOwn[6] < 0.0) { // the furniture goes down
+#define SG_SINK(i) sgB[6 * i + 1] -= 4.0 * SG_BARE;
+      SG_ALL(SG_SINK)
+      at[1].y = max(at[1].y - 4.0 * SG_BARE, 0.0);
+      at[4].y = max(at[4].y - 4.0 * SG_BARE, 0.0);
+    }
   }
   vec3 col = sgRoom(ro, rd, under, power) * mix(1.0, dim, under ? sgDn(0.0, -0.2, w.x) : 1.0);
 #define SG_GHOST(k, ghost) if (!under) at[k] = vec3((at[k].xy - ro.xy) * 1.15, k == 1 ? 1.55 : 1.15) / (at[k].z - ro.z) + vec3(0, rise, 0); at[k].z *= grow; sgE = sgPx / at[k].z; ghost((v - at[k].xy) / at[k].z);
-  SG_GHOST(0, sgTree)
+  SG_GHOST(0, sgWood)
   SG_GHOST(1, sgLilac)
   SG_GHOST(2, sgPetals)
-  SG_GHOST(3, sgCage)
+  SG_GHOST(3, sgCages)
   SG_GHOST(4, sgLamp)
   if (!under) {
     float in_ = sat(edge / sgPx + 0.5), sheen = p.x * 0.9 - p.y * 0.42 + 0.5 * sin(uTravel * 0.04), fine = 0.8 * sgPx + 0.0005;

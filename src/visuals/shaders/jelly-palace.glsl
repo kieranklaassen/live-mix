@@ -3,7 +3,7 @@
 // b: Inside the aspic
 // what: A jelly in the shape of a palace, raspberry, lemon and clear, stands on a white damask cloth in window sun; the light lies in front as a pool of colour with a silver spoon in it, a green fish and an amber ring behind. Or we are inside one: a honey hall with ribs, fruit and bubbles hanging, a bite gone at the left.
 // follows: A hit makes it wobble, and light runs out over the cloth or up the ribs; a cue cuts a clean wedge and lets it close. The drone deepens the colour, the pad is the sun, texture is the fish's stripes and the bubbles, a phrase leans the towers or rocks the fruit. The spectrum lights flutes and ribs, the piece tints the pool or the floor, the loop moves the sun.
-// own: 0 gooseberry and lime at -1, plum and rose at 1; 1 clear as water at -1, milk jelly at 1; 2 a dark room with a low warm lamp at -1, pale snow light at 1; 3 a smooth mould at -1, deep twisted flutes at 1; 4 a low cake, or only the large slice of orange, at -1, tall spires, or more fruit, at 1; 5 near and low, or looking up into the dome, at -1, from above and far, or wide and down to the floor, at 1
+// own: 0 gooseberry and lime at -1, plum and rose at 1; 1 clear as water at -1, milk jelly at 1; 2 a dark room with a low warm lamp at -1, pale snow light at 1; 3 a smooth mould at -1, deep twisted flutes at 1; 4 a low cake, or only the large slice of orange, at -1, tall spires, or more fruit, at 1; 5 near and low, or looking up into the dome, at -1, from above and far, or wide and down to the floor, at 1; 6 one jelly alone with no turrets, or round pearls for the fruit, at -1, square stepped towers, or flowers for the fruit, at 1; 7 a black polished table, or level layers and no bite, at -1, outdoors on open sand or ice, or the bite a mouth onto the sea, at 1 (6 and 7 at either end also dye the jelly in the sounds' colours)
 vec3 jpS0,jpS1,jpS2,jpT0,jpT1,jpT2; // what each layer swallows, and the colour it scatters
 vec3 jpL,jpSun,jpSky,jpW,jpHoney,jpHs; // the sun and its light, the room's, the wobble, the honey
 vec2 jpDir,jpLean[3]; // the way shadows fall; how the towers lean
@@ -13,6 +13,8 @@ const vec3 jpA=vec3(.5,0.,0.),jpB=vec3(-.72,0.,.62),jpC=vec3(1.95,0.,-.42);
 float jpE(float a,float b,float x) { x=sat((x-a)/(b-a));return x*x*(3.-2.*x);}
 float jpSq(float x) { return x*x;}
 float jpBell(float x,float w) { x/=w;return exp(-x*x);}
+// How far from the middle, round or square.
+float jpR(vec2 q) { float r=length(q);if (uOwn[6]>0.) { vec2 k=q*q;r=mix(r,.98*sqrt(sqrt(dot(k*k,vec2(1.))+1e-8))*.5+.49*max(abs(q.x),abs(q.y)),uOwn[6]);} return r+1e-4;}
 // A scalloped edge of two to the n lobes.
 float jpLobe(vec2 c,int n) {
  for (int i=0;i<n;i++) c=vec2(c.x*c.x-c.y*c.y,2.*c.x*c.y);
@@ -23,8 +25,8 @@ float jpDrum(float r,float y,float R,float lo,float hi,float k) {
  return length(max(d,0.))+min(max(d.x,d.y),0.)-k;
 }
 float jpTower(vec3 q,float R,float H) {
- float r=length(q.xz)+1e-4,y=q.y;
- float f=jpFl*.075*(jpLobe(q.xz/r,3)-.8);
+ float r=jpR(q.xz),y=q.y;
+ float f=jpFl*.075*(jpLobe(uOwn[6]>0.?q.xz/(length(q.xz)+1e-4):q.xz/r,3)-.8);
  float d=jpDrum(r-f,y,R-.07*y,-.2,H,.1);
  d=smin(d,jpDrum(r-f*.7,y,R*.72,H-.1,H+.2,.07),.05);
  d=smin(d,length(vec2(r-.4*f,(y-H-.2)*.8))-R*.56,.05);
@@ -43,6 +45,7 @@ float jpMap(vec3 p) {
  float a=uTravel*.02+(jpTw+jpW.y)*y,ca=cos(a),sa=sin(a);
  vec2 c=mat2(ca,-sa,sa,ca)*q.xz/r;
  float f=jpFl*.085*(jpLobe(c,4)-.8);
+ if (uOwn[6]>0.) r=mix(r,jpR(c*r),uOwn[6]);
  float d=jpDrum(r-f,y,.98-.1*y,-.2,.56,.1);
  d=smin(d,jpDrum(r-f*.9,y,.64-.06*y,.4,1.08,.09),.06);
  d=smin(d,(length(vec2(r-f*.8,(y-1.1)*.86))-.5),.05);
@@ -52,7 +55,7 @@ float jpMap(vec3 p) {
  e-=.775*vec2(.9239,.3827);
  float tr=length(e);
  float th=sat((y-.45)/.46);
- d=smin(d,(length(vec2(tr,y-clamp(y,.4,.88)))-.185+.11*th*th)*.9,.05);
+ d=smin(d,(length(vec2(tr,y-clamp(y,.4,.88)))-.185+.11*th*th)*.9+.35*max(-uOwn[6],0.),.05);
  // the wedge a cue cuts
  if (jpCut>.001) {
   vec2 w=p.xz-jpA.xz-vec2(-.05,-.12);
@@ -61,7 +64,7 @@ float jpMap(vec3 p) {
  }
  bool left=p.x<.62;
  q=p-(left?jpB:jpC);q.y=y;q.xz-=jpLean[left?1:2]*up;q.xz*=bul;
- d=smin(d,jpTower(q,left?.44:.5,left?1.02:1.12),.12);
+ d=smin(d,jpTower(q,left?.44:.5,left?1.02:1.12)+max(-uOwn[6],0.),.12);
  return d*min(jpH,1.)*(1.05-.4*min(jpTw,.9));
 }
 vec3 jpNormal(vec3 p,float e,float d) {
@@ -84,15 +87,38 @@ vec3 jpRoom(vec3 rd) {
  float bar=jpE(.01,.04,min(abs(b.x),abs(b.y+.425)));
  c+=(jpSun*1.5+jpSky*.3)*jpE(.04,-.03,max(abs(b.x)-.14,abs(b.y)-.46))*(.3+.7*bar)*back;
  b=abs(a-vec2(-.75,.75));
- return c+jpSky*4.5*jpE(.06,-.06,max(b.x-.3,b.y-.42))*jpE(.02,.07,min(b.x,b.y))*(1.-back);
+ vec3 shine=jpSky*4.5*jpE(.06,-.06,max(b.x-.3,b.y-.42))*jpE(.02,.07,min(b.x,b.y))*(1.-back);
+ if (uOwn[7]<0.) c=mix(c,jpSky*(.03+.16*jpBell(a.y-.02,.35)*back)+jpSun*.10*jpBell(length(a*vec2(.7,1.)-vec2(-.05,.25)),.55)*back,-uOwn[7]);
+ if (uOwn[7]>0.) { // open sky, a sun low in its haze, a far ridge
+  float e=rd.y,g=sat(dot(rd,normalize(vec3(.42,.16,.9)))),ri=.035+.07*noise(vec2(atan(rd.x,rd.z+1e-5)*2.6+3.,1.))+.02*noise(vec2(atan(rd.x,rd.z+1e-5)*14.,5.));
+  vec3 s=mix(jpSun*.55+jpSky*.35,jpSky*mix(vec3(.8),uKind[3],.45)*.85,jpE(-.02,.55,e));
+  s+=jpSun*(.5*pow(g,12.)+2.2*jpE(.9986,.9994,g));
+  s=mix(s,mix(s,jpSky*.35*(uKind[2]+.3)+jpSun*.12,.55),jpE(.004,-.004,e-ri));
+  c=mix(c,s,uOwn[7]);shine*=1.-.8*uOwn[7];
+ }
+ return c+shine;
+}
+// Open ground: ripples the wind left, long swells, small stones or lumps of ice.
+vec3 jpSand(vec2 x,vec3 c,float px) {
+ vec3 k=mix(vec3(.80,.66,.48),uKind[2],.75);
+ vec2 q=rot(-.35)*x;
+ float far=jpE(.14,.0,px),b=q.y*5.+1.1*sin(q.x*.8+.6)+1.6*noise(q*vec2(.5,.9)),w=sin(b+.45*sin(b));
+ float sw=noise(q*vec2(.22,.55)+3.)-.5,g=noise(x*34.)-.5;
+ c*=k*(1.+(.20*w*(.4+noise(q*1.3))+.10*g)*far+.8*sw*(.4+.6*jpE(2.,8.,x.y)));
+ vec2 s=x*1.6,h=hash22(floor(s)),f=fract(s)-.5-(h-.5)*.6;
+ float R=.16*jpE(.80,1.,h.x)*(.4+h.y);
+ float lit=dot(f,-jpDir)/(R+1e-3),st=jpE(R+px*2.,R-px*2.,length(f*vec2(1.,1.5)))*step(.02,R);
+ c*=1.-.45*jpE(R*1.5+.01,.0,length((f-jpDir*R*1.1)*vec2(1.,1.4)))*step(.02,R);
+ return mix(c,k*(jpSun*(.35+.45*lit)+jpSky*.45),st*.9);
 }
 // The cloth: damask, the sun on it, and the shadow of the palace, which is a pool of colour.
 vec3 jpCloth(vec2 x,float px) {
  vec3 tau=vec3(0.);float gain=0.,inside=0.,contact=1.;
  for (int i=0;i<3;i++) {
   vec3 R=i==0?vec3(jpA.xz,.98):(i==1?vec3(jpB.xz,.46):vec3(jpC.xz,.52));
+  if (i>0) R.z*=1.-max(-uOwn[6],0.);
   vec2 d=x-R.xy;
-  float u=dot(d,jpDir),v=d.x*jpDir.y-d.y*jpDir.x,y=max(u-.72*R.z,0.)*jpTan/jpH,H=y/(i==0?1.95:1.65);
+  float u=dot(d,jpDir),v=d.x*jpDir.y-d.y*jpDir.x,y=max(u-.72*R.z,0.)*jpTan/jpH,H=y/(i==0?1.95:1.65);if (i>0&&uOwn[6]<=-1.) continue;
   v+=(.02*sin(u*6.+uTime*.5)+jpW.x*.6)*y;
   float w=R.z*(1.-.1*y)*mix(1.,.66,jpE(.26,.32,H))*sqrt(sat(1.-jpSq(max(H-.55,0.)*2.)));
   if (u<0.) w=sqrt(max(R.z*R.z-u*u,0.));
@@ -102,17 +128,21 @@ vec3 jpCloth(vec2 x,float px) {
   gain+=in1*(1.5*exp(-k*k*5.)+2.6*jpSq(jpSq(lob))*jpFl*(.4+y)-.5);
   gain+=1.1*jpE(.75,.95,abs(k))*jpE(1.14,1.,abs(k))*jpE(0.,.3,y)*step(.03,w);
   inside=max(inside,in1);
-  contact=min(contact,jpE(0.,.5,length(d)-.92*R.z));
+  contact=min(contact,mix(jpE(0.,.5,length(d)-.92*R.z),1.,i>0?max(-uOwn[6],0.):0.));
  }
  vec3 thr=exp(-tau);
  thr=mix(thr,thr*.5+.1*dot(thr,vec3(.333)),jpMilk);
  float pv=x.x*jpDir.y-x.y*jpDir.x;
  float lay=jpE(-2.6,-1.5,pv)*jpE(5.2,2.2,x.y)*(1.-.6*jpBell(pv+1.15,.07));
+ if (uOwn[7]!=0.) lay=mix(lay,1.,abs(uOwn[7]));
  vec3 sun=jpSun*thr*mix(.2,1.,lay)*max(1.+gain*(.5+.4*uEnergy)*(1.-.7*jpMilk),.15);
  vec2 d=x-jpA.xz;
  vec4 m=piece(vec2(sat(.5+.28*(d.x*jpDir.y-d.y*jpDir.x)),sat(.95-.38*dot(d,jpDir))));
  sun=(sun+m.rgb*inside*(.2+.8*uEnergy)*(thr+.1)*jpSun)*(1.+.6*uHits*inside);
  vec3 c=vec3(.92,.93,.95)*(sun*.86+jpSky*(.2+.28*contact)*mix(vec3(1.),.15+.75*thr,.8*inside));
+ if (uOwn[7]<0.) c=mix(c,(vec3(.05)+.9*inside*thr)*sun*.6+jpSky*.012,-uOwn[7]);
+ if (uOwn[7]>=1.) return jpSand(x,c,px);
+ vec3 bare=c;
  // the damask, only a change of sheen, and two ironed folds
  vec2 g=rot(.5)*x*vec2(1.9,1.4);
  float k=floor(g.x),e=.02+px*2.;
@@ -121,7 +151,10 @@ vec3 jpCloth(vec2 x,float px) {
  og=min(og,abs(length(f)-.14-.03*cos(6.*atan(f.y,f.x+1e-5)))-.06);
  c*=1.-.11*(jpE(e,-e,og)-.4)*jpE(.1,0.,px);
  vec2 fo=vec2(x.x*.94-x.y*.34+1.55,x.x*.34+x.y*.94+.95)/.11;
- return c*(1.+.14*dot(fo,exp(-fo*fo)));
+ c*=1.+.14*dot(fo,exp(-fo*fo));
+ if (uOwn[7]<0.) c=mix(c,bare,-uOwn[7]);
+ if (uOwn[7]>0.) c=mix(c,jpSand(x,bare,px),uOwn[7]);
+ return c;
 }
 // The silver spoon on the cloth, its bowl in the pool.
 void jpSpoon(vec2 x,vec3 rd,float px,inout vec3 c) {
@@ -168,7 +201,7 @@ vec3 jpGel(vec3 pos,vec3 rd,float d) {
  vec3 n=vec3(0.),ne=n,ri=rd,T=vec3(1.),S=vec3(0.),q=pos,qa=pos-jpA;
  float s=0.,sFloor=1e3;bool exits=false;
  s=length(qa.xz);
- float red=.3*jpH*jpE(.66,.8,s)*jpE(1.15,1.02,s)*jpE(.5,.62,length(pos.xz-jpB.xz)); // the turrets keep the base's colour almost to their tips
+ float red=.3*jpH*jpE(.66,.8,s)*jpE(1.15,1.02,s)*jpE(.5,.62,length(pos.xz-jpB.xz)+max(-uOwn[6],0.))*(1.-max(-uOwn[6],0.)); // the turrets keep the base's colour almost to their tips
  s=0.;
  float bnd=band(abs(fract((atan(qa.z,qa.x+1e-5)+uTravel*.02+jpTw*pos.y)/TAU)*2.-1.));
  for (int side=0;side<2;side++) {
@@ -187,7 +220,7 @@ vec3 jpGel(vec3 pos,vec3 rd,float d) {
    vec2 ly=jpLay(y0-red,q.y-red);
    vec3 sg=jp3(jpS0,jpS1,jpS2,ly)*(1.+3.5*red*jpE(.6,.74,pos.y/jpH)),tn=jp3(jpT0,jpT1,jpT2,ly);
    // how far the sun has come through jelly to get here, gathered into shafts by the flutes
-   vec2 cc=m.x<-.35?jpB.xz:(m.x>1.42?jpC.xz:jpA.xz);
+   vec2 cc=m.x<-.35?jpB.xz:(m.x>1.42?jpC.xz:jpA.xz);if (uOwn[6]<=-.5) cc=jpA.xz;
    float RR=cc.x==jpA.x?mix(.9,.55,jpE(.5,.65,m.y/jpH)):.44;
    vec2 e=m.xz-cc;
    float sp=max(RR+dot(e,jpDir),0.)+.02,v=(e.x*jpDir.y-e.y*jpDir.x)/RR;
@@ -221,16 +254,27 @@ vec3 jpGel(vec3 pos,vec3 rd,float d) {
 }
 vec3 jpOutside(vec2 p) {
  float o5=uOwn[5],hi=max(o5,0.),lo5=max(-o5,0.);
- vec3 ta=vec3(.25*lo5,.68+.12*lo5+.42*max(uOwn[4],0.),0.);
- vec3 ro=vec3(-.15+.05*sin(uTime*.041),1.9+1.3*hi-.97*lo5,-4.5-hi+.9*lo5-.5*max(uOwn[4],0.)-.3*(uSpace-.5));
+ vec3 ta=vec3(.25*lo5+.42*max(-uOwn[6],0.),.68+.12*lo5+.42*max(uOwn[4],0.),0.);
+ vec3 ro=vec3(-.15+.45*max(-uOwn[6],0.)+.05*sin(uTime*.041),1.9+1.3*hi-.97*lo5,-4.5-hi+.9*lo5-.5*max(uOwn[4],0.)-.3*(uSpace-.5));
  vec3 fw=normalize(ta-ro),rt=normalize(cross(vec3(0.,1.,0.),fw)),uu=cross(fw,rt);
  vec3 rd=normalize(fw*1.7+rt*p.x+uu*p.y),c=jpRoom(rd);
  float px=jpPx/1.7,tf=rd.y<-1e-3?min(-ro.y/rd.y,99.):99.;
  vec3 hit=ro+rd*tf,cl=jpCloth(hit.xz,px*tf*2.);
- jpSpoon(hit.xz,rd,px*tf*1.2,cl);
+ if (uOwn[7]==0.) jpSpoon(hit.xz,rd,px*tf*1.2,cl);
+ else if (abs(uOwn[7])<1.) { vec3 sp=cl;jpSpoon(hit.xz,rd,px*tf*1.2,sp);cl=mix(sp,cl,abs(uOwn[7]));}
+ if (uOwn[7]<0.&&tf<40.) { // the polish gives the jelly back, upside down
+  vec3 rr=vec3(rd.x,-rd.y,rd.z);
+  float s=.05,e=0.;vec3 q=hit,g=jpRoom(rr)*.5;
+  for (int i=0;i<16;i++) { q=hit+rr*s;e=jpMap(q);if (e<.012||s>6.) break;s+=e;}
+  float on=jpE(.10,.0,e)*step(s,6.);
+  vec2 ly=jpLay(q.y,q.y+.1);
+  g=mix(g,jp3(jpT0,jpT1,jpT2,ly)*(jpSun*(.25+.5*sat(.5+dot(q.xz-jpA.xz,-jpDir)*.6))+jpSky*.15),on);
+  cl=mix(cl,cl+g*(.12+.55*pow(1.-sat(-rd.y),3.)),-uOwn[7]);
+ }
  cl*=1.+.45*uHits*jpBell(length(hit.xz-jpA.xz)-.9-1.7*(1.-uHits),.13);
- c=mix(cl,c,jpE(4.2,5.6,hit.z));
- jpSmall(p,ro,fw,rt,uu,c);
+ c=mix(cl,c,jpE(4.2+12.*max(uOwn[7],0.),5.6+40.*max(uOwn[7],0.),hit.z));
+ if (uOwn[7]==0.) jpSmall(p,ro,fw,rt,uu,c);
+ else if (abs(uOwn[7])<1.) { vec3 sm=c;jpSmall(p,ro,fw,rt,uu,sm);c=mix(sm,c,abs(uOwn[7]));}
  vec3 i1=(vec3(-1.35,0.,-1.15)-ro)/rd,i2=(vec3(2.6,2.1*jpH,1.25)-ro)/rd,mn=min(i1,i2),mx=max(i1,i2);
  float t=max(max(mn.x,mn.y),max(mn.z,0.)),t1=min(min(mx.x,mx.y),min(mx.z,tf)),near=9.,d=0.;
  bool on=false;
@@ -259,6 +303,7 @@ vec3 jpFruit(int i,out float R) {
  R=jpF[i].w*(i>7?jpE(0.,.6,o4):i==5?1.+.3*min(o4,0.):i==7?1.+min(o4,0.):1.+o4*(o4<0.?1.:.45))+1e-3;
  vec3 m=jpF[i].xyz;
  m.xy+=.02*vec2(sin(ph*.6+fi*2.1),cos(ph*.5+fi*1.7))+uPhrase*.05*vec2(sin(ph-fi*1.1),.6*cos(ph-fi*1.1));
+ if (uOwn[6]<0.&&i!=4&&i!=6) R*=abs(1.+2.*uOwn[6]);
  return m+vec3(jpW.x*.6*(m.y+.8),-.06*uDrone,0.);
 }
 vec3 jpInside(vec2 p) {
@@ -294,14 +339,36 @@ vec3 jpInside(vec2 p) {
  a=jpBell(sin(5.*(w.x-.55*w.z)+.5*sin(w.z*2.+uTime*.13)),.45);
  col=mix(col,(jpT0+.03)*(jpSun*(.12+.7*back*back*a)+jpSky*.2+piece(vec2(.5+w.x*.2,.5-w.z*.18)).rgb*uEnergy*2.),jpE(0.,.5,t-tf));
  t=min(t,tf+.1);
+ if (uOwn[7]<0.) { // level layers, each with a bright skin where it meets the next
+  float h=ro.y+rd.y*min(t,2.8)+.02*sin(p.x*3.+uTime*.2)+.05*jpW.x*p.x,l=h*1.75+1.75,k=clamp(floor(l+.5),1.,4.),e=l-k;
+  vec3 lo=k<1.5?uKind[0]:k<2.5?uKind[1]:k<3.5?uKind[2]:uKind[3],hi=k<1.5?uKind[1]:k<2.5?uKind[2]:k<3.5?uKind[3]:uKind[1];
+  float st=jpE(-.06,.06,e);
+  vec3 ly=mix(lo,hi,st);ly=ly*ly*1.1+ly*.1;
+  jpHoney=mix(jpHoney,ly,-uOwn[7]);
+  vec3 hs=(1.06-jpHoney)*.62*(.75+.5*uDrone)*(1.+.75*min(uOwn[1],0.));
+  jpHs=mix(jpHs,hs,-uOwn[7]);
+  col+=uOwn[7]*-1.*jpSun*(.35*jpBell(e-.07,.03)-.25*jpBell(e+.02,.05)*dot(col,vec3(.33)));
+  col=max(col,0.);
+ }
  col=jpFog(col,back,t);
  col*=1.+.7*uHits*jpBell(p.y+.42-1.1*(1.-uHits),.06);
  // the bite: scalloped scoops of air at the left
- vec3 m=vec3(-2.08,-.02,.2)-ro;
+ vec3 m=mix(vec3(-2.08,-.02,.2),vec3(-.12,.0,1.1),max(uOwn[7],0.))-ro;
  float tb=dot(m,rd),dd=length(m-rd*tb);
  vec2 bq=rd.xy*tb-m.xy;
- float sc=abs(sin(2.5*atan(bq.y,bq.x+1e-5)+.5)),R=.9+.24*sqrt(sc),bite=jpE(R+2.*jpPx,R-2.*jpPx,dd);
+ float sc=abs(sin(2.5*atan(bq.y,bq.x+1e-5)+.5)),R=.9+.24*sqrt(sc);
+ R*=1.+.55*max(uOwn[7],0.);R=mix(R,-.1,max(-uOwn[7],0.));
+ float bite=jpE(R+2.*jpPx,R-2.*jpPx,dd);
  vec3 air=jpSky*(.07+.3*jpE(.5,-.8,bq.y)+.25*jpBell(sc,.2)*jpE(.5,1.,dd/R));
+ R=max(R,.02);
+ if (uOwn[7]>0.) { // out of the mouth: the sea, its sun, two far headlands
+  vec2 s=bq-vec2(.42,.24);
+  float d=-.16-bq.y,dep=1./(abs(d)+.04),w2=noise(vec2(bq.x*dep*1.4,dep*2.+uTime*.1));
+  vec3 sk=mix(jpSun*.75+jpSky*.35,jpSky*mix(vec3(.75,.9,1.),uKind[2],.5)*.9,jpE(-.2,.9,bq.y))+jpSun*(.8*exp(-dot(s,s)*9.)+2.*jpE(.125,.115,length(s)));
+  vec3 se=jpSky*mix(vec3(.15,.4,.45),uKind[0],.6)*(.35+.5*w2)+jpSun*1.4*jpE(.5,.8,w2)*exp(-abs(s.x)/(.06+.5*max(d,0.)));
+  sk=mix(sk,jpSky*.35+jpSun*.15,.7*jpE(.01,-.01,bq.y+.16-.16*max(noise(vec2(bq.x*2.4+1.,2.))-.3,0.)-.12*jpE(-.4,-1.2,bq.x)));
+  air=mix(air,mix(sk,se,jpE(-.006,.006,d)),uOwn[7]);
+ }
  vec3 mir=jpHoney*(jpSun*(.1+.7*jpSq(sat(.5+bq.x+bq.y)))+jpSky*.1),n;
  col=mix(col,mix(air,mir,jpE(.82,.9,dd/R)*(.35+.65*jpE(.9,.99,dd/R))),bite);
  float kd[9]=float[9](4.,3.,2.,2.,2.,1.,0.,2.,3.);
@@ -316,14 +383,15 @@ vec3 jpInside(vec2 p) {
   float fi=float(i),seg=jpN[i].w;
   m=jpFruit(i,R)-ro;n=normalize(jpN[i].xyz);
   vec3 kc=i==6?vec3(.75,0.,.03):(i==1||i==8?vec3(1.,.75,.06):(i==0||i==5?vec3(1.,.27,.0):vec3(.2,.5,.06)));
-  kc=mix(kc,kindColour(kd[i]),.12)*(1.+.5*uEnergy*(i==5?uPad:i==1?uPhrase:i==2?uTexture:0.));
+  kc=mix(kc,kindColour(kd[i]),.12+.65*abs(uOwn[6]))*(1.+.5*uEnergy*(i==5?uPad:i==1?uPhrase:i==2?uTexture:0.));
   tb=dot(m,rd);dd=length(m-rd*tb);
    float soft=jpPx*tb*1.2+.016*abs(tb-2.4)*(1.3-.6*uTone),cov,cov2=0.;
    vec3 thru=jpSun*(.12+1.1*jpSq(back*back))+jpSky*.2,c=kc;
-   if (seg==1.) {
+   if (seg==1.||uOwn[6]<-.5) {
     cov=jpE(R+soft,R-soft,dd);
     n=normalize(rd*(tb-sqrt(max(R*R-dd*dd,0.)))-m+1e-4);
     c*=jpSun*(.06+.8*jpSq(sat(.5+.5*dot(n,sunw)))+jpSq(sat(-dot(n,sunw+vec3(0.,.3,0.)))))+jpSky*.15;
+    if (uOwn[6]<0.&&seg!=1.) c+=uOwn[6]*-1.*kc*thru*(.25+.9*jpSq(1.-sat(dot(n,-rd))))*.6;
     c+=(jpSun+jpSky)*.7*jpE(.93,.97,dot(n,vec3(-.44,.68,-.58)));
    } else {
     float dn=min(dot(rd,n),-.1);
@@ -333,6 +401,11 @@ vec3 jpInside(vec2 p) {
     h-=rd*(.1*R/dn);
     soft/=R;
     float e=soft+.012,r=length(q),rr=length(turn*vec2(dot(h,u),dot(h,v))),an=mod(atan(q.y,q.x+1e-5)*max(seg,1.)/TAU,max(seg,1.));
+    float petal=0.;
+    if (uOwn[6]>0.&&seg>=.5) { // a flower: rounded petals, a warm eye
+     float th=atan(q.y,q.x+1e-5),np=i==0||i==5?3.:i==1?4.:2.5,co=abs(cos(th*np)),lb=mix(1.,.45+.55*sqrt(co),uOwn[6]);
+     r/=lb;rr/=lb;petal=uOwn[6];
+    }
     if (seg<.5) {
      q.y+=.2*q.x*q.x-.06;
      rr=r=max(1.+(abs(q.y)-.48*sqrt(sat(1.-q.x*q.x))*(1.-.45*q.x)-.014*sin(q.x*36.))*1.6,abs(q.x)*.98);
@@ -340,7 +413,10 @@ vec3 jpInside(vec2 p) {
     } else {
      float k2=abs(fract(an)-.5),flesh=jpE(.02-e,.02+e,(.5-k2)*r*TAU/seg)*jpE(.84+e,.84-e,r)*jpE(.1-e,.1+e,r);
      c*=(1.+.22*sin(an*37.+4.*sin(r*9.+an*5.))*sin(r*23.-k2*19.))*(.6+.6*r);
+     vec3 pc=mix(kc*kc*.7,kc*1.1+.12,jpE(.0,.95,r))*(1.-.16*jpE(.75,1.,abs(sin(an*9.+sin(r*5.))))*r);
+     pc=mix(pc,vec3(.95,.62,.12)*(.6+.5*noise(q*26.)),jpE(.24+e,.18-e,length(q)));
      c=mix(mix(vec3(.7,.55,.3)+.1*kc,kc*.75,jpE(.9-e,.9+e,r)),c,flesh);
+     if (petal>0.) c=mix(c,pc,petal);
     }
     thru*=.9+.45*dot(h.xy,vec2(.6,.8))/R;
     cov=jpE(1.+soft,1.-soft,r);cov2=jpE(1.+soft,1.-soft,rr);
@@ -349,6 +425,17 @@ vec3 jpInside(vec2 p) {
    cov*=sat(R*12.-.1);cov2*=sat(R*12.-.1);
    col=mix(col,jpFog(kc*.35*thru,back,tb*.5),cov2);
    col=mix(col,jpFog(c,back,tb*.5),cov);
+ }
+ if (uOwn[6]<0.) for (int i=0;i<3;i++) { // many more pearls, small and far to larger and near
+  float fi=float(i),sz=mix(.22,.36,fi*.5)*jpE(0.,.5,-uOwn[6]);
+  vec2 g=p*(5.6-1.6*fi)+vec2(5.3*fi,-.02*fi*uTime)+.25*sin(p.yx*3.+fi),ic=floor(g),h=hash22(mod(ic,61.)+fi*7.);
+  R=sz*(.45+.55*h.x)*step(.42,h.y)+1e-3;
+  vec2 q=(fract(g)-.5-(h-.5)*(1.-2.*sz))/R;
+  float rr2=dot(q,q),e=jpPx*6./R+.02+.10*(2.-fi)*(1.-.5*uTone),in1=jpE(1.+e,1.-e,sqrt(rr2))*step(.02,R)*(1.-bite);
+  n=vec3(q,-sqrt(max(1.-rr2,0.)));
+  vec3 kc=kindColour(4.*fract(h.x*7.+.2));kc=kc*kc*.8+kc*.1;
+  vec3 c=kc*(jpSun*(.08+.9*jpSq(sat(.5+.5*dot(n,sunw)))+.5*back*back*rr2)+jpSky*.18)+(jpSun+jpSky)*.8*jpE(.92,.97,dot(n,vec3(-.44,.68,-.58)));
+  col=mix(col,jpFog(c,back,1.9-.7*fi),in1);
  }
  // round bubbles, held in the jelly
  for (int i=0;i<2;i++) {
@@ -382,7 +469,9 @@ vec3 render(vec2 p) {
  jpT0=jpMixed(vec3(.86,.05,.13),vec3(.02,.4,.25),vec3(.3,.03,.3),o0);
  jpT1=jpMixed(vec3(1.,.86,.08),vec3(.5,.85,.3),vec3(.95,.2,.3),o0);
  jpHoney=jpMixed(vec3(1.,.62,.17),vec3(.35,.75,.4),vec3(.8,.14,.2),o0);
+ const float dye=max(abs(uOwn[6]),abs(uOwn[7]));
  jpT0=mix(jpT0,uKind[0],.12);jpT1=mix(jpT1,uKind[1],.12);
+ if (dye>0.) { jpT0=mix(jpT0,uKind[0]*uKind[0]+.02,.75*dye);jpT1=mix(jpT1,uKind[1]*uKind[1]+.04,.75*dye);jpHoney=mix(jpHoney,uKind[1]*uKind[1]+.03,.8*dye);}
  jpS0=(1.05-jpT0)*3.8*deep;jpS1=(1.06-jpT1)*5.*deep;jpS2=vec3(.2,.14,.11)*deep;jpHs=(1.06-jpHoney)*.52*deep;
  jpT2=mix(vec3(.13,.15,.16),vec3(.9),jpMilk)*mix(vec3(1.),uKind[3]*1.5,.15);
  vec3 c;

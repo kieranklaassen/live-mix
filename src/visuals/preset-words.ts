@@ -57,6 +57,58 @@ export const PRESET_WORDS: Readonly<
       'Tall black mineral ferns crowd dry ochre hills that fold over under a yellow sky.',
     ],
   ],
+  'alley-sun': [
+    [
+      'where-the-gorge-lets-the-sun-in',
+      0,
+      'Slanting sun falls through dust between two folded walls of rust red stone onto a floor of sand.',
+    ],
+    [
+      'reed-roof-over-the-spice-lane',
+      0,
+      'Gold light comes down through a roof of reeds in thin bars and lies in stripes along a broad lane.',
+    ],
+    [
+      'whitewashed-arches-at-noon',
+      0,
+      'White arches stand one behind another down a lane with blue shutters, full of pale noon haze.',
+    ],
+    [
+      'signs-lit-down-a-rain-wet-lane',
+      0,
+      'A broad lane on a wet blue night, bulbs burning under the signs, the moon lying on the stones.',
+    ],
+    [
+      'cloths-from-the-upper-window',
+      0,
+      'Seen from a high window, dyed cloths hang over a broad lane with the sun slanting between them.',
+    ],
+    [
+      'wisteria-down-the-wash-steps',
+      1,
+      'Ivy covers both walls and lilac blossom hangs over a stair that climbs into soft white light.',
+    ],
+    [
+      'snow-coming-down-on-the-long-stair',
+      1,
+      'Flakes drift past a steep grey stair between tall houses, every tread lipped with snow.',
+    ],
+    [
+      'under-the-room-that-bridges-the-stair',
+      1,
+      'A room with one window bridges a brick stair, and a cat sits below in the copper evening sun.',
+    ],
+    [
+      'steps-cut-in-blue-ice',
+      1,
+      'A stair hewn down into a crevasse, its folded walls pale blue, white daylight at the top.',
+    ],
+    [
+      'a-cat-awake-by-moonlight',
+      1,
+      'A broad stair on a clear blue night, one step and one cat in the moon, lamps in the windows.',
+    ],
+  ],
   balance: [
     [
       'leaves-on-long-threads',
@@ -103,6 +155,110 @@ export const PRESET_WORDS: Readonly<
       'glass-drops-in-a-low-sun',
       1,
       'Drops of pale blue glass hang one under another before a great low sun and red evening mountains.',
+    ],
+  ],
+  'ball-stairs': [
+    [
+      'chalk-marbles-let-go-at-noon',
+      0,
+      'Seen from high up, a slide of chalk white marbles finds its way down bare white steps.',
+    ],
+    [
+      'oranges-loose-above-the-harbour',
+      0,
+      'A hillside stair under a late warm sky, and a whole harvest of oranges rolling down it.',
+    ],
+    [
+      'paper-moons-coming-down-to-bed',
+      0,
+      'In a house at night great paper globes, lit from inside, come slowly down the stair together.',
+    ],
+    [
+      'sea-cobbles-on-the-tower-stair',
+      0,
+      'Round grey sea stones lie heaped down an open tower stair, one pale ball on top, the sea beyond.',
+    ],
+    [
+      'plums-under-one-stair-lamp',
+      0,
+      'Dark plums and a few yellow ones lie in the circle of a single lamp on a black green stair.',
+    ],
+    [
+      'floating-lights-on-the-roof-bath',
+      1,
+      'A bath on a roof at night, brimming with small blue and amber lights, under a sky of stars.',
+    ],
+    [
+      'sugared-almonds-by-the-kilo',
+      1,
+      'From high above, a white bath full of tiny sweets in bands of pink, cream, mint and lilac.',
+    ],
+    [
+      'boulders-in-the-drained-bath',
+      1,
+      'A rose plaster bathing hall at sundown, its empty basin half filled with great worn stones.',
+    ],
+    [
+      'cherries-for-the-night-watchman',
+      1,
+      'In a shut black hall one lamp falls on a bath of dark red cherries and the ring among them.',
+    ],
+    [
+      'trout-roe-seen-large',
+      1,
+      'So near that each egg fills a hand: round amber and coral beads, each lit from inside.',
+    ],
+  ],
+  'balloon-morning': [
+    [
+      'frontispiece-of-a-first-flight',
+      0,
+      'An engraving from below: striped balloons over a low misty valley, all of it lines of ink on cream.',
+    ],
+    [
+      'silk-lamps-waiting-for-the-sun',
+      0,
+      'Before dawn a crowd of plain silk balloons glows gold and rose over dark blue mist, under stars.',
+    ],
+    [
+      'red-canopy-among-rock-needles',
+      0,
+      'A great red and cream balloon drifts among needles of stone that stand out of rows of orange dunes.',
+    ],
+    [
+      'two-balloons-and-a-glass-sea',
+      0,
+      'Nothing but pale blue air and flat water, and two white balloons with bands of blue upon them.',
+    ],
+    [
+      'checked-silk-over-white-fields',
+      0,
+      'Black and cream checked balloons hang over a winter plain where the poplars stand pale with frost.',
+    ],
+    [
+      'round-shadow-among-the-skerries',
+      1,
+      'Straight down on striped fields broken into coves and islets, in shoals of turquoise and deep blue.',
+    ],
+    [
+      'long-shadow-on-the-great-dunes',
+      1,
+      'Seen from a basket low over a desert, rippled apricot dunes with dark lee sides, and one long shadow.',
+    ],
+    [
+      'ring-of-colour-on-the-cloud-top',
+      1,
+      'White cloud closes over snowy fields, and on it lies a round shadow in a pale ring of colours.',
+    ],
+    [
+      'russet-terraces-from-the-basket',
+      1,
+      'High over autumn hills, terraces of rust, gold and wine curl round every slope by a thread of river.',
+    ],
+    [
+      'a-fleet-by-night-over-farms',
+      1,
+      'In the dark the glow of many balloons lies on blue fields and a lake, with lamps lit in the farmyards.',
     ],
   ],
   'banded-planet': [
@@ -209,6 +365,58 @@ export const PRESET_WORDS: Readonly<
       'Orange sparks of every size stream aside through the dim red and brown light of a smithy.',
     ],
   ],
+  'beaded-rings': [
+    [
+      'last-lamp-in-the-bead-shop',
+      0,
+      'Strings of jet, coral and bone sweep close past in the dark, and low lamplight glows behind them.',
+    ],
+    [
+      'orb-web-strung-with-dew',
+      0,
+      'Fine threads wheel round one open eye, set with far apart drops, in the white of a fogged morning.',
+    ],
+    [
+      'spice-seller-counts-her-strings',
+      0,
+      'Saffron, paprika and indigo lentils of clay crowd the strings round a small bright doorway.',
+    ],
+    [
+      'great-floats-on-a-mooring-rope',
+      0,
+      'Huge sea green and navy glass balls ring a small bright eye, seen from above in blue water haze.',
+    ],
+    [
+      'loose-planets-round-a-knot',
+      0,
+      'A ring of plum and rose spheres stands round a small far tangle of strings in violet dusk.',
+    ],
+    [
+      'jet-necklace-on-a-starched-cloth',
+      1,
+      'Black and bone beads that touch lie as one great knotted ring on clean white, a few coral among them.',
+    ],
+    [
+      'green-glaze-on-a-clay-wall',
+      1,
+      'One thick hank of sea green beads leans across a terracotta wall in late sun.',
+    ],
+    [
+      'coral-wreath-on-a-blue-shutter',
+      1,
+      'Flat strings of coral and cream lentils wind about an open eye before painted blue boards.',
+    ],
+    [
+      'sleet-along-the-larch-twigs',
+      1,
+      'Bare dark threads fan out from the left with a few cold drops on each, under a slate sky.',
+    ],
+    [
+      'chalk-worlds-strung-on-one-cord',
+      1,
+      'Enormous chalk white and coal black spheres crowd one cord in the dark and dwindle to small ones.',
+    ],
+  ],
   'beam-figures': [
     [
       'blueprint-of-a-knot',
@@ -259,6 +467,214 @@ export const PRESET_WORDS: Readonly<
       'wind-over-a-crest',
       1,
       'Fine pale threads stream up and over an unseen ridge under a violet evening.',
+    ],
+  ],
+  'beam-shadows': [
+    [
+      'noon-on-the-whitewashed-side',
+      0,
+      'A white wall stands square ahead, and every long peg in it throws one slanting line of shade.',
+    ],
+    [
+      'rains-have-reached-the-barn',
+      0,
+      'From far over still brown water, a long low barn and its ladder hang upside down in an amber evening.',
+    ],
+    [
+      'porter-asleep-with-the-lamp-lit',
+      0,
+      'By moonlight the long wall is blue and nearly bare, and only its small door is warm inside.',
+    ],
+    [
+      'snow-on-the-painted-keep',
+      0,
+      'Snow caps a red keep and lies at its foot, above a band of painted teeth and rows of crowded beams.',
+    ],
+    [
+      'pegs-for-climbing-plasterers',
+      0,
+      'Close under streaked ochre plaster, thick pale beam ends throw leaning shadows in raking light.',
+    ],
+    [
+      'seed-pods-on-a-sulphur-plain',
+      1,
+      'Slim capped towers stand far apart on yellow ground under an olive sky on some other world.',
+    ],
+    [
+      'moon-poured-between-the-stores',
+      1,
+      'The lane is under black water at night, and pale painted jars and straw hats double in it.',
+    ],
+    [
+      'chalk-jars-in-wide-straw-brims',
+      1,
+      'White jars painted high with black teeth stand about a bright yard, half in the shade of wide straw.',
+    ],
+    [
+      'roofs-from-the-drying-terrace',
+      1,
+      'Thatched cones fill the view from above in a red sunset, dark lanes of shade between them.',
+    ],
+    [
+      'barley-kept-dry-till-thaw',
+      1,
+      'A small huddle of stores under white caps stands alone in a wide field of moonlit snow.',
+    ],
+  ],
+  'beetle-drawer': [
+    [
+      'fog-drinkers-on-a-dune',
+      0,
+      'Broad dark beetles stand every which way over pale rippled sand, the far ones lost in early mist.',
+    ],
+    [
+      'owl-moths-by-the-desk-lamp',
+      0,
+      'Moths with eyes on their wings lie pinned on green paper, warm lamplight going off into dark.',
+    ],
+    [
+      'speckled-eggs-on-white-card',
+      0,
+      'Blue, buff and olive eggs, each one freckled its own way, lie in straight rows on bright card.',
+    ],
+    [
+      'leaf-beetles-come-out-to-feed',
+      0,
+      'Scores of small bright beetles wander in every direction over the ribs of one big green leaf.',
+    ],
+    [
+      'jewel-beetles-on-blue-black',
+      0,
+      'Row on straight row of small jewel beetles shines rose, gold and sea green out of a dark drawer.',
+    ],
+    [
+      'seed-pearls-along-a-blue-back',
+      1,
+      'A deep blue wing case set all over with round pearls, some of them lit, the window far behind.',
+    ],
+    [
+      'copper-scales-among-leaves',
+      1,
+      'Scale over copper scale runs down a long narrow back, with leaves in soft green light behind.',
+    ],
+    [
+      'one-rose-shell-in-a-white-room',
+      1,
+      'A single smooth back goes from coral to rose, a line of hairs down its middle, in a pale quiet room.',
+    ],
+    [
+      'an-ember-kept-in-every-bowl',
+      1,
+      'So near that a few wide pits fill the view, each a dark polished bowl with fire at the bottom.',
+    ],
+    [
+      'ribbed-back-before-the-dunes',
+      1,
+      'A long ribbed back, copper and violet black, crosses the foreground; behind it a dune and a white sun.',
+    ],
+  ],
+  'before-curtain': [
+    [
+      'apricot-light-along-the-boards',
+      0,
+      'The hem stands knee high and a flood of apricot and rose light runs out from under it over the boards.',
+    ],
+    [
+      'swept-aside-for-the-evening',
+      0,
+      'Bone coloured velvet is swept to both sides and lets in a burning evening sky with a tree going by.',
+    ],
+    [
+      'stage-moons-in-mint-gauze',
+      0,
+      'A thin green gauze hangs in soft pleats and lamps stand in it like moons, over a floor of water.',
+    ],
+    [
+      'lying-under-the-striped-drop',
+      0,
+      'From low down, black and gold stripes run up together past one round light into the dark.',
+    ],
+    [
+      'snow-blown-in-under-the-hem',
+      0,
+      'White cloth hangs over a white drift, flakes coming down slowly and blue light under the fringe.',
+    ],
+    [
+      'sail-past-the-blue-silk',
+      1,
+      'Midnight blue silk frames a moonlit sea of still water, one small sail crossing under a pale moon.',
+    ],
+    [
+      'deckchair-stripes-drawn-up-high',
+      1,
+      'Red and cream striped swags are drawn right up, a wide clear sky and a boat on flat water below.',
+    ],
+    [
+      'one-great-fold-of-cream',
+      1,
+      'Very near, a few huge swags of cream silk fill the picture fold under fold, gold cord between them.',
+    ],
+    [
+      'rose-tent-in-the-firs',
+      1,
+      'Rose red drapes fall to the snow on both sides and at their end stands a small dark forest at dusk.',
+    ],
+    [
+      'lilac-veils-let-down',
+      1,
+      'Sheer lilac veils sweep down in wide loops, one through another, before snow and a line of firs.',
+    ],
+  ],
+  'behind-the-fall': [
+    [
+      'smugglers-mouth-at-sundown',
+      0,
+      'Out of a round hole in the rock, through thin water, a low red sun lays its road on the sea.',
+    ],
+    [
+      'organ-pipes-in-hard-frost',
+      0,
+      'Hung basalt columns, rimed white, frame a pale blue fall and a valley under snow.',
+    ],
+    [
+      'cedars-through-falling-water',
+      0,
+      'The water fills the view, and behind it ranks of tall trunks go off into green lit air.',
+    ],
+    [
+      'lamp-left-on-across-the-gorge',
+      0,
+      'From deep in the dark hollow one small lit window shows through the blue night water.',
+    ],
+    [
+      'dry-month-in-a-red-alcove',
+      0,
+      'A few last threads of water fall past a rust red alcove and a valley gone to straw and copper.',
+    ],
+    [
+      'five-threads-off-the-table-mountain',
+      1,
+      'One long level wall of rust red rock stands out of cream cloud, and five thin falls hang down it.',
+    ],
+    [
+      'islands-that-rain-on-the-cloud',
+      1,
+      'Five torn islands hang in a peach evening and let their water down into the cloud below.',
+    ],
+    [
+      'rowing-lake-under-the-crags',
+      1,
+      'The falls come down to a still green lake that holds the cliffs upside down, every pine sharp.',
+    ],
+    [
+      'hut-keeper-in-deep-snow',
+      1,
+      'Close by, a hut with a lit window sits in blue snow under columns of basalt and frozen falls.',
+    ],
+    [
+      'peaks-above-a-paper-sea',
+      1,
+      'Grey heads of rock with their falls stand out of a wide blank mist, a hut dark below them.',
     ],
   ],
   'below-the-line': [
@@ -417,6 +833,214 @@ export const PRESET_WORDS: Readonly<
       'Chains of small clear bells sway in deep blue water, and some of them shine.',
     ],
   ],
+  'between-tides': [
+    [
+      'lit-gables-above-the-slipway',
+      0,
+      'At night the houses stand along both walls with their windows lit, boats and lamps doubled below.',
+    ],
+    [
+      'keels-on-silver-ribs',
+      0,
+      'The harbour is dry and three boats lean on ribbed mud that a low sun ahead turns to beaten silver.',
+    ],
+    [
+      'hulls-held-in-the-floes',
+      0,
+      'Plates of ice have closed round snowy boats on an open sea, rose light on them and blue between.',
+    ],
+    [
+      'skiffs-on-green-glass',
+      0,
+      'No wall and no quay: small boats float on clear green shallows under blue sky, an islet far out.',
+    ],
+    [
+      'one-bow-out-of-the-sea-fret',
+      0,
+      'Before sunrise the fog has taken the harbour walls; one near boat stands out of it on milky water.',
+    ],
+    [
+      'stumps-of-the-burnt-pier',
+      1,
+      'Black broken posts are all that stand in a rose and apricot sea, the evening sun behind them.',
+    ],
+    [
+      'icicles-under-the-planking',
+      1,
+      'Icicles hang from every beam and the posts stand sleeved in frost among slow plates of ice.',
+    ],
+    [
+      'stakes-in-milk-water',
+      1,
+      'A few thin leaning stakes stand in water as pale as the sky, their doubles under them.',
+    ],
+    [
+      'noon-bars-on-coral-sand',
+      1,
+      'Beside the pier at noon, hard bars of sun lie on the white sand in its shade and a clear sea begins.',
+    ],
+    [
+      'pier-lamps-after-the-last-tram',
+      1,
+      'From the beach beside it, the pier goes out into a blue night with a row of small lamps on its rail.',
+    ],
+  ],
+  'big-sleepers': [
+    [
+      'glow-worms-in-a-winter-coat',
+      0,
+      'A moonlit night, and all over a huge dark sleeping back small lights breathe in the long hair.',
+    ],
+    [
+      'badger-as-wide-as-the-parish',
+      0,
+      'So close it fills the view: a shaggy flank in broad stripes of black, cream and rust, in plain day.',
+    ],
+    [
+      'asleep-above-the-weather',
+      0,
+      'Far off in a rose dawn a smooth round back rises out of heaped cloud, with a thread of smoke beside.',
+    ],
+    [
+      'snowed-in-from-ear-to-tail',
+      0,
+      'Nearly no colour: white hair under a lead grey sky, every lock drawn fine, the croft half lost.',
+    ],
+    [
+      'old-one-under-the-sand-wind',
+      0,
+      'Orange dunes have blown over a lean red sleeper till only its knobbed spine and shoulder stand out.',
+    ],
+    [
+      'sound-asleep-through-the-gale',
+      1,
+      'A striped black and white giant lies in a steep dark sea under storm cloud, the light going round.',
+    ],
+    [
+      'freckles-of-light-in-the-bay',
+      1,
+      'From a gull at night: a sleek curled body on black water, freckled all along with blue and rose light.',
+    ],
+    [
+      'moored-in-a-field-of-cloud',
+      1,
+      'At a golden dawn a lean sleeper with a knobbed spine lies on level cloud, its small boats afloat there too.',
+    ],
+    [
+      'clay-giant-in-the-dune-harbour',
+      1,
+      'The sea has gone to sand, and a banded clay red giant lies round a dry harbour and its stranded boats.',
+    ],
+    [
+      'windows-under-a-snowy-back',
+      1,
+      'Snow lies all along a huge curled back by blue moonlight, with a row of lit windows in its lee.',
+    ],
+  ],
+  'bitten-bark': [
+    [
+      'bark-moon-over-the-reeds',
+      0,
+      'A round of bark bitten in rings hangs on a thread before a lake at sunset, reeds along the shore.',
+    ],
+    [
+      'red-bark-with-a-lamp-behind',
+      0,
+      'In a dark room a lamp stands close behind deep red bark, and every bite is a point of warm light.',
+    ],
+    [
+      'bitten-scraps-strung-in-a-window',
+      0,
+      'A score of small squares of bark hang in strings against a white frosted window, each with its figure.',
+    ],
+    [
+      'pale-sheet-before-a-summer-wood',
+      0,
+      'A great sheet of cream coloured bark, half folded, stands before a wood in full green leaf.',
+    ],
+    [
+      'one-star-kept-till-morning',
+      0,
+      'A single scrap with one bitten star stands small on the sill of a window full of moonlit trees.',
+    ],
+    [
+      'scraps-adrift-on-evening-water',
+      1,
+      'Seen from above, small bitten squares float apart on dark rippled water, rose in the last sun.',
+    ],
+    [
+      'round-lid-left-on-the-moss',
+      1,
+      'A round of red bark, ringed with leaves and stars, lies in late sun and twig shadow on deep moss.',
+    ],
+    [
+      'unrolled-on-the-cabin-boards',
+      1,
+      'A broad white strip, still half in its roll, lies on old dark boards at the edge of a pool of lamplight.',
+    ],
+    [
+      'dark-bark-in-moonlit-snow',
+      1,
+      'Dark bark lies steeply down across blue moonlit snow to its roll, with a few flakes coming down.',
+    ],
+    [
+      'close-along-a-sundown-strip',
+      1,
+      'Near enough to see each hollow: dark red bark in the last low sun on violet snow, branch shadows over it.',
+    ],
+  ],
+  'black-crowd': [
+    [
+      'up-early-to-see-the-sun',
+      0,
+      'A black crowd on a rose shore watches a huge red sun come out of the sea behind small sails.',
+    ],
+    [
+      'lit-gables-round-the-rink',
+      0,
+      'Dark gabled houses with warm windows stand over blue night ice where a few people skate.',
+    ],
+    [
+      'everybody-out-on-the-ice',
+      0,
+      'Seen from a height, people in coloured coats are strewn in twos and threes over pale ice.',
+    ],
+    [
+      'way-left-open-to-the-moon',
+      0,
+      'Two black crowds leave an empty path between them down to a night sea and a half risen moon.',
+    ],
+    [
+      'lost-the-others-in-the-fog',
+      0,
+      'A few tall hats stand close by on bare paper, and all that lay behind them thins to lines.',
+    ],
+    [
+      'under-the-side-of-the-liner',
+      1,
+      'A black wall of hull pricked with lit portholes towers over tall hats on a night quay.',
+    ],
+    [
+      'last-smoke-of-the-mail-boat',
+      1,
+      'The ferry is a speck far out on green lined water, and a few people are left on the quay.',
+    ],
+    [
+      'white-plumes-in-a-cloudburst',
+      1,
+      'Close among pale faces, plumes and muffs in a black crowd, with the rain slanting over them all.',
+    ],
+    [
+      'two-crowds-and-the-red-quay',
+      1,
+      'From high up, people wait on both sides and leave the red stones of the quay bare between them.',
+    ],
+    [
+      'chalk-figures-on-a-slate-sea',
+      1,
+      'As if chalked on slate, pale figures stand about a dark quay with a ship in thin white lines beyond.',
+    ],
+  ],
   'black-hole': [
     [
       'butter-giant-and-rings',
@@ -467,6 +1091,58 @@ export const PRESET_WORDS: Readonly<
       'glass-bead-in-cloud',
       1,
       'A clear glass ball hangs in drifting rose and grey cloud and gathers all of it inside.',
+    ],
+  ],
+  'blanket-country': [
+    [
+      'quilt-of-a-hundred-counties',
+      0,
+      'From high up in morning light, hill after hill sewn from patches: checks, stripes, spots and triangles.',
+    ],
+    [
+      'lit-windows-in-the-felt-hills',
+      0,
+      'On a blue night hills of felt with small firs hold a few lit houses, a big moon over far folds.',
+    ],
+    [
+      'oatmeal-jersey-downs',
+      0,
+      'A bare country knitted all in thick undyed wool, with no house and no water, a moon over far folds.',
+    ],
+    [
+      'satin-fjord-before-supper',
+      0,
+      'A wide satin water bends between steep plum and rust hills, under an apricot sky with a low moon.',
+    ],
+    [
+      'a-week-of-snow-on-the-eiderdown',
+      0,
+      'White felt hills in plain daylight, dark green firs all over them and one wooden house.',
+    ],
+    [
+      'half-past-six-on-striped-ticking',
+      1,
+      'Close among high pillows in blue and cream ticking, the first pale sun on them and nobody up.',
+    ],
+    [
+      'lamplit-fleet-on-dark-linen',
+      1,
+      'Under moon and stars three toy boats carry lanterns over ridges of dark blue linen.',
+    ],
+    [
+      'patch-cushions-in-the-sun-room',
+      1,
+      'A heap of cushions pieced from ochre, teal, rose and brick, in warm flat afternoon light.',
+    ],
+    [
+      'pillow-peaks-and-a-far-moon',
+      1,
+      'White pillows stand as peaks from far off, firs on their passes, a great moon in a night of stars.',
+    ],
+    [
+      'heap-of-jerseys-by-the-stove',
+      1,
+      'Thick knitted cushions in brick, wine, mustard and grey piled near, in the red light of a stove.',
     ],
   ],
   'block-garden': [
@@ -521,6 +1197,162 @@ export const PRESET_WORDS: Readonly<
       'Blocks of every size stand about at all angles on boards before a brick red wall.',
     ],
   ],
+  'blue-column': [
+    [
+      'lamps-let-down-at-noon',
+      0,
+      'In pale noon water, round chambers hang on long lines at many depths with their lamps pointed down.',
+    ],
+    [
+      'great-jelly-in-a-rose-dusk',
+      0,
+      'A jelly far larger than the chamber that lights it trails its threads through wine coloured water.',
+    ],
+    [
+      'ribs-laid-out-in-the-deep',
+      0,
+      'A lamp finds the pale ribs of something long dead, laid out in a row in the black water.',
+    ],
+    [
+      'smokers-on-the-rift-floor',
+      0,
+      'Tall chimneys on the bottom breathe rust red smoke, and a small chamber points its lamp down among them.',
+    ],
+    [
+      'round-window-in-peat-water',
+      0,
+      'Close by, one round chamber hangs in clear brown water and points its lamp straight down.',
+    ],
+    [
+      'blue-eye-in-the-white-flats',
+      1,
+      'From high above, one round hole looks up out of white sand that the sun has netted over.',
+    ],
+    [
+      'stack-left-in-a-ring',
+      1,
+      'A round stack of rose sand stands in the middle of a hole, and sand falls off both its rims.',
+    ],
+    [
+      'holes-in-a-moonlit-seabed',
+      1,
+      'Cold grey sand is holed in half a dozen places, each hole black inside under a dim moon.',
+    ],
+    [
+      'eelgrass-round-the-old-well',
+      1,
+      'A dark meadow of eelgrass leans in green light round the bare lip of a deep round well.',
+    ],
+    [
+      'lit-from-under-black-sand',
+      1,
+      'Amber light wells up out of a wide hole in black sand, and a diver hangs dark against it.',
+    ],
+  ],
+  'bone-nave': [
+    [
+      'bleached-ribs-above-the-tideline',
+      0,
+      'White bones stand wide in pale sand at noon, their thin shadows lying to one side.',
+    ],
+    [
+      'lamp-on-the-brine-lake',
+      0,
+      'An amber lamp lights tall ribs that stand in black water and hang upside down in it.',
+    ],
+    [
+      'red-weed-in-the-green-lagoon',
+      0,
+      'Low wide ribs overgrown with red and orange weed, a bright green lagoon all round them.',
+    ],
+    [
+      'ribs-under-a-winter-moon',
+      0,
+      'Snow lies blue round narrow dark ribs, flakes going by, a few stars over the far hills.',
+    ],
+    [
+      'toppled-ribs-on-red-clay',
+      0,
+      'A broken row of old bones stands askew on red ground, the sky violet above and peach below.',
+    ],
+    [
+      'fish-bones-by-one-candle',
+      0,
+      'Needle thin ribs close together, lit warm along one side and lost in black beyond.',
+    ],
+    [
+      'lamps-in-the-flooded-gallery',
+      1,
+      'Night in a flooded hall: lamps along the foot of a blue wall, white bones over still water.',
+    ],
+    [
+      'ivy-in-the-roofless-museum',
+      1,
+      'The roof has gone and the walls are broken; green bones stand on poles in evening sun.',
+    ],
+    [
+      'rib-shadows-on-ochre-plaster',
+      1,
+      'Close to a sunlit ochre wall, where the shadow of every rib lies soft and long.',
+    ],
+    [
+      'black-whale-on-a-polished-floor',
+      1,
+      'A black skeleton hangs in a rose walled hall, a visitor and a bench doubled in the floor.',
+    ],
+  ],
+  'book-organ': [
+    [
+      'lace-bridge-over-green-water',
+      0,
+      'The card stands by itself in one high arch, and the sun through it lies in bright tiles on green water.',
+    ],
+    [
+      'red-pleats-standing-in-sand',
+      0,
+      'A brick red card stands in upright pleats across rippled sand, low sun lighting every other side.',
+    ],
+    [
+      'snow-melting-off-the-red-bench',
+      0,
+      'Snow is melting off an oxblood bench, and the brass keys play a slate blue card in clear cold light.',
+    ],
+    [
+      'keys-from-above-by-lantern',
+      0,
+      'From high above at night, a lantern picks out the gold of the keys and card on an oxblood bench.',
+    ],
+    [
+      'red-arch-over-new-snow',
+      0,
+      'A brick red card stands in one arch over smooth white snow, its slots of sun lying in a grey shadow.',
+    ],
+    [
+      'stone-columns-at-low-tide',
+      1,
+      'Six sided columns of blue black stone stand in broken ranks before a gold low sun, their feet in water.',
+    ],
+    [
+      'harbour-town-of-a-hundred-spires',
+      1,
+      'On a blue night narrow towers crowd a harbour under a moon, windows lit and lying in the water.',
+    ],
+    [
+      'red-pillars-in-drifted-sand',
+      1,
+      'A few great red pillars, cut off almost level, stand in drifts of sand against a wide warm sky.',
+    ],
+    [
+      'powder-blue-front-at-noon',
+      1,
+      'The whole front from square before it, powder blue and cream in clear white light, drums at rest.',
+    ],
+    [
+      'oxblood-front-with-the-bulbs-lit',
+      1,
+      'Close along an oxblood front after dark, warm bulbs on the arch light a hundred fine gold pipes.',
+    ],
+  ],
   'breath-pane': [
     [
       'last-bus-window',
@@ -571,6 +1403,58 @@ export const PRESET_WORDS: Readonly<
       'wiped-russet-beech',
       1,
       'Long straight strokes of a cloth lay bare leaves of rust, plum and ochre on tan.',
+    ],
+  ],
+  'brushed-sand': [
+    [
+      'bare-alder-on-a-mud-islet',
+      0,
+      'A leafless tree stands on its islet in water swept nearly clear, under a pale apricot dawn.',
+    ],
+    [
+      'eel-hut-with-one-lamp',
+      0,
+      'A hut on stilts with a lit window and a landing, over black water under a small round moon.',
+    ],
+    [
+      'heron-bowed-over-meltwater',
+      0,
+      'Close to the bird, its neck let down, black fine sand on a cold blue glass and a bare shore.',
+    ],
+    [
+      'peaks-behind-an-empty-mere',
+      0,
+      'Far mountains under a wide moon, and a bare sheet of water with nobody standing in it.',
+    ],
+    [
+      'rushes-in-a-brick-red-downpour',
+      0,
+      'Tall thick rushes fill the glass, and coarse red sand is struck through by slanting rain.',
+    ],
+    [
+      'late-snow-on-the-bird-bank',
+      0,
+      'Fingertip snow comes down past a heron with its neck high, and the bank lies white.',
+    ],
+    [
+      'light-tower-just-before-sunrise',
+      1,
+      'A banded tower on its rock throws its last beams past a rose dawn, with a few houses along the quay.',
+    ],
+    [
+      'whitewashed-hill-above-an-empty-harbour',
+      1,
+      'A whole hill of bare white houses, long torn clouds in a dark blue sky, and no sail on the water.',
+    ],
+    [
+      'night-steamer-with-every-cabin-lit',
+      1,
+      'A long steamer with rows of lit portholes lies under its own smoke on an ember glass.',
+    ],
+    [
+      'snow-up-the-harbour-stairs',
+      1,
+      'Snow falls on a hill of thick white roofs and on the dark stairs, with a bright gap over the sea.',
     ],
   ],
   'bubble-raft': [
@@ -677,6 +1561,58 @@ export const PRESET_WORDS: Readonly<
       'Dark wet crags stand out of a pale sea of cloud that goes slowly up and over them.',
     ],
   ],
+  'button-sea': [
+    [
+      'harvest-moon-half-sunk',
+      0,
+      'A huge amber button of a moon sinks behind a plum sea, and the felt boat crosses before it.',
+    ],
+    [
+      'milk-calm-before-breakfast',
+      0,
+      'Rows of bleached bone buttons lie flat and pale under a moon and a wide sky of cream felt.',
+    ],
+    [
+      'strung-for-the-midway',
+      0,
+      'Dyed buttons hang on threads from the top of a violet night over a low dark sea.',
+    ],
+    [
+      'greatcoats-in-a-gale',
+      0,
+      'Great pewter buttons heave in a black swell that fills nearly all of the cloth.',
+    ],
+    [
+      'saxifrage-on-a-wet-slope',
+      0,
+      'Petalled buttons crowd a hillside to the top of the picture, butter, rose, cream and gentian blue.',
+    ],
+    [
+      'caramels-out-of-the-jar',
+      1,
+      'Square toffee, cream and treacle pieces tumble over a worn white table in a low honey sun.',
+    ],
+    [
+      'iced-biscuits-in-rounds',
+      1,
+      'Petal biscuits in rose, lemon and white icing lie ring within ring on a mint green woven cloth.',
+    ],
+    [
+      'dance-floor-after-carnival',
+      1,
+      'Hundreds of small dyed discs seen from straight above, left lying on a brown floor under one lamp.',
+    ],
+    [
+      'brass-for-the-bandsmen',
+      1,
+      'Big polished brass buttons roll in a thin trail over old dark boards under one lamp.',
+    ],
+    [
+      'spilt-under-the-skylight',
+      1,
+      'From high up a small tin has burst over dark blue boards, its white buttons gone everywhere.',
+    ],
+  ],
   candlelight: [
     [
       'limewashed-alcove',
@@ -781,6 +1717,214 @@ export const PRESET_WORDS: Readonly<
       'Tall reeds and trunks are drawn in dark strokes on warm paper, hatched along the ground.',
     ],
   ],
+  'car-wash': [
+    [
+      'shop-panes-soaped-for-the-night',
+      0,
+      'The panes of a closed shop are daubed with pale soap, and street lamps shine blurred behind them.',
+    ],
+    [
+      'sheets-going-round-in-the-drum',
+      0,
+      'Behind a round steel door, swirls of mint, white and coral suds lean over and turn slowly.',
+    ],
+    [
+      'great-bubbles-over-a-peach-bay',
+      0,
+      'Strings of coral and lilac bubbles slide down the glass before a low sun on pale water.',
+    ],
+    [
+      'snowed-in-behind-the-wheel',
+      0,
+      'The whole windscreen is packed with fine white froth, and grey daylight only just comes through.',
+    ],
+    [
+      'blue-felts-closing-on-the-lamps',
+      0,
+      'Half the glass is under heavy blue felts, and violet and orange foam is dragged along their edge.',
+    ],
+    [
+      'cab-rank-in-a-downpour',
+      1,
+      'Rain stands all over the windscreen and every lamp of the street is a soft round light in it.',
+    ],
+    [
+      'porthole-off-a-cold-headland',
+      1,
+      'Through a dark bolted rim, spray on the glass and a pale sun low over grey green water.',
+    ],
+    [
+      'palm-house-panes-at-seven',
+      1,
+      'Fine dew beads a wall of green framed panes, with pale morning light coming in from outside.',
+    ],
+    [
+      'last-few-drops-at-dusk',
+      1,
+      'A few long drops are driven up dry glass while a wide door stands open on an amber sky.',
+    ],
+    [
+      'harbour-sun-held-in-drops',
+      1,
+      'Great clear drops stand on the glass, each with a bright rim, before a low sun and blue water.',
+    ],
+  ],
+  'card-hills': [
+    [
+      'long-swell-in-white-card',
+      0,
+      'White card rolls by in long stepped ridges, a slow sea of paper in the blue of early morning.',
+    ],
+    [
+      'cinder-cone-rusted-at-the-rim',
+      0,
+      'On a pale table rings of charcoal sheet climb, going rust red, to a rim with one small house, then a crater.',
+    ],
+    [
+      'green-to-brick-by-the-sheet',
+      0,
+      'A survey model seen from above, dyed by its height from river green through ochre to brick red.',
+    ],
+    [
+      'lamp-inside-the-round-hill',
+      0,
+      'In a dark room a round hill of card is lit from within, every cut edge a thin line of gold.',
+    ],
+    [
+      'brown-board-under-the-copse',
+      0,
+      'Thick brown board climbs in a few heavy steps into a wood of dried flowers, low red sun on their cuts.',
+    ],
+    [
+      'melt-pools-in-pale-lime',
+      1,
+      'Many round pools of clear ice blue lie between hillocks of pale wood in a high white noon.',
+    ],
+    [
+      'straight-down-into-amber',
+      1,
+      'From right above, sheets of walnut step down like rings of a tree into a well of glowing amber.',
+    ],
+    [
+      'lit-river-through-black-board',
+      1,
+      'A river winds away through a dark gorge of sheets whose edges shine in teal and rose from inside.',
+    ],
+    [
+      'islet-in-a-dyed-lagoon',
+      1,
+      'A small stepped island stands in a lagoon of deep blue and mint, its shores dyed coral and cream.',
+    ],
+    [
+      'evening-window-on-the-long-lake',
+      1,
+      'The last light lays a peach window in panes on a long clear lake, dark steps of wood down its shores.',
+    ],
+  ],
+  'cast-net': [
+    [
+      'thrown-among-the-stone-towers',
+      0,
+      'Steep towers of grey rock stand in morning mist, and a wide ring of net hangs open before them.',
+    ],
+    [
+      'ring-laid-on-lotus-water',
+      0,
+      'From straight above, a round net opens beside a slim boat on dark water crowded with green pads.',
+    ],
+    [
+      'down-through-the-green-light',
+      0,
+      'Under the water, a bell of net sinks on its line through long rays, and fish turn away below it.',
+    ],
+    [
+      'fleet-out-before-a-red-sun',
+      0,
+      'Many small boats on red morning water, all throwing, with one great ring of mesh across the sun.',
+    ],
+    [
+      'bell-of-mesh-by-moonlight',
+      0,
+      'Very near, a bell of net hangs before the moon over blue black water strewn with dark pads.',
+    ],
+    [
+      'poled-cloths-under-a-squall',
+      1,
+      'Taut square nets on bent poles stand along a slate grey shore while a storm comes over.',
+    ],
+    [
+      'heron-waiting-in-the-sedge',
+      1,
+      'Tall sedge and round pads fill the shallows at gold evening, with one net high beyond them.',
+    ],
+    [
+      'square-cloths-over-jade-shallows',
+      1,
+      'Seen from a height, square nets lie spread like kites over pale jade water with light on it.',
+    ],
+    [
+      'lifted-past-the-perch',
+      1,
+      'Under brown evening water, a great square net on its bent poles comes up round a few slow fish.',
+    ],
+    [
+      'violet-crags-behind-a-lifted-net',
+      1,
+      'At dusk violet crags rise straight from still water behind a great net just lifted and dripping.',
+    ],
+  ],
+  'chair-ride': [
+    [
+      'straight-up-the-striped-mast',
+      0,
+      'Looking straight up the mast at noon, the painted crown is a wheel and the chains its long spokes.',
+    ],
+    [
+      'seats-taken-by-the-snow',
+      0,
+      'A red and cream ride with only a chair here and there turns in thick falling snow above white roofs.',
+    ],
+    [
+      'flying-level-into-the-sunset',
+      0,
+      'High up beside the ride at sundown, slatted chairs go by at eye level against an apricot sky.',
+    ],
+    [
+      'black-and-gold-above-the-roofs',
+      0,
+      'At night a black and gold crown turns over a town, rows of small windows lit along the bottom.',
+    ],
+    [
+      'hill-fair-before-the-hail',
+      0,
+      'Grey storm light on the ride and on sharp snowy peaks, the flags and the long chains all blown about.',
+    ],
+    [
+      'two-rides-joined-at-the-waterline',
+      1,
+      'The meadow lies under still violet water and the lit ride stands on its own image, root to root.',
+    ],
+    [
+      'three-rides-on-the-heath-road',
+      1,
+      'In green black night three lit rides stand one behind another by a muddy track with puddles.',
+    ],
+    [
+      'red-bulbs-near-the-tents',
+      1,
+      'Close by, red lamps and chairs flung out flat make one wide burning hoop over black tents.',
+    ],
+    [
+      'tested-at-dawn-in-ski-country',
+      1,
+      'A pale pink morning on deep snow and high peaks, the little ride lit with no one there yet.',
+    ],
+    [
+      'cold-lamps-before-the-tenements',
+      1,
+      'Close by, ice white bulbs throw a cold light over wet ground and along a row of lit town houses.',
+    ],
+  ],
   'closed-eyes': [
     [
       'bare-orchard-in-mist',
@@ -881,6 +2025,58 @@ export const PRESET_WORDS: Readonly<
       'Thin strips of rain slant under banks of cloud over a lake, laid in flat teal, slate and cream.',
     ],
   ],
+  colony: [
+    [
+      'moonlit-ring-round-a-frozen-pool',
+      0,
+      'The crowd stands in one wide ring about a dark pool of ice, on blue snow under a small moon.',
+    ],
+    [
+      'raft-of-birds-on-ink-water',
+      0,
+      'A small crowd rides a raft of ice through open black water, with pale floes drifting about it.',
+    ],
+    [
+      'grey-chicks-face-to-the-wind',
+      0,
+      'Downy grey chicks with white cheeks stand big and near on the snow, their long shadows beside them.',
+    ],
+    [
+      'four-columns-over-blue-glass-ice',
+      0,
+      'Seen from high above, long winding columns of birds cross a floor of cracked turquoise ice.',
+    ],
+    [
+      'rookery-below-the-black-peaks',
+      0,
+      'A crowd of gold throated birds on snow and bare stones, under dark jagged mountains and a clear sky.',
+    ],
+    [
+      'last-walkers-home-at-sundown',
+      0,
+      'A few birds walk in over rosy snow, each with a long violet shadow, and a low sun hangs by the berg.',
+    ],
+    [
+      'scarlet-wheel-above-a-tar-lake',
+      1,
+      'Scarlet birds fly round in one slow ring over black green water threaded with white crust.',
+    ],
+    [
+      'arrowheads-over-cracked-salt',
+      1,
+      'White birds pass in arrowheads above a dry pan of rose salt broken into great pale polygons.',
+    ],
+    [
+      'egrets-over-the-reed-islets',
+      1,
+      'White birds fly and wade among round islets of dark green reeds, each with a straw yellow rim.',
+    ],
+    [
+      'white-birds-over-a-moonlit-lake',
+      1,
+      'White birds cross from right to left above blue shallows and pale salt lines, their shadows sharp in moonlight.',
+    ],
+  ],
   'colour-field': [
     [
       'ink-wash-valleys',
@@ -963,6 +2159,58 @@ export const PRESET_WORDS: Readonly<
       'white-plaster-panels',
       1,
       'Half panels with round corners moulded in white plaster, rib within rib, row upon row.',
+    ],
+  ],
+  'coral-spawn': [
+    [
+      'antler-thicket-at-midday',
+      0,
+      'Tall branching corals stand apart in bright turquoise water, cream beads rising among them.',
+    ],
+    [
+      'brain-corals-by-hand-lamp',
+      0,
+      'A lone lamp warms a heap of great round corals in black water, orange beads waiting in the grooves.',
+    ],
+    [
+      'glass-eggs-in-pale-water',
+      0,
+      'Great clear eggs, each with its dark seed, drift up through water the colour of milk.',
+    ],
+    [
+      'spawn-smoke-from-tall-spires',
+      0,
+      'Spawn streams like smoke from tall coral towers in deep green surging water.',
+    ],
+    [
+      'under-the-roof-of-a-red-tide',
+      0,
+      'Close beneath the surface in wine dark water, cream and red beads rising past dark branches.',
+    ],
+    [
+      'cold-light-seen-from-the-mast',
+      1,
+      'Looking down at night on black water where cold blue light lies in slow curling bands.',
+    ],
+    [
+      'limestone-towers-in-a-green-bloom',
+      1,
+      'Tall rocks stand in a pale noon sea and bright green beads wind between them in ribbons.',
+    ],
+    [
+      'rose-thread-on-milk-water',
+      1,
+      'Looking down on still pale water, where a narrow road of rose beads turns and goes.',
+    ],
+    [
+      'amber-roe-before-the-dark',
+      1,
+      'Large amber eggs float on red slicks in an open violet sea, the last pink light behind them.',
+    ],
+    [
+      'crimson-roads-to-the-sea-stacks',
+      1,
+      'Straight roads of red beads run in toward tall dark rocks and a burning evening.',
     ],
   ],
   'crossed-light': [
@@ -1309,6 +2557,110 @@ export const PRESET_WORDS: Readonly<
       'Olive and teal kelp rises and curls in green water, a white sun shining down through it.',
     ],
   ],
+  'dew-web': [
+    [
+      'gate-with-a-wheel-in-every-gap',
+      0,
+      'A dark field gate against a rose sunrise, and in each of its gaps a whole web hung with drops.',
+    ],
+    [
+      'every-thread-furred-with-frost',
+      0,
+      'A whole wheel seen square on, each thread of it thick and white with frost against grey blue air.',
+    ],
+    [
+      'strung-beads-in-a-night-wood',
+      0,
+      'Between black trunks in moonlight, rings of small glass beads glow garnet, gold, sea green and slate.',
+    ],
+    [
+      'torn-sail-in-a-green-copse',
+      0,
+      'A torn wheel turned far aside, half its threads gone, the sun in its middle and green trunks soft behind.',
+    ],
+    [
+      'heavy-drops-across-an-orange-sun',
+      0,
+      'Very close, heavy drops hang in loops round a low orange sun, the morning upside down in each.',
+    ],
+    [
+      'gorse-out-in-a-bright-sea-mist',
+      1,
+      'The gorse is out in yellow all over the slope in bright mist, with one wheel hung before the sun.',
+    ],
+    [
+      'moor-gone-white-overnight',
+      1,
+      'A level moor of hoar frost lies in cold blue fog, with one small web hung before a white sun.',
+    ],
+    [
+      'pinewood-floor-in-moonlight',
+      1,
+      'Straight black trunks stand in blue mist before the moon, and white webs shine low between them.',
+    ],
+    [
+      'wheels-all-over-the-red-sky',
+      1,
+      'Dark wheels hang at every height from tall dry stems across a whole red and orange sunrise.',
+    ],
+    [
+      'ling-in-flower-by-a-big-moon',
+      1,
+      'Purple heather runs down to the right under a large pale moon, and webs lie over it in dozens.',
+    ],
+  ],
+  'domino-run': [
+    [
+      'grey-stones-on-a-snow-plain',
+      0,
+      'Great grey stones stand and fall in a ring on open snow, bare hills far behind them.',
+    ],
+    [
+      'lacquer-tiles-on-black-water',
+      0,
+      'Red and gold tiles stand in a coil on still dark water with their likeness under them.',
+    ],
+    [
+      'indigo-meander-from-the-ceiling',
+      0,
+      'Seen from straight above, a line of blue and bone slabs folds back and forth on a white floor.',
+    ],
+    [
+      'ragged-slates-at-moonrise',
+      0,
+      'Uneven slates in rows by moonlight, bare hills behind and dark ground all round.',
+    ],
+    [
+      'red-planks-growing-in-the-desert',
+      0,
+      'Thin tall planks, small in front and greater inward, throw long shade on orange sand.',
+    ],
+    [
+      'whitewashed-stair-above-the-sea',
+      1,
+      'A steep pale wall climbs past a bright blue sea, yellow and blue slabs along its top.',
+    ],
+    [
+      'planks-before-the-far-ridges',
+      1,
+      'Tall thin planks, each longer than the last, on a level wall before ridge on ridge of haze.',
+    ],
+    [
+      'snow-lane-under-the-wall',
+      1,
+      'Snow by night on a stepped wall and the lawns below, a lane running off to bare trees and hills.',
+    ],
+    [
+      'maple-week-on-the-brick-wall',
+      1,
+      'Orange trees behind a red brick wall where slabs of every height lean in warm light.',
+    ],
+    [
+      'great-blocks-against-the-clouds',
+      1,
+      'From down on the ground, squat blocks of teal, brick and cream tilt along a wall under a wide sky.',
+    ],
+  ],
   'dot-globe': [
     [
       'dandelion-clock',
@@ -1601,6 +2953,58 @@ export const PRESET_WORDS: Readonly<
       'Clear round eggs crowd together in dark pond water, each with a bright rim.',
     ],
   ],
+  'dove-tower': [
+    [
+      'moon-through-the-fallen-wall',
+      0,
+      'The far side of a dark tower has come down, and a full moon and stars stand in the gap.',
+    ],
+    [
+      'white-doves-in-every-arch',
+      0,
+      'A whitewashed wall curving away in the sun, with a white dove sitting in nearly every arch.',
+    ],
+    [
+      'rainwater-in-an-ivied-silo',
+      0,
+      'Still water has filled the floor of an overgrown round hall and holds the light from above.',
+    ],
+    [
+      'one-hole-in-the-red-beehive',
+      0,
+      'A red clay vault drawn in to one small hole, whose beam falls on alcoves big enough to sleep in.',
+    ],
+    [
+      'rime-on-the-open-loft',
+      0,
+      'Every ledge of a roofless tower furred with frost, under a wide disc of pale winter sky.',
+    ],
+    [
+      'alone-on-the-flooded-melons',
+      1,
+      'A single tower stands in still water at sundown with its own picture hanging beneath it.',
+    ],
+    [
+      'cone-town-with-its-lamps-in',
+      1,
+      'A crowd of tapering mud towers at night, a small warm light in every hole.',
+    ],
+    [
+      'snow-on-the-threshing-plain',
+      1,
+      'From a kite over white furrows, broad red towers stand about under a grey winter sky.',
+    ],
+    [
+      'stumps-in-the-blown-sand',
+      1,
+      'Broken red towers worn down to their shoulders among rippled dunes, under a long hazy sky.',
+    ],
+    [
+      'low-in-the-yellow-flowers',
+      1,
+      'Low among vines in leaf and bloom, a lime white tower in late sun and a great wheel of birds.',
+    ],
+  ],
   drifters: [
     [
       'lagoon-sand-shadows',
@@ -1705,6 +3109,58 @@ export const PRESET_WORDS: Readonly<
       'A lamp shines through a thousand round holes in a hanging sheet, parted in the middle.',
     ],
   ],
+  'drowned-columns': [
+    [
+      'brick-tank-below-the-pump-house',
+      0,
+      'Square brick piers in a straight avenue, a low red vault, and one lamp coming up the rust water.',
+    ],
+    [
+      'pillars-of-a-town-the-sea-took',
+      0,
+      'Nothing is left but columns in a flat sea at dawn, peach low down and blue above, and a small boat.',
+    ],
+    [
+      'moonlight-under-the-harbour-arches',
+      0,
+      'Thin square posts stand in moonlit water under low vaults, and a boat with a cold lamp slips by.',
+    ],
+    [
+      'boat-left-dry-in-the-cistern',
+      0,
+      'The water has gone; sand has blown in between fat piers, and the boat sits on it with its lamp lit.',
+    ],
+    [
+      'milk-fog-in-the-lower-hall',
+      0,
+      'Pale fog has come in over the water; the columns are grey strokes, and one lamp is a warm blur.',
+    ],
+    [
+      'lily-tank-from-the-gallery',
+      1,
+      'From a balcony near the capitals: round leaves and lit flowers float between the feet of columns.',
+    ],
+    [
+      'snow-where-the-roof-used-to-be',
+      1,
+      'Rose light at dawn on smooth snow, columns that hold up nothing, and one tree still in leaf on its stones.',
+    ],
+    [
+      'sea-baths-in-white-marble',
+      1,
+      'Clear turquoise water in a straight white hall, with noon standing on an island at its end.',
+    ],
+    [
+      'red-arches-still-up-at-sundown',
+      1,
+      'A few arches stand on red columns against an ember sky, with a lone tree on the stones between.',
+    ],
+    [
+      'stone-reeds-in-honey-light',
+      1,
+      'A very tall hall on posts as thin as reeds, with one leaning beam of light standing on the tree.',
+    ],
+  ],
   dusk: [
     [
       'ridges-folded-in-haze',
@@ -1755,6 +3211,106 @@ export const PRESET_WORDS: Readonly<
       'reeds-before-pale-sequins',
       1,
       'Reeds stand black before a pale evening made all of round dots, cream where the sun is low.',
+    ],
+  ],
+  'dust-wall': [
+    [
+      'snow-squall-at-the-windbreak',
+      0,
+      'A white wall of blown snow stands right across the fields, and a bent row of trees waits before it.',
+    ],
+    [
+      'poles-between-two-red-storms',
+      0,
+      'Crimson storms tower left and right, and poles file between them through water that holds the evening.',
+    ],
+    [
+      'an-hour-off-by-moonlight',
+      0,
+      'Far down a cold blue plain the wall is no more than a low bank, and two small lamps hurry from it.',
+    ],
+    [
+      'plough-land-rising-off-the-wheat',
+      0,
+      'Soot dark soil boils up right across the sky over bright young wheat, and a white van runs from it.',
+    ],
+    [
+      'spore-front-on-a-lilac-world',
+      0,
+      'Smooth violet billows roll along a whole horizon under a pale mint and grey sky, doubled in still water.',
+    ],
+    [
+      'one-ash-in-flour-white-wind',
+      1,
+      'A single bare tree leans in thick pale air, and behind it the sun is only a faint disc.',
+    ],
+    [
+      'ridges-under-a-smoked-moon',
+      1,
+      'A dim moon over slate ridges cut one behind another, and one wind-bent tree on the nearest.',
+    ],
+    [
+      'whirlwinds-walking-the-stock-pond',
+      1,
+      'Four tall grey green funnels of dust sway over flat water, and each one stands on its own likeness.',
+    ],
+    [
+      'grit-in-the-pump-house-hinges',
+      1,
+      'Close by a gate and a high tank, streaks of sand drive past in rust red light.',
+    ],
+    [
+      'peach-light-on-the-flooded-paddock',
+      1,
+      'Floodwater stands up to a far gate, and mauve and peach ridges and a broad sun lie doubled in it.',
+    ],
+  ],
+  'dyers-bank': [
+    [
+      'madder-bolts-bleaching-on-snow',
+      0,
+      'Long reds and yellows laid out on a white bank, seen from a hill above a cold river.',
+    ],
+    [
+      'silks-rinsing-in-the-shallows',
+      0,
+      'The river has come up over the stones and every length of silk swims in the current.',
+    ],
+    [
+      'lengths-that-kept-the-daylight',
+      0,
+      'Night on a black mud flat, where blue and white cloths lift in the wind and shine by themselves.',
+    ],
+    [
+      'spotted-lengths-down-the-meadow',
+      0,
+      'Narrow cloths printed with spots, bars and lozenges run side by side straight down the grass.',
+    ],
+    [
+      'wide-sails-let-up-at-dusk',
+      0,
+      'Broad red and amber cloths rear off the brown mud in a pink evening and throw long shadows.',
+    ],
+    [
+      'ochre-pools-from-a-kite',
+      1,
+      'Pools of red and yellow earth with wandering rims, seen flat from far above in soft light.',
+    ],
+    [
+      'paint-pots-set-out-in-rows',
+      1,
+      'Small pots all of one size stand in straight rows before a blue wall at noon.',
+    ],
+    [
+      'dye-that-shines-by-night',
+      1,
+      'In a black yard each great vat holds a pool of coloured light that brightens as it sounds.',
+    ],
+    ['snow-on-every-rim', 1, 'White rings on white paving, and in each ring a deep still blue.'],
+    [
+      'roof-edge-over-the-last-sun',
+      1,
+      'Low across huge earthen vats brimming with rust and gold, all but a bar of them in shadow.',
     ],
   ],
   'ember-trail': [
@@ -1861,6 +3417,110 @@ export const PRESET_WORDS: Readonly<
       'A stair is tiled in cobalt and white, and a bell, a wheel and a screw throw warm glass light.',
     ],
   ],
+  'endless-shelves': [
+    [
+      'sweet-jars-round-a-white-well',
+      0,
+      'Coral, yellow and green jars stand all round a bright five-sided well, gallery under gallery.',
+    ],
+    [
+      'water-risen-in-the-stair',
+      0,
+      'A deep well of books at night has filled with still blue water that holds every lamp twice.',
+    ],
+    [
+      'scroll-pit-in-red-clay',
+      0,
+      'A wide clay pit lined with rolled scrolls, a warm haze lying where its floor should be.',
+    ],
+    [
+      'record-hall-gone-to-leaf',
+      0,
+      'Green leaves have grown over the galleries of an old store, and pale mist fills the drop.',
+    ],
+    [
+      'red-lamps-down-a-bare-drop',
+      0,
+      'Five strings of red lamps fall away past black, nearly empty shelves to a point with no floor.',
+    ],
+    [
+      'lit-jars-over-black-water',
+      1,
+      'Jars of amber, jade and rose light line a dark flooded aisle and shine again in the water.',
+    ],
+    [
+      'frosted-creeper-in-an-empty-hall',
+      1,
+      'White frosted creeper hangs over the bare shelves of a long hall and drifts across its floor.',
+    ],
+    [
+      'map-rolls-seen-from-a-ladder',
+      1,
+      'From high on a ladder, two walls packed with rolled maps run off in honey coloured light.',
+    ],
+    [
+      'vellum-canyon-by-moonlight',
+      1,
+      'A narrow aisle of great pale volumes in blue night light, its far door a bright pin.',
+    ],
+    [
+      'rust-leaves-in-the-reading-lane',
+      1,
+      'A creeper gone rust and gold hangs over both walls of books, a warm door of light far off.',
+    ],
+  ],
+  'eye-crater': [
+    [
+      'long-pool-under-a-lid-of-ice',
+      0,
+      'A long narrow pool lies under a cracked pale lid, and snow rests on every rope of its walls.',
+    ],
+    [
+      'smelter-lake-after-dark',
+      0,
+      'A lake of drifting fire seen from overhead lights the inner wall of a charred black crater.',
+    ],
+    [
+      'rice-steps-round-a-star-pool',
+      0,
+      'From overhead, level wet fields go up in rings about a dark pool with five bays.',
+    ],
+    [
+      'agave-with-a-drop-in-its-heart',
+      0,
+      'Great green leaves with gold tips lie over one another in rows about one small dark drop of water.',
+    ],
+    [
+      'brimful-well-of-ink',
+      0,
+      'Low by the edge of a flooded pool at night, nearly all of it black water with one grey light.',
+    ],
+    [
+      'roots-running-out-to-red-dusk',
+      1,
+      'Fat smooth roots spread down a warm slope from the black pool, in the last red light.',
+    ],
+    [
+      'sponge-wall-round-a-dark-hole',
+      1,
+      'Land the colour of shell, eaten into deep hollows, comes down on all sides to a round hole of dark water.',
+    ],
+    [
+      'turquoise-steps-below-a-milky-spring',
+      1,
+      'Pale curved rims of stone hold level sheets of turquoise water, step below step from a milky pool.',
+    ],
+    [
+      'ember-flower-with-black-petals',
+      1,
+      'Charred petals open in rows about a heart of fire, seen whole from high above at night.',
+    ],
+    [
+      'iced-over-crater-in-full-moonlight',
+      1,
+      'A wide round lid of cracked blue ice, and smooth fat roots of rock run off from it deep in snow.',
+    ],
+  ],
   facets: [
     [
       'pencil-guitar-on-bare-paper',
@@ -1911,6 +3571,58 @@ export const PRESET_WORDS: Readonly<
       'copper-steps-after-dark',
       1,
       'Copper steps and a blue fan of treads are cut from smooth sheets and laid over black.',
+    ],
+  ],
+  'false-journey': [
+    [
+      'porthole-on-the-sawn-waves',
+      0,
+      'Through a round cabin window, sails on a painted sea and wooden waves rocking on their belt.',
+    ],
+    [
+      'window-seat-past-red-tables',
+      0,
+      'Close at the open window, flat topped red hills, palms and cactus roll by at sundown.',
+    ],
+    [
+      'night-compartment-by-paper-moon',
+      0,
+      'Far back in a lamplit seat, a small window on a painted moon and one lit hut after another.',
+    ],
+    [
+      'scissored-hills-in-plum-and-mustard',
+      0,
+      'Every hill, tree and hut is cut from plain coloured paper, and the carriage is too.',
+    ],
+    [
+      'white-lake-lost-in-the-mist',
+      0,
+      'At the window a pale canvas of ice and bare birches can just be made out through fog.',
+    ],
+    [
+      'harbour-wound-on-rollers',
+      1,
+      'From the roof beams, belts of sea and sawn surf run away beside a canvas full of sails.',
+    ],
+    [
+      'cactus-belt-from-the-floorboards',
+      1,
+      'Eye at the boards of the hall in a red evening, a desert of cloth and cactus coming round its drums.',
+    ],
+    [
+      'footlights-when-the-hall-is-shut',
+      1,
+      'Night through the glass roof, and only the low lamps under the scenery are still burning.',
+    ],
+    [
+      'cloth-left-half-painted',
+      1,
+      'A linen canvas with only a thin wash of peaks, water and yellow birches, beside bare board drums.',
+    ],
+    [
+      'teal-tissue-alps-on-a-roller',
+      1,
+      'Close by a great turning cloth of cut paper: teal peaks, a white lake and mustard fields.',
     ],
   ],
   'far-storm': [
@@ -2113,6 +3825,110 @@ export const PRESET_WORDS: Readonly<
       'Reeds of teal, plum and amber light stand up out of a dark wall of round glass beads.',
     ],
   ],
+  fizz: [
+    [
+      'cordials-along-the-garden-bench',
+      0,
+      'A row of tall glasses, each of another colour, and their shadows all run into one net of light.',
+    ],
+    [
+      'gold-bubbles-before-one-lamp',
+      0,
+      'Close on a slim glass in the dark, lit from behind, its chains of bubbles climbing like seed pearls.',
+    ],
+    [
+      'sloes-under-the-string-of-lamps',
+      0,
+      'A wide low glass of dark berries on a blue night table, with lamps hung in the trees.',
+    ],
+    [
+      'blood-orange-on-a-checked-cloth',
+      0,
+      'A squat red drink on blue checks, with a flat bright sea beyond the table.',
+    ],
+    [
+      'amber-light-spilt-over-the-boards',
+      0,
+      'The foot of a glass of tea with lime, its long violet shadow full of amber threads of light.',
+    ],
+    [
+      'cherries-against-an-open-sky',
+      1,
+      'Straight up through clear water, a ring of pale sky crowded with round red fruit.',
+    ],
+    [
+      'pearls-let-go-in-the-dark',
+      1,
+      'In near darkness small lit beads stream inward, past floating pearls, to one dim round of light.',
+    ],
+    [
+      'ruby-rings-in-cut-crystal',
+      1,
+      'Seen from within, lozenges of cut glass wind red and gold round a small bright mouth.',
+    ],
+    [
+      'far-daylight-up-a-blue-bottle',
+      1,
+      'A deep narrow well of blue, with a coin of daylight far off at the end of it.',
+    ],
+    [
+      'cut-citrus-crowding-the-rim',
+      1,
+      'Great wheels of orange, lime and lemon lie overhead in soft white daylight.',
+    ],
+  ],
+  'flip-discs': [
+    [
+      'red-board-standing-in-the-snow',
+      0,
+      'A long red board with white plates stands on two legs in open snow, and one traveller waits under it.',
+    ],
+    [
+      'ferry-hall-ankle-deep-in-tide',
+      0,
+      'A flooded hall at blue night, and its wide lamp-lit board lies doubled in the still water on the floor.',
+    ],
+    [
+      'brass-leaves-up-a-lift-shaft',
+      0,
+      'A tall tower of slim brass plates hangs in a grey stone hall, and low sun comes in by tall narrow windows.',
+    ],
+    [
+      'bath-house-before-anyone-comes',
+      0,
+      'A pale hall with broad square panes and a mint board of big shutters, seen from far back over the tiles.',
+    ],
+    [
+      'signal-mast-on-a-violet-plain',
+      0,
+      'Under a small moon a lone tower of dim plates stands on bare ground, with one tiny watcher beside it.',
+    ],
+    [
+      'coins-under-the-arcade-roof',
+      1,
+      'Overhead a whole ceiling of gold plates hangs and turns, and evening windows glow along its far edge.',
+    ],
+    [
+      'tea-bowls-drying-in-trays',
+      1,
+      'Straight down on rows of wide green lids and pale ones, each tipped a little on its own pin.',
+    ],
+    [
+      'dark-quay-beside-a-wall-of-scales',
+      1,
+      'A wall of black and blue plates runs away beside us on a wet night, with round lamps far out of focus.',
+    ],
+    [
+      'pinecone-hillside-at-sunup',
+      1,
+      'Oval copper plates lie in close rows like scales up a slope, and the sun comes over dark hills behind.',
+    ],
+    [
+      'enamel-tiles-of-a-river-delta',
+      1,
+      'From high over a board of countless small square shutters, red islands drift through pale blue water.',
+    ],
+  ],
   'floated-ink': [
     [
       'thumb-mark-in-clay',
@@ -2305,6 +4121,58 @@ export const PRESET_WORDS: Readonly<
       'A turning flower drawn line by line in brown ink on cream paper, lightly washed.',
     ],
   ],
+  'flung-iron': [
+    [
+      'iron-thrown-into-the-walnut-tree',
+      0,
+      'At dusk on wet ground a bare walnut tree throws back fans of gold beads, and the puddles shine with them.',
+    ],
+    [
+      'silver-pouring-over-the-round-gate',
+      0,
+      'White metal breaks on a ring of cut stone and streams down past a round opening with the moon in it.',
+    ],
+    [
+      'rust-inked-on-a-snow-noon',
+      0,
+      'At white noon the long grey wall is bare, and the thrown iron is drawn on the air in strokes of rust.',
+    ],
+    [
+      'fort-by-itself-on-the-red-plain',
+      0,
+      'Far across bare red ground one small fire is thrown at a fort, and the dusk behind it is bigger than both.',
+    ],
+    [
+      'verdigris-beads-off-the-battlement',
+      0,
+      'Close under the battlement copper bursts into round beads of jade, coral and cream that shower down the wall.',
+    ],
+    [
+      'fire-leaking-into-a-sea-cave',
+      1,
+      'Threads of fire drip between teeth of rock in a flooded cave, and the water underneath gives them all back.',
+    ],
+    [
+      'burning-cloud-over-the-saltmarsh',
+      1,
+      'A long cloud lit from within rains slanting fire on wide open water, with low hills and a red sun beyond.',
+    ],
+    [
+      'white-metal-sleet-in-the-yard',
+      1,
+      'A gale blows the dripping metal flat across a snowed yard, all silver and blue under an icy moon.',
+    ],
+    [
+      'straw-rain-over-grey-hills',
+      1,
+      'Long drops the colour of straw slant down a pale morning sky onto grey hills along the bottom edge.',
+    ],
+    [
+      'pink-drops-through-the-willow',
+      1,
+      'Close under a green roof of willow, round drops of rose and cream sink slowly past the hanging boughs.',
+    ],
+  ],
   'folded-indigo': [
     ['persimmon-fan', 0, 'Rust and ochre stars spread like a fan over crumpled cream paper.'],
     [
@@ -2451,6 +4319,58 @@ export const PRESET_WORDS: Readonly<
       'red-vines-hang-down',
       1,
       'Broad red tongues of leaf curl down from above into pale sea green light.',
+    ],
+  ],
+  'glass-brick': [
+    [
+      'fern-house-seen-from-the-baths',
+      0,
+      'Broad dark leaves stand before a wide wall of great blocks, full of lawn green and noon light.',
+    ],
+    [
+      'ice-white-drum-in-the-wash-house',
+      0,
+      'A round white drum of small milky blocks stands in snow light, with an enamel basin and a folded towel.',
+    ],
+    [
+      'bottle-ends-over-warm-water',
+      0,
+      'Row over row of round lenses hold a low orange evening, and all of it wavers again in the pool below.',
+    ],
+    [
+      'gemstone-drum-in-blue-hours',
+      0,
+      'A tight round drum of great faceted blocks stands in a dark room, and blue and violet light breaks in every point.',
+    ],
+    [
+      'pillar-of-boiled-sweets',
+      0,
+      'One stout round pillar of red, amber and green blocks stands by itself in still dark water.',
+    ],
+    [
+      'footbridge-inside-the-lido-at-dawn',
+      1,
+      'A level dark gallery crosses a wall of rose, peach and cloud blue panes, and water lies still under it.',
+    ],
+    [
+      'foundry-town-through-round-panes',
+      1,
+      'A stair climbs to the right before rows of great round lenses, each one full of furnace red and gold.',
+    ],
+    [
+      'sleeping-block-behind-beads-of-glass',
+      1,
+      'Nothing but a round wall of countless small panes, with late teal, plum and gold windows strung through it.',
+    ],
+    [
+      'night-lilies-in-the-winter-garden',
+      1,
+      'Long leaves wait in the dark before a green wall of cut blocks, where a few far lamps are broken small.',
+    ],
+    [
+      'stair-inside-a-paper-lantern',
+      1,
+      'Black steps and one thin rail cross a soft milk-white wall that glows like paper with a light behind it.',
     ],
   ],
   'glass-skeletons': [
@@ -2657,6 +4577,58 @@ export const PRESET_WORDS: Readonly<
       'Blue and white shards of broken plates are laid loose in rows of waves, dry in the sun.',
     ],
   ],
+  'grain-yard': [
+    [
+      'dyers-powders-from-above',
+      0,
+      'Fine pigment lies petalled on a full roof seen from above: madder, weld, woad, saffron, chalk.',
+    ],
+    [
+      'apricots-on-limewash',
+      0,
+      'Two great round mats of drying fruit, orange and plum, on a bare white roof at noon.',
+    ],
+    [
+      'rice-rafts-after-moonrise',
+      0,
+      'Pale round rafts of rice lie on a flooded tank that holds the last grey light of the sky.',
+    ],
+    [
+      'seaweed-frames-on-red-earth',
+      0,
+      'Square frames of dark weed stand in rows on brick red ground, every furrow drawn straight.',
+    ],
+    [
+      'peppers-at-the-hour-of-smoke',
+      0,
+      'From low on the roof the mats run away to a red evening, hot peppers and plums in long shade.',
+    ],
+    [
+      'threshing-hill-above-the-haze',
+      1,
+      'One high arc of grain thrown against a wide pale morning, the hills behind it thin as paper.',
+    ],
+    [
+      'one-shaft-in-the-shut-barn',
+      1,
+      'A thin gold fall of seed crosses a single shaft of light in a barn that is otherwise black.',
+    ],
+    [
+      'two-sieves-of-ground-chalk',
+      1,
+      'From left and right white meal is flung together before a white wall until the air is milk.',
+    ],
+    [
+      'poppy-seed-mountain',
+      1,
+      'A dark hill of seed grows before a whitewashed wall by the light of the moon.',
+    ],
+    [
+      'husk-fire-over-the-plain',
+      1,
+      'Two baskets flung against a crimson sky, the pale chaff between them bright as ash over a fire.',
+    ],
+  ],
   'grid-land': [
     [
       'slate-fjord-before-day',
@@ -2709,6 +4681,110 @@ export const PRESET_WORDS: Readonly<
       'White threads lie across black ridges one behind another, low and close, under a small moon.',
     ],
   ],
+  'groaning-wheels': [
+    [
+      'one-wheel-before-the-moon',
+      0,
+      'A whole black wheel stands in open water by night, and its drops fall past a low cold moon.',
+    ],
+    [
+      'dyed-cloth-raised-with-the-river',
+      0,
+      'Cloths of madder, saffron and blue fill a great wheel and glow with the red sun behind them.',
+    ],
+    [
+      'deep-among-mossed-spokes',
+      0,
+      'Thick mossed beams cross close by in soft green air, with white water falling down one side.',
+    ],
+    [
+      'burning-wheel-in-the-gorge',
+      0,
+      'Between black walls of rock each bucket of a tall wheel burns and pours embers into the river.',
+    ],
+    [
+      'six-broad-planks-under-snow',
+      0,
+      'A wheel of a few broad beams carries snow on every edge above grey water and a white sky.',
+    ],
+    [
+      'wheel-after-wheel-down-the-race',
+      1,
+      'A row of like wheels goes off along a long wall at red dusk, each one over its own reflection.',
+    ],
+    [
+      'trestles-out-in-white-mist',
+      1,
+      'Three wheels stand over their reflections on open water in pale mist, with one white sun behind.',
+    ],
+    [
+      'blue-noon-under-the-channel',
+      1,
+      'White water runs down a warm stone wall on arches beside a wheel, under a clear blue noon.',
+    ],
+    [
+      'lamps-turning-over-still-water',
+      1,
+      'On a dark wide river three wheels turn with a lamp at each bucket, doubled in the water.',
+    ],
+    [
+      'sail-wheels-at-the-wide-ford',
+      1,
+      'A great wheel filled with rose, ochre and sea green cloth turns by day, a smaller one beyond it.',
+    ],
+  ],
+  'grown-stairs': [
+    [
+      'rice-ponds-round-an-old-keep',
+      0,
+      'Square ponds without number lie in stepped banks out into a soft haze, and one dark keep stands among them.',
+    ],
+    [
+      'courtyards-lit-after-curfew',
+      0,
+      'Over a whole roofless town at night every square yard holds its own low amber light.',
+    ],
+    [
+      'moss-in-a-sunken-ball-court',
+      0,
+      'Straight down into stepped stone courts, deep green moss lying on every ledge and lit at the bottom.',
+    ],
+    [
+      'beetle-wing-stairs-close-to',
+      0,
+      'Close in, deep terraces of violet, green blue and gold metal go down one inside another.',
+    ],
+    [
+      'white-quarry-the-morning-after',
+      0,
+      'Seen low across its top, one great silver pit stands in fresh snow, every step with a white cover.',
+    ],
+    [
+      'five-pink-salts-in-a-pile',
+      1,
+      'Rose cubes of salt stand one on another before a dusky wall, and draw a long ladder of light on dark stone.',
+    ],
+    [
+      'chalk-frames-on-a-blackboard-floor',
+      1,
+      'From straight above clear cubes on black slate throw square after square of thin white light.',
+    ],
+    [
+      'one-blue-lamp-of-ice',
+      1,
+      'A single blue cube of ice stands alone by night and throws a square maze of cold light on black ground.',
+    ],
+    [
+      'amber-crates-grown-with-lichen',
+      1,
+      'Close before great honey coloured blocks on dark ground, yellow green growth lies along every step.',
+    ],
+    [
+      'glass-houses-on-a-bare-table',
+      1,
+      'Small and far on an empty grey table, a handful of clear houses stand in one square of sun.',
+    ],
+  ],
   growth: [
     [
       'birch-round-on-paper',
@@ -2751,6 +4827,58 @@ export const PRESET_WORDS: Readonly<
       'vein-map-in-the-dark',
       1,
       'Fine veins of copper and violet branch over black, seen from above.',
+    ],
+  ],
+  'half-made-world': [
+    [
+      'star-ball-hung-in-the-dark',
+      0,
+      'A dark blue ball printed with gold stars and their lines floats alone in an unlit room.',
+    ],
+    [
+      'shop-with-every-size-of-ball',
+      0,
+      'By lamplight one brown ball stands before three shelves crowded with small finished ones.',
+    ],
+    [
+      'rolls-still-to-be-pasted-down',
+      0,
+      'Very near, scrolls of paper wait along the equator over a bare white plaster half, dark behind.',
+    ],
+    [
+      'ball-in-combed-marbled-paper',
+      0,
+      'Half a ball is dressed in combed stripes of teal, rust and cream before a dark wall.',
+    ],
+    [
+      'island-coast-under-a-lens',
+      0,
+      'So close that only the print is seen: hatched shores, small hills and islands on old stained paper.',
+    ],
+    [
+      'twelve-petals-on-wine-cloth',
+      1,
+      'The twelve leaves lie round one pole like the petals of a flower on deep wine red cloth.',
+    ],
+    [
+      'fan-of-midnight-blue-leaves',
+      1,
+      'A fan of blue leaves sown with pale stars opens over dark cloth, their tips curled to the light.',
+    ],
+    [
+      'strewn-by-an-open-window',
+      1,
+      'A draught has thrown the pale leaves this way and that over bright linen, with their shadows under them.',
+    ],
+    [
+      'marbled-leaves-laid-out-to-dry',
+      1,
+      'Close by, leaves combed in ochre, rose and green lie side by side on sage cloth like ties.',
+    ],
+    [
+      'sea-sheets-curling-in-lamplight',
+      1,
+      'Close by, brown sea charts lift their long tips to the lamp and throw curled shadows on dark cloth.',
     ],
   ],
   'haze-beams': [
@@ -2799,6 +4927,110 @@ export const PRESET_WORDS: Readonly<
       'smoke-from-the-rafters',
       1,
       'Amber smoke turns slowly in wide layers of light far below, with everything else black.',
+    ],
+  ],
+  'hedge-maze': [
+    [
+      'mud-walls-of-a-dry-town-plan',
+      0,
+      'A squared labyrinth of bare clay walls on a pale dry morning, its lanes empty and one lamp still lit.',
+    ],
+    [
+      'still-water-between-the-yews',
+      0,
+      'The lanes are flooded: high round hedges stand in still violet water under a rose dawn.',
+    ],
+    [
+      'thumbprint-in-clipped-box',
+      0,
+      'From high over it: many thin winding rows of box in pale mist, like the whorl of a thumb.',
+    ],
+    [
+      'lantern-walk-in-deep-snow',
+      0,
+      'A blue winter night low over snowed hedges, with one small lantern going round to the pavilion.',
+    ],
+    [
+      'copper-beech-over-the-brim',
+      0,
+      'Fog fills the lanes to the top, so only copper backs of hedges and round heads lie on the white.',
+    ],
+    [
+      'spires-down-to-the-fountain',
+      1,
+      'Two straight ranks of dark pointed yews lead the eye down a still canal to one tall jet at rose dusk.',
+    ],
+    [
+      'marble-men-on-the-mown-squares',
+      1,
+      'Giant turned shapes of white marble stand far apart on striped lawn, like a game left at noon.',
+    ],
+    [
+      'egg-trees-in-a-mirror-court',
+      1,
+      'Rust red trees clipped to eggs stand in a sheet of water that covers the court from edge to edge.',
+    ],
+    [
+      'frost-giants-by-starlight',
+      1,
+      'Looking up at huge frosted yews on a moonlit lawn of snow, each faintly lit by its own sound.',
+    ],
+    [
+      'ochre-needles-on-a-red-plain',
+      1,
+      'Banded needles of ochre stone throw long shadows on rust sand, under a pale sky with a row of jets.',
+    ],
+  ],
+  'hide-shadows': [
+    [
+      'carp-passing-under-the-ferry',
+      0,
+      'On a cloth dyed lilac, sand and sea blue a great pierced fish swims among small ones, the boat high over it.',
+    ],
+    [
+      'deer-wading-as-the-lamp-dies',
+      0,
+      'Four deer follow each other through low water under a string of herons, all black against a dying red lamp.',
+    ],
+    [
+      'plum-blossom-in-a-hoop-of-paper',
+      0,
+      'A round of pale paper in a black room, and on it one wide tree in rose blossom leans over a scaled hill.',
+    ],
+    [
+      'puppet-night-from-the-last-row',
+      0,
+      'From far back in the dark the dyed cloth is one small bright window, green below and plum red above.',
+    ],
+    [
+      'ferry-below-the-bare-peaks',
+      0,
+      'Only a bare winter tree, a black boat and steep peaks on a cold white cloth, with no beast in sight.',
+    ],
+    [
+      'stags-marching-down-the-sheet',
+      1,
+      'In cold blue morning light honey coloured deer are marched along on sticks, red winged herons over them.',
+    ],
+    [
+      'moon-well-with-slow-fish',
+      1,
+      'A cool round of light in the dark holds a great fish and small ones, the boat above and weed at the side.',
+    ],
+    [
+      'giant-hart-beside-embers',
+      1,
+      'Close by a low red lamp a hart as tall as the sheet stands over the water with its antlers in the light.',
+    ],
+    [
+      'dyed-sheet-on-a-summer-evening',
+      1,
+      'Seen from back among the trees, sheet and players hang in bands of teal, rose and marigold dye.',
+    ],
+    [
+      'one-long-boat-on-a-milk-white-sheet',
+      1,
+      'One stained boat rides pierced waves, oars and all, and soft heads of the audience show through the cotton.',
     ],
   ],
   hills: [
@@ -2851,6 +5083,58 @@ export const PRESET_WORDS: Readonly<
       'lavender-and-flax-fields',
       1,
       'Rolling fields of lavender, flax and wheat are sewn together in rows at noon.',
+    ],
+  ],
+  'hot-gather': [
+    [
+      'cold-bottles-on-the-day-shelves',
+      0,
+      'A pale blue shop by day, shelves of blue and grey glass behind a long bottle still soft on its pipe.',
+    ],
+    [
+      'red-bowl-at-the-furnace-door',
+      0,
+      'From across a red room, the furnace stands open and bright and a wide ruby bowl turns before it.',
+    ],
+    [
+      'glass-blown-under-winter-stars',
+      0,
+      'The shop has lost its walls: hot glass on its pipe, pale bare ground, far hills, a moon and many stars.',
+    ],
+    [
+      'ribbed-gourd-in-the-dark',
+      0,
+      'Very near, a twisted and ribbed gourd of amber glass fills the dark and lights nothing but itself.',
+    ],
+    [
+      'three-bulbs-hung-to-cool',
+      0,
+      'A chain of three rose and violet bulbs hangs straight down against a pale bare wall.',
+    ],
+    [
+      'thread-over-the-ebb-flats',
+      1,
+      'On a wet shore at a red sundown two people draw a glowing thread, and the sand holds all of it twice.',
+    ],
+    [
+      'harp-of-threads-before-a-red-evening',
+      1,
+      'Great windows full of a red evening, and five coloured threads of glass hung between two figures.',
+    ],
+    [
+      'fire-beads-strung-after-hours',
+      1,
+      'One worker stands near in a black hall, holding a string of beads of fire that runs off to the right.',
+    ],
+    [
+      'far-end-of-the-cobalt-hall',
+      1,
+      'Seen from a long way off in a blue hall, two tiny figures and one taut line of light on the wet floor.',
+    ],
+    [
+      'roofless-hall-in-green-dusk',
+      1,
+      'The hall has lost its roof and half its wall, and a thread of beads hangs deep before the green dusk.',
     ],
   ],
   'house-brush': [
@@ -2957,6 +5241,110 @@ export const PRESET_WORDS: Readonly<
       'One long ridged shell lies close to the eye, shell pink and ochre against a sandy wall.',
     ],
   ],
+  'hundred-compasses': [
+    [
+      'a-coast-chart-and-a-few-needles',
+      0,
+      'From above, a pale chart of coasts and depths with a handful of flat brass compasses left lying on it.',
+    ],
+    [
+      'iron-drums-waiting-by-lamplight',
+      0,
+      'A crowd of tall black iron drums under one warm lamp, a pale needle turning in the well of each.',
+    ],
+    [
+      'lit-dials-on-the-night-plain',
+      0,
+      'Hundreds of small dials lit from within reach to a black horizon, green and amber like a low town.',
+    ],
+    [
+      'brass-coins-sunk-in-dune-sand',
+      0,
+      'Low evening sun over rippled sand, and small flat compasses lying in it as if dropped by a caravan.',
+    ],
+    [
+      'white-drums-in-new-snow',
+      0,
+      'On bare snow from high up, tall white porcelain compasses in straight rows, every needle red.',
+    ],
+    [
+      'paper-sails-over-a-drowned-chart',
+      1,
+      'Little boats of cork with paper sails drift over the coasts painted on the floor of a clear basin.',
+    ],
+    [
+      'red-floats-left-in-a-snow-pool',
+      1,
+      'A round pool in clean snow seen from straight above, with a few red floats far apart on pale water.',
+    ],
+    [
+      'pin-heads-burning-over-black-water',
+      1,
+      'In a dark room some fifty lights stand on pins in a black basin, and the water holds each a second time.',
+    ],
+    [
+      'round-leaves-in-the-oasis-pool',
+      1,
+      'Close over a warm evening pool in the sand, wide round leaves lie on the water, a short stalk on each.',
+    ],
+    [
+      'great-corks-close-to-the-eye',
+      1,
+      'Low evening sun in a white basin, and a few great corks near the eye, a needle with a round head on each.',
+    ],
+  ],
+  'indoor-tide': [
+    [
+      'birches-standing-in-the-parlour',
+      0,
+      'In a green room with no roof birch trunks stand in clear still water and go on up into the open sky.',
+    ],
+    [
+      'last-lamps-along-the-sea-gallery',
+      0,
+      'A long gallery at night, lamp after lamp above a black mirror of sea, with a dark horizon in every doorway.',
+    ],
+    [
+      'turquoise-lapping-at-a-tiled-loggia',
+      0,
+      'Noon comes through three white arches and lively turquoise water slides over black and white tiles.',
+    ],
+    [
+      'dinner-laid-in-a-roofless-dusk',
+      0,
+      'The roof has gone and the walls are broken, yet the table is still set, and an orange sun hangs over it all.',
+    ],
+    [
+      'chairs-wading-after-midnight',
+      0,
+      'One white lamp burns over a table at night, and dark water has risen past the seats of its three chairs.',
+    ],
+    [
+      'red-runner-under-the-evening-flood',
+      1,
+      'A river comes down a red carpeted stair in a rose hall at sunset and stands three steps deep at its foot.',
+    ],
+    [
+      'stair-that-climbs-out-to-the-stars',
+      1,
+      'Above a dark wooden stair there is no house left, only a torn wall, a great moon and all the stars.',
+    ],
+    [
+      'green-ballroom-with-the-sea-let-in',
+      1,
+      'In a high dark green hall the sea stands in two bright arches and has come in over the checkered dance floor.',
+    ],
+    [
+      'low-sun-on-the-birch-landing',
+      1,
+      'Birch trunks stand in still water before a deep green wall, and the evening runs gold down the stair.',
+    ],
+    [
+      'honey-evening-below-the-flight',
+      1,
+      'Through one tall arch beneath the stair the low sun gilds the open sea and a still brown floor of water.',
+    ],
+  ],
   'iron-filings': [
     [
       'asters-on-grey-felt',
@@ -3007,6 +5395,110 @@ export const PRESET_WORDS: Readonly<
       'hoodoos-in-noon-haze',
       1,
       'Smooth red and ochre pillars rise from a bare plain that goes pale in the heat.',
+    ],
+  ],
+  'jelly-palace': [
+    [
+      'quince-dome-by-a-night-light',
+      0,
+      'One amber jelly glows alone on a black polished table, with its own light lying before it.',
+    ],
+    [
+      'ice-fort-the-tide-forgot',
+      0,
+      'Clear cold towers of violet and mint stand on pale rippled ground before a grey ridge and a white sun.',
+    ],
+    [
+      'stepped-keep-in-the-red-desert',
+      0,
+      'A square jelly keep of garnet and amber stands on wide rippled red sand, its coloured shadow before it.',
+    ],
+    [
+      'rosewater-creams-for-a-wedding',
+      0,
+      'Smooth milky jellies in rose, cream and white stand on a white cloth, seen from a little above.',
+    ],
+    [
+      'greengage-spires-at-lamplight',
+      0,
+      'Tall twisted towers of deep green jelly rise close by in a dark room beside one tall lit window.',
+    ],
+    [
+      'five-sweets-in-one-glass',
+      1,
+      'Level layers of plum, coral, butter and mint lie one on another, with small fruit set in them.',
+    ],
+    [
+      'cosmos-flowers-set-in-clear-ice',
+      1,
+      'Pale pink and white flowers with gold eyes hang in a clear cold jelly full of morning light.',
+    ],
+    [
+      'pearls-in-smoky-tea',
+      1,
+      'Brown, plum and cream pearls of many sizes hang in dark tea that one low lamp shines through.',
+    ],
+    [
+      'sea-mouth-in-a-lime-cavern',
+      1,
+      'From inside green jelly a scalloped mouth opens on a bright sea with headlands and a white sun.',
+    ],
+    [
+      'gentian-ballroom-with-loose-beads',
+      1,
+      'A wide ribbed hall of deep blue and violet jelly, its floor lit from the right, small beads hanging in it.',
+    ],
+  ],
+  juggled: [
+    [
+      'snowed-in-and-still-juggling',
+      0,
+      'A blue hour of snow: a wall capped white runs off to a great bare tree, big balls going up behind it.',
+    ],
+    [
+      'peach-balls-before-the-low-sun',
+      0,
+      'A huge red sun is going down behind an earth wall, and balls cross its face in wide low arcs.',
+    ],
+    [
+      'hoops-over-the-mountain-terrace',
+      0,
+      'Painted hoops rise and fall over a low blue wall, with ranks of hazy mountains standing behind.',
+    ],
+    [
+      'silver-pellets-under-a-full-moon',
+      0,
+      'Behind a tall wall at night many small silver balls climb in narrow arcs across an enormous moon.',
+    ],
+    [
+      'nothing-but-balls-and-summer-air',
+      0,
+      'Looking up into a wide pale sky, a few painted balls hang near and large, with dotted trails.',
+    ],
+    [
+      'milk-balls-in-the-blue-ice-hole',
+      1,
+      'Down a smooth hole in veined blue ice, white balls rise round a cold lamp and drop away again.',
+    ],
+    [
+      'from-the-bottom-of-the-dry-well',
+      1,
+      'Looking up a well of coloured bricks to a round of bright cloud, small painted balls tossed up to it.',
+    ],
+    [
+      'painted-tiles-all-the-way-down',
+      1,
+      'A square shaft by day lined with blue, green and rust tiles, and bright balls leaping in it.',
+    ],
+    [
+      'smoke-rings-in-the-white-chimney',
+      1,
+      'In a whitewashed chimney great soft rings of pale smoke swim up very near the eye and fall back.',
+    ],
+    [
+      'brass-hoops-in-a-square-shaft',
+      1,
+      'A square brick shaft on its corner, a lamp far down at the left, and brass hoops thrown up from it.',
     ],
   ],
   'knit-and-ravel': [
@@ -3317,6 +5809,58 @@ export const PRESET_WORDS: Readonly<
       'One clear wing with fine close ribs lies on undyed cloth and casts a soft shadow.',
     ],
   ],
+  'lifted-roofs': [
+    [
+      'one-coloured-hem-in-ink',
+      0,
+      'The house is drawn in ink on pale paper, and one robe lies out from its blind in full colour.',
+    ],
+    [
+      'whole-palace-in-gold-line',
+      0,
+      'From very high, house after house is ruled in fine gold line on blue black, cloud lying between.',
+    ],
+    [
+      'on-posts-in-a-lily-lake',
+      0,
+      'A long veranda runs out over blue water thick with round green leaves and a few pale flowers.',
+    ],
+    [
+      'long-houses-under-gold-cloud',
+      0,
+      'Between banks of worn gold leaf, houses of open lit rooms slant one behind another with a stream past each.',
+    ],
+    [
+      'bark-roofs-in-a-red-autumn',
+      0,
+      'Brown bark roofs lie over most of the rooms, and red leaves have blown up against the boards.',
+    ],
+    [
+      'plum-out-after-the-thaw',
+      1,
+      'A plum in pink flower leans over pale spring grass, a brim full blue stream and the ends of two planks.',
+    ],
+    [
+      'snow-all-along-the-ridge',
+      1,
+      'Snowed roofs lie over a house in deep blue night, and one lit room is left open between them.',
+    ],
+    [
+      'maple-dropping-on-the-stream',
+      1,
+      'A maple at full red lets its leaves down over ochre ground, a blue stream and the zigzag planks.',
+    ],
+    [
+      'four-planks-over-black-water',
+      1,
+      'Close by, four snowed planks cross water that is nearly black, with round leaves lying on it.',
+    ],
+    [
+      'one-bent-branch-on-rice-paper',
+      1,
+      'A crooked plum stands alone in ink on pale paper, a few red buds on it and faint stains behind.',
+    ],
+  ],
   'light-doorway': [
     [
       'duck-egg-bedroom',
@@ -3511,6 +6055,110 @@ export const PRESET_WORDS: Readonly<
       'hayloft-chaff',
       1,
       'Low sun slants through the panes of a brown loft and lights the chaff that hangs in the air.',
+    ],
+  ],
+  'living-skin': [
+    [
+      'looked-at-by-lamplight',
+      0,
+      'A gold lidded eye as wide as the picture, its dark slot turned to a warm lamp, dots all round it.',
+    ],
+    [
+      'zebra-coat-for-a-rival',
+      0,
+      'The whole long flank in white and ink blue waves that run back to the tail, in bright clear water.',
+    ],
+    [
+      'sparks-worn-in-the-skin',
+      0,
+      'In black water the animal is only its own lights, blue and gold points along a side barely there.',
+    ],
+    [
+      'flank-on-a-cream-plate',
+      0,
+      'The head and side drawn in ink with fine hatching and a wash of brown, on a sheet of cream paper.',
+    ],
+    [
+      'rose-inks-opened-wide',
+      0,
+      'Nothing but skin: big soft discs of rose, plum and yellow open and close over mother of pearl.',
+    ],
+    [
+      'five-over-white-sand',
+      1,
+      'Five pale swimmers hang in step over bare rippled sand, in sunlit shallows as green as glass.',
+    ],
+    [
+      'upright-over-the-drop',
+      1,
+      'One animal stands on its tail in deep blue open water, the sea floor only a dark edge far below.',
+    ],
+    [
+      'passing-for-a-cobble',
+      1,
+      'Very near and nearly hidden: brown patches and pale ones break it up like the big stones it rests over.',
+    ],
+    [
+      'four-lanterns-with-fins',
+      1,
+      'Four swimmers with amber bands that shine by themselves cross a black bay over stones and sand.',
+    ],
+    [
+      'plum-stripes-in-the-red-weed',
+      1,
+      'A plum and cream striped swimmer far off over rose coloured shingle, red weed standing at the side.',
+    ],
+  ],
+  'long-dancer': [
+    [
+      'indigo-rope-on-a-snowed-square',
+      0,
+      'From the roofs a thin body of indigo cloth loops over clean snow, its bearers small and dark under it.',
+    ],
+    [
+      'finned-cloth-above-the-cloud-floor',
+      0,
+      'Nobody carries it: a hooped red body with a gold fin swims in loops over a bright morning floor of cloud.',
+    ],
+    [
+      'painted-scales-at-the-inn-doors',
+      0,
+      'Low and near at night, a thick body of rust, gold and teal scales shoulders past the lit inn doors.',
+    ],
+    [
+      'red-bolster-through-the-noon-yard',
+      0,
+      'Bare sand under a white noon, plaster walls, and a great red bolster of cloth thrown into loops.',
+    ],
+    [
+      'thin-line-of-silk-over-night-cloud',
+      0,
+      'From high above, a narrow line of silk curls through the night over broken cloud and blue dark.',
+    ],
+    [
+      'lamp-eel-over-the-moonlit-lake',
+      1,
+      'A long eel of white lamps floats with no bearers over black water, a full moon and hills beyond.',
+    ],
+    [
+      'paper-flowers-on-a-white-morning',
+      1,
+      'By a misty white day the body is pale paper sewn with red and ochre flowers, its bearers grey below.',
+    ],
+    [
+      'red-hoops-in-the-warm-fog',
+      1,
+      'Very near in red fog, hoop after hoop of small red lamps arches overhead with the bearers as shadows.',
+    ],
+    [
+      'great-globes-over-a-flooded-street',
+      1,
+      'In blue evening a chain of large amber globes crosses a flooded street, and lies again in the water.',
+    ],
+    [
+      'seed-lamps-in-a-golden-fog',
+      1,
+      'A thin thread of small lamps winds over its bearers in brown and gold fog, and lies again in still water.',
     ],
   ],
   'long-scroll': [
@@ -3773,6 +6421,58 @@ export const PRESET_WORDS: Readonly<
       'Deep red wax has run down a wall in long thin streams, glowing at their edges.',
     ],
   ],
+  'mirror-column': [
+    [
+      'ink-peaks-round-a-post',
+      0,
+      'Grey ink spreads in rings over white paper and stands up in dark steel as peaks and a red sun.',
+    ],
+    [
+      'poppy-swept-onto-brown-paper',
+      0,
+      'Scarlet petals swept wide over wrapping paper close up as one tall poppy in a copper pot.',
+    ],
+    [
+      'bare-pear-after-the-blizzard',
+      0,
+      'From low along a moonlit sheet of snow blue, one bare tree stands in a tall cold pillar.',
+    ],
+    [
+      'chalk-ranges-on-a-school-slate',
+      0,
+      'From high over black slate, rings of chalk hills run round a low tin and a lemon moon is in it.',
+    ],
+    [
+      'orchard-in-a-tea-caddy',
+      0,
+      'On a wide white sheet a rust coloured smear turns into an orchard in a short copper tin.',
+    ],
+    [
+      'dahlia-let-down-a-funnel',
+      1,
+      'A rose red dahlia fills the sheet, and the cone at its heart gathers every petal again.',
+    ],
+    [
+      'counters-set-out-in-circles',
+      1,
+      'Rounds of blue, sand and coral counters on white paper, shrunk and turned about in the cone.',
+    ],
+    [
+      'carp-round-a-blue-peak',
+      1,
+      'A steep mirror leans out of a moonlit pond with one fish going round its foot.',
+    ],
+    [
+      'night-fair-on-a-slate',
+      1,
+      'Rings of amber, rose and jade dots on black slate wheel round a copper cone seen from its side.',
+    ],
+    [
+      'ochre-leaves-and-a-far-pond',
+      1,
+      'A small green pond edged with ochre and navy leaves lies far down on a red table at evening.',
+    ],
+  ],
   moire: [
     [
       'watered-silk-gown',
@@ -3877,6 +6577,58 @@ export const PRESET_WORDS: Readonly<
       'The dark shoulder of a glazed jar fills the sight, its pale spots like a field of stars.',
     ],
   ],
+  'moon-terrace': [
+    [
+      'kite-day-over-a-mustard-sky',
+      0,
+      'Seven paper kites hang on their threads in a clear yellow sky above a long garden and a small white house.',
+    ],
+    [
+      'old-fig-tree-at-the-tank',
+      0,
+      'A huge fig with hanging roots and orange fruit fills the cream paper beside one small pavilion.',
+    ],
+    [
+      'gold-seamed-cloud-on-lapis',
+      0,
+      'Rolled black cloud fills nearly all the sheet, every seam drawn in gold on a deep lapis ground.',
+    ],
+    [
+      'rose-crags-behind-the-court',
+      0,
+      'Heaped rocks in rose, mauve and ochre climb behind a white house and a dry garden, in a warm dusk.',
+    ],
+    [
+      'downpour-from-the-red-balcony',
+      0,
+      'Cloud and fine rain over slate green, seen past a scalloped red stone arch and a pierced rail.',
+    ],
+    [
+      'grey-dawn-among-the-lotus',
+      1,
+      'Close over the water, broad leaves and pink lotus lie on pearl grey before the sun is up.',
+    ],
+    [
+      'rockets-for-the-lamp-night',
+      1,
+      'Flowers of gold fire open and sink over a blue black lake, and the water gives them back.',
+    ],
+    [
+      'copper-moon-through-a-dark-arch',
+      1,
+      'A huge copper moon over a red brown lake, framed by a black arch pricked with gold.',
+    ],
+    [
+      'one-tree-on-the-silver-water',
+      1,
+      'A single dark tree on a low island under a pin of a moon, with one lamp boat on the wide lake.',
+    ],
+    [
+      'bone-paper-lake-and-violet-rocks',
+      1,
+      'A pale sheet of bone coloured paper with a far white house, violet rocks and all the boats out.',
+    ],
+  ],
   moonscape: [
     [
       'ring-atolls-from-the-air',
@@ -3929,6 +6681,162 @@ export const PRESET_WORDS: Readonly<
       'Still water stands between bare rims and carries the track of a small low sun.',
     ],
   ],
+  'moss-walker': [
+    [
+      'small-herd-under-the-toadstools',
+      0,
+      'Spotted toadstools stand tall as trees in a green sunlit wood while small grey walkers pass below them.',
+    ],
+    [
+      'calves-in-file-before-the-moon',
+      0,
+      'A whole file of the small fat beasts goes by on a low hill, with a huge pale moon standing behind them.',
+    ],
+    [
+      'tucked-up-in-a-hard-frost',
+      0,
+      'One walker has drawn its legs in and sleeps as a pale cushion in white fog among a few frosted leaves.',
+    ],
+    [
+      'standing-up-to-a-copper-sun',
+      0,
+      'On a bare rust hill a broad plated beast rears up, all its folds dark before a sun as tall as itself.',
+    ],
+    [
+      'face-to-face-under-the-drops',
+      0,
+      'Close by in a wet thicket a blunt wrinkled face turns to us between leaf sails and great round drops.',
+    ],
+    [
+      'barefoot-over-rock-salt',
+      1,
+      'A rosy beast treads a pale floor heaped with stepped crystals of salt, white and shell pink to the edge.',
+    ],
+    [
+      'blue-hide-seen-from-the-air',
+      1,
+      'From overhead one great beast lies on an empty dark floor, drawn only by the cold blue light along its rims.',
+    ],
+    [
+      'small-giants-on-a-printed-plate',
+      1,
+      'On warm old paper a file of little walkers crosses a field of pierced shells, all in brown and grey ink.',
+    ],
+    [
+      'plated-beast-among-glass-wheels',
+      1,
+      'A honey coloured plated beast wades through jade wheels of glass in a blue dusk, a green moon behind it.',
+    ],
+    [
+      'bronze-flank-close-to',
+      1,
+      'So near that its folds fill the picture, a bronze flank slides by with a few dark shells at its feet.',
+    ],
+  ],
+  'mountain-shadow': [
+    [
+      'volcano-shade-over-the-isles',
+      0,
+      'From a volcano at sunrise, its wide blue shadow runs off to the right over a pale sea full of islands.',
+    ],
+    [
+      'table-lands-under-a-spear',
+      0,
+      'Flat topped red tables with banded cliffs go off to the sky, one narrow spear of shade across them.',
+    ],
+    [
+      'full-moon-behind-the-summit',
+      0,
+      'Far back under a huge sky of stars: two small climbers, and the faint triangle their peak lays on cloud.',
+    ],
+    [
+      'ranges-torn-from-coloured-card',
+      0,
+      'Plum, ochre and green ridges of grained card stand one behind another, a clean blue cone laid over.',
+    ],
+    [
+      'larch-hills-before-breakfast',
+      0,
+      'Near above low hills in gold and green woods, mist lying between them and one slim shadow across all.',
+    ],
+    [
+      'reservoir-without-a-breath',
+      1,
+      'A wall of white peaks on a clear cold morning, and the whole of it again in still water below.',
+    ],
+    [
+      'stage-of-red-buttes',
+      1,
+      'Near to square red buttes with one finger of stone, the last orange light on them and mist below.',
+    ],
+    [
+      'hut-above-the-fog-at-night',
+      1,
+      'A lit hut and its string of lamps above a valley of fog, with two moonlit peaks and stars behind.',
+    ],
+    [
+      'folded-card-alps',
+      1,
+      'A rose peak, violet walls and a blue sky in flat grained card, with a sheet of dark water before them.',
+    ],
+    [
+      'october-larch-under-the-wall',
+      1,
+      'Gold larches cover every lower slope below a steep grey wall with the late sun on its spires.',
+    ],
+  ],
+  'music-box-town': [
+    [
+      'white-harbour-rolls-into-the-tide',
+      0,
+      'A white town with blue and red roofs turns down a white barrel into a bright sea, under a pale high sky.',
+    ],
+    [
+      'larches-turning-gold-on-iron',
+      0,
+      'Gold and rust coloured larches stand in ranks on a dark iron barrel, in slanting October light.',
+    ],
+    [
+      'every-house-a-lit-parcel',
+      0,
+      'In a black room the houses are ribbed paper lit from within, going round like goods on a belt.',
+    ],
+    [
+      'low-farms-on-a-ploughed-roller',
+      0,
+      'Small farms stand among squares of stubble, plough and clover that are wrapped round the barrel.',
+    ],
+    [
+      'snow-packed-between-the-chimes',
+      0,
+      'Blue dusk on thick snow: roofs, ground and streets all white, with yellow windows under the eaves.',
+    ],
+    [
+      'thin-spires-on-a-black-dial',
+      1,
+      'Hundreds of steep dark spires crowd a black iron disc at night, with rows of small gold windows.',
+    ],
+    [
+      'enamel-plate-with-a-few-flat-roofs',
+      1,
+      'Seen from above, small flat houses cast short shadows on a bright white plate among white wheels.',
+    ],
+    [
+      'wheel-islands-off-a-round-coast',
+      1,
+      'The whole town is a green island in a jade sea, and five small toothed islands turn beside it.',
+    ],
+    [
+      'seven-crops-sown-in-a-ring',
+      1,
+      'From high above, plots of lavender, rape, flax and vines lie round a disc with few houses on them.',
+    ],
+    [
+      'striped-tents-of-a-clockwork-fair',
+      1,
+      'Close to the rim, pointed tents in madder, cream and sea blue go by on the brass like a parade.',
+    ],
+  ],
   'night-city': [
     [
       'lime-washed-quarter',
@@ -3979,6 +6887,58 @@ export const PRESET_WORDS: Readonly<
       'columns-under-a-second-sun',
       1,
       'A road of six sided columns runs to the sun of another world, huge and pale in red haze.',
+    ],
+  ],
+  'night-landing': [
+    [
+      'harvest-country-at-first-light',
+      0,
+      'Fields of wheat, plough and pasture lie below in early light, and the street lamps still burn.',
+    ],
+    [
+      'snow-plain-under-green-curtains',
+      0,
+      'Green light hangs in folds over a blue plain of snow where only a few white villages are lit.',
+    ],
+    [
+      'herders-fires-on-the-dry-steppe',
+      0,
+      'Hardly a road: hundreds of separate fires lie on black ground under a sky full of stars.',
+    ],
+    [
+      'round-towns-at-the-rose-hour',
+      0,
+      'Every quarter is laid out in rings of lamps about a middle, under a wide violet and rose evening.',
+    ],
+    [
+      'cloud-lit-from-the-streets-below',
+      0,
+      'From high up the city is a white glow in torn cloud, with dark holes of open country.',
+    ],
+    [
+      'lamps-left-on-into-a-still-dawn',
+      1,
+      'A grey boat lies on pale blue water under a cream sky, its lamps still burning in the early light.',
+    ],
+    [
+      'a-turning-light-on-the-outer-rock',
+      1,
+      'A lighthouse on a black rock sweeps two long beams round over the sea at violet dusk.',
+    ],
+    [
+      'rust-red-sail-and-amber-lamps',
+      1,
+      'Close by, a battened red sail stands lit from its own lamps on black water, others far behind it.',
+    ],
+    [
+      'boats-in-pack-ice-with-the-sky-alight',
+      1,
+      'Green and rose curtains stand over a frozen sea, and their light lies along the floes and the water.',
+    ],
+    [
+      'the-whole-fleet-and-its-pillars',
+      1,
+      'At blue dusk, seen from high up, boats past counting stand under tall pillars of their own pale light.',
     ],
   ],
   'night-sea': [
@@ -4085,6 +7045,162 @@ export const PRESET_WORDS: Readonly<
       'Straight sided plates of umber and tan, each a little raised, over dark seams.',
     ],
   ],
+  'oiled-umbrellas': [
+    [
+      'one-left-glowing-in-the-snow',
+      0,
+      'A single paper umbrella stands lit from inside on blue night snow before a dark wood.',
+    ],
+    [
+      'dyers-yard-from-the-gable',
+      0,
+      'Seen from above, deep red, orange and green umbrellas with dark rings stand about on white snow.',
+    ],
+    [
+      'striped-ones-adrift-on-a-lido',
+      0,
+      'Broad striped umbrellas float on still green water, each with its own likeness under it.',
+    ],
+    [
+      'let-go-over-the-downs-at-dusk',
+      0,
+      'Umbrellas ride the last sun, large and small, above long violet hills going off into haze.',
+    ],
+    [
+      'sedge-hats-on-the-threshing-floor',
+      0,
+      'Steep cones of straw ringed with brown stand close by on dry earth, in dust and low sun.',
+    ],
+    [
+      'alley-roofed-for-the-lamp-fair',
+      1,
+      'On our backs in a night alley, rows on rows of lit umbrellas hang on wires against a blue sky.',
+    ],
+    [
+      'left-on-a-hook-for-forty-years',
+      1,
+      'Scraps of gold and rose paper still cling to the bare ribs of old umbrellas, and blue sky comes through.',
+    ],
+    [
+      'white-wheel-under-a-snow-sky',
+      1,
+      'One great white paper wheel of fine ribs, snow lying grey on it, in an empty pale sky.',
+    ],
+    [
+      'bullseyes-in-oxblood-and-ink',
+      1,
+      'Close under three umbrellas of oxblood paper with broad dark rings, at night, a lamp in each hub.',
+    ],
+    [
+      'three-parasols-from-the-hot-sand',
+      1,
+      'Far up in a blue noon three broad striped parasols lean together on their long poles.',
+    ],
+  ],
+  'old-courses': [
+    [
+      'every-bed-the-river-ever-had',
+      0,
+      'A survey sheet from above: each bed of a river washed in its own colour, pen lines between, on cream paper.',
+    ],
+    [
+      'bunds-full-of-evening',
+      0,
+      'Hundreds of small flooded fields between green banks hold a violet sky, gold where the low sun lies on them.',
+    ],
+    [
+      'slow-fire-across-the-ash',
+      0,
+      'A river of molten rock loops through black land at night, its older beds still dull red in the dark.',
+    ],
+    [
+      'poplar-tops-above-the-fret',
+      0,
+      'Mist fills the valley like a white sea under blue sky, only the russet tops of trees in rows stand out.',
+    ],
+    [
+      'dry-channels-in-red-ground',
+      0,
+      'High noon over a red plain with hardly a tree: one thin river, pale sand, the combed marks of dead channels.',
+    ],
+    [
+      'flood-through-the-alder-fen',
+      0,
+      'Dark trees stand to their knees in silver water under a full moon, the river almost lost in the flood.',
+    ],
+    [
+      'willow-let-down-over-the-pool',
+      1,
+      'Long green leaf hangs over open spring water, a round island of young willow in the middle of it.',
+    ],
+    [
+      'lavender-rings-round-a-dew-pond',
+      1,
+      'Low round bushes of violet, rose and grey stand in curved rows about a small pond in short grass.',
+    ],
+    [
+      'poplars-doubled-in-a-red-mere',
+      1,
+      'Tall thin trees ring a brimming lake at the end of the day, dark upside down in the red water.',
+    ],
+    [
+      'one-fox-went-by-in-the-rime',
+      1,
+      'Trees white with rime stand round a frozen pool under a pale blue sky, one line of prints across the ice.',
+    ],
+  ],
+  'one-sided-road': [
+    [
+      'bus-through-the-drifts',
+      0,
+      'Great white roofs and a ploughed lane on a small ring of deep snow, the sky pale as milk.',
+    ],
+    [
+      'wheat-ring-from-a-high-kite',
+      0,
+      'From far above, a round of ripe amber strips in blue air, its few great poplars gold and leaning out.',
+    ],
+    [
+      'poplar-dyke-seen-end-on',
+      0,
+      'One thin edge of earth leans across pale air, poplars rising from it and hanging below.',
+    ],
+    [
+      'thrown-lane-over-the-firth',
+      0,
+      'A strip of farms rolls over three times above a wide evening sea with the sun along it.',
+    ],
+    [
+      'homestead-beside-a-dead-moon',
+      0,
+      'Houses and poplars ride a slim hoop of bare fields through black space, a pitted moon behind.',
+    ],
+    [
+      'ice-on-the-long-lock',
+      1,
+      'A frozen canal winds twice round on slim white arches, barges held fast in a colourless noon.',
+    ],
+    [
+      'moss-creeping-up-the-viaduct',
+      1,
+      'From close by, tall walls furred green stand in forest wet with one brown barge at their foot.',
+    ],
+    [
+      'black-sluice-under-a-near-moon',
+      1,
+      'Two coils of dark water strung with small lamps hang in starry black beside a grey moon.',
+    ],
+    [
+      'five-loops-in-a-clear-bay',
+      1,
+      'A knot of five blue waterways opens like a flower over a bright bay on a clear morning.',
+    ],
+    [
+      'brick-weir-in-a-furnace-sky',
+      1,
+      'A great brick drum of a canal winds up against an orange sky, its lamps lit and its water red.',
+    ],
+  ],
   'one-spiral': [
     [
       'hemp-laid-in-a-star',
@@ -4135,6 +7251,110 @@ export const PRESET_WORDS: Readonly<
       'braided-rag-rug',
       1,
       'Braids of madder, indigo and cream cloth wound into an oval rug on a pale floor.',
+    ],
+  ],
+  'packed-sand': [
+    [
+      'camels-round-the-belly',
+      0,
+      'A pointed flask of dyed sand: camels in file along a dune, palms beside them, a red evening sky.',
+    ],
+    [
+      'zigzags-set-with-a-wire',
+      0,
+      'A square bottle packed with rows of diamonds, zigzags and checks in navy, brick and cream, on a blue wall.',
+    ],
+    [
+      'souvenirs-on-the-sill',
+      0,
+      'A row of small bottles of many shapes on a wooden sill, each filled with bands of its own bright sands.',
+    ],
+    [
+      'moon-over-a-lake-of-grains',
+      0,
+      'A wide picture laid in sand: steep peaks and dark trees by a lake, a moon and stars in deep blue grains.',
+    ],
+    [
+      'one-sail-before-breakfast',
+      0,
+      'One sail on a flat teal sea laid grain by grain, the sky above it peach below and pale grey higher up.',
+    ],
+    [
+      'an-hour-of-red-sand',
+      1,
+      'An hourglass in dark wood: red and ochre sand sinks through its neck onto small striped hills.',
+    ],
+    [
+      'round-pane-on-a-chalk-wall',
+      1,
+      'A round glass in a dark ring on a pale wall, inside it green and white peaks that fell through water.',
+    ],
+    [
+      'swells-laid-down-in-teal',
+      1,
+      'Long round swells of teal, cream and navy sand, skin over skin, lie half way up the glass in clear water.',
+    ],
+    [
+      'stepped-towers-at-red-sundown',
+      1,
+      'Hills of sand that stand in steps like old brick towers, black, cream and rust against an orange sky.',
+    ],
+    [
+      'every-grain-of-the-snow-range',
+      1,
+      'Seen so near that each grain shows: white and black slopes under a big cold moon in blue water.',
+    ],
+  ],
+  'painted-grotto': [
+    [
+      'gauze-bells-in-a-dark-tank',
+      0,
+      'Five jellyfish of lit gauze, rose, violet and pale green, pulse in dark blue water before thin rays.',
+    ],
+    [
+      'silver-ring-among-drowned-arches',
+      0,
+      'Small silver fish go round in a ring before a sunk arcade in teal water, a gold sun in one of its arches.',
+    ],
+    [
+      'one-veil-tail-in-morning-water',
+      0,
+      'One great red fish with long veils hangs in pale green water, rays of morning light falling past it.',
+    ],
+    [
+      'slim-carp-by-ember-light',
+      0,
+      'Five slim red fish pass before brick arches and an open clam, lit by one low lamp like a fire.',
+    ],
+    [
+      'bait-ball-under-the-open-sun',
+      0,
+      'Small bright fish wheel in one ring in open blue water, the light of noon streaming down through them.',
+    ],
+    [
+      'sea-cranked-by-hand',
+      1,
+      'Rows of painted waves with white edges rock behind one another, a yellow paper sun low over them.',
+    ],
+    [
+      'cut-firs-and-a-low-winter-sun',
+      1,
+      'Row behind row of green firs cut from board stand before a big coral sun and its painted rays.',
+    ],
+    [
+      'cardboard-town-at-lamp-lighting',
+      1,
+      'Small gabled houses of painted card stand in five rows, their windows yellow under a hung moon.',
+    ],
+    [
+      'thunderheads-of-peach-wool',
+      1,
+      'Tall heaps of cotton wool, peach above and violet below, crowd the rails before a yellow sun and its rays.',
+    ],
+    [
+      'tin-stars-over-cloud-shelves',
+      1,
+      'A crescent of painted board and tin stars on threads hang over flat shelves of grey and plum cloud.',
     ],
   ],
   'paper-screen': [
@@ -4241,6 +7461,162 @@ export const PRESET_WORDS: Readonly<
       'From high above, white houses round their courtyards stand in rows on ochre earth.',
     ],
   ],
+  parasols: [
+    [
+      'thatch-shades-in-a-brick-red-cove',
+      0,
+      'Ragged straw roofs on poles lean over red sand while the sun goes down behind you.',
+    ],
+    [
+      'supper-cloths-in-the-spring-tide',
+      0,
+      'White parasols stand up to their poles in clear green water and look at themselves.',
+    ],
+    [
+      'a-lamp-under-every-shade',
+      0,
+      'Night on black sand, and under each low parasol somebody has hung a light.',
+    ],
+    [
+      'garden-fete-from-a-tethered-balloon',
+      0,
+      'Bright halved rounds set out on a lawn, ring inside ring, by a grey green lake.',
+    ],
+    [
+      'evening-tide-among-the-last-shades',
+      0,
+      'A thin clear tide creeps over gold sand round the parasols that nobody took in, late in the day.',
+    ],
+    [
+      'bone-buttons-on-lava-sand',
+      0,
+      'Flat white rounds on a black beach straight below, with one green edge of sea.',
+    ],
+    [
+      'first-snow-over-the-christmas-stalls',
+      1,
+      'Square roofs under blue snow on a winter evening, each melted open round the lamp below its peak.',
+    ],
+    [
+      'melon-sellers-under-noon-cloth',
+      1,
+      'Midday in a warm square from a high window: striped peaks of cloth and hard short shade.',
+    ],
+    [
+      'stalls-left-after-a-cloudburst',
+      1,
+      'The square has emptied; wet stones hold the light of the few stalls that stayed.',
+    ],
+    [
+      'amber-rings-of-the-horse-fair',
+      1,
+      'Pointed tents set in wide circles on a black field, each ring with a light of its own.',
+    ],
+  ],
+  'passed-along': [
+    [
+      'beacons-answered-over-the-pass',
+      0,
+      'A fire in an iron basket on a tower, and fire after fire answering it along dark hills under a moon.',
+    ],
+    [
+      'flag-masts-above-the-barley',
+      0,
+      'Striped and spotted flags on two strings, a long red pennant, pale harvest hills and more masts behind.',
+    ],
+    [
+      'message-across-the-red-buttes',
+      0,
+      'Flat topped rocks in red and cream layers, one behind another with dust between, jointed arms on their tops.',
+    ],
+    [
+      'skerry-arms-on-a-clear-day',
+      0,
+      'Green skerries in a pale blue sea, a jointed arm on each, the nearest on a stone tower, the sun on the water.',
+    ],
+    [
+      'slats-and-nothing-else-in-fog',
+      0,
+      'Near black slatted arms against white fog, the tower cut off below, a faint arm and the sun behind.',
+    ],
+    [
+      'all-sail-under-a-harvest-moon',
+      1,
+      'Ships under full amber sail cross before a great pale gold moon, its light broken on black water.',
+    ],
+    [
+      'night-fishers-below-the-cliffs',
+      1,
+      'Low boats, each with one lamp on a pole and one standing figure, on black water between blue cliffs.',
+    ],
+    [
+      'regatta-before-the-wind-comes',
+      1,
+      'Pale coral and cream sails stand in a bright haze over ruffled water, the near ones very large.',
+    ],
+    [
+      'rowing-home-on-a-red-sea',
+      1,
+      'A huge gold sun low over a still red sea, and one low boat with a standing rower, dark before it.',
+    ],
+    [
+      'wintering-under-snow-cliffs',
+      1,
+      'A ship lies bare masted in a blue bay with more behind her, snow on the cliffs round it, lamps on the water.',
+    ],
+  ],
+  'pecking-hens': [
+    [
+      'chicks-on-the-breakfast-check',
+      0,
+      'Round chicks stand about a painted board on a checked cloth, seen from over the table.',
+    ],
+    [
+      'one-goose-over-the-lily-pond',
+      0,
+      'A single tall goose on her wooden plate, and the ball going round above dark water.',
+    ],
+    [
+      'lacquer-peacocks-by-one-lamp',
+      0,
+      'Black and gold birds with wheels for tails, gathered in the small light of a lamp.',
+    ],
+    [
+      'lime-wood-flock-at-eye-level',
+      0,
+      'Unpainted birds cut from pale wood, seen so near and low that they stand like statues.',
+    ],
+    [
+      'seven-round-the-plate-from-the-rafters',
+      0,
+      'Straight down on a blue floor: a round board like a clock and seven birds for its hours.',
+    ],
+    [
+      'crows-on-a-glowing-drum',
+      0,
+      'The board is lit from within and the birds on it are black, pecking at their own light.',
+    ],
+    [
+      'wheel-tails-before-blue-ranges',
+      1,
+      'Four birds spread their tails on a sill, and behind them the hills go back for miles.',
+    ],
+    [
+      'paper-screen-geese',
+      1,
+      'Black geese on crossed sticks bow to each other before a screen of lit paper.',
+    ],
+    [
+      'tiled-dairy-on-a-clear-morning',
+      1,
+      'Plump chicks close to the eye against blue and white tiles, with the window light on them.',
+    ],
+    [
+      'two-up-late-under-a-faint-moon',
+      1,
+      'By the last of the lamp two long necked birds lean together on a sill, with black hills behind.',
+    ],
+  ],
   'pierced-drum': [
     [
       'lamp-set-down-on-snow',
@@ -4343,6 +7719,58 @@ export const PRESET_WORDS: Readonly<
       'copper-eggs-aloft',
       1,
       'Tall copper eggs lift off their bed where it sounds and hang there, mirroring the dusk.',
+    ],
+  ],
+  'pollen-fur': [
+    [
+      'ruff-of-a-white-night-moth',
+      0,
+      'Deep white plumes stand rank behind rank in blue moonlight, with hardly a grain caught among them.',
+    ],
+    [
+      'spiked-sun-in-a-fox-red-coat',
+      0,
+      'One huge spiked grain hangs close by like a sun among fox red hairs, and everything round it glows.',
+    ],
+    [
+      'feather-star-with-drifting-eggs',
+      0,
+      'In green water at dusk a feathered star spreads its arms from one tuft while coral and cream eggs drift past.',
+    ],
+    [
+      'dark-hairs-on-a-collectors-card',
+      0,
+      'A few bare dark hairs and one smooth grain are laid on cream card, as plain as a drawing in ink.',
+    ],
+    [
+      'spring-gale-across-the-pelt',
+      0,
+      'In white noon light the pale green coat is blown flat and a crowd of round grains is carried over it.',
+    ],
+    [
+      'scarlet-cup-with-the-guest-arriving',
+      1,
+      'Deep between scarlet petals the heavy stamen heads are thick with spiked gold as a striped guest comes in.',
+    ],
+    [
+      'bell-flower-hung-in-violet-dusk',
+      1,
+      'From the roof of a hanging flower bowed stamens reach down into dusk among soft violet and rose lights.',
+    ],
+    [
+      'ray-petals-in-a-herbal',
+      1,
+      'On the pale page of a plant book a flower opens its many narrow yellow rays round thick brown stamens.',
+    ],
+    [
+      'white-guest-in-the-blue-hour',
+      1,
+      'In clear blue moonlight pale short petals open, and a white guest striped with black comes to gold pods.',
+    ],
+    [
+      'lights-across-the-bay-at-dusk',
+      1,
+      'Close by, a stamen head with one great spiked grain; behind it soft round lights float on a grey blue dusk.',
     ],
   ],
   pond: [
@@ -4553,6 +7981,110 @@ export const PRESET_WORDS: Readonly<
       'Black stone steps lie wet at dusk with a film of petrol on them in bands of violet, teal and gold.',
     ],
   ],
+  'quick-garden': [
+    [
+      'bean-poles-in-late-gold',
+      0,
+      'Five hazel poles lean together in gold evening light, beans in flower winding up to the knot.',
+    ],
+    [
+      'seedlings-before-a-full-moon',
+      0,
+      'Thin stems and narrow leaves stand black on a huge pale moon in a blue night.',
+    ],
+    [
+      'red-flowers-against-a-lime-wall',
+      0,
+      'Five clay pots stand against a white wall in hard sun, round leaves and red flowers climbing.',
+    ],
+    [
+      'the-allotment-after-the-flood',
+      0,
+      'Withered vines against a rose wall stand over still grey water that holds them upside down.',
+    ],
+    [
+      'vines-let-down-a-well',
+      0,
+      'Broad wet leaves and blue flowers hang down close by out of the black, thick as a curtain.',
+    ],
+    [
+      'forced-flowers-on-the-black-piano',
+      1,
+      'Five full flower heads in their glasses by night, mirrored in a black lacquered lid.',
+    ],
+    [
+      'clay-pots-at-the-orchard-window',
+      1,
+      'Round white and yellow heads open in old clay pots before a window full of spring green.',
+    ],
+    [
+      'fern-frost-and-one-green-shoot',
+      1,
+      'White frost ferns fill a cold pane, two glasses stand empty, and one bulb puts up a green shoot.',
+    ],
+    [
+      'leaded-window-of-the-seed-merchant',
+      1,
+      'A thicket of tall leaves and purple heads crowds a window of small leaded panes on a grey lilac day.',
+    ],
+    [
+      'water-glasses-and-a-winter-sun',
+      1,
+      'A huge orange sun hangs in a frosted window and the bulbs stand black before it, their water glowing.',
+    ],
+  ],
+  'reed-hall': [
+    [
+      'tide-let-into-the-long-house',
+      0,
+      'Water stands across the whole floor and doubles the arches into rings, a white sun at the open end.',
+    ],
+    [
+      'ribs-raised-before-the-mats',
+      0,
+      'A hall half built: bare tall bows of reed in full noon, pale sky between them, shade on the floor.',
+    ],
+    [
+      'on-my-back-under-the-bows',
+      0,
+      'Looking straight up from the floor, great bundles cross a deep blue night between bare lengths of reed.',
+    ],
+    [
+      'three-pots-on-the-night-hearth',
+      0,
+      'Low by the floor, embers light three pots and the bundles over them, moonlight in the lattice.',
+    ],
+    [
+      'bleached-bows-above-a-bright-lake',
+      0,
+      'Low grey bows span a wide pale floor from close overhead, bright water glinting at the far end.',
+    ],
+    [
+      'full-moon-made-of-lattice',
+      1,
+      'Straight on, the lit end of the hall and its image in black water close into one gold round.',
+    ],
+    [
+      'long-house-in-a-ground-blizzard',
+      1,
+      'A low hall lies under snow on white ice, flakes drifting by and the sun a small pale coin.',
+    ],
+    [
+      'bare-hoops-over-rose-water',
+      1,
+      'Only the tall hoops of a hall stand in a rose evening, their images making a chain of rings.',
+    ],
+    [
+      'hall-behind-hall-in-saffron-haze',
+      1,
+      'Halls of reed lie one behind another in thick yellow haze, a boat going by between them.',
+    ],
+    [
+      'poling-home-through-rushes',
+      1,
+      'Close by, tall plumed rushes and a dark boat at green dusk, the hall only a shape far behind.',
+    ],
+  ],
   'rib-lantern': [
     [
       'paper-moon-on-a-snowfield',
@@ -4605,6 +8137,58 @@ export const PRESET_WORDS: Readonly<
       'Slim lattice lamps stand about a pale green marsh and go paler into the fog.',
     ],
   ],
+  'ribbon-pole': [
+    [
+      'linen-wheel-on-new-snow',
+      0,
+      'Undyed ribbons turn like the petals of one great flower over a field of snow.',
+    ],
+    [
+      'paper-lamps-round-the-pole-at-nightfall',
+      0,
+      'Strings of lit globes come down from a wreath to a ring of walkers on the dark grass.',
+    ],
+    [
+      'red-thread-on-a-raked-court',
+      0,
+      'Thin red and white cords drawn straight as rays over bare sand at midday.',
+    ],
+    [
+      'four-long-banners-at-low-sun',
+      0,
+      'Only four dancers hold broad cloths and lean back on them while the shadows grow.',
+    ],
+    [
+      'harvest-tent-on-the-stubble',
+      0,
+      'Ribbons let down all round the pole make a tent of colour on a field of cut straw.',
+    ],
+    [
+      'silver-cords-over-blue-snow',
+      0,
+      'By moonlight a few white walkers draw thin shining cords round a pole on the snow.',
+    ],
+    [
+      'cloth-willow-in-a-white-sky',
+      1,
+      'Pale lengths of cloth hang from the top of the pole like branches under thin cloud.',
+    ],
+    [
+      'rays-of-red-and-white',
+      1,
+      'Narrow straight ribbons, red then white, from one knot out into a hard blue day.',
+    ],
+    [
+      'globes-let-up-into-the-dark',
+      1,
+      'Paper globes on strings, small at the pole and as large as moons where they pass overhead.',
+    ],
+    [
+      'under-a-plait-like-a-trunk',
+      1,
+      'A braid as thick as a tree comes down before a burning evening and lets a few cloths go.',
+    ],
+  ],
   ribbons: [
     [
       'banners-on-limewash',
@@ -4655,6 +8239,58 @@ export const PRESET_WORDS: Readonly<
       'rain-down-the-greenhouse',
       1,
       'Rain wanders down clear greenhouse panes, with blurred leaf green and straw behind.',
+    ],
+  ],
+  'ring-rubble': [
+    [
+      'last-amber-edge-of-the-giant',
+      0,
+      'Only a thin amber rim of the planet is lit, and the boulders before it are black against its glow.',
+    ],
+    [
+      'broken-crystal-by-starlight',
+      0,
+      'Cut blue green crystals drift along a sharp line before a cloud of stars and one small crescent.',
+    ],
+    [
+      'pearls-loose-in-a-bright-sky',
+      0,
+      'Smooth cream and rose pearls of every size float along a thin line in a rose grey morning sky.',
+    ],
+    [
+      'glazed-stones-and-a-painted-giant',
+      0,
+      'A planet banded in teal, ochre and brick fills half the sky, and the stones before it are as bright.',
+    ],
+    [
+      'rust-scree-hung-in-lit-dust',
+      0,
+      'A steep slope of red rock crosses the picture in thick glowing dust, under a wall of warm light.',
+    ],
+    [
+      'pale-floes-parted-by-a-black-lead',
+      1,
+      'The sheet is cracked into white plates of ice that run to a bright edge, with one black way through.',
+    ],
+    [
+      'beadwork-round-a-sleeping-planet',
+      1,
+      'Row on row of dark lustred beads curve away to a planet in its own night, under a cloud of stars.',
+    ],
+    [
+      'scalloped-gorge-in-red-gravel',
+      1,
+      'A wide black lane with deep curled edges runs through grooves of rust and ochre at a low sun.',
+    ],
+    [
+      'jade-and-plum-grooves-from-above',
+      1,
+      'High over the sheet, broad grooves of jade, plum, cream and coral bend away side by side like cloth.',
+    ],
+    [
+      'ice-roof-over-a-pale-blue-deep',
+      1,
+      'The sheet hangs overhead like a combed ceiling of ice, and under it is nothing but pale blue light.',
     ],
   ],
   ripples: [
@@ -4761,6 +8397,266 @@ export const PRESET_WORDS: Readonly<
       'A thin file of small silver lamps threads still black water between two huge stones.',
     ],
   ],
+  'river-plates': [
+    [
+      'tiles-behind-a-farm-stove',
+      0,
+      'A whole wall of white tiles, each a little askew, with one plum coloured valley painted across all of them.',
+    ],
+    [
+      'one-red-dish-by-the-lamp',
+      0,
+      'A single scalloped dish painted in iron red leans on dark boards, half of it lost beyond the lamplight.',
+    ],
+    [
+      'bathhouse-wall-of-scale-waves',
+      0,
+      'Square tiles in green and white carry a sea of ringed waves, and one bare moon over it.',
+    ],
+    [
+      'celadon-octagons-in-the-rain',
+      0,
+      'Eight sided jade tiles with squares of bare plaster between them, and rain over a river in smoky blue.',
+    ],
+    [
+      'petal-dishes-for-a-spring-table',
+      0,
+      'Scalloped dishes stand close in a limewashed rack, painted with rose hills, a sage river and olive reeds.',
+    ],
+    [
+      'ginger-jars-on-a-winter-sill',
+      1,
+      'Lidded jars of three heights stand in bright snow light, white hills round every one of them.',
+    ],
+    [
+      'moons-inside-a-wave-bowl',
+      1,
+      'One looks down into a wide bowl where ringed waves fill the bottom and six walls, under bare moons.',
+    ],
+    [
+      'black-jar-with-gilded-hills',
+      1,
+      'A black jar with a wavy gilded collar stands by a red clay wall, its ridges and its strait in dull gold.',
+    ],
+    [
+      'vermilion-cliffs-an-inch-away',
+      1,
+      'So near the glaze that the brush shows, red cliffs with bare tops stand over a wide pale strait.',
+    ],
+    [
+      'flat-sided-jar-in-green-rain',
+      1,
+      'Rain drives across a jar of twelve flat sides, its copper green river risen over the banks by lamplight.',
+    ],
+  ],
+  'rolled-show': [
+    [
+      'paper-waves-round-a-lighthouse',
+      0,
+      'Close to the paper: scallops of blue tissue sea roll by under a moon, a ship, a light on a rock.',
+    ],
+    [
+      'lit-box-far-out-in-snow',
+      0,
+      'Small under the stars, the lit paper window and a few bales stand alone in a field of blue snow.',
+    ],
+    [
+      'round-pane-of-red-maple-hills',
+      0,
+      'In a warm lit barn a round paper window shows red hills and one great tree still in leaf.',
+    ],
+    [
+      'black-firs-on-bare-paper',
+      0,
+      'Cut black firs stand right before bare cream paper, grey peaks and a pale moon far behind them.',
+    ],
+    [
+      'the-last-town-on-the-scroll',
+      0,
+      'A whole old town goes by in cut card, tower behind tower, every window lit, under coloured tissue.',
+    ],
+    [
+      'paper-sea-under-real-stars',
+      1,
+      'Out in a night meadow the bulb hangs like a sun over rows of cut waves, a ship sailing to it.',
+    ],
+    [
+      'rooftops-turned-from-behind',
+      1,
+      'From behind the box, black roofs and lit windows pass close before the bulb in cold blue light.',
+    ],
+    [
+      'rollers-set-up-in-a-hayfield',
+      1,
+      'Out of doors in broad daylight: two rollers and a pale sheet in cut grass, flat country on it.',
+    ],
+    [
+      'blue-winter-through-a-knot-hole',
+      1,
+      'A round hole in warm boards opens on pale blue hills, a fence and dry reeds, the bulb hung before it.',
+    ],
+    [
+      'fox-on-the-rose-hill-road',
+      1,
+      'A pale road winds up a rose hill past one tree in leaf and a fox, the bulb burning low beside it.',
+    ],
+  ],
+  'roost-rings': [
+    [
+      'flamingos-over-a-soda-crater',
+      0,
+      'Pink birds in wide rings over a round shore of white and ochre that holds a milky green lake.',
+    ],
+    [
+      'wader-count-inked-by-hand',
+      0,
+      'A cream survey sheet from far above, its heights in thin lines, small rings of birds in four inks.',
+    ],
+    [
+      'starlings-low-across-the-levels',
+      0,
+      'From close to the ground, black flocks stream over a red evening fen with its ditches shining.',
+    ],
+    [
+      'ember-moths-on-a-black-delta',
+      0,
+      'Glowing specks rise in broken rings over a delta at night, its many channels a little less dark.',
+    ],
+    [
+      'one-heronry-in-cold-mountains',
+      0,
+      'A single slow ring of grey birds hangs over blue snow ranges and a long inlet, the air quite still.',
+    ],
+    [
+      'eye-of-a-white-cyclone',
+      1,
+      'From overhead at night, pale grains wind in two great arms round a black and open eye.',
+    ],
+    [
+      'iron-dust-round-a-dead-crater',
+      1,
+      'Two fronts of dark red dust cross the broken rim of an old crater on an orange planet.',
+    ],
+    [
+      'showers-among-the-skerries',
+      1,
+      'A blue sea with pale islands, dark showers trailing over it and a green shore under a white horizon.',
+    ],
+    [
+      'hail-on-the-sheep-fells',
+      1,
+      'Big white stones fall in a tight bow on steep green hills, a dark inlet lying under them.',
+    ],
+    [
+      'squall-line-on-a-night-chart',
+      1,
+      'White lines on deep blue: a coast drawn by its heights, a straight squall crossing in open circles.',
+    ],
+  ],
+  'root-bridge': [
+    [
+      'root-crossing-over-the-cloud-floor',
+      0,
+      'One hanging bridge comes out of nothing above a white floor of cloud, sharp peaks and a low sun.',
+    ],
+    [
+      'red-canyon-with-a-green-pool',
+      0,
+      'Old thick roots hang across a canyon of banded red stone in clear dry light, green water below.',
+    ],
+    [
+      'red-forest-round-the-old-roots',
+      0,
+      'Every tree in the gorge is in rose red leaf, the old bridge sagging close by, shaggy with long hair.',
+    ],
+    [
+      'crossing-in-the-first-heavy-snow',
+      0,
+      'Slow flakes fall through a white forest, a red umbrella halfway over on an old shaggy root bridge.',
+    ],
+    [
+      'seven-bridges-by-one-moon',
+      0,
+      'Bridge behind bridge hangs across a deep blue gorge under a round moon, hair roots on the nearest.',
+    ],
+    [
+      'causeway-to-the-morning-peaks',
+      1,
+      'A plaited path with no roof runs out over sunlit cloud toward blue peaks and a pale round sun.',
+    ],
+    [
+      'woven-burrow-ending-in-dusk',
+      1,
+      'Roots close wholly round the path, a dark woven burrow with a disc of gold light at the far end.',
+    ],
+    [
+      'snowlight-through-a-ribbed-hall',
+      1,
+      'A wide hall of black ribs and white frosted stones, snow falling thick between them.',
+    ],
+    [
+      'bare-way-between-the-painted-cliffs',
+      1,
+      'An open plait of roots and flat stones leads over turquoise water between banded cliffs.',
+    ],
+    [
+      'glow-in-the-midnight-ribs',
+      1,
+      'Deep night inside the hall of old roots, violet and teal light on the ribs, a moon at the end.',
+    ],
+  ],
+  'roped-pines': [
+    [
+      'lit-tents-over-a-black-pond',
+      0,
+      'By moonlight every cone is closed with cloth and glows amber, plum and teal, twice over in the water.',
+    ],
+    [
+      'petals-down-on-the-spring-pond',
+      0,
+      'Low wide trees stand in rose bloom on green banks, and petals drift down to a blue pond.',
+    ],
+    [
+      'bare-boughs-in-driven-snow',
+      0,
+      'Only limbs and twigs under the ropes, seen close, all grey in hard snow going by aslant.',
+    ],
+    [
+      'half-frozen-pond-at-blue-noon',
+      0,
+      'Tall narrow pines heaped with snow stand over a dark pond with rafts of white ice, under a blue sky.',
+    ],
+    [
+      'lamps-hung-for-the-last-warm-evening',
+      0,
+      'Strings of small lamps go down every rope on a red autumn evening, with leaves coming down.',
+    ],
+    [
+      'lamps-strung-up-into-the-dark',
+      1,
+      'Looking up on a blue night, rows of small coloured lamps climb the ropes to the tip of the pole.',
+    ],
+    [
+      'under-the-patched-cloth-at-noon',
+      1,
+      'Sun comes through wedges of brick, mustard, indigo and cream cloth behind a bare black tree.',
+    ],
+    [
+      'white-bloom-on-a-spring-sky',
+      1,
+      'Overhead thick clouds of white blossom hang on dark limbs before a clean blue sky.',
+    ],
+    [
+      'tip-of-the-pole-in-white-fog',
+      1,
+      'Very near the top: a few grey plates of needles and pale ropes that go out into nothing.',
+    ],
+    [
+      'bare-twigs-on-a-copper-evening',
+      1,
+      'The tree is all limbs and fine twigs, black on a copper sky, and the ropes meet high in a corner.',
+    ],
+  ],
   'rose-window': [
     [
       'limewashed-wheel',
@@ -4811,6 +8707,162 @@ export const PRESET_WORDS: Readonly<
       'vine-shade-hall',
       1,
       'Vine leaves hang behind green and gold windows and dapple the floor of a pale summer room.',
+    ],
+  ],
+  'row-of-weights': [
+    [
+      'iron-shot-over-fresh-snow',
+      0,
+      'Black iron balls hang from a long beam over a field of snow, and their shadows follow them.',
+    ],
+    [
+      'gourds-under-a-desert-beam',
+      0,
+      'A few great pale gourds swing under a beam in the open, their shadows crossing the red ground.',
+    ],
+    [
+      'copper-drops-in-a-slatted-barn',
+      0,
+      'Evening comes through a barn wall in slits, and a file of copper drops hangs in the stripes.',
+    ],
+    [
+      'three-moons-in-a-blue-corridor',
+      0,
+      'From high in an empty hall by moonlight: a few great dark globes over boards as still as water.',
+    ],
+    [
+      'shadows-on-rose-plaster',
+      0,
+      'Chalk white weights hang along a rose wall, and their shadows swing in its bright patches of sun.',
+    ],
+    [
+      'gongs-in-a-slate-gallery',
+      0,
+      'Flat dark gongs float in steps down a slate gallery, under one long window full of white sky.',
+    ],
+    [
+      'lamps-let-down-to-a-loch',
+      1,
+      'A garland of lamps on long cords dips to still black water, a moon and its double beside it.',
+    ],
+    [
+      'paper-moons-in-the-palm-house',
+      1,
+      'Paper globes hang in a glass house at first light, the shrubs outside it dark against the sky.',
+    ],
+    [
+      'amber-drops-down-a-red-saloon',
+      1,
+      'A close file of long amber drops goes away down a deep red room, swaying almost as one.',
+    ],
+    [
+      'bulbs-across-a-green-tank-hall',
+      1,
+      'Seven great clear bulbs hang near across a green black hall, each with a thread of light in it.',
+    ],
+  ],
+  'sail-caravan': [
+    [
+      'wheels-through-a-skin-of-rain',
+      0,
+      'A wide pan under a finger of rain water: pale sails roll far off on their own reflections.',
+    ],
+    [
+      'under-the-rust-brown-mainsail',
+      0,
+      'One patched sail of rust, plum and ochre cloth fills the sky, the dusk sun burning through it.',
+    ],
+    [
+      'black-gravel-below-the-mesas',
+      0,
+      'A lone patched square sail lights the black gravel, flat-topped rocks behind on a windy blue day.',
+    ],
+    [
+      'six-tents-rolling-in-a-dust-wind',
+      0,
+      'Six pointed sails abreast, faint as paper cut-outs in an ochre wind of dust.',
+    ],
+    [
+      'carts-counted-from-a-kite',
+      0,
+      'From high over cracked red clay, carts with dyed sails wind away in one long bend.',
+    ],
+    [
+      'fir-shore-on-a-pewter-day',
+      1,
+      'One gaff sail on a white bay, and black firs along the shore that fade into snow light.',
+    ],
+    [
+      'regatta-under-the-white-peaks',
+      1,
+      'Six boats run level over rose coloured ice, a wall of snow mountains catching the last sun.',
+    ],
+    [
+      'bottle-green-ice-from-the-masthead',
+      1,
+      'From a masthead by night: clear green ice cut with white cracks, and square sails down in it.',
+    ],
+    [
+      'lost-in-the-frost-smoke',
+      1,
+      'Four thin sails fade into pale blue frost smoke, a low gold sun laying its track on the ice.',
+    ],
+    [
+      'lantern-at-the-foot-of-a-plum-sail',
+      1,
+      'A lantern glows at the foot of one great sail banded plum and peach, stars and small boats past it.',
+    ],
+  ],
+  'salt-steps': [
+    [
+      'dye-pits-above-the-tannery',
+      0,
+      'Great hand-built vats of madder, indigo, weld and chalk step up a hill, each rim stained by its own.',
+    ],
+    [
+      'seedling-steps-brim-full',
+      0,
+      'Green banked terraces curl round a wet valley and hold the morning sky, haze lying in the bend.',
+    ],
+    [
+      'cinder-cone-with-ember-basins',
+      0,
+      'Black rock steps hold pools that burn orange and crimson from inside, night all round them.',
+    ],
+    [
+      'ruled-pans-at-white-noon',
+      0,
+      'Straight narrow pans run up the slope like ruled paper, nearly all of them dry and blinding white.',
+    ],
+    [
+      'moon-in-four-hundred-basins',
+      0,
+      'Seen from above by moonlight, hundreds of small jade basins lie in silver lace down the hillside.',
+    ],
+    [
+      'heaps-of-ground-colour-for-sale',
+      1,
+      'Cones of ochre, indigo, rose and moss stand on both sides of a pale way with a mill at its end.',
+    ],
+    [
+      'needles-in-the-standing-flood',
+      1,
+      'Tall thin white peaks stand scattered in still jade water, each on its own reflection, no one near.',
+    ],
+    [
+      'slag-hills-after-the-night-shift',
+      1,
+      'Steep black heaps veined with red and gold stand on both sides of dark water under a dim sky.',
+    ],
+    [
+      'small-mounds-on-a-white-lake',
+      1,
+      'From high up, low soft mounds lie about on a bare white crust under an almost white sky.',
+    ],
+    [
+      'rose-peaks-before-the-rain',
+      1,
+      'Huge pink heaps stand up out of wine red water at evening, violet and orange cloud behind.',
     ],
   ],
   'sand-figures': [
@@ -5121,6 +9173,58 @@ export const PRESET_WORDS: Readonly<
       'Tall woolly spindles stand in a gold evening, a big low sun behind and fluff on the air.',
     ],
   ],
+  'seen-through': [
+    [
+      'spire-shells-in-a-tray',
+      0,
+      'Nine tall turret shells stand side by side on white, rose, sage and slate, their stairs showing.',
+    ],
+    [
+      'urchins-glowing-on-black-film',
+      0,
+      'Round urchin shells lie over one another on black film, pale blue, every row of pores a thread.',
+    ],
+    [
+      'the-coil-in-a-honey-window',
+      0,
+      'A shell of many tight turns fills an amber pane with the low sun behind it, dark to the heart.',
+    ],
+    [
+      'many-films-of-one-shell',
+      0,
+      'One wide open shell is taken on many films laid together on the light box, some printed black.',
+    ],
+    [
+      'one-drawn-horn-above-its-double',
+      0,
+      'A single open shell in bare pen line rests on still water, its lines broken in the ripples.',
+    ],
+    [
+      'wide-open-blooms-before-the-lamp',
+      1,
+      'Flowers turned full to us, ring on ring of rose and amber petals, lie against a pale sheet of light.',
+    ],
+    [
+      'bracken-uncurling-in-first-light',
+      1,
+      'Fern fronds lean together, each tip still a tight curl, green against a soft gold glow.',
+    ],
+    [
+      'night-tulips-at-a-black-pool',
+      1,
+      'Pale slim tulips stand white on black at the edge of a pool that gives them back broken.',
+    ],
+    [
+      'bulbs-lifted-and-laid-on-mint',
+      1,
+      'A row of small flowers with leaf, bulb and root, printed in violet and orange on mint.',
+    ],
+    [
+      'seed-pods-printed-white-on-blue',
+      1,
+      'The petals are gone: a few seed pods stand close up, seeds in rows, pale on a deep blue sheet.',
+    ],
+  ],
   'shrinking-tiles': [
     [
       'leaded-leaf-transom',
@@ -5223,6 +9327,110 @@ export const PRESET_WORDS: Readonly<
       'silt-meeting-the-tide',
       1,
       'Beds of ochre silt slide in over green sea water and fold where they meet.',
+    ],
+  ],
+  'sleeper-berth': [
+    [
+      'forehead-to-the-cold-glass',
+      0,
+      'The face at the window: a silver sea under a full moon runs beside the line all night.',
+    ],
+    [
+      'enamel-cabin-at-snow-light',
+      0,
+      'A small cabin of cream enamel in the first pink daylight, snow falling past and lying on the sill.',
+    ],
+    [
+      'louvre-bars-over-green-hide',
+      0,
+      'Moonlight comes through a shutter in hard bars and bends over a wall of green buttoned leather.',
+    ],
+    [
+      'glass-car-over-the-high-pass',
+      0,
+      'A bed under a roof of panes: snow mountains fill the glass from wall to wall, and firs rush past.',
+    ],
+    [
+      'copper-sunrise-beside-the-berth',
+      0,
+      'A low sun over the sea fills a wide window, and the wood, the blanket and the net turn to copper.',
+    ],
+    [
+      'plush-runner-at-knee-height',
+      1,
+      'A child looks down a red dotted runner between green leather walls to one amber lamp at the end.',
+    ],
+    [
+      'breakfast-side-of-the-bay',
+      1,
+      'Wide panes turned to a pink bay at sunrise, its road of light lying over cream walls.',
+    ],
+    [
+      'dome-car-in-a-blizzard',
+      1,
+      'Snow whirls over the whole glass vault of a corridor and drifts up against its windows.',
+    ],
+    [
+      'ochre-noon-through-louvres',
+      1,
+      'A hot day through louvres: rungs of sun climb the wall and the carpet of an empty corridor.',
+    ],
+    [
+      'slow-train-through-grey-firs',
+      1,
+      'Wide panes full of blue mist: grey firs pass one after another, snow ridges and now and then a lamp.',
+    ],
+  ],
+  'slice-of-country': [
+    [
+      'a-shaving-of-snowed-farmland',
+      0,
+      'A thin shaving of a snowed valley, small houses and bare hedges on it, hung over blue dusk paper.',
+    ],
+    [
+      'harbour-town-on-a-long-cut',
+      0,
+      'A long straight cut through a bay: small houses round blue water, rust and ochre beds below.',
+    ],
+    [
+      'rust-dunes-down-to-the-bedrock',
+      0,
+      'A slim deep column of rust and plum beds under dunes and craters, on red clay paper.',
+    ],
+    [
+      'night-wedge-of-a-mountain',
+      0,
+      'One narrow wedge of a high mountain hangs by night, its farm windows lit, its beds bent double.',
+    ],
+    [
+      'october-from-the-buzzard',
+      0,
+      'Looking nearly straight down on gold fields and rust woods round a looped river.',
+    ],
+    [
+      'crumpled-beds-close-to',
+      0,
+      'Nose to the cut: teal, coral, cream and ink beds crumpled like cloth and broken by one fault.',
+    ],
+    [
+      'hot-spring-under-pale-stone',
+      1,
+      'A cone of pale stone in a shallow sea, a turquoise cave of water underneath and steam above.',
+    ],
+    [
+      'green-island-down-to-its-root',
+      1,
+      'A green island in a shallow sea on a slab of folded grey beds, its red root still warm below.',
+    ],
+    [
+      'red-streams-off-a-night-cone',
+      1,
+      'Night from high up: red streams find their way down a cone, the chamber glowing in its cut side.',
+    ],
+    [
+      'snow-cone-with-a-small-hot-root',
+      1,
+      'A slim block out of a snow field: a steep white cone, level grey beds and a little coral heart.',
     ],
   ],
   'slow-cadence': [
@@ -5881,6 +10089,110 @@ export const PRESET_WORDS: Readonly<
       'Long reels in striped thread crowd a pale rail that runs away past a linen curtain in daylight.',
     ],
   ],
+  'stage-ghost': [
+    [
+      'tall-clock-in-the-snowfield',
+      0,
+      'A table, a tall clock and a pale bare tree stand out in a blue snowfield under low hills.',
+    ],
+    [
+      'lilac-on-the-empty-boards',
+      0,
+      'One great jar of lilac glows on empty boards before black drapes, warm as gaslight.',
+    ],
+    [
+      'aviary-above-the-rose-parlour',
+      0,
+      'In an emptied rose parlour great pale cages hang at every height about a bare tree and one jar of lilac.',
+    ],
+    [
+      'white-orchard-in-the-ballroom',
+      0,
+      'Pale trees in leaf stand in ranks on a dark ballroom floor at night, blue to their very tips.',
+    ],
+    [
+      'bare-tree-in-brown-ink',
+      0,
+      'On cream paper a bare tree, a cage and a jar of flowers are drawn in brown ink.',
+    ],
+    [
+      'supper-left-in-red-country',
+      0,
+      'Pale weeping trees stand about a table, a chair and a tall clock in wide red country at dusk.',
+    ],
+    [
+      'lamp-beams-in-the-velvet-pit',
+      1,
+      'Down in a velvet pit the white tree lies slantwise between lamps and sends its light up.',
+    ],
+    [
+      'theatre-cut-in-half-on-paper',
+      1,
+      'A whole theatre is cut through on pale paper, its stage, pit and glass drawn in blue ink.',
+    ],
+    [
+      'glass-stood-up-in-green-gloom',
+      1,
+      'The glass stands almost upright, and in green gloom behind it a tree and many cages wait.',
+    ],
+    [
+      'little-stage-in-full-gaslight',
+      1,
+      'On a small gaslit stage papered in green, a tree, a cage and a lilac stand that are really in the pit.',
+    ],
+  ],
+  'stained-sand': [
+    [
+      'amber-swells-among-red-dunes',
+      0,
+      'Wave behind wave of amber and wine glass stands in red sand, two clear rounds over them, dunes behind.',
+    ],
+    [
+      'glass-leaves-in-white-fog',
+      0,
+      'A wood of green leaves of glass stands in pale sand, and the far ones are lost in a white sea fog.',
+    ],
+    [
+      'hoops-of-moonlight-on-black-sand',
+      0,
+      'Clear hoops and rounds with bright rims wind away over black wet sand, and the moon is all the light.',
+    ],
+    [
+      'striped-street-seen-from-the-wall',
+      0,
+      'From high up, slabs, spires and combs banded with cream make a toy street, its shadows striped too.',
+    ],
+    [
+      'one-butter-round-and-two-rings',
+      0,
+      'Only a butter yellow round, two rings and a ball stand on a great pale sand, with dunes beyond.',
+    ],
+    [
+      'giants-in-the-pool-at-daybreak',
+      1,
+      'Enormous sheets of rose, sea green and honey glass stand over the eye in a still pool at daybreak.',
+    ],
+    [
+      'lit-slabs-down-a-drowned-street',
+      1,
+      'Two rows of amber and blue slabs stand in black water at night with a moon low between them.',
+    ],
+    [
+      'blue-swells-run-in-with-the-tide',
+      1,
+      'Swells of blue glass stand in a running tide laced with foam, two blue rounds rising out of them.',
+    ],
+    [
+      'three-red-leaves-on-a-lilac-flood',
+      1,
+      'Three tall red leaves stand in a lilac flood, doubled in it, with a low sun and hills along its far side.',
+    ],
+    [
+      'long-hoops-of-shade-after-the-ebb',
+      1,
+      'From above, rounds, rings and half rounds stand on dry sand and lay long stripes of colour toward the eye.',
+    ],
+  ],
   'stand-up-page': [
     [
       'card-ridges-before-sunup',
@@ -6085,6 +10397,162 @@ export const PRESET_WORDS: Readonly<
       'Small stars stand over a sea of rose cloud, and one tree and a few peaks come up out of it.',
     ],
   ],
+  'steam-line': [
+    [
+      'noon-train-across-the-rice-green',
+      0,
+      'A dark train on a tall trestle crosses green flats and bright pools under a clear day sky.',
+    ],
+    [
+      'late-train-under-the-white-peaks',
+      0,
+      'Below huge snow peaks at dusk a short lit train crosses a lake, its windows broken on the water.',
+    ],
+    [
+      'stone-arches-in-a-salmon-dawn',
+      0,
+      'Tall stone arches stand in salmon mist at dawn, and the train that crosses them trails its steam.',
+    ],
+    [
+      'iron-bows-above-the-spring-flood',
+      0,
+      'Close to the train at night, iron bows leap over its amber windows and over the flood beneath it.',
+    ],
+    [
+      'stubble-smoke-and-a-harvest-train',
+      0,
+      'Close to a harvest train on its low line: straw coloured fields, a pale river and steam lying down behind.',
+    ],
+    [
+      'wet-rails-out-across-a-lagoon',
+      1,
+      'Wet rails on a low bank swing out over a blue green lagoon, the sun on the water and roofs on its far side.',
+    ],
+    [
+      'steam-let-off-under-the-great-glass',
+      1,
+      'Inside a vast train hall, light comes down through sooty glass onto white steam, arches and wet rails.',
+    ],
+    [
+      'thirty-rails-under-new-snow',
+      1,
+      'From high up, many rails fan out over clean new snow, with red signal lamps and a little steam below.',
+    ],
+    [
+      'two-red-lamps-above-a-brown-cutting',
+      1,
+      'Near red signal lamps at sundown, with steam below them, roofs behind and rails bending off between banks.',
+    ],
+    [
+      'fine-lattice-over-a-moonlit-sound',
+      1,
+      'Through a fine iron lattice at night, a moon path lies on the sound and a lit train runs out along it.',
+    ],
+  ],
+  'steep-balconies': [
+    [
+      'slot-of-sky-between-white-hives',
+      0,
+      'Straight up between chalk white walls thick with small round balconies, to a long slot of pale blue sky.',
+    ],
+    [
+      'galleries-painted-for-the-feast',
+      0,
+      'Long galleries in plum, ochre and sea green run down a court to its end, big washing across the top.',
+    ],
+    [
+      'snow-on-every-rail-of-the-well',
+      0,
+      'From the foot of a narrow well of houses, snow on every rail and ledge, and a thread of white sky.',
+    ],
+    [
+      'lamps-going-on-up-the-brick-shaft',
+      0,
+      'At night the lit windows climb two brick fronts to a strip of dark blue sky straight overhead.',
+    ],
+    [
+      'roses-over-every-rail-at-sundown',
+      0,
+      'Leaves and roses spill over the rails of a wide court, its walls gone apricot and pink at sundown.',
+    ],
+    [
+      'creepers-in-a-lane-too-deep-for-sun',
+      0,
+      'Creepers hang from the rails of a narrow lane on a grey day, up to a pale house and a strip of white sky.',
+    ],
+    [
+      'a-pool-where-the-yard-should-be',
+      1,
+      'Clear green water fills a yard of white houses, a small round garden in it and a raft of oranges.',
+    ],
+    [
+      'fruit-cart-left-out-in-new-snow',
+      1,
+      'Close over a snowy court, a cart of fruit, a tree capped with snow and long blue shadows on white.',
+    ],
+    [
+      'supper-lit-along-the-galleries',
+      1,
+      'From above on a blue night, long galleries cross the lit windows and a lamp shines on the round bed.',
+    ],
+    [
+      'washing-hung-out-above-rose-roofs',
+      1,
+      'Over a court crossed with washing, rose and cream roofs reach one behind another into a hazy morning.',
+    ],
+  ],
+  'step-well': [
+    [
+      'a-kite-over-the-white-tank',
+      0,
+      'From straight above, square within square of white stairs goes down to a small green pool.',
+    ],
+    [
+      'glazed-court-turned-cornerwise',
+      0,
+      'Seen from above and turned to a diamond, tiers glazed teal, ochre, plum and cream ring the water.',
+    ],
+    [
+      'moon-kept-at-the-bottom',
+      0,
+      'On a black night the pool far down gives off a pale blue light that climbs the lowest stairs.',
+    ],
+    [
+      'last-water-in-a-red-quarry',
+      0,
+      'Down by what little water is left, two walls of red stairs meet in a corner and climb to a copper sky.',
+    ],
+    [
+      'first-snow-on-the-bathing-steps',
+      0,
+      'A wide shallow pit filled high with grey green water, every step of it lined with snow.',
+    ],
+    [
+      'noon-seen-from-the-cool-side',
+      1,
+      'From the shade of a gallery, between dark pillars, stairs blaze white across still green water.',
+    ],
+    [
+      'lamps-along-the-water-galleries',
+      1,
+      'Close before storeys of dark arches on a blue night, lamps in the bays and again in the water.',
+    ],
+    [
+      'moss-along-every-tread',
+      1,
+      'Pale green stairs edged with moss climb from dark water, seen between two pillars of a gallery.',
+    ],
+    [
+      'turquoise-glow-through-the-arches',
+      1,
+      'At night the water shines turquoise and lights dark pillars from below, stairs rising beyond.',
+    ],
+    [
+      'indigo-tiles-by-the-low-sun',
+      1,
+      'Galleries tiled in indigo, white and saffron stand in green water by low steps, under a pale rose sky.',
+    ],
+  ],
   'still-life': [
     [
       'chalky-jugs-on-a-shelf',
@@ -6135,6 +10603,162 @@ export const PRESET_WORDS: Readonly<
       'giant-of-the-dust-belt',
       1,
       'A huge dim globe rises over a plain of cold dust, with its small moons set down before it.',
+    ],
+  ],
+  'storm-eye': [
+    [
+      'towns-lit-under-a-moonlit-gale',
+      0,
+      'A grey blue wheel of cloud crosses a dark coast by night, and strings of amber towns show between its arms.',
+    ],
+    [
+      'twin-gyres-over-a-jade-sea',
+      0,
+      'Two white wheels of cloud have met over deep green water and turn slowly about each other.',
+    ],
+    [
+      'ochre-moon-with-a-single-eye',
+      0,
+      'A whole small world hangs in black space, half of it in shade, and one dust storm looks out of its lit side.',
+    ],
+    [
+      'white-crater-straight-below',
+      0,
+      'From straight overhead one unbroken sheet of pale cloud winds down into a great round blue hole.',
+    ],
+    [
+      'soot-wheel-on-a-milk-ocean',
+      0,
+      'Charcoal cloud is wound as tight as a spring over a pale sea, drawn almost in black and white.',
+    ],
+    [
+      'polar-low-over-cracked-floes',
+      0,
+      'A small torn storm, rose on its lit side, drags thin arms along the edge of a world of broken ice.',
+    ],
+    [
+      'sun-in-the-gate-of-the-storm',
+      1,
+      'The ring of cloud has broken on one side, and a low red sun stands in the gap and lies on the sea.',
+    ],
+    [
+      'one-gull-over-the-mossy-crag',
+      1,
+      'A dark rock with green on its shoulders stands in glassy water, white cloud heaped all round, one bird above.',
+    ],
+    [
+      'stars-down-a-well-of-cloud',
+      1,
+      'Night on the floor of the eye: smooth dark shelves close round, and a moon and a few stars stand in the hole.',
+    ],
+    [
+      'pan-ice-beneath-a-chalk-wall',
+      1,
+      'Round plates of ice fill the still water to the foot of a pale wall, everything white, grey and faint blue.',
+    ],
+  ],
+  'straw-walkers': [
+    [
+      'rush-cloaks-at-low-water',
+      0,
+      'Tall walkers of green rushes wade over a grey gold flat, each above a long reflection of itself.',
+    ],
+    [
+      'one-left-out-under-the-moon',
+      0,
+      'A single round stack stands on a moonlit field, its open straw edged in silver, four others tiny far off.',
+    ],
+    [
+      'five-abreast-in-a-white-out',
+      0,
+      'Five thin walkers come side by side out of thick falling snow, nearly all of them the colour of the sky.',
+    ],
+    [
+      'bracken-men-over-the-stubble',
+      0,
+      'Great round stacks of rust red bracken go off in file over the cut rows towards a low sun.',
+    ],
+    [
+      'wound-figures-on-plum-cloth',
+      0,
+      'Five figures wound round like rope stand on a plain plum ground: ochre, sage, clay, bone and plum.',
+    ],
+    [
+      'linen-coats-out-in-first-snow',
+      1,
+      'Four tall coats of bleached strips turn in falling snow on slate blue ground, a fifth gone nearly blue.',
+    ],
+    [
+      'one-skirt-opened-on-ochre',
+      1,
+      'A single dancer of brick red strips whirls on a bare ochre ground, the coat flung out as wide as a bell.',
+    ],
+    [
+      'ragged-elders-below-a-lit-window',
+      1,
+      'Broad figures in rags wound tight stand in a dark yard, a window the one warm thing in the night.',
+    ],
+    [
+      'dyed-tops-in-a-threshing-yard',
+      1,
+      'From a loft one looks down on five round coats of every dye, spun out over trampled golden straw.',
+    ],
+    [
+      'five-wading-a-flooded-lane',
+      1,
+      'Five ragged coats in a row stand up to the ankle in rose water, and each hangs head down below itself.',
+    ],
+  ],
+  'street-carpet': [
+    [
+      'paper-lamps-over-tall-houses',
+      0,
+      'A deep street by night with round paper lamps strung from wall to wall, and a dark carpet under their glow.',
+    ],
+    [
+      'one-long-rug-across-the-plateau',
+      0,
+      'The houses are gone: a bright woven-looking strip runs over dry grass straight towards a single blue mountain.',
+    ],
+    [
+      'swept-clear-after-the-first-snow',
+      0,
+      'White roofs and a white street at dawn, and down the middle the carpet has been brushed clean again.',
+    ],
+    [
+      'red-dust-from-door-to-door',
+      0,
+      'Close to the ground, a hot red and orange carpet fills the lane as the last sun comes over the roofs.',
+    ],
+    [
+      'limewash-street-in-thin-fog',
+      0,
+      'White walls on both sides, and a pale carpet of round rose medallions running straight into the fog.',
+    ],
+    [
+      'puddles-the-morning-of-the-feast',
+      0,
+      'Rain has just gone through; the dark stones hold pieces of the sky on both sides of a narrow soaked carpet.',
+    ],
+    [
+      'little-glass-flames-either-side',
+      1,
+      'Seen from above in the dark, two rows of small lights run along a pale carpet of dark rounds, hardly trodden.',
+    ],
+    [
+      'footprints-through-dyed-snow',
+      1,
+      'Snow fell on the colours in the night, and where people have walked the rose and rust red come through.',
+    ],
+    [
+      'scarlet-dust-on-black-setts',
+      1,
+      'Nearly all of the carpet has been walked away; what is left is a red bloom between black stones.',
+    ],
+    [
+      'rain-pools-round-cream-medallions',
+      1,
+      'Evening after rain: pools of pale sky lie on the stones beside a slanting cream carpet of round medallions.',
     ],
   ],
   'strip-quilt': [
@@ -6241,6 +10865,58 @@ export const PRESET_WORDS: Readonly<
       'Small bright beads hang on wires between two bars in the dark, like stars on an old chart.',
     ],
   ],
+  'sugar-hills': [
+    [
+      'meringue-peaks-at-first-sun',
+      0,
+      'White whipped peaks stand like far mountains in a mauve dawn, warm on the side of the first sun.',
+    ],
+    [
+      'cocoa-moulds-by-one-lamp',
+      0,
+      'Fluted cakes of dark cocoa run with gloss on a dark tray in the light of one warm lamp.',
+    ],
+    [
+      'iced-rings-adrift-in-the-dark',
+      0,
+      'Iced rings and one red cherry hang in black space among grains of sugar, like small worlds.',
+    ],
+    [
+      'islands-in-rose-syrup',
+      0,
+      'Low iced islands lie in a still rose syrup at evening, each with its own likeness under it.',
+    ],
+    [
+      'striped-buns-on-a-checked-cloth',
+      0,
+      'From above, buns combed with white stand on a checked cloth in the bright blue of a morning.',
+    ],
+    [
+      'one-long-drip-of-caramel',
+      0,
+      'Seen from a crumb away, one long drip of caramel hangs down the brown side of a bun.',
+    ],
+    [
+      'shelf-upon-shelf-in-the-cellar',
+      1,
+      'In a boarded cellar jars stand shelf over shelf, and the sweets in them glow of themselves.',
+    ],
+    [
+      'great-jar-before-the-bay',
+      1,
+      'One great jar of sea coloured sweets stands in an open window, the sun low on the bay behind.',
+    ],
+    [
+      'slim-jars-against-a-morning-bay',
+      1,
+      'Slim jars of blue and white sweets stand on glass shelves, the first sun over the bay between them.',
+    ],
+    [
+      'plum-balls-and-a-night-street',
+      1,
+      'Great plum and bottle green balls crowd their jars, a lit window in the blue street behind them.',
+    ],
+  ],
   'sun-halos': [
     [
       'ringed-sun-over-a-fjord',
@@ -6343,6 +11019,58 @@ export const PRESET_WORDS: Readonly<
       'kelp-across-a-low-moon',
       1,
       'A blade of kelp and branching weeds sway in deep green over the pale round of a moon.',
+    ],
+  ],
+  'sun-yard': [
+    [
+      'two-moons-over-the-great-stair',
+      0,
+      'Under two moons a great stair and its ring stand half drifted over with cold blue sand.',
+    ],
+    [
+      'white-stair-straight-up',
+      0,
+      'Seen straight on, a whitewashed stair climbs out of the yard into deep noon blue, a ring at each hand.',
+    ],
+    [
+      'ivy-up-the-great-stair',
+      0,
+      'Ivy has the wall and grass has the yard, and cypresses stand in green haze beyond the ring.',
+    ],
+    [
+      'snow-on-the-hour-steps',
+      0,
+      'From high over the yard, fresh snow lies on the paving and the steps, and the shade on it is blue.',
+    ],
+    [
+      'brass-arc-by-the-dark-wall',
+      0,
+      'Close by, a quarter ring of brass curves up by a wall of black stone in the last red sun.',
+    ],
+    [
+      'drowned-stair-in-the-first-mist',
+      0,
+      'A tall stair and its rings stand in still water and hang doubled in it, trees far off in the mist.',
+    ],
+    [
+      'bowl-brimming-at-sundown',
+      1,
+      'Still water fills the bowl to its marks and lies over the yard, holding a whole red sunset.',
+    ],
+    [
+      'down-in-the-chequered-bowl',
+      1,
+      'Inside the bowl by moonlight, its ruled and chequered slope goes up to a strip of deep sky.',
+    ],
+    [
+      'one-round-eye-in-the-grass',
+      1,
+      'From above, one chequered bowl of marble lies in rough grass like an eye, half lit and half in shade.',
+    ],
+    [
+      'sundial-far-out-on-red-sand',
+      1,
+      'Far out on rippled red sand a bowl and its stair stand small and alone under a pale high sky.',
     ],
   ],
   sunflower: [
@@ -6501,6 +11229,58 @@ export const PRESET_WORDS: Readonly<
       'Ripe barley stands higher than your head, a strip of deep blue sky left at the top.',
     ],
   ],
+  'thin-air': [
+    [
+      'crown-over-a-rust-desert',
+      0,
+      'From straight above a disc of blue and cream gores drifts over bare rust ground, small pale ones round it.',
+    ],
+    [
+      'bunch-let-go-into-the-dark',
+      0,
+      'Nineteen small balloons on one knot of strings have risen to where the sky is black, over the curved sea.',
+    ],
+    [
+      'striped-fruit-in-broad-day',
+      0,
+      'A squat lobed balloon of cream and brick gores hangs in a pale blue day over a white floor of cloud.',
+    ],
+    [
+      'smoke-film-under-green-curtains',
+      0,
+      'A black bag of film, far off and slack, hangs among hanging green light over towns lit on the night side.',
+    ],
+    [
+      'gold-bag-across-the-sunset-line',
+      0,
+      'So near that its crown is out of sight, a gold film fills the left of a plum sky over clouds lit from under.',
+    ],
+    [
+      'launch-below-the-pale-teeth',
+      1,
+      'A low black bubble and its limp black train lie before a wall of sharp white peaks under deep blue.',
+    ],
+    [
+      'red-bag-on-a-white-noon',
+      1,
+      'One red balloon, squat and gored, climbs off its long red train, alone on snow and sky of pale blue white.',
+    ],
+    [
+      'party-tethered-on-red-clay',
+      1,
+      'A bunch of small round balloons strains on its strings over bare clay at sunrise, three people by the box.',
+    ],
+    [
+      'seven-sent-up-through-sea-mist',
+      1,
+      'A balloon of white and sea green gores stands out of level mist at sunrise, and seven are up already.',
+    ],
+    [
+      'lamp-watch-on-a-polar-night',
+      1,
+      'One red lamp and a pale slack bubble keep watch on dark snow, green light moving over peaks and stars.',
+    ],
+  ],
   'thousand-cells': [
     [
       'lit-wing-over-a-reservoir',
@@ -6653,6 +11433,58 @@ export const PRESET_WORDS: Readonly<
     ],
     ['slip-trailed-on-red-clay', 1, 'Thick cream slip runs in wide rounds over a red clay dish.'],
   ],
+  'tiny-crowd': [
+    [
+      'skaters-out-before-the-thaw',
+      0,
+      'Little people skate on a great blue green lake of scratched ice, red barns and bare trees on its far shore.',
+    ],
+    [
+      'tulip-beds-on-a-blowing-day',
+      0,
+      'Beds in flower run straight to the sky in rose, gold, cream and wine, with specks of people on the paths.',
+    ],
+    [
+      'umbrellas-out-on-the-black-flats',
+      0,
+      'Close by on black wet flats everybody walks under a rust, cream, yellow or sage umbrella.',
+    ],
+    [
+      'fair-on-the-black-sands-by-night',
+      0,
+      'On black sand at night striped tents glow from inside and lanterns move between them to the sea.',
+    ],
+    [
+      'last-gatherers-on-a-flooding-shore',
+      0,
+      'A red sky lies on the tide as it floods the flats, and a few last people walk in along the spits.',
+    ],
+    [
+      'market-tents-on-a-straw-hill',
+      1,
+      'Striped tents stand all over a round straw yellow hill under a hard blue sky, a town along its top.',
+    ],
+    [
+      'torches-down-the-hill-from-the-old-town',
+      1,
+      'Hundreds of torches come down a blue night hill from a town with its windows lit along the top.',
+    ],
+    [
+      'sledges-home-under-pink-peaks',
+      1,
+      'A hollow of violet snow under peaks gone pink, the last few sledges on it and a long line going home.',
+    ],
+    [
+      'green-alp-on-an-umbrella-day',
+      1,
+      'The snow is all but gone from a green slope below the peaks, and it is dotted with bright umbrellas.',
+    ],
+    [
+      'one-hut-above-the-untrodden-snow',
+      1,
+      'A bare white hill in fog, grey firs, one hut smoking on its crest and a single line of people climbing.',
+    ],
+  ],
   'torn-wall': [
     [
       'far-range-in-handmade-paper',
@@ -6757,6 +11589,58 @@ export const PRESET_WORDS: Readonly<
       'Round pools sunk in a pale crust go away to a violet horizon, as on another world.',
     ],
   ],
+  'toy-railway': [
+    [
+      'lit-coaches-under-steep-snow',
+      0,
+      'On a blue night the small train goes round below steep snowed mountains, every window of it warm.',
+    ],
+    [
+      'white-card-cut-in-contours',
+      0,
+      'A model not painted yet: hills of stacked white card, white trees, a white train, all in raking light.',
+    ],
+    [
+      'flat-topped-rocks-from-the-rafters',
+      0,
+      'From up among the roof beams one sees banded tables of rock, bare yellow ground and the figure of eight.',
+    ],
+    [
+      'islands-of-layered-paper',
+      0,
+      'Round islands of stacked coral, cream and teal paper stand in a painted sea that has no far shore.',
+    ],
+    [
+      'one-lamp-over-the-branch-line',
+      0,
+      'All the room is dark but one round of lamplight, and the train comes into it past tall mossy trees.',
+    ],
+    [
+      'footplate-over-a-misty-fen',
+      1,
+      'From the engine the rails run to a small bridge between green mounds and fen pools, into a pale grey mist.',
+    ],
+    [
+      'rail-height-in-red-harvest-light',
+      1,
+      'With the eye down between the rails the dry ground glows, and steep ochre hills shut off a red sky.',
+    ],
+    [
+      'looking-back-over-the-coaches',
+      1,
+      'Behind the roofs of the coaches a tunnel, a station and snowed hills draw off under a pale blue dusk.',
+    ],
+    [
+      'headlamp-over-the-night-crossing',
+      1,
+      'The engine lamp lights the crossing and a short way of sleepers, with one lit station in the black beyond.',
+    ],
+    [
+      'causeway-to-a-candied-coast',
+      1,
+      'From the engine the line crosses painted water to shores stepped in pistachio, rose, cream and plum.',
+    ],
+  ],
   'turning-rooms': [
     [
       'dune-in-the-mine-office',
@@ -6807,6 +11691,58 @@ export const PRESET_WORDS: Readonly<
       'mint-and-lilac-portholes',
       1,
       'Thin walls of mint, lilac and apricot, each with a round hole, turn away like a shell.',
+    ],
+  ],
+  'umbrella-square': [
+    [
+      'white-pawns-in-the-noon-court',
+      0,
+      'White sunshades stand evenly over a dark and cream chequered court, each beside its own round shade.',
+    ],
+    [
+      'slack-tide-below-the-hotel',
+      0,
+      'Striped parasols in coral, navy and sand are carried along a hot beach while surf laces the corner.',
+    ],
+    [
+      'a-dozen-callers-since-it-snowed',
+      0,
+      'A white square with a dozen umbrellas in it, the tram rails two grey strokes under the snow.',
+    ],
+    [
+      'the-whole-stadium-walks-home-wet',
+      0,
+      'In blue dusk the square is packed edge to edge with dark bell umbrellas, all shining with rain.',
+    ],
+    [
+      'pilgrims-over-apricot-sand',
+      0,
+      'A thin line of rose, ochre and wine coloured shades goes over bare rippled sand at sunrise.',
+    ],
+    [
+      'snow-round-the-chestnut-seller',
+      1,
+      'A hushed ring of snowed-on umbrellas stands in amber shop light about one red one.',
+    ],
+    [
+      'masked-dancers-on-plum-tiles',
+      1,
+      'Jewel coloured shades in wine, teal and gold crowd a plum and rose chequered floor by night.',
+    ],
+    [
+      'pale-shades-under-cold-arc-light',
+      1,
+      'White umbrellas crowd silver on black wet stone round a gap where one dark red one waits.',
+    ],
+    [
+      'paper-tops-round-a-shingle-fire',
+      1,
+      'Cream and vermilion shades gather in firelight on dark sand while the night sea comes up behind.',
+    ],
+    [
+      'toadstools-about-a-scarlet-cap',
+      1,
+      'Brown, fawn and red domes like mushrooms press round one tall scarlet cap alone in a mossy glade.',
     ],
   ],
   'upside-room': [
@@ -6913,6 +11849,110 @@ export const PRESET_WORDS: Readonly<
       'A low violet canopy stands on the floor of a green lagoon, light falling through in spokes.',
     ],
   ],
+  'vapour-tracks': [
+    [
+      'high-trails-over-the-last-ridge',
+      0,
+      'White trails cross and come apart high over dark hills while the sky burns down behind them.',
+    ],
+    [
+      'ink-let-into-warm-milk',
+      0,
+      'Threads of rust and brown ink spread and sink in a shallow bath of warm milk, seen from over it.',
+    ],
+    [
+      'smoke-stems-in-an-ember-room',
+      0,
+      'Thin smokes stand up from a glowing floor and lean like grass at the bottom of a hearth.',
+    ],
+    [
+      'coils-asleep-in-cold-mist',
+      0,
+      'A long curl or two turn in on themselves on a wide blue floor and fade.',
+    ],
+    [
+      'struck-from-one-spark',
+      0,
+      'Every line leaps from one point on a black floor, each sound in a colour of its own.',
+    ],
+    [
+      'sheet-of-night-plates',
+      1,
+      'Rows of small blue black plates, each with its own pair of curls in coloured beads.',
+    ],
+    [
+      'copper-dish-at-the-eyepiece',
+      1,
+      'A round window in the dark, and in it wide copper coils winding slowly shut.',
+    ],
+    [
+      'spirals-pressed-in-wet-clay',
+      1,
+      'Smooth grooves drawn in a warm slab and lit from one side, with two curls close to the eye.',
+    ],
+    [
+      'stained-slide-on-a-black-bench',
+      1,
+      'A slide crowded with slanting threads in five dyes, lying whole on a dark table.',
+    ],
+    [
+      'fan-thrown-over-a-blue-plate',
+      1,
+      'Fine dark lines open like a fan from the foot of a clear blue sheet.',
+    ],
+  ],
+  'walking-village': [
+    [
+      'glasshouses-wading-home',
+      0,
+      'Five lit glasshouses full of leaves walk in a row through still black water under a clear night.',
+    ],
+    [
+      'straw-domes-on-ribbed-sand',
+      0,
+      'Round straw huts trudge on short legs over pale dry sand in a flat white morning.',
+    ],
+    [
+      'one-loft-crossing-the-sun',
+      0,
+      'A single tall narrow loft strides on long legs across a huge low disc of sun.',
+    ],
+    [
+      'herd-below-the-snow-peaks',
+      0,
+      'A near shed and its herd wade by at the foot of sharp white peaks, over still meltwater.',
+    ],
+    [
+      'long-barns-in-a-sea-fret',
+      0,
+      'Low long barns on stout legs come out of white fog and go back into it, window first.',
+    ],
+    [
+      'shins-against-a-rust-sky',
+      1,
+      'From down in the mud only very long black legs are seen, crossing a burning red evening.',
+    ],
+    [
+      'lone-hut-before-a-pocked-moon',
+      1,
+      'One lantern lit hut goes slowly across a vast silver moon risen straight out of the flat.',
+    ],
+    [
+      'fernery-squatting-in-the-marsh',
+      1,
+      'A great glass fernery squats knee deep close by, green gold light spilling down on the water.',
+    ],
+    [
+      'beehives-past-the-crags-at-night',
+      1,
+      'A file of straw beehives walks dry sand at nightfall, mauve crags and cold stars behind them.',
+    ],
+    [
+      'towers-on-the-drowned-road',
+      1,
+      'Tall timber towers wade a still flood at first light, window and legs doubled under them.',
+    ],
+  ],
   'wave-machine': [
     [
       'theatre-cut-from-card',
@@ -6965,6 +12005,58 @@ export const PRESET_WORDS: Readonly<
       'Five white plaster screws with thin blades stand on a pale bench in plain morning light.',
     ],
   ],
+  'wax-loaf': [
+    [
+      'lantern-log-in-a-dark-kitchen',
+      0,
+      'A round log of wax glows from within on a dark bench, its cut end one great amber flower.',
+    ],
+    [
+      'painted-headland-at-low-water',
+      0,
+      'A long wax headland runs out over a still grey sea, its painted end standing upside down in the water.',
+    ],
+    [
+      'spring-hills-in-the-loaf',
+      0,
+      'Close to, the cut face is a country of green and yellow hills, a river and a ringed sun.',
+    ],
+    [
+      'blue-flowers-under-snow-sky',
+      0,
+      'From high above, a pale round log and its slices lie on the bench, each a blue flower in white.',
+    ],
+    [
+      'many-small-eyes-at-dusk',
+      0,
+      'In low red light a wide cut face glows, folded into mirrored eyes, leaves and rolls of plum and rust.',
+    ],
+    [
+      'glowing-cards-stood-in-the-dark',
+      1,
+      'Thin slices stand up one behind the other in the dark, each lit through like coloured glass.',
+    ],
+    [
+      'painted-floor-of-wax-tiles',
+      1,
+      'From above, slices lie apart in two rows on white like floor tiles, terracotta and deep sea green.',
+    ],
+    [
+      'coins-of-violet-on-bright-paper',
+      1,
+      'Round slices lie over one another like coins on bright paper, a gold and violet flower in every one.',
+    ],
+    [
+      'one-evening-told-in-slices',
+      1,
+      'Wide slices fan away across a dark table, the same hills and low sun a moment later in each.',
+    ],
+    [
+      'great-eye-in-black-and-bone',
+      1,
+      'Seen close, one huge ringed eye of bone white looks up from a slab of black wax.',
+    ],
+  ],
   'white-fog': [
     [
       'pear-tree-before-thunder',
@@ -7015,6 +12107,58 @@ export const PRESET_WORDS: Readonly<
       'red-boughs-under-a-green-sky',
       1,
       'Bare coral red trees lean in the wind of some other world, dark birds crossing its green sky.',
+    ],
+  ],
+  'wire-cabins': [
+    [
+      'ferry-cars-across-the-still-sound',
+      0,
+      'Round cars in soft colours ride over flat water, and each one hangs upside down again beneath itself.',
+    ],
+    [
+      'trams-above-the-steaming-ridges',
+      0,
+      'After rain, one wooded ridge stands behind another with mist between, and long trams pass over them all.',
+    ],
+    [
+      'last-car-before-a-huge-moon',
+      0,
+      'A single dark car slides across the face of a moon risen between stone needles over blue cloud.',
+    ],
+    [
+      'two-lines-meet-over-red-cloud',
+      0,
+      'Two cables cross above heaped evening cloud, and close strings of cars pass each other all the way along.',
+    ],
+    [
+      'one-car-in-a-white-nowhere',
+      0,
+      'A car hangs close by in white fog, a lattice mast wades in it, and round hills stand grey behind.',
+    ],
+    [
+      'cars-home-over-the-steep-town',
+      1,
+      'A hillside of small houses with lamps in their windows, and the cars coming up over the roofs like lit rooms.',
+    ],
+    [
+      'ink-firs-under-the-school-line',
+      1,
+      'A white winter noon with thick black firs on blank snow, and a short line of cars strung over it.',
+    ],
+    [
+      'larches-turned-below-the-wire',
+      1,
+      'Gold larches and a few dark firs stand over brown grass, and grey spires close the valley under a clear day.',
+    ],
+    [
+      'green-curtain-over-the-top-station',
+      1,
+      'Folds of green and violet light hang over bare hills, and a lone car crawls up towards the lit hut.',
+    ],
+    [
+      'violet-dusk-with-a-milk-moon',
+      1,
+      'Round cars come down two wires through plum coloured mist while a great pale moon stands on the peaks.',
     ],
   ],
   'wood-print': [
@@ -7171,6 +12315,58 @@ export const PRESET_WORDS: Readonly<
       'honey-shelves-and-a-stream',
       1,
       'A wide hall of honey gold rock cut into shelves, and a brown stream winding out of the light.',
+    ],
+  ],
+  'woven-walls': [
+    [
+      'five-speckled-eggs-in-new-cane',
+      0,
+      'Five great eggs lie on the coiled floor of a wide basket, with the sun coming through in stripes over them.',
+    ],
+    [
+      'rain-kept-in-a-moonlit-creel',
+      0,
+      'Night water stands on the floor of a low basket and holds the moon and the thin uprights upside down.',
+    ],
+    [
+      'roof-of-a-bark-beehive',
+      0,
+      'Inside a dark dome of broad black strands the day comes in as hundreds of small bright chinks.',
+    ],
+    [
+      'slant-laths-against-a-fired-sky',
+      0,
+      'The wall is an open lattice of slanting strands, almost black, with a red evening burning through every gap.',
+    ],
+    [
+      'crown-of-a-straw-hat-from-within',
+      0,
+      'Very fine pale straw, wound close and wide as a bowl, seen from above in soft white light.',
+    ],
+    [
+      'hauled-dry-below-the-dunes',
+      1,
+      'A long trap lies dry on the stones; between its bars are sky, cloud and sand, and the mouth looks to the land.',
+    ],
+    [
+      'net-floats-in-aquamarine',
+      1,
+      'Glass balls in soft blues, some still in their cord, hang among fish in clear water inside a wide trap.',
+    ],
+    [
+      'bars-rotted-in-a-peat-burn',
+      1,
+      'An old trap in red brown water, half its bars gone, so that the stones of the bed show and fish go in and out.',
+    ],
+    [
+      'white-mesh-in-chalk-water',
+      1,
+      'Peeled white rods cross in diamonds round a wide bright mouth, in milky blue water with pale fish.',
+    ],
+    [
+      'one-light-at-the-end-of-the-creel',
+      1,
+      'Broad dark bars run together by night to one far small opening, and a single hoop catches the light.',
     ],
   ],
 }

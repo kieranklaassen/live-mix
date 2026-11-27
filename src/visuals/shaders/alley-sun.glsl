@@ -3,8 +3,14 @@
 // b: Cat stair
 // what: A narrow market alley in shade, where sun comes down past washing and turns cooking smoke into four slanting blades, the brightest on a bicycle and two stacked baskets; or a stone stair that goes down into shade and up into white light, every tread with its lit lip, a cat on one sunny step, washing strung above.
 // follows: Drone thickens the smoke; pad widens the sun; texture is steam at the stall, mist below the stair; phrase slides light along the paving or up the treads; bands light slats and lips, the piece glows in windows and behind slats. A hit runs down the blades or up the stair; a cue sends sun along it all. Keys light bulbs and windows; the loop swings the sun.
-// own: 0 moonlit night at -1, low copper evening at 1; 1 snow on ledges and stone at -1, grey rain and shining stone at 1; 2 limewashed walls and blue wood at -1, red brick and tile at 1; 3 a crack of an alley at -1, a broad one at 1; 4 bare and more open to the sun at -1, crowded with big washing at 1; 5 the eye low at -1, at an upper window at 1
+// own: 0 moonlit night at -1, low copper evening at 1; 1 snow on ledges and stone at -1, grey rain and shining stone at 1; 2 limewashed walls and blue wood at -1, red brick and tile at 1; 3 a crack of an alley at -1, a broad one at 1; 4 bare and more open to the sun at -1, crowded with big washing at 1; 5 the eye low at -1, at an upper window at 1; 6 a gorge of bare rock, nobody there, at -1, stone arches across, one behind another, at 1; 7 a roof of reeds at -1, so the light falls in many thin bars, overgrown, with blossom hanging, at 1
 float auS(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x * (3.0 - 2.0 * x); }
+#define auRock sat(-uOwn[6])
+#define auArch sat(uOwn[6])
+#define auReed sat(-uOwn[7])
+#define auGrow sat(uOwn[7])
+#define auBare (1.0 - 0.999 * sat(4.0 * auRock))
+#define auStall (auBare * auS(0.4, 0.1, auArch))
 float auNight, auEve, auWet, auSnow, auLime, auBrick, auMany, auPx, auMist;
 float auZs, auBase;       // how far the eye sees, how high a blade's foot is
 float auL, auR;           // where the left and the right wall stand
@@ -12,7 +18,6 @@ vec2 auE;                 // the eye: across and up
 vec3 auSun, auAir, auAmb; // sun, lit air far off, light in the shade
 vec2 auLean;              // how far light moves across and away for a metre up
 vec4 auB[4];              // the blades: across, how far off, half width, strength
-// A kind's colour as a worn dye.
 vec3 auDye(float k, float rich) {
   vec3 c = kindColour(k); c *= c;
   return mix(vec3(1.0, 0.93, 0.82), min(c / max(dot(c, vec3(0.3, 0.59, 0.11)), 0.05), 2.2), rich) * 0.42;
@@ -38,27 +43,39 @@ void auSet() {
   auAmb = mix(auAmb, vec3(0.02, 0.032, 0.06), auNight) * (0.9 + 0.3 * uSpace + 0.5 * auSnow + 0.3 * auLime);
   auMist = 0.034 * (0.8 + 0.7 * uDrone + 0.3 * uLow) * (1.0 + 0.5 * grey);
 }
-// Colour c seen through z metres of air.
 vec4 auVeil; // the air before a thing
 vec4 auHaze(float z, float y) { return vec4(auAir * (0.6 + 0.07 * clamp(y, 0.0, 6.0)) * (0.3 + 0.8 * sat(z * 0.045)), exp(-max(z - 1.5, 0.0) * auMist)); }
 vec3 auFog(vec3 c, float z, float y) { vec4 h = auHaze(z, y); return mix(h.rgb, c, h.a); }
 void auLay(inout vec3 col, vec3 c, float a) { col = mix(col, mix(auVeil.rgb, c, auVeil.a), a); }
 // Blade k, u metres off its middle, with the gaps between the washing in it.
+float auComb(float u) { float a = fract(u / 0.46 + 0.25 * sin(u * 2.3)); return auS(0.3, 0.42, a) * auS(0.74, 0.62, a) * (0.55 + 0.45 * sin(u * 3.1 + 1.0)); }
 float auEdge(int k, float u, float y) {
   float soft = 0.05 + 0.006 * auB[k].y + 0.03 * max(3.5 - y, 0.0);
+  if (uOwn[7] < 0.0) return mix(auS(auB[k].z + soft, auB[k].z - soft, abs(u)), 0.45 * auComb(u + auB[k].x), auReed);
   return auS(auB[k].z + soft, auB[k].z - soft, abs(u)) * (0.8 + 0.2 * sin(u * (15.0 + 9.0 * u) + float(k) * 2.0));
 }
-// The sun that gets down to a place in the alley.
 float auPool(vec3 P) {
   float s = 0.0;
   for (int k = 0; k < 4; k++)
     s += auEdge(k, P.x - auLean.x * P.y - auB[k].x, P.y) * auS(0.75, 0.45, abs(P.z - auB[k].y - auLean.y * P.y)) * auB[k].w;
+  if (uOwn[7] < 0.0) s = mix(s, 1.3 * auComb(P.x - auLean.x * P.y) * auS(2.0, 3.5, P.z) * (0.4 + 0.6 * uPad + 0.8 * uHits * auBump(0.3 * (P.z - 16.0 + 14.0 * uHits))), auReed);
   return s;
 }
-// The light in a room, from the piece.
 vec4 auRoom(float n, float up, float side) {
   vec4 a = piece(vec2(fract(n * 0.137 + 0.144), sat(0.155 + 0.35 * up + 0.12 * side)));
   return vec4(mix(vec3(1.0, 0.72, 0.38), a.rgb / max(a.a, 0.01), 0.35), a.a);
+}
+vec3 auCliff(float s, float y, float side, vec2 w, vec3 lit) {
+  vec2 q = vec2(s * 0.42 + 0.3 * y, y * 0.42 - 0.1 * s) + side * 7.0;
+  float n = noise(q), t = y * 0.8 + 0.22 * s + 2.6 * n + 0.5 * noise(q * 3.1);
+  float fine = auS(0.2, 0.05, w.y), lay = 0.5 + 0.5 * sin(t * 4.2) + 0.22 * fine * sin(t * 17.0 + 3.0 * n);
+  vec3 a = mix(vec3(0.3, 0.27, 0.24), vec3(0.56, 0.5, 0.42), lay);
+  a = mix(a, mix(vec3(0.52, 0.64, 0.7), vec3(0.9, 0.93, 0.92), lay), auLime);
+  a = mix(a, mix(vec3(0.36, 0.1, 0.05), vec3(0.78, 0.4, 0.2), lay), auBrick) * mix(vec3(1.0), auDye(1.0, 0.8) * 2.3, 0.25);
+  float fold = noise(vec2(s * 0.55 + y * 0.8 + 1.7 * n, y * 0.12 + side * 3.0));
+  lit *= 0.35 + 1.2 * fold * fold + 0.35 * lay;
+  lit += auSun * (0.03 + 0.16 * fold * fold) * auS(1.0, 8.0, y) * (0.6 + 0.8 * uEnergy * band(fract(t * 0.16)));
+  return mix(a, vec3(0.9), auSnow * auS(0.55, 0.8, lay * fold + 0.2 * n)) * lit;
 }
 // A house front: s along the alley, y up from its door; w a pixel's size along and up.
 vec3 auFront(float s, float y, float side, vec2 w, vec3 lit) {
@@ -72,7 +89,6 @@ vec3 auFront(float s, float y, float side, vec2 w, vec3 lit) {
   alb *= 1.0 - 0.4 * auBrick * auS(0.06, 0.02, w.y) * max(auS(0.42, 0.48, j.x), auS(0.35, 0.46, j.y));
   alb *= 1.0 - 0.55 * auIn(abs(f) - 0.05, w.x + 0.02);
   if (y < 2.7) {
-    // the ground floor: a shop closed with slats
     vec2 q = vec2(f - 1.85, y - 1.15);
     float in_ = auIn(auBox(q, vec2(1.2, 1.12)), m), row = y / 0.1, n = fract(row), bx = sat(floor(row) / 22.0), b = band(bx);
     float slat = mix(0.62, 0.35 + 0.65 * auS(0.0, 0.55, n) * auS(1.0, 0.9, n), auS(0.06, 0.02, w.y));
@@ -81,7 +97,6 @@ vec3 auFront(float s, float y, float side, vec2 w, vec3 lit) {
     vec4 a = auRoom(id, 0.4, side);
     glow += in_ * mix(0.12, auS(0.75, 0.96, n), auS(0.024, 0.008, w.y + 0.25 * w.x)) * a.rgb * a.a * (0.1 + 0.8 * uEnergy);
   } else {
-    // above: shuttered windows, the piece as the light in them
     float st = floor((y - 2.7) / 2.5), fy = y - 2.7 - st * 2.5, wn = floor(f / 1.7);
     vec2 q = vec2(f - (wn + 0.5) * 1.7, fy - 1.2);
     float win = auIn(auBox(q, vec2(0.36, 0.62)), m), wing = auIn(auBox(vec2(abs(q.x) - 0.58, q.y), vec2(0.19, 0.66)), m);
@@ -93,9 +108,13 @@ vec3 auFront(float s, float y, float side, vec2 w, vec3 lit) {
     alb = mix(alb, vec3(0.6 + 0.5 * auSnow), auIn(auBox(q + vec2(0.0, 0.7), vec2(0.46, 0.05)), m));
     alb *= 1.0 - 0.4 * auIn(abs(fy) - 0.06, w.y);
   }
+  if (uOwn[7] > 0.0) {
+    float g = 0.65 * noise(vec2(s * 0.8 + side, y * 0.55)) + 0.35 * noise(vec2(s, y) * 4.1), lf = 0.6 * noise(rot(0.6) * vec2(s, y) * 14.0) + 0.4 * noise(rot(2.0) * vec2(s, y) * 25.0);
+    g = auS(0.0, 0.1, g + 0.12 * lf - 1.0 + 0.62 * auGrow - 0.03 * y * (1.0 - auGrow));
+    alb = mix(alb, mix(vec3(0.05, 0.1, 0.04), vec3(0.3, 0.42, 0.16), lf * auS(0.1, 0.02, m) + 0.3 * auS(0.02, 0.1, m)) * (0.7 + 0.6 * auRock), g); glow *= 1.0 - g;
+  }
   return alb * lit + glow;
 }
-// Paving or a tread.
 vec3 auStone(vec2 q, vec2 w) {
   vec2 c = q / vec2(0.62, 0.42); w /= vec2(0.62, 0.42);
   c.x += 0.5 * floor(c.y);
@@ -106,7 +125,6 @@ vec3 auStone(vec2 q, vec2 w) {
   a *= (1.0 - 0.55 * far * max(auS(0.47 - w.x, 0.5, f.x), auS(0.45 - w.y, 0.5, f.y))) * (1.0 - 0.5 * auWet);
   return mix(a, vec3(0.85, 0.87, 0.9) * (0.9 + 0.2 * n), auS(0.0, 0.5, auSnow * 1.5 - 0.7 * n));
 }
-// Washing on a pole at height h, and wordless boards with a bulb under each.
 void auCard(inout vec3 col, vec2 r, float z, float h, float size, float seed, vec3 b) {
   vec2 q = auE + r * z;
   float px = auPx * z, cell = 0.62, more = sat(auMany);
@@ -115,19 +133,28 @@ void auCard(inout vec3 col, vec2 r, float z, float h, float size, float seed, ve
   h += -0.9 * more + 0.1 * (q.x - 0.2) * (hash11(seed) - 0.3) - 0.04 * cos(q.x * 1.2) + 0.015 * sin(uTime * 0.31 + seed);
   float down = h - q.y, at = q.x / cell + seed * 0.37, n = floor(at), r1 = hash21(vec2(n, seed)), r2 = hash21(vec2(n + 5.0, seed * 1.7));
   if (down > -0.1 && down < 2.0) {
-    float here = auS(r1 * 0.8 - 0.05, r1 * 0.8 + 0.12, 0.62 + 0.42 * auMany);
+    float here = auS(r1 * 0.8 - 0.05, r1 * 0.8 + 0.12, 0.62 + 0.42 * auMany) * (1.0 - auGrow) * auBare;
     float x = (at - n - 0.5) * cell + down * (0.05 * sin(uTime * 0.43 + n * 1.3 + seed) + 0.2 * uHits * (1.0 - uHits));
     vec2 b = vec2(0.17 + 0.1 * r2, (0.35 + 0.75 * r1) * size * here * (0.5 + 0.35 * more));
     float d = auBox(vec2(x, down - b.y), b + vec2(-0.03 * down, 0.02 * sin(x * 22.0 + n)));
     if (r2 > 0.55) d = min(d, auBox(rot(0.5) * vec2(abs(x) - b.x - 0.02, down - 0.12), vec2(0.07, 0.11))); // a shirt has sleeves
     vec3 c = auDye(floor(r2 * 4.99), 0.36) * (auAmb * 1.2 + auSun * (0.21 + 0.35 * uHits * auS(-0.05, 0.0, d)));
     auLay(col, c, auIn(d, px) * auS(0.0, 0.1, here));
-    auLay(col, vec3(0.02), auIn(abs(down) - 0.018, px) * sat(1.3 + 1.3 * auMany));
+    auLay(col, vec3(0.02), auIn(abs(down) - 0.018, px) * sat(1.3 + 1.3 * auMany) * auBare);
+  }
+  if (uOwn[7] > 0.0 && down > -0.3 && down < 1.8) {
+    float w = 0.17, gx = q.x / w + seed * 0.71, gn = floor(gx), g1 = hash21(vec2(gn, seed + 2.0)), lg = (0.25 + 1.2 * g1 * g1) * auGrow * (1.0 + 0.4 * auMany);
+    float t = sat(down / max(lg, 0.05)), bx = (gx - gn - 0.5) * w + 0.03 * down * sin(uTime * 0.5 + gn);
+    float pet = noise(q * 34.0 + seed), hw = 0.085 * sqrt(1.0 - t) * (0.65 + 0.6 * pet);
+    vec3 c = auDye(g1 > 0.4 ? 3.0 : 1.0, 0.85) * (0.75 + 0.8 * pet) * (auAmb * 1.5 + auSun * (0.3 + 0.35 * uHits * t));
+    auLay(col, mix(c, c.ggg * 0.4 + 0.02, 0.35 * t), auIn(abs(bx) - hw, px) * step(0.0, down) * auS(1.0, 0.96, t) * auS(0.0, 0.1, auGrow) * step(0.25, g1));
+    float lf = noise(q * 13.0 + seed), bed = auS(0.0, 0.12, 0.17 + 0.22 * lf - abs(down + 0.02)) * auS(0.0, 0.3, auGrow);
+    auLay(col, mix(vec3(0.02, 0.05, 0.015), vec3(0.22, 0.36, 0.1), lf) * (auAmb * 1.3 + auSun * 0.22), bed * auS(0.25, 0.35, lf));
   }
   // b: half a board's width and height, how high it hangs
   float side = q.x < 0.0 ? -1.0 : 1.0;
   seed += 3.5 + 2.2 * side; b.z -= 0.2 * side;
-  float k = hash11(seed), here = auS(k * 0.9 - 0.1, k * 0.9 + 0.1, 0.55 + 0.6 * auMany) * step(0.01, b.x) * (side < 0.0 ? 1.0 - uVar : 1.0);
+  float k = hash11(seed), here = auS(k * 0.9 - 0.1, k * 0.9 + 0.1, 0.55 + 0.6 * auMany) * step(0.01, b.x) * auBare * (side < 0.0 ? 1.0 - uVar : 1.0);
   b.xy *= sqrt(here);
   vec2 v = vec2(q.x - (side < 0.0 ? auL : auR) + side * (b.x + 0.46), q.y - b.z);
   v.x += 0.012 * v.y * sin(uTime * 0.37 + seed);
@@ -141,24 +168,21 @@ void auCard(inout vec3 col, vec2 r, float z, float h, float size, float seed, ve
     col += vec3(1.0, 0.62, 0.28) * here * (0.06 + 0.94 * max(auNight, uKeys)) * (auIn(lamp - 0.045, px) * 2.2 + 0.35 * exp(-lamp * 5.0) * auS(0.38, 0.15, d));
   }
 }
-// Drifting smoke.
 float auSmoke(vec2 q, float seed) {
   vec2 d = vec2(0.11, -0.16) * uTime + vec2(0.05, -0.12) * uTravel;
   float a = 0.5 + 0.25 * sin(q.x * 2.6 + d.x * 2.0 + seed * 3.0 + 1.3 * sin(q.y * 1.7 + d.y)) + 0.25 * sin(q.y * 1.9 + d.y * 2.0 + seed);
   return a * 0.45 + 0.55 * noise(q * vec2(1.9, 1.3) + d * 1.7 + a * 1.1 + seed * 2.0);
 }
-// The smoke that blade k lights, over what is behind it.
 void auBlade(inout vec3 col, int k, vec2 r) {
   float z = auB[k].y; vec2 q = auE + r * z; q.y -= auBase;
   float u = q.x - auLean.x * q.y - auB[k].x;
-  if (z > auZs || q.y < -0.05 || abs(u) > auB[k].z + 1.4) return;
+  if (z > auZs || q.y < -0.05 || abs(u) > auB[k].z + 1.4 + 9.0 * auReed) return;
   float s = auSmoke(q, float(k) * 5.3);
   float core = auEdge(k, u, q.y) * auS(0.0, 0.4, q.x - auL) * auS(0.0, 0.35, auR - q.x);
   float f = (core * (0.18 + 0.5 * s + 0.85 * s * s) + 0.13 * s * auBump(1.5 * u)) * auB[k].w;
   f *= (0.35 + 0.9 * uDrone * (0.5 + uEnergy) + 0.2 * uLow) * auS(7.5, 3.0, q.y) * auS(-0.05, 0.25, q.y) * exp(-0.02 * z);
   col = mix(auSun * 0.78, col, exp(-1.05 * f));
 }
-// The bicycle, side on, its wheels on y = 0.
 const vec4 auBar[8] = vec4[8](vec4(-0.52, 0.34, -0.1, 0.3), vec4(-0.1, 0.3, -0.22, 0.86), vec4(-0.52, 0.34, -0.2, 0.74), vec4(-0.1, 0.3, 0.37, 0.7),
   vec4(-0.2, 0.74, 0.36, 0.8), vec4(0.34, 0.97, 0.52, 0.34), vec4(0.34, 0.97, 0.24, 1.01), vec4(-0.3, 0.89, -0.14, 0.88));
 float auBike(vec2 q) {
@@ -191,26 +215,27 @@ void auAlley(vec2 p, vec2 r) {
   auLean = vec2(0.62 + 0.06 * sin(TAU * uLoop) + 0.25 * auEve, 0.08);
   auB[0] = vec4(-2.6, 3.1, 0.3, 0.6); auB[1] = vec4(-1.9, 4.6, 0.3, 0.66); auB[2] = vec4(-0.75, 7.2, 0.52, 1.35); auB[3] = vec4(0.1, 11.6, 0.5, 0.95);
   for (int k = 0; k < 4; k++) {
-    float fk = float(k);
+    float fk = float(k), mid = step(0.5, fk) * step(fk, 2.5);
     auB[k].xz *= vec2(wide, 1.0 + 0.35 * uPad - 0.35 * auMany);
     auB[k].x += 0.12 * sin(uTime * 0.05 + fk * 1.7);
+    auB[k].w *= 1.0 - auReed * (1.0 - mid);
     auB[k].w *= 0.75 + 0.25 * uPad + 1.3 * uHits * auBump(1.2 * (fk - 3.6 * (1.0 - uHits))); // a hit runs away down them
   }
   // both walls lean out above the shops
   const float eave = 2.7;
   auSide = sign(r.x);
   float x = auSide < 0.0 ? auL : auR, z = (x - auE.x) / r.x, zf = r.y < 0.0 ? -auE.y / r.y : 1e4;
-  float x1 = x - auSide * 0.32, z1 = z * (x1 - auE.x) / (x - auE.x), y0 = auE.y + r.y * z, y1 = auE.y + r.y * z1;
+  float x1 = x - auSide * 0.32 * auBare, z1 = z * (x1 - auE.x) / (x - auE.x), y0 = auE.y + r.y * z, y1 = auE.y + r.y * z1;
   auBack = auAir * (1.0 + 0.5 * sat(p.y + 0.3)) * mix(1.25, 0.7, auNight);
   auZs = 34.0;
   float big = step(auSide, 0.0);
   if ((y1 > eave && z1 < 34.0) || (y0 <= eave && z < min(zf, 34.0))) {
     auWhat = 1;
     if (y1 > eave) { z = z1; x = x1; }
-    float id = floor(z / 3.4), t = auSide < 0.0 ? 8.6 : 4.6, zn = (id + 1.0) * 3.4, yn = auE.y + r.y * zn;
+    float id = floor(z / 3.4), t = (auSide < 0.0 ? 8.6 : 4.6) + 5.0 * auRock, zn = (id + 1.0) * 3.4, yn = auE.y + r.y * zn;
     auP = vec3(x, auE.y + r.y * z, z); auAt = auP.zy;
     auW = auPx * z * vec2(z / max(abs(x - auE.x), 0.2), 1.0);
-    auOver = auS(-auW.y, auW.y, auP.y - t - 1.6 * hash11(id + t));
+    auOver = auS(-auW.y, auW.y, auP.y - t - 1.6 * mix(hash11(id + t), noise(vec2(z * 1.3, t)), auRock));
     auBack = mix(auBack, auFog(auAmb * 0.35, zn, yn), auIn(yn - t - 1.6 * hash11(id + t + 1.0), auPx * zn));
     auZs = mix(z, 1e3, auOver);
     auLit = auAmb * (0.75 + 0.06 * auP.y) + auSun * big * 0.9 * uCue * auBump(0.2 * (z - 11.0 + 7.0 * uCue));
@@ -222,8 +247,7 @@ void auAlley(vec2 p, vec2 r) {
     auWhat = 2; auZs = zf; auP = vec3(auE.x + r.x * zf, 0.0, zf); auAt = auP.xz;
     auW = auPx * zf * vec2(1.0, zf / auE.y);
     auLit = auAmb * (0.5 + 0.5 * auS(0.0, 0.9, min(auP.x - auL, auR - auP.x))) + auSun * 0.07 * auBump(0.32 * length(auP.xz - auB[2].xy));
-    // the phrase, sliding
-    auLit += auSun * uPhrase * (0.35 + 0.5 * uEnergy) * auBump(5.5 * (zf - 5.0 - 3.0 * sin(uTravel * 0.21) - 0.25 * auP.x));
+      auLit += auSun * uPhrase * (0.35 + 0.5 * uEnergy) * auBump(5.5 * (zf - 5.0 - 3.0 * sin(uTravel * 0.21) - 0.25 * auP.x));
     big = 0.75 * (1.0 - 0.6 * auBump(length((auP.xz - vec2(-0.75, 7.15)) * vec2(1.0, 5.5))));
     auShine = auAir * 0.5 + auSun * 0.6 * auBump(1.3 * (auE.x + r.x * 7.2 + 0.2));
   } else auBack = mix(auBack, auAir * 0.42, auIn(auE.y + r.y * 34.0 - 4.6, 0.06));
@@ -235,7 +259,9 @@ const float auLow = -1.53, auSteps = 28.0, auCatZ = 8.75;
 // The sun over the right roofs; a low one lets it in on the cat's step.
 float auHigh(vec3 P) {
   float roof = 9.6 - 0.2 * P.z - 4.95 * auS(1.0, 0.7, abs(P.z - auCatZ) / (1.0 + 2.2 * sat(-auMany))) - 3.6 * auS(11.5, 16.0, P.z);
-  return auS(-0.06, 0.2, auR - P.x - (roof - P.y) * auLean.x);
+  float s = auS(-0.06, 0.2, auR - P.x - (roof - P.y) * auLean.x);
+  if (uOwn[7] < 0.0) s = mix(s, auComb(P.x - auLean.x * P.y) * auS(16.0, 9.0, P.z), auReed);
+  return s;
 }
 void auStair(vec2 r) {
   float wide = exp2(0.7 * uOwn[3]), up = uOwn[5];
@@ -290,7 +316,35 @@ void auStair(vec2 r) {
   }
 }
 
-vec3 render(vec2 p) {
+// A stone arch across, with a room over it.
+void auSpan(inout vec3 col, vec2 r, float z, float seed) {
+  if (uOwn[6] <= 0.0 || z > auZs + 0.4) return;
+  vec2 q = auE + r * z;
+  if (uVar > 0.5) q.y -= auLow + auRi / auTr * max(z - auZ1, 0.0) + 0.53 * max(auZ1 - z, 0.0);
+  float hw = 0.5 * (auR - auL) * (1.0 - (uVar > 0.5 ? 0.22 : 0.3) * auArch), c = 0.4 * hw, sp = mix(5.5, uVar > 0.5 ? 1.5 : 1.7, auS(0.0, 0.8, auArch)), px = auPx * z;
+  float x = q.x - 0.5 * (auL + auR), ax = abs(x), open = q.y < sp ? ax - hw : length(vec2(ax + c, q.y - sp)) - hw - c;
+  float top = sp + sqrt(max(hw * hw + 2.0 * hw * c, 1e-4));
+  vec2 v = vec2(x, q.y - top - 0.62);
+  vec3 a = mix(vec3(0.36, 0.33, 0.29), vec3(0.86, 0.85, 0.8), auLime);
+  a = mix(a, vec3(0.52, 0.25, 0.15), auBrick) * (0.6 + 0.6 * noise(q * vec2(3.0, 2.0) + seed));
+  float ring = auIn(open - 0.26, px), an = atan(q.y - sp, ax + c) * 9.0;
+  a *= 1.0 - 0.4 * ring * auS(0.06, 0.02, fract(an)) + 0.25 * ring;
+  vec3 lit = auAmb * (0.9 + 0.06 * q.y) + auSun * 0.22 * auPool(vec3(q.x, q.y, z)) + auSun * (0.28 + 0.3 * uHits) * auIn(open - 0.035, px) * auS(0.3, -0.6, x / hw);
+  vec3 k = a * lit * 0.8;
+  float win = auIn(auBox(v, vec2(0.2, 0.3)), px); vec4 m = auRoom(seed * 2.3, 0.6, 0.0);
+  k = mix(k, vec3(0.01) + m.rgb * (0.2 + m.a * uEnergy) * auS(0.02 - px, 0.02 + px, min(ax, abs(v.y))), win);
+  k += auSnow * auAmb * 3.0 * auS(0.14, 0.02, top + 1.25 - q.y);
+  auVeil = auHaze(z, q.y);
+  auLay(col, k, auIn(max(-open, q.y - top - 1.25), px) * auS(0.0, 0.15, auArch));
+}
+void auFall(inout vec3 col, vec2 p) {
+  for (float i = 0.0; i < 3.0; i++) {
+    vec2 q = p * (9.0 + 6.0 * i) + vec2(0.25 * sin(uTime * 0.23 + i * 2.0), uTime * (0.9 - 0.15 * i)) + i * 13.7, c = floor(q), h = hash22(c);
+    float d = length(q - c - 0.2 - 0.6 * h);
+    col += (auAir * 0.8 + 0.1 * auSun) * auS(0.1, 0.02, d) * step(hash21(c + 7.3), 0.45) * (0.75 - 0.15 * i) * auSnow;
+  }
+}
+vec3 auDraw(vec2 p) {
   auSet();
   bool b = uVar > 0.5;
   float F = b ? 0.98 : 1.15;
@@ -298,22 +352,35 @@ vec3 render(vec2 p) {
   r += step(abs(r), vec2(1e-4)) * 2e-4;
   auPx = 0.75 / (uRes.y * F);
   auWhat = 0; auOver = 0.0; auBase = 0.0; auP = auLit = auShine = vec3(0.0); auAt = auW = vec2(0.0);
-  if (b) auStair(r); else auAlley(p, r);
+  vec2 rw = r;
+  if (uOwn[6] < 0.0) rw.x += auRock * ((0.07 * sin(r.y * 5.5 + 0.8) + 0.025 * sin(r.y * 14.0)) * auS(-0.3, 0.25, r.y) + 0.012 * sin(r.y * 31.0 + r.x * 9.0));
+  if (b) auStair(rw); else auAlley(p, rw);
   vec3 col = auBack;
   if (auWhat == 1) col = auFront(auAt.x, auAt.y, auSide, auW, auLit);
+  if (uOwn[6] < 0.0 && auWhat == 1) col = mix(col, auCliff(auAt.x, auAt.y, auSide, auW, auLit), auS(0.0, 0.3, auRock));
   if (auWhat == 2) {
     col = auStone(auAt, auW) * auLit;
+    if (uOwn[6] < 0.0 && !b) col = mix(col, auCliff(auAt.x * 0.4, 40.0 + auAt.y * 0.15, 0.0, vec2(0.1), auLit) * (0.8 + 0.4 * noise(auAt * 9.0)), auRock);
     col = mix(col, auShine, auWet * (0.12 + 0.75 * pow(1.0 - sat((auE.y - auP.y) / length(vec2(auE.y - auP.y, auP.z))), 3.0)));
   }
   if (auWhat > 0) col = mix(auFog(col, auP.z, auP.y), auBack, auOver);
   if (b) col = mix(col, auAir * 0.5, uTexture * 0.3 * auBump(0.9 * (auP.y - auLow)) * auS(4.0, 7.0, auZs)); // mist in the hollow
   if (b) col = mix(col * mix(0.42, 1.0, auS(3.0, 9.0, auZs)), auBack, auS(9.0, 19.0, auZs) * 0.75 * (1.0 - 0.6 * auNight)); // the top goes out into white
+  if (uOwn[7] < 0.0) {
+    float top = b ? 6.6 : 5.0, zr = (top - auE.y) / max(r.y, 1e-3), xr = auE.x + r.x * zr;
+    if (zr < min(auZs, 22.0)) {
+      vec3 c = mix(auFog(auAmb * 0.3, zr, top), auBack * 1.2 + auSun * 0.3, auComb(xr - auLean.x * top) * (0.55 + 0.45 * sin(zr * 9.0)));
+      col = mix(col, c, auReed);
+    }
+  }
   // from far to near: boards, washing, the blades between
   vec4 w = b ? vec4(14.0, 11.0, 9.4, 6.6) : vec4(15.0, 9.4, 5.9, 3.9), h = b ? vec4(5.35, 4.65, 4.35, 4.1) : vec4(4.9, 4.6, 4.3, 3.9);
   float size = b ? 0.6 : 0.9; vec3 one = b ? vec3(0.0) : vec3(0.21, 0.7, 3.5);
   auCard(col, r, w.x, h.x, size, 11.0, one * 1.1);
+  auSpan(col, r, b ? 13.2 : 12.6, 1.0);
   auBlade(col, 3, r);
   auCard(col, r, w.y, h.y, size, 2.0, one);
+  auSpan(col, r, b ? 9.9 : 8.6, 2.0);
   auBlade(col, 2, r);
   float zc = b ? auCatZ : 7.0, px = auPx * zc;
   vec2 q = auE + r * zc - (b ? vec2(-0.85, auLow + 4.0 * auRi) : vec2(-0.75, 0.0));
@@ -321,46 +388,52 @@ vec3 render(vec2 p) {
   if (b && zc < auZs + 0.3 && abs(q.x) < 0.7 && abs(q.y) < 0.8) {
     q /= 1.3;
     float d = auCat(q);
-    col = mix(col, vec3(0.012) + auSun * 0.2 * auS(-0.02, 0.0, d) * auS(0.03, 0.08, q.x) * auS(0.08, 0.14, q.y) * auS(0.44, 0.36, q.y), auIn(d, px));
+    col = mix(col, vec3(0.012) + auSun * 0.2 * auS(-0.02, 0.0, d) * auS(0.03, 0.08, q.x) * auS(0.08, 0.14, q.y) * auS(0.44, 0.36, q.y), auIn(d, px) * auBare);
   }
   if (!b && zc < auZs && abs(q.x - 0.4) < 1.3 && q.y < 1.1) {
-    auLay(col, vec3(0.02), auIn(auBike(q), px));
+    auLay(col, vec3(0.02), auIn(auBike(q), px) * auBare);
     q.x -= 1.12; float e = auBasket(q), e2 = auBasket(q - vec2(-0.03, 0.43));
     if (e2 < e) { e = e2; q -= vec2(-0.03, 0.43); }
     vec3 c = vec3(0.5, 0.36, 0.2) * (0.06 + auSun * (0.03 + 0.3 * auS(-0.2, 0.3, q.x)) * (0.85 + 0.3 * sin(q.x * 70.0) * sin(q.y * 60.0)));
-    auLay(col, c, auIn(e, px));
+    auLay(col, c, auIn(e, px) * auBare);
   }
   auCard(col, r, w.z, h.z, size, 5.0, one);
+  auSpan(col, r, 5.6, 3.0);
   auBlade(col, 1, r);
   auCard(col, r, w.w, h.w, size, 9.0, b ? vec3(0.22, 0.3, 2.6) : one * 0.9);
   auBlade(col, 0, r);
   if (b) {
-    // an iron rail
     float xr = auL + 0.5, zr = (xr - auE.x) / min(r.x, -1e-3);
     if (r.x < -1e-3 && zr < min(auZs, 16.5)) {
       float yr = auE.y + r.y * zr, w = auPx * zr, s = auRi / auTr;
       float h = yr - (zr > auZ1 ? auLow + s * (zr - auZ1) : clamp(s * (auZ0 - zr), auLow, 0.0));
-      col = mix(col, auFog(vec3(0.015) + auSun * 0.1 * auS(8.0, 11.0, zr), zr, yr), auIn(abs(h - 0.85) - 0.025, w));
+      col = mix(col, auFog(vec3(0.015) + auSun * 0.1 * auS(8.0, 11.0, zr), zr, yr), auIn(abs(h - 0.85) - 0.025, w) * auBare);
     }
-    return screenOf(col);
+    return col;
   }
   // the near stall: counter, steamer, awning, ladles
   px = auPx * 2.4;
   q = auE + r * 2.4 - vec2(auL + min(0.0, -0.75 * auL - 1.3125), 0.0);
-  if (q.x > 2.2) return screenOf(col);
+  if (q.x > 2.2) return col;
   vec2 k = vec2(q.x - 0.78, q.y - 0.84), s = k - vec2(0.0, 0.46);
   float d = min(auBox(q - vec2(0.1, 0.41), vec2(0.98, 0.41)), auBox(k - vec2(0.0, 0.16), vec2(0.245, 0.16)));
   d = min(d, min(max(length((s + vec2(0.0, 0.15)) * vec2(1.0, 1.9)) - 0.24, -0.15 - s.y), length(s) - 0.03));
   float rim = auS(-0.022, 0.0, d) * step(0.8, q.y) * max(auS(0.31, 0.35, k.y) * step(k.y, 0.43), auS(0.12, 0.26, k.x));
   float x = (s.x - 0.12 * s.y - 0.06 * sin(s.y * 3.0 - uTime * 0.6) * (1.0 + s.y)) / (0.16 + 0.22 * max(s.y, 0.0));
   float st = auS(-0.1, 0.3, s.y) * auS(2.6, 0.6, s.y) * auBump(1.2 * x) * auSmoke(q * 2.0 - vec2(0.0, 0.25 * uTime), 9.0);
-  col = mix(col, auAir * 0.7 + auSun * 0.12, sat(st * (0.4 + 1.2 * uTexture)));
-  col = mix(col, vec3(0.01) + auSun * 0.16 * rim, auIn(d, px));
+  col = mix(col, auAir * 0.7 + auSun * 0.12, sat(st * (0.4 + 1.2 * uTexture) * auStall));
+  col = mix(col, vec3(0.01) + auSun * 0.16 * rim, auIn(d, px) * auStall);
   float edge = 2.02 + 0.1 * q.x + 0.012 * sin(uTime * 0.4 + q.x * 2.0), hx = (q.x - 0.46) / 0.26, hi = clamp(floor(hx + 0.5), 0.0, 2.0);
   vec2 hk = vec2((hx - hi) * 0.26 + 0.015 * sin(uTime * 0.5 + hi * 2.3), q.y - edge + 0.15 + 0.03 * hi * (2.0 - hi));
   float hang = min(auBox(hk - vec2(0.0, 0.08), vec2(0.006, 0.1)), max(length(hk * vec2(1.0, 1.3)) - 0.09, hk.y - 0.03));
   float aw = max(edge - 0.07 * abs(sin(q.x * 14.0)) - q.y, max(q.x - 1.28, q.y - edge - 0.75));
-  vec3 cloth = auDye(1.0, 0.3) * auAmb * (0.5 + 0.9 * step(0.5, fract(q.x * 3.2))) + auSun * 0.02 * auS(-0.3, 0.0, aw);
+  vec3 was = col, cloth = auDye(1.0, 0.3) * auAmb * (0.5 + 0.9 * step(0.5, fract(q.x * 3.2))) + auSun * 0.02 * auS(-0.3, 0.0, aw);
   col = mix(mix(col, vec3(0.012), auIn(hang, px)), mix(cloth, auAmb * 4.0, auSnow * auS(0.2, 0.5, q.y - edge)), auIn(aw, px));
+  col = mix(was, col, auStall);
+  return col;
+}
+vec3 render(vec2 p) {
+  vec3 col = auDraw(p);
+  if (uOwn[1] < 0.0) auFall(col, p);
   return screenOf(col);
 }

@@ -3,7 +3,7 @@
 // b: Poured lake
 // what: A valley built of some twenty glued sheets of white card stands in low window light, every sheet a contour with a cut edge and its shadow, with a wood of dried yarrow and one red-roofed house; or sheets of cork that step down into a hollow filled with clear resin, honey at the shore and green below, the window lying on it.
 // follows: The piece is the land: a place that sounds swells, its edges in the colour of its kind. Drone lifts the valley floor or the resin, pad warms the light, texture stirs trees or the net of light, the phrase is a thread on one contour, bands lift spurs, keys light the house or the shore. A hit slips one sheet out, a cue swings the light, the loop is the hour.
-// own: 0 one round hill, or a long lake, at -1, a narrower valley, or a hill in the lake, at 1; 1 last red light at -1, high soft noon at 1; 2 black card, or lime wood and ice, at -1, brown board, or walnut and amber, at 1; 3 thin sheets at -1, thick boards at 1; 4 seen from high up at -1, from low down at 1; 5 no trees and a low lake at -1, a forest and a full lake at 1
+// own: 0 one round hill, or a long lake, at -1, a narrower valley, or a hill in the lake, at 1; 1 last red light at -1, high soft noon at 1; 2 black card, or lime wood and ice, at -1, brown board, or walnut and amber, at 1; 3 thin sheets at -1, thick boards at 1; 4 seen from high up at -1, from low down at 1; 5 no trees and a low lake at -1, a forest and a full lake at 1; 6 a slow swell of ridges in rows, or a winding river, at -1, a crater with a ring of rim, or many round pools, at 1; 7 a dark room and the cut edges lit from inside at -1, sheets dyed by their height in the sounds' colours on a pale table at 1
 const float chD = 1.25;
 float chS, chLv, chPx, chJ, chK0, chGn, chPen, chWet, chN, chTop;
 vec3 chL, chSun, chSky, chAbs, chGl;
@@ -11,6 +11,10 @@ mat2 chM; vec2 chMv; // how many trees, how they sway
 vec4 chGz, chEd; // an edge the ray grazed, and where it ended: how far, which sheet, how far inside it, what (top, cut, side, table, wall)
 vec4 chPc, chA, chB; vec3 chQ; float chEnd, chFl, chHy; // the lay of the land
 const vec2 chHouse = vec2(.36, -.27);
+#define CH_A max(uOwn[6], 0.)
+#define CH_B max(-uOwn[6], 0.)
+#define CH_DYE max(uOwn[7], 0.)
+#define CH_GLOW max(-uOwn[7], 0.)
 // A slow wave like a sine, its argument in turns.
 float chSn(float x) { x = abs(fract(x - .25) - .5)*2.; return 1. - 2.*x*x*(3. - 2.*x); }
 // The land before it is cut into sheets.
@@ -22,6 +26,15 @@ float chLand(vec2 m) {
   float s2 = chSn(A ? .43*y - .12 : .53*m.x + .16), k = .5 + .5*c/(abs(c) + .12);
   g *= g; g *= g; // a hill in the middle
   float h = chB.y + chB.z*w*(A ? (.6 + .16*k + (.22 - .1*k)*s2) + .1*near : .88 + .09*near + .06*s2) + chB.w*g*g;
+  if (uOwn[6] > 0.) {
+    float u = length(m + vec2(-.05, .0)) - .62, z = u*u;
+    h = mix(h, A ? .12 + .7/(1. + (u > 0. ? 4. : 3.)*z + (u > 0. ? 22. : 9.)*z*z)*(.9 + .1*s2) : .62 + .2*cos(m.x*5.2 + .6*s2)*cos(m.y*5.2 + .9) + .07*near, uOwn[6]);
+  }
+  if (uOwn[6] < 0.) {
+    float a = m.x + .35*m.y, b = m.y + .5*chSn(.36*m.x + .1);
+    float q = a*7.2 + .9*chSn(.45*m.y + .012*uTime) - uTime*.07;
+    h = mix(h, A ? .36 + (.13 + .06*s2)*sin(q) + .05*sin(q*.43 + m.y*3.) + .1*near : .3 + .62*b*b/(.09 + b*b) + .07*s2 + .05*near, CH_B);
+  }
   // the knoll the house stands on; in b a dam at the edge
   vec2 q = m - chHouse;
   float rim = max(abs(m.x), abs(m.y)), kn = A ? 1./(1. + 34.*dot(q, q)) : .85*smoothstep(.6, 1.1, rim), dm = smoothstep(.95, 1.2, rim);
@@ -29,6 +42,7 @@ float chLand(vec2 m) {
   float s3 = chSn(A ? .41*m.x + .25*m.y + .16 : .8*m.x + .64*m.y), v = c/(abs(c) + abs(y) + 1e-4);
   v = A ? m.y*3.2 + 4. + .6*s3 - 1.36*abs(c) : (y > 0. ? 1. - v : 3. + v)*4. + .2*s3;
   float e = A ? c*c/(.05 + c*c)*w*(1. - w)*4./(1. + 2.*c*c*c*c) : w*w*(1. - w)*4.5*(1. - dm), b = A && R ? 8. : 0.;
+  if (uOwn[6] != 0.) e *= 1. - (uVar < .5 ? .94 : .75)*abs(uOwn[6]);
   // sixteen spurs, each as high as its band
   float i = floor(v), x = v - i; x *= 1. - x;
   int n = int(i + b) & 15;
@@ -98,9 +112,9 @@ vec4 chWood(vec3 o, vec3 d, float f, float n, float soft) {
   if (soft > 0.) t = 1e-4;
   D += step(abs(D), vec2(1e-4))*1e-4;
   for (int i = 0; i < 6; i++) {
-    vec2 c = floor(O + D*t), hs = hash22(c + 41.), m = c + .5 + (hs - .5)*.4, rel = m - O, w = m*C*tw;
+    vec2 c = floor(O + D*t), hs = hash22(c + 41.), m = c + .5 + (hs - .5)*(.4 - .22*max(uOwn[5], 0.)), rel = m - O, w = m*C*tw;
     float x = (rel.y*D.x - rel.x*D.y)/l*C, tt = dot(rel, D)/l2;
-    float sz = smoothstep(0., .25, chN - chNear(w) - .3*hs.x)*(.75 + .5*hs.y), R = .043*sz;
+    float sz = smoothstep(0., .25, chN - chNear(w) - .3*hs.x)*(.75 + .5*hs.y), R = .043*sz*(1. - .08*max(uOwn[5], 0.));
     sz *= step(max(abs(w.x), abs(w.y)), chD - .04);
     for (bool go = sz > .05 && abs(x) < R*1.4 && tt > 0. && tt < f; go; go = false) {
       float y = soft > 0. ? d.y*tt + .02 : o.y + d.y*tt - chLand(w) + .03, Y = .12*sz, px = tt*chPx + soft*tt;
@@ -113,7 +127,7 @@ vec4 chWood(vec3 o, vec3 d, float f, float n, float soft) {
         float st = (1. - smoothstep(.0035*sz - px*.3, .0035*sz + px, abs(x)))*sat(sz*3.)*step(y, Y);
         st = max(st, (1. - smoothstep(.0025 - px*.3, .0025 + px, abs(abs(x) - max(y - Y*.5, 0.)*.75)))*step(Y*.5, y)*step(y, Y));
         float cv = max(cr, st);
-        vec3 al = mix(vec3(.2, .13, .06), mix(vec3(.5, .33, .1), vec3(.42, .36, .17), hs.y)*(.55 + .75*hash21(floor(q*5. + id))), cr);
+        vec3 al = mix(vec3(.2, .13, .06), mix(vec3(.5, .33, .1), vec3(.42, .36, .17), hs.y)*(.55 + .75*mix(hash21(floor(q*5. + id)), noise(q*5. + id), max(uOwn[5], 0.))), cr);
         al *= .75 + .45*sat(.5 - .5*q.x + .5*q.y);
         res = vec4(mix(res.rgb, al, res.a > 0. ? cv : 1.), max(cv, res.a));
       }
@@ -152,7 +166,7 @@ vec3 chWall(vec3 o, vec3 d) {
   float tw = (4.6 - ov.y)/max(dv.y, .05), bw = tw*chPx + .012;
   vec2 w = vec2(ov.x + dv.x*tw, ov.z + dv.z*tw);
   float pat = smoothstep(-.25, .25, w.x - .9 - .5*w.y)*(1.0 - smoothstep(-.2, .2, w.x - 3.2 - .5*w.y))*(1. - .55*(1.0 - smoothstep(.03, .13, abs(w.x - 2.05 - .5*w.y))));
-  vec3 wall = vec3(.52, .5, .465)*(chSky*(.75 + .1*w.y - .06*w.x) + chSun*.3*pat);
+  vec3 wall = mix(vec3(.52, .5, .465), vec3(.8, .79, .77), CH_DYE)*(chSky*(.75 + .1*w.y - .06*w.x) + chSun*.3*pat);
   vec2 wq = (w - vec2(-1.35, 2.35))/vec2(.85, 1.25);
   float py = abs(fract(wq.y*1.5 + .5) - .5), pane = smoothstep(-bw, bw, min(min(1. - abs(wq.x), 1. - abs(wq.y))*.9, min(py, min(abs(wq.x), 1. - abs(wq.x))) - .05));
   return wall + uVar*pane*chSun*(2.6 + 1.1*wq.y)*(1. + .5*uPad);
@@ -186,6 +200,8 @@ vec4 chPaint(vec3 o, vec3 d, vec4 hit, bool whole) {
   if (ty > 2.5) {
     al = ed = mix(vec3(.27, .235, .195), vec3(.31, .272, .228), big);
     n = vec3(0., 1., 0.);
+    if (uOwn[7] > 0.) al = ed = mix(al, vec3(.7, .69, .67) + .1*big, CH_DYE);
+    al *= 1. - .6*CH_GLOW;
   } else if (uVar < .5) {
     al = mix(mix(vec3(.86, .845, .81), vec3(.085, .087, .095), max(-O, 0.)), vec3(.5, .345, .21), max(O, 0.))*(.96 + .06*gr);
     ed = al*mix(vec3(.97, .95, .91), vec3(1.5, 1.45, 1.4), max(-O, 0.));
@@ -193,6 +209,11 @@ vec4 chPaint(vec3 o, vec3 d, vec4 hit, bool whole) {
     al = mix(vec3(.47, .29, .15), vec3(.6, .4, .22), gr)*(1. - .5*smoothstep(.45, 1., .65*big + .5*gr));
     al = mix(mix(al, vec3(.74, .66, .52)*(.9 + .15*gr), max(-O, 0.)), vec3(.2, .105, .055)*(.7 + .6*big), max(O, 0.));
     ed = al*.85;
+  }
+  float up = sat((ty > 1.5 ? P.y : (k - .5)*chS)*1.05 - .05);
+  if (uOwn[7] > 0. && ty < 2.5) {
+    vec3 c = kindColour(4.*(uVar < .5 ? up : sat(up*1.5 - .25)));
+    c = c*c*1.15 + .01; al = mix(al, c*(.85 + .2*gr), CH_DYE); ed = mix(ed, c*1.1, CH_DYE);
   }
   float nl = sat(dot(n, chL)), sh = nl > .001 ? chShade(P + n*.004, chL) : 0., ao;
   if (ty > 2.5) { ao = sat(1. - 9.*max(max(abs(P.x), abs(P.z)) - chD, 0.)); ao = 1. - .45*ao*ao; }
@@ -211,6 +232,11 @@ vec4 chPaint(vec3 o, vec3 d, vec4 hit, bool whole) {
   }
   vec3 col = al*(chSun*nl*sh + amb*ao);
   for (bool go = chWet > .5; go; go = false) col *= 1. + 3.5*chNet(P.xz*7.)*smoothstep(.0, .25, chLv - P.y)*(.4 + .9*uTexture)*step(ty, .5);
+  if (uOwn[7] < 0. && ty < 2.5) { // lit from inside
+    vec3 g = mix(vec3(1.5, .72, .24), kindColour(4.*up)*1.4, .75); g *= g*.6;
+    float far = ((k + .5)*chS - h)/gl, ins = ty < .5 ? .3/(1. + 260.*far*far) + .03 : ty < 1.5 ? .55 + .6*(1. - yy) : .12 + .5*step(.5, yy);
+    col += CH_GLOW*g*ins*(.7 + .55*uBands[int(up*15.)]*chGn + .15*uLevel)*(ty < .5 ? al + .15 : vec3(1.));
+  }
   // the phrase: a thread of light walks one contour
   float r = P.x/(abs(P.x) + abs(P.z) + 1e-4); r = (P.z > 0. ? 1. - r : 3. + r)*.25;
   r = fract(r - uTime*.021);
@@ -250,6 +276,7 @@ vec3 render(vec2 p) {
   chSun = mix(vec3(3.3, 2.95, 2.45), vec3(3.6, 2.5, 1.5), .75*uPad)*(1. + .25*uCue);
   chSun = mix(chSun, hr > 0. ? vec3(1.15, 1.2, 1.25) : vec3(3.4, 1.35, .5), abs(hr));
   chSky = mix(vec3(.5, .57, .68), hr > 0. ? vec3(.85, .9, .95) : vec3(.16, .2, .36), abs(hr));
+  chSun *= 1. - .93*CH_GLOW; chSky *= 1. - .84*CH_GLOW;
   chAbs = mix(vec3(2.1, .6, .9), uOwn[2] < 0. ? vec3(1.5, .5, .3) : vec3(.3, 1.5, 4.), abs(uOwn[2]));
   chGl = mix(vec3(.01, .1, .085), uOwn[2] < 0. ? vec3(.1, .22, .3) : vec3(.24, .06, .005), abs(uOwn[2]));
   // the eye

@@ -3,11 +3,16 @@
 // b: Shore cones
 // what: A steep brown valley side at first sun, stepped with small hand-built salt pools behind crusted white lips, some dry, some holding tea-brown, rose or sky, a rake left across one and someone at work higher up; or level shore flats at evening, rows of white salt cones leading to a windmill, pink ponds that repeat the sky.
 // follows: Each pool is a place of the piece: it fills and colours as it sounds, then dries white. The drone floods the top rows, the pad tints the sky, texture sparkles on crystals, the phrase is running or bright water; bands light the rows or raise the cones. A hit rings in one pool, a cue sends the sun over the slope or along the cones, keys glint, clouds travel.
-// own: 0 moonlight at -1, a red evening at 1; 1 nearly all dry and white at -1, every pool brim full or the flats flooded at 1; 2 few and large pools or cones at -1, many and small at 1; 3 seen from higher up at -1, from low down at 1; 4 jade water, dark slope at -1, wine red water, red slope or pink salt at 1; 5 shallow steps or low broad cones at -1, tall steps or tall narrow cones at 1
+// own: 0 moonlight at -1, a red evening at 1; 1 nearly all dry and white at -1, every pool brim full or the flats flooded at 1; 2 few and large pools or cones at -1, many and small at 1; 3 seen from higher up at -1, from low down at 1; 4 jade water, dark slope at -1, wine red water, red slope or pink salt at 1; 5 shallow steps or low broad cones at -1, tall steps or tall narrow cones at 1; 6 every pool with its rim, and every cone, dyed in the colour of a sound at -1, black rock lit from within by those colours at 1; 7 straight ruled pans, or cones scattered with no mill, at -1, steps that curl round like a theatre, or an avenue of cones on both sides, at 1
 vec3 slSun, slSunC, slAmb, slTop, slHor;  // towards the sun, its light, the light of the shade, the sky above and low down
 float slPx;
 float slKind(int k) { return k == 0 ? uDrone : k == 1 ? uPad : k == 2 ? uTexture : k == 3 ? uPhrase : 2. * uHits * (1. - uHits); }
 float slS(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x * (3. - 2. * x); }
+#define SL_DYED sat(-uOwn[6])
+#define SL_LIT sat(uOwn[6])
+#define SL_STRAIGHT sat(-uOwn[7])
+#define SL_ROUND sat(uOwn[7])
+vec3 slDye(int k) { return pow(uKind[k], vec3(2.2)); }
 vec3 slShown(vec3 c) { return pow(1. - exp(-1.5 * max(c, .0)), vec3(.4545)); }
 float slSeg(vec2 q, vec2 a, vec2 b) { vec2 v = b - a; return length(q - a - v * sat(dot(q - a, v) / max(dot(v, v), 1e-5))); }
 float slN(vec2 q) { return noise(q) + .5 * noise(q * 2.5); }
@@ -28,6 +33,7 @@ float slHeard(vec2 uv, inout vec3 br) {
 vec3 slBrine(int k) {
  vec3 c = k == 0 ? vec3(.11, .05, .022) : k == 1 ? vec3(.4, .12, .13) : k == 2 ? vec3(.42, .23, .08) : k == 3 ? vec3(.09, .17, .16) : vec3(.36, .09, .05);
  c = mix(c, pow(uKind[k], vec3(2.2)) * .6, .35);
+ if (uOwn[6] < 0.) c = mix(c, slDye(k) * 1.15, .97 * SL_DYED);
  float j = fract(float(k) * .43);
  c = mix(c, mix(vec3(.03, .2, .17), vec3(.16, .36, .24), j), .85 * sat(-uOwn[4]));
  return mix(c, mix(vec3(.34, .02, .06), vec3(.6, .17, .12), j), .85 * sat(uOwn[4]));
@@ -43,17 +49,22 @@ vec3 slSky(vec3 d) {
 
 // ---- a: the pans on the slope. A place of it is s along the slope and u up it, in rows of pools.
 const float SLC = .68, SLS = .733;
-float slBend(float s) { return 1.9 * sin(s * .17 + .9) + .5 * sin(s * .41 + 2.); }
+float slBend(float s) {
+ float b = 1.9 * sin(s * .17 + .9) + .5 * sin(s * .41 + 2.);
+ if (uOwn[7] < 0.) b *= 1. - SL_STRAIGHT;
+ if (uOwn[7] > 0.) { float x = s - 5.; x *= x; b = mix(b, 2.4 - 6. * x / (20. + x), SL_ROUND); }
+ return b;
+}
 // The front edge of row k at s; cell: which pool, its middle along s, how far to its side walls, where in it (0 to 1).
 float slFront(float k, float s, float u, out vec4 cell) {
- float h = hash11(k * .37 + 5.), wide = mix(1., 2.1, h), slant = 1.1 * (fract(h * 7.3) - .5);
- float f0 = k + .24 * sin(s * .8 + h * 40.);
+ float h = hash11(k * .37 + 5.), wide = mix(1., 2.1, h), slant = 1.1 * (fract(h * 7.3) - .5) * (1. - SL_STRAIGHT), jit = .7 * (1. - .85 * SL_STRAIGHT);
+ float f0 = k + .24 * (1. - SL_STRAIGHT) * sin(s * .8 + h * 40.);
  float c = (s + slant * max(u - f0, .0)) / wide + h * 19., i = floor(c);
- float b = i + .7 * (hash21(vec2(i, k)) - .5), b1;
- if (c < b) { b1 = b; i -= 1.; b = i + .7 * (hash21(vec2(i, k)) - .5); }
+ float b = i + jit * (hash21(vec2(i, k)) - .5), b1;
+ if (c < b) { b1 = b; i -= 1.; b = i + jit * (hash21(vec2(i, k)) - .5); }
  else {
-  b1 = i + 1. + .7 * (hash21(vec2(i + 1., k)) - .5);
-  if (c >= b1) { b = b1; i += 1.; b1 = i + 1. + .7 * (hash21(vec2(i + 1., k)) - .5); }
+  b1 = i + 1. + jit * (hash21(vec2(i + 1., k)) - .5);
+  if (c >= b1) { b = b1; i += 1.; b1 = i + 1. + jit * (hash21(vec2(i + 1., k)) - .5); }
  }
  float x = (c - b) / (b1 - b), e = 2. * x - 1.;
  cell = vec4(i, (.5 * (b + b1) - h * 19.) * wide, min(x, 1. - x) * (b1 - b) * wide, x);
@@ -61,12 +72,12 @@ float slFront(float k, float s, float u, out vec4 cell) {
  float odd = mod(i, 2.), join = odd < .5 ? i : i + 1.;
  if (hash21(vec2(join, k) + 51.) < .42) cell.xyz = vec3(join + .5, ((odd < .5 ? b : b1) - h * 19.) * wide, (odd < .5 ? b1 - c : c - b) * wide);
  e *= e;
- return f0 - (.04 + .46 * hash21(vec2(i, k) + 7.7)) * (1. - e * e);
+ return f0 - (.04 + .46 * (1. - SL_STRAIGHT) * hash21(vec2(i, k) + 7.7)) * (1. - e * e);
 }
 float slIn(float k, float s, float u, out vec4 cell) {
  vec4 other;
  float f = slFront(k, s, u, cell), f1 = slFront(k + 1., s, u, other);
- return smin(smin(u - f, f1 - u + .05, .2), cell.z, .3);
+ return smin(smin(u - f, f1 - u + .05, .2 - .14 * SL_STRAIGHT), cell.z, .3 - .24 * SL_STRAIGHT);
 }
 float slEdge(vec3 rd, float t, float s, float u) {
  return rd.x * t * .8 + t * .45 - 5.6 - 4. * uLevel - 64. * uCue * (1. - uCue) + 1.6 * sin(s * .5) + 1.2 * noise(vec2(s * .7, u * .5));
@@ -130,9 +141,15 @@ vec3 slPans(vec2 p) {
  vec3 earth = mix(mix(vec3(.27, .155, .085), vec3(.06, .06, .065), sat(-uOwn[4])), vec3(.36, .11, .055), sat(uOwn[4]));
  float grain = noise(o * 6.) * .6 + noise(o * 21.) * .4;
  vec3 salt = vec3(.88, .85, .8) * mix(vec3(.75, .66, .56), vec3(1.), slS(.2, .7, noise(o * 1.3) + .4 * grain));
+ if (uOwn[6] > 0.) { salt *= mix(1., .05, SL_LIT); earth *= mix(1., .25, SL_LIT); }
  float rowLight = .75 + .9 * uBands[int(mod(k + 64., 16.))] * (.4 + uEnergy);
  vec3 c;
  float ripple = .0;
+ if (uOwn[6] < 0.) { // the rim takes the colour of its pool
+  if (wall) slFront(k, s, k - 1., cell); else slIn(k, s, u, cell);
+  vec3 dye = slDye(int(hash21(vec2(wall ? k - 0. : k, cell.x) + 3.3) * 4.99));
+  salt *= mix(vec3(1.), dye / max(max(dye.r, max(dye.g, dye.b)), .25) * .8 + .04, SL_DYED * .95);
+ }
  if (wall) {
  // a wall, crusted white
   vec2 dq = vec2(s * 17., k * 1.7 + down);
@@ -168,6 +185,7 @@ vec3 slPans(vec2 p) {
   vec3 wet = mix(br + .08, br * .55, deep) * (slSunC * .5 * sun + slAmb) * (.6 + .6 * a + (kd == 4 ? uHits : .0));
   vec3 rf = vec3(rd.x + .08 * (h1 - .5), -rd.y + .02, 1.);
   float cosN = rf.y / length(rf), fres = .16 + .6 * slS(.5, .95, h1) + .5 * pow(1. - sat(cosN), 3.) + .35 * sat(uOwn[1]);
+  if (uOwn[6] < 0.) fres *= 1. - .6 * SL_DYED;
   vec3 sky = slSky(rf + vec3(.0, .015 * (slRun(vec2(s * 3., u * 8.), .2) - .5), .0));
   float back = slFront(k + 1., s + sr * .3, u, other) - u;
   float wallAt = slS(.02, -.02, -back * rd.y / max(vr, .05) - m * .9);
@@ -175,6 +193,10 @@ vec3 slPans(vec2 p) {
   vec3 mir = mix(sky, earth * (slAmb + slSunC * .3 * sun) * 1.3 + .04, wallAt * .8);
   wet = mix(wet, mir, sat(fres)) + slSunC * uKeys * .5 * slS(.75, .95, slRun(vec2(s * 9., u * 30.), 1.));
   wet *= mix(.6, 1., slS(.0, .1, shore));
+  if (uOwn[6] > 0.) { // lit from within
+   vec3 glow = slDye(kd) * mix(.12, .85, slS(.4, .62, h1)) * (.1 + .7 * slKind(kd) * (.4 + uEnergy) + .5 * a + (kd == 4 ? uHits : .0)) * (.5 + .7 * slS(.5, .0, shore) + .35 * (slRun(vec2(s * 3., u * 5.), .25) - .5));
+   wet += SL_LIT * 1.5 * glow; c += SL_LIT * glow * .18 * slS(-.14, .02, shore) * full;
+  }
   c = mix(c, wet, water);
  // sparkle of crystals
   vec2 gq = o * 30.;
@@ -184,12 +206,14 @@ vec3 slPans(vec2 p) {
   c *= 1. + .35 * uTexture * (1. - water) * slS(.4, .7, grain);
   ripple = water;
  }
+ if (uOwn[6] > 0. && wall) { float n = noise(vec2(s * 3.1, k * 2.7)); int kw = int(hash11(floor(s * .6) + k * 3.) * 4.99); c += SL_LIT * slDye(kw) * (.08 + .7 * slKind(kw)) * slS(.6, .8, n) * slS(1., .0, down) * (.5 + .7 * slRun(vec2(s * 22., (u - m * down) * 4.), .5)); }
  // a thread of water from step to step, and a hit in one pool
  float sp = 3.2 + .45 * u + .7 * sin(u * 1.1), off = abs(s - sp), run = slS(-4., -2., u) * slS(12., 9., u);
  float thread = wall ? run * slS(.06 + px, .03, off) * (.6 + .4 * slRun(vec2(s * 30., (u - m * down) * 5.), 1.)) : .0;
  float drop = u - down * .6 - 9. + 11. * fract(uTime * .035);
  float spill = u - 2.4 + 4. * (1. - uHits);
  vec3 shine = slSunC * (.25 + .6 * sun) + slAmb;
+ if (uOwn[6] != 0.) shine = mix(shine, uOwn[6] > 0. ? slDye(3) * 1.6 : mix(slDye(3), slDye(0), noise(vec2(u * .7, 3.))) * shine, .85 * abs(uOwn[6]));
  c += shine * thread * (.04 + 1.2 * uPhrase + .5 * exp(-drop * drop * 3.) + 2. * uHits * exp(-spill * spill * 1.6));
  if (wall && uOwn[1] > .0) c += shine * .55 * uOwn[1] * slS(.45, .6, noise(vec2(s * 2.4, k * 3.1 + 7.))) * (.35 + .65 * slRun(vec2(s * 26., (u - m * down) * 5.), 1.));
  float rr = length(vec2(s - 4.4, (u - 2.15) * 1.2)), wave = rr - .75 * (1. - uHits);
@@ -245,6 +269,13 @@ vec3 slHeap(float x, float y, float seed, float fine) {
  float lit = slS(-.02, .8, x * .85 - sqrt(max(1. - x * x, .0)) * .16 + .1 + .3 * bump);
  vec3 c = slSunC * vec3(.9, .84, .78) * lit * (1. + .4 * bump) + slAmb * vec3(.5, .68, .88) * (.6 + .35 * y + .4 * bump);
  c *= mix(mix(vec3(1.), vec3(.75, .92, .86), sat(-uOwn[4])), vec3(1., .72, .68), sat(uOwn[4]));
+ int kc = int(fract(seed * 0.96 + 0.1) * 4.99);
+ if (uOwn[6] < 0.) c *= mix(vec3(1.), slDye(kc) * 1.15 + .03, SL_DYED);
+ if (uOwn[6] > 0.) {
+  float n = noise(vec2(turn * 2.2 + seed * 5., y * 5. - uTime * .02)) * .65 + .35 * noise(vec2(turn * 7. + seed, y * 15.)), v = abs(n - .5);
+  c *= mix(1., .07, SL_LIT);
+  c += SL_LIT * slDye(kc) * (.3 + 1.5 * slKind(kc) * (.4 + uEnergy)) * (slS(.05, .0, v) * slS(1., .2, y) + .25 * slS(.2, .0, v) * slS(.6, .0, y));
+ }
  return c * mix(.6, 1., slS(.0, .14, y + .1 * bump));
 }
 // Someone with a barrow.
@@ -261,7 +292,7 @@ float slBarrow(vec2 q, float stride) {
 }
 vec3 slCones(vec2 p) {
  float high = sat(-uOwn[3]), low = sat(uOwn[3]), px = slPx;
- float eye = .48 + .04 * uSpace + .5 * high - .16 * low, flood = sat(uOwn[1]), hz = -.06 + .2 * high - .1 * low, vx = .36;
+ float eye = .48 + .04 * uSpace + .5 * high - .16 * low, flood = sat(uOwn[1]), hz = -.06 + .2 * high - .1 * low, vx = .36 * (1. - .75 * SL_ROUND) * (1. - .4 * SL_STRAIGHT);
  slSun = normalize(vec3(.92, .25, .12));
  float dn = hz - p.y, up = abs(dn), z = eye / max(dn, .002);
  vec2 g = vec2(p.x * z, z);
@@ -283,9 +314,10 @@ vec3 slCones(vec2 p) {
  if ((p.y - hz) * 1.08 < max(.72 * big - eye, .0) + .02) for (int n = 0; n < 18; n++) {
   if (cov >= 1.) break;
   float row = float(n & 1), zc = 1.08 + S * (1.4 * float(n >> 1) + .8 * row);
-  float cx = vx * zc - (row < .5 ? 1.12 : 2.4), seed = fract(float(n) * .618 + .83) * 6.;
+  float cx = vx * zc - (row < .5 ? 1.12 : 2.4 - 3.6 * SL_ROUND), seed = fract(float(n) * .618 + .83) * 6.;
   float bd = uBands[(n * 5 + 3) & 15] * (.4 + uEnergy);
   float R = girth * (.9 + .03 * seed), Hc = .5 * big * (.84 + .2 * fract(seed * 3.7) + .28 * bd);
+  if (uOwn[7] < 0.) { vec2 h = hash22(vec2(float(n) * 1.7 + 2., 5.)); cx += SL_STRAIGHT * ((h.x - .5) * (1.6 + zc * .95) + 1.1 + .1 * zc); zc += SL_STRAIGHT * (.7 + .9 * h.y); R *= 1. + SL_STRAIGHT * (.9 * h.y - .35); Hc *= 1. + SL_STRAIGHT * (1.1 * h.y - .4); }
   vec2 q = vec2(p.x * zc - cx, (p.y - hz) * zc + eye);
   vec2 e = g - vec2(cx, zc);
   float along = max(-dot(e, Lh), .0), tall = along * rise;
@@ -314,10 +346,12 @@ vec3 slCones(vec2 p) {
   float h = hash21(vec2(ia, ib) + 2.);
   int kd = int(h * 4.99);
   vec3 br = mix(slBrine(kd), vec3(.42, .1, .11), .5 * (1. - abs(uOwn[4])));
-  float lv = slHeard(vec2(.45 + ia * .19, 1.05 - b * .14), br);
+  float said = slKind(kd);
+  if (uOwn[1] > .0) { br = mix(br, mix(slBrine(1), vec3(.42, .1, .11), .5 * (1. - abs(uOwn[4]))), flood); said = mix(said, uPad, flood); h = mix(h, .4, flood); } // the flood is one water
+  float lv = slHeard(vec2(.45 + (uOwn[1] > .0 ? mix(ia, a - .5, flood) : ia) * .19, 1.05 - b * .14), br);
   float view = dn / length(vec3(p.x, dn, 1.)), fres = mix(.15 + .2 * h, .85, pow(1. - view, 5.));
   vec3 dyed = mix(vec3(1.), br / max(max(br.r, br.g), max(br.b, .01)), .22 + .5 * abs(uOwn[4]) + .45 * lv);
-  vec3 pond = mix(br * (.9 + lv + .6 * slKind(kd) - .4 * uDrone) * (slSunC * .4 + slAmb), sky * dyed, fres);
+  vec3 pond = mix(br * (.9 + lv + .6 * said - .4 * uDrone) * (slSunC * .4 + slAmb), sky * dyed, fres);
   pond += (slSunC * .35 + slAmb) * (1.6 * ring + streak);
   float full = min((abs(ia + .5) < .6 ? 1.4 : .62 + .4 * fract(h * 7.)) + .3 * lv + 1.5 * uOwn[1], 1.4);
   float ragged = .75 * noise(g * vec2(1.1, .8) + 7.) + .2 * grit + .3 * slS(.7, .0, dike);
@@ -348,6 +382,7 @@ vec3 slCones(vec2 p) {
   ground = mix(ground, cs, on); wet *= 1. - on;
  }
  if (dn > .0) {
+  if (uOwn[6] > 0.) ground *= mix(1., mix(.1, .45, wet), SL_LIT);
   ground *= mix(vec3(1.), vec3(.42, .5, .66), shade * (1. - .55 * wet));
   col = ground;
   if (mcov > .0) col = mix(col, mix(col, slHeap(mir.x, mir.y, mir.z, .0), .7), mcov * wet);
@@ -360,7 +395,8 @@ vec3 slCones(vec2 p) {
  mill = min(mill, max(abs(mq.x) + 1.1 * (mq.y - 1.) - .16, .98 - mq.y));
  vec2 sq = rot(uTravel * .15) * (mq - vec2(.0, 1.02));
  float sail = 9.;
- if (dot(mq, mq) < 5.) for (int n = 0; n < 3; n++) {
+ if (uOwn[7] < 0.) mill += 3. * SL_STRAIGHT;
+ if (dot(mq, mq) < 5. && uOwn[7] > -.5) for (int n = 0; n < 3; n++) {
   sq = rot(PI / 3.) * sq;
   sail = min(sail, min(max(abs(sq.x) - .02, abs(sq.y) - .75), max(abs(sq.x - .07 * sign(sq.y)) - .06, abs(abs(sq.y) - .52) - .2)));
  }
@@ -372,13 +408,13 @@ vec3 slCones(vec2 p) {
  // someone going home with a barrow
  float go = .62 + .1 * sin(uTime * .02), pz = 13.;
  vec2 bq = vec2((p.x - go) * pz, (p.y - hz) * pz + eye);
- if (abs(bq.x) < 2.2 && abs(bq.y) < 2.) {
+ if (abs(bq.x) < 2.2 && abs(bq.y) < 2. && uOwn[7] > -.5) {
   float bw = px * pz, bd = slBarrow(vec2(-bq.x, abs(bq.y)), sin(uTime * .9));
   col = mix(col, vec3(.12) * slAmb, slS(bw, -bw, bd) * (bq.y > .0 ? 1. : .55 * wet));
  }
  if (cov > .0) {
-  float go = hit.w - 1. - 10. * (1. - uCue);
-  col = mix(col, slHeap(hit.x, hit.y, hit.z, slS(6., 1.5, hit.w)) * (1. + 1.3 * uCue * exp(-go * go * .2)), cov);
+  float go = hit.w - 1. - 10. * (1. - uCue), run = hit.w - 1. - 7. * (1. - uHits), say = uOwn[1] < 0. || uOwn[6] != 0. || uOwn[7] != 0. ? 1.1 * uHits * exp(-run * run * .3) : 0.;
+  col = mix(col, slHeap(hit.x, hit.y, hit.z, slS(6., 1.5, hit.w)) * (1. + 1.3 * uCue * exp(-go * go * .2) + say), cov);
  }
  return slShown(col);
 }

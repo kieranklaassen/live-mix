@@ -3,8 +3,12 @@
 // b: Ferry landing
 // what: A wood block print on cream paper: a crowd of coats and hats run together into one black mass at the edge of a frozen pond at evening, with a few skaters out alone under a leaning lamp; or a black crowd coming down a gangway from a ferry's white side and over a pale quay, steam as bare paper, a bollard cut by the left edge.
 // follows: The drone widens the black mass; pads cut gloss into the ground and roll more steam; texture is gouge marks; a phrase bares and tints hats, and sends skaters wider; a hit cuts a white gap that runs through the crowd. A cue bares hats and edges, and draws people out. Bands raise heads at the rim, the piece tints the ground, keys put on red mufflers.
-// own: 0 bright day with a bare sky at -1, night with lamps at 1; 1 a few people at -1, a crowd over nearly all the ground at 1; 2 all men in tall hats at -1, all women in wide hats, most of them white, at 1; 3 fog over what is far at -1, slant rain at 1; 4 close among them at -1, far off and high at 1; 5 rose paper with a red second ink at -1, pale green paper with an ochre one at 1
+// own: 0 bright day with a bare sky at -1, night with lamps at 1; 1 a few people at -1, a crowd over nearly all the ground at 1; 2 all men in tall hats at -1, all women in wide hats, most of them white, at 1; 3 fog over what is far at -1, slant rain at 1; 4 close among them at -1, far off and high at 1; 5 rose paper with a red second ink at -1, pale green paper with an ochre one at 1; 6 a: open sea, small sails and a great sun half up at -1, a street of gabled houses behind the ice at 1 (b: the ferry small and far out at sea at -1, a towering black liner at 1); 7 the crowd parted down both sides of an empty way at -1, scattered in ones and twos over all the ground in coloured coats at 1
 const float bcHz = 0.38; // the horizon
+#define bcSea max(-uOwn[6], 0.0)
+#define bcTown max(uOwn[6], 0.0)
+#define bcApart max(-uOwn[7], 0.0)
+#define bcLoose max(uOwn[7], 0.0)
 float bcTall, bcVx, bcW, bcPix, bcFrom; // a person's height, vanishing place, width, a pixel, where the crowd begins
 float bcHer, bcSide, bcTurn, bcTopHat, bcPale, bcLoad; // who is drawn
 const vec2 bcHat = vec2(0.0, 0.845); // where the head sits
@@ -13,7 +17,6 @@ vec2 bcHash;
 vec3 bcPaper, bcInk, bcWash, bcDark; float bcNight, bcDay; // paper, black, second ink, night on the ground, the hour
 vec3 bcGap; // the gap a hit opens: where, how strong
 
-// A branch as a loop of one turn.
 #define WHEN(c) for (bool when_ = (c); when_; when_ = false)
 float bcCut(float d, float w) { return smoothstep(-w, w, -d); }
 float bcOn(float d) { return bcCut(d, bcPix); }
@@ -26,6 +29,7 @@ float bcSeg(vec2 p, vec2 a, vec2 b, float r) {
 float bcRip(float x) { return 0.5 + 0.25 * (sin(x) + sin(x * 2.3 + 1.0)); }
 float bcBox(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
 float bcEgg(vec2 p, vec2 r) { float k = length(p / r); return (k - 1.0) * min(r.x, r.y); }
+vec3 bcOf(vec3 c, float k) { return bcPaper * mix(vec3(1.0), c, k); }
 vec3 bcRich(vec3 c, float k) { return max(mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, k), 0.0); }
 
 // Who stands in this cell of the crowd.
@@ -45,7 +49,6 @@ float bcCoat(float y) {
   float cap = sat((y - 0.64) / 0.15);
   return mix(man, her, bcHer) * (1.0 - cap * cap);
 }
-// The black of one person, feet at 0, the hat from 0.9 up.
 float bcHatOnly(vec2 q) {
   vec2 c = q - bcHat;
   float up = mix(mix(0.034, 0.066 - 0.04 * min(uOwn[2], 0.0), bcTopHat), 0.03, bcHer), man = 1.0 - bcHer;
@@ -93,22 +96,38 @@ vec2 bcMarks(vec2 q, float d, float fine, float deep) {
   }
   return vec2(w, scarf);
 }
-// How far the mass reaches at this nearness, and its middle.
 vec2 bcEdge(float D) {
   float grow = 0.16 * uDrone + 0.05 * uLow + 0.5 * uOwn[1] + 0.72 * uCue * (1.0 - uCue) + 0.015 * sin(uTime * 0.11 + D * 4.0);
   if (uVar > 0.5) return vec2(mix(0.13, 0.55, sat((D - 0.38) / 0.6)) * bcW + grow * 0.8, mix(-0.02, 0.2, sat((D - 0.4) / 0.55)) * bcW - 0.05 * sin(D * 9.0));
   return vec2((mix(-0.62, 0.2, smoothstep(0.14, 0.75, D)) + 0.12 * sin(D * 8.5 + 0.6) - 0.1 * smoothstep(0.8, 1.2, D) - 0.5 * smoothstep(0.17, 0.3, 0.47 - D)) * bcW + grow, 0.0);
 }
-float bcMass(vec2 e, float x, float D) { return (e.x - (uVar < 0.5 ? x : abs(x - e.y))) / (0.16 * D + 0.05); }
-float bcFlash(vec2 p) { vec2 q = (p - bcGap.xy) * vec2(1.0, 0.55); return bcGap.z * exp(-dot(q, q) * 60.0); }
-// A person as printed.
+float bcMass(vec2 e, float x, float D) {
+  float m = (e.x - (uVar < 0.5 ? x : abs(x - e.y))) / (0.16 * D + 0.05), more = 0.16 * uDrone + 0.5 * uOwn[1] + 0.72 * uCue * (1.0 - uCue);
+  WHEN(uOwn[7] < 0.0) m = mix(m, (abs(x - 0.1 * bcW - 0.16 * bcW * sin(D * 3.4 + 2.5)) - (0.34 * D + 0.07 - 0.3 * more)) / (0.16 * D + 0.05), bcApart);
+  WHEN(uOwn[7] > 0.0) m = mix(m, 0.55 * sin(x / D * 2.1 + 5.0 * D) * sin(x / D * 1.3 - D * 9.0 + 1.0) - 0.42 + more, smoothstep(0.0, 0.8, bcLoose));
+  return m;
+}
+#define bcWide max(abs(uOwn[7]), -uOwn[1])
+float bcFlash(vec2 p) {
+  WHEN(uOwn[7] < 0.0) p.x = mix(p.x, uVar < 0.5 ? -abs(p.x) : abs(p.x) - 0.5, bcApart);
+  vec2 q = (p - bcGap.xy + vec2(-0.2 * bcLoose, 0.18 + 0.3 * bcLoose) * bcWide) * vec2(1.0, 0.55);
+  return bcGap.z * exp(-dot(q, q) * 60.0 * exp2(0.8 * bcApart - 1.4 * bcLoose - 1.8 * bcWide));
+}
 vec3 bcPrint(vec2 q, float d, float fine, vec2 p, float red, float deep) {
   vec2 m = vec2(0.0);
   WHEN(fine < 0.06) m = bcMarks(q, d, fine, deep) * (1.0 - smoothstep(0.03, 0.06, fine));
   float hatch = abs(fract((q.x + 0.35 * q.y) * 9.0) - 0.5) * 2.0;
   m.x = max(m.x, bcCut(d + 0.02, fine) * smoothstep(-0.12, 0.12, bcFlash(p) * 1.4 - 0.1 - hatch) * step(q.y, 0.79));
   vec3 bare = mix(bcPaper, bcPaper * bcRich(uKind[3], 0.8), 0.6 * sat(uPhrase * 1.3) * bcPale * step(0.86, q.y));
-  return mix(mix(bcInk, bare, m.x), vec3(0.74, 0.16, 0.12), m.y * smoothstep(0.72, 0.76, bcLoad) * red);
+  vec3 coat = bcInk;
+  WHEN(uOwn[7] > 0.0) {
+    float n = floor(bcLoad * 6.0);
+    vec3 dye = bcRich(uKind[int(min(n, 4.0))], 0.75) * mix(vec3(1.0), bcPaper, 0.6);
+    dye = mix(dye, dye * 0.55, step(0.5, fract(bcLoad * 6.0)));
+    coat = mix(bcInk, dye, bcLoose * step(n, 4.5) * bcCut(d + 0.016, fine) * step(q.y, 0.79));
+    coat = mix(coat, bcPaper, bcLoose * step(4.5, n) * bcCut(d + 0.016, fine) * step(q.y, 0.79));
+  }
+  return mix(mix(coat, bare, m.x), vec3(0.74, 0.16, 0.12), m.y * smoothstep(0.72, 0.76, bcLoad) * red);
 }
 vec2 bcBest, bcBestQ, bcBestId; float bcDeep;
 void bcTry(vec2 p, vec2 at, float size, vec2 id, float deep) {
@@ -130,7 +149,7 @@ void bcRow(inout vec4 acc, vec2 p, float red, float row, float D, vec2 edge, boo
     vec2 id = mod(vec2(at, row), 512.0), h = hash22(id + 11.0);
     float cx = bcVx + (at + 0.32 + 0.35 * h.x - go) * lane, f = fract(h.x * 31.0), e = cx / (0.42 * bcW) + 0.143;
     float m = plank ? 0.6 + uDrone + uOwn[1] : bcMass(edge, cx, D);
-    float here = sat((m + 1.7 * (h.y - 0.62)) * 10.0 - 0.5) * (plank ? (1.0 - smoothstep(0.94, 1.02, e)) * smoothstep(-0.12, 0.0, e) : smoothstep(bcFrom, bcFrom + 0.05, D));
+    float here = sat((m + 1.7 * (h.y - 0.62)) * 10.0 - 0.5) * (plank ? (1.0 - smoothstep(0.94, 1.02, e + 2.2 * bcSea)) * smoothstep(-0.12, 0.0, e) : smoothstep(bcFrom, bcFrom + 0.05, D));
     float tall = mix(0.9, 1.09, f) * (f < 0.1 ? 0.72 : 1.0) * here * (2.0 - here);
     tall *= 1.0 + 0.15 * band(0.5 + 0.55 * cx / bcW + 0.3 * (h.y - 0.5)) * (1.0 - smoothstep(0.5, 3.2, m));
     float foot = (plank ? 0.155 * e - 0.035 : bcHz - D + (h.y - 0.5) * 0.1 * D) + 0.012 * H * sin(uTravel * 1.1 + f * TAU);
@@ -141,10 +160,8 @@ void bcRow(inout vec4 acc, vec2 p, float red, float row, float D, vec2 edge, boo
     bcUnder(acc, bcPrint(bcBestQ, bcBest.x, bcBest.y, p, red, bcDeep), bcCut(bcBest.x, bcBest.y));
   }
 }
-// The crowd, front row first, then the black they stand in.
 vec4 bcCrowd(vec2 p, float red) {
   float T = uVar * uTravel * 0.045, n = floor(T);
-  // only the rows that can reach this height
   float G = max(bcHz - p.y, 0.001), i0 = max(0.0, ceil(T - n - log(G / (1.75 - 2.38 * bcTall)) / log(1.27)));
   float D = 1.75 * pow(1.27, T - n - i0), last = max(bcFrom, G / 1.06);
   vec4 acc = vec4(0.0);
@@ -167,7 +184,6 @@ float bcDash(vec2 g, float on, float aa) {
   float s = sat((on - h) * 5.0), t = (f.x + 0.3 * (hash21(i + 19.0) - 0.5)) / (0.2 + 0.25 * fract(h * 37.0));
   return bcCut(abs(f.y + 0.5 * (fract(h * 91.0) - 0.5) + 0.08 * t) - 0.16 * s * (1.0 - t * t), aa) * step(abs(t), 1.0) * step(0.001, s);
 }
-// Gouge marks.
 vec3 bcGouge(vec3 c, vec2 p, float D) {
   float l = log2(D);
   c = mix(c, c * bcWash, 0.8 * bcDash(vec2(p.x / D * 1.5, l * 11.0), 0.08 + 0.4 * uPad, 0.06));
@@ -178,9 +194,7 @@ vec3 bcSky(vec3 c, vec2 p, float low, float out_) {
   float y = p.y * 62.0 + 1.4 * bcRip(p.x * 6.0 + p.y * 21.0), th = mix(0.14, 0.62 - 0.1 * uTone, smoothstep(low, low + 0.27, p.y)) * (1.0 - 0.95 * bcDay) + 0.4 * bcNight;
   return mix(c, c * mix(bcWash, bcWash * 0.4, bcNight), bcCut(abs(fract(y) - 0.5) - th, 62.0 * bcPix) * (1.0 - out_));
 }
-// The piece's colour on the ground.
 vec4 bcTint(vec2 uv) { vec4 m = piece(clamp(uv, 0.0, 1.0)); return vec4(bcRich(m.rgb / max(max(m.r, max(m.g, m.b)), 0.05), 0.8), sat(m.a * 1.4)); }
-// One skater alone.
 float bcSkater(vec2 q, float way) {
   q.x -= 0.22 * way * q.y * (1.0 - 0.3 * q.y);
   float hem = mix(0.26, 0.13, bcHer) - 0.1 * way * q.x;
@@ -190,50 +204,88 @@ float bcSkater(vec2 q, float way) {
   d = min(d, min(bcSeg(q, vec2(-0.22 * way, 0.22), vec2(-0.37 * way, 0.2), 0.02), bcSeg(q, vec2(-0.4 * way, 0.24), vec2(-0.36 * way, 0.15), 0.012)));
   return min(d, bcSeg(q, vec2(-0.2 * way, 0.57), vec2(0.2 * way, 0.6), 0.03));
 }
+// Gabled fronts behind the ice.
+void bcHouses(inout vec3 c, vec2 q) {
+  for (int i = 0; i < 2; i++) {
+    float fi = float(i), w = 0.15 + 0.03 * fi, u = q.x / w + 0.37 * (fi + 1.0), n = floor(u), h = hash11(n + 31.0 * fi + 3.0), g = fract(h * 37.0);
+    float x = (u - n - 0.5) * w, tall = (0.145 + 0.09 * h - 0.045 * fi) * bcTown, hw = w * (0.41 + 0.06 * fi), dark = step(0.45, fract(h * 13.0));
+    float rise = g < 0.35 ? floor((hw - abs(x)) / hw * 5.0) * 0.017 : g < 0.7 ? (hw - abs(x)) * 1.25 : 0.07 * sqrt(sat(1.0 - x * x / (hw * hw * 0.7)));
+    float d = max(abs(x) - hw, q.y - tall - rise * bcTown);
+    bcBlack(c, bcBox(vec2(x - hw * 0.55, q.y - tall - 0.06 * bcTown), vec2(0.008, 0.032 * bcTown), 0.001));
+    c = mix(c, mix(bcOf(mix(bcWash, bcRich(uKind[1 + i], 0.8), 0.4), 0.5 * step(0.5, fract(h * 71.0))), bcInk, max(dark, bcNight)), bcOn(d));
+    vec2 ws = vec2(hw * 2.0 / 3.0, 0.044), k = vec2(x, q.y - 0.012) / ws + vec2(0.5, 0.0), id = floor(k);
+    float on = step(0.4 - 0.3 * uEnergy, hash21(id + n * 7.0 + fi * 3.0));
+    vec3 glass = mix(mix(bcInk, bcPaper, dark), bcPaper * bcLamp, max(bcNight, 0.3 * dark));
+    WHEN(id.y > -0.5 && (id.y + 1.0) * ws.y < tall) c = mix(c, mix(glass, bcInk, (1.0 - on) * bcNight), bcOn(bcBox((fract(k) - 0.5) * ws, vec2(0.0095, 0.0135), 0.001)) * step(abs(x), hw * 0.98) * smoothstep(0.3, 0.6, bcTown));
+    bcBlack(c, abs(d) - 0.0026);
+    WHEN(q.y > tall && abs(x) < hw - 0.004) c = mix(c, bcOf(bcDark, 0.3), bcOn(abs(d + 0.008) - 0.004) * bcTown);
+  }
+}
+float bcSail(vec2 q, float way) {
+  float m = max(max(way * q.x - 0.34 * (1.0 - q.y), -way * q.x), max(0.16 - q.y, q.y - 1.0));
+  float j = max(max(-way * q.x - 0.05 - 0.26 * (0.8 - q.y), way * q.x + 0.05), max(0.2 - q.y, q.y - 0.8));
+  return min(min(m, j), max(abs(q.y - 0.06) - 0.07, abs(q.x) - 0.3 - 0.8 * q.y));
+}
 vec3 bcPond(vec2 p, vec4 crowd, float red) {
   vec3 c = bcPaper;
   float D = max(bcHz - p.y, 0.02), shore = 0.215 + 0.012 * sin(p.x * 5.0 + 1.0);
-  vec2 foot = vec2(0.52 * bcW, 0.19), top = vec2(0.45 * bcW, 0.395), r = p - top;
+  vec2 foot = vec2(0.52 * bcW, 0.19), top = vec2(0.45 * bcW, 0.395), r;
+  float lx = mix(foot.x, 0.34 * bcW, bcSea);
+  WHEN(uOwn[6] < 0.0) { foot.x += 1.4 * bcSea; top.x += 1.4 * bcSea; }
+  r = p - top;
   WHEN(p.y < shore) {
-    // the ice: the lamp lies on it in cut strips, the piece in them
     float far = shore - p.y, sn = log2(D) * 9.0 + 0.6 * bcRip(p.x * 11.0 + p.y * 17.0), strip = abs(fract(sn) - 0.5) * 2.0;
-    float lie = bcCut(abs(p.x - foot.x + 0.1 * far) - (0.07 + 0.1 * uPad + 0.35 * far) * (0.4 + strip), 0.004) * (0.25 + 0.75 * (1.0 - smoothstep(0.2, 0.75, far)));
+    float lie = bcCut(abs(p.x - lx + 0.1 * far) - (0.07 + 0.1 * uPad + 0.35 * far) * (0.4 + strip), 0.004) * (0.25 + 0.75 * (1.0 - smoothstep(0.2, 0.75, far)));
     vec4 m = bcTint(vec2(0.14 + 0.9 * p.x / bcW, 1.23 - 1.4 * exp2(floor(sn) / 9.0)));
     c = mix(c, c * bcDark, 0.9 - 0.72 * lie);
     c = mix(c, bcPaper * mix(bcLamp, m.rgb, 0.8 * m.a), lie * (0.85 - 0.6 * bcDay) * bcCut(0.28 - strip, 18.0 * bcPix / D));
     c = bcGouge(c, p, D);
   }
   WHEN(p.y >= shore) {
-    // sky, lamp, far bank
     float glow = 0.0;
     WHEN(dot(r, r) < 0.1 && dot(r, r) > 1e-6) {
       float ray = abs(fract(atan(r.y, r.x) * 30.0 / TAU + 0.1 * sin(length(r) * 50.0)) - 0.5) * 2.0;
       glow = (0.085 + 0.015 * uPad + 0.05 * uCue + 0.03 * uMic) * (0.5 + 0.75 * ray * ray) * (1.0 - 0.6 * bcDay);
     }
-    c = bcSky(c, p, 0.24, bcOn(length(r) - glow));
-    float bank = shore + 0.035 + 0.03 * bcRip(p.x * 8.0) + 0.016 * bcRip(p.x * 47.0), d = p.y - bank;
-    float tx = p.x * 7.0 + 0.3, h = hash11(floor(tx) + 2.0), tall = 0.09 + 0.16 * h;
+    WHEN(uOwn[6] < 0.0) {
+      vec2 k = p - vec2(0.34 * bcW, shore - 0.3 + 0.33 * bcSea);
+      float l = length(k), R = 0.21 + 0.015 * uPad, ray = abs(fract(atan(k.y, k.x) * 44.0 / TAU + 0.06 * sin(l * 40.0)) - 0.5) * 2.0;
+      float out_ = bcOn(l - R - (0.05 + 0.04 * uPad + 0.05 * uCue + 0.03 * uMic) * (0.35 + ray * ray));
+      c = bcSky(c, p, 0.24, max(out_, bcOn(length(r) - glow)));
+      c = mix(c, bcOf(bcRich(uKind[0], 0.95), 0.8), bcOn(l - R));
+      c = mix(c, bcPaper, bcCut(abs(fract(p.y * 62.0 + 1.4 * bcRip(p.x * 6.0 + p.y * 21.0)) - 0.5) - 0.34 * (1.0 - smoothstep(0.0, 0.13, p.y - shore)), 62.0 * bcPix) * bcOn(l - R));
+    }
+    WHEN(uOwn[6] >= 0.0) c = bcSky(c, p, 0.24, bcOn(length(r) - glow));
+    float bank = shore + (0.035 + 0.03 * bcRip(p.x * 8.0) + 0.016 * bcRip(p.x * 47.0)) * (1.0 - 0.93 * bcSea), d = p.y - bank;
+    float tx = p.x * 7.0 + 0.3, h = hash11(floor(tx) + 2.0), tall = max((0.09 + 0.16 * h) * (1.0 - bcSea), 0.001);
     vec2 q = vec2((fract(tx) - 0.5 - 0.3 * (h - 0.5)) / 7.0, p.y - shore);
     q.x += 0.06 * (h - 0.5) * q.y / tall;
-    WHEN(h > 0.3 && q.y < tall + 0.06) {
+    WHEN(uOwn[6] > -0.99 && h > 0.3 && q.y < tall + 0.06) {
       d = min(d, bcSeg(q, vec2(0.0), vec2(0.0, tall), 0.007 - 0.0056 * sat(q.y / tall)));
       vec2 b = vec2(abs(q.x), q.y - 0.42 * tall - 0.015 * step(q.x, 0.0));
       for (float i = 0.0; i < 4.0; i++) d = min(d, bcSeg(b, vec2(0.0, 0.14 * tall * i), vec2(0.045 - 0.008 * i, 0.14 * tall * i + 0.055), 0.0022));
     }
     float lit = step(0.55, hash11(floor(p.x * 11.0))) * step(p.y, bank) * bcOn(bcBox(vec2((fract(p.x * 11.0) - 0.5) / 11.0, p.y - shore - 0.016), vec2(0.0065, 0.008), 0.001));
     c = mix(c, mix(bcInk, bcPaper * bcLamp, lit), bcOn(d));
+    WHEN(uOwn[6] > 0.0) bcHouses(c, vec2(p.x, p.y - shore));
   }
   bcBlack(c, abs(p.y - shore) - 0.0035 - 0.004 * bcRip(p.x * 33.0));
   vec2 k = rot(-0.3) * r;
   float box = bcBox(k, vec2(0.016, 0.022), 0.006);
   float pole = min(min(bcSeg(p, foot, top, 0.0045), bcBox(p - foot, vec2(0.022, 0.006), 0.006)), min(box, bcBox(k - vec2(0.0, 0.028), vec2(0.025, 0.005), 0.003)));
-  c = mix(c, bcPaper, bcOn(pole - 0.004) * step(p.y, 0.295));
+  c = mix(c, bcPaper, bcOn(pole - 0.004) * step(p.y, 0.295 + bcTown));
   bcBlack(c, pole);
   c = mix(c, bcPaper * mix(bcLamp, bcTint(vec2(uLoop, 0.5)).rgb, 0.3 * uEnergy), bcOn(box + 0.005));
+  WHEN(uOwn[6] < 0.0) for (int i = 0; i < 4; i++) {
+    float n = float(i), H = (0.05 + 0.035 * n) * bcSea + 1e-4, x = -0.62 + 0.36 * n + 0.09 * n * n + 0.1 * sin(uTravel * 0.04 + n * 2.0 + 0.4 * sin(TAU * uLoop));
+    vec2 q = (p - vec2(x * bcW, shore - 0.018 - 0.012 * n * n)) / H;
+    q = rot(0.06 * sin(uTime * 0.4 + n * 2.0)) * q;
+    WHEN(abs(q.x) < 0.5 && q.y > -0.3 && q.y < 1.1) bcBlack(c, bcSail(q, n < 1.5 ? 1.0 : -1.0) * H);
+  }
   // the skaters, each on a round of their own
   for (int i = 0; i < 3; i++) {
     float n = float(i), a = uTravel * (0.11 + 0.017 * n) + n * 1.75 + 2.2 + 0.35 * sin(TAU * uLoop + n);
-    float Ds = 0.28 + 0.16 * n + (0.04 + 0.025 * n) * sin(a), H = bcTall * Ds * 1.05;
+    float Ds = 0.28 + 0.16 * n + (0.04 + 0.025 * n) * sin(a), H = bcTall * Ds * 1.05 * max(1.0 - bcSea, 1e-4);
     vec2 q = (p - vec2((0.36 + 0.05 * n + (0.24 + 0.02 * n + 0.05 * uSpace + 0.07 * n * uPhrase) * cos(a)) * bcW, bcHz - Ds)) / H;
     WHEN(abs(q.x) < 0.75 && q.y > -0.12 && q.y < 1.2) {
       float way = -1.35 * sin(a) / (0.35 + abs(sin(a))), fine = bcPix / H;
@@ -247,7 +299,6 @@ vec3 bcPond(vec2 p, vec4 crowd, float red) {
   }
   return c * (1.0 - crowd.a) + crowd.rgb;
 }
-// Steam as bare paper, rolling along the wind.
 float bcSteam(vec2 p, vec2 from, float big) {
   float d = 1e3, t = uTime * 0.05, n = floor(t);
   for (int i = 0; i < 10; i++) {
@@ -257,9 +308,8 @@ float bcSteam(vec2 p, vec2 from, float big) {
   }
   return d;
 }
-// The gangway, its near rail, and those on it.
 void bcGangway(inout vec4 acc, vec2 p, float red) {
-  float w = 0.42 * bcW, x = p.x + 0.06 * bcW, y = p.y + 0.035 - 0.155 * x / w, inside = max(-x, x - w), rail = max(abs(y - 0.042) - 0.0022, inside);
+  float w = 0.42 * bcW, x = p.x + 0.06 * bcW, y = p.y + 0.035 - 0.155 * x / w, inside = max(-x, x - w * (1.0 - 2.2 * bcSea)), rail = max(abs(y - 0.042) - 0.0022, inside);
   WHEN(inside < 0.06 && abs(y - 0.06) < 0.12) {
     bcUnder(acc, bcInk, bcOn(rail));
     bcUnder(acc, bcPaper, bcOn(rail - 0.0022));
@@ -270,7 +320,6 @@ void bcGangway(inout vec4 acc, vec2 p, float red) {
 vec3 bcFerry(vec2 p, vec4 crowd, float red) {
   float hw = 0.89 * bcW;
   vec3 c = bcPaper;
-  // the near bollard and its rope
   vec2 post = vec2(-hw + 0.07, -0.5), b = p - post;
   float neck = 0.12 + 0.03 * sat(1.0 - b.y * 4.0), ty = b.y - 0.11 + 0.9 * b.x * b.x;
   float turns = max(abs(ty) - 0.062, abs(b.x) - neck - 0.014);
@@ -278,10 +327,12 @@ vec3 bcFerry(vec2 p, vec4 crowd, float red) {
   vec2 from = post + vec2(0.12, 0.12), e = vec2(max(-0.3 * bcW - from.x, 0.05), 0.056 - from.y);
   float rx = (p.x - from.x) / e.x, rope = (p.y - from.y - e.y * rx + 0.3 * rx * (1.0 - rx)) / length(vec2(1.0, e.y / e.x));
   rope = max(abs(rope) - 0.0065 + 0.004 * sat(rx), abs(rx - 0.5) - 0.5);
-  bcGangway(crowd, p, red);
+  WHEN(uOwn[6] > -0.6) bcGangway(crowd, p, red);
   float y = p.y + 0.035 * p.x;
+  WHEN(uOwn[6] < 0.0) rope += 0.02 * bcSea;
+  vec2 land = p;
+  float pix = bcPix;
   WHEN(y < 0.0) {
-    // the quay: slabs, the piece laid on them in flat tints
     float D = max(bcHz - p.y, 0.02), bx = (p.x - bcVx) / D * 2.6 + 0.5, bi = floor(bx), shift = hash11(bi) * 5.0;
     float along = log2(D) * 3.0 + shift, Dm = exp2((floor(along) + 0.5 - shift) / 3.0);
     float seam = min((0.5 - abs(fract(bx) - 0.5)) / 2.6 * D, (0.5 - abs(fract(along) - 0.5)) * 0.23 * D);
@@ -292,6 +343,19 @@ vec3 bcFerry(vec2 p, vec4 crowd, float red) {
   }
   WHEN(y >= 0.0) {
     c = bcSky(c, p, 0.19, 0.0);
+    WHEN(uOwn[6] < 0.0) {
+      float hz = 0.15 * bcSea;
+      vec3 sea = bcGouge(bcOf(bcWash, 0.6) * mix(vec3(1.0), bcDark, 0.8), p, 0.3 + hz - y);
+      float wv = abs(fract(y * 46.0 + 1.6 * bcRip(p.x * 12.0 + 0.1 * uTime + floor(y * 9.0) * 2.0)) - 0.5);
+      sea = mix(sea, bcInk, bcCut(wv - 0.11 - 0.06 * bcRip(p.x * 5.0 - 0.2 * uTime), 46.0 * bcPix));
+      c = mix(c, sea, bcOn(y - hz));
+      bcBlack(c, abs(y - hz) - 0.002);
+      float k = exp2(2.1 * bcSea);
+      p = (p - vec2(0.16 * bcW * bcSea, hz * 0.9)) * k;
+      y = p.y + 0.035 * p.x * (1.0 - bcSea);
+      bcPix *= k;
+    }
+    WHEN(uOwn[6] > 0.0) { float k = exp2(-1.05 * bcTown); p = (p - vec2(0.36 * bcW, 0.0)) * k + vec2(0.36 * bcW, 0.0); y = p.y + 0.035 * p.x; bcPix *= k; }
     float st = bcSteam(p, vec2(0.42 * bcW, 0.425), 0.85 + 0.45 * uPad + 0.2 * uMic);
     vec2 fn = p - vec2(0.44 * bcW, 0.3);
     fn.x += 0.14 * fn.y;
@@ -303,9 +367,12 @@ vec3 bcFerry(vec2 p, vec4 crowd, float red) {
     c = mix(c, pane, step(house, -0.01) * bcCut(bcBox(vec2(fract(p.x * 14.0) - 0.5, (y - 0.216) * 14.0), vec2(0.26), 0.05), 14.0 * bcPix));
     bcBare(c, st);
     bcBlack(c, abs(st) - 0.0022 - 0.003 * bcRip(p.x * 24.0 + p.y * 13.0));
-    vec3 stack = mix(mix(bcInk, bcPaper, bcOn(abs(fn.x - 0.045) - 0.0035)), bcPaper * mix(vec3(1.0), bcRich(uKind[0], 0.9), 0.75), bcOn(abs(fn.y - 0.045) - 0.024));
+    vec3 stack = mix(mix(bcInk, bcPaper, bcOn(abs(fn.x - 0.045) - 0.0035)), bcOf(bcRich(uKind[0], 0.9), 0.75), bcOn(abs(fn.y - 0.045) - 0.024));
     c = mix(c, stack, bcOn(max(fun, -house)));
-    WHEN(hull > 0.0 && hull < 0.08) {
+    float end_ = -1.0;
+    WHEN(uOwn[6] < 0.0) end_ = abs(p.x - 0.1 * bcW) - (0.85 + 0.5 * y) * bcW - 3.0 * (1.0 - bcSea);
+    WHEN(uOwn[6] < 0.0) hull = max(hull, end_);
+    WHEN(hull > 0.0 && hull < 0.08 && end_ < 0.0) {
       float h = hash11(floor(p.x * 30.0) + 3.0), hb = fract(h * 23.0);
       vec2 k = vec2((fract(p.x * 30.0) - 0.5 + 0.2 * (hb - 0.5)) / 30.0, hull - 0.016 - 0.014 * fract(h * 9.0));
       float who = min(min(bcEgg(k, vec2(0.012, 0.027)), length(k - vec2(0.0, 0.028)) - 0.008), bcBox(k - vec2(0.0, 0.037), vec2(0.012 - 0.004 * hb, 0.002 + 0.006 * hb), 0.002));
@@ -313,17 +380,29 @@ vec3 bcFerry(vec2 p, vec4 crowd, float red) {
       float rail = min(min(abs(hull - 0.04), abs(hull - 0.02)) - 0.0014, abs(fract(p.x * 22.0) - 0.5) / 22.0 - 0.0016);
       bcBlack(c, max(rail, hull - 0.0414));
     }
+    WHEN(uOwn[6] < 0.0) hull = max(hull, -y);
     bcBare(c, hull);
+    WHEN(uOwn[6] > 0.0) bcBlack(c, max(hull, y - 0.118 * bcTown));
     bcBlack(c, min(abs(hull) - 0.004, abs(hull + 0.028) - 0.0016));
     float hole = length(vec2(fract(p.x * 9.0) - 0.5, (y - 0.088) * 9.0));
-    c = mix(c, pane, bcCut(hole - 0.12, 9.0 * bcPix));
-    bcBlack(c, bcBox(p - vec2(0.36 * bcW + 0.012, 0.17), vec2(0.028, 0.066), 0.02));
+    WHEN(uOwn[6] > 0.0) {
+      float ly = floor(y / 0.036), lx = p.x * 18.0 + 0.5 * ly;
+      c = mix(c, bcOf(bcLamp, bcNight), bcCut(length(vec2(fract(lx) - 0.5, (fract(y / 0.036) - 0.5) * 0.65)) - 0.085 * bcTown, 18.0 * bcPix) * bcOn(max(y - 0.107, 0.03 - y)) * step(0.3, bcTown) * step(0.25, hash11(floor(lx) + 9.0 * ly)));
+      hole += bcTown;
+    }
+    WHEN(end_ < 0.0) c = mix(c, pane, bcCut(hole - 0.12, 9.0 * bcPix));
+    WHEN(uOwn[6] > 0.0) p = land;
+    float door = bcBox(p - vec2(0.36 * bcW + 0.012, 0.17), vec2(0.028, 0.066), 0.02);
+    WHEN(uOwn[6] > 0.0) bcBare(c, door - 0.006);
+    bcBlack(c, door);
     float sh = abs(fract(y * 110.0 + 0.7 * bcRip(p.x * 14.0)) - 0.5) - 0.6 * (1.0 - smoothstep(0.02, 0.075, y));
-    c = mix(c, c * mix(bcWash, bcWash * 0.5, bcNight), bcCut(sh, 110.0 * bcPix) * step(y, 0.07));
-    bcBlack(c, y - 0.02 - 0.006 * bcRip(p.x * 33.0));
+    c = mix(c, c * mix(bcWash, bcWash * 0.5, bcNight), bcCut(sh, 110.0 * bcPix) * step(y, 0.07) * step(end_, 0.0) * step(uOwn[6], 0.0) * (uOwn[6] < 0.0 ? step(0.0, y) : 1.0));
+    WHEN(uOwn[6] >= 0.0) bcBlack(c, y - 0.02 - 0.006 * bcRip(p.x * 33.0));
+    WHEN(uOwn[6] < 0.0) { bcBlack(c, max(max(y - 0.05, end_), -y)); }
+    p = land; y = p.y + 0.035 * p.x; bcPix = pix;
   }
   bcBlack(c, abs(y - 0.009) - 0.012);
-  bcBlack(c, bcEgg(p - from - e, vec2(0.016, 0.011)));
+  bcBlack(c, bcEgg(p - from - e, vec2(0.016, 0.011)) + 0.1 * bcSea);
   bcBlack(c, rope);
   c = c * (1.0 - crowd.a) + crowd.rgb;
   float w = bcOn(abs(length((b - vec2(0.0, 0.29)) * vec2(0.27, 1.0)) - 0.044) - 0.004 * smoothstep(0.0, 0.16, b.x)) * step(0.3, b.y);
@@ -344,7 +423,6 @@ vec3 render(vec2 p) {
   bcWash = mix(vec3(0.47, 0.58, 0.6), uOwn[5] < 0.0 ? vec3(0.8, 0.36, 0.24) : vec3(0.86, 0.68, 0.22), abs(uOwn[5]));
   bcWash = mix(bcWash, bcRich(uKind[1], 0.6), 0.18);
   bcDark = mix(vec3(1.0), mix(bcWash, vec3(0.2, 0.25, 0.36), 0.4), bcNight);
-  // the grain of the block
   float grain = 1.3 * bcRip(p.y * 400.0 + 5.0 * sin(p.x * 4.0)) * bcRip(p.x * 11.0 + p.y * 57.0);
   bcInk = vec3(0.075, 0.065, 0.065) + 0.05 * smoothstep(0.62, 0.9, grain);
   bcPaper *= 0.985 + 0.02 * grain;

@@ -97,7 +97,7 @@ export function picturesApart(one: LookPicture, other: LookPicture): number {
   return apart / one.cells.length
 }
 
-// Held against what every style and every preset was measured at: none of the 1,410 presets is found at fault by them.
+// Held against what every style and every preset was measured at: none of the 1,410 presets of the first 141 styles is found at fault by them.
 const BLACK_MOST = 0.3
 const BLACK_LIGHT = 0.06
 const BURNT_SHARE = 0.12

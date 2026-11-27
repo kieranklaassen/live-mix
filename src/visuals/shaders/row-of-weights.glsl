@@ -3,18 +3,37 @@
 // b: Lamps on cords
 // what: A long white hall in side light: two dozen brass balls hang in a row from a beam, each on shorter threads than the last, and swing across the aisle as a snake, as files, a scatter and a line again, their shadows on the plaster; or a dark room at night where glass lamps on long and short cords draw the same wave over a wet floor.
 // follows: Drone, pads and the mix set how wide they swing, each band a few neighbours. A phrase lays a second wave across; the loop winds the row a little out of step and home. The piece tints each weight, pads lift the light, texture shivers the threads. A hit is a glint passed along, a cue draws all into line; keys glint, a voice lights window or door.
-// own: 0 moonlit blue, or a cold dawn outside, at -1, late red gold at 1; 1 plaster weights in a clay-red hall, or paper moons in a pale room, at -1, black weights in a slate hall, or clear bulbs in a green-black room, at 1; 2 a third as many and larger at -1, the grading turned round so the far ones are largest at 1; 3 flat discs, with long low windows or a low ceiling, at -1, tall drops with narrow windows or a high ceiling at 1; 4 seen from near the floor at -1, from high up at 1; 5 the whole row sways almost as one at -1, two files, or a hanging garland with both ends high, at 1
+// own: 0 moonlit blue, or a cold dawn outside, at -1, late red gold at 1; 1 plaster weights in a clay-red hall, or paper moons in a pale room, at -1, black weights in a slate hall, or clear bulbs in a green-black room, at 1; 2 a third as many and larger at -1, the grading turned round so the far ones are largest at 1; 3 flat discs, with long low windows or a low ceiling, at -1, tall drops with narrow windows or a high ceiling at 1; 4 seen from near the floor at -1, from high up at 1; 5 the whole row sways almost as one at -1, two files, or a hanging garland with both ends high, at 1; 6 a barn of boards with slits of light, or a glass house with shrubs outside, at -1, no walls but open country under a long beam, or a lake at night, at 1; 7 the eye stands by the windows and faces the shadowed wall, or the row hangs near across the picture, at -1, straight under the beam, or the row goes away down the room, at 1
 #define rwS smoothstep
 vec3 rwAng;        // where the first weight is in its swing, how much further each next one is, and the phrase's wave
 float rwDark, rwAu, rwWht, rwBlk, rwFew, rwBig, rwStep, rwRing, rwSy, rwHit, rwTrem, rwLoud, rwLine, rwPx;
 vec3 rwL, rwSun, rwSky;
 vec4 rwWin;        // a window: from, to along the wall, its sill and its head
-const float rwXL = -2.3, rwXR = 1.75, rwH = 3.5, rwZ = 17., rwB = 3.12, rwBay = 2.6;
+#define rwOut max(uOwn[6], 0.)
+#define rwSlat max(-uOwn[6], 0.)
+#define rwGrow exp2(6. * rwOut)
+#define rwXL (-2.3 * rwGrow)
+#define rwXR (1.75 * rwGrow)
+#define rwH (3.5 * rwGrow)
+#define rwZ (17. * rwGrow)
+#define rwRow mix(vec4(2.7, 6.5, 5.1, 3.4), uOwn[7] < 0. ? vec4(2.9, 6.2, 3.3, .9) : vec4(1.35, 2.2, 2.3, 8.2), abs(uOwn[7]))
+const float rwB = 3.12, rwBay = 2.6;
 
 vec2 rwE(float a) { return vec2(cos(a), sin(a)); }
 float rwIn(float x, float a, float b, float w) { return sat((x - a) / w + .5) * sat((b - x) / w + .5); }
 float rwGl(float k) { float d = k - rwHit; return uHits / (1. + d * d * d * d); }
 
+// The open country in a direction: a sky, and two ranges of hills under it.
+vec3 rwAir(vec3 rd, float night) {
+ float l = max(length(rd.xz), 1e-3), el = rd.y / l, e = 2. * rwPx;
+ vec2 dir = rd.xz / l;
+ vec3 low = mix(rwSky * .9 + rwSun * .22, rwSky * .8, night), c = mix(low, rwSky * mix(.5, .3, night), sat(1. - exp(-3. * max(el, 0.))));
+ c += rwSun * (1. - night) * .5 * pow(sat(dot(rd, rwL) * .5 + .5), 6.);
+ float h = .03 + .075 * noise(dir * 3.1 + 2.) + .02 * noise(dir * 14.), h2 = .005 + .045 * noise(dir * 6. + 9.);
+ c = mix(mix(low, rwSky * .4, .5), c, rwS(-e, e, el - h));
+ c = mix(mix(low, rwSky * .26, .7), c, rwS(-e, e, el - h2));
+ return mix(c, low, (1. - night) * exp(-90. * max(el, 0.))); // haze at their foot, and under the horizon
+}
 // The plain hall in a direction: what the sky gives there (c) and what the sun does (sun). soft blurs it.
 // id: 0 the windows, 1 the plaster wall, 2 the floor, 3 the ceiling, 4 the far wall, 5 behind us.
 void rwRoom(vec3 ro, vec3 rd, float soft, out vec3 q, out int id, out vec3 c, out float sun) {
@@ -32,11 +51,18 @@ void rwRoom(vec3 ro, vec3 rd, float soft, out vec3 q, out int id, out vec3 c, ou
  float dim = 1. / (1. + wp * 7.), by = abs(fract((u.y - rwWin.z) / .733 + .5) - .5) * .733;
  float a = rwIn(z, rwWin.x, rwWin.y, wp) * rwIn(u.y, rwWin.z, rwWin.w, wp);
  a *= (1. - dim * rwIn(z, 1.225, 1.275, wp)) * (1. - dim * sat((.018 - by) / wp + .5));
+ float shut = 1. - rwSlat;
+ if (rwSlat > 0.) {
+  float zs = fract(u.z / .42) * .42, ws = wp * .22 + soft * .4, hb = abs(fract(u.y / 1.1 + .2) - .5) * 1.1;
+  a = mix(a, rwIn(zs, .15, .25, ws) * rwIn(u.y, .06, 3.4, ws) * sat((hb - .05) / ws + .5) * (.6 + .4 * hash11(floor(u.z / .42))), rwSlat);
+  wall = mix(wall, wall * vec3(.62, .44, .3) * (.8 + .3 * hash11(floor((id == 1 ? q.z : u.z) / .42) + 3.)), rwSlat);
+ }
  sun = id == 1 || id == 2 ? a : 0.;
+ if (rwOut > 0.) sun = mix(sun, float(id == 2), rwOut);
  if (id == 0) { // the window wall, against the light
   float rev = rwIn(z, rwWin.x - .11, rwWin.y + .13, .03 + w) * rwIn(q.y, rwWin.z - .08, rwWin.w + .08, .03 + w);
-  c = mix(wall * (.36 + .04 * q.y + .42 * rev), vec3(1.75 + .35 * sat((q.y - rwWin.z) * .5)), a);
-  k += 9. * rev;
+  c = mix(wall * (.36 + .04 * q.y + .42 * rev * shut), vec3(1.75 + .35 * sat((q.y - rwWin.z) * .5)), a);
+  k += 9. * rev * shut;
  } else if (id == 1) c = wall * (.8 - .06 * abs(q.y - 1.75));
  else if (id == 2) c = vec3(.42);
  else if (id == 3) c = mix(wall, vec3(1.), .3) * (.62 + .03 * k.x) * (.7 + .3 * sat((abs(fract(q.z / rwBay + .02) - .5) * rwBay - .1) / w + .5));
@@ -47,6 +73,7 @@ void rwRoom(vec3 ro, vec3 rd, float soft, out vec3 q, out int id, out vec3 c, ou
   k += id == 5 ? 9. : 9. * b;
  }
  c *= rwSky * (1. - .28 / (1. + k.x * k.x * 12.)) * (1. - .28 / (1. + k.y * k.y * 12.)); // dusk in the corners
+ if (rwOut > 0.) c = mix(c, id == 2 ? rwSky * vec3(.36, .39, .43) : rwAir(rd, 0.), rwOut);
 }
 // Weight k of the hall: its middle and radius, and how much of it there is.
 vec4 rwBall(float k, out float wt) {
@@ -62,9 +89,9 @@ vec4 rwBall(float k, out float wt) {
 }
 
 vec3 rwDay(vec2 p) {
- float up = uOwn[4];
- vec3 ro = vec3(.85 + .05 * sin(TAU * uTime / 170.), 1.5 + .03 * sin(TAU * uTime / 130.) + (up > 0. ? 1.1 : .95) * up, 0.);
- vec2 vp = vec2(.2, .06 + .2 * up);
+ float up = uOwn[4], sd = uOwn[7];
+ vec3 ro = vec3(.85 + (sd < 0. ? 2.75 : -.85) * sd + .05 * sin(TAU * uTime / 170.), 1.5 + .03 * sin(TAU * uTime / 130.) + (up > 0. ? 1.1 : .95) * up, 0.);
+ vec2 vp = vec2(.2 + (sd < 0. ? .72 : -.2) * sd, .06 + .2 * up);
  const float F = 1.3;
  vec3 rd = normalize(vec3(p - vp, F));
  // only the weights this line of sight can meet
@@ -75,7 +102,7 @@ vec3 rwDay(vec2 p) {
   za = (ro.x - wide) / -dx;
   float s0 = sat(log(max(za, 1.75) / 1.75) * .456);
   zb = (ro.x + (.2 - .09 * s0 + rwLoud * (2.8 - 1.8 * s0)) * more + Rm + .4 * rwRing) / -dx;
- } else if (dx > 0.) zb = (wide - ro.x) / dx;
+ } else if (dx > 0.) { zb = (wide - ro.x) / dx; if (sd < 0.) za = max(za, (-wide - ro.x) / dx); }
  if (dy > 0.) zb = min(zb, (rwB - ro.y) / dy + .1);
  int k0 = int(max(log(max(za, 1.6) / 1.75) * 10.492 - .5, 0.)), k1 = zb < 1.6 ? -1 : int(min(log(zb / 1.75) * 10.492 + .5, 23.));
  // the weights and their pairs of threads, nearest first; the two nearest faces are kept for later
@@ -132,21 +159,27 @@ vec3 rwDay(vec2 p) {
   sh.y *= 1. - .8 * r2 / ((r2 + .03 * t * t) * (1. + e) * (1. + e));
   }
   float bx = q.x / .24, ib = floor(bx), aw = rwPx * q.z * 7., fade = 1. / (1. + .02 * q.z * q.z);
-  float gr = noise(onFloor ? vec2(q.x * 40., q.z * 1.3 + ib * 7.) : q.zy * vec2(2.3, 2.8));
+  float gr = noise(onFloor && rwOut > .5 ? q.xz * vec2(.7, 1.6) : onFloor ? vec2(q.x * 40., q.z * 1.3 + ib * 7.) : q.zy * vec2(2.3, 2.8));
   vec3 alb = vec3(.97, .95, .91) * (.93 + .07 * gr) * (1. - .3 * (1. - sat((q.y - .175) / (.012 + rwPx * 6.) + .5)));
   vec3 lit = mix(mix(vec3(1.7), vec3(1.5, .95, .7), rwWht), vec3(.5, .55, .56), rwBlk);
   if (onFloor) {
   alb = mix(vec3(.86, .75, .61), vec3(.3, .24, .2), rwBlk * .8) * (.88 + .12 * hash11(ib + 3.) + .08 * fade * gr);
   alb *= 1. - .5 * rwS(.48 - aw, .5, abs(fract(bx) - .5)) * fade;
   lit = vec3(1.6);
+ if (rwOut > 0.) {
+  vec3 land = mix(mix(vec3(.93, .9, .86), vec3(.72, .4, .26), rwWht), vec3(.5, .52, .55), rwBlk * .6);
+  float rip = sin(q.z * 9. + 3. * noise(q.xz * .6) + q.x * 1.2);
+  alb = mix(alb, land * (.9 + .12 * gr + .04 * rip / (1. + q.z * q.z * .02)), rwOut); lit = mix(lit, vec3(.85), rwOut);
+ }
   }
   c = alb * (c * sh.y + rwSun * sun * sh.x * lit);
   c += alb * (onFloor ? uKind[0] * uDrone : uKind[1] * uPad) * .09 * (1. - .6 * sun); // the tones lie faintly in the shade
   float e = 2. + (1. - uCue) * 9. - q.z;
   c += rwSun * uCue * .5 * sh.x / (1. + e * e * e * e);
-  if (onFloor) { float fr = 1. - sat(-rd.y); fr *= fr; gloss = (.05 + .5 * fr * fr) * sh.y; mo = q; mr = vec3(rd.x, -rd.y, rd.z); }
+  if (rwOut > 0.) c = id == 2 ? mix(c, rwSky * .8 + rwSun * .2, rwOut * (1. - exp(-.018 * length(q.xz - ro.xz)))) : mix(c, rwAir(rd, 0.), rwOut);
+ if (onFloor) { float fr = 1. - sat(-rd.y); fr *= fr; gloss = (.05 + .5 * fr * fr) * sh.y * (1. - rwOut); mo = q; mr = vec3(rd.x, -rd.y, rd.z); }
   }
-  bg = mix(c, rwSky * .85 * (1. - .6 * rwBlk), (.06 + .24 * uSpace) * q.z / (q.z + 12.));
+  bg = mix(c, rwSky * .85 * (1. - .6 * rwBlk), (.06 + .24 * uSpace) * (1. - .8 * rwOut) * q.z / (q.z + 12.));
   } else if (i == 1) bg += c * gloss;
   else { // a weight's face
   c += rwSun * sun * (onFloor ? .5 : .9) * (1. - .7 * rwBlk);
@@ -166,7 +199,13 @@ vec3 rwDay(vec2 p) {
  vec3 lo = vec3(-.09, rwB, 0.) - ro;
  float tu = lo.y / max(rd.y, 1e-4), ts = (lo.x + .18) / min(rd.x, -1e-4);
  vec3 wood = mix(vec3(.36, .24, .15), vec3(.1), rwBlk) * mix(rwSky, vec3(1.), .2) * (.5 + .3 * uLow);
- if (rd.z * ts < rwZ) bg = mix(bg, wood * 1.1, rwIn(rd.y * ts, lo.y, lo.y + .2, rwPx * ts * 1.6));
+ if (sd != 0.) ts = ro.x > -.09 - .18 * step(0., rd.x) && ro.x < .09 ? -1. : ro.x < -.09 ? lo.x / max(rd.x, 1e-4) : ts;
+ if (rwOut > 0.) for (int i = 0; i < 5; i++) { // the frames that carry it in the open
+  float z = 3.2 + 3.1 * float(i) * (1. + .12 * float(i)), w = rwPx * z * 1.2; vec2 f = ro.xy + vec2(dx, dy) * z;
+  float pa = max(rwIn(abs(abs(f.x) - 1.15 + .12 * (f.y - rwB)), -1., .05, w) * rwIn(f.y, 0., rwB, w), rwIn(f.y, rwB - .1, rwB, w) * rwIn(abs(f.x), -1., 1.3, w));
+  bg = mix(bg, wood * .9, pa * rwOut * (1. - rwS(0., 1., float(i) * .12)));
+ }
+ if (ts > 0. && rd.z * ts < rwZ) bg = mix(bg, wood * 1.1, rwIn(rd.y * ts, lo.y, lo.y + .2, rwPx * ts * 1.6));
  if (rd.z * tu < rwZ) bg = mix(bg, wood * .8, rwIn(rd.x * tu, lo.x, lo.x + .18, rwPx * tu * 1.6));
  return screenOf(acc + T * bg);
 }
@@ -182,7 +221,7 @@ vec3 rwBulb(vec2 g, vec3 I) {
  return mix(mix(milk, paper, rwWht), clear, rwBlk) + (.3 + 2. * uKeys) * (1. - rwWht) / (1. + dot(hl, hl) * 160.);
 }
 vec3 rwNight(vec2 p) {
- float up = uOwn[4], H = 4.3 + (uOwn[3] > 0. ? 1.6 : 1.) * uOwn[3];
+ float up = uOwn[4], sd = uOwn[7], H = 4.3 + (uOwn[3] > 0. ? 1.6 : 1.) * uOwn[3];
  vec3 ro = vec3(.1 * sin(TAU * uTime / 170.), 1.35 + .03 * sin(TAU * uTime / 130.) + (up > 0. ? 1.6 : .95) * up, 0.);
  vec2 vp = vec2(0., .03 + .2 * up);
  vec3 warm = mix(vec3(1., .5, .17), vec3(1., .66, .34), uTone);
@@ -208,7 +247,7 @@ vec3 rwNight(vec2 p) {
  for (int pass = 0; pass < 2; pass++) {
   if (share <= 0.) break;
   vec3 rd = normalize(vec3(p - vp, 1.)), ad = max(abs(rd), 1e-5), own = vec3(0.);
-  vec3 t3 = vec3(rd.x < 0. ? 5. + from.x : 5. - from.x, rd.y < 0. ? from.y : H - from.y, 12. - from.z) / ad;
+  vec3 t3 = vec3(rd.x < 0. ? 5. * rwGrow + from.x : 5. * rwGrow - from.x, rd.y < 0. ? from.y : H * rwGrow - from.y, 12. * rwGrow - from.z) / ad;
   float t = min(t3.x, min(t3.y, t3.z)), e = (t * rwPx + blur * .08) * 1.6;
   vec3 q = from + rd * t, n = vec3(0., 0., -1.), alb = wall;
   bool wet = false;
@@ -224,19 +263,35 @@ vec3 rwNight(vec2 p) {
   own = rwSky * (2.2 + 1.6 * uMic) * (1.1 - .15 * w.y) * a * mix(.2, 1., bars);
   alb *= 1. - a;
   }
-  float T = 1.;
-  vec3 acc = vec3(0.), halo = acc, l1 = acc, L1 = acc, h1 = acc;   // h1: the nearest globe, the place on it and how much of it
+  if (rwSlat > 0. && !wet) { // the glass house: panes all round, shrubs against them outside
+  vec2 g = t == t3.y ? q.xz : vec2(t == t3.x ? q.z : q.x, q.y), f = abs(fract(g / vec2(.86, 1.24)) - .5) * vec2(.86, 1.24);
+  float bars = sat((.43 - f.x - .02) / e + .5) * sat((.62 - f.y - .025) / e + .5), b2 = sat((abs(fract(g.x / 2.58 + .5) - .5) * 2.58 - .07) / e + .5);
+  float shrub = t == t3.y ? 1. : rwS(-.08 - e, .08 + e, q.y - .4 - 1.4 * noise(vec2(g.x * .7, 3.)) - .5 * noise(vec2(g.x * 2.6, q.y * 1.5)) - .22 * noise(g * 7.));
+  vec3 sky = rwSky * (2.2 + 1.2 * uMic) * mix(vec3(1.15, 1., .95), vec3(.5, .6, .75), sat(q.y / H)) * mix(.13, 1., shrub);
+  own = mix(own, sky * bars * b2, rwSlat); alb *= 1. - .9 * rwSlat * bars * b2;
+ }
+ if (rwOut > 0. && !wet) {
+  vec3 air = rwAir(rd, 1.); vec2 sp = rd.xy / max(rd.z, .1) * 46., si = floor(sp); float sh = hash21(si + 5.), el = rd.y / max(rd.z, .1);
+  vec2 sf = sp - si - .3 - .4 * hash22(si);
+  air += (.5 + rwDark) * step(.86, sh) * sat(el * 6. - .7) * (sh - .8) * 3. * exp(-dot(sf, sf) * 110.) * (pass == 0 ? 1. : .35);
+  vec2 md = rd.xy / max(rd.z, .1) - vec2(.56 + .1 * sd, .25); float mr = length(md);
+  air += vec3(1., .93, .8) * ((1. - rwS(.036 - rwPx - .012 * blur, .036 + rwPx + .012 * blur, mr)) * 1.2 * (1. - .4 * noise(md * 46.)) + .05 / (1. + mr * mr * 90.));
+  own = mix(own, air, rwOut); alb *= 1. - rwOut;
+ }
+ float T = 1.;
+ vec3 acc = vec3(0.), halo = acc, l1 = acc, L1 = acc, h1 = acc;   // h1: the nearest globe, the place on it and how much of it
   // some of the lamps light the room; then come those this column can meet, nearest first
-  float wide = amax * (1. + .4 * uPhrase) * 1.1 + .4 + .2 * (rwFew + rwBig), mid = 2.7 - 5.1 * p.x, den = 1. / max(6.5 + 3.4 * p.x, .5);
+  float wide = amax * (1. + .4 * uPhrase) * 1.1 + .4 + .2 * (rwFew + rwBig), mid = rwRow.x - rwRow.z * p.x, den = 1. / max(rwRow.y + rwRow.w * p.x, .5);
   int k0 = int(clamp((mid - wide) * den * 17., 0., 17.)), k1 = int(clamp((mid + wide) * den * 17. + 1., 0., 17.));
   int nl = pass == 0 ? 4 : 2;
+  if (sd > 0.) { k0 = 0; k1 = 17; }
   for (int i = 0; i <= nl + k1 - k0; i++) {
   bool lamp = i < nl;
   int kk = lamp ? (pass > 0 ? 9 * i + 4 : i == 0 ? 1 : i == 1 ? 7 : i == 2 ? 10 : 16) : k0 + i - nl, c = kk / 3;
   float k = float(kk), s = k / 17., wt = kk - 3 * c == 1 ? 1. : few, a = rwAng.x + k * rwAng.y;
-  vec3 tp = vec3(2.7 - 6.5 * s, H, 5.1 + 3.4 * s), I = Ic[c];
+  vec3 tp = vec3(rwRow.x - rwRow.y * s, H, rwRow.z + rwRow.w * s), I = Ic[c];
   vec2 e1 = rwE(a), sw = am[c] * (1. - .25 * s) * (mix(e1, (one + vec2(one.y, -one.x) * .1 * k) / sqrt(1. + .01 * k * k), rwStep) + vec2(0., .8 * uPhrase * e1.x * e1.y));
-  vec3 C = vec3(tp.x + sw.y * .9, mix(mix(.75, H - .8, s * (.4 + .6 * s)), H - .9 - (H - 1.6) * 4. * s * (1. - s), rwRing) + dot(sw, sw) * .1, tp.z + sw.x);
+  vec3 C = vec3(tp.x + mix(sw.y * .9, sw.x, max(sd, 0.)), mix(mix(.75, H - .8, s * (.4 + .6 * s)), H - .9 - (H - 1.6) * 4. * s * (1. - s), rwRing) + dot(sw, sw) * .1, tp.z + mix(sw.x, sw.y * .9, max(sd, 0.)));
   float r = mix(.19 - .03 * s, .09 + .21 * s, rwBig) * wt * (1. + .5 * rwFew);
   vec3 eye = vec3(ro.x, pass == 0 ? ro.y : -ro.y, 0.), o = C - eye;
   float iz = 1. / o.z, R = max(r * iz, 1e-4), aa = rwPx / R + .18 * blur;
@@ -262,13 +317,18 @@ vec3 rwNight(vec2 p) {
   float al = sat((max(wd, rwPx * .6) + rwPx * .5 - abs(dx)) / rwPx) * min(1., wd / (rwPx * .6)) * wt * step(0., h) * step(h, 1.) * float(!lamp);
   acc += T * al * (L * (.16 + .9 / (1. + h * h * v.y * v.y * 900.)) + .01); T *= 1. - al;
   }
-  acc += h1.z * rwBulb(h1.xy, L1);
+  if (rwOut > 0.) { // the beam over the water that carries them
+  float ey = pass == 0 ? ro.y : -ro.y; vec2 a0 = vec2(rwRow.x - ro.x, H - ey) / rwRow.z + vp, b0 = vec2(rwRow.x - rwRow.y - ro.x, H - ey) / (rwRow.z + rwRow.w) + vp, w = p - b0, ab = a0 - b0; a0 += .6 * ab; b0 -= .2 * ab; ab = a0 - b0; w = p - b0;
+  float h = sat(dot(w, ab) / dot(ab, ab)), wd = mix(.006, .014, h), al = rwOut * sat((wd - length(w - ab * h)) / rwPx + .5);
+  acc += T * al * (warm * .02 + rwSky * .12); T *= 1. - al;
+ }
+ acc += h1.z * rwBulb(h1.xy, L1);
   acc += T * (alb * (l1 * 2.6 + rwSky * (.35 - .1 * n.y)) + own) + halo * (.1 + .2 * uSpace);
   all += acc * share;
   float fr = 1. - sat(-rd.y); fr *= fr;
   share = wet && pass == 0 ? (.45 + .55 * fr) * mix(.75, 1., rwS(.25, .65, gr)) : 0.;
   // the water's slow ripple
-  p += (.0016 + .004 * gr) * sin(q.zx * vec2(9., 5.) + q.xz * vec2(4., 13.) + TAU * vec2(fract(uTime / 5.), fract(uTime / 7.)));
+  p += (.0016 + .004 * gr) / (1. + rwOut * .12 * t) * sin(q.zx * vec2(9., 5.) + q.xz * vec2(4., 13.) + TAU * vec2(fract(uTime / 5.), fract(uTime / 7.)));
   p.y = 2. * vp.y - p.y; from = q; blur = 1.;
  }
  return screenOf(all);
@@ -297,7 +357,7 @@ vec3 render(vec2 p) {
   rwWin = mix(vec4(.55, 1.95, .95, 3.15), o3 > 0. ? vec4(.95, 1.55, .25, 3.3) : vec4(.2, 2.4, 1.75, 2.75), abs(o3));
   rwSky = mix(mix(vec3(.92, .985, 1.07), vec3(1.05, .83, .66) * .75, rwAu), vec3(.1, .16, .3), rwDark) * bright;
   rwSun = mix(mix(mix(vec3(1., .93, .82), vec3(1., .83, .62), uTone), vec3(1.5, .66, .24), rwAu), vec3(.2, .3, .48), rwDark) * bright * (1. + .1 * sin(TAU * uTime / 50.));
-  rwL = normalize(vec3(-1., mix(.31, .2, rwAu), -.3 + .06 * sin(TAU * uTime / 240.)));
+  rwL = normalize(vec3(-1., mix(.31, .2, rwAu) + .4 * rwOut, -.3 + .06 * sin(TAU * uTime / 240.)));
   c = rwDay(p);
  }
  return c;

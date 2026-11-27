@@ -3,7 +3,9 @@
 // b: Gorse at dawn
 // what: A spider's wheel hung between dry stalks at first light, torn on one side, every thread strung with drops that each hold a small upside-down dawn, the sun's disc just behind its middle. Or a slope of gorse in mist, the sun low ahead, dozens of small white webs spread on the spines, and one wheel hanging dark against the sun.
 // follows: A drop swells and takes colour where the piece sounds: round the wheel is the loop, middle to edge is the room. On the slope the webs do. The drone sways the webs, the pad widens the haze, texture brings finer dew, the phrase runs a light along, bands draw threads bright. A hit plucks a spoke, or lights one place; a cue lifts the sun. Keys glint.
-// own: 0 white fog with grey light at -1, a moonlit blue night at 1; 1 a rose and violet dawn at -1, a green summer one at 1; 2 the whole wheel seen small, or the slope from farther off, at -1, very near at 1; 3 almost bare silk at -1, heavy wet drops and sagging webs at 1; 4 an unbroken wheel and webs on every bush at -1, a wheel in rags and only a few webs at 1; 5 the wheel turned far aside, or the sun at the right and the slope falling the other way, at -1, the wheel flat before us, or a level moor, at 1
+// own: 0 white fog with grey light at -1, a moonlit blue night at 1; 1 a rose and violet dawn at -1, a green summer one at 1; 2 the whole wheel seen small, or the slope from farther off, at -1, very near at 1; 3 almost bare silk at -1, heavy wet drops and sagging webs at 1; 4 an unbroken wheel and webs on every bush at -1, a wheel in rags and only a few webs at 1; 5 the wheel turned far aside, or the sun at the right and the slope falling the other way, at -1, the wheel flat before us, or a level moor, at 1; 6 a fence with a wheel in every gap, or wheels hung all across the sky, at -1, the trunks of a wood behind at 1; 7 glass beads in the sounds' colours ring by ring, or bushes in flower, at -1, hoar frost over all of it at 1
+#define dwRime max(uOwn[7], 0.)
+#define dwBead max(-uOwn[7], 0.)
 const float dwN = 25.;  // the spokes
 const float dwSp = .064; // from one turn of the spiral to the next
 float dwPx, dwFog, dwNight, dwRose, dwGreen, dwCue;
@@ -22,6 +24,7 @@ void dwSet() {
  dwCool = mix(mix(dwCool, vec3(.56, .585, .61), dwFog), vec3(.012, .020, .042), dwNight);
  dwEarth = mix(mix(dwEarth, vec3(.19, .20, .21), dwFog), vec3(.004, .007, .013), dwNight);
  dwSunC = mix(mix(dwSunC, vec3(1., .97, .92), dwFog), vec3(.55, .68, .85), dwNight);
+ if (uOwn[7] > 0.) dwEarth = mix(dwEarth, dwCool * .55 + dwHaze * .08, .75 * dwRime);
 }
 float dwHash(float n) { return hash11(mod(n, 977.) + .37); }
 // The light far behind, all out of focus: sky, slope, hedge, the sun's disc.
@@ -30,6 +33,11 @@ vec3 dwFar(vec2 p, vec2 S) {
  vec3 c = mix(dwCool * (.85 + .5 * p.y), dwHaze, exp(-d * d * 3.2));
  c += dwHaze * open * (1. - .6 * dwFog) * (.75 * exp(-d * 6.5) + (.12 + .08 * uPad) * exp(-d * 1.8));
  c += dwSunC * (1. - smoothstep(.056, .076, d)) * (1.5 + .9 * uCue) * (1. - .6 * dwFog);
+ if (uOwn[6] > 0.) for (int k = 2; k >= 0; k--) {
+  float fk = float(k), X = p.x * (2.6 + 1.5 * fk) + 4.3 * fk + .35 + .05 * p.y * (2. - fk), id = floor(X), h = dwHash(id + 40. * fk), w = .10 + .16 * h, so = .05 + .03 * fk;
+  float v = abs(X - id - .5 - 2. * (.49 - w - so) * (h - .5)), tr = (1. - smoothstep(w - so, w + so, v)) * step(.22, dwHash(id + 9. + 40. * fk)) * smoothstep(.03, .2 + .1 * fk, d) * uOwn[6];
+  c = mix(c, mix(dwEarth * .7, c, .16 + .2 * fk) + dwHaze * .3 * smoothstep(w * .4, w, v) * exp(-d * 2.2), tr);
+ }
  float x = p.x - S.x, left = (1. - smoothstep(-.42, -.17, x));
  float ridge = S.y - .05 + .15 * x + .02 * sin(p.x * 3.1 + 1.) + left * (.05 + .075 * noise(vec2(p.x * 8., 2.)) + .05 * noise(vec2(p.x * 19., 5.)));
  float g = (1. - smoothstep(-.03, .03, p.y - ridge)), down = max(S.y - .05 + .15 * x - p.y, .0);
@@ -70,6 +78,17 @@ vec3 dwOrb(vec2 p) {
  vec3 col = dwFar(p, S);
  // the plane of the web, leaning: near at the lower left
  vec2 q = (p - H) / zoom;
+ float bar = 9., cell = 1.;
+ vec2 bq = q;
+ if (uOwn[6] < 0.) {
+  cell = .80 / max(-uOwn[6], .05);
+  vec2 id = floor(q / cell + vec2(.5)), h = hash22(id + 11.);
+  q -= id * cell;
+  bar = .5 * cell - max(abs(q.x), abs(q.y)); bq = q;
+  cell = min(cell * .46, 1.);
+  q = rot(.7 * (h.x - .5)) * q / cell; zoom *= cell;
+  if (h.y > .5) q.x = -q.x;
+ }
  q += (.004 + .016 * uDrone) * vec2(sin(t * .23 + q.y * 2.), .7 * sin(t * .31 + q.x * 2.4)) * exp(-dot(q, q));
  vec2 lean = mix(mix(vec2(-.24, -.20), vec2(.0), sat(uOwn[5])), vec2(-1.15, .10), sat(-uOwn[5]));
  float mag = clamp(1. + dot(q, lean), .35, 1.9);
@@ -123,13 +142,14 @@ vec3 dwOrb(vec2 p) {
  float lit = glow * smoothstep(-.5, .7, dot(tn, vec2(-.6, .8))) * (1. - dwFog); // threads flare below the sun and to its right
  vec3 silk = mix(mix(dwCool * 1.3 + dwHaze * .3, dwEarth * 1.5, smoothstep(.055, .11, dot(col, vec3(.33)))), dwEarth * .25, dwFog); // pale on the dark, dark on the light
  float we = max(.0010 * (1. + .4 * max(water, .0)), .65 * px) + coc * .6, thin = sat(.0022 / we + .15);
+ if (uOwn[7] > 0.) { float fur = noise(w * 80.); we *= 1. + dwRime * (.3 + 1.8 * fur); thin = mix(thin, 1., .8 * dwRime); silk = mix(silk, (dwCool * 1.2 + dwHaze * .35 + .10) * (.35 + .9 * fur * noise(w * 31. + 5.) + .3 * glow), dwRime); }
  // the stalks the web is hung on
  for (int k = 0; k < 2; k++) {
   float sg = k == 0 ? -1. : 1., sy = q.y;
   float sx = q.x - (k == 0 ? -1.36 + .10 * sy + .05 * sin(sy * 2.3) : 1.02 - .16 * sy + .04 * sin(sy * 2. + 1.));
   float ny = (fract(sy * 1.1 + .3 * float(k)) - .5) * 16., node = exp(-ny * ny);
   float sw = .017 + .005 * node - .004 * sy, so = .012;
-  float cs = 1. - smoothstep(sw - so, sw + so, abs(sx));
+  float cs = (1. - smoothstep(sw - so, sw + so, abs(sx))) * (1. - sat(-4. * uOwn[6]));
   float rim = smoothstep(.1, .9, -sg * sx / sw) * cs;
   col = mix(col, dwEarth * (.5 + .7 * noise(vec2(sx * 90., sy * 7.))) + dwHaze * rim * .30 * (.5 + glow), cs);
  }
@@ -188,6 +208,7 @@ vec3 dwOrb(vec2 p) {
    float h = hash21(vec2(m, kk + 2.)), h2 = fract(h * 37.3), fcn = (kk + .5 + .25 * (h2 - .5)) / cnt;
    float big = .0098 + .0065 * h * h + (h2 > .88 ? .004 : .0);
    if (rimT) big *= .85;
+   big *= 1. + .25 * dwBead - .2 * dwRime;
    big *= water < .0 ? 1. + .85 * water : 1. + water * (1.3 * h2 - .1);
    big *= 1. + .5 * loud + .35 * wave + .06 * uLow;
    float bx = (lf - fcn) * len;
@@ -195,14 +216,27 @@ vec3 dwOrb(vec2 p) {
    float sl = rimT ? .0 : -md.y * sag * (u + 2. * fcn - 1.) / max(x0 * th1, 1e-3) - dt;
    vec2 qq = J * (tt * bx + nn * (dy - sl * bx));
    float dq = length(qq), rr = max(big, .7 * px) + coc;
+   if (uOwn[7] > 0.) dq *= 1. + .5 * dwRime * (.5 + .5 * cos(6. * atan(qq.y, qq.x + 1e-6) + h * 9.)) * noise(vec2(h * 90., 3.));
    if (dq > rr + px) continue;
    float soft = coc * .8 + px * .5, dens = big * big / (rr * rr);
    float cv = (1. - smoothstep(rr - soft, rr + px * .5, dq)) * whole;
    vec3 dc = dwDrop(qq / rr, to, dye, loud);
+   if (uOwn[7] != 0.) {
+    vec2 bv = qq / rr; float b2 = min(dot(bv, bv), 1.);
+    vec3 hue = kindColour(rimT ? 1. : mod(n, 5.)); hue *= hue;
+    vec3 gls = hue * (.16 + .7 * b2 * (1. - b2) + exp(-2.6 * dot(bv + tn * .45, bv + tn * .45)) * (.5 + 1.4 * glow + 1.2 * loud)) * (1. - .5 * smoothstep(.8, 1., b2)) * (dwHaze + dwCool + .5) + (dwCool + .3) * exp(-40. * dot(bv - vec2(-.3, .4), bv - vec2(-.3, .4)));
+    vec3 ice = (dwCool * 1.2 + dwHaze * .4 + .14) * (.65 + .45 * noise(qq * 900.)) * (.75 + .35 * bv.y) + dwSunC * glow * .6 + dye * loud * .35;
+    dc = mix(dc, uOwn[7] < 0. ? gls : ice, min(1.3 * abs(uOwn[7]), 1.));
+   }
    float gl = smoothstep(.90, 1., h2) * uKeys * (.5 + .5 * sin(t * .7 + h * 60.));
    dc += mix(dwSunC, uKind[3], .4) * (run * 1.6 + gl * 2.) + mix(dwSunC, uKind[4], .5) * wave * 1.6;
    col = mix(col, dc + dwSunC * .5 * (1. - dens) * glow * (1. - dwFog), cv * mix(.4, 1., dens));
   }
+ }
+ if (uOwn[6] < 0.) {
+  float hb = .02, e = dwPx / .8, side = bar == .5 * cell ? 1. : bq.x * bq.x > bq.y * bq.y ? sign(bq.x) : sign(bq.y), u = bar / hb;
+  vec3 wood = (dwEarth * 1.4 + dwCool * .14) * (.6 + .7 * noise(bq * vec2(70., 70.))) + (dwHaze * .55 * glow + dwCool * .5) * smoothstep(.45, 1., u) * (side > 0. ? 1. : .35);
+  col = mix(col, mix(wood, dwCool * 1.2 + dwHaze * .4 + .2, dwRime * smoothstep(.3, .9, noise(bq * 60.) + .3)), 1. - smoothstep(hb - e, hb + e, bar));
  }
  // the drop a hit lets fall
  float fa = age * age, fs = uHits * smoothstep(.02, .1, age);
@@ -314,6 +348,14 @@ vec3 dwGorse(vec2 p) {
  float x1 = o.x + .215 - .06 * o.y + .02 * sin(o.y * 9.), x2 = o.x - .225 - .10 * o.y + .015 * sin(o.y * 7. + 2.);
  float stem = max((1. - smoothstep(-dwPx, dwPx, abs(x1) - .009 * (.29 - o.y))), (1. - smoothstep(-dwPx, dwPx, abs(x2) - .009 * (.23 - o.y))));
  float dark = max(stem, dwWheel(rot(.1) * o, .14, dwPx) * .8 * step(x2, .0) * step(.0, x1));
+ if (uOwn[6] < 0.) for (int k = 0; k < 7; k++) {
+  float fk = float(k), h = hash11(fk + 3.), R = (.07 + .07 * h) * min(-1.4 * uOwn[6], 1.);
+  vec2 c = vec2(-.80 + .27 * fk + .10 * (h - .5), .20 + .20 * fract(fk * .382 + .15)) + .004 * (uDrone + .3) * sin(t * vec2(.27, .21) + fk);
+  c.x += length(c - S) < .27 ? (c.x > S.x ? .16 : -.16) : 0.;
+  vec2 q = rot(1.3 * (h - .5)) * (p - c);
+  float a = p.x - c.x - R * 1.3 - .05 * sin(p.y * 5. + fk), b = p.x - c.x + R * 1.35 - .04 * sin(p.y * 6. + 2. * fk);
+  dark = max(dark, max(dwWheel(q, R, dwPx) * .85 * step(a, 0.) * step(0., b), 1. - smoothstep(-dwPx, dwPx, min(abs(a), abs(b)) - .007 * (c.y + R * 1.5 - p.y))));
+ }
  float hx = p.x - .5 * sin(TAU * uLoop);
  vec3 struck = mix(dwSunC, uKind[4], .6) * exp(-hx * hx * 14.) * uHits; // a hit lights what stands where the loop is
  vec3 col = vec3(.0);
@@ -354,10 +396,26 @@ vec3 dwGorse(vec2 p) {
     float rim = exp(-e * 34.) * .35 + tex * clump * (exp(-e * 5.) * .8 + .04);
     rim *= 1. + (water > .0 ? 1.5 : .6) * water; // wet needles shine
     vec3 c = dwEarth * (.35 + 2.2 * tex * clump) * mix(vec3(.55, 1.1, 1.1), vec3(1.), dwFog) + (struck * .5 + dwHaze * 1.2 * exp(-sd * 1.4) + dwCool * .55) * rim;
+    if (uOwn[7] > 0.) c = mix(c, (dwCool * 1.5 + dwHaze * (.25 + exp(-sd * 1.4)) + .16) * (.75 + .5 * tex) + struck * .4, dwRime * sat(exp(-e * 13.) * 1.1 + .8 * tex * clump));
+    if (uOwn[7] < 0.) {
+     vec2 fq = rot(.5 + fk) * vec2(X, Y) * 34., id = floor(fq); fq -= id;
+     vec2 fh = hash22(id + fk * 17.);
+     vec2 fc = fq - .28 - .44 * fh;
+     float fl = length(fc) * (1.1 + .12 * cos(5. * atan(fc.y, fc.x + 1e-5) + 9. * fh.y)), thick = smoothstep(.25, .6, noise(id * .19 + fk * 5.)) * exp(-e * 3.5);
+     fl = k < 4 ? (1. - smoothstep(.10 + .12 * fh.y, .16 + .13 * fh.y + px * 30., fl)) * smoothstep(-.05, .05, thick * 1.1 - 1. + fract(fh.x * 7.7)) * (1.1 - fl) : .8 * thick;
+     vec3 hue = mix(uKind[3], uKind[1], step(.6, fh.y)); hue *= hue;
+     c = mix(c, hue * (dwCool * 1.8 + dwHaze * (.5 + 1.6 * exp(-sd * 1.4)) + .10 + .8 * struck) * (.8 + .5 * uLevel), sat(1.4 * dwBead) * fl);
+    }
     c = mix(c, air, sat(fog + .75 * smoothstep(.03, .4, e) * sat(z * .45 - .45)));
     col += T * cov * c;
     T *= 1. - cov;
    }
+  }
+  if (uOwn[6] > 0. && k > 1) {  // trunks
+   float u = X * .85 + fk * 2.7, id = floor(u), h = dwHash(id + 31. * fk), w = (.05 + .075 * h) * (1. + .25 * exp(-max(Y - .1, 0.) * 5.)), v = u - id - .5 - .5 * (h - .5) - .02 * sin(Y * 1.7 + 9. * h);
+   float cov = (1. - smoothstep(w - px, w + px, abs(v))) * step(.3, dwHash(id + 7. + 31. * fk)) * sat(3. * uOwn[6]);
+   vec3 bark = mix(dwEarth * (.5 + .6 * noise(vec2(v * 60., Y * 5.))) + dwHaze * .5 * smoothstep(.3, 1., v / w * sign(S.x - p.x)) * exp(-sd * 1.5) + dwCool * .12 * (1. + 4. * dwRime), air, sat(.05 + fog * .85));
+   col += T * cov * bark; T *= 1. - cov;
   }
   if (T < .01) break;
  }

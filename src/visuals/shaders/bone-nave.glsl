@@ -3,9 +3,14 @@
 // b: Daylit hall
 // what: Inside a whale's bones on the dark sea floor: ribs like the arches of a nave, the near ones cut by the frame, a stump and a gap among them, a lamp outside laying their shadows on pale silt, the long skull dim past the end; or the same bones hung in a hall with a glass roof, their shadows on a sunlit wall, a visitor below.
 // follows: Each rib pair is a band of sound and glows up from its tips; the piece tints the silt or the wall. Drone lights the far end, pad thickens the haze, texture is flakes or dust, the phrase a slow eel of light, or a sway of the bones. A hit puffs up silt, or lights one pair; a cue brings a second lamp, or walks the shadows. Keys light anemones, or lamps.
-// own: 0 black water and an amber lamp at -1, sunlit shallows at 1; in the hall night at -1, golden evening at 1; 1 few ribs far apart at -1, a full close row at 1; 2 narrow pointed arches at -1, low wide ones at 1; 3 the eye near the floor at -1, high at 1; 4 old dark bone at -1, bone grown over at 1; 5 a straight row at -1, a hard bend at 1; in the hall bent and seen from either side
+// own: 0 black water and an amber lamp at -1, sunlit shallows at 1; in the hall night at -1, golden evening at 1; 1 few ribs far apart at -1, a full close row at 1; 2 narrow pointed arches at -1, low wide ones at 1; 3 the eye near the floor at -1, high at 1; 4 old dark bone at -1, bone grown over at 1; 5 a straight row at -1, a hard bend at 1; in the hall bent and seen from either side; 6 a still mirror of water for a floor at -1, open sky and dry sand at 1 (b: the walls dyed as pad and texture, the roof gone at 1); 7 thin as needles at -1, ribs toppled and lost at 1
 // A block skipped whole where it is not needed.
 #define bnWhen(c) for (int bnOnce = 0; bnOnce < 1 && (c); bnOnce++)
+#define BN_DRY max(uOwn[6], 0.)
+#define BN_WET max(-uOwn[6], 0.)
+#define BN_TOP max(uOwn[7], 0.)
+#define BN_THIN max(-uOwn[7], 0.)
+bool bnWet; // seen in the water of the floor
 bool bnH; // the hall, not the sea floor
 float bnGain, bnPeak, bnPx; // answer, pointedness, a pixel at distance 1
 float bnDrone, bnPad, bnTex, bnPhr; // four kinds of sound, with that
@@ -28,7 +33,7 @@ void bnSet() {
   bnForm = 1. / ((bnH ? 1.9 : 1.3) * (1. + (bnH ? .3 : .33) * uOwn[2]));
   float s = bnPeak / (1. / bnForm + bnPeak);
   bnLift = 1. / sqrt(1. - s * s);
-  bnThin = (bnH ? .07 : .066) * (1. + .25 * max(uOwn[1], 0.));
+  bnThin = (bnH ? .07 : .066) * (1. + .25 * max(uOwn[1], 0.)) * (1. - .62 * BN_THIN);
   bnMend = 1. - sat(uOwn[1] * 1.5);
 }
 // Takes rib pair f in hand.
@@ -42,8 +47,13 @@ void bnTake(float f) {
   bnB.x *= sat((.9 + .55 * min(uOwn[1], 0.) - .8 * fract(f * .618 + .36)) * 10.);
   float up = bnH ? 1.33 * body : .46 * x.y, down = bnH ? 2.47 * body : .76 * x.y;
   bnC = vec4(up, up * bnLift, down, bnH ? x.y - up - down * (.74 + .2 * h.y) * min(1., .5 + .13 * f) : -.2);
+  if (uOwn[7] > 0.) {
+    bnA.y += BN_TOP * .7 * h.z;
+    bnB.yzw += BN_TOP * vec3(1.1 * h.x, (bnH ? .4 : .9) * h.w, (bnH ? .6 : 1.3) * h.y);
+  }
   // one rib is a stump, one is gone
   bnLost = bnMend * (f == (bnH ? 4. : 2.) ? -2.2 : f == 5. ? 9. : 0.);
+  if (uOwn[7] > 0.) bnLost += BN_TOP * (h.y > .24 ? 2.2 : h.w > .16 ? -1.8 : 0.);
 }
 // In the rib's plane: how far q is from its curve, which way is out, u how far down.
 float bnCurve(vec2 q, out vec2 n, out float u) {
@@ -84,7 +94,7 @@ float bnShadow(vec3 o, vec3 v, float soft, int first, int last) {
 float bnSpine(vec3 q) {
   float k = floor((q.z - bnZ0) / bnStep + .5);
   vec3 ax = bnAxis(q.z);
-  float sc = bnH ? .35 + .35 * ax.z : .5 + .4 * ax.z, hz = bnStep * .5;
+  float sc = (bnH ? .35 + .35 * ax.z : .5 + .4 * ax.z) * (1. - .45 * BN_THIN), hz = bnStep * .5;
   vec3 v = vec3(q.x - ax.x, q.y - ax.y, q.z - bnZ0 - k * bnStep), a = abs(v);
   float e = v.z / hz;
   bnNext = hz - v.z;
@@ -121,18 +131,46 @@ float bnBar(float x, float period, float w, float fw) {
 }
 vec4 bnPiece(vec2 at) { return piece(at) * smoothstep(0., .15, min(min(at.x, 1. - at.x), min(at.y, 1. - at.y))); }
 
+// A visitor and a bench.
+float bnMan(vec2 v) {
+  vec2 d = v - vec2(2.7, 0.), b = vec2(abs(v.x - 3.7), v.y - .3);
+  float man = min(length(d - vec2(0., .93)) - .075, max(abs(d.x) - .11 - .06 * (.8 - d.y), max(d.y - .83, .36 - d.y)));
+  man = min(man, max(abs(abs(d.x) - .06) - .035, abs(d.y - .2) - .2));
+  return min(man, min(max(b.x - .55, abs(b.y) - .04), max(abs(b.x - .4) - .04, abs(b.y + .15) - .15)));
+}
+
 // ---- the sea floor ----
 vec3 bnLamp, bnLamp2, bnAim, bnHaze;
 float bnBeam, bnFog;
+vec3 bnSunD() { return normalize(vec3(-.64, .42 + .12 * uOwn[0], -.44 + .08 * sin(uTime * .02))); }
+vec3 bnSunC() {
+  float dn = max(-uOwn[0], 0.), up = max(uOwn[0], 0.);
+  return mix(mix(vec3(1.5, 1.1, .74), vec3(1.7, 1.6, 1.4), up), vec3(.13, .17, .27), dn) * (.85 + .3 * uLevel * bnGain + .4 * uMic);
+}
+// The open sky over dry ground, with hills.
+vec3 bnSky(vec3 rd) {
+  float dn = max(-uOwn[0], 0.), up = max(uOwn[0], 0.), y = rd.y / max(length(rd.xz), .1), x = rd.x / max(rd.z, .1);
+  vec3 c = mix(mix(vec3(.92, .80, .64), uKind[1], .55), mix(vec3(.20, .34, .50), uKind[0], .55), smoothstep(-.02, .75, y)) * (1. + .35 * up) * (1. - .93 * dn);
+  c += (mix(vec3(1., .8, .5), uKind[1], .3) * (.14 + .75 * bnDrone) * (1. - .75 * dn)) * exp(-x * x * 2.5 - y * y * 18.);
+  c += dn * vec3(.5) * smoothstep(.97, 1., hash21(floor(vec2(x, y) * 90.))) * exp(-30. * dot(fract(vec2(x, y) * 90.) - .5, fract(vec2(x, y) * 90.) - .5)) * smoothstep(.1, .4, y);
+  float far = .10 * noise(vec2(x * 1.6 + 7., 2.)) + .03 * noise(vec2(x * 6., 5.)) - .01, near = .06 * noise(vec2(x * 2.2 + 3., 9.)) - .015;
+  vec3 sand = mix(vec3(.75, .62, .46), uKind[2], .55) * (bnSunC() * .45 + .1 * (1. - dn));
+  c = mix(c, mix(c, sand, .45), bnIn(y - far, .004));
+  return mix(c, mix(c, sand, .8), bnIn(y - near, .003));
+}
 vec3 bnLit(vec3 q, vec3 N, float wrap) {
   vec3 v = bnLamp - q; float d2 = dot(v, v), d = max(sqrt(d2), 1e-3);
-  return bnMilk * bnBeam * smoothstep(mix(.45, .68, uTone), .99, -dot(v, bnAim) / d) * sat((dot(N, v) / d + wrap) / (1. + wrap)) * exp(-.16 * d) / (.5 + .2 * d2);
+  vec3 was = bnMilk * bnBeam * smoothstep(mix(.45, .68, uTone), .99, -dot(v, bnAim) / d) * sat((dot(N, v) / d + wrap) / (1. + wrap)) * exp(-.16 * d) / (.5 + .2 * d2);
+  if (uOwn[6] > 0.) was = mix(was, bnSunC() * sat((dot(N, bnSunD()) + wrap) / (1. + wrap)), BN_DRY);
+  return was;
 }
 vec3 bnWater(vec3 rd) {
   vec3 ax = bnAxis(10.5), d = vec3(ax.x, 1., 10.5) - bnRo;
   vec2 o = rd.xy / max(rd.z, .1) - d.xy / d.z, b = (rd.xy - vec2(-.52, .16)) * vec2(1., 1.3);
-  bnHaze = bnMilk * bnBeam * (.005 + .013 * bnPad) * exp(-dot(b, b) * 4.5);
-  return bnHaze + bnDeep * (.5 + .5 * smoothstep(-.5, .6, rd.y)) + mix(vec3(.02, .15, .16), uKind[0] * .25, .3) * exp(-dot(o, o) * 8.) * (.22 + 1.2 * bnDrone);
+  bnHaze = bnMilk * bnBeam * (.005 + .013 * bnPad) * exp(-dot(b, b) * 4.5) * (1. - BN_DRY);
+  vec3 was = bnHaze + bnDeep * (.5 + .5 * smoothstep(-.5, .6, rd.y)) + mix(vec3(.02, .15, .16), uKind[0] * .25, .3) * exp(-dot(o, o) * 8.) * (.22 + 1.2 * bnDrone);
+  if (uOwn[6] > 0.) was = mix(was, bnSky(rd), BN_DRY);
+  return was;
 }
 vec3 render(vec2 p) {
   bnH = uVar > .5;
@@ -162,15 +200,26 @@ vec3 render(vec2 p) {
   bnAim = normalize(vec3(.5, .35, 3.3) - bnLamp);
   bnLamp2 = vec3(2.5 - .3 * cq, 1.7, 1. + 6. * cq * (1.6 - .6 * cq));
   bnMilk = mix(vec3(.56, 1., .70), vec3(1., .66, .34), dn0);
-  bnDeep = mix(mix(vec3(.002, .013, .02), vec3(.001, .002, .005), dn0), vec3(.07, .30, .30), up0);
+  bnDeep = mix(mix(vec3(.002, .013, .02), vec3(.001, .002, .005), dn0), vec3(.07, .30, .30), up0) * (1. - BN_DRY);
   bnBeam = (4.2 + .8 * uLevel * bnGain + 1.4 * uMic + .7 * uLow * bnGain) * (1. - .45 * up0);
-  bnFog = mix(.15, .09, uSpace) * (1. - .3 * up0);
+  bnFog = mix(.15, .09, uSpace) * (1. - .3 * up0) * (1. - .75 * BN_DRY * (1. - .5 * bnPad));
 
   // the first rib met, and one behind its edge
   int h1 = -1;
-  vec3 hT, hB; vec4 hIt = vec4(0.); // off its middle line, thickness, how far down, which side
+  vec3 hT, hB, ro0 = bnRo, rd0 = rd; vec4 hIt = vec4(0.); // off its middle line, thickness, how far down, which side
   hT = hB = vec3(0., 1., 0.);
   float c1 = 0., c2 = 0., t1 = 1e3, inv = 1. / max(rd.z, 1e-3), low = bnH ? .9 : -.1;
+  float cs = 0., ts = 1e3;
+  for (int pass = 0; pass < (uOwn[6] < 0. ? 2 : 1); pass++) {
+  if (pass > 0) {
+    if (c1 > .01 || cs > .02 || rd.y > -1e-3) break;
+    // a wall stands before the water
+    if (bnH && min((rd.x > 0. ? 5.2 - bnRo.x : 6.5 + bnRo.x) / max(abs(rd.x), 1e-4), (24. - bnRo.z) * inv) < -bnRo.y / rd.y) break;
+    ro0 = bnRo; rd0 = rd;
+    vec2 w = bnRo.xz - rd.xz * bnRo.y / rd.y;
+    bnWet = true; bnRo.y = -bnRo.y;
+    rd.y = max(-rd.y + (.035 + .03 * bnPhr + .03 * uLow * bnGain) * (bnH ? .5 : 1.) * BN_WET * (noise(w * vec2(2.5, 6.) + vec2(.1, .16) * uTime) + noise(w * vec2(7., 13.) - vec2(.1, .2) * uTime) - 1.) * smoothstep(0., .25, -rd.y), 2e-3);
+  }
   for (int i = 0; i < 16; i++) {
     bnTake(float(i));
     float s, u, t = bnPlane(bnRo, rd, inv, s), l = -bnB.y;
@@ -187,7 +236,6 @@ vec3 render(vec2 p) {
     if (c1 > .98) break;
   }
   // the spine
-  float ts = 1e3, cs = 0.;
   bnWhen(rd.y > 0. || bnRo.y > 1.2) {
     float lo = bnH ? 3.4 : 1.5, w = bnH ? .75 : .6, t = .15, best = 1e3;
     vec2 iv = vec2(abs(rd.x) < 1e-3 ? 1e3 : 1. / rd.x, abs(rd.y) < 1e-3 ? 1e3 : 1. / rd.y);
@@ -202,6 +250,7 @@ vec3 render(vec2 p) {
       t += max(d > .45 ? d - .2 : min(d, bnNext + .03), .01);
     }
     cs = 1. - smoothstep(.5, 1.6, best);
+  }
   }
   bool back = cs > .02;
   if (back) c2 = c1;
@@ -218,7 +267,7 @@ vec3 render(vec2 p) {
     float at = u * 5. + (fi + hIt.w) * .37, id = floor(at) + fi * 3.1;
     vec2 a = vec2((fract(at) - .5) * .5, (h - .6 * sin(id * 5.)) * hIt.y);
     float k = length(a) / (bnH || sin(id * 9.) < 0. ? 1e-4 : .045 + .02 * sin(id * 7.)), x = k > 1e-3 ? atan(a.x, a.y) : 0.;
-    keys = (1. - smoothstep(.6, 1., k)) * mix(1., .5 + .5 * cos(x * 17. + 2. * sin(x * 2. + uTime * .4) * k), smoothstep(.3, .9, k));
+    keys = (1. - .8 * BN_DRY) * (1. - smoothstep(.6, 1., k)) * mix(1., .5 + .5 * cos(x * 17. + 2. * sin(x * 2. + uTime * .4) * k), smoothstep(.3, .9, k));
     alb = mix(alb * mix(.5, 1., smoothstep(.6, 1.6, k)), mix(vec3(.8, .52, .42), vec3(1.2, 1.15, 1.05), smoothstep(0., .4, k)), keys);
   }
   bnWhen(back) {
@@ -239,7 +288,7 @@ vec3 render(vec2 p) {
   vec3 own = mix(kindColour(fi * .2667), vec3(.8, .95, .85), .2) * glow * (.15 + 1. - smoothstep(.1, 1.1, u + .7 - glow));
 
   bnWhen(!bnH) {
-    vec3 water = bnWater(rd), bg, skyL = vec3(.25, .6, .6) * up0, mat = bnHaze;
+    vec3 water = bnWater(rd), bg, skyL = vec3(.25, .6, .6) * up0 * (1. - BN_DRY), mat = bnHaze;
     bnWhen(!bone && tf < 40.) {
       // the silt, and the piece lying down the nave
       float foot = tf * bnPx / max(-rd.y, .03), near = 1. / (1. + foot * foot * 500.);
@@ -248,28 +297,36 @@ vec3 render(vec2 p) {
       N = normalize(vec3(.5 - mid, 1.6, .35 * rip * near + .5 * (big - .5)));
       alb = mix(vec3(.36, .35, .29), vec3(.68, .66, .57), big * .5 + .5 * mid) * (.75 + .5 * noise(rot(.6) * g * 41.) * near);
       alb = mix(alb, vec3(.85, .8, .66), up0 * .6);
+      if (uOwn[6] > 0.) alb = mix(alb, mix(vec3(.75, .62, .46), uKind[2], .55) * (.85 + .3 * mid + .25 * rip * near), BN_DRY);
+      if (uOwn[6] < 0.) alb *= 1. - .8 * BN_WET;
       vec4 m = bnPiece(vec2((q.z - 1.2) / 10., .5 - .3 * (q.x - bnAxis(q.z).x)));
       alb *= mix(vec3(1.2), m.rgb / max(m.a, .02) * 1.5, sat(m.a * bnGain) * .7);
       mat += m.rgb * bnGain * .4 * (.2 + smoothstep(.35, .8, mid));
     }
     float sh = 1., sh2 = 1.;
     int last = bone ? h1 : int((q.z - bnZ0) / bnStep + 1.5);
-    bnWhen((bone && !back) || (!bone && tf < 40.)) sh = bnShadow(q, bnLamp - q, .03, bone ? last - 3 : 0, min(last, 8));
+    bnWhen((bone && !back) || (!bone && tf < 40.)) sh = bnShadow(q, mix(bnLamp - q, bnSunD() * 8., BN_DRY), .03, bone ? last - 3 : (uOwn[6] > 0.5 ? last - 5 : 0), uOwn[6] > 0.5 ? last + 1 : min(last, 8));
     bnWhen(!bone && tf < 20. && uCue > .01) sh2 = bnShadow(q, bnLamp2 - q, .03, 0, 8);
     vec3 v = bnLamp2 - q; float d2 = dot(v, v) + 1e-4;
     vec3 li = bnLit(q, N, .08) * sh + vec3(3.6, 3., 2.1) * uCue * sh2 * sat(dot(N, v) / sqrt(d2) * .8 + .2) / (.5 + d2) + bnDeep * (.8 + .6 * N.y) + skyL * (.3 + .7 * sat(N.y));
+    if (uOwn[6] > 0.) li += BN_DRY * mix(vec3(.30, .32, .36), uKind[0], .4) * (.55 + .45 * N.y) * (1. - .88 * dn0) * (1. + .5 * up0);
     li += mix(vec3(1., .8, .6), uKind[4], .3) * uKeys * bnGain * 1.5 * keys;
     if (bone) li += own * (.1 + 1.2 * rim * rim) * (back ? .5 : 1.);
-    vec3 w = vec3(.2, .4 - .25 * uHits, 2.1) - bnRo;
+    vec3 w = vec3(.2, .4 - .25 * uHits, 2.1 + 2.2 * dn3) - bnRo;
     vec2 o = (rd.xy * inv - w.xy / w.z) * w.z;
     float R = .42 + .5 * (1. - uHits), r = length(o * vec2(.75, 1.2)) / R, kf = exp(-tf * bnFog) * smoothstep(0., .004, -rd.y);
     vec3 here = mix(water, alb * li + (bone ? vec3(0.) : mat), bone ? exp(-tb * bnFog) : kf);
     bg = bone ? mix(water, .6 * (bnLit(bnRo + rd * min(tf, 60.), vec3(0., 1., 0.), .08) + bnDeep + skyL), kf) : here;
-    bg = mix(bg, water * .25 + bnMilk * (.035 + .06 * bnDrone) * skin * (.6 + sk.y * 2.5), .9 * bnIn(skull - .004, .008));
+    bg = mix(bg, mix(water * .25, mix(vec3(.75, .62, .46), uKind[2], .55) * .25 * (1. - .9 * dn0), BN_DRY) + bnMilk * (.035 + .06 * bnDrone) * skin * (.6 + sk.y * 2.5), .9 * bnIn(skull - .004, .008));
     bg = mix(bg, vec3(.5, .46, .36) * (1. - .85 * max(-uOwn[4], 0.)) * bnLit(q, -rd, 1.) * 1.4 + water * .4, c2);
     col = bone ? mix(bg, here, cov) : bg;
     // the eel of light
-    bnWhen(bnPhr > .01) {
+    for (int up = 0; up < (uOwn[6] < 0. ? 2 : 1) && bnPhr > .01; up++) {
+      if (up > 0) {
+        // itself, over its image in the water
+        if (!bnWet) break;
+        bnRo = ro0; rd = rd0; tb = 1e3;
+      }
       float head = 6.4 - 2.8 * cos(uTravel * .06), eel = 1e3, eelZ = 1., eelT = 1e3;
       vec2 e0 = vec2(0.), m = rd.xy * inv + .004 * sin(p.yx * 24. + vec2(0., uTime * .9));
       for (int i = 0; i < 9; i++) {
@@ -282,11 +339,11 @@ vec3 render(vec2 p) {
       }
       float ea = max(1. - bnSq((eelZ - head) * .5), 0.), thin = .015 + .03 * ea;
       ea *= bnPhr * (eelT < tb * rd.z ? 1. : 0.);
-      col += mix(uKind[3], vec3(.8, 1., .9), .35) * ea * exp(-eelT * bnFog * .6) * (.8 * exp(-eel * eel / (thin * thin)) + .1 * exp(-eel * 5.));
+      col += (1. - .7 * BN_DRY * (1. - dn0)) * mix(uKind[3], vec3(.8, 1., .9), .35) * ea * exp(-eelT * bnFog * .6) * (.8 * exp(-eel * eel / (thin * thin)) + .1 * exp(-eel * 5.));
     }
     // a hit stirs the silt in one place
     float puff = exp(-r * r * 1.6) * (.2 + noise(rot(.6) * o * 4. + 3.) + .5 * noise(o * 9.));
-    col = mix(col, mix(vec3(.8), uKind[4], .35) * bnMilk * (.7 + .5 * puff), sat(puff * uHits * .9) * smoothstep(-.4, -.1, o.y));
+    col = mix(col, mix(vec3(.8), uKind[4], .35 + .5 * max(BN_DRY, up0)) * mix(bnMilk, vec3(1. - .75 * dn0), BN_DRY) * (.7 + .5 * puff), sat(puff * uHits * .9) * smoothstep(-.4, -.1, o.y));
   }
 
   // ---- the hall ----
@@ -298,6 +355,8 @@ vec3 render(vec2 p) {
     vec3 air = mix(mix(mix(vec3(.75, 1.1, 1.5), vec3(1.6, 1.7, 1.75), sat(1.1 - 1.3 * rd.y)), vec3(1.5, .95, .6), .75 * up0), vec3(.03, .05, .1), dn0);
     // walls, floor, roof of glass
     float tr = rd.x > 0. ? (5.2 - bnRo.x) / max(rd.x, 1e-4) : (-6.5 - bnRo.x) / min(rd.x, -1e-4), te = (24. - bnRo.z) * inv;
+    vec3 paint = mix(uKind[1], uKind[2], .35 + .3 * rd.x);
+    if (uOwn[6] > 0.) air = mix(air, mix(mix(vec3(.92, .80, .64), uKind[1], .5), mix(vec3(.20, .34, .50), uKind[0], .55), smoothstep(.0, .6, rd.y)) * 1.15 * (1. - .9 * dn0), BN_DRY);
     float g1 = rd.y + .45 * rd.x, g2 = rd.y - .45 * rd.x;
     float ta = g1 > 1e-3 ? (8.4 - bnRo.y - .45 * bnRo.x) / g1 : 1e3, tc = g2 > 1e-3 ? (8.4 - bnRo.y + .45 * bnRo.x) / g2 : 1e3, tg = min(ta, tc);
     float tw = min(min(tr, te), min(tf, tg)), foot = tw * bnPx;
@@ -316,14 +375,15 @@ vec3 render(vec2 p) {
         float d = smin(abs(y) - kk * (.13 + .5 * m * m), max(bnStep * m - .11 + .06 * y, max(-y, y - .6 * kk)), .06);
         sh *= 1. - .92 * bnIn(d, pen) * (1. - smoothstep(12., 12.3, z0.z));
         float zb = q.z + sun.z * (10.7 - q.y) / .68;
-        sh *= 1. - .45 * bnBar(zb + .5, 4.4, .13, .16);
+        sh *= 1. - .45 * (1. - BN_DRY) * bnBar(zb + .5, 4.4, .13, .16);
       }
     }
     vec3 wall = mix(vec3(.82, .79, .73), vec3(.68, .67, .64), noise(vec2(qw.z * .5, qw.y * .35)));
+    wall = mix(wall, paint * (.8 + .3 * noise(vec2(qw.z * 1.5, qw.y))), .75 * abs(uOwn[6]));
     bg = wall * (fill * (wallL ? .6 : .95) + day * (flr ? sun.y : wallR ? -sun.x : tw == te ? -.5 * sun.z : 0.) * (bone ? 1. : sh));
     if (glass) {
       float fw = foot * 1.4 / max(abs(ta < tc ? g1 : g2), .1), bar = max(max(bnBar(qw.z, 1.1, .035, fw), bnBar(qw.x, 1.2, .03, fw)), bnBar(qw.z + .5, 4.4, .13, fw));
-      bg = mix(air * (.62 + .5 * smoothstep(.2, .75, noise(qw.xz * .35 + vec2(uTime * .01, 3.)))), fill * .6 + .08 * air, bar * .95);
+      bg = mix(air * (.62 + .5 * smoothstep(.2, .75, noise(qw.xz * .35 + vec2(uTime * .01, 3.)))), fill * .6 + .08 * air, bar * .95 * (1. - BN_DRY));
     }
     float eave = glass ? min(min(5.2 - qw.x, qw.x + 6.5), 24. - qw.z) : flr ? 1. : 8.4 - .45 * abs(qw.x) - qw.y;
     if (wallL) {
@@ -331,13 +391,18 @@ vec3 render(vec2 p) {
       bg = mix(bg, air, win * (1. - .8 * max(bnBar(qw.z, .6, .03, foot * 2.5), bnBar(qw.y, .95, .03, foot * 1.2))));
     }
     bg = mix(bg, fill * .6 + .08 * air, bnIn(eave - .1, foot));
+    if (uOwn[6] > 0. && !flr) {
+      // the walls are ruins under the sky
+      float s = tw == te ? qw.x : qw.z, top = (wallR ? 4.6 : tw == te ? 3. : 2.6) + 1.6 * noise(vec2(s * .35, 4.)) + .5 * noise(vec2(s * 1.7, 8.)) + .25 * noise(vec2(floor(s * 2.2), 3.)) + 6. * (1. - BN_DRY);
+      bg = mix(air * (.8 + .4 * smoothstep(.3, .8, fbm(rd.xy / (.3 + abs(rd.y)) * 1.1 + vec2(uTime * .006, 0.))) * BN_DRY), bg, glass ? 1. - BN_DRY : bnIn(qw.y - top, foot + .03));
+    }
     if (wallR) {
       vec4 m = bnPiece(vec2((qw.z - 4.) / 15., 1. - (qw.y - .3) / 4.8));
       bg = bg * mix(vec3(1.), m.rgb / max(m.a, .02) * 1.2, sat(m.a * bnGain) * .6) + m.rgb * .06 * bnGain;
       bg *= 1. - .25 * (1. - smoothstep(.28, .28 + foot, qw.y));
       // lamps at the foot of the wall
       float lz = fract(qw.z / 1.5) - .5, ly = qw.y - .3;
-      bg += mix(vec3(1., .75, .4), uKind[4], .25) * (uKeys * bnGain + .8 * dn0) * .8 * exp(-max(ly, 0.) * 1.6 - abs(lz) * (5. - 2. * sat(ly))) * step(0., ly);
+      bg += mix(vec3(1., .75, .4), uKind[4], .25) * (uKeys * bnGain + .8 * dn0 * (1. + 2.5 * BN_WET)) * .8 * exp(-max(ly, 0.) * 1.6 - abs(lz) * (5. - 2. * sat(ly))) * step(0., ly);
     }
     if (tw == te) {
       // a doorway
@@ -350,30 +415,34 @@ vec3 render(vec2 p) {
     }
     vec3 v = bnRo + rd * ((8.6 - bnRo.z) * inv);
     bnWhen(cov < 1. && !glass && abs(v.x - 3.4) < 1.2) {
-      // a visitor and a bench
-      vec2 d = v.xy - vec2(2.7, 0.), b = vec2(abs(v.x - 3.7), v.y - .3);
-      float px = 8.6 * bnPx, man = min(length(d - vec2(0., .93)) - .075, max(abs(d.x) - .11 - .06 * (.8 - d.y), max(d.y - .83, .36 - d.y)));
-      man = min(man, max(abs(abs(d.x) - .06) - .035, abs(d.y - .2) - .2));
-      man = min(man, min(max(b.x - .55, abs(b.y) - .04), max(abs(b.x - .4) - .04, abs(b.y + .15) - .15)));
-      bg = mix(bg, vec3(.04) + fill * .12, bnIn(man, px));
+      bg = mix(bg, vec3(.04) + fill * .12, bnIn(bnMan(v.xy), 8.6 * bnPx));
     }
     bg = mix(bg, wall * (fill * (1.1 + sk.y * 2.) + day * .3 * skin * sat(.5 + 3. * sk.y)), bnIn(skull, 3.7 * bnPx));
     // wires from the roof
     for (int i = 0; i < 4; i++) {
       float z = 1.6 + 3.1 * float(i), t = (z - bnRo.z) * inv; vec2 w = bnRo.xy + rd.xy * t; vec3 ax = bnAxis(z);
-      bg *= 1. - .75 * (1. - smoothstep(0., 1.5 * t * bnPx, abs(w.x - ax.x) - .006)) * step(ax.y, w.y) * step(t, tw);
+      bg *= 1. - .75 * (1. - smoothstep(0., 1.5 * t * bnPx, abs(w.x - ax.x) - .006)) * (uOwn[6] > 0.5 ? step(w.y, ax.y) * step(.5, float(i)) : step(ax.y, w.y)) * step(t, tw);
     }
     bg = mix(bg, vec3(.7, .67, .61) * (fill * 1.1 + day * .15), c2);
     vec3 li = fill * (1. + .5 * N.y) + wall * day * .1 * (1. - .6 * N.y) + day * .8 * sat(dot(N, sun)) * sh + own * .5;
     // a hit ticks one bone
-    li += mix(vec3(1., .9, .7), uKind[4], .4) * uHits * 2.2 * exp(-bnSq(fi - 3.)) * (.4 + .6 * exp(-9. * bnSq(u - (1. - uHits) * 1.1)));
+    li += mix(vec3(1., .9, .7), uKind[4], .4) * uHits * 2.2 * (1. + 3. * max(-uOwn[4], 0.)) * exp(-bnSq(fi - 3.)) * (.4 + .6 * exp(-9. * bnSq(u - (1. - uHits) * 1.1)));
     col = mix(bg, alb * li, cov);
+    if (uOwn[6] < 0.) {
+      // the visitor himself, before his image in the water
+      vec2 m = (ro0 + rd0 * ((8.6 - ro0.z) / max(rd0.z, 1e-3))).xy;
+      if (bnWet && m.y > 0. && m.y < 1.2 && abs(m.x - 3.4) < 1.2) col = mix(col, vec3(.04) + fill * .12, bnIn(bnMan(m), 8.6 * bnPx));
+    }
     float shaft = .4 + .6 * noise(vec2(p.x * 2.5 + p.y * 5., uTime * .03));
     col = mix(col, air * .45 + day * .2, (.05 + haze * .32) * shaft * (1. - smoothstep(-.5, .6, p.x * .5 - p.y)));
   }
 
+  if (uOwn[6] < 0.) {
+    if (bnWet) col = mix(col, col * mix(vec3(.62, .74, .72), uKind[0] * 1.3, .3) + bnDeep * .3, .5 + .5 * BN_WET);
+  }
+
   // flakes, or dust
-  vec3 fleck = bnH ? vec3(.22, .2, .16) * (1. - .8 * dn0) : bnMilk * .03 * (1. + bnBeam);
+  vec3 fleck = bnH ? vec3(.22, .2, .16) * (1. - .8 * dn0) : uOwn[6] > 0. ? mix(bnMilk * .03 * (1. + bnBeam), vec3(.16 - .1 * dn0), BN_DRY) : bnMilk * .03 * (1. + bnBeam);
   for (int k = 0; k < 2; k++) {
     float fk = float(k), sc = 9. + 13. * fk;
     vec2 g = p * sc + vec2(.5 * sin(uTime * .07 + fk * 2.), uTime * (bnH ? .06 : .24) + fk * 13.), id = floor(g), h = hash22(mod(id, 97.) + fk * 31.);

@@ -3,11 +3,13 @@
 // b: Down the rails
 // what: The bottom of a court, looking up between two facing fronts of unlike balconies, warm plaster in sun and blue in shade, washing strung across a leaning wedge of sky and one red blanket four floors up; or hanging over the top rail, where round balconies ladder down to a paved court with a round bed, a tree and a hand cart.
 // follows: Drone lowers the sun and the shadow climbs; pad warms the walls; texture stirs leaves; a phrase sends a shadow up the storeys; kinds dye the washing; bands open curtains; the piece colours curtains and shutters; a hit flashes panes and throws patches of sun; a cue leans the view and lifts the light; keys light windows; the loop turns the sun.
-// own: 0 night with lit windows at -1, a low rose sun at 1; 1 chalk white walls at -1, brick red facing sea green at 1; 2 straight balconies at -1, deep round ones at 1; 3 snow at -1, leaves and flowers over the rails at 1; 4 a grey day and bare lines at -1, a great wash day at 1; 5 a wide court at -1, a narrow deep well at 1
+// own: 0 night with lit windows at -1, a low rose sun at 1; 1 chalk white walls at -1, brick red facing sea green at 1; 2 straight balconies at -1, deep round ones at 1; 3 snow at -1, leaves and flowers over the rails at 1; 4 a grey day and bare lines at -1, a great wash day at 1; 5 a wide court at -1, a narrow deep well at 1; 6 looking straight up at -1, level along the court at 1, or a court of water at -1, looking out over the far roofs at 1; 7 a hive of small balconies at -1, long galleries and houses painted in the sounds' colours at 1
 // A soft step, up or down.
 float sbT(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x * (3. - 2. * x); }
 const vec3 sbSn = vec3(.89, .92, 1.);
-const float sbS = 3.1, sbB = 4.4, sbRh = 1., sbTh = .17, sbDm = 1.6; // storey, bay, rail, slab, depth
+#define sbB (4.4 - 1.5 * max(-uOwn[7], 0.) + 1.2 * max(uOwn[7], 0.))
+#define sbWall7 max(uOwn[7], 0.)
+const float sbS = 3.1, sbRh = 1., sbTh = .17, sbDm = 1.6; // storey, bay, rail, slab, depth
 vec3 sbL, sbSun, sbAmb, sbBnc, sbO;
 vec2 sbA, sbH; // how far the two fronts are, how many storeys
 float sbPx, sbNgt, sbPen, sbSd, sbSnow, sbGrey;
@@ -35,6 +37,11 @@ void sbUnit(vec2 id) {
  if (sbB2 && sbSd < 0. && abs(id.x) < 1.5) {
   sbK = 0.; sbE = step(.5, id.y) * step(id.y, sbH.x - .5); sbW = 1.62 + .25 * g2 * abs(id.x); sbD = 1.3 + .2 * o;
   o = sat(-o); sbR = mix(1.64, 14., o * o * o + .015 * h2);
+ }
+ if (uOwn[7] < 0.) { sbW *= 1. + .42 * uOwn[7]; sbD *= 1. + .3 * uOwn[7]; sbR = mix(sbR, max(sbW * .98, sbD * .8), -.8 * uOwn[7] * step(sbR, 5.)); sbE = max(sbE, step(uOwn[7], -.4) * step(.5, id.y) * step(id.y, (sbSd < 0. ? sbH.x : sbH.y) - .5) * step(.06, g)); }
+ if (uOwn[7] > 0.) {
+  float lon = sat(1.6 * uOwn[7]); sbW = mix(sbW, .5 * sbB + .03, lon); sbR = mix(sbR, 40., lon * lon * lon); sbD = mix(sbD, 1.35, lon);
+  sbE = max(sbE, step(.6, uOwn[7]) * step(.5, id.y) * step(id.y, (sbSd < 0. ? sbH.x : sbH.y) - .5));
  }
 }
 // How far round the front.
@@ -85,6 +92,10 @@ vec3 sbWall(float bay, float z, float y) {
  vec3 wc = vec3(.85, .83, .78), wr = mix(vec3(.6, .14, .09), vec3(.66, .24, .1), h);
  c = mix(c, sbSd < 0. ? wc : wc * vec3(.85, .92, 1.), max(-uOwn[1], 0.));
  c = mix(c, sbSd < 0. ? wr : mix(vec3(.1, .27, .25), vec3(.15, .3, .36), h), max(uOwn[1], 0.));
+ if (uOwn[7] > 0.) {
+  vec3 k = uKind[int(mod(hs * 2. + (sbSd < 0. ? 1. : sbSd > 1.5 ? 3. : 0.), 5.))]; k *= .7 / max(max(k.r, k.g), max(k.b, .2));
+  c = mix(c, k * k * 1.1 + .04, .92 * uOwn[7]);
+ }
  return c * (.82 + .24 * noise(vec2(z * .7, y * .16) + hs * 7.) + .12 * noise(vec2(z, y) * 2.3));
 }
 vec3 sbLit(float lit, float nl, float up, float ao) {
@@ -134,7 +145,7 @@ vec3 sbFront(float z, float y, float t, float sh, float nl, float lat, bool end)
  // and throws a patch over the shade
  if (sbSd > 0.) {
   vec2 q = vec2(z - 5.5 - .35 * (y - 9.), y - 8. - 4. * (1. - uHits));
-  col += alb * sbSun * .9 * hit * sbT(.25, -.1, max(abs(q.x) - .9, abs(q.y) - 1.5)) * (.6 + .4 * sbWv(q.x * .6 + q.y * .3));
+  col += alb * (sbSun + 1.6 * sbGrey) * .9 * hit * sbT(.25, -.1, max(abs(q.x) - .9, abs(q.y) - 1.5)) * (.6 + .4 * sbWv(q.x * .6 + q.y * .3));
  }
  return col;
 }
@@ -234,6 +245,21 @@ vec3 sbCourt(vec3 g, vec3 d, float t, float cx) {
  k = c + cs * .75 - vec2(2., 0.); shade = max(shade, sbT(.05, -.05, sbBox(vec2(k.x, abs(k.y) - .5), vec2(.95, .06))));
  alb = mix(alb, sbSn * (.9 + .1 * h), sbSnow * sbT(.1, .5, l2 + .3 * sbSnow));
  vec3 col = alb * (sbSun * sbL.y * cl * (1. - shade) + sbAmb * (1. - .25 * shade) + sbBnc * .25);
+ if (uOwn[6] < 0. && sbB2) {   // water for the stones
+  float w = -uOwn[6] * sbT(3.5, 3.62, r);
+  vec2 rq = g.xz * vec2(.9, .5);
+  float rp = noise(rq + uTime * vec2(.05, .03)) + .5 * noise(rq * 2.7 - uTime * vec2(.06, .02)) - .75, rp2 = noise(rq.yx + 9. - uTime * vec2(.04, .03)) - .5;
+  vec3 rd = normalize(vec3(d.x + (.10 + .16 * uTexture) * rp, -d.y, d.z + .1 * rp2));
+  float far = rd.x > 0. ? (sbA.y - g.x) / max(rd.x, .01) : (g.x + sbA.x) / max(-rd.x, .01), y2 = rd.y * far, top = (rd.x > 0. ? sbH.y : sbH.x) * sbS, z2 = g.z + rd.z * far, keep = sbSd;
+  sbSd = rd.x > 0. ? 1. : -1.;
+  vec3 hs = sbWall(floor(z2 / sbB + .5), z2, y2) * (sbAmb + (rd.x > 0. ? 0. : .25) * sbSun);
+  sbSd = keep;
+  hs *= 1. - .55 * sbT(.26, .2, abs(fract(y2 / sbS) - .5)) * sbT(.22, .16, abs(fract(z2 / sbB) - .5));
+  vec3 mir = mix(hs, sbSky(rd), sbT(-.6, .6, y2 - top));
+  float glint = sbT(.82, .98, dot(rd, sbL) + .12 * rp) * cl;
+  vec3 wet = mix(col * vec3(.16, .5, .52), mir, .3 + .25 * sbT(-.3, .5, rp)) + sbSun * .5 * glint * sbT(.1, .5, rp) + sbSun * cl * .05 * sbT(.12, .0, abs(noise(g.xz * .8 + rp) - .5));
+  col = mix(col, wet, w); alb *= 1. - .85 * w;
+ }
  // night: a lamp by the bed
  vec2 ld = q + vec2(3.9, 2.); col += alb * vec3(1.6, .85, .35) * (sbNgt + .4 * uKeys) * 1.1 / (1. + .12 * dot(ld, ld));
  // a hit throws the sun of panes over the shade
@@ -260,6 +286,9 @@ vec3 render(vec2 p) {
  float wide = max(-uOwn[5], 0.), thin = max(uOwn[5], 0.);
  if (!sbB2) { sbA *= 1. + .75 * wide - .34 * thin; el += .2 * thin - .16 * wide; fo -= .1 * thin; az += .15 * thin; }
  else { sbA.y += 12. * wide - 11. * thin; cx += 2.2 * wide - 1.6 * thin; el += .16 * wide - .04 * thin; ro -= .15 * wide; }
+ float over = max(uOwn[6], 0.), under = max(-uOwn[6], 0.);
+ if (!sbB2) { el += .5 * under - .52 * over; ro += .3 * under - .2 * over; az += .42 * under + .3 * over; fo += .34 * over - .04 * under; sbO.y += 3.5 * over; }
+ else { el += .5 * over; ro += .36 * over; az += .42 * over; fo += .06 * over; cx += 4. * over + 2. * under; }
  fo *= 1. - .06 * (uSpace - .5);
  ro += .28 * uCue * (1. - uCue);
  p = rot(ro) * p;
@@ -275,7 +304,7 @@ vec3 render(vec2 p) {
  sbSun = mix(sbSun, vec3(.05, .07, .13), sbNgt) * (.94 + .25 * uLevel + .14 * uCue);
  sbAmb = mix(mix(vec3(.3, .42, .62), vec3(.45, .34, .5), dusk), vec3(.03, .045, .09), sbNgt);
  sbSun *= 1. - .9 * sbGrey; sbAmb = mix(sbAmb, vec3(dot(sbAmb, vec3(.45))), .8 * sbGrey + .3 * sbSnow) * (1. + .45 * sbSnow + .35 * sbGrey);
- sbBnc = mix(mix(vec3(.3, .17, .08), vec3(.4, .14, .06), dusk), vec3(.04, .022, .01), sbNgt) * (1. + .9 * uPad + .6 * uMic + 1.5 * uCue);
+ sbBnc = mix(mix(vec3(.3, .17, .08), vec3(.4, .14, .06), dusk), vec3(.04, .022, .01), sbNgt) * (1. + .9 * uPad + .6 * uMic + 1.5 * uCue + (3. * uHits + 1.5 * uLevel + 1.5 * uPhrase + uLow) * (sbGrey + .3 * sbSnow));
  sbSd = d.x < 0. ? -1. : 1.;
  float D = sbSd < 0. ? sbA.x : sbA.y, adx = abs(d.x), N = sbSd < 0. ? sbH.x : sbH.y, H = N * sbS;
  float tW = D / adx, tF = d.y < 0. ? -sbO.y / d.y : 1e9, tE = min(tW, tF), tZ = !sbB2 && d.z > 0. ? 17. / d.z : 1e9, yz = sbO.y + d.y * tZ;
@@ -344,6 +373,19 @@ vec3 render(vec2 p) {
   else if (open) {
    bg = sbSky(d);
    if (d.y < 0.) { float q = sbO.z + d.z * (H - sbO.y) / d.y; bg = mix(vec3(.42, .17, .1), sbSn * .95, sbSnow) * (.85 + .2 * sbWv(q * 2.2)) * (sbSun * .6 + sbAmb); }
+   if (uOwn[6] > 0. && sbB2 && d.y < 0.) {   // roofs beyond roofs
+    float s = (H - sbO.y) / d.y; vec2 g = sbO.xz + d.xz * s - vec2(sbA.y, 0.), n = floor(g / vec2(16., 11.) + vec2(.0, .37)); float px = sbPx * s * 1.4 / max(-d.y, .1);
+    n.y = floor(g.y / 11. + .37 + .31 * n.x); vec2 l = vec2(g.x - n.x * 16., (g.y / 11. + .37 + .31 * n.x - n.y) * 11.); float h = hash21(n + 3.);
+    float face = h > .4 ? l.x - 7.5 - 1.5 * h : l.y - 5.5, lean = h > .4 ? -sbL.x : sbL.z, yard = max(3. - 2.4 * fract(h * 11.) - l.x, .9 - l.y);
+    vec3 a = mix(vec3(.56, .25, .13), fract(h * 7.) > .75 ? vec3(.55, .5, .46) : vec3(.3, .14, .13), fract(h * 7.)) * (.88 + .12 * sbWv((h > .4 ? g.y : g.x) * 1.4) * sat(.2 / px));
+    vec3 c = mix(a, sbSn * .95, sbSnow) * (sbSun * (.5 + sign(face) * .62 * lean * sat(abs(face) / px)) + sbAmb);
+    c = mix(c, c * .35, sbT(-px, px, -abs(face) * 8. + .9) * .5);
+    vec2 ch = abs(l - vec2(4. + 5. * fract(h * 13.), 3. + 5. * fract(h * 29.))) - vec2(.5, .7);
+    c = mix(c, vec3(.8, .6, .45) * (sbSun * .7 + sbAmb), sbIn(px, max(ch.x, ch.y))); ch += vec2(-1., .4) * .5;
+    c = mix(c, sbAmb * vec3(.12, .14, .2), sbT(-px, px, yard));
+    vec3 lit = vec3(1.9, .95, .34) * sbNgt * step(.5, fract(h * 5.)) * sbIn(px, max(abs(l.x - 9.) - .4, abs(l.y - 4.) - .5));
+    bg = mix(bg, mix(c + lit, sbSky(vec3(d.x, .02, d.z)) * .8, 1. - exp(-max(s - 12., 0.) * .012)), sat(uOwn[6] * 4.));
+   }
   } else {
    float nl = end ? -sbL.z : -sbSd * sbL.x, sun = sbClr(P);
    if (end) sbSd = 3.;

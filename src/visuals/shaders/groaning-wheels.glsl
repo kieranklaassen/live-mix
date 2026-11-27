@@ -3,8 +3,12 @@
 // b: Across the river
 // what: Close beneath a wooden water wheel as tall as a house: wet black spokes crossing, boards and box buckets climbing out of the river, each spilling a curtain that breaks to beads before a low sun. Or, from the far bank, three wheels of unlike size turn against a stone channel on arches, with white water, swimmers and a palm.
 // follows: Travel turns the wheels, faster when the music is full. Each bucket is a place of the loop and one band, and pours as full as they are. Drone lifts the river, pad warms the light, texture is mist, phrase lights wet spokes or runs along the channel, low bands stir the water. A hit is a splash off a board, a cue brightens bow and curtains, keys brighten drops.
-// own: 0 moonlit night at -1, red dusk at 1; 1 clear blue air at -1, thick mist at 1; 2 few broad spokes at -1, many thin ones at 1; 3 low river and only drips at -1, high river and full curtains at 1; 4 far back, the wheel nearly whole, or the channel small under a wide sky at -1, close in at 1; 5 winter, snow on wood and stone at -1, deep moss at 1
+// own: 0 moonlit night at -1, red dusk at 1; 1 clear blue air at -1, thick mist at 1; 2 few broad spokes at -1, many thin ones at 1; 3 low river and only drips at -1, high river and full curtains at 1; 4 far back, the wheel nearly whole, or the channel small under a wide sky at -1, close in at 1; 5 winter, snow on wood and stone at -1, deep moss at 1; 6 open water to the horizon, no bank and no channel, the wheels on trestles at -1, steep walls of a gorge round the sun at 1 (b: a row of many like wheels along the channel at 1); 7 dyed cloths stretched between the spokes at -1, fire poured in place of water and a lamp at every bucket at 1
 const float gwN = 24.0, gwP = TAU / 24.0; // the buckets of a wheel
+#define gwFree max(-uOwn[6], 0.0)
+#define gwMany max(uOwn[6], 0.0)
+#define gwSail max(-uOwn[7], 0.0)
+#define gwFire max(uOwn[7], 0.0)
 bool gwB; // the second variation
 float gwMist, gwFlood, gwDry, gwSnow, gwMoss, gwGain, gwWarm;
 vec3 gwSun, gwLow, gwHigh, gwIce; // colours of sun, low sky, high sky and snow
@@ -134,8 +138,14 @@ vec3 gwOpen(float ds) {
   float tree = 0.03 + 0.045 * noise(vec2(az * 6.0, 1.0)) + 0.024 * noise(vec2(az * 31.0, 2.0));
   float m = az * 9.0 + 0.3, ph = hash11(floor(m)), pp = fract(m) - 0.3 - 0.4 * ph;
   tree = max(tree, (0.1 + 0.07 * fract(ph * 7.3)) * step(0.5, ph) * (1.0 - pp * pp * 44.0));
+  tree *= 1.0 - 0.95 * gwFree;
+  if (gwMany > 0.0) {
+    float off = az - gwSd.x / gwSd.z + 0.05 * (noise(vec2(el * 7.0, 3.0)) - 0.5) + 0.04 * (noise(vec2(floor(el * 22.0), 9.0)) - 0.5) + 0.02 * (noise(vec2(el * 70.0, az * 30.0)) - 0.5);
+    tree = max(tree, gwMany * (off > 0.0 ? 2.6 * (off - 0.1) : -2.6 * (off + 0.15)) * (0.9 + 0.3 * noise(vec2(az * 5.0, 2.0))));
+  }
   vec3 far = mix(gwHigh * vec3(0.3, 0.4, 0.3), gwLow * 0.75, 0.3 + 0.4 * gwMist) + gwSun * glow * 0.3;
   far = mix(far, gwIce, gwSnow * 0.5);
+  if (gwMany > 0.0) far *= 1.0 - gwMany * 0.75 * noise(vec2(az * 9.0 + 2.0 * el, el * 24.0)) * gwStep(0.02, 0.2, el);
   col = mix(col, far, gwIn(el - tree, 0.003));
   if (el > -0.001) return col;
   float tr = (gwYr - gwRo.y) / min(gwRd.y, -1e-4), ft = 1.0 / (1.0 + 0.3 * tr * tr);
@@ -194,14 +204,22 @@ vec3 gwWall(vec2 p) {
 }
 // In b: sky, hills and the channel on its arches. shade is a wheel's shadow.
 vec3 gwTown(vec2 q, vec3 w, float px, float shade, vec3 light, float water) {
-  float el = q.y - gwYh, u = w.x, v = w.y, top = 0.76;
+  float el = q.y - gwYh, u = w.x, v = w.y, top = 0.76 - 1.5 * gwFree;
   vec3 col = mix(gwLow + gwSun * 0.12, gwHigh, gwStep(0.0, 0.6, el + 0.12 * q.x));
   float cl = noise(vec2(q.x * 1.6 + uTime * 0.004, el * 9.0)) * 0.6 + noise(vec2(q.x * 4.0 + uTime * 0.006, el * 23.0 + 4.0)) * 0.4;
   col = mix(col, gwSun * 0.55 + gwLow * 0.4, gwStep(0.48, 0.85, cl) * 0.6);
-  float hill = 0.035 + 0.06 * noise(vec2(q.x * 4.0, 5.0)) + 0.02 * noise(vec2(q.x * 34.0, 8.0));
+  if (gwFree > 0.0) {
+    float sd = length(q - vec2(0.5, 0.16));
+    col += gwSun * gwFree * gwWarm * (0.4 * exp(-sd * 4.0) + 1.4 * gwStep(0.085, 0.082, sd) * (1.0 - 0.75 * gwMist));
+  }
+  float hill = (1.0 - 0.9 * gwFree) * 0.035 + (1.0 - 0.95 * gwFree) * 0.06 * noise(vec2(q.x * 4.0, 5.0)) + 0.02 * (1.0 - 0.9 * gwFree) * noise(vec2(q.x * 34.0, 8.0));
   vec3 garden = mix(light * vec3(0.12, 0.17, 0.05), gwLow, sat(0.25 + el * 2.0 + 0.4 * gwMist));
   garden *= 0.8 + 0.4 * noise(q * vec2(60.0, 80.0));
-  garden = mix(garden, gwIce, gwSnow * 0.75);
+  if (gwFree > 0.0) {
+    float st = noise(vec2(q.x * 6.0 + 0.05 * uTime, el * 160.0)) * gwStep(0.0, -0.02, el), sx = (q.x - 0.5) / 0.14;
+    garden = mix(garden, mix(gwLow, gwHigh, gwStep(0.0, -0.2, el) * 0.8) * (0.7 + 0.35 * st) + gwSun * gwWarm * (0.25 + 0.7 * st * st) * exp(-sx * sx) * (1.0 - 0.6 * gwMist), gwFree);
+  }
+  garden = mix(garden, gwIce, gwSnow * 0.75 * (1.0 - gwFree));
   col = mix(col, garden, gwIn(el - hill, 0.004));
   float au = u - 0.62 * floor(u / 0.62 + 0.5), bu = au + 0.085, sv = max(v - 0.24, 0.0);
   float ad = length(vec2(au, sv)) - 0.205, bd = length(vec2(bu, sv)) - 0.205;
@@ -231,15 +249,16 @@ vec3 gwTown(vec2 q, vec3 w, float px, float shade, vec3 light, float water) {
 }
 // Swimmers, and the palm that leans in.
 void gwNear(inout vec3 col, vec2 p, vec3 light, float px) {
-  for (int i = 0; i < 4; i++) {
-    float fi = float(i), h = hash11(fi + 5.0), ph = uTime * (0.035 + 0.02 * h) + fi * 2.1, sz = 0.0045 + 0.0012 * fi;
+  for (int i = 0; i < 4 && gwFree < 0.5; i++) {
+    float fi = float(i), h = hash11(fi + 5.0), ph = uTime * (0.035 + 0.02 * h) + fi * 2.1, sz = (0.0045 + 0.0012 * fi) * (1.0 - gwSnow) + 1e-5 * gwSnow;
     vec2 e = p - vec2(-0.2 + 0.23 * fi + 0.12 * sin(ph), -0.29 - 0.035 * fi * h - 0.02 * fi);
     col += light * 0.13 * gwBell((e.y + 0.6 * sz) / 0.002) * gwBell(e.x / 0.025);
     col = mix(col, light * vec3(0.04, 0.02, 0.01), gwIn(length(e) - sz, px) * step(-sz * 0.4, e.y));
   }
-  vec2 crown = vec2(-0.69 + 0.004 * sin(uTime * 0.3), 0.27), pd = p - crown;
+  const float away = min(0.75 * abs(uOwn[6]) + 0.75 * max(-uOwn[5], 0.0), 0.9);
+  vec2 crown = vec2(-0.69 - away + 0.004 * sin(uTime * 0.3), 0.27), pd = p - crown;
   vec3 dark = vec3(0.008, 0.011, 0.009) * (0.5 + gwHigh);
-  float ty = (p.y + 0.55) / 0.82, off = p.x - mix(-0.9, crown.x, ty * ty * 0.6 + 0.4 * ty);
+  float ty = (p.y + 0.55) / 0.82, off = p.x - mix(-0.9 - away, crown.x, ty * ty * 0.6 + 0.4 * ty);
   col = mix(col, dark + light * 0.1 * gwStep(0.0, -0.012, off), gwIn(abs(off) - 0.016 + 0.005 * ty, px) * step(ty, 1.0));
   for (int i = 0; i < 11 && dot(pd, pd) < 0.17; i++) {
     float fi = float(i), h = hash11(fi + 1.0), an = -0.75 + 0.465 * fi + 0.2 * h + 0.02 * sin(uTime * 0.5 + fi), L = 0.26 + 0.12 * h;
@@ -294,7 +313,10 @@ vec3 render(vec2 p) {
       w = gwWall(sp);
     }
     int i = w.x < 0.33 ? 0 : w.x < 1.75 ? 1 : 2;
-    vec4 wh = i == 0 ? vec4(-0.52, 0.36, 0.66, 0.05) : i == 1 ? vec4(0.98, 0.2, 0.47, 0.083) : vec4(2.45, 0.12, 0.4, 0.067);
+    vec4 wh;
+    if (gwMany > 0.0) i = w.x < mix(0.33, -0.16, gwMany) ? 0 : w.x < mix(1.75, 0.68, gwMany) ? 1 : int(2.0 + clamp(floor((w.x - mix(2.45, 1.1, gwMany)) / 0.84 + 0.5), 0.0, 3.0));
+    wh = i == 0 ? vec4(-0.52, 0.36, 0.66, 0.05) : i == 1 ? vec4(0.98, 0.2, 0.47, 0.083) : vec4(2.45, 0.12, 0.4, 0.067);
+    if (gwMany > 0.0) wh = i > 2 ? vec4(mix(2.45, 1.1, gwMany) + 0.84 * float(i - 2), 0.16, 0.37 * gwMany + 1e-3, 0.06 + 0.005 * float(i)) : mix(wh, vec4(0.84 * float(i) - 0.58, 0.16, 0.37, wh.w), vec4(vec3(gwMany), 0.0));
     R = wh.z; turn = mod(uTravel * wh.w, TAU); kOff = float(i) * 8.0; fall = 1.0 - 0.28 * float(i);
     q0 = (w.xy - wh.xy) / R; q1 = q0 - vec2(0.09, 0.015); qs = q0 - vec2(0.3, -0.15);
     px0 = px1 = fine * w.z * 0.7 / R;
@@ -302,7 +324,14 @@ vec3 render(vec2 p) {
     wl0 = water; water = (water - wh.y) / R;
   }
   gwWood f0 = gwFace(q0, turn), f1 = gwFace(q1, turn + 0.05);
-  float shade = gwStep(0.03, -0.02, min(gwFace(qs, turn).d, abs(length(qs) - 0.94) - 0.07));
+  if (gwFree > 0.0) {
+    float tr = length(vec2(0.45, 1.2));
+    for (int i = 0; i < 2; i++) {
+      vec2 n = vec2(i == 0 ? 1.2 : -1.2, 0.45) / tr;
+      if (q1.y < 0.0) gwBeam(f1, dot(q1, n), (0.035 + 0.02 * float(gwB)) * gwFree, n, q1.y);
+    }
+  }
+  float shade = gwFree > 0.99 ? 0.0 : gwStep(0.03, -0.02, min(gwFace(qs, turn).d, abs(length(qs) - 0.94) - 0.07));
   vec3 col = gwB ? gwTown(sp, w, fine * w.z * 0.7, shade, light, wl0) : gwOpen(ds);
   vec3 haze = gwB ? light * 0.45 : mix(gwLow, gwHigh, 0.3) * 0.8 + gwSun * (0.08 + 0.7 * exp(-ds * 2.6)) * gwWarm;
 
@@ -321,8 +350,29 @@ vec3 render(vec2 p) {
     vec3 bc = light * mix(vec3(0.05, 0.035, 0.025), vec3(0.22, 0.15, 0.09), sat(dot(q0 / r, ts)) * 0.8 + 0.2 * f0.u);
     col = mix(col, mix(bc, gwIce, gwSnow * sat(q0.y / r)), gwIn(min(bd, pd), px0) * above);
   }
+  if (gwSail > 0.0) for (int i = 0; i < 2; i++) {
+    vec2 q = mix(q1, q0, 0.25 + 0.5 * float(i));
+    float rr = max(length(q), 1e-4), a = mod(atan(q.y, q.x + 1e-6) - turn - 0.15 * float(i), TAU) / TAU * 12.0, k = floor(a), x = fract(a), h = hash11(k + 3.0);
+    float rim = 0.79 - 0.5 * x * (1.0 - x) * (0.3 + 0.3 * h), edge = min((min(x, 1.0 - x) - 0.02 - 0.1 * (1.0 - gwSail)) * rr * 0.52, min(rim - rr, rr - 0.17 - 0.5 * (1.0 - gwSail)));
+    float fold = noise(vec2(x * 7.0 + k * 5.0, rr * 2.5 + 0.1 * uTime)), weave = 0.92 + 0.08 * sin(rr * 260.0);
+    if (mod(k, 2.0) < 0.5 == (i > 0)) {
+      vec3 dye = uKind[int(mod(k, 5.0))];
+      dye = mix(vec3(dot(dye, vec3(0.333))), dye, 0.92);
+      dye *= mix(vec3(0.6), dye, 0.8);
+      vec3 c = dye * (gwB ? 0.55 : 1.0) * (gwHigh * 2.2 + gwLow * 0.9 + gwSun * lit * 1.1 * (0.45 + 0.8 * fold)) * weave * (0.7 + 0.7 * rr + 0.6 * uPad);
+      c *= 1.0 - 0.3 * gwStep(0.06, 0.05, abs(rr - 0.62 - 0.06 * h)) * step(0.4, h);
+      col = mix(col, mix(c, haze, (0.3 - 0.2 * float(i)) * gwMist), gwIn(-edge, px0) * gwStep(-px0, px0, q.y - water) * 0.94);
+    }
+  }
   gwBoxes(col, q0, q1, turn, ts, lit);
   col = mix(col, gwTimber(f0, ts, lit, gwB ? 0.35 : 0.6), gwIn(f0.d, px0) * above);
+  vec3 fire = mix(vec3(1.0, 0.36, 0.08), uKind[4] * uKind[4], 0.35);
+  if (gwFire > 0.0) {
+    float a = atan(q0.y, q0.x + 1e-5) - turn, k = floor(a / gwP + 0.5), da = r * sin(a - gwP * k);
+    vec2 e = vec2(da, r - 0.93);
+    float g = length(e), on = gwFull(mod(k, gwN) + kOff);
+    col += fire * gwFire * above * (gwStep(0.03, 0.02, g) * 3.0 + exp(-g * 22.0) * 1.2 + 0.25 * exp(-abs(r - 0.9) * 5.0)) * (0.25 + 1.1 * on) * gwStep(1.5, 1.0, r);
+  }
 
   float blaze = gwB ? 1.0 : 0.15 + 0.9 * exp(-ds * 1.8) + 3.0 * exp(-ds * 5.0);
   vec2 q = gwB ? q0 : gwRo.xy + gwRd.xy * ((-0.05 - gwRo.z) / gwRd.z);
@@ -339,6 +389,7 @@ vec3 render(vec2 p) {
     vec3 z = vec3(x, h, px0) * (gwB ? 0.25 + 0.25 * fall : 1.0);
     vec2 f = gwPour(z.x, z.y, k, full, z.z) * sat(full * 9.0) * gwStep(0.11, 0.08, abs(x)) * fall;
     vec3 drop = mix(gwHigh, gwSun, 0.62) * mix(vec3(1.0), uKind[int(mod(k, 5.0))] * 1.5, 0.2) * gwWarm * blaze * (1.0 + 0.5 * uCue + max(uKeys, uMic));
+    if (gwFire > 0.0) drop = mix(drop, fire * (1.6 + 2.0 * exp(-h * 2.0)), gwFire);
     col = mix(col, col * 0.5 + drop * 0.7, f.x);
     col = mix(col, drop * 1.6 + gwHigh * 0.12, f.y * 0.9);
   }
@@ -350,7 +401,8 @@ vec3 render(vec2 p) {
   if (gwB) {
     col = mix(col, light * 0.4 + gwLow * 0.4, gwMist * sat(0.08 + 0.16 * w.z));
     if (dep > 0.0) {
-      col = col * (0.3 + 0.5 * exp(-dep * 5.0)) + mix(vec3(0.006, 0.02, 0.018), vec3(0.02, 0.05, 0.045), 0.5 + rip) * (0.3 + gwHigh * 2.0);
+      vec3 wet = col * (0.3 + 0.5 * exp(-dep * 5.0)) + mix(vec3(0.006, 0.02, 0.018), vec3(0.02, 0.05, 0.045), 0.5 + rip) * (0.3 + gwHigh * 2.0);
+      col = gwFree > 0.0 ? mix(col, wet, mix(1.0, smoothstep(0.0, 0.22, dep), gwFree)) : wet; // no shore to begin at
     }
     gwNear(col, p, light, fine);
   } else col = mix(col, haze, gwMist * 0.25);

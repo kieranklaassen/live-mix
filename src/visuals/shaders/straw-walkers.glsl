@@ -3,7 +3,11 @@
 // b: Rag coats
 // what: Five walking sheaves of straw taller than any fence, with no face and no hands, come in file over a blue-shadowed snowfield under a low white sun, the nearest too tall for the picture; or the same five in a yard before a limewashed wall, in coats of cloth strips that fly out as they turn, fall, and wrap the other way.
 // follows: Each kind of sound is a walker, its loudness the step and sway, or how wide the coat flies. The drone is the near one; the pad fluffs the second, the phrase turns the third. Texture is loose straw in the air. Bands ruffle the tiers, the piece tints them. A hit is a stamp of snow and a jolt of all the bells, a cue a bow, or a whirl, from near to far.
-// own: 0 a moonlit night at -1, a rose sunset at 1; 1 green rushes at -1, rust-red bracken at 1 (b: bleached pale strips, strips of every bright dye); 2 low round stacks at -1, tall thin ones at 1; 3 bare stubble rows at -1, thick falling snow at 1 (b: a straw yard under thatch); 4 seen from near the ground at -1, from high and farther off at 1; 5 stalks wound round like rope at -1, standing open at 1 (b: coats hanging wrapped, all out in a bell)
+// own: 0 a moonlit night at -1, a rose sunset at 1; 1 green rushes at -1, rust-red bracken at 1 (b: bleached pale strips, strips of every bright dye); 2 low round stacks at -1, tall thin ones at 1; 3 bare stubble rows at -1, thick falling snow at 1 (b: a straw yard under thatch); 4 seen from near the ground at -1, from high and farther off at 1; 5 stalks wound round like rope at -1, standing open at 1 (b: coats hanging wrapped, all out in a bell); 6 one alone at -1, five abreast in a row at 1; 7 wading in still water at -1, at 1 on a plain ground of the hits' colour and each dyed in its sound's colour
+#define SW_ROW max(uOwn[6], 0.)
+#define SW_ONE max(-uOwn[6], 0.)
+#define SW_WET max(-uOwn[7], 0.)
+#define SW_DYE max(uOwn[7], 0.)
 float swHor, swRat, swA, swB, swPx, swNt, swRose, swEa, swSnow, swSq, swTall, swStir, swJolt, swDim, swBack, swWide, swStride, swOpen, swWound;
 // the walker at hand: where it stands, and what it does
 float swX, swD, swLv, swSpin, swFl, swBow, swLean, swLift, swPull;
@@ -38,6 +42,8 @@ void swWalker(int i) {
   vec2 r = i == 0 ? vec2(0.33, 0.5) : i == 1 ? vec2(-0.36, 0.39) : i == 2 ? vec2(0.02, 0.27) : i == 3 ? vec2(-0.74, 0.2) : vec2(0.68, 0.165);
   w = mix(w, r, swB);
   float f = float(i);
+  if (uOwn[6] > 0.) w = mix(w, vec2(0.33 * (mod(f * 3. + 2., 5.) - 2.) + 0.02 * sin(f * 2.4), (swB > 0.5 ? 0.37 : 0.29) + 0.012 * sin(f * 4.)), uOwn[6]);
+  if (uOwn[6] < 0.) w = mix(w, swB > 0.5 ? (i == 1 ? vec2(-0.06, 0.43) : vec2(i == 0 || i == 4 ? 1.7 : -1.7, w.y)) : i == 0 ? vec2(-0.2, 0.4) : vec2(0.2 + 0.11 * f, 0.075 - 0.011 * f), -uOwn[6]);
   bool b = swB > 0.5;
   swLv = i == 0 ? uDrone : i == 1 ? uPad : i == 2 ? uPhrase : (i == 3) == b ? uTexture : uHits;
   swX = w.x * swWide + (i == 4 ? 0.04 * swA * sin(TAU * uLoop) : 0.); swD = w.y * swBack;
@@ -178,6 +184,25 @@ vec3 swPlace(vec2 p, vec2 g, float z, float base, float sh, vec3 haze) {
     float hedge = swFall(hh, hh * 0.75, h1) * smoothstep(0.25, 0.65, 0.6 * n4 + 0.4 * n5 + 0.5 * (1. - h1 / hh)) * sat(hx * 2.);
     col = mix(col, mix(haze, swEve(vec3(0.24, 0.2, 0.2), vec3(0.04, 0.04, 0.06)), 0.6), hedge);
   }
+  if (uOwn[7] < 0. && low) {
+    // still water
+    vec3 hi = b ? vec3(0.42, 0.45, 0.45) * dim : mix(swDay(vec3(0.5, 0.6, 0.68), vec3(0.4, 0.35, 0.55), vec3(0.03, 0.055, 0.12)), haze, 0.8 * far * far);
+    vec3 wa = mix(haze, hi, sat(dn * (b ? 1.9 : 2.2))) * (0.94 + 0.1 * n3);
+    float gx = (x - swSun.x) * (7. - 9. * min(dn, 0.5)) + 0.5 * (n4 - 0.5);
+    wa += swDay(vec3(1., 0.95, 0.85), vec3(1., 0.65, 0.35), vec3(0.5, 0.6, 0.8)) * exp(-gx * gx) * smoothstep(0.45, 0.75, n4) * 0.5 * (1. - 0.5 * swB);
+    wa -= 0.1 * smoothstep(0.55, 0.8, n5) * (0.5 + uHigh);
+    if (b) wa = mix(wa, haze * (0.35 + 0.55 * noise(vec2(p.x * 9., 3.))), 0.7 * exp(-dn * 14.));
+    col = mix(col, wa, sat(1.15 * SW_WET));
+  }
+  if (uOwn[7] > 0.) {
+    // a plain ground
+    vec3 k4 = uKind[4] * uKind[4];
+    vec2 o = (p - vec2(0.1, 0.05)) * vec2(0.8, 1.);
+    vec3 st = k4 * (0.62 + 0.5 * exp(-dot(o, o) * 3.)) * (0.93 + 0.14 * noise(p * vec2(60., 190.)));
+    st = mix(st, k4 * 0.8 * (0.92 + 0.16 * n3), swFall(0.05, -0.12, p.y - base)) * swDay(vec3(1.), vec3(1.1, 0.8, 0.62), vec3(0.24, 0.3, 0.42));
+    if (low) st *= 1. - 0.6 * sh;
+    col = mix(col, st, uOwn[7]);
+  }
   return col;
 }
 
@@ -197,7 +222,13 @@ vec3 render(vec2 p) {
     float f = float(i);
     swWalker(i);
     vec2 q = swOwn(p, f);
-    float px = swPx / (swD * swRat), u = sat(q.y), u3 = u * u * u, reach = (b ? 0.28 + 0.28 * swFl - (0.12 + 0.2 * swFl) * u3 : 0.35 + 0.16 * swFl - 0.17 * u3) + 0.1 * swSq;
+    float px = swPx / (swD * swRat);
+    if (uOwn[7] < 0. && q.y < 0.) {
+      q.x += SW_WET * (0.02 + 0.06 * -q.y) * (noise(vec2(q.x * 3., q.y * 26. + uTime * 0.2)) - 0.5) * 1.2;
+      q.y = -q.y;
+    }
+    if (uOwn[7] < 0.) q.y += 0.1 * SW_WET;
+    float u = sat(q.y), u3 = u * u * u, reach = (b ? 0.28 + 0.28 * swFl - (0.12 + 0.2 * swFl) * u3 : 0.35 + 0.16 * swFl - 0.17 * u3) + 0.1 * swSq;
     if (abs(q.x) < reach && q.y > -0.06 - 0.15 * swD && q.y < 1.06) {
       vec4 m0 = vec4(q, px, swD), m1 = vec4(swFl, swSpin, swPull, f);
       if (many < 0.5) { a0 = m0; a1 = m1; } else if (many < 1.5) { b0 = m0; b1 = m1; }
@@ -206,6 +237,7 @@ vec3 render(vec2 p) {
     vec2 to = vec2(swX, 1.) / swD - g;
     float t = dot(to, dir), y = t * rise / swRat, side = to.x * dir.y - to.y * dir.x + fray + swLean * y * swRat;
     float w = (swProf(sat(y)) * (1.2 - 0.2 * swB) + 0.28 * swFl * swFall(0.75, 0.3, y) * (0.3 + swB)) * swRat, soft = 0.02 + 0.055 * max(t, 0.);
+    if (uOwn[7] > 0.) w *= 1. - 0.85 * swB * SW_DYE * (1. - smoothstep(-0.05, 0.3, y)); // under the hem, only the legs'
     sh = max(sh, swFall(soft, -soft, abs(side) - w) * swFall(1.12, 0.98, y) * smoothstep(-0.16, 0., t) * (1. - 0.35 * sat(y)));
     vec2 o = (p - vec2(swX, swHor - swD)) / (swD * swRat);
     vec2 o2 = o / vec2(0.4 + 0.3 * swFl, 0.11);
@@ -230,6 +262,8 @@ vec3 render(vec2 p) {
       done += 1.; who = m1.w;
       strands = b ? 30. + 2. * m0.w : who < 0.5 ? 160. : who < 1.5 ? 115. : who < 2.5 ? 76. : who < 3.5 ? 50. : 28.;
       ruff = band(1. - m0.y);
+      if (uOwn[6] > 0. && !b) strands = floor(mix(strands, 96., uOwn[6]));
+      if (uOwn[6] < 0. && b) strands = floor(mix(strands, 40., -uOwn[6]));
       feet = max(feet, swFeet(m0.xy, m0.z, 0.03 * swSin(swStride + who * 0.33) * uLevel));
       inside = smoothstep(-m0.z, m0.z, swProf(sat(m0.y)) * (b ? 0.8 : 0.94) - abs(m0.x)) * swFall(0.94, 0.91, m0.y) * smoothstep(0.1, 0.16, m0.y - 0.24 * swB);
       float eq = m0.w * (1. - m0.y * swRat);
@@ -276,7 +310,8 @@ vec3 render(vec2 p) {
   // the light on it
   int w = int(hitWho + 0.5);
   swWalker(w);
-  vec2 q = swOwn(p, hitWho); float px = swPx / (swD * swRat);
+  vec2 q = swOwn(p, hitWho); float px = swPx / (swD * swRat), drown = 0.;
+  if (uOwn[7] < 0.) { drown = q.y < 0. ? SW_WET : 0.; q.y = abs(q.y) + 0.1 * SW_WET; }
   vec3 L = b ? vec3(-0.78, 0.49, 0.39) : normalize(vec3((swSun.x - swX) * 1.7, 0.3, -0.3));
   vec3 tint = uKind[w < 2 ? w : w == 2 ? 3 : (w == 3) == b ? 2 : 4];
   tint /= max(max(tint.r, max(tint.g, tint.b)), 0.1);
@@ -291,6 +326,11 @@ vec3 render(vec2 p) {
     alb = swStraw(sat(0.15 + 0.5 * h + 0.3 * cl + 0.25 * vn)) * (0.75 + 0.35 * h2);
     alb = mix(alb, (0.35 + alb) * tint * 0.75, (0.02 + 0.1 * cl) * (0.2 + 0.8 * swLv));
   }
+  if (uOwn[7] > 0.) {
+    vec3 own = uKind[w < 2 ? w : w == 2 ? 3 : (w == 3) == b ? 2 : 4];
+    own = mix(own, own.zxy * 0.6 + 0.15, b ? step(0.8, h) * 0.5 : 0.);
+    alb = mix(alb, own * own * (0.45 + 1.1 * h + 0.5 * cl) + 0.02, 0.92 * uOwn[7]);
+  }
   vec4 mp = piece(vec2(0.5 + 1.9 * q.x, 0.97 - 0.94 * q.y));
   alb += mp.rgb * mp.a * 0.3 * (0.3 + uEnergy) * (0.4 + 0.6 * h);
   float side = nor.x * inversesqrt(nor.x * nor.x + nor.z * nor.z + 1e-4), rim = 1. - sqrt(max(1. - side * side, 0.));
@@ -298,7 +338,7 @@ vec3 render(vec2 p) {
   float call = 1. - uCue - 0.18 * hitWho; call = uCue * exp(-call * call * 12.);
   float thin = (b ? 0.12 * rim + 0.2 * swFl * vn * abs(nor.y) : 0.5 * rim * (0.5 + 0.5 * vn) + 0.05 * vn) + call * (0.1 + 0.4 * rim), dif = sat(dot(nor, L) * 0.75 + 0.25);
   vec3 c = alb * (swAmb * (0.7 + 0.3 * nor.y) * occ + swKey * (dif * dif * 1.25 * occ + thin));
-  vec3 core = mix(swStraw(0.1), vec3(0.5, 0.2, 0.12), swB) * swAmb * 0.35, foot = mix(swStraw(0.2), vec3(0.17, 0.12, 0.09) * 0.7, swB) * swAmb * (0.7 + 0.2 * swB);
+  vec3 core = mix(mix(swStraw(0.1), vec3(0.5, 0.2, 0.12), swB), tint * tint * 0.25, 0.9 * SW_DYE) * swAmb * 0.35, foot = mix(swStraw(0.2), vec3(0.17, 0.12, 0.09) * 0.7, swB) * swAmb * (0.7 + 0.2 * swB);
   // the belt of bells
   float Rb = swProf(0.52) + 0.03 + 0.06 * min(swFl, 0.5), sx = clamp(q.x / Rb, -0.99, 0.99), cz = sqrt(1. - sx * sx), an = asin(sx), gb = (an + swSpin) * 18. / TAU;
   float yy = q.y - (0.52 + 0.07 * sin(an + swSpin) - swD * (1. - 0.52 * swRat) * Rb * cz) + swJolt * 0.012 * swSin(floor(gb) * 0.39);
@@ -315,7 +355,8 @@ vec3 render(vec2 p) {
   col = mix(col, core, inside);
   col = mix(col, c, alpha);
   col = mix(mix(col, vec3(0.16, 0.08, 0.05) * swDim, cord), brass * swDim, bell);
-  col = mix(col, haze, exp(-swD * 11.) * 0.6 * swA * max(alpha, inside));
+  if (uOwn[7] < 0.) col = mix(col, col * 0.5 + 0.22 * mix(haze, swAmb, swB), drown * max(max(alpha, inside), feet));
+  col = mix(col, haze, exp(-swD * 11.) * (0.6 - 0.4 * SW_DYE) * swA * max(alpha, inside));
   puff *= 1. - max(alpha, inside) * step(hitWho + 0.5, puffer);
   vec3 white = swDay(vec3(0.97), vec3(1., 0.88, 0.78), vec3(0.6, 0.68, 0.8));
   col = mix(col, mix(white, vec3(0.75, 0.6, 0.4) * swDim, 0.7 * swEa), sat(puff * 0.85));

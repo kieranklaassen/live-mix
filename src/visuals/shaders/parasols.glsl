@@ -3,12 +3,28 @@
 // b: Night stalls
 // what: A wide beach at noon from a balcony: rows of plain and striped parasols, large at the lower left, specks along the shore, each with its round blue shade, towels, a plank way, a red ball, turquoise water; or a market square at dusk packed with square canopies lit from below, dim lanes, steam, one white canopy half open.
 // follows: Each kind of sound opens and dyes its own parasols or lights its own canopies, and so does the piece where it lies; bands swell or light the rows. A hit runs over the parasols as colour, or flares a few lamps. A cue is a gust, or light, going away from you. Lows bring up the surf, a melody opens the white canopy, keys glint.
-// own: 0 late sun at -1, night at 1; 1 black sand or black roofs at -1, red sand or snow on the roofs at 1; 2 a few at -1, larger and closer at 1; 3 from high above at -1, low over the tops at 1; 4 all white at -1, all bright and striped at 1; 5 tall at -1, nearly flat at 1.
+// own: 0 late sun at -1, night at 1; 1 black sand or black roofs at -1, red sand or snow on the roofs at 1; 2 a few at -1, larger and closer at 1; 3 from high above at -1, low over the tops at 1; 4 all white at -1, all bright and striped at 1; 5 tall at -1, nearly flat at 1; 6 grass, or the market by day, at -1, the tide in, or a square wet with rain, at 1; 7 straw roofs at -1, set in rings, each sound its own, at 1.
 // A soft step from a to b, either way round.
 float ppT(float a, float b, float x) { float t = sat((x - a) / (b - a)); return t * t * (3.0 - 2.0 * t); }
 vec3 ppRo, ppRd; // the eye and its ray: x along the rows
 vec2 ppRt, ppFw; // across the picture and into it, on the ground
-float ppPx, ppG, ppFew, ppMany, ppLate, ppNight, ppDark, ppPale, ppWhite, ppGay, ppTall, ppFlat, ppDown, ppLow;
+float ppPx, ppG;
+#define ppLate sat(-uOwn[0])
+#define ppNight sat(uOwn[0])
+#define ppDark sat(-uOwn[1])
+#define ppPale sat(uOwn[1])
+#define ppFew sat(-uOwn[2])
+#define ppMany sat(uOwn[2])
+#define ppDown sat(-uOwn[3])
+#define ppLow sat(uOwn[3])
+#define ppWhite sat(-uOwn[4])
+#define ppGay sat(uOwn[4])
+#define ppTall sat(-uOwn[5])
+#define ppFlat sat(uOwn[5])
+#define ppDay sat(-uOwn[6])
+#define ppWet sat(uOwn[6])
+#define ppStraw sat(-uOwn[7])
+#define ppRings sat(uOwn[7])
 vec3 ppSun; // towards the sun
 
 // The hour: as it is, late, or at night.
@@ -43,6 +59,12 @@ float ppWave(vec2 c) { float w = dot(c - ppRo.xz, ppFw) - 8.0 - (1.0 - uCue) * 5
 vec2 ppCell(int k) { return vec2(float(k & 1), float(k >> 1)); }
 vec2 ppNear(int k) { return abs(step(ppRd.xz, vec2(0.0)) - ppCell(k)); }
 
+// How clear the gaps between the rings are.
+float ppGap(float rg) { return mix(1.0, ppT(.36, .3, abs(fract(rg + .5) - .5)) * ppT(.4, .6, rg), ppRings); }
+vec3 ppStrawC(float a, float s, float h) {
+  float f = noise(vec2(a * 14.0, s * 3.0 + h * 9.0)), lay = fract(s * 3.2 + .25 * noise(vec2(a * 4.0, h * 7.0)));
+  return mix(vec3(.56, .37, .2), vec3(1.0, .76, .47), .25 + .75 * f) * (.72 + .3 * lay) * (.85 + .25 * h);
+}
 // a: the beach
 const float ppZ = 29.0; // how far off the water begins
 const float ppC = 3.3; // from one parasol to the next
@@ -53,9 +75,12 @@ PpP ppParasol(vec2 id) {
   PpP o; o.h = ppH(id);
   o.c = (id + .5 + .2 * (o.h.xy - .5)) * ppC;
   o.k = int(fract(o.h.x * 7.7 + o.h.w) * 6.4);
+  float rg = length(o.c - vec2(-12.0, 14.0)) / 5.4;
+  if (ppRings > 0.0 && o.h.y < ppRings * 1.02) o.k = int(mod(floor(rg + .5), 5.0));
   vec4 m = ppMap(o.c);
   o.lit = sat((o.k < 4 ? .65 * ppKind(o.k) : 0.0) + .9 * m.a * ppG);
   float there = ppT(o.h.z - .04, o.h.z, .88 - .75 * ppFew + .2 * ppMany) * step(id.y, 5.5);
+  if (ppRings > 0.0) there *= ppGap(rg);
   if (mod(id.x + 2.0, 7.0) < .5) there = 0.0; // the plank way is left free
   float ring = length(o.c - vec2(.5, 7.5)) - (1.0 - uHits) * 16.0, hit = max(step(.8, o.h.w), exp(-ring * ring * .15));
   float open = min((o.k < 4 ? mix(.66, 1.0, o.lit) : .95) + hit * 1.4 * uHits * (1.0 - uHits), 1.12);
@@ -85,10 +110,10 @@ void ppDome(inout vec4 pic, PpP o, vec3 sunC, vec3 skyC) {
   vec3 N = (X - n * (o.hh - Rs)) / Rs, fl = X - n * up;
   vec3 a1 = normalize(vec3(n.y, -n.x, 0.0)), a2 = cross(n, a1);
   float r = length(fl), ph = (atan(dot(fl, a2), dot(fl, a1) + 1e-5) / TAU + o.h.y) * 8.0, g = fract(ph) - .5, slope = max(length(cross(N, n)), .12);
-  up -= o.hh * .17 * (1.0 - 4.0 * g * g);
+  up -= o.hh * mix(.17 * (1.0 - 4.0 * g * g), -.05 + .3 * noise(vec2(ph * 7.0, o.h.x * 30.0)), ppStraw);
   float cov = sat(.5 + min(up / slope, Rs - sqrt(max(q2, 0.0))) / px);
   vec3 rad = fl / max(r, 1e-4), tau = cross(rad, n);
-  N = normalize(N + tau * g * (TAU / 8.0) * 1.8 * slope);
+  N = normalize(N + tau * g * (TAU / 8.0) * 1.8 * slope * (1.0 - ppStraw));
   float rd = (.5 - abs(g)) * TAU / 8.0 * r, s = r / o.R, w = px / o.R;
   // plain, in halves, rimmed, or ringed
   vec3 white = vec3(.97, .95, .89), dye = ppDye(o.k);
@@ -101,15 +126,17 @@ void ppDome(inout vec4 pic, PpP o, vec3 sunC, vec3 skyC) {
   float pat = kind < .42 ? 0.0 : kind < .7 ? half_ : kind < .85 ? ppT(.74 - w, .74 + w, s) : sat(.5 + sin(s * 21.0) / (21.0 * w + .02));
   pat = mix(pat, half_, ppGay);
   vec3 cloth = mix(dye, mix(o.k == 4 ? ppDye(int(o.h.z * 3.99)) : white, white, ppWhite), pat);
+  if (ppStraw > 0.0) cloth = mix(cloth, ppStrawC(ph, s, o.h.z) * mix(vec3(1.0), .55 + .6 * tint, .3 + .5 * o.lit), ppStraw);
   cloth = mix(cloth, mix(ppHold(uKind[4]), vec3(1.0, .98, .85), .35), .75 * o.hit);
   float ndl = dot(N, ppSun);
   vec3 c = cloth * (sunC * (.22 + .78 * sat(ndl * 1.05)) + skyC * .34 * (.6 + .4 * N.y));
-  c *= 1.0 - .2 * (1.0 - ppT(0.0, .03 + px, rd)) * ppT(.02, .1, s);
+  c *= 1.0 - .2 * (1.0 - ppT(0.0, .03 + px, rd)) * ppT(.02, .1, s) * (1.0 - ppStraw);
   c *= 1.0 - .16 * ppT(.03 + w, .02, (up / slope) / o.R - .11);  // the hem hangs
   c = mix(c, vec3(1.0, .98, .93) * (sunC + skyC * .3), ppT(.06 + w, .05, s));
   c += .25 * sunC * sat(uKeys) * pow(sat(ndl), 24.0);
   c *= 1.0 + .3 * uCue * ppWave(o.c) + .35 * o.hit;
   if (under > .5) c = cloth * (skyC * .6 + sunC * .35);
+  if (ppNight > 0.0) c += ppNight * (cloth * .75 + .12) * vec3(1.1, .74, .42) * (.16 + .62 * o.lit + .4 * o.hit) * (under > .5 ? 1.5 : .35 + .75 * exp(-2.2 * s * s) + .25 * s * s) * (1.0 - .6 * ppStraw);
   ppPut(pic, c, cov);
 }
 // Lays the parasol of one cell.
@@ -152,15 +179,16 @@ vec3 ppBeach(vec2 p) {
     for (int k = 0; k < 4; k++) ppLay(pic, id0 + ppNear(k), sunC, skyC);
     if (pic.a < .01) return mix(pic.rgb, haze, air);
   }
-  float shore = g.y - ppZ - 1.4 * sin(g.x * .09) - .6 * sin(g.x * .23 + 1.0);
+  float shore = g.y - ppZ - 1.4 * sin(g.x * .09) - .6 * sin(g.x * .23 + 1.0) + 46.0 * ppWet;
   float n2 = noise(g * 2.3), fine = ppT(.25, .02, pz), thin = 1.0 / (1.0 + pz);
   float edge = shore - .5 + .8 * sin(uTime * .21 + .06 * g.x) + 1.6 * (noise(vec2(g.x * .35, uTime * .07)) - .5) + 1.4 * uLow * ppG;
   // the sea: over 0 is water
   vec3 sea = vec3(0.0), sand = vec3(0.0);
   if (edge > -1.2 - pz) {
-    float far = max(shore, 0.0);
-    sea = mix(vec3(.7, .9, .84), vec3(.22, .74, .74), ppT(0.0, 9.0, far));
-    sea = mix(sea, vec3(.06, .52, .68), ppT(6.0, 30.0, far)); sea = mix(sea, vec3(.1, .36, .62), ppT(25.0, 90.0, far));
+    float far = max(shore, 0.0), deep = far * (1.0 - .8 * ppWet);
+    sea = mix(vec3(.7, .9, .84), vec3(.22, .74, .74), ppT(0.0, 9.0, deep));
+    sea = mix(sea, vec3(.06, .52, .68), ppT(6.0, 30.0, deep)); sea = mix(sea, vec3(.1, .36, .62), ppT(25.0, 90.0, deep));
+    sea = mix(sea, vec3(.2, .36, .34) + .1 * ppT(0.0, 60.0, far), .75 * ppDay);
     float chop = noise(vec2(g.x * .12 + uTime * .05, g.y * .5 - uTime * .1)) - .5;
     sea += vec3(.03, .07, .07) * (chop + .5 * sin(far * 1.1 + 4.0 * chop + uTime * .3)) * ppT(.8, .1, px);
     // three breakers come in
@@ -171,23 +199,33 @@ vec3 ppBeach(vec2 p) {
     }
     foam = max(foam, ppT(.75 + pz, .1, abs(edge - .25 - .3 * mix(.5, n2, thin))) * mix(1.0, thin, .6));
     foam = max(foam, .5 * ppT(3.0, 0.0, edge) * ppT(.5, .75, noise(g * 1.3)));
-    sea = mix(sea, vec3(.98, .99, .97), foam * .9) * mix(vec3(1.0), sunC * 1.1, .8);
-    sea = mix(sea, haze, ppT(40.0, 320.0, far));
+    if (ppWet > 0.0) {
+      float w1 = noise(g * 1.7 + uTime * .23) + noise(g * 2.3 - vec2(uTime * .19, 4.0));
+      sea += ppWet * fine * vec3(.1, .13, .11) * ppT(.22, .0, abs(w1 - 1.0));
+    }
+    sea = mix(sea, vec3(.98, .99, .97), foam * .9 * (1.0 - .8 * max(ppDay, ppWet))) * mix(vec3(1.0), sunC * 1.1, .8);
+    sea = mix(sea, haze, ppT(40.0, 320.0, far * (1.0 - .5 * ppWet)));
   }
   if (edge < 1.0) {
     float n1 = noise(g * .5);
     vec3 dry = mix(vec3(.95, .87, .7), mix(vec3(.2, .19, .2), vec3(.86, .5, .42), ppPale), max(ppDark, ppPale));
+    if (ppDay > 0.0) {
+      float gl = noise(g * vec2(7.0, 3.0)), fl = ppT(.2, .1, length(fract(g * 1.3) - .3 - .4 * hash22(floor(g * 1.3)))) * step(.55, hash21(floor(g * 1.3) + 5.0)) * fine * ppT(.45, .6, n1);
+      dry = mix(dry, mix(vec3(.3, .44, .2), vec3(.56, .63, .3), .55 * n1 + .45 * mix(.5, gl, fine)) * mix(vec3(1.0), dry * 1.15, .3 * max(ppDark, ppPale)) + .5 * fl, ppDay);
+    }
     sand = dry * (.95 + .08 * n1 - .06 * ppT(.55, .8, n2) * fine);
     sand = mix(sand, sand * vec3(.78, .73, .69), ppT(-4.0, -.6, shore + .6 * n1));
   }
   // shade, and what lies beside it
-  vec2 tw = -ppSun.xz / ppSun.y * 2.2; id0 = floor((g - tw) / ppC - .5);
-  float shade = 0.0;
+  vec2 tw = -ppSun.xz / ppSun.y * 2.2 * (1.0 - .9 * ppNight); id0 = floor((g - tw) / ppC - .5);
+  float shade = 0.0, dry_ = 1.0 - ppT(.15, .5, ppWet); vec3 pool = vec3(0.0);
   vec2 f0 = floor(g / ppC - .5);
   if (g.y < 24.0) {
     float way = abs(mod(floor(g.x / ppC) + 2.0, 7.0)) < .5 ? abs(fract(g.x / ppC) - .5) * ppC : 9.0;
     float plank = g.y / .28;
-    sand = mix(sand, vec3(.76, .66, .54) * (.85 + .2 * hash11(floor(plank))) * (1.0 - .35 * ppT(.4, .5, abs(fract(plank) - .5)) * fine), ppT(.75 + px, .75, way) * ppT(22.5, 22.3, g.y));
+    vec3 wood = vec3(.76, .66, .54) * (.85 + .2 * hash11(floor(plank)));
+    sand = mix(sand, wood * (1.0 - .35 * ppT(.4, .5, abs(fract(plank) - .5)) * fine), ppT(.75 + px, .75, way) * ppT(22.5, 22.3, g.y));
+    if (ppWet > 0.0) sea = mix(sea, wood, ppT(.75 + px, .75, way) * ppT(22.5, 22.3, g.y));
     for (int j = 0; j < 4; j++) {
       vec2 id = id0 + ppCell(j);
       vec2 v = g - (id + .5) * ppC;
@@ -199,11 +237,12 @@ vec3 ppBeach(vec2 p) {
         float gg = fract((atan(q.y, q.x + 1e-5) / TAU + o.h.y) * 8.0) - .5, rr = o.R * (.9 + .4 * gg * gg);
         float under = max(sat(.5 + (rr - length(q)) / (pz * .7 + .2 - .18 * uTone)), sat(.5 + (.04 - length(v - tw * al)) / px));
         shade = max(shade, under * step(.08, o.R));
+        if (ppNight > 0.0) pool += step(.08, o.R) * vec3(1.0, .64, .3) * (.16 + .9 * o.lit) * ppT(2.3, .1, length(v));
       }
       // a towel, sometimes with someone on it
       id = f0 + ppCell(j);
       vec4 h = ppH(id);
-      float here = sat((.9 - .6 * ppFew - h.z) * 20.0);
+      float here = sat((.9 - .6 * ppFew - h.z) * 20.0) * dry_ * ppT(.35, .1, ppRings);
       vec2 tq = g - (id + .5 + .2 * (h.xy - .5)) * ppC - vec2(1.25, -.5 - .5 * h.x);
       if (dot(tq, tq) < 1.2 && h.w < .62 && here > 0.0 && id.y < 6.0 && mod(id.x + 2.0, 7.0) > .5) {
         tq = rot(.9 + 1.2 * (h.y - .5)) * tq;
@@ -222,9 +261,23 @@ vec3 ppBeach(vec2 p) {
   shade *= .4 + .6 * ppT(1.5, .3, pz);
   vec3 shaded = mix(vec3(.47, .6, .93), vec3(.55, .42, .6), ppLate);
   sand *= mix(vec3(1.0), shaded, shade * (1.0 - .5 * ppNight)) * mix(vec3(1.0), sunC * 1.05, .9);
+  if (ppNight > 0.0) sand += ppNight * pool * (.28 + sand);
+  if (ppWet > 0.0) sea *= mix(vec3(1.0), shaded, .75 * shade * (1.0 - .5 * ppNight) * ppT(0.0, .3, ppWet));
   // the red ball, left on the empty sand
   vec3 bc = vec3(-5.8, .7, 25.2), oc = ppRo - bc; float b = dot(oc, ppRd), bq = dot(oc, oc) - b * b, br = .7;
   vec2 bs = g - bc.xz + ppSun.xz / ppSun.y * br; sand *= mix(vec3(1.0), shaded, sat(.5 + (br - length(bs)) / pz));
+  if (ppWet > 0.0 && pic.a > .01 && g.y < 24.0) {
+    vec3 ro = ppRo, rd = ppRd; float wpx = ppPx;
+    vec2 rip = vec2(noise(g * 1.1 + uTime * .3), noise(g * vec2(1.3, 2.1) - uTime * .26)) - .5;
+    ppRo = vec3(g.x, 0.0, g.y); ppRd = normalize(vec3(rd.x + .16 * rip.x * fine, -rd.y, rd.z + .16 * rip.y * fine));
+    ppPx *= 1.0 + t * ppRd.y / 2.1;
+    vec4 mir = vec4(0.0, 0.0, 0.0, 1.0);
+    vec2 mc = floor((ppRo.xz + ppRd.xz * 2.1 / max(ppRd.y, .03)) / ppC - .5);
+    for (int k = 0; k < 4; k++) ppLay(mir, mc + ppNear(k), sunC, skyC);
+    ppRo = ro; ppRd = rd; ppPx = wpx;
+    float fres = .34 + .5 * pow(1.0 - sat(-rd.y), 3.0);
+    sea = mix(sea, mir.rgb + mir.a * mix(sea, haze, .6), fres * ppT(0.0, .4, ppWet) * ppT(24.0, 14.0, g.y));
+  }
   vec3 col = mix(sand, sea, ppT(-.12 - pz, .12, edge));
   if (bq < br * br + .2) {
     vec3 N = (oc - ppRd * (b + sqrt(max(br * br - bq, 0.0)))) / br;
@@ -242,6 +295,8 @@ PpS ppStall(vec2 id) {
   o.c = (id + .5) * ppS;
   o.c.y += mod(id.y, 2.0) < .5 ? .22 : -.22; o.c.x -= .24 * (mod(id.x, 3.0) - 1.0); o.c += .24 * (o.h.zw - .5);
   int k = int(fract(o.h.x * 5.3 + o.h.y) * 4.9);
+  float rg = length(o.c - vec2(-9.0, 26.0)) / 6.2;
+  if (ppRings > 0.0 && o.h.y < ppRings * 1.02) k = int(mod(floor(rg + .5), 5.0));
   vec4 m = ppMap(o.c);
   float lit = sat(.65 * (k < 4 ? ppKind(k) : .4 * uLevel) + .9 * m.a * ppG);
   vec3 base = k == 0 ? vec3(.1, .35, 1.0) : k == 1 ? vec3(1.0, .12, .2) : k == 2 ? vec3(1.0, .5, .05) : k == 3 ? vec3(.1, .8, .35) : vec3(1.0, .28, .12);
@@ -251,6 +306,7 @@ PpS ppStall(vec2 id) {
   o.lamp = (.3 + .5 * o.h.w) * ppT(-.15, .25, o.h.w) * (.97 + .06 * sin(uTime * .7 + o.h.y * 50.0)) + .75 * lit + .35 * band(sat(id.y / 16.0)) * ppG;
   o.lamp += 1.6 * uCue * ppWave(o.c) + 1.8 * uHits * step(.9, o.h.z);
   float there = ppT(o.h.x - .06, o.h.x, .97 - .62 * ppFew);
+  if (ppRings > 0.0) there *= ppGap(rg);
   o.w = 1.66 * there * (1.0 + .1 * ppMany); o.e = 2.15 + .25 * o.h.y; o.hh = there * (.85 + .35 * o.h.x) * (1.0 + 1.1 * ppTall - .65 * ppFlat);
   o.turn = .14 * (o.h.x - .5);
   vec2 d = id - vec2(1.0, 5.0);
@@ -295,10 +351,22 @@ void ppCanopy(inout vec4 pic, vec2 id, vec3 skyC) {
     c = pow(cl, vec3(1.5 + 1.3 * m)) * I + vec3(1.0, .75, .42) * cl * .35 * I * I;
     c *= 1.0 - .6 * ppT(.05 + px, 0.0, abs(aq.x - aq.y) * o.w * .7) - .3 * ppT(.03 + px, 0.0, abs(m - .55) * o.w);
     c += (.12 + .3 * cl) * skyC * .3;
-    c = mix(c, vec3(.7, .78, .9) * (skyC * 1.3 + o.lamp * .12 * o.dye), .85 * ppPale * ppT(.2, .5, noise(X.xz * 1.5 + o.h.xy * 20.0) + .3 * m));
+    if (ppStraw > 0.0) {
+      vec3 st = ppStrawC((aq.x > aq.y ? q.y : q.x) * 4.0, m, o.h.z);
+      c = mix(c, st * st * (skyC * .9 + .02 + .3 * o.lamp * mix(vec3(1.0, .6, .25), o.dye, .35) * (.35 + .65 * m)) + c * .12 * ppT(.62, .9, noise(vec2(s * 22.0, m * 5.0))), ppStraw);
+    }
+    if (ppDay > 0.0) {
+      vec3 n = normalize(aq.x > aq.y ? vec3(k * sign(q.x), 1.0, 0.0) : vec3(0.0, 1.0, k * sign(q.y)));
+      vec3 dc = ppStraw > 0.0 ? mix(cl, ppStrawC(s * 4.0, m, o.h.z), ppStraw) : cl;
+      dc = mix(vec3(dot(dc, vec3(.3, .5, .2))), dc, .8) * .7 + .03;
+      c = mix(c, dc * (vec3(1.1, 1.0, .85) * 1.1 * sat(dot(n, ppSun)) + vec3(.13, .15, .2) + .4 * o.lamp * o.dye) * (.9 + .12 * fold), ppDay * .94);
+    }
+    c = mix(c, vec3(.7, .78, .9) * (skyC * 2.2 + .05) * (aq.x > aq.y ? 1.0 + .4 * sign(q.x) : 1.0 - .3 * sign(q.y)), .97 * ppPale * ppT(.4, .7, .3 * noise(X.xz * 2.5 + o.h.xy * 20.0) + .6 * m + .2 * o.h.z));
   } else {
     float f = -X.y / skirt;
     c = mix(o.dye, vec3(1.0, .86, .68), .75 * stripe); c = c * c * o.lamp * (.12 + .16 * f) + skyC * .06;
+    c = mix(c, (mix(o.dye, vec3(1.0, .86, .68), .75 * stripe) * .6 + .1) * .75, ppDay);
+    if (ppStraw > 0.0) { cov *= mix(1.0, ppT(f - .1, f + .1, .15 + .9 * noise(vec2(s * 30.0, o.h.x * 40.0))), ppStraw); c = mix(c, mix(vec3(.12, .075, .03) * (o.lamp + .4), vec3(.6, .45, .24), ppDay), ppStraw * .8); }
   }
   ppPut(pic, c, cov);
 }
@@ -327,7 +395,9 @@ vec3 ppMarket(vec2 p) {
   vec3 top = ppHour(vec3(.004, .018, .085), vec3(.1, .17, .4), vec3(.002, .004, .014));
   vec3 low = ppHour(vec3(.04, .085, .21), vec3(.8, .36, .16), vec3(.012, .016, .04));
   vec3 glow = ppHour(vec3(.2, .075, .02), vec3(.9, .4, .1), vec3(.03, .012, .004));
+  if (ppDay > 0.0) { top = mix(top, vec3(.3, .5, .85), ppDay); low = mix(low, vec3(.62, .6, .54), ppDay); glow *= 1.0 - ppDay; }
   vec3 skyC = top * 1.2 + low * .5;
+  ppSun = normalize(vec3(-.55, 1.0, -.45) + vec3(.7, -.35, .2) * ppLate);
   vec3 col;
   // houses at the far side of the square, their shops lit
   float tw = 62.0 / max(dot(ppRd.xz, ppFw), .05), wy = ppRo.y + ppRd.y * tw, foot = .8 * tan(pitch - atan(ppRo.y / 62.0));
@@ -342,6 +412,7 @@ vec3 ppMarket(vec2 p) {
     float win = ppT(.16 + ph, .16 - ph, wf.x) * ppT(.28 + ph, .28 - ph, wf.y) * ppT(.72, .95, hash21(floor(wv) + 3.0)) * step(4.2, wy);
     float shop = ppT(2.9, 2.5, wy) * ppT(.44, .38, abs(fract(wx / 2.3) - .5)) * ppT(.35, 1.2, hash11(floor(wx / 2.3) + 70.0));
     vec3 wall = low * .05 + top * .25 + vec3(1.0, .5, .17) * (.4 * win + .5 * shop * (1.0 + .5 * uLow));
+    if (ppDay > 0.0) wall = mix(wall, mix(vec3(.4, .25, .16), vec3(.55, .44, .32), hash11(b + 9.0)) * (1.0 - .6 * max(win, shop)), ppDay);
     col = mix(col, wall, sat(.5 + (bh - wy) / (tw * ppPx)));
   } else {
     vec2 g = ppRo.xz + ppRd.xz * t; float px = t * ppPx;
@@ -351,15 +422,29 @@ vec3 ppMarket(vec2 p) {
     col = vec3(0.0);
     if (pic.a > .01) {
       vec3 gr = mix(vec3(.075, .06, .06), vec3(.5, .53, .6), ppPale), L = skyC * (.7 + 2.0 * ppFew);
+      vec2 tw2 = ppSun.xz / ppSun.y * 2.4; float shadow = 0.0;
+      if (ppDay > 0.0) { gr = mix(gr, vec3(.5, .44, .36) * (.9 + .12 * noise(g * 3.0)), ppDay * (1.0 - .6 * ppDark)); L += vec3(.35, .32, .26) * ppDay; }
       id0 = floor(g / ppS - .5);
       for (int j = 0; j < 4; j++) {
         PpS o = ppStall(id0 + ppCell(j));
         vec2 q = rot(o.turn) * (g - o.c);
         float bx = max(abs(q.x), abs(q.y)), out_ = max(bx - o.w, 0.0);
         vec3 warm = mix(o.dye, vec3(1.0, .68, .34), .55);
-        L += warm * o.lamp * (.22 * exp(-out_ * 2.0) + 2.2 * ppT(1.7, .2, bx)) * (1.0 + ppDark) * step(.05, o.w);
+        L += warm * o.lamp * (.22 * exp(-out_ * 2.0) + 2.2 * ppT(1.7, .2, bx)) * (1.0 + ppDark) * step(.05, o.w) * (1.0 - .8 * ppDay);
+        if (ppDay > 0.0) { q = abs(rot(o.turn) * (g + tw2 * .6 - o.c)); shadow = max(shadow, sat(.5 + (o.w - max(q.x, q.y)) / (.1 + px))); }
       }
+      L *= 1.0 - .72 * ppDay * shadow;
       col = gr * L;
+      if (ppWet > 0.0) {
+        // the wet stones give the lit cloth back
+        vec2 rip = vec2(noise(g * vec2(3.0, 2.0)), noise(g * 2.3 + 9.0)) - .5, m = g + ppRd.xz / max(-ppRd.y, .06) * 2.3 + rip * .9;
+        vec2 im = floor(m / ppS - .5); vec3 R = vec3(0.0); float wetm = ppT(.2, .5, noise(g * .5) + .35 * ppWet);
+        for (int j = 0; j < 4; j++) {
+          PpS o = ppStall(im + ppCell(j)); vec2 q = abs(rot(o.turn) * (m - o.c));
+          R += o.dye * o.dye * o.lamp * ppT(o.w + .2, o.w - .9, max(q.x, q.y)) * step(.05, o.w);
+        }
+        col = col * (1.0 - .45 * ppWet) + ppWet * wetm * (R * .32 + low * .25 * pow(1.0 - sat(-ppRd.y), 3.0));
+      }
       ppPeople(col, L, skyC, t);
     }
     col = pic.rgb + pic.a * col;
@@ -378,10 +463,7 @@ vec3 ppMarket(vec2 p) {
   }
   return screenOf(col * 1.5);
 }
-void ppOwn(float o, out float a, out float b) { a = sat(-o); b = sat(o); }
 vec3 render(vec2 p) {
   ppG = .6 + .9 * uEnergy;
-  ppOwn(uOwn[0], ppLate, ppNight); ppOwn(uOwn[1], ppDark, ppPale); ppOwn(uOwn[2], ppFew, ppMany);
-  ppOwn(uOwn[3], ppDown, ppLow); ppOwn(uOwn[4], ppWhite, ppGay); ppOwn(uOwn[5], ppTall, ppFlat);
   return uVar < .5 ? ppBeach(p) : ppMarket(p);
 }

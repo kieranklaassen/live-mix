@@ -3,12 +3,17 @@
 // b: Fringed lake
 // what: A round black lake in a crater whose walls are a forest of grey-blue and amber ropes: from the near slope, over a ragged golden lip, the water is cut by the frame and holds one tall window of light; or from high above, the ropes running off wide, half in the long shade of grasses, a bright curl of light on the amber.
 // follows: The pool opens in quiet and draws in as the sound grows bright. The piece dyes the land, the loop round it, the room outward. A drone colours the deep, a pad is wet shine, texture fine threads, a phrase glows along one braid, bands raise sixteen sectors. A hit lights and shivers the window, a cue passes a lid of shade, keys light flecks, a voice the lip.
-// own: 0 moss and copper at -1, frost blue and dusty rose at 1; 1 a moonlit night at -1, a low red evening at 1; 2 a pinhole of a pool at -1, a flooded one at 1; 3 few fat smooth ropes at -1, land pitted with deep hollows at 1; 4 low down by the water at -1, from high overhead at 1; 5 a long narrow tarn at -1, a lake with five bays at 1
+// own: 0 moss and copper at -1, frost blue and dusty rose at 1; 1 a moonlit night at -1, a low red evening at 1; 2 a pinhole of a pool at -1, a flooded one at 1; 3 few fat smooth ropes at -1, land pitted with deep hollows at 1; 4 low down by the water at -1, from high overhead at 1; 5 a long narrow tarn at -1, a lake with five bays at 1; 6 the pool under a white lid of ice and snow on the land at -1, a molten lake that lights a charred wall at 1; 7 the land cut in level terraces that hold water at -1, made of great overlapping petals at 1
+#define ecIce max(-uOwn[6], 0.0)
+#define ecFire max(uOwn[6], 0.0)
+#define ecStep max(-uOwn[7], 0.0)
+#define ecLeaf max(uOwn[7], 0.0)
 float ecPool;          // how wide the pool is
 float ecOut;             // where the crater's rim stands
 // what the last reading of the land found
 float ecA, ecS, ecH, ecId, ecWeb, ecIn, ecLane;
 vec3 ecN, ecM;
+float ecWet;           // how much of a level field of water this is
 float ecFlat;         // where the eye looks along the ground the ropes lie lower, so that they stay whole
 // a swing like a sine, and a number for a whole number, both cheap
 float ecSin(float x) { float f = 2.0 * fract(x * 0.15915494) - 1.0; return -4.0 * f * (1.0 - abs(f)); }
@@ -50,6 +55,21 @@ float ecBand(float a) {
   float f = fract(a) * 16.0; int i = int(min(f, 15.0)); float t = fract(f); t = t * t * (3.0 - 2.0 * t);
   return mix(uBands[i], uBands[(i + 1) % 16], t);
 }
+// Great petals in rows, the inner lying over the outer. Their height; which one, and how near its edge.
+float ecPetals(float a, float y, out float id, out float rib) {
+  float best = 0.06; id = 0.3; rib = 0.0;
+  for (int k = 2; k >= 0; k--) {
+    float j = floor(y) - float(k), per = 34.0, x = a * per + 0.5 * mod(j, 2.0), i = floor(x);
+    float h = ecHash(mod(i, per) + 41.0 * j + 5.1), v = (y - j) / (1.7 + 0.9 * h);
+    float u = (x - i - 0.5 - 0.22 * (h - 0.5)) * 2.0, w = 1.12 * sqrt(max(1.0 - v * v, 0.0)) * (0.8 + 0.2 * smoothstep(0.0, 0.35, v));
+    if (v > 1.0 || abs(u) > w) continue;
+    float e = abs(u) / max(w, 1e-3);
+    best = 0.18 + 0.7 * v * v + 0.42 * (1.0 - e * e) - 0.22 * exp(-u * u * 60.0) * (1.0 - v);
+    e *= e * e; best = mix(best, 0.06, e * e); id = h; rib = abs(u) / max(w, 1e-3);
+    break;
+  }
+  return best;
+}
 // The whole land at a place, with its ropes and hollows. foot is how wide a pixel lies there.
 float ecLand(vec2 q, float foot) {
   float r = ecRad(q), s = (r - ecPool) / (ecOut - ecPool), o3 = uOwn[3];
@@ -79,10 +99,28 @@ float ecLand(vec2 q, float foot) {
   float k = 0.12 + 0.6 * mild, h = 0.5 + 0.5 * clamp((A - B) / k, -1.0, 1.0);
   float H = mix(B, A, h) + k * h * (1.0 - h);
   ecId = mix(ib, ia, h); ecWeb = C;
+  ecWet = 0.0;
+  if (uOwn[7] < 0.0) {
+    float x = s * 15.0 + 1.7 * n.x + 1.3 * n.z, row = floor(x), f = x - row;
+    float st = f < 0.72 ? 1.0 - f / 0.72 : smoothstep(0.72, 1.0, f);
+    float fit = smoothstep(2.0, 7.0, (ecOut - ecPool) / 15.0 / max(foot, 1e-4));     // far off they are too fine to tell apart
+    st = mix(0.55, st, fit);
+    float walk = abs(fract(a * 46.0 + ecHash(row + 2.0) + 0.3 * n.y) - 0.5) * turn / 46.0;       // a bank across, between two fields
+    float bank = max(exp(-min(f, 1.0 - f) * min(f, 1.0 - f) * 90.0), exp(-walk * walk * 1500.0) * smoothstep(0.0, 0.08, f) * (1.0 - smoothstep(0.66, 0.74, f))) * fit;
+    H = mix(H, 1.15 * st + 0.15 * bank + 0.08 * C * smoothstep(0.74, 0.84, f) * smoothstep(0.0, 0.12, 1.0 - f), ecStep);
+    ecId = mix(ecId, ecHash(row + floor(a * 46.0 + ecHash(row + 2.0) + 0.3 * n.y) * 7.0), ecStep);
+    ecWet = ecStep * smoothstep(0.1, 0.16, f) * (1.0 - smoothstep(0.66, 0.74, f)) * (1.0 - bank) * smoothstep(0.25, 0.4, ecId);
+    ecWet = mix(0.45 * ecStep, ecWet, fit);
+    hole *= 1.0 - ecStep; C *= 1.0 - 0.85 * ecStep * smoothstep(0.24, 0.34, s);
+  } else if (uOwn[7] > 0.0) {
+    float id, rib, P = ecPetals(a + 0.012 * (n.x - 0.5), s * 7.0 + 0.9 * (n.y - 0.5), id, rib);
+    H = mix(H, 1.35 * P + 0.05 * C * (1.0 - rib), ecLeaf); ecId = mix(ecId, id, ecLeaf); ecWeb = mix(C, rib, ecLeaf);
+    hole *= 1.0 - ecLeaf;
+  }
   // inside the ragged lip there are only the fine ones
   float edge = s + 0.07 * (m.y - 0.5) + 0.06 * (n.x - 0.5);
   ecIn = 1.0 - smoothstep(0.2, 0.26, edge);
-  H = mix(H, 0.3 * H + 0.5 * C, ecIn);
+  H = mix(H, 0.3 * H + 0.5 * C, ecIn * (1.0 - 0.8 * ecLeaf)); ecWet *= 1.0 - ecIn;
   H = max(H, 0.45 * C) * (1.0 - 0.9 * hole) - (0.55 + 1.3 * wild) * hole + (0.1 + 0.3 * hole) * C;
   ecH = H;
   float lip = (edge - 0.245) * 13.0; lip = 1.0 + lip * lip;
@@ -112,11 +150,25 @@ vec3 ecWater(vec3 ro, vec3 rd, vec3 q) {
   float wall = 1.0 - smoothstep(-0.04, 0.05, rf.y - 0.27 - 0.06 * sin(rf.x * 7.0));
   vec3 c = mix(ecSky(rf), ecHaze * (0.22 + 0.4 * st * st), wall) * fr * (0.8 - 0.5 * uDrone);
   c += (0.006 + 0.15 * uDrone) * uKind[0] * uKind[0] * exp(-dot(o, o) * 1.6);
+  if (uOwn[6] < 0.0) {                          // a lid of ice, with its cracks
+    vec2 g = q.xz * 1.3;
+    float f1 = noise(g * 1.7 + 4.0), f2 = noise(g * 4.3 + 9.0), cr = min(abs(f1 + 0.22 * f2 - 0.6), min(abs(f2 + 0.3 * f1 - 0.72) * 0.6, abs(noise(g * 0.9 + 21.0) - 0.5 + 0.1 * (f2 - 0.5)))), fw = 0.8 * length(q - ro) / uRes.y;
+    vec3 ice = mix(vec3(0.16, 0.34, 0.44), vec3(0.62, 0.72, 0.78), smoothstep(0.25, 0.75, 0.6 * f1 + 0.4 * noise(g * vec2(9.0, 3.0))));
+    ice = mix(ice, vec3(0.9), 0.75 * (1.0 - smoothstep(0.0, 0.025 + fw, cr)) + 0.7 * smoothstep(0.75, 1.0, length(o) + 0.15 * f2));
+    c = mix(c, c + ice * (ecWarm * 0.55 + ecCool * 1.1), ecIce);
+  }
+  if (uOwn[6] > 0.0) {                          // a skin of slag on fire, drifting
+    vec2 g = q.xz * 1.5 + 0.35 * vec2(sin(uTime * 0.05 + q.z), cos(uTime * 0.043 + q.x));
+    float f1 = noise(g * 1.4), f2 = noise(g * 3.1 + 7.0), f3 = noise(g * 8.0), cr = min(abs(f1 + 0.3 * f2 - 0.65 + 0.06 * f3), abs(f2 + 0.3 * f1 - 0.66 + 0.06 * f3) * 0.7);
+    float hot = exp(-cr * (26.0 - 10.0 * uLow)) + 0.28 * smoothstep(0.35, 0.8, f1) + 0.6 * smoothstep(0.8, 1.05, length(o) + 0.1 * f3);
+    c = mix(c, vec3(0.03, 0.02, 0.018) * (0.5 + f3) + vec3(2.6, 0.62, 0.1) * hot * (0.65 + 0.35 * uLevel + 0.6 * uHits * exp(-length(o) * 1.5)) + vec3(1.2, 0.9, 0.4) * hot * hot * hot * 0.9, ecFire);
+  }
   // the window
   float wx = (u + 0.24) / (1.0 + 0.16 * v) + rip;
   float broke = 0.5 + 0.5 * sin(v * 60.0 + 4.0 * sin(u * 7.0) - uTime * 0.7);
   float win = (1.0 - smoothstep(0.085, 0.125, abs(wx))) * (1.0 - smoothstep(0.48, 0.60, v + 9.0 * wx * wx)) * smoothstep(-0.85, -0.2, v + 0.22 * broke - 0.2);
   win += (0.07 + 0.40 * uHits) * exp(-wx * wx * (14.0 - 8.0 * uHits)) * smoothstep(-1.0, 0.4, v);
+  win *= 1.0 - 0.75 * ecFire - 0.5 * ecIce;
   c += ecWarm * win * (0.55 + 0.35 * uHits + 0.15 * uLevel) * (0.65 + 0.35 * v);
   return c + ecWarm * wave * 0.12;
 }
@@ -156,6 +208,7 @@ vec3 render(vec2 p) {
   ecWarm = mix(mix(vec3(1.75, 1.22, 0.70), vec3(0.26, 0.36, 0.55), ecNight), vec3(2.1, 0.62, 0.22), ecEve);
   ecCool = mix(mix(vec3(0.27, 0.40, 0.52), vec3(0.04, 0.065, 0.12), ecNight), vec3(0.17, 0.15, 0.34), ecEve);
   ecHaze = mix(mix(vec3(0.22, 0.27, 0.31), vec3(0.025, 0.04, 0.065), ecNight), vec3(0.28, 0.13, 0.15), ecEve);
+  ecHaze += vec3(0.07, 0.018, 0.005) * ecFire; ecHaze *= 1.0 + 0.6 * ecIce;
   ro.xz += 0.06 * vec2(sin(uTime * 0.031), cos(uTime * 0.027));
   vec3 fw = normalize(ta - ro), rt = normalize(cross(vec3(0, 1, 0), fw)), uu = cross(fw, rt);
   vec3 rd = normalize(fw * zoom + rt * p.x + uu * p.y);
@@ -199,7 +252,11 @@ vec3 render(vec2 p) {
       float t0 = t - dt, tm = t - dt * d / min(d - d0, -1e-5);
       q = ro + rd * tm;
       float dm = q.y - ecLand(q.xz, foot);
-      t = dm < 0.0 ? t0 + (tm - t0) * d0 / max(d0 - dm, 1e-5) : tm + (t - tm) * dm / max(dm - d, 1e-5);
+      if (abs(uOwn[7]) > 0.05) {                  // steps and petals have edges, which want it found more closely
+        float hi = t; tm = t0;
+        for (int i = 0; i < 6; i++) { float m = 0.5 * (tm + hi); q = ro + rd * m; if (q.y < ecLand(q.xz, foot)) hi = m; else tm = m; }
+        t = hi;
+      } else t = dm < 0.0 ? t0 + (tm - t0) * d0 / max(d0 - dm, 1e-5) : tm + (t - tm) * dm / max(dm - d, 1e-5);
     }
     wet = t > tp;
   }
@@ -225,6 +282,9 @@ vec3 render(vec2 p) {
     amber = mix(mix(amber, amber * vec3(0.75, 0.42, 0.45), moss), vec3(0.62, 0.33, 0.33) * (0.55 + 0.7 * ecWeb), pale);
     vec3 alb = mix(slate, amber, max(ecIn, gold));
     alb = mix(alb, amber * 1.1, 0.75 * (1.0 - 0.5 * moss - 0.5 * pale) * smoothstep(0.52, 0.72, ecN.x * 0.7 + 0.3 * ecId));
+    if (uOwn[7] > 0.0) alb = mix(alb, mix(mix(slate, amber, 0.35 * ecId) * 1.25, amber * 1.1, smoothstep(0.55, 1.0, ecWeb)), ecLeaf * (1.0 - ecIn));
+    if (uOwn[6] > 0.0) alb *= mix(vec3(1.0), vec3(0.30, 0.27, 0.28), ecFire);
+    if (uOwn[6] < 0.0) alb = mix(alb, vec3(0.74, 0.79, 0.84), ecIce * smoothstep(0.45, 0.75, n.y + 0.35 * (ao - 0.6)));
     // the piece is dye in the land, round and outward
     float at = far ? ecA : fract(ecA + 0.5);
     vec4 pc = piece(vec2(at, sat(s * 1.05)));
@@ -247,6 +307,19 @@ vec3 render(vec2 p) {
     alb *= mix(0.06, 1.05, ao * ao * 0.5 + 0.5 * ao);
     alb *= mix(1.0, 0.22, exp(-max(s, 0.0) * (60.0 - 35.0 * uDrone)));        // dark and wet at the water
     col = alb * (ecWarm * dif * 2.6 + ecCool * (0.36 + 0.30 * n.y));
+    if (uOwn[6] > 0.0) {
+      vec3 to = vec3(-q.x, 0.35 * r, -q.z) / max(r, 1e-3);
+      float gap = max(r - ecPool, 0.0);
+      col += (alb * 2.2 + 0.03) * vec3(2.8, 0.75, 0.16) * ecFire * (0.15 + max(dot(n, to), 0.0)) * exp(-gap * 1.15) * ao * (0.9 + 0.25 * uLow + 0.35 * uHits + 0.06 * ecSin(uTime * 0.7));
+    }
+    if (abs(uOwn[3]) + abs(uOwn[6]) + abs(uOwn[7]) > 0.3) {   // where the pool may be out of sight a hit also runs out over the land
+      float gone = s - 0.4 - 0.8 * (1.0 - uHits);
+      col += (alb + 0.1) * (uKind[4] * uKind[4] + 0.3 * ecWarm) * uHits * smoothstep(0.0, 0.2, uHits) * exp(-gone * gone * 22.0) * ao * 0.9;
+    }
+    if (uOwn[7] < 0.0) {
+      vec3 rf = reflect(rd, normalize(vec3(0.02 * sin(q.x * 9.0 + uTime * 0.6), 1.0, 0.02 * sin(q.z * 11.0 - uTime * 0.5))));
+      col = mix(col, alb * ecCool * 0.5 + (ecSky(rf) + pcol * dye * 0.15) * (0.35 + 0.65 * pow(1.0 - max(rf.y, 0.0), 2.0)) * (0.5 + 0.5 * shade), ecWet * 0.92);
+    }
     float sharp = mix(14.0, 60.0, uTone);
     vec3 hv = normalize(ecLight - rd);
     col += ecWarm * pow(max(dot(n, hv), 0.0), sharp) * (0.10 + 0.6 * uPad) * (1.0 + 0.6 * ecSin(uTime * 0.6 + 40.0 * ecId + 9.0 * ecM.x)) * ao * (0.3 + 0.7 * shade);

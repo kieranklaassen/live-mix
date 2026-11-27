@@ -3,7 +3,12 @@
 // b: Fish trap
 // what: Small, inside a great basket still being woven: a coiled cane floor, a wall of light and dark strands rising to a ragged edge, bare uprights against a blue sky with one cloud, the sun in stripes over floor and wall; or inside a long bamboo trap in green water, hoops running to a bright toothed mouth, fish and bubbles.
 // follows: The edge rises and sinks with the loop; the piece dyes the strands where it sounds. The drone moves the sun, the pad opens the weave or thickens the beams, texture is dust or bubbles, a phrase winds a bright strand, bands bend uprights or thicken bars. A hit flicks the loose end or scatters fish and runs as light, a cue floods the gaps, keys light crossings.
-// own: 0 moonlight at -1, red evening or rust brown water at 1; 1 peeled white cane at -1, dark bark at 1; 2 few broad strands or bars at -1, many fine ones at 1; 3 upright walls or a narrowing trap at -1, a wide bowl or a flaring trap at 1; 4 a low wall just begun, or a long trap, at -1, a high wall, or a short trap with a wide mouth, at 1; 5 low down looking up, or far back, at -1, high up looking down on the floor, or close to the mouth, at 1
+// own: 0 moonlight at -1, red evening or rust brown water at 1; 1 peeled white cane at -1, dark bark at 1; 2 few broad strands or bars at -1, many fine ones at 1; 3 upright walls or a narrowing trap at -1, a wide bowl or a flaring trap at 1; 4 a low wall just begun, or a long trap, at -1, a high wall, or a short trap with a wide mouth, at 1; 5 low down looking up, or far back, at -1, high up looking down on the floor, or close to the mouth, at 1; 6 water standing on the floor, or the trap dry on a shore, at -1, great eggs in the basket, or glass balls in the trap, at 1; 7 the wall closing into a dome, or an old trap with bars gone, at -1, an open lattice of slanting strands or bars at 1
+#define wwFl max(-uOwn[6],0.)
+#define wwEgg max(uOwn[6],0.)
+#define wwDome max(-uOwn[7],0.)
+#define wwLat max(uOwn[7],0.)
+#define wwSk (wwLat*.5/(.044*exp2(-.7*uOwn[2])))
 // What both share: the way to the sun, the light, the cane, the hour.
 vec3 wwL, wwSunC, wwSky, wwCane, wwBark;
 float wwPx, wwNight, wwEve, wwN, wwH, wwGap, wwS, wwE;
@@ -52,22 +57,22 @@ float wwOpen(float a, float y, float w) {
  float R = 1. + wwS*y;
  wwV0 = wwE + .8*sin(a*2.3 + 1.) + .5*sin(a*6.1 + 4.) + .3*sin(a*15. + 2.*sin(a*3.));
  wwV = wwV0 + smoothstep(0., .25, uPhrase*2.4 - abs(wwWrap(a - wwBearing())));
- float v = y/wwH - a/TAU, rise = max(y - wwV0*wwH, 0.);
+ float v = y/wwH - a/TAU - wwSk*a, rise = max(y - wwV0*wwH, 0.);
  wwJ = floor(v); wwF = v - wwJ - .5;
  // an upright: one of sixteen bands bends it where it stands free
- float k = wwN/TAU, i = floor(a*k + .5), hi = hash11(i + 3.);
+ float au = a + .5*wwLat*y, k = wwN/TAU, i = floor(au*k + .5), hi = hash11(i + 3.);
  wwIdx = i;
  float lean = ((hi - .5)*.25 + uBands[min(int(abs(mod(i + 16., 32.) - 16.)), 15)]*.55*(hi > .5 ? 1. : -1.))*min(rise*rise, .6)/k;
  float tip = (.35 + .6*hash11(i + 140.))*(1. + .3*uSpace);
- wwDs = (a - i/k - lean)*R;
+ wwDs = (au - i/k - lean)*R;
  wwWs = (.075 + .02*hi)/k*(1. - .7*sat(rise/tip)) + .002;
  wwUp = wwIn(w, abs(wwDs) - wwWs)*wwIn(max(w, .004), rise - tip);
  // the strand of this row: thin where there is light between it and the next, tapered at its end
- float st = .5 + .5*cos(a*wwN);
- float live = sat((wwV - wwJ - .5 - a/TAU)*3.);
+ float st = .5 + .5*cos(au*wwN);
+ float live = sat((wwV - wwJ - .5 - a/TAU - wwSk*a)*3.);
  float n = noise(vec2(a*2.3 + wwJ*3.7, wwJ*1.37 + .5)), loose = wwOff(0., 7., wwV - wwJ);
  float gap = wwGap*(.1 + 1.6*n*n + .28*loose)*(1. - .55*st*st)*(.7 + .4*smoothstep(0., 1., y));
- wwTh = (.49 - min(gap, .4))*sqrt(live);
+ wwTh = (.49 - min(gap + .22*wwLat, .4))*sqrt(live);
  wwF += (n - .5)*.12;
  wwWeave = live > 0. ? mix(wwIn(w, (abs(wwF) - wwTh)*wwH), max(.02 + 2.*wwTh, .1), smoothstep(.5, 1.6, w/wwH)) : 0.;
  return (1. - wwUp)*(1. - wwWeave);
@@ -98,21 +103,23 @@ vec3 wwOutside(vec3 rd, bool cloud) {
  c = mix(c, mix(land*vec3(.25, .4, .35), c, .3), wwOff(-.006, .006, y - wood)*smoothstep(0., .2, rd.z));
  return mix(land*(.8 + .2*smoothstep(-.3, 0., y)), c, smoothstep(-.04, .02, y));
 }
+// Where the great eggs lie: their middle, and so how large they are.
+vec3 wwNest(int i) { return i == 0 ? vec3(-.4, .31, .1) : i == 1 ? vec3(.25, .35, .3) : i == 2 ? vec3(-.18, .26, .68) : i == 3 ? vec3(.66, .24, -.12) : vec3(-.8, .22, .42); }
 vec3 wwBasket(vec2 p) {
  float t0 = uTime;
- wwS = .3 + .45*uOwn[3];
- wwN = 43.*exp2(.6*uOwn[2]); wwH = .044*exp2(-.7*uOwn[2]);
- float yE = 1.02 + .5*uOwn[4];
+ wwS = .3 + .45*uOwn[3] - .6*wwDome;
+ wwN = 43.*exp2(.6*uOwn[2] - .7*wwLat); wwH = .044*exp2(-.7*uOwn[2])*(1. + .7*wwLat);
+ float yE = 1.02 + .5*uOwn[4] + .75*wwDome;
  wwE = yE/wwH + 3.*(.5 - .5*cos(TAU*uLoop)) - 1.5;
  wwGap = .13 + .1*uPad;
  float el = .35 + .13*uDrone - .14*max(uOwn[0], 0.), az = -1.25 + .05*sin(t0*.017);
  wwL = vec3(sin(az)*cos(el), sin(el), cos(az)*cos(el));
  float ey = .5 + .3*uOwn[5];
  wwEye = vec3(.1, ey, -.86*(1. + wwS*ey));
- wwLens = .72; wwLook(.16*sin(uTravel*.013) + .03*sin(t0*.021) - .1, -.05 - .32*uOwn[5]);
+ wwLens = .72; wwLook(.16*sin(uTravel*.013) + .03*sin(t0*.021) - .1, -.05 - .32*uOwn[5] + .42*wwDome);
  vec3 rd = wwRay(p);
  vec3 col = vec3(0.);
- float tw = wwCone(wwEye, rd, 1., wwS), tf = rd.y < -1e-4 ? -wwEye.y/rd.y : 1e3;
+ float tw = wwCone(wwEye, rd, 1., wwS), tf = rd.y < -1e-4 ? -(wwEye.y - .09*wwFl)/rd.y : 1e3;
  vec3 sun = wwSunC*(.85 + .35*uLevel);
  bool onFloor = tf < tw, wall = !onFloor && tw < 20.;
  vec3 q = wwEye + rd*min(min(tw, tf), 20.);
@@ -133,12 +140,36 @@ vec3 wwBasket(vec2 p) {
   alb = mix(alb, wwDye(pc)*.7, .35*sat(pc.a)*step(abs(a), 2.2));
   vec3 nn = normalize(vec3(0., 1., 0.) + near*(vec3(sin(a), 0., cos(a))*f*1.5 + T*sin(ph)*.35));
   float ao = mix(.75, (1. - .6*smoothstep(.3, .5, abs(f)))*(.62 + .38*smoothstep(-1., .4, dsp)), near);
+  if (wwEgg > 0.) for (int i = 0; i < 5; i++) {
+   vec3 c = wwNest(i); float R = c.y, b = dot(c - q, wwL), d = length(q + wwL*max(b, 0.) - c);
+   sh *= mix(1., smoothstep(R*.8, R*1.06, d), wwEgg); ao *= mix(1., smoothstep(R*.1, R*1.25, length(q.xz - c.xz)), .8*wwEgg);
+  }
   col = alb*ao*(sun*sh*sat(dot(nn, wwL))*1.7 + wwSky*(.55 + .3*nn.z)*(.26 + .49*smoothstep(0., .5, 1. - r)));
+  if (wwFl > 0.) {
+   // the floor under water: it mirrors the wall and the sky
+   vec2 u = q.xz*vec2(9., 13.); float e = .5;
+   vec2 sl = vec2(noise(u + vec2(t0*.25, 0.) + vec2(e, 0.)) - noise(u + vec2(t0*.25, 0.)), noise(u*1.3 - t0*.2 + vec2(0., e)) - noise(u*1.3 - t0*.2))*(.05 + .07*uLow)*wwOff(.6, 3., px*90.);
+   vec3 wn = normalize(vec3(sl.x, 1., sl.y)), rf = reflect(rd, wn);
+   rf.y = abs(rf.y) + 1e-3;
+   float tr = wwCone(q, rf, 1., wwS), fr = .12 + .88*pow(1. - sat(-dot(rd, wn)), 2.2);
+   vec3 s = q + rf*min(tr, 20.), back = wwOutside(rf, true);
+   if (tr < 20.) {
+    float as = atan(s.x, s.z), o2 = wwOpen(as, s.y, (tf + tr)*wwPx*2.), hh = sat(s.y/max(yE, .2));
+    vec3 wc = mix(wwCane, wwBark, .25 + .5*step(.6, hash11(wwJ + 11.)))*(sun*(.12 + .5*sat(dot(vec3(-sin(as), .1, -cos(as)), wwL))) + wwSky*(.1 + .4*hh*hh));
+    vec4 ph = piece(vec2(.5 + as/3.6, 1. - .95*hh));
+    wc = mix(wc, wwDye(ph)*(wwSky + sun*.2), .7*sat(ph.a));
+    back = mix(wc, back, o2);
+   }
+   vec3 md = normalize(vec3(.1, .64, 1.)); float ma = length(rf - md);
+   back += wwNight*(vec3(.9, .92, .85)*2.5*wwOff(.075, .085, ma) + vec3(.3, .36, .45)*exp(-ma*5.));
+   back += sun*(.2 + uKeys)*pow(sat(dot(rf, wwL)), 60.);
+   col = mix(col, mix(col*.3, back, fr), wwFl);
+  }
  } else {
   if (open < .998) {
    vec3 U = cross(T, I);
    if (U.y < 0.) U = -U;
-   float ph = .5*wwN*a + PI*j, dsp = cos(ph), st = .5 + .5*cos(a*wwN);
+   float an = a + .5*wwLat*q.y, ph = .5*wwN*an + PI*j, dsp = cos(ph), st = .5 + .5*cos(an*wwN);
    float near = wwOff(.35, 1.2, px/wwH);
    float high = sat(q.y/max(yE, .2)), amb = .08 + .36*high*high;
    vec3 bounce = sun*wwCane*(.09 + .05*uCue)*(1.2 - high);
@@ -149,15 +180,15 @@ vec3 wwBasket(vec2 p) {
    vec4 pc = piece(vec2(.5 + a/3.6, 1. - .95*high));
    float dye = sat(pc.a*1.5)*(.45 + .55*hash11(j + 5.));
    alb = mix(alb, wwDye(pc)*.8, dye*.92);
-   float edge = wwBell(wwWrap(a - wwBearing())*2.6)*wwOff(.6, 2.6, v1 - j - .5 - a/TAU);
-   float newS = step(v0 - .5, j + a/TAU)*uPhrase;
+   float edge = wwBell(wwWrap(a - wwBearing())*2.6)*wwOff(.6, 2.6, v1 - j - .5 - a/TAU - wwSk*a);
+   float newS = step(v0 - .5, j + a/TAU + wwSk*a)*uPhrase;
    alb = mix(alb, wwInk(uKind[3])*1.1, newS);
    float ao = mix(.75, (1. - .7*smoothstep(.55, 1., abs(s)))*mix(1., .2 + .8*smoothstep(-.9, .6, dsp), st), near);
    vec3 light = sun*sh*sat(dot(nn, wwL))*1.5 + wwSky*amb*(.75 + .45*nn.y) + bounce + sun*sat(-dot(I, wwL))*.2*(1. + uCue);
    vec3 cs = alb*ao*light;
    cs += (alb + .15)*(edge*(.35 + uEnergy) + newS*.4)*(.5 + .5*ao)*mix(1., .4, wwNight);
    cs += (alb*2.5 + .2*uKind[4])*uHits*wwBell(wwWrap(a - .62 + 2.2*(1. - uHits))*2.2)*smoothstep(v1 - 14., v1, q.y/wwH);
-   cs += vec3(1., .85, .6)*uKeys*step(.93, hash21(vec2(floor(a*wwN/TAU + .5), j)))*st*st*st*(1. - s*s)*1.5;
+   cs += vec3(1., .85, .6)*uKeys*step(.93, hash21(vec2(floor(an*wwN/TAU + .5), j)))*st*st*st*(1. - s*s)*1.5;
    // the upright
    float x = clamp(ds/ws, -1., 1.);
    vec3 nu = wwRound(I, T, x);
@@ -171,6 +202,29 @@ vec3 wwBasket(vec2 p) {
    if (wall && q.y < v0*wwH) beyond *= mix(vec3(1.2), vec3(1.9, 1.6, 1.1), pow(sat(dot(rd, wwL)), 2.))*(1. + 1.2*uCue);
    col = mix(col, beyond, open);
   }
+ }
+
+ if (wwEgg > 0.) {
+  float te = min(tw, tf);
+  for (int i = 0; i < 5; i++) {
+   vec3 c = wwNest(i); float R = c.y*wwEgg, h = hash11(float(i) + 3.), tl = h*TAU; c.y = R;
+   vec3 ax = vec3(cos(tl)*.95, .3, sin(tl)*.95);
+   float b = dot(wwEye - c, rd), cc = dot(wwEye - c, wwEye - c) - R*R, dd = b*b - cc;
+   if (dd < 0.) continue;
+   float th = -b - sqrt(dd); if (th < 0. || th > te) continue;
+   te = th;
+   vec3 e = wwEye + rd*th, n = (e - c)/R;
+   float along = dot(n, ax), sp = noise(n*9. + h*70.) + .45*noise(n*31.);
+   vec3 ab = mix(wwInk(uKind[i]), vec3(.8, .78, .7), .25)*(.85 + .15*noise(n.xz*5.));
+   ab = mix(ab, wwBark*.6, smoothstep(.95, 1.02, sp + .16*along)*.8);
+   float lv = i == 0 ? uDrone : i == 1 ? uPad : i == 2 ? uTexture : i == 3 ? uPhrase : uHits;
+   float s2 = wwSunAt(e + n*.01);
+   for (int j = 0; j < 5; j++) if (j != i) { vec3 c2 = wwNest(j); float b2 = dot(c2 - e, wwL); if (b2 > 0.) s2 *= smoothstep(c2.y*.8, c2.y*1.06, length(e + wwL*b2 - c2)); }
+   vec3 ce = ab*(sun*s2*sat(dot(n, wwL))*1.25 + wwSky*(.2 + .5*sat(.5 + .5*n.y)) + sun*wwCane*.14*sat(.6 - .6*n.y))*(.45 + .55*smoothstep(-1., -.2, n.y));
+   ce += (ab + .05)*lv*(.14 + .25*uEnergy)*(.4 + .6*sat(n.y + .3)) + sun*s2*.12*pow(sat(dot(reflect(rd, n), wwL)), 18.);
+   col = mix(col, ce, sat(sqrt(dd)/(R*.06) )); 
+  }
+  tw = min(tw, te);
  }
  // dust
  vec2 g = p*18. + vec2(.05, .03)*t0, h = hash22(floor(g));
@@ -206,15 +260,24 @@ const float WWB = 40., WWZ = .64;
 // The wall of the trap at a round it and s along it, seen w soft: how much is open.
 float wwBars(float a, float s, float w) {
  float R = wwR0 + wwSt*s, k = WWB/TAU, more = max(uOwn[2], 0.), few = max(-uOwn[2], 0.);
+ float a0 = a; a += .3*wwLat*s;
  float i = floor(a*k + .5);
  wwIdx = mod(i + 80., 40.);
  float h = hash11(wwIdx + 5.), bnd = uBands[int(abs(wwIdx - 20.)*.75)], wob = (h - .5)*.3 + .1*sin(s*1.3 + h*40.);
  wwDs = (a - (i + wob)/k)*R;
- float own = mod(wwIdx, 2.) > .5 ? max(1. - 1.25*few, 0.) : 1. + .5*few;
+ float own = mod(wwIdx, 2.) > .5 ? max(1. - 1.25*few - wwLat, 0.) : 1. + .5*few;
  wwF = abs(fract(s*1.9 + h*7.) - .5);
  wwWs = R/k*(.2 + .07*h + .06*bnd - .05*more)*own + .004*wwOff(0., .06, wwF)*own;
+ if (wwDome > 0.) { float g = hash11(wwIdx + 57.), e = mix(5., .4 + 4.4*g*g, wwDome); own *= sat((hash11(wwIdx + 91.) - .5*wwDome)*9. + 1.)*wwOff(e, e + .03, s); }
  float bar = own > 0. ? wwIn(w, abs(wwDs) - wwWs) : 0.;
  float gone = wwOff(wwEnd, wwEnd + .02, s);
+ if (wwLat > 0.) {
+  float ab = a0 - .3*wwLat*s, k2 = .5*k, e = (ab - (floor(ab*k2) + .5)/k2)*R, ew = R/k*.2*wwLat;
+  float b2 = wwIn(w, abs(e) - ew);
+  if (b2 > bar) { wwDs = e; wwWs = ew; wwIdx = mod(floor(ab*k2) + 80., 40.); }
+  bar = max(bar, b2);
+ }
+ a = a0;
  if (more > 0.) {
   float e = (a - (floor(a*k) + .5)/k)*R, ew = R/k*.15*more, b2 = wwIn(w, abs(e) - ew);
   if (b2 > bar) { wwDs = e; wwWs = ew; }
@@ -225,6 +288,7 @@ float wwBars(float a, float s, float w) {
  float j = floor(s/WWZ), hz = (s/WWZ - j - .5)*WWZ;
  wwJ = floor(hz/.034 + .5); wwTh = (hz/.034 - wwJ)*2.;
  wwWeave = wwIn(w, abs(hz) - .119)*wwIn(w, (abs(wwTh) - .94)*.017)*gone;
+ if (wwDome > 0.) wwWeave *= 1. - wwDome*smoothstep(.45, .5, noise(vec2(a*2.2 + 9., j*3.7)));
  wwV = cos(.5*WWB*a + PI*(wwJ + j));
  return (1. - wwUp)*(1. - wwWeave);
 }
@@ -249,7 +313,8 @@ vec3 wwWater(vec3 rd) {
  vec3 c = mix(vec3(.008, .03, .022), vec3(.045, .16, .09), smoothstep(.1, .6, u));
  c = mix(c, vec3(.62, .86, .42), smoothstep(.6, 1., u)*.75) + vec3(.9, 1., .5)*pow(sp, 10.)*(.6 + .6*uLow + uCue);
  c = mix(c, c.ggg*vec3(1.35, .72, .25), .9*wwEve);
- return mix(c, c*vec3(.06, .16, .3)*1.2, wwNight);
+ c = mix(c, c*vec3(.06, .16, .3)*1.2, wwNight);
+ return wwFl > 0. ? mix(c, wwOutside(rd.xzy, true), wwFl) : c;
 }
 float wwNet(vec2 x) {
  x += .35*sin(x.yx*1.7 + vec2(uTime*.31, -uTime*.27));
@@ -279,7 +344,7 @@ vec3 wwTrap(vec2 p) {
  wwEnd = 3.1*exp2(-.55*uOwn[4]); wwMouthS = wwEnd - 1.05; wwMouthR = .27 + .12*uOwn[4];
  wwFk = (wwR0 + wwSt*wwEnd - wwMouthR)/(wwEnd - wwMouthS);
  wwL = normalize(vec3(-.5 + .3*uDrone, .25 + .05*sin(t0*.019) + .12*uDrone, .95));
- vec3 sun = wwSunC*vec3(.85, 1.05, .65)*(.9 + .4*uLevel + .5*uCue);
+ vec3 sun = wwSunC*mix(vec3(.85, 1.05, .65), vec3(1.), wwFl)*(.9 + .4*uLevel + .5*uCue);
  vec3 eye = vec3(.22 + .03*sin(t0*.023), .05 + .58*uOwn[5], .1 + .05*sin(t0*.031) - .5*uOwn[5]*abs(uOwn[5]));
  wwEye = eye; wwLens = .6; wwLook(.2 + .06*sin(uTravel*.011), .25*uOwn[5] - .14);
  wwFwd = wwFwd.xzy; wwRgt = wwRgt.xzy; wwTop = wwTop.xzy;
@@ -287,7 +352,7 @@ vec3 wwTrap(vec2 p) {
  vec3 rd = wwRay(pr);
  vec3 water = wwWater(rd), col = water;
  wwDay = wwWater(vec3(0., 0., 1.)); wwBright = wwWater(wwL);
- float fogk = .13*(1. + .6*uSpace);
+ float fogk = .13*(1. + .6*uSpace)*(1. - .9*wwFl);
  float tw = wwCone(eye, rd, wwR0, wwSt);
  // the wall
  float open = 1.;
@@ -340,6 +405,7 @@ vec3 wwTrap(vec2 p) {
   float lit = exp(-dot(far, far)*.9);
   vec3 glow = vec3(.5, .8, .36)*(1.1 + .5*uMid + .8*uCue)*wwHour(vec3(1.), vec3(1.4, .7, .3), vec3(.1, .2, .36));
   float beyond = wwOff(-.02, .02, length(far) - wwR0 - wwSt*wwEnd);
+  if (wwFl > 0.) glow = mix(glow, water, wwFl);
   if (tw > ax && rd.y > .05) col = mix(col, glow*(.25 + .95*lit), beyond);
   if (t < tw) {
    vec3 q = eye + rd*t;
@@ -359,6 +425,28 @@ vec3 wwTrap(vec2 p) {
    tw = t;
   }
  }
+ if (wwEgg > 0.) {
+  // glass balls afloat in it
+  for (int i = 0; i < 5; i++) {
+   float fi = float(i), h = hash11(fi + 12.), R = wwEgg*(.14 + .1*hash11(fi*3. + 1.));
+   vec3 c = vec3((i % 2 == 0 ? 1. : -1.)*(.2 + .25*h), .8 + .2*fi, .24 - .5*hash11(fi + 4.) + .03*sin(t0*(.21 + .1*h) + fi*2.));
+   vec3 oc = eye - c; float b = dot(oc, rd), dd = b*b - dot(oc, oc) + R*R;
+   if (dd < 0.) continue;
+   float th = -b - sqrt(dd); if (th < 0. || th > tw) continue;
+   vec3 n = (eye + rd*th - c)/R; float fc = sat(-dot(n, rd)), fr = pow(1. - fc, 2.5);
+   float lv = i == 0 ? uDrone : i == 1 ? uPad : i == 2 ? uTexture : i == 3 ? uPhrase : uHits;
+   vec3 k = wwInk(uKind[i]), bk = wwWater(normalize(refract(rd, n, .8) + vec3(0., 0., 1e-3)));
+   // a cord net round it
+   vec2 nq = vec2(atan(n.x, n.y)*2.2, n.z*3.4), m2 = abs(fract(vec2(nq.x + nq.y, nq.x - nq.y)) - .5);
+   float cord = wwOff(.0, .02, min(m2.x, m2.y) - .04)*step(h, .6);
+   vec3 g = mix(col*.8, bk*.8, .35)*(k*1.8 + .12) + k*(wwDay*.35 + sun*.1*wwBeam(c)) + wwBright*fr*.55;
+   g += (k + .1)*lv*(.35 + .5*uEnergy)*(.5 + fc);
+   g += (sun + .4)*(.8*pow(sat(dot(reflect(rd, n), wwL)), 40.) + .25*pow(sat(dot(refract(rd, n, .7), wwL)), 9.));
+   g = mix(g, wwBark*(sun*.5*sat(dot(n, wwL)) + wwDay*.5 + .02), cord*.85);
+   col = mix(col, mix(water, g, exp(-th*fogk)), sat(sqrt(dd)/(R*.05)));
+   tw = th;
+  }
+ }
  // beams
  float beam = 0.;
  for (int i = 0; i < 2; i++) {
@@ -366,6 +454,7 @@ vec3 wwTrap(vec2 p) {
   vec3 q = eye + rd*t;
   beam += smoothstep(0., .12, tw - t)*exp(-t*.35)*wwBeam(q)*wwOff(.3, 1.1, length(q.xz));
  }
+ beam *= 1. - wwFl;
  col += sun*vec3(.45, .75, .35)*beam*(.03 + .04*uPad + .06*uCue);
  // fish
  float lv[5] = float[5](uDrone, uPad, uTexture, uPhrase, 0.);
@@ -376,7 +465,7 @@ vec3 wwTrap(vec2 p) {
   vec3 c = wwProj(fc); float z = c.z;
   float sc = .6/max(z, .1)*(.11 + .05*h), face = -sin(th);
   vec2 x = (pr - c.xy)/sc; x.x /= (.35 + .65*abs(face))*(face < 0. ? -1. : 1.);
-  if (abs(x.x) > 1.6 || abs(x.y) > .8 || z > tw) continue;
+  if (wwFl > .5 || abs(x.x) > 1.6 || abs(x.y) > .8 || z > tw) continue;
   x.y += .06*sin(x.x*2.6 + t0*3.1 + fi*2.)*(1. - x.x)*.5;
   float u = sat((x.x + 1.)*.5), body = .52*pow(u, .6)*sqrt(1. - u) - abs(x.y) - max(abs(x.x) - 1., 0.);
   float tl = sat((-.78 - x.x)/.4), tail = min(.05 + .26*tl - abs(x.y), x.x + 1.06 + .4*abs(x.y)) - step(-.78, x.x);
@@ -395,7 +484,7 @@ vec3 wwTrap(vec2 p) {
   vec3 b = vec3(sin(a)*.93 + .02*sin(t0*1.3 + fi), .6 + 1.6*h, cos(a)*.93);
   vec3 c = wwProj(b);
   float z = max(c.z, .15), rad = (.01 + .014*h2)*.6/z, r = length(pr - c.xy)/rad;
-  if (r > 1.3 || c.z < .15) continue;
+  if (wwFl > .5 || r > 1.3 || c.z < .15) continue;
   float fade = smoothstep(0., .1, u)*wwOff(.85, 1., u)*(i % 3 == 0 ? .8 : smoothstep(.02, .3, uTexture)), in_ = sat(.5 + (1. - r)*rad/wwPx);
   vec2 e = (pr - c.xy)/rad - vec2(-.3, .35);
   vec3 bc = wwBright*(.1 + .7*pow(sat(r), 4.)) + vec3(1.2)*exp(-dot(e, e)*14.)*mix(1., .3, wwNight);

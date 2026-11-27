@@ -3,7 +3,13 @@
 // b: Lit from shops
 // what: A wet stone square seen from a high balcony, its rail and one leaf soft in the corner: people under black umbrellas cross the tram rails in loose streams, one saffron umbrella among them; or the same at night, a crowd waiting with gold rims in the light of shops, round a pool of lamplight where one red umbrella turns.
 // follows: More sound brings more people, where the piece lies. Drone wets the stones, pad brightens the sky, texture is rain, phrase sends a file along a curve (at night round the lamp; each kind is a shop window). Bands widen umbrellas, keys light ribs, the loop walks the saffron one over; a hit twirls it and flings a ring of drops, a cue tips all to the light.
-// own: 0 snow on stones and umbrellas at -1, dry stones with hard shadows at 1; 1 blue dusk at -1 (cold shop light by night), rose dawn at 1 (violet evening); 2 only a few people at -1, the square full at 1; 3 straight down at -1, a lower and wider view at 1; 4 white umbrellas at -1, every one another colour at 1; 5 flat parasols at -1, deep bells at 1. The bright umbrella stays.
+// own: 0 snow on stones and umbrellas at -1, dry stones with hard shadows at 1; 1 blue dusk at -1 (cold shop light by night), rose dawn at 1 (violet evening); 2 only a few people at -1, the square full at 1; 3 straight down at -1, a lower and wider view at 1; 4 white umbrellas at -1, every one another colour at 1; 5 flat parasols at -1, deep bells at 1; 6 bare sand for stones at -0.5, with surf running in at -1, a polished chequered floor in the colours of drone and pad at 1; 7 all in straight even ranks at -1, umbrellas dyed in the sounds' colours at 0.5 and in two-coloured gores at 1. The bright umbrella stays.
+#define usSand clamp(-2. * uOwn[6], 0., 1.)
+#define usSeaK clamp(-2. * uOwn[6] - 1., 0., 1.)
+#define usChess max(uOwn[6], 0.)
+#define usRank max(-uOwn[7], 0.)
+#define usDye clamp(2. * uOwn[7], 0., 1.)
+#define usGore clamp(2. * uOwn[7] - 1., 0., 1.)
 // A smooth step that may run either way.
 float usT(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x * (3. - 2. * x); }
 float usEdge;                 // how far inside its cell a place is, for what usFind last found
@@ -29,17 +35,19 @@ vec3 usHold(vec3 k) { return k / max(max(k.r, max(k.g, k.b)), .05); }
 vec4 usMap(vec2 c) { return piece(vec2(.5 + c.x / (19. + .5 * c.y), .46 - c.y / 19.)); }
 
 const vec2 usWay[4] = vec2[4](vec2(-.7237, .6901), vec2(-.9125, .4091), vec2(.9553, .2955), vec2(.4976, .8674)); // which way the lanes run
+// How far out in the sea a place is (under 0: on the sand); the waves run in and out.
+float usSurf(vec2 q) { return dot(q, vec2(.6, .8)) - 3.6 + .7 * sin(dot(q, vec2(.8, -.6)) * .55 + .6 * sin(uTime * .07)) + .5 * (noise(q * .7 + vec2(0., uTime * .05)) - .5) + .45 * sin(uTime * .31) * (1. + uLow); }
 // Who stands near a place, in one of two streams of lanes. Gives the size of the umbrella (0: nobody), where it is, its chance
 // numbers (the third: how much they are there) and which way it goes.
 float usFind(int k, vec2 w, out vec2 c, out vec4 h, out vec2 go) {
-  float fk = float(k), amp = usB ? .15 : .8, fr = .3 - .05 * fk, ph = 1.7 * fk;
-  vec2 e = usWay[k + int(usNt) * 2], o = vec2(-e.y, e.x), cell = usB ? vec2(2.) : vec2(2.7, 2.35), u = vec2(dot(w, e), dot(w, o));
+  float fk = float(k), amp = (usB ? .15 : .8) * (1. - usRank), fr = .3 - .05 * fk, ph = 1.7 * fk;
+  vec2 e = usWay[k + int(usNt) * 2], o = vec2(-e.y, e.x), cell = (usB ? vec2(2.) : vec2(2.7, 2.35)) * (1. - usRank * (usB ? vec2(.1, -.15) : vec2(.1, -.2))), u = vec2(dot(w, e), dot(w, o));
   u.y -= amp * sin(u.x * fr + ph) + fk * 1.1;
-  float lane = floor(u.y / cell.y), l1 = fract(lane * .618 + fk * .37 + .2), off = 0.;
+  float lane = floor(u.y / cell.y), l1 = mix(fract(lane * .618 + fk * .37 + .2), .35, usRank), off = 0.;
   if (!usB) off = mod(uTravel * .42 * (l1 > .82 ? -.5 : .55 + .4 * l1), cell.x * 128.);
   vec2 in_ = abs(fract(vec2((u.x - off) / cell.x, u.y / cell.y)) - .5);
   usEdge = .5 - max(in_.x, in_.y);
-  float i = floor((u.x - off) / cell.x), jit = usB ? .2 : .3;
+  float i = floor((u.x - off) / cell.x), jit = (usB ? .2 : .3) * (1. - usRank);
   h.xy = hash22(vec2(mod(i, 128.), lane + 40. * fk) + 3.7); h.zw = fract(h.xy * vec2(17.3, 23.9));
   go = e; c = w;
   if (h.z > usMost) return 0.;
@@ -47,7 +55,9 @@ float usFind(int k, vec2 w, out vec2 c, out vec4 h, out vec2 go) {
   go = normalize(e + o * amp * fr * cos(v.x * fr + ph)) * (l1 > .82 ? -1. : 1.);
   v.y += amp * sin(v.x * fr + ph) + fk * 1.1;
   c = e * v.x + o * v.y;
+  if (usRank > 0. && k > 0) h.z += usRank;
   float d = usDens + .6 * usMap(c).a * usG * usMany, far = length(c - usPool), on = 1.;
+  if (usSeaK > 0.) d -= 3. * usSeaK * usT(-.9, -.2, usSurf(c));
   if (usB) {
     d = d * mix(1.1, .3, usT(1.5, 8., c.x)) + .8 * usFile * usBell((far - 4.6) / .9);
     on = usT(3.7, 3.75, far);
@@ -55,9 +65,10 @@ float usFind(int k, vec2 w, out vec2 c, out vec4 h, out vec2 go) {
     // they keep to a broad way over the square; the file bends away from it
     d = d * mix(sat(.2 + .5 * uOwn[2]), 1., usBell(dot(c - vec2(.6, 0.), vec2(.62, .78)) / 4.)) + usFile * usBell((length(c - vec2(-9.5, -7.)) - 10.) / 1.1);
   }
+  d += usRank;
   on *= usT(h.z, h.z + .03, d);
   h.z = usT(0., .25, on); // how much they are there at all
-  return (on > 0. ? mix(.55, 1., on) : 0.) * (.5 + .2 * h.x + .16 * usV(uBands[int(h.w * 15.99)])) * (usB ? 1.15 : 1.);
+  return (on > 0. ? mix(.55, 1., on) : 0.) * (1. - .12 * usRank) * (.5 + .2 * h.x + .16 * usV(uBands[int(h.w * 15.99)])) * (usB ? 1.15 : 1.);
 }
 // The sky as wet things mirror it.
 vec3 usSky(vec3 r) {
@@ -74,6 +85,10 @@ vec3 usSilk(vec4 h, vec2 c) {
   s = mix(s, s * .6 + mix(.034, .02, usNt) * k * k, .7 * tint);
   vec3 bright = pal(h.w, vec3(.42, .3, .26), vec3(.4, .28, .24), vec3(1.), vec3(0., .18, .42));
   s = mix(s, bright * bright * 1.2, sat(uOwn[4]));
+  if (usDye > 0.) {
+    vec3 kd = uKind[int(fract(h.w * 7.3 + h.x) * 4.99)]; kd *= kd;
+    s = mix(s, kd * (.75 + .35 * h.x) * (1. + .5 * tint), usDye * .94);
+  }
   return mix(s, vec3(.62, .6, .55) * (.8 + .2 * h.w) * mix(vec3(1.), k, .35 * tint), sat(-uOwn[4]));
 }
 // The light of five shop windows on the right, one to each kind of sound.
@@ -148,7 +163,8 @@ vec3 usGround(vec2 q, float tg, float mir, vec3 mcol, float foot, float shade, v
   // tram rails, bent like a bow
   vec2 rc = usB ? vec2(6., -22.) : vec2(15., -5.);
   vec2 rq = q - rc; float rr = length(rq), rR = usB ? 28.6 : 17., rd = rr - rR, bed = usT(1.16 + px, 1.16 - px, abs(rd));
-  vec2 s = abs(rd) < 1.16 ? vec2(atan(rq.y, -rq.x) * rR, rd) : rot(.5) * q;
+  float bare = max(usSand, usT(0., .6, usChess)); bed *= 1. - bare;
+  vec2 s = abs(rd) < 1.16 && bare < .5 ? vec2(atan(rq.y, -rq.x) * rR, rd) : rot(.5) * q;
   // the setts
   vec2 sz = vec2(.5, .29), g = s / sz;
   g.x += .5 * mod(floor(g.y), 2.) + .3 * hash11(floor(g.y) * 1.7);
@@ -156,9 +172,10 @@ vec3 usGround(vec2 q, float tg, float mir, vec3 mcol, float foot, float shade, v
   vec2 bd = .5 * sz - abs(f);
   float joint = usT(-.004, .04 + px, min(bd.x, bd.y)), fine = sat(1.3 - px * 9.);
   joint = mix(.8, joint, fine);
+  if (bare > 0.) { joint = mix(joint, .9, bare); fine *= 1. - bare; }
   float n0 = noise(q * .42 + 3.), n1 = noise(q * 2.3), n2 = noise(q * 17.);
-  float pud = usT(.5, .58, n0 + .14 * n1 + .1 * uLow * usG - .07) * (1. - bed * .7) * usRain;
-  vec2 nn = ((h - .5) * .14 + f / sz * .16 * fine) * (1. - .9 * pud) * (1. - .8 * usSnow) * mix(1.3, .7, uTone);
+  float pud = usT(.5, .58, n0 + .14 * n1 + .1 * uLow * usG - .07) * (1. - bed * .7) * usRain * (1. - bare);
+  vec2 nn = ((h - .5) * .14 * (1. - .9 * bare) + f / sz * .16 * fine) * (1. - .9 * pud) * (1. - .8 * usSnow) * mix(1.3, .7, uTone);
   // rings of rain
   vec2 rg = q * 1.4, ri = floor(rg); float ph = uTime * .6 + hash21(ri + 2.), fl = floor(ph);
   ph -= fl;
@@ -173,9 +190,33 @@ vec3 usGround(vec2 q, float tg, float mir, vec3 mcol, float foot, float shade, v
   vec3 tint = mix(vec3(1.), usHold(m.rgb) * 1.15, .5 * usV(m.a));
   vec3 alb = mix(vec3(.085, .083, .085), vec3(.15, .145, .14), h.x) * (.8 + .4 * n2) * (.85 + .3 * n1);
   alb = mix(alb, vec3(.36, .32, .27) * (.75 + .35 * h.x) * (.85 + .25 * n2), usDry);
+  float sea = -9., foam = 0., damp = 0.;
+  if (usSand > 0.) {
+    float rip = sin(dot(q, vec2(4.2, 6.1)) + 3. * n1 + 5. * n0), dune = noise(q * 1.1 + 5.);
+    nn += usSand * (usB ? .3 : 1.) * (vec2(.05, .07) * rip + .16 * (vec2(n2, noise(q * 19. + 7.)) - .5)) * usT(.3, .1, px);
+    alb = mix(alb, vec3(.5, .41, .28) * (.8 + .2 * dune + .14 * n2 + .05 * rip), usSand);
+  }
+  if (usChess > 0.) {
+    vec2 t = rot(.5) * q / 1.7, tf = (abs(fract(t) - .5) - .25) * 2., tw = fwidth(t) * .8 + .002;
+    float even = smoothstep(-tw.x, tw.x, tf.x * .5) , evz = smoothstep(-tw.y, tw.y, tf.y * .5); even = even + evz - 2. * even * evz;
+    vec3 kd = usHold(uKind[0]), kp = usHold(uKind[1]);
+    alb = mix(alb, mix(.035 * kd * kd + .008, .5 * mix(vec3(1.), kp * kp, .6), even) * (.85 + .15 * n2) * (.9 + .2 * n1), usT(0., .7, usChess));
+  }
+  if (usSeaK > 0.) {
+    sea = usSurf(q); damp = usT(-1.6, -.1, sea) * usSeaK;
+    alb = mix(alb, alb * vec3(.55, .56, .6), damp);
+    float w1 = sea + .35 * noise(q * vec2(2.1, 1.7) + uTime * .06), lace = noise(q * 4.3 + vec2(uTime * .05, 0.)) + .5 * noise(q * 11.);
+    foam = usT(.35, .0, abs(w1 - .12)) * usT(.45, .95, lace + .35) + .75 * usT(.25, .0, abs(fract(w1 * .42 - uTime * .045) - .5)) * usT(.75, 1.1, lace) * usT(0., .6, sea) * usT(7., 2., sea);
+    foam *= usSeaK * step(0., w1 + .3);
+    alb = mix(alb, mix(vec3(.13, .3, .3), vec3(.012, .07, .1), usT(0., 4.5, sea)), usSeaK * usT(-.02, .25, sea));
+    nn += usSeaK * usT(0., .3, sea) * .1 * (vec2(noise(q * 2.6 + uTime * .2), noise(q * 2.9 - uTime * .17)) - .5);
+    alb = mix(alb, vec3(.86), sat(foam));
+  }
   alb = mix(alb, vec3(.8, .82, .86) * (.9 + .1 * n1), usSnow * (.75 + .25 * usT(.3, .6, n0 + .3 * n1)));
   alb *= mix(.45, 1., joint) * (1. - usSnow) + usSnow * mix(.9, 1., joint);
   float wet = usWet * (1. - .85 * usDry) * (1. - .9 * usSnow);
+  if (usSand > 0.) wet *= mix(1., .08 + .4 * damp, usSand);
+  if (usChess > 0.) wet = mix(wet, max(wet, .5), usChess);
   float F = (.22 + .6 * pow(1. - sat(-usRd.y), 1.3)) * wet * mix(.45 + .55 * h.y, 1.5, pud) * mix(.3, 1., joint);
   vec3 col = alb * (usLo * .8 + usHi * .3) * (1. - .55 * foot) + mix(sky * tint, mcol, mir) * F;
   vec3 sun = usSun * shop * (1. - shade);
@@ -187,7 +228,7 @@ vec3 usGround(vec2 q, float tg, float mir, vec3 mcol, float foot, float shade, v
   lq = q - usS.xy; lamp = mix(lamp, lamp * (.25 + 2. * usSC), .75 * exp(-dot(lq, lq) * .9));
   col += lamp * (alb * 3.2 + wet * .14 * (.5 + h.y) * joint) * (1. - .5 * foot);
   // the rails
-  float rl = abs(abs(rd) - .72), steel = usT(.05 + px, .05 - px * .2, rl) * min(1., .06 / px), slot = usT(.1 + px, .06, abs(abs(rd) - .64));
+  float rl = abs(abs(rd) - .72), steel = usT(.05 + px, .05 - px * .2, rl) * min(1., .06 / px) * (1. - bare), slot = usT(.1 + px, .06, abs(abs(rd) - .64)) * (1. - bare);
   col *= 1. - .5 * slot * (1. - usSnow * .6);
   col = mix(col, (sky * mix(tint, vec3(1.), .6) * .8 + .5 * sun + .35 * lamp) * (1. - .7 * mir) + .01, steel * .85);
   return col;
@@ -208,7 +249,7 @@ vec3 render(vec2 p) {
   usMany = exp2(1.2 * uOwn[2]);
   usDens = (mix(.12, .34, usNt) + mix(.4, .6, usNt) * usV(uLevel)) * usMany;
   usFile = .6 * usV(uPhrase) * min(usMany, 1.);
-  usMost = usDens * 1.1 + usFile * 1.4 + .7 * usG * usMany;
+  usMost = usRank + usDens * 1.1 + usFile * 1.4 + .7 * usG * usMany;
   if (!usB) {
     usLo = usHour(vec3(.29, .37, .46), vec3(.1, .16, .3), vec3(.45, .36, .42));
     usHi = usHour(vec3(1.75, 1.58, 1.28), vec3(.3, .42, .65), vec3(1.6, .95, .5)) * (.8 + .5 * pad + .4 * uCue);
@@ -227,6 +268,7 @@ vec3 render(vec2 p) {
     vec3 d = usRay(mix(vec2(hw + .1, -.46), vec2(-hw - .1, .4), l) + vec2(0., .06 * sin(PI * l)));
     usS = vec3(usRo.xz + d.xz * (1.6 - usRo.y) / min(d.y, -.1), .74); usSC = vec3(.85, .36, .015);
   } else { usS = vec3(usPool + vec2(.3, -.2), .95); usSC = vec3(.5, .012, .012); }
+  if (usDye > 0.) { vec3 kd = uKind[4]; usSC = mix(usSC, kd * kd * 1.05, usDye); }
   usRd = usRay(p);
   vec2 lean = (usB ? vec2(.8, .2) : vec2(-.7, .7)) * .42 * cue, c, go, cc = vec2(0.);
   float dc = 0., dh = 0., dR = 1., bc = 0., mir = 0., foot = 0., shade = 0., tg = -usRo.y / min(usRd.y, -.05), px = tg * usPx, R, a;
@@ -253,14 +295,15 @@ vec3 render(vec2 p) {
       a = h.z;
       vec2 d = usUp(c), e = q - c;
       float b = usBody(d, usB ? .4 : sin(uTravel * 1.3 + h.x * 40.), step(.55, h.y), px * .7) * a;
+      if (uOwn[3] < 0.) b *= usT(.03, .1, length(usRd.xz)); // right under the eye nobody's coat shows
       bcol = mix(bcol, mix(vec3(.02, .022, .028), vec3(.07, .055, .045), h.w) * (usLo + usHi * (.35 - .8 * d.x) + usSun * (.4 + 2. * d.x * sign(usL.x))), b);
       bc = max(bc, b);
       foot = max(foot, a * exp(-dot(e, e) * 2.5));
     }
     // what the stones hold of them
-    if (k < 2 && usStone > 0.) R = usFind(k, usAt(-1.3), c, h, go);
-    if (R > .03 && usStone > 0.) {
-      vec2 e = usAt(-hgt - .1) - c, d = usUp(c); e.y *= .8; a = h.z * usStone * (k < 2 ? usT(0., .14, usEdge) : 1.);
+    if (k < 2 && usStone > 0. && usSand < 1.) R = usFind(k, usAt(-1.3), c, h, go);
+    if (R > .03 && usStone > 0. && usSand < 1.) {
+      vec2 e = usAt(-hgt - .1) - c, d = usUp(c); e.y *= .8; a = h.z * usStone * (1. - usSand) * (k < 2 ? usT(0., .14, usEdge) : 1.);
       float m = usT(1.25, .65, length(e) / R) * a * .85, n = usT(.34, .1, abs(d.x)) * usT(.05, -.1, d.y) * usT(-1.75, -1.2, d.y) * a * .8;
       mcol = mix(mcol, (k == 2 ? usSC : vec3(.02)) * (usLo + usHi * .6 + usNt * .5), m);
       mcol *= 1. - n * (1. - m); mir = max(mir, max(m, n));
@@ -278,7 +321,9 @@ vec3 render(vec2 p) {
   if (dc < .99) col = mix(usGround(q, tg, mir, mcol, foot, shade, shop), bcol * (usB ? .3 + shop : vec3(1.)), bc);
   if (dc > .01) {
     bool one = dh > 5.;
-    col = mix(col, usCloth(best, cc, one ? 2.24 : dh, dR, one ? usSC : usSilk(hh, cc), hh, shop, one ? 1. + usV(uMic) : .3), dc);
+    vec3 sk = one ? usSC : usSilk(hh, cc);
+    if (usGore > 0. && !one) sk = mix(sk, mix(vec3(.66, .62, .54), uKind[1] * uKind[1], .25 * step(.6, hh.y)), usGore * usT(.5 - .02, .5 + .02, abs(fract(best.ph * .5) - .5) * 2.) );
+    col = mix(col, usCloth(best, cc, one ? 2.24 : dh, dR, sk, hh, shop, one ? 1. + usV(uMic) : .3), dc);
   }
   // rain, falling toward the foot of the balcony
   vec2 np = usRoll * p + vec2(0., usFoc / max(tan(usPit), .2)); float nr = length(np);

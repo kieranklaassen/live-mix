@@ -3,8 +3,8 @@
 // b: Knotted canal
 // what: A broad band of land hangs in a pale morning sky with one half turn in it: a lane, striped fields, red roofs, poplars, washing and a yellow bus; where the land rolls over, houses stand sideways and the lane runs on along what was beneath. Or a stone canal on arches tied in a knot over evening mist, with lamps and barges.
 // follows: The bus goes twice round, both faces, in one loop; barges drift on. The piece flowers in the fields or tints the water. Each kind lights its houses or lamps; bands raise poplars or brighten lamps; pad brings cloud or mist. A hit puffs chimneys or rings the water; a cue turns it and sends light round. Keys open flowers or glints, a voice lights windows.
-// own: 0 deep snow at -1, autumn or thick moss at 1; 1 moonlit night at -1, rose evening over the lane or clear morning over the canal at 1; 2 a narrow way at -1, a broad one at 1; 3 seen edge on or from close by the water at -1, from high above at 1; 4 bare fields or a thread of water at -1, tall houses or deep walls at 1; 5 the land rolled to stand like a wall at -1, turned under at 1, the knot pressed flat at -1, pulled high at 1.
-const float osN = 60., osM = 48.; // plots along both faces; arches of the canal
+// own: 0 deep snow at -1, autumn or thick moss at 1; 1 moonlit night at -1, rose evening over the lane or clear morning over the canal at 1; 2 a narrow way at -1, a broad one at 1; 3 seen edge on or from close by the water at -1, from high above at 1; 4 bare fields or a thread of water at -1, tall houses or deep walls at 1; 5 the land rolled to stand like a wall at -1, turned under at 1, the knot pressed flat at -1, pulled high at 1; 6 few plots and great houses or a plain double coil at -1, three half turns or a knot of five at 1 (in steps); 7 out in the dark before a bare moon at -1, over an open sea at 1.
+const float osG = 1. + 1.2 * max(-uOwn[6], .0), osN = 2. * floor(30. / osG + .5), osM = 48.; // plots along both faces; arches of the canal
 vec2 osP;                 // the roll of the band where it is nearest
 float osFat, osCut, osW, osBuild, osPx, osInk, osGlow, osGlowK;
 float osR1, osR2, osDeep; // the canal: how far it swings out, up, how deep its arches
@@ -16,6 +16,7 @@ float osBox(vec2 d) { return length(max(d, .0)) + min(max(d.x, d.y), .0); }
 float osBox3(vec3 d) { return length(max(d, .0)) + min(max(d.x, max(d.y, d.z)), .0); }
 float osGap(float a, float b) { return fract(a - b + .5) - .5; }
 float osUp(float lo, float hi, float x) { x = sat((x - lo) / (hi - lo)); return x * x * (3. - 2. * x); }
+vec2 osTri(vec2 k) { return k * (vec2(4., -4.) * k * k + vec2(-3., 3.)); }
 float osIn(float d, float e) { return 1. - smoothstep(-e, e, d); }
 vec3 osVivid(float k) { vec3 c = kindColour(k); return c / max(max(c.r, max(c.g, c.b)), .1); }
 float osKind(float k) { return k < .5 ? uDrone : k < 1.5 ? uPad : k < 2.5 ? uTexture : k < 3.5 ? uPhrase : uHits; }
@@ -30,10 +31,11 @@ vec2 osTurn(vec3 p) {
 float osRound(vec2 k) { float x = k.y / (1. + k.x), y = x * x; return x * (.63338 + y * (.05028 * y - .18366)); }
 // Across and above the band, which rolls over once as it goes round.
 vec2 osRoll(vec3 p, vec2 k) {
+ if (uOwn[6] > .5) k = osTri(k);
  osF = vec2(k.x * osP.x - k.y * osP.y, k.y * osP.x + k.x * osP.y); vec2 q = vec2(osR - 1., p.y);
  return vec2(dot(osF, q), osF.x * q.y - osF.y * q.x);
 }
-float osShellA(vec3 p) { return osBox(abs(osRoll(p, osTurn(p))) - vec2(osW, .19 + .1 * max(osBuild, .0))) * .9; }
+float osShellA(vec3 p) { return osBox(abs(osRoll(p, osTurn(p))) - vec2(osW, .19 + .1 * max(osBuild, .0) + .2 * (osG - 1.) + (uOwn[4] < -.5 ? .06 : .0))) * (uOwn[6] > .5 ? .7 : .9); }
 float osFarA(vec3 p) { return osBox(abs(osRoll(p, osTurn(p))) - vec2(osW, .03)); }
 // How far the nearest thing is, asked all along the way, and what it is, asked at the end.
 #define OS_FAR(d, i, v) best = min(best, d);
@@ -41,10 +43,10 @@ float osFarA(vec3 p) { return osBox(abs(osRoll(p, osTurn(p))) - vec2(osW, .03));
 // What stands on the land: c counts plots along, len is how long one is, up and u are above and across. A house or washing
 // on a plot; between two, a poplar as tall as its band is loud, or a lamp by the lane.
 #define OS_PLOT(NAME, T) float NAME(float c, float len, float up, float u) { \
- float au = abs(u), side = u < .0 ? 1. : .0, best = max(up, au - osW); \
+ float au = abs(u), side = u < .0 ? 1. : .0, best = max(up, au - osW / osG); \
  osIt = 0; osId = floor(c); \
  vec2 h = hash22(vec2(osId + 3., side * 7. + 1.)); \
- vec3 a = vec3((fract(c) - .45 - .1 * h.x) * len, up + .3 * max(-1.6 * osBuild - .6 * h.y, .0), au - .15 - max(osW - .25, .0) * h.y); \
+ vec3 a = vec3((fract(c) - .45 - .1 * h.x) * len, up + .3 * max(-1.6 * osBuild - .6 * h.y, .0), au - .15 - max(osW / osG - .25, .0) * h.y); \
  a = h.x > .5 ? a.zyx : a; \
  float kind = fract(h.y * 5.), no = kind < .7 ? .0 : 9., cl = kind > .7 && kind < .84 ? .0 : 9.; \
  vec3 s = vec3(.038 + .024 * h.y, (.075 + .05 * fract(h.x * 7.)) * (1. + max(osBuild, .0) * (.4 + h.y)), .034); \
@@ -58,7 +60,7 @@ float osFarA(vec3 p) { return osBox(abs(osRoll(p, osTurn(p))) - vec2(osW, .03));
  float c2 = mod(c + .5, osN), x = (fract(c2) - .5) * len; vec2 g = hash22(vec2(floor(c2), side + 40.)); \
  float b = fract(g.y * 11.); b = b < .5 ? (b < .25 ? osB.x : osB.y) : b < .75 ? osB.z : osB.w; \
  s = vec3(.02 + .012 * fract(g.x * 31.), .05 + .04 * g.y + .04 * b, .0).xyx; osTree = s; \
- vec3 t = vec3(x, up + .01 - s.y, au - .125 - (osW - .17) * fract(g.x * 13.)); \
+ vec3 t = vec3(x, up + .01 - s.y, au - .125 - (osW / osG - .17) * fract(g.x * 13.)); \
  T((length(t / s) - 1.) * s.x * .9 + (g.x < .66 ? .0 : 9.), 3, t) \
  t = vec3(x, up - .095, au - .082); \
  no = g.x > .66 && side > .5 && osFat < .001 ? .0 : 9.; \
@@ -71,9 +73,9 @@ OS_PLOT(osPlotIs, OS_WHAT)
  vec2 k = osTurn(p), q = osRoll(p, k); \
  osS = .25 + .5 * osRound(k) + (q.y < .0 ? .5 : .0); \
  osU = q.y < .0 ? -q.x : q.x; osH = abs(q.y); osLen = 2. * TAU / osN * osR; \
- float best = PLOT(osS * osN, osLen, osH - .03, osU); \
- vec3 b = vec3(osGap(osS, uLoop) * 2. * TAU * osR, osH - .067, osU - .03); \
- T(osBox3(abs(b) - vec3(.06, .027, .017)) - .005, 4, b) \
+ float best = PLOT(osS * osN, osLen / osG, (osH - .03) / osG, osU / osG) * osG; osLamp *= osG; \
+ vec3 b = vec3(osGap(osS, uLoop) * 2. * TAU * osR / osG, (osH - .067 - .037 * (osG - 1.)) / osG, osU / osG - .03); \
+ T((osBox3(abs(b) - vec3(.06, .027, .017)) - .005) * osG, 4, b) \
  return best; }
 OS_LAND(osMapA, osPlot, OS_FAR)
 OS_LAND(osIsA, osPlotIs, OS_WHAT)
@@ -81,16 +83,18 @@ OS_LAND(osIsA, osPlotIs, OS_WHAT)
 vec4 osKnot(vec3 p, out vec2 k) {
  k = osTurn(p);
  float c = k.x * (4. * k.x * k.x - 3.), s = k.y * (3. - 4. * k.y * k.y);
+ if (uOwn[6] > .5) { vec2 x = k * k; x = k * ((16. * x - 20.) * x + 5.); c = x.x; s = x.y; }
+ if (uOwn[6] < -.5) { c = k.x; s = k.y; }
  vec2 q = vec2(osR - 1., p.y), m = vec2(osR1 * c, osR2 * s);
  float g = dot(q + vec2(.0, .5 * osDeep - .04), m);
  osCut = abs(g) / length(m) + .07 + .2 * abs(m.x); g = g > .0 ? 1. : -1.;
- osF = vec2(-osR1 * s, osR2 * c) * 1.5 * g; // the way the strand runs: out, up
+ osF = vec2(-osR1 * s, osR2 * c) * (uOwn[6] > .5 ? 2.5 : uOwn[6] < -.5 ? .5 : 1.5) * g; // the way the strand runs: out, up
  q -= g * m;
  float sl = osF.x / max(osR, .4), n = inversesqrt(1. + sl * sl), climb = osF.y / max(osR, .4);
  return vec4(q.x * n, q.y * inversesqrt(1. + climb * climb), g, n);
 }
 float osFarB(vec3 p) { vec2 k; vec4 v = osKnot(p, k); return osBox(abs(vec2(v.x, v.y + .5 * osDeep)) - vec2(osW, .5 * osDeep + .03)); }
-float osShellB(vec3 p) { vec2 k; vec4 v = osKnot(p, k); return min(osBox(abs(vec2(v.x, v.y + .5 * osDeep - .04)) - vec2(osW + .02, .5 * osDeep + .1)) * .62, osCut); }
+float osShellB(vec3 p) { vec2 k; vec4 v = osKnot(p, k); return min(osBox(abs(vec2(v.x, v.y + .5 * osDeep - .04)) - vec2(osW + .02, .5 * osDeep + .1)) * (uOwn[6] > .5 ? .5 : .62), osCut); }
 // The trough of stone, its wall and its arches: along, above, across.
 float osStone(vec3 q, float len) {
  float au = abs(q.z), ra = (.36 - .2 * max(osBuild, .0)) * len, hc = -.07 - ra, low = max(hc - q.y, .0);
@@ -131,6 +135,7 @@ OS_CANAL(osIsB, OS_WHAT)
   float y = d * d / (2. * last + 1e-5), near = d < last * 1.8 ? sqrt(max(d * d - y * y, .0)) : 9.; \
   if (d < e * .75) hit = t; else if (d > last) osInk = max(osInk, 1. - near / (e * 1.6)); \
   last = d; t += d; } \
+ if (uOwn[3] != .0 && hit < .0 && t < far && d < .03 * min(max(uOwn[3], -uOwn[3] * uVar) * 4., 1.)) hit = t; /* the steps ran out beside a thing: it is that thing */ \
  return hit; }
 OS_MARCH(osGoA, osShellA, osMapA, 36, .92)
 OS_MARCH(osGoB, osShellB, osMapB, 46, .8)
@@ -145,17 +150,18 @@ vec3 osSky(vec3 rd, vec3 c0, vec3 c1, vec3 sc, float glow) {
 vec3 osFace(vec3 q) { q *= q * q * q * q; return normalize(q + vec3(.0, 1e-5, .0)); }
 vec3 render(vec2 p) {
  bool canal = uVar > .5;
- float snow = max(-uOwn[0], .0), warm = max(uOwn[0], .0), night = max(-uOwn[1], .0), day = max(uOwn[1], .0), up5 = uOwn[5];
+ float snow = max(-uOwn[0], .0), warm = max(uOwn[0], .0), night = max(-uOwn[1], .0), day = max(uOwn[1], .0), up5 = uOwn[5], dark = max(-uOwn[7], .0), sea = max(uOwn[7], .0);
  float turn = .14 * 4. * uCue * (1. - uCue), F = 1.35 * mix(.62, 1., osUp(.2, .8, .5 * uRes.x / uRes.y));
  osBuild = uOwn[4]; osPx = 1. / (uRes.y * F); osB = vec4(band(.08), band(.35), band(.6), band(.85)); osInk = osFat = .0; osGlow = 9.; osGlowK = .0;
  osW = canal ? .14 + .06 * uOwn[2] : .4 + (uOwn[2] < .0 ? .17 : .08) * uOwn[2];
  osP = vec2(cos(-.15 + 1.2 * up5), sin(-.15 + 1.2 * up5));
- osR1 = .47 + .06 * up5; osR2 = .3 + .1 * up5; osDeep = .26 + (uOwn[4] < .0 ? .22 : .3) * uOwn[4];
+ osR1 = .47 + .06 * up5; osR2 = .3 + .1 * up5; if (uOwn[6] > .5) osR1 *= .8; osDeep = .26 + (uOwn[4] < .0 ? .22 : .3) * uOwn[4];
  // the hour
  vec3 c0 = canal ? mix(vec3(.9, .74, .68), vec3(.96, .95, .9), day) : mix(vec3(.99, .92, .82), vec3(1., .7, .52), day);
  vec3 c1 = canal ? mix(vec3(.38, .45, .66), vec3(.6, .78, .9), day) : mix(vec3(.62, .8, .92), vec3(.62, .62, .8), day);
  vec3 sc = canal ? mix(vec3(.95, .52, .26), vec3(.7, .6, .46), day) : mix(vec3(.82, .69, .48), vec3(.85, .45, .2), day);
  c0 = mix(c0, vec3(.27, .34, .54), night); c1 = mix(c1, vec3(.1, .15, .34), night); sc = mix(sc, vec3(.3, .36, .5), night);
+ c0 = mix(c0, canal ? vec3(.12, .11, .13) : vec3(.2, .17, .17), dark); c1 = mix(c1, canal ? vec3(.03, .035, .06) : vec3(.075, .08, .13), dark); sc = mix(sc, canal ? vec3(1.15, .95, .75) : vec3(1.3, 1.12, .86), dark);
  // the eye
  vec3 ro = canal ? vec3(.15, 1.25 + .8 * uOwn[3], 2.2 - .7 * max(uOwn[3], .0)) : vec3(.0, .75, 2.1), ta = canal ? vec3(.0, -.12, .15) : vec3(.0, .05, .0);
  vec3 w = normalize(ta - ro), uu = normalize(cross(w, vec3(.0, 1., .0))), v = cross(uu, w), rd = normalize(p.x * uu + p.y * v + F * w);
@@ -165,14 +171,34 @@ vec3 render(vec2 p) {
  float lo = osFleece(cq), c = lo + .14 * noise(cq * 4.1 + 3.3), body = osUp(.46, .6, c + .05 * uPad), slope = osUp(-.1, .12, lo - osFleece(cq + vec2(.2, .1)) + .02);
  vec3 back = osSky(rd, c0, c1, sc, canal ? .8 - .64 * night : .0), white = mix(vec3(1., .95, .88), osVivid(1.), .1 * uPad);
  vec3 cloud = mix(c1 * .7 + .22, mix(white, sc, .2), slope) * (1. - .5 * night), mist = mix(c0, vec3(dot(c0, vec3(.34))) * vec3(1.1, 1.12, 1.2), .4);
- back = canal ? mix(back, mist, osUp(.4, .7, c) * osUp(.1, -.35, rd.y) * .7) : mix(back, cloud, .85 * body);
+ back *= 1. - .6 * dark; back = canal ? mix(back, mist, osUp(.4, .7, c) * osUp(.1, -.35, rd.y) * .7 * (1. - dark)) : mix(back, cloud, .85 * body * (1. - dark));
  vec2 sg = p * 60.; float sh0 = hash21(floor(sg));
- back += night * (1. - body) * step(.93, sh0) * osIn(length(fract(sg) - .5) - .06, .05) * (.5 + .5 * sin(uTime * .7 + sh0 * 900.)) * vec3(.7, .75, .8) * osUp(-.1, .1, rd.y + (canal ? .0 : .4));
+ back += max(night, dark) * (1. - body * (1. - dark)) * step(.93, sh0) * osIn(length(fract(sg) - .5) - .06, .05) * (.5 + .5 * sin(uTime * .7 + sh0 * 900.)) * vec3(.7, .75, .8) * osUp(-.1, .1, rd.y + (canal ? .0 : .4) + dark);
+ if (uOwn[7] < .0) { // a bare moon, near
+  vec2 d = p - (canal ? vec2(.42, .14) : vec2(.34, -.04)); float r = dot(d, d) / (canal ? .1 : .17);
+  vec3 f = vec3(d / (canal ? .316 : .412), sqrt(max(1. - r, .0)));
+  vec2 g = f.xy / (.6 + f.z) * 2.2; float rough = noise(g * 2.1 + 3.) - .5 + .5 * (noise(g * 5.3) - .5), pit = .0;
+  for (int i = 0; i < 2; i++) { vec2 y = g * (i < 1 ? 2.6 : 6.1), o = hash22(floor(y) + 7.) * .5 + .25; float e = length(fract(y) - o) / (.12 + .12 * o.x); pit += (osIn(e - .9, .12) * -.5 + osIn(abs(e - 1.05) - .08, .12) * .6) * (o.y > .42 ? 1. : .0); }
+  float lit = sat(dot(f, canal ? vec3(-.76, .35, .5) : vec3(-.78, .38, .48)) * 1.25 + .06);
+  vec3 moon = mix(vec3(.62, .58, .52), osVivid(1.), .35) * lit * (.85 + .7 * rough + .3 * pit * osUp(.0, .3, lit));
+  back = mix(back, moon, osIn(sqrt(r) - 1., osPx * 4.) * dark);
+ }
+ if (uOwn[7] > .0) { // the open sea, and the shade of the land on it
+  float y = (canal ? -.02 : .16) - p.y, z = .12 / max(y, .004);
+  vec2 g = vec2(p.x * z * 9., z * 26. + uTime * .25);
+  float rip = noise(g) + .5 * noise(g * vec2(2.3, 2.1) - vec2(uTime * .2, .0)) - .75, keen = osUp(.0, .06, y);
+  vec3 wet = mix(mix(c0, c1, .45), mix(c1 * .42, osVivid(.0) * .3, .3) * (1. - .4 * night), osUp(.0, .5, y));
+  float path = (p.x - (canal ? -.5 : .55)) / (.1 + .5 * max(y, .0));
+  wet += c1 * rip * .22 * keen + sc * exp(-path * path) * osUp(.1, .55, rip) * keen * .7;
+  vec2 e = (p - vec2(.04, -.5)) * vec2(.8, 2.6); float shade = osIn(abs(length(e) - .56) - .2, .16);
+  wet *= 1. - (canal ? .0 : .32) * shade * keen;
+  back = mix(back, wet, sea * osUp(-.003, .003, y));
+ }
  // the land is hung askew in it
  osSun = normalize(canal ? vec3(-.75, .35, -.2) : vec3(.8, .42, .25));
  mat2 tz = rot(canal ? .0 : .44), tx = rot(canal ? .0 : -.2 - .55 * uOwn[3]), ty = rot(turn);
  ro.xy *= tz; rd.xy *= tz; osSun.xy *= tz; ro.yz *= tx; rd.yz *= tx; osSun.yz *= tx; ro.xz *= ty; rd.xz *= ty; osSun.xz *= ty;
- float bb = dot(ro, rd), big = canal ? 1.3 + osR1 + osW : 1.2 + osW, disc = sqrt(max(bb * bb - dot(ro, ro) + big * big, .0));
+ float bb = dot(ro, rd), big = canal ? 1.3 + osR1 + osW : 1.2 + osW + .15 * (osG - 1.), disc = sqrt(max(bb * bb - dot(ro, ro) + big * big, .0));
  float t0 = max(.05, -bb - disc), t1 = disc > .0 ? disc - bb : -1.;
  float tA = osGoA(ro, rd, t0, canal ? -1. : t1), t = osGoB(ro, rd, t0, canal ? t1 : -1.);
  t = max(t, tA); bool met = t > .0;
@@ -204,9 +230,10 @@ vec3 render(vec2 p) {
  // shade: from what stands near by, then from the far side of the loop
  vec3 ls = vec3(dot(osSun, et), dot(osSun, eh), dot(osSun, eu));
  osFat = .012;
- for (int i = 0; i < 7 && !canal && sh > .02 && st < .3; i++) { float d = osPlot(mod(s * osN + ls.x * st / len, osN), len, h - .026 + ls.y * st, u + ls.z * st); sh = min(sh, sat(.5 + 12. * d / st)); st += clamp(d, .012 + .2 * st, .09); }
+ for (int i = 0; i < 7 && !canal && sh > .02 && st < .3 * osG; i++) { float d = osPlot(mod(s * osN + ls.x * st / len, osN), len / osG, (h - .026 + ls.y * st) / osG, (u + ls.z * st) / osG) * osG; sh = min(sh, sat(.5 + 12. * d / st)); st += clamp(d, .012 + .2 * st, .09 * osG); }
  for (int i = 0; i < 4 && canal && sh > .02 && st < .3; i++) { float d = osStone(vec3((fract((px + ls.x * st + m.x * .006) / len + .5) - .5) * len, h + m.y * .006 + ls.y * st, u + m.z * .006 + ls.z * st), len); sh = min(sh, sat(.5 + 12. * d / st)); st += clamp(d, .03, .1); }
  for (int i = 0; i < 5 && sh > .02 && st < 2.6; i++) { vec3 y = x + osSun * st; float d = canal ? osFarB(y) : osFarA(y); sh = min(sh, sat(.5 + 14. * d / st)); st += max(d, .1); }
+ float ag = au / osG; if (!canal) pw /= osG;
  float pier = floor(s * osM + .5), kk = canal ? mod(pier, 5.) : it == 9 ? mod(floor(q.x * 36. + .5) + 20., 5.) : mod(floor(plot / 3.), 5.);
  if (canal && lamp < .0) kk = 3.;
  float loud = osKind(kk), grain = noise(it == 3 ? vec2(q.x - q.z, q.y * .7) * 170. : canal ? vec2(s * 300., h * 20.) : vec2(s * 900., u * 70. + h * 160.));
@@ -228,17 +255,17 @@ vec3 render(vec2 p) {
   vec3 crop = fh < .3 ? vec3(.66, .78, .4) : fh < .55 ? vec3(.99, .87, .52) : fh < .75 ? vec3(.54, .69, .4) : vec3(.86, .86, .6);
   crop = mix(crop, mix(vec3(.7, .5, .34), vec3(.97, .75, .38), fract(fh * 7.)), .85 * warm);
   bool along = fract(fh * 9.) < .55;
-  float row = along ? au * 52. : s * osN * 11., rw = pw * (along ? 52. : 11. * osN / (2. * TAU)), rr = abs(fract(row) - .5), keen = osIn(rw - .5, .25);
+  float row = along ? ag * 52. : s * osN * 11., rw = pw * (along ? 52. : 11. * osN / (2. * TAU)), rr = abs(fract(row) - .5), keen = osIn(rw - .5, .25);
   crop *= 1. + .14 * (rr * 4. - 1.) * keen;
   // the piece in flower, row by row
   crop = mix(crop, bloom * .6 + .35, sat(pc.a * 1.6) * mix(.45, osUp(.3, .1, rr) * (.6 + .4 * grain), keen * .8) * .7);
-  alb = mix(vec3(.65, .73, .43), crop, osUp(.118 - pw, .118 + pw, au));
-  alb = mix(alb, vec3(.36, .5, .3), .8 * osIn(.5 - ff - .03, .02) * osUp(.118, .13, au)) * (.93 + .14 * grain);
+  alb = mix(vec3(.65, .73, .43), crop, osUp(.118 - pw, .118 + pw, ag));
+  alb = mix(alb, vec3(.36, .5, .3), .8 * osIn(.5 - ff - .03, .02) * osUp(.118, .13, ag)) * (.93 + .14 * grain);
   alb = mix(alb, vec3(.95), .88 * snow);
-  alb = mix(alb, vec3(1., .95, .8), uKeys * osUp(.66, .8, grain) * osUp(.085, .1, au));
-  alb = mix(alb, vec3(.94, .88, .76), osIn(au - .085, pw));
-  alb = mix(alb, vec3(.64, .64, .69) + .16 * snow, osIn(au - .062, pw));
-  alb = mix(alb, vec3(.98, .97, .93), osIn(au - .0035, pw * .7) * osUp(-.15, .15, sin(s * TAU * osN * 3.)));
+  alb = mix(alb, vec3(1., .95, .8), uKeys * osUp(.66, .8, grain) * osUp(.085, .1, ag));
+  alb = mix(alb, vec3(.94, .88, .76), osIn(ag - .085, pw));
+  alb = mix(alb, vec3(.64, .64, .69) + .16 * snow, osIn(ag - .062, pw));
+  alb = mix(alb, vec3(.98, .97, .93), osIn(ag - .0035, pw * .7) * osUp(-.15, .15, sin(s * TAU * osN * 3.)));
  } else if (it == 1) {
   float wx = far1 ? q.z : q.x, hw = far1 ? sz.z : sz.x;
   float pane = osIn(max(abs(abs(wx) - hw * .52) - .008, abs(mod(q.y, .042) - .023) - .011), pw) * step(q.y + .02, sz.y - (far1 ? abs(wx) : .02));
@@ -259,6 +286,7 @@ vec3 render(vec2 p) {
  } else if (it == 9) alb = mix(vec3(.97, .95, .92), kc, .2 + .4 * loud);
  vec3 amb = canal ? mix(c0 * .75, c1, .5 + .5 * n.y) * .72 : mix(c0 * vec3(.5, .54, .62), c1 * vec3(.66, .72, .88), .5 + .5 * n.y) * (it == 0 ? 1. : .72 + .28 * osUp(-.03, .06, h - .03));
  float pool = osUp(.5, .25, abs(lx) / len);
+ if (uOwn[7] < .0 && !canal) { float y = fract(s * osN) - .5; own += dark * alb * lc * (loud + .4 * uLevel) * (1. - sh * sat(ndl * 3.)) * .75 * exp(-(ag - .2) * (ag - .2) * 40.) * (it == 0 ? osUp(.25, .0, y * y) : .5); } // out in the dark the houses light the ground
  if (canal) own += alb * lc * lit * .5 * pool * exp(-(lx * lx + side * side + h * h) * 200.);
  vec3 col = alb * (amb + sc * max(ndl, .0) * sh) + own;
  if (it == 8) {
@@ -275,6 +303,10 @@ vec3 render(vec2 p) {
  // a cue sends light round
  float dc = osGap(s, 1. - .5 * uCue);
  col += (.2 + .8 * alb) * (vec3(.55, .45, .25) * uCue * exp(-dc * dc * 260.));
+ if (!canal && uOwn[4] < .0) { // a hit runs out along bare ground from the bus
+  float g = abs(osGap(s, uLoop)) - .3 * (1. - uHits);
+  col = mix(col, (alb + .12) * (uKind[4] * 1.1 + .25), -uOwn[4] * max(sat(uHits * 1.5) * exp(-g * g * 500.) * .8, it == 3 ? .6 * uHits : .0));
+ }
  if (canal) {
   float far = 1. - exp(-max(t - 1.65, .0) * (.2 + .25 * uSpace + .15 * uPad));
   col = mix(col, back, max(far, osUp(.0, -.8, x.y + .3 * (c - .5)) * .9));
@@ -284,11 +316,11 @@ vec3 render(vec2 p) {
  col += glow * (canal ? mix(vec3(1., .72, .36), osVivid(gk), .3) * (.22 + .4 * osKind(gk) + .3 * night + .4 * uMic) : vec3(1., .77, .45) * (.1 + .9 * night));
  // a hit: four chimneys puff
  for (int i = 0; i < 8 && !canal && uHits > .01; i++) {
-  vec3 at = i < 2 ? vec3(12.6, -.28, .16) : i < 4 ? vec3(16.6, -.17, .15) : i < 6 ? vec3(12.6, .17, .15) : vec3(15.6, .29, .15); float go = 1. - uHits, j = float(i % 2), a = at.x / osN * 2. * TAU - PI;
-  vec2 f = vec2(cos(.5 * a), sin(.5 * a)); f = vec2(f.x * osP.x - f.y * osP.y, f.y * osP.x + f.x * osP.y);
+  vec3 at = i < 2 ? vec3(12.6, -.28, .16) : i < 4 ? vec3(16.6, -.17, .15) : i < 6 ? vec3(12.6, .17, .15) : vec3(15.6, .29, .15); float go = 1. - uHits, j = float(i % 2), a = at.x / 60. * 2. * TAU - PI;
+  vec2 f = vec2(cos(.5 * a), sin(.5 * a)); if (uOwn[6] > .5) f = osTri(f); f = vec2(f.x * osP.x - f.y * osP.y, f.y * osP.x + f.x * osP.y);
   vec3 e = vec3(sin(a), .0, cos(a)), y = e + (e * f.x + vec3(.0, f.y, .0)) * at.y + (vec3(.0, f.x, .0) - e * f.y) * (at.z + .02 + (.1 + .07 * j) * go) - ro;
-  float al = dot(y, rd), r = .075 + .015 * j + .05 * go;
-  if (tA < .0 || al < tA + .05) col = mix(col, vec3(.99, .96, .92) * (1. - .5 * night), .88 * sqrt(uHits) * (1. + min(osBuild, .0)) * osUp(1.1, -.2, (dot(y, y) - al * al) / (r * r)));
+  float al = dot(y, rd), r = (.075 + .015 * j + .05 * go) * osG;
+  if (tA < .0 || al < tA + .05) col = mix(col, mix(vec3(.99, .96, .92), vec3(.42, .44, .52), snow) * (1. - .5 * night), .88 * sqrt(uHits) * (1. + min(osBuild, .0)) * osUp(1.1, -.2, (dot(y, y) - al * al) / (r * r)));
  }
  return mix(col, smoothstep(.0, 1., col), .3 * (uTone - .4));
 }

@@ -3,14 +3,20 @@
 // b: Swimming bath
 // what: A white staircase curves down from a bright opening, and a slow flood of matte balls comes down it, heaped deep at the turn and barred with shade, a gold ball on top, the nearest out of focus; or an empty swimming bath under long windows, full of balls to the brim, with a board over it and a red ring lying among them.
 // follows: The drone deepens the heap, the pad lifts the skylight, a phrase sends swells through, texture specks the balls; each kind swells its own colour. Low, middle and high lift it left, middle and right, the piece tints it. Travel pours it; the loop moves the gold ball. A hit nudges a ring of balls, a cue rolls light through and lifts the gold, keys glow.
-// own: 0 small balls at -1, great ones at 1; 1 moonlight at -1, a low golden sun at 1; 2 all the balls chalk white at -1, sorted into bands of one colour at 1; 3 a low heap on bare steps or the bath sunk low at -1, deeper at 1; 4 seen from low at -1, from high above at 1; 5 walls of rose plaster at -1, of deep green at 1
+// own: 0 small balls at -1, great ones at 1; 1 moonlight at -1, a low golden sun at 1; 2 all the balls chalk white at -1, sorted into bands of one colour at 1; 3 a low heap on bare steps or the bath sunk low at -1, deeper at 1; 4 seen from low at -1, from high above at 1; 5 walls of rose plaster at -1, of deep green at 1; 6 out of doors under an open sky, the walls gone, at -1, a shut dark room with one lamp over the heap at 1; 7 every ball lit from inside like a lamp at -1, flat worn stones in place of balls at 1; with 6 or 7 the balls are dyed in the sounds' own colours
 const float BS_R = 6.0, BS_HALF = 1.9, BS_SLOPE = 0.42, BS_TOP = 7.6, BS_RUN = 0.4;
 #define BS_WHEN(x) for (int go = (x) ? 0 : 1; go < 1; go++)
+#define BS_OUT sat(-uOwn[6])
+#define BS_ONE sat(uOwn[6])
+#define BS_GLOW sat(-uOwn[7])
+#define BS_FLAT sat(uOwn[7])
+#define BS_DYE sat(3.0 * max(abs(uOwn[6]), abs(uOwn[7])))
 const mat2 BS_TURN = mat2(0.5, -0.8660254, 0.8660254, 0.5);
 bool bsBath;
 float bsA, bsPx, bsFlow, bsAmt; // a cell of the heap, a pixel, how far it has slid, how deep it lies
 vec4 bsW1, bsW2, bsW3, bsW4;
 vec3 bsSun, bsKey, bsSky, bsAir, bsWall; // toward the sun, its colour, fill, far air, walls
+vec3 bsRay;
 vec3 bsPaint[5]; // the five colours
 vec4 bsC[10]; // the balls about a pixel: middle and size
 vec4 bsGold; vec3 bsBump; // the gold ball; where a hit falls, how high it nudges
@@ -38,18 +44,47 @@ float bsOver(float d, float l) { return bsBath ? d : bsNose(l) + 0.5 * (d + sqrt
 float bsTop(vec2 w) { return bsOver(bsDeep(w), w.y); }
 // How much sun reaches a place: between the balusters of a window in a, through the long windows in b.
 float bsLight(vec3 w, float soft) {
+  float lit1 = 1.0;
+  if (uOwn[6] > 0.0) {
+    vec2 f = (w.xz - (bsBath ? vec2(0.1, 4.4) : vec2(-0.1, -0.9))) * (bsBath ? 0.42 : 0.62);
+    lit1 = exp(-dot(f, f) * dot(f, f)) * sat(1.4 - 0.3 * max(w.y, 0.0)) + 0.06;
+  }
   float run = w.x + (bsBath ? 6.5 : BS_HALF), b = 0.02 + 0.018 * run + soft;
   if (bsBath) {
     float hi = w.y + run * 0.89, z = w.z - run * 0.42 + 0.6, f = abs(fract(z / 2.6) - 0.5) * 2.6;
     vec2 k = vec2(w.x - 1.13 * (1.0 - w.y) - 0.78, w.z - 0.48 * (1.0 - w.y) - 2.3);
     float board = max(abs(k.x) - 0.34, k.y);
-    return bsE(0.85 - f, b) * bsE(abs(hi - 3.4) - 0.07, b) * bsE(f - 0.05, b)
+    float was = bsE(0.85 - f, b) * bsE(abs(hi - 3.4) - 0.07, b) * bsE(f - 0.05, b)
       * bsE(hi - 1.2, b) * bsE(7.5 - hi, b) * bsE(board, 0.09);
+    if (uOwn[6] < 0.0) was = mix(was, bsE(board, 0.09), BS_OUT);
+    return uOwn[6] > 0.0 ? mix(was, lit1, BS_ONE) : was;
   }
   float l = w.z + 0.5 * run + 0.35 * (w.y - bsNose(w.z));
   float f = abs(fract(l / 0.88) - 0.5) * 0.88, f2 = abs(fract(l / 5.28 + 0.3) - 0.5) * 5.28;
-  return bsE(f - 0.13, b) * bsE(1.75 - f2, 0.1);
+  float was = bsE(f - 0.13, b) * bsE(1.75 - f2, 0.1);
+  if (uOwn[6] < 0.0) was = mix(was, 0.9 + 0.1 * was, BS_OUT);
+  return uOwn[6] > 0.0 ? mix(was, lit1, BS_ONE) : was;
 }
+// Open air: the sky along a ray, and under the horizon a wide still water.
+vec3 bsOpen(vec3 rd) {
+  float night = sat(-uOwn[1]), gold = sat(uOwn[1]), y = rd.y - 0.02;
+  vec3 low = mix(mix(vec3(0.95, 0.98, 1.0), vec3(0.07, 0.11, 0.22), night), vec3(1.7, 0.95, 0.55), gold);
+  vec3 top = mix(mix(vec3(0.18, 0.38, 0.72), vec3(0.004, 0.008, 0.024), night), vec3(0.4, 0.34, 0.55), gold);
+  vec2 q = rd.xz / (abs(y) + 0.16);
+  vec3 c = mix(top, low, exp(-abs(y) * 4.2));
+  float cl = noise(q * 0.9 + vec2(uTime * 0.012, 0.0)) * 0.55 + noise(q * 2.1 + 5.0 + vec2(uTime * 0.016, 0.0)) * 0.3 + noise(q * 4.7) * 0.15;
+  cl = smoothstep(0.46, 0.8, cl + 0.06 * uPad);
+  if (y > 0.0) {
+    c = mix(c, low * 1.05 + 0.1 * bsKey, cl * 0.75 * (1.0 - 0.6 * night));
+    vec2 g = rd.xy / max(rd.z + 1.2, 0.2) * 38.0, f = fract(g) - 0.5; float st = hash21(floor(g));
+    c += night * vec3(0.8, 0.85, 1.0) * (1.0 - smoothstep(0.0, 0.16, length(f))) * step(0.86, st) * (0.5 + 0.5 * sin(uTime * 0.7 + st * 90.0)) * 1.4 * sat(y * 5.0);
+  } else {
+    float l = noise(vec2(rd.x * 3.0, uTime * 0.05) + vec2(0.0, 1.5 / max(-y, 0.02)));
+    c = mix(low * 0.75, top * 0.8 + vec3(0.0, 0.03, 0.03), sat(-y * 5.0)) * (0.82 + 0.3 * l);
+  }
+  return c;
+}
+vec3 bsAxis(vec4 h) { return normalize(vec3(h.x - 0.5, 0.75, h.y - 0.5)); }
 vec3 bsDye(float k) { return k < 1.0 ? bsPaint[0] : k < 2.0 ? bsPaint[1] : k < 3.0 ? bsPaint[2] : k < 4.0 ? bsPaint[3] : bsPaint[4]; }
 // One ball where the ray meets it, lit past its neighbours.
 vec3 bsShade(vec4 ball, vec4 h, bool gold, vec3 q, vec3 w, vec4 pc) {
@@ -64,6 +99,11 @@ vec3 bsShade(vec4 ball, vec4 h, bool gold, vec3 q, vec3 w, vec4 pc) {
     vec3 sp = n * 6.0 + h.xyz * 9.0;
     alb *= 1.0 - 0.65 * bsStep(0.32, 0.2, length(fract(sp) - 0.5)) * step(0.55, hash31(floor(sp))) * sat(uTexture * 1.4) * (abs(h.z - 0.5) < 0.1 ? 1.0 : 0.2);
   }
+  if (uOwn[7] > 0.0 && !gold) {
+    vec3 a = bsAxis(h); float k = 1.0 - 0.52 * BS_FLAT; n += (1.0 / (k * k) - 1.0) * a * dot(a, n); n /= max(length(n), 1e-3);
+    float vein = abs(dot(n, vec3(h.w - 0.5, 0.5 - h.x, h.z)) + 0.25 * noise(n * 3.0 + h.xyz * 9.0) - 0.25 * h.w);
+    alb *= 1.0 - BS_FLAT * (0.4 * noise(n * 7.0 + h.xyz * 7.0) - 0.12); alb = mix(alb, vec3(0.8, 0.78, 0.74), BS_FLAT * 0.6 * bsStep(0.05, 0.01, vein) * step(0.62, h.w));
+  }
   vec3 back = vec3(0.0);
   float sh = 1.0, ao = 1.0;
   for (int i = 0; i < 10; i++) {
@@ -76,14 +116,21 @@ vec3 bsShade(vec4 ball, vec4 h, bool gold, vec3 q, vec3 w, vec4 pc) {
   }
   float sun = bsLight(w, 0.0) * sh * smoothstep(-0.1, 1.0, dot(n, bsSun));
   vec3 c = alb * (1.55 * bsKey * sun + 0.58 * bsSky * (0.55 + 0.45 * n.y) * ao * mix(1.0, ao, 0.6) + back * (0.07 * bsKey + 0.25 * bsSky) * ao);
+  if (uOwn[7] < 0.0 && !gold) {
+    float own = 0.3 + 1.5 * fract(h.x * 5.3) * fract(h.w * 9.1 + 0.3), vi = sat(-dot(n, bsRay));
+    float hear = h.z < 0.2 ? uDrone : h.z < 0.4 ? uPad : h.z < 0.6 ? uTexture : h.z < 0.8 ? uPhrase : uHits;
+    vec3 lamp = bsRich(alb, 1.5) * (0.25 + 1.3 * vi * vi) + vec3(0.9, 0.75, 0.5) * 0.28 * pow(vi, 4.0) + back * 0.35;
+    c = mix(c, c * 0.35 + lamp * own * (1.9 + 1.0 * hear), BS_GLOW);
+  }
   float g = length(w.xz - bsBump.xy), ring = g - (1.0 - uHits) * 2.2, roll = (bsBath ? w.z : w.z + 4.0) / 13.0 - 0.85 * uCue;
   c += (alb + 0.12) * (0.4 + 0.6 * n.y) * (uHits * exp(-ring * ring * 9.0) * 1.5 * bsStep(3.0, 1.0, g) + uCue * 2.2 * exp(-roll * roll * 50.0));
-  if (gold) return c + vec3(0.9, 0.62, 0.2) * pow(sat(dot(n, normalize(bsSun + vec3(0.0, 0.3, -0.8)))), 12.0) * 0.6 + alb * (0.08 + 0.5 * uCue);
+  if (gold) return c + vec3(0.9, 0.62, 0.2) * pow(sat(dot(n, normalize(bsSun + vec3(0.0, 0.3, -0.8)))), 12.0) * 0.6 + alb * (0.08 + 0.5 * uCue + 0.9 * BS_GLOW * (0.4 - 0.6 * dot(n, bsRay)));
   return c + alb * step(0.9, fract(h.y * 13.1)) * uKeys * (0.5 + 0.5 * n.y);
 }
 // The heap under a ray that has come to w; rd is in that place's own frame, s its scale.
 vec4 bsHeap(vec3 rd, vec3 w, float s, float px, vec4 pc) {
   float den = min(rd.y - (bsBath ? 0.0 : ((w.z > BS_TOP ? 0.0 : BS_SLOPE * rd.z) - 0.5 * min(w.x, 0.0) * rd.x) / s), -0.22), t = (bsTop(w.xz) - 0.2 * bsA - w.y) / den, col = 0.0, off = 0.0;
+  bsRay = rd;
   if (bsRide) t = 0.0;
   vec3 o = vec3(w.xz + rd.xz * t / s, w.y + rd.y * t);
   if (!bsRide) { t = clamp((bsTop(o.xy) - 0.15 * bsA - o.z) / den, -0.3, 0.3); o += vec3(rd.xz * t / s, rd.y * t); }
@@ -104,7 +151,12 @@ vec4 bsHeap(vec3 rd, vec3 w, float s, float px, vec4 pc) {
       at = (at - o.xy) * s; ball = vec4(at.x, y, at.y, r * s);
     }
     bsC[i] = ball;
-    float b = dot(ball.xyz, rd), d2 = dot(ball.xyz, ball.xyz) - b * b, cov = ball.w < 0.01 || (i == 9 && !bsRide) ? 0.0 : sat((ball.w - sqrt(max(d2, 0.0))) / px + 0.5), th = b - sqrt(max(ball.w * ball.w - d2, 0.0));
+    float b = dot(ball.xyz, rd), d2 = dot(ball.xyz, ball.xyz) - b * b, aa = 1.0;
+    if (uOwn[7] > 0.0 && i < 9) {
+      vec3 a = bsAxis(h); float k = 1.0 / (1.0 - 0.52 * BS_FLAT) - 1.0; vec3 cc = ball.xyz + k * a * dot(a, ball.xyz), dd = rd + k * a * dot(a, rd);
+      aa = dot(dd, dd); b = dot(cc, dd) / aa; d2 = dot(cc, cc) - b * b * aa; ball.w *= 1.0 + 0.22 * BS_FLAT;
+    }
+    float cov = ball.w < 0.01 || (i == 9 && !bsRide) ? 0.0 : sat((ball.w - sqrt(max(d2, 0.0))) / px + 0.5), th = b - sqrt(max(ball.w * ball.w - d2, 0.0) / aa);
     if (cov > 0.0 && th < t1) {
       if (f1 > 0.5) { t2 = t1; h2 = h1; two = true; }
       t1 = th; c1 = ball; h1 = h; g1 = i == 9; f1 = cov;
@@ -116,6 +168,7 @@ vec4 bsHeap(vec3 rd, vec3 w, float s, float px, vec4 pc) {
   }
   vec3 on = w + vec3(rd.x / s, rd.y, rd.z / s) * 0.9;
   bsPast = !bsBath && acc.a < 0.98 && (w.x > 1.6 || on.y > bsTop(on.xz) - 0.1);
+  if (uOwn[6] < 0.0 && w.x < -0.35 && w.z < 1.0) bsPast = false;
   return acc;
 }
 // How far along a ray a ball is met, 1e5 when it is not.
@@ -136,13 +189,19 @@ vec3 render(vec2 p) {
   }
   bsKey = mix(mix(vec3(3.1, 2.65, 2.05), vec3(0.35, 0.45, 0.7), night), vec3(3.3, 1.7, 0.7), gold) * (0.85 + 0.35 * uTone);
   bsSky = mix(mix(vec3(0.5, 0.57, 0.68), vec3(0.1, 0.13, 0.22), night), vec3(0.42, 0.36, 0.5), gold) * (0.9 + 0.5 * uPad - 0.12 * uTone);
+  if (uOwn[6] > 0.0) { bsSky = mix(bsSky, bsSky * 0.1 + vec3(0.012, 0.012, 0.016), BS_ONE); bsKey = mix(bsKey, bsKey * 0.95 * vec3(1.0, 0.94, 0.84), BS_ONE); }
   bsAir = bsSky * 0.9 + bsKey * 0.1;
+  if (uOwn[6] < 0.0) bsAir = mix(bsAir, mix(mix(vec3(0.95, 0.98, 1.0), vec3(0.07, 0.11, 0.22), night), vec3(1.5, 0.9, 0.55), gold), BS_OUT);
+  if (uOwn[6] > 0.0) bsAir = mix(bsAir, bsSky, BS_ONE);
+  if (uOwn[6] < 0.0 && uOwn[1] < 0.0) bsSky *= 1.0 - 0.5 * BS_OUT * night;
   bsWall = mix(vec3(0.86, 0.85, 0.82), uOwn[5] < 0.0 ? vec3(0.78, 0.5, 0.44) : vec3(0.14, 0.3, 0.29), abs(uOwn[5]));
   bsSun = bsBath ? normalize(vec3(-0.7, 0.62, -0.3)) : normalize(vec3(-0.7, 0.78, -0.2));
+  if (uOwn[6] > 0.0) bsSun = normalize(mix(bsSun, vec3(0.12, 0.95, 0.12), 0.75 * BS_ONE));
   bsPaint = vec3[5](vec3(0.05, 0.08, 0.25), vec3(0.88, 0.78, 0.58), vec3(0.3, 0.46, 0.3), vec3(0.88, 0.2, 0.12), vec3(0.8, 0.42, 0.44));
   for (int k = 0; k < 5; k++) {
     vec3 u = bsRich(uKind[k], 1.6); u *= bsGrey(bsPaint[k]) / max(bsGrey(u), 0.02);
     bsPaint[k] = mix(bsPaint[k], min(u, 0.95), 0.25);
+    if (BS_DYE > 0.0) bsPaint[k] = mix(bsPaint[k], uKind[k] * uKind[k] * 0.95, BS_DYE);
   }
   bsBump = vec3(vec2(0.4 * sin(uTime * 0.03), 0.0) + (bsBath ? vec2(1.2, 4.2) : vec2(-0.3, -1.2)), 0.22 * jump);
   vec2 gp = bsBath ? vec2(-0.6 + 1.6 * sin(lp), 5.0 - 1.8 * cos(lp)) : vec2(0.35 * sin(lp), -0.1 - 1.1 * cos(lp));
@@ -204,6 +263,8 @@ vec3 render(vec2 p) {
       amb = left ? 0.5 : 0.75; dir = left ? 0.0 : 0.42; alb *= 1.0 - 0.12 * bsIn(px, pos.y - 1.15);
       float g = abs(fract((pos.z + 0.6) / 2.6) - 0.5) * 2.6, win = max(max(g - 0.85, abs(pos.y - 4.35) - 3.15), max(0.05 - abs(pos.y - 3.4), 0.04 - g));
       if (left) { veil = bsIn(px, win); emit = mix(bsSky * 1.6, bsKey * 0.6 + bsSky, sat((pos.y - 1.2) / 6.0)); }
+      if (uOwn[6] > 0.0) emit = mix(emit, bsSky * 0.4, BS_ONE);
+      if (uOwn[6] < 0.0) { emit = mix(veil > 0.0 ? emit : vec3(0.0), bsOpen(rd), BS_OUT); veil = mix(veil, 1.0, BS_OUT); }
     }
     w = lit = pos;
   }
@@ -219,6 +280,8 @@ vec3 render(vec2 p) {
     float door = max(abs(d.x) - 1.0, d.y < 2.0 ? -d.y : length(vec2(d.x, d.y - 2.0)) - 1.0);
     col = (bsKey * 0.2 + vec3(0.5, 0.3, 0.12) * uMic) * exp(-max(door, 0.0) * 0.9);
     veil = bsIn(px * 1.2, door); emit = bsKey * 0.8 + bsSky * 1.2;
+    if (uOwn[6] > 0.0) { veil *= 1.0 - 0.9 * BS_ONE; col *= 1.0 - BS_ONE; }
+    if (uOwn[6] < 0.0) { emit = mix(emit, bsOpen(rd), BS_OUT); veil = mix(veil, 1.0, BS_OUT); col *= 1.0 - BS_OUT; }
   }
   BS_WHEN(!bsBath && what == 1 && !bsPast && h.a < 0.98) {
     // the steps under the heap: a tread or a riser
@@ -250,7 +313,7 @@ vec3 render(vec2 p) {
   }
   col = mix(col + alb * (bsSky * amb + bsKey * dir * bsLight(lit, soft)), emit, veil);
   col = h.rgb + col * (1.0 - h.a);
-  col = mix(col, bsAir, 1.0 - exp(-max(t - 6.0, 0.0) * (0.015 + 0.02 * uSpace)));
+  col = mix(col, bsAir, (1.0 - exp(-max(t - 6.0, 0.0) * (0.015 + 0.02 * uSpace))) * (1.0 - BS_OUT * veil * (1.0 - h.a)));
   // balusters and rail, far and near
   for (int k = tn > 1e4 ? 2 : 0; k < 2; k++) {
     float tr = k == 0 ? tf : tn; vec3 pr = ro + rd * tr; float l = bsAlong(pr), hi = pr.y - bsNose(l), e = bsPx * tr;

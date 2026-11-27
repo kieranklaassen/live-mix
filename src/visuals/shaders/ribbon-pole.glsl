@@ -3,7 +3,11 @@
 // b: Down the braid
 // what: A tall garlanded pole from straight above on a mown green, sixteen ribbons running from it to dancers in white who weave round it, their morning shadows beside them; or looking up the pole, where a tight plait of coloured lozenges ends and the ribbons flare out under the sky with the sun through them.
 // follows: The loop winds the plait down the pole and lets it out again. Each ribbon carries a band and widens with it, and the piece is dyed along it. Drone leans the pole, pad lights the cloth, texture flutters it, a phrase sends one ribbon wide; travel walks them round; a hit runs down the ribbons on one side, a cue down all, with petals on the green.
-// own: 0 moonlit dusk at -1, low gold evening at 1; 1 thin cords at -1, broad banners at 1; 2 ribbons straight as spokes at -1, swept round in a spiral at 1; 3 all undyed linen at -1, red and white at 1; 4 seen from far at -1, close in at 1; 5 snow (looking up, an overcast sky) at -1, a sandy square (a clear sky) at 1
+// own: 0 moonlit dusk at -1, low gold evening at 1; 1 thin cords at -1, broad banners at 1; 2 ribbons straight as spokes at -1, swept round in a spiral at 1; 3 all undyed linen at -1, red and white at 1; 4 seen from far at -1, close in at 1; 5 snow (looking up, an overcast sky) at -1, a sandy square (a clear sky) at 1; 6 four ribbons at -1, strings of paper globes in the sounds' colours, lit at dusk, at 1; 7 from right over the tip (a broad plait close by) at -1, from the side (all let fall from the top) at 1
+#define rpFew sat(-uOwn[6])
+#define rpGlobe sat(uOwn[6])
+#define rpOver sat(-uOwn[7])
+#define rpSide sat(uOwn[7])
 const vec3 RP_DYE[8] = vec3[8](vec3(0.8, 0.13, 0.12), vec3(0.95, 0.92, 0.84), vec3(0.1, 0.3, 0.6), vec3(0.95, 0.67, 0.12),
                               vec3(0.1, 0.46, 0.36), vec3(0.9, 0.42, 0.46), vec3(0.95, 0.92, 0.84), vec3(0.4, 0.2, 0.46));
 float rpPx, rpPlait, rpTurn, rpDusk, rpGold;
@@ -14,6 +18,7 @@ vec3 rpDye(int i) {
   vec3 c = RP_DYE[i & 7];
   float pale = (i & 7) == 1 || (i & 7) == 6 ? 1.0 : 0.0;
   c = mix(c, uKind[(i * 3) % 5] * vec3(1.15, 1.1, 1.05), 0.34 * (1.0 - 0.75 * pale));
+  if (rpGlobe > 0.0) c = mix(c, (0.15 + 0.85 * uKind[(i * 3) % 5]) * (0.85 + 0.3 * hash11(float(i) + 1.0)), 0.9 * rpGlobe);
   vec3 linen = vec3(0.9, 0.85, 0.74) * (0.88 + 0.12 * hash11(float(i) + 3.0));
   vec3 two = (i & 1) == 1 ? vec3(0.95, 0.92, 0.86) : vec3(0.78, 0.1, 0.12);
   return mix(mix(c, linen, sat(-uOwn[3])), two, sat(uOwn[3]));
@@ -30,6 +35,8 @@ vec3 rpPlaitCloth(float a, float h, float aa) {
   col *= 0.97 + 0.05 * sin(across * 40.0) * rpFall(0.02, 0.1, aa);
   return col * mix(0.35, 1.0, smoothstep(0.0, 0.1 + aa, min(e.x, e.y)));
 }
+// How much of ribbon k of its file there is.
+float rpHere(int k) { return (k & 1) == 1 ? 1.0 - sat(2.0 * rpFew) : (k & 3) == 2 ? 1.0 - sat(2.0 * rpFew - 1.0) : 1.0; }
 // The piece's colour at the part t of a ribbon's way, laid into its dye.
 vec3 rpStain(vec3 dye, float t, int i) {
   float y = (float(i) + 0.5) / 16.0;
@@ -71,17 +78,19 @@ vec3 rpGreen(vec2 p, vec2 foot, float ring) {
 }
 vec3 rpAbove(vec2 p) {
   float zoom = exp2(-0.55 * uOwn[4]);
-  vec2 foot = vec2(-0.13, -0.035);
+  vec2 foot = vec2(-0.13, -0.035), sq = vec2(1.0, 1.0 - 0.55 * rpSide);
+  if (uOwn[7] != 0.0) foot += vec2(0.1, -0.19) * rpSide + vec2(0.1, 0.035) * rpOver;
   p = foot * (1.0 - zoom) * 0.6 + p * zoom;
   rpPx = zoom * 1.1 / uRes.y;
   vec2 nadir = vec2(-0.34, -0.17);
+  if (uOwn[7] != 0.0) nadir = mix(mix(nadir, foot, rpOver), vec2(foot.x, -1.5), rpSide);
   // the pole leans and breathes; its tip is near the eye, so it stands far out from the foot
-  vec2 tip = foot + vec2(0.175, 0.11) + (0.012 + 0.035 * uDrone) * vec2(sin(uTime * 0.17), cos(uTime * 0.13));
-  float ring = 0.365 * (1.0 + 0.06 * uDrone + 0.05 * uSpace) * (1.0 - 0.16 * rpPlait);
+  vec2 tip = foot + mix(mix(vec2(0.175, 0.11), vec2(0.03, 0.06), rpOver), vec2(0.06, 0.56), rpSide) + (1.0 - 0.7 * rpOver) * (0.012 + 0.035 * uDrone) * vec2(sin(uTime * 0.17), cos(uTime * 0.13));
+  float ring = 0.365 * (1.0 + 0.06 * uDrone + 0.05 * uSpace) * (1.0 - 0.16 * rpPlait) * (1.0 + 0.5 * rpSide);
   float at = mix(0.94, 0.56, rpPlait);                    // how far up the pole the ribbons leave it
   vec2 end = mix(foot, tip, at), axis = normalize(tip - foot);
   // the sun's way over the grass, per length of height
-  vec2 sun = normalize(vec2(0.9, -0.44)) * mix(0.075, 0.14, rpGold);
+  vec2 sun = normalize(vec2(0.9, -0.44)) * mix(0.075, 0.14, rpGold) * sq;
   float sunL = length(sun);
   vec2 endSh = foot + sun * 6.0 * at;
   float weave = 0.12 * (1.0 + 0.3 * uMid) * (1.0 - 0.8 * sat(-uOwn[2]));
@@ -99,6 +108,8 @@ vec3 rpAbove(vec2 p) {
   vec2 ps = p - foot;
   float sl = sunL * 6.0, out1 = clamp(dot(ps, sn) / (sl * at), 0.0, 1.0), reach = ring * (1.03 + weave) + 0.04 + 0.075 * uPhrase;
   bool inDance = length(ps - sn * clamp(dot(ps, sn), 0.0, sunL * 1.3)) < reach || (out1 > 0.0 && length(ps - sn * sl * at * out1) < mix(reach, 0.06, out1) + 0.12);
+  if (rpSide > 0.0) inDance = true;
+  vec3 halo = vec3(0.0);
   for (int fam = 0; fam < 2 && inDance; fam++) {
    float dir = fam == 0 ? 1.0 : -1.0;
    vec3 here = vec3(0.0, 9.0, 0.0);
@@ -110,9 +121,11 @@ vec3 rpAbove(vec2 p) {
    bool odd = (k & 1) == 1;
    vec2 u = odd ? oddU : evenU;
    if (odd) oddU = vec2(-oddU.y, oddU.x); else evenU = vec2(-evenU.y, evenU.x);
+   float part = rpHere(k);
+   if (part < 0.02) continue;
    float rad = ring * (1.0 + dir * weave * (fam == 1 ? swap.y : odd ? swap.z : swap.x) + 0.03 * (fract(fi * 0.618) - 0.5));
    rad += (i == 5 ? 0.075 : 0.0) * uPhrase;  // the phrase's own dancer goes wide
-   vec2 D = foot + rad * u;
+   vec2 D = foot + rad * u * sq;
    // the dancer's long shadow on the grass
    vec2 dp = p - D;
    float dd = dot(dp, dp), sl = sunL * 1.2;
@@ -122,7 +135,7 @@ vec3 rpAbove(vec2 p) {
      float ds = sc - body + max(0.0, max(-sa, sa - sl)) * 1.2;
      shade = max(shade, 0.85 * rpFall(-0.003 - 0.004 * st, 0.004 + 0.008 * st, ds));
    }
-   if (dd < best) { best = dd; who = i; bd = dp / 1.3; bu = u; bo = (D - nadir) * 0.035; }
+   if (dd < best && part > 0.4) { best = dd; who = i; bd = dp / 1.3; bu = u; bo = (D - nadir) * 0.035; }
    // the ribbon, from the plait to the dancer's hand, bowed by the going round and by its own weight
    vec2 hand = D - u * 0.018;
    vec2 v = hand - end;
@@ -140,7 +153,14 @@ vec3 rpAbove(vec2 p) {
        float b = uBands[i];
        float half_ = wide * mix(0.0145, 0.0115, t) * (0.38 + 0.62 * abs(turn)) * (0.85 + (0.4 + 0.5 * uEnergy) * b + 0.8 * pass);
        d += 0.0032 * (uTexture + 0.6 * uKeys) * t * sin(t * 30.0 - uTime * 2.2 + fi);
-       half_ = max(half_, 0.0012);
+       if (rpGlobe > 0.0) {
+         // a string of globes
+         float nG = 7.0, z = (fract(t * nG) - 0.5) * L / nG, R = min(0.0165 * wide, 0.44 * L / nG) * (0.85 + 0.6 * b + 0.5 * pass);
+         half_ = mix(half_, max(0.0011, sqrt(max(R * R - z * z, 0.0))), rpGlobe);
+         halo += rpDye(i) * exp(-(d * d + z * z * 0.4) * 900.0) * (0.35 + 1.2 * b + pass);
+       }
+       if (uOwn[1] > 0.0) half_ *= 1.0 - min(4.0 * uOwn[1], 0.85) * smoothstep(0.66, 1.0, t) * smoothstep(0.66, 1.0, t);  // broad cloth is gathered in the hand
+       half_ = max(half_ * part, 0.0012 * part);
        float c = rpIn(abs(d) - half_);
        if (c > 0.5 || abs(d) / half_ < here.y) here.z = float(k);
        here.y = min(here.y, abs(d) / half_);
@@ -153,6 +173,7 @@ vec3 rpAbove(vec2 p) {
    if (t > 0.0 && t < 1.0) {
      float iL = inversesqrt(L2), y = (v.x * qs.y - v.y * qs.x) * iL - bow / iL * t * (1.0 - t);
      float hw = wide * mix(0.0068, 0.006, t), soft = mix(0.01, 0.0022, t);
+     hw *= part; if (rpGlobe > 0.0) hw *= 1.0 - 0.75 * rpGlobe * abs(sin(t * 22.0));
      shade += (1.0 - shade) * 0.42 * mix(0.4, 1.0, t) * rpFall(-soft, soft, abs(y) - hw);
    }
    }
@@ -162,6 +183,10 @@ vec3 rpAbove(vec2 p) {
    vec3 cloth = rpStain(rpDye(id), strip.x, id);
    cloth *= 0.78 + 0.28 * smoothstep(-0.12, 0.12, tu + 0.3 * s) + 0.22 * tu * tu * tu * tu * (1.0 - s * s);
    cloth = cloth * (1.0 + 0.22 * uPad + 0.25 * b * uEnergy + 0.5 * strip.w) + vec3(0.3, 0.27, 0.2) * strip.w;
+   if (rpGlobe > 0.0) {
+     vec3 gl = rpStain(rpDye(id), strip.x, id) * (0.62 + 0.55 * (1.0 - s * s)) * (1.0 + 0.4 * b + strip.w);
+     cloth = mix(cloth, gl * (0.95 + 0.8 * rpDusk) + (0.06 + 0.2 * rpDusk) * vec3(0.5, 0.36, 0.2) * (1.0 - s * s), rpGlobe);
+   }
    cloth *= here.x * mix(0.5, 1.0, smoothstep(0.0, 0.16, strip.x)) * (1.0 - 0.12 * smoothstep(0.7, 0.8, abs(s)));
    if (fam == 0) { nearC = cloth; nearA = here; } else { farC = cloth; farA = here; }
   }
@@ -178,8 +203,9 @@ vec3 rpAbove(vec2 p) {
   }
   vec3 shadeTint = mix(mix(vec3(0.4, 0.53, 0.6), vec3(0.4, 0.36, 0.5), rpGold), vec3(0.5, 0.56, 0.74), rpDusk);
   vec3 sunTint = mix(mix(vec3(1.03, 1.0, 0.92), vec3(1.1, 0.9, 0.6), rpGold), vec3(0.42, 0.52, 0.76), rpDusk);
-  vec3 col = rpGreen(p, foot, ring) * mix(vec3(1.0), shadeTint, sat(shade) * (0.88 + 0.12 * uTone));
-  vec2 rp = rot(0.35) * (p - vec2(0.52, -0.38));
+  vec2 pg = p; if (rpSide > 0.0) pg = foot + (p - foot) / sq;
+  vec3 col = rpGreen(pg, foot, ring) * mix(vec3(1.0), shadeTint, sat(shade) * (0.88 + 0.12 * uTone));
+  vec2 rp = rot(0.35) * (pg - vec2(0.52, -0.38));
   float rug = max(abs(rp.x) - 0.115, abs(rp.y) - 0.06);
   if (rug < 0.1) {
     vec2 ch = abs(fract(rp * 25.0) - 0.5);
@@ -193,6 +219,7 @@ vec3 rpAbove(vec2 p) {
       col = mix(col, mix(vec3(0.92, 0.8, 0.52), vec3(0.3, 0.2, 0.14), float(i & 1)) * (0.95 - 30.0 * dot(d, sd)), rpIn(length(d + sd * 0.003) - 0.0092));
     }
   }
+  if (rpGlobe > 0.0) col += rpGlobe * (0.04 + 0.75 * rpDusk) * min(halo, vec3(1.6)) * (0.12 + 0.6 * col) * vec3(1.1, 0.85, 0.6);
   // the striped awning of the band, cut off by the corner
   vec2 aw = rot(-0.3) * (p - vec2(0.86, 0.47));
   float awn = max(-aw.x - 0.2, -aw.y - 0.15);
@@ -222,14 +249,14 @@ vec3 rpAbove(vec2 p) {
   }
   // the bare pole under the cloth
   float y = dot(ps, axis) / length(tip - foot), x = ps.x * axis.y - ps.y * axis.x;
-  float hw = mix(0.0075, 0.026, sat(y));
+  float hw = mix(0.0075, 0.026 - 0.014 * rpSide, sat(y));
   float sx = clamp(x / hw, -1.0, 1.0);
   float round_ = 0.62 + 0.46 * sqrt(max(1.0 - (sx + 0.35) * (sx + 0.35) * 0.55, 0.0)) - 0.25 * smoothstep(0.1, 1.0, sx);
   float h = 1.0 / (1.0 - 0.72 * sat(y));
   col = mix(col, vec3(0.3, 0.25, 0.17) * (1.0 - 12.0 * dot(ps, sn)), rpFall(0.006, 0.022, length(ps)));   // the earth it stands in
   if (y < at) col = mix(col, vec3(0.93, 0.9, 0.84) * round_, rpIn(length(vec2(x, min(dot(ps, axis), 0.0))) - hw));
   // the two files of ribbons in plain weave, over one and under the next
-  if (mod(nearA.z + farA.z, 2.0) > 0.5) {
+  if (mod(nearA.z + farA.z, 2.0) > 0.5 && uOwn[1] < 0.3) {
     vec3 t = nearC; nearC = farC; farC = t; t = nearA; nearA = farA; farA = t;
   }
   col *= 1.0 - 0.18 * rpFall(1.0, 1.7, min(nearA.y, farA.y));
@@ -242,6 +269,7 @@ vec3 rpAbove(vec2 p) {
   }
   // the garland at the tip and the gilded knob
   vec2 g = (p - tip) / 1.2;
+  if (rpSide > 0.0) g /= sq * (1.0 - 0.3 * rpSide);
   float r = length(g);
   if (r < 0.13) {
     float an = r > 1e-5 ? atan(g.y, g.x) : 0.0;
@@ -283,13 +311,14 @@ vec3 rpSky(vec2 p, vec2 sunAt) {
   vec2 q = p * vec2(1.5, 1.9) + vec2(mod(uTime * 0.007, 64.0), 3.0);
   float n2 = noise(q * 2.1 + 9.0), n = 0.52 * noise(q + 0.3 * n2) + 0.28 * n2 + 0.2 * noise(rot(0.6) * q * 4.6);
   float cl = smoothstep(cover - 0.06, cover + 0.17, n);
-  float ds = length(p - sunAt), up = sat(0.5 + 0.8 * p.y);
+  float ds = length(p - sunAt), up = sat(0.5 + 0.8 * p.y), grey = sat(-uOwn[5]);
   vec3 blue = mix(vec3(0.66, 0.81, 0.9), vec3(0.28, 0.52, 0.76), up);
   blue = mix(mix(blue, mix(vec3(0.98, 0.72, 0.42), vec3(0.55, 0.6, 0.68), up), rpGold), mix(vec3(0.22, 0.25, 0.42), vec3(0.06, 0.09, 0.2), up), rpDusk);
   vec3 cloud = mix(mix(vec3(0.97, 0.96, 0.93), vec3(1.0, 0.86, 0.68), rpGold), vec3(0.34, 0.36, 0.5), rpDusk);
   vec3 belly = mix(mix(vec3(0.7, 0.74, 0.8), vec3(0.7, 0.5, 0.48), rpGold), vec3(0.14, 0.15, 0.26), rpDusk);
   vec3 c = mix(blue, mix(cloud, belly, sat((n - cover) * 2.1 + 0.35 * n2 - 0.15)), cl);
-  vec3 sunC = mix(mix(vec3(1.0, 0.95, 0.82), vec3(1.0, 0.75, 0.4), rpGold), vec3(0.75, 0.82, 1.0), rpDusk);
+  if (grey > 0.0) c = mix(c, mix(vec3(0.95, 0.955, 0.95), vec3(0.76, 0.8, 0.85), 0.7 * n2 + 0.3 * up) * mix(vec3(1.0), vec3(0.4, 0.44, 0.6), rpDusk), 0.85 * grey);
+  vec3 sunC = mix(mix(vec3(1.0, 0.95, 0.82), vec3(1.0, 0.75, 0.4), rpGold), vec3(0.75, 0.82, 1.0), rpDusk) * (1.0 - 0.8 * grey);
   return c + sunC * (0.32 * exp(-ds * 5.0) + 0.5 * rpFall(0.03, 0.06, ds)) * (1.0 - 0.4 * rpDusk);
 }
 // A ribbon from below: m is the part of its way, the place across, how much of it, its number and a hit's pass.
@@ -305,6 +334,11 @@ vec3 rpCloth(vec4 m, float glow, out vec3 own) {
   cl += own * sunC * (0.34 + glow) * (0.55 + 0.45 * fold) * (0.75 + 0.45 * uPad + 0.4 * uBands[i] * uEnergy + 1.2 * pass);
   cl *= 1.0 - 0.28 * smoothstep(0.91, 0.94, e) * (0.5 + 0.5 * rpFall(0.97, 1.0, e));
   if ((i & 3) == 0) cl += 0.3 * smoothstep(0.64, 0.68, e) * rpFall(0.76, 0.8, e);
+  if (rpGlobe > 0.0) {
+    float z = fract(log2(m.x + 0.04) * 2.3) * 2.0 - 1.0, rr = sat(1.0 - z * z) * (1.0 - m.y * m.y), rib = 0.93 + 0.07 * sin(z * 34.0);
+    vec3 gl = dye * rib * (0.5 + 0.65 * rr) * (1.0 + 0.4 * uPad + 0.5 * uBands[i] + pass) * (0.8 + 0.3 * rpDusk) + vec3(0.5, 0.36, 0.2) * rr * rr * (0.15 + 0.2 * rpDusk);
+    cl = mix(cl, gl, rpGlobe);
+  }
   return cl - 0.5 * max(cl - 0.9, 0.0);
 }
 vec3 rpBelow(vec2 p) {
@@ -314,13 +348,13 @@ vec3 rpBelow(vec2 p) {
   vec2 sunAt = vec2(0.33, 0.2);
   // the pole leans a little
   vec2 axis = normalize(vec2(-0.12 + (0.01 + 0.03 * uDrone) * sin(uTime * 0.15), 1.0));
-  float endY = 0.22 - 0.16 * rpPlait;
+  float endY = 0.22 - 0.16 * rpPlait + 0.2 * rpSide - 0.42 * rpOver;
   vec2 base = vec2(-0.1, 0.0), end = base + axis * endY, q = p - end;
   float glow = exp(-dot(p - sunAt, p - sunAt) * 3.0);
   // the pole
   vec2 pa = p - base;
   float y = dot(pa, axis), x = pa.x * axis.y - pa.y * axis.x;
-  float hw = max(0.072 - 0.052 * y, 0.01);
+  float hw = max(0.072 - 0.052 * y, 0.01) * (1.0 + 1.9 * rpOver) * (1.0 - 0.35 * rpSide);
   float sx = clamp(x / hw, -1.0, 1.0), a = 0.0, round_ = 1.0, h = 0.0, onPole = 0.0;
   vec3 bare = vec3(0.0), night = mix(vec3(1.0), vec3(0.5, 0.56, 0.8), rpDusk);
   if (abs(x) < hw * 1.12) {
@@ -348,8 +382,10 @@ vec3 rpBelow(vec2 p) {
       float fi = float(i);
       vec2 u = o;
       o = 0.70710678 * vec2(o.x - o.y, o.x + o.y);
-      u += vec2(-u.y, u.x) * (0.22 * (fract(fi * 0.618) - 0.5) + (i == 5 ? 0.2 * uPhrase : 0.0)) - 0.25 * axis;
-      u *= inversesqrt(dot(u, u));
+      u += vec2(-u.y, u.x) * (0.22 * (fract(fi * 0.618) - 0.5) + (i == 5 ? 0.2 * uPhrase : 0.0)) - (0.25 + 1.0 * rpSide) * axis;
+      u *= inversesqrt(max(dot(u, u), 1e-4));
+      float part = rpHere(k);
+      if (part < 0.02) continue;
       float t = dot(q, u), yy = u.x * q.y - u.y * q.x;
       if (t < 0.0) continue;
       float ty = min(t, 1.2), y0 = dir * trail * ty * (1.6 - 1.15 * ty);
@@ -361,7 +397,11 @@ vec3 rpBelow(vec2 p) {
       float pass = rpPass(t / 0.9, u);
       float half_ = wide * (0.014 + 0.105 * t) * (0.62 + 0.38 * roll * roll) * (0.8 + (0.35 + 0.5 * uEnergy) * b + 0.25 * pass);
       half_ += (0.0035 * uTexture) * (0.2 + t) * sin(t * 34.0 - uTime * 2.0 + fi * 2.0);
-      half_ = max(half_, 0.002);
+      if (rpGlobe > 0.0) {
+        float z = fract(log2(t + 0.04) * 2.3) * 2.0 - 1.0;
+        half_ = mix(half_, max(0.0025 + 0.004 * t, (0.1 + 0.05 * b) * (t + 0.04) * (0.6 + 0.4 * wide) * sqrt(max(1.0 - z * z, 0.0))), rpGlobe);
+      }
+      half_ = max(half_, 0.002) * part;
       float s = clamp(d / half_, -1.0, 1.0), c = rpIn(abs(d) - half_);
       if (c <= 0.0) continue;
       vec4 here = vec4(t, s, c, fi + 0.9 * sat(pass));

@@ -3,7 +3,7 @@
 // b: Sunk bowl
 // what: A yard of rose plaster in early sun: a huge stair cut off by the sky, two quarter rings of marble, and the stair's edge laying one knife of blue shade across the left ring; or a white bowl sunk in the paving, ruled with a net of slate, half in its own shade, with a ring on a wire and the ring's shadow on its slope.
 // follows: The loop is the sun: the shade goes out along the marble and back, and the piece, inlaid there, lights where it is. Drone deepens sky and shade, pad and voice warm it, texture wears the plaster, a phrase climbs the stair and opens the ring's shadow, the bands colour sixteen marks, keys are birds. A hit gilds the shade's line and drops a leaf; a cue is cloud.
-// own: 0 moonlight with a lamp in the door at -1, a burning sunset at 1; 1 whitewash at -1, dark stone with brass scales at 1; 2 snow at -1, still water over the yard and in the bowl at 1; 3 clear deep blue air at -1, thick dust at 1; 4 the eye near the ground at -1, high above at 1; 5 a low long stair or a shallow dish at -1, a steep stair or a chequered bowl at 1
+// own: 0 moonlight with a lamp in the door at -1, a burning sunset at 1; 1 whitewash at -1, dark stone with brass scales at 1; 2 snow at -1, still water over the yard and in the bowl at 1; 3 clear deep blue air at -1, thick dust at 1; 4 the eye near the ground at -1, high above at 1; 5 a low long stair or a shallow dish at -1, a steep stair or a chequered bowl at 1; 6 the eye close within the ring at -1, straight before the stair at 1 (b: far off over the yard at -1, down in the bowl at 1); 7 another world's desert, sand drifted in and two moons, at -1, grass, ivy and cypresses at 1
 vec3 syS, syM, syE, syC; // towards the sun; noon, and along the stair's edge; the middle of the rings, on that edge
 float syH, syH0, syPx, sySun; // the sun's hour as an angle, its middle; a pixel at distance one; how much sun no cloud hides
 float syNight, syDusk, syLime, syDark, sySnow, syWet, syClear, syThick; // the other worlds
@@ -14,6 +14,8 @@ const vec3 SYEYE = vec3(1.9, 0, -5.6); // the middle of the wire over it
 vec3 syBowl, syRingN; float syBR, syPool; // the bowl's sphere, how the little ring is turned, how high water stands
 float syT, syNear, syK; int syId; vec3 syN, syQ, syOr, syRd; // what a ray met: how far, the nearest edge it grazed, how near the line of the shade, what, its facing, its own place; the ray
 
+#define SY_SAND max(-uOwn[7], 0.0)
+#define SY_GREEN max(uOwn[7], 0.0)
 float syIn(float d, float w) { return 1.0 - smoothstep(-w, w, d); }
 float syBell(float x) { return exp(-x * x); }
 void syWorld() {
@@ -102,6 +104,7 @@ void syTrace(vec3 ro, vec3 rd) {
   // ---- one of the two rings: the one on our side, or where we see over the stair the one beyond
   float me = ro.x < 0.0 ? -1.0 : 1.0, cross_ = (me * SYW - ro.x) * ix;
   float side = cross_ > 0.0 && o + d * cross_ > 0.0 ? -me : me;
+  if (uOwn[6] != 0.0 && abs(ro.x) < SYW) side = rd.x < 0.0 ? -1.0 : 1.0;
   vec3 ax = vec3(side, 0, 0), oo = vec3(side * w.x - SYW, o, dot(w, syE)), dd = vec3(side * rd.x, d, dot(rd, syE));
   float a = dot(dd.xy, dd.xy), b = dot(oo.xy, dd.xy), c = dot(oo.xy, oo.xy), t;
   float k = b * b - a * (c - SYO * SYO);
@@ -272,15 +275,48 @@ vec3 syShade(vec3 ro, vec3 rd) {
     alb = mix(alb, syInk(kindColour(g / 4.0)), sat(uBands[int(g)] * (0.4 + uEnergy)) * syIn(abs(rr - 1.565) - 0.045, px) * syIn(abs(fract(a / 3.0) - 0.5) - 0.47, 0.01));
     alb *= 1.0 - 0.4 * syTick(a, 3.0, 0.03, px * 5.0);
   }
+  if (uOwn[7] > 0.0 && !bowl && syId != 5 && syId != 4 && syId != 11) { // what grows
+    float leaf = noise(q * 17.0 + 4.0), m = ground ? n1 * 0.6 + n2 * 0.4 + 0.06 : 0.45 * n1 + 0.3 * n2 + 0.22 * noise(q * 2.7 + 1.0) - 0.1 * P.y + (syId == 8 || syId == 9 ? 0.2 : 0.0);
+    float grown = smoothstep(0.0, ground ? 0.2 : 0.08, m + 0.2 * (leaf - 0.5) - 1.05 + 0.75 * uOwn[7]) * (syId == 3 ? 0.5 : 1.0);
+    vec3 green = mix(vec3(0.05, 0.1, 0.03), vec3(0.22, 0.29, 0.09), leaf * (0.5 + 0.5 * n3) * (0.6 + 0.6 * n1));
+    alb = mix(alb, green, grown);
+    glow *= 1.0 - grown;
+  }
+  if (uOwn[7] < 0.0) { // sand let in
+    float rip = q.x * 9.0 + 3.0 * q.y + 5.0 * n1 + 2.5 * noise(P.xz * 0.6), fine = 1.0 - smoothstep(0.02, 0.12, px / face);
+    float deep = ground ? (1.0 - smoothstep(0.15, 0.75, 0.7 * n1 + 0.3 * n2 - 0.75 * SY_SAND + 0.3)) : bowl ? smoothstep(-0.03, 0.03, SY_SAND * (0.52 + 0.14 * n1) - 1.85 - syQ.y) : syId == 4 ? SY_SAND * smoothstep(0.35, 0.6, n1 + 0.2 - 0.12 * P.y) : smoothstep(-0.04, 0.04, SY_SAND * (0.12 + 0.6 * noise(P.xz * 0.9 + 5.0)) - P.y);
+    deep *= float(syId != 11) * sat(4.0 * SY_SAND);
+    alb = mix(alb, mix(vec3(0.62, 0.36, 0.2), vec3(0.8, 0.55, 0.33), n2) * (1.0 + 0.16 * sin(rip) * fine) * (0.95 + 0.1 * n3), deep);
+    n = normalize(mix(n, n + vec3(0.14 * cos(rip) * fine, ground || bowl ? 0.0 : 1.1, 0.0), deep));
+    glow *= 1.0 - deep;
+    ao = mix(ao, 0.95, deep * float(bowl));
+  }
   // snow
   float lie = sat(sySnow * 1.6 - 0.6 * n1) * smoothstep(0.35, 0.8, n.y - 0.2 * n2) * (syId == 5 || bowl ? 0.35 : 1.0);
   alb = mix(alb, vec3(0.86, 0.89, 0.94) * (0.88 + 0.17 * n1), lie);
   vec3 lit = alb * (sySunC * sat(dot(n, syS)) * vis * sySun + sySkyC * ao * (0.62 + 0.38 * n.y) + syBounce * ao * (0.55 - 0.45 * n.y) * low) + glow;
   if (!b || bowl) lit = mix(lit, alb * vec3(2.6, 1.3, 0.3), 0.8 * syK * uHits);
+  if (b && uOwn[6] != 0.0) lit += uHits * vec3(1.3, 0.75, 0.25) * (bowl ? 0.7 * syBell((al - syH) / 0.2) * syBell(1.2 * dec) : syId == 11 ? 0.45 : 0.0);
   // the sky, and haze before it
   vec3 air = sySky(syId == 0 ? rd : vec3(rd.x, 0.02, rd.z));
   float az = atan(rd.x, max(rd.z, 0.01)), tree = 0.014 + 0.016 * sin(az * 9.0 + 1.0) * sin(az * 23.0);
   vec3 woods = mix(air, vec3(0.42, 0.5, 0.44) * dot(air, vec3(0.33)), 0.5 - 0.2 * uSpace);
+  if (uOwn[7] != 0.0 && syId == 0) {
+    float h = floor(az * 13.0), x = fract(az * 13.0) - 0.5 + 0.3 * (hash11(h) - 0.5), tall = 0.02 + 0.015 * noise(vec2(az * 40.0, 3.0));
+    if (uOwn[7] > 0.0) tree = mix(tree, max(tall + 0.01, (0.07 + 0.11 * hash11(h + 3.0)) * sqrt(max(1.0 - 9.0 * x * x, 0.0)) * step(0.3, hash11(h + 9.0))), uOwn[7]);
+    else {
+      float spire = noise(vec2(az * 7.0, 1.0)), low2 = noise(vec2(az * 3.0 + 4.0, 6.0));
+      tree = mix(tree, 0.02 + 0.03 * low2 + 0.13 * smoothstep(0.56, 0.62, spire) * low2, -uOwn[7]);
+      for (int i = 0; i < 2; i++) {
+        vec3 at = normalize(i == 0 ? vec3(-0.5, 0.33, 1.0) : vec3(-0.1, 0.42, 1.0)), m = (rd - at * dot(rd, at)) / (i == 0 ? 0.125 : 0.05);
+        float d2 = dot(m, m);
+        vec3 mn = m - at * sqrt(max(1.0 - d2, 0.0));
+        float shape = (1.0 - smoothstep(0.97, 1.0, d2)) * smoothstep(-0.1, 0.5, dot(mn, normalize(vec3(-0.75, 0.5, -0.35)))) * (0.6 + 0.4 * noise(mn * 5.0 + 3.0));
+        air = mix(air, air * 0.8 + vec3(0.55, 0.53, 0.5) * (1.0 - 0.3 * syDusk), shape * SY_SAND * 0.9);
+      }
+    }
+    woods = mix(woods, vec3(0.09, 0.13, 0.07) * (0.15 + 0.85 * dot(sySunC, vec3(0.15))) + 0.25 * air * syThick, SY_GREEN * 0.75);
+  }
   if (syId == 0) return mix(air, woods, syIn(rd.y - tree, 0.002));
   float far = max(syT - mix(7.0, 2.5, syThick), 0.0) * (0.015 + 0.035 * uSpace + 0.2 * syThick * syThick) * (1.0 - 0.8 * syClear);
   return mix(lit, air, (0.75 + 0.2 * uSpace) * (1.0 - exp(-far)));
@@ -296,6 +332,10 @@ vec3 render(vec2 p) {
   if (b) {
     ro = mix(mix(vec3(2.2, 1.16, -7.5), vec3(2.2, 0.75, -8), lo), vec3(2.5, 3.5, -7), hi);
     ta = mix(mix(vec3(1.6, 0.12, -5.2), vec3(1.6, -0.25, -5), lo), vec3(1.6, -0.4, -5.4), hi);
+  }
+  if (uOwn[6] != 0.0) {
+    ro = mix(ro, b ? vec3(2.45, -0.5, -6.5) : vec3(0.0, 0.95, -6.4), max(uOwn[6], 0.0)); ta = mix(ta, b ? vec3(1.5, -0.55, -4.8) : vec3(0.0, 1.75, 0.0), max(uOwn[6], 0.0));
+    ro = mix(ro, b ? vec3(3.4, 2.2, -11.5) : vec3(-2.15, 1.75, -1.95), max(-uOwn[6], 0.0)); ta = mix(ta, b ? vec3(0.7, 0.75, -2.0) : vec3(-1.35, 0.75, 0.25), max(-uOwn[6], 0.0));
   }
   ro.x += drift;
   vec3 fw = normalize(ta - ro), rt = normalize(cross(vec3(0, 1, 0), fw)), up = cross(fw, rt);

@@ -3,12 +3,16 @@
 // b: Bulbs on glass
 // what: Beans climb five strings out of dark soil before grey-green paper with a window's light on it; a bent seedling waits, tips grope in slow circles, and a tendril near the eye curls round the last string; or five bulbs in waisted glasses on a windowsill, roots combing down, one flower leaning, two still shut, rain on the pane.
 // follows: Each kind is one plant: it climbs or opens, greens and flowers as it sounds. Drone thickens its stem and the roots, pad lifts leaves, texture wets the pane, phrase widens a tip's circle. Bands lift leaves or open the flower row by row. Light swings with the loop. A hit runs up a string and tightens the tendril, or lights a glass; a cue is one night passing.
-// own: 0 night, by lamplight on the sill, at -1, evening gold at 1; 1 one plant, the other strings or glasses bare, at -1, a thicket at 1; 2 withered, or short and shut, at -1, all in flower at 1; 3 narrow leaves and thin petals at -1, round leaves and round heads at 1; 4 from farther off at -1, close at 1; 5 a black cloth behind, or frost ferns on the pane, at -1, clay red paper, or a green clear garden, at 1
+// own: 0 night, by lamplight on the sill, at -1, evening gold at 1; 1 one plant, the other strings or glasses bare, at -1, a thicket at 1; 2 withered, or short and shut, at -1, all in flower at 1; 3 narrow leaves and thin petals at -1, round leaves and round heads at 1; 4 from farther off at -1, close at 1; 5 a black cloth behind, or frost ferns on the pane, at -1, clay red paper, or a green clear garden, at 1; 6 standing in clay pots at -1, over still water, or on a polished table that mirrors them, at 1; 7 a great low sun or moon behind with all in shade before it at -1, poles leaning together at the top, or a window of many small panes, at 1
 precision highp int;
 const float qgSoil = -.4;
+#define qgPots max(-uOwn[6], 0.)
+#define qgWater max(uOwn[6], 0.)
+#define qgDisc max(-uOwn[7], 0.)
+#define qgPole max(uOwn[7], 0.)
 float qgPx, qgDay, qgLift, qgNight, qgGold, qgLush, qgBloom;
 float qgLv[5], qgOn[5], qgH[5], qgWilt[5], qgPart[5];
-vec3 qgL;
+vec3 qgL, qgSky;
 // the beans: drone, pad, texture, phrase, hit
 const float qgBx[5] = float[5](-.6, -.31, .33, .04, .57);
 const float qgLean[5] = float[5](-.09, .07, -.05, .1, .03);
@@ -31,6 +35,7 @@ void qgStart(inout vec2 p) {
   // a cue: one whole night and morning goes over, from left to right
   float n = (p.x + 1.25 - 2.3*(1. - uCue))/.42, m = n + 1.6;
   qgL *= mix(vec3(1.), vec3(.3, .36, .5), min(1.6*uCue, 1.)*exp(-n*n))*(1. + .25*uCue*exp(-m*m)*vec3(1., .8, .4));
+  qgSky = qgL; qgL *= 1. - .86*qgDisc;
   float lv[5] = float[5](uDrone, uPad, uTexture, uPhrase, uHits);
   for (int k = 0; k < 5; k++) {
     float f = float(k), turn = uTravel*TAU/(150. + 23.*f) + f*2.3, still = k == 4 ? .6*uLevel : lv[k], cs = cos(turn), few = k == 3 ? 0. : sat(-uOwn[1]);
@@ -43,15 +48,25 @@ void qgStart(inout vec2 p) {
   float far = 1. - (uOwn[4] < 0. ? .35 : .3)*uOwn[4];
   vec2 foot = vec2(.02, uOwn[4] < 0. ? -.44 : .1);
   p = foot + (p - foot)*far; qgPx = .75*far/uRes.y;
+  p.y -= uVar < .5 ? .13*qgPots + .2*qgWater : .13*qgWater;
+}
+// The low sun or moon.
+vec3 qgMoon(vec2 q, vec3 c, float r) {
+  float d = length(q);
+  vec3 m = vec3(.95, .91, .8)*(1. + .3*uVar)*(.86 + .1*noise(q*7. + 3.) + .07*noise(q*19.))*mix(vec3(1.), qgSky*1.3, .4)*(.94 + .06*uLevel);
+  if (uOwn[0] > 0.) m = mix(m, mix(vec3(1.02, .66, .34), vec3(1.05, .95, .72), qgUp(-r, r, q.y))*(.94 + .08*uLevel), qgGold);
+  c += qgDisc*m*(.22 + .25*uHits)*exp(-max(d - r, 0.)*5.);
+  return mix(c, m, qgDisc*sat((r - d)/(qgPx*2.5) + .5));
 }
 
-float qgString(int k, float h) { return qgBx[k] + qgLean[k]*h; }
+float qgString(int k, float h) { return uOwn[7] > 0. ? qgBx[k]*(1. - 1.12*qgPole*h) + qgLean[k]*(1. - qgPole)*h : qgBx[k] + qgLean[k]*h; }
+float qgLeans(int k) { return uOwn[7] > 0. ? qgLean[k]*(1. - qgPole) - 1.12*qgPole*qgBx[k] : qgLean[k]; }
 // Where a stem is at a height: it winds round its string, z in front of it.
 float qgStem(int k, float h, out float slope, out float z) {
   float f = float(k), w = 27./qgBig[k], a = w*h + f*1.7, on = .0125*qgBig[k]*qgUp(.02, .25, h);
   float free = qgUp(qgH[k] - .28, qgH[k] + .02, h), o = (k == 1 || k == 3 ? -.05 : .05)*exp(-h*9.);
   z = cos(a);
-  slope = qgLean[k] + w*on*z*(1. - free) - 9.*o;
+  slope = qgLeans(k) + w*on*z*(1. - free) - 9.*o;
   return qgString(k, h) + o + on*sin(a)*(1. - .8*free) + .016*free*free*sin(uTime*.31 + f);
 }
 // One leaf: q from its stalk, L long.
@@ -81,8 +96,9 @@ void qgVine(inout vec4 l, inout float shade, int k, vec2 p, vec2 off, float blur
   float X = qgStem(k, max(h, 0.), slope, z);
   shade = max(shade, .75*(qgUp(blur + .006*big, 0., abs(p.x + off.x - X - slope*off.y)))*qgUp(H + .05, H - .07, hs)*step(0., hs));
   vec3 pale = mix(qgGreen(k)*1.35 + .05, vec3(.6, .4, .3), .4*qgUp(.25, 0., h));
-  float sw = .0017 + .0006*big, sn = x/sw, strA = qgEdge(sw - abs(x)), pluck = (h - .9*(1. - uHits))*9.;
+  float sw = (.0017 + .0006*big)*(1. + 2.2*qgPole), sn = x/sw, strA = qgEdge(sw - abs(x)), pluck = (h - .9*(1. - uHits))*9.;
   vec3 strC = vec3(.7, .63, .5)*(.8 + .2*sin(h*900./big + sn*1.6))*(.8 - .22*sn*dir)*qgL;
+  if (uOwn[7] > 0.) { float kn = fract(h*5. + f*.3) - .5; strC = mix(strC, vec3(.66, .52, .3)*(.75 + .3*(1. - sn*sn) - .25*sn*dir)*(1. - .4*exp(-kn*kn*900.))*qgL, qgPole); }
   strC += (k == 4 ? uHits : 0.)*vec3(.5, .45, .35)*exp(-pluck*pluck);
   qgLay(l, strC, strA);
   float th = .0078*big*(1. - .5*sat(h/max(H, .05)))*(1. + (k == 0 ? .4 : .12)*qgOn[k]);
@@ -150,6 +166,12 @@ void qgTendril(inout vec4 l, vec2 p) {
 }
 int qgFirst(int bits) { return int(log2(float(max(bits & -bits, 1))) + .5); }
 vec3 qgBeans(vec2 p, vec2 p0) {
+  vec2 pIn = p;
+  float deep = qgSoil - .03 - p.y;
+  if (uOwn[6] > 0. && deep > 0.) {
+    p.y = qgSoil - .03 + deep; p0.y += 2.*deep;
+    p.x += (.016*deep + .0012)*sin(deep*70. - 30.*deep*deep + uTime*.8 + 3.*sin(p.x*5. + uTime*.2)) + .004*deep*sin(p.x*40. - uTime*.6);
+  }
   // the paper, the window's light on it
   vec3 sweep = mix(vec3(.69, .735, .665), vec3(.8, .825, .75), qgUp(-.5, .5, p0.y));
   sweep = uOwn[5] < 0. ? mix(sweep, vec3(.055, .06, .062), -uOwn[5]) : mix(sweep, sweep*vec3(1.02, .72, .58), uOwn[5]);
@@ -158,7 +180,7 @@ vec3 qgBeans(vec2 p, vec2 p0) {
   float soft = .07 + .05*(1. - uTone);
   float win = (qgUp(.34 + soft, .34 - soft, abs(w.x)))*(qgUp(.36 + soft, .36 - soft, abs(w.y)));
   win *= (.55 + .45*qgUp(0., .024 + soft*.5, abs(w.x)))*(.6 + .4*qgUp(0., .024 + soft*.5, abs(w.y - .06)));
-  float shade = 0., blur = .016 + .012*uSpace, h = p.y - qgSoil;
+  win *= 1. - qgDisc; float shade = 0., blur = .016 + .012*uSpace, h = p.y - qgSoil;
   vec2 off = vec2(.085*qgDay + .02, .055);
   // which vines and nodes are near enough, a bit for each
   int vines = 0, nodes = 0;
@@ -166,10 +188,10 @@ vec3 qgBeans(vec2 p, vec2 p0) {
     int k = qgOrder[i];
     float big = qgBig[k], x = p.x - qgString(k, h), xs = x + off.x, hs = h + off.y, grown = (1. + .1*qgLush)*big;
     vec3 id = floor((h - .1*big)/(.155*big) + .2) + vec3(-1., 0., 1.), nh = (.1 + .155*id)*big, size = sat((qgH[k] - nh)*5.);
-    vec3 gs = grown*size, sx = vec3(-1., 1., -1.)*(1. - 2.*step(.5, mod(id.y + float(k), 2.))), ax = x*sx - .11*gs, ay = h - nh - .055*gs, bx = xs*sx - .12*gs, by = hs - nh - .04*gs;
+    vec3 gs = grown*size, sx = vec3(-1., 1., -1.)*(1. - 2.*step(.5, mod(id.y + float(k), 2.))), leanAt = (uOwn[7] > 0. ? qgLeans(k) : 0.)*(h - nh), ax = (x + leanAt)*sx - .11*gs, ay = h - nh - .055*gs, bx = (xs + leanAt)*sx - .12*gs, by = hs - nh - .04*gs;
     vec3 far = .2*gs + .025, on = step(min(ax*ax*1.3 + ay*ay - far*far, bx*bx + by*by - far*far*.8), vec3(0.))*step(-.5, id)*step(.01, size);
     nodes |= int(dot(on, vec3(1., 2., 4.))) << (i*4);
-    vec2 t = vec2(x - .02, h - qgH[k] - .07);
+    vec2 t = vec2(x - .02, h - qgH[k] - .07); if (uOwn[7] > 0.) t.x += qgLeans(k)*(h - qgH[k]);
     if (qgH[k] > -.12 && dot(t, t) < .035*big*big) nodes |= 1 << (i*4 + 3);
     if (min(abs(x), abs(xs)) < .04 + .03*big && h > -.06) vines |= 1 << i;
   }
@@ -183,20 +205,30 @@ vec3 qgBeans(vec2 p, vec2 p0) {
     qgNode(l, shade, k, n == 3 ? -1. : floor((h - .1*qgBig[k])/(.155*qgBig[k]) + .2) + float(n - 1), n == 3, p, off, blur);
     nodes &= nodes - 1;
   }
-  vec3 ground = sweep*(.8 + .26*win + .05*uLevel)*(1. - .11*dot(p0, p0))*mix(vec3(.97, 1., 1.01), vec3(1.03, 1.01, .95), win)*qgL;
-  ground *= 1. - shade*(.2 + .2*win)*vec3(1.05, .95, 1.);
+  vec3 ground = sweep*(.8 + .26*win + .05*uLevel)*(1. - .11*dot(p0, p0))*mix(vec3(.97, 1., 1.01), vec3(1.03, 1.01, .95), win)*qgSky;
+  if (uOwn[7] < 0.) ground = qgMoon(p0 - vec2(.02, .06), ground, .385);
+  ground *= 1. - (1. - qgDisc)*shade*(.2 + .2*win)*vec3(1.05, .95, 1.);
   l = vec4(l.rgb + ground*(1. - l.a), 1.);
+  if (uOwn[6] > 0. && deep > 0.) l.rgb = mix(l.rgb, (l.rgb*.62 + .05*sweep)*vec3(.86, .97, 1.)*(1. - 1.2*deep) + .05*qgUp(.75, .95, noise(vec2(pIn.x*6., deep*80.) + uTime*.12))*qgSky, qgUp(0., .012, deep));
+  p = pIn;
+  // pots
+  for (int k = 0; k < 5 && uOwn[6] < 0. && p.y < qgSoil + .02; k++) {
+    float f = float(k), x = p.x - qgBx[k] - (k == 1 || k == 3 ? -.045 : .045), y = p.y + .575, w = (.044 + .03*qgBig[k])*(.74 + 1.5*y) + .008*qgUp(.122, .126, y), n = clamp(x/w, -1., 1.);
+    vec3 clay = mix(vec3(.62, .36, .25), uKind[k]*.75 + .06, .35)*(.8 + .25*noise(vec2(x*24. + f*9., y*60.)));
+    l.rgb *= 1. - .3*(1. - qgUp(-.02, .035, length(max(abs(vec2(x + .06*qgDay + .02, y - .08)) - vec2(w*.8, .07), 0.))));
+    qgLay(l, clay*(.42 + .6*sqrt(1. - n*n) + .3*n*qgDay)*(1. - .35*qgUp(.112, .122, y)*(1. - qgUp(.122, .124, y)))*qgL*(1. + .2*qgLv[k]), qgEdge(w - abs(x))*qgEdge(.17 - y)*qgEdge(y));
+  }
   // the soil
-  float ds = qgSoil - .008 - p.y, lit = .5;
+  float ds = qgSoil - .008 - p.y - .172*qgPots, lit = .5;
   for (int i = 0; i < 3 && p.y < qgSoil + .03; i++) {
     float s = float(i), big = exp2(-1.4*s);
     vec2 g = p*vec2(34., 46.)/big;
-    ds += .013*big*noise(vec2(p.x*9./(big*big), s));
+    ds += (1. - .8*qgPots)*.013*big*noise(vec2(p.x*9./(big*big), s));
     lit -= .6*(noise(g) - noise(g + vec2(-.5*qgDay, .5)));
   }
   lit = sat(lit);
-  qgLay(l, mix(vec3(.075, .06, .05), vec3(.34, .27, .21), lit*lit*1.2)*mix(1.15, .5, qgUp(0., .1, ds))*qgL*(.75 + .4*win), qgEdge(ds));
-  qgTendril(l, p);
+  qgLay(l, mix(vec3(.075, .06, .05), vec3(.34, .27, .21), lit*lit*1.2)*mix(1.15, .5, qgUp(0., .1, ds))*qgL*(.75 + .4*win), qgEdge(ds)*(1. - qgWater*qgUp(.012, .03, ds))*(uOwn[6] > 0. ? 1. - .9*qgWater : 1.));
+  qgTendril(l, p - vec2(.75*qgPots, .1*qgPole));
   return l.rgb;
 }
 const float qgVx[5] = float[5](-.615, -.36, .25, .6, -.06);
@@ -210,13 +242,14 @@ vec3 qgView(vec2 q) {
   float spring = sat(uOwn[5]), hill = q.y + .06 - .035*sin(q.x*4.1 + 1.), tr = q.x + .5 + .06*q.y;
   vec3 hedge = mix(vec3(.46, .54, .53), vec3(.4, .58, .3), spring), lawn = mix(vec3(.66, .71, .69), vec3(.62, .74, .4), spring);
   sky = mix(sky, vec3(.97, .94, .84), .75*exp(-dot(s, s)*6.)*(.75 + .4*uLevel));
+  if (uOwn[7] < 0.) sky = qgMoon(q - vec2(.03, .17), sky*(1. - .3*qgDisc), .31);
   sky = mix(sky, hedge*1.1, .55*exp(-tr*tr*260.));
   sky = mix(sky, hedge, .8*(qgUp(.1, -.05, hill)));
   sky = mix(sky, lawn, qgUp(-.08, -.2, q.y));
   return sky*mix(mix(vec3(1.), vec3(.2, .27, .4), qgNight), vec3(1.04, .84, .62), qgGold);
 }
 // Half a glass's width.
-float qgGlass(float y) { float b = (y - .07)/.075; return .031 + .057*exp(-b*b) + .032*qgUp(.19, .265, y); }
+float qgGlass(float y) { float b = (y - .07)/.075; if (uOwn[6] < 0.) return mix(.031 + .057*exp(-b*b) + .032*qgUp(.19, .265, y), .056 + .11*y + .008*qgUp(.212, .216, y), qgPots); return .031 + .057*exp(-b*b) + .032*qgUp(.19, .265, y); }
 float qgRoots(vec2 q, float w, float count, float seed, float grow, float thick) {
   float u = (q.x/w + .07*sin(q.y*38. + seed))*count;
   float id = floor(u), hs = hash11(id + seed*7.3), d = abs(fract(u) - .5 + .35*(hs - .5))*w/count;
@@ -274,14 +307,20 @@ void qgVase(inout vec4 l, int k, vec2 p) {
     c = mix(c, mix(vec3(.78, .78, .7)*mix(vec3(1.), tint, .5), vec3(.97, .96, .9), g)*qgL*rnd, (.7 + .2*g)*qgUp(.93, .84, at)*qgRoots(q, w*(.92 - .06*g), 7. + g, f + .3 + 4.8*g, gr*(.8 + .2*g), fat*(.75 + .1*g)));
   }
   c = mix(c, c*.55, .7*(qgUp(.005, 0., lip)));
+  vec4 pot = vec4(0.);
+  if (uOwn[6] < 0.) {
+    pot = vec4(mix(vec3(.62, .36, .25), dye*.8, .4)*(.78 + .24*noise(vec2(t*2. + f*9., q.y*17.)) + .08*noise(vec2(t*13. + f*9., q.y*110.)))*(.4 + .62*bow + .3*t*qgDay)*(1. - .4*qgUp(.195, .212, q.y)*(1. - qgUp(.212, .216, q.y)))*qgL, 1.);
+    c = mix(c, pot.rgb, qgUp(0., .6, qgPots)); lip += qgPots;
+  }
   qgLay(l, mix(c, .97*qgL, .7*(qgUp(.002, 0., lip)))*(.65 + .35*qgUp(0., .02, q.y)), inG);
   // the bulb
   float bt = sat((qb.y - .196)/.14), bw = .057*sqrt(4.*bt*(1. - bt))*(1. - .3*bt*bt) + .01*qgUp(.6, 1., bt) + 1e-3, n = clamp(qb.x/bw, -.99, .99), as = asin(n);
   float ln = noise(vec2(as*11. + f*5., bt*3.));
   c = mix(vec3(.46, .31, .24), dye*vec3(.5, .4, .45), .4)*(.7 + .45*ln);
   c = mix(c, vec3(.8, .7, .52), .5*qgUp(.62, .95, ln) + .5*(qgUp(.2, 0., bt)));
-  qgLay(l, c*(.5 + .55*sqrt(1. - n*n) + .25*n*qgDay)*qgL, bt > 0. && bt < 1. && here > .05 ? qgEdge((bw - abs(qb.x))*here) : 0.);
+  qgLay(l, c*(.5 + .55*sqrt(1. - n*n) + .25*n*qgDay)*qgL, bt > 0. && bt < 1. && here > .05 ? qgEdge((bw - abs(qb.x))*here)*(uOwn[6] < 0. ? mix(1., qgUp(.268, .274, q.y), qgUp(0., .6, qgPots)) : 1.) : 0.);
   // lights on the glass
+  if (uOwn[6] < 0.) inG *= 1. - qgUp(0., .6, qgPots);
   qgLay(l, tint*qgL, inG*(.18 + .2*thick)*qgUp(.195, .21, q.y));
   float hl = qgUp(.16, 0., abs(t + .58))*qgUp(.02, .06, q.y)*(qgUp(.16, .12, q.y) + qgUp(.2, .23, q.y)) + .8*qgUp(.004, 0., abs(top + .003));
   qgLay(l, min(qgL*1.1, 1.), inG*sat(hl*(.6 + .3*lv + (k == 4 ? uHits : 0.))));
@@ -311,6 +350,8 @@ vec3 qgBulbs(vec2 p) {
   // the garden, upside down through the water of a glass
   int k = qgNear(p.x, p.y);
   vec2 q = (p - vec2(qgVx[k], qgVy[k]))/qgVs[k];
+  float py = p.y;
+  if (uOwn[6] > 0. && q.y < 0.) { q.y = -q.y; p.y = 2.*qgVy[k] - p.y; }
   float t = q.x/qgGlass(q.y);
   bool glass = abs(t) < 1. && q.y > 0. && q.y < .275;
   vec2 at = !glass ? p : q.y < .2 ? vec2(qgVx[k]*.6 - t*.35, .22 - (q.y - .02)*2.2) : p + vec2(.1*t*abs(t), 0.);
@@ -318,20 +359,28 @@ vec3 qgBulbs(vec2 p) {
   vec3 pane = qgPane(p, c)*paneLight;
   float bar = (p.x + .2)/.017;
   pane = mix(pane, vec3(.6, .625, .62)*(.88 + .2*qgDay*bar)*qgL, qgEdge((1. - abs(bar))*.017));
+  if (uOwn[7] > 0.) {
+    vec2 g = abs(fract(vec2(p.x + .2, p.y + .015)/vec2(.146, .185)) - .5); g = (.5 - g)*vec2(.146, .185);
+    float lead = .0075*qgPole - min(g.x, g.y);
+    pane = mix(pane*(1. + .12*qgPole*(hash21(floor(vec2(p.x + .2, p.y + .015)/vec2(.146, .185))) - .5)), vec3(.17, .18, .19)*(1.3 - .6*qgDay)*qgL, qgEdge(lead));
+  }
   // the sill, and the light through the glasses on it
-  float e = sill - p.y, lean = qgDay*1.3;
-  vec3 s = mix(vec3(.7, .71, .69), vec3(.84, .83, .79), qgUp(0., .16, e))*(.96 + .05*noise(vec2(p.x*3., p.y*90.)))*mix(.72, 1., qgUp(0., .02, e));
-  int j = qgNear(p.x + lean*(-.385 - p.y), -1.);
-  float d = qgVy[j] - p.y + .02, x = (p.x - qgVx[j] + lean*d)/qgVs[j], w = .058 + .35*max(d, 0.);
+  float e = sill - py, lean = qgDay*1.3;
+  vec3 s = mix(vec3(.7, .71, .69), vec3(.84, .83, .79), qgUp(0., .16, e))*(.96 + .05*noise(vec2(p.x*3., py*90.)))*mix(.72, 1., qgUp(0., .02, e));
+  int j = qgNear(p.x + lean*(-.385 - py), -1.);
+  float d = qgVy[j] - py + .02, x = (p.x - qgVx[j] + lean*d)/qgVs[j], w = .058 + .35*max(d, 0.);
   vec3 g = qgDye(j);
-  s *= mix(vec3(1.), g*.35 + .42, .75*(qgUp(w*1.4, w*.7, abs(x)))*qgUp(0., .015, d));
-  s += (g*.5 + .35)*exp(-x*x/(w*w)*9.)*qgUp(0., .05, d)*(.4 + .35*qgLv[j]);
-  s *= (.72 + .28*qgUp(-.482, -.478, p.y))*qgL;
-  vec4 l = vec4(p.y > sill ? pane : s, 1.);
+  s *= mix(vec3(1.), mix(g*.35 + .42, vec3(.5), qgPots), .75*(qgUp(w*1.4, w*.7, abs(x)))*qgUp(0., .015, d));
+  s += (1. - qgPots)*(g*.5 + .35)*exp(-x*x/(w*w)*9.)*qgUp(0., .05, d)*(.4 + .35*qgLv[j]);
+  s *= (.72 + .28*qgUp(-.482, -.478, py))*qgL;
+  if (uOwn[6] > 0. && py < sill) s = mix(s, (s*.12 + .6*pow(max(qgView(vec2(p.x, 2.*sill - py + .015*sin(p.x*30.))), 0.), vec3(1.3))*paneLight)*(1. - 1.5*(sill - py)), .85*qgWater);
+  vec4 l = vec4(py > sill ? pane : s, 1.);
+  vec3 was = l.rgb;
   if (glass) l.rgb = c*paneLight;
   // where a neighbour may reach over, it is drawn first
   int left = qgNear(p.x - .08, p.y), k2 = left == k ? qgNear(p.x + .06, p.y) : left;
   for (int i = k2 != k && p.y > -.1 && qgLush + qgBloom > 0. ? 0 : 1; i < 2; i++) qgVase(l, i == 0 ? k2 : k, p);
+  if (uOwn[6] > 0.) l.rgb = mix(l.rgb, was, py < qgVy[k] ? 1. - qgWater*.72*sat(1. - 1.6*(qgVy[k] - py)) : 0.);
   return l.rgb;
 }
 vec3 render(vec2 p) {

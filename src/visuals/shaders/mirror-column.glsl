@@ -3,7 +3,7 @@
 // b: Pointed cone
 // what: A curved smear of paint on a sheet on a sunlit table, and in the polished column standing in it the smear is a pear tree on a hill, a boat and two birds. Or, from nearly overhead, a ring of red and black petals turned inside out, which closes in a mirror cone into a pond with one long fish.
 // follows: The drone raises the hill or deepens the pond, the pad fills the crown, texture stirs leaves or scales, the phrase moves boat or fish. The bands are branches or petals, the piece washes into sky and water, the loop swings the sun. A hit drops a pear or rings the water; a cue steps our view aside; keys are berries, a voice warms the light.
-// own: 0 moonlight at -1, low evening sun at 1; 1 dark slate paper at -1, brown paper on a red table at 1; 2 winter at -1 (bare tree, snow, blue petals), autumn at 1 (rust leaves, gold petals); 3 closer at -1, farther off at 1; 4 a short column or blunt cone with a small or wide smear at -1, a tall or steep one at 1; 5 dark steel at -1, copper at 1
+// own: 0 moonlight at -1, low evening sun at 1; 1 dark slate paper at -1, brown paper on a red table at 1; 2 winter at -1 (bare tree, snow, blue petals), autumn at 1 (rust leaves, gold petals); 3 closer at -1, farther off at 1; 4 a short column or blunt cone with a small or wide smear at -1, a tall or steep one at 1; 5 dark steel at -1, copper at 1; 6 on bare paper, in the sounds' colours, ink peaks and a sun at -1, one tall bloom at 1 (b: rings of dots, or a dahlia); 7 seen from high over it at -1, from low along the table at 1 (b: leaning over it from the left, or from the front)
 bool mcB;              // the cone
 float mcH, mcT;        // the column's height, the cone's steepness (both are 1 round the foot)
 float mcD, mcE;        // the eye the painting is made for: how far off, how high
@@ -146,6 +146,120 @@ vec3 mcPond(vec2 q, vec3 paper) {
   mcLay(abs(rip) - .025, mcInk(vec3(.98, .85, .4), 4, .5), .004, uHits);
   return mix(paper, mcC, 1. - smoothstep(.93, 1., r));
 }
+// The ink the paper asks for.
+vec3 mcPen(vec3 paper) { return mix(mix(vec3(.07, .08, .11), vec3(.86, .87, .84), mcDark), uKind[0] * .75, .3); }
+vec3 mcBlot(int k) { vec3 c = uKind[k]; return mix(mix(c, c * .6 + vec3(.22, .27, .34), .7 * mcWin), c * vec3(1., .74, .42) + vec3(.12, .03, 0.), .7 * mcAut); }
+// Peaks in ink, a sun, three birds.
+vec3 mcPeaks(vec2 q, vec3 paper) {
+  mcC = paper;
+  vec3 ink = mcPen(paper);
+  float br = noise(vec2(q.x * 3. + 4., q.y * 34.)), bg = noise(q * vec2(3., 5.) + 11.);
+  mcC = mcWash(mcC, piece(vec2(.5 + .52 * q.x, 1. - sat((q.y - .5) / 1.9))) * vec4(1., 1., 1., .7));
+  vec2 su = q - vec2(.26, 1.86 + .04 * sin(uTime * .05));
+  mcLay(length(su * vec2(1., .95)) - .3 - .03 * uPad * mcG, mcBlot(3) * (.9 + .2 * br), .004, 1. - .5 * mcWin);
+  mcLay(abs(length(su) - .34 - .7 * (1. - uHits)) - .02, mcBlot(4), .006, uHits);
+  for (int i = 0; i < 4; i++) {
+    float f = float(i), x = q.x * (1.1 + .25 * f) + f * 3.7;
+    float n = noise(vec2(x * 1.6, f)) * .62 + noise(vec2(x * 4.3, f + 9.)) * .24 + noise(vec2(x * 11., f)) * .08;
+    float y = 1.36 - .37 * f + (.75 - .12 * f) * (n - .45) + .14 * mcG * (band(sat(.12 + .25 * f + .1 * q.x)) - .3) * (1. - .15 * f);
+    float d = q.y - y, wet = exp(min(d, 0.) * (4.6 - f));
+    float a = (.16 + .84 * wet) * (.5 + .16 * f) * (.75 + .35 * bg);
+    mcLay(d, mix(ink, mcBlot(i == 2 ? 1 : 2), .25 + .15 * mcAut - .08 * f), .003, sat(a));
+    mcLay(abs(d + .06 + .05 * br) - .012, ink, .004, .35 * step(.45, br));
+    if (mcWin > 0.) mcLay(max(d, -d - .16 + .2 * bg), paper, .004, mcWin * .9);
+  }
+  float w = .02 + .02 * smoothstep(.55, .9, sin(q.y * 50. + 2. * sin(q.x * 5. + uTime * .3)));
+  mcLay(q.y - .16 + .02 * bg, mix(paper, mcBlot(1), .3 + 8. * w), .01, .7);
+  for (int i = 0; i < 3; i++) {
+    float f = float(i);
+    vec2 b = q - vec2(-.56 + .22 * f + .05 * sin(uTime * .11 + f), 1.72 + .2 * f * (2. - f) * .6 + .03 * sin(uTime * .17 + 2. * f));
+    float ax = abs(b.x);
+    mcLay(max(abs(b.y - .5 * ax + 2.6 * ax * ax) - .018 * (1. - ax / .13), ax - .125), ink);
+  }
+  vec2 g = q * vec2(7., 6.), gi = floor(g), gh = hash22(gi + 3.);
+  mcLay((length(g - gi - .5 - .5 * (gh - .5)) - .13) * .14, mcBlot(3), 0., sat(uKeys * 1.5) * step(.7, gh.x) * step(1.5, q.y));
+  return mix(paper, mcC, 1. - smoothstep(.96, 1.02, abs(q.x) + .04 * bg));
+}
+// One tall bloom, four rounds of petals.
+vec3 mcBloom(vec2 q, vec3 paper) {
+  mcC = paper;
+  float br = noise(vec2(q.x * 3. + 4., q.y * 34.)), bg = noise(q * vec2(3., 5.) + 11.);
+  vec3 leaf = mix(vec3(.2, .34, .2), mcBlot(2) * .8, .55) * (.85 + .3 * br);
+  mcC = mcWash(mcC, piece(vec2(.5 + .52 * q.x, 1. - sat((q.y - .5) / 1.9))) * vec4(1., 1., 1., .8));
+  float sway = .05 * sin(uTime * .23 + q.y) * q.y * .5, sx = q.x - .1 * sin(q.y * 1.7) - sway;
+  mcLay(max(abs(sx) - .03, q.y - 1.6), leaf * .8);
+  for (int i = 0; i < 3; i++) {
+    float f = float(i), sd = i == 1 ? 1. : -1.;
+    vec2 l = vec2((sx) * sd, q.y - .2 - .3 * f);
+    l.y -= .55 * l.x - .5 * l.x * l.x;
+    float wd = .16 * sin(PI * sat(l.x / (.72 - .1 * f)));
+    mcLay(max(abs(l.y) - wd, -l.x), leaf * (.8 + .35 * step(0., l.y)), 0., 1. - .6 * mcWin);
+    mcLay(abs(l.y) - .006, leaf * 1.6, .002, .6 * step(0., l.x) * step(l.x, .66 - .1 * f));
+  }
+  vec2 c = q - vec2(.1 * sin(2.9) + .06 * sin(uTime * .23 + 1.6), 1.74);
+  c.y *= 1.12;
+  float R = length(c), th = atan(c.y, c.x + 1e-5);
+  for (int i = 0; i < 4; i++) {
+    float f = float(i), n = 9. - f, a = th / TAU * n + .5 * f + .04 * sin(uTime * .19 + f), k = floor(a), fr = abs(fract(a) - .5) * 2.;
+    float h = hash11(mod(k, n) + 7. * f), open = (.82 - .17 * f) * (.86 + .16 * h + .22 * mcG * (uBands[(int(mod(k, n)) + 4 * i) % 16] - .2));
+    float d = R - open * (1. - .42 * fr * fr * fr);
+    vec3 pc = mix(mcBlot(i == 0 ? 1 : i == 1 ? 3 : i == 2 ? 4 : 1), mcBlot(3), .2 * h) * (.72 + .36 * smoothstep(.1, .8, R / max(open, .1)) + .12 * br);
+    mcLay(d, pc * (1. - .3 * smoothstep(.75, 1., fr)));
+    mcLay(max(abs(fr) * .1 * R - .005, R - open * .8), pc * 1.35 + .05, .003, .5);
+  }
+  mcLay(R - .17 - .03 * uDrone * mcG, mcBlot(0) * .35);
+  vec2 s = rot(floor(R * 30.) * 2.4) * c; float sa = atan(s.y, s.x + 1e-5) / TAU * 12.;
+  mcLay(length(vec2((fract(sa) - .5) * R * .5, fract(R * 30.) / 30. - .016)) - .008 - .008 * uKeys, mix(vec3(.95, .8, .4), mcBlot(3), .5), .001, step(.06, R) * step(R, .3));
+  mcLay(abs(R - .3 - .8 * (1. - uHits)) - .02, mcBlot(4), .006, uHits);
+  return mix(paper, mcC, 1. - smoothstep(.96, 1.02, abs(q.x) + .04 * bg));
+}
+// Rings of dots, or a dahlia, for the cone.
+vec3 mcDots(vec2 q, vec3 paper) {
+  mcC = paper;
+  float r = length(q), th = atan(q.y, q.x + 1e-5) / TAU, br = noise(q * 22.);
+  vec3 ink = mcPen(paper);
+  mcC = mcWash(mcC, piece(.5 + .48 * q) * vec4(1., 1., 1., .6));
+  float k = clamp(floor(r * 8.), 0., 7.), n = k < .5 ? 1. : 5. * k + 1.;
+  float a = (th + (mod(k, 2.) < .5 ? 1. : -1.) * (uTravel * .0045 + uTime * .0025) + k * .077) * n, i = floor(a);
+  if (k < .5) i = 0.;
+  float h = hash11(mod(i, n) + 13. * k), bv = uBands[int(mod(i * 3. + k * 5., 16.))] * mcG;
+  vec2 d = k < .5 ? q : vec2((fract(a) - .5) * TAU * (k + .5) / 8. / n, r - (k + .5) / 8.);
+  float big = .022 + .02 * step(.5, fract(k * .5 + .25)) + .012 * h + .025 * sat(bv) + .03 * uHits * mcBell((r - 1. + uHits * 1.1) / .12);
+  int kd = int(mod(k + floor(h * 1.6) * 2., 5.));
+  vec3 c = h > .72 ? ink : mcBlot(kd) * (.85 + .25 * br);
+  mcLay(length(d) - big, c, .002, 1.);
+  mcLay(abs(length(d) - big - .009) - .0025, ink, .001, .7 * step(.55, h));
+  mcLay(length(d) - big * .35, paper, .001, step(h, .3) + sat(uKeys) * step(h, .5) * .6);
+  mcLay(length(q) - .06 - .05 * uDrone * mcG, mcBlot(0));
+  return mix(paper, mcC, 1. - smoothstep(.97, 1., r));
+}
+vec3 mcDahlia(vec2 q, vec3 paper) {
+  mcC = paper;
+  float r = length(q), th = atan(q.y, q.x + 1e-5) / TAU, br = noise(q * 18.);
+  mcC = mcWash(mcC, piece(.5 + .48 * q) * vec4(1., 1., 1., .6));
+  for (int i = 0; i < 5; i++) {
+    float f = float(i), n = 18. - 2. * f, a = th * n + .5 * f + .06 * sin(uTime * .13 + f * 1.7) + uTravel * .004, k = floor(a), x = abs(fract(a) - .5) * 2.;
+    float kk = mod(k, n), h = hash11(kk + 5. * f), R = (.99 - .19 * f) * (.9 + .06 * h + .16 * mcG * (uBands[(int(kk) + 3 * i) % 16] - .25));
+    float d = r - R * (1. - .3 * x * x - .12 * x * x * x * x);
+    float t = sat(r / max(R, .05));
+    vec3 c = mix(mcBlot(i % 2 == 0 ? 4 : 3), mcBlot(1), smoothstep(.55, 1., t) * (.4 + .4 * uPad));
+    c *= .5 + .62 * smoothstep(.4, 1., t) - .25 * x * x + .14 * br;
+    mcLay(d, c * (1. + .8 * uHits * mcBell((r - 1. + uHits) / .15)));
+    mcLay(max(x * .12 * r - .004, r - R * .85), c * 1.5 + .04, .003, .55);
+  }
+  mcLay(r - .12 - .04 * uDrone * mcG, mcBlot(0) * .5 + .03);
+  mcLay(length(fract(q * 22.) - .5) * .045 - .012 - .006 * uKeys, mcBlot(1), .002, step(r, .15));
+  return mix(paper, mcC, 1. - smoothstep(.97, 1., r));
+}
+// The painting of this world; between two of them the sheet is half painted over.
+vec3 mcPaint(vec2 q, vec3 sheet) {
+  if (uOwn[6] == 0.) return mcB ? mcPond(q, sheet) : mcTree(q, sheet);
+  float way = abs(uOwn[6]), over = smoothstep(-.015, .015, way * 2.5 - 1.25 - q.x - .1 * (noise(q * 5.) - .5));
+  vec3 c = sheet;
+  if (way < .98) c = mcB ? mcPond(q, sheet) : mcTree(q, sheet);
+  vec3 o = uOwn[6] < 0. ? (mcB ? mcDots(q, sheet) : mcPeaks(q, sheet)) : (mcB ? mcDahlia(q, sheet) : mcBloom(q, sheet));
+  return way < .98 ? mix(c, o, over) : o;
+}
 // From a place on the table back to the painting, for the one eye it is made for.
 vec2 mcUnroll(vec2 P) {
   float rho = length(P);
@@ -201,14 +315,14 @@ vec3 mcTable(vec2 P, float metal) {
   float rho = length(P), n1 = noise(P * 7.), tooth = noise(P * 41.) * .5 + noise(P.yx * 67. + 5.) * .5;
   float back = P.y - (mcB ? 2.45 : 2.5) - .16 * P.x * (mcB ? -1. : 1.) - .02 * noise(P * 3.);
   if (mcB) back = max(back, -P.x - 2.75 - .1 * P.y);
-  if (mcB) back -= 60. * metal; // the cone shows only the painted ring
+  if (mcB && uOwn[7] == 0.) back -= 60. * metal; // the cone shows only the painted ring
   float pw = min(fwidth(back), .2) + .008, on = 1. - smoothstep(-pw, pw, back);
   vec3 sheet = mix(vec3(.94, .915, .86), vec3(.13, .15, .2), mcDark);
   float kraft = max(uOwn[1], 0.);
   sheet = mix(sheet, vec3(.72, .52, .34), kraft);
   sheet *= .97 + .07 * tooth;
   vec2 q = mcUnroll(P + .014 * (vec2(n1, noise(P.yx * 7. + 3.)) - .5));
-  vec3 paint = mcB ? mcPond(q, sheet) : mcTree(q, sheet);
+  vec3 paint = mcPaint(q, sheet);
   float rw = .5 * mcT * mcT / max(.25 * (mcT * mcT - 1.), .1) + .34 + .3 * max(-uOwn[4], 0.) + .12 * noise(P * 1.7) + .05 * noise(P * 9.);
   if (mcB) paint = mix(paint, sheet, smoothstep(-.02, .02, rho - rw) * (1. - metal));
   paint = mix(paint, paint * (sheet * .8 + .15), .7 * max(kraft, .5 * mcDark));
@@ -234,21 +348,21 @@ vec3 mcTable(vec2 P, float metal) {
   vec3 amb = mix(mix(vec3(.3, .34, .42), vec3(.25, .24, .36), eve), vec3(.09, .12, .22), night);
   float pool = .62 + .38 * exp(-dot(P - mcS * .8, P - mcS * .8) * .045);
   vec3 light = sun * .95 * sh * pool + amb * (.68 + .25 * sh) * (1. - .45 * exp(-max(rho - 1., 0.) * 5.));
-  if (!mcB) light += sun * mcFan(P) * (.5 + .7 * uCue + .2 * uMic) * smoothstep(-.2, .5, dot(P, mcS) + .6);
+  if (!mcB) light += sun * mcFan(P) * (.5 + .7 * uCue + .2 * uMic + .7 * uHits * abs(uOwn[7])) * smoothstep(-.2, .5, dot(P, mcS) + .6);
   float ring = uHits * mcBell((rho - 1.05 - 3.2 * (1. - uHits)) / .2);
-  light += sun * mix(vec3(1.), uKind[4], .5) * ring * mcG * .7;
+  light += sun * mix(vec3(1.), uKind[4], .5) * ring * mcG * (.7 + abs(uOwn[7]) + 1.6 * max(-uOwn[4], 0.));
   return c * light;
 }
 vec3 render(vec2 p) {
   mcB = uVar > .5;
   mcG = .35 + 1.4 * uEnergy;
   mcWin = max(-uOwn[2], 0.); mcAut = max(uOwn[2], 0.); mcDark = max(-uOwn[1], 0.);
-  mcH = 2.75 * (1. + .2 * uOwn[4]); mcT = 2.2 + .5 * uOwn[4];
+  mcH = 2.75 * (1. + .2 * uOwn[4] + .2 * max(uOwn[4], 0.) - .18 * max(-uOwn[4], 0.)); mcT = 2.2 + .5 * uOwn[4];
   float el = (mcB ? .86 : .6) - .22 * max(uOwn[0], 0.) + .05 * cos(TAU * uLoop);
   float az = (mcB ? 2.45 : 1.95) + .16 * sin(TAU * uLoop) + .08 * sin(uTime * .021);
   mcS = vec2(sin(az), cos(az));
   mcSun = vec3(mcS.x * cos(el), sin(el), mcS.y * cos(el));
-  float asp = uRes.x / uRes.y, zoom = mix(1.06, .95, uSpace) * (1. - .2 * uOwn[3]);
+  float asp = uRes.x / uRes.y, zoom = mix(1.06, .95, uSpace) * (1. - .2 * uOwn[3] - .12 * max(uOwn[3], 0.) + .2 * max(-uOwn[3], 0.)) / (1. + .12 * max(uOwn[4], 0.));
   zoom *= mix(mcB ? .78 : .82, 1., smoothstep(.5, 1.4, asp));
   float aside = 4. * uCue * (1. - uCue);
   float wide = smoothstep(.6, 1.6, asp), foc;
@@ -256,16 +370,22 @@ vec3 render(vec2 p) {
   if (mcB) {
     mcE = 9.;
     ro = vec3(-.9 * aside, mcE, -.1);
+    if (uOwn[7] != 0.) {
+      float tl = .5 * abs(uOwn[7]);
+      ro = uOwn[7] > 0. ? vec3(ro.x, mcE * cos(tl), -mcE * sin(tl)) : vec3(-mcE * sin(tl), mcE * cos(tl), -.1 - .9 * aside);
+    }
     fw = normalize(-ro); foc = mcE / 3.3 * zoom;
-    at = vec2(.17 * wide, .035);
+    at = vec2(.17 * wide, .035 - .1 * max(uOwn[7], 0.));
     rt = vec3(1., 0., 0.); up = normalize(cross(fw, rt)); rt = cross(up, fw);
   } else {
     mcD = 12.; mcE = 8.2;
+    if (uOwn[7] > 0.) { mcE = mix(8.2, 4.6, uOwn[7]); mcD = mix(12., 13.5, uOwn[7]); }
+    if (uOwn[7] < 0.) { mcE = mix(8.2, 13., -uOwn[7]); mcD = mix(12., 7., -uOwn[7]); }
     vec3 ta = vec3(0., mcH * .5, 0.);
     ro = vec3(0., mcE, -mcD);
     ro.xz *= rot(.16 * aside);
     fw = normalize(ta - ro); rt = normalize(cross(vec3(0., 1., 0.), fw)); up = cross(fw, rt);
-    foc = length(ta - ro) / 5.5 * zoom; at = vec2(.24 * wide, .17);
+    foc = length(ta - ro) / 5.5 * zoom; at = vec2(.24 * wide, .17 + .05 * max(uOwn[7], 0.) + .06 * max(-uOwn[7], 0.) - .1 * max(-uOwn[3], 0.));
   }
   vec3 rd = normalize(fw * foc + rt * (p.x - at.x) + up * (p.y - at.y));
   vec2 P = ro.xz - rd.xz * (ro.y / min(rd.y, -1e-3));
@@ -275,7 +395,13 @@ vec3 render(vec2 p) {
     float k = 1. / (mcT * mcT), y0 = ro.y - mcT;
     float qa = dot(rd.xz, rd.xz) - k * rd.y * rd.y, qb = dot(ro.xz, rd.xz) - k * y0 * rd.y, qc = dot(ro.xz, ro.xz) - k * y0 * y0;
     float ds = qb * qb - qa * qc;
-    if (ds > 0. && length(P) < 1.) { side = 1.; h = ro + rd * ((-qb - sqrt(ds)) / min(qa, -1e-4)); }
+    if (uOwn[7] == 0.) { if (ds > 0. && length(P) < 1.) { side = 1.; h = ro + rd * ((-qb - sqrt(ds)) / min(qa, -1e-4)); } }
+    else if (ds > 0.) {
+      float sq = sqrt(ds), qq = qb < 0. ? sq - qb : -qb - sq, t1 = qq / (abs(qa) < 1e-6 ? 1e-6 : qa), t2 = qc / (abs(qq) < 1e-6 ? 1e-6 : qq);
+      float y1 = ro.y + rd.y * t1, y2 = ro.y + rd.y * t2;
+      bool o1 = t1 > 0. && y1 > 0. && y1 < mcT, o2 = t2 > 0. && y2 > 0. && y2 < mcT;
+      if (o1 || o2) { side = 1.; h = ro + rd * (o1 && (!o2 || t1 < t2) ? t1 : t2); }
+    }
     float rr = max(length(h.xz), 1e-4);
     n = normalize(vec3(h.x / rr * mcT, 1., h.z / rr * mcT));
   } else {
@@ -292,6 +418,7 @@ vec3 render(vec2 p) {
   vec3 r = reflect(rd, n);
   if (side > .5) P = h.xz - r.xz * (h.y / min(r.y, -.02));
   vec3 c = mcTable(P, side), seen = c;
+  if (mcB && uOwn[7] != 0. && side > .5) c = mix(c, mix(vec3(.3, .33, .38), vec3(.95, .9, .8), smoothstep(.3, 1., dot(r.xz, mcS))) * mix(vec3(1.), vec3(.3, .38, .6), max(-uOwn[0], 0.)), smoothstep(-.2, .05, r.y));
   if (side > .5) {
     float face = sat(-dot(n, rd));
     c *= tint;

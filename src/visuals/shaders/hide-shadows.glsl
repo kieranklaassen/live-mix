@@ -3,7 +3,11 @@
 // b: Players side
 // what: A cotton cloth glows amber round an oil flame; on it play shadows of pierced, stained hide: a heavy tree, a long boat, a deer with flowers in its flank, herons, hill and cloud; or the stage from behind: the naked lamp, coloured hides on their sticks, huge dark ones at the frame, the watchers' heads through the sheet.
 // follows: Each sound presses its hide to the cloth, from a huge soft stain to a sharp shadow, or lifts and lights it: drone tree, pad hill and cloud, texture deer, phrase herons and wingbeats, the mix the boat, the bands its oars and the hill's scales. A hit makes the lamp flare and jump, a cue sends a great shadow across, keys open leaves, the loop rows the boat.
-// own: 0 grey morning at -1, ember lamp at 1; 1 bare winter tree at -1, a wide one in blossom at 1; 2 black hide at -1, clear bright stain at 1; 3 boat and tree alone at -1, a giant deer and herons at 1; 4 close to the hides at -1, far back in the night at 1; 5 water along the foot at -1, steep peaks at 1
+// own: 0 grey morning at -1, ember lamp at 1; 1 bare winter tree at -1, a wide one in blossom at 1; 2 black hide at -1, clear bright stain at 1; 3 boat and tree alone at -1, a giant deer and herons at 1; 4 close to the hides at -1, far back in the night at 1; 5 water along the foot at -1, steep peaks at 1; 6 under the sea at -1 (the boat high overhead, a great fish and small ones in place of the beasts), a herd on the march under a string of herons at 1 (no boat, tree and hill change sides); 7 the cloth dyed in bands of the sounds' colours at -1, a round hoop of cloth in the dark at 1
+#define HS_SEA max(-uOwn[6], 0.)
+#define HS_HERD max(uOwn[6], 0.)
+#define HS_DYED max(-uOwn[7], 0.)
+#define HS_ROUND max(uOwn[7], 0.)
 // The puppet last looked at: its outline (under 0 inside), its holes, its black drawing, its stain.
 float hsD, hsHole, hsInk, hsTone;
 float hsPx, hsWide; // a pixel; 0 in a tall picture, 1 in a wide one
@@ -12,6 +16,7 @@ vec2 hsLamp, hsSway; // the flame, and how far it has leaned
 float hsSharp, hsBack; // how sharp the light is, how far back a puppet goes
 float hsR, hsPower, hsFlare, hsThread; // the way to the lamp, its strength, a hit's light, the weave
 float hsPr[5]; // how closely each kind is pressed to the cloth; 4 is the boat
+float hsFade; // how much of a puppet is on
 float hsBeat, hsThere; // the herons' wings; whether the beasts are on
 float hsGlow, hsSkin, hsClear; vec3 hsSheet; // the lamp's light here, the hide's clouding and how clear it is, b's sheet
 float hsX(float tall, float wide) { return mix(tall, wide, hsWide); }
@@ -207,9 +212,26 @@ void hsCloud(vec2 q, float s) {
   hsInk = hsIn(-hsD - .008, s);
   hsTone = 0.;
 }
+// A fish swimming to the right, about 1 each way, its scales pierced.
+void hsFish(vec2 q, float s) {
+  q.y += .07 * sin(q.x * 2.6 - uTime * .9) * (.75 - .6 * q.x);
+  float e = length(vec2(q.x - .12, q.y * 2.35)) - .74, t = -q.x - .5;
+  float tail = max(max(abs(q.y) - .05 - .85 * max(t, 0.) * (1. - .3 * t), -t), t - .5 + .75 * (.4 - abs(q.y)) * step(0., .4 - abs(q.y)) * .5) * .75;
+  float fin = max(length(vec2(q.x * .8 + .02, abs(q.y) - .2)) - .3 + .28 * sat(q.x * 1.6), -e * .4 - .02) * .8;
+  float d = min(min(e * .46, tail), fin);
+  hsD = d;
+  vec2 c = vec2(q.x / .13, q.y / .085);
+  float odd = mod(floor(c.y), 2.), sc = length(vec2(fract(c.x + .5 * odd) - .5, fract(c.y) - .5) * vec2(.13, .085) * 1.3);
+  float flank = max(e * .5 + .07, q.x - .42), eye = length(q - vec2(.6, .05)) - .034;
+  float ray = max(abs(fract((abs(q.y) / max(t + .1, .05)) * 7.) - .5) * .05 - .012, max(abs(t - .2) - .12, tail + .02));
+  float gill = max(abs(length(q - vec2(.75, 0.)) - .32) - .012, abs(q.y) - .16);
+  hsHole = max(max(hsCut(sc - .03, .024, s) * hsIn(flank, .01), hsCut(eye, .03, s)), max(hsCut(ray, .012, s), hsCut(gill, .012, s)));
+  hsInk = max(hsIn(-d - .022, s * .7 + .006), hsIn(abs(e * .46 + .03) - .006, s) * step(e, 0.));
+  hsTone = sat(hsIn(-e * .46, .01) + .8 * smoothstep(.02, .2, q.y));
+}
 // Looks at puppet w from q, in its own measure.
-const vec4 hsBox[6] = vec4[6](vec4(-.72, -.1, .72, 1.05), vec4(-9., -.2, 9., .7), vec4(-.6, -.2, .6, .2),
-  vec4(-1.3, -.8, 1.3, 1.1), vec4(-1., -1.2, 1.3, 1.75), vec4(-1.1, -.35, 1.15, 1.2));
+const vec4 hsBox[8] = vec4[8](vec4(-.72, -.1, .72, 1.05), vec4(-9., -.2, 9., .7), vec4(-.6, -.2, .6, .2),
+  vec4(-1.3, -.8, 1.3, 1.1), vec4(-1., -1.2, 1.3, 1.75), vec4(-1.1, -.35, 1.15, 1.2), vec4(-1.1, -.6, .9, .6), vec4(-1.1, -.6, .9, .6));
 bool hsLook(int w, vec2 q, float s) {
   vec4 box = hsBox[w];
   if (any(lessThan(q + s, box.xy)) || any(greaterThan(q - s, box.zw))) return false;
@@ -218,7 +240,8 @@ bool hsLook(int w, vec2 q, float s) {
   else if (w == 2) hsCloud(q, s);
   else if (w == 3) hsBoat(q, s);
   else if (w == 4) hsDeer(q, s);
-  else hsHeron(q, s, hsBeat);
+  else if (w == 5) hsHeron(q, s, hsBeat);
+  else hsFish(q, s);
   return true;
 }
 // The two stains of a kind's puppet: the dyer's own colours, leaning to the kind's.
@@ -229,7 +252,7 @@ float hsRod(vec2 v, vec2 b, float sag) {
   float h = sat(v.y / b.y);
   return max(abs(v.x - b.x * h - sag * 4. * h * (1. - h)) - .0026, max(v.y, b.y - v.y));
 }
-const int hsKinds[6] = int[6](0, 1, 1, 4, 2, 3);
+const int hsKinds[8] = int[8](0, 1, 1, 4, 2, 3, 2, 3);
 // Lays puppet w: in a as a shadow on the cloth (where, how big, how turned; how far back; how much there), in b as m says:
 // 1 its shadow on the sheet, 2 the hide on its stick, 3 a near one dark at the frame.
 void hsPut(int w, int m, vec2 p, vec4 a, float h, float there, vec4 b) {
@@ -242,6 +265,7 @@ void hsPut(int w, int m, vec2 p, vec4 a, float h, float there, vec4 b) {
     s = m == 1 ? mix(.02, .005, press) * hsSharp : m == 3 ? .004 * hsSharp : hsPx * 1.2;
   }
   if (w > 3) there *= hsThere;
+  there *= hsFade;
   float z = a.z;
   if (there * z < 1e-3) return;
   vec2 v = (p - a.xy) * (1. - h) - hsSway * h * 2.5;
@@ -271,27 +295,49 @@ void hsPut(int w, int m, vec2 p, vec4 a, float h, float there, vec4 b) {
 }
 void hsPlay(vec2 p) {
   float land = uOwn[5], big = 1. + .5 * max(uOwn[3], 0.), go = sin(TAU * uLoop), h = hsBack * (1. - hsPr[3]);
+  hsFade = 1. - HS_SEA;
   // the herons: two in a, one with its shadow in b
   vec2 at = vec2(hsX(.08, .13), .25) + .012 * vec2(sin(uTime * .31), cos(uTime * .27));
   vec4 b = vec4(hsX(.1, .4), .08 + .12 * hsPr[3], hsX(.15, .24) * big, .16 - .26 * hsPr[3] + .03 * sin(uTime * .31));
   hsPut(5, 1, p, vec4(at + vec2(-.16, -.18), hsX(.07, .11) * big, -.22), h, 1., b);
   hsPut(5, 2, p, vec4(at, hsX(.13, .2) * big, -.16), h, 1., b);
+  if (HS_HERD > 0.) for (int i = 0; i < 3; i++) {
+    float f = float(i); hsFade = HS_HERD;
+    vec4 a = vec4(at + vec2(hsX(-.14, -.27) * (f + .9), .05 + .035 * f) + .01 * sin(uTime * .3 + f * 2.), hsX(.08, .13) * (1. - .16 * f), -.16);
+    hsPut(5, 2, p, a, h, 1., vec4(b.xy + vec2(-.3 * (f + 1.), .06 + .03 * f), b.z * (.75 - .1 * f), b.w));
+  }
+  if (HS_SEA > 0.) for (int i = 0; i < 4; i++) {
+    float f = float(i); hsFade = HS_SEA;
+    vec4 a = vec4(mix(-1.2, 1.2, fract(uTime * (.006 + .002 * f) + f * .29 + .34)) * hsX(.6, 1.), .16 - .15 * f + .03 * sin(uTime * .21 + f * 2.), .1 + .03 * mod(f, 2.), .05 * sin(uTime * .3 + f));
+    hsPut(7, 2, p, a, h, 1., a);
+  }
+  hsFade = 1. - HS_HERD;
   // the long boat, carried to and fro with the loop
   h = hsBack * (1. - hsPr[4]);
-  b = vec4(hsX(0., .27) + .05 * go, -.2 + .06 * hsPr[4], hsX(.16, .25), .12 - .1 * hsPr[4] + .02 * sin(uTime * .43));
+  b = vec4(hsX(0., .27) + .05 * go, -.2 + .06 * hsPr[4] + .36 * HS_SEA, hsX(.16, .25), .12 - .1 * hsPr[4] + .02 * sin(uTime * .43));
   hsPut(3, 1, p, vec4(0.), h, 0., b);
-  hsPut(3, 2, p, vec4(.02 + hsX(.06, .13) * go, -.14 + .008 * sin(uTime * .5), hsX(.15, .22), .03 * sin(uTime * .43)), h, 1., b);
+  hsPut(3, 2, p, vec4(.02 + hsX(.06, .13) * go, -.14 + .008 * sin(uTime * .5) + .4 * HS_SEA, hsX(.15, .22), .03 * sin(uTime * .43)), h, 1., b);
+  hsFade = 1. - HS_SEA;
   // the deer on the hill; in b lifted by a slack rod
   h = hsBack * (1. - hsPr[2]);
-  at = vec2(hsX(-.17, -.49), hsX(-.015, .026) + .15 * land + .14 * (big - 1.));
+  at = HS_HERD * vec2(hsX(.4, .94), -.275 - .15 * land) + vec2(hsX(-.17, -.49), hsX(-.015, .026) + .15 * land + .14 * (big - 1.));
   b = vec4(hsX(-.08, -.31), -.14 + .14 * hsPr[2], hsX(.12, .17) * big, .2 - .2 * hsPr[2] + .03 * sin(uTime * .6));
   hsPut(4, 1, p, vec4(0.), h, 0., b);
   hsPut(4, 2, p, vec4(at, hsX(.1, .14) * big, .025 * sin(uTime * .6 + 2.)), h, 1., b);
+  if (HS_HERD > 0.) for (int i = 0; i < 3; i++) {
+    float f = float(i); hsFade = HS_HERD;
+    vec4 a = vec4(at + vec2(hsX(-.2, -.29) * (f + 1.), 0.), hsX(.1, .14) * big * (.92 - .13 * mod(f, 2.)), .025 * sin(uTime * .6 + 4. * f));
+    a.y -= 1.12 * (hsX(.1, .14) * big - a.z);
+    hsPut(4, 2, p, a, h, 1., vec4(b.xy + vec2(.36 * (f + 1.), -.02 * f), b.z * (.95 - .12 * f), b.w));
+  }
+  if (HS_SEA > 0.) { hsFade = HS_SEA; b = vec4(hsX(0., -.16) + .03 * sin(uTime * .11), -.05 + .02 * sin(uTime * .17), hsX(.24, .36) * big, .05 * sin(uTime * .23)); hsPut(6, 1, p, vec4(0.), h, 0., b); hsPut(6, 2, p, b, h, 1., b); }
+  hsFade = 1. - HS_SEA;
   // cloud, hill, and the heavy tree at the side; in b these two stand close to the eye
   h = hsBack * (1. - hsPr[1]);
-  hsPut(2, 3, p, vec4(hsX(-.16, -.58) + .02 * sin(uTime * .05), .375, 1., 0.), .7 * h, 1., vec4(0.));
-  hsPut(1, 3, p, vec4(hsX(-.22, -.47), -.405, 1., 0.), .5 * h, 1., vec4(hsX(.5, .86) - .12 * max(land, 0.), -.56 + .16 * abs(land), 1.15 + .3 * abs(land), 0.));
-  hsPut(0, 3, p, vec4(hsX(.42, .68) + hsSway.x * .35 * p.y, -.42, 1.05, 0.), .12 * (1. - hsPr[0]), 1., vec4(hsX(-.6, -.93) - hsSway.x * .4, -.72, 1.45, 0.));
+  hsPut(2, 3, p, vec4(hsX(-.16, -.58) + 1.1 * HS_HERD + .02 * sin(uTime * .05), .375, 1., 0.), .7 * h, 1., vec4(0.));
+  hsFade = 1.;
+  hsPut(1, 3, p, vec4(hsX(-.22, -.47) + 1.36 * HS_HERD, -.405, 1., 0.), .5 * h, 1., vec4(hsX(.5, .86) * (1. - 1.95 * HS_HERD) - .12 * max(land, 0.), -.56 + .16 * abs(land), 1.15 + .3 * abs(land), 0.));
+  hsPut(0, 3, p, vec4(hsX(.42, .68) - hsX(.84, 1.4) * HS_HERD + hsSway.x * .35 * p.y, -.42, 1.05, 0.), .12 * (1. - hsPr[0]), 1., vec4(hsX(-.6, -.93) * (1. - 2. * HS_HERD) - hsSway.x * .4, -.72, 1.45, 0.));
 }
 // The hour: grey morning through the cloth under 0, an ember of a lamp over it.
 vec3 hsHour(vec3 c, float y) {
@@ -303,6 +349,16 @@ float hsFlame(vec2 v, float size) {
   v.x -= hsSway.x * 1.6 * (v.y + .03);
   return length(vec2(v.x * mix(2.6, 5., sat(v.y * 9. + .3)), v.y)) - size;
 }
+// Broad bands of dye on the cloth, in the colours of the sounds.
+vec3 hsBands(vec2 p) {
+  float y = p.y + .03 * (noise(vec2(p.x * 2.3, 3.)) - .5) + .025 * (noise(vec2(p.x * 9., p.y * 40.)) - .5);
+  vec3 c = mix(uKind[0], uKind[3], smoothstep(-.34, -.16, y));
+  c = mix(c, uKind[2], smoothstep(-.12, .1, y)); c = mix(c, uKind[1], smoothstep(.12, .42, y));
+  c /= max(max(c.r, max(c.g, c.b)), .05);
+  return mix(vec3(1.), c * (.8 + .25 * noise(p * vec2(5., 30.))), .9) * vec3(1., 1.1, 1.35);
+}
+// A hoop of wood with the cloth stretched in it: 1 on the cloth.
+float hsHoop(vec2 p) { return length(p - vec2(0., .02)) - .46; }
 // The log at the foot of the cloth, its top at y: how it is lit, and how much of the pixel it is.
 vec4 hsLog(vec2 p, float y, vec3 light) {
   float u = max(y - p.y, 0.) * 8.;
@@ -323,6 +379,7 @@ vec3 hsFront(vec2 p) {
   light += vec3(1.2, .75, .3) * exp(-hsR * hsR * 45.) * (1. + .6 * uHits) + vec3(.5, .22, .05) * uCue * exp(-hsR * hsR * 9.);
   light += vec3(2.4, 1.9, 1.) * hsIn(hsFlame(p - hsLamp, .045), .03);
   light = hsHour(light * (1. + hsFlare), p.y);
+  if (HS_DYED > 0.) light *= mix(vec3(1.), hsBands(p), HS_DYED);
   float fold = .3 * (noise(vec2(p.x * 9. + p.y * 1.5, p.y * .8)) - .4) * (1.0 - smoothstep(-.45, .15, p.y));
   vec3 col = light * (hsThrough + vec3(.02, .011, .006)) * (hsThread - fold);
   // seen from far off, the cloth is a lit square in the night
@@ -330,8 +387,15 @@ vec3 hsFront(vec2 p) {
   col *= mix(1., .06 + .94 * hsIn(max(abs(p.x) - 1.12, p.y - .56), hsPx * 2.), far);
   col *= .35 + .65 * smoothstep(0., .03, p.y + .405);
   vec4 wood = hsLog(p, -.405, light);
+  wood.a *= 1. - HS_ROUND;
   wood.rgb += light * .5 * hsIn(length(vec2(mod(p.x + .04, .16) - .08, p.y + .427)) - .006, hsPx * 1.5);
-  return mix(col, wood.rgb, wood.a);
+  col = mix(col, wood.rgb, wood.a);
+  if (HS_ROUND > 0.) {
+    float d = hsHoop(p);
+    vec3 hoop = (light * .35 + vec3(.02, .009, .004)) * (.4 + .7 * noise(vec2(atan(p.y, p.x + 1e-5) * 30., d * 300.))) * hsIn(abs(d - .012) - .012, hsPx * 2.) * (.35 + .65 * (1. - smoothstep(0., .024, d)));
+    col = mix(col, col * hsIn(d, hsPx * 1.5) * (.55 + .45 * (1. - smoothstep(-.05, 0., d))) + hoop + light * .03 * exp(-max(d, 0.) * 9.), HS_ROUND);
+  }
+  return col;
 }
 void hsBehind(vec2 p) {
   hsGlow = hsPower / pow(1. + hsR * hsR * 5., 1.8) * (1. + hsFlare);
@@ -344,6 +408,11 @@ void hsBehind(vec2 p) {
     heads = max(heads, hsIn(length(vec2(v.x * 1.1, max(v.y, v.y * -.28))) - .05, .018) * mix(.6, 1., f));
   }
   hsSheet = hsHour(hsSheet, p.y) * (1. - .72 * heads) * hsThread;
+  if (HS_DYED > 0.) hsSheet *= mix(vec3(1.), hsBands(p), HS_DYED);
+  if (HS_ROUND > 0.) {
+    float d = hsHoop(p);
+    hsSheet = mix(hsSheet, hsSheet * hsIn(d, hsPx * 1.5) + (vec3(.012, .012, .016) + hsGlow * vec3(.35, .15, .05) * (.3 + .7 * noise(p * vec2(160., 60.))) * hsIn(abs(d - .012) - .012, hsPx * 2.)), HS_ROUND);
+  }
   hsCol = hsSheet * (1. - .6 * hsWipe(p));
   // the log the hides stand in
   vec4 wood = hsLog(p, -.355, vec3(.8, .55, .22) * hsGlow + hsSheet);
@@ -360,7 +429,7 @@ void hsBehind(vec2 p) {
 }
 vec3 render(vec2 p) {
   hsPx = 1. / uRes.y;
-  hsWide = smoothstep(.28, .85, .5 * uRes.x / uRes.y);
+  hsWide = smoothstep(.28, .85, .5 * uRes.x / uRes.y) * (1. - HS_ROUND);
   hsSharp = mix(1.5, .6, uTone);
   hsBack = .36 * mix(.75, 1.2, uSpace);
   // the vantage: close to the cloth, or far back in the dark
@@ -375,6 +444,7 @@ vec3 render(vec2 p) {
   // a hit: a ring of brighter light runs out from the lamp
   float ring = (hsR - .9 * (1. - uHits)) / .1;
   hsFlare = (.9 * exp(-ring * ring) + .3 * exp(-hsR * 5.)) * uHits * (.6 + .6 * uEnergy);
+  hsFade = 1.;
   hsThread = .86 + .13 * (noise(p * vec2(60., 420.)) + noise(p * vec2(420., 46.) + 7.));
   vec4 loud = vec4(uDrone, uPad, uTexture, uPhrase);
   for (int i = 0; i < 4; i++) hsPr[i] = 1. - exp(-2.6 * loud[i]) * mix(vec4(.4, .75, .98, .98), vec4(.9), uVar)[i];

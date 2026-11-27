@@ -3,8 +3,13 @@
 // b: Vat yard
 // what: Long strips of dyed cloth pegged out to dry on a pale river bank in low sun, one held up by the wind with its shadow under it, a bolt still rolled, someone walking by with the next bundle; or a yard of stone vats of dye seen from a roof, most of it in blue shade, one bar of sun crossing it.
 // follows: Each kind of sound dyes its own cloths or vats, deeper and wetter as it plays, and the piece deepens them along their length or across the yard. Low lifts the wind's wave; the bands fill the vats. A hit is a flap along one cloth, or a drop in two vats; a cue rolls out the bolt, or sends rings through the big vats. Keys glint on water.
-// own: 0 grey flat light at -1 with the whole yard in it, red evening at 1; 1 dark mud or earth-red walls at -1, a green meadow or blue walls at 1; 2 few broad cloths or great vats at -1, many narrow or small at 1; 3 seen from high up at -1, from low down at 1; 4 all blues at -1, reds and yellows at 1; 5 no wind or vats nearly empty at -1, all the cloths in the wind or vats brimming and the paving wet at 1
+// own: 0 grey flat light at -1 with the whole yard in it, red evening at 1; 1 dark mud or earth-red walls at -1, a green meadow or blue walls at 1; 2 few broad cloths or great vats at -1, many narrow or small at 1; 3 seen from high up at -1, from low down at 1; 4 all blues at -1, reds and yellows at 1; 5 no wind or vats nearly empty at -1, all the cloths in the wind or vats brimming and the paving wet at 1; 6 night, with the cloths or the dyes giving off a light of their own, at -1, snow lying at 1; 7 the river up over the bank and the cloths streaming in it, or pools sunk in the ground, at -1, the cloths spotted and barred and running straight away from us, or all the vats alike in straight rows, at 1
 const float DYF = 1.3;  // the lens
+#define DY_NIGHT max(-uOwn[6], 0.0)
+#define DY_SNOW max(uOwn[6], 0.0)
+#define DY_WET max(-uOwn[7], 0.0)
+#define DY_ROWS max(uOwn[7], 0.0)
+float dyFine;  // how small a pixel is on the cloth
 float dyH, dyHz, dySp;  // the eye's height, where the horizon lies, how far apart the strips are
 vec3 dySun, dySunCol, dyAmb;  // where the sun is, its colour, the colour of the shade
 vec2 dyCast;  // across the ground towards the sun, for each metre of height
@@ -33,6 +38,8 @@ void dyHour(vec3 sun) {
   dyCast = dySun.xz / dySun.y;
   dySunCol = mix(vec3(2.75, 2.2, 1.5), vec3(2.6, 1.12, 0.42), eve) * mix(1.0, 0.22, grey) * (0.93 + 0.07 * uTone + 0.06 * uLevel);
   dyAmb = mix(mix(vec3(0.17, 0.25, 0.39), vec3(0.085, 0.125, 0.29), eve), vec3(0.45, 0.51, 0.59), grey);
+  dySunCol = mix(dySunCol, vec3(0.1, 0.15, 0.26) * (1.0 - 0.5 * grey), DY_NIGHT);
+  dyAmb = mix(dyAmb, vec3(0.018, 0.028, 0.062), DY_NIGHT);
 }
 // A person, feet at 0, in metres; returns colour and distance. load is 1 with a bundle on the head.
 vec4 dyPerson(vec2 q, float stride, vec3 wrap, vec3 bundle, float load) {
@@ -72,7 +79,9 @@ void dyStand(inout vec3 col, vec2 p, vec2 foot, float h, float stride, vec3 wrap
 // ---- a: cloth on sand
 float dyLane(float i, float z) {
   float h = hash11(i + 3.7);
-  return (i + 5.0 + 0.22 * (h - 0.5)) * dySp - 11.0 + 0.5 * z + (fract(h * 17.3) - 0.5) * 0.05 * (z - 20.0) + 0.2 * sin(z * 0.15 + h * 20.0);
+  float x = (i + 5.0 + 0.22 * (h - 0.5)) * dySp - mix(11.0, 4.5 * dySp, DY_ROWS) + 0.5 * (1.0 - DY_ROWS) * z + (fract(h * 17.3) - 0.5) * 0.05 * (z - 20.0) + 0.2 * sin(z * 0.15 + h * 20.0);
+  if (uOwn[7] < 0.0) x += DY_WET * (0.3 * sin(z * 0.42 - uTime * 0.5 + h * 9.0) + 0.14 * sin(z * 0.97 - uTime * 0.8 + h * 31.0)) * sat((z - 6.0) * 0.08);
+  return x;
 }
 // Where strip i begins and ends, and how wide it is.
 vec3 dyReach(float i) {
@@ -86,7 +95,7 @@ vec3 dyReach(float i) {
 vec3 dyWind(float i) {
   float main = abs(i + 2.0) < 0.5 ? 1.0 : 0.0, h = hash11(i + 5.3), run = fract(uTravel * 0.009 + (main > 0.5 ? 0.14 : h));
   float a = mix(0.04 + 0.1 * uLow + 0.75 * sat(uOwn[5]), 0.55 + 0.4 * uLow, main) * smoothstep(0.0, 0.1, run) * dyOff(1.0, 0.85, run);
-  return vec3(a * (1.0 - sat(-uOwn[5])), mix(11.0, 34.0, run), 1.7 + 0.6 * h);
+  return vec3(a * (1.0 - sat(-uOwn[5])) * (1.0 - DY_WET), mix(11.0, 34.0, run), 1.7 + 0.6 * h);
 }
 // How high that is at z, and how steeply it climbs there; a hit is a flap that runs away from us along strip 0.
 vec2 dyLift(vec3 w, float i, float z) {
@@ -115,6 +124,15 @@ vec3 dyCloth(float i, float u, float z, float y, float slope, float sh) {
   if (h > 0.5) g = 1.0 - g;
   g *= 1.0 - 0.5 * sat(m.a) * (0.5 + uEnergy) - 0.2 * lv;
   vec3 c = exp(mix(log(deep + 0.004), log(pale), g));
+  if (uOwn[7] > 0.5) {  // the undyed ground left in: spots, bars, lozenges, a border
+    float hp = fract(h * 47.3), mz = z * 1.25, n = 0.0, e = 0.05 + dyFine * 2.5;
+    vec2 q = vec2(u * 1.5, mz);
+    if (hp < 0.3) { q.x += 0.5 * mod(floor(q.y * 2.0), 2.0); n = dyOff(0.26 + e, 0.26 - e, length(vec2(fract(q.x) - 0.5, fract(q.y * 2.0) - 0.5))); }
+    else if (hp < 0.55) n = dyOff(0.16 + e, 0.16 - e, abs(fract(mz * (0.6 + h2)) - 0.5)) * 0.9;
+    else if (hp < 0.8) n = dyOff(0.3 + e, 0.3 - e, abs(u) * 0.5 + abs(fract(mz * 0.8) - 0.5));
+    else n = max(dyOff(0.12 + e, 0.12 - e, abs(abs(u) - 0.62)), dyOff(0.1 + e, 0.1 - e, abs(u)));
+    c = mix(c, vec3(0.8, 0.76, 0.66), n * sat(2.0 * DY_ROWS - 1.0) * 0.92 * (1.0 - smoothstep(0.05, 0.22, dyFine)));
+  }
   // wet in the middle, dry from the edges in
   float soak = 0.1 + 0.3 * lv + 0.15 * uLevel + 0.3 * sat(m.a) + 0.1 * sin(uTime * 0.05 + h * 30.0) + 0.25 * (hash11(i + 2.2) - 0.5);
   float wn = noise(vec2(u * 0.8 + i * 3.0, z * 0.16 + i)) + 0.05 * noise(vec2(u * 3.0, z * 0.9 + i));
@@ -127,6 +145,7 @@ vec3 dyCloth(float i, float u, float z, float y, float slope, float sh) {
   float thin = sat(slope) * sat(y * 2.0);  // the sun through the cloth
   vec3 o = c * (dySunCol * (lit * (1.0 - sh) + 0.35 * thin) + dyAmb * (1.0 - 0.3 * rel));
   if (abs(i + 3.0) < 0.5) o *= 1.0 + 1.2 * uCue;
+  if (uOwn[6] < 0.0) o += DY_NIGHT * (deep + 0.015 * sqrt(deep)) * (0.4 + 1.5 * lv + 1.4 * sat(m.a) + 0.4 * uLevel) * (1.0 - 0.75 * g) * (1.0 - 0.35 * u * u) * (1.0 - 0.6 * rel);
   float f = z - 19.0 + 6.0 * uHits;
   if (abs(i) < 0.5) o += (c + 0.05) * dySunCol * 0.6 * uHits * exp(-0.44 * f * f);
   return o;
@@ -135,6 +154,7 @@ vec3 dyGround(vec2 g, float gpz) {
   float big = noise(g * 0.3), soft = noise(g * vec2(1.3, 3.0) + 2.0 * big), e = noise(g * vec2(1.3, 3.0) + 2.0 * big + 0.22);
   vec3 c = mix(vec3(0.66, 0.54, 0.385), vec3(0.15, 0.12, 0.1), sat(-uOwn[1]));
   if (uOwn[1] > 0.0) c = mix(c, mix(vec3(0.08, 0.14, 0.03), vec3(0.2, 0.26, 0.07), noise(g * vec2(5.0, 2.5))), sat(uOwn[1]) * 0.92);
+  if (uOwn[6] > 0.0) { c = mix(c, vec3(0.8, 0.84, 0.9), DY_SNOW * smoothstep(0.2, 0.5, 0.6 * soft + 0.35 * big + 0.55 * DY_SNOW - 0.2)); gpz += 0.05 * DY_SNOW; }
   return c * 0.95 * (1.0 + 0.45 * dyOff(0.16, 0.03, gpz) * (soft - e) + 0.5 * (big - noise(g * 0.3 + 0.35)));
 }
 vec3 dySand(vec2 p) {
@@ -149,19 +169,20 @@ vec3 dySand(vec2 p) {
   float foot = dyHz - dyH * DYF / 97.0, tx = p.x * 58.0;
   float tree = foot + 0.018 + 0.03 * noise(vec2(tx * 0.09, 1.0)) + 0.016 * noise(vec2(tx * 0.6, 5.0));
   if (p.y > foot) {
-    vec3 wood = mix(vec3(0.02, 0.05, 0.04) * (dyAmb * 2.0 + dySunCol * (0.2 + 0.8 * noise(vec2(tx * 0.5, p.y * 60.0)))), sky, 0.07);
+    vec3 wood = DY_SNOW * 0.5 * smoothstep(0.3, 0.7, noise(vec2(tx * 0.7, p.y * 90.0))) * (dyAmb + 0.2 * dySunCol) + mix(vec3(0.02, 0.05, 0.04) * (dyAmb * 2.0 + dySunCol * (0.2 + 0.8 * noise(vec2(tx * 0.5, p.y * 60.0)))), sky, 0.07);
     return dyShown(mix(sky, wood, dyOff(px, -px, p.y - tree)));
   }
   float z0 = dyH * DYF / max(dyHz - p.y, 0.01);
   vec2 g = vec2(p.x * z0 / DYF, z0);
   float gp = px * z0 / DYF, gpz = gp * z0 / dyH;  // a pixel on the ground
-  float i0 = floor((g.x - 0.5 * g.y + 11.0) / dySp - 4.5), hw0 = 0.31 * dySp;
+  dyFine = gpz * 0.5;
+  float i0 = floor((g.x - 0.5 * (1.0 - DY_ROWS) * g.y + mix(11.0, 4.5 * dySp, DY_ROWS)) / dySp - 4.5), hw0 = 0.31 * dySp;
   // what the wind holds up: its shadow, the cloth itself, the pegs
   float sh = 0.0, thin = 0.0, cover = 0.0, peg = 9.0, pegSh = 9.0;
   float at = 0.0, u = 0.0, z = 0.0, y = 0.0, slope = 0.0;
   for (int j = -1; j <= 2; j++) {
     float i = i0 + float(j);
-    if (i < -5.5 || i > 18.5) continue;
+    if (i < -5.5 - floor(10.0 * DY_ROWS) || i > 18.5) continue;
     vec3 wd = dyWind(i), r = dyReach(i);
     float hg = dyLift(wd, i, g.y).x;
     vec2 q = g + dyCast * hg;
@@ -195,9 +216,21 @@ vec3 dySand(vec2 p) {
   vec3 river = mix(vec3(0.03, 0.1, 0.14), sky * vec3(0.7, 0.85, 1.0), sat(0.05 + 0.4 * rip + 0.3 * smoothstep(0.0, 40.0, -toW)));
   river += dySunCol * (0.4 + 0.5 * uHigh + uKeys) * smoothstep(0.95, 1.5, rip) * sat(0.4 + p.x);
   col = mix(col, river, dyOff(0.0, -0.25 - gpz * 0.5, toW));
+  if (uOwn[7] < 0.0) {  // the river up over the bank: stones under it, light drawn on them, the sky on top
+    vec2 wq = g + 0.5 * vec2(sin(g.y * 0.7 + uTime * 0.4), sin(g.x * 0.9 - uTime * 0.33));
+    float ca = 1.0 - abs(2.0 * noise(wq * 0.9 + uTime * vec2(0.05, 0.11)) - 1.0), cb = 1.0 - abs(2.0 * noise(wq * 1.4 - uTime * 0.09) - 1.0), st = noise(g * 2.6);
+    vec3 bed = dyGround(g, gpz) * mix(vec3(0.2, 0.36, 0.36), vec3(0.4, 0.5, 0.42), st) * (dySunCol * dySun.y * (0.55 + 1.3 * pow(sat(ca * cb), 6.0) * dyOff(0.5, 0.1, gpz)) + dyAmb);
+    col = mix(col, mix(bed, mix(river, sky * vec3(0.5, 0.68, 0.75), 0.55), smoothstep(10.0, 60.0, g.y)), sat(1.6 * DY_WET) * step(0.0, toW));
+    thin *= 1.0 - DY_WET; sh *= 1.0 - 0.7 * DY_WET; peg += 9.0 * step(0.5, DY_WET); pegSh += 9.0 * DY_WET;
+  }
   // the cloths on it
   col *= (1.0 - 0.6 * hard * thin) * (1.0 - 0.7 * hard * dyOff(gp, -gp, pegSh));
   col = mix(col, dyCloth(at, u, z, y, slope, sh * dyOff(0.35, 0.05, y)), cover);
+  if (uOwn[7] < 0.0) {  // and over the cloth the same water
+    float far = smoothstep(5.0, 50.0, g.y), line = smoothstep(1.0, 1.4, rip + 0.3 * noise(g * vec2(0.8, 6.0) - uTime * vec2(0.1, 0.4)));
+    col = mix(col, col * vec3(0.68, 0.88, 0.9) + river * (0.04 + 0.12 * far), cover * DY_WET);
+    col += DY_WET * (sky * 0.35 + dySunCol * (0.12 + 0.3 * uHigh + 0.5 * uKeys)) * line * (0.05 + 0.3 * far);
+  }
   col = mix(col, vec3(0.12, 0.065, 0.035) * (dySunCol * 0.6 + dyAmb), dyOff(gp, -gp, peg));
   // the bolt that a cue rolls out, across its strip
   vec3 r = dyReach(-3.0);
@@ -212,23 +245,27 @@ vec3 dySand(vec2 p) {
   col = mix(col, bc, dyOff(gp, -gp, min(max(abs(bq.x) - w, abs(bq.y) - rad), (endR - 1.0) * rad * 0.5)));
   // the one who carries the next bundle
   float go = sin(uTime * 0.035 + 0.6), fz = 17.5 + 1.6 * go;
-  dyStand(col, p, vec2(0.5 * fz - 14.1, fz), 0.0, sin(go * 8.0), vec3(0.75, 0.7, 0.62), dyDye(4) + 0.04, 1.0, hard);
+  dyStand(col, p, vec2(uOwn[7] > 0.0 ? mix(0.5 * fz - 14.1, dyLane(-4.5, fz), DY_ROWS) : 0.5 * fz - 14.1, fz), 0.0, sin(go * 8.0), vec3(0.75, 0.7, 0.62), dyDye(4) + 0.04, 1.0, hard);
   return dyShown(col * mix(0.84, 1.06, smoothstep(-0.9, 0.7, p.x + 0.3 * p.y)));
 }
 
 // ---- b: the vat yard
 const float DYW = 23.0;  // how far off the back wall stands
 const float DYT = 4.4;  // how high it is
-const float DYYAW = 0.3;  // how far the rows of vats are turned
+#define DYYAW (0.3 * (1.0 - DY_ROWS))
 float dyV;  // how far apart the vats are
 // A vat of the slanted grid: its middle, how wide, how high its rim; one in three is big.
 void dyVat(vec2 id, out vec2 c, out float R, out float h) {
   float a = hash21(id + 17.0), b = hash21(id + 41.0);
   bool big = mod(id.x - id.y + 60.0, 3.0) < 0.5;
   c = dyV * vec2(id.x + 0.5 * id.y, 0.866 * id.y) + (2.7 - dyV) * vec2(1.5, 4.33);
-  if (!big) c += dyV * 0.1 * (vec2(a, b) - 0.5);
+  if (!big) c += dyV * 0.1 * (1.0 - DY_ROWS) * (vec2(a, b) - 0.5);
   R = dyV * (big ? 0.59 + 0.05 * a : 0.33 + 0.09 * b);
   h = big ? 0.25 + 0.35 * b : 0.12 + 0.6 * a * a + 0.1 * b;
+  if (uOwn[7] != 0.0) {  // all alike, or sunk
+    R = mix(R, dyV * (0.43 + 0.03 * DY_WET), max(DY_ROWS, 0.6 * DY_WET));
+    h = mix(h, 0.5 * DY_ROWS + 0.05 * DY_WET + (big ? 0.12 * DY_ROWS : 0.0), max(DY_ROWS, DY_WET));
+  }
   c = c * rot(DYYAW) + vec2(0.3, 0.9);
   R *= dyOff(DYW - 1.0, DYW - 1.7, c.y + R);
 }
@@ -276,7 +313,9 @@ vec3 dyYard(vec2 p) {
   } else {
     vec2 g = vec2(p.x * z0 / DYF, z0), at = g * (1.0 - 0.3 / dyH), id0 = dyNear(at), id = vec2(-99.0), c = vec2(0.0);
     float gp = px * z0 / DYF, rough = 0.12 * (noise(at * 1.1) - 0.5) + 0.035 * (noise(at * 5.0) - 0.5);
+    if (uOwn[7] != 0.0) rough = rough * (1.0 - 0.8 * DY_ROWS) + dyV * DY_WET * (0.3 * (noise(at * 2.0 / dyV) - 0.5) + 0.14 * (noise(at * 5.0 / dyV) - 0.5));
   // the vat that stands here, if one does: the far ones first
+    vec3 glow = vec3(0.0);
     float shut = 9.0, cov = 0.0, R = 0.0, h = 0.0;
     for (int j = 1; j >= -1; j--) for (int i = 1; i >= -1; i--) {
       vec2 c1; float R1, h1;
@@ -289,7 +328,9 @@ vec3 dyYard(vec2 p) {
     float st = noise(g * 1.2) + 0.5 * noise(g * 4.0);
     vec3 pave = plaster * (0.3 + 0.45 * st * st) * (0.35 + 0.65 * smoothstep(-0.05, 0.55, shut)) * (1.0 - 0.6 * full);
     vec3 gleam = full * dyAmb * 0.6 * smoothstep(0.5, 0.85, st), alb = pave;
-    float y = 0.0, sun = dySun.y, amb = 0.5, own = 1.0;
+    if (uOwn[6] > 0.0) alb = mix(alb, vec3(0.8, 0.84, 0.9), DY_SNOW * smoothstep(0.05, 0.35, st + 0.5 * DY_SNOW - 0.35));
+    if (uOwn[7] < 0.0) alb = mix(alb, plaster * (0.55 + 0.35 * st) * (0.9 + 0.1 * sin(shut * 22.0 + 4.0 * st)), DY_WET);
+    float y = 0.0, sun = dySun.y, amb = 0.5 + 0.35 * max(DY_WET, DY_SNOW), own = 1.0;
     at = g;
     if (cov > 0.0) {
       float a = hash21(id + 5.0), b = hash21(id + 71.0);
@@ -300,7 +341,8 @@ vec3 dyYard(vec2 p) {
       else if (b > 0.7) dye = mix(dye, vec3(0.13, 0.065, 0.03), 0.8);  // bark
       else if (m.a > 0.004) dye = mix(dye, pow(m.rgb / m.a, vec3(3.0)) * 0.6, 0.2 * sat(m.a));
       float wake = sat((0.9 * dyLv(k) + 0.6 * m.a) * (0.6 + 0.9 * uEnergy)), Ri = R - 0.15 - 0.08 * R + 0.5 * rough;
-      float lq = h - 0.12 - (0.42 + 0.2 * b) * (1.0 - 0.6 * uBands[int(mod(a * 97.0, 16.0))]) * (1.0 - 0.95 * full) * (1.0 + 1.6 * sat(-uOwn[5]));
+      Ri += DY_WET * 0.45 * rough;
+      float lq = h - 0.12 * (1.0 - 0.7 * DY_WET) - (0.42 + 0.2 * b) * (1.0 - 0.75 * DY_WET) * (1.0 - 0.6 * uBands[int(mod(a * 97.0, 16.0))]) * (1.0 - 0.95 * full) * (1.0 + 1.6 * sat(-uOwn[5]));
       R += rough;
       vec2 q = g * (1.0 - h / dyH), ql = g * (1.0 - lq / dyH), v = q - c;
       float r = length(v), rl = length(ql - c), worn = noise(q * 2.1 + a * 30.0) + 0.5 * noise(q * 7.0);
@@ -317,11 +359,15 @@ vec3 dyYard(vec2 p) {
         alb = mix(plaster * (0.6 + 0.3 * worn), dye * 0.8 + 0.04, outside ? 0.75 * smoothstep(0.45, 0.8, run) * smoothstep(0.0, h, y) : smoothstep(0.25, 0.85, t + 0.3 * worn - 0.15));
         sun = sat(dot(n, dySun.xz)); amb = outside ? 0.35 + 0.5 * smoothstep(-0.1, 0.7, y) : 0.75 - 0.4 * t;
         at += n * 0.02;
+        glow = inside ? (dye + 0.08 * sqrt(dye)) * (0.15 + 0.9 * wake) * t * t * step(b, 0.7) : vec3(0.0);
       } else if (r > Ri) {
   // the rim, worn and stained, its edges rounded
         float lip = (smoothstep(R - 0.07, R, r) - dyOff(Ri + 0.06, Ri, r)) * dot(n, dySun.xz);
         alb = plaster * (0.58 + 0.4 * worn);
         alb = mix(alb, dye + 0.05, 0.8 * smoothstep(0.75, 1.05, worn + 0.35 * dyOff(R, Ri, r)));
+        if (uOwn[6] > 0.0) alb = mix(alb, vec3(0.84, 0.87, 0.92), DY_SNOW * smoothstep(0.2, 0.5, worn + 0.6 * DY_SNOW - 0.2));
+        glow = (dye + 0.03) * (0.1 + 0.5 * wake) * dyOff(R, Ri, r) * step(b, 0.7) * (0.5 + 0.5 * worn);
+        if (uOwn[7] < 0.0) alb = mix(alb, mix(plaster, dye + 0.1, 0.45) * (0.7 + 0.3 * worn), DY_WET * 0.8);
         y = h; at = q; sun = sat(dySun.y + 0.5 * lip); amb = (0.95 + 0.25 * lip) * smoothstep(Ri - 2.0 * gp, Ri + 2.0 * gp, r);
       } else {
   // the liquid: scum at the rim, deep in the middle, the sky lying on it
@@ -339,6 +385,7 @@ vec3 dyYard(vec2 p) {
         float wob = noise(ql * 1.7 + vec2(4.0 * sin(uTime * 0.03), a * 9.0)) - 0.5;
         float sky = smoothstep(-0.1, 0.5, (Ri * 0.75 - ql.y + c.y) / max(Ri, 0.01) + 0.5 * wob + ring);
         y = lq; at = ql; sun = dySun.y * 0.95; amb = 1.0;
+        glow = (dye + 0.03 * sqrt(dye)) * (0.16 + 0.9 * wake + 0.12 * sky) * (0.2 + 1.1 * smoothstep(0.0, 0.8, e + 0.07 * crust - 0.04)) * (0.25 + 0.75 * step(b, 0.7));
         gleam = dyAmb * (0.01 + 0.07 * sky * sky) * (1.0 - 0.8 * scum) * (1.0 + 2.0 * sat(ring)) + (dye + 0.15) * (dySunCol * 0.3 * dyBar(ql, lq) + dyAmb + 0.2) * sat(ring) * 0.5;
       }
       if (r < Ri) {  // down in a vat the sun comes in over the rim
@@ -357,6 +404,7 @@ vec3 dyYard(vec2 p) {
       }
     }
     col = alb * (dySunCol * lit + dyAmb * amb) + gleam;
+    if (uOwn[6] < 0.0) col += glow * DY_NIGHT * 1.1;
     if (cov > 0.0) col *= 0.6 + 0.4 * cov;  // an edge, on whatever is behind
   }
   // two at work, each on the rim of a vat, with a pole

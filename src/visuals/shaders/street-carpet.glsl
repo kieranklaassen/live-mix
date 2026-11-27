@@ -3,7 +3,11 @@
 // b: After the crowd
 // what: A cobbled street before breakfast, and down its middle a thick carpet of dyed sawdust, petals and pine needles, cut by the shadows of roofs and a balustrade, a sack of red sawdust by its edge; or the same carpet from above once people have walked over it, its colours dragged, the stones showing, a straw hat left behind.
 // follows: Drone dyes the sawdust, pad the petals, texture the needles, phrase the wavy border; the bands cut sixteen scallops. The piece lies along the street and colours each part of the carpet as it sounds. A hit throws down petals, a cue lets the sun cross, keys light single petals. Travel moves the view a little, or the petals by the kerb; voice brings haze.
-// own: 0 moonlight at -1, a red evening at 1; 1 lime-white street and pale dyes at -1, black stone and hot dyes at 1; 2 dark ground and close zigzag bars at -1, cream ground and long round medallions at 1; 3 a narrow runner at -1, nearly wall to wall at 1; 4 close to the ground at -1, from higher up at 1; 5 the street bends left, or hardly walked on at -1; right, or walked nearly bare, at 1
+// own: 0 moonlight at -1, a red evening at 1; 1 lime-white street and pale dyes at -1, black stone and hot dyes at 1; 2 dark ground and close zigzag bars at -1, cream ground and long round medallions at 1; 3 a narrow runner at -1, nearly wall to wall at 1; 4 close to the ground at -1, from higher up at 1; 5 the street bends left, or hardly walked on at -1; right, or walked nearly bare, at 1; 6 snow lying, the hat gone, at -1, wet stones and puddles at 1; 7 no houses, an open plain, or the street running straight up at -1, tall houses and paper lamps strung across, or the street running level, lights along the carpet and no hat, at 1
+#define scSn max(-uOwn[6],0.)
+#define scWet max(uOwn[6],0.)
+#define scOp max(-uOwn[7],0.)
+#define scUp max(uOwn[7],0.)
 float scPx,scNight,scEve;
 vec3 scSun,scSky,scFog,scL;
 vec3 scBase,scRed,scCream,scDark,scLeaf,scRose,scRun,scHeart;
@@ -173,18 +177,18 @@ float scCue(float d) { return min(uCue*2.,1.)*exp(-d*d); }
 
 // ---- before the crowd
 const float scW=2.5;
-float scBend,scRail,scHaze;
+float scBend,scRail,scHaze,scLQ;vec3 scMir;
 vec3 scAir(vec3 c,float z) { return mix(scFog,c,exp(-z*scHaze*(.4+min(z,40.)*.06))); }
 // Where along the street z the houses are counted from, and how high each stands; the sun comes over those on the right.
 float scNo(float side,float z) { return z/2.7+(side>0.?1.89:.55); }
 float scTall(float side,float id) {
  float m=mod(id,3.);
- return side<0.?2.25+.5*hash11(id+4.):m<.5?1.25:m<1.5?2.9:2.35;
+ return (side<0.?(2.25+.5*hash11(id+4.))*(1.+1.5*scUp):(m<.5?1.25:m<1.5?2.9:2.35)*(1.+.5*scUp))*(1.-scOp);
 }
 // scRail is 1 where a balustrade is on top.
 float scRoof(float z) {
  float u=scNo(1.,z),id=floor(u),f=u-id,a=scTall(1.,id);
- scRail=a<1.5?scS(0.,.02,f)*scS(1.,.98,f):0.;
+ scRail=a<1.5?scS(0.,.02,f)*scS(1.,.98,f)*sat(1.-4.*scOp):0.;
  return mix(a,scTall(1.,id+1.),scS(.985,1.,f));
 }
 // The balustrade on a wall of height h.
@@ -196,6 +200,7 @@ float scLit(vec3 P,float foot) {
  float k=max(scW-P.x,0.)/scL.x,z=P.z+k*scL.z,y=P.y+k*scL.y,h=scRoof(z),pen=.025+.012*k+foot;
  h+=.05*abs(sin(z*15.))*(1.-scRail);
  float s=scS(h-pen,h+pen,y)*(1.-scRail*scPosts(z,y,h,foot*2.,pen));
+ if (scOp>0.) s=mix(s,1.,scOp);
  float cue=scCue((P.z-mix(0.,4.5,uCue))/(.8+.25*P.z));
  return max(s,cue)*(1.+.6*cue);
 }
@@ -206,14 +211,15 @@ vec3 scPlaster(float side,float id) {
 }
 // A house front: plaster with rain stains and worn limewash, a door, a window in a pale frame.
 vec3 scFront(float side,float z,float y,float foot,float lit) {
- float id=floor(z/2.7),f=z-(id+.5)*2.7,a=.005+foot,no=scTall(side,id)<1.5?9.:0.;
+ float id=floor(z/2.7),f=z-(id+.5)*2.7,a=.005+foot,no=scTall(side,id)<1.5+8.*scOp?9.:0.,yw=y;
+ if (scUp>0. && y>2.5) yw=mod(y-2.5,1.6)+.5;
  vec3 c=scPlaster(side,id);
  vec2 pa=scN2(vec2(z*1.9,y*1.7)+id*5.+70.),pb=scN2(vec2(z*9.,y*8.)+70.);
  float pe=.75*pa.x+.25*pb.x;
  c*=.62+.4*pa.y+.16*pb.y+.14*noise(vec2(z,y)*47.);
  c=mix(c,vec3(.5,.45,.38),.55*scS(.6,.63,pe+.16*scS(1.2,0.,y)));
  c=mix(c,c*vec3(.42,.36,.36),scS(.626,.614,y));
- float dr=max(abs(f+.6)-.36,y-1.7)+no,wn=max(abs(f-.55)-.3,abs(y-1.3)-.42)+no;
+ float dr=max(abs(f+.6)-.36,y-1.7)+no,wn=max(abs(f-.55)-.3,abs(yw-1.3)-.42)+no;
  c=mix(c,vec3(.62,.55,.44),scS(a,-a,min(dr,wn)-.07));
  c=mix(c,vec3(.1,.055,.03)*(.7+.6*scS(.1,.16,abs(fract(f*4.)-.5))),scS(a,-a,dr));
  c=mix(c,vec3(.03,.035,.04),scS(a,-a,wn));
@@ -224,8 +230,9 @@ vec3 scFront(float side,float z,float y,float foot,float lit) {
 // The sky, and the mountain at the end of the street.
 vec3 scSkyCol(vec2 q) {
  vec3 c=mix(scFog*vec3(1.05,1.,.92),mix(mix(vec3(.3,.47,.72),vec3(.008,.015,.05),scNight),vec3(.3,.2,.4),scEve),scS(-.05,.5,q.y+.25*q.x));
- float x=abs(q.x+.06),n=noise(vec2(q.x*40.,1.)),m=min(.19-.4*x+.014*n,.16+.013*n);
+ float x=abs(q.x+.06),n=noise(vec2(q.x*40.,1.)),m=min(.19-.4*x+.014*n,.16+.013*n)*(1.+.8*scOp);
  vec3 mc=mix(mix(vec3(.3,.4,.55),scFog*.6,.3),vec3(.02,.03,.07),scNight);
+ if (scSn>0.) mc=mix(mc,scFog*.5+scSky*.9,scSn*scS(.02,.1,m-.1+.05*noise(q*vec2(60.,30.))+.1*(q.y-.12)));
  return mix(c,mix(mc,scFog,scS(.2,-.02,q.y)*.55),scS(-.002,.002,m-q.y));
 }
 // The cut-out board, lozenges in a row.
@@ -251,7 +258,8 @@ void scStreet(vec2 p) {
   float side=float(k)*2.-1.,z=k>0?zs.y:zs.x,id0=floor(scNo(side,cz));
   for (int j=1;j<4;j++) {
    float id=id0+float(j),zb=(id-scNo(side,0.))*2.7-cz;
-   float X=side*(cx+q.x*zb-B*zb*zb)-scW,hb=scTall(side,id),Y=ch+q.y*zb,a=px*zb,c=step(0.,X)*scS(a,-a,Y-hb-.3*X);
+   float X=side*(cx+q.x*zb-B*zb*zb)-scW,hb=scTall(side,id),Y=ch+q.y*zb,a=px*zb,c=step(0.,X)*scS(a,-a,Y-hb-.3*X*(1.-scOp));
+   if (scOp>0.) c*=step(0.,Y)*scS(.03,.1,hb);
    if (zb>.2 && X<2.6 && c>0. && zb<hz) { cov=c;hz=zb;hy=Y;hs=side;hu=(id+.02)*2.7+X;hH=hb+.3*X+.16;hg=1.;}
   }
   if (z<min(zg,400.)) {
@@ -259,11 +267,12 @@ void scStreet(vec2 p) {
    scRail=0.;
    if (k>0) H=scRoof(zz);
    float c=max(scS(H+fy,H-fy,y-.05*abs(sin(zz*15.))*(1.-scRail)),scRail*scPosts(zz,y,H,foot,fy));
+   if (scOp>0.) c*=scS(.03,.1,H);
    bool back=hz<1e3;
    if (c>(back?.5:.01) && z<hz) { cov=back?1.:c;hz=z;hy=y;hs=side;hu=scNo(side,zz)*2.7;hH=H;hg=0.;}
   }
  }
- scOn=q.y>-.001 || zg>min(zs.x,zs.y) || zg>400.?-1.:0.;
+ scOn=q.y>-.001 || (zg>min(zs.x,zs.y) && (scOp<=0. || cov>.5)) || zg>400.?-1.:0.;
  zg=min(zg,400.); q.y=min(q.y,-.001);
  // the carpet stands a finger high: where does the eye meet its bank
  float W=1.02*(1.+(uOwn[3]>0.?.95:.5)*uOwn[3]),T=.1,lo=(ch-T)/-q.y,z=zg,e=0.;
@@ -286,9 +295,15 @@ void scStreet(vec2 p) {
   // the eave, dark underneath, and the ends of its tiles
   c=mix(c,vec3(.1,.05,.03)*(scSky+.1*scSun)*(1.+.8*step(.5,fract(zz*4.))*scS(.2,.05,foot)),scS(hH-.28-fy,hH-.28+fy,hy)*(1.-rail));
   c=mix(c,vec3(.45,.17,.09)*(scSky+scSun*(hs>0.?.1:.75)*(1.-hg))*(.6+.5*wave),scS(hH-.13-fy,hH-.13+fy,hy)*(1.-rail)*(1.-.7*hg));
+  if (scSn>0.) c=mix(c,vec3(.8,.82,.86)*(scSky*1.2+scSun*(hs>0.?.15:.6*scLt+.1)),scSn*max(scS(hH-.2-fy,hH-.16+fy,hy+.05*noise(vec2(zz*7.,3.)))*(1.-rail),scS(.14,.08,hy-.2*noise(vec2(zz*2.5,1.)))));
   col=mix(col,scAir(c,hz),cov);
  }
  scBack=col;
+ if (scWet>0.) {
+  float zr=min(zs.x,zs.y),sd=zs.x<zs.y?-1.:1.,hm=-q.y*zr-ch,H=scTall(sd,floor(scNo(sd,zr+cz))),u=scNo(sd,zr+cz);
+  vec3 wc=scPlaster(sd,floor(u))*(scSky*.9+scSun*(sd<0.?.22:.06))*mix(1.,.4,scS(.17,.12,abs(fract(u)-.3)));
+  scMir=mix(scSkyCol(vec2(q.x,-q.y)),scAir(wc,min(zr,60.)),scS(.1,-.1,hm-H)*step(zr,300.));
+ }
  scW2=w;scSf=.6*foot;scGu=w+vec2(0.,40.+1.4*y);
  scO=vec2(w.x,dz)/W+.012*(scN2(scGu*30.)-.5)+vec2(0.,.1);
  float f9=log(9.),pid=(floor(scO.y/.375)+.5)*.375;
@@ -296,14 +311,39 @@ void scStreet(vec2 p) {
  scFt=vec2(fx,foot)/W;scLd=normalize(scL.xz);scFine=max(fx,.35*foot);scFar=.5*foot;
  // loose here are the crumbs fallen beside it
  scQ=scGu*60.;scHs=vec2(.42,.3);scFill=.75*exp(min(e,0.)*9.)*scS(.05,.02,foot);scQx=60.*scFine;
- scE=e;scZ=z;scV=vec3(q,y);scAt=vec4(cx,ch,cz,z0);scWide=W;
+ scE=e;scZ=z;scV=vec3(q,y);scLQ=p.y-.17-.1*hi;scAt=vec4(cx,ch,cz,z0);scWide=W;
  // or the sack's own sawdust
  scSq=(p-vec2(-.82,-.58))/(.36+.03*creep);
+ scSq.x+=2.*(scSn+scOp);
  scSq.x+=.025*(noise(scSq.yy*5.)-.5);
  float rr=length((scSq-vec2(0.,.8))/vec2(.47,.125));
  scRed2=max(abs(scSq.x)-.44,scSq.y-.8-.3*exp(-scSq.x*scSq.x*9.));
  if (scSq.y<.8) scRed2=max(scRed2,(rr-1.)*.12);
  if (scRed2<.03) { scQ=scSq*62.;scHs=vec2(.5,.34);scFill=1.;scQx=174.*px;}
+}
+// Paper lamps on wires across the street: what they throw on the ground, and they themselves.
+
+vec3 scLampC(float i) { return mix(vec3(1.,.55,.2),uKind[int(mod(i,5.))]*1.2,.45); }
+vec3 scLamps(vec2 w) {
+ float u=w.y/2.4,f=fract(u)-.5;
+ return vec3(1.,.55,.22)*scUp*(.1+.3*exp(-f*f*14.))*exp(-w.x*w.x*.25)*(.8+.5*uPad)*mix(.5,1.6,scNight);
+}
+void scHang(inout vec3 c,vec2 q,float yy) {
+ q.y=yy; float cz=scAt.z,r0=ceil(cz/2.4+.35);
+ for (int j=3;j>=0;j--) {
+  float zr=(r0+float(j)+.5)*2.4-cz,x=scAt.x+q.x*zr-scBend*zr*zr,a=scPx*zr,hy=1.62+.3*scUp,sag=.4*(1.-x*x*.16);
+  float Y=scAt.y+q.y*zr;
+  c=mix(c,vec3(.02),.8*scUp*scS(.008+a,.004,abs(Y-hy+sag))*step(abs(x),2.5));
+  float i=floor(x/.8),xc=(i+.5)*.8; if (abs(xc)>2.3) continue;
+  float h=hash11(i+float(j)*7.+r0*7.),sw=.04*sin(uTime*.4+i+6.*h);
+  vec2 d=vec2(x-xc-sw,(Y-hy+.4*(1.-xc*xc*.16)+.24)*(.85+.3*h))/(.19+.06*h);
+  float m=length(d);
+  vec3 k=scLampC(i+5.+floor(h*5.));
+  float rib=.8+.2*cos(d.y*16.);
+  vec3 lc=k*k*(1.05-.6*m*m)*rib*(1.+.5*uPhrase+.7*uHits*step(.6,h)*uEnergy);
+  c+=k*k*scUp*.1*exp(-m*1.1)*mix(.4,1.,scNight)*exp(-zr*.06);
+  c=mix(c,scAir(lc,zr),scUp*scS(1.+a*6.,1.-a*6.,m));
+ }
 }
 vec3 scStreetLit() {
  vec2 w=scW2,q=scV.xy,nn=scStoneN;
@@ -317,23 +357,41 @@ vec3 scStreetLit() {
  float o1=sat(on);
  alb=mix(alb,ca,o1);nn=mix(nn,n2,o1);ao=mix(ao,.75+.25*scS(0.,.08,e),o1);
  // the cut-out board, left where it was last used
- vec2 at=vec2(-W*.74,scAt.w+.66);
+ vec2 at=vec2(-W*.74,scAt.w+.66-6.*(scSn+scOp));
  float tb=(ch-.12)/-q.y,te=(ch-.104)/-q.y,ba=.004+fx,sh=scS(.02,-.01,scBoard(rot(-.22)*(w+scL.xz*.1-vec2(0.,scAt.z)-at)));
  vec2 bo=rot(-.22)*(vec2(scAt.x+q.x*tb-scBend*tb*tb,tb)-at),b2=rot(-.22)*(vec2(scAt.x+q.x*te-scBend*te*te,te)-at);
  float top=scS(ba,-ba,scBoard(bo)),brd=max(top,scS(ba,-ba,scBoard(b2)));
  vec2 wn=scN2(bo*vec2(6.,50.)+50.);
  vec3 wood=mix(vec3(.44,.3,.17)*(.7+.5*wn.x),scRed,.7*scS(.55,.8,wn.y))*(.35+.65*top);
  alb=mix(alb,wood,brd);nn*=1.-brd;ao=mix(ao,1.,brd);lit*=1.-sh*(1.-brd);
+ float pud=0.;
+ if (scSn>0.) {
+  float n1=noise(w*2.3+7.),n2_=noise(w*9.),sc=scSn*mix(scS(.25,.6,n1+.35*n2_+.25*scS(.4,1.3,abs(w.x)-W)),.16*scS(.45,.7,n1+.3*noise(scGu*60.)),o1);
+  sc=max(sc,scSn*(1.-o1)*scS(.3,0.,abs(e+.12)-.1*n2_));
+  alb=mix(alb,vec3(.6,.62,.67)*(.86+.18*n2_),sc);nn=mix(nn,(vec2(n2_,noise(w*9.+30.))-.5)*.5,sc);ao=mix(ao,1.,sc*.8);
+ }
+ if (scWet>0.) {
+  float n1=noise(w*vec2(1.9,.9)+3.)+.22*noise(w*6.);
+  pud=scWet*(1.-o1)*scS(.58,.66,n1);
+  alb*=1.-scWet*mix(.5,.25,o1);nn*=1.-.6*pud;
+ }
  scBurst(alb,w,vec2(.15+.4*sin(uTime*.037),scAt.z+scAt.w*1.75),.5*scAt.w,.3*foot);
  vec3 N=normalize(vec3(nn.x,1.,nn.y));
  vec3 c=alb*(scSky*ao*(1.15-.15*nn.y)+scSun*(lit*max(dot(N,scL)*1.25,0.)+vec3(.05,.035,.022)*ao));
  // the low sun on smooth stone
  float gl=pow(max(dot(N,normalize(scL+normalize(vec3(-q,-1.)))),0.),22.);
+ if (scWet>0.) {
+  float fr=.06+.94*pow(1.-ch/sqrt(ch*ch+z*z),3.);
+  c=mix(c,scMir,sat(max(pud*(.65+.35*fr),.5*scWet*(1.-o1)*scS(.0,.3,N.y-.7)*fr)));
+ }
+ if (scUp>0.) c+=alb*scLamps(w)*ao;
  c=on<-.5?scBack:scAir(c+(scSun*lit*.35+scSky*.15)*gl*(1.-o1),z);
+
+ if (scUp>0.) scHang(c,scV.xy,scLQ);
  // the sack of raw red sawdust, near on the left and cut by the frame
  q=scSq;
  float wd=.52-.1*scS(.2,.75,q.y)+.06*sin(q.y*5.+.6),px=scPx*4.;
- c*=1.-.6*scS(.2,0.,max(q.x-wd,q.y-.6))*scS(-.9,0.,q.x);
+ c*=1.-.6*scS(.2,0.,max(q.x-wd,q.y-.6))*scS(-.9,0.,q.x)*sat(1.-2.*(scSn+scOp));
  float nx=clamp(q.x/wd,-1.,1.),fold=1.4*noise(vec2(q.x*8.+q.y*1.5+20.,q.y*2.));
  vec3 bc=vec3(.4,.28,.16)*(.65+.35*(1.+.22*scS(.0036,.0016,scPx)*(sin(q.x*260.)+sin(q.y*280.))));
  vec3 lt=scSky*(.9-.3*nx+.5*q.y)+scSun*(.75*pow(sat(nx),3.)+.1)*(.4+.9*fold);
@@ -351,12 +409,13 @@ vec3 scStreetLit() {
 float scHm; vec3 scHn,scHp;
 const vec3 scHa=vec3(-.66,.7,-.27);
 float scHat(vec3 ro,vec3 rd,float soft) {
- vec3 a=scHa;
+ vec3 a=scHa; ro/=max(1.-scSn-scUp,.1);
  float dn=dot(rd,a),oa=dot(ro,a),hit=0.,t=abs(dn)>1e-3?-oa/dn:-1.;
  scHm=0.;scHn=a;scHp=ro+rd*t;
  if (t>0.) hit=scS(.36+soft,.36-soft,length(scHp)-.012*sin(scHp.y*14.+scHp.x*9.));
  // the crown, half an egg on the brim's axis
  vec3 o=(ro-a*oa)/.185+a*oa/.2,d=(rd-a*dn)/.185+a*dn/.2;
+ if (scSn+scUp>.9) return 0.;
  float A=dot(d,d),b=dot(o,d),D=b*b-A*(dot(o,o)-1.);
  if (D>0.) {
   t=(-b-sqrt(D))/A;
@@ -369,12 +428,12 @@ float scHat(vec3 ro,vec3 rd,float soft) {
 vec2 scTrod;vec3 scNb;vec3 scRo,scRd;
 const vec2 scMid=vec2(0.,1.97);
 void scAfter(vec2 p) {
- float drop=3.*exp2(.5*uOwn[4]),pit=.98;
+ float drop=3.*exp2(.5*uOwn[4]),pit=.98,tr=.62*(1.-scOp)+.9*scUp;
  scRo=vec3(0.,drop,0.); scRd=normalize(vec3(p.x,p.y*cos(pit)-1.25*sin(pit),p.y*sin(pit)+1.25*cos(pit)));
  float t=drop/max(-scRd.y,.02),foot=scPx*t/1.2;
  // the street runs slantwise through the picture
  scBack=vec3(-.86,.29+.04*sin(uTime*.019),.3); scBack /= length(scBack);
- vec2 w=rot(.62)*((scRo+scRd*t).xz-scMid),lg=rot(.62)*scBack.xz,gu=w+20.;
+ vec2 w=rot(tr)*((scRo+scRd*t).xz-scMid),lg=rot(tr)*scBack.xz,gu=w+20.;
  scL=vec3(lg.x,scBack.y,lg.y); scLd=normalize(lg);
  float W=1.+(uOwn[3]>0.?.4:.45)*uOwn[3],e;
  vec2 na=scN2(gu*3.1),nb=scN2(gu*8.),nc=scN2(gu*33.);
@@ -406,6 +465,7 @@ void scAfter(vec2 p) {
  scW2=kb>.2?w.yx*1.7+9.:w;scSf=kb>.2?.7*foot:.4*foot;scAt=vec4(w,kb,foot);
 }
 vec3 scAfterLit() {
+ vec3 amb_=vec3(0.);
  vec2 w=scAt.xy,gu=scGu,lg=scL.xz;
  float kb=scAt.z,foot=scAt.w,e=scE,on=scOn,trk=scTrod.x,ks=.006+foot,pv=scS(-ks,ks,kb),in1=scS(-ks,ks,kb-.2);
  vec2 n2=scHeapN+1.2*(scNb.xy-.5)*trk;
@@ -426,9 +486,32 @@ vec3 scAfterLit() {
  lit*=1.-scS(eave-.04,eave+.04,rf.x)*(1.-cue); lit*=1.+.6*cue;
  vec3 LW=scBack,hc=vec3(.42,.25,scMid.y+.1),gp=scRo+scRd*(scRo.y/max(-scRd.y,.02))-hc,n,amb=scSky*.7;
  lit*=1.-scHat(gp,LW,.03);
+ float cd=9.,pud=0.;
+ if (scSn>0.) {
+  float n1=noise(w*2.7+7.),tk=max(trk*scS(.2,.5,scNb.x),scTrod.y),sc=scSn*scS(.42,.6,n1*.75+.25*scNb.x+.45*scS(.35,.0,on)-.8*tk);
+  alb=mix(alb,vec3(.5,.52,.56)*(.8+.24*scNb.z),sc);nn=mix(nn,(scNb.xy-.5)*.45,sc);ao=mix(ao,1.,.8*sc);
+ }
+ if (scWet>0.) { pud=scWet*scS(.6,.66,noise(w*1.5+12.)+.1+.08*(scNb.x-.5)-.3*on-.2*pv); alb*=1.-scWet*.45; nn*=1.-pud; }
+ if (scUp>0.) {
+  float W=1.+(uOwn[3]>0.?.4:.45)*uOwn[3],v=w.y/.46,ci=floor(v)+50.*step(0.,w.x),fl=.85+.15*sin(uTime*(1.1+.5*hash11(ci))+ci*2.);
+  vec2 d=vec2(abs(w.x)-W-.15,(fract(v)-.5)*.46);cd=length(d);
+  float far=abs(d.x),g=exp(-far*far*5.)*.5+.9*exp(-cd*cd*14.);
+  amb_=vec3(1.,.5,.17)*scUp*fl*g*(.75+.7*uPad)*mix(.6,1.3,scNight);
+ }
  scBurst(alb,w,vec2(-.35,-.3+.4*sin(uTime*.037)),.46,foot);
  n=normalize(vec3(nn.x,1.,nn.y));
  vec3 col=alb*(amb*ao+scSun*(lit*max(dot(n,scL)*2.2,0.)+vec3(.05,.035,.022)*ao));
+ if (scWet>0.) {
+  float br=scS(-.2,.5,rf.x+.6*scNb.x*.2-.1);
+  vec3 sk=mix(scSky*.5,scFog*.75+scSky*.6,br*scS(-.3,1.6,w.y+1.2*noise(w*.7)));
+  sk*=.75+.5*noise(w*vec2(1.2,2.)+uTime*.02);col=mix(col,sk,pud*.85);
+  vec2 h2=normalize(n+vec3(0,1e-3,0)).xz; col+=scSun*lit*.5*pud*pow(sat(1.-length(h2-.05)),8.);
+ }
+ if (scUp>0.) {
+  col+=alb*amb_*ao*.7; col+=vec3(1.,.5,.16)*scUp*(.5+.4*uPad)*exp(-cd*cd*60.)*mix(.3,.6,scNight);
+  float m=cd/.06;
+  col=mix(col,mix(uKind[3]*uKind[3],vec3(.8,.4,.12),.5)*(.9-.5*m)+vec3(2.2,1.6,.8)*exp(-m*m*9.),scUp*scS(1.+foot*20.,1.-foot*20.,m));
+ }
  float hh=scHat(scRo-hc,scRd,foot);
  n=dot(scHn,scRd)>0.?-scHn:scHn;
  float al=dot(scHp,scHa),rr=length(scHp-scHa*al),ring=(scHm>.5?al:rr)*130.;
@@ -440,6 +523,10 @@ vec3 render(vec2 p) {
  scPx=1./uRes.y; scHour();
  if (uVar<.5) scStreet(p); else scAfter(p);
  scStoneC=scStone(scW2,scSf); scStoneN=scN;
+ if (scOp>0. && uVar<.5) {
+  float off=scOp*scS(1.5,2.2,abs(scW2.x)+.9*noise(scW2*1.3)),g=noise(scW2*vec2(2.,.7))*.6+noise(scW2*vec2(40.,9.))*.4*scS(.1,.02,scSf);
+  scStoneC=mix(scStoneC,mix(vec3(.23,.19,.07),vec3(.42,.33,.16),g),off*(1.-.6*max(uOwn[1],0.)));scStoneN*=1.-off;
+ }
  scHeap(); scId1=scId;
  scLoose=scGrain(scQ,scHs,scFill,9.,scQx,1);scLooseN=scN;scLooseId=scId;
  vec3 c=uVar<.5?scStreetLit():scAfterLit();

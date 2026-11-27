@@ -3,7 +3,13 @@
 // b: Pipe front
 // what: A book of buff card, punched with slots, climbs fold by fold out of its stack, runs under the brass keys of a street organ and falls away in lazy zigzags; sun through each slot lays a bar of light on the green bench. Or the organ's front at evening: worn gold and cream pipes, trumpets, bells and drums under an arch of bulbs.
 // follows: The piece cuts the slots, loop along and room across, and stains card or pipes. Bands lift sixteen keys or light pipes. Drone sways folds or bellows, pad warms bench or arch, texture is fibre or bulbs, phrase lights rollers or trumpets, notes light keys or bells. A hit runs down the rollers or strikes the drums; a cue throws up a fold or lights the bulbs.
-// own: 0 night at -1, a white winter noon at 1; 1 oxblood paint at -1, pale blue-grey paint at 1; 2 few wide slots or pipes at -1, many fine ones at 1; 3 low tight folds, or pipes cut level, at -1; loose high folds, or steep peaks of pipes, at 1; 4 low down beside the card, or square before the front and far, at -1; high above the card, or close and raking along the front, at 1; 5 dark blue card or pipes at -1, brick red at 1
+// own: 0 night at -1, a white winter noon at 1; 1 oxblood paint at -1, pale blue-grey paint at 1; 2 few wide slots or pipes at -1, many fine ones at 1; 3 low tight folds, or pipes cut level, at -1; loose high folds, or steep peaks of pipes, at 1; 4 low down beside the card, or square before the front and far, at -1; high above the card, or close and raking along the front, at 1; 5 dark blue card or pipes at -1, brick red at 1; 6 the card alone in one high arch, or six sided columns of stone with nothing round them, at -1; the card alone in upright pleats, or a town of spires, at 1; 7 over water at -1, over sand at 1 (b: before the sky, with water or sand at the foot)
+#define boX abs(uOwn[6])
+#define boArch max(-uOwn[6], .0)
+#define boPleat max(uOwn[6], .0)
+#define boOut abs(uOwn[7])
+#define boSea max(-uOwn[7], .0)
+#define boSand max(uOwn[7], .0)
 const float boW = 1., boL = .42, boH = .70, boLap = 1.68; // the card: width, one panel, height, one loop along it
 const int boN = 22;
 vec2 boV[boN + 1]; // where it is folded, seen from the side
@@ -33,6 +39,7 @@ void boFold(float lo, float hi) {
   boU0 = (j0 - 7.) * boL - feed;
   boHi = hi < .75 ? clamp(int((max(hi, -.5) - boU0) / boL) + 1, 1, boN) : boN;
   boLo = lo > -.75 ? clamp(int((min(lo, .45) - boU0) / boL), 0, boN - 1) : 0;
+  if (uOwn[6] != .0) { boLo = 0; boHi = boN; }
   boRun f = boRun(.22 + .06 * loose, .53 - .12 * loose, .08, .0, .3, .5 + .24 * loose + sway, vec2(1.));
   boRun h = boRun(.45, .40 - sway, .24 + .1 * loose, .24 + .1 * loose, .45, .16 + .25 * loose - sway, vec2(1.));
   f.d = vec2(cos(f.de), sin(f.de)); h.d = vec2(cos(h.de), sin(h.de));
@@ -42,6 +49,11 @@ void boFold(float lo, float hi) {
     float u = boU0 + float(i) * boL;
     boRun w = f; if (u < .0) w = h;
     boV[i] = boSide(abs(u), ((i + int(j0)) & 1) == 0 ? 1. : -1., w) * vec2(u < .0 ? -1. : 1., 1.);
+    if (uOwn[6] != .0) {
+      float alt = ((i + int(j0)) & 1) == 0 ? 1. : .0, th = u * .56, le = max(abs(u) - 2.75, .0); th = clamp(th, -1.54, 1.54);
+      vec2 o = uOwn[6] < .0 ? vec2(1.78 + .05 * alt, .0) * sin(th) + vec2(.02 * u, .02 * sway - .76 + (1.78 + .05 * alt) * cos(th) - le) : vec2(.60 * u, .03 + (.336 + .14 * loose * sin(u * 1.1 + uTime * .05)) * alt);
+      boV[i] = mix(boV[i], o, boX);
+    }
     boV[i].y += .17 * flip * exp(-(u - 1.3) * (u - 1.3) * 5.); // a cue throws one fold up
   }
 }
@@ -100,11 +112,18 @@ vec3 boCard(vec2 at, vec3 n, float s, vec4 m, float d, float sh, vec3 tint) {
   lit += boSunC * vec3(1., .72, .42) * (sat(-l) * .22 * sh + .10 + .10 * uDrone * uEnergy + .7 * uCue * exp(-(at.x - 1.3) * (at.x - 1.3) * 3.));
   vec2 hit = vec2(at.x * 1.6, (at.y - 1. + uHits) * 5.); lit += boSunC * 1.5 * uHits * exp(-dot(hit, hit));
   vec3 near = (vec3(at.x) - vec3(-.36, .32, -.14)) / .06;
-  return alb * lit * (1. - dot(vec3(.6, .6, .35), exp(-near * near)));
+  return alb * lit * (1. - (1. - boX) * dot(vec3(.6, .6, .35), exp(-near * near)));
 }
 
+// The sky where there is no street: p is how far up and across, from the horizon.
+vec3 boAir(vec2 p) {
+  float night = max(-uOwn[0], .0), noon = max(uOwn[0], .0), d = length(p - vec2(-.34, .2));
+  vec3 c = mix(boWorld(vec3(1.05, .78, .52), vec3(.06, .09, .19), vec3(.82, .88, .92), uOwn[0]), boWorld(vec3(.34, .50, .66), vec3(.008, .012, .04), vec3(.40, .58, .78), uOwn[0]), smoothstep(-.05, .6, p.y));
+  c = mix(c, c * vec3(1.15, .9, .75), .5 * boSand * (1. - night)) + (1. - .7 * noon) * boWorld(vec3(.6, .34, .14), vec3(.10, .13, .2), vec3(.3), uOwn[0]) * exp(-d * 5.);
+  return c + boWorld(vec3(2., 1.5, .8), vec3(.8, .85, .9), vec3(.0), uOwn[0]) * (.7 + .3 * uPad) * boIn(d - .055, .004);
+}
 vec3 boFolding(vec2 p) {
-  float v4 = uOwn[4], front = -.62, snow = max(uOwn[0], .0);
+  float v4 = uOwn[4], front = -.62 - 9. * boOut, snow = max(uOwn[0], .0);
   boSun = normalize(vec3(-.34 + .10 * sin(uTime * .013), .80, .30));
   boSunC = boWorld(vec3(1.75, 1.45, 1.02), vec3(1.2, .66, .26), vec3(1.5), uOwn[0]) * (.95 + .15 * uLevel) * (1. - .85 * max(-uOwn[0], .0) * smoothstep(.1, .8, length(p)));
   boSky = boWorld(vec3(.15, .185, .22), vec3(.02, .035, .09), vec3(.40, .44, .50), uOwn[0]) * (.85 + .3 * uSpace);
@@ -113,14 +132,14 @@ vec3 boFolding(vec2 p) {
   vec3 rt = normalize(cross(vec3(0, 1, 0), fw)), rd = normalize(fw * 2.15 + rt * p.x + cross(fw, rt) * p.y);
   float pix = 1. / (uRes.y * 2.15), tf = rd.y < -.001 ? -ro.y / rd.y : 1e4, dl = length(rd.xy);
   vec3 pos = ro + rd * tf, col = vec3(.0);
-  bool bench = pos.z < 1.75 && pos.z > front;
+  bool bench = pos.z < 1.75 + 80. * boOut && pos.z > front;
   float tb = bench ? tf : pos.z < front ? (front - ro.z) / rd.z : 1e4;
   // the stretch of the card this ray can meet
   vec2 xs = ro.x + rd.x * (vec2(.0, boW) - ro.z) / rd.z;
   xs = vec2(min(xs.x, xs.y), max(xs.x, xs.y));
   if (pos.z < boW && pos.z > -.6) xs = vec2(min(xs.x, pos.x), max(xs.y, pos.x));
   boLo = boHi = 0;
-  if (pos.z > -.65) boFold(xs.x + boSun.x / boSun.y * 1.05, xs.y);
+  if (pos.z > -.65 - 9. * boOut) boFold(xs.x + boSun.x / boSun.y * 1.05, xs.y);
   // its two nearest panels; and how near its cut edge passes
   vec2 ts = vec2(1e4), cs = vec2(.0), ss = vec2(.0); ivec2 is = ivec2(0);
   float zf = -ro.z / rd.z, fe = 1e4; vec2 fq = ro.xy + rd.xy * zf;
@@ -148,7 +167,7 @@ vec3 boFolding(vec2 p) {
     if (al < .5 && al + cov[k] > .5) { spot = ro + rd * t; me = is[k]; }
     al += (1. - al) * cov[k];
   }
-  if (me >= 0 || (bench && pos.z < boW && pos.z > -.5)) sh = boLight(spot, me, tint);
+  if (me >= 0 || (bench && pos.z < boW && pos.z > -.5 - .8 * boX)) sh = boLight(spot, me, tint);
   al = .0;
   for (int k = 0; k < 2; k++) {
     if (cov[k] <= .0) continue;
@@ -164,11 +183,26 @@ vec3 boFolding(vec2 p) {
     float gr = noise(bench ? vec2(pos.x * 5. + id * 17., pos.z * 90.) : vec2(pos.x * 3., y * 40.));
     float big = noise(pos.xz * vec2(2.3, 5.) + id), leaf = smoothstep(.36, .62, noise(pos.xz * vec2(2.6, 3.4) + vec2(.4 * sin(uTime * .11), .3 * sin(uTime * .07))));
     vec3 a = mix(paint * (.82 + .3 * gr), vec3(.30, .25, .16), smoothstep(.40, .62, big * gr + .22 * boIn(seam - .06, .06)) * .6);
-    a = mix(a, vec3(.82, .86, .90), snow * smoothstep(.25, .55, big + .2 * gr)) * (1. - .55 * boIn(seam - .01, .01));
+    a = mix(a, vec3(.82, .86, .90), snow * smoothstep(.25, .55, big + .2 * gr)) * (1. - .55 * boIn(seam - .01, .01) * (1. - boOut));
+    vec3 shine = vec3(.0);
+    if (uOwn[7] != .0) {
+      vec2 g = rot(.3) * pos.xz; vec3 tn = uOwn[1] < .0 ? vec3(1.3, .6, .5) : vec3(.9, 1., 1.06);
+      if (uOwn[7] < .0) {
+        float n = noise(g * vec2(3., 8.) + vec2(.06, .04) * uTime), m = noise(g * vec2(9., 23.) - vec2(.05, .09) * uTime + 2. * n), fr = pow(1. - sat(-rd.y), 3.);
+        vec3 w = mix(vec3(.04, .17, .19), vec3(.16, .40, .38), n) * (.75 + 1.1 * pow(1. - abs(2. * m - 1.), 5.));
+        a = mix(a, w * mix(vec3(1.), tn, abs(uOwn[1])), boSea);
+        shine = boAir(vec2(rd.x * .6, .12 + .5 * (n - .5) + .3 * m)) * (.05 + .5 * fr) + boSunC * .8 * smoothstep(.72, .9, m) * n;
+      } else {
+        float n = noise(g * vec2(.8, 1.7)), y = fract(g.y * 5.5 + 1.8 * n + .3 * sin(g.x * 1.7));
+        vec3 w = vec3(.62, .44, .25) * (.8 + .26 * smoothstep(.0, .75, y) * (1. - smoothstep(.8, 1., y)) * exp(-.05 * tf) + .22 * n + .1 * (noise(pos.xz * 70.) - .5));
+        a = mix(a, mix(w * mix(vec3(1.), tn, abs(uOwn[1])), vec3(.85, .88, .92), snow), boSand);
+      }
+    }
     vec2 pile = abs(pos.xz - vec2(1.02, .5)) - vec2(.21, .5), w = pos.xz - vec2(-.5, -.1);
-    float ao = 1. - .55 * exp(-8. * length(max(pile, .0))), bars = 1. + .9 * boIn(abs(pos.z - .28) - .2, .15);
-    col = a * (boSunC * (boSun.y * sh * tint * mix(.7, 1.15, leaf) * bars + .05 * ao) + boSky * ao + vec3(1.6, 1., .5) * uPad * uEnergy * exp(-dot(w, w) * 1.2));
-    if (!bench) col = tb < 9e3 ? a * (boSky * .9 + boSunC * (.06 + .4 * boIn(y - .012, .01))) : boStreet(rd);
+    float ao = 1. - .55 * (1. - boX) * exp(-8. * length(max(pile, .0))), bars = 1. + .9 * boIn(abs(pos.z - .28) - .2, .15);
+    col = boOut * shine * (.3 + .7 * sh) + a * (boSunC * (boSun.y * sh * tint * mix(mix(.7, 1.15, leaf) * bars, 1., boOut) + .05 * ao) + boSky * ao + vec3(1.6, 1., .5) * uPad * uEnergy * exp(-dot(w, w) * 1.2));
+    if (!bench) col = tb < 9e3 ? a * (boSky * .9 + boSunC * (.06 + .4 * boIn(y - .012, .01))) : mix(boStreet(rd), boAir(rd.xy * 1.6 + vec2(.1, .0)), boOut);
+    if (uOwn[7] != .0 && bench) col = mix(col, boAir(vec2(rd.x, .0)), boOut * (1. - exp(-max(tf - 4., .0) * .06)));
   }
   col = col * (1. - al) + over;
   if (zf < tb) col = mix(col, vec3(.80, .62, .40) * (boSky * .9 + boSunC * .22), boIn(sqrt(fe) - .0055, pix * zf) * .9);
@@ -213,6 +247,7 @@ vec3 boFolding(vec2 p) {
     add = vec3(.16, .09, .03) * boSunC * (.6 + .4 * leg);
   }
   ba = max(ba, side);
+  ba *= 1. - smoothstep(.0, .3, boX);
   if (ba > .0) col = mix(col, boBrass(bn, rd) * mul + add, ba);
   return screenOf(col * 1.05);
 }
@@ -237,29 +272,36 @@ vec3 boFront(vec2 p) {
   vec2 at = vec2(-1.5 * tx.z + dot(rd, tx) * tw, rd.y * tw), par = vec2(dot(rd, tx), rd.y) / k;
   boEdge = tw / (uRes.y * zoom) * 1.2;
   vec3 board = boWorld(vec3(.15, .24, .20), vec3(.28, .06, .05), vec3(.46, .50, .50), uOwn[1]), trim = vec3(.60, .49, .30), brass = vec3(.60, .39, .12), glow = vec3(1., .62, .25);
-  boAlb = board * .3; boNrm = boFace; boGive = boNone; boMetal = .0; boOpen = .5;
+  boAlb = board * .3 * (1. - boOut); boNrm = boFace; boGive = boNone; if (uOwn[7] != .0) boGive = boOut * .8 * boAir(p / zoom - vec2(.0, .07)); boMetal = .0; boOpen = .5;
   // two ranks of pipes, the back one taller and darker
   for (int r = 0; r < 2; r++) {
     float fr = float(r), P = (.118 - .024 * fr) * exp2(-.6 * uOwn[2]);
     vec2 q = at - par * (.03 + .10 * fr);
     float x = q.x / P + .5 * fr, i = floor(x), X = (i + .5 - .5 * fr) * P, h = hash11(i + 31. + 70. * fr), town = .5 + .5 * cos(X * 8.5 + 1.);
-    float b = uBands[int(mod(i + 8., 16.))], steep = 1. + .8 * min(uOwn[3], .0) + .6 * max(uOwn[3], .0);
+    float raw = abs(x - i - .5) / .48, b = uBands[int(mod(i + 8., 16.))], steep = 1. + .8 * min(uOwn[3], .0) + .6 * max(uOwn[3], .0);
     float top = .42 - .22 * fr - steep * (.06 + .19 * town + .24 * abs(X - .16 - .1 * fr)) + .05 * h + .02 * b;
-    float mouth = -.13 - .05 * fr - .08 * town, toe = smoothstep(.0, .16, mouth - .035 - q.y), wide = mix(.46, .09, toe), s = clamp((x - i - .5) / wide, -1., 1.), up = sqrt(1. - s * s);
+    float mouth = -.13 - .05 * fr - .08 * town, toe = smoothstep(.0, .16, mouth - .035 - q.y) * (1. - boX), wide = mix(.46, .09, toe), s = clamp((x - i - .5) / wide, -1., 1.), up = sqrt(1. - s * s);
+    if (uOwn[6] < .0) { float st = clamp(floor(s * 1.5 + .5) / 1.5, -1., 1.) * .85; s = mix(s, st, boArch); up = sqrt(1. - s * s); top += boArch * .16 * (h - .5); wide = mix(wide, .5, boArch); }
+    if (uOwn[6] > .0) { wide = mix(wide, .4 + .1 * h, boPleat); top += boPleat * (.1 * hash11(i + 7. + fr) + P); }
     top = max(top, mouth + .14);
     vec4 m = piece(vec2(.5 + X / 1.9, .5 - q.y));
     vec3 a = fract(i * .5 + .25 + .5 * step(.55, town)) < .5 ? vec3(.56, .38, .13) : vec3(.74, .64, .46);
+    if (uOwn[6] < .0) a = mix(a, vec3(.34, .33, .31) * (.5 + .7 * h) * (.6 + .7 * noise(vec2(x * 7., q.y * 9.))) * (1. - .5 * boIn(boNear(q.y * 4. + h * 9. + .2 * s) - .03, .03)), boArch);
+    float roof = boPleat * step(top - boPleat * 1.5 * P , q.y);
+    if (uOwn[6] > .0) a = mix(mix(a, vec3(.62, .52, .40) * (.6 + .5 * h), boPleat), mix(vec3(.34, .15, .10), vec3(.16, .20, .24), step(.5, h)) * (.8 + .3 * step(.5, fract(q.y * 90.))), roof);
     a = boWorld(a, vec3(.08, .12, .24) + .25 * a, vec3(.52, .16, .10) + .15 * a, uOwn[5]);
     vec2 u = vec2(abs(x - i - .5) * P, q.y - mouth);
     float ring = min(abs(abs(q.y - top + .05) - .012), abs(u.y - .12)) - .004;
-    a = mix(a, trim * vec3(.8, .36, .26), .7 * boAt(ring)) * (.9 + .2 * h) * (.6 + .4 * fr);
+    a = mix(a, trim * vec3(.8, .36, .26), .7 * (1. - boX) * boAt(ring)) * (.9 + .2 * h) * (.6 + .4 * fr);
     a = mix(a, a * (.3 + 1.5 * m.rgb / max(m.a, .01)), sat(m.a * 1.3) * .75);
     // the mouth: a dark slot under a pointed leaf
-    float slot = boAt(max(u.x - .27 * P, max(-u.y - .022, u.y - .012)));
-    a *= (1. - .3 * boAt(max(u.x - .27 * P, max(-u.y, u.y - .10 + u.x * 2.4)))) * (1. - .98 * slot);
+    float slot = boAt(max(u.x - .27 * P, max(-u.y - .022, u.y - .012))) * (1. - boArch);
+    vec3 pane = boNone;
+    if (uOwn[6] > .0) { vec2 wc = vec2(x * 4. + .5, q.y * 22.), wi = floor(wc), wf = abs(wc - wi - .5); float on = boPleat * (1. - roof) * boAt((max(wf.x - .22, (wf.y - .28) * 1.6)) * .04) * step(q.y, top - 1.8 * P); a *= 1. - .7 * on; pane = on * (glow * step(.7, hash21(wi + 70. * fr)) * (.15 + .4 * max(-uOwn[0], .0) + .5 * b) + m.rgb * .6) * (.4 + uEnergy); }
+    a *= (1. - .3 * (1. - boX) * boAt(max(u.x - .27 * P, max(-u.y, u.y - .10 + u.x * 2.4)))) * (1. - .98 * slot);
     float shine = exp(-(s + .35) * (s + .35) * 10.) * (1. - toe) * (1. - slot);
-    boLay(max((abs(x - i - .5) - wide) * P, q.y - top - .012 * up), .03, a, vec3(s, -.1 * toe, up + .05),
-      (glow * slot * (.04 * uDrone + .05 * b * b) + (m.rgb * .2 + vec3(.3, .2, .1) * b) * shine) * uEnergy, .5 * (1. - slot), (.5 + .5 * fr) * (.45 + .55 * up));
+    boLay(max((abs(x - i - .5) - wide) * P, q.y - top - .012 * up * (1. - boX) + boPleat * 1.5 * P * raw), .03, a, vec3(s, -.1 * toe, up + .05),
+      (glow * slot * (.04 * uDrone + .05 * b * b) + (m.rgb * .2 + vec3(.3, .2, .1) * b) * shine) * uEnergy * (1. - .7 * boX) + pane + boX * uHits * mix(glow, uKind[4], .5) * .8 * up * exp(-30. * (abs(X - .1) - 1.1 * (1. - uHits)) * (abs(X - .1) - 1.1 * (1. - uHits))), .5 * (1. - slot) * (1. - boX), (.5 + .5 * fr) * (.45 + .55 * up));
   }
   // the fan of brass trumpets
   for (int i = 0; i < 5; i++) {
@@ -267,29 +309,37 @@ vec3 boFront(vec2 p) {
     vec2 d = vec2(cos(a), sin(a)), q = at - par * .24 + vec2(.80, .36); q = vec2(dot(q, d), dot(q, vec2(-d.y, d.x)));
     float g = sat(q.x / len), w = .007 + .013 * g; g *= g; g *= g; w += .045 * g * g;
     float s = clamp(q.y / w, -1., 1.), mo = length((q - vec2(len, .0)) * vec2(2.4, 1.)) - .056;
-    boLay(min(max(abs(q.y) - w, q.x - len), mo - .009), .03, brass, vec3(-d.y * s, d.x * s, sqrt(1.02 - s * s)), boNone, 1., 1.);
-    boLay(mo, .002, vec3(.05, .03, .02), boFace, mix(glow, uKind[3], .6) * uPhrase * (.2 + .5 * uEnergy) * sat(-mo * 17.), .0, 1.);
+    boLay(min(max(abs(q.y) - w, q.x - len), mo - .009) + .3 * boX, .03, brass, vec3(-d.y * s, d.x * s, sqrt(1.02 - s * s)), boNone, 1., 1.);
+    boLay(mo + .3 * boX, .002, vec3(.05, .03, .02), boFace, mix(glow, uKind[3], .6) * uPhrase * (.2 + .5 * uEnergy) * sat(-mo * 17.), .0, 1.);
   }
   // the scrolled rail, and the bellows
   vec2 q = at - par * .20;
   float d = q.y + .30 + .022 * cos(q.x * 14.) + .02 * cos(q.x * 28. + .4), breath = .05 * sin(uTime * .21) + .25 * uDrone * (.6 + .4 * sin(uTime * .13));
   float pl = fract((q.y + .70) / (.034 + .0085 * breath)) * 2. - 1., low = boIn(q.y + .378, .002);
   boLay(d, .05, mix(mix(board, trim, boAt(abs(d + .022) - .005)), vec3(.26, .13, .08), low), vec3(.0, mix(.2, pl, low), 1.), boNone, .0, mix(1., 1. - .65 * abs(pl), low));
+  if (uOwn[7] != .0) {
+    // water or sand at their foot
+    float y = at.y + .30 + .35 * (1. - boOut), dy = max(-.30 - at.y, .0), dz = .7 / (dy + .06), rp = .6 * noise(vec2(at.x * 5., dz * 3.) + vec2(.06, .16) * uTime) + .4 * noise(vec2(at.x * 15., dz * 26.) - vec2(.05, .5) * uTime), X = at.x + .03 * (rp - .5);
+    float st = 1. + .8 * min(uOwn[3], .0) + .6 * max(uOwn[3], .0), T = .66 - st * (.15 + .1 * cos(X * 8.5 + 1.) + .24 * abs(X - .16)), ref = boIn(dy * .9 - T + .9 * (rp - .5) * dy, .03 + .2 * dy);
+    vec3 sk = .8 * boAir(vec2(p.x / zoom + .1 * (rp - .5), .02 + dy * 1.2)), al = mix(vec3(.02, .035, .04), vec3(.6, .45, .28) * (.75 + .35 * noise(vec2(at.x * 3. + dy * 4., dy * 60.)) ), boSand);
+    if (uOwn[7] > .0) y += .05 * noise(vec2(at.x * 2.5, 3.)) * boSand - .03;
+    boLay(y, .05, al, vec3(.2 * (rp - .5), .8, .6), boSea * (mix(sk, board * .1 + glow * .12 * step(.62, hash11(floor(X / .045) + 4.)) * boPleat * smoothstep(.3, .75, rp) * exp(-dy * 5.) * 4. * max(-uOwn[0], .0), max(ref, .4) * .85) * (.55 + .5 * rp) + sk * .2 * smoothstep(.62, .8, rp)), .0, 1.);
+  }
   // a row of bells
   q = at - par * .26;
   float n = clamp(floor(q.x / .085), -3., 3.), sz = .030 - .0022 * n;
   q = rot(.25 * uKeys * sin(uTime * 5. + n * 2.1)) * (q - vec2((n + .5) * .085, -.275)) + vec2(.0, sz);
   float v = q.y / sz, w = sz * (v > .0 ? .72 * sqrt(max(1. - v * v, .0)) : .72 + .36 * v * v), s = clamp(q.x / max(w, 1e-3), -1., 1.);
-  boLay(max(max(abs(q.x) - w, -q.y - sz), q.y - sz), .02, brass, vec3(s, .5 * v, sqrt(1.05 - s * s)), glow * uKeys * uEnergy * .5 * sat(.6 - s), 1., 1.);
+  boLay(max(max(abs(q.x) - w, -q.y - sz), q.y - sz) + .1 * boX, .02, brass, vec3(s, .5 * v, sqrt(1.05 - s * s)), glow * uKeys * uEnergy * .5 * sat(.6 - s), 1., 1.);
   // two drums with jointed sticks
   for (int i = 0; i < 2; i++) {
     float f = float(i), R = .155 - .06 * f; q = at - par * (.28 + .04 * f) - vec2(.66 - .255 * f, -.24 - .06 * f);
     float l = length(q), wave = (l - R * (1. - uHits)) / .02, rim = smoothstep(.0, .02, abs(l - R * .86));
     vec2 J = vec2(-.9, 1.05) * R, B = J + rot((.55 + .2 * f) * strike) * vec2(.85, -.95) * R;
-    boLay(l - R, .06, vec3(.36, .08, .05), vec3(q / R * .6, 1.), boNone, .0, .4 + .6 * rim);
-    boLay(l - R * .86, .004, vec3(.80, .66, .45) * (1. - .25 * smoothstep(.0, R, l)), boFace, mix(glow, uKind[4], .5) * uHits * (.10 + .45 * exp(-wave * wave)), .0, .7 + .3 * rim);
-    boLay(min(boRod(q, J, B), boRod(q, J, J + vec2(.4, .5) * R)) - .006, .02, vec3(.30, .17, .08), vec3(.0, .3, 1.), boNone, .3, 1.);
-    boLay(length(q - B) - .020, .02, vec3(.62, .50, .34), vec3((q - B) / .02, 1.), boNone, .0, 1.);
+    boLay(l - R + .3 * boX, .06, vec3(.36, .08, .05), vec3(q / R * .6, 1.), boNone, .0, .4 + .6 * rim);
+    boLay(l - R * .86 + .3 * boX, .004, vec3(.80, .66, .45) * (1. - .25 * smoothstep(.0, R, l)), boFace, mix(glow, uKind[4], .5) * uHits * (.10 + .45 * exp(-wave * wave)), .0, .7 + .3 * rim);
+    boLay(min(boRod(q, J, B), boRod(q, J, J + vec2(.4, .5) * R)) - .006 + .1 * boX, .02, vec3(.30, .17, .08), vec3(.0, .3, 1.), boNone, .3, 1.);
+    boLay(length(q - B) - .020 + .1 * boX, .02, vec3(.62, .50, .34), vec3((q - B) / .02, 1.), boNone, .0, 1.);
   }
   // the arch over all, and its one row of bulbs
   q = at - par * .34 - vec2(.06, -.74);
@@ -297,15 +347,15 @@ vec3 boFront(vec2 p) {
   vec2 bq = vec2((ang - id - .5) / 26. * PI * 1.1, da); float bl = length(bq) - .017, chase = .5 + .5 * sin(id * .8 - uTime * .55); chase *= chase;
   vec4 m = piece(vec2(.5 + id / 16., .5));
   vec3 glass = mix(mix(glow, kindColour(mod(id + 20., 5.)), .5), m.rgb / max(m.a, .01), sat(m.a) * .4); glass *= glass * 1.3;
-  boLay(-.055 - da, .16, board * .4, boFace, boNone, .0, 1.);
-  boLay(abs(da) - .055, .03, mix(board, trim, boAt(abs(abs(da) - .044) - .006)), boFace, boNone, .0, 1.);
-  boLay(bl - .006, .02, brass * .6, vec3(bq / .023, 1.), boNone, .6, 1.);
+  boLay(-.055 - da + 3. * boX, .16, board * .4, boFace, boNone, .0, 1.);
+  boLay(abs(da) - .055 + .3 * boX, .03, mix(board, trim, boAt(abs(abs(da) - .044) - .006)), boFace, boNone, .0, 1.);
+  boLay(bl - .006 + .1 * boX, .02, brass * .6, vec3(bq / .023, 1.), boNone, .6, 1.);
   float lamp = (.30 + .55 * chase * chase + .8 * sat(m.a) + 1.3 * uCue + .4 * uTexture * hash11(id + 9.)) * (.35 + .65 * uEnergy) * (.85 + night), core = exp(-dot(bq, bq) * 9000.), halo = sat(1. - bl * 20.);
-  boLay(bl, .004, glass * .5, vec3(bq / .017, .7), (glass * .8 + core * (.15 + glass)) * lamp, 1., 1.);
-  boGive += glass * lamp * .3 * halo * halo * halo * smoothstep(.0, .01, bl);
+  boLay(bl + .1 * boX, .004, glass * .5, vec3(bq / .017, .7), (glass * .8 + core * (.15 + glass)) * lamp, 1., 1.);
+  boGive += max(1. - 5. * boX, .0) * glass * lamp * .3 * halo * halo * halo * smoothstep(.0, .01, bl);
   // chalky paint, worn through here and there
   float g1 = noise(at * vec2(160., 60.)), g2 = noise(at * vec2(9., 13.) + 4.);
-  boAlb = mix(boAlb * (.78 + .22 * g1 + .22 * g2), vec3(.26, .20, .14), smoothstep(.82, .90, g2 * .7 + g1 * .4) * .5 * (1. - boMetal) * step(.8, boOpen));
+  boAlb = mix(boAlb * (.78 + .22 * g1 + .22 * g2), vec3(.26, .20, .14), smoothstep(.82, .90, g2 * .7 + g1 * .4) * .5 * (1. - boMetal) * step(.8, boOpen) * (1. - max(boOut, boX)));
   // evening from the left, the cool street, the bulbs above
   boNrm = normalize(boNrm);
   vec3 L = normalize(vec3(-.72, .36, .55)), key = boWorld(vec3(1.9, 1.15, .62), vec3(.16, .18, .30), vec3(1.7, 1.6, 1.4), uOwn[0]) * boOpen * (.25 + .75 * boIn(at.x - .7 * at.y + .1, .75));

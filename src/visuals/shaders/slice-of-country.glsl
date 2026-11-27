@@ -3,10 +3,13 @@
 // b: Fire block
 // what: A wedge of countryside cut out like cake hangs over cream paper with one soft shadow: fields, woods, a barn and a looped river on top, folded beds of rock in watercolour on its two cut faces, broken by one fault; or a block half out of the frame, a smoking cone on top and in its grey rock a pale red chamber and a branching dyke.
 // follows: The beds are the piece laid on its side: what sounds wets its stretch of bed to full colour. Drone bows the folds, pad moves a light over the land, texture grains the sand beds, the phrase silvers the river or heats the dyke, bands thicken sixteen beds. A hit lights and slips the fault, a cue lights the near edge and opens the faces, keys light windows.
-// own: 0 the season: snow at -1; gold autumn at 1, or a cone grown green; 1 the hour and the page: night on blue-black at -1, sunset on red clay at 1; 2 the beds: level at -1, tightly folded at 1 (and the chamber small, or large); 3 the land: high peaks or a taller cone at -1, drowned under a bay at 1; 4 seen from high up like a map at -1, from low down at 1; 5 the block: a thin slab at -1, a slim deep column at 1
+// own: 0 the season: snow at -1; gold autumn at 1, or a cone grown green; 1 the hour and the page: night on blue-black at -1, sunset on red clay at 1; 2 the beds: level at -1, tightly folded at 1 (and the chamber small, or large); 3 the land: high peaks or a taller cone at -1, drowned under a bay at 1; 4 seen from high up like a map at -1, from low down at 1; 5 the block: a thin slab at -1, a slim deep column at 1; 6 what lies on it, with the beds dyed in the sounds' colours: bare dunes and craters, or a chamber of water under pale stone, at -1, a town of small houses, or red streams down the cone, at 1; 7 the cut: a narrow slice of cake at -1, one long straight face at 1
 vec2 scER, scNR, scNL, scAB, scRt, scFw; // along the right face, into the block; its reach; right and away
 float scBase, scWat, scPx, scPit, scFallX, scHigh, scSlip;
 vec3 scL, scSun, scSky, scPap;
+#define scBare max(-uOwn[6], 0.)
+#define scTown max(uOwn[6], 0.)
+#define scDyed (abs(uOwn[6])*.8)
 const vec3 scVent = vec3(.62, 0., .05);
 const vec3 scDry = vec3(.97, .94, .88);
 float scS(float a, float b, float x) { x = sat((x - a)/(b - a)); return x*x*(3. - 2.*x); }
@@ -37,6 +40,16 @@ float scLand(vec2 q) {
   h += .02*sin(q.x*5.1 + 1.3)*sin(q.y*4.3 + q.x*1.7) + .04*q.y;
   float m = max(scHigh - 1., 0.);
   if (m > 0.) h += m*.16*(.5 - abs(sin(q.x*6.3 + 1.6*sin(q.y*5.))*.5 + sin(q.y*8. - q.x*3.)*.35))*scS(.1, .5, abs(r));
+  if (scBare > 0.) {
+    float v = q.x*3.1 + q.y*1.4 + .5*sin(q.y*3. + 1.) + .25*sin(q.x*7. - q.y*5.), fv = fract(v*.8);
+    h += scBare*(.075*fv*scS(1., .82, fv) - .02);
+    for (int i = 0; i < 5; i++) {
+      float fi = float(i), R = i == 0 ? .3 : .1 + .09*fract(fi*.618);
+      vec2 cq = q - (i == 0 ? vec2(.46, .62) : i == 1 ? vec2(1.02, .25) : i == 2 ? vec2(.2, 1.05) : i == 3 ? vec2(.95, .78) : vec2(.14, .25));
+      float cd = length(cq)/R; h += scBare*R*(.22*exp(-scSq((cd - 1.)*4.)) - .42*scS(1., .2, cd));
+    }
+    return h - (1. - scBare)*(.05/(1. + 45.*r*r) + .02/(1. + 2600.*r*r));
+  }
   h -= .05/(1. + 45.*r*r) + .02/(1. + 2600.*r*r);
   return h;
 }
@@ -94,6 +107,7 @@ vec3 scFace(vec3 P, float s, float px, float lit, float h) {
   float f = sat(x/w[k]), thick = w[k]/all*deep, fromTop = f*thick, toBase = (1. - f)*thick;
   float wash = scWash(f2 + float(k)*3.);
   vec3 col = scRock(k);
+  if (scDyed > 0.) { vec3 kc = uKind[(k*3 + 1) % 5]; col = mix(col, mix(kc, scDry, .55*scSq(hash11(float(k)*2.3 + 1.))), scDyed); }
   vec4 m = piece(vec2(.5 + .5*s/(s > 0. ? scAB.x : scAB.y), (float(k) + f)/16.));
   float wet = sat(m.a*(1. + 1.3*uEnergy));
   wet = sat(wet*(.75 + .5*scS(.3, .7, wash + .3*wet)));
@@ -146,10 +160,11 @@ vec3 scFace(vec3 P, float s, float px, float lit, float h) {
     vec3 red = mix(vec3(.83, .43, .37), vec3(.95, .7, .6), scS(0., -.1, d));
     red = mix(red*.93, vec3(1., .78, .56), .6*sat(heat));
     red *= .9 + .16*scWash(f2*1.3 + 9.);
+    if (scBare > 0.) red = mix(red, mix(vec3(.16, .46, .52), vec3(.62, .86, .84), sat(.35*heat + .6*scS(-.1, 0., d)))*(.92 + .1*scWash(f2*2.)), scBare);
     // cracks near the heat take its light
     float cr = abs(noise(vec2(f2.x*3. - f2.y*5., f2.x*11. + f2.y*8.) + .8*noise(f2*13.)) - .5);
     float near = exp(-max(d, 0.)*8.);
-    col = mix(col, col*vec3(1.2, .76, .68) + vec3(.07, .015, 0.), sat(near*near*(.45 + .6*heat)));
+    col = mix(col, mix(col*vec3(1.2, .76, .68) + vec3(.07, .015, 0.), col*vec3(.7, 1., 1.02) + vec3(0., .04, .05), scBare), sat(near*near*(.45 + .6*heat)));
     col = mix(col, red*1.05, scS(.022 + px, 0., cr)*scS(.3, .8, near)*sat(.25 + heat)*.8);
     col = mix(col, red*.55, scS(.006 + px, .002, d));
     own = scS(px, -px, d + .003);
@@ -190,6 +205,7 @@ vec3 scFields(vec3 P, vec3 n, float px, float sun) {
   vec3 grass = mix(vec3(.58, .66, .38), vec3(.7, .73, .46), h2), barley = vec3(.89, .79, .5), plough = vec3(.66, .5, .4);
   vec3 col = id < .34 ? grass : id < .52 ? barley : id < .66 ? plough : id < .84 ? vec3(.8, .81, .6) : vec3(.44, .57, .37);
   col = mix(col, (col.r + col.g)*vec3(.63, .48, .22), au);
+  if (scTown > 0.) col = mix(col, mix(vec3(.82, .77, .68), vec3(.7, .66, .6), h2), scTown*.85);
   // furrows
   float fu = (h2 > .5 ? f.x*sz.x : f.y*sz.y)/.012, fs = scS(.006, .002, pd);
   col *= 1. - (id > .34 && id < .66 ? .16 : .05)*fs*scS(.2, .5, abs(fract(fu) - .5));
@@ -202,12 +218,17 @@ vec3 scFields(vec3 P, vec3 n, float px, float sun) {
   col = mix(col, vec3(.97, .975, .98)*(.95 + .07*noise(q*25.)), wi*.9);
   col = mix(col, mix(mix(vec3(.25, .34, .2), vec3(.5, .33, .18), au*.7), vec3(.37, .34, .32), wi), hedge*.85);
   // the river
+  if (scBare > 0.) {
+    float rp = sin((q.x*3.1 + q.y*1.4)*46. + 5.*noise(q*5.));
+    vec3 sand = mix(mix(vec3(.9, .76, .54), vec3(.8, .6, .42), noise(q*3.)), mix(vec3(.93), vec3(.8, .5, .34), au), max(au, wi)*.8);
+    col = mix(col, sand*(.95 + .05*rp*scS(.008, .002, pd) + .08*(noise(q*40.) - .5)), scBare);
+  }
   float r = scRiver(q), ra = abs(r), rw = .019 + .006*sin(q.y*11.);
-  float riv = scS(rw + pd*.5, rw - pd*.5, ra);
+  float riv = scS(rw + pd*.5, rw - pd*.5, ra)*(1. - scBare);
   float go = fract(q.y*2.2 + uTime*.16), gl = scS(0., .5, go)*scS(1., .6, go);
   vec3 wat = mix(vec3(.44, .6, .7), vec3(.7, .8, .84), .5 + .5*sin(q.y*9. + 1.));
   wat = mix(wat, mix(vec3(1.06), uKind[3], .2), sat(uPhrase*(.45 + gl)));
-  col = mix(col, wat*vec3(.6, .62, .65), scS(rw + .005 + pd, rw + .002, ra)*.6);
+  col = mix(col, wat*vec3(.6, .62, .65), scS(rw + .005 + pd, rw + .002, ra)*.6*(1. - scBare));
   // sand where the sea comes in
   col = mix(col, vec3(.9, .83, .66), scS(-.045, -.012, scWat - P.y));
   float cs, patchy, dif = scDay(q, n, sun, cs, patchy);
@@ -222,11 +243,23 @@ vec3 scFields(vec3 P, vec3 n, float px, float sun) {
     float wood = noise(at*3.2 + 8.)*.75 + .25*hs.x - .12*scS(.5, .2, at.x);
     float on = scS(.58, .63, wood) + step(.95, hash21(b + 31.));
     on *= scS(.03, .05, abs(scRiver(at)))*step(0., dot(at, scNR) - .01)*step(0., dot(at, scNL) - .01);
+    if (scTown > 0.) on = mix(on, step(.28, hash21(b + 13.))*scS(.72, .58, noise(at*2.6 + 3.))*scS(.032, .045, abs(scRiver(at)))*step(0., dot(at, scNR) - .02)*step(0., dot(at, scNL) - .02), scTown);
+    if (scBare > 0.) on *= 1. - scS(.1, .6, scBare);
     if (on < .4) continue;
     float R = (.012 + .010*hs.y)*sat(on);
     vec2 d = q - at, u = vec2(dot(d, scRt), dot(d, up) - R*1.05);
     vec2 sd = d + scL.xz*.022; // its shade
     shade = max(shade, scS(1.25, .6, length(vec2(dot(sd, scRt)*.7, dot(sd, scFw)))/R));
+    if (scTown > 0. && hash21(b + 5.) < scTown) { // a house: two walls and a roof
+      float S = R*(.95 + .6*hs.x*hs.x), tall = .35 + .75*hash21(b + 2.), w = px/S; vec2 U = vec2(u.x, u.y + R*1.05)/S;
+      float wall = scS(w, -w, max(abs(U.x) - .92, abs(U.y - tall) - tall)), roof = scS(w, -w, max(abs(U.x) - 1.05 + .75*max(U.y - 2.*tall, 0.), abs(U.y - 2.*tall - .38) - .4));
+      vec3 wl = mix(mix(vec3(.97, .93, .85), uKind[int(hs.x*4.99)], .3), vec3(.66, .62, .68), scS(-w, w, U.x - .2));
+      float win = step(abs(abs(U.x + .1) - .4), .13)*step(abs(fract(U.y*1.6) - .5), .22)*scS(.02, .006, px);
+      wl = mix(wl, mix(wl*.45, vec3(1.6, 1.1, .5), sat(uKeys + .25*uLevel*hs.y + max(-uOwn[1], 0.)*step(.35, hs.x))), win);
+      vec3 rf = mix(mix(vec3(.72, .38, .28), vec3(.45, .46, .52), step(.6, hs.y)), mix(uKind[int(hs.y*4.99)]*.85, vec3(.95), wi), wi > 0. ? .85 : .55)*(U.x > .2 ? .78 : 1.05);
+      tc = mix(tc, wl, wall); crown = max(crown, wall); tc = mix(tc, rf, roof); crown = max(crown, roof);
+      continue;
+    }
     float e = length(u*vec2(1., .95))/R + .12*sin(u.x/R*5. + hs.x*20.)*sin(u.y/R*5.), a = scS(1. + px/R, 1. - px/R, e);
     if (a > 0.) {
       vec3 g = mix(mix(vec3(.27, .37, .23), vec3(.48, .53, .29), hs.x), mix(vec3(.62, .25, .12), vec3(.8, .55, .2), hs.x), au);
@@ -242,7 +275,7 @@ vec3 scFields(vec3 P, vec3 n, float px, float sun) {
     vec2 at = i == 0 ? vec2(.66, .52) : i == 1 ? vec2(.16, .4) : vec2(.82, 1.02);
     float S = i == 0 ? .045 : .03;
     vec2 d = q - at, u = vec2(dot(d, scRt), dot(d, up))/S; float w = px/S;
-    if (abs(u.x) > 3. || u.y < -2. || u.y > 3.) continue;
+    if (scBare > .3 || abs(u.x) > 3. || u.y < -2. || u.y > 3.) continue;
     lit *= 1. - .4*scS(.15, -.1, max(abs(u.x - 1.4) - .75, abs(u.y - .12) - .25));
     float wall = scS(w, -w, max(abs(u.x) - 1., abs(u.y - .4) - .42));
     float roof = scS(w, -w, max(abs(u.x) - 1.12 + .3*(u.y - .8), abs(u.y - 1.1) - .32));
@@ -266,8 +299,17 @@ vec3 scScree(vec3 P, vec3 n, float sun) {
   col = mix(col, mix(vec3(.46, .56, .33), vec3(.62, .66, .4), noise(P.xz*14.)), gr*scS(.66, .35, P.y + .3*(ch - .5)));
   col = mix(col, vec3(.8, .76, .66), scS(-.05, -.012, scWat - P.y));
   float cs, patchy, dif = scDay(P.xz, n, sun, cs, patchy);
-  return col*(scSky*.46 + scSun*dif)*(1. + patchy*(.15 + .5*uKind[1]))
-    + vec3(.55, .16, .1)*scS(.16, .02, r)*(.35 + .5*uPhrase + .8*uCue); // the mouth glows on its inner wall
+  if (scBare > 0.) col = mix(col, vec3(.9, .9, .86)*(.8 + .25*ch), scBare*.8);
+  vec3 fire = vec3(0.);
+  if (scTown > 0.) { // red streams find their way down
+    float an = noise(w*2.6 + vec2(0., r*1.3))*4.5, sn2 = noise(P.xz*5.)*.45;
+    float st = abs(fract(an + sn2) - .5), there = scS(1.05, .55, r + .4*noise(w*4.))*scS(.05, .13, r)*scTown, wide = max((.05 + .1*scS(.1, .7, r))*there, .002);
+    float go = .55 + .3*sin(r*16. - uTime*.35 + an*2.) + .6*uPhrase + .4*uCue;
+    fire = vec3(1.2, .42, .18)*scS(wide, wide*.35, st)*go*there + vec3(.4, .1, .05)*scS(wide*3., wide, st)*go*there;
+    col *= 1. - .6*there*scS(wide*3., wide, st);
+  }
+  return fire + col*(scSky*.46 + scSun*dif)*(1. + patchy*(.15 + .5*uKind[1]))
+    + mix(vec3(.55, .16, .1), vec3(.06, .3, .34), scBare)*scS(.16, .02, r)*(.35 + .5*uPhrase + .8*uCue); // the mouth glows on its inner wall
 }
 vec3 scTopColour(vec3 P, float px) {
   float e = .006, h = scLand(P.xz), tp = max(h, scWat);
@@ -276,6 +318,7 @@ vec3 scTopColour(vec3 P, float px) {
   for (int i = 1; i < 4; i++) { float t = .07*float(i*i); vec3 s = vec3(P.x, tp, P.z) + scL*t; sun = min(sun, scS(-.03, .03, s.y - scLand(s.xz))); }
   P.y = h;
   vec3 col = uVar < .5 ? scFields(P, n, px, sun) : scScree(P, n, sun);
+  if (uOwn[4] < 0.) { float fa = abs(P.x*.94 - P.y*.34 - P.z*.25 - (uVar < .5 ? .74 : 1.12)); col += (uKind[4]*.5 + .5)*uHits*-uOwn[4]*(.5*exp(-fa*13.) + .5*exp(-fa*90.)); }
   float dw = scWat - h;
   if (dw > -.002) {
     float rip = noise(P.xz*vec2(30., 60.) + uTime*.1);
@@ -307,7 +350,7 @@ vec4 scSmoke(vec2 p, vec2 at) {
   float a = scS(0., .22, d)*scS(-.02, .01, y)*scS(.8, .15, y);
   float ed = scS(0., .1, d)*scS(.35, .1, d);
   vec3 c = mix(vec3(.44, .44, .48), vec3(.92, .91, .89), sat(.5 + 2.2*(n - .5) - .5*q.x/wide));
-  c += vec3(.35, .08, .03)*(.15 + .6*uPhrase + uCue + uKeys)*exp(-y*16.);
+  c += mix(vec3(.35, .08, .03), vec3(.1), scBare)*(.15 + .6*uPhrase + uCue + uKeys)*exp(-y*16.);
   return vec4(c*(1. - .14*ed)*mix(scPap, vec3(1.), .4), a*(.75 + .2*uLow));
 }
 vec3 render(vec2 p) {
@@ -323,8 +366,8 @@ vec3 render(vec2 p) {
   scSky = mix(mix(vec3(.86, .9, .97), vec3(.4, .47, .68), nt), vec3(.7, .62, .78), ev);
   scPap *= mix(vec3(1.), uOwn[0] < 0. ? vec3(.93, .985, 1.08) : vec3(.98, .91, .74), abs(uOwn[0]));
   // how the block is cut and stands
-  float open = (B ? .04 : .09)*cue;
-  scER = vec2(cos(open), -sin(open)); scNR = vec2(sin(open), cos(open)); scNL = vec2(cos(open), sin(open));
+  float open = (B ? .04 : .09)*cue + (B ? 0. : uOwn[7] < 0. ? .42 : .7)*uOwn[7], openL = open + (B ? (uOwn[7] < 0. ? .5 : 1.3)*uOwn[7] : 0.);
+  scER = vec2(cos(open), -sin(open)); scNR = vec2(sin(open), cos(open)); scNL = vec2(cos(openL), sin(openL));
   scAB = (B ? vec2(3.3, 1.5) : vec2(1.62, 1.36))*(1. - (B ? .52 : .4)*max(o5, 0.));
   scBase = B ? -1.5 + .85*max(-o5, 0.) + .4*max(o5, 0.) : -.52 - .32*o5;
   scHigh = 1. - (B ? .25 : o3 < 0. ? .65 : .3)*o3;
@@ -336,7 +379,12 @@ vec3 render(vec2 p) {
   vec3 f = vec3(scFw.x*cp, -scPit, scFw.y*cp), r = vec3(scRt.x, 0., scRt.y), u = vec3(scFw.x*scPit, cp, scFw.y*scPit);
   vec3 away = vec3(scFw.x, 0., scFw.y), look = r*(B ? .78 : .33) + away*(B ? .3 : .62);
   look.y = B ? .16 + .02*max(o5, 0.) : -.07 - .26*max(o5, 0.);
-  float dist = (B ? 3.9 : 3.75) - .5*min(o3, 0.) - .7*min(v4, 0.);
+  if (uOwn[7] != 0.) {
+    float o7 = uOwn[7];
+    if (!B) look += (o7 > 0. ? r*.1 - away*.06 : -r*.12 + away*.16)*abs(o7);
+    else look += (o7 > 0. ? -r*.12 : r*.0)*abs(o7);
+  }
+  float dist = (B ? 3.9 : 3.75) + (B ? .3 : .75)*max(uOwn[7], 0.) - .5*min(o3, 0.) - .7*min(v4, 0.);
   look.y -= (B ? .13 : .26)*max(o5, 0.);
   vec3 o = look - f*dist, d = normalize(f + K*(r*p.x + u*p.y));
   scPx = K/uRes.y*far;
@@ -401,7 +449,7 @@ vec3 render(vec2 p) {
       float run = fract(F.y*1.4 + uTime*.3); run = scS(0., .4, run)*scS(1., .5, run);
       float a = scS(wd + px, wd - px, abs(fx))*st*scS(len, len - .3, fall);
       float shd = scS(.03, 0., abs(fx - .022))*step(scBase, F.y)*scS(0., .05, fall);
-      col *= 1. - .25*shd;
+      a *= 1. - scBare; col *= 1. - .25*shd*(1. - scBare);
       col = mix(col, mix(vec3(.84, .91, .93), vec3(1.), sat(uPhrase*run*1.4))*mix(vec3(1.), scSun, .8), a*(.8 + .2*uPhrase));
     }
   }

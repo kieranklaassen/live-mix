@@ -3,7 +3,7 @@
 // b: Melon field
 // what: Looking up from the floor of a round mud-brick dove tower: rings of small arched niches by the thousand, a leaning pillar, and daylight from the lattice above lying long and pale down one wall; or three squat banded towers in a field of melons in level evening sun, and a wheel of birds turning from sun to shade.
 // follows: The piece lies round the walls, up the room: a sounding niche warms and a dove sits in it; outside it lights vines and melons. The drone moves the daylight, or wets furrows; pad warms the earth, texture is dust, bands light the rings, a phrase climbs as a bird, a voice warms the sun, keys light niches or melons. A hit sends out a pair, a cue lifts the birds.
-// own: 0 moonlight at -1, red dusk inside or white noon outside at 1; 1 pale lime walls at -1, red clay at 1; 2 the roof gone and wide open, or low broad towers, at -1, walls drawn in to a small opening, or tapering hives, at 1; 3 nobody, and bare ground, at -1, a dove in nearly every niche, or many birds and melons, at 1; 4 looking straight up, or low among the melons, at -1, looking across at the niches, or from high over the field, at 1; 5 frost or snow at -1, ivy on the walls or a field all in leaf and flower at 1
+// own: 0 moonlight at -1, red dusk inside or white noon outside at 1; 1 pale lime walls at -1, red clay at 1; 2 the roof gone and wide open, or low broad towers, at -1, walls drawn in to a small opening, or tapering hives, at 1; 3 nobody, and bare ground, at -1, a dove in nearly every niche, or many birds and melons, at 1; 4 looking straight up, or low among the melons, at -1, looking across at the niches, or from high over the field, at 1; 5 frost or snow at -1, ivy on the walls or a field all in leaf and flower at 1; 6 great deep alcoves in few rings, or one tower alone, at -1, rings of tiny ones, or a crowd of towers, at 1; 7 one side fallen open to the sky, or stumps in blown sand, at -1, water lying on the floor, or over the field, and all of it mirrored at 1
 const vec3 dtWarm = vec3(1.0, 0.68, 0.36);
 float dtPx, dtLift, dtNight, dtDay, dtCold, dtLush, dtMany; // a pixel, a cue's lift, the hour, the season, how many live here
 vec3 dtMud, dtSun, dtAir;  // the colour of the earth, the sun's light, the sky's light
@@ -20,7 +20,13 @@ vec2 dtFly(vec2 q, vec2 hd, float size, float span) {
 }
 float dtArch(vec2 c, float a, float b, float s) { return c.y > s ? length(vec2(c.x, c.y - s)) - a : max(abs(c.x) - a, b - c.y); }
 // ---- a: inside, looking up
-const float dtTop = 3.6, dtRise = 0.225, dtPilR = 0.2;  // how high the tower and one ring are, the pillar's radius
+#define DT_K exp2(uOwn[6] > 0.0 ? -0.8 * uOwn[6] : -1.4 * uOwn[6])
+#define DT_RUIN max(-uOwn[7], 0.0)
+#define DT_FLOOD max(uOwn[7], 0.0)
+const float dtTop = 3.6;
+#define dtRise (0.225 * DT_K)
+#define dtPilR (0.2 - 0.2 * DT_RUIN + 0.03 * max(-uOwn[6], 0.0))
+  // how high the tower and one ring are, the pillar's radius
 const vec2 dtPil = vec2(0.55, 0.1), dtLean = vec2(0.01, 0.05);
 float dtMouth;  // the opening above
 vec3 dtL, dtOval;  // toward the sun, and where its oval lies
@@ -47,14 +53,14 @@ vec3 dtSoft(vec3 q, vec3 n) {
 }
 // A wall of niches at q: n faces us, e runs round, u counts round, cw is a niche.
 vec3 dtWall(vec3 q, vec3 n, vec3 e, vec3 d, float u, float count, float cw, float t) {
-  float ring = floor(q.z / dtRise), zz = q.z - ring * dtRise, rib = 0.034, rh = 0.5 * (dtRise - rib), row = step(rib + rh, zz), r = ring * 2.0 + row;
+  float ring = floor(q.z / dtRise), zz = q.z - ring * dtRise, rib = 0.034 * DT_K, rh = 0.5 * (dtRise - rib), row = step(rib + rh, zz), r = ring * 2.0 + row;
   float m = abs(u - 0.5 * count), g1 = noise(vec2(m * 1.3, q.z * 11.0)), g2 = noise(vec2(m * 8.0, q.z * 110.0));
   u += 0.5 * mod(r, 2.0);
   float id = mod(floor(u), count), h = hash21(vec2(id + 3.0, r + 60.0));
   vec2 c = vec2((fract(u) - 0.5) * cw, zz - rib - rh * (row + 0.5));
   vec3 dl = vec3(dot(d, e), d.z, max(-dot(d, n), 0.03)), ll = vec3(dot(dtL, e), dtL.z, -dot(dtL, n)), from = q - vec3(-0.8, 0.4, 0.75);
-  float w = t * dtPx * 1.6 / max(dl.z, 0.16), a = cw * (0.345 + 0.03 * h), b = -0.041, s = 0.041 - a, sd = dtArch(c, a, b, s) + 0.005 * (g2 - 0.5);
-  vec4 pc = piece(vec2(fract((id + 0.5) / count), 1.0 - sat((r + 0.5) / 32.0)));
+  float w = t * dtPx * 1.6 / max(dl.z, 0.16), a = cw * (0.345 + 0.03 * h), b = -0.041 * DT_K, s = 0.041 * DT_K - a, sd = dtArch(c, a, b, s) + 0.005 * (g2 - 0.5);
+  vec4 pc = piece(vec2(fract((id + 0.5) / count), 1.0 - sat((r + 0.5) * DT_K / 32.0)));
   float glow = smoothstep(0.0, 0.3, pc.a * 0.6 - fract(h * 13.7)) * sat(0.3 + pc.a) + uKeys * smoothstep(0.95, 0.97, fract(h * 7.31));
   vec3 tint = pc.rgb / max(pc.a, 0.01);
   tint = mix(vec3(1.0, 0.56, 0.2), tint * tint * 1.8, 0.4);
@@ -68,7 +74,7 @@ vec3 dtWall(vec3 q, vec3 n, vec3 e, vec3 d, float u, float count, float cw, floa
   face += alb * dtWarm * (uBands[int(clamp(ring, 0.0, 15.0))] * (0.02 + 0.16 * ribM) * (0.4 + uEnergy) + uHits * 0.8 * exp(-7.0 * dot(from, from)));
   // into the niche
   vec2 k = dl.xy / dl.z;
-  float deep = 0.075, ex = max(((k.x > 0.0 ? a : -a) - c.x) / (abs(k.x) < 1e-4 ? 1e-4 : k.x), 0.0), oy = c.y - s;
+  float deep = 0.075 * DT_K, ex = max(((k.x > 0.0 ? a : -a) - c.x) / (abs(k.x) < 1e-4 ? 1e-4 : k.x), 0.0), oy = c.y - s;
   vec3 nl = vec3(-sign(k.x), 0.0, 0.0);
   float x2 = (b - c.y) / min(k.y, -1e-4);
   if (k.y < 0.0 && x2 < ex) { ex = x2; nl = vec3(0.0, 1.0, 0.0); }
@@ -101,19 +107,31 @@ vec3 dtInside(vec2 p) {
   dtOval = vec3(0.95 * normalize(vec2(-0.5 + 0.12 * sin(uTime * 0.021) + 0.3 * uDrone, 0.84)), 1.4 + 0.12 * sin(uTime * 0.017 + 1.0) - 0.35 * uDrone);
   dtL = normalize(vec3(0.0, 0.0, dtTop) - dtOval);
   // the eye, near one wall
-  float el = mix(1.0, uOwn[4] < 0.0 ? 1.5 : 0.62, abs(uOwn[4])) + 0.01 * sin(uTime * 0.05), F = 0.66 + 0.06 * (uOwn[4] - uSpace);
+  float el = mix(1.0, uOwn[4] < 0.0 ? 1.5 : 0.62, abs(uOwn[4])) - 0.8 * DT_FLOOD * (1.0 + 0.2 * uOwn[4]) + 0.01 * sin(uTime * 0.05), F = 0.66 + 0.06 * (uOwn[4] - uSpace);
   vec3 o = vec3(-0.5 - 0.2 * min(uOwn[4], 0.0), -0.45, 0.0), ri = vec3(0.9928, -0.1197, 0.0), fw = vec3(0.1197 * cos(el), 0.9928 * cos(el), sin(el)), uu = cross(ri, fw);
-  vec3 d = normalize(fw * F + ri * p.x + uu * p.y), col;
+  vec3 d = normalize(fw * F + ri * p.x + uu * p.y), col, eye = o;
+  float pool = 0.0, gloss = 0.0;
+  if (uOwn[7] > 0.0) {  // water on the floor: the eye's ray goes on, turned up
+    float lev = mix(1.4, 0.16, DT_FLOOD), tw = lev / max(-d.z, 1e-3);
+    vec2 at = o.xy + d.xy * tw;
+    pool = (1.0 - step(0.0, d.z)) * dtIn(0.004 + tw * dtPx, length(at) - 1.0 - tp * lev);
+    if (pool > 0.5) {
+      gloss = pow(1.0 - min(-d.z, 1.0), 2.0);
+      float n1 = noise(at * vec2(9.0, 14.0) + vec2(0.0, uTime * 0.25)) - 0.5, n2 = noise(at * vec2(23.0, 31.0) - uTime * 0.21) - 0.5;
+      d.z = -d.z; o.z = -2.0 * lev;
+      d = normalize(d + vec3(n1 + 0.4 * n2, 0.6 * n1 - 0.5 * n2, 0.0) * 0.035 * (1.0 + uLow));
+    }
+  }
   // the wall, the ceiling, the pillar
   float A = dot(d.xy, d.xy) - tp * tp * d.z * d.z, B = dot(o.xy, d.xy) + tp * d.z, C = dot(o.xy, o.xy) - 1.0;
   float t = -C / max(B + sqrt(max(B * B - A * C, 0.0)), 1e-4), roof = (dtTop - o.z) / max(d.z, 1e-3), turn = fract(uTravel * 0.0007 + uTime * 0.0004);
   vec2 po = o.xy - dtPil, pd = d.xy - dtLean * d.z;
   float pa = max(dot(pd, pd), 1e-6), pb = dot(po, pd), pc = pb * pb - pa * (dot(po, po) - dtPilR * dtPilR), tq = (-pb - sqrt(max(pc, 0.0))) / pa;
-  bool ceiling = roof < t, pillar = pc > 0.0 && tq > 0.0 && tq < min(t, roof);
+  bool ceiling = roof < t, pillar = pc > 0.0 && tq > 0.0 && tq < min(t, roof) && DT_RUIN < 0.95;
   t = pillar ? tq : min(t, roof);
   vec3 q = o + d * t;
   vec2 c = q.xy - (pillar ? dtPil + dtLean * q.z : vec2(0.0));
-  float ang = fract(atan(c.y, c.x + 1e-5) / TAU + turn), r = max(length(c), 1e-3), fp = t * dtPx * 2.0, count = pillar ? 16.0 : 76.0, side = pillar ? 1.0 : -1.0;
+  float ang = fract(atan(c.y, c.x + 1e-5) / TAU + turn), r = max(length(c), 1e-3), fp = t * dtPx * 2.0, count = pillar ? max(floor(16.0 / DT_K + 0.5), 5.0) : floor(76.0 / DT_K + 0.5), side = pillar ? 1.0 : -1.0;
   if (ceiling && !pillar) {
     vec3 sky = dtAir * mix(vec3(1.9, 1.85, 1.8), vec3(0.5, 0.72, 1.05) * (0.7 + 0.7 * smoothstep(0.3, 0.8, noise(q.xy * 2.5 + uTime * 0.02))), 0.8 * wide);
     float seg = (fract(ang * 9.0) - 0.5) * TAU / 9.0;
@@ -126,10 +144,26 @@ vec3 dtInside(vec2 p) {
     col = dtWall(q, n, vec3(-c.y, c.x, 0.0) / r, d, ang * count, count, TAU * r / count, t);
     if (pillar) col *= mix(0.6, 1.0, smoothstep(0.0, 0.3, dot(-d, n)));
   }
+  if (uOwn[7] < 0.0 && !pillar) {  // one side of it fallen: the sky, over far hills
+    float aw = atan(q.x - 0.42, q.y + 0.15), step8 = floor(q.z / 0.11), jag = 0.16 * (hash11(step8 + (aw > 0.0 ? 40.0 : 7.0)) - 0.5) + 0.1 * (noise(vec2(aw * 9.0, q.z * 14.0)) - 0.5);
+    float gap = abs(aw) - DT_RUIN * (0.16 + 0.34 * max(q.z - 0.25, 0.0)) + jag, sill = 0.3 + 0.5 * (1.0 - DT_RUIN) - q.z;
+    gap = max(gap, sill + jag * 1.5) * (ceiling ? r : 1.0);
+    float open = dtIn(fp + 0.004, gap), up = atan(d.z, max(length(d.xy), 1e-3)), sun = exp(-2.2 * length(vec2(atan(d.x, d.y) - 0.5, up - 0.6)));
+    vec3 sky = dtAir * mix(vec3(0.85, 0.76, 0.66), vec3(0.2, 0.31, 0.5), smoothstep(0.0, 1.0, up)) + dtSun * sun * 0.45;
+    sky *= 0.8 + 0.4 * smoothstep(0.35, 0.8, noise(vec2(atan(d.x, d.y) * 3.0 + uTime * 0.006, up * 9.0)));
+    vec2 sc = vec2(atan(d.x, d.y), up) * 34.0, sh2 = hash22(floor(sc));
+    sky += dtNight * 1.2 * dtDn(0.0, 0.1, length(fract(sc) - 0.2 - 0.6 * sh2)) * step(0.75, sh2.x);
+    sky *= 1.0 - 0.45 * dtNight;
+    vec3 mo3 = d - vec3(0.2236, 0.6127, 0.7581);
+    sky += dtNight * (vec3(0.5, 0.5, 0.48) * dtIn(0.005, length(mo3) - 0.09) * (0.5 + 0.9 * noise(d.xz * 28.0)) + 0.1 * exp(-5.0 * length(mo3)));
+    col = mix(col, dtMud * (dtSoft(q, vec3(-c / r, 0.4)) * 1.5 + dtSun * 0.9 * (1.0 - dtNight * 0.5)) * (0.55 + 0.5 * noise(vec2(aw * 40.0, q.z * 40.0))), dtIn(0.01, gap - 0.035) * 0.85);
+    col = mix(col, sky, open);
+    if (open > 0.5) t += 3.0;
+  }
   // the shaft of daylight: how far the eye's ray runs in it
   vec2 sh = dtL.xy / dtL.z, so = o.xy + sh * dtTop, sv = d.xy - sh * d.z;
   float sa = max(dot(sv, sv), 1e-5), sb = dot(so, sv), sD = sqrt(max(sb * sb - sa * (dot(so, so) - dtMouth * dtMouth), 0.0));
-  float run = max(min((sD - sb) / sa, t) - max((-sb - sD) / sa, 0.0), 0.0);
+  float run = (1.0 - 0.7 * DT_RUIN) * max(min((sD - sb) / sa, t) - max((-sb - sD) / sa, 0.0), 0.0);
   col += dtSun * 0.8 * (1.0 - exp(-run * (0.08 + 0.02 * uLevel + 0.25 * uTexture) * (0.6 + 0.8 * noise(p * 5.0 + vec2(0.0, uTime * 0.04)))));
   // birds on slow rings; two climb, two burst across
   for (int i = 0; i < 10; i++) {
@@ -138,7 +172,7 @@ vec3 dtInside(vec2 p) {
     vec3 b = vec3(0.5 * cos(a) - 0.08, 0.5 * sin(a) + 0.12, 1.15 + 0.28 * mod(fi * 3.0, 7.0) + 0.5 * dtLift), hd = vec3(-sin(a), cos(a), 0.15) * way;
     if (i % 6 == 3) { b.z = 1.0 + 2.2 * rise; al *= smoothstep(0.0, 0.1, rise) * dtDn(0.85, 1.0, rise); }
     if (abs(k) < 1.0) { b = mix(vec3(0.4, 0.5 + 0.5 * k, 1.5), vec3(-0.72, 0.28, 0.75), uHits) + 0.2 * k; hd = vec3(1.0, 0.35 + 0.5 * k, 0.6); }
-    vec3 rel = b - o;
+    vec3 rel = b - eye;
     float z = max(dot(rel, fw), 0.1), sc = F * (i % 6 == 3 ? 0.115 : 0.085) / z;
     vec2 sp = vec2(dot(rel, ri), dot(rel, uu)) / z, bd = p - F * sp;
     if (length(bd) < sc * 1.25 && length(rel) < t) {
@@ -151,6 +185,7 @@ vec3 dtInside(vec2 p) {
   vec2 fa = rot(0.9 * cos(fc * 25.0) + 0.5) * (p - vec2(0.02 + 0.07 * sin(fc * 25.0), 0.24 - 0.62 * fc)) / vec2(0.036, 0.007);
   fa.y -= 0.6 * fa.x * fa.x;
   col = mix(col, dtSun * 0.7 + dtAir * 0.12, dtIn(dtPx * 70.0, length(fa * vec2(1.0, 1.0 + 0.4 * fa.x)) - 1.0) * smoothstep(0.0, 0.08, fc) * dtDn(0.9, 1.0, fc));
+  if (pool > 0.5) col = mix(vec3(0.02, 0.028, 0.026) + dtAir * 0.02 + dtMud * dtAir * 0.03, col, 0.5 + 0.45 * gloss);
   return col * 1.35;
 }
 // ---- b: outside, over the field
@@ -159,7 +194,19 @@ float dtEye, dtHor, dtHigh, dtTan;  // how high the eye stands, where the horizo
 vec2 dtS, dtC;  // toward the sun over the ground; where the drum we look at stands,
 vec3 dtLowC, dtHighC, dtQ;  // the sky below and above; how far round that drum, how high, 0 to 1 up it,
 float dtR, dtOwn, dtMain, dtCov, dtNow;  // how wide, of which tower, the main drum or not, how much it covers; the tower drawn now
-vec3 dtTowerAt(float i) { return i < 0.5 ? vec3(-10.8, 12.0, 5.0) : i < 1.5 ? vec3(9.4, 26.0, 5.2) : vec3(-5.2, 58.0, 5.0); }
+// 1 in a world of its own: what sounds fades out before the loop's ends show
+#define DT_AWAY min(4.0 * (abs(uOwn[2]) + abs(uOwn[3]) + abs(uOwn[4]) + abs(uOwn[5]) + abs(uOwn[6]) + abs(uOwn[7])), 1.0)
+#define DT_ONE max(-uOwn[6], 0.0)
+#define DT_TOWN max(uOwn[6], 0.0)
+#define DT_TOWERS (uOwn[6] > 0.0 ? 11.0 : 3.0)
+float dtTall, dtKeep;  // the tower drawn now: how high its main drum, and how ruined
+vec3 dtMir;
+vec3 dtTowerAt(float i) {
+  if (uOwn[6] < 0.0) return i < 0.5 ? mix(vec3(-10.8, 12.0, 5.0), vec3(-30.0, 14.0, 5.0), DT_ONE) : i < 1.5 ? mix(vec3(9.4, 26.0, 5.2), vec3(1.6, 19.0, 5.6), DT_ONE) : mix(vec3(-5.2, 58.0, 5.0), vec3(-60.0, 70.0, 4.0), DT_ONE);
+  if (uOwn[6] > 0.0 && i > 1.5) return mix(i < 2.5 ? vec3(-5.2, 58.0, 5.0) : vec3(-5.2, 58.0 + i, 0.4), vec3((hash11(i * 3.7) - 0.5) * (14.0 + 7.6 * i) + (mod(i, 2.0) - 0.5) * 16.0, 23.0 + 5.2 * i, 2.6 + 2.6 * hash11(i + 9.0)), DT_TOWN);
+  if (uOwn[6] > 0.0) return i < 0.5 ? vec3(-10.8, 12.0, mix(5.0, 4.2, DT_TOWN)) : vec3(mix(9.4, 7.4, DT_TOWN), 26.0, mix(5.2, 3.6, DT_TOWN));
+  return i < 0.5 ? vec3(-10.8, 12.0, 5.0) : i < 1.5 ? vec3(9.4, 26.0, 5.2) : vec3(-5.2, 58.0, 5.0);
+}
 // How much of the low sun reaches a place: the two nearer towers throw long shadows.
 float dtSunAt(vec3 q, float own) {
   float lit = 1.0;
@@ -183,20 +230,28 @@ void dtDrum(vec2 p, vec2 c, float r0, float r1, float h0, float h1, float dome) 
     v = sat((h - h0) / (h1 - h0));
     if (i == 0) r = mix(mix(r0, r1, v), r0 * sqrt(1.0 - v * v * v * v), dome) + 1e-3;
   }
-  float m = dtIn(w, max(abs(x) - r, max(h0 - h, h - h1)));
-  if (m > min(dtCov, 0.5)) { dtQ = vec3(clamp(x / r, -1.0, 1.0), h, v); dtC = c; dtR = r0; dtOwn = dtNow; dtMain = step(h1, dtHigh * 0.97); }
+  float rag = 0.0;
+  if (uOwn[7] < 0.0) {  // fallen brick by brick
+    float b = floor((x / max(r0, 0.1) + dtNow * 3.0 + c.x) * 5.0);
+    rag = DT_RUIN * dtTall * (step(0.01, h0) + 0.1 * hash11(b) + 0.55 * noise(vec2(x / max(r0, 0.1) * 1.7 + dtNow * 5.3, 0.5)) - 0.1);
+  }
+  float m = dtIn(w, max(abs(x) - r, max(h0 - h, h + rag - h1)));
+  if (m > min(dtCov, 0.5)) { dtQ = vec3(clamp(x / r, -1.0, 1.0), h, v); dtC = c; dtR = r0; dtOwn = dtNow; dtMain = step(h1, dtTall * 0.97); }
   dtCov = max(dtCov, m);
 }
 void dtTower(vec2 p, float i) {
   vec3 T = dtTowerAt(i);
-  float H = dtHigh, R = T.z, top = R * (0.93 - 0.4 * max(uOwn[2], 0.0)), a = asin(clamp((p.x * T.y / dtF - T.x) / (0.84 * top), -1.0, 1.0));
+  float H = dtHigh * (uOwn[6] > 0.0 ? mix(1.0, i < 1.5 ? 1.1 - 0.2 * i : 0.65 + 0.6 * hash11(i * 5.1 + 2.0), DT_TOWN) : 1.0), R = T.z, top = R * (0.93 - 0.4 * max(uOwn[2], 0.0)), a = asin(clamp((p.x * T.y / dtF - T.x) / (0.84 * top), -1.0, 1.0));
   a = 0.56 * clamp(floor(a / 0.56 + 0.5), -2.0, 2.0);
   vec2 rim = T.xy + top * 0.84 * vec2(sin(a), -cos(a));
   rim.x *= rim.y / T.y;
-  dtNow = i;
-  dtDrum(p, T.xy, R * 0.21, R * 0.21, H * 1.2, H * 1.58, 1.0);
-  dtDrum(p, T.xy, top * 0.57, top * 0.54, H * 0.8, H * 1.34, 0.0);
-  dtDrum(p, rim, R * 0.085, R * 0.085, H * 0.9, H * 1.22, 1.0);
+  dtNow = i; dtTall = H;
+  if (uOwn[6] > 0.0 && i > 2.5 && abs(p.x * T.y / dtF - T.x) > T.z * 1.1) return;
+  if (uOwn[7] > -0.7) {
+  dtDrum(p, T.xy, R * 0.21, R * 0.21, H * 1.2, H * (1.58 - 0.378 * DT_RUIN), 1.0);
+  dtDrum(p, T.xy, top * 0.57, top * 0.54, H * 0.8, H * (1.34 - 0.2 * DT_RUIN), 0.0);
+  dtDrum(p, rim, R * 0.085, R * 0.085, H * 0.9, H * (1.22 - 0.31 * DT_RUIN), 1.0);
+  }
   dtDrum(p, T.xy, top, top, H * 0.92, H * 1.06, 0.0);
   dtDrum(p, T.xy, R, top * 0.97, 0.0, H * 0.96, 0.0);
 }
@@ -228,28 +283,36 @@ vec3 dtWheel(vec3 col, vec2 p) {
   return col;
 }
 vec3 dtGround(vec2 p, float t) {
-  float gz = dtF * dtEye / t, gx = p.x * gz / dtF, fp = gz * dtPx / dtF, fz = gz * fp / dtEye, far = sat(1.3 - 1.6 * max(fp, abs(p.x / dtF - dtRun) * fz)), row = gx - dtRun * gz;
+  float gz = dtF * dtEye / t, gx = p.x * gz / dtF, fp = gz * dtPx / dtF, fz = gz * fp / dtEye, far = sat(1.3 - 1.6 * max(fp, abs(p.x / dtF - dtRun) * fz)) * (1.0 - DT_RUIN), row = gx - dtRun * gz;
   float u = row / 1.55 + 0.06 * sin(gz * 0.35), cu = cos(TAU * u) * far, g = noise(vec2(u * 5.0, gz * 2.0)), clod = mix(0.5, noise(vec2(u * 22.0, gz * 11.0)), sat(1.0 - 2.0 * fz));
   // level light across the furrows, and vines along the ridges
   vec3 L = normalize(vec3(dtS.x, dtTan, dtS.y));
   float lam = max(dot(normalize(vec3(sin(TAU * u) * 0.8 * far + clod - 0.5, 1.0, 0.5 * g - 0.25)), L), 0.0), lit = dtSunAt(vec3(gx, gz, 0.0), 9.0);
-  float green = smoothstep(0.42, 0.6, 0.5 * cu + 0.3 * clod + 0.35 * noise(vec2(u * 1.7, gz * 0.8)) + 0.12 + 0.7 * dtLush - 0.6 * dtCold + (dtMany < 0.0 ? 0.7 : 0.15) * dtMany);
+  float green = smoothstep(0.42, 0.6, 0.5 * cu + 0.3 * clod + 0.35 * noise(vec2(u * 1.7, gz * 0.8)) + 0.12 - 0.75 * DT_RUIN + 0.7 * dtLush - 0.6 * dtCold + (dtMany < 0.0 ? 0.7 : 0.15) * dtMany);
   vec3 alb = mix(dtMud * 0.72, vec3(0.2, 0.15, 0.11), 0.35) * (0.45 + 0.5 * g + 0.3 * clod);
+  if (uOwn[7] < 0.0) {  // blown sand, in low dunes
+    vec2 sp = vec2(gx * 0.09 + 0.3 * sin(gz * 0.11), gz * 0.13);
+    float d0 = noise(sp), dx = noise(sp + vec2(0.14, 0.0)) - d0, rip = sin(gx * 5.0 + gz * 2.0 + 5.0 * noise(vec2(gx, gz) * 0.4)) * sat(1.0 - 14.0 * fp);
+    lam = mix(lam, sat(0.3 - 2.6 * dx + 0.07 * rip), DT_RUIN);
+    alb = mix(alb, mix(dtMud, vec3(0.8, 0.62, 0.42), 0.4) * (0.85 + 0.3 * d0), DT_RUIN);
+  }
   alb = mix(alb, mix(vec3(0.07, 0.1, 0.035), vec3(0.26, 0.27, 0.09), clod) * (0.4 + g), green);
   alb = mix(alb, vec3(0.85, 0.8, 0.25), dtLush * green * smoothstep(0.6, 0.7, clod));
   alb = mix(alb, vec3(0.83, 0.86, 0.92), dtCold * smoothstep(0.1, 0.4, g + 0.4 * cu + 0.1));
   // what is sounding lies on the field: across is the loop, away is the room
   vec4 pc = piece(vec2(0.5 + p.x / 1.76, sat(1.15 - gz / 34.0)));
+  pc *= 1.0 - DT_AWAY * smoothstep(0.6, 0.88, abs(p.x));
   vec3 col = alb * (dtSun * 3.4 * lam * lit + dtAir * (0.13 + 0.1 * cu) + (pc.rgb * 0.7 + pc.a * 0.4 * dtWarm) * (0.4 + 1.1 * green) * (0.5 + uEnergy));
   float wet = dtDn(-0.93, max(-0.7 - 0.3 * fp, -0.92), cu) * smoothstep(0.0, 0.6, uDrone + 0.1 - 0.3 * g) * sat(1.0 + dtMany - dtCold - dtLush);
   col = mix(col, dtSky(p.x, 0.4 * t + 0.02 * clod) * (0.25 + 0.45 * lit), wet * 0.85);
+  if (uOwn[7] > 0.0) col = mix(col, mix(vec3(0.03, 0.04, 0.04) * dtAir * 3.0, dtMir, 0.62 + 0.3 * exp(-6.0 * t)), dtDn(-0.1, 0.12, 0.5 * cu + 0.25 * (g - 0.5) + 0.62 - 1.35 * DT_FLOOD));
   // melons, each a ball lying on a ridge
   float mz = gz * (1.0 - 0.1 / dtEye);
   for (float i = 0.0; i < 3.0; i++) {
     vec2 id = vec2(0.0, floor(mz / 2.4) - i);
     id.x = floor((p.x / dtF - dtRun) * (id.y + 0.575) * 1.548 + 0.5);
     float h = hash21(id + 11.0), zc = max((id.y + 0.4 + 0.35 * fract(h * 31.0)) * 2.4, 0.8), rr = 0.19 + 0.1 * fract(h * 57.0), k = zc / (dtF * rr);
-    float shown = dtIn(0.02, h - 0.53 - 0.56 * dtMany) * dtDn(18.0, 26.0, zc * max(2.3 / dtEye, 1.0)) * smoothstep(1.2, 2.0, zc) * (1.0 - 0.6 * dtCold);
+    float shown = dtIn(0.02, h - 0.53 - 0.56 * dtMany + 1.1 * DT_RUIN) * dtDn(18.0, 26.0, zc * max(2.3 / dtEye, 1.0)) * smoothstep(1.2, 2.0, zc) * (1.0 - 0.6 * dtCold);
     vec2 dq = (p - vec2(1.55 * (id.x - 0.06 * sin(zc * 0.35)) + dtRun * zc, rr * 0.85 - dtEye) * dtF / zc - vec2(0.0, dtHor)) * k, sd = (dq - vec2(-1.1, -0.85)) / vec2(1.7, 0.4);
     col *= 1.0 - 0.6 * shown * dtDn(0.3, 1.0, dot(sd, sd));
     vec3 nn = vec3(dq, sqrt(max(1.0 - dot(dq, dq), 0.0))), ma = mix(vec3(0.8, 0.55, 0.18), vec3(0.55, 0.6, 0.3), fract(h * 31.0)) * (0.8 + 0.1 * cos(atan(nn.x, nn.z + 1e-3) * 11.0 + h * 9.0) + 0.25 * clod);
@@ -275,9 +338,19 @@ vec3 dtField(vec2 p) {
   col += 0.5 * dtNight * dtDn(0.0, 0.09, length(fract(p * 42.0) - 0.2 - 0.6 * hh)) * step(0.8, hh.x);
   col = mix(col, mix(dtAir, dtHighC, 0.4) * 0.85, dtIn(dtPx, t - 0.03 - 0.02 * sin(p.x * 3.1 + 1.0)));
   col = mix(col, dtAir * 0.5, 0.9 * dtIn(dtPx, t - (0.006 + 0.022 * hash11(floor(tx))) * sqrt(max(1.0 - 4.0 * f * f, 0.0))));
+  if (uOwn[7] > 0.0 && t < 0.0) {  // what stands in the water, upside down
+    vec2 m = vec2(p.x, 2.0 * dtHor - p.y), wp = vec2(p.x, 1.0) * dtEye / max(-t, 2e-3);
+    m += vec2(0.25, 1.0) * (noise(vec2(wp.x * 2.0, wp.y * 5.0 + uTime * 0.5)) - 0.5) * 0.02 * sat(-t * 8.0) * (1.0 + uLow);
+    dtMir = dtSky(m.x, m.y - dtHor);
+    dtMir = mix(dtMir, dtSun * 0.75 + dtMir * 0.45, smoothstep(0.3, 1.0, noise(vec2(m.x * 2.0 + uTime * 0.003 - t * 2.0, -t * 19.0))) * 0.4);
+    dtMir = mix(dtMir, dtAir * 0.5, 0.8 * dtIn(dtPx, m.y - dtHor - 0.018));
+    dtCov = -1.0; dtEye = -dtEye;
+    for (float i = DT_TOWERS - 1.0; i > -0.5; i--) dtTower(m, i);
+    dtMir = mix(dtMir, dtBrick(), max(dtCov, 0.0)); dtEye = -dtEye;
+  }
   if (t < 0.0) col = dtGround(p, max(-t, 1e-3));
   dtCov = -1.0;
-  for (float i = 2.0; i > -0.5; i--) dtTower(p, i);
+  for (float i = DT_TOWERS - 1.0; i > -0.5; i--) dtTower(p, i);
   vec3 brick = dtBrick();
   float near = dtOwn < 0.5 ? dtCov : 0.0;
   col = mix(dtWheel(mix(col, brick, dtCov - near), p), brick, near);

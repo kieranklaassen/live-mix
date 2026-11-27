@@ -3,7 +3,8 @@
 // b: Three hubs
 // what: A lawn early in the day, set with opened paper umbrellas drying against the low sun; each lights up like a lamp and throws a tinted disc with its ribs on the grass, and the far ones crowd to a ribbon by a misty wood. Or lying under three of them: split bamboo, rings of thread, leaf shade on the paper, a wedge of sky.
 // follows: The piece dyes each paper by its place, and kinds open the umbrellas wider. The drone lowers the sun, the pad lets more light through, texture shows oil and fibres, a phrase rolls one round, sixteen bands light the panels. A hit runs out over one paper as it tips, a cue sends a bar of light and a gust, keys light the threads, the loop swings the sun.
-// own: 0 night with a lamp in each at -1, a red late sun at 1; 1 snow at -1, dry earth and dust at 1; 2 one umbrella alone at -1, a crowd at 1 (under the three: one wheel and open sky, or hardly any sky); 3 low in the grass at -1, from above at 1 (under the three: far off in the sky, or close to the ribs); 4 undyed white paper at -1, deep dye at 1; 5 flat as plates at -1, steep as hats at 1
+// own: 0 night with a lamp in each at -1, a red late sun at 1; 1 snow at -1, dry earth and dust at 1; 2 one umbrella alone at -1, a crowd at 1 (under the three: one wheel and open sky, or hardly any sky); 3 low in the grass at -1, from above at 1 (under the three: far off in the sky, or close to the ribs); 4 undyed white paper at -1, deep dye at 1; 5 flat as plates at -1, steep as hats at 1; 6 few broad panels, every other one white, at -1, many fine ribs and a broad dark ring at 1; 7 (a: set afloat on still water at -1, let go into the air over low hills at 1; b: many hung in rows along a street at -1, old and torn, the sky through the ribs, at 1)
+#define ouRb (2.*floor(16.*exp2(uOwn[6] < .0 ? 1.6*uOwn[6] : .8*uOwn[6]) + .5))
 const int ouN = 9;
 // where each stands (x, depth), how wide it is, when it joins (above 1 only in a crowd); near to far
 const vec4 ouPut[9] = vec4[9](
@@ -30,6 +31,12 @@ vec3 ouTint(float k, vec4 m) {
  c = mix(mix(c, c*c*c*vec3(.95,.7,.8), sat(uOwn[4])), vec3(.93,.89,.8), sat(-uOwn[4]));
  return mix(c, (s*s*.65 + .22)*(.4 + .7*c), .8*sat(m.a*1.3*ouG));
 }
+// The make of the paper: every other panel white, or a broad dark ring.
+vec3 ouMake(vec3 c, float id, float s, float w) {
+ if (uOwn[6] < .0) c = mix(c, vec3(.96,.93,.85), -uOwn[6]*step(.5, mod(id, 2.)));
+ if (uOwn[6] > .0) { float m = ouIn(abs(s - .56), .19, w + .004); c = mix(c, c*c*c*vec3(.30,.18,.16), .9*uOwn[6]*m); }
+ return c;
+}
 // What lies on and in the paper, of three noises: x fibres and clouds (about 1), y oil stains (0 to 1).
 vec2 ouSheet(vec3 n) { return vec2(mix(1.,.86 + .18*n.x + .1*n.y*n.z, .7 + .6*ouTex), mix(.5, ouStep(.48,.66, n.x + .16*(n.y - .5)), .35 + .65*ouTex)); }
 vec3 ouDye(int i) { vec2 u = ouPut[i].xy; return ouTint(ouPose[i].w, piece(vec2(.5 + .46*u.x/(1.2 + .46*u.y), 1.06 - .092*u.y))); }
@@ -39,7 +46,7 @@ void ouSet() {
  for (int i = 0; i < ouN; i++) {
   vec4 u = ouPut[i];
   vec3 n = ouPose[i].xyz;
-  float fi = float(i), one = i == 2 ? 1. : .0;
+  float fi = float(i), one = i == (uOwn[2] < -.7 ? 3 : 2) ? 1. : .0;
   float on = ouStep(u.w - 1., u.w - .5, o2);
   float R = u.z*on*(1. + .16*sat(lv[i % 4]*ouG) + .2*max(o2,.0) - (i == 3 ? .5*min(o2,.0) : .0));
   if (i == 3) n.xz = rot(-2.1*min(o2,.0))*n.xz;
@@ -49,6 +56,11 @@ void ouSet() {
   n = normalize(n);
   ouAx[i] = n;
   ouC[i] = vec4(u.x, R*sqrt(1. - n.y*n.y) + .16*one*skip, u.y, R > .03 ? R : .0);
+  if (uOwn[7] < .0) ouC[i].y += uOwn[7]*R*(.34*sqrt(1. - n.y*n.y) - .03*a);
+  if (uOwn[7] > .0) {
+   ouC[i].xyz += uOwn[7]*(vec3(.6*(u.x < .0 ? -1. : 1.)*hash11(fi + 2.), -.4 + 1.7*fract(fi*.618 + .15), fi*.3) + .22*vec3(sin(uTime*.11 + fi), sin(uTime*.17 + fi*2.), .0));
+   if (i == 0) ouC[i].xyz += uOwn[7]*vec3(-.2, .5, .6);
+  }
  }
 }
 // What the umbrellas leave of the sun at a place: a tinted disc with its ribs.
@@ -69,7 +81,7 @@ vec3 ouShade(vec3 q, int from, int to) {
   if (i >= to) break;
   float r = sqrt(r2), h = r/R;
   vec3 a = normalize(cross(n, vec3(.96,.0,.28)));
-  float rib = ouStep(.8 - .5*s, 1., cos(32.*atan(dot(v, cross(n, a)), dot(v, a) + 1e-5)))*ouStep(.1,.45, h)*(1. - sat(s*4.));
+  float rib = ouStep(.8 - .5*s, 1., cos(ouRb*atan(dot(v, cross(n, a)), dot(v, a) + 1e-5)))*ouStep(.1,.45, h)*(1. - sat(s*4.));
   vec3 tint = ouDye(i);
   c *= mix(vec3(1.), tint*tint*(.8 + .25*ouPad)*(1. - .6*rib)*mix(.4,1., ouStep(.02,.2, h)), ouStep(R + s, R - s, r));
   i++;
@@ -88,16 +100,16 @@ vec3 ouPaper(vec3 rd, vec3 nz, vec3 sh) {
  vec2 sheet = ouSheet(nz);
  // some are oiled afresh, some plain
  float oil = .4 + .4*sin(fi*2.4) + .5*(sheet.y - .5);
- vec3 pc = ouDye(ouI)*sheet.x;
+ vec3 pc = ouMake(ouDye(ouI), floor(ouBar*ouRb), s, w)*sheet.x;
  float paint = max(max(1. - ouIn(s, .89, w), ouIn(abs(s - .84), .01, w)), ouIn(s, .17, w));
  pc *= mix(vec3(1.), vec3(.74,.4,.28), .8*paint);
- float rw = .0065*(.6 + .4*s)*sqrt(R), rib = ouIn((.5 - abs(f - .5))*TAU*ouR/32., rw, ouFr)*min(1., rw/(ouFr*.6));
+ float rw = .0065*(.6 + .4*s)*sqrt(R), rib = ouIn((.5 - abs(f - .5))*TAU*ouR/ouRb, rw, ouFr)*min(1., rw/(ouFr*.6));
  float bnd = uBands[int(clamp(fract(ouBar)*16.,.0,15.))]*ouG*4.*f*(1. - f);
  // light through it, light on it
  vec3 T = ouSun*pc*sqrt(pc)*(.12 + al + .5*ouSq(sat(dot(rd, ouL))))*(.9 + .7*oil + .45*ouPad + .9*bnd)*(1. - .75*rib)*(1. - .28*ouIn(s, .52,.02));
  vec3 D = ouSun*pc*.5*al*(1. - .3*rib)*(1. + .8*bnd);
  // a hit runs out over one of them as a ring
- if (ouI == 2) T += ouSun*pc*.8*ouG*uHits*ouBell((s - 1. + .6*uHits)/.25);
+ if (ouI == (uOwn[2] < -.7 ? 3 : 2)) T += ouSun*pc*.8*ouG*uHits*ouBell((s - 1. + .6*uHits)/.25);
  vec3 c = mix(T, D, ouStep(-.3,.22, lit*side))*sh;
  c += ouSky*pc*(.34 + .2*N.y*side)*(1. - .35*rib);
  c += pc*pc*ouLamp*ouNt*(.25 + 1.1*exp(-s*s*2.6))*(1. - .6*rib)*(1. + .5*bnd + .4*ouPad);
@@ -108,7 +120,7 @@ vec3 ouPaper(vec3 rd, vec3 nz, vec3 sh) {
 }
 vec3 ouLawn(vec2 p) {
  float up = max(uOwn[3], .0), foc = 1.25*mix(.8,1., ouStep(.5,1.3, uRes.x/uRes.y))*mix(1.04,.94, uSpace);
- float pit = .3 + .72*up + .17*min(uOwn[3], .0);
+ float pit = .3 + .72*up + .17*min(uOwn[3], .0) - .2*max(uOwn[7], .0);
  vec3 ro = vec3(.1 + .22*sin(uTravel*.023), .0,7.1 - 1.5*up + .2*sin(uTravel*.017)) + (7.4 - .6*up)*vec3(.0, sin(pit), -cos(pit));
  vec3 rd = vec3(rot(.045)*p, foc);
  rd.yz = rot(-pit)*rd.yz;
@@ -136,14 +148,14 @@ vec3 ouLawn(vec2 p) {
   vec3 X = ro + rd*t, e = (X - ouC[i].xyz - n*(h - y))/r;
   float fr = t*ouPx/max(abs(dot(normalize(n + e*ouH), rd)), .12);
  // the phrase rolls one of them round
-  float bar = atan(dot(e, cross(n, a)), dot(e, a) + 1e-6)/TAU + (i == 6 ? .12*sin(uTravel*.06)*uPhrase : .0) + float(i)*.013, f = fract(bar*32.);
-  float edge = sat(.5 + (R*(1. - .056*f*(1. - f)) - r)/(fr*1.4)), cov = edge*ouStep(-.01,.03, X.y);
+  float bar = atan(dot(e, cross(n, a)), dot(e, a) + 1e-6)/TAU + (i == 6 ? .12*sin(uTravel*.06)*uPhrase : .0) + float(i)*.013, f = fract(bar*ouRb);
+  float edge = sat(.5 + (R*(1. - .056*f*(1. - f)) - r)/(fr*1.4)), cov = edge*ouStep(-.01,.03, X.y + 9.*max(uOwn[7], .0));
   if (ds >= .0 && y > .0 && t > .1 && cov > ouCov) { ouI = i; ouX = X; ouE = e; ouR = r; ouF = f; ouBar = bar; ouFr = fr; ouCov = cov; }
   if (ouCov > .5 && edge > .95) break; // at a rim the one behind may still fill the pixel
   i++;
  }
  bool pap = ouI < ouN, tree;
- float tg = -ro.y/min(rd.y, -.004), tx = pap ? length(ouX - ro) : tg;
+ float tg = -(ro.y + 1.6*max(uOwn[7], .0))/min(rd.y, -.004), tx = pap ? length(ouX - ro) : tg;
  vec3 q = ro + rd*tg, P = pap ? ouX : q;
  tree = q.z > 24. && !pap;
  vec2 s2 = rd.xy/max(rd.z, .1), o2 = s2 - vec2(ouL.x/ouL.z, .08);
@@ -162,12 +174,32 @@ vec3 ouLawn(vec2 p) {
  alb = mix(alb, vec3(.78,.8,.82)*(.9 + .12*n0 + .06*(b - .5)), ouSn);
  alb = mix(alb, mix(vec3(.42,.2,.09), vec3(.62,.37,.17), .5*b + .5*n0), ouDry);
  g = alb*(ouSun*sh*(.3 + ouL.y)*(.5 + .6*ouSq(sat(dot(rd, normalize(vec3(ouL.x, -.2, ouL.z))))))*mix(.75 + .7*b*b, 1., ouSn) + ouSky*.6);
+ if (uOwn[7] < .0) { // still water, and each umbrella upside down in it
+  vec3 rr = normalize(vec3(rd.x + .05*(n1 - .5)*exp(-tg*.1) + .03*(n0 - .5), -rd.y, rd.z));
+  vec3 wc = mix(ouSky*.55 + air*.35, air*.8, exp(-rr.y*5.)), dip = wc;
+  vec2 st = rr.xy/max(rr.z, .1);
+  dip = mix(dip, air*.35, .75*ouStep(.30,.12, st.y + .06*n3)); // the wood
+  for (int j = ouN - 1; j >= 0; j--) {
+   float R = ouC[j].w; vec3 nn = ouAx[j];
+   if (R <= .0) continue;
+   float nl = dot(nn, rr), t2 = dot(ouC[j].xyz - q, nn)/(abs(nl) < .05 ? .05 : nl);
+   vec3 v = q + rr*t2 - ouC[j].xyz;
+   float s = length(v)/R;
+   if (t2 < .0 || s > 1.08) continue;
+   vec3 a = normalize(cross(nn, vec3(.96,.0,.28))), dy = ouDye(j);
+   float u2 = (atan(dot(v, cross(nn, a)), dot(v, a) + 1e-5)/TAU + float(j)*.013)*ouRb, sf = .02 + .5*ouPx*t2;
+   dy = ouMake(dy, floor(u2), s, .02);
+   dip = mix(dip, dy*dy*(ouSun*(.30 + .35*ouPad) + ouSky*.6 + ouLamp*ouNt*exp(-s*s*2.))*(1. - .4*ouStep(.8,1., cos(TAU*u2))), ouStep(1. + sf, 1. - sf, s));
+  }
+  float fres = .25 + .7*pow(1. - sat(-rd.y), 3.);
+  g = mix(g, mix(mix(vec3(.02,.10,.085), vec3(.05,.16,.15), .6*n3 + .4*n0)*(.45 + .6*dot(ouSun*sh, vec3(.2))), dip, fres) + ouSun*sh*.10*ouStep(.80,1., n1*n2 + .25*n0), -uOwn[7]);
+ }
  // dew
  vec2 c2 = q.xz*vec2(16.,9.), id = floor(c2), h = hash22(id);
  float gw = 16.*tg*ouPx, dew = ouStep(.07 + gw, .02, length(c2 - id - .5 - .6*(h - .5)))*step(.62, h.y)*max(.4 + .6*sin(uTime*(.3 + .4*h.x) + h.y*40.), .0);
- g += ouSun*sh*(.4 + .8*uHigh*ouG)*dew*min(1.,.05/max(gw, 1e-3))*(1. - ouDry);
+ g += (1. + min(uOwn[7], .0))*ouSun*sh*(.4 + .8*uHigh*ouG)*dew*min(1.,.05/max(gw, 1e-3))*(1. - ouDry);
  // shade gathers under each one
- for (int j = 0; j < 7; j++) { vec2 e = (q.xz - ouC[j].xz)/(ouC[j].w + 1e-3); g *= 1. - .5*ouSq(max(1. - .6*dot(e, e), .0)); }
+ for (int j = 0; j < 7; j++) { vec2 e = (q.xz - ouC[j].xz)/(ouC[j].w + 1e-3); g *= 1. - .5*(1. - abs(uOwn[7]))*ouSq(max(1. - .6*dot(e, e), .0)); }
  g = mix(g, air, .6*(1. - exp(-ouSq(max(tg - 5.,.0)*.055))));
  if (pap && q.z > 24.) g = air*.4; // a rim before the wood
  if (tree) {
@@ -178,6 +210,19 @@ vec3 ouLawn(vec2 p) {
   g = mix(g, air*1.1, ouStep(.52,.64,.5*n2 + .5*n3 + .05*near)*ouStep(.0,.06,.04 + .13*n0 + .07*n1 - hy)*(.15 + .6*near));
   g = mix(g, air*.9,.35*exp(-hy*40.));
  }
+ if (uOwn[7] > .0) { // low hills under a wide sky
+  vec2 e2 = s2 - vec2(ouL.x/ouL.z, .18);
+  vec3 sk = mix(air*.95 + ouSky*.3, ouSky*1.5, ouStep(-.05,.6, s2.y)) + ouSun*(.22*exp(-dot(e2, e2)*7.) + .35*ouStep(.075,.06, length(e2)));
+  float cn = noise(s2*vec2(3.,11.) + vec2(uTime*.004, 2.))*.6 + noise(s2*vec2(8.,27.))*.4;
+  sk = mix(sk, sk*.8 + ouSun*.14, ouStep(.5,.75, cn)*ouStep(-.02,.15, s2.y));
+  for (int j = 0; j < 4; j++) {
+   float fj = float(j), hh = .05 - .09*fj + (noise(vec2(s2.x*(1.6 + .7*fj) + fj*9., fj)) - .5)*.11, near = .25 + .2*fj;
+   vec3 hc = mix(mix(vec3(.10,.17,.07), vec3(.30,.32,.10), (.25 + .5*noise(s2*vec2(5.,16.)*(1.4 - .25*fj) + fj)*(.5 + noise(s2*vec2(60.,160.) + fj))))*1.2, mix(vec3(.75,.8,.85), vec3(.5,.28,.13), ouDry), max(ouSn, ouDry))*(ouSun*.30 + ouSky*.4);
+   sk = mix(sk, mix(air*.8 + ouSky*.15, hc, near), ouStep(.004,-.004, s2.y - hh));
+   sk = mix(sk, air*.85 + ouSky*.1, .35*ouStep(.09,.0, hh - s2.y)*step(s2.y, hh)*(1. - near)*.8);
+  }
+  g = mix(g, sk, uOwn[7]);
+ }
  // the far ones crowd to a ribbon
  float rr = .0, z = .0, cv = .0, kk = .0;
  vec2 d = p, at = p;
@@ -185,23 +230,25 @@ vec3 ouLawn(vec2 p) {
   kk = float(j/2); z = 8.9 + 4.*up + 3.2*kk; tg = (z - ro.z)/max(rd.z, .05);
   q = ro + rd*tg;
   at.x = q.x/1.02 + kk*.37; at.y = floor(at.x); cv = .0;
+  if (uOwn[7] > .0) q.y -= uOwn[7]*(-.9 + 3.6*hash11(at.y*3.7 + kk*11.) + .2*sin(uTime*.13 + at.y));
   if (q.y < .0 || q.y > 1.4) continue;
   // of two that overlap the even one stands in front
-  if ((mod(at.y, 2.) > .5) == (j % 2 == 0)) at.y += at.x - at.y < .5 ? -1. : 1.;
+  if (uOwn[7] <= .0 && (mod(at.y, 2.) > .5) == (j % 2 == 0)) at.y += at.x - at.y < .5 ? -1. : 1.;
   h = hash22(vec2(at.y, kk + 3.));
   rr = (.4 + .26*h.x)*step(.1, fract(h.x*7.7))*ouStep(-1.,-.5, uOwn[2] - .2*h.y) + 1e-3;
+  if (uOwn[7] > .0) rr *= 1. - .38*uOwn[7];
   float v = .6 + .35*h.y;
-  d = vec2((at.x - at.y - .5 - .2*(h.y - .5))*1.02, q.y - rr*v*.8)/vec2(rr, rr*v);
-  cv = ouIn(length(d), 1., tg*ouPx*1.5/rr)*ouStep(.0,.1, q.y)*step(.02, rr);
+  d = vec2((at.x - at.y - .5 - .2*(h.y - .5))*1.02, q.y - rr*v*.8 - .25*max(uOwn[7], .0))/vec2(rr, rr*v);
+  cv = ouIn(length(d), 1., tg*ouPx*1.5/rr)*ouStep(.0,.1, q.y)*step(.02, rr)*(1. - max(uOwn[7], .0)*step(.45, fract(h.y*5.3)));
   if (cv > .3) break;
  }
  pc = ouTint(h.y*3., piece(vec2(.5 + .46*at.y/(1.2 + .46*z), .1)));
- pc = pc*pc*(ouSun*(.9 + .5*d.y) + ouNt*ouLamp)*(.85 + .15*cos(16.*atan(d.y - .15, d.x + 1e-5))) + ouSky*.3*pc;
+ pc = pc*pc*(ouSun*(.9 + .5*d.y) + ouNt*ouLamp)*(.85 + .15*cos(.5*ouRb*atan(d.y - .15, d.x + 1e-5))) + ouSky*.3*pc;
  g = mix(g, mix(pc, air, .06 + .07*kk), cv);
  }
  vec3 c = mix(ouPaper(rd, vec3(n0, n1, n2), sh), air, .5*(1. - exp(-ouSq(max(tx - 4.,.0)*.06))));
  // blades of grass stand before its foot
- g = mix(g, c, pap ? ouCov*ouStep(.0,.02, ouX.y - .08*n3*n3*(1. - ouDry)) : .0);
+ g = mix(g, c, pap ? ouCov*ouStep(.0,.02, ouX.y + 9.*max(uOwn[7], .0) - .08*n3*n3*(1. - ouDry)*(1. - abs(uOwn[7]))) : .0);
  // the stick of the one we look into
  vec3 n = ouAx[3], sv = -n*ouC[3].w*(ouH + 1.15), w0 = ouC[3].xyz - ro + n*ouC[3].w*ouH*.95;
  float sb = dot(sv, rd), sl = sat((sb*dot(rd, w0) - dot(sv, w0))/max(dot(sv, sv) - sb*sb, 1e-4));
@@ -226,36 +273,42 @@ float ouLeaves(vec2 p, float soft) {
 void ouWheel(int i, vec4 wh, vec2 q, float R, vec2 o, float px, float ang, vec2 sq, inout vec3 c, inout vec3 light) {
  float r = length(q), s = r/R, w = px/R, fi = float(i);
  if (s > 1.01) return;
- float u = (atan(q.y, q.x + 1e-6)/TAU + ang)*32., f = fract(u), id = floor(u), sag = 4.*f*(1. - f);
- float cov = sat(.5 + (R*(1. - .02*sag) - r)/(px*1.4)), mid = ((id + .5)/32. - ang)*TAU;
+ float u = (atan(q.y, q.x + 1e-6)/TAU + ang)*ouRb, f = fract(u), id = floor(u), sag = 4.*f*(1. - f);
+ float gone = .0;
+ if (uOwn[7] > .0) { // torn: whole panels gone, others ragged
+  float hid = hash11(mod(id + 2.*ouRb, ouRb) + fi*37.), rag = noise(q/R*vec2(9.,9.) + fi*5.) + .4*noise(q/R*31.);
+  gone = ouStep(-.02,.02, uOwn[7]*.80 - .75*hid - .30*rag - .40*(1. - s) + .05)*ouStep(.12,.2, s);
+ }
+ float cov = sat(.5 + (R*(1. - (uOwn[6] < .0 ? .02 - .06*uOwn[6] : .02)*sag) - r)/(px*1.4)), mid = ((id + .5)/ouRb - ang)*TAU;
  vec2 at = wh.xy + (.25 + .75*s)*R*vec2(cos(mid), sin(mid));
  vec4 m = piece(vec2(.5 + at.x/1.8,.5 - at.y))*(.55 + .45*s);
  float bnd = uBands[int(clamp(mod(id, 16.), .0,15.))]*ouG*sag, lum = dot(light, vec3(.33));
  vec2 sq2 = q*2.2 + fi*3.1, sh = ouSheet(vec3(noise(sq2*3.), noise(sq2*vec2(9.,31.)), noise(rot(1.1)*sq2*vec2(11.,37.))));
- vec3 pc = ouTint(wh.w, m)*sh.x;
+ vec3 pc = ouMake(ouTint(wh.w, m), mod(id + 2.*ouRb, ouRb), s, w)*sh.x;
  vec3 through = light*pc*.5;
  pc *= mix(vec3(1.), vec3(.8,.4,.26), .75*ouStep(.93 - w, .93 + w, s));
  vec3 T = light*pow(pc, vec3(1.5))*(.9 + .4*sh.y)*(1. + .5*ouPad + .9*bnd)*(.86 + .2*sag + .1*(f - .5));
  // a hit runs out along one paper as a ring
- if (i == 1) T *= 1. + 2.2*uHits*ouG*ouBell((s - 1. + .55*uHits)/.15);
+ if (i == (uOwn[2] < -.7 ? 0 : 1)) T *= 1. + 2.2*uHits*ouG*ouBell((s - 1. + .55*uHits)/.15);
  T /= 1. + .2*dot(T, vec3(.33));
  T += pc*pc*ouLamp*ouNt*(.2 + 1.3*exp(-s*s*3.))*(1. + .4*ouPad + .5*bnd) + ouSky*pc*.16;
  // the long ribs, split bamboo with a lit edge
  vec3 bam = vec3(.4,.23,.1), e = vec3(q/max(r, 1e-4), .0);
- float ds = (f < .5 ? f : f - 1.)*TAU*r/32., rw = R*(.007 + .005*s), ts = dot(vec2(-e.y, e.x), sq - q) > .0 ? 1. : -1.;
+ float ds = (f < .5 ? f : f - 1.)*TAU*r/ouRb, rw = R*(.007 + .005*s), ts = dot(vec2(-e.y, e.x), sq - q) > .0 ? 1. : -1.;
  vec3 rc = bam*(.16 + .16*lum + .75*lum*ouStep(.1,1., ts*ds/rw)) + bam*ouLamp*ouNt*exp(-s*2.);
  T *= 1. - .3*exp(-abs(ds)/(rw*1.6));
  T = mix(T, rc, ouIn(abs(ds), rw, px)*(1. - .25*s));
  T = mix(T, vec3(.25,.06,.03)*(.3 + lum), .7*ouIn(abs(s - .972), .002, w));
+ if (uOwn[7] > .0) cov *= max(1. - gone, max(ouIn(abs(ds), rw*.8, px), ouIn(abs(s - .972), .003, w)));
  c = mix(c, T, cov);
  light = mix(light, through, cov);
  // the short ribs, from the runner lower on the stick up to the long ones
  float a = .075*R, b = .58*R, v = .0, r2 = r;
  vec2 q2 = q;
  for (int n = 0; n < 2; n++) { q2 = q - o*(1. - v); r2 = length(q2); v = clamp((r2 - a)/(b - a), .0,1.); }
- u = (atan(q2.y, q2.x + 1e-6)/TAU + ang)*32.; f = fract(u);
+ u = (atan(q2.y, q2.x + 1e-6)/TAU + ang)*ouRb; f = fract(u);
  if (v < 1.) {
-  float out_ = step(.001, v), k = TAU*r2/32.;
+  float out_ = step(.001, v), k = TAU*r2/ouRb;
   ds = (f < .5 ? f : f - 1.)*k; rw = R*.0085*(1.15 - .3*v);
   rc = bam*((.12 + .12*lum + .42*lum*ouStep(.0,1., ts*ds/rw))*(.8 + .4*hash11(floor(u + .5) + 5.)) + ouLamp*ouNt*(1. - v));
   c = mix(c*(1. - .35*(1. - v)*out_), rc, ouIn(abs(ds), rw, px)*out_);
@@ -295,10 +348,32 @@ vec3 ouWheels(vec2 p) {
  // snow on the paper shuts out some of the light
  light = mix(light, mix(light*vec3(.9,1.,1.15), light*vec3(.22,.3,.42) + vec3(.05,.08,.13), ouStep(.3,.6,.75*n1 + .3*n2)), ouSn);
  vec3 c = sky;
+ if (uOwn[7] < .0) { // a street roofed with them, seen on our backs: two storeys of rows
+  float gr = ouStep(.05,.5, -uOwn[7]), ry = .77 + .64*p.y;
+  vec2 pl = vec2(p.x, .64 - .77*p.y)/max(ry, .2);
+  for (int k = 0; k < 2; k++) {
+   float fk = float(k), sc = k == 0 ? 1.75 : 1., cell = .50 - .12*uOwn[2];
+   vec2 g2 = pl*sc/cell + vec2(.5*mod(floor(pl.y*sc/cell), 2.) + .37 + .4*fk, .45*fk), ic = floor(vec2(g2.x, g2.y));
+   g2.x = pl.x*sc/cell + .5*mod(ic.y, 2.) + .37 + .4*fk; ic.x = floor(g2.x);
+   vec2 hh = hash22(ic + 7.*fk + 40.), q = (g2 - ic - .5)*cell;
+   float wire = abs(q.y + .012*cos(TAU*(g2.x - ic.x)))/(sc*ry), R = cell*(.37 + .06*hh.x)*gr;
+   c = mix(c, vec3(.03,.025,.02) + .1*sky, gr*.8*ouIn(wire, .0016, px)*(k == 0 ? .5 : 1.));
+   q += .03*cell*vec2(sin(uTime*.23 + hh.x*20.), cos(uTime*.19 + hh.y*20.)) + .05*cell*gust*sin(hh*20. + 5.*uCue);
+   vec2 ctr = (ic + .5 - vec2(.5*mod(ic.y, 2.) + .37 + .4*fk, .45*fk))*cell/sc, dn = vec2(.0,-1.);
+   float dd = max(.77 + .64*ctr.y, .2);
+   ctr = vec2(ctr.x, .64 - .77*ctr.y)/dd;
+   vec2 tl = (hh - .5)*(.22 + .25*max(uOwn[5], .0));
+   float da = dot(q, tl);
+   vec3 was = c;
+   if (R > .02) ouWheel(k == 1 && hh.x > .7 ? 1 : 3, vec4(ctr, R, floor(hh.y*4.) + .3*hh.x), q/max(1. - da/R*.5, .4), R, (tl + vec2(.0,-.16))*R*.45, px*sc/(ry*ry)*.8, hh.x + .03*sin(uTime*.1 + hh.y*9.), (sun - p) + q, c, light);
+   if (k == 0) c = mix(was, mix(c, sky, .28), 1.);
+  }
+ }
  for (int i = 2; i >= 0; i--) {
+  if (uOwn[7] <= -.5) break;
   vec4 wh = i == 0 ? vec4(-.5,-.15,.63,.95) : i == 1 ? vec4(.6,-.32,.5,2.) : vec4(.37,.42,.41,.3);
   float fi = float(i), on = i == 0 ? 1. : ouStep(-.95,-.3, uOwn[2] - .12*fi);
-  float R = wh.z*on*(1. + (i == 0 ? .12 : .34)*max(uOwn[2], .0))*(1. + .03*sat(uLow*ouG));
+  float R = wh.z*on*(1. + 2.*min(uOwn[7], .0))*(1. + (i == 0 ? .12 : .34)*max(uOwn[2], .0))*(1. + .03*sat(uLow*ouG));
   if (R < .02) continue;
   wh.xy += .006*vec2(sin(uTime*.21 + fi*2.), sin(uTime*.17 + fi)) + .02*gust*vec2(sin(fi*2. + 5.*uCue), cos(fi + 4.*uCue));
   vec2 dn = normalize(i == 0 ? vec2(-.5,-.8) : i == 1 ? vec2(.35,-.9) : vec2(.75,.6)), side = vec2(-dn.y, dn.x), q = p - wh.xy, sq = sun - wh.xy;

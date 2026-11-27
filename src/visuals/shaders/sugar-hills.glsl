@@ -3,7 +3,12 @@
 // b: Sweet counter
 // what: Iced buns as big as hills on a pale pink tray, seen from crumb height: icing has run down in thick lobes, sprinkles throw small shadows, far buns go soft, and one cherry has rolled off. Or glass jars of balls and tube slices before a bright street, their colour lying on the marble.
 // follows: Each kind ices its own bun, lower as it is louder, or fills its own jars; the bands set how long drips are and how bright sweets. The piece tints sprinkles or sweets. A hit drops fresh sprinkles, or a sweet; a cue pours a new coat over the near bun, or sends a shaft of sun along. Keys light sprinkles or glass, a voice the wall or marble.
-// own: 0 dark cocoa at -1, white sugar at 1; 1 flat rings, or round bowls, at -1, tall domes, or narrow jars, at 1; 2 night with one warm lamp at -1, low gold sun at 1; 3 hardly iced, or nearly empty, at -1, iced far down, or full, at 1; 4 combed white icing on a checked cloth, or tiny beads, at -1, thick with big ones, or great balls, at 1; 5 near and low at -1, farther off at 1
+// own: 0 dark cocoa at -1, white sugar at 1; 1 flat rings, or round bowls, at -1, tall domes, or narrow jars, at 1; 2 night with one warm lamp at -1, low gold sun at 1; 3 hardly iced, or nearly empty, at -1, iced far down, or full, at 1; 4 combed white icing on a checked cloth, or tiny beads, at -1, thick with big ones, or great balls, at 1; 5 near and low at -1, farther off at 1; 6 whipped peaks at -1, fluted moulds at 1 (b: one great jar alone at -1, shelf upon shelf at 1), the sweets dyed in the sounds' colours; 7 adrift in the dark with no tray at -1, islands in a still syrup at 1 (b: no window and jars that glow at -1, a bay and a low sun outside at 1), dyed too
+#define SU_DYE sat(4. * max(abs(uOwn[6]), abs(uOwn[7])))
+#define SU_WHIP max(-uOwn[6], 0.)
+#define SU_MUCH max(uOwn[6], 0.)
+#define SU_DRIFT max(-uOwn[7], 0.)
+#define SU_SEA max(uOwn[7], 0.)
 vec3 suL, suSun, suAmb; // towards the sun, its light, the room's light
 vec3 suAt[2]; // the two near buns: across, away, radius
 vec3 suIc[4]; // the icing of each bun, the sweets of each jar
@@ -28,11 +33,12 @@ void suLight() {
  suNt = sat(-uOwn[2]); suGold = sat(uOwn[2]);
  suSun = mix(mix(vec3(2.6, 2.25, 1.75), vec3(2.5, 1.3, .62), suGold), vec3(1.15, .5, .17), suNt);
  suAmb = mix(mix(vec3(.42, .46, .6), vec3(.46, .33, .48), suGold), vec3(.06, .1, .27), suNt);
+ if (uVar > .5) { suSun *= 1. - .85 * SU_DRIFT; suAmb *= 1. - .75 * SU_DRIFT; }
  suIc[0] = vec3(.4, .64, .6); suIc[1] = vec3(.8, .33, .38); suIc[2] = vec3(.86, .63, .3); suIc[3] = vec3(.54, .62, .34);
  suLv[0] = uDrone; suLv[1] = uPad; suLv[2] = uTexture; suLv[3] = uPhrase;
  for (int k = 0; k < 4; k++) {
   suLv[k] = sat(suLv[k] * suAns);
-  vec3 c = mix(suIc[k], suInk(uKind[k]) * .8 + .1, .1 + .55 * suLv[k] * suLv[k]);
+  vec3 c = mix(suIc[k], suInk(uKind[k]) * .8 + .1, mix(.1 + .55 * suLv[k] * suLv[k], .9, SU_DYE));
   suIc[k] = mix(suGround(c, vec3(.1, .038, .02) + .07 * c, vec3(.86)), c, .12 * suSnow);
  }
 }
@@ -63,9 +69,11 @@ float suBun(vec3 q, int k) {
  vec2 ab = vec2(suForm.y, suB(q.y)), e = vec2(length(q.xz) + 1e-4 - suForm.x, q.y - suForm.w) / ab;
  float L = length(e) + 1e-4, g = length(e / ab) / L, tip;
  suS = -9.; suCoat = 0.;
- float most = uCue > .002 ? 1.13 : 1.085;
+ float most = (uCue > .002 ? 1.13 : 1.085) + .16 * abs(uOwn[6]) + .16 * SU_WHIP;
  if (L > most + .05) return (L - most) / g;
  suTh = vec2(atan(q.x, -q.z), abs(atan(e.x, e.y)));
+ if (uOwn[6] > 0.) L -= .16 * uOwn[6] * (abs(cos(suTh.x * 8.)) - .45) * suSq(sin(suTh.y));
+ if (uOwn[6] < 0.) L += .16 * uOwn[6] * (abs(cos(suTh.x * 4. + 5.5 * suTh.y)) - .4) * sin(suTh.y) + .3 * uOwn[6] * exp(-9. * suTh.y * suTh.y);
  suS = suIce(suTh.x, suTh.y, k, tip);
  float w = sat(suS / .13), thick = (.052 + .03 * tip) * sqrt(w * (2. - w));
  if (k == 0 && uCue > .002) {
@@ -75,7 +83,7 @@ float suBun(vec3 q, int k) {
   suCoat = suE(0., .02, c) * stay;
   thick += .045 * sqrt(w * (2. - w)) * stay;
  }
- return (L - 1. - thick) / g;
+ return (L - 1. - thick) / g * (1. - .4 * abs(uOwn[6]));
 }
 vec3 suSc() { return vec3(suForm.x + suForm.y, suForm.z, suForm.x + suForm.y); }
 // The sunlight that gets past the buns and the cherry; suAo is how open a place on the tray is.
@@ -127,10 +135,11 @@ vec3 suShade(vec3 q, vec3 pos, vec3 n, vec3 rd, int k, float s, vec2 tp, float c
   alb = mix(alb * (.84 + .3 * fleck * suE(.03, .005, px)), vec3(.16, .08, .05), .6 * suDark);
   vec3 top = mix(suIc[k], vec3(.85, .8, .74) - .4 * suSnow, .85 * sat(-uOwn[4]) * suE(-.2, .2, sin(q.x * 19. + 1.6 * sin(q.z * 7.)) - .3)); // combed with white
   alb = mix(mix(alb, top, ice), mix(vec3(.75, .3, .3), suInk(uKind[4]), .5) * .75 + .16, .85 * coat);
-  ice = max(ice, coat);
+  ice = max(max(ice, coat), SU_WHIP);
+  alb = mix(alb, suIc[k], SU_WHIP * suE(.01, -.01, s));
   room = suE(.05, .11, s) * suE(1.75, 1.2, ph) * (1. - coat) * suE(.04, .015, px);
  } else {
-  dense *= .1 + .4 * fleck; // those that missed
+  dense *= (.1 + .4 * fleck) * (1. - SU_SEA); // those that missed
   vec2 ce = vec2(.1 + px * 9.), check = suE(-ce, ce, sin(pos.xz * 6.));
   alb = mix(alb, vec3(.86, .82, .78) * (1. - .7 * suDark), .4 * sat(-uOwn[4]) * (check.x + check.y));
  }
@@ -159,6 +168,25 @@ vec3 suShade(vec3 q, vec3 pos, vec3 n, vec3 rd, int k, float s, vec2 tp, float c
  if (gloss > .001) c += gloss * (suWin(ref, mix(.13, .05, uTone)) * (suSun * .2 + .5) * (1. - .6 * suNt) * (.5 + .5 * fr) + fr * .35 * (suAmb + suSun * .3) * suE(-.2, .6, ref.y));
  return c + add;
 }
+// Still syrup, and what stands in it seen in it again.
+vec3 suPool(vec3 pos, vec3 rd, vec3 sky) {
+ vec2 w = pos.xz * 2.2 + .3 * sin(pos.zx * 3.1 + uTime * .11);
+ vec3 n = normalize(vec3(.016 * cos(w.x + .13 * uTime) + .01 * cos(2.3 * w.y), 1., .02 * sin(w.y * 1.4 - .17 * uTime))), r = reflect(rd, n), q;
+ vec3 c = sky * mix(1.15, .7, sat(2. * r.y)) + suWin(r, .1) * suSun * .25 * (1. - .6 * suNt);
+ float fr = .3 + .65 * suSq(1. - sat(r.y));
+ for (int k = 0; k < 3; k++) {
+  vec3 R = k < 2 ? suSc() * suAt[k].z : vec3(suChR), o = (pos - (k < 2 ? vec3(suAt[k].x, suForm.w * suAt[k].z, suAt[k].y) : suCh)) / R, l = r / R;
+  float ll = dot(l, l), b = -dot(o, l) / ll;
+  o += l * b;
+  float cc = dot(o, o), a = suE(.03, -.03, sqrt(cc) - 1.) * step(0., b);
+  q = o - l * sqrt(max(1. - cc, 0.) / ll);
+  vec3 alb = k < 2 ? mix(vec3(.6, .34, .14) * (1. - .7 * suDark), suIc[k], suE(-.08, .08, q.y + .1 + .4 * uOwn[3] + .16 * sin(q.x * 8.) + .1 * sin(q.x * 17. + 1.))) : vec3(.4, .03, .04);
+  c = mix(c, alb * (suSun * .9 * sat(.15 + .85 * dot(normalize(q / R), suL)) + suAmb * .7), a);
+ }
+ float m = piece(sat(vec2(.5 + pos.x * .1, 1. - pos.z * .09))).a * suAns;
+ vec3 deep = suIc[1] * mix(.3, .6, suSnow) * (suAmb * .8 + suSun * .3 * suE(0., 1., suSh(pos, 9))) * (.8 + .4 * sat(m));
+ return mix(deep, c, sat(fr));
+}
 vec3 suBuns(vec2 p) {
  p.x += .17 * suE(1., .6, uRes.x * suPx);
  float tall = sat(uOwn[1]), ring = sat(-uOwn[1]), nearer = sat(-uOwn[5]), higher = sat(uOwn[5]);
@@ -171,7 +199,7 @@ vec3 suBuns(vec2 p) {
  vec3 rd = normalize(vec3(p.x, p.y * cp - 1.5 * sp, p.y * sp + 1.5 * cp));
  vec3 tray = suGround(vec3(.8, .47, .45), vec3(.085, .05, .045), vec3(.72, .76, .82));
  vec3 wall = suGround(vec3(.86, .66, .46), vec3(.16, .12, .12), vec3(.58, .66, .74)), air = wall * (suAmb + suSun * (.4 - .25 * suNt));
- float tf = rd.y < -.002 ? -ro.y / rd.y : 1e4, left = 1.;
+ float tf = (rd.y < -.002 ? -ro.y / rd.y : 1e4) * (1. + 60. * SU_DRIFT), left = 1.;
  vec3 acc = vec3(0.);
  // a hit: sprinkles drop and bounce
  for (int i = 0; i < 13 && uHits > .003; i++) {
@@ -206,7 +234,7 @@ vec3 suBuns(vec2 p) {
   vec2 tp = vec2(0.); int feel = 0;
   cov = 0.;
   if (k < 2) {
-   vec3 sc = suSc() + .11, os = (o - vec3(0., suForm.w, 0.)) / sc, ds = d / sc;
+   vec3 sc = suSc() + .11 + .16 * abs(uOwn[6]) + .14 * SU_WHIP, os = (o - vec3(0., suForm.w, 0.)) / sc, ds = d / sc;
    float A = dot(ds, ds), B = dot(os, ds), D = B * B - A * (dot(os, os) - 1.);
    float root = sqrt(max(D, 0.));
    t = max((-B - root) / A, .02); t1 = min((-B + root) / A, tf);
@@ -227,7 +255,7 @@ vec3 suBuns(vec2 p) {
      t += max(f * R * .88, .7 * t * ph);
     } else if (feel == 1) {
      f0 = f; s = suS; coat = suCoat; tp = suTh; feel = 2;
-  if ((s > .2 || s < -.06) && (k > 0 || uCue < .002)) {
+  if ((s > .2 || s < -.06) && uOwn[6] == 0. && (k > 0 || uCue < .002)) {
        float r = length(q.xz) + 1e-4;
       nd = vec3(q.xz / r * (r - suForm.x) / suSq(suForm.y), (q.y - suForm.w) / suSq(suB(q.y))).xzy;
       break;
@@ -237,24 +265,33 @@ vec3 suBuns(vec2 p) {
      if (feel > 4) break;
     }
    }
-  } else cov = suE(.006, -.02, rd.y + .055 * (1. - higher * .4));
+  } else cov = suE(.006, -.02, rd.y + .055 * (1. - higher * .4)) * (1. - SU_DRIFT);
   if (cov > 0.) {
    vec3 c = suShade(q, ro + rd * tm, normalize(nd + vec3(0., k < 2 ? 1e-5 : 1., 0.)), rd, k, s, tp, coat, tm * ph / R, tray);
    if (k < 2) { acc += c * cov * left; left *= 1. - cov; }
-   else col = mix(c, air, 1. - exp(-tf * mix(.012, .045, uSpace)));
+   else if (uOwn[7] > 0.) c = mix(c, suPool(ro + rd * tm, rd, air), uOwn[7]);
+   if (k > 1) col = mix(c, air, 1. - exp(-tf * mix(.012, .045, uSpace)));
   }
  }
  // the wall with the sun's window
  vec2 pw = abs(vec2(rd.x / rd.z - .26 - .45 * rd.y, rd.y - .14) / vec2(.2, .16));
  vec2 pane = suE(vec2(1.35), vec2(.7), pw) * suE(vec2(0., -.1), vec2(.3), pw);
  col = mix(wall * (suAmb * .9 + mix(suSun, vec3(.2, .45, 1.2), suNt) * (.2 - .18 * suNt + pane.x * pane.y * (.38 + .2 * uPad + .3 * max(uMic, uCue)) * (1. - .5 * suNt))), col, cov);
+ if (uOwn[7] < 0.) { // nothing round them but sugar and dark
+  vec2 w = rd.xy / rd.z * 30., h = hash22(floor(w));
+  vec3 night = (suInk(uKind[0]) * .09 + suAmb * .03) * 1.2 * suSq(noise(w * .1 + 3.) + noise(w * .23 + 9.)) + suAmb * .03;
+  night += step(.6, h.y) * (.2 + h.x) * suE(.06 + .12 * h.x * h.x, .0, length(fract(w) - .5 - .6 * (h - .5))) * (suSun * .3 + suIc[int(h.x * 4.)] * .5);
+  col = mix(col, night, uOwn[7] * uOwn[7]);
+ }
  // the far buns
- for (int i = left > .01 && abs(rd.y + .05) < .15 + .2 * (tall + higher) ? 2 : -1; i >= 0; i--) {
+ for (int i = left > .01 && abs(rd.y + .05) < .15 + .2 * (tall + higher) + SU_DRIFT ? 2 : -1; i >= 0; i--) {
   float fi = float(i), bl = (.035 + .035 * fi) * mix(.7, 1.4, uSpace);
   vec3 at = i == 0 ? vec3(3.4, 5.4, 1.) : i == 1 ? vec3(-.15, 6.8, 1.02) : vec3(1.9, 9.6, 1.15);
   float u = (at.y - ro.z) / rd.z;
-  vec3 rr = suSc() * at.z, o = ro - vec3(at.x, suForm.w * at.z, at.y), l = rd / rr, g = (o + rd * u) / at.z;
-  col *= 1. - .4 * suBell(max(abs(g.x - .35) - .5, 0.) * 2.2) * suBell((g.y + suForm.w) * 4.5);
+  at.y += 5. * SU_DRIFT;
+  u = (at.y - ro.z) / rd.z;
+  vec3 rr = suSc() * at.z, o = ro - vec3(0., SU_DRIFT * (fi - .7) * 2.4, 0.) - vec3(at.x, suForm.w * at.z, at.y), l = rd / rr, g = (o + rd * u) / at.z;
+  col *= 1. - .4 * (1. - SU_DRIFT) * suBell(max(abs(g.x - .35) - .5, 0.) * 2.2) * suBell((g.y + suForm.w) * 4.5);
   o /= rr;
   float ll = dot(l, l); o -= l * dot(o, l) / ll;
   float cc = dot(o, o);
@@ -270,30 +307,54 @@ vec3 suBuns(vec2 p) {
 }
 // The street through the window, out of focus.
 vec3 suStreet(vec2 p) {
+ vec3 board = vec3(0.);
+ if (uOwn[7] < 0.) {
+  float b = p.x / .19 + .02 * sin(p.y * 7.);
+  board = vec3(.2, .12, .08) * (suAmb * .5 + suSun * .12 + .012) * (.6 + .5 * suH(floor(b) + 40.)) * (.7 + .6 * noise(vec2(p.x * 70., p.y * 3.))) * (1. - .8 * suE(.06, 0., abs(fract(b) - .5) * .19)) * 1.6;
+  if (uOwn[7] < -.75) return board;
+ }
  vec3 c = mix(suSun * (.68 - .64 * suNt) + suAmb * .6, suAmb * .7 + suSun * (.07 - .06 * suNt), suE(.5, -.15, p.y + .06 * p.x)) * mix(1., .45, suDark);
+ if (uOwn[7] > 0.) { // a bay
+  float y = p.y + .02, far = suE(.006, -.006, y - .012 - .09 * suE(.1, .9, p.x + .25 + .1 * noise(vec2(p.x * 9., 3.)))), z = .03 / (max(-y, 0.) + .03);
+  vec2 d = p - vec2(-.45, .13);
+  vec3 sky = mix(suSun * .55 + suAmb * .25, suAmb * 1.1 + suSun * .05, suE(0., .4, y + .1)) + suSun * (1.2 * suE(.062, .05, length(d)) + .5 * exp(-dot(d, d) * 14.));
+  sky = mix(sky, suAmb * .35 + suSun * .06, far);
+  vec3 sea = mix(suAmb * .5 + suSun * .12, suSun * .4 + suAmb * .3, z) + suSun * .9 * suBell(d.x / (.05 + .3 * max(-y, 0.))) * suE(.45, .75, noise(vec2(p.x * 16., 4. / (max(-y, 0.) + .06) + .2 * uTime)));
+  c = mix(c, y > 0. ? sky : sea, uOwn[7]);
+ }
  // a house over the way, its windows
  float soft = .2 + 2. * uSpace, house = suE(.045 * soft, -.045 * soft, abs(p.x + .34) - .34);
- c *= mix(vec3(1.), vec3(.84, .58, .46), house * .8);
+ c *= mix(vec3(1.), vec3(.84, .58, .46), house * .8 * (1. - SU_SEA));
  float holes = suE(.4 - .3 * soft, .4 + .3 * soft, cos(p.x * 24. + 7.)) * suE(.4 - .4 * soft, .4 + .4 * soft, cos(p.y * 19. - 3.4));
- c = mix(c, mix(vec3(.4, .5, .55) * suAmb, vec3(2.2, 1.1, .3), suNt), holes * house * .7);
+ c = mix(c, mix(vec3(.4, .5, .55) * suAmb, vec3(2.2, 1.1, .3), suNt), holes * house * .7 * (1. - SU_SEA));
  // somebody goes by
  float w = fract(uTime * .011 + .35);
  vec2 q = (p - vec2(1.3 - 2.6 * w, -.1)) * vec2(13., 4.2);
- return c * (1. - .5 * exp(-dot(q, q)) * suE(0., .1, w) * suE(1., .9, w));
+ c *= 1. - .5 * exp(-dot(q, q)) * suE(0., .1, w) * suE(1., .9, w);
+ return uOwn[7] < 0. ? mix(c, board, suE(.75, .05, uOwn[7] + .8)) : c;
 }
 int suFilled(float id, bool up) { return int(mod(id * 2. + (up ? 9.5 : 5.5), 5.)); }
+#define SU_JAR (.58 + .9 * SU_MUCH - .6 * SU_WHIP)
 vec3 suCounter(vec2 p) {
  p = p * (1. - .34 * sat(-uOwn[5]) + .45 * sat(uOwn[5])) + vec2(.2, -.06) * sat(-uOwn[5]);
+ float storey = 0., tier = .4 + .8 * (1. - SU_MUCH);
+ if (uOwn[6] > 0.) {
+  p = p * (1. + .35 * uOwn[6]) + vec2(0., .2 * uOwn[6]);
+  storey = max(floor((p.y - .055) / tier), 0.);
+  p.y -= storey * tier;
+ }
  float px = suPx * 1.5, edge = -.235, plank = .075, left = 1., pitch = .375;
  vec3 acc = vec3(0.); vec2 see = p, up2 = normalize(vec2(-.5, .75));
  float sweep = suBell((p.x + .5 * p.y + 1.1 - 2.2 * (1. - uCue)) * 3.2) * uCue;
  // the great jar, then the shelf's jar here
  for (int i = 0; i < 2; i++) {
   bool big = i == 0, up = p.y > plank - .02 && !big;
-  float wide = up ? .315 : pitch, shift = up ? .09 : .2, id = big ? 4. : floor((p.x + shift) / wide), h = suH(id * 3. + (up ? 51. : 7.));
+  if (big && storey > 0.) continue;
+  float wide = (up ? .315 : pitch) * (1. + 2.3 * SU_WHIP), shift = up ? .09 + .12 * storey : .2, id = big ? 4. : floor((p.x + shift) / wide), h = suH(id * 3. + (up ? 51. : 7.) + storey * 19.);
   vec2 hs = big ? vec2(.26, .95) : up ? vec2(.122, .23 + .08 * h) : vec2(.15, .22 + .03 * h);
-  vec2 at = big ? vec2(.58, -.43) : vec2((id + .5) * wide - shift, up ? plank + .008 : edge - .015), q = p - at;
-  int kind = big ? 0 : suFilled(id, up);
+  hs *= big ? 1. + .12 * SU_WHIP : 1.;
+  vec2 at = big ? vec2(SU_JAR, -.43) : vec2((id + .5) * wide - shift, up ? plank + .008 : edge - .015), q = p - at;
+  int kind = big ? 0 : suFilled(id + storey, up);
   hs.x *= 1. - .3 * sat(uOwn[1]);
   float H = hs.y, R = hs.x, rd = min(R * mix(.3, .92, sat(-uOwn[1])), .42 * H);
   // the glass and its lid
@@ -307,6 +368,7 @@ vec3 suCounter(vec2 p) {
   acc += a * c * (suAmb * .8 + suSun * (.12 + .6 * suBell((X + .45) * 3.) + .5 * suE(1., 1.06, q.y / H)));
   left -= a;
   float in_ = suE(px * .7, -px * .7, d);
+  if (uOwn[7] < 0.) { float y = big ? 0. : 2. * fract((p.x + shift) / wide) - 1.; acc += (1. - in_) * left * SU_DRIFT * tint * tint * (.08 + .3 * lv) * exp(-max(d, 0.) * 15.) * sat(1. - y * y); }
   if (in_ * left < .004) continue;
   // the sweets, piled
   float cell = (kind == 1 ? .021 : kind == 3 ? .027 : .034) * (big ? 1.75 : 1.) * (1. + uOwn[4] * (uOwn[4] < 0. ? .42 : .6)), best = -9.;
@@ -343,6 +405,7 @@ vec3 suCounter(vec2 p) {
    sweet = c * (suAmb * (.45 + .4 * bn.y) + suSun * front * front) * mix(1., .35, gum) + through * gum * (1. - .5 * suNt);
    sweet *= mix(.16, 1., suE(-.05, .75, best)) * (.45 + .55 * sqrt(sat(1. - X * X)));
    sweet += (.25 + .5 * uTone + 1.2 * sat(mp.a * suAns)) * suSun * .45 * pow(sat(dot(bn, vec3(-.42, .62, .66))), mix(14., 60., uTone)) * (1. - .8 * suSnow);
+   if (uOwn[7] < 0.) sweet += SU_DRIFT * c * (.35 + .65 * c) * (.3 + 1.5 * lv + 1.2 * uBands[int(mod(id * 3. + 5. + bh.x * 3., 16.)) & 15] * suAns + 1.1 * uHits * step(.55, bh.y)) * (.25 + .75 * bn.z) * sqrt(sat(1. - .8 * X * X));
    has = suE(0., .25, bn.z);
   }
   // through the empty glass the street is seen bent
@@ -355,18 +418,19 @@ vec3 suCounter(vec2 p) {
   left *= 1. - in_ * cover;
   if (left < .01) return acc;
  }
+ see.y += storey * tier;
  vec3 col = suStreet(see) * (1. + .5 * sweep);
  // the window's bars and the shelf of glass
- col = mix(col, vec3(.13, .2, .17) * (suAmb + .1), suE(.03, .02, abs(abs(p.x + .12) - .62)) * .9);
+ col = mix(col, vec3(.13, .2, .17) * (suAmb + .1), suE(.03, .02, abs(abs(p.x + .12) - .62)) * .9 * (1. - SU_DRIFT));
  col = mix(col, vec3(.3, .6, .5) * (suAmb * .8 + suSun * (.15 + .5 * suE(0., .008, p.y - plank))), suE(.009 + px, .009, abs(p.y - plank)) * .85);
- if (p.y < edge && left > .01) {
+ if (p.y < edge && storey < .5 && left > .01) {
   // marble, with the colour that came through the jars lying on it
   float dn = edge - p.y, z = .1 / (dn + .16), v = noise(vec2(p.x * 3.2, 12.) * z + 2. * noise(vec2(p.x * 2.2, 5.5) * z)), shade = 0.;
   vec3 alb = suGround(vec3(.86, .8, .77), vec3(.13, .085, .07), vec3(.82, .84, .88)) * (1. - .3 * suBell((v - .5) * 18.)), through = vec3(0.);
   for (int i = 0; i < 4; i++) {
    bool big = i == 3;
    float id = floor((p.x + .2) / pitch) + float(i) - 1., f = big ? 1.8 : 1., dd = big ? -.43 - p.y : dn;
-   float X = (p.x - (big ? .58 : (id + .5) * pitch - .2) + dd * .35) / (.135 * f + .12 * max(dd, 0.));
+   float X = (p.x - (big ? SU_JAR : (id + .5) * pitch - .2) + dd * .35) / (.135 * f + .12 * max(dd, 0.));
    float sp = exp(-X * X * X * X) * exp(-max(dd, 0.) * 6. / f) * suE(-.012, .015, dd);
    int kind = big ? 0 : suFilled(id, false);
    vec3 c = suIc[kind % 4];

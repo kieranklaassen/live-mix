@@ -3,7 +3,10 @@
 // b: Fanned slices
 // what: A thick loaf of coloured wax comes forward under a steel blade in window light, its honey side thumbed, its cut face a garden of clay: ringed eye, leaves, tongues, ribbon, rolled core; slices and a curled shaving lie by; or twenty thin slices fanned in a curve over white paper, each a moment later of the same forms.
 // follows: The forms flow on as the music travels. Drone swells the eye, pad the tongues, texture the leaves, phrase the ribbon, each staining its own clay; bands pinch everything from middle to rim; the rolled core is painted with the piece and sways with the loop. A hit lights and opens a seed; a cue drops a slice, or lifts them along the fan. A voice warms the rim.
-// own: 0 dark wax with pale forms at -1, sea greens and blues at 1; 1 forms round and fat at -1, long and thin at 1; 2 few and huge at -1, folded into many mirrored ones at 1; 3 the hour: low evening sun and dark ground at -1, white snow light at 1; 4 close up at -1, from high above at 1; 5 the section: a round log at -1, a wide flat slab at 1
+// own: 0 dark wax with pale forms at -1, sea greens and blues at 1; 1 forms round and fat at -1, long and thin at 1; 2 few and huge at -1, folded into many mirrored ones at 1; 3 the hour: low evening sun and dark ground at -1, white snow light at 1; 4 close up at -1, from high above at 1; 5 the section: a round log at -1, a wide flat slab at 1; 6 the forms folded into a flower at -1, a country of hills and sun at 1, the clays dyed in the sounds' colours; 7 a headland in a still sea with no blade at -1 (b: laid apart in two rows), wax that glows from within at 1 (b: and stands up), dyed too
+#define WL_DYE sat(4. * max(abs(uOwn[6]), abs(uOwn[7])))
+#define WL_SEA max(-uOwn[7], 0.)
+#define WL_LIT max(uOwn[7], 0.)
 vec3 wlC[7]; // the clays: ground, rose, ochre, ink, green, terracotta, bone
 vec3 wlHoney, wlSkin; // the loaf's skin, and as light counts it
 vec2 wlH; float wlR; // half the width and height of the section, and how round its corners are
@@ -23,6 +26,12 @@ void wlSetUp() {
   wlC[5] = wlThree(k, vec3(.8, .33, .22), vec3(.73, .32, .22), vec3(.93, .5, .42));
   wlC[6] = wlThree(k, vec3(.74, .66, .62), vec3(.95, .91, .83), vec3(.97, .96, .92));
   wlHoney = wlThree(k, vec3(.24, .19, .18), vec3(.8, .66, .44), vec3(.74, .83, .76));
+  if (uOwn[6] != 0. || uOwn[7] != 0.) {
+    vec3 w = vec3(.93, .9, .84), d = uKind[0];
+    vec3 dyed[7] = vec3[7](wlThree(k, d * .22, mix(uKind[2], w, .55), mix(uKind[2], w, .8)), uKind[1], uKind[3], wlThree(k, mix(uKind[2], w, .75), d * .3, d * .4), d * .85, uKind[4], mix(uKind[2], w, .86));
+    for (int i = 0; i < 7; i++) wlC[i] = mix(wlC[i], dyed[i], WL_DYE);
+    wlHoney = mix(wlHoney, wlThree(k, d * .3 + .04, mix(uKind[2], vec3(.85, .68, .45), .4), mix(uKind[2], w, .6)), WL_DYE);
+  }
   wlSkin = wlHoney * wlHoney;
   // each kind of sound stains its own clay
   float lv[4] = float[4](uDrone, uPad, uTexture, uPhrase);
@@ -48,11 +57,49 @@ void wlLay(inout vec3 c, float d, float rind, float px, vec3 rc, vec3 bc) {
   c = mix(c, rc, wlIn(px, d - rind));
   c = mix(c, bc, wlIn(px, d));
 }
+// A country pressed into the block: sky, sun, hills, a river.
+vec4 wlLand(vec2 q, float z, float px, float hit) {
+  vec3 c = mix(wlC[0], wlC[6], smoothstep(-.1, .5, q.y));
+  vec2 p = q - vec2(-.1 + .04 * sin(z * .5), .24 + .02 * cos(z * .7));
+  float d = length(p) - .1 * (.8 + .5 * uDrone), lit = hit * exp(-max(d, 0.) * 11.);
+  wlLay(c, d, .03 + .03 * uLevel, px, wlC[1], wlC[2]);
+  c = mix(c, wlC[5], wlIn(px, d + .045));
+  for (int i = 0; i < 3; i++) { // clouds
+    float f = float(i), y = q.y - .37 + .085 * f - .014 * sin(q.x * 7. + f * 3. + z), x = q.x - .34 * sin(f * 2.4 + z * .3 + .8);
+    wlLay(c, abs(y) - (.012 + .016 * uPad) * sat(1. - x * x * 22.) + max(abs(x) - .22, 0.) * .3, .006, px, wlC[1], wlC[6]);
+  }
+  const int body[5] = int[5](4, 1, 5, 2, 3);
+  for (int i = 0; i < 5; i++) {
+    float f = float(i), y = .1 - .125 * f + (.05 + .03 * uBands[i * 3]) * sin(q.x * (6.5 - .7 * f) + f * 2.3 + z * (.5 + .1 * f)) + .03 * sin(q.x * 13. + f - z * .7) - q.y;
+    d = -y * .85;
+    vec3 b = wlC[body[i]];
+    if (i == 1 || i == 3) b = mix(b, wlC[6], .75 * wlIn(px, (abs(fract(y * 22.) - .5) - .16) / 22.)); // furrows
+    if (i == 2) { vec4 m = piece(vec2(sat(q.x + .5), sat(y * 5.))); b = mix(b, m.rgb / max(m.a, .01), sat(m.a * 2.) * .9); }
+    if (i > 0 && i < 4) { // trees
+      float n = 15. - 2. * f, g = floor(q.x * n), h = hash11(g + f * 31.), x = (q.x * n - g - .5) / n, u = -y / (.05 + .045 * uTexture * h);
+      float tree = max(abs(x) - .016 * sqrt(sat(u)) * sqrt(sat(1. - u)) * 2.2, abs(u - .5) * .06 - .03);
+      c = mix(c, wlC[3], wlIn(px, tree) * step(.45, h) * wlIn(px, d - .1));
+    }
+    wlLay(c, d, .012, px, wlC[6], b);
+  }
+  // the river
+  float u = sat(.12 - q.y), x = q.x - .17 - .13 * sin(q.y * 9. + z * .4) * (.3 + u);
+  wlLay(c, max(abs(x) - (.012 + .05 * u) * (.7 + .7 * uPhrase), q.y - .02), .012, px, wlC[6], mix(wlC[4], uKind[3], .6));
+  lit += hit * wlIn(px, length(p) - .1);
+  return vec4(c * (.955 + .08 * noise(q * 30. + z * .4)), lit);
+}
 // What the knife meets at a place of the section (the middle is 0) and a depth in the block: clay colour; w is light of a hit.
 vec4 wlClay(vec2 q, float z, float px, float hit) {
   float r0 = length(q);
   q *= 1. - .1 * (band(r0 * 1.5) - .25) * (.35 + .65 * cos(5. * atan(q.y, q.x + 1e-5) + z)) * smoothstep(0., .1, r0);
   q += .036 * sin(q.yx * 5. + vec2(z * .9, 1.7 - z * .7)) + .016 * sin(q.yx * 11. + vec2(2. - z, z * 1.3)) + .0035 * noise(q * 46. + 3.);
+  if (uOwn[6] > .99) return wlLand(q, z, px * 1.2 + .0012, hit);
+  if (uOwn[6] < 0.) {
+    float r = length(q), a = atan(q.y, q.x + 1e-5) + .12 * sin(z * .5), part = TAU / 8.;
+    a = abs(mod(a, part) - .5 * part) + 2.42;
+    q = mix(q, r * vec2(cos(a), sin(a)), min(-1.6 * uOwn[6], 1.));
+  }
+  vec2 q0 = q; float px1 = px;
   // few and large, or the cane pulled thin, folded and pressed again
   float many = uOwn[2], sc = 1. + many * (many < 0. ? .42 : .95), rnd = sat(-uOwn[1]), lng = sat(uOwn[1]);
   q = q * sc + vec2(.1, -.06) * many;
@@ -129,8 +176,16 @@ vec4 wlClay(vec2 q, float z, float px, float hit) {
     c = mix(c, i == 0 ? wlC[6] : wlC[2], in_);
     if (i == 0) lit = hit * (in_ + .5 * wlIn(px, d) + .75 * exp(-max(d, 0.) * 9.));
   }
+  if (uOwn[6] < 0.) lit += .8 * hit * exp(-6. * r0) * sat(-2. * uOwn[6]);
   // clay is never one even colour
-  return vec4(c * (.955 + .08 * noise(q * 30. + z * .4)), lit);
+  vec4 m4 = vec4(c * (.955 + .08 * noise(q * 30. + z * .4)), lit);
+  if (uOwn[6] > 0.) { // the country comes up from below
+    float y = q0.y + .75 - 1.6 * uOwn[6] + .05 * sin(q0.x * 7. + 1. + z * .4);
+    px1 = px1 * 1.2 + .0012;
+    m4 = mix(m4, vec4(wlC[6], m4.w), wlIn(px1, y - .014));
+    m4 = mix(m4, wlLand(q0, z, px1, hit), wlIn(px1, y));
+  }
+  return m4;
 }
 // A cut seen in light: honey skin at the rim, the forms inside, the light of a hit.
 vec3 wlFace(vec4 m, vec2 q, float z, float px, float sd) {
@@ -168,7 +223,7 @@ vec3 wlRay(vec3 ro, vec3 ta, float lens, vec2 p) {
   return normalize(f * lens + r * p.x + cross(f, r) * p.y);
 }
 float wlDip; // how far the blade has come down
-float wlUp(vec2 b) { return b.y - 2. * wlH.y - .03 - .3 * (b.x + .2) * (b.x + .2) + .3 * wlDip; }
+float wlUp(vec2 b) { return -2.5 * WL_SEA + b.y - 2. * wlH.y - .03 - .3 * (b.x + .2) * (b.x + .2) + .3 * wlDip; }
 // How much of the blade stands over a place: its edge is a bow.
 float wlBlade(vec2 b, float w) { return smoothstep(-w, w, wlUp(b)) * wlIn(w, abs(b.x) - 1.2); }
 
@@ -190,6 +245,11 @@ float wlCurl(vec3 q) {
   return max(abs(r - .03 - gap * (clamp(floor((r - .03) / gap - a + .5), 0., 1.) + a)) - .008, abs(q.x) - .2);
 }
 
+// Open sky.
+vec3 wlAir(vec3 rd) {
+  float y = max(rd.y, 0.), cl = noise(vec2(rd.x * 3. + uTime * .006, y * 16.)) * .6 + .4 * noise(vec2(rd.x * 9., y * 40.));
+  return mix(wlSky * 1.05 + wlSun * .3 * exp(-6. * y), wlSky * .75 + .06 * wlC[1], smoothstep(0., .5, y)) + wlSun * .22 * smoothstep(.5, .8, cl) * exp(-2.5 * y);
+}
 vec3 wlCutFace(vec2 p) {
   float near = sat(-uOwn[4]), high = sat(uOwn[4]), tall = wlIn(.15, uRes.x / uRes.y - .6);
   vec3 ta = mix(mix(vec3(.17, .47, 0.), vec3(-.02, .48, 0.), near), vec3(.35, .2, .2), high);
@@ -208,7 +268,7 @@ vec3 wlCutFace(vec2 p) {
 
   // the room: a bench, and a wall behind it
   vec3 col, alb, n = vec3(0., 1., 0.);
-  float tg = rd.y < -1e-3 ? -ro.y / rd.y : 1e4, tw = (5.6 - dot(ro, wallN)) / max(dot(rd, wallN), 1e-3), best = min(tg, tw), rim = 0.;
+  float tg = rd.y < -1e-3 ? -ro.y / rd.y : 1e4, tw = (5.6 + 80. * WL_SEA - dot(ro, wallN)) / max(dot(rd, wallN), 1e-3), best = min(tg, tw), rim = 0.;
   int id = tg < tw ? 0 : 1;
 
   // the loaf: its section drawn out along z
@@ -230,7 +290,7 @@ vec3 wlCutFace(vec2 p) {
   vec4 got = vec4(0.); float e, gotE = 0.; int lay = 0;
   for (int i = uCue > .004 ? -1 : 0; i < (pile ? 4 : 0); i++) {
     float f = float(max(i, 0)), a = i > 0 ? .07 * sin(f * 2.3) : 0.;
-    vec3 c = vec3(0., TOP - ST * (f + .5), -GAP - wlH.y), e1 = vec3(1., 0., a), e2 = vec3(a, 0., -1.), nn = n;
+    vec3 c = vec3(0., TOP - .6 * WL_SEA - ST * (f + .5), -GAP - wlH.y), e1 = vec3(1., 0., a), e2 = vec3(a, 0., -1.), nn = n;
     if (i > 0) c.xz += .06 * sin(vec2(f * 4., f * 7.));
     if (i < 0) {
       // it tips off the face about its lower edge
@@ -244,7 +304,7 @@ vec3 wlCutFace(vec2 p) {
     if (sl.z < 0. && sl.w < best) { best = sl.w; id = 4; got = sl; gotE = e; lay = i; n = nn; rim = 0.; break; }
   }
   // the shaving
-  vec3 cc = vec3(wlH.x + .34, .15, .22), o = ro - cc, r = rd;
+  vec3 cc = vec3(wlH.x + .34, .15 - WL_SEA, .22), o = ro - cc, r = rd;
   float bq = -dot(o, rd), hq = bq * bq - dot(o, o) + .075, far = bq + sqrt(max(hq, 0.));
   mat2 cr = rot(-.75);
   o.xz = cr * o.xz; r.xz = cr * r.xz;
@@ -275,11 +335,16 @@ vec3 wlCutFace(vec2 p) {
     ao = (1. - .6 * exp(-foot * 7.)) * (1. - .5 * exp(-max(wlSect(f), 0.) * 14.)) * (1. - .6 * exp(-dot(g * g, vec2(9., 46.))));
     sh *= smoothstep(-.04, .05, wlSect(f + wlL.xz / wlL.y * .1)) * smoothstep(-.02, .13, length(max(h, 0.)));
   }
+  bool mir = false; vec3 r2 = reflect(rd, normalize(vec3(.012 * sin(pos.x * 9. + pos.z * 4. + uTime * .3), 1., .02 * sin(pos.z * 13. - pos.x * 3. - uTime * .4))));
+  if (uOwn[7] < 0. && id == 0) { // the cut seen again in the water
+    vec3 w = pos - r2 * pos.z / max(r2.z, 1e-3) - vec3(0., wlH.y, 0.);
+    if (pos.z < 0. && wlSect(w.xy) < 0.) { mir = true; q.xy = w.xy; sd = wlSect(w.xy); }
+  }
   // the clay, for the face, for a slice, and dimly through the skin of the side
   vec4 clay = vec4(0.);
   bool cut = id == 2 || (id == 4 && gotE < .5);
   float z = z0;
-  for (int i = 0; i < (cut || id == 3 ? 1 : 0); i++) {
+  for (int i = 0; i < (cut || id == 3 || mir ? 1 : 0); i++) {
     vec2 w = q.xy;
     if (id == 3) { w *= .86; z += pos.z * 1.1; }
     if (id == 4) { w = got.xy; sd = got.z; z -= .4 * (lay < 0 ? s : 1.) + .2 * float(max(lay, 0)); }
@@ -292,8 +357,16 @@ vec3 wlCutFace(vec2 p) {
     // warm grey, worn, with the lines of the knife
     alb = vec3(.5, .465, .43) * (.9 + .14 * noise(vec2(pos.x * 3., pos.z * 40.)));
     col = alb * (wlSky * ao + wlSun * sh * wlL.y * (.4 + .6 * ao));
+    if (uOwn[7] < 0.) {
+      float f = 1. - sat(-rd.y), near_ = exp(-.12 * best);
+      vec3 sky = wlAir(r2);
+      if (mir) sky = wlFace(clay, q.xy, z, px * 2., sd) * (wlSky * .75 + wlSun * .4);
+      else if (abs(pos.x + r2.x * max(0., -pos.z / max(r2.z, 1e-3))) < wlH.x + .02 && pos.z > 0.) sky *= .5;
+      col = mix(col, mix(wlC[4] * wlC[4] * (wlSky * .35 + .06 * wlSun), sky, .25 + .75 * f * f * f) * (1. - .35 * exp(-foot * 9.)), min(1.6 * WL_SEA, 1.));
+    }
   } else if (id == 1) {
     col = vec3(.7, .665, .62) * (wlSky * (.95 + .2 * sat(pos.y)) + wlSun * (sh * .4 + .16 * exp(-.5 * max(C * pos.x + S * pos.z + 2., 0.))));
+    col = mix(col, wlAir(rd), min(1.6 * WL_SEA, 1.));
   } else if (id == 2 || id == 4) {
     // the fine chatter of the blade, drawn down the face
     float drag = noise(vec2(q.x * 120. + q.y * 12., q.y * 2.)) - .5;
@@ -322,6 +395,11 @@ vec3 wlCutFace(vec2 p) {
     alb = mix(mix(wlHoney, wlC[1], smoothstep(.5, .6, st)), wlC[4], smoothstep(1., 1.1, -st));
     col = alb * alb * (wlSky * (.6 + .4 * n.y) + wlSun * sh * (.15 + sat(dot(n, wlL) * .65 + .35))) * (.35 + .65 * smoothstep(.03, .15, len));
   }
+  if (uOwn[7] > 0.) {
+    vec3 warm = mix(vec3(1.5, .95, .5), uKind[4] * 1.5, .25) * (.45 + .6 * uLevel + .4 * uCue);
+    float pit = id == 2 ? .35 + exp(-5. * dot(q.xy, q.xy)) : id == 3 ? .8 * exp(-.9 * max(pos.z, 0.)) * (.4 + .6 * exp(-8. * at.y * at.y)) : id > 3 ? .12 : .2 * exp(-1.6 * length(vec3(max(abs(pos.x) - wlH.x, 0.), max(pos.y - 1., 0.), max(-pos.z, 0.)))) * (id < 1 ? 1. : .4);
+    col = col * (1. - .5 * uOwn[7]) + (id == 2 ? alb : id == 3 ? wlSkin + .1 * clay.rgb : wlSkin) * warm * pit * uOwn[7];
+  }
   col = mix(col, wlSkin * (wlSky + .35 * wlSun) * (id < 1 ? 1. - .8 * exp(-9. * foot) : 1.), rim * .8);
   // brushed steel with a ground edge
   float up_ = wlUp(b.xy), br = noise(vec2(b.x * 3., b.y * 190.)), w = wlPane(b, soft);
@@ -345,17 +423,18 @@ vec3 wlFan(vec2 p) {
   float left = 1., shade = 0., ao = 0.; int seen = 0;
   vec4 ps[2], pm[2]; // the two topmost slices here; and their number, side or face, shadow, how much is seen
   // only those that can reach this place
-  float n0 = wlNth(g.z - 1.6), n1 = wlNth(g.z + 1.1) + .5;
+  float n0 = wlNth(g.z - 1.6 - WL_LIT * (.8 + .55 * length(g - ro))), n1 = wlNth(g.z + 1.1) + .5;
   for (int i = 0; i < 18; i++) {
     float k = ceil(n0) + float(i), s = k / 19., e;
     if (k > n1) break;
     s *= 1.3 - .3 * s;
     vec2 c = vec2(-.62 + 3.7 * s - .5 * sin(4.71 * s), -.16 + 4.6 * s), d = vec2(3.7 - 2.36 * cos(4.71 * s), 4.6);
-    if (abs(c.x - g.x) > 1.6) continue;
+    c.x += WL_SEA * (mod(k, 2.) * 1.3 - .65);
+    if (abs(c.x - g.x) > 1.6 + WL_LIT) continue;
     d = normalize(d + .14 * sin(k * 2.4 + .3 * sin(uTime * .05)) * vec2(-d.y, d.x));
     // a cue runs along and lifts each in turn
     float w = (1. - uCue) * 24. - 2. - k, lift = 4. * uCue * (1. - uCue) * exp(-w * w * .12);
-    vec3 e2 = normalize(vec3(d.x, .085 + .3 * lift, d.y)), e1 = vec3(d.y, 0., -d.x), n = cross(e1, e2);
+    vec3 e2 = normalize(vec3(d.x, .085 + .3 * lift + 1.5 * WL_LIT, d.y)), e1 = vec3(d.y, 0., -d.x), n = cross(e1, e2);
     n *= sign(n.y + 1e-6);
     vec4 sl = wlSlab(ro, rd, vec3(c.x, .03 + e2.y * wlH.y, c.y), n, e1, e2, .026, e);
     float px = px0 * sl.w / max(-dot(rd, n), .25), cov = wlIn(px, sl.z);
@@ -386,6 +465,7 @@ vec3 wlFan(vec2 p) {
     vec3 R = reflect(rd, n);
     vec2 wn = abs(abs(R.xz / max(R.y, .1) - vec2(-.43, 1.08)) - vec2(.08, 0.)) - vec2(.065, .17);
     q += wlSun * 1.4 * exp(-k * .9) * (.05 + .14 * uTone) * (1. - m.y) * wlIn(.03, max(wn.x, wn.y));
+    if (uOwn[7] > 0.) q = q * (1. - .4 * uOwn[7]) + alb * mix(vec3(1.5, 1., .6), uKind[4] * 1.5, .25) * uOwn[7] * (.35 + .6 * band(k / 19.) + .5 * uCue + .6 * uHits * exp(-w * w * .06)) * (.5 + .9 * exp(-5. * dot(sl.xy, sl.xy)));
     col += m.w * q;
   }
   vec3 alb = wlThree(uOwn[3], vec3(.3, .31, .36), vec3(.86, .845, .81), vec3(.8, .84, .88));

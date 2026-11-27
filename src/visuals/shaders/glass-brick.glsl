@@ -3,9 +3,19 @@
 // b: Stair at night
 // what: A curved wall of square glass blocks with a garden behind: each block holds its own blur of lawn, hedge, red flowers and sky, upside down, and an enamel basin with a towel stands low right; or a round stair tower at night, dark steps climbing left before blocks full of street lamps and shop windows, with a tram passing.
 // follows: Each kind is a coloured thing behind the glass, a soft patch or a lamp, and grows with its level; the piece tints the blocks and the bands brighten the columns. A hit lights a block and those beside it; a cue takes a lamp across from right to left. Keys catch on the rims. Tone clears or ripples the glass. In the garden a voice brings someone in a light coat.
-// own: 0 amber evening at -1, dark blue night at 1; in the tower pale dawn at -1, red dusk at 1; 1 milk glass at -1, each block its own stained colour at 1; 2 few great blocks at -1, many small ones at 1; 3 a long flat wall, a wide tower at -1, a tight round drum, a narrow tower at 1; 4 snow over the garden, the shops shut at -1, flower beds everywhere and autumn trees, bright signs over the shops at 1; 5 round lenses at -1, blocks cut to a point with four facets at 1
-float gbPx, gbA, gbE, gbDay; // a pixel, half the picture's width (to 1.2), how strongly it answers, how much of the day is left
-float gbMid, gbCount, gbRound, gbCut, gbMilk, gbStain; // the middle column in sight, blocks to a unit; round blocks, cut blocks; milk glass, stained glass
+// own: 0 amber evening at -1, dark blue night at 1; in the tower pale dawn at -1, red dusk at 1; 1 milk glass at -1, each block its own stained colour at 1; 2 few great blocks at -1, many small ones at 1; 3 a long flat wall, a wide tower at -1, a tight round drum, a narrow tower at 1; 4 snow over the garden, the shops shut at -1, flower beds everywhere and autumn trees, bright signs over the shops at 1; 5 round lenses at -1, blocks cut to a point with four facets at 1; 6 the glass one round pillar alone in the room (in the tower the stair a level bridge at -0.5, climbing to the right at -1) at -1, a straight wall square on to us (in the tower no stair) at 1; 7 still water for a floor at -1, broad dark leaves near us at 1
+float gbPx, gbA, gbE; // a pixel, half the picture's width (to 1.2), how strongly it answers; how much of the day is left
+#define gbDay (1.0 - .6 * sat(-uOwn[0]) - .88 * sat(uOwn[0]))
+float gbMid, gbCount;
+#define gbRound sat(-uOwn[5])
+#define gbCut sat(uOwn[5])
+#define gbMilk sat(-uOwn[1])
+#define gbStain sat(uOwn[1])
+#define GB_POST max(-uOwn[6], 0.0)
+#define GB_FLAT max(uOwn[6], 0.0)
+#define GB_POOL max(-uOwn[7], 0.0)
+#define GB_LEAF max(uOwn[7], 0.0)
+// the middle column in sight, blocks to a unit; round blocks, cut blocks; milk glass, stained glass
 vec2 gbWide, gbHit, gbCue; // how much of the scene one block holds, and its ripples bend; where a hit lies on the wall, and the lamp of a cue, in blocks
 float gbS(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x * (3.0 - 2.0 * x); }
 float gbBell(float x) { return exp(-x * x); }
@@ -142,7 +152,7 @@ vec3 gbFall(vec2 F, float up, vec2 ax, float R, float blur) {
   float sf = .1 + .03 * lt + blur, cell = mix(gbS(.84 + sf, .84 - sf, max(e.x, e.y)), .6, sat(blur * 1.2 - .2)) * gbS(-.1, .1, uv.y);
   float ca = .6 + .7 * gbBell((length(e) - .6 + .22 * sin(uv.x * 6.0 + uTime * .3)) * 3.2) * exp(-blur * 2.0);
   vec3 g = gbGarden(gbLook(id) * .8 + vec2(0.0, .35));
-  return (g * .6 + vec3(.5, .42, .28)) * cell * ca * exp(-lt * (.13 - .05 * uSpace)) * gbDay * gbS(0.0, 14.0, ld) * gbS(6.5 * gbCount, 5.0 * gbCount, uv.y);
+  return (g * .6 + vec3(.5, .42, .28)) * cell * ca * exp(-lt * (.13 - .05 * uSpace)) * gbDay * gbS(0.0, 14.0 - 12.0 * GB_POST, ld) * (1.0 + 1.2 * GB_POST) * gbS(6.5 * gbCount, 5.0 * gbCount, uv.y);
 }
 // An enamel basin on a stool, its towel over the rim, the light on it from the left. The rim's middle is 0.
 vec3 gbBasin(vec2 p, vec3 col, float px) {
@@ -188,7 +198,7 @@ vec3 gbBasin(vec2 p, vec3 col, float px) {
 }
 vec3 gbWallA(vec2 p) {
   float eye = 2.6, hor = .16, X = p.x + .4 - .45 * gbA, Y = p.y - hor, px = gbPx;
-  float R = 11.0 * exp2(-1.1 * uOwn[3]), D = R + 4.6, al = .38 - asin(R / D);
+  float R = 11.0 * exp2(-1.1 * uOwn[3] - 2.45 * GB_POST + GB_FLAT), D = R + 4.6 + 3.4 * GB_FLAT + 3.0 * GB_POST, al = (.38 - asin(R / D)) * (1.0 - GB_POST) * (1.0 - GB_FLAT);
   vec2 ax = D * vec2(sin(al), cos(al)), rd = vec2(X, 1.0);
   float a = dot(rd, rd), b = dot(rd, ax), disc = b * b - a * (D * D - R * R);
   float t = (b - sqrt(max(disc, 0.0))) / a, miss = (R - abs(rd.x * ax.y - rd.y * ax.x) / sqrt(a)) / (t * px);
@@ -198,14 +208,23 @@ vec3 gbWallA(vec2 p) {
   float wall = gbS(-1.0, 1.0, (Y + eye / zw) / px);
   vec3 plaster = mix(vec3(.7, .64, .54), vec3(.2, .19, .18), gbS(.35, 1.0, X - .25 * Y)) * (.9 + .1 * noise(p * 5.0)) * (1.0 - .3 * gbS(.1, .5, Y));
   vec3 col = plaster * gbDay;
-  vec3 fl = vec3(.2, .175, .15) * gbDay;
+  vec3 fl = vec3(.2, .175, .15) * gbDay * (1.0 + 1.1 * GB_POST * (.7 + .5 * noise(p * 3.0)));
   bool seen = on < 1.0 || v < 2.0 * t * px;
   if (seen && wall < 1.0) {
     vec2 F = rd * min(tf, zw);
+    if (GB_POOL > 0.0) F += GB_POOL * .12 * vec2(sin(F.y * 2.3 + uTime * .31 + F.x), sin(F.x * 1.9 - uTime * .27));
     fl *= .92 + .12 * noise(F * 9.0);
     fl += gbFall(F, 0.0, ax, R, tf * tf * px * gbCount * 1.6) * (.95 + .5 * uLow * gbE);
   }
   if (seen && wall > 0.0) col += plaster * gbFall(rd * zw, eye + Y * zw, ax, R, .5) * .8;
+  if (GB_POOL > 0.0) {
+    float fr = pow(1.0 - sat(-Y * 1.7), 3.0);
+    vec2 F = rd * min(tf, zw);
+    vec3 wm = gbGarden(vec2(X * .9 + .05 * sin(F.y * 3.0 + F.x + uTime * .4), -Y * .6 - .3));
+    fl = mix(fl, fl * vec3(.35, .62, .6) + vec3(.02, .07, .075) * gbDay + (plaster * gbDay * .3 + wm * .3) * (.2 + .6 * fr), GB_POOL);
+    float gl = gbBell(sin(F.x * 2.6 + 1.3 * sin(F.y * 1.7 + uTime * .33)) * 5.0) * gbBell(sin(F.y * 3.1 + 1.1 * sin(F.x * 1.3 - uTime * .29)) * 5.0);
+    fl += GB_POOL * (wm * .5 + .12 * gbDay) * gl * .5;
+  }
   // light off the water wavers on the wall
   vec2 cw = (p - vec2(gbA - .2, .22)) * vec2(19.0, 30.0);
   cw += .8 * sin(cw.yx * .8 + uTime * vec2(.31, -.27)); cw += .35 * sin(cw.yx * 2.1 - uTime * vec2(.23, .37));
@@ -220,46 +239,51 @@ vec3 gbWallA(vec2 p) {
     float u = R * atan(q.x, -q.y) * 1.12;
     float kerb = .34, below = step(v, 0.0), av = abs(v);
     slope.y *= 1.0 - 2.0 * below;
+    if (GB_POOL > 0.0 && below > .5) { float k = GB_POOL * (.03 + .03 * uLow + .03 * uHits) * sat(av * 1.5); u += k * sin(av * 7.0 + u * 1.7 + uTime * .7) ; av += k * .5 * sin(u * 3.1 - uTime * .5 + av * 4.0); }
     vec3 g = gbGlass(vec2(u, av - kerb) * gbCount, slope, w, nv);
     vec3 k = vec3(.6, .56, .49) * gbDay * (.45 + .3 * av / kerb) * (.6 + .5 * nv);
     g = mix(k, g, gbS(-w.y, w.y, (av - kerb) * gbCount));
-    vec3 mir = fl + g * (.16 + .5 * pow(1.0 - sat(-Y * 1.6), 5.0)) * exp(-av * .3);
+    vec3 mir = fl * (1.0 - .55 * GB_POOL) + g * (.16 + .5 * pow(1.0 - sat(-Y * 1.6), 5.0) + .45 * GB_POOL) * exp(-av * (.3 - .22 * GB_POOL));
     g = mix(g, mir, gbS(w.y, -w.y, v * gbCount));
     col = mix(col, g, on);
   }
+  if (GB_POOL > 0.0) return col;
   vec2 bp = (p - vec2(gbA - .15, -.2)) / mix(.6, 1.0, gbS(.28, .8, gbA));
   return gbBasin(bp, col, px / mix(.6, 1.0, gbS(.28, .8, gbA)));
 }
 // b: inside a round stair tower. The stair climbs to the left along the wall of blocks, dark, with its rail.
 vec3 gbWallB(vec2 p) {
-  float eye = 3.4, hor = -.12, X = p.x - .1, Y = p.y - hor, px = gbPx;
+  float eye = 3.4 - 1.9 * GB_POOL, hor = -.12, X = p.x - .1, Y = p.y - hor, px = gbPx;
   float R = 8.5 * exp2(-.5 * uOwn[3]);
   vec2 ax = R * vec2(-.2, .22), rd = vec2(X, 1.0);
   float a = dot(rd, rd), b = dot(rd, ax), k = dot(ax, ax);
   float t = (b + sqrt(b * b - a * (k - R * R))) / a;
   vec2 q = rd * t - ax, n = -q / R;
-  float v = Y * t + eye, nd = max(-dot(rd, n), .05), nv = nd / sqrt(a), th = atan(q.x, q.y);
+  float v = Y * t + eye, sink = v, nd = max(-dot(rd, n), .05), nv = nd / sqrt(a), th = atan(q.x, q.y);
   vec2 slope = vec2(dot(rd, vec2(-n.y, n.x)), Y) / nd; slope /= 1.0 + .12 * abs(slope);
   vec2 w = vec2(t * px / nv, t * px) * gbCount;
   float below = step(v, 0.0), av = abs(v); slope.y *= 1.0 - 2.0 * below;
+  if (GB_POOL > 0.0 && v < 0.0) { v = mix(v, av, GB_POOL); av += GB_POOL * (.03 + .05 * uLow + .06 * uHits) * sat(av) * sin(av * 6.0 + 9.0 * th + uTime * .6); }
   // the stair: its near side on a smaller round
   float r = R * .74, t2 = (b + sqrt(max(b * b - a * (k - r * r), 0.0))) / a;
   vec2 q2 = rd * t2 - ax; float th2 = atan(q2.x, q2.y), v2 = Y * t2 + eye, ap = t2 * px;
-  float dth = .15, rise = .62, y0 = 2.9, go = dth * r;
+  if (GB_POOL > 0.0) v2 = mix(v2, abs(v2), GB_POOL);
+  float dth = .15, rise = .62 * (1.0 - 2.0 * GB_POST), y0 = 2.9 - 14.0 * GB_FLAT - 1.1 * GB_POOL + .5 * GB_POST, go = dth * r;
   float s1 = (th2 - .0) / dth, c1 = floor(s1), f1 = s1 - c1, top = y0 - rise * c1, y = v2 - top;
   float line = y0 - rise * s1;
   float in1 = max(gbS(ap, -ap, y), gbS(ap, -ap, y - rise) * gbS(ap, -ap, (f1) * go)), under = gbS(-ap, ap, v2 - line + 1.0);
   vec3 col = vec3(0.0);
   if (in1 * under < 1.0) {
     vec3 g = gbGlass(vec2(R * th, av) * gbCount + vec2(.3, 0.0), slope, w, nv);
-    col = mix(g, vec3(.014, .016, .024) + g * .3 * exp(-av * .25), gbS(w.y, -w.y, v * gbCount));
+    col = mix(g, vec3(.014, .016, .024) + g * (.3 + .5 * GB_POOL) * exp(-av * (.25 - .2 * GB_POOL)), gbS(w.y, -w.y, sink * gbCount));
   }
   float topw = y0 - rise * floor(th / dth), lw = y0 - rise * th / dth;
+  if (GB_FLAT > .99) return col;
   if (v2 - line > 3.6 || v2 - line < -1.1 && v - lw < -1.1) return col;
   vec3 spill = gbStreet(vec2(th * .8, .12)) * .2 + vec3(.006, .009, .016);
   // treads seen from above, or the soffit from below
   float tread = gbS(-3.0 * ap, -ap, y) * gbS(ap, -ap, v - topw), soff = gbS(3.0 * ap, ap, v2 - line + 1.0) * gbS(-ap, ap, v - lw + 1.0);
-  if (tread > 0.0) {
+  if (tread > 0.0 && (GB_POOL == 0.0 || sink > 0.0)) {
     float c = c1, tc = t2, kind = 0.0, at = t; bool hit = false;
     for (int i = 0; i < 6 && !hit; i++) {
       float go_ = th > th2 ? 1.0 : 0.0, ang = (c + go_) * dth; vec2 dir = vec2(sin(ang), cos(ang));
@@ -282,18 +306,39 @@ vec3 gbWallB(vec2 p) {
   col += spill * .9 * gbBell((v2 - line - 3.37) / (.03 + ap)) * rail;
   return col;
 }
+// Broad leaves near us, out of the corners, with the light of the wall behind them.
+vec3 gbPlant(vec2 p, vec3 col) {
+  float day = uVar < .5 ? gbDay : .1;
+  for (int i = 0; i < 8; i++) {
+    float f = float(i), right = f < 3.0 ? 1.0 : 0.0, h = hash11(f + 2.0);
+    vec2 o = p - vec2(right > .5 ? gbA - .05 : -gbA + .1, -.62);
+    if (right > .5) o.x = -o.x;
+    float ang = right > .5 ? .75 + .3 * f : .35 + .27 * (f - 3.0), len = GB_LEAF * (.8 + .4 * h - .2 * right);
+    o = rot(ang + .02 * sin(uTime * (.17 + .05 * h) + f * 2.0) + .03 * uLow) * o;
+    float x = o.x / len, y = o.y + (.16 + .2 * h) * x * x * len - .05 * x;
+    if (x < 0.0 || x > 1.0) continue;
+    float b = sat((x - .22) / .78), wd = (.17 * sqrt(max(b, 1e-4)) * (1.0 - b * b) * len) * (.8 + .3 * h) + .006, d = abs(y) - wd;
+    d += .008 * sin(x * 40.0 + f) * b;
+    float on = gbS(.004, -.004, d);
+    float vein = gbBell(sin((x * 26.0 - abs(y) * 30.0) * 1.0) * 2.4), up = y > 0.0 ? 1.0 : .62;
+    vec3 c = mix(vec3(.035, .12, .035), vec3(.09, .17, .04), h) * (day * .9 + .05) * up * (.75 + .35 * vein) + gbDeep(uKind[1], .9) * .03 * uPad;
+    c += col * (uVar < .5 ? .10 : .02) * up; c += vec3(.9, 1.0, .7) * (day * .22 + .015) * gbBell(d / .006) * up;
+    c *= .55 + .45 * gbS(0.0, .5, x); c = mix(c, c * 1.5, gbBell(y / .006));
+    col = mix(col * (1.0 - .35 * gbS(.05, -.02, d - .02) * (1.0 - on)), c, on);
+  }
+  return col;
+}
 vec3 render(vec2 p) {
   gbPx = 1.0 / uRes.y;
   gbA = min(.5 * uRes.x / uRes.y, 1.2);
   gbE = .45 + 1.2 * uEnergy;
-  gbDay = 1.0 - .6 * sat(-uOwn[0]) - .88 * sat(uOwn[0]);
   gbCount = (uVar < .5 ? 1.2 : .92) * exp2(.8 * uOwn[2]);
   gbWide = uVar < .5 ? vec2(.44, .34) : vec2(.38, .2);
-  gbRound = sat(-uOwn[5]); gbCut = sat(uOwn[5]); gbMilk = sat(-uOwn[1]); gbStain = sat(uOwn[1]);
-  gbMid = uVar < .5 ? 7.0 * gbCount / 1.2 : 0.0;
+  gbMid = uVar < .5 ? 7.0 * exp2(-1.7 * uOwn[3]) * (1.0 - GB_POST) * (1.0 - GB_POST) * (1.0 - GB_POST) * (1.0 - GB_FLAT) * gbCount / 1.2 : 0.0;
   gbHit = vec2(gbMid, 0.0) + vec2((uVar < .5 ? -.5 : .8) + 3.0 * cos(TAU * uLoop), 2.6 + 1.1 * sin(TAU * uLoop)) * gbCount / 1.2;
   gbCue = vec2(gbMid, 0.0) + vec2(mix(-8.0, 8.0, uCue), 3.2) * gbCount / 1.2;
   vec3 col = uVar < .5 ? gbWallA(p) : gbWallB(p);
+  if (GB_LEAF > 0.0) col = gbPlant(p, col);
   col = screenOf(col);
   return mix(col, col * col * (3.0 - 2.0 * col), .5);
 }

@@ -3,10 +3,11 @@
 // b: Wet evening
 // what: Clear coloured sheets, a disc, a leaf, a ring, a wave, a comb and more, stand planted in white sand, and the low sun lays their long coloured shadows through one another, with a ball of clear resin among them; or the same at dusk after a wave, when the sand is a mirror and a pale sun stands behind a cherry disc.
 // follows: The drone lowers the sun, the pad deepens the colours, texture makes sand glitter and the mirror tremble, a phrase lights the leaf, the spectrum sets the teeth of the comb. The piece stains the sand. A hit lights the ball, which hops, and sends a ring over the sand; a cue sways all the sheets once, keys raise slips, the loop swings the sun.
-// own: 0 moonlit night at -1, a red late sun at 1; in the evening pale dawn at -1, moonlit night at 1; 1 black sand at -1, red desert sand at 1; 2 only the disc, the leaf and the ball at -1, giants at 1; 3 low by the sand at -1, seen from above at 1; 4 clear glass with bright edges at -1, painted with bands of cream at 1; 5 sea mist at -1, a wet mirror at 1; in the evening dry sand with long shadows at -1, rippled water at 1
+// own: 0 moonlit night at -1, a red late sun at 1; in the evening pale dawn at -1, moonlit night at 1; 1 black sand at -1, red desert sand at 1; 2 only the disc, the leaf and the ball at -1, giants at 1; 3 low by the sand at -1, seen from above at 1; 4 clear glass with bright edges at -1, painted with bands of cream at 1; 5 sea mist at -1, a wet mirror at 1; in the evening dry sand with long shadows at -1, rippled water at 1; 6 rounds and rings at -0.5 and a stack of glass swells at -1, a street of slabs at 0.5 and a wood of leaves at 1; 7 glass dyed in the sounds' colours at either end, with dunes for the sea at -1
 const int SS_N = 9;
 // each sheet, front to back: where its plane lies and how it is turned; how far it reaches to the side and up, how big, which shape
 vec4 ssA[SS_N], ssE[SS_N];
+vec2 ssOut[SS_N];   // where another set stands: how far each is sunk, which dye it has (or under 0 that of its shape)
 vec3 ssL, ssSun, ssZen, ssHzn, ssAmb;   // to the sun, its colour, the sky above and at the horizon, what the sky gives
 vec3 ssBall, ssSand, ssDeep;   // ssDeep: how deep every dye is
 float ssMist, ssWet, ssGust, ssGrow, ssLean;
@@ -62,14 +63,22 @@ vec3 ssShape(vec2 q) {
   return mix(a, b, step(a.x, b.x));
 }
 // the dye of the shape, with the colour of its kind of sound worked in
-vec3 ssDye() {
+#define SS_DYED abs(uOwn[7])
+vec3 ssDye(int i) {
   const mat4x3 one = mat4x3(0.92, 0.008, 0.05, 0.01, 0.62, 0.66, 1.0, 0.50, 0.02, 0.98, 0.10, 0.36), two = mat4x3(0.42, 0.80, 0.03, 0.27, 0.07, 0.78, 0.02, 0.40, 0.80, 0.01, 0.55, 0.42);
   vec3 t = one * ssM + two * ssN + vec3(0.98, 0.30, 0.10) * ssO;
+  if (uOwn[6] != 0.0 && ssOut[i].y > -0.5) { vec4 a = vec4(equal(vec4(ssOut[i].y), vec4(0.0, 1.0, 2.0, 3.0))), b = vec4(equal(vec4(ssOut[i].y), vec4(4.0, 5.0, 6.0, 7.0))); t = one * a + two * b; }
+  if (SS_DYED > 0.0) {
+    vec3 c = uKind[(i * 3 + 4) % 5];
+    c /= max(max(c.r, c.g), max(c.b, 0.05));
+    t = mix(t, c * c * (0.25 + 0.75 * c) * (0.96 - 0.22 * float(i & 1)), SS_DYED);
+  }
   t += (uKind[0] * ssM.y + uKind[1] * ssM.w + uKind[2] * ssN.z + uKind[3] * ssN.x + uKind[4] * ssO + t * (ssM.x + ssM.z + ssN.y + ssN.w)) * 0.12 - 0.06 * t;
   return t * (ssDeep.x + ssDeep.y * t) + ssDeep.z;
 }
 // when few are wanted the others sink away into the sand, the far ones first
 float ssSink(int i, int k) {
+  if (uOwn[6] != 0.0) return ssOut[i].x;
   float th = 0.07 * float(SS_N - 1 - i);
   return 2.4 * smoothstep(th, th + 0.36, sat(-uOwn[2])) * (1.0 - float(k == 0) - float(k == 4));
 }
@@ -79,6 +88,46 @@ vec3 ssBandDye(vec3 t, vec2 q, float d, float px) {
   float s = abs(fract(b) - 0.5) * 0.17;
   return mix(t, 0.2 * t + vec3(0.78, 0.72, 0.64), paint * smoothstep(0.043 - px, 0.047 + px, s));
 }
+// Other sets: sheet by sheet the first ones sink and others come up in their places.
+#define SS_SET abs(uOwn[6])
+void ssSets(float side) {
+  for (int i = 0; i < SS_N; i++) {
+    float f = float(i), late = 0.075 * float((i * 4) % 9), s = sat(1.6 * (SS_SET < 0.5 ? SS_SET * 2.0 : SS_SET * 2.0 - 1.0) - late);
+    int was = int(ssE[i].w), k = was, set = (SS_SET < 0.5 ? 0 : 1) + (s > 0.5 ? 1 : 0);
+    if (set == 2 && SS_SET < 0.5) set = 1;
+    bool stays = k == 0 || k == 4;
+    ssOut[i] = vec2(0.0, -1.0);
+    if (set > 0) {
+      vec2 c; float a, sc;
+      stays = i == 1 || i == 4 || i == 6;
+      ssOut[i].y = float((i * 5 + 4) % 8);
+      if (uOwn[6] < 0.0) {
+        if (set == 1) {   // discs, rings and half discs, winding away
+          k = ((i * 5) % 9) % 3; k = k == 1 ? 3 : k;
+          float z = 2.75 + 0.78 * f;
+          c = vec2((0.42 + 0.30 * z) * sin(f * 2.25 + 0.75), z); a = 0.3 * sin(f * 2.6); sc = 0.62 + 0.10 * f + 0.28 * sin(f * 2.1 + 2.0);
+        } else {          // wave behind wave, with two discs
+          k = i == 8 || i == 5 ? 0 : 1;
+          float z = 2.6 + 0.80 * f;
+          c = vec2((i == 8 ? -0.7 : ((i & 1) == 0 ? 1.0 : -1.0) * (0.12 + 0.24 * z) * (0.8 + 0.2 * sin(f * 2.4))), z); a = 0.16 * sin(f * 1.7 - 1.7); sc = (i == 8 ? 1.9 : i == 5 ? 0.9 : 0.95 + 0.15 * f);
+        }
+      } else if (set == 1) {   // a street of slabs, wedges and combs
+        k = (i & 3) == 1 ? 5 : (i & 3) == 2 ? 6 : 7;
+        float z = 2.7 + 0.72 * f, lr = (i & 1) == 0 ? -1.0 : 1.0;
+        c = vec2(lr * (0.78 + 0.16 * z) + 0.12 * sin(f * 3.1), z); a = -lr * 0.55; sc = 0.78 + 0.11 * f;
+      } else {                 // a wood of leaves
+        k = 4;
+        float z = 2.5 + 0.66 * f;
+        c = vec2((fract(f * 0.618 + 0.14) * 2.0 - 1.0) * (0.15 + 0.50 * z), z); a = 0.5 * sin(f * 1.9 + 0.5); sc = 0.62 + 0.14 * f + 0.16 * sin(f * 2.6);
+      }
+      c.x *= side; a *= side;
+      vec2 ax = vec2(cos(a), sin(a)), ext = k == 0 ? vec2(0.8, 1.4) : k == 1 ? vec2(1.05, 0.62) : k == 2 ? vec2(0.52, 0.92) : k == 3 ? vec2(0.9, 1.3) : k == 4 ? vec2(0.6, 1.9) : k == 5 ? vec2(0.62, 1.8) : k == 6 ? vec2(1.12, 1.3) : vec2(0.4, 1.6);
+      ssA[i] = vec4(dot(c, ax), dot(c, vec2(-ax.y, ax.x)), ax); ssE[i] = vec4(ext * sc, sc, float(k));
+    }
+    float th = 0.07 * float(SS_N - 1 - i);
+    ssOut[i].x = 2.4 * (1.0 - smoothstep(0.0, 0.5, abs(s - 0.5))) + (stays ? 0.0 : 2.4 * smoothstep(th, th + 0.36, sat(-uOwn[2])));
+  }
+}
 vec3 ssSky(vec3 rd) {
   float e = max(rd.y, 0.0) / max(length(rd.xz), 1e-3);
   float st = noise(vec2(rd.x / max(rd.z, 0.2) * 1.6 + 3.0 + uTime * 0.004, e * 22.0)) - 0.5;
@@ -86,7 +135,19 @@ vec3 ssSky(vec3 rd) {
   float b = (e + 0.035 * st - 0.125) / 0.062;
   if (uVar > 0.5) c = mix(c, ssSun * 0.60, 0.92 * exp(-b * b));
   float s = dot(rd, ssL) / length(rd), s2 = s * s, s8 = s2 * s2 * s2 * s2;
-  return c + ssSun * (0.2 * step(0.0, s) * s8 * s8 * s8 + 1.6 * smoothstep(0.9981, 0.9986, s));
+  c += ssSun * (0.2 * step(0.0, s) * s8 * s8 * s8 + 1.6 * smoothstep(0.9981, 0.9986, s));
+  if (uOwn[7] < 0.0) {   // dunes, ridge before ridge
+    float x = rd.x / max(rd.z, 0.2), wide = 1.0 / (uRes.y * 1.2);
+    for (int j = 0; j < 3; j++) {
+      float f = float(j), u = x * (0.62 + 0.22 * f) + 3.7 * f + 1.13, v = fract(u + 0.07 * sin(u * 4.0)) * 2.0 - 1.0, av = abs(v);
+      float h = ((0.185 - 0.058 * f) * (1.0 - av * (1.45 - 0.45 * av)) * (0.65 + 0.35 * sin(floor(u + 0.07 * sin(u * 4.0)) * 2.4 + f))) * -uOwn[7];
+      float below = max(h - e, 0.0), line = v + 2.6 * below + 0.16 * sin(below * 40.0);
+      float shade = smoothstep(-0.02, 0.02 + 0.5 * below, line) * (1.0 - smoothstep(0.25, 0.95, line)) * smoothstep(0.015, 0.06, h);
+      vec3 d = mix(ssSand * mix(1.0, 0.34, shade) * (0.8 + 0.2 * v), ssHzn, 0.56 - 0.24 * f);
+      c = mix(c, d, 1.0 - smoothstep(-wide, wide, e - h));
+    }
+  }
+  return c;
 }
 // The ball of clear resin: how much of the way it covers, and its light.
 float ssBallAt(vec3 ro, vec3 rd, float len, out vec3 b) {
@@ -142,7 +203,7 @@ void ssThrough(vec3 ro, vec3 rd, out vec3 add, out vec3 let) {
     vec3 sh = ssShape(q);
     float d = sh.x;
     float foot = smoothstep(0.0, 0.010 + px, y0 - 0.008 - 0.016 * noise(vec2(q.x * 9.0, float(i) * 7.0)));
-    vec3 dye = ssBandDye(ssDye(), q, d, px);
+    vec3 dye = ssBandDye(ssDye(i), q, d, px);
     // its far face a thumb behind: between the two outlines is the wall
     float inF = ssIn(d, px), inB = ssIn(d + dot(sh.yz, vec2(dot(rd.xz, ax), rd.y)) * (0.036 / sc / abs(dn)), px);
     vec2 ld = vec2(dot(ssL.xz, ax), ssL.y);
@@ -189,7 +250,7 @@ vec3 ssShade(vec3 ro, out float foot) {
     t = (a.y - dot(ro.xz, nn)) / dn;
     q = ssOn(vec2(dot(ro.xz + ssL.xz * t, ax) - a.x, ssL.y * t), i, k, sc);
     float d = ssShape(q).x, soft = 0.006 + 0.012 * t;
-    vec3 dye = ssDye();
+    vec3 dye = ssDye(i);
     sun *= mix(vec3(1.0), ssBandDye(dye, q, d, soft), ssIn(d, soft));
     // the bevel throws a dark line with a bright one inside it
     float e1 = d / (soft + 0.012), e2 = (d + 0.034) / (soft + 0.008);
@@ -246,6 +307,7 @@ vec3 render(vec2 p) {
   ssA[6] = eve ? vec4(0.7537, 5.0264, 0.9928, -0.1197) : vec4(-0.5103, 5.4187, 0.8776, -0.4794); ssE[6] = eve ? vec4(0.840, 1.470, 1.05, 0.0) : vec4(0.651, 1.890, 1.05, 5.0);
   ssA[7] = eve ? vec4(0.4702, 6.6917, 0.9689, 0.2474) : vec4(-0.6221, 5.8741, 0.9872, 0.1593); ssE[7] = eve ? vec4(1.120, 1.300, 1.00, 6.0) : vec4(1.120, 1.300, 1.00, 6.0);
   ssA[8] = eve ? vec4(1.0285, 7.6936, 0.9689, -0.2474) : vec4(-3.3613, 6.4377, 0.9394, -0.3429); ssE[8] = eve ? vec4(0.682, 1.980, 1.10, 5.0) : vec4(0.460, 1.840, 1.15, 7.0);
+  if (uOwn[6] != 0.0) ssSets(eve ? -1.0 : 1.0);
   // the eye: verticals stay upright, the horizon is set where the picture wants it
   float high = (eve ? 0.62 : 0.95) * (1.0 - 0.62 * down) + 1.5 * up;
   float hor = (eve ? 0.06 : 0.215) - 0.20 * down + 0.42 * up;
@@ -314,12 +376,13 @@ vec3 render(vec2 p) {
   // the sea and its edge
   float shore = 15.0 + 0.8 * sin(g.x * 0.35 + 1.0) + 0.5 * sin(g.x * 0.9 + uTime * 0.12) + 0.5 * sin(uTime * 0.17);
   float sea = smoothstep(shore - pxg * 8.0, shore + 0.3 + pxg * 8.0, g.z);
+  sea *= 1.0 - sat(-uOwn[7]);
   float wav = noise(vec2(g.x * 0.5, g.z * 0.9 + 6.0 * sin(uTime * 0.04)));
   vec3 water = mix(mix(ssZen * 0.7 + vec3(0.0, 0.16, 0.15) * ssSun, ssHzn, 0.12), ssHzn, smoothstep(0.55 - 0.2 * uMic, 0.85, wav) * 0.6);
   if (eve) water = mix(far * 0.9, water * 0.6, 0.14);
   col = mix(col, water, sea);
   float fo = (g.z - shore) / 0.8;
-  col = mix(col, (ssSun + ssAmb) * 0.75, (eve ? 0.35 : 0.8) * exp(-fo * fo));
+  col = mix(col, (ssSun + ssAmb) * 0.75, (eve ? 0.35 : 0.8) * exp(-fo * fo) * (1.0 - sat(-uOwn[7])));
   col = mix(col, ssHzn, 1.0 - exp(-dist * (0.006 + 0.012 * uSpace + 0.22 * mist)));
   col = mix(far, col, smoothstep(0.0, 2.0 / uRes.y, -rd.y));
   if (mist > 0.0) col = mix(col, ssHzn, mist * 0.6 * exp(-abs(rd.y) * 9.0));

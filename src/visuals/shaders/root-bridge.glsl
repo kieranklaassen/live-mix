@@ -3,11 +3,17 @@
 // b: Walking over
 // what: A green gorge in rain mist: long roots led across from two fig trees have grown into one hanging bridge, a younger one above, hair roots below, pale pools, and one small walker under an umbrella; or the way over from inside it, flat stones on plaited roots, roots and ribs on both sides and overhead, the far bank bright in mist.
 // follows: The piece wets, lights and slightly thickens the roots where it sounds along the bridge. The drone is the depth of the mist, the pad the green, texture the rain; a phrase lights the umbrella. Sixteen bands sway the hanging tufts. A hit drops water and runs out along the roots; a cue lets the sun in; keys sparkle the drops; travel walks us over.
-// own: 0 a blue night at -1, a gold low sun at 1; 1 snow on roots and forest at -1, rose-red new leaves at 1; 2 young thin roots at -1, old thick ones with long hair at 1; 3 seen from farther off, or with a wide lens on the path, at -1, close to the walker, or looking narrow ahead, at 1; 4 clear air at -1, thick white mist at 1; 5 a taut, nearly level bridge at -1, a deep sag at 1
+// own: 0 a blue night at -1, a gold low sun at 1; 1 snow on roots and forest at -1, rose-red new leaves at 1; 2 young thin roots at -1, old thick ones with long hair at 1; 3 seen from farther off, or with a wide lens on the path, at -1, close to the walker, or looking narrow ahead, at 1; 4 clear air at -1, thick white mist at 1; 5 a taut, nearly level bridge at -1, a deep sag at 1; 6 a floor of cloud with peaks standing in it, in place of forest and river, at -1, a canyon of bare banded stone at 1; 7 bare: one bridge and no trees, or a way open to the sky, at -1, many bridges one behind another, or a close woven tunnel, at 1
 float rbS(float a, float b, float x) { x = sat((x - a)/(b - a)); return x*x*(3. - 2.*x); }
 // The hour, the roots' age, a pixel, where a hit falls, the colours.
+#define rbCloud max(-uOwn[6], 0.)
+#define rbStone max(uOwn[6], 0.)
+#define rbBare max(-uOwn[7], 0.)
+#define rbMany max(uOwn[7], 0.)
+#define rbClear max(-uOwn[4], 0.)
+#define rbOpen(th) (min(4.*rbBare, 1.)*rbS(3.3 - 2.35*rbBare, 3.9 - 2.4*rbBare, abs(th)))
 float rbNight, rbOld, rbPx, rbFog, rbAt;
-vec3 rbAir, rbLeaf, rbSun, rbBark, rbMoss, rbHit;
+vec3 rbAir, rbRock, rbLeaf, rbSun, rbBark, rbMoss, rbHit;
 float rbG(float x) { return exp(-x*x); }
 float rbIn(float d, float a) { return rbS(a, -a, d); }
 float rbW(float x) { x = 2.*fract(x*.15915) - 1.; return 4.*x*(abs(x) - 1.); }   // near enough a sine
@@ -22,6 +28,8 @@ void rbWorld() {
  rbSun = mix(mix(vec3(1.9, 1.75, 1.2), vec3(2.6, 1.35, .45), gold), vec3(.45, .65, 1.), rbNight);
  vec3 hour = mix(mix(vec3(1.), vec3(1.35, .95, .5), gold), vec3(.16, .22, .36), rbNight), pad = rbKc(1);
  rbLeaf = mix(mix(vec3(.08, .27, .045), vec3(.34, .085, .07), rose), vec3(.5, .56, .62), .75*snow)*hour;
+ if (uOwn[1] > 0.) rbLeaf *= 1. + vec3(.9, .2, .1)*rose;
+ rbRock = hour*mix(vec3(1.), vec3(.9, 1., 1.15), .7*snow);
  rbLeaf *= mix(vec3(1.), pad/(.15 + dot(pad, vec3(.333))), .25*uPad)*(.8 + .75*uPad);
  rbBark = mix(vec3(.085, .066, .048)*mix(vec3(1.), vec3(1.3, .9, .6), gold), vec3(.03, .035, .05), rbNight);
  rbMoss = mix(mix(vec3(.13, .23, .03), vec3(.34, .09, .06), .8*rose), vec3(.75, .82, .9), .9*snow)*mix(vec3(1.), vec3(.2, .28, .45), rbNight);
@@ -41,6 +49,11 @@ vec2 rbCrowns(vec2 q) {
 float rbRidge(vec2 p, float f) {
  float dx = p.x - .13 - .03*sin(f*2.4);
  float h = mix(-.50, .03, pow(f/3., .65)) + .39*rbS(2.5, 3., f) + (1.45 - .22*f)*pow(abs(dx), 1.12)*(dx < .0 ? 1. : .86);
+ if (uOwn[6] < 0.) {
+  float u = p.x*(.75 + .22*f) + .41*f + .04*sin(p.x*9. + f), pk = 1. - abs(2.*fract(u) - 1.), tall = .24 + .5*fract(sin(floor(u)*7.1 + f*3.)*43.7);
+  h = mix(h, -.27 + .045*f + tall*pow(pk + 1e-3, 1.5) + .014*sin(p.x*41. + 3.*f)*pk, rbCloud);
+ }
+ if (uOwn[6] > 0.) { float k = h*6.; h = mix(h, (floor(k) + rbS(.3, .7, fract(k)))/6. + .03, rbStone); }
  return min(h, .30 + .05*f + .10*sin(dx*5. + f*2.)) + .017*sin(p.x*23. + f*5.);
 }
 // The gorge behind: four walls of forest from near to far, going to white.
@@ -56,6 +69,13 @@ vec3 rbGorge(vec2 p, vec3 sky) {
   float a = rbS(-.003, .006, e)*rbS(.10, .35, twig + 18.*e);
   float fog = 1. - exp(-rbFog*(.10 + .42*f + .75*rbS(.12, -.45, p.y - h)*(.5 + .2*f)));
   vec3 body = rbLeaf*(.05 + (1.3 + 1.4*uCue)*lit*lit) + rbSun*rbLeaf*.9*lit*rbS(.5, 1.1, c.x + .3*twig);
+  if (uOwn[6] != 0.) {
+   // bare stone: in bands, or as a peak's faces
+   float st = p.y*(30. - 4.*f) + 1.6*w + .7*sin(p.x*3. + f), cr = .25 + .75*noise(vec2(p.x*s*1.7 + f + 2.*w, p.y*11.)), rk = noise(vec2(st, f*3.))*.65 + .35*noise(vec2(st*3.1, f + 7.));
+   vec3 ro = uOwn[6] > 0. ? mix(vec3(.30, .085, .035), vec3(.80, .42, .20), rbS(.2, .8, rk)) : mix(vec3(.16, .19, .25), vec3(.55, .58, .62), rbS(.35, .75, twig*.5 + w*.5 + .6*(p.y - h) + .15));
+   body = mix(body, (ro*(.18 + .9*cr*cr)*(1. + 1.2*uCue) + rbSun*ro*.35*rbS(.5, .9, cr))*rbRock, abs(uOwn[6]));
+   a = mix(a, rbS(-.002, .002, h - p.y + .008*(cr - .5)), abs(uOwn[6])); fog = mix(fog, fog*(uOwn[6] > 0. ? .62 : .5), abs(uOwn[6]));
+  }
   col += T*a*mix(body, sky*mix(.94, 1., f/3.), fog); T *= 1. - a;
  }
  return col + T*sky;
@@ -91,12 +111,15 @@ vec4 rbWalker(vec2 w, float px) {
  float rib = abs(fract(u.x*3.2/(.3 + sqrt(max(.25 - u.x*u.x, .0)))) - .5);
  return vec4(mix(vec3(.02, .024, .032), red*(.55 + 1.1*rbS(-.1, .4, u.y) + 1.4*uPhrase + .8*uMic)*(.85 + .25*rbS(.0, .2, rib)), arc), max(a, arc));
 }
+// The low sun, or the moon, in the mist.
+vec3 rbDisc(vec2 d, float r) { float l = length(d), n = abs(uOwn[0]); return (uOwn[0] > 0. ? vec3(2.4, 1.5, .7) : vec3(.75, .85, .95)*(.8 + .3*noise(d*60.)))*n*(rbS(r + .004, r - .004, l) + .13*exp(-max(l - r, 0.)*9.)); }
 vec3 rbRain(vec2 p) {
  float l = .0;
  for (int i = 0; i < 2; i++) {
   float f = float(i), gx = (p.x + .05*p.y)*(70. - 26.*f), c = floor(gx), h = hash21(vec2(c, f + 2.));
   float y = fract(p.y*(1.2 - .4*f) + fract(uTime*(.55 + .3*h)) + h*9.);
-  l += (.03 + .18*uTexture)*rbIn(abs(fract(gx) - .5) - .05, .10)*rbS(.0, .10, y)*rbS(.14 + .1*h, .10, y)*step(.35, h);
+  if (uOwn[1] < 0.) { vec2 g = (p + vec2(.02*sin(uTime*.3 + p.y*7.), uTime*(.035 + .012*f)))*(19. + 13.*f), c2 = floor(g); float k = hash21(c2 + 3.*f); l += max(-uOwn[1], 0.)*(.35 + .6*uTexture)*rbS(.14, .04, length(fract(g) - .5 - .6*(vec2(k, fract(k*31.)) - .5)))*step(.45, fract(k*7.)); }
+  l += (1. + min(uOwn[1], 0.))*(1. - .85*rbClear)*(.03 + .18*uTexture)*rbIn(abs(fract(gx) - .5) - .05, .10)*rbS(.0, .10, y)*rbS(.14 + .1*h, .10, y)*step(.35, h);
  }
  return rbAir*l;
 }
@@ -110,10 +133,20 @@ vec3 rbAcross(vec2 p) {
  float glow = exp(-length((p - vec2(.20, .22))*vec2(1.15, .8))*3.2), roll = rbMist, an = (p.x - .30)/max(.75 - p.y, .05);
  vec3 shaft = rbSun*uCue*(.15 + rbS(-.3, 1.2, rbW(an*17. + uTime*.05) + .6*rbW(an*41. - uTime*.07)))*exp(-abs(an + .30)*2.2)*rbS(-.55, .45, p.y)*.8;
  vec3 sky = rbAir*(.25 + (.85 + .25*uTone)*glow + .24*roll) + rbSun*glow*glow*.35 + shaft*.5, col = sky;
+ if (uOwn[0] != 0.) sky += rbDisc(p - vec2(.2, .2), .075);
  if (p.y > -.21) col = rbGorge(p, sky);
  // the thin fall, far off
  float fx = p.x - .215 - .006*sin(p.y*40.), fw = .0035 + .010*rbS(.24, .0, p.y);
  if (abs(fx) < .04 && p.y > -.12) col = mix(col, rbAir*1.15 + .1, .8*rbG(fx/fw)*rbS(.185, .16, p.y)*rbS(-.12, .05, p.y)*(.8 + .2*rbW(p.y*90. + uTime*4. + 5.*rbW(p.x*300.))));
+ // more bridges, far off
+ if (uOwn[7] > 0.) for (int i = 0; i < 5; i++) {
+  float f = float(i), sc = .95 - .13*f, x = (p.x + .12 - .11*rbH(f + 8.))/sc, u = x/.62, d = (p.y - .02 - .085*f*(1. + .12*f) - (i == 2 ? -.2 : 0.))/sc + (rbSag()*.9 + .03*rbH(f + 3.))*(1. - u*u), o = 9., hx = x/.03;
+  for (int k = 0; k < 3; k++) o = min(o, abs(d - .008*rbW(x*17. + 2.1*float(k) + f)) - .0075);
+  o = min(o, abs(d - .05 - .003*rbW(x*30.)) - .0018);
+  o = min(o, max(abs(fract(hx + .4*d*30.*(rbH(floor(hx)) - .5)) - .5)*.03 - .0012, abs(d - .025) - .025));
+  float hl = (.02 + .07*rbH(floor(x/.006)))*(.4 + .6*rbW(x*19. + f)), hr = .45*rbIn(abs(fract(x/.006) - .5)*.006 - .0009, rbPx*1.5)*step(d, 0.)*rbS(hl, hl*.4, -d);
+  col = mix(col, mix(rbBark*.7 + rbMoss*.12*rbS(-.004, .006, d), rbAir*.45 + sky*.3, sat(.02 + .12*f)*sat(rbFog + .1)), rbMany*max(rbIn(o*sc, rbPx), hr*rbS(1.1, .9, abs(u))));
+ }
  // the pools below, and the rocks in them, black and wet
  float n = rbGrain, n2 = noise(rot(-.3)*p*vec2(70., 130.));
  float hor = -.185, far = max(hor - p.y, .0), xHit = .10 + .30*rbAt, grow = 1. - uHits;
@@ -141,11 +174,11 @@ vec3 rbAcross(vec2 p) {
  float side = p.x < .0 ? -1. : 1., k = p.x < .0 ? 1. : .72, dim = (p.x < .0 ? .02 : .14)*sat(rbFog), f, h, r;
  vec2 q = vec2(abs(p.x) - (p.x < .0 ? .60 : .62), p.y - (p.x < .0 ? .115 : .05))/k;     // q.x grows outward from the end of the bridge
  float big = q.x - .02 + .26*rbS(.0, -.6, q.y) + .05*sin(q.y*11. + side) + .075*(n - .5);
- vec3 rock = vec3(.008, .012, .011)*(.4 + n + n2) + rbAir*(.09*rbS(.05, .0, big)*(.2 + n2) + .05*rbS(.05, .0, abs(n - .5))*n2) + rbMoss*.35*rbS(.40, .85, n + .35*n2 - .15)*(.2 + n2*n2);
- col = mix(col, mix(rock, sky, dim), rbS(-.004, .004, big)*rbS(.03, .0, q.y - .05*sin(q.x*9.)));
+ vec3 rock = (vec3(.008, .012, .011) + rbStone*rbRock*vec3(.12, .045, .02))*(.4 + n + n2) + rbAir*(.09*rbS(.05, .0, big)*(.2 + n2) + .05*rbS(.05, .0, abs(n - .5))*n2) + rbMoss*.35*rbS(.40, .85, n + .35*n2 - .15)*(.2 + n2*n2);
+ col = mix(col, mix(rock, sky, dim), (1. - rbBare)*rbS(-.004, .004, big)*rbS(.03, .0, q.y - .05*sin(q.x*9.)));
  rbTop = rbV = rbId = rbCov = .0;
- float low = rbS(.22, -.5, q.y), mv = low*low*(3. - 2.*low)*.6 + .4*low, base = mix(.026, .007, sqrt(low))*exp2(.9*rbOld);
- for (int i = 0; i < 9 && q.x > -.30; i++) {
+ float low = rbS(.22, -.5, q.y), mv = low*low*(3. - 2.*low)*.6 + .4*low, base = (1. - rbBare)*mix(.026, .007, sqrt(low))*exp2(.9*rbOld);
+ for (int i = 0; i < 9 && q.x > -.30 && uOwn[7] > -1.; i++) {
   f = float(i); h = rbH(f*2.3 + side*5. + 30.);
   float cx = mix(.12 + .021*f + .02*rbW(q.y*9. + f*2.), -.05 + .066*f + .06*(h - .5) + .028*rbW(q.y*(11. + 5.*h) + f*2.3), mv);
   rbStrand((cx - q.x)*.95, base*(.6 + .8*h)*(.85 + .3*rbW(q.y*17. + f*4.)), 1.5*rbW(q.y*5. + f*1.9) + h, f + 20. + 10.*side);
@@ -157,7 +190,7 @@ vec3 rbAcross(vec2 p) {
  float wet = sat(mp.a), run = rbG((abs(p.x - xHit) - .30*grow)*13.), thick = (1. + .1*wet)*exp2(1.2*rbOld), hz = mix(.02, .08, sat(.5 + .5*u))*sat(rbFog), fade = rbS(1.28, 1.14, au), edge = fade*step(.0, 1.28 - au);
  vec3 lit = mp.rgb*mp.rgb*(.2 + .9*uEnergy)/(.35 + mp.a) + rbHit*run;
  // the young one above, and the hairs it lets down to the lower one
- float yu = .115 + .09*u*u;
+ float yu = .115 + .09*u*u + .6*rbBare;
  for (int i = 0; i < 4 && au < 1.2 && abs(dy - yu) < .03 + .06*e; i++) {
   f = float(i); float ph = f*1.57 + p.x*31. + rbW(p.x*9. + f*2.);
   rbStrand(dy - yu - .0055*(1. + 3.*e)*rbW(ph) - (f - 1.5)*.03*e*e, .0026*(.7 + .5*rbH(f + 1.))*(1. + .4*rbW(p.x*23. + f*5.))*thick*edge, 10. + rbW(ph + 1.57), f + 40.);
@@ -210,8 +243,16 @@ vec3 rbAcross(vec2 p) {
  col += (rbHit + .6*uHits)*rbIn(abs(p.x - xHit) - .0022, .0015)*rbS(.020, .0, abs(p.y - fy))*1.5;
  col += shaft*.35;
  rbSky = sky;
+ if (uOwn[7] < 0.) col = mix(col, sky, rbBare*rbS(.62, 1.2, au)*rbS(-.5, .1, p.y + .2));
+ if (uOwn[6] < 0.) for (int i = 0; i < 3 && p.y < 0.; i++) {
+  // the floor of cloud
+  float f = float(i), k = 5. - 1.2*f, dr = uTime*.004*(1. + f), b1 = noise(vec2(p.x*k + dr + 9.*f, f)), b2 = noise(vec2(p.x*k*2.7 - dr, p.y*9. + f*5.)), b3 = noise(p*vec2(27., 40.) + f);
+  float v = -.16 - .10*f + .10*(b1 - .4) + .045*(b2 - .5) + .012*(b3 - .5) - p.y;
+  vec3 cl = mix(rbAir*1.02 + rbSun*(.06 + .25*glow), rbAir*.62 + .1*rbAir*roll, rbS(-.01, .14, v + .05*(b2 - b3))) + rbHit*.7*rbG(length((p - vec2(xHit, -.28))*vec2(1., 2.))*5.5);
+  col = mix(col, cl, rbCloud*rbS(-.012, .03 + .02*f, v)*(i == 0 ? .95 : .85));
+ }
  // leaves the size of plates across the near upper corner
- vec2 w = vec2(hw, .5) - pp;
+ vec2 w = vec2(hw, .5) - pp; w.y += .7*rbBare;
  for (int i = 0; i < 7 && w.x < .60 && w.y < .38; i++) {
   float f = float(i), h = rbH(f + 5.), h2 = rbH(f + 41.), L = mix(.14, .31, h);
   vec2 d = rot(-2.5 + 1.25*h2 + .02*sin(uTime*(.31 + .2*h) + f*2.))*(-w - vec2(.05 - .085*f - .02*h, .06 - .10*fract(f*.618)));
@@ -236,10 +277,12 @@ float rbMap(vec3 q) {
    float f = float(i), sg = f*2. - 1., a = th + sg*.24*wz + .06*rbW(z*2.317 + sg*2.) + .1*f, k = floor(a/c + .5);
    h = rbH(mod(k, 30.) + 30.*f + 1.);
    float rad = (.014 + .046*h*h)*(1. + .3*rbW(z*3.10242 + k*2.))*mix(1., .2 + .7*step(.6, h), up);
+   if (uOwn[7] != 0.) rad = uOwn[7] > 0. ? rad*(1. + .35*rbMany) + .02*rbMany : mix(rad, -.12, rbOpen(th));
    d = min(d, length(vec2(a - k*c, rr - sg*.06*wc - .08*(h - .5))) - rad*rbThin);
   }
   float zi = floor(z/1.25 + .5), zm = mod(zi, 128.), dz = z - zi*1.25 + .2*rbW(th*1.3 + zm*2.4);
-  d = smin(d, length(vec2(rr - .06, dz)) - (.05 - .025*up)*(1. + .3*rbW(th*7. + zm*3.))*rbThin, .045);
+  d = smin(d, length(vec2(rr - .06, dz)) - (.05 - .025*up)*(1. + .3*rbW(th*7. + zm*3.))*rbThin + (uOwn[7] < 0. ? .2*rbOpen(th) : 0.), .045);
+  if (uOwn[7] > 0.) d = min(d, 1.6 - .5*rbMany - r);
  }
  if (fl > .4) return .92*d;
  for (int i = 0; i < 2; i++) {
@@ -262,6 +305,7 @@ vec3 rbOver(vec2 p) {
  // the mist outside, and the light where the path comes to the far bank
  float glow = exp(-length((p - vp - vec2(.075, -.06))*vec2(1., .85))*4.2), roll = rbMist;
  vec3 sky = rbAir*(.22 + (.85 + .3*uTone)*glow + .2*roll) + rbSun*glow*glow*(.7 + 1.*uCue), col = sky;
+ if (uOwn[0] != 0.) sky += rbDisc(p - vp - vec2(.04, .04 + .12*rbBare), .1);
  // through the open middle, then step by step to a root
  float t = .4, d = 1., near = 1., tn = .0, hit = .0;
  for (int i = 0; i < 5; i++) {
@@ -283,8 +327,11 @@ vec3 rbOver(vec2 p) {
   float tw = noise(p*90.), lit = sat(.45 + .6*c.y)*sat(.15 + c.x)*(.2 + 1.5*tw*tw);
   float hill = .20 + .5*abs(p.x - vp.x) + .03*sin(p.x*17.) + .03*c.x - p.y, dep = max(vp.y - .12 - p.y, .0);
   col = mix(sky, mix(sky, rbLeaf*(.04 + 1.6*lit), exp(-rbFog*(.35 + 1.4*glow + .6*roll))), rbS(-.004, .01, hill));
+  if (uOwn[6] > 0.) { tw = .6*noise(rot(.7)*p*61.) + .4*noise(rot(2.)*p*131.); float wp = noise(p*7.), st = p.y*19. + 1.1*wp + .8*sin(p.x*4.), rk = rbS(.15, .85, noise(vec2(st, 1.))*.55 + .3*noise(vec2(st*3.1, p.x*1.5 + 4.)) + .08*tw), cr = .45 + .4*noise(vec2(p.x*17. + 6.*wp, p.y*4.)) + .12*tw + .1, cl = hill - .03*c.x, k = abs(p.x - vp.x)*7. + wp; col = mix(col, mix(sky, rbRock*mix(vec3(.3, .085, .035), vec3(.8, .42, .2), rk)*cr*cr*1.25, exp(-rbFog*(.1 + .8*glow))), rbStone*rbS(-.003, .003, cl + .09*(rbS(.3, .7, fract(k)) - fract(k)))); }
+  if (uOwn[6] < 0.) { vec2 o = p - vp + vec2(.06, .12); col = mix(col, sky, rbCloud); for (float f = 3.; f > -.5; f -= 1.) { float e = rbRidge(o, f) - o.y; col = mix(col, mix(rbRock*vec3(.2, .24, .3)*(.5 + tw), sky, .25 + .2*f), rbCloud*rbS(-.002, .003, e)*rbS(.4, .05, e)); } }
   vec3 pool = rbAir*vec3(.30, .54, .66)*(.45 + rbS(.5, .8, rbRip));
-  pool = mix(pool, vec3(.01, .016, .016) + rbMoss*.08, rbS(.50, .60, roll));
+  pool = mix(pool, vec3(.01, .016, .016) + rbMoss*.08 + rbStone*rbRock*vec3(.16, .06, .025)*(.35 + .9*noise(p*vec2(23., 60.))), uOwn[7] < 0. ? rbS(.50, .60, roll)*(1. - rbBare) : rbS(.50, .60, roll));
+  if (uOwn[6] < 0.) { float b2 = noise(vec2(p.x*5. + uTime*.01, log(dep + .05)*5.)), b3 = noise(vec2(p.x*17., log(dep + .05)*13.)); pool = mix(pool, mix(rbAir*.5, rbAir + rbSun*.12, rbS(.3, .75, b2*.7 + b3*.3)), rbCloud); }
   col = mix(col, mix(pool, sky, sat(exp(-dep*6./rbFog)*.8 + 2.4*glow - .5)), rbS(.0, .05, dep));
  }
  if (hit > .0) {
@@ -304,7 +351,7 @@ vec3 rbOver(vec2 p) {
   c += (rbAir*.5 + rbSun*(.4 + 1.2*uCue))*sp*(.04 + .22*wet + .5*stone + .12*uTexture)*mix(.1 + 1.4*g2*g2*2., .25 + .5*g, stone);
   // what sounds lights the roots there; a hit runs out from where its drop falls
   c += mp.rgb*mp.rgb*(.10 + .75*uEnergy)*(.1 + .9*top)*(.1 + 1.6*g2*g2)*ao;
-  c += rbHit*rbG((length(b - vec3(.2*rbAt, -.95, 2.4)) - 2.2*(1. - uHits))*2.6)*(.1 + .9*top)*(.1 + g2*g2*1.5)*ao*.8;
+  c += rbHit*rbG((length(b - vec3(.2*rbAt, -.95, 2.4)) - 2.2*(1. - uHits))*2.6)*(.1 + .9*top)*(.1 + g2*g2*1.5)*ao*(.8 + 2.2*rbMany);
   col = mix(col, mix(sky, c, far), hit);
  }
  // someone ahead, nearly over
@@ -317,7 +364,7 @@ vec3 rbOver(vec2 p) {
   float sd = x.x < .0 ? .0 : 1., b = uBands[2*i + int(sd)], v = -x.y/((.25 + .3*fract(h*7. + .4*sd))*(1. + .1*b)*exp2(.5*rbOld));
   if (v < -.1 || v > 1.1 || z > t*rd.z) continue;
   x.x = abs(x.x) - .10 - .55*h - .06*sd + (.012 + .06*b)*sin(uTime*(.6 + .4*h) + f*2. + sd)*v*v + .01*sin(x.y*30. + f);
-  float px = rbPx/s, on = rbS(.9, 1.6, z)*rbS(10.8, 8., z), l = abs(abs(x.x) - .018*(1. - .6*v)) - .0045*(1.1 - v);
+  float px = rbPx/s, on = (1. - min(3.*rbBare, 1.))*rbS(.9, 1.6, z)*rbS(10.8, 8., z), l = abs(abs(x.x) - .018*(1. - .6*v)) - .0045*(1.1 - v);
   col = mix(col, mix(rbBark*.5, sky, 1. - exp(-rbFog*.01*z*z)), on*rbIn(l, px)*rbS(-.05, .0, v)*rbS(1., .9, v));
   col += on*rbAir*(.5 + 2.*b + 4.*uKeys*rbS(.0, 1., sin(uTime*1.7 + f*3. + sd)))*rbIn(length(vec2(x.x, (v - 1.)*.4)) - .007, px);
  }

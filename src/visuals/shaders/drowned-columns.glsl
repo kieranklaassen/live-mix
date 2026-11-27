@@ -3,9 +3,16 @@
 // b: Broken roof
 // what: A flooded hall underground: ranks of stone columns in black-green water, one huge and close, go off into the dark; a flat boat with one lamp hangs among them and lights their wet sides; or a piece of the roof has fallen, and noon comes down past hanging roots onto a small island with one green tree.
 // follows: Drone opens the far dark, pads brighten lamp or noon, texture draws a net of water light on the vaults, a phrase drifts the boat or lights the leaves, the loop turns the boat. Each kind is a sunken lamp, the piece is dye on the water, bands light the ranks. A hit drops a ring whose bright line climbs the columns; a cue raises the sunken lamps. Keys spark.
-// own: 0 clear air and light that reaches far at -1, pale mist at 1; 1 thin poles at -1, heavy piers at 1; 2 white stone and sea-blue water at -1, red brick and rust water at 1; 3 cold moonlight at -1, ember red at 1; 4 low vaults close over the water at -1, a towering hall at 1
+// own: 0 clear air and light that reaches far at -1, pale mist at 1; 1 thin poles at -1, heavy piers at 1; 2 white stone and sea-blue water at -1, red brick and rust water at 1; 3 cold moonlight at -1, ember red at 1; 4 low vaults close over the water at -1, a towering hall at 1; 5 the eye high up among the capitals looking down on the water at -1, in the middle of a straight avenue of columns at 1; 6 square piers at -1, the vaults fallen in piece by piece until the columns stand under an open sky at 1; 7 sand or snow blown over the floor until the water is gone at -1, round leaves and flowers afloat at 1
 // Columns stand on whole numbers of the plan; the water is y = 0.
 const float dkF = .95;
+#define dkNave max(uOwn[5], 0.)
+#define dkHigh max(-uOwn[5], 0.)
+#define dkOpen max(uOwn[6], 0.)
+#define dkSq max(-uOwn[6], 0.)
+#define dkLeaf max(uOwn[7], 0.)
+#define dkSand max(-uOwn[7], 0.)
+vec3 dkSkyLo, dkSkyHi;
 vec2 dkRt, dkFw, dkHome, dkB, dkDrop, dkKp[5]; // right, ahead, our seat, boat or island, a hit, sunken lamps
 vec3 dkL, dkLc, dkStone, dkMist, dkMurk, dkKc[5];
 // A smooth step that may also run downwards.
@@ -18,11 +25,12 @@ vec2 dkAt(float x, float z) { return dkHome + x * dkRt + z * dkFw; }
 vec3 dkWay(float q, vec3 lo, vec3 at, vec3 hi) { return mix(at, q > .0 ? hi : lo, abs(q)); }
 void dkSet() {
   bool b = uVar > .5;
-  float t = uTime, high = uOwn[4], turn = b ? -.36 : .45;
+  float t = uTime, high = uOwn[4], turn = (b ? -.36 : .45) * (1. - dkNave);
   dkBo = !b;
   dkPx = 1. / uRes.y; dkAge = 1. - uHits;
   dkRt = vec2(cos(turn), -sin(turn)); dkFw = vec2(-dkRt.y, dkRt.x);
   dkHome = -(b ? .47 * dkRt + .8 * dkFw : -.385 * dkRt + .6 * dkFw);
+  dkHome = mix(dkHome, vec2(-.5, -.62), dkNave);
   dkS = (b ? 1.15 : 1.22) * (1. + (high > .0 ? .75 : .45) * high);
   dkH = .5 * (1. + .35 * high);
   dkGirth = 1. + (uOwn[1] > .0 ? .75 : .55) * uOwn[1];
@@ -32,9 +40,16 @@ void dkSet() {
   dkStone = dkWay(uOwn[2], vec3(.95, .97, .92), vec3(.5, .46, .38), vec3(.62, .23, .14));
   dkMurk = dkWay(uOwn[2], vec3(.03, .3, .42), vec3(.07, .17, .11), vec3(.2, .06, .05)) * 2.2;
   dkYaw = cos(.35 * sin(TAU * uLoop) + .5);
-  dkB = b ? floor(dkAt(.45, 2.75)) + .5 : dkAt(.57 + .1 * sin(t * .027) + .22 * uPhrase * sin(t * .09), 2.55 + .12 * sin(t * .021 + 2.));
+  dkB = b ? floor(dkAt(mix(.45 - .2 * dkHigh, .0, dkNave), 2.75 - .6 * dkHigh)) + .5 : dkAt(mix(.57, .0, max(dkNave, dkHigh)) + .1 * sin(t * .027) + .22 * uPhrase * sin(t * .09), mix(2.55, 2.1, dkHigh) + .12 * sin(t * .021 + 2.));
   dkL = b ? vec3(dkB, .42).xzy : vec3(dkB - .17 * dkYaw * dkRt, .335).xzy;
   dkLc = dkWay(uOwn[3], vec3(.34, .6, 1.), b ? vec3(.86, .92, .72) : vec3(1., .5, .17), vec3(1., .3, .07)) * (b ? 1.05 : .85) * (.8 + .9 * uPad * (.4 + uEnergy) + .25 * uLevel);
+  dkSkyLo = dkSkyHi = vec3(.0);
+  if (uOwn[6] > 0.) {
+    vec3 w = dkWay(uOwn[3], vec3(.1, .17, .34), vec3(.5, .56, .6), vec3(.85, .36, .16)), z = dkWay(uOwn[3], vec3(.012, .03, .09), vec3(.13, .25, .4), vec3(.16, .1, .2));
+    float up = dkOpen * (.6 + .5 * uPad + .25 * uDrone);
+    dkSkyLo = w * mix(vec3(1.), uKind[1] * uKind[1] * 2., .35) * up; dkSkyHi = z * mix(vec3(1.), uKind[0] * uKind[0] * 2.2, .3) * up;
+    dkMist = mix(dkMist, dkSkyLo, dkOpen); dkFog *= 1. - .45 * dkOpen;
+  }
   dkDrop = dkAt(b ? .12 : .2, 1.75);
   float lv[5] = float[5](uDrone, .7 * uPad, uTexture, uPhrase, uHits);
   dkKp[0] = dkAt(-.75, 4.3); dkKp[1] = dkAt(1.75, 4.2); dkKp[2] = dkAt(-.15, 3.2); dkKp[3] = dkAt(1.75, 2.35); dkKp[4] = dkAt(-1.6, 3.);
@@ -42,11 +57,11 @@ void dkSet() {
 }
 // A column: its middle, girth, height.
 vec4 dkNode(vec2 n) {
-  if (n == vec2(.0)) return vec4(.0, .0, (dkBo ? .172 : .1) * mix(1., dkGirth, .5), 9.);
+  if (n == vec2(.0)) return vec4(.0, .0, (dkBo ? mix(.172, .1, dkNave) : .1) * mix(1., dkGirth, .5), 9.);
   float h = hash21(n + vec2(31., 57.)), g = fract(h * 91.7), m = fract(h * 331.3);
-  vec4 c = vec4(n + (vec2(g, fract(h * 37.9)) - .5) * .17, (.072 + .05 * fract(h * 17.3)) * dkGirth, 9.);
+  vec4 c = vec4(n + (vec2(g, fract(h * 37.9)) - .5) * .17 * (1. - .85 * dkNave), (.072 + .05 * fract(h * 17.3)) * dkGirth, 9.);
   vec2 far = n - dkHome;
-  if (m < .2 && dot(far, far) > 9.) c.w = m < .12 ? .06 + 1.6 * m : -1.;
+  if (m < .2 * (1. - dkNave) + .35 * dkOpen && dot(far, far) > 9.) c.w = m < .12 ? .06 + 1.6 * m : -1.;
   return c;
 }
 // Where a way leaves an arch.
@@ -75,17 +90,28 @@ float dkWalk(vec3 o, vec3 d, float far, float trav) {
     vec4 c = dkNode(n);
     vec2 m = o.xz - c.xy;
     float tc = -dot(m, dx) / a, perp = length(m + dx * tc), R = c.z;
+    vec2 bq = vec2(-1e3, 1e3); float bz = 1.;
+    if (uOwn[6] < 0.) {
+      vec2 e = abs(iv) * R * .9, w = -m * iv;
+      R *= 1. + .28 * dkSq;
+      bq = vec2(max(w.x - e.x, w.y - e.y), min(w.x + e.x, w.y + e.y));
+      bz = bq.x > w.x - e.x ? 2. : 3.;
+      float sil = c.z * .9 * (abs(dx.x) + abs(dx.y)) * inversesqrt(a);
+      perp += max(R - sil, 0.);
+    }
     if (perp < R * 1.3 && tc > .0 && c.w > .0) {
       float hp = dkPx * (tc + trav) * .8, dt = sqrt(max(R * R - perp * perp, .0) / a), th = tc - dt, y = o.y + d.y * th;
       dkId = n; dkMat = .0; dkPast = tc + 1e-3;
       float Rb = R * 1.3, db = sqrt(max(Rb * Rb - perp * perp, .0) / a), tb = tc - db, yb = o.y + d.y * tb, lo = dkS - .09;
-      if (c.w > 1. && yb < dkS + .02 && d.y > .0 && (perp > R || y > lo) && tb > .0) {
+      if (c.w > 1. && yb < dkS + .02 && d.y > .0 && (perp > R || y > lo) && tb > .0 && uOwn[6] >= 0.) {
         if (yb > lo) { dkN = vec3(m + dx * tb, .0).xzy / Rb; dkCov = sat((Rb - perp) / (2. * hp) + .5); return tb; }
         float tu = (lo - o.y) / d.y;
         if (tu < tc + db) { dkN = vec3(0, -1, 0); return tu; }
       }
+      if (uOwn[6] < 0.) { if (bq.x < th) bz = .0; th = max(th, bq.x); dt = max(tc - th, .0); y = o.y + d.y * th; }
       if (perp < R + hp && th > .0 && th < far && y < dkS + .01 && y < c.w) {
         dkN = vec3(m + dx * th, .0).xzy; dkN /= max(length(dkN), 1e-4);
+        if (bz > 2.5) dkN = vec3(0, 0, -st.y); else if (bz > 1.5) dkN = vec3(-st.x, 0, 0);
         dkCov = sat((R - perp) / (2. * hp) + .5);
         return th;
       }
@@ -96,14 +122,22 @@ float dkWalk(vec3 o, vec3 d, float far, float trav) {
     if (P.y > dkS) {
       float u = fract(xl ? P.z : P.x) - .5, y = o.y - dkS, py = P.y - dkS, pix = dkPx * (t + trav) + 1e-5;
       vec2 mid = floor(o.xz + d.xz * .5 * (t0 + t)) + .5;
+      bool gone = false;
       if (dkIn(u, py, .5) > .0) {
         vec2 q = o.xz - mid;
         float tx = dkOut(q.x, d.x, y, d.y, .5, dkH), tz = dkOut(q.y, d.z, y, d.y, .5, dkH);
+        if (uOwn[6] > 0.) {
+          vec3 V = o + d * clamp(max(tx, tz), t0, t);
+          gone = noise(V * 2.6) * .75 + .25 * noise(V.xz * 9.) < dkOpen * 2.6 - .3 || max(tx, tz) < t0 - 1e-3;
+        }
+        if (!gone) {
         t = clamp(max(tx, tz), t0, t); P = o + d * t; q = P.xz - mid;
         q *= -4. * dkH; y = (dkS - P.y) / dkH;
         dkN = normalize(tx > tz ? vec3(q.x, y, .0) : vec3(.0, y, q.y));
         dkMat = 2.; return t;
+        }
       }
+      if (uOwn[6] > 0. && (py > dkH + .12 || hash21(floor(P.xz + (xl ? vec2(.5, .0) : vec2(.0, .5))) + (xl ? 3.3 : 8.7)) < dkOpen * 1.8 - .8)) { t0 = t; if (xl) tn.x += dl.x; else tn.y += dl.y; continue; }
       float e = dkIn(u, py, .43) / pix + .5;
       vec3 face = xl ? vec3(-st.x, 0, 0) : vec3(0, 0, -st.y);
       dkMat = 1.; dkN = face; dkPast = t + 1e-3;
@@ -174,9 +208,11 @@ vec3 dkLit(vec3 P, vec3 d, float z) {
   float fine = sat(.0009 / (dkPx * z + 1e-5)), wet = .4, tex;
   if (col) {
     float an = atan(-N.x, -N.z + 1e-5), id = dkId.x * 7.3 + dkId.y * 13.1;
+    if (uOwn[6] < 0.) an = mix(an, (P.x + P.z) * 9., dkSq);
     vec2 q = vec2(an * 1.6, P.y * 3.) + id;
     float str = noise(q * vec2(5., .5)), blot = noise(q * 2.1), near = fine * dkUp(5., 3.5, z), gr = near > .0 ? mix(.5, noise(q * vec2(17., 13.)), near) : .5;
     tex = .5 * (blot + gr) + .35 * str - .125;
+    if (uOwn[6] < 0.) { vec2 f2 = vec2(an * .7, P.y * 9.); f2.x += .5 * mod(floor(f2.y), 2.); vec2 ff = abs(fract(f2) - .5); tex *= mix(1., (1. - .55 * max(dkUp(.43, .49, ff.y), dkUp(.44, .49, ff.x))) * (.7 + .6 * hash21(floor(f2))), min(fine * 4., 1.) * dkSq); }
     float tide = dkUp(.2, .05, P.y + .05 * str);
     alb *= mix(vec3(1.), vec3(.42, .55, .4), tide);
     N = normalize(N + .22 * dkUp(.5, 1.8, z) * vec3((str - .5) * N.z + gr - .5, blot - .5, (.5 - str) * N.x));
@@ -193,6 +229,8 @@ vec3 dkLit(vec3 P, vec3 d, float z) {
   float  cap = dkBo ? 1. - .8 * dkUp(.2, .9, -l.y / di) : 1., att = 1. / ((dkBo ? .1 : .35) + dkReach * d2);
   vec3 c = dkLc * att * sat(face * .92 + .08) * sh * cap * .62;
   float nl = exp(-dot(l.xz, l.xz) * (dkBo ? .42 : .22)) * (.25 + 1.1 * uTexture) * (col ? sat(.1 + face) : sat(.75 - .4 * N.y));
+  if (uOwn[6] > 0.) nl *= 1. - .9 * dkOpen;
+  if (uOwn[7] < 0.) nl *= 1. - .8 * dkSand;
   if (nl > .01) c += dkLc * nl * dkNet(col ? vec2((P.x - P.z) * 6., P.y * 7.) : P.xz * 7.) * (dkBo ? .17 : .5) * (.4 + uEnergy);
   for (int k = 0; k < 5; k++) {
     vec3 e = vec3(dkKp[k], 1.8 * uCue * (1. - uCue) - .12).xzy - P;
@@ -202,6 +240,7 @@ vec3 dkLit(vec3 P, vec3 d, float z) {
   face = col ? 1. - abs(dot(normalize(d), dkN)) : .3;
   c += vec3(.5, .75, .85) * (.006 + .05 * band(z * .16) * (.3 + uEnergy)) * (.2 + 1.5 * face) * exp(-P.y * 1.2) * (.06 + dkUp(.7, 2.2, z)) * (1. + uVar);
   c *= alb * tex * 2.;
+  if (uOwn[6] > 0.) c += alb * (.5 + tex) * mix(dkSkyLo, dkSkyHi, .5 + .4 * N.y) * (.05 + .42 * sat(dot(N.xz, dkRt) * .9 - .2 * dot(N.xz, dkFw) + .25)) * dkUp(-.2, .8, P.y);
   // wet streaks
   if (col) {
     vec2 hv = normalize(normalize(l.xz + 1e-4) - normalize(d.xz) + 1e-5);
@@ -237,7 +276,7 @@ vec4 dkIsle(vec2 q, float px) {
     float x = q.x * 12., h = hash11(floor(x) + 5.), g = fract(h * 17.7);
     float y = dkS + dkH + .35 - q.y, len = .5 + .6 * g, k = sat(y / len);
     float w = abs(fract(x) - .5 + (h - .35) * .5 + (.16 * sin(y * 8. + h * 30.) + .08 * sin(y * 19. + h * 50.)) * k + .08 * sin(uTime * .3 + h * 9.) * k) / 12. - mix(.009 * g, .001, k) - .001;
-    a = sat(.5 - w / px) * dkUp(1., .97, y / len) * step(h, .62) * dkUp(.4, .34, abs(q.x));
+    a = sat(.5 - w / px) * dkUp(1., .97, y / len) * step(h, .62) * dkUp(.4, .34, abs(q.x)) * (1. - dkUp(.2, .6, dkOpen));
     return vec4(vec3(.035, .032, .02) * dkLc, a);
   }
   // the tree
@@ -279,17 +318,19 @@ float dkShaft(vec3 o, vec3 d, float far) {
 vec3 render(vec2 p) {
   dkSet();
   p.x += .17 * dkUp(1.2, .7, uRes.x / uRes.y); // when tall
-  vec3 o = vec3(dkAt(.045 * sin(uTravel * .021), .07 * sin(uTravel * .017 + 1.)), .29).xzy, d = vec3(p.x * dkRt + dkF * dkFw, p.y + .125).xzy, sun = mix(vec3(.8, .86, .72), dkLc, abs(uOwn[3])), air = dkLc * .0022 * (1. + 3. * max(uOwn[0], .0));
+  vec3 o = vec3(dkAt(.045 * sin(uTravel * .021), .07 * sin(uTravel * .017 + 1.)), .29).xzy, d = vec3(p.x * dkRt + dkF * dkFw, p.y + .125 - .43 * dkHigh).xzy, sun = mix(vec3(.8, .86, .72), dkLc, abs(uOwn[3])), air = dkLc * .0022 * (1. + 3. * max(uOwn[0], .0));
+  bool b = uVar > .5;
+  o.y += dkHigh * (dkS * .82 - o.y); o.xz += (b ? -.25 * dkRt + .1 * dkFw : .09 * dkRt - .35 * dkFw) * dkHigh;
   float tw = d.y < -1e-3 ? -o.y / d.y : 1e4, trav = .0, far = tw, k = length(d);
   vec3 col = vec3(.0), T = vec3(1.);
-  bool done = false, b = uVar > .5;
+  bool done = false;
   for (int i = 0; i < 3; i++) {
     float t = dkWalk(o, d, far, trav), hole = 1., rim = .0;
     if (i == 2) dkCov = 1.;
     vec3 P = o + d * t, c = vec3(.0);
     if (b) {
       c = sun * dkShaft(o, d, t) * (.25 + .28 * uPad);
-      col += T * c;
+      col += T * c * (1. - dkOpen);
       if (dkMat == 2.) {
         vec2 e = P.xz - dkB;
         float an = atan(e.y, e.x + 1e-4);
@@ -309,6 +350,8 @@ vec3 render(vec2 p) {
       done = true;
     }
     float fg = exp(-dkFog * t * k);
+    bool sky = uOwn[6] > 0. && dkMat > 3.5;
+    if (sky) fg = 1.;
     col += T * (c + dkMist * (1. - fg) + air * dkAir(o, d, t));
     T *= fg;
     if (dkMat == 3.) {
@@ -332,15 +375,56 @@ vec3 render(vec2 p) {
       // the broken path
       vec3 hv = l / di - dn; vec2 need = hv.xz / max(hv.y, 1e-3) - sl * 3.;
       float gl = exp(-dot(need, need) / (.0006 + dkChop * dkChop * 2.5)) * dkUp(.35, .75, n2 * .6 + n1 * .5);
+      if (uOwn[7] < 0.) {
+        float du = noise(lw * vec2(1.3, 1.1) + 3.) * .62 + noise(lw * vec2(4., 5.) + 1.) * .28 + n1 * .1, ri = lw.y * 9. + lw.x * 3. + 2.5 * noise(lw * 1.7), fi = dkUp(5., .6, tw);
+        float cv = dkUp(.0, .05, dkSand * 1.3 - .2 - du), gr = cos(ri * 4.) * fi;
+        vec3 sa = mix(dkStone, vec3(.92, .9, .86), .3) * (.8 + .4 * du) * (1. - .12 * hash21(floor(P.xz * 190.)) * fi);
+        vec3 lg = dkLc * sh * (.34 / ((dkBo ? .09 : .3) + dkReach * d2)) * sat(l.y / di * 1.1 + .05 + .1 * gr * l.x / di + .12 * (du - .5));
+        for (int j = 0; j < 5; j++) { vec2 v = P.xz - dkKp[j]; lg += dkKc[j] * .035 / (.06 + dot(v, v)); }
+        lg += (dkSkyLo + dkSkyHi * 2.) * (.2 + .03 * gr) + dkMist * .5 + dye * dye * .35 * (.35 + uEnergy);
+        lg += mix(vec3(1., .8, .5), uKind[4], .4) * uHits * .3 * exp(-dot(e, e) * 5.);
+        col += T * cv * sa * lg; T *= 1. - cv;
+        if (cv > .99) break;
+      }
+      if (uOwn[7] > 0.) for (int j = 0; j < 2; j++) {
+        float sc = j == 0 ? 3.1 : 5.7, px = dkPx * tw * sc / (f < 1. ? .3 + .7 * abs(dn.y) : 1.);
+        vec2 g = P.xz * sc + .03 * sin(uTime * .3 + P.zx * 2.) + float(j) * 7.3, n = floor(g);
+        float h = hash21(n + 2.7), h2 = fract(h * 57.3), ra = .3 + .17 * h2, an, rr;
+        float on = step(h, (.25 + .75 * dkLeaf) * dkUp(.3, .62, noise(n * .33 / sc * 3.1) + .25 * dkLeaf));
+        vec2 v = fract(g) - .5 - (vec2(fract(h * 91.), fract(h * 37.)) - .5) * (1. - 2. * ra);
+        rr = length(v); an = atan(v.y, v.x + 1e-5) + h * 40.;
+        float nt = abs(fract(an / TAU) - .5) * rr, cv = sat((ra - rr) / (px + .004) + .5) * on * max(dkUp(.0, .012, nt - .012), .0);
+        vec3 lf = mix(vec3(.07, .15, .05), vec3(.2, .27, .07), h2) * (1. + .35 * cos(an * 9.) * dkUp(.02, .3, rr)) * (.75 + .5 * dkUp(.7, 1., rr / ra));
+        vec3 lg = dkLc * sh * (.8 / ((dkBo ? .09 : .3) + dkReach * d2)) * sat(l.y / di + .1 + .25 * dot(v, vec2(h - .5, h2 - .5))) + (dkSkyLo + dkSkyHi) * .35 + dkMist * .4;
+        lg += dkLc * .05 * (1. + uTexture);
+        col += T * cv * lf * lg; T *= 1. - cv;
+        if (j == 0) {
+          // flowers stand a little over the water
+          vec3 Q = P - d * (.05 / min(d.y, -1e-3));
+          g = Q.xz * sc; n = floor(g); h = hash21(n + 2.7); v = fract(hash21(n + 9.1) * vec2(13.7, 71.3)) * .4 + .3 - fract(g);
+          vec3 w = vec3(v / sc, .0).xzy; w -= dn * dot(w, dn);
+          float fr2 = length(w) / .034, kk = floor(hash21(n + 5.5) * 4.99), up = w.y / .034;
+          vec3 kc = uKind[int(kk)];
+          float tip = .72 + .28 * abs(cos(atan(w.y, dot(w.xz, dkRt) + 1e-5) * 3.5));
+          float fa = sat((tip - fr2) * .034 / (dkPx * tw) + .5) * step(hash21(n + 3.3), .3 * dkLeaf) * (w.y < .02 ? 1. : .0);
+          kc = mix(kc * kc, vec3(1.), .25 + .4 * dkUp(.6, .0, fr2));
+          col += T * fa * kc * (dkLc * sh * .6 / (.2 + dkReach * d2) + dkLc * .06 + dkSkyLo * .6 + dkMist * .5 + .05 + .25 * (kk < .5 ? uDrone : kk < 1.5 ? uPad : kk < 2.5 ? uTexture : kk < 3.5 ? uPhrase : uHits) * (.4 + uEnergy)) * (.75 - .25 * up);
+          T *= 1. - fa;
+        }
+      }
       col += T * (mk + dkLc * gl * sh * (b ? .18 : 1.2));
       T *= (.05 + .95 * fr * fr) * vec3(.8, .95, .88);
       o = P; trav += t; d = reflect(d, normalize(vec3(sl.x, 1., sl.y))); d.y = max(abs(d.y), 1e-3);
       far = 1e4; done = false;
       continue;
     }
+    if (sky) {
+      float el = d.y / k, cl = noise(vec2(dot(d.xz, dkRt), dot(d.xz, dkFw)) * 1.7 / (abs(d.y) + .25) + uTime * .006);
+      col += T * mix(dkSkyLo, dkSkyHi, dkUp(.0, .62, el)) * (1. + .5 * (cl * cl - .3) * dkUp(.0, .25, el));
+    }
     if (dkMat > 3.5) break;
     c = dkLit(P, d, t + trav);
-    if (hole < 1. || rim > .0) c = mix(sun * 2., c * (1. + 2.5 * exp(-max(rim, .0) * 14.)), hole);
+    if (hole < 1. || rim > .0) c = mix(uOwn[6] > 0. ? mix(sun * 2., dkSkyHi * 1.3, dkUp(.0, .3, dkOpen)) : sun * 2., c * (1. + 2.5 * exp(-max(rim, .0) * 14.)), hole);
     col += T * dkCov * c; T *= 1. - dkCov;
     if (dkCov > .98) break;
     o += d * dkPast; trav += dkPast; far -= dkPast;

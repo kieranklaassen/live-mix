@@ -3,7 +3,7 @@
 // b: Granary lane
 // what: A long mud wall smoothed by hand runs from huge at the right to small in the haze, bristling with beam ends whose shadows slide over the swollen plaster round one blue-black doorway; or a lane between round granaries in painted clay and straw hats, with a log ladder in a bar of sun.
 // follows: The drone swells walls and heat, the pad draws shadows out, texture roughens the plaster, a phrase sends a kite's shadow over; each kind tints its own stretch of clay. Bands set beam lengths and painted teeth, the piece lies in it as damp patches, the loop moves the sun. A hit drops a puff of dust, a cue swings the sun out and back with a pool of light.
-// own: 0 moonlight at -1, red evening at 1; 1 white clay at -1, red earth at 1; 2 bare wall and trimmed hats at -1, long crowded beams and wide shady eaves at 1; 3 a low straight wall, slim granaries with steep hats at -1, a high swollen wall, fat granaries with flat hats at 1; 4 wall seen more squarely, lane from a child's height at -1, both from higher up at 1; 5 rain-worn bare clay at -1, painted tall at 1
+// own: 0 moonlight at -1, red evening at 1; 1 white clay at -1, red earth at 1; 2 bare wall and trimmed hats at -1, long crowded beams and wide shady eaves at 1; 3 a low straight wall, slim granaries with steep hats at -1, a high swollen wall, fat granaries with flat hats at 1; 4 wall seen more squarely, lane from a child's height at -1, both from higher up at 1; 5 rain-worn bare clay at -1, painted tall at 1; 6 snow lying on ground, hats, beams and ledges at -1, a flood over the ground that mirrors everything at 1; 7 a: square on to the wall and its door, b: granaries strewn far apart on open ground, at -1, both from far off over the plain at 1
 // What both share: the way to the sun, its colour, the sky's light, the clay, the far air.
 vec3 bsL, bsSun, bsAmb, bsClay, bsHaze;
 float bsPx, bsNight, bsEve, bsSwing, bsBig, bsHat, bsN, bsF, bsOut, bsTop;
@@ -33,7 +33,7 @@ float bsPlaster(vec2 u, float n, float fine) {
 }
 // The clay at u, t away: its colour; rel is how it leans to the sun.
 vec3 bsMud(vec2 u, float t, vec2 ld, out float rel) {
- float n = noise(u*.8 + 5.), hand = (.8 + .9*uTexture)/(1. + .012*t*t), h = bsPlaster(u, n, hand), gr = noise(vec2(u.x*8. + u.y*6., u.y*9. - u.x*7.))*hand, rain = max(-uOwn[5], 0.);
+ float n = noise(u*.8 + 5.), hand = (.8 + .9*uTexture)/(1. + .012*t*t), h = bsPlaster(u, n, hand), gr = noise(vec2(u.x*8. + u.y*6., u.y*9. - u.x*7.))*hand, rain = dot(ld, ld) < .01 ? 0. : max(-uOwn[5], 0.);
  float run = smoothstep(.45, .8, bsTri(u.x*.83 + .15*n) + bsTri(u.x*2.3 + .3*n));
  rel = (h - bsPlaster(u + ld*.05, n, hand))*3.2 + (.2 + .15*uTexture)*(gr - .5*hand) - rain*.4*run;
  bsN = n; bsF = gr;
@@ -180,6 +180,7 @@ void bsMeet(vec3 ro, vec3 rd) {
   px = bsPx*max(t, .1); y = ro.y + rd.y*t;
   bsTake(2, t, t > 0. ? bsIn(px, sqrt(h2) - g.z)*step(y, He + .1)*step(0., y) : 0., i);
   px = bsPx*tu/max(rd.y, .05);
+  if (uOwn[7] != 0.) px = min(px, .09);
   bsTake(4, tu, rd.y > 0. ? bsIn(px, length(oc + rd.xz*tu) - g.z - bsOut - rag) : 0., i);
   if (bsT < t0 - g.z - .5 && bsC > .97) break;
  }
@@ -207,12 +208,31 @@ vec3 render(vec2 p) {
   vec2 W = normalize(vec2(-.5 - .75*lo, 1.1));
   ro.z = D; rd = vec3(dot(rd.xz, W), rd.y, dot(rd.xz, vec2(-W.y, W.x)));
  }
+ if (uOwn[7] != 0. && !lane) {
+  float sq = max(-uOwn[7], 0.), fa = max(uOwn[7], 0.);
+  vec2 W = normalize(mix(vec2(-.5 - .75*lo, 1.1), uOwn[7] < 0. ? vec2(-1.3, .06) : vec2(-.75, 1.), abs(uOwn[7])));
+  vec3 r0 = normalize(vec3(p.x, p.y - hy - .05*sq + .02*fa, 1.1));
+  rd = vec3(dot(r0.xz, W), r0.y, dot(r0.xz, vec2(-W.y, W.x)));
+  ro = mix(ro, uOwn[7] < 0. ? vec3(8.6, ro.y + .5, 7.2 + 1.4*abs(van)) : vec3(-9., 2.2 + 3.*hi, 15.), abs(uOwn[7]));
+  D = ro.z;
+ }
+ if (uOwn[7] > 0. && lane) { ro += vec3(1.4, .5 + 1.2*hi, -8.5)*uOwn[7]; rd = normalize(vec3(p.x, p.y - hy + .06*uOwn[7], 1.05)); }
+ if (uOwn[7] < 0. && lane) {
+  vec2 far6[6] = vec2[6](vec2(-5.2, 7.5), vec2(4.4, 10.5), vec2(-1.7, 13.5), vec2(9.5, 15.), vec2(-9.5, 18.), vec2(3., 24.));
+  for (int i = 0; i < 6; i++) bsG[i].xy = mix(bsG[i].xy, far6[i], -uOwn[7]);
+  lA.xz = mix(lA.xz, bsG[2].xy + vec2(2.1, -1.1), -uOwn[7]);
+ }
  float tS = exp(-2.*length(p - vec2(-.75, .1)));
  bsHaze = mix(bsSky(.02, tS), bsClay*bsSun*.3, .35)*.85;
- float tg = rd.y < -1e-4 ? -ro.y/rd.y : 1e4, t = 1e5, m = 1e5, tm = 0., tw = 1e5;
+ bool wet = false, to, onWall, brush, seen;
+ float tg, t, m, tm, tw, edge, tt, tEnd, r, tb, tW = 0.;
+ vec3 qw, nw, q2, a, u;
+ vec2 ee, rh;
+ for (int go = 0; go < (uOwn[6] > 0. ? 2 : 1); go++) {
+ tg = rd.y < -1e-4 ? -ro.y/rd.y : 1e4; t = 1e5; m = 1e5; tm = 0.; tw = 1e5;
  // the way to the long wall
- bool to = !lane && rd.z < -1e-3;
- if (to) t = (D - 1.8*max(bsBig, 1.))/-rd.z;
+ to = !lane && rd.z < -1e-3;
+ if (to) t = (go > 0 ? max(ro.z - 1.8*max(bsBig, 1.), 0.) : D - 1.8*max(bsBig, 1.))/-rd.z;
  for (int i = 0; i < 44 && to; i++) {
   q = ro + rd*t;
   float d = bsWall(q), rel = d/max(t, .1);
@@ -221,21 +241,21 @@ vec3 render(vec2 p) {
   t += max(d, .01);
   if (q.y > 7.4 || q.y < -.3 || t > 70.) break;
  }
- float edge = tw < 1e4 ? 1. : sat(1. - m/(1.5*bsPx))*.9, tt = tw < 1e4 ? tw : tm;
- bool onWall = edge > 0. && tt < tg;
- vec3 qw = ro + rd*tt, nw;
- vec2 ee = vec2(.004 + .0015*tt, 0.);
+ edge = tw < 1e4 ? 1. : sat(1. - m/(1.5*bsPx))*.9; tt = tw < 1e4 ? tw : tm;
+ onWall = edge > 0. && tt < tg;
+ qw = ro + rd*tt;
+ ee = vec2(.004 + .0015*tt, 0.);
  nw = normalize(vec3(bsWall(qw + ee.xyy), bsWall(qw + ee.yxy), bsWall(qw + ee.yyx)) - bsWall(qw) + vec3(0., 0., 1e-5));
  bsM = tg < 1e3 ? 1 : 0; bsT = min(tg, 1e4); bsM2 = bsM; bsT2 = bsT; bsC = 1.; bsI = 0;
  if (onWall) bsTake(2, tt, edge, 0);
  bsTakeLog(ro, rd, lA, lU, .1, 1e3, -1);
  // the wall's beams, near the place seen and near the bastion the eye brushes past
- float tEnd = onWall ? tt + .04 : min(tg, 60.), r;
- vec2 rh = rd.xz/max(dot(rd.xz, rd.xz), 1e-4);
- float tb = dot(vec2(bsBas.x, 0.) - ro.xz, rh);
- vec3 q2 = ro + rd*tb, a, u;
+ tEnd = onWall ? tt + .04 : min(tg, 60.);
+ rh = rd.xz/max(dot(rd.xz, rd.xz), 1e-4);
+ tb = dot(vec2(bsBas.x, 0.) - ro.xz, rh);
+ q2 = ro + rd*tb;
  if (abs(q2.x - bsBas.x) > 4. || tb > tEnd) { tb = dot(vec2(bsBas.z, 0.) - ro.xz, rh); q2 = ro + rd*tb; }
- bool brush = rd.z < 0. && tb < tEnd && abs(q2.z - 1.) < 1.8 && q2.y < 6., seen = onWall && qw.y > 1.8;
+ brush = rd.z < 0. && tb < tEnd && abs(q2.z - 1.) < 1.8 && q2.y < 6.; seen = onWall && qw.y > 1.8;
  for (int k = seen ? 0 : 6; k < (brush ? 10 : 6) && !lane; k++) {
   vec3 c0 = k < 6 ? qw : q2;
   vec2 id = floor(vec2(c0.x/bsCell.x + .35, (c0.y - 2.25)/bsCell.y + .25)) - (k < 6 ? vec2(k % 3, k / 3) : vec2(k & 1, (k - 6)/2));
@@ -243,6 +263,13 @@ vec3 render(vec2 p) {
   bsTakeLog(ro, rd, a, u, r, tEnd, max(int(id.x), 0));
  }
  bsMeet(ro, rd);
+ if (uOwn[6] <= 0. || go > 0 || bsM != 1) break;
+ // the flood: on from where the ray meets it, turned up
+ wet = true; tW = bsT; ro += rd*tW; ro.y = 0.;
+ vec2 rq = ro.xz*vec2(2.2, 3.4) + vec2(uTime*.11, -uTime*.17);
+ rd = normalize(vec3(rd.x, -rd.y, rd.z) + vec3(0., .02, .035)*(noise(rq) + .5*noise(rq*2.7 + 3.) - .75)/(1. + .03*tW*tW)*(.6 + .8*uLow));
+ rd.y = max(rd.y, .002);
+ }
  q = lane || bsM != 2 ? ro + rd*bsT : qw;
  vec4 g = bsG[lane ? max(bsI, 0) : 0];
  vec2 wq = normalize(ro.xz - g.xy + 1e-4), dq2 = q.xz - g.xy;   // round a granary, counted from the side we see
@@ -296,6 +323,7 @@ vec3 render(vec2 p) {
   dif = bsL.y*.66; am = .8; bo = 0.; at.y = 0.;
   if (!lane) alb *= 1. - .35*sat(1. - q.z);
  }
+ if (uOwn[6] < 0. && bsM != 4) alb = mix(alb, vec3(.82, .86, .93)*(.93 + .07*bsF), bsM == 1 ? -uOwn[6]*smoothstep(0., .3, -uOwn[6]*1.5 - bsN + .2) : -uOwn[6]*smoothstep(.0, .3, n.y - .62 + .45*(bsN - .5) + .18*(bsF - .5) + (bsM == 3 ? .22 : 0.) + (bsM == 2 ? .12*(1. - smoothstep(0., .5, q.y)) + (lane ? -.5 : .25) : 0.)));
  // a cue: a pool of sun goes along
  float far = p.x + .7 - 1.4*uCue;
  bsSun *= 1. + .8*uCue/(1. + 12.*far*far);
@@ -307,7 +335,7 @@ vec3 render(vec2 p) {
  if (bsI >= 0) sun *= 1. - bsCast(at, lA, lU, bsNotch(sat(at.y/lU.y)));
  for (int j = 0; j < 2 && lane && bsM == 2 && sun > 0.; j++) { bsPeg(bsI, j, g, a, u, r); sun *= 1. - bsCast(at, a, u, r); }
  vec3 c = alb*(bsSun*sun + bsAmb*am + bsClay*bsSun*bo);
- c = mix(bsHaze, c, exp(-(bsM == 1 ? bsT*1.5 : max(bsT - 9., 0.))*(.016 + .018*uSpace)*(1. - .4*b)));
+ c = mix(bsHaze, c, exp(-(bsM == 1 ? bsT*1.5 : max(bsT + tW - 9., 0.))*(.016 + .018*uSpace)*(1. - .4*b)));
  if (!lane && bsM == 2) {
   c = mix(c, bsHaze*.85, .3/(1. + 12.*q.y*q.y)*(.6 + .4*sin(q.x*.9 + uTime*.08 + 5.*bsN)));   // dust along the foot
   // the doorway: a step deep, cool and almost black, a lamp in it for the voice and at night
@@ -321,10 +349,17 @@ vec3 render(vec2 p) {
  vec3 sky = mix(bsSky(rd.y, tS), bsHaze, .5*smoothstep(.45, .9, gr)*sat(1.2 - 2.2*p.y));
  if (bsM == 0) c = sky;
  vec3 back = bsM == 5 && !lane ? bsClay*(bsSun*.3 + bsAmb) : mix(bsHaze, mix(bsClay, vec3(.62, .48, .32), .55)*.85*(bsSun*.5 + bsAmb*.8), exp(-.03*bsT));
+ if (wet) back = mix(back, bsHaze*.8, .7);
  col = mix(bsM2 == 0 ? sky : bsM2 == 1 || bsM == 5 && !lane ? back : c, c, bsC);
+ if (wet) col = mix(col*vec3(.8, .84, .86), mix(bsClay, vec3(.12, .18, .2), .6)*(bsSun*.12 + bsAmb*.6), uOwn[6]*(.12 + .4*pow(max(rd.y, 0.), .7))) ;
  // a hit: a puff of dust falls from a beam's end
  float gone = 1. - uHits, pr = .4 + .6*gone;
  vec3 pu = (lane ? vec3(-.7, 2.5, 4.6) : vec3(6.4, 3.7, .6)) - vec3(0., .9*gone, 0.), e = bsSeg(ro, rd, pu, vec3(0., .5 + .3*gone, 0.));
+ if (uOwn[7] != 0.) {
+  if (!lane && uOwn[7] < 0.) pu.xyz = mix(pu, vec3(8.1, 5.4 - .5*gone, .7), -uOwn[7]);
+  if (uOwn[7] > 0.) pr *= 1. + 2.2*uOwn[7];
+  e = bsSeg(ro, rd, pu, vec3(0., .5 + .3*gone, 0.));
+ }
  float puff = exp(-e.x*e.x/(pr*pr))*(.35 + 1.1*noise((ro + rd*e.z - pu).xy*5. + 2.*gone))*uHits;
  return screenOf(mix(col, (bsClay + .5)*bsSun*.4, sat(puff)));
 }

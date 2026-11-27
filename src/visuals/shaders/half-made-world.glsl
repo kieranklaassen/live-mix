@@ -3,8 +3,12 @@
 // b: Peeled flat
 // what: A plaster ball stands at a globe-maker's window, half dressed in hand-coloured paper with the land, coast and hills of no known country; one wet leaf hangs from its equator, others wait in rolls over the bare white; or the twelve leaves lie in a slanting row on green cloth, their tips curling up into the light.
 // follows: The piece colours the country: round is the loop, pole to pole the room. The loop turns the ball, or lifts the tips where it plays. Drone stains the sea, pad the land, texture hatches the coast, a phrase inks a red route, bands stand at the equator. A hit flushes and presses a leaf, a cue sends light over and lifts tips. Keys prick gold, a voice wets it.
-// own: 0 lamp-lit evening at -1, bright noon at 1; 1 night-blue paper with pale lines at -1, old brown paper at 1; 2 scattered islands at -1, one broad land at 1; 3 more leaves rolled up and bare plaster, or high curled tips, at -1, all pasted or lying flat at 1; 4 close at -1, far at 1; 5 dark room and bench or wine-red cloth at -1, blue wall and pale bench or linen at 1
+// own: 0 lamp-lit evening at -1, bright noon at 1; 1 night-blue paper with pale lines at -1, old brown paper at 1; 2 scattered islands at -1, one broad land at 1; 3 more leaves rolled up and bare plaster, or high curled tips, at -1, all pasted or lying flat at 1; 4 close at -1, far at 1; 5 dark room and bench or wine-red cloth at -1, blue wall and pale bench or linen at 1; 6 a star chart printed in place of the land at -1, marbled paper in combed stripes of the sounds' colours at 1; 7 a: no room and no stand, the ball alone at -1, shelves of small finished balls behind at 1 (b: the row bent round into a flower of leaves at -1, leaves strewn this way and that at 1)
 const float HMW = .5235988;  // the width of one leaf at the equator: a twelfth of the way round
+#define hmStars max(-uOwn[6], 0.0)
+#define hmComb max(uOwn[6], 0.0)
+#define hmAlone max(-uOwn[7], 0.0)
+#define hmStrew max(uOwn[7], 0.0)
 vec3 hmPaper, hmInk, hmKey, hmFill;
 vec3 hmTri(vec3 a, vec3 lo, vec3 hi, float q) { return q < 0.0 ? mix(a, lo, -q) : mix(a, hi, q); }
 // A drawn line: d the distance to its middle, w half its width, e the size of a pixel.
@@ -28,6 +32,42 @@ const vec4 hmC[8] = vec4[8](vec4(.80, .36, .48, 9.0), vec4(.55, -.68, .48, 11.0)
 float hmNet(float lat, float lon, float cl, float w, float e) {
  const float ten = PI / 18.0;
  return max(hmLn((fract(lat / ten + .5) - .5) * ten, w, e), hmLn((fract(lon / ten + .5) - .5) * ten * cl, w, e) * step(.12, cl));
+}
+vec3 hmDot(vec2 c, float n) {
+ float h = hash21(vec2(mod(c.x, n), c.y) + 17.0);
+ return vec3(c + .5 + .7 * (vec2(fract(h * 31.0), fract(h * 73.0)) - .5), fract(h * 141.0));
+}
+float hmTie(vec2 p, vec2 a, vec2 b) { vec2 d = b - a; return length(p - a - d * clamp(dot(p - a, d) / max(dot(d, d), 1e-4), .16, .84)); }
+// A chart of stars: how strong the ink is.
+float hmSky(float lon, float lat, float e) {
+ float ink = 0.0;
+ for (int k = 0; k < 2; k++) {
+  float rows = k == 0 ? 3.6 : 11.0, y = lat * rows, c = floor(y), n = floor(TAU * rows * max(cos((c + .5) / rows), .2)), e2 = e * rows;
+  vec2 p = vec2(lon / TAU * n, y), i = vec2(floor(p.x), c);
+  vec3 a = hmDot(i, n);
+  vec2 d = p - a.xy;
+  float l = length(d), big = (k == 0 ? .09 : .07) * (.4 + a.z * a.z) * (1.0 + .4 * uTexture + .5 * uBands[int(a.z * 15.0)]), an = atan(d.y, d.x + 1e-6);
+  ink = max(ink, hmIn(big * (k == 0 ? 1.0 + .55 * cos(an * 6.0) * step(.35, a.z) : 1.0) - l, e2));
+  if (k == 0) {
+   vec3 b = hmDot(i + vec2(1, 0), n), g = hmDot(i - vec2(1, 0), n);
+   ink = max(ink, .85 * max(hmLn(hmTie(p, a.xy, b.xy), .018, e2) * step(.3, a.z), hmLn(hmTie(p, g.xy, a.xy), .018, e2) * step(.3, g.z)));
+   ink = max(ink, .5 * hmLn(l - 1.7 * big, .01, e2) * step(.8, a.z));
+  }
+ }
+ return ink;
+}
+// Marbled paper, its stripes drawn out with a comb.
+vec3 hmMarble(float lon, float lat, float n1, float n2, float e, float loud) {
+ float t = lon * 12.0 / TAU * 2.5, c = abs(fract(t) - .5) * 2.0, v = lat * 10.0 + 3.0 * n1 + 1.1 * n2 + (1.3 + .5 * uTexture) * c * c * (mod(floor(t), 2.0) < .5 ? 1.0 : .55) + .06 * sin(uTime * .2 + lon * 3.0);
+ float i = floor(v), x = fract(v), h = hash11(mod(i, 61.0) + 2.0), m = mod(i, 6.0), lev = m < .5 ? uDrone : m < 1.5 ? uPad : m < 2.5 ? uTexture : m < 3.5 ? uPhrase : uHits;
+ float w = .5 + .45 * h, o = .12 + .3 * fract(h * 17.0);
+ vec3 k = m > 4.5 ? hmPaper * 1.04 : hmRich(uKind[int(m)], 1.15) * mix(hmPaper * .9, vec3(1), .3) * (.8 + .35 * lev + .25 * loud);
+ vec3 col = mix(hmInk * .6 + hmPaper * .06, k, hmIn(w * .5 + .04 - abs(x - .5), .05 + 10.0 * e));
+ col = mix(col, k * .62 + hmPaper * .3, .8 * hmIn(.1 - abs(x - .5 - .12 * n2), .06 + 10.0 * e));
+ // drops that were let fall last
+ vec2 d = vec2(lon * 9.0, lat * 9.0), di = floor(d);
+ float s = hash21(vec2(mod(di.x, 57.0), di.y) + 5.0), l = length((fract(d) - .5 - .5 * (vec2(fract(s * 31.0), fract(s * 57.0)) - .5)) * vec2(.8, 1.0));
+ return mix(col, hmPaper, .85 * hmIn(.2 * step(.72, s) * fract(s * 91.0) - l, .04 + 9.0 * e));
 }
 // One place of the printed map: longitude, latitude, size of a pixel there.
 vec3 hmPrint(float lon, float lat, float e) {
@@ -101,12 +141,21 @@ vec3 hmPrint(float lon, float lat, float e) {
  ink = max(ink, hill * inH * step(up, 0.0) * step(-.16, hf.y) * step(.1, hx) * .8 * hmLn((fract(hf.x * 9.0 - hf.y * 2.0) - .5) / 126.0, .0018, e));
  float town = (1.0 - high) * step(.7, r2) * inl, td = length(hf / vec2(14.0, 19.0));
  ink = max(ink, town * .8 * hmLn(td - .0085, .0018, e));
+ if (uOwn[6] < 0.0) {
+  ink = mix(ink, hmSky(lon, lat, e), hmStars);
+  float way2 = sin(lat + .9 * sin(lon + .6)) + .25 * n1.w, milk = exp(-way2 * way2 * 14.0) * (.6 + 1.2 * n2.w);
+  vec3 sky = hmPaper * (1.0 + .06 * n3.w) * mix(vec3(1), seaTint, .3 * uDrone + .2 * n1.w + .1);
+  sky = mix(sky, hmInk * mix(vec3(1), hmRich(uKind[1], 1.2), .5), sat(milk) * (.12 + .25 * uPad));
+  col = mix(col, mix(sky, hue * .8 + .1, .5 * loud), hmStars);
+ }
+ if (uOwn[6] > 0.0) { col = mix(col, hmMarble(lon, lat, n1.w, n2.w, e, loud), sat(hmComb * 1.6)); ink *= 1.0 - sat(hmComb * 1.6); }
  // the net, and a scale along the equator: the bands
  ink = max(ink, .42 * max(hmNet(lat, lon, cl, .0012, e), hmLn(abs(abs(lat) - .41) - .006, .0016, e)));
  float bar = lon / HMW * 16.0, bi = floor(bar), bh = .012 + .08 * uBands[int(mod(bi + .5, 16.0))];
  float inBar = hmIn(.34 - abs(bar - bi - .5), e * 30.0);
  ink = max(ink, .65 * inBar * hmIn(lat - .012, e) * hmIn(bh + .012 - lat, e));
  ink = max(ink, max(hmLn(lat, .0022, e), hmLn(lat - .012, .0014, e)));
+ ink *= 1.0 - .75 * hmComb;
  col = mix(col, hmInk, ink * press);
  // a phrase rules a route in red, keys prick gold
  float way = lat + .1 - .3 * sin(lon * 2.0 + 1.0) - .16 * sin(lon * 3.0 - .6);
@@ -159,16 +208,24 @@ float hmNear, hmCov, hmPh, hmX, hmSide, hmLon, hmHang; vec3 hmNn;   // the leaf 
 // All the leaves the ray may meet, and their shadows.
 void hmLeaves(bool flatly, float spin, float e) {
  hmShade = 1.0; hmNear = hmT; hmCov = 0.0; hmPh = 0.0; hmX = 0.0; hmSide = 1.0; hmLon = 0.0; hmHang = 0.0; hmNn = vec3(0, 0, 1);
- float first = flatly ? floor(hmP.x / .565) : floor(spin / HMW);
- int from = flatly ? -1 : uOwn[3] < 0.0 || uCue > 0.0 ? -2 : -1, to = flatly ? 1 : 3;
+ float pitch = .565 + .35 * hmAlone + .33 * hmStrew, ring = 1.749 / max(hmAlone, 1e-3);
+ float along = hmP.x;
+ if (uOwn[7] < 0.0) along = atan(hmP.x, ring - hmP.y) * ring;
+ float first = flatly ? floor(along / pitch) : floor(spin / HMW);
+ const int wide = uOwn[7] > 0.0 ? 1 : 0;
+ int from = flatly ? -1 - wide : uOwn[3] < 0.0 || uCue > 0.0 ? -2 : -1, to = flatly ? 1 + wide : 3;
  for (int j = from; j <= to; j++) {
   float i = first + float(j), id = mod(i, 12.0), side = -1.0, at, k, hang;
   vec3 T, N, D, foot;
   if (flatly) {
    vec2 h = hash22(vec2(id, 7.0)) - .5;
    float tw = .05 * h.x;
+   if (uOwn[7] < 0.0) tw += (i + .5) * pitch / ring;
+   if (uOwn[7] > 0.0) tw += hmStrew * .95 * (hash11(id + 130.0) - .5);
    T = vec3(cos(tw), sin(tw), 0.0); N = vec3(0, 0, 1); D = vec3(-T.y, T.x, 0.0);
-   vec3 c = vec3((i + .5) * .565, .1 * h.y, 0.0);
+   vec3 c = vec3((i + .5) * pitch, .1 * h.y, 0.0);
+   if (uOwn[7] < 0.0) c = vec3(D.x * -ring, ring - ring * D.y, 0.0) + D * .1 * h.y;
+   if (uOwn[7] > 0.0) c += vec3(h.x * .5, (hash11(id + 33.0) - .5) * 1.1, .012 * hash11(id + 4.0)) * hmStrew;
    vec2 q = vec2(dot(hmP - c, T), dot(hmP - c, D));
    at = .8; k = hmCurlOf(i); hang = 1.0 - step(.5, abs(i)); side = q.y < 0.0 ? -1.0 : 1.0;
    // the part that lies down, and its thin shadow
@@ -228,10 +285,31 @@ vec3 hmRoom(vec2 p, vec2 foot, vec2 pole, float R, float fit, out vec4 ask, out 
   vec2 z = p - vec2(mix(x * .34, x, fit), ly);
   z.x -= z.y * (.04 * float(i - 1) + .016 * sin(uTime * .21 + float(i) * 2.0));
   z = vec2(z.x, z.y + .205) / .21;
-  col *= 1.0 - .28 * smoothstep(-.05, .06, hmLeaf(z - vec2(.13, -.1)));
+  col *= 1.0 - .28 * smoothstep(-.05, .06, hmLeaf(z - vec2(.13, -.1))) * (1.0 - hmStrew);
   vec3 pr = hmPaper * mix(vec3(1), mix(vec3(.6, .72, .72), vec3(.95, .75, .6), smoothstep(0.0, .25, sin(z.x * 7.0 + float(i) * 2.0 + 2.0 * sin(z.y * 4.0)) * sin(z.y * 5.0 + float(i) * 3.0))), .55);
-  col = mix(col, pr * lit, hmIn(hmLeaf(z), b * 5.0));
+  col = mix(col, pr * lit, hmIn(hmLeaf(z), b * 5.0) * (1.0 - hmStrew));
  }
+ if (uOwn[7] > 0.0) {
+  // shelves of small finished balls
+  for (int k = 0; k < 3; k++) {
+   float y = p.y - .3 + .235 * float(k) - .6 * (1.0 - hmStrew), hh = hash11(float(k) + 1.0), cx = p.x / .25 + hh, ci = floor(cx), h = hash21(vec2(ci, float(k) + 3.0)), R2 = (.055 + .032 * h) * step(.12, fract(h * 7.0));
+   col *= 1.0 - .35 * smoothstep(-.1, 0.0, y) * step(y, 0.0);
+   col = mix(col, wood * lit * 1.15 * (.9 + .2 * noise(vec2(p.x * 6.0, y * 90.0))), hmIn(.011 - abs(y), b));
+   vec2 o = vec2((fract(cx) - .5 + .25 * (fract(h * 23.0) - .5)) * .25, y - .03 - R2), q = o / max(R2, 1e-3);
+   col *= 1.0 - .4 * exp(-3.0 * dot(q - vec2(.45, -.2), q - vec2(.45, -.2))) * step(0.0, y);
+   col = mix(col, vec3(.4, .26, .16) * lit, hmIn(.012 - abs(o.x), b) * step(0.0, y) * step(y, .04));
+   float l2 = dot(q, q);
+   if (l2 < 1.2 && R2 > 0.0) {
+    vec3 n = vec3(q, sqrt(max(1.0 - l2, 0.0)));
+    float tn = uTravel * .02 + h * 9.0, lo = atan(n.x, n.z + 1e-4) + tn, la = n.y * 1.5, ld = noise(vec2(lo * 1.7, la * 2.0) + h * 40.0) + .5 * noise(vec2(lo * 5.0, la * 5.0) + h * 20.0) - .75;
+    vec3 c = hmPaper * mix(vec3(.6, .74, .76), mix(vec3(.95, .76, .58), hmRich(uKind[int(h * 4.9)], 1.1), .55), hmIn(ld, .04));
+    c = mix(c, hmInk, .7 * hmLn(ld, .012, .05));
+    c = mix(c, vec3(.95, .93, .9), step(fract(h * 51.0), .25));
+    col = mix(col, c * (lit * (.25 + .85 * smoothstep(-.6, 1.0, dot(n, vec3(-.55, .55, .62))))), hmIn(1.0 - sqrt(l2), b / max(R2, 1e-3)));
+   }
+  }
+ }
+ vec3 bare = wall * (hmKey * (.22 + .5 * fall) + hmFill * .35) * (1.0 - .35 * smoothstep(.2, 1.0, length(bs) / (R * 2.4)));
  // the bench
  float back = -.265, dep = .2 / (back + .2 - min(p.y, back + b));
  vec2 w = vec2(p.x * dep, dep);
@@ -268,6 +346,7 @@ vec3 hmRoom(vec2 p, vec2 foot, vec2 pole, float R, float fit, out vec4 ask, out 
  vec2 top = foot + vec2(0.0, .025), ax = normalize(pole - top), q = p - top;
  float sl = dot(q, ax), sx = dot(q, vec2(ax.y, -ax.x)), sw = .013 + .008 * exp(-sl * sl * 400.0);
  col = mix(col, tw * 1.2 * (.3 + .9 * (1.0 - smoothstep(-.8, .9, sx / sw))), hmIn(sw - abs(sx), e) * hmIn(sl, e) * step(sl, length(pole - top) + .05));
+ if (uOwn[7] < 0.0) { col = mix(col, bare, sat(hmAlone * 1.2)); ask.w *= 1.0 - hmAlone; }
  return col;
 }
 vec3 render(vec2 p) {
@@ -284,9 +363,11 @@ vec3 render(vec2 p) {
  if (flatly) {
   float off = .92 * exp2(.5 * uOwn[4]) * mix(1.25, 1.0, fit) * (.98 + .04 * uSpace);
   hmO = vec3(.1, -2.9, 4.3) * off + vec3(.12, 0.0, 0.0);
+  const float turned = 1.0 - max(-uOwn[7], 0.0);
   vec3 fw = normalize(vec3(0.0, -.06, 0.0) - hmO), rt = normalize(cross(fw, vec3(0, 0, 1))), up = cross(rt, fw);
   hmD = normalize(fw * 1.6 + rt * p.x + up * p.y); L = normalize(vec3(-.72, .1, .7));
-  mat2 sl = rot(.3 + .1 * uOwn[4]);
+  mat2 sl = rot((.3 + .1 * uOwn[4]) * turned);
+  if (uOwn[7] < 0.0) hmO.y += 1.749 * hmAlone * hmAlone;
   hmO.xy = sl * hmO.xy; hmD.xy = sl * hmD.xy; L.xy = sl * L.xy;
   hmT = -hmO.z / min(hmD.z, -.05); e = hmT / (1.6 * uRes.y);
   hmL = L;
@@ -311,7 +392,7 @@ vec3 render(vec2 p) {
   vec3 cloth = hmTri(vec3(.085, .2, .14), vec3(.3, .05, .08), vec3(.55, .5, .41), uOwn[5]);
   float weave = sin(g.x * 220.0) * sin(g.y * 220.0) * exp(-e * 120.0);
   cloth *= 1.0 + .22 * (noise(rot(.6) * g * vec2(90.0, 30.0)) - .5) + .2 * weave + .36 * (noise(g * 1.3) - .5);
-  cloth = mix(cloth, vec3(.8, .8, .74), .5 * hmLn(g.y, .006, e) * (.7 + .5 * weave));
+  cloth = mix(cloth, vec3(.8, .8, .74), .5 * (1.0 - abs(uOwn[7])) * hmLn(g.y, .006, e) * (.7 + .5 * weave));
   col = cloth * (key * mix(.36, .95, hmShade) + hmFill * mix(.35, .6, hmShade));
  } else if (r < 1.0) {
   n = vec3(z, sqrt(1.0 - r * r)); vec3 q = hmP;
@@ -339,8 +420,7 @@ vec3 render(vec2 p) {
  if (!flatly) {
   if (r < 1.0) {
    alb = mix(alb, under * (1.0 - .16 * exp(-seam * 120.0) - .08 * exp(-seam * 26.0)), paper);
-   // a hit runs out over the ball as a ring of colour
-   float ring = (length(hmP - toB * vec3(.1, -.3, .95)) - 1.1 * (1.0 - uHits)) * 5.0;
+   float ring = (length(hmP - toB * vec3(.1, -.3, .95)) - 1.1 * (1.0 - uHits)) * (5.0 - 2.6 * max(uOwn[4], 0.0));
    alb = mix(alb, alb * .5 + blow * .5, .75 * uHits * exp(-ring * ring));
    vec3 light = hmKey * smoothstep(-.45, 1.0, dot(n, L)) * .92 * mix(.58, 1.0, hmShade) + hmFill * (.8 + .25 * n.y) * mix(.88, 1.0, hmShade);
    float spec = paper * pow(sat(dot(n, normalize(L + vec3(0, 0, 1))) + .01 * puck), 26.0) * (.16 + .12 * uLevel + .25 * uMic) * (.8 + .8 * puck);

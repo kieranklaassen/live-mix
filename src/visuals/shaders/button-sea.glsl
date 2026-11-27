@@ -3,12 +3,20 @@
 // b: Spilled tin
 // what: A night sea sewn on blue felt: rows of shell, horn, glass and bone buttons, small at the horizon and large at the hem, under a chipped shell moon ringed with stitches, with a felt boat; or a tin tipped over on a worn white table by a window, its buttons spilled toward you, some on edge and one rolling.
 // follows: Each band rocks its own row and lifts its light, low the swell; each kind of sound colours one family of buttons, and the piece lays shine where its strokes are. A hit is a ring of buttons that knock, a cue a wave from the horizon to the hem, or a button rolled through. Travel sails the boat and rolls the one on edge. Keys light the moon, or the tin.
-// own: 0 dawn on pale felt at -1, dusk on wine red felt at 1 (b: lamplight on a dark table, a table painted green); 1 all bleached bone at -1, dyed in many colours at 1; 2 a few great buttons at -1, a crowd of tiny ones at 1; 3 a flat calm at -1, a dark high sea at 1 (b: a thin trail, or all over the table); 4 a low horizon and much sky at -1, all sea at 1 (b: seen from far, or close); 5 the lamp out and a large moon at -1, a low lamp at the right at 1 (b: an overcast day, a low warm sun with long shadows)
+// own: 0 dawn on pale felt at -1, dusk on wine red felt at 1 (b: lamplight on a dark table, a table painted green); 1 all bleached bone at -1, dyed in many colours, those of the sounds, at 1; 2 a few great buttons at -1, a crowd of tiny ones at 1; 3 a flat calm at -1, a dark high sea at 1 (b: a thin trail, or all over the table); 4 a low horizon and much sky at -1, all sea at 1 (b: seen from far, or close); 5 the lamp out and a large moon at -1, a low lamp at the right at 1 (b: an overcast day, a low warm sun with long shadows); 6 buttons cut as flowers at -1, as soft squares at 1; 7 no moon and buttons hung on threads in the sky at -1, a huge moon half sunk behind the sea at 1 (b: seen from straight above on a bare sheet with no tin, or laid in rings on woven cloth)
 #define buN normalize
 float buLn, buZb, buH, buA, buSz, buWide; // the rows' step, the boat's nearness, the horizon, the swell; how big things are, the fan
 vec3 buL, buKey, buSky, buTint, buAlb, buAdd; // the light, where it is and what it adds
 // The button seen here: where in it, its lean, its back, its numbers; a pixel's size; how much of it, of any; its light.
 vec2 buQ, buT, buB; vec4 buHs; float buPx, buTop, buAll, buCf, buShd, buGain, buSewn, buMoon, buNear;
+float buSpin;
+// How far out of a button q is (1 at its edge): round, or cut as a flower, or as a soft square.
+float buLen(vec2 q) {
+ float l=length(q);
+ if (uOwn[6]<0. && l>1e-4) { q=rot(buSpin)*q; l*= 1. - uOwn[6]*.8*(1. - sqrt(abs(cos(2.5*atan(q.y, q.x)))+.02))*sat(l*2. - .6); }
+ if (uOwn[6]>0.) { q=rot(buSpin)*q; q*= q; q*= q; l=mix(l, sqrt(sqrt(sqrt(dot(q, q)+1e-12)))*1.16, uOwn[6]*sat(l*2. - .3)); }
+ return l;
+}
 // A soft step from a to b, that may also fall (b under a).
 float buS3(float a, float b, float x) { x=sat((x - a)/(b - a)); return x*x*(3. - 2.*x); }
 float buBox(float x, float a, float b, float s) { return buS3(a - s, a+s, x)*buS3(b+s, b - s, x); }
@@ -21,9 +29,11 @@ float buFelt(vec2 p) {
 // The face of a button (its edge is at 1): five families, one for each kind of sound.
 vec3 buFace() {
  vec2 q=buQ; vec4 h=buHs;
+ buSpin=h.z*6.28;
  float r=length(q), f=h.x, px=buPx, fine=buS3(.35, .08, px);
  vec2 e=q/max(r, .001), g=rot(h.z*6.28)*q;
  float rim=.66+.2*h.y, fall=buS3(.8, 1., r);
+ if (uOwn[6] != 0.) { r=buLen(q); fall=buS3(.8, 1., r); }
  float s=1.1*fall - .75*buS3(rim - .14, rim, r)*buS3(rim+.14, rim, r);
  float n1=mix(.5, noise(g*vec2(1.6, 7.)+h.xy*60.), fine);
  float lv=uHits, gloss=30., shine=.6; vec3 kc=uKind[4], alb=mix(vec3(.05, .09, .34), vec3(.42, .06, .045), max(uVar, .45*uHits));
@@ -40,7 +50,7 @@ vec3 buFace() {
  } else if (glass) alb=mix(vec3(.03, .17, .26), kc*kc*vec3(.3, .34, .42), .4+.3*lv);
  else alb=mix(alb, alb*kc*1.5, .15+.5*lv);
  alb=mix(alb, vec3(.74, .71, .65)*(.75+.3*n1), .85*max(-uOwn[1], .0));
- vec3 dye=.36*(.55+.45*cos(TAU*(h.y*3.+vec3(.0, .36, .67))))*(.8+.4*n1);
+ vec3 dk=kindColour(floor(fract(h.y*7.3+h.z)*5.)), dye=dk*dk*.6*(.8+.4*n1);
  buAlb=alb=mix(alb, dye, .8*max(uOwn[1], .0)*(1. - buMoon))*buTint;
  // the holes, and the thread that holds it down
  vec2 a=rot(h.w*6.28)*q, b=abs(a);
@@ -59,7 +69,7 @@ bool buTry(vec2 d, float R, vec2 T, vec2 E, float aa, float sh) {
  vec2 q=(d+T*dot(T, d)/m)/R, b=d+E*R;
  b=(b+T*dot(T, b)/m)/R;
  vec2 u=q/max(length(q), .001);
- float pe=px*length(u+T*dot(T, u)/m), cf=buIn(length(q) - 1., pe), al=max(cf, buIn(length(b) - 1., pe))*sat(R/aa - .5);
+ float pe=px*length(u+T*dot(T, u)/m), cf=buIn(buLen(q) - 1., pe), al=max(cf, buIn(buLen(b) - 1., pe))*sat(R/aa - .5);
  buAll+=al*(1. - buAll);
  if (al <= buTop || buTop >= .5) return false;
  buNear+=buTop;
@@ -96,7 +106,10 @@ vec3 buSea(vec2 p, out vec4 boat) {
  buKey=warm*(4.3+.5*uLevel+1.*dawn)*(1. - .75*alone)/(1.+dot(toL, toL)*(3.6 - 1.6*uSpace - .9*rake));
  buSky=mix(mix(vec3(.09, .15, .28), vec3(.5, .5, .56), dawn), vec3(.2, .08, .13), dusk)*(1.+.5*alone)*(1. - .3*storm);
  buTint=mix(mix(vec3(.52, .75, 1.04), vec3(.96), dawn), vec3(1., .7, .66), dusk);
+ float sunk=max(uOwn[7], .0), hung=max(-uOwn[7], .0);
  vec2 mo=vec2(-.25*nar, .31+.55*up - .03*dn); float MR=.12+.05*dn+.05*alone;
+ if (uOwn[7]>0.) { mo=mix(mo, vec2(-.08*nar, buH+.1), sunk); MR=mix(MR, .33*(.6+.4*nar), sunk); }
+ if (uOwn[7]<0.) { MR=mix(MR, .004, hung); mo.y+=.2*hung; }
  vec4 pc=piece(vec2(p.x/(1.76*nar)+.5, sat((buH - p.y)/(buH+.5))));
  // the boat: a hull, a mast and two sails of felt
  float bx=(.27+.16*sin(uTravel*.021+.6))*nar, S=(.052+.19*buZb)*(.55+.45*nar);
@@ -129,6 +142,7 @@ vec3 buSea(vec2 p, out vec4 boat) {
    vec4 h=vec4(h1, fract(h1.yx*vec2(61.7, 83.3)));
    float xc=p.x+(id.x+.5+(h.y - .5)*.14 - u)*w, wv=buW(xc, k), zc=zk*exp(buLn*(wv+(h.z - .5)*.12));
    float R=.81*buLn*zc*(.8+.3*h.w)*buS3(z0*.8, z0*1.2, zc)+1e-5;
+   buSpin=h.z*6.28;
    vec2 c=vec2(xc, buH+z0 - zc), d=vec2(p.x, py) - c;
    // how it leans: the row's rocking, the ring of a hit, the wave of a cue
    float ph=xc*.8*max(5.4 - .33*k, 1.6)+1.15*k - t*.42;
@@ -150,15 +164,32 @@ vec3 buSea(vec2 p, out vec4 boat) {
   if (k>.5) hid=buAll;
  }
  boat.a*= 1. - hid;
+ float sea=buAll;
+ // buttons hung on threads before the sky
+ float thr=.0;
+ if (uOwn[7]<0. && p.y>buH - .03) for (int i=0; i<2; i++) {
+  float fi=float(i), cw=mix(.092, .125, fi), x=p.x/cw+.5*fi+.31, col=floor(x), h1=hash11(col+37.*fi+11.);
+  float xc=p.x+(col+.5+(h1 - .5)*.3 - x)*cw+.008*sin(t*.23+col*2.1), rh=mix(.15, .21, fi), y=(p.y - buH)/rh+h1*5.+fi*.3, row=floor(y);
+  vec2 g2=hash22(vec2(col+9.*fi, row+50.)); vec4 h=vec4(g2, fract(g2.yx*vec2(61.7, 83.3)));
+  float end=buH+(.06+.22*h1)*(1.1 - .5*fi);
+  float yc=p.y+(row+.5+(h.y - .5)*.35 - y)*rh, R=cw*(.2+.17*h.w)*step(h.z, .78)*hung*step(end, yc)+1e-5;
+  vec2 d=p - vec2(xc, yc), T=vec2((.5+.4*uLevel)*sin(t*(.21+.2*h.w)+h.x*6.3+3.*(1. - uHits)*uHits), .08);
+  float bd=band(h1); buSpin=h.z*6.28; T.x*=1. - .4*fi;
+  if (sea<.5 && R>.002 && buTry(d, R, T, T/sqrt(1.+dot(T, T))*.2, aa, 1. - .35*fi)) {
+   buHs=h; buGain=(.75+1.2*bd*(.4+uEnergy)+.9*uHits*buBump((length(d+vec2(xc, yc) - vec2(.0, buH+.2)) - .8*(1. - uHits))/.2)+uCue*buBump((yc - .5+(.5 - buH)*(1. - uCue))/.2))*(1. - .3*fi);
+   buAdd=pc.rgb*.3;
+  }
+  thr=max(thr, buIn(abs(p.x - xc) - .0011, aa)*step(end, p.y)*hung*(.75 - .3*fi));
+ }
  // the moon, one chipped shell button
  vec2 d=p - mo, g=d/MR; float q=length(g);
  float chip=min(length(g - vec2(.86, -.62)) - .2, length(g - vec2(.98, -.36)) - .13)+.03*noise(g*14.);
- float sea=buAll;
+ buSpin=.7;
  if (q<1.1 && chip>.0 && buTry(d, MR, vec2(.14*sin(t*.05), .12*cos(t*.04)), vec2(.0), aa, 1.)) {
   buMoon=1.; buHs=vec4(.1, .55, .2, .13); buGain=(.85+.2*uKeys)*(1.+.35*buS3(.1, .0, chip)); buTint=vec3(1.);
   buShd=1.; buAdd=vec3(.3, .33, .38);
  }
- if (sea<.01 && q<1.1) buAll*= buS3(.0, 2.*aa/MR, chip);
+ if (sea<.01 && q<1.1 && uOwn[7] >= 0.) buAll*= buS3(.0, 2.*aa/MR, chip);
  sh*= 1. - .5*buS3(1.2, .85, length(d - vec2(.02, -.018))/MR);
  if (buAll>.999) return vec3(.0);
  if (max(ch, cs) <= .0) wool=buFelt(p);
@@ -174,35 +205,48 @@ vec3 buSea(vec2 p, out vec4 boat) {
   st=max(st, .6*buStitch(dd+.011, (a.x+a.y*.5)*34., .0017, aa));
  }
  float ri=clamp(floor((q - 1.)/.36+.5), 1., 3.);
- st=max(st, buStitch((q - 1. - .36*ri)*MR, atan(d.y, d.x+1e-5)/TAU*floor(16.+9.*ri), .0017, aa)*(.75 - .17*ri+.4*uPad+.5*uKeys));
+ st=max(st, buStitch((q - 1. - .36*ri)*MR, atan(d.y, d.x+1e-5)/TAU*floor(16.+9.*ri), .0017, aa)*(.75 - .17*ri+.4*uPad+.5*uKeys)*(1. - hung));
  vec2 sg=p/.115, sr=hash22(floor(sg)+4.), so=rot(sr.x*3.)*((fract(sg) - .5)*.115 - (sr - .5)*.06);
  st=max(st, buIn(min(abs(so.x), abs(so.y)) - .0017, aa)*buS3(.012, .009, length(so)+.005*sr.y)*step(.62, sr.y)*buS3(2.3, 2.6, q)*(.35+.4*sr.x+.8*uHigh));
  st*= sat((p.y - buH)*90.+1.);
+ st=max(st, thr);
  light=buKey*1.05+buSky*1.1;
  vec3 c=mix(felt*wool*light*(.6+.4*buL.z), mix(vec3(.56, .53, .44), vec3(.24, .16, .24), dawn)*light, sat(st));
  return c*(1. - .5*buS3(.06, .0, p.y - buH))*mix(.25, 1., buS3(z0*1.2, z0, z))*sh*sailSh;
 }
 
 // ---- the spilled tin
+#define BU_RING (2.6*max(uOwn[7], .0)*max(uOwn[7], .0))
 const vec2 BUM=vec2(.2, .2); // the tin's mouth on the table
 float buFan(vec2 w) {
  vec2 v=w - BUM, e=vec2(-.6, -.8); float a=dot(v, e), b=dot(v, vec2(e.y, -e.x))+.12*a*a, up=max(a, .0), wide=(.17+.42*up)*buWide;
- return (1.75*exp(-up*(1.25 - .7*uOwn[3]) - b*b/(wide*wide))+.12*max(uOwn[3], .0))*buS3(-.16, -.04, a);
+ return (1.4*max(-uOwn[7], .0)+1.75*exp(-up*(1.25 - .7*uOwn[3]) - b*b/(wide*wide))+.12*max(uOwn[3], .0))*(uOwn[7]<0.?mix(buS3(-.16, -.04, a), 1., min(-2.*uOwn[7], 1.)):buS3(-.16, -.04, a));
 }
 // The loose button of one layer of the heap that may lie here: its radius, where it is from w, its numbers.
 float buPile(vec2 w, float j, out vec2 d, out vec4 h) {
+ if (uOwn[7]>0. && j<.5) { // laid in rings by a hand
+  float s=.15*buSz; w-= vec2(-.06, -.06);
+  float k=floor(length(w)/s), n=k<.5?1.:2.*floor(PI*(k+.5)*.98), a=length(w)>1e-4?atan(w.y, w.x)/TAU:.0, off=k*.37, m=k<.5?.0:floor((a+off)*n), an=((m+.5)/n - off)*TAU;
+  vec2 c=k<.5?vec2(.0):(k+.5)*s*vec2(cos(an), sin(an));
+  float hk=hash11(k+23.);
+  h=vec4(fract(k*.38+.1), hk, fract(m*.5), .12);
+  d=w - c;
+  return s*(.36+.09*fract(k*.5+.25)*2.)*min(2.*uOwn[7], 1.)*buS3(7.4, 6.6, k*buSz*1.5)+1e-5;
+ }
  mat2 M=rot(.3+.9*j); float cell=.15*buSz;
  vec2 id=floor(M*w/cell), g=hash22(id+17.*j+5.); h=vec4(g, fract(g.yx*vec2(61.7, 83.3)));
  vec2 c=(id+.5+(h.zw - .5)*.18)*cell*M;
  d=w - c;
- return cell*(.24+.11*h.w)*buS3(.012, .026, buFan(c) - .2*(3. - j) - .02 - .5*h.y*h.y)+1e-5;
+ return cell*(.24+.11*h.w)*buS3(.012, .026, buFan(c) - .2*(3. - j) - .02 - .5*h.y*h.y - BU_RING)+1e-5;
 }
 vec3 buTin(vec2 p) {
  float nar=clamp(uRes.x/uRes.y/1.7, .5, 1.), t=uTime, zoom=exp2(-.75*uOwn[4])*mix(1.25, 1., nar);
  p=p*zoom+vec2(-.02, -.05)*(1. - zoom)+vec2(.14 - .14*nar, .0);
  float eve=max(-uOwn[0], .0), green=max(uOwn[0], .0), dull=max(-uOwn[5], .0), low=max(uOwn[5], .0), aa0=.8*zoom/uRes.y;
  buSz=exp2(-.8*uOwn[2]); buWide=exp2(1.1*uOwn[3]);
- float D=1.9/(1.9 - p.y); vec2 w=vec2(p.x*D, (D - 1.)*2.93); float aa=1.25*aa0*D;
+ float over=max(-uOwn[7], .0), laid=max(uOwn[7], .0), bare=max(over, laid);
+ float D=1.9/(1.9 - p.y); vec2 w=vec2(p.x*D, (D - 1.)*2.93);
+ if (uOwn[7]<0.) { w=mix(w, vec2(p.x, p.y+.02), over); D=mix(D, 1., over); } float aa=1.25*aa0*D;
  vec2 S=vec2(.75, -.62)*(1.+1.6*low), s=vec2(.771, -.637);
  buL=buN(vec3(-.55, .5, .75 - .4*low));
  // the window lies on the table; by night a lamp does
@@ -220,9 +264,10 @@ vec3 buTin(vec2 p) {
   float fi=float(i);
   vec2 B=i == 0?vec2(-.12, -.46):i == 1?vec2(.36, -.3):i == 2?vec2(-.5, -.12)
   :i == 3?vec2(.1 - 1.4*go, .02 - .5*go+.5*go*go):vec2(.08 - .5*qc - .2*qc*qc, .1 - 1.25*qc);
-  float R=(.052+.012*hash11(fi+2.))*buSz*(i == 3?buS3(.0, .08, go)*buS3(1., .95, go):i == 4?buS3(.0, .12, qc)*buS3(.0, .06, uCue):1.)+1e-5;
+  float R=(.052+.012*hash11(fi+2.))*buSz*(i == 3?buS3(.0, .08, go)*buS3(1., .95, go):i == 4?buS3(.0, .12, qc)*buS3(.0, .06, uCue):1.)*(1. - buS3(.0, .6, abs(uOwn[7])))+1e-5;
   vec2 v=w - B, b=B/(1.+B.y/2.93); float k=1./(1.+B.y/2.93), len=1.7*R*length(S), x=dot(v, s)/len;
   b.y=1.9 - 1.9*k;
+  buSpin=.4;
   vec2 T=vec2(i == 1?-1.5:1.35+.5*hash11(fi+9.), .2+.05*sin(t*.3+fi));
   if (buTry(p - b - vec2(.0, R*k*.9), R*k, T, T/sqrt(1.+dot(T, T))*.24, aa0, 1.)) {
    buHs=vec4(i == 0?.7:i == 1?.15:i == 2?.93:i == 3?.4:.8, .4, i>2?.2:.8, i == 3?go*3.:i == 4?qc*4.:.1);
@@ -236,10 +281,11 @@ vec3 buTin(vec2 p) {
   vec2 d, o; vec4 h, ho;
   float R=buPile(w, float(i), d, h), Ro=buPile(w - S*.034*buSz, float(i), o, ho);
   vec2 c=w - d; float away=length(c - BUM), bd=band(sat(1.1 - away)), ph=t*.5+6.*away+h.x;
-  float ring=buBump((length(c - hp) - .55*(1. - uHits))/.14);
+  float ring=buBump((length(c - hp) - .55*(1. - uHits))/(.14+.16*laid));
   vec2 T=(h.yx - .5)*(.25+.6*buS3(.9, .2, away))+(.02+.1*uLow+.18*bd*(.4+uEnergy))*vec2(sin(ph), cos(ph))+vec2(.3, .45)*ring*4.*uHits*(1. - uHits);
-  if (buTry(d, R, T, vec2(.0, .2), aa, sh)) {
-   buHs=h; Lp=l0; buGain=.92+.7*pc.a*(.4+uEnergy)+1.2*ring*uHits+.4*bd*uEnergy+2.*uCue*buBump((away - .1 - 1.1*qc)/.35);
+  buSpin=h.z*6.28;
+  if (buTry(d, R, T, vec2(.0, .2 - .12*over), aa, sh)) {
+   buHs=h; Lp=l0; buGain=.92+.7*pc.a*(.4+uEnergy)+(1.2+laid)*ring*uHits+.4*bd*uEnergy+2.*uCue*buBump((away - .1 - 1.1*qc)/.35);
    buAdd=pc.rgb*.35;
   }
   sh*= 1. - .7*buS3(1.12, .8, length(o)/Ro)*step(.002, Ro)*(1. - .5*dull);
@@ -252,20 +298,21 @@ vec3 buTin(vec2 p) {
  float g0=noise(q*vec2(5., 90.)), n=noise(q*vec2(2.6, 9.)+k*7.)*.6+.4*noise(q*vec2(14., 70.));
  vec3 paint=mix(mix(vec3(.72, .7, .65), vec3(.1, .05, .028), eve), vec3(.2, .44, .38), green);
  vec3 c=mix(paint*(.87+.1*g0+.08*hash11(k+3.)), mix(vec3(.3, .17, .08), vec3(.05, .025, .012), eve)*(.55+.8*g0), buS3(.66, .72, n+.13*buS3(.1, .155, f)));
- c*= 1. - .75*buS3(.1505, .154, f);
+ c*= 1. - .75*(1. - bare)*buS3(.1505, .154, f);
+ if (uOwn[7] != 0.) { vec2 wv=w*(laid>.0?150.:60.); vec3 cl=paint*(laid>.0?.82+.12*sin(wv.x)*sin(wv.y)*buS3(.006, .002, aa)+.2*(noise(w*vec2(9., 120.))+noise(w*vec2(120., 9.)) - 1.)+.1*noise(w*3.):.86+.12*noise(w*2.3)+.1*noise(wv)+.08*noise(w*400.)); c=mix(c, cl, sat(bare*1.6)); }
  // loose threads
  for (int i=0; i<2; i++) {
   float fi=float(i);
   q=rot(.35+1.6*fi)*(w - (i == 0?vec2(-.42, -.16):vec2(.62, -.1)));
-  float x=q.x*12.+fi*2.+.3*sin(t*.11+fi), y=q.y - .05*sin(x), on=buIn(abs(q.x) - .26, .004), m=1./sqrt(1.+.36*cos(x)*cos(x));
+  float x=q.x*12.+fi*2.+.3*sin(t*.11+fi), y=q.y - .05*sin(x), on=buIn(abs(q.x) - .26, .004)*(1. - sat(bare*2.)), m=1./sqrt(1.+.36*cos(x)*cos(x));
   sh*= 1. - .4*buS3(.008, .001, abs(y+.008)*m)*on;
   c=mix(c, mix(i == 0?vec3(.45, .04, .04):vec3(.5, .33, .05), uKind[i+1]*.6, .3)*(.8+.2*sin(q.x*500.)), buIn(abs(y)*m - .0026, aa)*on);
  }
  // the tin's shadow, its lid, and the tin on its side
- vec2 ax=vec2(.867, .498), tp=p - vec2(.27, .185), bp=tp - vec2(.06, -.07)*(1.+low), nx=vec2(-ax.y, ax.x);
+ vec2 ax=vec2(.867, .498), tp=p - vec2(.27, .185) - vec2(1.1, .75)*bare*zoom, bp=tp - vec2(.06, -.07)*(1.+low), nx=vec2(-ax.y, ax.x);
  float u=dot(tp, ax), v=dot(tp, nx), Rt=.175, L=.36, arc=.42*sqrt(max(Rt*Rt - v*v, .0)), px=1.4*aa0;
  float ts=1. - .72*buS3(.14, .0, length(max(abs(vec2(dot(bp, ax) - L*.5, dot(bp, nx))) - vec2(L*.5 - .02, Rt - .06), .0)));
- vec2 lw=w - vec2(-.62, .36); float lr=length(lw)/.215, le=length(lw+vec2(.0, .03))/.215, la=aa/.215;
+ vec2 lw=w - vec2(-.62, .36)+vec2(1.1, -.6)*bare*zoom; float lr=length(lw)/.215, le=length(lw+vec2(.0, .03))/.215, la=aa/.215;
  ts*= 1. - .6*buS3(1.12, .92, length(lw - S*.035)/.215);
  c*= buKey*sh*ts+sky*(.4+.6*sh*ts)+pc.rgb*.06*uEnergy;
  vec3 teal=vec3(.05, .2, .22), cream=vec3(.75, .66, .46), red=vec3(.5, .08, .05);
@@ -283,7 +330,7 @@ vec3 buTin(vec2 p) {
  return mix(c, tin*(.3+.7*sh), buIn(abs(v) - Rt, px)*buIn(-arc - u, px)*buIn(u - L - arc, px));
 }
 vec3 render(vec2 p) {
- buTop=buAll=buNear=buMoon=buCf=.0; buPx=buShd=buGain=1.; buSewn=1. - uVar; buTint=vec3(1.); buAdd=vec3(.0);
+ buTop=buAll=buNear=buMoon=buCf=buSpin=.0; buPx=buShd=buGain=1.; buSewn=1. - uVar; buTint=vec3(1.); buAdd=vec3(.0);
  buQ=buT=buB=vec2(.0); buHs=vec4(.5);
  vec4 boat=vec4(.0);
  vec3 c=uVar<.5?buSea(p, boat):buTin(p);

@@ -3,7 +3,12 @@
 // b: Plate of curls
 // what: A low look across the black velvet floor of a glass box full of mist, lit by a slit lamp from the right, where white trails condense, thicken and sink; or a pale photographic plate crossed by a sheaf of beaded lines, with one fork whose two threads curl into tightening spirals.
 // follows: Each band shoots its own direction or line; the piece places the fat trails, or stains and darkens the beads; the phrase draws the curls, texture the crooked threads; the drone thickens the mist or clouds the plate, the pad widens trails; a hit is a fork, a cue bends the curls the other way, keys add beads.
-// own: 0 no field, threads straight or very wide at -1, strong bends and small tight coils at 1; 1 an ember-lit floor or a black plate with white threads at -1, pale morning or a blue plate at 1; 2 seen from above, or the whole plate on its dark bench, at -1, low down in the mist, or close under a lens, at 1; 3 a lone few at -1, crowded at 1; 4 all one way at -1, all from one point at 1; 5 sharp thin new wire at -1, old drifting smoke or swollen soft beads at 1.
+// own: 0 no field, threads straight or very wide at -1, strong bends and small tight coils at 1; 1 an ember-lit floor or a black plate with white threads at -1, pale morning or a blue plate at 1; 2 seen from above, or the whole plate on its dark bench, at -1, low down in the mist, or close under a lens, at 1; 3 a lone few at -1, crowded at 1; 4 all one way at -1, all from one point at 1; 5 sharp thin new wire at -1, old drifting smoke or swollen soft beads at 1; 6 ink let into milk, or lines cut in pale clay, at -1, dyed in the sounds' colours at 1; 7 trails that rise like stems, or a round dish, at -1, trails across an evening sky over hills, or a sheet of small plates, at 1.
+#define vtDyed max(uOwn[6], 0.0)
+#define vtMilk max(-uOwn[6], 0.0)
+#define vtSky max(uOwn[7], 0.0)
+#define vtEve min(3.0 * vtSky, 1.0)
+#define vtStem max(-uOwn[7], 0.0)
 const float vtF = 1.35;
 float vtH, vtHz;             // how high the eye is over the floor, and where the horizon is
 float vtPx, vtSoft;          // a pixel, how soft what is out of focus is
@@ -66,12 +71,17 @@ float vtFly(vec2 p, vec2 dir, float len, float wide, float span, float bend) {
   dir *= inversesqrt(dot(dir, dir) + 1e-6);
   vec3 A = vec3(mix(vtA.xz, vec2(-0.22 + vtDrift, 1.5) + 0.05 * dir, one), vtA.y).xzy;
   vec3 B = A + vec3(dir.x * len, 0.05 * (vtJit.x - 0.5), dir.y * len);
+  if (vtStem > 0.0) {
+    A.y = mix(A.y, 0.02, vtStem);
+    B = mix(B, A + vec3(dir.x * len * 0.28, len * (0.3 + 0.35 * vtJit.y), 0.1 * dir.y * len), vtStem);
+  }
   B.z = max(B.z, 0.5);
   return vtFade * vtTrail(p, A, B, wide, vtOld * span * 5.5 + 0.02, sat(vtOld + 0.3 * soft), vtRnd.x * 40.0, bend * len * (vtJit.y - 0.5));
 }
 vec3 vtCloud(vec2 p) {
   float field = uOwn[0], tone = uOwn[1], eye = uOwn[2], many = uOwn[3], src = uOwn[4], soft = uOwn[5];
   float up = max(-eye, 0.0), down = max(eye, 0.0), one = max(src, 0.0), rich = max(many, 0.0), t = 3600.0 - abs(mod(uTime, 7200.0) - 3600.0);
+  if (vtEve > 0.0) p = rot(PI * vtEve) * p;
   vtH = 0.46 + 1.0 * up - 0.24 * down; vtHz = 0.24 + 0.8 * up - 0.14 * down;
   vtSoft = (0.006 + 0.004 * uSpace) * (1.0 + 1.0 * max(soft, 0.0));
   float right = 0.5 * uRes.x / uRes.y, across = max(right - p.x, 0.0) / max(right, 0.4);
@@ -101,6 +111,24 @@ vec3 vtCloud(vec2 p) {
   float pale = max(tone, 0.0);
   vec3 dawn = mix(vec3(0.035, 0.07, 0.1), vec3(0.62, 0.56, 0.48), smoothstep(-0.2, 1.1, 0.3 + 0.42 * p.x / right - 0.45 * sqrt(0.01 + (foot - 0.1) * (foot - 0.1))));
   col = mix(col, dawn * mix(0.8, 1.0, smoothstep(-0.02, 0.06, foot)) + col * 0.8, pale);
+  // or an evening sky, the box turned over
+  float land = 0.0, skyY = vtHz - p.y, skyX = -p.x;
+  if (vtEve > 0.0) {
+    vec3 hz = mix(mix(vec3(1.0, 0.46, 0.2), vec3(1.0, 0.2, 0.07), max(-tone, 0.0)), vec3(0.75, 0.72, 0.68), pale), zen = mix(mix(vec3(0.02, 0.05, 0.15), vec3(0.03, 0.015, 0.05), max(-tone, 0.0)), vec3(0.14, 0.3, 0.55), pale);
+    vec3 skyC = mix(mix(hz * 0.5, mix(hz, zen, 0.6) * 0.5, smoothstep(0.0, 0.22, skyY)), zen, smoothstep(0.1, 0.75, skyY));
+    skyC += hz * 0.35 * exp(-max(skyY, 0.0) * 9.0 - 3.0 * abs(skyX + 0.45)) + hz * 0.12 * smoothstep(0.45, 0.8, vtPuff.y * 0.4 + 0.6 * roll) * exp(-max(skyY, 0.0) * 4.0);
+    vec2 sg = vec2(skyX, skyY) * 34.0, si = floor(sg), sh = hash22(si + 3.5), so = fract(sg) - 0.2 - 0.6 * sh;
+    skyC += (1.0 - pale) * smoothstep(0.75, 1.0, sh.x) * smoothstep(0.1, 0.5, skyY) * 0.7 * exp(-dot(so, so) * 260.0) * (1.0 + 2.0 * uKeys * step(0.8, sh.y));
+    for (int i = 0; i < 3; i++) {
+      float k = float(i), top = 0.085 - 0.06 * k + (0.1 - 0.015 * k) * (noise(vec2(skyX * (1.7 + 0.9 * k) + 7.3 * k, k)) - 0.35) + 0.012 * noise(vec2(skyX * 11.0, k + 4.0)) + (i == 2 ? 0.012 * smoothstep(0.3, 0.8, noise(vec2(skyX * 70.0, 2.0))) : 0.0);
+      float in_ = smoothstep(-vtPx, vtPx, top - skyY);
+      skyC = mix(skyC, mix(hz * 0.16 + zen * 0.4, vec3(0.006, 0.008, 0.012), 0.35 + 0.32 * k) + hz * 0.1 * exp(-max(top - skyY, 0.0) * 40.0) * (1.0 - 0.45 * k), in_);
+      land = max(land, in_);
+    }
+    col = mix(col, skyC, vtEve);
+    cool = mix(cool, mix(vec3(0.75, 0.8, 0.95), hz * 1.1 + 0.15, exp(-max(skyY, 0.0) * 3.5)), vtEve);
+    land *= vtEve;
+  }
   // every trail: sixteen directions for the bands, five fat ones where the piece sounds, two crooked ones for the texture
   vec3 lit = vec3(0.0);
   vec2 dir = vec2(0.995, 0.098);
@@ -112,20 +140,20 @@ vec3 vtCloud(vec2 p) {
     dir = vec2(dir.x * 0.98079 - dir.y * 0.19509, dir.x * 0.19509 + dir.y * 0.98079);
     vtBegin(k, span);
     float amp = 0.28 * step(0.6, own) + 1.8 * rich + 1.6 * smoothstep(0.05 + 0.2 * own, 0.55 + 0.2 * own, uBands[i]) * answer;
-    lit += mix(cool, uKind[4 - i / 4], 0.25) * amp * vtFly(p, dir, 0.7 + 1.3 * vtRnd.x, (0.0034 + 0.003 * vtJit.x) * widen, span, bend);
+    lit += mix(cool, uKind[4 - i / 4], 0.25 + 0.75 * vtDyed) * amp * vtFly(p, dir, 0.7 + 1.3 * vtRnd.x, (0.0034 + 0.003 * vtJit.x) * widen, span, bend);
   }
   for (int i = 16; i < 21; i++) {
     float k = float(i), span = 4.0 + 0.4 * mod(k * 3.0, 7.0);
     vtBegin(k, span);
     vec4 here = piece(vec2(0.5 + vtF * vtA.x / vtA.z / 1.7, 1.0 - sat((vtA.z - 0.9) / 2.4)));
-    vec3 tint = mix(cool, here.rgb / max(here.a, 0.02), 0.35 * smoothstep(0.0, 0.2, here.a));
+    vec3 tint = mix(cool, here.rgb / max(here.a, 0.02), (0.35 + 0.6 * vtDyed) * smoothstep(0.0, 0.2, here.a));
     lit += tint * (3.0 * here.a * answer + 1.4 * rich) * vtFly(p, vtJit - vec2(0.48, 0.5), 0.22 + 0.3 * vtJit.x, (0.01 + 0.006 * vtJit.x) * widen, span, bend);
   }
   vec2 wry = p + 0.014 * (vec2(vtZig(p.y * 8.0 + p.x * 3.0), vtZig(p.x * 9.0 - p.y * 4.0)) + 0.7 * vec2(vtZig(p.y * 19.0 - p.x * 7.0), vtZig(p.x * 21.0 + p.y * 6.0)) + 0.12 * vec2(vtZig(p.y * 37.0), vtZig(p.x * 34.0)) - 1.0);
   for (int i = 21; i < 23; i++) {
     float k = float(i), span = 4.0 + 0.4 * mod(k * 3.0, 7.0);
     vtBegin(k, span);
-    lit += mix(cool, uKind[2], 0.4) * (0.12 + 4.5 * uTexture + 1.5 * rich) * vtFly(wry, vtJit - vec2(0.48, 0.5), 0.5 + 0.4 * vtJit.x, 0.0042 * widen, span, bend);
+    lit += mix(cool, uKind[2], 0.4 + 0.6 * vtDyed) * (0.12 + 4.5 * uTexture + 1.5 * rich) * vtFly(wry, vtJit - vec2(0.48, 0.5), 0.5 + 0.4 * vtJit.x, 0.0042 * widen, span, bend);
   }
   // the phrase's long slow curls, lying in the mist
   float drop = (vtHz - p.y) / vtF;
@@ -143,7 +171,7 @@ vec3 vtCloud(vec2 p) {
       float wide = reach * 0.0045 * widen * (0.4 + 1.5 * old) * (0.6 + 0.8 * vtPuff.x), blur = vtSoft * abs(1.0 / z - 0.6) + 0.6 * vtPx;
       float all = sqrt(wide * wide + blur * blur), x = d * d / (all * all);
       float front = smoothstep(0.0, 0.3, age * 0.9 - c.y) * smoothstep(0.0, 0.5, c.y);
-      lit += mix(cool, uKind[3], 0.35) * amp * (exp(-x) + 0.5 * exp(-x * 6.0)) * wide / all * front * (1.0 - smoothstep(0.5, 1.0, old)) * vtGaps(c.y * 6.0, 0.8 * old, 0.5 * (vtPuff.x + vtPuff.y));
+      lit += mix(cool, uKind[3], 0.35 + 0.65 * vtDyed) * amp * (exp(-x) + 0.5 * exp(-x * 6.0)) * wide / all * front * (1.0 - smoothstep(0.5, 1.0, old)) * vtGaps(c.y * 6.0, 0.8 * old, 0.5 * (vtPuff.x + vtPuff.y));
     }
   }
   // a hit: a fork of three arms, and the mist around it lit
@@ -163,7 +191,18 @@ vec3 vtCloud(vec2 p) {
   vec2 rain = vec2(p.x * 47.0 + p.y * 17.0, p.y * 47.0 - p.x * 17.0 + 1.4 * mod(uTime, 2000.0)), id = floor(rain);
   vec2 h = hash22(vec2(id.x, mod(id.y, 2800.0)) + 0.5), o = fract(rain) - 0.2 - 0.6 * h.yx;
   float bead = exp(-dot(o, o) * (70.0 + 260.0 * fract(h.x * 7.0))) * (1.0 - smoothstep(-0.06, 0.1, foot)) * 0.6;
-  lit += cool * bead * ((0.1 + 0.3 * uDrone + 0.15 * uHigh) * smoothstep(0.55, 1.0, h.y) + 2.6 * uKeys * smoothstep(0.9, 0.95, h.x));
+  lit += (1.0 - vtEve) * cool * bead * ((0.1 + 0.3 * uDrone + 0.15 * uHigh) * smoothstep(0.55, 1.0, h.y) + 2.6 * uKeys * smoothstep(0.9, 0.95, h.x));
+  lit *= 1.0 - 0.96 * land;
+  if (vtDyed > 0.0) lit = max(mix(vec3(dot(lit, vec3(0.33))), lit, 1.0 + 0.35 * vtDyed), 0.0) * (1.0 + 0.5 * vtDyed);
+  if (vtMilk > 0.0) {
+    // dark in pale: what the trails hold back
+    vec3 li = max(mix(vec3(dot(lit, vec3(0.33))), lit, 1.0 + 2.2 * vtDyed + 1.2 * vtMilk), 0.0); float k = dot(lit, vec3(0.33));
+    vec3 milk = mix(mix(vec3(0.62, 0.64, 0.66), vec3(1.15, 1.1, 1.02), smoothstep(0.2, 1.4, lamp)), vec3(1.1, 0.72, 0.42), 0.8 * max(-tone, 0.0)) * (0.8 + 0.22 * roll + 0.1 * smoothstep(-0.02, 0.05, foot));
+    milk *= 1.0 - 0.1 * exp(-edge * edge * 0.4) - 0.06 * above * exp(-corner * corner) - 0.35 * sat(mist * 1.4);
+    milk = mix(milk, vec3(0.5, 0.66, 0.78) * (0.7 + 0.4 * lamp), pale * 0.8);
+    col = mix(col, milk * exp(-3.4 * (vec3(0.3) * k + max(vec3(k) * 2.0 - 1.1 * li, 0.0))), vtMilk);
+    lit *= 1.0 - vtMilk;
+  }
   col += lit * (0.35 + 0.65 * lamp) * (1.0 + 0.3 * pale);
   return screenOf(col * (1.0 + 0.4 * uTone));
 }
@@ -174,16 +213,30 @@ float vtRow(float s, float d, float gap, float rad, float seed) {
   float r = rad * (0.55 + 0.75 * h.x);
   float a = length(vec2((c - i - 0.3 - 0.4 * h.y) * gap, d + (h.x - 0.5) * rad * 0.8));
   float ink = sat((r - a) / (vtPx + vtSoft * r) + 0.5) * smoothstep(0.12, 0.2, h.y);
-  return max(ink, (0.4 + 0.2 * vtSoft) * exp(-d * d / (rad * rad * (1.0 + 7.0 * vtSoft) + vtPx * vtPx)) * min(1.0, rad / vtPx));
+  if (vtMilk > 0.0) ink *= 1.0 - vtMilk * (1.0 - 0.3 * exp(-d * d / (rad * rad)));  // in clay the beads run into one smooth groove
+  return max(ink, (0.4 + 0.2 * vtSoft + 0.6 * vtMilk) * exp(-d * d / (rad * rad * (1.0 + 7.0 * vtSoft * (1.0 - 0.75 * vtMilk)) + vtPx * vtPx)) * min(1.0, rad / vtPx));
 }
+int vtWho;
+void vtLay(inout float ink, float x, int k) { if (x > ink) { ink = x; vtWho = k; } }
 vec3 vtPlate(vec2 p) {
   float field = uOwn[0], tone = uOwn[1], eye = uOwn[2], many = uOwn[3], src = uOwn[4], soft = uOwn[5];
   float right = 0.5 * uRes.x / uRes.y, near = max(eye, 0.0), rich = max(many, 0.0), zoom = exp(eye < 0.0 ? -0.5 * eye : -0.75 * eye), t = uTime;
   vec2 F = vec2(min(0.13, right * 0.3), -0.1), q = p * zoom + (F + vec2(0.1, 0.05)) * near * 0.8;
-  vtPx = zoom / uRes.y; vtSoft = 0.7 * max(soft, 0.0);
+  vtPx = zoom / uRes.y; vtSoft = 0.7 * max(soft, 0.0) + 0.15 * vtMilk;
+  vtWho = 0;
+  float frame = -1.0;
+  if (vtSky > 0.0) {
+    // many small plates, each turned its own way
+    vec2 S = mix(vec2(4.4, 2.8), vec2(0.62, 0.43), 1.0 - (1.0 - vtSky) * (1.0 - vtSky)), id = floor(q / S + 0.5 + vec2(0.0, 0.5) * vtSky), hq = hash22(id + 9.5);
+    q -= (id - vec2(0.0, 0.5) * vtSky) * S;
+    frame = max(abs(q.x) - 0.475 * S.x, abs(q.y) - 0.462 * S.y);
+    float sc = max(1.0, 0.95 / S.y); q *= sc; vtPx *= sc;
+    if (hq.x > 0.5) q.x = -q.x;
+    q = rot(0.5 * (hq.y - 0.5) * vtSky) * q + 0.5 * vec2(hq.y - 0.5, hq.x * 2.0 - (hq.x > 0.5 ? 1.5 : 0.5)) * vtSky;
+  }
   vec4 m = piece(vec2(q.x / 1.7 + 0.5, 0.5 - q.y));
   m *= (1.0 - smoothstep(0.7, 0.85, abs(q.x))) * (1.0 - smoothstep(0.4, 0.5, abs(q.y)));
-  float loud = sat(m.a * (0.8 + 0.8 * uEnergy)), lone = max(-many, 0.0), one = max(-src, 0.0), rad = 0.0021 * exp(0.4 * soft + 0.3 * min(soft, 0.0)) * (1.0 + 0.35 * uPad), ink = 0.0;
+  float loud = sat(m.a * (0.8 + 0.8 * uEnergy)), lone = max(-many, 0.0), one = max(-src, 0.0), rad = 0.0021 * exp(0.4 * soft + 0.3 * min(soft, 0.0)) * (1.0 + 0.35 * uPad) * (1.0 + 0.55 * vtMilk), ink = 0.0;
   vec2 u = rot(0.17 - 0.75 * one) * (q - F);
   // the sheaf from below; one line of it ends in the fork
   float fan = mix(1.0 + 0.1 * u.y, 0.06 + 1.1 * abs(u.y + 0.62), max(src, 0.0));
@@ -199,7 +252,7 @@ vec3 vtPlate(vec2 p) {
     float span = 12.0 + 9.0 * h.y, age = fract(t / span + h.x * 7.0) * span;
     float fresh = exp(-age * 0.22) * smoothstep(0.0, 0.15, age * 4.5 - 0.62 - u.y) * (1.0 - smoothstep(span - 2.0, span, age));
     float b = uBands[int(mod(id + 64.5, 16.0))];
-    ink = max(ink, on * (0.34 + 0.25 * rich + (0.25 + 1.1 * b) * fresh + 0.65 * loud) * vtRow(u.y + 2.0, d, 0.0056 + 0.005 * h.x, rad * (0.65 + 0.7 * h.y), id));
+    vtLay(ink, on * (0.34 + 0.25 * rich + (0.25 + 1.1 * b) * fresh + 0.65 * loud) * vtRow(u.y + 2.0, d, 0.0056 + 0.005 * h.x, rad * (0.65 + 0.7 * h.y), id), int(mod(id + 64.5, 5.0)));
     // small curls knocked off the line
     float row = floor(u.y / 0.19 + h.x * 5.0);
     vec2 k = hash22(vec2(id + 11.3, row + 40.7));
@@ -207,12 +260,12 @@ vec3 vtPlate(vec2 p) {
     vec2 c = vec2(d * side - R, -(u.y - (row + 0.5 - h.x * 5.0) * 0.19));
     if (k.x < 0.26 && dot(c, c) < R * R * 1.6) {
       vec2 w = vtCoil(c, R, PI, 0.17, 3.0);
-      ink = max(ink, on * (0.5 + 0.5 * loud) * vtRow(w.y + 1.0, w.x, 0.0056, rad * 0.75, id + 3.0));
+      vtLay(ink, on * (0.5 + 0.5 * loud) * vtRow(w.y + 1.0, w.x, 0.0056, rad * 0.75, id + 3.0), int(mod(id + 64.5, 5.0)));
     }
   }
   // the fork: two threads of opposite turning, and the cue's mirrored pair; an old coil far off
   float age = fract(t / 23.0) * 23.0;
-  if (u.y < 0.0) ink = max(ink, (0.6 + 0.4 * uPhrase) * vtRow(u.y + 2.0, u.x - 0.02 * u.y * u.y, 0.0056, rad * 1.2, 77.0));
+  if (u.y < 0.0) vtLay(ink, (0.6 + 0.4 * uPhrase) * vtRow(u.y + 2.0, u.x - 0.02 * u.y * u.y, 0.0056, rad * 1.2, 77.0), 3);
   for (int s = 0; s < 2; s++) {
     float share = s == 0 ? 1.0 - 0.75 * uCue : uCue;
     for (int i = 0; i < 3 && share > 0.01; i++) {
@@ -221,7 +274,7 @@ vec3 vtPlate(vec2 p) {
       if (dot(c, c) > R * R * 1.5) continue;
       vec2 w = vtCoil(c, R, PI - 0.12, i == 0 ? 0.115 : i == 1 ? 0.085 : 0.15, i == 2 ? 2.6 : 5.0);
       float fresh = smoothstep(0.0, 0.1, age * 1.2 - w.y) * exp(-age * 0.12) * (1.0 - smoothstep(20.0, 23.0, age));
-      ink = max(ink, share * (i == 2 ? 0.4 * (1.0 - lone) : 0.62 + 0.6 * uPhrase * (0.5 + fresh)) * vtRow(w.y + 1.0, w.x, 0.0056, rad * (i == 2 ? 0.8 : 1.25), 5.0 + float(i)));
+      vtLay(ink, share * (i == 2 ? 0.4 * (1.0 - lone) : 0.62 + 0.6 * uPhrase * (0.5 + fresh)) * vtRow(w.y + 1.0, w.x, 0.0056, rad * (i == 2 ? 0.8 : 1.25), 5.0 + float(i)), i == 0 ? 3 : i == 1 ? 0 : 1);
     }
   }
   // long arcs that cross the plate, and the texture's short crooked ones
@@ -230,12 +283,12 @@ vec3 vtPlate(vec2 p) {
     vec2 h = hash22(vec2(k + 2.5, 8.1)), c = vec2(h.x * 2.0 - 1.0, i < 2 ? -1.4 - h.y : 1.2 + h.y);
     float R = 1.25 + 0.9 * h.y + 0.2 * k, r = length(q - c);
     float along = atan(q.x - c.x, (q.y - c.y) * (i < 2 ? 1.0 : -1.0)) * R;
-    ink = max(ink, (0.25 + 0.5 * uMid * h.x + 0.5 * loud) * (1.0 - lone) * (1.0 - one) * vtRow(along + 8.0, r - R, 0.011, rad * 0.75, k + 20.0));
+    vtLay(ink, (0.25 + 0.5 * uMid * h.x + 0.5 * loud) * (1.0 - lone) * (1.0 - one) * vtRow(along + 8.0, r - R, 0.011, rad * 0.75, k + 20.0), 1);
     float beat = t / (4.0 + k) + 0.3 * k, young = fract(beat);
     vec2 j = hash22(vec2(k + 0.5, mod(floor(beat), 911.0))), o = rot(j.x * 6.0) * (q - (j - 0.5) * vec2(1.5, 0.8));
     float amp = (0.15 + 1.8 * uTexture + 0.6 * rich) * (1.0 - smoothstep(0.3, 1.0, young));
     if (abs(o.y) < 0.06 && o.x > 0.0 && o.x < 0.2 * min(1.0, young * 20.0))
-      ink = max(ink, amp * vtRow(o.x, o.y + 0.012 * sin(o.x * 40.0 + k) + 0.006 * sin(o.x * 90.0), 0.006, rad * 0.8, k + 50.0));
+      vtLay(ink, amp * vtRow(o.x, o.y + 0.012 * sin(o.x * 40.0 + k) + 0.006 * sin(o.x * 90.0), 0.006, rad * 0.8, k + 50.0), 2);
   }
   // a hit: a star of arms at a place that changes now and then, with a stain round it
   float stain = 0.0;
@@ -246,15 +299,15 @@ vec3 vtPlate(vec2 p) {
     stain = max(stain, amp * exp(-dot(o, o) * 45.0));
     for (int i = 0; i < 4 && amp > 0.01; i++) {
       vec2 a = rot(h.x * 6.0 + float(i) * 1.7 + 0.4 * float(i * i)) * o;
-      if (a.x > 0.0 && a.x < (0.12 + 0.07 * float(i)) * (1.4 - 0.8 * uHits)) ink = max(ink, amp * 1.4 * vtRow(a.x, a.y + 0.3 * a.x * a.x, 0.0072, rad * (1.6 - 0.2 * float(i)), float(i) + 60.0));
+      if (a.x > 0.0 && a.x < (0.12 + 0.07 * float(i)) * (1.4 - 0.8 * uHits)) vtLay(ink, amp * 1.4 * vtRow(a.x, a.y + 0.3 * a.x * a.x, 0.0072, rad * (1.6 - 0.2 * float(i)), float(i) + 60.0), 4);
     }
   }
   // single beads for the keys, and dust
   vec2 dust = q * 23.0, id = floor(dust), h = hash22(id + 0.5);
-  ink = max(ink, (0.35 * step(0.86, h.y) + uKeys * step(0.75, h.x)) * sat((0.0012 + 0.003 * h.x * h.x - length(fract(dust) - 0.25 - 0.5 * h) / 23.0) / vtPx + 0.5));
+  vtLay(ink, (0.35 * step(0.86, h.y) * (1.0 - vtMilk) + uKeys * step(0.75, h.x)) * sat((0.0012 + 0.003 * h.x * h.x - length(fract(dust) - 0.25 - 0.5 * h) / 23.0) / vtPx + 0.5), 4);
   // four small crosses to measure from
   vec2 x = abs(abs(q - vec2(0.03, 0.0)) - vec2(0.48, 0.3));
-  ink = max(ink, 0.6 * sat((0.0009 - min(x.x, x.y)) / vtPx + 0.5) * (1.0 - smoothstep(0.016, 0.018, max(x.x, x.y))));
+  vtLay(ink, 0.6 * sat((0.0009 - min(x.x, x.y)) / vtPx + 0.5) * (1.0 - smoothstep(0.016, 0.018, max(x.x, x.y))), 0);
   // the plate itself: uneven grey, the lamp behind it, the ring marks of the window
   float cloud = noise(q * 2.3 + 4.0 + 0.2 * sin(t * 0.05)), small = noise(q * 9.0), grain = noise(q * 240.0);
   vec2 off = q - vec2(0.3, 0.16);
@@ -271,10 +324,30 @@ vec3 vtPlate(vec2 p) {
   dark = mix(dark, vec3(0.01, 0.03, 0.12), blue);
   ground = mix(ground, (vec3(0.16) - 0.11 * ground / max(lamp, 0.1) + 0.1 * loud * hue) * lamp, black);
   dark = mix(dark, vec3(0.93, 0.92, 0.88) * mix(vec3(1.0), hue, 0.4 * loud), black);
+  if (vtDyed > 0.0) {
+    vec3 own = uKind[vtWho];
+    dark = mix(dark, mix(own * own * 0.75, 0.15 + 1.0 * own, black), vtDyed * 0.95);
+  }
   vec3 col = mix(ground, dark, sat(ink * (1.0 + 0.25 * uTone - 0.6 * min(soft, 0.0) - 0.15 * max(soft, 0.0))));
+  if (vtMilk > 0.0) {
+    // cut into clay: one side of each groove in the light
+    vec2 gr = vec2(dFdx(ink), dFdy(ink)); gr = clamp(gr, -110.0 / uRes.y, 110.0 / uRes.y); float sh = dot(gr, vec2(0.62, -0.78)) * (1.6 + uRes.y / 260.0);
+    vec3 clay = mix(mix(vec3(0.87, 0.81, 0.73), vec3(0.6, 0.7, 0.78), blue), vec3(0.4, 0.3, 0.26), black) * (0.62 + 0.4 * lamp + 0.14 * (small - 0.5) + 0.06 * (noise(q * 34.0) - 0.5));
+    clay *= mix(vec3(1.0), 0.6 + 0.5 * hue, 0.45 * loud); clay *= mix(vec3(1.0), 0.4 + 0.5 * uKind[4], 0.6 * stain);
+    clay = mix(clay, clay * 0.5 * mix(vec3(1.0), 0.5 + 1.2 * uKind[vtWho], 0.35 + 0.6 * vtDyed), 0.5 * sat(ink)) * (1.0 + 0.8 * sh / (1.0 + 0.6 * abs(sh)));
+    col = mix(col, clay, vtMilk);
+  }
+  if (frame > -1.0) col = mix(col, vec3(0.02, 0.02, 0.022), smoothstep(-0.004, -0.001, frame));
+  if (black > 0.0) col += black * uKind[4] * stain * 0.55;
   // past the plate's own edge lies the dark bench
   vec2 e = abs(q) - vec2(1.36, 0.7);
-  float edge = max(e.x, e.y);
+  float edge = vtSky > 0.0 ? -1.0 : max(e.x, e.y);
+  if (vtStem > 0.0) {
+    float rr = length(p) - mix(1.4, 0.44, vtStem), gl = dot(p, vec2(-0.6, 0.8)) / max(length(p), 1e-3), a1 = (rr + 0.006) / 0.005, a2 = (rr + 0.03) / 0.003;
+    col *= 1.0 - 0.4 * vtStem * smoothstep(-0.2, 0.0, rr);
+    col += vtStem * (exp(-a1 * a1) * (0.25 + 0.3 * gl) + exp(-a2 * a2) * (0.08 - 0.1 * gl));
+    edge = max(edge * zoom, rr);
+  }
   return mix(col, vec3(0.03, 0.028, 0.026) * (1.0 + exp(-max(edge, 0.0) * 12.0)), smoothstep(-0.001, 0.003, edge));
 }
 vec3 render(vec2 p) {

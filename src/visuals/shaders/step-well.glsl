@@ -3,10 +3,10 @@
 // b: At the pool
 // what: A great square pit of honey stone seen from its edge: tier under tier of small paired stairs, one wall in sun and one in shade, down to a still green pool, with one yellow cloth left to dry; or afloat on that pool, before three storeys of pillared galleries doubled in the water and a toothed edge of stairs against a white sky.
 // follows: The drone and the pad fill the well, and the pad moves the sun's edge; texture brings lichen; a phrase sends light down the flights like feet; each kind colours one tier, and in b lights a bay; a hit drops a pebble and throws nets of light on the stone; a cue lays sky on the pool; keys light lamps in niches; bands lift columns; the piece stains the stone.
-// own: 0 a moonlit night with lamps in the niches at -1, late low orange sun at 1; 1 white stone at -1, red stone at 1; 2 nearly drained at -1, filled several tiers up at 1; 3 few broad flights (and wide bays in the galleries) at -1, many narrow ones at 1; 4 a shallow open pit at -1, a steep deep one at 1; 5 snow on the steps and ledges at -1, grass and moss over them at 1
+// own: 0 a moonlit night with lamps in the niches at -1, late low orange sun at 1; 1 white stone at -1, red stone at 1; 2 nearly drained at -1, filled several tiers up at 1; 3 few broad flights (and wide bays in the galleries) at -1, many narrow ones at 1; 4 a shallow open pit at -1, a steep deep one at 1; 5 snow on the steps and ledges at -1, grass and moss over them at 1; 6 the eye straight above it, or in the galleries looking out between the pillars, at -1, down in the corner by the water, or close before the galleries, at 1; 7 the pool shines with a light of its own at -1, every tier glazed in the colours of the sounds at 1
 // The pit: half its width, a tier's height, the flights' spacing, half their foot, slope, how many tiers, the water
 float swS, swH, swP, swF, swG, swN, swY, swPx, swHf, swNgt, swOk;
-vec3 swL, swSun, swAmb, swBnc, swRaw, swHz;
+vec3 swGlo, swL, swSun, swAmb, swBnc, swRaw, swHz;
 bool swB;
 const float swW = 0.85, swA = 0.1, swSt = 7.0;
 // What a ray met: how far, which tier, which wall, what part (0 sky, 1 wall, 2 ledge, 3 front, 4 5 flights, 6 ground)
@@ -129,6 +129,13 @@ vec3 swHue(vec3 o, vec3 d) {
  alb = mix(alb, vec3(0.9, 0.93, 1.0), snow * 0.95 * smoothstep(0.15, 0.6, cap + 0.35 * (st - 0.5)));
  // wet stone by the water
  alb *= mix(vec3(0.4, 0.47, 0.4), vec3(1.0), smoothstep(0.2, 1.3 + 0.4 * st, (p.y - swY) / swH));
+ if (uOwn[7] > 0.0) {   // glazed: a colour to each tier, a paler one on the treads, white joints
+  float g5 = swB ? swK + 9.0 : swK, two = mod(cell + g5, 2.0);
+  vec3 k = uKind[int(mod(g5, 5.0))], k2 = uKind[int(mod(g5 + 2.0, 5.0))];
+  k = mix(k, k2, two * 0.8 * step(2.5, float(swQ)));
+  k = mix(k, sat(k * 1.15 + 0.2), up * 0.5);
+  alb = mix(alb, k * k * (0.65 + 0.5 * blk + 0.3 * (grit - 0.5)) + 0.02, uOwn[7] * (1.0 - 0.5 * snow * cap) * (1.0 - 0.5 * green * st));
+ }
  // the piece stains the stone; each kind warms its own tier
  vec4 pc = piece(vec2(0.5 + 0.46 * u / swS, 0.06 + 0.88 * depth));
  alb = mix(alb, pc.rgb / max(pc.a, 0.05) * (0.35 + 0.45 * dot(alb, vec3(0.33))), 0.55 * sat(pc.a));
@@ -156,6 +163,7 @@ vec3 swHue(vec3 o, vec3 d) {
  vec3 light = swSun * lit + swBnc * sat(0.55 - 0.45 * west * (1.0 - up)) * ao * (1.0 - 0.5 * up);
  // nets of light thrown up from the water
  light += swSun * swNet(vec2(u, p.y + e)) * swD(max(p.y - swY, 0.0) * 0.5) * (0.35 + 0.65 * rimK) * (0.03 + 0.06 * uLevel + 0.5 * uHits + 0.25 * uCue);
+ if (uOwn[7] < 0.0) light += swGlo * swD(max(p.y - swY, 0.0) * (swB ? 0.45 : 0.24)) * (0.35 + 0.65 * (1.0 - up)) * (0.75 + 0.5 * swNet(vec2(u, p.y + e)));
  vec3 col = (alb * light + swCool(alb) * (0.42 + 0.55 * up) * ao) * gain + self;
  // the cloth left to dry
  if (!swB && swAx == 1 && swSg > 0.0 && abs(swK - 6.0) < 0.1) {
@@ -193,7 +201,8 @@ vec3 swGal(vec3 o, vec3 d, float t, float yb) {
   vec3 a2 = alb * mix(vec3(0.4, 0.47, 0.4), vec3(1.0), smoothstep(0.05, 0.7, p.y - swY));
   a2 = mix(a2, vec3(0.9, 0.93, 1.0), max(-uOwn[5], 0.0) * (1.0 - smoothstep(0.0, 0.05, abs(y - 1.34) - 0.05)) * lip);
   a2 = mix(a2, vec3(0.13, 0.25, 0.06), max(uOwn[5], 0.0) * smoothstep(0.45, 0.6, st * 1.2 + 0.3 * lip));
-  outC = a2 * carve * (swSun * (nl * sh + net) + swBnc) + swCool(a2) * carve * (0.6 + 0.2 * nx);
+  if (uOwn[7] > 0.0) { vec3 k = uKind[int(mod(j + 5.0 + 2.0 * beam + floor(X / B), 5.0))]; a2 = mix(a2, k * k * (0.6 + 0.5 * st) + 0.02, uOwn[7] * (0.4 + 0.6 * max(beam, rail))); }
+  outC = a2 * carve * (swSun * (nl * sh + net) + swBnc + swGlo * swD(max(p.y - swY, 0.0) * 0.5)) + swCool(a2) * carve * (0.6 + 0.2 * nx);
  }
  for (int i = 0; i < 5; i++) {   // each kind has a lamp in its own bay
   vec2 c = i == 0 ? vec2(-2.5, 0.0) : i == 1 ? vec2(1.5, 1.0) : i == 2 ? vec2(-0.5, 2.0) : i == 3 ? vec2(-1.5, 1.0) : vec2(0.5, 0.0);
@@ -217,6 +226,7 @@ vec3 swGal(vec3 o, vec3 d, float t, float yb) {
   inC *= 1.0 - 0.7 * ni;
   inC += vec3(2.4, 1.1, 0.35) * (uKeys * 1.2 + swNgt * 0.5) * step(1.7, zc) * swD(dot(nq, nq) * 60.0);
   inC = mix(inC, swCool(alb) * 0.4 + alb * (swBnc * 0.4 + swSun * net * 0.3), in2);
+  if (uOwn[7] < 0.0) inC += alb * swGlo * 0.6 * swD(max(p.y - swY, 0.0) * 0.7);
   inC += (alb + 0.1) * lampL + self * (1.0 - in2);
  }
  return mix(inC, outC + alb * lampL * 0.25, solid);
@@ -225,6 +235,15 @@ vec3 swView(vec2 p) {
  float tr = uTravel * 0.0032, px = 1.0 / uRes.y, f = swB ? 0.8 : 0.95, E = swS + swY / swH - swW, yb = -(swN - 0.2) * swH, gt = 0.0;
  vec3 ro = swB ? vec3(-1.9 + 0.25 * swV(tr), swY + 0.62, -5.0 + 0.3 * swV(tr * 0.8)) : vec3(-4.0 + 1.6 * swV(tr + 0.25), 4.9 + 0.2 * swV(tr * 0.7), -22.6);
  vec2 pitch = swB ? vec2(0.966, -0.2588) : vec2(0.8290, 0.5592), rip = vec2(0.0);
+ float yaw = 0.0;
+ if (uOwn[6] != 0.0) {
+  float o6 = abs(uOwn[6]), a = swB ? mix(-0.2618, uOwn[6] < 0.0 ? -0.10 : -0.02, o6) : mix(0.5934, uOwn[6] < 0.0 ? 1.5 : -0.16, o6);
+  pitch = vec2(cos(a), sin(a));
+  yaw = swB ? (uOwn[6] < 0.0 ? 3.1416 - 0.42 : 0.1) * o6 : uOwn[6] < 0.0 ? 0.0 : 0.80 * o6;
+  vec3 to = swB ? (uOwn[6] < 0.0 ? vec3(0.9 + 0.3 * swV(tr), swY + 1.75, 4.3) : vec3(0.6 + 0.5 * swV(tr), swY + 1.55, -0.55))
+   : (uOwn[6] < 0.0 ? vec3(0.5 * swV(tr + 0.25), 13.0 + 0.4 * swV(tr * 0.7), -0.6) : vec3(E * -0.62 + 0.6 * swV(tr + 0.25), swY + 3.4, E * -0.62));
+  ro = mix(ro, to, o6);
+ }
  vec3 col = vec3(0.0), gw = vec3(0.0), go, gd, was = vec3(0.0);
  vec4 id = vec4(-9.0);
  for (int i = 0; i < 2; i++) {   // the second sample is shaded only where it meets another stone
@@ -232,6 +251,7 @@ vec3 swView(vec2 p) {
   vec2 q = p + (first ? vec2(-0.25, 0.12) : vec2(0.25, -0.12)) * px;
   vec3 d = normalize(vec3(q.x, q.y * pitch.x - f * pitch.y, q.y * pitch.y + f * pitch.x)), o = ro, tint = vec3(0.0), add = tint, c = tint, w;
   d.xz = mat2(0.995, 0.0998, -0.0998, 0.995) * d.xz;
+  if (yaw != 0.0) d.xz = mat2(cos(yaw), -sin(yaw), sin(yaw), cos(yaw)) * d.xz;
   float tw = d.y < -1e-4 ? (swY - ro.y) / d.y : 1e9;
   swPx = px / f; w = ro + d * min(tw, 999.0);
   bool open = false;
@@ -243,7 +263,8 @@ vec3 swView(vec2 p) {
    float fd = 1.0 - sat(-d.y), fr = swB ? 0.12 + 0.8 * fd * fd * fd : 0.2, rim = swRim(w);
    vec3 deep = mix(vec3(0.03, 0.15, 0.065), vec3(0.01, 0.025, 0.03), swNgt);
    tint = vec3(0.7, 0.92, 0.78) * fr * (1.0 - 0.5 * uCue);
-   add = deep * (1.0 - fr) * (0.4 + rim) + sky * uCue * (swB ? 0.2 * swD(abs(w.z - 1.0) * 0.5) : 0.4);
+   if (uOwn[7] < 0.0) deep = mix(deep, swGlo * (0.35 + 0.35 * swNet(w.xz * 0.8)) * (0.6 + 0.4 * swD(dot(w.xz, w.xz) * (swB ? 0.02 : 0.05))), -0.9 * uOwn[7]);
+   add = deep * (1.0 - fr) * (0.4 + rim * (1.0 + min(uOwn[7], 0.0)) - 0.6 * min(uOwn[7], 0.0)) + sky * uCue * (swB ? 0.2 * swD(abs(w.z - 1.0) * 0.5) : 0.4);
    float rg = (length(w.xz - vec2(-0.6, 0.3)) - (1.0 - uHits) * 5.0) * 2.4;
    if (!swB) add += (sky * 0.4 + swSun * 0.12) * uHits * swD(rg * rg);
    vec2 lf = w.xz - (swB ? vec2(-1.2, -1.4) : vec2(0.6, -1.0)) - vec2(0.4 * swV(uTime * 0.005), 0.3 * swV(uTime * 0.0037));
@@ -268,8 +289,21 @@ vec3 swView(vec2 p) {
  }
  if (gt > 0.0) { swPx = px / f; col += gw * swGal(go, gd, gt, yb); }
  col = screenOf(col * 0.5);
- if (!swB) {   // the near parapet, dark in its own shade
-  vec2 q = mat2(0.921, 0.389, -0.389, 0.921) * (p - vec2(-0.6 + 0.02 * swV(tr + 0.25), -0.45));
+ if (swB && uOwn[6] < 0.0) {   // the pillars we look out between, in their own shade
+  vec2 q = p * mix(0.2, 1.0, -uOwn[6]) + vec2(-0.16 - 0.39 * (1.0 + uOwn[6]) - 0.03 * swV(tr), 0.5);
+  float B = 0.78, bx = q.x - B * floor(q.x / B + 0.5), y = q.y * 1.26, br = sat((y - 0.80) / 0.36), st = noise(q * vec2(9.0, 5.0)), gr = 0.5 * noise(q * vec2(150.0, 110.0)) + 0.5 * noise(q * 37.0);
+  float r = 0.062 + 0.31 * br * br * sqrt(br) + 0.028 * swIn(0.012, y - 0.2) + 0.02 * swIn(0.004, y - 0.12) + 0.010 * swIn(0.004, abs(abs(y - 0.55) - 0.09) - 0.02);
+  float pil = swIn(px, abs(bx) - r), beam = swIn(px, 1.17 - y), rl = abs(fract(q.x * 8.0 / B) - 0.5) * 0.08 + abs(y - 0.085) * 0.35, rail = swIn(px, y - 0.145) * max(swIn(px, rl - 0.032), swIn(px, 0.112 - y));
+  float nx = clamp(bx / 0.075, -1.0, 1.0), edge = pil * (1.0 - beam), carve = 1.0 - 0.4 * beam * smoothstep(0.1, 0.3, abs(fract(q.x * 14.0 / B) - 0.5));
+  vec3 sa = mix(swRaw * (0.6 + 0.5 * st + 0.3 * gr), vec3(0.13, 0.25, 0.06), max(uOwn[5], 0.0) * smoothstep(0.5, 0.75, st));
+  if (uOwn[7] > 0.0) { vec3 k = uKind[int(mod(floor(y * 9.0) + 2.0, 5.0))]; sa = mix(sa, k * k * 0.8 + 0.02, 0.7 * uOwn[7]); }
+  vec3 li = swAmb * 0.10 + swBnc * (0.5 + 0.5 * swNet(q * 3.0)) + swSun * edge * 0.30 * smoothstep(0.55, 1.0, -nx) + swAmb * edge * 0.25 * smoothstep(0.6, 1.0, nx) + swGlo * 0.17 * (1.0 - 0.8 * y);
+  for (int i = 0; i < 5; i++) li += uKind[i] * swKd(i) * 0.10 * swD((q.x - 0.8 + 0.4 * float(i)) * (q.x - 0.8 + 0.4 * float(i)) * 12.0) * (0.5 + uEnergy);
+  li += vec3(1.6, 0.8, 0.25) * (uKeys + 0.35 * swNgt) * swD(dot(vec2(bx, y - 0.95), vec2(bx, y - 0.95)) * 20.0) * 0.5;
+  col = mix(col, screenOf(sa * carve * li * 0.8), max(max(pil, beam), rail));
+ }
+ if (!swB && abs(uOwn[6]) < 0.9) {   // the near parapet, dark in its own shade
+  vec2 q = mat2(0.921, 0.389, -0.389, 0.921) * (p - vec2(-0.6 + 0.02 * swV(tr + 0.25), -0.45 - 1.2 * abs(uOwn[6])));
   float g = noise(q * vec2(34.0, 60.0)), g2 = noise(q * 11.0 + 3.0);
   // a worn coping, and the wall under it
   float e = q.y - 0.012 - 0.006 * noise(vec2(q.x * 26.0, 4.0)) - 0.05 * swIn(0.004, abs(q.x + 0.17) - 0.085) - 0.035 * swIn(0.004, abs(q.x + 0.17) - 0.045);
@@ -305,5 +339,6 @@ vec3 render(vec2 p) {
  swRaw = mix(vec3(0.74, 0.46, 0.19), uOwn[1] < 0.0 ? vec3(0.84, 0.81, 0.76) : vec3(0.42, 0.12, 0.08), abs(uOwn[1]));
  swHz = mix(mix(vec3(1.9, 1.75, 1.45), vec3(1.8, 0.85, 0.5), late), vec3(0.04, 0.06, 0.13), swNgt);
  swHf = 2.0 * 0.98 * swP + 0.13;
+ swGlo = uOwn[7] < 0.0 ? -uOwn[7] * (uKind[1] * uKind[1] * 1.6 + 0.04) * (0.55 + 0.7 * uPad + 0.3 * uLevel) * mix(1.8, 1.0, swNgt) : vec3(0.0);
  return swView(p);
 }

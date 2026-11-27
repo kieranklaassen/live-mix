@@ -3,13 +3,16 @@
 // b: Star wheels
 // what: A little town stands on a slowly turning brass barrel: small over the top against a warm grey wall, it rolls down to a steel comb where each roof lifts a tooth; or the town stands on a slotted brass disc that turns over five toothed wheels, each a round square with trees and a fountain, in a dark box.
 // follows: Houses rise and light the street where the piece sounds, at the comb what sounds now. Bands lift and light the teeth, or the rim's slots. Drone is the sheen of brass, pad the window, texture the brushing; each kind lights its houses, or its wheel and fountain. A hit runs out along the teeth or the rim, a cue lights every window, keys and voice a few.
-// own: 0 night with lit windows at -1, pale bright morning at 1; 1 black iron at -1, white enamel at 1; 2 a few cottages at -1, a crowded tall town at 1; 3 flat roofs at -1, long spires at 1; 4 low and from another side at -1, from high above at 1; 5 moss and grass at -1, snow at 1
+// own: 0 night with lit windows at -1, pale bright morning at 1; 1 black iron at -1, white enamel at 1; 2 a few cottages at -1, a crowded tall town at 1; 3 flat roofs at -1, long spires at 1; 4 low and from another side at -1, from high above at 1; 5 moss and grass at -1, snow at 1; 6 paper houses lit from within in the sounds' colours at -1, at 1 no walls: roofs down to the ground, like firs or tents; 7 fields and plots in the sounds' colours for the metal at -1, at 1 no room: open sky and a sea (b: the wheels are islands)
 // Run only where it is needed.
 #define MBIF(c) for (int go = (c) ? 1 : 0; go > 0; go--)
 bool mbB, mbTw;
 float mbTp, mbN, mbDt, mbRot, mbPx, mbSu, mbAt, mbDay, mbNi, mbSn, mbMo, mbUn;
 const vec3 mbIc = vec3(.8, .85, .92), mbL = vec3(-.752, .647, -.125);
 vec3 mbMe;
+#define mbSe max(uOwn[7], 0.)
+#define mbPa max(-uOwn[6], 0.)
+#define mbFi (max(uOwn[6], 0.) * smoothstep(.5, .85, uOwn[3]))
 float mbIn(float d, float w) { return sat(.5 - .5 * d / w); }
 float mbUp(float a, float b, float x) { return sat((x - a) / (b - a)); }
 float mbOf(float a, float b, float x) { return sat((b - x) / (b - a)); }
@@ -42,11 +45,18 @@ void mbHo(vec2 c) {
  wall *= 1. + (uOwn[2] < 0. ? .3 : .6) * uOwn[2];
  // under the comb, or near the wall of the box, it draws in its head
  mbUn = mbB ? 1. : .04 + .96 * mbUp(-.1, .07, ang);
- float head = mbB ? mbOf(-1., 3.5, -(2. * c.y + .5) * cos(ang)) : (.5 + .5 * mbUp(.06, .42, ang)) * mbUp(-.2, -.05, ang);
+ float head = mbB ? max(mbOf(-1., 3.5, -(2. * c.y + .5) * cos(ang)), mbSe) : (.5 + .5 * mbUp(.06, .42, ang)) * mbUp(-.2, -.05, ang);
  wall *= mbEx * head; sl *= sat(.2 + head);
  bool turn = mbH.w > .5;
  mbK1 = mbTw ? sl * 2. : turn ? sl : 0.;
  mbK2 = mbTw ? mbK1 * mbW / max(mbD, .01) : turn ? 0. : sl;
+ MBIF(uOwn[6] > 0.) {
+  float tl = (wall + sl * .6) * (.75 + .6 * mbH.x);
+  float sm = 1. - mbFi * .75 * (1. - sat(head));
+  mbW *= sm; mbD *= sm; tl *= sm;
+  mbW *= 1. + .25 * uOwn[6]; mbD *= 1. + .12 * uOwn[6];
+  mbK1 = mix(mbK1, tl / max(mbW, .02), uOwn[6]); mbK2 = mix(mbK2, tl / max(mbD, .02), uOwn[6]); wall *= 1. - uOwn[6];
+ }
  mbT = min(wall + max(mbK1 * mbW, mbK2 * mbD), mbTp);
 }
 vec3 mbLa() { return mix(vec3(1, .6, .2), mbM.rgb / max(mbM.a, .02), .35 * sat(mbM.a * 3.)); }
@@ -55,16 +65,44 @@ vec3 mbRm(vec3 d) {
  vec2 w = vec2((d.x + .62) * 1.7, (d.y - .55) * 1.6);
  return (mix(vec3(.05, .042, .036), vec3(.4, .36, .31), mbUp(-.35, .5, d.y)) + vec3(1.25, 1.12, .92) * exp(-dot(w, w) * 2.5)) * mbDay;
 }
+// Open air: the sky along d, and the sea at q, seen at t.
+vec3 mbSky(vec3 d) {
+ float h = max(d.y + .02, 0.), cl = noise(vec2(d.x * 3. - uTime * .004, h * 9.) / (.4 + h)) * .6 + noise(vec2(d.x * 7. - uTime * .007, h * 23.)) * .4;
+ vec3 hz = mix(vec3(.75, .66, .56), uKind[1] * uKind[1], .65), ze = mix(vec3(.16, .25, .4), uKind[0] * uKind[0], .65), c = mix(hz, ze, 1. - exp(-h * 4.5));
+ c = mix(c, hz * 1.12 + .06, .6 * mbUp(.42, .75, cl) * mbUp(0., .06, h)) * (.12 + .8 * mbDay);
+ vec2 g = floor(d.xy / d.z * 70.), f = fract(d.xy / d.z * 70.) - .5;
+ c += mbNi * mbOf(.06, .2, length(f)) * step(.93, hash21(g)) * vec3(.8, .85, 1) * mbUp(0., .1, h);
+ vec2 s = d.xy / d.z - vec2(.02, .06);
+ float l = length(s);
+ return c + mix(hz, vec3(1, .9, .7), .5) * (.55 * mbOf(.052, .058, l) + .22 * exp(-l * 5.)) * (.4 + .6 * uPad);
+}
+vec3 mbWa(vec3 q, vec3 d, float t) {
+ float w = noise(vec2(q.x * .9 + uTime * .05, q.z * 2.6 - uTime * .11)) + .5 * noise(vec2(q.x * 2.3 - uTime * .07, q.z * 6. - uTime * .19)), fr = pow(1. - sat(-d.y), 4.);
+ vec3 dp = mix(vec3(.03, .09, .11), uKind[0] * uKind[0] * .5, .6) * (.06 + mbDay) * (.6 + .5 * w), r = mbSky(normalize(vec3(d.x + (w - .7) * .12, .04 + abs(d.y) * .8, d.z)));
+ vec3 c = mix(dp, r, .18 + .8 * fr) + r * .5 * mbUp(1.05, 1.35, w + .25 * uTexture * fr);
+ return mix(c, mbSky(vec3(d.x, 0, d.z)), 1. - exp(-max(t - 20., 0.) * .012));
+}
 vec3 mbLo, mbLd;
 vec3 mbTo(vec2 ec, vec2 v, float a) { float x = dot(ec, v), y = mbCr(ec, v); return mbB ? vec3(x, a, y) : vec3(a, x, y); }
 vec3 mbSh(vec3 P, vec3 n, vec3 l, float px) {
- float loud = sat(mbM.a * 1.2), roof = mbUp(.1, .35, n.y);
+ float loud = sat(mbM.a * 1.2), roof = max(mbUp(.1, .35, n.y), min(max(uOwn[6], 0.) * 1.6, 1.));
  int ki = int(min(5. * fract(dot(floor(mbId * .34), vec2(.37, .61)) + mbH.y * .35), 4.));
  if (mbTw && mbId.y == 0.) ki = 4;
  vec3 kc = uKind[ki] * uKind[ki], tile = mix(vec3(.36, .1, .05), kc * .6 + .015, ki == 4 ? .15 : .62) * (.65 + .5 * mbH.z);
+ tile = mix(tile, kc * (.5 + .5 * mbH.z) + .01, min(abs(uOwn[6]) * 8., .9));
+ MBIF(uOwn[6] > 0.) {
+  // tents are striped toward the tip
+  float f = (abs(n.x) > abs(n.z) ? P.z / max(mbD, .02) : P.x / max(mbW, .02)) / max(1. - P.y / max(mbT, .02), .04);
+  tile = mix(tile, vec3(.78, .68, .52) * (.6 + .4 * mbH.z), uOwn[6] * .85 * (1. - mbFi) * (1. - mbMo) * (1. - mbSn) * step(.15, uOwn[6]) * mbUp(.2, .3, abs(fract(f * 1.5) - .5)) * sat(1.2 - px * 12.));
+ }
  tile *= 1. - .3 * sat(1. - px * 18.) * mbUp(.55, .95, fract(P.y * 9.));
  tile += (tile * .9 + kc * .12) * mbLv(ki);
  tile = mix(mix(tile, mbIc, mbSn * .95), vec3(.13, .22, .06) * (.7 + .8 * mbH.x), mbMo * .8);
+ // a fir's boughs hang in skirts, each in the shade of the one above
+ MBIF(mbFi > 0.) {
+  float u = abs(n.x) > abs(n.z) ? P.z / max(mbD, .02) : P.x / max(mbW, .02), h = 1. - P.y / max(mbT, .02), y = 1. / (h + .22) + h * -2.5 + mbH.x * 3. + .5 * abs(fract(u * 2.6 / max(h, .15)) - .5);
+  tile *= 1. - mbFi * (.8 * mbUp(.2, 1., fract(y)) - .2);
+ }
  vec3 pl = mix(vec3(.84, .74, .59), kc + .12, .05 + .14 * mbH.x) * (.72 + .3 * mbH.w) * (.55 + .45 * mbUp(0., .5, P.y));
  // the windows
  vec3 lamp = mbLa(), pane = lamp;
@@ -78,6 +116,12 @@ vec3 mbSh(vec3 P, vec3 n, vec3 l, float px) {
  }
  vec3 c = mix(pl, tile, roof) * (vec3(1.5, 1.28, .98) * mbDay * sat(dot(n, l)) + vec3(.3, .275, .25) * (mbDay * (.7 + .3 * n.y) + .02));
  c += (1. - roof) * lamp * (.13 * loud + .08 * mbNi) * pl * exp(-P.y * 1.4);
+ MBIF(mbPa > 0.) {
+  float y = P.y / max(mbT, .1), rib = mbUp(.06, .16, abs(fract(P.y * 3.2) - .5)), gl = exp(-(y - .35) * (y - .35) * 5.);
+  vec3 hue = mix(vec3(1, .8, .52), kc * 1.2 + .02, .85);
+  c = mix(c, hue * (.35 * c + min(.25 + .3 * mbNi + .7 * loud + .4 * mbLv(ki) + .6 * uCue + .4 * uKeys, 1.2) * (.6 + .6 * mbH.y) * gl * (.6 + .4 * hue)) * (.62 + .38 * rib) * (1. - .45 * roof), mbPa);
+  win *= 1. - mbPa;
+ }
  return mix(c, pane, win * (1. - roof));
 }
 float mbWt;
@@ -94,13 +138,14 @@ vec3 render(vec2 p) {
  float yaw = .3 + .03 * sin(uTime * .05) + (v < 0. ? .75 : -.15) * v, el = .33 + (v < 0. ? .12 : .28) * v, di = 22. + 2. * (uSpace - .5);
  vec3 ta = vec3(.6, 7.2, -6);
  if (mbB) { yaw -= .7; el = .57 + (v < 0. ? .13 : .4) * v; di -= 4.; ta = vec3(-.3, .3, -12.8); }
+ else el -= .13 * mbSe;
  vec3 F = vec3(sin(yaw) * cos(el), -sin(el), cos(yaw) * cos(el)), ro = ta - F * di, X = normalize(cross(vec3(0, 1, 0), F)), Y = cross(F, X), rd = normalize(F * 1.28 + X * p.x + Y * p.y);
  mbPx = .78 / uRes.y;
  rd += step(abs(rd), vec3(1e-4)) * 2e-4;
  vec3 col = vec3(0), cc = col, lamp = col, sum = col, n = vec3(0, 1, 0), q, warm = mix(vec3(1, .9, .7), uKind[4], .3), ste = vec3(.6, .66, .74);
  vec2 o2 = ro.zy, d2 = rd.zy, lf = vec2(-.986, -.164), to = vec2(-1.162, -.193), L2 = mbL.zy, w, mid = vec2(99);
  vec3 kc = lamp;
- float r0 = 0., lv = 0., oa = ro.x, da = rd.x, La = mbL.x, t0, t1, gk = 0., comb = 0., t, px, iy = 1. / min(rd.y, -1e-3), tg = -ro.y * iy, tW = (4. - ro.z) / max(rd.z, 1e-3);
+ float r0 = 0., lv = 0., oa = ro.x, da = rd.x, La = mbL.x, t0, t1, gk = 0., comb = 0., t, px, iy = 1. / min(rd.y, -1e-3), tg = -ro.y * iy, tW = (4. + 260. * mbSe - ro.z) / max(rd.z, 1e-3);
  if (mbB) { o2 = ro.xz; d2 = rd.xz; oa = ro.y; da = rd.y; L2 = mbL.xz; La = mbL.y; }
  float A = dot(d2, d2), bq = dot(o2, d2), cq = dot(o2, o2), q1 = bq * bq - A * (cq - 100.), q2 = bq * bq - A * (cq - (10. + mbTp) * (10. + mbTp));
  MBIF(!mbB) {
@@ -108,10 +153,23 @@ vec3 render(vec2 p) {
   vec2 b = p - vec2(-.5, .36); b.x += .35 * b.y;
   float pane = mbIn(abs(b.x) - .26, .03) * mbIn(abs(b.y) - .2, .03) * mbUp(.004, .016, abs(b.x)) * mbUp(.004, .016, abs(b.y - .03));
   col = mix(vec3(.3, .265, .225), vec3(.21, .185, .16), mbUp(-.9, .7, p.x)) * (mbDay + .03) + vec3(.34, .29, .21) * pane * mbDay * (.5 + .9 * uPad);
+  MBIF(mbSe > 0.) {
+   vec3 o = rd.y < -.012 ? mbWa(ro + rd * ((4.9 - ro.y) * iy), rd, (4.9 - ro.y) * iy) : mbSky(rd);
+   col = mix(col, o, mbSe);
+  }
   t0 = q2 > 0. ? max((-bq - sqrt(q2)) / A, 0.) : 1.;
   t1 = q1 > 0. ? (-bq - sqrt(q1)) / A : (-bq + sqrt(max(q2, 0.))) / A;
   gk = q1 > 0. ? sat(q1 / (bq * bq) / (mbPx * .4)) : 0.;
   if (q2 <= 0.) t1 = 0.;
+  MBIF(mbSe > 0.) {
+   // the sea laps the barrel
+   t = (4.9 - ro.y) * iy;
+   float k = mbSe * mbUp(-.03, .03, t1 - t) * step(rd.y, -.012) * step(0., q1);
+   gk *= 1. - k;
+   q = ro + rd * t;
+   float sh = exp(-max(-q.z - 8.5, 0.) * .4);
+   if (k > 0.) { col = mix(col, col * (.25 + .5 * mbMe) , .75 * sh * mbSe) + .25 * mbSe * mbDay * mbOf(.02, .12, abs(-q.z - 8.78 - .05 * sin(uTime * .4 + q.x))); t1 = min(t1, t + .02); }
+  }
   // the comb: a tooth to each lane, lifted by the roof now under it
   float ti = 0., s = 0., lift = 0., bd = 0.;
   t = (4.9 - ro.y) * iy;
@@ -130,7 +188,7 @@ vec3 render(vec2 p) {
   q = ro + rd * t; px = t * mbPx;
   s = (q.z + 14.7) / 4.6;
   float dx = q.x - ti * mbSu, hw = s < 0. ? mbSu : mbSu * mix(.45, .3, sat(s)), u = dx / hw;
-  comb = mbIn(abs(dx) - hw, px) * mbIn((s - 1.) * 1.8, px) * step(rd.y, -.02);
+  comb = (1. - mbSe) * mbIn(abs(dx) - hw, px) * mbIn((s - 1.) * 1.8, px) * step(rd.y, -.02);
   if (comb > 0.) {
    vec3 m = normalize(vec3(.1 * u + .05 * (hash11(ti + 3.) - .5), 1, -1.3 * lift * sat(s)));
    cc = ste * (mbRm(reflect(rd, m)) * (.6 + .6 * noise(vec2(dx * 50. + ti * 9., q.z * .6))) + .06 * mbDay) * (.45 + .75 * mbUp(-.3, 1., s));
@@ -153,12 +211,13 @@ vec3 render(vec2 p) {
    col = vec3(.125, .064, .037) * mbDay * (.3 + (1.4 + .9 * uPad) * mbOf(1.5, 4.5, abs(q.x + 5. + .6 * q.y)) * mbUp(-.12, .12, kd)) * (.3 + .7 * mbUp(0., 1.2, q.y));
   }
   r0 = length(ro.xz + rd.xz * tg);
+  MBIF(mbSe > 0. && tg >= tW) col = mix(col, mbSky(rd), mbSe);
   if (tg < tW) gk = mbIn(r0 - 16., tg * mbPx);
   MBIF(tg < tW && r0 > 15.3) {
    // the base of dark wood
    t = tg - iy; q = ro + rd * t;
    vec2 bl = q.xz + to * .4 - vec2(-12, -24.5);
-   float sh = mbUp(-.5, .5, length(q.xz + to) - 16.) * (1. - mbOf(.1, .35, abs(length(bl) - 7.)) * step(0., min(bl.x, bl.y)) * mbOf(6.1, 6.4, bl.y));
+   float sh = mbUp(-.5, .5, length(q.xz + to) - 16.) * (1. - (1. - mbSe) * mbOf(.1, .35, abs(length(bl) - 7.)) * step(0., min(bl.x, bl.y)) * mbOf(6.1, 6.4, bl.y));
    w = q.xz + to * .35;
    // the nearest of five wheels: its number, middle, and turn as the slots hold it
    q = ro + rd * (tg - iy * .32); q.xz += to * .2;
@@ -166,6 +225,7 @@ vec3 render(vec2 p) {
    mid = 18.1 * vec2(sin(a), -cos(a));
    mbWt = a + PI * .5 + (fract((a - PI * .5 - mbRot) / mbDt) - .5) * TAU / 9.;
    col = mix(vec3(.07, .034, .018), vec3(.17, .08, .04), .5 + .3 * sin(q.z * 4. + q.x * .4 + 2. * sin(q.x * .23 + q.z * .7)) + .2 * sin(q.z * 9. + q.x * .9) * sat(1.6 - t * mbPx * 30.)) * mbDay * (.25 + 1.2 * sh * mbUp(1.7, 2.45, length(w - mid)));
+   MBIF(mbSe > 0.) col = mix(col, mbWa(q, rd, t) * (.4 + .6 * sh) * (.55 + .45 * mbUp(1.6, 2.9, length(w - mid))), mbSe);
    lv = mbLv(int(wi + 2.)); kc = uKind[int(wi + 2.)];
    for (float i = 0.; i < 2.; i++) {
     t = tg - iy * (.6 - .28 * i); px = t * mbPx; q = ro + rd * t; w = q.xz - mid;
@@ -195,7 +255,7 @@ vec3 render(vec2 p) {
   if (pass > 0) {
    see = tr;
    if (see * gk < .01 || comb > .98) break;
-   lamp = mbLa(); pool = mbEx * (.8 * sat(mbM.a) + .5 * mbNi * mbH.x + 1.2 * uCue);
+   lamp = mbLa(); pool = mbEx * (.8 * sat(mbM.a) + .6 * mbPa * (.4 + mbM.a) + .5 * mbNi * mbH.x + 1.2 * uCue);
    q = ro + rd * t1; a2 = o2 + d2 * t1; th = atan(a2.y, a2.x); gv = (th - mbRot) / mbDt;
    if (!mbB) n = normalize(vec3(0, q.yz));
    gu = mbB ? length(q.xz) : q.x / mbSu + .5;
@@ -261,9 +321,18 @@ vec3 render(vec2 p) {
    float gn = noise(mbB ? gu * cs : vec2(gu + 5. * cs.x, 8. * cs.y));
    g = mix(g, mix(vec3(.11, .19, .055), mbIc, step(0., uOwn[5])) * (.75 * dif + .3) * mbDay, (mbSn + mbMo) * mbUp(.25, .55, gn + .1 + .1 * mbSn));
   }
+  MBIF(uOwn[7] < 0.) {
+   // fields: plots of the sounds' colours, each with its furrows one way or the other
+   vec2 fg = vec2(gu, mod(gv, mbN)) * vec2(.5, mbB ? .5 : .25), id = floor(fg), ff = fract(fg), e = min(ff, 1. - ff) * vec2(2, mbB ? 1.2 : 2.);
+   float h = hash21(id + 3.), fu = sin((h > .5 ? ff.x : ff.y) * (30. + 24. * floor(h * 7.)) * .5);
+   int ki = int(min(5. * hash21(id + 17.), 4.));
+   vec3 fc = mix(vec3(.3, .25, .1), uKind[ki] * uKind[ki], .72) * (.75 + .4 * h + .22 * fu) * (1. + .5 * mbLv(ki));
+   fc = mix(vec3(.07, .12, .04), fc, mbUp(.02, .08, min(e.x, e.y)));
+   g = mix(g, fc * (vec3(1.25, 1.12, .9) * dif + .32) * mbDay, -uOwn[7] * (1. - .7 * mbSn) * (mbB ? mbUp(5.5, 5.9, gu) * mbOf(14.6, 15., gu) : 1.));
+  }
   vec2 cu = vec2(mbB ? fract(gu * .5) * 2. - .5 : f, fract(gv) - .5); cu = max(1. - cu * cu * vec2(mbB ? 1. : 4., 4), 0.);
   g += lamp * pool * cu.x * cu.y * (mbMe * .6 + .15);
-  g *= mbB ? .25 + .75 * mbOf(1.5, 4., q.z) : .03 + .97 * mbUp(-.1, .1, ang);
+  g *= mbB ? .25 + .75 * max(mbOf(1.5, 4., q.z), mbSe) : .03 + .97 * mbUp(-.1, .1, ang);
   if (mbB && ring > 5.5 && (ring > 14.5 || mod(ring, 2.) > .5)) {
    // the slots, lit from under by the piece, and along the rim by the bands
    bool rim = ring > 14.5;
@@ -282,7 +351,7 @@ vec3 render(vec2 p) {
   t = (-b - sqrt(max(h, 0.))) / A; px = t * mbPx;
   w = (w + d2 * t) / 7.;
   float y = ro.y + rd.y * t, a = atan(w.y, w.x + 1e-5), g = (a - 1.1 * uHits) * 4.;
-  col = mix(col, ste * (mbRm(reflect(rd, vec3(w.x, 0, w.y))) * 1.3 + .08 * mbDay) + mbDay * .5 * mbUp(-.4, -.3, y) + warm * 1.6 * uHits * exp(-g * g), step(0., h) * mbIn(-1. - y, px) * mbIn(y + .3, px) * mbOf(1.05, 1.06, a) * step(-.2, a));
+  col = mix(col, ste * (mbRm(reflect(rd, vec3(w.x, 0, w.y))) * 1.3 + .08 * mbDay) + mbDay * .5 * mbUp(-.4, -.3, y) + warm * 1.6 * uHits * exp(-g * g), step(0., h) * mbIn(-1. - y, px) * mbIn(y + .3, px) * mbOf(1.05, 1.06, a) * step(-.2, a) * (1. - mbSe));
  }
  col = sum + col * see;
  MBIF(r0 > 15.3 && tg < tW) {

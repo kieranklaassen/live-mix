@@ -3,8 +3,16 @@
 // b: Clipped court
 // what: A round maze of clipped yew seen from a low tower after dawn, its lanes full of white mist, a pale pavilion in the middle and one lantern walking in; or a formal court on a still afternoon, box clipped to cones, balls and a spiral on pale gravel, their shadows all one way, and a canal leading to a jet of water.
 // follows: The drone is the height of the mist, the pad the sun, texture the dew, the phrase a breath through the lanes. Each kind colours a quarter of the maze, or its own clipped bodies. The bands swell sixteen yew balls, or raise sixteen jets. The loop walks the lantern, or a glint on the water. A hit puts up a bird; a cue sends a ring or band of light across.
-// own: 0 snow on the hedges at -1, rust-red beech at 1; 1 moonlit night at -1, low rose sun at 1; 2 a squared-off maze, or bodies all rounded to eggs, at -1; winding hedges, or bodies all spires, at 1; 3 the eye low at -1, high over the plan at 1; 4 lanes almost clear of mist, or a court of mown grass, at -1; mist to the brim, or fog in the court, at 1; 5 thin hedges and slim bodies at -1, stout ones at 1.
-const float hmH = 1.5, hmS = 2.3, hmN = 7.0;  // how tall the hedges are, how far from ring to ring, the last ring
+// own: 0 snow on the hedges at -1, rust-red beech at 1; 1 moonlit night at -1, low rose sun at 1; 2 a squared-off maze, or bodies all rounded to eggs, at -1; winding hedges, or bodies all spires, at 1; 3 the eye low at -1, high over the plan at 1; 4 lanes almost clear of mist, or a court of mown grass, at -1; mist to the brim, or fog in the court, at 1; 5 thin hedges and slim bodies at -1, stout ones at 1; 6 walls and bodies of bare stone on sand at -1, still water in the lanes or over the court at 1; 7 few broad rings with high walls, or giant bodies far apart, at -1; many narrow low rings, or two straight ranks with the canal between them, at 1.
+#define hmCnt uOwn[7]
+#define hmWet max(uOwn[6], 0.0)
+#define hmStone max(-uOwn[6], 0.0)
+#define hmRank max(uOwn[7], 0.0)
+#define hmBig max(-uOwn[7], 0.0)
+#define hmH (1.5 * exp2(-0.8 * hmCnt))
+#define hmN floor(7.5 + (hmCnt > 0.0 ? 5.0 : 3.0) * hmCnt)
+#define hmS (hmCnt == 0.0 ? 2.3 : 16.1 / hmN)
+// how tall the hedges are, how far from ring to ring, the last ring
 vec3 hmSun, hmSunC, hmAmb, hmHaze;    // where the sun is, its light, the light of the sky, the far air
 float hmThick, hmPx, hmNap, hmNight, hmRose, hmSnow, hmRust, hmFog, hmDry, hmSq, hmWind;  // then the other worlds, 0 to 1
 // Falls from 1 at lo to 0 at hi.
@@ -78,15 +86,20 @@ vec3 hmLeaf(vec3 P, vec3 n, float lit, float t) {
   float fine = 1.0 / (1.0 + 0.004 * t * t), big = hmNoise(P.xz * 1.3 + P.y * 2.0), sharp = hmNoise(P.xz * 37.0 + P.y * vec2(-31.0, 35.0));
   hmNap = hmNoise(P.xz * 13.0 + P.y * vec2(9.0, 11.0)) * 0.5 + sharp * 0.5;
   float nap = mix(0.5, hmNap, 0.25 + 0.75 * fine);
-  n = normalize(n + (vec3(nap, 0.5, 1.0 - hmNap) - 0.5) * 0.9 * fine);
+  if (uOwn[6] < 0.0) { nap = mix(nap, 0.5, 0.85 * hmStone); hmNap = mix(hmNap, 0.5, 0.7 * hmStone); }
+  n = normalize(n + (vec3(nap, 0.5, 1.0 - hmNap) - 0.5) * 0.9 * fine * (1.0 - 0.8 * hmStone));
   vec3 alb = mix(vec3(0.026, 0.06, 0.026), vec3(0.06, 0.1, 0.034), sat(big * 0.7 + nap * 1.1 - 0.4));
   alb = mix(alb, vec3(0.26, 0.085, 0.02) * (0.5 + nap), hmRust);
-  alb = mix(alb, vec3(0.8), hmSnow * (0.1 + 0.9 * smoothstep(0.25, 0.85, n.y + nap * 0.8 - 0.4)));
+  if (uOwn[6] < 0.0) {
+    vec3 st = mix(mix(vec3(0.5, 0.43, 0.34), vec3(0.5, 0.2, 0.1), hmRust), vec3(0.72), hmSnow);
+    alb = mix(alb, st * (0.7 + 0.3 * big) * (0.86 + 0.14 * smoothstep(0.1, 0.3, abs(fract(P.y * 2.3 + 0.2 * big) - 0.5))), hmStone);
+  }
+  alb = mix(alb, vec3(0.8), (1.0 - hmStone) * hmSnow * (0.1 + 0.9 * smoothstep(0.25, 0.85, n.y + nap * 0.8 - 0.4)));
   float sun = smoothstep(-0.02, 0.95, dot(n, hmSun)) * lit;
   vec3 c = alb * hmAmb * (0.5 + 0.5 * n.y) * (0.5 + 0.9 * nap);
-  c += (alb + vec3(0.04, 0.034, 0.012) * (1.0 - hmSnow)) * hmSunC * sun * (0.3 + 1.5 * nap);
+  c += (alb + vec3(0.04, 0.034, 0.012) * (1.0 - max(hmSnow, hmStone))) * hmSunC * sun * (0.3 + 1.5 * mix(nap, 0.3, hmStone));
   float dew = smoothstep(0.9, 1.0, sharp);
-  return c + dew * fine * (0.6 * uTexture + 4.0 * uKeys) * (0.15 + sun) * vec3(1.0, 0.93, 0.78);
+  return c + dew * fine * (1.0 - hmStone) * (0.6 * uTexture + 4.0 * uKeys) * (0.15 + sun) * vec3(1.0, 0.93, 0.78);
 }
 // A round pavilion, u across and v up from its foot, in units of its half width.
 vec4 hmPavilion(float u, float v, float px) {
@@ -117,14 +130,15 @@ vec3 hmMaze(vec2 p) {
       float fi = float(i), w = rd.x / rd.z * (26.0 - 6.0 * fi) + fi * 13.3, base = 0.09 - 0.045 * fi;
       float leaf = hmNoise(vec2(w * 6.0, sl * 130.0)), slow = hmNoise(vec2(w * 0.8, fi));
       float top = base + 0.02 * slow + 0.02 * hmCrown(w + slow);
-      vec3 tc = mix(hmAmb * vec3(0.10, 0.14, 0.13) * (0.4 + 0.9 * leaf), haze, 0.62 - 0.17 * fi);
+      if (uOwn[6] < 0.0) { top = mix(top, base * 0.7 + 0.09 * hmNoise(vec2(w * 0.35, fi + 4.0)) - 0.03, hmStone); leaf = mix(leaf, 0.5, 0.8 * hmStone); }
+      vec3 tc = mix(hmAmb * mix(vec3(0.10, 0.14, 0.13), vec3(0.3, 0.2, 0.13), hmStone) * (0.4 + 0.9 * leaf), haze, 0.62 - 0.17 * fi);
       col = mix(col, mix(tc, haze, hmOff(0.0, -0.06, sl - base)), hmIn(sl - top, hmPx * 2.0));
     }
     col = mix(col, haze, hmOff(-0.03, -0.06, sl));
   }
   // the lantern, from the gate in to the middle and out again
-  float way = 3.0 - 3.0 * cos(TAU * uLoop), done = min(floor(way), 5.0), part = way - done, ring = hmN - done;
-  float la = mix(ring > 6.5 ? 0.0 : hmGate(ring + 1.0), hmGate(ring), smoothstep(0.0, 0.8, part));
+  float way = 0.5 * (hmN - 1.0) * (1.0 - cos(TAU * uLoop)), done = min(floor(way), hmN - 2.0), part = way - done, ring = hmN - done;
+  float la = mix(ring > hmN - 0.5 ? 0.0 : hmGate(ring + 1.0), hmGate(ring), smoothstep(0.0, 0.8, part));
   vec2 lan = vec2(sin(la), -cos(la));
   lan *= (ring + 0.5 - smoothstep(0.8, 1.0, part)) * hmS / hmShape(lan, la);
   vec3 lamp = vec3(1.5, 0.66, 0.16) * (0.4 + 0.35 * uEnergy + 0.5 * uLevel + 1.3 * hmNight);
@@ -132,7 +146,8 @@ vec3 hmMaze(vec2 p) {
   vec2 q0 = ro.xz + rd.xz * t0 - C, to = normalize(hmSun.xz);
   float ball = 0.0, bt = 0.0, br = 1.0; vec3 bo = vec3(0.0);
   float mistY = 0.66 + 0.26 * uDrone + 0.06 * sin(uTime * 0.13) + 0.34 * hmFog;
-  float thick = (1.7 + 1.2 * uDrone) * (1.0 - 0.5 * hmHump(uCue)) * (1.0 + hmOwn(uOwn[4], 0.97, 0.6));
+  mistY *= hmH / 1.5;
+  float thick = (1.7 + 1.2 * uDrone) * (1.0 - 0.5 * hmHump(uCue)) * (1.0 + hmOwn(uOwn[4], 0.97, 0.6)) * (1.0 - 0.985 * hmWet);
   vec3 hc = vec3(0.0), P = ro, n = vec3(0.0, 1.0, 0.0);
   vec2 q = q0, g = vec2(0.0), qm = q0 + rd.xz * (hmH - mistY) / down;
   float t = t0, d = 1.0, d0 = 1.0, got = 0.0, fill = 0.0, lit = 1.0, high = 1.0, inner = 0.0, mn = 0.0, rm = 0.0, breath = 0.0;
@@ -151,6 +166,7 @@ vec3 hmMaze(vec2 p) {
       if (i < 1) { d0 = d; roof = d <= 0.0; }
       got = d < 0.015 && t < tEnd ? 1.0 : 0.0;
     }
+    if ((uOwn[6] > 0.0 || uOwn[7] != 0.0) && d < 0.3 && t < tEnd - 0.05) got = 1.0;
     t = tScene = min(t, tEnd);
     P = ro + rd * t; q = P.xz - C;
     float len = max(mistY + 0.1 - max(P.y, yFloor), 0.0) / down;
@@ -173,9 +189,9 @@ vec3 hmMaze(vec2 p) {
   // sixteen balls stand on the hedges, one for each band
   vec2 dir = vec2(0.1275, 0.9918);
   for (int i = 0; i < 16; i++) {
-    vec2 at = C + dir * (6.0 - 2.0 * float(i % 3)) * hmS / hmShape(dir, hmAngle(vec2(-dir.y, dir.x)));
+    vec2 at = C + dir * (uOwn[7] == 0.0 ? 6.0 - 2.0 * float(i % 3) : max(2.0, floor((6.0 - 2.0 * float(i % 3)) / 7.0 * hmN + 0.5))) * hmS / hmShape(dir, hmAngle(vec2(-dir.y, dir.x)));
     vec2 e = rot(0.18264) * vec2(abs(dir.x), dir.y); dir = vec2((i & 1) < 1 ? -e.x : e.x, e.y);
-    float b = (0.45 + 0.34 * uBands[i]) * (1.0 + 0.2 * uOwn[5]);
+    float b = (0.45 + 0.34 * uBands[i]) * (1.0 + 0.2 * uOwn[5]) * (1.0 - 0.35 * hmRank + 0.5 * hmBig);
     vec3 o = vec3(at.x, hmH + 0.7 * b, at.y) - ro;
     float tb = dot(o, rd), px = hmPx * tb * 1.2, cov;
     vec3 off = rd * tb - o;
@@ -198,7 +214,7 @@ vec3 hmMaze(vec2 p) {
     }
   }
   HM_IF(land) {
-    if (got < 0.5) hc = mix(vec3(0.40, 0.34, 0.26), vec3(0.75), hmSnow) * (0.7 + 0.5 * mn) * (hmAmb * 0.7 + hmSunC * lit * 0.4);
+    if (got < 0.5) hc = mix(mix(vec3(0.40, 0.34, 0.26), mix(vec3(0.52, 0.36, 0.22), vec3(0.6, 0.25, 0.12), hmRust), hmStone), vec3(0.75), hmSnow) * (0.7 + 0.5 * mn) * (hmAmb * 0.7 + hmSunC * lit * 0.4);
     // the mist: blue in shade, gold in the sun, and the colours of what sounds
     vec3 mist = vec3(0.70, 0.76, 0.88) * hmAmb * (0.6 + 0.35 * mn) + hmSunC * (0.02 + 0.55 * lit) * (0.55 + 0.6 * mn), tint = vec3(0.0);
     float held = 1e-3;
@@ -214,8 +230,24 @@ vec3 hmMaze(vec2 p) {
     mist += mix(vec3(1.4, 1.0, 0.6), uKind[4], 0.5) * uHits * hmBell(hd * hd * 0.2) * 1.5;
     hd = rm - 13.0 * uCue; hq = qm - lan;
     mist += vec3(1.0, 0.6, 0.2) * uCue * hmBell(0.25 * hd * hd) + lamp * 1.5 * hmBell(dot(hq, hq) * 0.9);
+    if (uOwn[6] > 0.0 && got < 0.5) {
+      float rx = 0.04 * (mn - 0.5), sh = 1.0, up = down / flat_;
+      vec2 way2 = rd.xz / flat_ + vec2(rx, 0.0);
+      float x = 0.12, v = 1.0;
+      for (int i = 0; i < 6; i++) { v = hmPlan(q + way2 * x); x += max(v, 0.03); }
+      sh = max(smoothstep(0.02, 0.3, v), smoothstep(-0.2, 0.1, x * up - hmH));
+      float cl = hmNoise((ro.xz + rd.xz / down * 14.0) * 0.12 + uTime * 0.012);
+      vec3 wc = mix(haze, hmAmb * vec3(0.55, 0.68, 0.9), 0.35 + 0.5 * smoothstep(0.1, 0.6, up)) * (0.72 + 0.35 * cl) + hmSunC * 0.05;
+      wc = mix(mix(vec3(0.025, 0.045, 0.02), vec3(0.1, 0.06, 0.015), hmRust) * (hmAmb + 0.4 * hmSunC), wc, sh);
+      wc = mix(vec3(0.02, 0.045, 0.05) * hmAmb, wc, 0.34 + 0.6 * sat(1.0 - 1.7 * up));
+      wc = wc * mix(vec3(1.0), tint / held * 1.1 + 0.15, 0.6 * sat(held)) + pc * (0.1 + 0.3 * uEnergy) * hmAmb + (hmAmb + hmSunC * 0.2) * breath * 0.12 + lamp * 0.5 * hmBell(dot(q - lan, q - lan) * 2.0);
+      hd = abs(length(q - vec2(-4.6, -8.2)) - 6.0 * (1.0 - uHits));
+      wc += (hmAmb + hmSunC * 0.3) * uHits * hmOff(0.3, 0.0, hd) * 0.5;
+      hc = mix(hc, wc, hmWet);
+    }
     hc += lamp * 0.16 * hmBell(0.4 * dot(q - lan, q - lan)) * (roof ? 0.3 : 1.0);
     col = mix(hc, mist, fill);
+    if (uOwn[3] > 0.0 || uOwn[4] < 0.0) { hq = q - vec2(-1.2, -5.2); col += mix(vec3(1.4, 1.0, 0.6), uKind[4], 0.5) * (hmAmb * 0.3 + col) * uHits * hmBell(dot(hq, hq) * 0.12) * 1.2; }
     float rim = hmOff(wide, 0.0, d0) * smoothstep(0.05, 0.3, t - t0) * hmOff(0.1, -0.3, mistY - hmH);
     col = mix(col, (hmAmb + hmSunC) * vec3(0.04, 0.048, 0.025), rim * 0.8);
     col = mix(col, haze, max(0.9 * hmFar((t - 9.0) * thin), smoothstep(32.0, 46.0, t)));
@@ -242,9 +274,16 @@ vec2 hmPick(int i) {
   vec4 B = hmB[i];
   hmKind = int(B.w * 0.5); hmK = i & 3; hmTall = B.z;
   hmW = (B.w - 2.0 * float(hmKind)) * (1.0 + 0.35 * uOwn[5]);
-  return B.xy;
+  hmTall *= 1.0 + 0.75 * hmBig; hmW *= 1.0 + 0.6 * hmBig;
+  if (uOwn[7] > 0.0) {
+    float s = (i & 1) < 1 ? -1.0 : 1.0, z = float(i / 2);
+    hmTall = mix(hmTall, 3.1, hmRank); hmW = mix(hmW, 0.95 * (1.0 + 0.35 * uOwn[5]), hmRank);
+    if (hmRank > 0.5) hmKind = i / 2 == 0 ? 0 : i / 2 == 1 ? 3 : i / 2 == 2 ? 4 : 2;
+    return mix(B.xy, vec2(s * 2.75, 4.6 + 3.7 * z), hmRank);
+  }
+  return B.xy * vec2(1.0 + 0.75 * hmBig * step(0.0, B.x), 1.0 + 0.25 * hmBig);
 }
-float hmBank(float z) { return 1.6 + 0.28 * z; }
+float hmBank(float z) { return mix(1.6 + 0.28 * z, -1.35, hmRank) + 2.0 * hmBig; }
 // The court's end.
 vec3 hmEnd(vec3 ro, vec3 rd, float soft) {
   float w = rd.x / max(rd.z, 0.1), sl = rd.y / max(rd.z, 0.1), leaf = hmNoise(vec2(w * 60.0, sl * 90.0));
@@ -254,13 +293,15 @@ vec3 hmEnd(vec3 ro, vec3 rd, float soft) {
   c = mix(c, vec3(1.35, 0.8, 0.6) * (1.0 - up), hmRose * 0.8);
   c = mix(c, vec3(0.05, 0.075, 0.13) * (1.0 - up), hmNight) + hmSunC * (0.08 * m + 0.3 * m * m * m * m);
   float top = 0.085 + 0.07 * hmNoise(vec2(w * 2.6, 1.0)) + 0.022 * hmCrown(w * 17.0 + cl);
-  vec3 tc = (hmAmb * 0.14 + hmSunC * 0.05 * hmOff(0.06, 0.0, top - sl)) * vec3(0.9, 1.1, 0.8) * (0.3 + leaf);
+  if (uOwn[6] < 0.0) top = mix(top, 0.03 + 0.14 * hmNoise(vec2(w * 1.5, 5.0)) * hmNoise(vec2(w * 0.7, 2.0)) + 0.012 * hmNoise(vec2(w * 9.0, 2.0)), hmStone);
+  vec3 tc = (hmAmb * 0.14 + hmSunC * 0.05 * hmOff(0.06, 0.0, top - sl)) * mix(vec3(0.9, 1.1, 0.8), vec3(2.6, 1.7, 1.1), hmStone) * (0.3 + mix(leaf, 0.5 + 0.2 * leaf, hmStone));
   c = mix(c, mix(tc, hmHaze, 0.42 + 0.25 * uSpace), hmIn(sl - top, soft));
   float t = 38.0 / max(rd.z, 0.1), x = ro.x + rd.x * t, y = ro.y + rd.y * t, s = soft * t, cx = abs(fract(x / 4.4 + 0.18) * 4.4 - 2.2);
   float arch = length(vec2(cx, max(y - 1.7, 0.0))) - 0.8;
   float wall = min(max(y - 3.5, -arch), length(vec2(cx - 2.2, y - 3.9)) - 0.5);
   vec3 wc = (hmAmb * vec3(0.04, 0.07, 0.04) + hmSunC * vec3(0.014, 0.013, 0.005) * smoothstep(2.6, 4.2, y)) * (0.6 + 0.8 * leaf);
-  return mix(c, mix(wc, hmHaze, sat(0.14 + 0.2 * uSpace + 0.4 * uOwn[4])), hmIn(wall, s));
+  if (uOwn[6] < 0.0) wc = mix(wc, (hmAmb * 0.2 + hmSunC * 0.1) * mix(vec3(0.6, 0.5, 0.38), vec3(0.6, 0.26, 0.14), hmRust), hmStone);
+  return mix(c, mix(wc, hmHaze, sat(0.14 + 0.2 * uSpace + 0.4 * uOwn[4])), hmIn(wall, s) * (1.0 - hmBig));
 }
 vec3 hmCourt(vec2 p) {
   vec3 ro = vec3(0.12 * sin(uTravel * 0.02), 2.2 + hmOwn(uOwn[3], 1.0, 3.2), 0.0);
@@ -306,6 +347,7 @@ vec3 hmCourt(vec2 p) {
   float ca = P.x - hmBank(P.z), edge = 0.02 + hmPx * t * 2.0;  // across the canal
   bool ground = rd.y < 0.0 && P.z < 38.0;
   float canal = ground ? smoothstep(0.0, edge, min(ca, 2.7 - ca)) * hmOff(35.5, 35.0, P.z) : 0.0;
+  if (uOwn[6] > 0.0 && ground) canal = max(canal, smoothstep(0.0, 0.03, hmWet * 1.2 - 0.1 - hmNoise(P.xz * vec2(0.5, 0.35) + 4.0)));
   HM_IF(left > 0.01 && (!ground || canal > 0.0)) {
     vec3 rr = rd;
     float rip = hmNoise(vec2(P.x * 3.0, P.z * 1.6 - uTime * 0.16)) - 0.5 + 0.6 * (hmNoise(vec2(P.x * 9.0 + uTime * 0.1, P.z * 4.0)) - 0.5);
@@ -313,6 +355,20 @@ vec3 hmCourt(vec2 p) {
     col = hmEnd(ro, rr, hmPx * (ground ? 6.0 : 1.5));
     if (ground) {
       col = mix(vec3(0.05, 0.09, 0.09) * hmAmb, col, 0.5 + 0.35 * sat(1.0 - 2.0 * abs(rd.y)));
+      if (uOwn[6] > 0.0) {
+        float seen = 1.0;
+        for (int i = 0; i < 7; i++) {
+          vec2 to = hmPick(i) - P.xz; float far = length(to) + 1e-3; to /= far;
+          float run = max(dot(rr.xz, to), 0.05), u = dot(rr.xz, vec2(to.y, -to.x)) * far / run, v = rr.y * far / run;
+          float cv = hmIn(abs(u) - hmBody(v, hmTall, hmW, hmKind), 0.03 + hmPx * (t + far)) * seen;
+          vec3 bc = mix(mix(vec3(0.05, 0.085, 0.035), vec3(0.24, 0.08, 0.02), hmRust), vec3(0.5), hmSnow) * (hmAmb * 0.5 + hmSunC * 0.35 * sat(0.5 + 0.6 * u / max(hmW, 0.1) * sign(hmSun.x))) + uKind[hmK] * uKind[hmK] * hmLv(hmK) * 0.12 * (0.5 + uEnergy);
+          col = mix(col, bc * 0.85, cv); seen *= 1.0 - cv;
+        }
+        vec3 pc = piece(vec2(0.5 + P.x / 16.0, 1.07 - P.z / 30.0)).rgb;
+        col += pc * (0.12 + 0.3 * uEnergy) * hmWet;
+        float hr = length(P.xz - vec2(0.8, 6.5)) - 7.0 * (1.0 - uHits);
+        col += (hmAmb + hmSunC * 0.2) * uHits * hmBell(hr * hr * 30.0) * 0.5;
+      }
       // a glint goes up the canal and back with the loop
       float gl = P.z - 16.0 + 9.0 * cos(TAU * uLoop);
       col += uKind[0] * uDrone * 0.12 * (0.6 + rip) + hmSunC * 0.5 * (hmBell(gl * gl * 0.2) + uKeys) * smoothstep(0.1, 0.5, rip);
@@ -322,9 +378,10 @@ vec3 hmCourt(vec2 p) {
     // the gravel, with every shadow lying one way
     float g1 = hmNoise(P.xz * vec2(1.3, 0.8)), g2 = mix(0.5, hmNoise(P.xz * 34.0), 1.0 / (1.0 + 0.02 * t * t));
     vec3 alb = vec3(0.62, 0.54, 0.43) * (0.78 + 0.2 * g1 + 0.3 * g2), kc = vec3(0.0);
+    alb = mix(alb, mix(vec3(0.6, 0.4, 0.24), vec3(0.6, 0.24, 0.12), hmRust) * (0.8 + 0.2 * g1 + 0.12 * g2), hmStone * (1.0 - hmDry));
     alb = mix(alb, vec3(0.13, 0.19, 0.06) * (0.9 + 0.5 * sat(4.0 * sin(P.x * 2.6))), hmDry);
     alb = mix(alb, vec3(0.75, 0.72, 0.66), hmIn(max(-0.32 - ca, ca - 3.02), edge));
-    alb = mix(alb, vec3(0.85, 0.87, 0.9) * (0.85 + 0.2 * g1), hmSnow);
+    alb = mix(alb, vec3(0.85, 0.87, 0.9) * (0.85 + 0.2 * g1), hmSnow * (1.0 - hmStone * hmDry));
     vec2 to = normalize(hmSun.xz);
     float sun = 1.0, rise = hmSun.y / length(hmSun.xz);
     for (int i = 0; i < 7; i++) {
@@ -344,7 +401,7 @@ vec3 hmCourt(vec2 p) {
     col = mix(mix(c, hmHaze, hmFar((t - 6.0) * thin * 1.3)), col, canal);
   }
   // a jet for each band, and the tall one
-  HM_IF(left > 0.01 && p.x > 0.05 && p.y < 0.4) {
+  HM_IF(left > 0.01 && p.x > 0.05 - 0.3 * hmRank && p.y < 0.4) {
     float fall = 0.6 + 0.6 * hmNoise(vec2(p.x * 150.0, p.y * 60.0 - uTime * 0.6));
     for (int i = 0; i < 17; i++) {
       bool tall = i == 16;

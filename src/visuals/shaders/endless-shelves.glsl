@@ -3,9 +3,20 @@
 // b: Ladder row
 // what: Leaning over a worn rail and a pile of old books, we look down a five-sided well of shelves and small round lamps that pales to a milky glow; on a landing below somebody's lamp walks, and a leaf of paper falls. Or, from floor height, a long aisle of books with a ladder across a far pin of daylight, one wall nearly bare.
 // follows: The piece lights the spines where it sounds and stains them: across is the loop, down or along the room. Drone is the glow or the daylight, pad the lamps, texture dust and scuffed leather, phrase moves the far lamp or the ladder; each kind has a binding. Bands light lamps, keys the gilt, a hit drops a sheet, a cue lights all lamps in turn.
-// own: 0 a blue moonlit night at -1, pale painted shelves by day at 1; 1 all but empty shelves at -1, every book in pale vellum at 1; 2 low storeys or small rows at -1, tall storeys or great folios at 1; 3 a narrow well or aisle at -1, a wide one at 1; 4 clear air over a dark foot, the far door dark, at -1, milky mist at 1; 5 looking more plumb down, or lower, at -1, looking across, or down from a height, at 1
+// own: 0 a blue moonlit night at -1, pale painted shelves by day at 1; 1 all but empty shelves at -1, every book in pale vellum at 1; 2 low storeys or small rows at -1, tall storeys or great folios at 1; 3 a narrow well or aisle at -1, a wide one at 1; 4 clear air over a dark foot, the far door dark, at -1, milky mist at 1; 5 looking more plumb down, or lower, at -1, looking across, or down from a height, at 1; 6 rolled scrolls in stacks at -1, glass jars with light in them at 1, in place of books; 7 still water below that doubles it all at -1, leaves grown over everything in the colour of texture at 1 (6 and 7 also dye the light as drone, the wood as pad, the lamps as phrase)
 float esOff(float lo, float hi, float x) { return 1. - smoothstep(lo, hi, x); }
-float esPx, esNight, esDay, esBare, esPale, esClear, esMilk;   // a pixel, the own entries
+#define esNight max(-uOwn[0], 0.)
+#define esDay max(uOwn[0], 0.)
+#define esBare (0.8 * max(-uOwn[1], 0.))
+#define esPale max(uOwn[1], 0.)
+#define esClear max(-uOwn[4], 0.)
+#define esMilk max(uOwn[4], 0.)
+#define ES_JAR max(uOwn[6], 0.)
+#define ES_ROLL max(-uOwn[6], 0.)
+#define ES_WET max(-uOwn[7], 0.)
+#define ES_LEAF max(uOwn[7], 0.)
+#define ES_DYE max(abs(uOwn[6]), abs(uOwn[7]))
+float esPx; bool esWet;   // a pixel; seen in the water
 float esNx, esUp, esOcc, esPull; vec3 esSelf, esTone; // of a shelf: its faces, how open, its own light, what sounds there
 vec3 esWood, esLamp, esAmb, esGlow;
 float esKind(int k) { return k == 0 ? uDrone : k == 1 ? uPad : k == 2 ? uTexture : k == 3 ? uPhrase : uHits; }
@@ -19,13 +30,21 @@ vec3 esDye(vec3 c) { c /= max(max(c.r, max(c.g, c.b)), 0.05); return c * c * c; 
 vec3 esBinding(int k, float age) {
  vec3 c = k == 0 ? vec3(0.20, 0.095, 0.04) : k == 1 ? vec3(0.46, 0.36, 0.22) : k == 2 ? vec3(0.115, 0.15, 0.075) : k == 3 ? vec3(0.24, 0.05, 0.035) : vec3(0.09, 0.11, 0.14);
  c = mix(c, esDye(uKind[k]) * (0.03 + 0.8 * dot(c, vec3(0.333))), 0.2 + 0.3 * esKind(k));
+ c = mix(c, uKind[k] * uKind[k] * (0.45 + 0.4 * esKind(k)), 0.7 * ES_DYE);
  return c * (0.55 + 0.9 * age);
 }
 float esEdge(float i, float row) { return i + 0.6 * (hash21(vec2(i, row)) - 0.5); }
 void esHear(vec2 at) { vec4 c = piece(at); esPull = sat(c.a * 1.3); esTone = esDye(c.rgb); }
+// Leaf by leaf.
+float esFine(vec2 q) {
+ q.x += 0.5 * mod(floor(q.y), 2.0);
+ vec2 i = floor(q), h = hash22(i), e = rot(h.x * 6.3) * (q - i - 0.3 - 0.4 * h.yx) * vec2(1.0, 1.7);
+ return mix(0.12, 0.5 + 0.5 * h.y, esOff(0.3, 0.5, length(e) + 0.1 * e.y)) * (1.0 - 0.35 * esOff(0.0, 0.12, abs(e.y)));
+}
 // A shelf. q: along and up; s: how the ray goes along and up for each metre inward; fw: a pixel;
 // rh: a row's height; bl: a bay's length; w: a book's width; bare: how empty.
 vec3 esShelf(vec2 q, vec2 s, vec2 fw, float rh, float bl, float w, float bare, float seed) {
+ w *= 1.0 + 0.8 * abs(uOwn[6]);
  float row = floor(q.y / rh), bay = floor(q.x / bl);
  float y = q.y - row * rh, x = q.x - bay * bl, bd = 0.035 + 0.03 * rh, up = 0.07, id0 = row * 17.0 + seed;
  esNx = 0.0; esUp = 0.0; esOcc = 1.0; esSelf = vec3(0.0);
@@ -48,7 +67,22 @@ vec3 esShelf(vec2 q, vec2 s, vec2 fw, float rh, float bl, float w, float bare, f
   float tall = h * (0.60 + 0.12 * group + 0.24 * r.x) * there;
   float lod = smoothstep(0.3, 0.8, fw.x / w), nx = clamp(2.0 * (u - L) / max(R - L, 0.05) - 1.0, -1.0, 1.0);
   float gap = esIn(abs(nx) - 0.93, 2.0 * fw.x / w / max(R - L, 0.05)) * (1.0 - lod) + lod;
-  float isBook = esIn(yy - tall, fw.y);
+  float jr = 0.0, jy = 0.0, jm = 1.0;
+  if (uOwn[6] < 0.0) {
+   // rolled scrolls, end on, in stacks
+   float dia = max((R - L) * w, 0.02), yr = yy / dia;
+   tall = mix(tall, floor(tall / dia + 0.45) * dia, ES_ROLL);
+   jy = 2.0 * fract(yr) - 1.0; jr = length(vec2(nx, jy));
+   jm = mix(1.0, esIn(jr - 0.97, 3.0 * fw.x / dia), ES_ROLL * (1.0 - lod));
+  }
+  if (uOwn[6] > 0.0) {
+   // jars: a round shoulder, a neck, a lid
+   tall = mix(tall, h * (0.52 + 0.3 * r.x) * there, ES_JAR); jy = yy / max(tall, 0.02);
+   float wd = jy > 0.9 ? 0.66 : jy > 0.8 ? 0.5 : 0.5 + 0.4 * sqrt(sat(1.0 - pow(max(jy - 0.55, 0.0) * 4.0, 2.0)));
+   jr = abs(nx) / wd;
+   jm = mix(1.0, esIn(abs(nx) - wd, 2.0 * fw.x / w / max(R - L, 0.05)), ES_JAR * (1.0 - lod));
+  }
+  float isBook = esIn(yy - tall, fw.y) * jm;
   int k = int(fract(r.y * 91.7 + r.x * 5.3) * 4.99);
   vec3 cover = mix(esBinding(k, r.y), esBinding(int(mod(row + bay, 3.0)), 0.5), lod * 0.6);
   float ry = (fract(yy / max(tall, 0.05) * 4.0 + 0.2) - 0.5) * tall * 0.25, some = step(0.35, r2) * (1.0 - lod);
@@ -59,17 +93,40 @@ vec3 esShelf(vec2 q, vec2 s, vec2 fw, float rh, float bl, float w, float bare, f
   cover *= 0.8 + 0.4 * smoothstep(0.0, 0.03, tall - yy);
   cover *= mix(sqrt(1.0 - 0.88 * nx * nx) * 1.15, 0.85, lod);
   cover = mix(cover, dot(cover, vec3(0.55)) * esTone * vec3(0.8, 0.6, 0.4), 0.5 * esPull);
+  if (uOwn[6] < 0.0) {
+   float an = fract(atan(jy, nx + 1e-4) / TAU);
+   vec3 pap = mix(vec3(0.62, 0.52, 0.36), uKind[k] * uKind[k], 0.45) * (0.7 + 0.4 * r.x) * (0.62 + 0.38 * cos((jr * 3.5 - an) * TAU)) * (1.0 - 0.7 * esIn(jr - 0.14, 0.1)) * (1.15 - 0.5 * jr * jr);
+   cover = mix(cover, mix(pap, vec3(0.42, 0.35, 0.25) * uKind[k], lod), ES_ROLL * (1.0 - 0.4 * esPull));
+  }
+  vec3 jarLit = vec3(0.0);
+  if (uOwn[6] > 0.0) {
+   float lid = step(0.9, jy), fill = esIn(jy - 0.35 - 0.4 * r2, 0.03), nj = min(jr, 1.0);
+   vec3 dye = uKind[k] * uKind[k];
+   vec3 gl = mix(vec3(0.16, 0.17, 0.17), dye * (0.5 + 0.35 * (1.0 - nj * nj)), fill) * (1.0 - lid) + lid * esWood * 0.8;
+   gl += vec3(0.5) * esIn(abs(nj * sign(nx) + 0.55) - 0.07, 0.1) * step(0.12, jy) * esIn(jy - 0.6, 0.1) * (1.0 - lod);
+   cover = mix(cover, gl, ES_JAR);
+   jarLit = ES_JAR * dye * fill * (1.0 - lid) * (1.1 - 0.75 * nj * nj) * (0.16 + 0.45 * step(0.72, r.x) + 1.2 * (0.3 + uEnergy) * esKind(k) + 0.8 * esPull) * mix(1.0, 0.45, lod);
+  }
   c = mix(wood * 0.55, cover, isBook);
   esOcc = mix(0.75 - 0.5 * sat(yy / h), (0.45 + 0.55 * smoothstep(0.0, 0.35, yy / h)) * (0.25 + 0.75 * gap), isBook);
   esOcc *= 1.0 - 0.55 * smoothstep(0.45, 1.0, yy / h) * (1.0 - esPull);
   esNx = nx * isBook * (1.0 - lod);
   esSelf = isBook * (c * esOcc * (esPull * (0.4 + 0.9 * uEnergy) * vec3(1.0, 0.82, 0.6) + 0.06 * esDye(uKind[k]) * esKind(k)) + vec3(0.45, 0.34, 0.14) * (rib + 0.12 * lod) * uKeys);
+  if (uOwn[6] > 0.0) esSelf += isBook * jarLit;
+  if (uOwn[6] != 0.0) esNx *= 1.0 - 0.7 * abs(uOwn[6]);
  } else if (dB < dU) {
   c = wood * 0.8; esUp = s.y > 0.0 ? -1.0 : 1.0; esOcc = s.y > 0.0 ? 0.22 : 0.75 - 1.5 * max(dB, 0.0);
  } else { c = wood * 0.9; esOcc = 0.9; esNx = -sign(s.x); }
  if (front > 0.0) {
   c = mix(c, wood * 1.25, front); esOcc = mix(esOcc, 0.9, front);
   esNx *= 1.0 - front; esUp *= 1.0 - front; esSelf *= 1.0 - front;
+ }
+ if (uOwn[7] > 0.0) {
+  // leaves hanging from every board
+  float big = noise(q * vec2(0.9, 0.6) + seed), drop = 1.0 - sat(y / rh), g = noise(q * vec2(7.0, 4.5) + seed), fine = max(esFine(q * 17.0), 0.85 * esFine(rot(0.6) * q * 23.0)); fine = mix(fine, 0.55, 0.8 * smoothstep(0.3, 0.9, fw.x * 19.0));
+  float lv = smoothstep(0.52, 0.66, 0.5 * g + 0.55 * big + 0.55 * (big - 0.55) + 0.28 * (1.0 - drop) + 0.22 * front + 0.16 * (fine - 0.5) - 0.2 + 0.18 * ES_LEAF) * ES_LEAF;
+  vec3 leaf = mix(vec3(0.05, 0.09, 0.03), uKind[2] * uKind[2], 0.75) * (0.35 + 1.1 * fine) * (0.7 + 0.5 * g);
+  c = mix(c, leaf, lv); esOcc = mix(esOcc, 0.45 + 0.6 * fine, lv); esSelf *= 1.0 - lv; esNx *= 1.0 - lv;
  }
  return c;
 }
@@ -92,7 +149,7 @@ float esOn(float bay, float k) {
  on += uCue * (3.0 * exp(-wv * wv * 0.35) + 0.4 * smoothstep(-0.5, 0.5, wv));
  return on * (1.0 - 0.7 * esDay);
 }
-// A round lamp. c: from its middle; m: metres to a frame's height there.
+// A round lamp. m: metres to a frame's height there.
 void esGlobe(inout vec3 col, vec2 c, float m, float size, vec3 light, float keep) {
  if (m < 0.5) return;
  float r = length(c) * m;
@@ -116,6 +173,17 @@ vec3 esShaft(vec2 p) {
  vec3 fwd = vec3(0.0, -sin(pitch), cos(pitch)), upv = vec3(0.0, cos(pitch), sin(pitch));
  vec3 d = normalize(fwd * f + vec3(s0.x, 0.0, 0.0) + upv * s0.y);
  if (abs(d.y) < 1e-3) d.y = -1e-3;
+ float yW = -2.75 * H + 0.4;
+ if (uOwn[7] < 0.0 && d.y < 0.0) {
+  // the water far down
+  float tW = (yW - o.y) / d.y, in_ = 1e3; vec3 q = o + d * tW;
+  for (int i = 0; i < 5; i++) in_ = min(in_, esSide[i].z * open - dot(esSide[i].xy, q.xz));
+  if (in_ > 0.0) {
+   esWet = true;
+   d.xz += 0.035 * (vec2(noise(q.xz * 1.6 + uTime * 0.13), noise(q.xz * 1.6 + 9.0 - uTime * 0.11)) + 0.5 * vec2(noise(q.xz * 4.3 - uTime * 0.2), noise(q.zx * 4.3 + uTime * 0.17)) - 0.75) * ES_WET;
+   d.y = -d.y; o = q - d * tW; fwd.y = -fwd.y; upv.y = -upv.y;
+  }
+ }
  // where the ray leaves the well, and the shelves behind
  float tw = 1e4, tb = 1e4; int wi = 0, bi = 0;
  for (int i = 0; i < 5; i++) {
@@ -135,7 +203,6 @@ vec3 esShaft(vec2 p) {
  for (int i = 0; i < 5; i++) if (i != wi) slack = min(slack, esSide[i].z * open - dot(esSide[i].xy, P.xz));
  float bay = float(wi), seedB = bay * 7.0 - k * 3.0, lampOn = esOn(bay, k);
  vec3 lampAt = esAt(wi, k, H, open), alb, self = vec3(0.0);
- // behind the rail: the floor or the shelves
  float tf = d.y < 0.0 ? (k * H - o.y) / d.y : ((k + 1.0) * H - sl - o.y) / d.y;
  float lu = dot(lampAt.xz, tan2), occ, facing = 1.0, along = 0.0;
  esHear(vec2(atan(P.x, -P.z) / TAU + 0.5, sat((3.5 - P.y) / (5.0 * H))));
@@ -154,7 +221,6 @@ vec3 esShaft(vec2 p) {
  vec3 toL = lampAt - hit; float l2 = dot(toL, toL);
  vec3 lit = esAmb * (0.5 + 0.5 * occ) + esLamp * lampOn * 3.6 / (0.45 + l2) * occ * facing * sat(0.7 + 0.7 * along * dot(toL.xz, tan2) / sqrt(l2 + 0.01));
  vec3 col = alb * lit + self;
- // rail, posts, columns, edge
  float prof = abs(fract(u / 0.17) - 0.5) * 0.17 - 0.018 - 0.016 * esWave(v * 1.2 + 0.2);
  float post = mix(esIn(prof, fw.x), 0.26, smoothstep(0.06, 0.14, fw.x)) * esIn(v - 1.02, fw.y), hand = esIn(abs(v - 1.02) - 0.055, fw.y);
  float rail = max(max(post, hand), max(esIn(v - 0.10, fw.y), esIn(slack - 0.13, fw.x))), off = (u - lu) * (u - lu);
@@ -162,7 +228,14 @@ vec3 esShaft(vec2 p) {
  if (v > H - sl) {
   col = esWood * (0.6 + 0.6 * esOff(0.1, sl, H - v)) * (esAmb * 1.2 + esLamp * lampOn * 0.16 / (0.3 + off));
  }
- float dep = max(o.y - P.y, 0.0) / H, far = 6.4 * (1.0 - 0.3 * uDrone) * (1.0 + 0.9 * esClear - 0.62 * esMilk) * (0.8 + 0.4 * uSpace);
+ if (uOwn[7] > 0.0) {
+  // leaves over the rails
+  float g = noise(vec2(u * 2.3 + seedB, v * 0.7)), fine = max(esFine(vec2(u, v) * 13.0), 0.85 * esFine(rot(0.6) * vec2(u, v) * 17.0)), lv = ES_LEAF * smoothstep(0.5, 0.62, 0.62 * g + 0.3 * noise(vec2(u * 0.7 + seedB * 3.0, k)) + 0.25 * fine - 0.1) * step(v, 1.15 + 0.3 * g);
+  lv = max(lv, ES_LEAF * smoothstep(0.35, 0.5, g - 1.1 * max(H - sl - v, 0.0) + 0.2 * fine));
+  vec3 leaf = mix(vec3(0.05, 0.09, 0.03), uKind[2] * uKind[2], 0.75) * (0.35 + 1.1 * fine) * (0.7 + 0.5 * g);
+  col = mix(col, leaf * (esAmb * 1.2 + esLamp * lampOn * 0.4 / (0.25 + off + (v - 1.3) * (v - 1.3))), lv);
+ }
+ float dep = max(esWet ? (P.y - yW) * 0.6 + 2.2 * H : o.y - P.y, 0.0) / H, far = 6.4 * (1.0 - 0.3 * uDrone) * (1.0 + 0.9 * esClear - 0.62 * esMilk) * (0.8 + 0.4 * uSpace);
  dep = mix(dep, min(4.3 * open * -d.y / (length(d.xz) + 1e-3) / H, 60.0), d.y < 0.0 ? 0.45 : 0.0);
  float x = max(dep - 1.2, 0.0) / far, fog = 1.0 - exp(-esMilk * 0.5 * x) / (1.0 + x * x * (1.0 + 0.2 * esWave(dep * 0.11 - uTime * 0.013)));
  vec3 glow = esGlow * (0.8 + 0.5 * uDrone * (0.4 + uEnergy) + 0.15 * uMic) * (1.0 - 0.93 * esClear);
@@ -193,19 +266,20 @@ vec3 esShaft(vec2 p) {
   vec3 q = o + d * tl0; float e = eo + ed * tl0, uu = abs(dot(q.xz, tl)) - 1.35, fp = pxm * tl0;
   esLay(col, wood * 1.5, max(esIn(abs(e - 1.9) - 0.05, fp) * esIn(uu, fp), esIn(abs(uu) - 0.05, fp) * esIn(e - 1.9, fp) * step(0.0, e)), fogL, glow, fog);
  }
+ if (uOwn[7] < 0.0 && esWet) fog *= 1.0 - 0.55 * ES_WET;
  col = mix(col, glow, fog);
  for (int j = -1; j < 2; j++) {
   float kk = k + float(j); vec3 L = esAt(wi, kk, H, open);
-  float xd = max((o.y - L.y) / H - 1.2, 0.0) / far, keep = exp(-xd * xd);
+  float xd = max((o.y - L.y) / H - 1.2, 0.0) / far, keep = exp(-xd * xd) * (esWet ? 0.75 : 1.0);
   L -= o; float m = dot(L, fwd) / f;
   esGlobe(col, s0 - vec2(L.x, dot(L, upv)) / max(m, 0.01), m, 0.12, esLamp * esOn(bay, kk), keep);
  }
  fl -= o; float m = dot(fl, fwd) / f;
  esGlobe(col, s0 - vec2(fl.x, dot(fl, upv)) / max(m, 0.01), m, 0.10, fCol, 1.0 - fogL);
+ if (uOwn[7] < 0.0 && esWet) col = col * mix(vec3(0.66), uKind[0] * 0.9, 0.35) + esGlow * 0.012;
  return col;
 }
 vec3 esNear(vec3 col, vec2 p) {
- // a leaf that is always falling, and the sheet of a hit
  float age = fract(uTime / 46.0 + 0.16), z = 1.6 + 15.0 * age, life = smoothstep(0.0, 0.04, age) * (1.0 - smoothstep(0.75, 1.0, age));
  vec2 at = esTop + vec2(0.68 + 0.1 * esWave(uTime * 0.06), 0.6) / z;
  esSheet(col, p, at, 0.17 / z + 0.004, uTime * 0.21, uTime * 0.5, life, 0.8);
@@ -245,13 +319,21 @@ vec3 esAisle(vec2 p) {
  vec3 o = vec3(0.16 * wide, esOwn(uOwn[5], 0.22, 2.2) - 0.64, 0.5 * esWave(uTravel * 0.011));
  vec2 vp = vec2(0.10, esOwn(uOwn[5], 0.14, 0.34) - 1.22), s = p - vp;
  vec3 d = vec3(s / f, 1.0);
+ if (uOwn[7] < 0.0 && d.y < 0.0) {
+  float tW = -o.y / d.y; vec3 q = o + d * tW;
+  if (q.x > -XL && q.x < XR) {
+   esWet = true;
+   float rip = noise(vec2(q.x * 2.2, q.z * 1.3 + uTime * 0.15)) + 0.6 * noise(vec2(q.x * 5.0 - uTime * 0.12, q.z * 3.1)) - 0.8;
+   d.x += 0.03 * ES_WET * rip * smoothstep(0.0, 0.2, -d.y); d.y = max(-d.y + (0.05 + 0.04 * uLow) * ES_WET * rip * smoothstep(0.0, 0.2, -d.y), 2e-3);
+   o = q - d * tW; s = d.xy * f;
+  }
+ }
  float pxm = esPx / f, side = d.x < 0.0 ? -1.0 : 1.0, X = side < 0.0 ? XL : XR;
  float tx = abs(d.x) > 1e-5 ? (X - side * o.x) / abs(d.x) : 1e4, ty = d.y < -1e-5 ? -o.y / d.y : 1e4, t = min(min(tx, ty), 46.0);
  vec3 P = o + d * t, alb = esWood, self = vec3(0.0), n = vec3(0.0, 1.0, 0.0);
  float occ = 1.0, gloss = 0.0;
  if (tx <= ty && t < 46.0) {
-  // half of the right wall is all but empty
-  float bare = max(esBare, side > 0.0 ? 0.76 * esOff(0.0, 0.05, abs(P.z - 5.2) - 3.85) : 0.0), ad = max(abs(d.x), 0.012);
+  float bare = max(esBare, side > 0.0 ? 0.76 * (1.0 - 0.95 * abs(uOwn[6])) * esOff(0.0, 0.05, abs(P.z - 5.2) - 3.85) : 0.0), ad = max(abs(d.x), 0.012);
   if (P.y > 0.16) {
    esHear(vec2(sat(P.z / 15.0), sat(1.0 - P.y / 3.2)));
    alb = esShelf(vec2(P.z + 20.0, P.y - 0.16), vec2(1.0, d.y) / ad, vec2(1.0 / ad, 1.0) * pxm * t, rh, 1.9, 0.085 * rh / 0.46, 0.05 + bare, side * 40.0 + 80.0);
@@ -265,8 +347,12 @@ vec3 esAisle(vec2 p) {
   alb *= 0.85 + 0.3 * noise(vec2(P.x * 45.0, P.z * 1.6));
   alb *= 1.0 - 0.6 * esIn((0.5 - abs(fract(bx) - 0.5)) * bw - 0.006, pxm * t) * (1.0 - lod);
   alb *= 1.0 + 1.1 * exp(-P.x * P.x * 5.0 / (wide * wide));
+  if (uOwn[7] > 0.0) {
+   float g = noise(P.xz * 1.7), fine = max(esFine(P.xz * 15.0), 0.85 * esFine(rot(0.6) * P.xz * 19.0));
+   alb = mix(alb, mix(vec3(0.06, 0.09, 0.03), uKind[2] * uKind[2], 0.75) * (0.4 + fine) * (0.7 + 0.5 * g), ES_LEAF * smoothstep(0.35, 0.6, g + 0.25 * abs(P.x) / wide + 0.2 * (fine - 0.5)));
+  }
   occ = smoothstep(-0.1, 0.5, X - side * P.x);
-  gloss = 1.0;
+  gloss = 1.0 - ES_LEAF;
  }
  // one lamp to a bay, left and right in turn
  vec3 lit = esAmb * (0.35 + 0.65 * occ), lampP[7]; float lampI[7];
@@ -323,6 +409,7 @@ vec3 esAisle(vec2 p) {
  }
  float age = fract(uTime / 38.0 + 0.45), life = smoothstep(0.0, 0.06, age) * (1.0 - smoothstep(0.9, 1.0, age));
  esSheet(col, p, vp + vec2(-0.10 + 0.05 * esWave(uTime * 0.07), 0.62 - 0.72 * age), 0.034, 0.4 * esWave(uTime * 0.05), uTime * 0.55, life, 0.65);
+ if (uOwn[7] < 0.0 && esWet) col = col * mix(vec3(0.7), uKind[0] * 0.9, 0.3) + esGlow * 0.008;
  float fall = 1.0 - uHits;
  esSheet(col, p, vp + vec2(-0.10 + 0.1 * sin(fall * 4.0), 0.48 - 0.56 * fall), 0.18, 0.5 + fall * 1.6, 0.5 + fall * 4.0, smoothstep(0.02, 0.4, uHits), 1.6);
  return col;
@@ -334,12 +421,16 @@ float esDust(vec2 p) {
 }
 vec3 render(vec2 p) {
  esPx = 1.0 / uRes.y;
- esDay = max(uOwn[0], 0.0); esNight = max(-uOwn[0], 0.0);
- esBare = 0.8 * max(-uOwn[1], 0.0); esPale = max(uOwn[1], 0.0); esClear = max(-uOwn[4], 0.0); esMilk = max(uOwn[4], 0.0);
  esWood = mix(mix(vec3(0.155, 0.078, 0.036), vec3(0.10, 0.085, 0.08), esNight), vec3(0.70, 0.64, 0.54), esDay);
  esLamp = vec3(1.0, 0.60, 0.25) * (1.0 - 0.45 * esNight) * mix(0.85, 1.15, uTone);
  esAmb = mix(mix(vec3(0.062, 0.047, 0.036), vec3(0.05, 0.10, 0.22), esNight), vec3(0.75, 0.74, 0.70), esDay) * mix(0.8, 1.25, uTone);
  esGlow = mix(mix(vec3(1.0, 0.82, 0.58), vec3(0.34, 0.52, 0.95), esNight), vec3(1.0, 1.0, 0.98) * 1.7, esDay);
+ if (ES_DYE > 0.0) {
+  esWood = mix(esWood, uKind[1] * uKind[1] * mix(0.16, 0.8, esDay), 0.75 * ES_DYE);
+  esGlow = mix(esGlow, uKind[0] * mix(1.0, 1.5, esDay), 0.75 * ES_DYE);
+  esLamp = mix(esLamp, uKind[3] * uKind[3] * (1.0 - 0.4 * esNight), 0.6 * ES_DYE);
+  esAmb = mix(esAmb, (0.5 * uKind[0] + 0.5) * dot(esAmb, vec3(0.333)), 0.6 * ES_DYE);
+ }
  vec3 c = uVar < 0.5 ? esNear(esShaft(p), p) : esAisle(p);
  c += esLamp * esDust(p) * (0.03 + (uVar < 0.5 ? 2.2 : 1.2) * uTexture * (0.3 + uEnergy)) * esOff(0.2, 1.1, length(p - esTop));
  return screenOf(c * 1.35);

@@ -3,7 +3,7 @@
 // b: Rain band
 // what: A pale relief map seen at a slant before sunrise, a coast with a river and two islands, and over it thousands of fine specks: birds leaving their roosts in wide broken rings of slate, rose, ochre and green that drift and thin with the wind. Or the same coast as a bowed band of rain in mist grey and indigo grains comes over.
 // follows: Each kind has a roost and its ring thickens as it sounds. Drone lays haze or deepens the rain, pad widens the trailing veil, texture is dust and insects, phrase sends birds along the coast or round the band's end. The spectrum draws spokes, the loop sweeps round once. A hit puts up one flock, a cue a ring from each roost or a line ahead. Keys are red specks.
-// own: 0 a dark night map with pale grains at -1, a warm sandy sunrise at 1; 1 seen from nearly overhead and close at -1, from low down with a horizon at 1; 2 the sea come up and more islands at -1, mountains and a long sea inlet at 1; 3 nearly still air, or a straighter front, at -1, a strong wind that drags the rings, or a front bent into a tight bow, at 1; 4 fine dust at -1, large grains at 1; 5 one lone roost that answers to every kind, or scattered showers, at -1, more rings from each roost, or a second line of rain behind the first, at 1
+// own: 0 a dark night map with pale grains at -1, a warm sandy sunrise at 1; 1 seen from nearly overhead and close at -1, from low down with a horizon at 1; 2 the sea come up and more islands at -1, mountains and a long sea inlet at 1; 3 nearly still air, or a straighter front, at -1, a strong wind that drags the rings, or a front bent into a tight bow, at 1; 4 fine dust at -1, large grains at 1; 5 one lone roost that answers to every kind, or scattered showers, at -1, more rings from each roost, or a second line of rain behind the first, at 1; 6 a flat country of braided channels at -1, a ring of land round a lagoon at 1 (b: past a half the rain turns in a spiral round it); 7 land and sea dyed in the colours of drone, pad, texture and phrase and all grains in that of hits at -1, drawn in contour lines with hollow grains at 1
 vec4 rrLv; float rrHit, rrMost; // how loud each kind is, and the loudest
 float rrPx;          // how wide one pixel is there
 float rrGrain;       // how large the grains are, 1 as designed
@@ -47,6 +47,17 @@ vec3 rrLand(vec2 m) {
   const mat2 step1 = mat2(0.8, -0.6, 0.6, 0.8);
   float rise = 0.26 + 0.2 * max(uOwn[2], 0.0);
   if (h.x > 0.0) { float e = exp(-h.x / rise); h = vec3(rise * (1.0 - e), h.yz * e); }
+  if (uOwn[6] > 0.0) { // a ring of land
+    vec2 q = m - vec2(-0.06, 0.07); float l = length(q) + 1e-4, d = l - 0.5, e = sqrt(d * d + 0.003);
+    h = mix(h, vec3(0.135 - 0.95 * e, -0.95 * d / e * q / l), uOwn[6]); amp *= 1.0 - 0.1 * uOwn[6];
+  }
+  if (uOwn[6] < 0.0) { // channels that part and meet
+    vec3 w = rrNoise(m * 1.3 + vec2(7.0, 2.0)); vec2 g = m * vec2(2.6, 1.7) + 1.4 * w.x;
+    vec3 n = rrNoise(g); vec2 sl = n.yz * vec2(2.6, 1.7) + (n.y + n.z) * 1.82 * w.yz; float v = n.x - 0.48, e = sqrt(v * v + 0.0006);
+    vec3 n2 = rrNoise(g * 2.1 + 5.0); float v2 = n2.x - 0.5, e2 = sqrt(v2 * v2 + 0.0006);
+    vec3 a = vec3(e * 0.6 - 0.032, 0.6 * v / e * sl), b = vec3(e2 * 0.5 - 0.018, 0.5 * v2 / e2 * (n2.yz * vec2(2.6, 1.7) + (n2.y + n2.z) * 1.82 * w.yz) * 2.1);
+    h = mix(h, -rrJoin(-a, -b, 0.02), -uOwn[6]); amp *= 1.0 + 0.86 * uOwn[6];
+  }
   vec3 n = rrNoise(m * fr + 11.3);
   h += vec3(n.x - 0.5, n.yz * fr) * amp;
   // the river, winding down to its mouth
@@ -54,9 +65,11 @@ vec3 rrLand(vec2 m) {
   float k = 0.85 / sqrt(1.0 + dc * dc), off = m.x - c, sg = off < 0.0 ? -1.0 : 1.0;
   float up = y + 0.17, wide = 0.0035 + 0.07 * exp(-5.5 * (up + sqrt(up * up + 0.003))) + (0.012 * sin(27.0 * y + 1.0) + 0.006 * sin(61.0 * y)) * (1.0 - smoothstep(-0.1, 0.05, y)) + 0.010 * exp(-max(y, 0.0) * 3.0);
   vec3 bank = 2.4 * vec3(abs(off) * k - wide + 0.2 * max(y - 0.9, 0.0), sg * k, -sg * dc * k);
+  if (uOwn[6] != 0.0) bank.x += 2.0 * abs(uOwn[6]);
   float plain = smoothstep(0.0, 0.28, bank.x);
   h = -rrJoin(-h, -bank, 0.05);
   // finer hills, cut by valleys, calmer by the river and under water
+  if (uOwn[7] > 0.0) amp *= 1.0 - 0.55 * uOwn[7];
   for (int i = 1; i < 4; i++) {
     turn = step1 * turn; amp *= 0.5; fr *= 2.13;
     n = rrNoise(turn * m * fr + 11.3 + float(i) * 4.7);
@@ -77,6 +90,7 @@ vec3 rrDots(vec2 g, float pg, float size, float dens, float seed) {
   float there = sat((dens * 1.12 - h2.x) * 7.0) * step(0.0005, dens);
   float a = (1.0 - smoothstep(r - pg * 0.7, r + pg * 0.7, l)) * there;
   float mean = min(dens, 1.0) * 2.4 * size * size;
+  if (uOwn[7] > 0.0) a *= 1.0 - uOwn[7] * (1.0 - smoothstep(r * 0.62 - pg, r * 0.62 + pg * 0.3, l));
   float blur = smoothstep(0.35, 0.9, pg);
   return vec3(mix(a, min(mean, 0.9), blur), mix(h2.y, 0.5, blur), mix(dot(d, vec2(-0.7, 0.7)) / r, 0.0, blur));
 }
@@ -84,7 +98,9 @@ vec3 rrInk(int k) {
   vec3 base = k == 0 ? vec3(0.16, 0.24, 0.31) : k == 1 ? vec3(0.50, 0.24, 0.30) : k == 2 ? vec3(0.60, 0.40, 0.13) : k == 3 ? vec3(0.24, 0.33, 0.25) : vec3(0.55, 0.20, 0.14);
   vec3 kc = k == 0 ? uKind[0] : k == 1 ? uKind[1] : k == 2 ? uKind[2] : k == 3 ? uKind[3] : uKind[4];
   base = mix(base * 0.85, kc * kc * 0.7, 0.4);
-  return mix(base, 0.45 + 0.55 * kc, rrNight);
+  base = mix(base, 0.45 + 0.55 * kc, rrNight);
+  if (uOwn[7] < 0.0) base = mix(base, uKind[4] * (0.8 + 0.06 * float(k)), -uOwn[7] * 0.85);
+  return base;
 }
 void rrPut(inout vec3 col, vec3 ink, vec3 grain, float most) {
   vec3 c = ink * (0.84 + 0.3 * grain.y) * (1.0 + 0.22 * grain.z) + 0.04 * max(grain.z, 0.0);
@@ -110,12 +126,28 @@ vec3 rrGround(vec3 h) {
   vec3 seaC = mix(vec3(0.735, 0.765, 0.775), vec3(0.80, 0.66, 0.55), max(own0, 0.0));
   landC = mix(landC, vec3(0.155, 0.18, 0.25), rrNight);
   seaC = mix(seaC, vec3(0.075, 0.09, 0.145), rrNight);
+  if (uOwn[7] < 0.0) {
+    float up = max(h.x, 0.0), k = -uOwn[7];
+    vec3 hi = mix(uKind[1], uKind[2], smoothstep(0.02, 0.13, up)); hi = mix(hi, uKind[3], smoothstep(0.14, 0.3, up));
+    vec3 lo = uKind[0] * mix(1.3, 0.72, smoothstep(0.0, 0.3, -h.x)) + 0.12 * uKind[1] * exp(min(h.x, 0.0) * 30.0);
+    landC = mix(landC, hi * mix(1.0, 0.4, rrNight), k); seaC = mix(seaC, lo * mix(1.0, 0.4, rrNight), k);
+  }
   vec3 col = mix(seaC, landC, land);
   // sea lines that keep to the coast, as an engraver draws them
   float sea = max(-h.x, 0.0), ln = sqrt(sea * 110.0), gl = length(h.yz) * 55.0 / max(ln, 0.4) * rrPx;
   float line = 1.0 - smoothstep(0.05, 0.07 + 1.6 * gl, abs(fract(ln) - 0.5));
   col *= 1.0 - 0.15 * line * (1.0 - land) * exp(-sea * 9.0) * (1.0 - smoothstep(0.15, 0.4, gl)) * smoothstep(0.6, 1.0, ln);
   col *= 1.0 + lit * mix(0.62, 0.9, rrNight);
+  if (uOwn[7] > 0.0) {
+    // drawn: flat paper, a line at each height, every fifth one heavier
+    float ct = h.x * 26.0, w = length(h.yz) * 26.0 * rrPx, five = 1.0 - step(0.5, mod(floor(ct + 0.5), 5.0)), e = abs(fract(ct + 0.5) - 0.5);
+    vec3 paper = mix(vec3(0.93, 0.91, 0.86), vec3(0.05, 0.10, 0.2), rrNight), pen = mix(vec3(0.3, 0.27, 0.25), vec3(0.6, 0.7, 0.84), rrNight);
+    paper = mix(mix(paper, uKind[0], 0.14 + 0.12 * (1.0 - rrNight) * (1.0 - smoothstep(-0.05, 0.25, h.x))), paper, land);
+    float a = (1.0 - smoothstep(w * 0.35, w * (1.2 + 0.7 * five), e)) * (0.5 + 0.4 * five) * (1.0 - smoothstep(0.35, 0.8, w)) * land;
+    vec3 drawn = mix(paper, pen, a) * (1.0 + 0.1 * lit);
+    drawn = mix(drawn, pen, 0.35 * line * (1.0 - land) * exp(-sea * 5.0) * smoothstep(0.6, 1.0, ln) * (1.0 - smoothstep(0.15, 0.4, gl)));
+    col = mix(col, drawn, uOwn[7]);
+  }
   // the edge of the land: a line, dark on a pale map and pale on a dark one, and a lit lip
   float edge = 1.0 - smoothstep(0.4 * px, 1.6 * px, abs(h.x + 0.4 * px));
   col = mix(col, mix(col * 0.56, vec3(0.42, 0.46, 0.54), rrNight), edge * (1.0 - 0.45 * rrNight));
@@ -155,6 +187,11 @@ float rrRing(int k, int j, vec2 m, float gale) {
 }
 // How thick the rain is at a place, how deep in the band it lies (below 0 is ahead of it), and where along it.
 vec2 rrTip;          // the end of the band
+float rrEnds(vec2 m, float x, float s) {
+  float e = smoothstep(-1.5, -1.0, s) * (1.0 - smoothstep(0.65, 1.1, s + 0.5 * x));
+  if (uOwn[6] > 0.5) { float r = length(m - vec2(-0.06, 0.07)); e = smoothstep(0.07, 0.13, r) * (1.0 - smoothstep(0.75, 1.15, r)); }
+  return e;
+}
 vec3 rrBand(vec2 m, float gale, vec2 drift) {
   float R = 1.15 * exp2(-0.9 * uOwn[3]);
   vec2 out_ = normalize(vec2(-0.80, -0.60));
@@ -164,6 +201,13 @@ vec3 rrBand(vec2 m, float gale, vec2 drift) {
   float r = length(q) + 1e-4;
   float s = atan(dot(q, vec2(-out_.y, out_.x)), dot(q, out_) + 1e-5) * R;
   float x = R - r;
+  if (uOwn[6] > 0.5) { // round and round
+    q = m - vec2(-0.06, 0.07); r = length(q) + 0.02;
+    float turn = log(r) * 1.1 + atan(q.y, q.x + 1e-5) / TAU * 2.0 + uTime * 0.006;
+    turn += 0.06 * (fbm(q * 3.0) - 0.5);
+    x = (1.0 - fract(turn)) * (0.12 + 0.75 * r) - 0.02; s = log(r) * 0.5;
+    rrTip = vec2(-0.06, 0.07);
+  }
   float n = noise(vec2(s * 4.2 - uTime * 0.004, 3.0)), n2 = noise(vec2(s * 13.0 - uTime * 0.011, 9.0));
   x += 0.11 * (n - 0.5) + 0.035 * (n2 - 0.5);
   float cell = noise(vec2(s * 9.0 - uTime * 0.008, x * 8.0 + uTime * 0.013));
@@ -172,7 +216,7 @@ vec3 rrBand(vec2 m, float gale, vec2 drift) {
   float x2 = x - 0.36 - 0.10 * n2;
   heart = max(heart * (1.0 - 0.6 * two * smoothstep(0.1, 0.22, x) * (1.0 - smoothstep(-0.05, 0.0, x2))), 1.1 * two * smoothstep(-0.004, 0.022, x2) * exp(-max(x2, 0.0) * 10.0) * (0.4 + 0.8 * noise(vec2(s * 8.0 + 4.0, x * 9.0))));
   float veil = smoothstep(0.08, 0.26, x) * (1.0 - smoothstep(0.5, 1.15, x)) * (0.35 + 0.8 * noise(m * 4.0 - drift * 2.0)) * (1.0 - 0.75 * lone);
-  float ends = smoothstep(-1.5, -1.0, s) * (1.0 - smoothstep(0.65, 1.1, s + 0.5 * x));
+  float ends = rrEnds(m, x, s);
   heart *= ends; veil *= ends;
   heart *= 0.62 + 0.45 * uDrone;
   veil *= 0.42 + 0.35 * uPad;
@@ -186,12 +230,13 @@ vec3 rrRain(vec3 col, vec2 m, vec3 h, vec2 drift, float gale, float sweep, float
   float comb = noise(vec2(wq.x * 5.0, wq.y * 60.0));
   dens *= 1.0 - 0.6 * smoothstep(0.02, 0.2, h.x) * smoothstep(0.35, 0.75, comb) * (1.0 - smoothstep(0.5, 0.9, dens));
   dens *= 1.0 + 0.25 * spoke + 0.2 * sweep;
-  float ends = smoothstep(-1.5, -1.0, s) * (1.0 - smoothstep(0.65, 1.1, s + 0.5 * x));
+  float ends = rrEnds(m, x, s);
   // the ground goes dim under it, and a little ahead of it
   float shade = smoothstep(-0.10, 0.10, x) * (1.0 - smoothstep(0.5, 1.1, x)) * ends;
   col *= 1.0 - shade * vec3(0.17, 0.12, 0.07) - sat(dens) * vec3(0.24, 0.20, 0.13);
   vec3 pale = mix(vec3(0.58, 0.61, 0.64), vec3(0.34, 0.39, 0.50), rrNight), slate = mix(mix(vec3(0.36, 0.41, 0.49), uKind[1] * uKind[1], 0.15), vec3(0.55, 0.64, 0.80), rrNight);
   vec3 deep = mix(mix(vec3(0.14, 0.13, 0.29), uKind[0] * uKind[0] * 0.5, 0.2), vec3(0.86, 0.90, 1.0), rrNight);
+  if (uOwn[7] < 0.0) { float k = -0.9 * uOwn[7]; pale = mix(pale, uKind[4] * 0.8 + 0.12, k); slate = mix(slate, uKind[4], k); deep = mix(deep, uKind[4] * (rrNight > 0.5 ? 1.2 : 0.62), k); }
   float clear = smoothstep(-0.22, -0.02, x) * (1.0 - smoothstep(0.0, 0.03, x)) * ends;
   // insects and clutter ahead of it, gone in the clear line
   float cell = 0.0105 * rrGrain;

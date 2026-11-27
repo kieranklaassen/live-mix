@@ -3,8 +3,12 @@
 // b: Far lit top
 // what: From the grass, a chair ride turns overhead on a hazy day: painted crown with mirrors, striped mast, empty slatted chairs on chains, near ones big and dark, far ones tiny, over flags and grass; or the ride far off over a wet meadow at blue dusk, bulbs and chairs drawn into rings of light, broken in a puddle.
 // follows: Drone and pad swing the chairs out, pad lifts the crown; sound turns it faster. Each kind colours its own chairs, a phrase runs a wave round, texture is flags and seeds, or steam. The piece tints the canvas, bands light the boards, keys bulbs, loop the sun, voice the tents. A hit flashes mirrors and swings a chair, a cue tips the crown.
-// own: 0 night at -1, low sun at 1; 1 snow at -1, storm at 1; 2 every fourth chair at -1, all flung out flat at 1 (far off in a blaze); 3 close by at -1, far out at 1; 4 bleached paint, cold lamps at -1, black and gold, red lamps at 1; 5 wide crown, short chains at -1, small crown, long chains at 1
+// own: 0 night at -1, low sun at 1; 1 snow at -1, storm at 1; 2 every fourth chair at -1, all flung out flat at 1 (far off in a blaze); 3 close by at -1, far out at 1; 4 bleached paint, cold lamps at -1, black and gold, red lamps at 1; 5 wide crown, short chains at -1, small crown, long chains at 1; 6 up in the air level with the chairs (b: the meadow under still water) at -1, right below and looking straight up (b: two more rides beyond) at 1; 7 roofs of a town with lit windows behind at -1, snow peaks behind at 1
 #define crT smoothstep
+#define crUp max(uOwn[6], 0.)
+#define crLow max(-uOwn[6], 0.)
+#define crTown max(-uOwn[7], 0.)
+#define crPeak max(uOwn[7], 0.)
 float crU(float a, float b, float x) { return 1. - crT(b, a, x); }
 // A the ride's angle, C the clock; N night, D dusk, W snow, S storm; L lamp, H haze, M land
 float crPx, crA, crSn, crCs, crC, crN, crD, crW, crS, crFew, crF, crTip, crLen, crRad, crY;
@@ -27,6 +31,30 @@ vec3 crMap(vec3 c, float a, float r) {
   vec4 h = piece(vec2(a, sat(1. - r)));
   c += .5 * c * uCue + vec3(.6, .5, .35) * uHits * crB((r - 1. + uHits) / .2);
   return mix(c, c * .45 + h.rgb * .7, sat(h.a * 1.2) * crT(0., .05, a) * crU(1., .95, a) * (.4 + .5 * uEnergy));
+}
+// What stands along the horizon, y above it: peaks, or a town.
+vec3 crBack(vec3 c, vec2 p, float y, float s) {
+  vec3 far = mix(crLo, crHi, .3);
+  if (uOwn[7] > 0.) for (int i = 0; i < 3; i++) {
+    float f = float(i), x = p.x * (1.5 + .9 * f) / s + 3.7 * f + 1.3, a = 1. - abs(2. * noise(vec2(x, 3.)) - 1.), b = 1. - abs(2. * noise(vec2(x * 2.3, 7.)) - 1.), d = noise(vec2(x * 9., 4.));
+    float h = s * crPeak * (.1 + .34 * a * a + .1 * b * a + .03 * d) * (1. - .36 * f) + .001, v = y / h;
+    float side = crT(-.15, .15, noise(vec2(x * 2.2 + .5 + 1.2 * v, 3. + 2. * v)) - .5 + .6 * (noise(vec2(x * 8. + 3. * v, v * 7.)) - .5));
+    vec3 sn = mix(mix(crHi, far, .4), far * .5 + .5 * crLo + .06, side), k = mix(crM * .8, crM * 1.3 + .03, side);
+    k = mix(k, sn, crT(.75, .9, v + .5 * (d - .5) + .3 * side - .25 * f + .6 * crW));
+    c = mix(c, mix(k, far, .45 - .2 * f), crIn(crPx * 2., y - h));
+  }
+  if (uOwn[7] < 0.) for (int i = 0; i < 3; i++) {
+    float f = float(i), u = p.x * (6. + 3. * f) / s + 5. * f, id = floor(u), x = u - id - .5, hs = hash11(id + 31. * f), gb = hash11(id + 7.3);
+    float h = s * crTown * (.3 - .08 * f) * (.35 + .75 * hs), roof = gb > .5 ? h - .05 * s * abs(x) * 2. : h, w = .5;
+    roof = max(roof, abs(x - .3 * (gb - .5)) < .06 ? h + .03 * s : 0.); // a chimney
+    vec2 g = vec2(u * 5., y / s * 26.), ci = floor(g), q = abs(g - ci - .5);
+    float lit = step(.62, hash21(ci + 17. * f)), win = crIn(.1, max(q.x - .24, q.y - .3)) * step(y, h - .05 * s) * step(abs(x), .42);
+    vec3 k = mix(crM * (.45 + .3 * gb) + crE * .05, far, .5 - .2 * f);
+    k = mix(k, mix(k * .6, vec3(1., .8, .5) * .9, lit * (.65 + .35 * max(crN, 1. - crY * crY))), win * .9);
+    k = mix(k, vec3(.85, .9, .95) * crLo, crW * crIn(crPx * 3., roof - y - .012 * s));
+    c = mix(c, k, crIn(crPx * 1.5, y - roof));
+  }
+  return c;
 }
 // ---- a: where the ray meets a cone of radius r + k y.
 vec2 crCone(float r, float k) {
@@ -160,7 +188,9 @@ vec3 crFlags(vec3 col, vec2 p) {
   return mix(col, c, crIn(px, abs(x) - .42 * (1. - v)) * crIn(px, -.02 - v) * step(u, 1.));
 }
 vec3 crUnder(vec2 p, vec3 rd, float n1, float n2) {
-  vec3 col = crRoof(crFlags(crSky(rd, n1, n2), p));
+  vec3 col = crSky(rd, n1, n2);
+  if (uOwn[7] != 0.) col = crBack(col, p, p.y + .53 + .8 * crUp, 1.5);
+  col = crRoof(crFlags(col, p - vec2(0., 3. * crUp)));
   vec2 t = crCone(crRad, .28); float y = crRo.y + crRd.y * t.x; bool front = t.x > 0. && y > -.5 && y < 1.6;
   vec4 board = crEdge(front ? t.x : max(t.y, .1), front);
   if (!front) { col = mix(col, board.rgb, board.a * step(0., t.y)); board.a = 0.; }
@@ -214,13 +244,21 @@ vec3 crFar(vec2 p, float n1, float n2, float hor, vec2 at, float S) {
   float sy = m.y - hor;
   vec3 light, sky = mix(mix(crLo, crMid, crT(0., .16, sy)), crHi, crT(.08, .55, sy)), c = sky;
   vec4 ride = crLit((m - at) / S - vec2(0, tall), tall, .8 + .45 * uOwn[5], e, light);
+  if (uOwn[6] > 0.) for (int i = 0; i < 2; i++) { // the rides beyond
+    float S2 = S * (.62 - .24 * float(i)), k; vec2 a2 = vec2(at.x - 5. * S - 2.6 * S * float(i), hor - .008 * (1. - float(i))); vec3 l2;
+    if (abs(p.x - a2.x) > 4. * S2) continue;
+    crA += 2.1; vec4 r2 = crLit((vec2(m.x, land ? 2. * a2.y - p.y : p.y) - a2) / S2 - vec2(0, tall), tall, .8 + .45 * uOwn[5], crPx / S2, l2);
+    k = r2.a * (1. - ride.a) * crUp; light += l2 * crUp * (1. - ride.a) * crU(4., 3., abs(p.x - a2.x) / S2);
+    ride = vec4((ride.rgb * ride.a + r2.rgb * k) / max(ride.a + k, 1e-3), ride.a + k);
+  }
   if (!land) {
     c = mix(c, mix(crHi * .75, crLo, .35 * crU(.4, 0., y)), crT(.42, .75, n1 + .12 * crS) * (.5 + .45 * crS));
     c = mix(c, mix(crM, crLo, .35), crIn(crPx * 1.5, y - .02 - .02 * sin(p.x * 11.) * sin(p.x * 4.)));
+    if (uOwn[7] != 0.) c = crBack(c, p, y, .8);
     for (int i = 0; i < 7; i++) {
       float f = float(6 - i), h = .43 * exp2(-.42 * f), v = y / h, x = abs(p.x + .21 + .72 * exp2(-.36 * f));
       float wd = h * .13 * sqrt(sat(v * 5.) * sat((1.06 - v) * 1.4)) * (.35 + 1.1 * n2) * (1. - .6 * crW);
-      c = mix(c, mix(crM * (.6 + .9 * n2), crLo, .1 + .06 * f), crIn(crPx * 2. + .004 * h, x - max(wd, .02 * h * sat(1. - v))) * step(v, 1.06));
+      c = mix(c, mix(crM * (.6 + .9 * n2), crLo, .1 + .06 * f), crIn(crPx * 2. + .004 * h, x - max(wd, .02 * h * sat(1. - v))) * step(v, 1.06) * (1. - crTown));
     }
     // tents lit from within
     for (int i = 0; i < 4; i++) {
@@ -272,18 +310,25 @@ vec3 render(vec2 p) {
   crLo = a ? crHour(vec3(.86, .91, .91), vec3(.45, .5, .62), vec3(.97, .75, .5)) : crHour(vec3(.55, .5, .5), vec3(.12, .15, .25), vec3(.99, .72, .5)) + vec3(.35, .32, .17) * crS;
   crMid = mix(crLo, crHi, .65);
   crM = mix(crHi * vec3(.5, .5, .36), crMid, .7 * crW); crV = mix(crLo * vec3(.3, .46, .38), crLo * 1.1 + .05, .9 * crW);
-  vec2 q1, q2, at; vec3 rd = vec3(0, 0, 1), c = rd, lo = crM * .5, hi = mix(crM, crV, .7); float hor = -.1 - .1 * wide - .04 * close, S = .105 * exp2(.9 * close - .6 * wide), tip = crC * .09;
+  vec2 q1, q2, at, p0 = p; float wetp = 0.; vec3 rd = vec3(0, 0, 1), c = rd, lo = crM * .5, hi = mix(crM, crV, .7); float hor = -.1 - .1 * wide - .04 * close, S = .105 * exp2(.9 * close - .6 * wide), tip = crC * .09;
   at = vec2((.36 - .1 * close) * side, hor - .016 - .03 * close);
   if (a) {
     float el = .68 + .25 * close - .2 * wide; vec2 q = rot(-.36) * (p - vec2(.45 * side - .32, .08));
+    if (uOwn[6] != 0.) { el = mix(mix(el, 1.36, crUp), .1, crLow); q = mix(q, p - vec2(.1, -.02), crUp); q = mix(q, rot(-.12) * (p - vec2(.12, .05)), crLow); }
     vec3 fw = vec3(-.659 * cos(el), sin(el), .752 * cos(el)), rt = vec3(.752, 0, .659);
     crRd = rd = normalize(q.x * rt + q.y * cross(fw, rt) + .7 * fw); crRo = vec3(0, -6.5 - .5 * uPad, -4.7 + 2. * close - 5. * wide - 5. * crSn); crPx /= .7;
+    if (uOwn[6] != 0.) crRo = mix(mix(crRo, vec3(1.5, -7.4, -1.6), crUp), vec3(1.2, -3.4, -7.6 + 2.5 * close - 5. * wide - 3. * crSn), crLow);
     crSun = normalize(vec3(-.95 + .25 * sin(TAU * uLoop), .95, .15 + .1 * cos(TAU * uLoop)));
     mat2 m1 = rot(.05 * sin(tip) + .14 * crTip), m2 = rot(.05 * cos(tip) - .08 * crTip);
     crRo.xy = m1 * crRo.xy; crRd.xy = m1 * crRd.xy; crRo.zy = m2 * crRo.zy; crRd.zy = m2 * crRd.zy;
     q1 = rd.xz / (sat(rd.y) + .4) * 2. + vec2(uTravel * .004, 0); q1 += .25 * sin(q1.yx * 2.3); q2 = q1 * 1.4 + vec2(5, 2) - .15 * crSun.xz;
     lo = mix(vec3(.07, .13, .06), vec3(.4), crW) * crY; hi = mix(mix(vec3(.5, .6, .22), vec3(.8, .55, .25), crD), vec3(.86), crW) * crY;
   } else {
+    if (uOwn[6] < 0.) {
+      float d = hor - p.y, z = .1 / max(d, .004), sh = .47 * (1. - crLow) + .03 * (noise(vec2(p.x * 3., 1.)) - .2) * z * .2;
+      wetp = d > 0. ? crT(sh, sh + .004, d) : 0.;
+      if (wetp > .5) { float w = sin(z * 46. + crC * .8 + 2. * sin(p.x * z * 20.)) + .6 * sin(z * 83. - crC * .6 + p.x * z * 40.); p += vec2(.003, .02) * w * d * (.4 + d); p.y = max(2. * hor - p.y, hor + .0005); } else wetp = 0.;
+    }
     float z = .1 / max(hor - p.y, .004); bool land = p.y < hor;
     q1 = land ? vec2(p.x * z * 60., log(z) * 14.) : vec2(p.x * 2.2 + uTravel * .004, (p.y - hor) * 9. + p.x);
     q2 = land ? vec2(p.x * z * 8., log(z) * 6.) : p * vec2(16, 12) - vec2(0, mod(uTime * .12, 512.));
@@ -293,6 +338,7 @@ vec3 render(vec2 p) {
   if (m > 0.) n2 = mix(n2, crSoft(q2 + vec2(0, a || p.y < hor ? 0 : 512)), m / 4.);
   for (int i = 0; i < 1 && a; i++) c = crUnder(p, rd, n1, n2);
   for (int i = 0; i < 1 && !a; i++) c = crFar(p, n1, n2, hor, at, S);
-  c = crGrass(c, p, a ? .22 : .11, lo, hi);
-  return sat(crAir(c, p, vec3(1, .98, .92) * (a ? .4 + .6 * crY : .65 + .3 * crD), a ? uTexture : 0.));
+  if (wetp > 0.) c = c * .75 + crL * .5 * uHits * crB((length(vec2(p0.x - at.x, 2.3 * (p0.y - at.y))) / (3.4 * S) - 1.4 + uHits) / .3);
+  c = crGrass(c, p0 + vec2(0., a ? crUp + crLow : 0.), a ? .22 : .11, lo, hi);
+  return sat(crAir(c, p, vec3(1, .98, .92) * (a ? .4 + .6 * crY : .65 + .3 * crD), a ? uTexture * (1. - .8 * crTown) * (1. - .6 * crLow) : 0.));
 }

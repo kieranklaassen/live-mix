@@ -3,7 +3,12 @@
 // b: Engine view
 // what: A model railway in window light: mossy hills, a plaster tunnel, a tin bridge by painted water, a station, sponge trees and a red engine with four coaches on a figure of eight, the room soft behind; or the view from the engine, rails ahead, a hill close by, a folded paper sky and, once a round, the room.
 // follows: the loop takes the train round, or the paper sun; travel the ride and the clouds; drone swells the hills, pad the sun; coaches and trees take the kinds; phrase smoke, bands poplars; a hit lights the signal, or the fire; a cue the station, coaches and lamp; keys the windows, voice the lamp; space pulls back; the piece tints hills and sky
-// own: 0 night with lit windows at -1, red evening at 1; 1 snow at -1, dry ochre autumn at 1; 2 worn ground with no trees and no poplars at -1, deep moss and tall trees at 1; 3 low mounds at -1, steep mountains at 1; 4 the eye low at -1, from above or looking back along the coaches at 1; 5 unpainted white card at -1, a painted sea over the board at 1
+// own: 0 night with lit windows at -1, red evening at 1; 1 snow at -1, dry ochre autumn at 1; 2 worn ground with no trees and no poplars at -1, deep moss and tall trees at 1; 3 low mounds at -1, steep mountains at 1 (b: the round begun elsewhere, as by 6); 4 the eye low at -1, from above or looking back along the coaches at 1; 5 unpainted white card at -1, a painted sea over the board at 1; 6 flat-topped tables of rock at -1, at 1 hills of stacked layers in the sounds' colours; 7 a dark room and one lamp at -1, at 1 no room: open country out to a haze in the pad's colour
+#define TS_MESA max(-uOwn[6], 0.)
+#define TS_STEP max(uOwn[6], 0.)
+#define TS_LAMP max(-uOwn[7], 0.)
+#define TS_OPEN max(uOwn[7], 0.)
+vec3 tsHaze; vec2 tsPool;
 // The line is an eight: its middle, which way it lies; the tunnel, which way that runs.
 const vec2 TSC = vec2(.45, 1.35), TSE = vec2(.819, .574), TST = vec2(1.06, 3.03), TSD = vec2(.6, .8);
 float tsPx, tsTn, tsTf, tsSnow, tsCard, tsNight, tsHk, tsFoc = 4.6, tsK = 1.6, tsRim;
@@ -82,6 +87,13 @@ float tsH(vec2 g) {
   vec4 a = (g.x - TSHX) * TSHR, b = (g.y - TSHZ) * TSHR; b = max(1. - a * a - b * b, 0.);
   float h = dot(TSHW, b * b) * tsHk;
   vec2 l = fract(vec2(g.x * .84 + g.y * .27, g.y * .75 - g.x * .16)) * 2. - 1.; l *= abs(l) - 1.; h *= 1. + 2.6 * l.x * l.y;
+  if (uOwn[6] < 0.) {
+    h = mix(h, tsS(.1, .34, h) * (.5 + .16 * h) * max(tsHk, .5) + .1 * tsS(.0, .3, h), TS_MESA);
+    // a cutting on either side of the tunnel, so that no rock stands on the line
+    vec2 c = g - TST; c = abs(vec2(dot(c, TSD), c.x * TSD.y - c.y * TSD.x));
+    h *= 1. - TS_MESA * tsS(.5, .62, c.x) * tsS(1.9, 1.2, c.x) * tsS(.5, .26, c.y);
+  }
+  if (uOwn[6] > 0.) { float k = h / .14, b = floor(k); h = mix(h, .14 * (b + tsS(.72, 1., k - b)), TS_STEP); }
   g -= TST; tsT = abs(vec2(dot(g, TSD), g.x * TSD.y - g.y * TSD.x)); vec2 t = sat(vec2(3.3, 2.2) - vec2(6., 4.) * tsT);
   return max(h, .74 * (2. - t.x) * t.x * (2. - t.y) * t.y);
 }
@@ -107,7 +119,16 @@ vec3 tsRoom(vec3 rd, float az) {
   float su = length(d - vec2(-2.4 + 1.5 * uLoop, .3)) - .07;
   sk = mix(sk, vec3(.95, .62, .2), tsS(.012, -.012, su) * tsS(0., .06, uLoop) * tsS(1., .94, uLoop));
   sk *= (tsSun * .32 + tsSky * .8) * (1. + .16 * sign(f) * tsS(.5, 0., abs(f)) + .25 * tsS(.012, 0., abs(f)));
-  return mix(wall, sk, tsS(-.015, .015, e) * tsS(.95, .93, d.y));
+  sk = mix(wall, sk, tsS(-.015, .015, e) * tsS(.95, .93, d.y));
+  if (uOwn[7] < 0.) sk *= 1. - .97 * TS_LAMP;
+  if (uOwn[7] > 0.) {
+    float y = rd.y + .02; vec2 cq = rd.xz / (max(y, 0.) + .07); float cs = noise(cq * .7 + uTravel * vec2(.01, .004)) * .6 + .4 * noise(cq * 1.7 + uTravel * vec2(.016, .006) + 7.);
+    vec3 o = mix(tsHaze, tsSky * 2.2 + tsHaze * .25, tsS(0., .6, y)); o = mix(o, tsHaze * 1.25, .7 * tsS(.5, .75, cs) * tsS(.02, .12, y));
+    o = tsDye(o, tsPc.rgb / max(tsPc.a, .05), tsPc.a * .4);
+    float sl = length(vec2(az - .55, rd.y - .16)); o += tsSun * (.5 * tsS(.05, .042, sl) + .1 * exp(-sl * 5.)) * (1. - .5 * tsNight);
+    sk = mix(sk, o, TS_OPEN);
+  }
+  return sk;
 }
 // The balls: 6 trees, from 8 wool, from 10 poplars. tsTn is how tall.
 vec4 tsBall(int i) {
@@ -128,7 +149,7 @@ vec3 tsShade(int id, float t, int z) {
   int i = id - (ball ? 30 : 10);
   if (ball) { vec4 b = tsHb[z]; tall = tsHn[z].x; n = normalize((q - b.xyz) / vec3(1, tall, 1) / b.w + 1e-3); }
   if (box) { bq = tsHit[z]; n = tsHn[z]; }
-  if (hill) { float h = tsH(g); dg = tsDig(q.y); amb = dg > -.012 ? 0. : 1.; n = normalize(vec3(h - tsH(g + vec2(.04, 0)), .04, h - tsH(g + vec2(0, .04)))); g += q.y * vec2(.3, 1.1); w = .01; }
+  if (hill) { float h = tsH(g); dg = tsDig(q.y); amb = dg > -.012 ? 0. : 1.; n = normalize(vec3(h - tsH(g + vec2(.04, 0)), .04, h - tsH(g + vec2(0, .04)))); if (uOwn[6] > 0.) { float e = .012; h = tsH(g); n = normalize(mix(n, normalize(vec3(h - tsH(g + vec2(e, 0)), e, h - tsH(g + vec2(0, e)))), TS_STEP)); } g += q.y * vec2(.3, 1.1); w = .01; }
   vec2 lq = g - TSC, wq = (g - vec2(-.98, .93)) / vec2(.6, .74); lq = vec2(dot(lq, TSE), dot(lq, vec2(-TSE.y, TSE.x)));
   float lake = (length(wq) - 1. - .1 * tsW(wq.x * 3.3 + 1.) - .07 * tsW(wq.y * 5. + wq.x * 4.)) * .5;
   lake = id == 1 ? mix(lake, -.3, sat(uOwn[5])) : 1.;
@@ -146,11 +167,17 @@ vec3 tsShade(int id, float t, int z) {
   }
   if (hill) {
     c = tsDye(c, tsPc.rgb / max(tsPc.a, .05), tsPc.a * .5);
+    if (uOwn[6] > 0.) {
+      float id = floor(q.y / .14 + .2); vec3 k = kindColour(mod(id * 2. + 1., 5.)); k *= k;
+      c = mix(c, k * (.82 + .24 * C) * (.75 + .25 * step(.5, n.y)), .94 * TS_STEP * tsS(.02, -.02, dg)); st *= 1. - TS_STEP;
+    }
+    if (uOwn[6] < 0.) st = mix(st, 0., TS_MESA), c = mix(c, mix(vec3(.5, .25, .13), vec3(.75, .5, .3), .5 + .5 * tsW(q.y * 34. + 2. * B)) * (.7 + .5 * A), TS_MESA * tsS(.86, .6, n.y));
     // plaster where it is steep, stones about the tunnel
     c = mix(c, mix(mix(vec3(.3, .25, .2), vec3(.58, .5, .4), .5 * A + .5 * B), vec3(.7, .42, .22), .7 * sat(uOwn[1])), st);
     c = mix(c, vec3(.34, .31, .29) * (.7 + .6 * B), tsS(-.16, -.13, dg) * step(n.y, .5));
     bp *= amb - .7 * st * amb;
   }
+  if (uOwn[6] > 0. && id == 1) c = mix(c, uKind[0] * uKind[0] * (.8 + .3 * C), .85 * TS_STEP);
   if (id == 1) {
     c = mix(c, vec3(.52, .42, .27) * (.6 + .8 * B), tsS(.1, .04, lake)); wet = tsS(.02 + w, -.02 - w, lake);
     c = mix(c, mix(vec3(.04, .3, .34), vec3(.015, .1, .17), tsS(0., -.28, lake)) + .05 * A * A, wet);
@@ -200,10 +227,12 @@ vec3 tsShade(int id, float t, int z) {
   float nl = ball ? sat(dot(n, tsL) * .85 + .2 - bp * 1.1) : sat(dot(n, tsL));
   if (g.y > .9 && nl > 0.) { vec3 s = s0 + tsL * .45; sh *= 1. - sat((tsH(s.xz) - s.y) * 5.); }
   vec3 al = c;
-  c = c * (tsSun * nl * sh * 1.2 + tsSky * (.68 + .42 * n.y) * (.12 + .88 * amb)) + glow;
+  float pool = 1.;
+  if (uOwn[7] < 0.) { vec2 po = g - tsPool; pool = mix(1., .012 + (uVar < .5 ? 2.1 : 1.1) * exp(-dot(po, po) * (uVar < .5 ? .55 : 1.)), TS_LAMP); wet *= sat(pool); }
+  c = c * (tsSun * nl * sh * 1.2 + tsSky * (.68 + .42 * n.y) * (.12 + .88 * amb)) * pool + glow;
   vec3 l1 = q - tsP1, l2 = q - tsP2; c += al * (tsC1 / (1. + 9. * dot(l1, l1)) + tsC2 / (1. + 30. * dot(l2, l2)));
   c += wet * (tsSky * .5 + tsSun * .35 * sh) * (.05 + gl * gl * 1.4) * (.6 + .8 * A);
-  return mix(c, (tsSun * (.03 + .24 * sh) + tsSky * .4) * amb, sat(rail));
+  return mix(c, (tsSun * (.03 + .24 * sh) + tsSky * .4) * amb * pool, sat(rail));
 }
 vec3 render(vec2 p) {
   tsPx = 1. / uRes.y; tsNight = sat(-uOwn[0]); tsSnow = sat(-uOwn[1]); tsCard = sat(-uOwn[5]);
@@ -217,8 +246,9 @@ vec3 render(vec2 p) {
   tsMoss = tsLand(vec3(.09, .165, .035), vec3(.6, .66, .74), vec3(.45, .22, .1));
   tsLeaf = tsLand(vec3(.1, .21, .04), vec3(.6, .66, .7), vec3(.5, .13, .03));
   tsRe = .23 + .12 * max(uOwn[2], 0.); tsGlow = vec3(2.6, 1.35, .45) * (.3 + .6 * tsNight + 1.6 * uCue);
+  tsHaze = mix(tsHour(vec3(.86, .84, .8), vec3(.035, .055, .11), vec3(1.15, .5, .26)), uKind[1] * uKind[1] * 1.1 * mix(1., .2, tsNight), .6);
   // the eye
-  bool ride = uVar > .5; float u0 = ride ? TAU * fract(uTravel * .012) + 2.4 : TAU * uLoop + 3.02;
+  bool ride = uVar > .5; float u0 = ride ? TAU * fract(uTravel * .012) + 2.4 + 1.95 * uOwn[3] + 2.4 * abs(uOwn[6]) : TAU * uLoop + 3.02;
   vec2 ph = vec2(sin(u0), cos(u0)); vec4 e = tsAt(ph), f = tsAt(vec2(ph.x * .955 + ph.y * .296, ph.y * .955 - ph.x * .296));
   vec3 at = vec3(f.x, 0, f.y);
   for (int k = 0; k < 4; k++) { ph = vec2(ph.x * .979 - ph.y * .204, ph.y * .979 + ph.x * .204); f = tsAt(ph); tsBc[k] = vec3(f.x, .21, f.y); tsBa[k] = f.zw; tsBa[k + 4] = e.zw; }
@@ -232,6 +262,7 @@ vec3 render(vec2 p) {
     tsFoc = 1.8; tsK = 1.; ro = ec + ef * (.45 * tsS(0., .6, low) - .18) + vec3(-ef.z * .1, .49 - .3 * tsS(.5, 1., low), ef.x * .1);
     vec3 v = vec3(at.x - ro.x, -.17 * (1. - low) * (1. - high), at.z - ro.z); v.xz = rot(PI * high) * v.xz; ta = ro + v;
   }
+  tsPool = ride ? ec.xz + ef.xz * 1.1 : vec2(.1, 1.25);
   // two lamps
   tsP1 = ride ? ec + ef * .9 + vec3(0, .2, 0) : vec3(1.1, .35, 1.2); tsP2 = ride ? tsBc[6] + vec3(0, .1, 0) : vec3(.75, .6, .85);
   tsC1 = vec3(2.2, 1.25, .5) * (.2 + .5 * tsNight + 1.6 * uCue + .3 * uMic); tsC2 = vec3(3., .9, .3) * (.04 + 1.6 * uHits);
@@ -240,7 +271,7 @@ vec3 render(vec2 p) {
   float down = max(-rd.y, 1e-3), t1 = 1e3, t2 = 1e3, cov = 0., t = ro.y / down, w = tsBlur(t * dot(rd, tsFw));
   int id1 = 0, id2 = 0;
   vec2 g = ro.xz + rd.xz * t;
-  float edge = min(min(4.2 - abs(g.x), 5.2 - g.y), 1.25 - dot(g, vec2(.34, -.94))); tsRim = .2 + .8 * tsS(.07, .16, -edge);
+  float edge = min(min(4.2 - abs(g.x), 5.2 - g.y), 1.25 - dot(g, vec2(.34, -.94))); edge += 60. * TS_OPEN * step(.01, TS_OPEN) * step(g.y, 90.); tsRim = .2 + .8 * tsS(.07, .16, -edge);
   tsJx = (tsRt.xz - rd.xz * tsRt.y / rd.y) * w; tsJy = (tsUp.xz - rd.xz * tsUp.y / rd.y) * w;
   if (rd.y < -.004) {
     if (g.y < 6.4 && g.y > -2.7 && abs(g.x) < 5.2) { id1 = 3; t1 = t; }
@@ -292,7 +323,7 @@ vec3 render(vec2 p) {
   col = vec3(0); for (int k = id1; k < 1; k++) col = tsRoom(rd, az);
   if (t2 > t1 || cov < .06) cov = 0.;
   for (int k = id1 > 0 ? 0 : 1; k < 2 && (k == 0 || cov > 0.); k++) {
-    vec3 c = tsShade(k == 0 ? id1 : id2, k == 0 ? t1 : t2, k); col = k == 0 ? c : mix(col, c, cov);
+    vec3 c = tsShade(k == 0 ? id1 : id2, k == 0 ? t1 : t2, k); if (uOwn[7] > 0.) c = mix(c, tsHaze, TS_OPEN * (1. - exp(-pow((k == 0 ? t1 : t2) * (uVar < .5 ? .08 : .15), 2.)))); col = k == 0 ? c : mix(col, c, cov);
   }
   col = max(col, 0.); col = col * (1. + .12 * col) / (1. + .6 * col);
   col = sqrt(sat(col)); return col * (1.09 - .09 * col);

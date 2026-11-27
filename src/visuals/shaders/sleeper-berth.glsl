@@ -3,7 +3,11 @@
 // b: Corridor
 // what: Lying awake in the lower berth of a night train: a dark veneered wall with a line of inlay, the berth above, a blanket, a glass in a net, a small blue lamp, and bars of light that come in under the blind and walk over it all; or the empty corridor, pools of light in file on the carpet, an amber lamp at its far end.
 // follows: Drone is the still moonlight, pad a slow station lamp, phrase a lamp passing by, texture the rain in their light; a hit lights one more lamp for a moment, a cue the reading lamp or a compartment. The bands and the piece light inlay, brass and carpet, low and a voice the lamps inside, keys a glint; travel is the train's pace, the loop swings the moon.
-// own: 0 blinds nearly down at -1, up at 1, the corridor's panes wide and bare; 1 clear moonlight and a full moon at -1, first rosy daylight at 1; 2 walls of cream enamel at -1, green buttoned leather at 1; 3 close under the window (berth) or a child's height (corridor) at -1, drawn back or turned to the windows at 1; 4 thick mist that softens every light at -1, snow falling and heaped on the sill at 1; 5 slatted shutters with barred light at -1, standing in a station under a steady warm lamp at 1
+// own: 0 blinds nearly down at -1, up at 1, the corridor's panes wide and bare; 1 clear moonlight and a full moon at -1, first rosy daylight at 1; 2 walls of cream enamel at -1, green buttoned leather at 1; 3 close under the window (berth) or a child's height (corridor) at -1, drawn back or turned to the windows at 1; 4 thick mist that softens every light at -1, snow falling and heaped on the sill at 1; 5 slatted shutters with barred light at -1, standing in a station under a steady warm lamp at 1; 6 snow mountains and firs going by at -1, a sea with a road of light at 1, the cloth and the small lamp dyed in the sounds' colours at both; 7 a glass car at -1, window from wall to wall and a roof of panes, the face at the window at 1
+#define slPan max(-uOwn[7], 0.)
+#define slFace max(uOwn[7], 0.)
+#define slDye abs(uOwn[6])
+#define slWide (.45 + .55 * slPan)
 const vec3 slBrass = vec3(.85, .55, .2), slWarm = vec3(1., .6, .26), slZ = vec3(.0, .0, 1.);
 const vec3 slNight = vec3(-.61, .31, 1.42);  // the night lamp
 const vec3 slRead = vec3(-.55, .3, .86);    // the reading lamp
@@ -28,7 +32,7 @@ float slSlats(float y) { return slSlat * smoothstep(-.4, .4, sin(y * TAU / .12))
 
 // The lamps beside the line, and the weather they shine through.
 void slSet() {
-  slLeft = uVar < .5 ? -.45 : -.55 - .22 * max(uOwn[0], .0);
+  slLeft = uVar < .5 ? -slWide : -.55 - .22 * max(uOwn[0], .0);
   slClock = .5 * (uTime + uTravel);
   slDawn = max(uOwn[1], .0); slMoon = max(-uOwn[1], .0);
   slSnow = max(uOwn[4], .0); slMist = max(-uOwn[4], .0); slSlat = max(-uOwn[5], .0);
@@ -36,7 +40,7 @@ void slSet() {
   slHem = mix(.15, uOwn[0] > .0 ? .72 : -.15, abs(uOwn[0]));
   slHem = mix(slHem, max(slHem, .7), slSlat);
   slSoft = (.6 + .8 * uSpace) * mix(1.5, .5, uTone) * (1. + .8 * slSnow + .9 * slMist);
-  slRain = (1. - slSnow) * (1. - slMist);
+  slRain = (1. - slSnow) * (1. - slMist) * (1. - .92 * max(slDye, slPan));
   float pu = fract(slClock / 17. + .12), fu = fract(slClock / 13. + .55), qu = fract(uTime / 60. + .1);
   float hu = .5 + .12 * sin(uTime * .05) + .12 * (1. - uHits);
   pu += .06 * sin(TAU * pu);  // the train slows where a station is
@@ -66,6 +70,8 @@ void slSet() {
   slLow = mix(slLow, vec3(.8, .34, .2), slDawn);
   slSky = mix(mix(vec3(.006, .01, .024), vec3(.02, .04, .085), slMoon), vec3(.24, .21, .3), slDawn);
   slBlue = vec3(.06, .19, .75) * (.85 + .3 * uLow + .7 * uMic) * (1. - .6 * slDawn);
+  if (slDye > .0) { vec3 k = uKind[2] * uKind[2]; slBlue = mix(slBlue, k / (max(k.r, max(k.g, k.b)) + .05) * .75 * (.85 + .3 * uLow + .7 * uMic), slDye * .85); }
+  slHem += slPan * .4 * max(uOwn[0], .0);
   slAmber = vec3(1., .45, .12) * (.9 + .35 * uLow + .4 * uMic);
 }
 
@@ -114,20 +120,69 @@ vec3 slInlay(inout vec3 alb, float along, float y, vec2 fw, float there, float m
   vec3 m = piece(vec2(sat(map), .6)).rgb * .6 + piece(vec2(sat(map), .3)).rgb * .6;
   return (brass * .5 + loz) * (slBrass * band(map) * .3 + m * m * 1.1) * (.3 + uEnergy);
 }
+// The country outside, where it is not only low land: mountains with firs before them, or the sea.
+vec3 slCountry(vec3 c, vec3 rd, float away) {
+  float o6 = uOwn[6], side = uVar < .5 ? rd.z : abs(rd.x), az = clamp((uVar < .5 ? rd.x : rd.z) / max(side, .04), -14., 14.), up = uVar < .5 ? .05 : .03;
+  float e = slPx * 1.5 + .02 * slMist + .004 * slRain;
+  if (max(abs(o6), slPan) > .0) {
+    vec2 g = vec2(az, rd.y / max(side, .2)) * 22. + vec2(3., 8.), h = hash22(floor(g));
+    vec2 f = fract(g) - .2 - .6 * h.yx;
+    c += vec3(.8, .88, 1.) * step(.62, h.x) * h.y * h.y * exp(-dot(f, f) * 260.) * .5 * smoothstep(.02, .3, rd.y) * (1. - slDawn) * (1. - slMist) * (1. - .8 * slSnow) * max(abs(o6), slPan);
+  }
+  if (slDye > .0) { // the moon, behind what stands there
+    vec3 M = normalize(uVar < .5 ? vec3(.29, .03 + .24 * slDye, 1.) : vec3(1., .3 + .1 * slDye, 1.2)); float md = length(rd - M);
+    c += vec3(.85, .9, 1.) * slMoon * (1.2 * slCut(md - .022, .002) * (1. - .35 * noise(rd.xy * 90.)) + .12 * exp(-md * md * 40.));
+  }
+  if (o6 < .0) {
+    float m = .0, a = 1., q = az * .9 + slClock * .004 + 2.6, s = .0;
+    for (int i = 0; i < 5; i++) { float v = 1. - abs(2. * noise(vec2(q, 2. + float(i))) - 1.); m += a * v; s += a; q = q * 2.1 + 1.7; a *= .42; }
+    m = -o6 * (.02 + .42 * m * m / (s * s)) + .01;
+    float px = az * 8. + slClock * .035, y = rd.y * 12.;
+    float face = noise(vec2(px + y * 1.6, y)) - noise(vec2(px + y * 1.6 + .6, y)) + .4 * noise(vec2(px * 3. - y * 4., y * 3.)) - .2;
+    vec3 light = slLow * 1.1 + slLight[0] * .2 + vec3(.5, .25, .16) * slDawn;
+    vec3 snow = mix(slSky * 1.3 + slLow * .12, light, smoothstep(-.1, .25, face + .35 * (rd.y / m - .6)));
+    c = mix(c, mix(snow, slLow, .25 + .6 * exp(-max(rd.y, .0) * 16.)), slCut(rd.y - m, e));
+    for (int i = 0; i < 2; i++) { // the firs, the near ones faster
+      float f = float(i), k = 13. - 6. * f, u = az * k + slClock * (.35 + .5 * f), j = floor(u), d = 1.;
+      for (int b = -1; b <= 1; b++) {
+        float h = hash11(mod(j + float(b), 512.) + 37. * f), x = (u - j - float(b) - .25 - .5 * h) / k, top = -.03 + (.05 + .11 * h * h) * (.7 + .8 * f) * noise(vec2((j + float(b)) * .13, f)) * 1.5 * -o6, v = sat((top - rd.y) / max(top + .17, .08));
+        d = min(d, max(abs(x) - (.004 + .07 * v * (.55 + .45 * fract(v * 5. + h))) * (.6 + .6 * f), rd.y - top));
+      }
+      d = min(d, rd.y + .05 + .04 * f);
+      c = mix(c, slLow * (.5 - .3 * f) * mix(1., 1.5, slSnow), slCut(d, e));
+    }
+  }
+  if (o6 > .0) {
+    vec3 sea = c; float dp = max(up - rd.y, .0), far = 1. / (dp + .012), mz = uVar < .5 ? .29 : 1.2;
+    vec2 w = vec2(az * far * 1.5 + slClock * .06, far * 1.7 + uTime * .05);
+    float n = noise(w * vec2(1., 1.6)) * .6 + noise(w * vec2(2.7, 4.1) + 5.) * .4;
+    sea = mix(slLow * .9, slSky * .7 + slLow * .12, sat(dp * 5.)) * (.75 + .5 * n);
+    float road = (az - mz) / (.05 + 1.1 * dp); road = exp(-road * road);
+    sea += (slLight[0] * .5 + vec3(.5, .55, .6) * slMoon + vec3(1., .55, .3) * slDawn) * road * (.1 + .9 * smoothstep(.5 - .1 * uPad, .85, n)) * sat(1. - dp * 1.2);
+    sea += slAll * .05 * smoothstep(.55, .85, n);
+    float isl = up + .05 * smoothstep(.55, .8, noise(vec2(az * 1.7 + slClock * .006, 3.))) ;
+    c = mix(c, mix(slLow * .6, slSky, .4), slCut(rd.y - isl, e) * smoothstep(-.02, .02, isl - up - .002) * o6);
+    c = mix(c, sea, slCut(rd.y - up, e) * o6);
+    vec2 sun = vec2(az - mz, (rd.y - up - .055) / max(side, .2)); // a low sun of the morning
+    c += vec3(1., .6, .34) * slDawn * o6 * (1.2 * slCut(length(sun) - .05, .003) * step(up, rd.y) + .25 * exp(-dot(sun, sun) * 9.));
+  }
+  return c;
+}
 // What is seen through a pane: sky, the low land, the lamps going by; then the glass, the blind.
 vec3 slOut(vec3 rd, vec2 w, float away, float hem, float px, vec3 through) {
   float cloth = smoothstep(hem - px, hem + px, w.y) * (1. - slSlat);
   through *= vec3(.5, .36, .2) * (1. - .6 * slLine(w.y - hem - .012, .013, px));
   float ridge = -.05 + .05 * noise(vec2(away * 3. + slClock * .05, 4.)) + .02 * noise(vec2(away * 13. + slClock * .16, 9.));
   vec3 c = mix(slLow, slSky, smoothstep(-.02, .3, rd.y));
-  c = mix(c, slLow * mix(.2, .85, max(slSnow, slMoon * .8)), slCut(rd.y - ridge, .004 + .02 * slRain));
+  c = mix(c, slLow * mix(.2, .85, max(slSnow, slMoon * .8)), slCut(rd.y - ridge, .004 + .02 * slRain) * (1. - max(uOwn[6], .0)));
+  if (slDye + slPan > .0) c = slCountry(c, rd, away);
   c = mix(c, (slLow + .01) * smoothstep(-.7, .4, rd.y + .2 * noise(vec2(away * 2. + uTime * .02, rd.y * 4.))) * 1.3 + slAll * .015, .85 * slMist);
   for (int i = 1; i < 5; i++) {
     vec3 L = normalize(vec3(slAt[i].xy, uVar < .5 ? 1. : slAt[i].z)), x = cross(rd, L);
     float a = dot(x, x);
     if (dot(rd, L) > .0) c += slLight[i] * (exp(-a * 1800.) * .9 + (.06 + .08 * slMist) / (1. + a * 300.));
   }
-  c += vec3(.85, .9, 1.) * slMoon * slCut(length(rd - normalize(uVar < .5 ? vec3(.29, .03, 1.) : vec3(1., .28, 1.2))) - .022, .002);
+  c += vec3(.85, .9, 1.) * slMoon * (slDye > .0 ? .0 : 1.) * slCut(length(rd - normalize(uVar < .5 ? vec3(.29, .03, 1.) : vec3(1., .28, 1.2))) - .022, .002);
   vec2 b = w * vec2(34., 30.), r = hash22(floor(b)), o = (fract(b) - .3 - .4 * r) / (.3 + .7 * r.y * r.y);
   c = mix(c, c * .5 + (slLow * .9 + slAll * .05) * slStep(o.y, -.25, .1), slRain * slStep(length(o), .14, .3) * step(.5, r.x) * exp(-px * 30.) * .8);
   c += slWet(w) * (slAll * .016 - c * .3);
@@ -168,6 +223,8 @@ vec3 render(vec2 p) {
   float up = max(uOwn[3], .0), near = max(-uOwn[3], .0), t, s, lens = a ? 1.12 : .95; int id;
   vec3 ro = .004 * vec3(sin(uTime * .31), sin(uTime * .43), .0);
   vec2 eye = a ? vec2(.28, -.03) - near * vec2(.2, .1) : vec2(-.13 - .36 * up, .05 + .03 * near);
+  eye = mix(eye, a ? vec2(-.05, -.06) : vec2(-1.0, .06), slFace); if (a) eye.x -= .12 * slPan;
+  ro += slFace * (a ? vec3(.3, .16, 1.3) : vec3(-.16, .0, .35)) + slPan * (a ? vec3(.1, .1, -.25) : vec3(.0));
   ro += a ? near * vec3(.1, -.06, .6) + up * vec3(.12, .16, -.7) : -vec3(.2 * up, .62 * near, .3 * up);
   vec3 rd = normalize(vec3(p - eye, lens));
   slPx = 1. / (uRes.y * lens);
@@ -178,7 +235,7 @@ vec3 render(vec2 p) {
     t = (2.2 - ro.z) / rd.z; id = 1;
     s = (-.65 - ro.x) / safe.x; if (rd.x < .0 && s < t) { t = s; id = 0; }
     s = min(rd.x > .0 ? (1.3 - ro.x) / safe.x : 9., rd.y < .0 ? 1.3 * down : 9.); if (s < t) { t = s; id = 2; }
-    s = (.57 - ro.y) / safe.y; if (rd.y > .0 && s < t && ro.x + rd.x * s < .32) { t = s; id = 3; }
+    s = (.57 + .55 * slPan - ro.y) / safe.y; if (rd.y > .0 && s < t && ro.x + rd.x * s < .32 + 3. * slPan) { t = s; id = 3; }
     if (rd.y < -.03) { // the blanket
       float far = max((-.1 - ro.y) / safe.y, .1), end = min(min(t, 2.8 + up), .72 * down), was = .1, last = far;
       for (int i = 0; i < 32; i++) {
@@ -221,16 +278,17 @@ vec3 render(vec2 p) {
       }
       add += slInlay(alb, q.x, a ? q.y - .13 : q.y + .16, fw, there, a ? 1. - q.x / 2.2 : q.x / 8.);
     } else {
-      float pane = a ? slBox(vec2(x, P.y - .28), vec2(.45, .5), .03) : slBox(vec2(x, P.y - .165), vec2(-slLeft, .385), .04), in_ = slCut(pane, fx), hem = slHemOf(P.z);
-      float cu = a ? slIn(abs(x), .5, .76, .004) * step(-.75, P.y) : slIn(abs(x), .47 - .6 * (.55 + slLeft), .64 - .6 * (.55 + slLeft), .01 + fx) * slIn(P.y, -.24, .58, px) * smoothstep(-.75, -.57, slLeft), pl = x * (a ? 52. : 150.);
+      float pane = a ? slBox(vec2(x, P.y - .28 - .18 * slPan), vec2(slWide, .5 + .18 * slPan), .03) : slBox(vec2(x, P.y - .165), vec2(-slLeft, .385), .04), in_ = slCut(pane, fx), hem = slHemOf(P.z);
+      float cu = a ? slIn(abs(x), slWide + .05, slWide + .31, .004) * step(-.75, P.y) : slIn(abs(x), .47 - .6 * (.55 + slLeft), .64 - .6 * (.55 + slLeft), .01 + fx) * slIn(P.y, -.24, .58, px) * smoothstep(-.75, -.57, slLeft), pl = x * (a ? 52. : 150.);
       alb = mix(alb * mix(.4, 1., smoothstep(.0, .1, pane)), slBrass * .7, slLine(pane - .012, .008, fx));
       vec3 through = slLow * .3 + slAll * (a ? .0 : .07); // what comes through the blind
       if (a) for (int i = 0; i < 5; i++) through += .26 * slLight[i] * slBell(vec2(x + .15 - .5 * log(max(slAt[i].x, .05)), P.y - .15 - slAt[i].y), 7.);
       vec3 o = slOut(rd, vec2(x, P.y), a ? rd.x / rd.z : rd.z / max(rd.x, .05) * .2, hem, px, through);
       if (a) o *= 1. - slLine(x, .032, px) * mix(.85, .35, smoothstep(-px, px, P.y - hem));
+      if (a && slPan > .0) o *= 1. - .8 * slPan * slLine(abs(x) - .5, .02, px);
       in_ *= 1. - cu;
       add = o * in_ * (.4 + .6 * smoothstep(.0, .03, -pane)); alb *= 1. - in_; gloss *= 1. - .8 * max(in_, cu);
-      alb = mix(alb, vec3(.34, .05, .06) * (.65 + .35 * sin(pl) * exp(-fx * 120.)), cu); // curtains drawn back
+      alb = mix(alb, mix(vec3(.34, .05, .06), uKind[1] * uKind[1] * .7 + .01, slDye) * (.65 + .35 * sin(pl) * exp(-fx * 120.)), cu); // curtains drawn back
       n = normalize(mix(n, flat_, max(in_, cu)));
       shade = a ? mix(.4, 1., smoothstep(-.65, -.5, P.x)) : mix(.35, 1., smoothstep(-1., -.7, P.y));
     }
@@ -238,18 +296,22 @@ vec3 render(vec2 p) {
     float fz = px / max(rd.y, .08), k = slCentre(P.z, .62);
     alb = mix(vec3(.27, .25, .215), vec3(.5, .45, .36), max(-uOwn[2], .0)) * (1. - .45 * exp(-k * k * 2500.));
     alb = mix(alb, slBrass * .8, max(slLine(k, .008, fz), slLine(abs(P.x + .16) - .38, .005, px * 1.5)));
+    if (slPan > .0) { // a roof of panes
+      float on = slPan * sat((.31 - abs(k)) * 30.) * sat(slBox(vec2(slCentre(P.x + .2, .56), .0), vec2(.27, 1.), .0) * -60.);
+      add = on * slOut(rd, P.xz, rd.x / max(rd.z, .05), 9., px, vec3(.0)) * .9; alb *= 1. - on;
+    }
     shade = mix(.3, 1., smoothstep(-.65, -.4, P.x)) * mix(.5, 1., smoothstep(.0, .3, 2.2 - P.z)) * mix(.35, 1., slStep(P.x, .24, .26));
   } else if (id == 4) {
     vec2 q = P.xz; float h = slBlanket(q);
     n = normalize(vec3(h - slBlanket(q + vec2(.006, .0)), .006, h - slBlanket(q + vec2(.0, .006))));
     float fz = px / max(dot(-rd, n), .12), z = q.y + .1 * h, nap = .85 + .3 * noise(q * 150.) * exp(-fz * 120.);
     float stripe = max(slLine(z - 1.05, .026, .004 + fz), slLine(abs(z - 1.05) - .06, .007, .003 + fz));
-    alb = mix(vec3(.115, .115, .15), vec3(.5, .42, .3), stripe * .9) * nap;
+    alb = mix(mix(vec3(.115, .115, .15), uKind[0] * uKind[0] * .5 + .02, slDye), mix(vec3(.5, .42, .3), uKind[3] * .6, slDye), stripe * .9) * nap;
     shade = mix(.35, 1., smoothstep(.0, .3, q.x + .65)) * mix(.5, 1., smoothstep(-.5, -.25, h)); gloss = .0;
   } else if (id == 5) { // a runner of carpet on lino
     float fz = px / max(-rd.y, .05), u = abs(P.x - .12), nap = .75 + .5 * noise(P.xz * vec2(170., 90.)) * exp(-fz * 60.), rug = slCut(u - .37, px);
     vec2 d = abs(fract(vec2(P.x - .12 + P.z, P.x - .12 - P.z) / .13) - .5);
-    vec3 pile = mix(vec3(.2, .03, .028), vec3(.34, .2, .09), slStep(length(d), .1, .12 + fz * 12.) * exp(-fz * 14.) * .5);
+    vec3 pile = mix(mix(vec3(.2, .03, .028), uKind[0] * uKind[0] * .5 + .01, slDye), mix(vec3(.34, .2, .09), uKind[3] * uKind[3] * .6, slDye), slStep(length(d), .1, .12 + fz * 12.) * exp(-fz * 14.) * .5);
     pile = mix(pile, vec3(.45, .28, .1), slLine(u - .31, .016, px));
     vec3 m = piece(vec2(sat((P.z - .8) / 5.), sat(.5 + (P.x - .12) / .74))).rgb; add = m * m * pile * rug * nap * (.15 + .5 * uEnergy);
     alb = mix(vec3(.05, .035, .03), pile * nap, rug); gloss = .55 * (1. - rug);
@@ -260,6 +322,10 @@ vec3 render(vec2 p) {
     alb = mix(vec3(.36, .33, .27), vec3(.5, .45, .36), max(-uOwn[2], .0));
     alb = mix(mix(alb, vec3(.14, .06, .03), slCut(rib - .05, fz)), slBrass * .8, slLine(rib - .06, .008, fz));
     shade = mix(.45, 1., smoothstep(.62, .75, P.y));
+    if (slPan > .0) {
+      float on = slPan * sat((rib - .075) / fz) * sat((abs(slCentre(P.x - .12, .38)) - .012) / px) * smoothstep(.62, .66, P.y);
+      add = on * slOut(rd, vec2(P.z, P.x), rd.z / max(abs(rd.x), .05) * .2, 9., px, vec3(.0)) * .9; alb *= 1. - on;
+    }
   } else if (id == 7) { // the end of the carriage, a door with a lit pane
     n = -slZ;
     vec2 w = P.xy - vec2(.12, .0);

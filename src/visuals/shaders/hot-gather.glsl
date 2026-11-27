@@ -3,10 +3,13 @@
 // b: Pulled thread
 // what: A dim glass shop: an iron pipe over a bench carries a pear of molten glass, white-orange at the tip, rose, then bottle green at the neck, two bubbles inside, a bucket steaming below, firelit brick at the left; or two small figures in a dark hall pull one glowing thread between them, its light lying on the wet floor.
 // follows: Drone is the heat of the glass, pad the furnace, the mix swells the bubble, low is the sag. The bands and the piece colour ribbons along the glass or the thread; texture is threads wound on, phrase lights the bubbles or a place on the thread. A hit drops a glowing bead in the water, a cue is one breath that fattens the glass, keys light the pipe.
-// own: 0 a slim bottle at -1, a wide bowl at 1, or the thread drawn taut, or hung in a deep loop; 1 cobalt glass, blue walls and a teal dusk at -1, ruby glass, red walls and a sunset at 1; 2 deep night with the fire low at -1, a pale shop by day at 1; 3 stood far back at -1, close to the glass or to one of the two at 1; 4 unused below 0, a room full of steam at 1; 5 glass gone rose and cold at -1, white hot at 1
+// own: 0 a slim bottle at -1, a wide bowl at 1, or the thread drawn taut, or hung in a deep loop; 1 cobalt glass, blue walls and a teal dusk at -1, ruby glass, red walls and a sunset at 1; 2 deep night with the fire low at -1, a pale shop by day at 1; 3 stood far back at -1, close to the glass or to one of the two at 1; 4 the walls fallen to an open land and sky at -1, or still water under them; a room full of steam at 1; 5 glass gone rose and cold at -1, white hot at 1; 6 the room emptied, a bare wall at -1, shelves of finished glass, or great windows, at 1; 7 drawn out in a chain of bulbs, or a thread strung with hot beads, at -1, ribbed and twisted, or a harp of threads, at 1
 vec3 hgFire, hgGlow, hgSky, hgAmb, hgWall, hgCold; // light of furnace, glass, sky, room; wall, cold glass
-float hgHeat, hgPx, hgHaze, hgSplash; // heat of the glass, a pixel, steam, a bead in the water
-const vec2 HG_C = vec2(.33, .045), HG_B = vec2(.5, -.265); // the middle of the glass, the bucket's rim
+float hgRib, hgHeat, hgPx, hgHaze, hgSplash; // heat of the glass, a pixel, steam, a bead in the water
+const vec2 HG_C = vec2(.33, .045); // the middle of the glass
+#define HG_BARE max(-uOwn[6], 0.)
+#define HG_OPEN max(-uOwn[4], 0.)
+#define HG_B vec2(.5 + .9*HG_BARE, -.265) // the bucket's rim
 
 // Softly 0 at a to 1 at b, either way round.
 float hgUp(float a, float b, float x) { x = sat((x - a)/(b - a)); return x*x*(3. - 2.*x); }
@@ -49,6 +52,45 @@ float hgPanes(vec2 w, vec2 size, float bar) {
   return hgUp(bar - hgPx, bar + hgPx, min(e.x, e.y))*(.6 + .55*hash21(floor(v) + 50.));
 }
 
+// Out of doors: sky, a low light in it, hills. And where the wall ends that has come down.
+vec3 hgOpen(vec2 q, float hor) {
+  float day = max(uOwn[2], 0.), dark = max(-uOwn[2], 0.), h = sat((q.y - hor)/.75);
+  vec3 low = hgSky*(.82 + .4*uPad)*mix(mix(3.4, .95, day), 3., dark)*mix(vec3(1.25, 1., .82), vec3(1.), day), c = mix(low + (1. - dark)*(1. - day)*vec3(.16, .06, .03), low*.32, h);
+  vec2 s = q - vec2(.02, hor + .43);
+  float sd = length(s);
+  c += (low + .05)*((.5 + .7*uHits)*exp(-sd*5.) + mix(1.6, .25, day)*hgUp(.038, .034, sd));
+  c = mix(c, vec3(.62, .66, .7)*(.8 + .3*noise(s*70. + 9.)), dark*hgUp(.036, .033, sd));
+  if (dark > 0.) {
+    vec2 g = q*34., i = floor(g), j = hash22(i);
+    c += dark*vec3(.75, .8, 1.)*hgUp(.09, .02, length(g - i - .15 - .7*j))*j.x*j.x*j.x*(.4 + j.x)*hgUp(.02, .2, h)*hgUp(.036, .06, sd);
+  }
+  float mx = .5 + .4*q.x + .25*(noise(q*vec2(2., 7.)) - .5);
+  c += .9*hgUp(0., .12, mx)*hgUp(1., .88, mx)*piece(vec2(mx, sat(1. - 1.5*(q.y - hor)))).rgb*(.15 + dot(low, vec3(.4)))*hgUp(.2, 1., noise(q*vec2(2.5, 19.) + vec2(uTime*.02, 8.)));
+  for (int k = 0; k < 3; k++) {
+    float f = float(k), x = q.x*(1.6 + 1.1*f) + 7.*f + 40., y = hor + (.17 - .055*f)*(noise(vec2(x, f)) + .3*noise(vec2(x*3.7, 5.)));
+    c = mix(c, low*(.62 - .2*f) + hgAmb*.15, sat((y - q.y)/hgPx + .5));
+  }
+  return c;
+}
+float hgFallen(vec2 q, float foot) { return q.y - mix(1.2, foot, HG_OPEN) - .34*(1. - HG_OPEN)*noise(vec2(floor(q.x*15.)*.21 + 30., 3.)); }
+// Finished glass on shelves.
+vec3 hgShelves(vec2 q, vec3 col, float r2) {
+  float k = max(uOwn[6], 0.), row = floor((q.y + .1)/.17), y = q.y + .1 - row*.17, c = floor(q.x/.082), x = q.x - (c + .5)*.082, on = hgUp(.46, .45, q.x)*step(0., row);
+  vec2 h = hash22(vec2(c + 50., row + 7.));
+  col = mix(col, col*.25 + hgGlow*.03/(1. + 9.*r2), hgOn(abs(y + .004) - .006*k)*on);
+  float v = y/((.07 + .07*h.y)*k), R = h.x < .4 ? .03*(1. - .74*hgUp(.4, .68, v)) : h.x < .72 ? .011 + .021*sin(PI*sat(v*.86 + .1)) : .008 + .027*sqrt(sat(v));
+  R *= .6 + .4*k;
+  float d = max(abs(x) - R, max(v - 1., -v)*.1);
+  if (d < hgPx) {
+    vec3 hue = hgRich(mix(hgCold, kindColour(fract(h.x*7.3)*4.), .8));
+    float e = sat(abs(x)/max(R, 1e-3)), lit = .5 + 1.1*band(fract(h.y*5.1));
+    vec3 g = col*mix(vec3(1.), hue, .8) + hue*(hgAmb*.5 + hgSky*.1 + hgGlow*.16*lit/(1. + 7.*r2))*(.3 + .9*e*e*e);
+    g += (hgSky*.7 + hgFire*.12 + hgGlow*.1)*hgUp(.3, .1, abs(x/max(R, 1e-3) + .45))*hgUp(.1, .25, v)*hgUp(1., .7, v);
+    col = mix(col, g, hgOn(d)*on*sat(k*8.));
+  }
+  return col;
+}
+
 // ---- a: the shop
 float hgPipeY(float x) { return .094 - .1*x; }
 vec3 hgShop(vec2 q) {
@@ -58,21 +100,27 @@ vec3 hgShop(vec2 q) {
   vec3 light = hgFire*.15/(1. + 7.*dot(f, f)) + hgGlow*.15/(1. + 26.*r2);
   light += hgAmb*(.4 + .9*sat(.5 + q.x*.7));
   light *= 1. - .6*hgUp(.1, .55, q.y);
-  vec3 col = hgWall*(.45 + 1.1*soot)*light;
+  vec3 col = hgWall*(.45 + 1.1*(soot + HG_BARE*.7*(.5 - soot)))*light;
+  if (uOwn[6] < 0.) col += .4*HG_BARE*hgWall*piece(vec2(.5 + .5*q.x + .2*soot, .5 - .6*q.y + .2*noise(q*3.))).rgb*(hgAmb*4. + hgGlow*.06)*hgUp(-.95, -.4, q.x)*hgUp(.8, .4, q.x)*hgUp(-.8, -.3, q.y)*hgUp(.8, .3, q.y);
   // the window, cut by the upper edge
-  vec2 w = q - vec2(.665, .375);
+  vec2 w = q - vec2(.665, .375 + 1.1*HG_BARE), tq = q - vec2(0., 1.3*abs(uOwn[6]));
   col = mix(col, hgWall*(hgAmb*.5 + hgGlow*.02 + hgSky*.4*hgUp(.1, -.3, w.x + w.y)), hgOn(hgBox(w, vec2(.165, .225))));
   col = mix(col, hgSky*(.35 + 1.1*hgUp(-.22, .3, w.y - .5*w.x))*hgPanes(w, vec2(.0933, .1), .003), hgOn(hgBox(w, vec2(.14, .2))));
   // tools hung on a rail
-  float tool = hgBox(q - vec2(-.02, .352), vec2(.4, .004));
-  tool = min(tool, hgCap(q, vec2(-.3, .34), vec2(-.318, .17), .006, .009));
-  tool = min(tool, hgCap(q, vec2(-.29, .34), vec2(-.272, .17), .006, .009));
-  tool = min(tool, min(hgBox(q - vec2(.065, .3), vec2(.006, .045)), hgBox(q - vec2(.067, .2), vec2(.026, .055))));
+  if (uOwn[6] > 0.) col = hgShelves(q, col, r2);
+  float tool = hgBox(tq - vec2(-.02, .352), vec2(.4, .004));
+  tool = min(tool, hgCap(tq, vec2(-.3, .34), vec2(-.318, .17), .006, .009));
+  tool = min(tool, hgCap(tq, vec2(-.29, .34), vec2(-.272, .17), .006, .009));
+  tool = min(tool, min(hgBox(tq - vec2(.065, .3), vec2(.006, .045)), hgBox(tq - vec2(.067, .2), vec2(.026, .055))));
   col = mix(col, light*.04 + hgGlow*.025*hgUp(-.006, 0., tool)/(1. + 10.*r2), hgOn(tool));
+  if (uOwn[4] < 0.) {
+    float up = hgFallen(q, -.26 - .8*HG_BARE);
+    col = mix(col*(1. + 2.*hgSky*hgUp(-.02, 0., up)), hgOpen(q, -.205 - .8*HG_BARE), sat(up/hgPx + .5));
+  }
   // the floor: worn brick, wet about the bucket
-  float fy = -.205 - q.y;
+  float qy = q.y + .8*HG_BARE, fy = -.205 - qy;
   if (fy > -hgPx) {
-    float z = 1./(.02 - min(q.y, -.19));
+    float z = 1./(.02 - min(qy, -.19));
     vec2 fp = vec2(q.x*z, z*1.15);
     vec3 b = hgBricks(fp, vec2(.42, .2), hgPx*z*z*.3);
     float wet = hgUp(.35, .7, noise(fp*1.7));
@@ -81,14 +129,15 @@ vec3 hgShop(vec2 q) {
     // shadows of the bucket and the bench, away from the furnace
     float dark = hgUp(-.05, .03, sh.x)*hgUp(.05, .02, abs(sh.y))*exp(-max(sh.x, 0.)*1.8);
     dark = max(dark, .8*hgUp(-.32, -.2, ss.x)*hgUp(.5, 0., ss.x)*hgUp(.05, .01, abs(ss.y)));
-    lit *= 1. - .8*dark;
+    lit *= 1. - .8*dark*(1. - HG_BARE);
     vec3 fc = mix(vec3(.2, .13, .1), hgWall, .45)*(.5 + .8*b.y)*mix(.5, 1., b.x)*(.5 + noise(fp*9.))*lit;
     float sx = (q.x - .36)*6., wx = (q.x - .66)*6.5;
     fc += (hgGlow*.17*exp(-sx*sx - abs(q.y + .38)*5.) + hgSky*.22*exp(-wx*wx))*wet*(.3 + .7*b.x)*(1. - .6*dark);
+    if (uOwn[4] < 0.) fc = mix(fc, vec3(.62, .55, .5)*(.6 + .45*noise(fp*1.3) + .2*noise(fp*vec2(7., 15.)))*(lit + hgSky*mix(1.2, .75, max(uOwn[2], 0.))), HG_OPEN);
     col = mix(col, fc, sat(fy/hgPx + .5));
   }
   // the bench: two rails on posts with their depth, a seat between
-  float x = q.x + .285, px = x - (x < 0. ? -.165 : .165), top = hgPipeY(q.x) - .017;
+  float x = q.x + .285 + .9*HG_BARE, px = x - (x < 0. ? -.165 : .165), top = hgPipeY(q.x) - .017;
   float post = max(abs(px - .013) - .04, max(q.y - top, -.44 - q.y));
   float seat = hgBox(vec2(x - .006, q.y + .222), vec2(.215, .034)), all = min(post, seat);
   if (all < .01) {
@@ -102,9 +151,9 @@ vec3 hgShop(vec2 q) {
     col = mix(col, bc, hgOn(min(all, cap)));
   }
   // the furnace's front: a ring of bricks round the mouth, courses beyond it
-  float fd = q.x + .6 + .012*noise(vec2(q.y*21. + 60., 2.));
+  float fd = q.x + .6 + .9*HG_BARE + .012*noise(vec2(q.y*21. + 60., 2.));
   if (fd < hgPx) {
-    vec2 m = vec2(q.x + 1.32, q.y - .03);
+    vec2 m = vec2(q.x + 1.32 + .9*HG_BARE, q.y - .03);
     float ring = length(vec2(m.x, max(m.y, 0.))) - .4, a = m.y > 0. ? atan(m.y, m.x + (m.x < 0. ? -1e-3 : 1e-3))*.4 : m.y;
     vec3 b = ring > 0. && ring < .085 ? hgBricks(vec2(ring*.5 + .06, a), vec2(.3, .047), hgPx) : hgBricks(q + .01, vec2(.125, .052), hgPx);
     float n = noise(q*46.)*.5 + noise(q*13.)*.5;
@@ -144,15 +193,28 @@ vec3 hgBench(vec2 p) {
   // the pear of glass: q along and across it, r2 its radius squared
   float ang = -.09 + .012*sin(uTime*.21), fall = 1. - sat(uHits);
   vec2 q = rot(-ang)*(p - vec2(.045, hgPipeY(.045)));
-  float len = .49 + .16*uCue*(1. - uCue) - .1*fat + .1*slim, u = q.x/len, uu = clamp(u, 1e-3, 1.2);
+  float len = .49 + .16*uCue*(1. - uCue) - .1*fat + .1*slim + .22*max(-uOwn[7], 0.), u = q.x/len, uu = clamp(u, 1e-3, 1.2);
   q.y += (.018 + .012*sin(uTime*.29) + .032*uLow)*u*abs(u)*(.5 + .5*uu);
-  float big = (.13 + .075*fat - .055*slim)*(1. + swell), pw = 2.3 + 3.2*slim - 1.3*fat;
+  float big = (.13 + .075*fat - .055*slim)*(1. + swell), pw = 2.3 + 3.2*slim - 1.3*fat - (1. + 2.6*slim)*max(-uOwn[7], 0.);
   float up = big*big*(1. + pw)*pow((1. + pw)/pw*uu, pw), rise = .0006*sat(q.x/.014);
   float r2 = (1. - u)*(rise + up), dr = ((1. - uu)*pw*up/uu - rise - up)/len;
+  if (uOwn[7] < 0.) {
+    float a = 15.4*pow(uu, 1.25), m = 1. + .84*uOwn[7]*(.5 - .5*cos(a)), dm = .42*uOwn[7]*sin(a)*19.25*pow(uu, .25);
+    up *= uu/(uu + .06);
+    r2 = (1. - u)*(rise + up*m);
+    dr = ((1. - uu)*(pw*up/uu*m + up*dm) - rise - up*m)/len;
+  }
   float d = (q.y*q.y - r2)/(length(vec2(dr, 2.*q.y)) + .012);
   if (u < 0.) d = max(d, -q.x);
   float cover = hgOn(d), h = sqrt(max(r2 - q.y*q.y, 0.)), rr = clamp(q.y/sqrt(max(r2, 1e-5)), -1., 1.);
   vec3 N = normalize(vec3(-.5*dr, q.y, h + 1e-4));
+  if (uOwn[7] > 0.) {
+    float f = asin(rr)*7. + (u*9. + 5.*h)*uOwn[7] + mod(uTravel*.3, TAU)*7.;
+    N.y += 1.1*uOwn[7]*sin(f)*sqrt(sat(1. - rr*rr))*hgUp(.02, .3, u)*hgUp(1., .8, u);
+    N = normalize(N);
+    h *= 1. + .55*uOwn[7]*cos(f);
+    hgRib = 1. - .5*uOwn[7]*(.5 - .5*cos(f))*hgUp(.02, .25, u);
+  }
   N.xy = rot(ang)*N.xy;
   hgSplash = uHits*hgUp(.35, .6, fall);
   // all behind the glass, seen through it upside down
@@ -184,7 +246,7 @@ vec3 hgBench(vec2 p) {
     float T = hgHeat*(.02 + 1.2*hgUp(.1, 1., u)) - .22*skin + .05*(noise(vec2(u*7. + 30., ph*1.6 + 4.)) - .5);
     vec3 gl = col*exp(-th*(1. - hgCold)*11.)*(1. - .75*hgUp(.2, .7, T));
     gl += hgCold*hgCold*(hgAmb*.8 + hgGlow*.05*hgUp(0., .25, u) + hgFire*.04)*(.3 + 1.4*skin)*hgUp(.5, .15, T);
-    vec3 em = hgEmit(T)*(1. - exp(-th*11.));
+    vec3 em = hgEmit(T + .22*uHits*HG_BARE)*(1. - exp(-th*11.));
     // ribbons twisted along it, near side and far, and threads wound on
     for (int k = 0; k < 2; k++) {
       float a = (k == 0 ? ph : PI - ph) + lean*4.2 + turn, s = fract(a/TAU)*6., id = floor(s), y = abs(fract(s) - .5);
@@ -201,6 +263,7 @@ vec3 hgBench(vec2 p) {
       em = mix(em, hue*hue*(.1 + .7*em.r), sat(on2*.9));
     }
     gl += em;
+    if (uOwn[7] > 0.) gl *= hgRib;
     // the bubbles: dark above, a bright crescent low, points of light
     float wall1 = in1*hgUp(.45, 1., k1), wall2 = in2*hgUp(.3, 1., k2);
     vec3 song = hgRich(uKind[3])*uPhrase;
@@ -251,20 +314,25 @@ float hgFigure(vec2 q, float st) {
 }
 // The wall of brick and windows, the furnace and its hood at the left.
 vec3 hgFar(vec2 q) {
-  vec2 m = q - vec2(-.7, -.13);
+  vec2 m = q - vec2(-.7 - .8*HG_BARE, -.13);
   float fire = length(vec2(m.x, max(m.y, 0.))), x = q.x/.42 - .26, cell = floor(x), n = noise(q*vec2(6., 4.));
   vec3 b = hgBricks(q, vec2(.07, .026), hgPx);
   float s = clamp((q.x - .01)/.61, -1., 1.), th = length(vec2(q.y - hgThreadY(s), max(abs(q.x - .01) - .61, 0.)));
   vec2 g = vec2(abs(q.x - .01) - .6, q.y - HG_HOR);
   vec3 near = hgGlow*(.03/(1. + 10.*th + 130.*th*th) + .26/(1. + 45.*dot(g, g) + 8.*length(g)));
   vec3 col = hgWall*(.25 + 1.1*n)*mix(.7, 1., b.x)*(.75 + .4*b.y)*(hgAmb*(.5 + .9*sat(q.x + .5)) + near + hgFire*.35*exp(-fire*5.));
-  vec2 w = vec2((fract(x) - .5)*.42, q.y - .185);
-  float bow = w.y - .185 + 1.8*w.x*w.x, seen = hgUp(-1.5, -1., cell);
-  col = mix(col, col*.4 + hgSky*.05*hgUp(0., .1, -w.x), hgOn(max(max(abs(w.x) - .095, bow), -.2 - w.y))*seen);
+  vec2 w = vec2((fract(x) - .5)*.42, q.y - .185 - .8*HG_BARE);
+  float big = max(uOwn[6], 0.);
+  float bow = w.y - .185 - .2*big + 1.8*w.x*w.x, seen = hgUp(-1.5, -1., cell);
+  col = mix(col, col*.4 + hgSky*.05*hgUp(0., .1, -w.x), hgOn(max(max(abs(w.x) - .095 - .1*big, bow), -.2 - .16*big - w.y))*seen);
   w.x -= .007;
   vec3 pane = hgSky*(.4 + .6*n)*(.35 + hgUp(-.2, .25, w.y))*(.45 + .75*hgUp(-.5, .9, q.x))*hgPanes(w + vec2(.054*99.*cell, 0.), vec2(.054, .062), .0015);
-  col = mix(col, pane, hgOn(max(max(abs(w.x) - .081, bow + .016), -.186 - w.y))*seen);
-  float hood = abs(q.x + .7) - .16 + .1*hgUp(.02, .22, q.y);
+  col = mix(col, pane, hgOn(max(max(abs(w.x) - .081 - .1*big, bow + .016), -.186 - .16*big - w.y))*seen);
+  if (uOwn[4] < 0.) {
+    float up = hgFallen(q, -.24);
+    col = mix(col, hgOpen(q, -.185), sat(up/hgPx + .5));
+  }
+  float hood = abs(q.x + .7 + .8*HG_BARE) - .16 + .1*hgUp(.02, .22, q.y);
   col = mix(col, hgWall*vec3(.8, .55, .42)*(.3 + .7*b.x)*(.5 + n)*(hgFire*.55*exp(-fire*8.) + near*.6 + hgAmb*.5), hgOn(hood));
   float mouth = max(length(vec2(m.x, max(m.y - .015, 0.))) - .075, -.015 - m.y);
   col = mix(col, hgFire*(1.2 + 1.8*hgUp(0., -.06, mouth))*vec3(1., .95, .8), hgOn(mouth));
@@ -283,16 +351,18 @@ vec3 hgHall(vec2 p) {
     rip += 2.4*uHits*(1. - uHits)*sin(rk*90.)*exp(-rk*rk*600.);
     q = vec2(p.x + .01*rip, 2.*HG_EYE - p.y + .014*rip);
   }
+  if (uOwn[4] < 0.) wet = mix(wet, 1., HG_OPEN);
   vec3 col = hgFar(q), b = vec3(1.);
   float ft = hgFoot(p.x), mir = p.y < ft ? 1. : 0., ends = exp(-(1. - min(abs(p.x - .01)/.61, 1.))/.2);
   if (p.y < HG_EYE + hgPx) {
     b = hgBricks(fp + vec2(0., 20.), vec2(1.1, .62), hgPx*fp.y*fp.y*.3);
+    if (uOwn[4] < 0.) b = mix(b, vec3(1., .5, 0.), HG_OPEN);
     vec2 fl = vec2(p.x + .68, (p.y + .24)*2.2);
     float dz = (p.y - ft + .02)*4.;
     vec3 lit = hgFire*.6*exp(-dot(fl, fl)*9.) + hgGlow*(.05 + .3*ends)*exp(-dz*dz) + hgAmb*.8;
     // laths for the cold thread to rest on
     float lath = abs(fract(fp.x/.62) - .5)*.62 - .045, lz = abs(fp.y - 1./(HG_HOR - ft)) - .62;
-    float on = hgUp(hgPx*fp.y*2., 0., max(lath, lz))*hgUp(.54, .5, abs(p.x));
+    float on = hgUp(hgPx*fp.y*2., 0., max(lath, lz))*hgUp(.54, .5, abs(p.x))*(1. - HG_OPEN)*(1. - HG_BARE);
     vec3 base = mix(mix(vec3(.11, .095, .085), hgWall, .3)*mix(.4, 1., b.x)*(.7 + .6*b.y), vec3(.28, .19, .12), on)*lit;
     col = mix(col, base + col*(.06 + .62*wet)*mix(.3, 1., b.x)*(1. - .9*on), sat((HG_EYE - p.y)/hgPx + .5));
     wet *= 1. - .8*on;
@@ -325,6 +395,19 @@ vec3 hgHall(vec2 p) {
   float nw = (.5 + .5*s - uLoop)*14., run = (abs(s) - 1.2*uCue)*6., lp = sin(PI*uLoop);
   float T = hgHeat*(.08 + 1.02*exp(-el/.15) + .22*band(sat(.5 + .5*s))) + .3*exp(-nw*nw)*lp*lp*(.2 + 2.6*uPhrase) + .7*uCue*exp(-run*run);
   float w = (.027 + .009*max(uOwn[0], 0.) + .07*uCue*(1. - uCue) + .006*uLevel)*sqrt(sat(el/.035))*(exp(-el*el/.0035) + .2*exp(-el/.12)) + .0018;
+  if (uOwn[7] < 0.) { // hot beads along it
+    float g = f.x*8. + 20.5, i = floor(g), dx = (g - i - .5)/8., rb = -.03*uOwn[7]*(.55 + .45*hash11(i))*(1. + .25*uLevel);
+    w = max(w, sqrt(max(rb*rb - dx*dx, 1e-6)));
+    T += -uOwn[7]*(.25 + .35*band(hash11(i + 9.)))*hgUp(rb, rb*.7, abs(dx));
+  }
+  if (uOwn[7] > 0.) for (int k = 0; k < 4; k++) { // more of them, hung deeper
+    float sk = hgSag*(1. - (float(k) + 1.)*.21*uOwn[7]), yk = f.y + .067 + sk*(1. - s*s), dk = abs(yk)/sqrt(1. + 10.7*sk*sk*s*s);
+    vec4 mk = piece(vec2(.5 + .49*s, .15 + .22*float(k)));
+    vec3 hk = hgRich(kindColour(float(k)*1.1));
+    hk = hk*(.18 + .5*band(.1 + .2*float(k)) + .6*mk.a)*(1. - .62*max(uOwn[2], 0.))*hgUp(0., .12, e) + hgEmit(hgHeat*1.05*exp(-el/.09));
+    col += hk*exp(-dk*40.)*.1*(1. - max(uOwn[2], 0.))*keep*sat(1. + e/.03);
+    col = mix(col, hk*1.25, sat((.0021 + .0016*uOwn[7] + .002*max(uOwn[2], 0.) - dk)/hgPx + .5)*sat(e/hgPx + .5)*keep);
+  }
   float y = f.y - hgThreadY(s), slope = 2.*hgSag*s/.61, d = abs(y)/sqrt(1. + slope*slope), v = clamp(y/w, -1., 1.);
   vec3 c = hgEmit(T)*1.4 + hgCold*vec3(.8, .85, .85)*(.15 + hgSky*.5)*(1. - .92*max(uOwn[2], 0.))*hgUp(.5, .1, T);
   if (m.a > .01) c += hgRich(m.rgb/m.a)*.2*sat(m.a)*(.4 + .8*uEnergy)*hgUp(.02, .25, e);
@@ -349,7 +432,7 @@ vec3 render(vec2 p) {
   vec3 green = vec3(.36, .86, .56);
   hgHeat = .8 + .035*sin(uTime*.17) + (.23*uDrone + .04*uLevel)*(.6 + .8*uEnergy) + .06*(uTone - .5) + .06*uCue + (uOwn[5] < 0. ? .45 : .25)*uOwn[5];
   hgFire = vec3(1., .4, .115)*(.62 + .04*sin(uTime*.7) + .03*sin(uTime*1.13) + .8*uPad*(.5 + uEnergy))*(1. - .6*night);
-  hgGlow = hgEmit(hgHeat*.92)*.9 + vec3(.9, .35, .1)*(.25*uHits + .3*uCue);
+  hgGlow = hgEmit(hgHeat*.92)*.9 + vec3(.9, .35, .1)*((.25 + .5*min(abs(uOwn[1]) + abs(uOwn[2]) + HG_OPEN + abs(uOwn[6]) + abs(uOwn[7]), 1.))*uHits + .3*uCue);
   float blue = max(-glass, 0.), rose = max(glass, 0.);
   vec3 dusk = mix(mix(vec3(.06, .105, .17), vec3(.03, .16, .24), blue), vec3(.5, .13, .075), rose);
   hgSky = mix(mix(dusk, vec3(.8, .9, 1.), day), vec3(.012, .02, .05), night);

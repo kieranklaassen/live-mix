@@ -3,13 +3,39 @@
 // b: Harbour guest
 // what: At dawn a hillside is asleep: an enormous mossy back with birches on its spine and sheep on its shoulder, a head with a round ear laid on an arm, a croft and its smoke in the crook. Or a smooth grey creature as big as a hill lies curled round a harbour, lit windows along its side, a lighthouse by its tail.
 // follows: The drone deepens the breath and warms the coat, pads light the sun in fur or on skin, texture is wind or ripples, a phrase runs down the body. Bands raise tufts or waves, the piece flowers in the coat or lights windows, each boat is a kind. A hit twitches the ear or lights the harbour, a cue stretches it; the loop is a cloud's shadow or the beam.
-// own: 0 snow at -1, rust at 1; 1 moonlit night at -1, pale day at 1; 2 close, or low on the water, at -1, far off, or a gull's height, at 1; 3 lean with a knobbed spine at -1, fat at 1; 4 cropped coat, or sunk in flat water, at -1, hair to the ground, or risen in a rough sea, at 1; 5 deep mist at -1, a dark sky at 1
+// own: 0 snow at -1, rust at 1; 1 moonlit night at -1, pale day at 1; 2 close, or low on the water, at -1, far off, or a gull's height, at 1; 3 lean with a knobbed spine at -1, fat at 1; 4 cropped coat, or sunk in flat water, at -1, hair to the ground, or risen in a rough sea, at 1; 5 deep mist at -1, a dark sky at 1; 6 spots that glow in the sounds' colours all over a dark coat at -1, broad stripes of those colours at 1; 7 in a sea of clouds at -1, half under desert sand at 1
 float bsPx, bsBr, bsWin, bsAut, bsNi, bsDay, bsHair, bsUp, bsTall, bsFog, bsStorm;
 vec3 bsSun;
+#define BS_SPOT sat(-uOwn[6])
+#define BS_BAND sat(uOwn[6])
+#define BS_CLOUD sat(-uOwn[7])
+#define BS_SAND sat(uOwn[7])
 float bsS(float a, float b, float x) { x = sat((x - a)/(b - a)); return x*x*(3. - 2.*x); } // also from high to low
 float bsLv(int k) { return k == 0 ? uDrone : k == 1 ? uPad : k == 2 ? uTexture : k == 3 ? uPhrase : uHits; }
 // dawn or evening, deep night, plain day
 vec3 bsHour(vec3 dusk, vec3 night, vec3 day) { return mix(mix(dusk, night, bsNi), day, bsDay); }
+// Stripes of the sounds' colours round a body.
+vec3 bsStripes(vec2 q, float fray) {
+ float f = q.x + .55*noise(q*vec2(.8, 1.3)) + fray, a = abs(fract(f) - .5)*2., k = mod(floor(f), 3.);
+ vec3 c = mix(uKind[1], k < 1. ? uKind[0] : k < 2. ? uKind[3] : uKind[0], bsS(.4, .52, a));
+ c = mix(c, uKind[2], bsS(.06, .0, abs(a - .46)));
+ return c*c*.8 + .004;
+}
+// Spots that glow: rgb, and how much of one is here.
+vec4 bsSpots(vec2 q) {
+ vec4 o = vec4(0.);
+ for (int j = 0; j < 4; j++) {
+  vec2 i = floor(q + vec2(j & 1, j >> 1) - .5), h = hash22(mod(i, 997.) + 1.7);
+  float d = length(q - i - .5 - .5*(h - .5)), r = .07 + .27*h.x*h.x; int k = int(h.y*4.99);
+  o += vec4(uKind[k]*uKind[k]*(.5 + 1.1*bsLv(k)), 1.)*(bsS(r, r*.45, d) + .22*exp(-d*d/(r*r*3.)))*(.8 + .2*sin(uTime*.4 + h.x*40.));
+ }
+ return o;
+}
+void bsStars(inout vec3 c, vec2 q, float up) {
+ vec2 g = q*52., f = fract(g) - .5; float h = hash21(floor(g));
+ c += bsNi*vec3(.75, .85, 1.)*step(.86, h)*bsS(.14, .03, length(f + .28*vec2(sin(h*91.), cos(h*91.))))*(.5 + .4*sin(uTime*.5 + h*70.))*bsS(0., .12, up);
+}
+vec3 bsGroundDye() { return mix(vec3(.5, .3, .15), uKind[1]*uKind[1]*.8, .6); }
 // ---- a: the shaggy one. Each body is a few rounds and limbs melted together.
 const vec2 bsAt = vec2(.228, .122); // the sun
 // How far a tip stands out across the edge, 0 to 1.
@@ -71,6 +97,7 @@ vec3 bsShaggy(vec2 p) {
  col = mix(col, lo*1.15, bsS(.45, .8, cl)*.5);
  col = mix(col, vec3(.05, .062, .08)*(.6 + .9*cl), bsStorm*bsS(-.02, .2, p.y)*.92);
  float ds = length((p - bsAt)*vec2(.7, 1.));
+ if (uOwn[7] < 0.) bsStars(col, p, p.y - .02);
  col += bsSun*(.5*(1. - .5*bsStorm)*exp(-ds*2.5) + 1.6*exp(-ds*9.) + 5.*bsS(.034, .034 - 2.*bsPx, air));
  // the meadow in the crook of the arm with its walls, and mist in the valley beyond
  float mx = (p.x + .4*p.y)*13., wisp = noise(vec2(p.x*2.6 + uTravel*.02, p.y*14.));
@@ -136,6 +163,9 @@ vec3 bsShaggy(vec2 p) {
   coat = mix(coat, vec3(.24, .22, .11), bsS(.6, .95, noise(vec2(u*11., vv*13. + 20.)))*.6);
   coat = mix(coat, mix(vec3(.26, .09, .025), vec3(.36, .2, .05), lk.y), bsAut*.85);
   coat = mix(coat, vec3(.62, .64, .66), bsWin*bsS(.1, .75, lk.x + .5*nn.y));
+  vec4 spot = vec4(0.);
+  if (uOwn[6] > 0.) coat = mix(coat, bsStripes(vec2(u*4.6 + (l == 1 ? .8 : 0.), vv*3.), .28*(lk.y - .5) + .12*strand), .94*BS_BAND);
+  if (uOwn[6] < 0.) { spot = bsSpots(vec2(ux*13., vv*11.))*BS_SPOT*cover; coat *= 1. - .6*BS_SPOT; }
   vec4 pc = piece(vec2((p.x + .85)/1.2, sat(.75 - p.y*1.4)));
   vec2 fg = vec2(u, rho)*105., fi = floor(fg), fh = hash22(mod(fi, 997.));
   float bloom = bsS(.3, .12, length(fg - fi - .3 - .4*fh))*step(.45, fract(fh.x*7.))*bsS(.4, .75, noise(p*13.));
@@ -153,6 +183,8 @@ vec3 bsShaggy(vec2 p) {
   vec3 c = coat*tone*(skyL*1.15*dark*(.5 + .5*bsS(-.5, .15, p.y)) + bsSun*sat(dot(nn, normalize(vec3(.5, .55, .65*bsDay + .05))))*(.9 + 1.2*bsDay));
   float s = max(sd, 0.);
   c += bsSun*(exp(-s*60.)*(.45 + .8*strand)*1.5 + .12*exp(-s*12.)*lk.x)*side*side*(.25 + 1.7*exp(-da*2.))*(.7 + .6*uPad + .7*uCue)*(1. + coat*2.);
+  if (uOwn[6] > 0.) { float h3 = (length(p - vec2(.1, .0)) - .8*(1. - uHits))*5.; c += c*BS_BAND*uHits*1.1*exp(-h3*h3); }
+  if (uOwn[6] < 0.) c += spot.rgb*(.5 + .9*lk.x)*(l == 0 ? .35 : 1.);
   float ring = (length(p - vec2(.6, .06)) - .9*(1. - uHits))*9.;
   c += (c*2.6 + .07)*mix(bsSun, uKind[4], .4)*uHits*exp(-ring*ring);
   if (l > 3) {
@@ -186,6 +218,28 @@ vec3 bsShaggy(vec2 p) {
  // mist: near the ground, or over everything
  float deep = mix(bsS(-.52, -.75, p.y), .96*bsS(.3, -.2, p.y - .12*wisp - .05*p.x), bsFog);
  col = mix(col, mist*(.9 + .2*wisp), deep);
+ if (uOwn[7] != 0.) for (int i = 0; i < 3; i++) {
+  float fi = float(i), x = p.x*(1.5 - .25*fi) + fi*3.7, k = abs(uOwn[7]), rise = (-.2 - .13*fi) - .4*(1. - k), dry = 1. - bsNi*.88, top, c0, ring3;
+  vec3 gc;
+  if (uOwn[7] < 0.) {
+   x += uTravel*.006*(fi + 1.);
+   vec2 bq = vec2(x*2.2, p.y*4.5 + fi*7.); float n1 = noise(bq*.8), n2 = noise(rot(.6)*bq*2.1 + 3.), n3 = noise(rot(1.1)*bq*5.3 + uTime*.01);
+   top = rise + .15*n1 + .07*abs(n2*2. - 1.) + .03*n3 + .02*uDrone*sin(x*4. + uTime*.2);
+   c0 = bsS(.17, 0., top - p.y)*.6 + .4*sat(n2*.6 + n3*.7 - .1);
+   gc = mix(mist*.42 + vec3(.0, .01, .03), mist*1.1 + bsSun*(.16 + .5*exp(-abs(p.x - bsAt.x)*2.)), c0);
+   top = bsS(-.03, .02, top - p.y);
+  } else {
+   float n1 = noise(vec2(x*.9, 3. + fi)), n2 = noise(vec2(x*2.3, 9. + fi)), slope = noise(vec2(x*.9 + .06, 3. + fi)) - n1;
+   top = rise + .2*n1 + .04*n2;
+   c0 = sat(.5 + 8.*slope + .5*noise(vec2(x*3. + (top - p.y)*9., (top - p.y)*5.)) - .25);
+   gc = bsGroundDye()*(mix(vec3(.3, .28, .36), bsSun*.75 + .45, c0)*dry + .05*bsNi)*(.9 + (.13 + .12*uTexture)*sin((top - p.y)*260. + x*30. + 9.*noise(vec2(x*5., p.y*16.))));
+   gc += bsSun*.35*exp(-(top - p.y)*70.)*dry;
+   top = bsS(-bsPx, bsPx, top - p.y);
+  }
+  ring3 = (length((p - vec2(.2, -.3))*vec2(1., 1.6)) - 1.1*(1. - uHits))*5.;
+  gc += (gc + .08)*mix(bsSun, uKind[4], .6)*(uHits*.9*exp(-ring3*ring3) + .12*uCue);
+  col = mix(col, gc, top*sat(k*4.));
+ }
  // the croft and its smoke
  vec2 q = (p - vec2(.235, -.312))*.8; vec3 clear = col;
  float wall = max(abs(q.x) - .024, abs(q.y - .008) - .01), roof = max(abs(q.x)*.25 + q.y - .036, max(abs(q.x) - .028, .017 - q.y));
@@ -222,6 +276,7 @@ vec3 bsEve(vec3 d, float clouds) {
  vec3 c = mix(lo, hi, bsS(-.02, .18, y));
  c = mix(c, mix(lo*vec3(.78, .58, .62), hi, .4), clouds*bsS(0., .06, y));
  c = mix(c, vec3(.05, .06, .075)*(1. + 2.*clouds), bsStorm*bsS(0., .1, y)*.92);
+ if (uOwn[7] < 0.) bsStars(c, vec2(az, el), y);
  return c + bsSun*(.5*exp(-az*az*2. - y*y*20.) + 2.5*bsS(.028, .026, length(vec2(az, el - .05))));
 }
 float bsBox(vec2 q, vec2 c, vec2 h) { q = abs(q - c) - h; return max(q.x, q.y); }
@@ -278,6 +333,9 @@ vec3 bsSkin(vec3 q, vec3 rd, vec3 n, float s) {
  float mott = noise(w*2.)*.6 + noise(w*5.)*.4, fine = noise(w*14.);
  n = normalize(n + .05*vec3(fine - .5, mott - .5, fine*mott*2. - .5));
  vec3 c = mix(vec3(.05, .085, .08), vec3(.15, .19, .16), bsS(.35, .75, mott)*.6 + .4*sat(.4 - q.y));
+ if (uOwn[6] > 0.) c = mix(c, bsStripes(vec2(s*11. + .5*q.y, q.y*1.2), .16*(fine - .5))*(.8 + .4*mott), .95*BS_BAND);
+ vec4 spot = vec4(0.);
+ if (uOwn[6] < 0.) { spot = bsSpots(w*vec2(2.4, 2.))*BS_SPOT; c *= 1. - .6*BS_SPOT; }
  c = mix(c, vec3(.24, .1, .04)*(.5 + mott), bsAut*bsS(.2, .7, mott + .4*n.y));
  // barnacles toward the brow
  vec2 bq = w*vec2(6., 5.), bi = floor(bq), bh = hash22(bi);
@@ -290,6 +348,7 @@ vec3 bsSkin(vec3 q, vec3 rd, vec3 n, float s) {
  c *= mix(lo*(.3 + .7*sat(n.z)), hi, .5 + .5*n.y)*.9 + bsSun*sat(dot(n, sd)*.7 + .3)*1.5;
  c += mix(lo, hi, bsS(0., .4, r.y))*(.03 + .9*pow(1. - sat(-dot(n, rd)), 4.))*(.6 - .3*bar)*(1. - .7*bsWin);
  c += bsSun*pow(sat(dot(r, sd)), 40.)*(.6 + .6*fine)*(.8 + .6*uPad + 2.*uCue);
+ if (uOwn[6] < 0.) c += spot.rgb*.9;
  c += uKind[4]*uHits*bsPool(q) + bsSun*uCue*.06*sat(n.y);
  return c*(1. - .5*bsS(.1, .02, q.y + .05*(mott - .5) + .015*sin(uTime*.7 + s*20.)));
 }
@@ -336,6 +395,7 @@ vec3 bsHarbour(vec2 p) {
   vec2 w = q.xz, go = 60.*vec2(cos(uTime*.005), sin(uTime*.005)), sl = vec2(noise(w*vec2(3., 7.) + go), noise(w*vec2(2.6, 8.) + 9. - go.yx)) - .5;
   sl += .6*vec2(noise(w*vec2(9., 21.) - 1.2*go), noise(w*vec2(8., 23.) + 4. + 1.3*go.yx)) - .3;
   sl *= (.05 + .06*uTexture + (uOwn[4] > 0. ? .25 : .045)*uOwn[4])/(1. + .1*tw)*(.6 + 1.2*band(sat(.5 + q.x*.25))*uEnergy);
+  if (uOwn[4] > 0.) sl /= 1. + .0035*uOwn[4]*tw*tw;
   sl += bsRing(w - vec2(.5, -.5), 2.2*(1. - uHits), uHits) + bsRing(w - vec2(-1.2, -1.6), 4.*(1. - uCue), uCue);
   n = normalize(vec3(-sl.x, 1., -sl.y));
   mirror = .28 + .7*pow(1. - sat(-dot(n, d)), 3.);
@@ -349,6 +409,24 @@ vec3 bsHarbour(vec2 p) {
   pool = uHits*bsPool(q);
   under = 1. - .35*exp(-max(g, 0.)*9.);
   fog = 1. - exp(-max(tw - 6., 0.)*(.03 + .06*uSpace));
+  if (uOwn[7] != 0.) {
+   float k = sat(abs(uOwn[7])*1.6), dry = 1. - bsNi*.88, lit; vec3 gc;
+   if (uOwn[7] < 0.) {
+    vec2 u = w*.55 + vec2(uTravel*.008, uTime*.006);
+    float n1 = noise(u) + .5*noise(u*2.3 + 4.) + .25*noise(u*5.1 + uTime*.012), n2 = noise(u + vec2(.1, .22)) + .5*noise(u*2.3 + 4. + vec2(.14, .3)) + .25*noise(u*5.1 + uTime*.012 + vec2(.1, .2));
+    lit = sat(.5 + 1.5*(n1 - n2) + .35*(n1 - .85));
+    gc = mix(hz*.4 + vec3(.0, .012, .035), hz*.85 + bsSun*.22, lit);
+    gc = mix(gc, hz*.8 + bsSun*.1, .75*exp(-max(g, 0.)*2.2)); under = 1.;
+   } else {
+    float wv = w.y*.5 + w.x*.22 + 1.3*noise(w*.32 + 2.) + .25*noise(w*1.1), fc = fract(wv), dune = bsS(0., .75, fc)*bsS(1., .94, fc);
+    lit = dune*(.8 + .4*noise(w*1.7)) + (.16 + .14*uTexture)*sin(w.y*26. + w.x*9. + 7.*noise(w*1.3))/(1. + .05*tw*tw);
+    gc = bsGroundDye()*(mix(vec3(.34, .3, .38), bsSun*.8 + .5, sat(lit))*dry + .05*bsNi);
+   }
+   float rg = length(w - vec2(.3, -.1)) - 5.*(1. - uHits);
+   gc += (gc + .05)*(.5*uKind[4] + .3*bsSun)*uHits*1.3*exp(-rg*rg*1.2);
+   gc *= 1. + .25*exp(-dot(w, w)*.08)*band(sat(.5 + q.x*.25))*uEnergy;
+   deep = mix(deep, gc, k); mirror *= 1. - k; glint *= 1. - k; foam *= 1. - k;
+  }
   o = q; d = reflect(d, n); d.y = max(d.y, .01);
  }
  fog = max(fog, bsFog*.84*(1. - exp(-max(seen - 3.5, 0.)*.3)));

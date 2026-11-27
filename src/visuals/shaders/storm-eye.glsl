@@ -3,7 +3,7 @@
 // b: Inside the wall
 // what: From far above at sunrise a white wheel of cloud turns over a dark blue sea, its arms lit from the left and throwing long shadows, a stepped well at its middle, a thin line of air round the world; or low inside the well, walls of cloud going right round under a disc of sky, one side bright, one in blue shade.
 // follows: A fuller piece turns the wheel faster; each part lifts and tints the cloud at its own place. The drone deepens the well, the pad veils, texture roughens the tops, the phrase lets an arm out or lights the edges of the shade, the bands raise towers round the wall, a hit glows in one tower, a cue opens the eye and closes it, keys glint on the sea.
-// own: 0 white noon over green water at -1, a red evening at 1; 1 ochre dust over rust at -1, ash-dark cloud over a pale sea at 1; 2 a pinhole eye with steep walls at -1, a wide eye at 1; 3 one whole sheet of cloud, smooth shelves inside, at -1, torn thin arms and broken towers at 1; 4 from straight overhead, inside looking up to the sky, at -1, low along the edge of the world, inside with the sea filling the picture, at 1; 5 wound the other way, inside the towers leaning left over a glassy sea, at -1, wound tight, leaning right over a rough sea, at 1
+// own: 0 white noon over green water at -1, a red evening at 1; 1 ochre dust over rust at -1, ash-dark cloud over a pale sea at 1; 2 a pinhole eye with steep walls at -1, a wide eye at 1; 3 one whole sheet of cloud, smooth shelves inside, at -1, torn thin arms and broken towers at 1; 4 from straight overhead, inside looking up to the sky, at -1, low along the edge of the world, inside with the sea filling the picture, at 1; 5 wound the other way, inside the towers leaning left over a glassy sea, at -1, wound tight, leaning right over a rough sea, at 1; 6 two storms circling, inside a door open in the wall with the sun in it, at -1, a small whole round world, inside a crag standing in the eye, at 1; 7 broken ice for sea at -1, night at 1: a moon, lamps of towns below, inside stars
 float seR, seDeep, seOpen, seWind, seCover, seRough, sePc, sePx, seAns;   // the eye's size and depth, how far it is open, the arms' winding, how much cloud; last, how strongly it answers
 mat2 seTurn, seTurn2;
 vec3 seSunC, seShade, seSea, seWhite, seSkyC;   // the hour's light, the shade, the sea, the cloud's own colour, the sky
@@ -24,6 +24,27 @@ vec3 seHeads(vec2 q, float seed, float hard) {
   }
   return vec3(b.xy / b.z, log(b.z) / hard);
 }
+#define seTwo max(-uOwn[6], 0.0)
+#define seOne max(uOwn[6], 0.0)
+#define seNight max(uOwn[7], 0.0)
+#define seIce max(-uOwn[7], 0.0)
+// Floes of ice: how far in from the crack (x), which floe (y).
+vec2 seFloes(vec2 q) {
+  vec2 i0 = floor(q), b = vec2(9.0), id = vec2(0.0);
+  for (int j = 0; j < 9; j++) {
+    vec2 i = i0 + vec2(j % 3 - 1, j / 3 - 1);
+    float h = hash21(i + 31.0);
+    vec2 d = q - i - 0.5 - 0.8 * (vec2(h, fract(h * 57.3)) - 0.5);
+    float m = dot(d, d);
+    if (m < b.x) { b = vec2(m, b.x); id = i; } else b.y = min(b.y, m);
+  }
+  return vec2(sqrt(b.y) - sqrt(b.x), hash21(id + 5.0));
+}
+// Two eyes where there was one: the plane squared, so that both turn the same way.
+vec2 seAt(vec2 q) {
+  if (seTwo > 0.0) q = mix(q, 1.15 * (vec2(q.x * q.x - q.y * q.y, 2.0 * q.x * q.y) - vec2(0.19, 0.06)), seTwo);
+  return q;
+}
 // The hour, the stuff the storm is made of.
 void seLight() {
   float o = uOwn[0], m = uOwn[1];
@@ -37,11 +58,18 @@ void seLight() {
   seShade = mix(mix(seShade, vec3(0.3, 0.15, 0.13), du), seShade * 1.2 + 0.1, as);
   seSea = mix(mix(seSea, vec3(0.1, 0.025, 0.012), du), vec3(0.42, 0.4, 0.35), as);
   seSkyC = mix(mix(seSkyC, vec3(0.5, 0.3, 0.14), du), vec3(0.5, 0.5, 0.46), as);
+  if (seNight > 0.0) {
+    seSunC *= mix(vec3(1.0), vec3(0.2, 0.26, 0.36), seNight);
+    seShade *= mix(1.0, 0.16, seNight);
+    seSea *= mix(1.0, 0.18, seNight);
+    seSkyC *= mix(1.0, 0.17, seNight);
+  }
 }
 // How high the cloud stands at q, seen from above: sea at the bottom of the eye, a stepped wall, then arms running out.
 float seDens, seN;   // how thick the cloud is, its broad unevenness
 vec2 seW;           // the place with the arms unwound
 float seH(vec2 q) {
+  q = seAt(q);
   float r = length(q);
   float lr = log(r + 0.07);
   vec2 w = rot(seWind * lr) * (seTurn * q);
@@ -71,8 +99,9 @@ vec3 seOrbit(vec2 p) {
   vec2 at = vec2(0.2, -0.06) * (1.0 - 0.25 * abs(uOwn[4])) - vec2(0.0, 0.1) * max(uOwn[4], 0.0);
   vec2 s = rot(0.6) * (p - at);
   vec3 e = vec3(0.0, sin(T), -cos(T)), up = vec3(0.0, cos(T), sin(T));
-  vec3 ro = -e * D, rd = normalize(e * 1.5 + up * s.y + vec3(s.x, 0.0, 0.0));
-  const float R = 9.0;
+  vec3 ro = -e * D, rd = normalize(e * (1.5 - 0.0 * seOne) + up * s.y + vec3(s.x, 0.0, 0.0));
+  float R = 9.0 - 7.7 * seOne;
+  if (seOne > 0.0) { ro *= 1.0 + 0.35 * seOne; ro.xy -= vec2(0.0, 0.0); }
   vec3 oc = ro + vec3(0.0, 0.0, R);
   float b = dot(oc, rd), rr = R + 0.2, cc = dot(oc, oc);
   float miss = sqrt(max(cc - b * b, 0.0)) - rr;       // how far over the edge of the world the look passes
@@ -87,7 +116,7 @@ vec3 seOrbit(vec2 p) {
   float face = max(-dot(rd, n), 0.0);
   vec3 side = rd + n * face;
   vec2 q = P.xy, st = side.xy / max(face, 0.22);
-  float r0 = length(q), an = atan(q.y, q.x + 1e-6) / TAU + 0.5;
+  float r0 = length(seAt(q)), an = atan(q.y, q.x + 1e-6) / TAU + 0.5;
   vec4 pc = piece(vec2(an, sat((r0 - 0.25) / 1.1)));
   float soft = seE(0.0, 0.04, an) * seE(1.0, 0.96, an) * seE(0.2, 0.4, r0);
   pc *= soft; pc *= seAns; sePc = min(pc.a, 1.0);
@@ -102,8 +131,8 @@ vec3 seOrbit(vec2 p) {
     stepBack = clamp(gap * pull, 0.004, cap);
     was = gap; z -= stepBack; q += st * stepBack;
   }
-  float r = length(q), dens = seDens, wide = seN;
-  vec2 w = seW, tq = seTurn2 * q, lt = seTurn2 * ls;
+  float r = length(seAt(q)), dens = seDens, wide = seN;
+  vec2 w = seW, tq = seTurn2 * seAt(q), lt = seTurn2 * ls;
   // the slope toward the sun and what stands in its way
   float slope = (seH(q + ls * 0.02) - h) / 0.02;
   float fib = seFib(w), fib2 = seFib(seW);
@@ -127,6 +156,22 @@ vec3 seOrbit(vec2 p) {
   sea += seSunC * (1.0 - 0.7 * sh) * seE(0.35, 0.8, gl) * (0.015 + 0.14 * uKeys);
   sea = mix(sea, sea + uKind[0] * uKind[0] * 0.22, well * uDrone);
   sea += (seSkyC * 0.5 + seSunC * 0.12) * uCue * seE(seR * 1.6, seR * 0.6, r);
+  if (seIce > 0.0) {
+    vec2 fl = seFloes(q * 11.0 + 0.5 * noise(q * 9.0));
+    float gone = step(0.86 - 0.3 * seE(0.4, 0.7, noise(q * 2.3 + 8.0)), fl.y);
+    float on = seE(0.05, 0.11, fl.x - 0.1 * noise(q * 60.0)) * (1.0 - gone);
+    sea = mix(sea, vec3(0.72, 0.76, 0.8) * (0.75 + 0.3 * fl.y + 0.12 * noise(q * 120.0)) * (seSunC * 0.62 + seShade * 0.8), on * seIce);
+  }
+  if (seNight > 0.0) {
+    float ln = noise(q * 2.1 + 5.3) * 0.65 + noise(q * 6.0 + 2.0) * 0.25 + noise(q * 17.0) * 0.1, land = seE(0.5, 0.53, ln);
+    float town = seE(0.35, 0.85, noise(q * 7.5 + 11.0) + 1.1 * exp(-abs(ln - 0.53) * 22.0) - 0.35) * land;
+    vec2 gq = q * 64.0, gi = floor(gq);
+    float gh = hash21(gi + 3.0), g2 = fract(gh * 63.7);
+    float gd = length(gq - gi - 0.3 - 0.4 * vec2(g2, fract(g2 * 17.0)));
+    float lamp = exp(-gd * gd * 22.0) * step(1.0 - 0.75 * town, gh);
+    sea = mix(sea, seSunC * vec3(0.022, 0.026, 0.02) * (0.5 + ln), land * seNight);
+    sea += mix(vec3(1.0, 0.62, 0.25), uKind[3] * uKind[3], 0.25) * (lamp * (0.7 + 1.6 * g2) + 0.1 * town * town) * seNight * (0.8 + 0.8 * uPhrase);
+  }
   vec3 kc = pc.rgb / max(pc.a, 0.2);
   vec3 alb = seWhite * mix(vec3(1.0), 0.55 + 0.7 * kc, 0.55 * sePc);
   vec3 cl = alb * (seSunC * lit * (1.75 + 0.5 * fib) + seSunC * 0.2 * (1.0 - dens) * (1.0 - sh) + seShade * (0.75 + 0.35 * sat(h * 5.0)) * (1.15 - 0.45 * sat(abs(slope) * 0.6)) * (1.0 - 0.55 * well)) * (1.0 + 0.9 * uCue * seE(seR * 2.2, seR * 0.8, r) * (1.0 - lit));
@@ -141,12 +186,28 @@ vec3 seOrbit(vec2 p) {
   // lightning inside one tower of the wall
   float ha = TAU * uLoop;
   vec2 hp = vec2(cos(ha), sin(ha)) * seR * 1.5;
-  float hd = length(q - hp) / 0.13;
-  col += (mix(vec3(0.8, 0.85, 1.0), uKind[4], 0.3)) * uHits * exp(-hd * hd) * (0.4 + 1.2 * sat(c2.z)) * (0.8 + uEnergy);
+  float hd = length(seAt(q) - hp) / (0.13 + 0.12 * seOne);
+  col += (mix(vec3(0.8, 0.85, 1.0), uKind[4], 0.3)) * uHits * exp(-hd * hd) * (0.4 + 1.2 * sat(c2.z)) * (0.8 + uEnergy) * (1.0 + 2.0 * seOne + 2.0 * seTwo);
+  // the dark side of a small world
+  if (seOne > 0.0) {
+    float day = seE(-0.25, 0.75, dot(n, normalize(vec3(ls * 1.0, 0.55))));
+    col *= mix(1.0, 0.02 + 1.05 * day, seOne); air *= mix(1.0, 0.1 + day, seOne);
+  }
   // the air between
   float far = pow(max(1.0 - face, 0.0), 3.0);
   col = mix(col, air * 0.75, sat(far * 1.3) * 0.7);
   return screenOf(col);
+}
+// How high the crag stands at x along it, and which way its side faces there.
+vec2 seCrag(float x) {
+  vec2 h = vec2(0.0);
+  for (int i = 0; i < 3; i++) {
+    float c = i == 0 ? 0.02 : (i == 1 ? -0.16 : 0.29), w = i == 0 ? 0.2 : (i == 1 ? 0.15 : 0.05), t = i == 0 ? 0.44 : (i == 1 ? 0.22 : 0.2);
+    float d = (x - c) / w, a = abs(d), n = noise(vec2(x * 13.0 + 4.0 * float(i), 1.0)) + 0.25 * noise(vec2(x * 47.0, 3.0));
+    float y = t * (1.0 - a * a * a) * (0.72 + 0.28 * n), k = seE(-0.05, 0.05, y - h.x) * step(a, 1.0);
+    h = vec2(max(h.x, a < 1.0 ? y : 0.0), mix(h.y, d, k));
+  }
+  return vec2(h.x * seOne, h.y);
 }
 vec3 seWall(vec2 p) {
   float ld = 0.5 - 0.5 * cos(TAU * uLoop), v4 = uOwn[4], form = uOwn[3], px = sePx / 0.4;
@@ -159,6 +220,7 @@ vec3 seWall(vec2 p) {
   vec2 rh = rd.xy / flat_, cam = vec2(-0.14, -0.3);
   float size = exp(0.4 * uOwn[2]) * (1.0 + 0.16 * seOpen), eye = 0.06;
   vec3 L = normalize(vec3(-0.8, -0.3, (0.46 + 0.12 * ld) * (1.0 + 0.9 * max(-uOwn[0], 0.0) - 0.4 * max(uOwn[0], 0.0))));
+  if (seTwo > 0.0) L = normalize(mix(L, normalize(vec3(0.3, 0.95, 0.12)), seTwo));
   vec2 Lh = normalize(L.xy);
   float tanE = L.z / length(L.xy), az = atan(rd.x, rd.y);
   // the clean sky, a veil of ice in it
@@ -168,6 +230,21 @@ vec3 seWall(vec2 p) {
   float ice = (0.6 * noise(sk * vec2(2.2, 15.0) + vec2(uTime * 0.006, sin(sk.x * 2.0))) + 0.4 * noise(sk * vec2(5.0, 40.0) + sin(sk.x * 2.0) * 2.0)) * noise(sk * vec2(1.3, 2.6) - uTime * 0.004 + 4.0);
   col = mix(col, seWhite * mix(seSunC * 1.3, uKind[1] * uKind[1] + 0.3, 0.4 * uPad), seE(0.18, 0.75, ice) * (0.2 + 0.6 * uPad));
   col += seSunC * 0.25 * uMic * exp(-el * 2.0);
+  if (seNight > 0.0) {
+    vec2 cq = s * 9.0, ci = floor(cq);
+    float ch = hash21(ci + 2.0), c2 = fract(ch * 71.0), cd = length(cq - ci - 0.25 - 0.5 * vec2(c2, fract(c2 * 23.0))) / (9.0 * px * 0.9);
+    col += vec3(0.9, 0.92, 1.0) * seNight * step(0.5 + 0.3 * noise(s * 2.0), ch) * (0.06 + 0.9 * pow(fract(ch * 13.7), 4.0)) * (1.0 + uKeys) * exp(-cd * cd * 0.5) * (1.0 - 0.7 * seE(0.2, 0.6, ice));
+    vec3 md = normalize(vec3(0.3, 0.72, 0.66));
+    float ma = acos(clamp(dot(rd, md), -1.0, 1.0));
+    float mp = seE(0.067, 0.0635, ma), sea_ = noise(rd.xz * 34.0 + 3.0) * 0.6 + noise(rd.xz * 80.0) * 0.4;
+    col = mix(col, vec3(0.92, 0.9, 0.82) * (1.3 - 0.75 * seE(0.35, 0.7, sea_)), mp * seNight);
+    col += (1.0 - mp) * seNight * vec3(0.5, 0.6, 0.8) * (0.1 * exp(-ma * 4.0) + 0.3 * exp(-ma * 22.0));
+  }
+  vec3 sunAt = normalize(vec3(0.3, 0.95, 0.1));
+  if (seTwo > 0.0) {
+    float sa = acos(clamp(dot(rd, sunAt), -1.0, 1.0));
+    col += seTwo * seSunC * (0.75 * exp(-sa * 3.2) + 3.0 * exp(-sa * 24.0) + 5.0 * seE(0.062, 0.056, sa));
+  }
   float left = 1.0, tSea = eye / max(-rd.z / flat_, 1e-4), tWall = 9.0;
   vec3 wallC = vec3(0.0);
   float hitAz = -0.65 + 0.45 * sin(TAU * uLoop);
@@ -182,6 +259,12 @@ vec3 seWall(vec2 p) {
     float N = 20.0 - 2.0 * fi, u = turn * N, unit = TAU * Rk / N, smooth_ = 1.0 + 0.85 * min(form, 0.0), base = 0.26 * (fi - 1.0) + 0.16;
     vec2 warp = 0.9 * vec2(noise(vec2(u * 1.1, z / unit * 0.9) + fi), noise(vec2(u * 0.9, z / unit) + 9.0 + fi));
     u += 0.35 * (warp.x - 0.45) - uOwn[5] * z / unit * 0.7;
+    float door = 0.0;
+    if (seTwo > 0.0) {
+      float da = (atan(hp.x, hp.y) - 0.3) / 0.62; da *= da;
+      door = seTwo * (1.1 + 0.2 * fi) * exp(-da * da);
+      if (z > base + 0.6 + 0.35 * seAns + 0.5 * max(form, 0.0) - door) continue;
+    }
     if (z > base + 0.6 + 0.35 * seAns + 0.5 * max(form, 0.0)) continue;
     float place = az / 3.6 + 0.5;
     vec4 pc = piece(vec2(place, sat(1.0 - z / 1.2))) * seE(0.0, 0.12, place) * seE(1.0, 0.88, place);
@@ -197,7 +280,7 @@ vec3 seWall(vec2 p) {
       heap += wt; across += d * wt;
     }
     heap += 1.0; across /= heap;
-    float best = base + 0.2 + log(heap) / 15.0;
+    float best = base + 0.2 + log(heap) / 15.0 - door;
     vec2 cq = vec2(u, z / unit);
     float lumpy = 1.0 + 0.6 * min(form, 0.0);
     vec3 c1 = seHeads(rot(0.4) * cq * 1.9 + warp, fi * 5.0, 11.0);
@@ -257,10 +340,37 @@ vec3 seWall(vec2 p) {
     float fr = 0.1 + 0.6 * pow(1.0 - sat(dot(-rd, n)), 3.0);
     col = mix(seSea * (1.3 - 0.4 * uDrone) + seShade * 0.05, up, fr);
     col *= max(1.0 + 1.7 * rough * dot(sl, rh), 0.25);
+    if (seOne > 0.0) {
+      float ix = (atan(rf.x, rf.y) + 0.02) * 0.55;
+      if (tSea < 0.6) col = mix(col, seShade * seWhite * 0.06, 0.6 * near * seE(-0.02, 0.08, seCrag(ix).x - abs(rf.z) / max(length(rf.xy), 0.05) * 0.6));
+    }
+    if (seTwo > 0.0) col += seTwo * seSunC * (pow(sat(dot(vec3(rf.xy, e2), sunAt)), 60.0) * 2.2 + 0.4 * pow(sat(dot(vec3(rf.xy, e2), sunAt)), 8.0));
     col += seSunC * pow(sat(dot(rf, normalize(vec3(-Lh, 0.5)))), 22.0) * (0.12 + 0.2 * uHigh + 2.2 * uKeys);
     col = mix(col, wl, 0.75 * seE(0.55, 1.1, crest + 0.5 * noise(g * 170.0)) * max(uOwn[5], 0.0) * near);
-    col = mix(col, wl, 0.55 * exp(-max(tWall - tSea, 0.0) * 22.0) + 0.42 * exp((tSea / tWall - 1.0) * eye * 190.0));
+    if (seIce > 0.0) {
+      vec2 fl = seFloes(g * 10.0 + 0.4 * noise(g * 12.0) + vec2(uTime * 0.006, 0.0));
+      float wd = 0.09 + 10.0 * px * tSea * tSea / eye * 0.25, on = seE(0.05, 0.05 + wd, fl.x - 0.06 * noise(g * 70.0)) * step(fl.y, 0.84);
+      float lip = seE(0.05, 0.09, fl.x) * seE(0.2, 0.1, fl.x);
+      vec3 ic = vec3(0.8, 0.84, 0.88) * (0.78 + 0.28 * fl.y + 0.12 * noise(g * 60.0)) * (seSunC * (0.45 + 0.35 * br) + seShade * 0.7) + seSunC * 0.22 * lip * near;
+      col = mix(col, ic, on * seIce);
+    }
+    col = mix(col, wl, (1.0 - 0.6 * seTwo * seE(0.5, 1.0, dot(rh, sunAt.xy))) * 0.55 * exp(-max(tWall - tSea, 0.0) * 22.0) + 0.42 * exp((tSea / tWall - 1.0) * eye * 190.0));
   } else { float foot = max(tWall * rise + eye, 0.0); col = mix(col, wl, 0.55 * exp(-foot * 26.0) + 0.42 * exp(-foot * 110.0)); }
+  // a crag standing in the eye, with surf at its foot
+  if (seOne > 0.0) {
+    float ix = (az + 0.02) * 0.55, iz = 0.55 * rise + eye, fa = px * 0.7;
+    vec2 cg = seCrag(ix);
+    vec2 rq = vec2(ix * 60.0, iz * 46.0 - ix * 22.0);
+    float ra = fbm(rq), rb = fbm(rq + vec2(0.5, -0.5));
+    float edge = cg.x - iz + 0.016 * (ra - 0.5);
+    vec3 cn = normalize(vec3(1.5 * cg.y + 1.1 * (rb - ra), -0.8, 0.15 + 0.5 * exp(-max(edge, 0.0) * 22.0) + 1.1 * (ra - rb)));
+    float cl = sat(dot(cn, L) * 1.15 + 0.02), moss = seE(0.09, 0.0, edge + 0.1 * (ra - 0.5));
+    vec3 cc = mix(vec3(0.05, 0.045, 0.042), vec3(0.06, 0.075, 0.025), moss) * seWhite;
+    cc = cc * (seSunC * cl * 2.6 + seShade * vec3(0.8, 0.9, 1.1) * sat(0.1 + 0.5 * ra));
+    cc = mix(cc, wl, 0.75 * exp(-max(iz, 0.0) * 70.0) + 0.05);
+    col = mix(col, cc, seE(-fa, fa, edge) * seE(-0.002, 0.002, iz) * seE(0.0, 0.012, cg.x));
+    col = mix(col, wl, seOne * 0.6 * exp(-abs(iz) * 90.0) * seE(0.0, 0.05, cg.x) * (0.4 + 0.6 * noise(vec2(ix * 60.0, uTime * 0.4))));
+  }
   // one white bird
   vec2 bp = vec2(-0.3 + 0.22 * sin(uTime * 0.031) + 0.03 * sin(uTime * 0.11), hy + 0.36 + 0.05 * sin(uTime * 0.047) + 0.03 * uPhrase);
   vec2 bq = rot(0.25 + 0.2 * sin(uTime * 0.031 + 1.0)) * (p - bp) / 0.03;

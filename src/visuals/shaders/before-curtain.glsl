@@ -3,7 +3,7 @@
 // b: Gathered swags
 // what: From the side of the front row a velvet curtain falls in deep pleats to a gold fringe; lamps we cannot see spill under its hem and along the waxed boards, and a thin parting glows; or the stage from its middle, cream silk drawn up in swags five deep over a painted sky with a low sun and a tree on wheels.
 // follows: Each kind is a lamp behind, or lights one depth of silk. Pad opens the parting, drone warms the folds, texture is dust, phrase darkens the wheeled shadow or tree. Bands send light up the pleats, or lift the swags. A hit pushes a pleat or lights the far swags; a cue raises all a moment. Loop moves the oval or sun, keys gild the gold, the piece tints the sky.
-// own: 0 sea green velvet or night blue silk at -1, bone velvet or rose red silk at 1; 1 few broad pleats or huge swags at -1, many narrow ones at 1; 2 hem on the boards or silk let far down at -1, hem knee high or silk drawn right up at 1; 3 further back at -1, close and low or near under the silk at 1; 4 moonlight behind at -1, a red fire or sunset at 1; 5 gauze with the lamps showing through, or sheer silk, at -1, broad stripes at 1
+// own: 0 sea green velvet or night blue silk at -1, bone velvet or rose red silk at 1; 1 few broad pleats or huge swags at -1, many narrow ones at 1; 2 hem on the boards or silk let far down at -1, hem knee high or silk drawn right up at 1; 3 further back at -1, close and low or near under the silk at 1; 4 moonlight behind at -1, a red fire or sunset at 1; 5 gauze with the lamps showing through, or sheer silk, at -1, broad stripes at 1; 6 lying down and looking up (b: silk hanging low in the middle) at -1, curtains swept aside to both edges on what is behind at 1; 7 snow on the stage and firs behind at -1, still water for a floor and a sail behind at 1
 float bcPx, bcBack, bcPleat, bcTall, bcLift, bcCue, bcHit, bcBlow, bcBlown; // a pixel; and where cloth and camera stand
 vec3 bcDye, bcSheen, bcTint, bcWarm; // the cloth's colour, its shine, the light behind
 vec3 bcBy(vec3 low, vec3 mid, vec3 high, float q) { return q < 0.0 ? mix(mid, low, -q) : mix(mid, high, q); }
@@ -13,8 +13,17 @@ vec3 bcGel(int k) { vec3 c = uKind[k]; return (c * c * 1.75 + c * 0.04) * mix(ve
 float bcDn(float a, float b, float x) { return 1.0 - smoothstep(a, b, x); }
 float bcBump(float x) { return exp(-x * x); }
 
+#define BC_OPEN max(uOwn[6], 0.0)
+#define BC_LOW max(-uOwn[6], 0.0)
+#define BC_WET max(uOwn[7], 0.0)
+#define BC_SNOW max(-uOwn[7], 0.0)
+#define BC_EASE clamp(uOwn[2] * 3.0, 0.0, 1.0)
+#define BC_SOFT max(BC_SNOW, max(uOwn[2], 0.0))
+vec3 bcSky(vec2 p, float hor);
+float bcSweep(float y) { float c = 1.0 - smoothstep(0.75, 3.3, y); return 1.45 * BC_OPEN * c * c * (1.0 - 0.12 * (1.0 - smoothstep(0.0, 0.75, y))); }
 // ---- a: the great velvet curtain, along s, up y
 float bcAt(float s, float y) { // which pleat, counted along the cloth
+  if (uOwn[6] > 0.0) { float w = bcSweep(y), x = s + 2.55; s -= sign(x) * w * exp(-max(abs(x) - w, 0.0) * 1.1); }
   return bcPleat * s + 0.42 * sin(0.83 * bcPleat * s + 0.6) + 0.23 * sin(1.71 * bcPleat * s + 2.0) + 0.05 * sin(0.9 * y + 1.3 * s);
 }
 float bcDeep(float s, float y) { // how far the cloth stands out toward us
@@ -27,7 +36,7 @@ float bcDeep(float s, float y) { // how far the cloth stands out toward us
   d += 0.13 * bcTall * (sin(2.0 * a + 1.5 * sin(0.37 * a) + 0.4 * y) + 0.2 * sin(5.0 * a + 2.0 * sin(0.7 * a) - 0.5 * y)) * (0.45 + 0.55 * exp(-0.4 * y));
   d += 0.035 * draught;
   // a push from behind
-  vec2 at = vec2((s + 0.85) * 3.6, y - 0.75);
+  vec2 at = vec2((s + 0.85) * 3.6, y - 0.75 - 1.8 * BC_LOW);
   d += bcHit * 0.17 * exp(-dot(at, at) * 1.6);
   return d;
 }
@@ -38,10 +47,10 @@ float bcHem(float s) { // the height of the hem over the boards
 float bcSlit(float s, float y) { // below 0 inside the parting
   float mid = -2.55 + 0.05 * sin(0.8 * y);
   float w = (0.018 + 0.13 * uPad) * exp(-0.3 * y) * (1.0 + 0.25 * sin(1.9 * y + 0.6 + 0.15 * uTime));
+  if (uOwn[6] > 0.0) w += bcSweep(y);
   return abs(s - mid) - w;
 }
 float bcPlace(int k) { return float[5](-4.7, -3.1, -1.9, -0.05, -0.85)[k]; }
-// The light that stands behind at s, as it shows in the gap.
 vec3 bcBehind(float s) {
   vec3 c = bcTint * (0.42 + 0.15 * uLevel + 0.12 * sin(1.1 * s + 0.1 * uTime));
   for (int k = 0; k < 5; k++) {
@@ -102,7 +111,6 @@ vec3 bcVelvet(vec3 q, vec3 rd, float foot, float across) {
   float tall = bcTall;
   float ao = smoothstep(-0.02, 0.95 * tall, d); ao = 0.02 + 0.98 * ao * ao;
   float face = sat(dot(n, -rd)), graze = pow(1.0 - face, 1.9) * smoothstep(0.0, 0.15, face);
-  // the pile: brushed patches and fine upright streaks
   float u = bcAt(s, y);
   float nap = noise(vec2(u * 2.3, y * 1.5)) * 0.6 + noise(vec2(u * 7.0 + 3.0, y * 4.0)) * 0.4;
   float pile = noise(vec2(u * 60.0, y * 14.0));
@@ -111,27 +119,25 @@ vec3 bcVelvet(vec3 q, vec3 rd, float foot, float across) {
   vec3 dye = bcDye;
   float stripe = max(uOwn[5], 0.0);
   dye = mix(dye, bcSheen * vec3(0.9, 0.75, 0.42) + dye * 0.2, stripe * smoothstep(-0.12, 0.12, sin(TAU * u * 2.0 + 0.8) - 0.15));
-  // the house: a dim warm wash from the front
   vec3 L = normalize(vec3(0.75, 0.5, -0.8));
   float dif = sat(dot(n, L));
   vec3 c = dye * ao * (0.10 + 0.22 * dif) * mix(vec3(1.0, 0.86, 0.76), bcWarm, 0.5) * brushed;
   c += bcSheen * graze * (0.2 + 0.8 * ao) * 0.16 * brushed * (0.3 + 0.7 * sat(0.5 + n.x));
-  // the warm oval of the front light
+  if (uOwn[7] < 0.0) c += dye * ao * (0.12 + 0.5 * dif + 0.5 * sat(0.4 - n.y)) * brushed * BC_SNOW * mix(vec3(0.75, 0.85, 1.0), bcTint, 0.3);
+  // the oval
   vec2 o = vec2(s + 1.35 + 0.4 * sin(TAU * uLoop) - 0.5 * d, y - 2.05 - 0.12 * cos(TAU * uLoop)) / vec2(1.25, 0.72);
-  float oval = bcDn(0.82, 1.08, length(o)) * (0.75 + 0.25 * bcDn(0.0, 1.0, length(o)));
+  float oval = bcDn(0.82 - 0.5 * BC_SOFT, 1.08 + 0.4 * BC_SOFT, length(o)) * (0.75 + 0.25 * bcDn(0.0, 1.0, length(o)));
   vec3 Lo = normalize(vec3(-0.35, 0.45, -1.0));
   float od = sat(dot(n, Lo));
   c += (dye * (0.25 + 0.95 * od * od) + bcSheen * 0.5 * graze * sqrt(od)) * (0.15 + 0.85 * ao) * oval * brushed * bcWarm * (1.5 + 0.6 * uLevel + 0.6 * uMic);
-  // the drone warms the folds from within
   vec3 warm = mix(vec3(1.0, 0.45, 0.2), bcGel(0) * 1.6, 0.45);
   c += warm * (dye * 0.35 + bcSheen * 0.16 * graze) * uDrone * (0.35 + 0.9 * uEnergy) * smoothstep(0.0, 0.35, ao) * sat(0.45 - n.x) * brushed;
-  vec2 push = vec2((s + 0.85) * 2.6, y - 0.6);
+  vec2 push = vec2((s + 0.85) * 2.6, y - 0.6 - 2.0 * BC_LOW);
   // the light under the hem climbs the pleats
   vec3 leak = bcBehind(s) * mix(bcWheels(s, 0.12), 1.0, 0.4);
   float climb = 0.6 * exp(-max(up, 0.0) * 4.0) + (0.08 + 0.5 * band((s + 5.5) / 6.0)) * exp(-max(up, 0.0) * 1.3);
   c += leak * (dye * 2.2 + bcSheen * (0.05 + 0.4 * graze)) * climb * (0.06 + 0.94 * ao) * (0.5 + 0.5 * sat(0.5 - n.x)) * brushed;
   c += (bcGel(4) + 0.1) * (dye * 2.0 + bcSheen * graze) * uHits * exp(-dot(push, push) * 1.3) * 1.5 * ao;
-  // the edge of the parting takes the light
   float sl = max(bcSlit(s, y), 0.0);
   c += (bcTint + bcGel(1) * uPad * 2.0) * (dye * 1.6 + bcSheen * 0.16) * (1.6 * exp(-sl * 16.0) + 0.5 * exp(-sl * 2.2)) * (0.25 + 0.6 * uPad) * exp(-0.25 * y) * sat(0.08 - sign(s + 2.55) * n.x) * ao * 1.6;
   // thin gauze: the lamps behind show through as moons
@@ -164,17 +170,29 @@ vec3 bcBoards(vec2 q, float d, float foot, out float gloss) {
   g = mix(0.5, g, bcDn(0.008, 0.05, foot));
   float seam = smoothstep(0.5 - 0.012 - foot * 5.2, 0.5, x) * bcDn(0.01, 0.09, foot);
   gloss = (0.75 + 0.5 * g) * (1.0 - 0.8 * seam);
-  return vec3(0.30, 0.17, 0.09) * (0.6 + 0.5 * hash11(id) + 0.5 * (g - 0.5)) * (1.0 - 0.75 * seam);
+  vec3 wood = vec3(0.30, 0.17, 0.09) * (0.6 + 0.5 * hash11(id) + 0.5 * (g - 0.5)) * (1.0 - 0.75 * seam);
+  if (uOwn[7] > 0.0) { gloss = mix(gloss, 1.0, BC_WET); wood *= 1.0 - 0.8 * BC_WET; }
+  if (uOwn[7] < 0.0) {
+    float w = noise(vec2(q.x * 1.3, d * 2.0)) + 0.4 * noise(vec2(q.x * 4.0, d * 7.0));
+    wood = mix(wood, vec3(0.36, 0.39, 0.43) * (0.45 + 0.5 * w), sat(BC_SNOW * 1.6 - 0.35 * w)); gloss *= 1.0 - BC_SNOW;
+  }
+  return wood;
 }
+vec2 bcFar(vec3 o, vec3 d) { vec3 f = o + d * max(9.0 - o.z, 0.0) / d.z; return vec2(f.x + 5.6, f.y) * vec2(0.2, 0.17); } // on the cloth painted behind
 vec3 bcHouse(vec2 p) {
   float yaw = bcBy(0.18, 0.47, 0.6, uOwn[3]), f = 1.15, Z = bcBack, eye = bcBy(1.15, 0.66, 0.3, uOwn[3]);
   vec3 v = vec3(p.x, p.y + 0.1, f) / f;
   vec3 rd = vec3(v.x * cos(yaw) - v.z * sin(yaw), v.y, max(v.x * sin(yaw) + v.z * cos(yaw), 0.15));
   float cross = fract(uTime / 34.0);  // a draught takes half a minute to pass
   bcBlow = 2.0 - 10.0 * cross; bcBlown = sin(PI * cross);
+  if (uOwn[6] < 0.0) {
+    yaw = mix(yaw, 0.12, BC_LOW);
+    float a = 0.8 * BC_LOW, h = max(v.z * cos(a) - v.y * sin(a), 0.1);
+    float up = v.y * cos(a) + v.z * sin(a);
+    rd = vec3(v.x * cos(yaw) - h * sin(yaw), up, max(v.x * sin(yaw) + h * cos(yaw), 0.12));
+  }
   vec3 ro = vec3(0.0, eye, 0.0);
   float tf = rd.y < -1e-4 ? -eye / rd.y : 1e5;
-  // walk through the depth of the pleats
   float deep = bcTall + 0.06 + 0.2 * bcHit;
   float t0 = (Z - deep) / rd.z, t1 = (Z + 0.04) / rd.z, dt = (t1 - t0) / 12.0, t = t0, was = deep, tw = t0;
   if (tf > t0) for (int i = 0; i < 12; i++) {
@@ -188,19 +206,22 @@ vec3 bcHouse(vec2 p) {
   float foot = bcPx * t / f, across = foot / max(rd.z * rd.z, 0.2);
   vec3 at = ro + rd * (Z - 0.5 * bcTall) / rd.z;
   float slit = bcSlit(at.x, at.y);
+  if (uOwn[6] > 0.0) slit = mix(slit, bcSlit(q.x, q.y), BC_OPEN);
   float cover = tf < t ? 0.0 : smoothstep(-foot, foot, q.y - bcHem(q.x)) * smoothstep(-across, across, slit);
-  vec3 col = vec3(0.0);
+  vec3 col = vec3(0.0), cloth = normalize(rd);
+  vec2 skyAt = vec2(0.0);
+  float skyBy = 0.0, glass = 0.0; // how much sky, and how much cloth mirrored in water, to add
   if (cover < 1.0) {
     // under the hem and through the parting, and the boards before it
-    if (tf < 60.0 && (tf < t || q.y < bcHem(q.x) + 0.02)) {
+    if (tf * (uOwn[6] > 0.0 ? rd.z * 6.6 : 1.0) < 60.0 && ((uOwn[6] > 0.0 && slit < 0.0) || tf < t || q.y < bcHem(q.x) + 0.02)) {
       vec2 b = ro.xz + rd.xz * tf;
       float d = Z - bcDeep(b.x, 0.0) - b.y, ff = bcPx * tf / f, gloss;
-      vec3 wood = bcBoards(b, d, ff * (1.0 + abs(rd.x / rd.y)), gloss);
+      vec3 wood = bcBoards(b, mix(d, Z - b.y, max(BC_EASE, BC_OPEN)), ff * (1.0 + abs(rd.x / rd.y)), gloss);
       vec3 lit = bcFans(b, d);
       col = wood * lit * 2.2 + wood * 0.012;
-      if (d < 0.0) col = mix(col, lit * 1.1, 0.6);
+      if (d < 0.0 && uOwn[2] > 0.0) lit = mix(lit, bcFans(b, 1e-3), BC_EASE * exp(2.0 * d));
+      if (d < 0.0) col = mix(wood * lit * 2.2 + wood * 0.012, lit * 1.1, 0.6 * (1.0 - BC_EASE * exp(2.0 * d)));
       else {
-        // the wax mirrors the gap and, faintly, the cloth
         vec3 r = vec3(rd.x, -rd.y, rd.z);
         float tr = d / r.z, sr = b.x + r.x * tr, yr = r.y * tr, fr = pow(1.0 - sat(-rd.y / length(rd)), 4.0);
         float wob = 0.04 * (noise(vec2(b.x * 14.0, d * 5.0)) - 0.5);
@@ -209,8 +230,24 @@ vec3 bcHouse(vec2 p) {
         col += bcBehind(sr + wob) * bcWheels(sr, 0.1) * in_ * (0.08 + 0.36 * fr) * gloss;
         float fold = 0.5 - 0.5 * cos(TAU * bcAt(sr + wob, yr));
         col += (bcDye * 0.3 + bcSheen * 0.012) * fold * fr * gloss * 0.6;
+        if (uOwn[7] > 0.0) {
+          float rip = 0.05 * (noise(vec2(b.x * 3.0, b.y * 9.0 - 0.25 * uTime)) - 0.5) + 0.02 * sin(b.y * 40.0 + 6.0 * noise(b * 2.0) - uTime * 0.6);
+          vec3 w = vec3(sr + 2.0 * rip * d, abs(yr + rip * d), Z);
+          float over = smoothstep(-0.02, 0.02, w.y - bcHem(w.x)) * smoothstep(-0.02, 0.02, bcSlit(w.x, w.y));
+          float far = BC_OPEN * step(0.12, w.y), by = BC_WET * (0.35 + 0.6 * fr);
+          vec3 m = bcBehind(w.x) * 0.7 * (1.0 - over) * (1.0 - far);
+          if (uOwn[6] > 0.0) { skyAt = bcFar(w, r); skyBy = by * (1.0 - over) * far; }
+          glass = by * over;
+          if (glass > 0.0) { q = w; cloth = normalize(r); foot *= 2.0; across *= 2.0; }
+          col = mix(col, col * 0.5, BC_WET) + by * m;
+        }
       }
       if (d < 0.0) col = mix(bcTint * 0.1, col, exp(0.3 * d));
+      if (uOwn[6] > 0.0 && d < 0.0) {
+        float k = smoothstep(0.0, 0.2, uOwn[6]) * (1.0 - smoothstep(-0.7, 0.1, d));
+        skyAt = bcFar(vec3(b.x, 0.0, b.y), vec3(rd.x, -rd.y, rd.z)); skyBy = k * 0.6 * (0.25 + 0.5 * BC_WET);
+        col = mix(col, wood * (1.2 + lit) * (0.75 - 0.5 * BC_WET), k);
+      }
     } else {
       // the air behind, with its lamps
       vec3 far = ro + rd * (Z + 2.5) / rd.z;
@@ -219,25 +256,31 @@ vec3 bcHouse(vec2 p) {
         vec2 m = far.xy - vec2(bcPlace(k) - 0.6, 0.9 + 0.5 * float((k * 2) % 5));
         col += (bcGel(k) * (0.1 + 1.4 * bcLv(k)) + bcTint * 0.1) * (bcBump(length(m) * 3.2) + 0.25 * bcBump(length(m) * 1.1));
       }
-      // in the parting: lit air, and the turned edges of the cloth in gold
       float inside = bcDn(0.0, 0.06, slit), lip = exp(-abs(slit) * 55.0), deep = smoothstep(-0.1, 0.04, at.x + 2.55) * smoothstep(0.0, 0.05, -slit);
       vec3 air = (bcTint * vec3(1.0, 0.6, 0.26) * 0.7 + bcGel(1) * 0.22 * uPad) * (0.07 + 1.3 * bcBump((at.y - 0.8) * 1.15)) * (1.0 - 0.9 * deep);
       col = mix(col * vec3(0.8, 0.5, 0.5), air + bcTint * vec3(1.0, 0.78, 0.45) * lip * (0.15 + 1.5 * exp(-0.8 * at.y)), inside * (1.0 - 0.7 * deep));
+      if (uOwn[6] > 0.0) { skyAt = bcFar(ro, rd); skyBy = smoothstep(0.0, 0.2, uOwn[6]) * smoothstep(-0.02, 0.05, at.y); col *= 1.0 - skyBy; }
     }
+    if (uOwn[6] > 0.0) col += skyBy * bcSky(skyAt, 0.0);
   }
-  if (cover > 0.0) col = mix(col, bcVelvet(q, normalize(rd), foot, across), cover);
-  col += bcTint * vec3(1.0, 0.7, 0.4) * (0.03 + 0.16 * uPad) * exp(-abs(slit) * (9.0 - 4.0 * uPad)) * exp(-1.1 * max(at.y, 0.0)) * step(0.0, at.y);
+  if (cover + glass > 0.0) {
+    vec3 c = bcVelvet(q, cloth, foot, across);
+    if (uOwn[6] < 0.0) c = mix(c, bcTint * 0.03, (1.0 - exp(-0.13 * max(q.y - 2.0, 0.0))) * BC_LOW);
+    col = mix(col + c * glass, c, cover);
+  }
+  col += (1.0 - BC_OPEN) * bcTint * vec3(1.0, 0.7, 0.4) * (0.03 + 0.16 * uPad) * exp(-abs(slit) * (9.0 - 4.0 * uPad)) * exp(-1.1 * max(at.y, 0.0)) * step(0.0, at.y);
   // dust in the leak
   float dustUp = p.y + 0.36 - 0.12 * p.x + 0.03;
   for (int i = 0; i < 2; i++) {
     float sc = i == 0 ? 17.0 : 29.0;
     vec2 g = p * sc + vec2(0.12 * uTime, 0.5 * sin(0.07 * uTime + float(i))) * (i == 0 ? 1.0 : 0.7);
+    if (uOwn[7] < 0.0) g.y += BC_SNOW * uTime * 0.5;
     g.x = mod(g.x, 512.0);
     vec2 id = floor(g), h = hash22(id + 7.0 * float(i));
     vec2 w = g - id - 0.2 - 0.6 * h;
-    float r = 0.02 + 0.04 * h.x * h.x;
+    float r = (0.02 + 0.04 * h.x * h.x) * (1.0 - BC_SNOW * step(h.y, 0.6)) * (1.0 + BC_SNOW);
     float m = bcDn(0.0, r + bcPx * sc, length(w)) * (0.5 + 0.5 * sin(uTime * (0.3 + 0.4 * h.y) + 40.0 * h.x));
-    col += (bcTint * 0.7 + bcGel(2)) * m * (0.02 + 0.5 * uTexture) * (0.25 + uEnergy) * exp(-dustUp * dustUp * 110.0);
+    col += (bcTint * 0.7 + bcGel(2)) * m * (0.02 + 0.5 * uTexture) * (0.25 + uEnergy) * mix(exp(-dustUp * dustUp * 110.0), 1.0, BC_SNOW) + m * 0.4 * BC_SNOW;
   }
   return col * (1.0 - 0.35 * smoothstep(0.5, 1.1, length(p * vec2(0.8, 1.2) + vec2(0.1, 0.05)))) * (1.0 - 0.35 * bcDn(-0.52, -0.33, p.y));
 }
@@ -248,6 +291,8 @@ const vec4 bcRows[5] = vec4[5](vec4(0.52, 0.46, 0.05, 0.95), vec4(0.68, 0.62, 0.
 vec4 bcHow;
 float bcWide, bcFloor, bcL0, bcL1, bcSag;
 float bcArch(int i, float x, float more) {
+  if (uOwn[6] > 0.0) return mix(bcHow.x - bcHow.y * smoothstep(bcHow.z, bcHow.w, (i == 4 ? abs(x) : i % 2 == 0 ? -x : x) + more), bcHow.x - 1.3 * smoothstep(0.34 + 0.16 * float(i), 0.85 + 0.2 * float(i), abs(x) + more), BC_OPEN);
+  if (uOwn[6] < 0.0) return mix(bcHow.x - bcHow.y * smoothstep(bcHow.z, bcHow.w, (i == 4 ? abs(x) : i % 2 == 0 ? -x : x) + more), 0.1 + 0.07 * float(i) + (0.75 + 0.1 * float(i)) * smoothstep(0.05, 0.75 + 0.2 * float(i), max(abs(x + 0.1) - more, 0.0)), BC_LOW);
   return bcHow.x - bcHow.y * smoothstep(bcHow.z, bcHow.w, (i == 4 ? abs(x) : i % 2 == 0 ? -x : x) + more);
 }
 float bcLine(int i, float k) { // how high the k-th lifting line has been drawn
@@ -290,7 +335,6 @@ vec3 bcSilk(int i, vec2 q, vec3 e, float px) {
   float near = exp(-v * 4.2);
   vec3 col = dye * mix(vec3(0.15, 0.06, 0.11) * (0.5 + uSpace), bcWarm * vec3(0.78, 0.6, 0.55), front * front) * ao * (0.16 + 0.7 * near);
   col += dye * in_ * more * under * (0.05 + near) * (0.2 + 0.8 * ao);
-  // thin silk lets the light through toward the hem
   col += dye * in_ * more * exp(-v * 8.0) * (0.25 + 0.75 * c) * 0.8;
   vec3 gl = normalize(vec3(0.3, -0.4, 0.85));
   float shine = pow(sat(dot(n, gl)), 30.0);
@@ -312,6 +356,12 @@ vec3 bcSky(vec2 p, float hor) {
   vec4 m = piece(vec2(0.5 + 0.4 * p.x, 1.0 - y * 2.2));
   m.a *= smoothstep(0.0, 0.2, 0.5 - 0.4 * abs(p.x));
   col = mix(col, m.rgb / max(m.a, 0.02) * (0.5 + low), 0.5 * m.a * smoothstep(0.0, 0.06, y));
+  if (uOwn[7] < 0.0) for (int i = 0; i < 3; i++) { // firs cut from card, the nearer the taller
+    float n = p.x * (30.0 - 8.0 * float(i)) + 5.3 * float(i), id = floor(n), h = hash11(id + 9.0 * float(i)), x = abs(n - id - 0.3 - 0.4 * h) * 2.0;
+    float top = (0.05 + 0.035 * float(i)) * (0.5 + 0.9 * h) * (0.45 + 0.75 * smoothstep(0.1, 0.8, abs(p.x - 0.2)));
+    float k = y / max(top, 1e-4), edge = (1.0 - k) * (1.12 - 0.6 * fract(k * 4.0)) * step(k, 1.0) + 0.02;
+    col = mix(col, mix(low * 0.55 + 0.1, vec3(0.05, 0.09, 0.12), 0.35 + 0.3 * float(i)), BC_SNOW * bcDn(-0.02, 0.02, x * (0.7 - 0.1 * float(i)) - edge) * step(k, 1.0));
+  }
   // a tree on a flat, wheeled across before the sky
   float go = fract(uTime / 62.0 + 0.1);
   vec2 w = vec2(p.x - 1.4 + 2.8 * go, y);
@@ -320,9 +370,20 @@ vec3 bcSky(vec2 p, float hor) {
   float tree = min(length((w - vec2(0.0, 0.165)) * vec2(1.0, 0.8)) - 0.042, length((w - vec2(-0.035, 0.12)) * vec2(0.8, 1.2)) - 0.034);
   tree = min(tree, length((w - vec2(0.045, 0.115)) * vec2(0.8, 1.2)) - 0.036) + leaf - 0.012;
   tree = min(tree, max(abs(w.x + 0.004 * sin(w.y * 60.0)) - 0.005 - 0.004 * bcDn(0.02, 0.06, w.y), abs(w.y - 0.06) - 0.05));
+  if (uOwn[7] > 0.0) { // a boat under sail
+    float boat = max(max(abs(w.x) - 0.085 - 0.5 * (w.y - 0.05), abs(w.y - 0.027) - 0.026), -10.0);
+    boat = min(boat, max(max(abs(w.x + 0.002) - 0.0025, w.y - 0.235), 0.04 - w.y));
+    boat = min(boat, max(max(0.007 - w.x, w.x - 0.072 * (1.0 - (w.y - 0.07) / 0.16) - 0.012 * sin(clamp((w.y - 0.07) / 0.16, 0.0, 1.0) * PI)), 0.068 - w.y));
+    boat = min(boat, max(max(w.x + 0.009, -w.x - 0.055 * (1.0 - (w.y - 0.07) / 0.14)), 0.072 - w.y));
+    tree = mix(tree, boat, BC_WET);
+  }
+  if (uOwn[7] < 0.0) {
+    float k = clamp((w.y - 0.04) / 0.2, 0.0, 1.0), fir = max(abs(w.x) - 0.065 * (1.0 - k) * (0.6 + 0.55 * (1.0 - fract(k * 5.0))), max(0.04 - w.y, w.y - 0.24));
+    tree = mix(tree, min(fir, max(abs(w.x) - 0.006, abs(w.y - 0.03) - 0.02)), BC_SNOW);
+  }
   tree = min(tree, max(abs(w.x) - 0.055, abs(w.y - 0.013) - 0.003));
   tree = min(tree, length(vec2(abs(w.x) - 0.042, w.y - 0.006)) - 0.006);
-  return mix(col, col * 0.16 + vec3(0.05, 0.02, 0.05), bcDn(-bcPx, bcPx, tree) * (0.82 + 0.16 * uPhrase));
+  return mix(col, col * 0.16 + vec3(0.05, 0.02, 0.05), bcDn(-bcPx, bcPx, tree) * (0.82 + 0.14 * BC_WET * (1.0 - uPhrase) + 0.16 * uPhrase));
 }
 vec3 bcSwags(vec2 p) {
   vec3 col = vec3(0.0);
@@ -337,11 +398,20 @@ vec3 bcSwags(vec2 p) {
   vec2 at = p;
   if (low) { // the boards: they mirror what hangs over them
     float bx = (p.x - bcEye.x) * zf * 5.0, id = floor(bx), x = abs(fract(bx) - 0.5), wide = bcPx * zf * 5.0 * (1.0 + abs(p.x - bcEye.x) * zf / 0.16);
-    float seam = smoothstep(0.5 - 0.02 - wide, 0.5, x) * bcDn(0.06, 0.4, wide);
+    float seam = (1.0 - BC_WET) * smoothstep(0.5 - 0.02 - wide, 0.5, x) * bcDn(0.06, 0.4, wide);
     float g = noise(vec2(bx * 9.0, zf * 3.0 + id * 5.0));
     gloss = (0.28 + 0.14 * g) * (1.0 - 0.7 * seam);
     wood = vec3(0.16, 0.085, 0.05) * (0.6 + 0.5 * hash11(id) + 0.3 * g) * (1.0 - 0.7 * seam);
     at.x += 0.006 * (g - 0.5);
+    if (uOwn[7] > 0.0) {
+      wood *= 1.0 - 0.7 * BC_WET; gloss = mix(gloss, 0.8, BC_WET);
+      float w = noise(vec2((p.x - bcEye.x) * zf * 6.0, 24.0 * zf - 0.3 * uTime)) - 0.5 + 0.4 * sin(zf * 60.0 + (p.x - bcEye.x) * zf * 4.0 + 0.7 * uTime) * bcDn(0.5, 2.0, zf);
+      at += vec2(0.02, 0.05) * w * BC_WET * min(1.0, 0.3 / zf);
+    }
+    if (uOwn[7] < 0.0) {
+      float w = noise(vec2((p.x - bcEye.x) * zf * 1.6, zf * 2.4)) * 0.7 + 0.3 * noise(vec2((p.x - bcEye.x) * zf * 5.0, zf * 9.0));
+      wood = mix(wood, mix(vec3(0.5, 0.6, 0.78), vec3(1.0, 0.94, 0.86), w) * (0.75 + 0.55 * w) * mix(vec3(1.0), bcTint, 0.5), sat(BC_SNOW * 1.5 - 0.3 * w)); gloss *= 1.0 - 0.85 * BC_SNOW;
+    }
   }
   for (int i = 0; i < 5; i++) {
     float z = float[5](0.82, 1.12, 1.5, 2.0, 2.6)[i];

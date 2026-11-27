@@ -3,10 +3,16 @@
 // b: Morning slick
 // what: A coral reef under moonlit water, a diver's small lamp behind it: rose and cream beads sit in the brain coral, the shelves and the branches, let go and rise in loose columns to the surface; or the sea at dawn from a drifting boat, ribbons of pink beads winding to a low island, a turtle crossing, an oar's blade in the water.
 // follows: Each kind is one coral or ribbon: its level is how many beads rise or lie there. Lows sway the water, bands and the piece thicken the beads by height, distance and place. Pads bring up moonlight or the glow of dawn, a voice the lamp or dawn. A hit frees one coral's crop, or runs out as a bright ring; a cue is a front through all. Keys light single beads.
-// own: 0 no moon, the lamp alone, or night on the sea at -1, clear noon at 1; 1 tall spires, or loose rafts of beads at -1, low wide coral, or nearly straight ribbons at 1; 2 the reef higher, or looking down on the water at -1, up at the surface, or under a big sky at 1; 3 a few beads at -1, a whole sea of them at 1; 4 clear still water, or a breeze at -1, green surging water, or mist at 1; 5 pearl and grey at -1, red and amber at 1
+// own: 0 no moon, the lamp alone, or night on the sea at -1, clear noon at 1; 1 tall spires, or loose rafts of beads at -1, low wide coral, or nearly straight ribbons at 1; 2 the reef higher, or looking down on the water at -1, up at the surface, or under a big sky at 1; 3 a few beads at -1, a whole sea of them at 1; 4 clear still water, or a breeze at -1, green surging water, or mist at 1; 5 pearl and grey at -1, red and amber at 1; 6 great brain corals alone at -1, a thicket of branches at 1 (b: an empty sea at -1, tall rocks standing in it at 1; the sky as pad and hits), all dyed as the sounds; 7 spawn as fine as smoke at -1, few great glassy eggs at 1, dyed as the sounds
 float csPx, csWide, csSurge, csLit; // a pixel, how far things stand apart across, how far the water leans, how much of the lamp is here
 vec3 csMoonC, csWater, csLampC;   // the moon's light, the far water, the lamp's light
 vec2 csMoon, csLamp, csToLamp;
+#define CS_UP max(uOwn[6], 0.)
+#define CS_DN max(-uOwn[6], 0.)
+#define CS_DYE max(max(abs(uOwn[6]), abs(uOwn[7])), 0.)
+#define CS_EGG max(uOwn[7], 0.)
+#define CS_COLD (max(-uOwn[0], 0.) * max(-uOwn[7], 0.))
+#define CS_F exp2(uOwn[7] > 0. ? 1.9 * uOwn[7] : .9 * uOwn[7])
 float csS(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x * (3. - 2. * x); }
 float csSeg(vec2 p, vec2 a, vec2 b, float r0, float r1) {
  vec2 d = b - a; float t = sat(dot(p - a, d) / dot(d, d));
@@ -18,7 +24,8 @@ vec3 csPearl(vec3 k, float h) {
  vec3 base = mix(vec3(1., .33, .36), vec3(1., .76, .58), h * h);
  base = mix(base, vec3(.8, .9, 1.) * (.75 + .25 * h), .85 * max(-uOwn[5], 0.));
  base = mix(base, mix(vec3(.95, .12, .04), vec3(1., .5, .08), h), .9 * max(uOwn[5], 0.));
- return mix(base, base * .35 + k * k * .8, .4);
+ base = mix(base, base * .35 + k * k * .8, .4);
+ return mix(base, mix(k, k * k, .6) * (.95 + .4 * h), .85 * CS_DYE);
 }
 // Water at night, with the silver underside of the surface above the line top.
 vec3 csSea(vec2 p, float top) {
@@ -50,12 +57,17 @@ vec3 csBead(vec3 col, vec2 d, float r, vec3 c, float deep, float lit) {
  float top = sat(.45 + .55 * dot(n, vec2(-.5, .8))), lamp = csLit * sat(.6 + .6 * dot(n, vec2(.78, .5)));
  vec3 light = c * (mix(csMoonC, vec3(csMoonC.g), .75) * (.3 + .9 * top) * .7 + csLampC * lamp * 1.1 + vec3(.13, .1, .1) + lit);
  light += (csMoonC * .5 + .12) * csS(.4, .05, length(n - vec2(-.35, .4)));
+ if (uOwn[7] > 0.) {
+  light *= mix(1., .5 + .6 * csS(.3, 1., length(n)), CS_EGG);
+  light = mix(light, c * c * .35 * (csMoonC + csLampC * lamp + .2), .8 * CS_EGG * csS(.5, .32, length(n - vec2(.1 * sin(r * 900.), -.16))));
+ }
  return mix(col, mix(light, csWater * 1.2, deep), csS(r + px, r - px, l) * min(1., r / csPx * .9));
 }
 // The beads over one coral. b: its foot, how wide there, how many abreast. size: how far apart upward, a bead, water before it.
 vec4 csNow; float csAir, csMany, csR, csDeep, csGlow; vec2 csAt, csLook; int csWho;   // the piece here; the bead that lies foremost here
 float csHump(float x) { x = sat(1. - abs(x)); return x * x; }
 void csRise(vec2 p, int k, vec4 b, vec3 size, float loud, float hit) {
+ if (uOwn[7] != 0.) { size.xy *= CS_F; b.w = max(floor(b.w / CS_F + .5), 3.); }
  float h = p.y - b.y, fk = float(k), x = p.x - b.x * csWide, W = b.z * (1. + 5. * h * h), u = (x - csBend(h, fk)) / W;
  float ix = floor(u * b.w), hx = fract(ix * .618 + fk * .37);
  float y = (h - (.022 * uTime + .02 * uTravel) * (.75 + .5 * hx)) / size.x + hx * 17., iy = floor(y);
@@ -142,8 +154,9 @@ vec3 csBrain(vec3 col, vec2 p, vec2 c, float R, float grain, float deep, int k) 
  col = mix(col, csShade(base, q * (.8 + .35 * l) - m.yz * m.x * dip * .5, deep), csS(px, -px, edge));
  // the beads waiting in it
  vec2 b = g * 1.6, ib = floor(b), h = hash22(ib + 3.), o = b - ib - .5 - (h - .5) * .5;
- float cell = R / (grain * 1.6), r = .27 * csS(-.4, .5, sin(ib.x * .7 + R * 9.) * sin(ib.y * .9) + .7 * h.x - .3) * (1. - .35 * loud) * csS(1., .8, l);
- return csBead(col, o * cell, r * cell, csPearl(uKind[k], h.y), deep, .15 * loud + (k == 4 ? uHits * 1.6 : 0.));
+ vec2 wide = vec2(1. - .3 * tall + .35 * low, (.86 + .7 * tall - .2 * low) / .86);
+ float cell = R / (grain * 1.6), r = .27 * min(wide.x, min(wide.y, 1.)) * csS(-.4, .5, sin(ib.x * .7 + R * 9.) * sin(ib.y * .9) + .7 * h.x - .3) * (1. - .35 * loud) * csS(1., .8, l);
+ return csBead(col, o * cell * wide, r * cell, csPearl(uKind[k], h.y), deep, .15 * loud + (k == 4 ? uHits * 1.6 : 0.));
 }
 // Shelves of a table coral, one over the other.
 vec3 csPlates(vec3 col, vec2 p, vec2 foot, float R, float deep, int k) {
@@ -201,6 +214,10 @@ vec3 csReef(vec2 p) {
  csWater = mix(csWater, vec3(.045, .1, .07) * (1. - .6 * dark + 2. * day), .75 * max(murk, 0.));
  csWater = mix(csWater, mix(vec3(.04, .045, .055), vec3(.4, .4, .43), day) * (1. - .6 * dark), .85 * max(-uOwn[5], 0.));
  csWater = mix(csWater, vec3(.5, .2, .5) * csWater.b, .8 * max(uOwn[5], 0.));
+ if (abs(uOwn[6]) + abs(uOwn[7]) > 0.) {
+  csWater = mix(csWater, uKind[0] * uKind[0] * mix(.12, .62, day) * (1. - .7 * dark), .8 * CS_DYE);
+  csMoonC = mix(csMoonC, (uKind[1] * .9 + .12) * mix(.75, 1.25, day) * (.55 + .5 * uPad) * (1. - .85 * dark), .7 * CS_DYE);
+ }
  csLampC = mix(vec3(1.5, .8, .36), vec3(1.3, 1.15, .9), uTone * uTone) * (.8 + .8 * uMic + .8 * dark) * (1. - .5 * day);
  vec2 d = csLamp - p; float r = length(d) + 1e-3;
  csToLamp = d / r;
@@ -208,17 +225,26 @@ vec3 csReef(vec2 p) {
  csTurn = rot(-.42 - .14 * uOwn[1]);
  float haze = .12 * (uSpace - .5) + .15 * murk;
  vec3 col = csSea(p, .2 - .22 * view) + csLampC * csLit * .03;
+ float up = CS_UP, dn = CS_DN;
  vec2 g = vec2(p.x, p.y - lift), pl = vec2(-.52 * w, -.36 + lift), th = vec2(-.14 * w, -.4 + lift), bo = vec2(.2 * w, -.36 + lift), br = vec2(-.32 * w, -.6 + lift), st = vec2(.62 * w, -.58 + lift);
+ pl.y -= .6 * (up + dn); th.y -= .4 * dn; bo.y -= .5 * up - .02 * dn; br.y -= .6 * up; st.y -= .25 * dn;
  col = csRidge(col, g, -.12, .16, 1., .82 - haze);
  col = csRidge(col, g, -.2, .2, 2., .6 - haze);
  col = csDiver(col, p);
  col = csPlates(col, p, pl, .24, .3 - haze, 1);
- for (float i = 0.; i < 3.; i++) col = csStag(col, p, th + vec2(.13 * (i - 1.), -.02 * i), .22 + .03 * sin(i * 2.), vec2(.3 + .21 * i, .8 - .3 * i), .2 * (i - 1.), .25 - haze, 2);
- col = csBrain(col, p, bo, .2, 2.6, .16 - haze, 4);
+ for (float i = 0.; i < 3.; i++) col = csStag(col, p, th + vec2(.13 * (i - 1.) * (1. + 1.3 * up), -.02 * i), .22 + .03 * sin(i * 2.) + .16 * up, vec2(.3 + .21 * i, .8 - .3 * i), .2 * (i - 1.), .25 - haze, 2);
+ if (uOwn[6] < 0.) {
+  col = csBrain(col, p, vec2(-.02 * w, -.2 + lift - .3 * (1. - dn)), .1, 1.9, .5 - haze, 1);
+  col = csBrain(col, p, vec2(-.6 * w, -.34 + lift - .5 * (1. - dn)), .24, 3.1, .3 - haze, 2);
+ }
+ col = csBrain(col, p, bo, .2 + .06 * dn, 2.6, .16 - haze, 4);
  col = csBrain(col, p, br, .44, 6.2, 0., 0);
- col = csStag(col, p, st + vec2(-.18, 0.), .5, vec2(.2, .3), .3, 0., 3);
- col = csStag(col, p, st + vec2(.2, 0.), .68, vec2(.75, .6), -.1, 0., 3);
- col = csStag(col, p, st + vec2(.02, -.03), .62, vec2(.45, .9), .1, 0., 3);
+ if (uOwn[6] < 0.) col = csBrain(col, p, vec2(.66 * w, -.62 + lift - .5 * (1. - dn)), .42, 5.2, 0., 3);
+ if (dn < .8) {
+ col = csStag(col, p, st + vec2(-.18 - .86 * up, -.04 * up), .5 + .36 * up, vec2(.2, .3), .3, 0., 3);
+ col = csStag(col, p, st + vec2(.2, 0.), .68 + .16 * up, vec2(.75, .6), -.1, 0., 3);
+ col = csStag(col, p, st + vec2(.02 - .42 * up, -.03), .62 - .14 * up, vec2(.45, .9), .1, 0., 3);
+ }
  col = csRidge(col, vec2(p.x, p.y - .5 * lift), -.53, .04, 3., 0.);
  csNow = piece(vec2(p.x / 1.78 + .5, .5 - p.y));
  csAir = .5 + .7 * band(p.y + .4); csMany = exp2(3. * uOwn[3]);
@@ -243,6 +269,7 @@ vec3 csSky(float y, float x) {
  vec3 night = mix(vec3(.15, .19, .28), vec3(.015, .028, .075), csS(0., .5, y));
  c = mix(mix(c, noon, day), night, dark);
  c = mix(c, dot(c, vec3(.33)) * vec3(.85, 1.08, 1.), .8 * max(-uOwn[5], 0.));
+ if (abs(uOwn[6]) + abs(uOwn[7]) > 0.) c = mix(c, mix(uKind[1] * uKind[1] * 1.2, uKind[4] * uKind[4] * .8, csS(0., .5, y)) * (1. + .25 * day) * (1. - .7 * dark), .75 * CS_DYE);
  return c * mix(vec3(1.), vec3(1.12, .66, .62), max(uOwn[5], 0.)) * mix(vec3(1., .94, .9), vec3(1., 1.06, 1.1), uTone);
 }
 // Low cloud and the island, up y from the waterline.
@@ -250,10 +277,18 @@ vec3 csShore(vec2 q) {
  vec3 c = csSky(q.y, q.x);
  float bar = noise(vec2(q.x * 2.2 + uTime * .002, q.y * 26.)) * .6 + .4 * noise(vec2(q.x * 6., q.y * 60. + 4.));
  c = mix(c, c * vec3(.72, .62, .8), .75 * csS(.5, .75, bar) * csS(.02, .06, q.y) * csS(.34, .12, q.y));
- if (q.y > .085) return c;
+ if (q.y > .085 + .36 * CS_UP) return c;
  float x = q.x / csWide + .4, on = csS(.46, .3, abs(x - .12));
  float hill = .042 * exp(-x * x * 60.) + .02 * exp(-(x - .16) * (x - .16) * 70.) + .017 * exp(-(x - .36) * (x - .36) * 160.);
  hill += (.012 * noise(vec2(q.x * 26., 1.)) + .009 * noise(vec2(q.x * 80., 3.))) * on - .005 - .02 * (1. - on);
+ if (uOwn[6] > 0.) {
+  float X = q.x / csWide, rough = .05 * noise(vec2(q.x * 14., q.y * 9.)) + .02 * noise(vec2(q.x * 60., q.y * 30.));
+  for (int i = 0; i < 4; i++) {
+   float fi = float(i), cx = i == 0 ? .46 : i == 1 ? .26 : i == 2 ? .68 : -.36, tall = (i == 0 ? .36 : i == 1 ? .17 : i == 2 ? .22 : .26) * CS_UP;
+   hill = max(hill, (tall - rough) * csS(.07 + .02 * sin(fi * 5.), .025, abs(X - cx + .06 * q.y * sin(fi * 3.)) + rough * .4));
+  }
+ }
+ hill -= .12 * CS_DN;
  vec3 land = mix(csSky(.02, q.x) * vec3(.45, .36, .5), csSky(.4, 0.) * .2, csS(-.004, .03, q.y));
  return mix(c, land, csS(csPx, -csPx, q.y - hill));
 }
@@ -280,6 +315,7 @@ vec4 csSlick(vec2 w) {
 // A layer of beads lying on the water, in cells seen square at its distance.
 vec3 csDots(vec3 col, vec2 p, vec2 w, float lev, float grow, vec4 sl, float gap) {
  float z0 = exp2(lev / .72 + .5), cell = .013 * exp2(lev);
+ if (uOwn[7] != 0.) cell *= CS_F;
  vec2 size = vec2(cell, cell * z0 / .6);
  mat2 turn = rot(.5 + lev * .9);
  vec2 g = turn * (w / size) + lev * 17.;
@@ -290,10 +326,12 @@ vec3 csDots(vec3 col, vec2 p, vec2 w, float lev, float grow, vec4 sl, float gap)
  wb.y = max(wb.y, .05);
  vec2 o = p - vec2(wb.x / wb.y, p.y + .6 / w.y - .6 / wb.y); // seen round
  float reach = cell / w.y * (.12 + .26 * big) * grow, l = length(o);
+ if (uOwn[7] > 0.) reach *= mix(1., .88 * w.y / wb.y * min(1., z0 / wb.y), CS_EGG); // whole in its cell
  if (l > 2. * reach + csPx) return col;
+ if (uOwn[7] > 0.) sl = csSlick(wb); // as it lies at the bead
  vec4 m = piece(vec2(p.x / 1.78 + .5, .5 - p.y));
  float amt = sl.a * (.5 + 1.1 * band(1. - sat(log2(w.y) * .3 + .15))) + .9 * m.a * csS(.02, .2, sl.a);
- float dh = length((p - vec2(-.1 * csWide, -.21)) * vec2(1., 2.));
+ float dh = length((p - vec2(-.1 * csWide, -.21 + .3 * max(-uOwn[2], 0.))) * vec2(1., 2.));
  float hit = csHump((dh - .5 * (1. - uHits)) * 2.2) * uHits, cue = csHump((p.y + .36 - .6 * (1. - uCue)) * 4.) * uCue;
  amt = (amt + (1.2 * hit + .9 * cue) * csS(0., .1, sl.a)) * gap;
  float th = .85 * fract(h.x * 5.3 + h.y * 2.7 + .1), gate = csS(th - .08, th + .12, amt);
@@ -305,6 +343,8 @@ vec3 csDots(vec3 col, vec2 p, vec2 w, float lev, float grow, vec4 sl, float gap)
  col *= 1. - .45 * csS(1.5, .5, length(n * vec2(.8, 1.) + vec2(0., .8))) * gate;
  vec3 b = c * (csSky(.25, 0.) * .7 + lowSky * (.2 + .9 * sat(.3 + .8 * n.y)) + 3. * hit + 1.4 * cue + 1.3 * uKeys * csS(.9, .95, h.x));
  b += lowSky * .6 * csS(.5, .1, length(n - vec2(-.1, .45)));
+ if (uOwn[7] < 0.) b += c * CS_COLD * (.9 + 1.4 * amt * csKind(h.x < .5 ? 0 : 3)); // light of its own by night
+ if (uOwn[7] > 0.) b = mix(b, c * c * .4 * lowSky, .75 * CS_EGG * csS(.5, .3, length(n - vec2(.0, -.15))));
  return mix(col, b, csS(r + csPx, r - csPx, l) * min(1., r / csPx));
 }
 vec3 csMorning(vec2 p) {
@@ -316,7 +356,7 @@ vec3 csMorning(vec2 p) {
  vec2 w = vec2(p.x * z, z);
  vec4 sl = csSlick(w);
  // the turtle, and its wake opening behind it to the right
- vec2 tu = vec2(.14 * csWide, yH - .17 + .003 * sin(uTime * .5)), q = (p - tu) * vec2(1., 2.6);
+ vec2 tu = vec2(.14 * csWide + 2. * CS_DN, yH - .17 + .003 * sin(uTime * .5)), q = (p - tu) * vec2(1., 2.6);
  float back = max(q.x + .01, 0.), side = abs(q.y + .35 * back), arm = side - .26 * back, fade = csS(.5, .05, back) * csS(0., .02, back);
  float gap = 1. - fade * csS(.02 + .02 * back, -.02, arm);
  float wk = exp(-arm * arm / (.00002 + .0012 * back * back)) * fade + .5 * fade * exp(-side * side * 900.) * sin(back * 120. - side * 60.);
@@ -331,7 +371,8 @@ vec3 csMorning(vec2 p) {
  float film = sl.a * gap;
  vec3 tint = csPearl(sl.rgb, .3);
  col = mix(col, tint * tint * csSky(.15, p.x) * .75, .6 * csS(.06, .6, film));
- if (sl.a > .01) {
+ if (uOwn[7] < 0.) col += tint * CS_COLD * .4 * film * film;
+ if (sl.a > .01 || uOwn[7] > 0.) {
   float L = log2(z) * .72, l0 = floor(L), lf = L - l0;
   col = csDots(col, p, w, l0, csS(1., .5, lf), sl, gap);
   col = csDots(col, p, w, l0 + 1., csS(0., .5, lf), sl, gap);
@@ -342,7 +383,7 @@ vec3 csMorning(vec2 p) {
  col = mix(col, csSky(.5, 0.) * .14, csS(csPx, -csPx, max(hd, -.003 - t.y)));
  col = mix(col, fog, sat(veil * 1.1));
  // an oar's blade resting in the water at the edge of the boat
- vec2 o = rot(.62) * (p - vec2(.62 * csWide, -.36));
+ vec2 o = rot(.62) * (p - vec2(.62 * csWide + .7 * CS_DN, -.36));
  float blade = max(abs(o.y) - .034 * csS(-.16, -.1, o.x) * csS(.2, .08, o.x) - .011, -.15 - o.x);
  if (blade > .05) return col;
  vec3 wood = mix(vec3(.16, .07, .035), vec3(.42, .22, .12), noise(vec2(o.x * 9., o.y * 130.))) * (csSky(.3, 0.) + .6 * csSky(.03, p.x) * csS(-.04, .04, o.y));
