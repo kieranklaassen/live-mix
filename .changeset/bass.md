@@ -1,7 +1,0 @@
----
-'@kieranklaassen/live-mix': patch
----
-
-Bass. Four new instruments, each with sixteen presets of its own: `sub-bass` (a sine with a pitch drop at the strike, harmonics that can be added and a drive), `fm-bass` (two operators with feedback and a sub), `acid-bass` (one oscillator through a resonant low-pass, with accents and slides between overlapping keys) and `string-bass` (plucked electric, fretless and upright strings). The bank has a `bass` category with a preview phrase of its own (`FACTORY_PRESET_CATEGORIES`, `FactoryPhraseName`) holding 91 presets: twenty on each new instrument (a few of those under other categories) and 24 on the instruments that were there, ten of them on `ladder-bass`. 68 bass sounds, numbers 201 to 268: 23 single notes, 9 held tones that loop and 36 lines of 4, 8 and 16 seconds on the synthesizers and on the strings, 35 of which have a `bpm` and keep time at any tempo (`inTime` in `sounds/rhythm.ts` writes a timed loop as strokes). The bank is now 844 presets and 244 sounds.
-
-Each of the four has its plate (`./react`): a colour, finish and knob cap in `DEVICE_SKINS`, and a display that shows the instrument as its knobs set it and lights the note being played: the wave and the note's fall onto its key (`sub-bass`), the partials and how they close (`fm-bass`), the line of notes under the filter's edge (`acid-bass`), four strings from above (`string-bass`). Each display's figures are held to its DSP header by its own test.

@@ -1,5 +1,0 @@
----
-'@kieranklaassen/live-mix': patch
----
-
-A render of a mix with a WASM device (a reverb, a limiter) or the worklet ducker in it left its sound in memory until the page was closed: Chromium never lets go of an `OfflineAudioContext` a worklet module was loaded on, and the context keeps the buffer it rendered into, 23 MB for each minute of stereo at 48 kHz. `createFramedOfflineContext` makes the context in a hidden frame of its own (pass it as `createContext`), and `releaseOfflineContext(context)` takes the frame away, and the context and its buffer with it. Every worklet node the library makes on such a context is made with the frame's own `AudioWorkletNode`: `setWorkletNodeConstructor(context, constructor)` says which, for a host that makes its own frame, and `createWorkletNode` is what every worklet host now makes its node with (WASM devices, the ducker, the LUFS meter, the recorder, hosted plug-ins, the Link taps). A `createNode` handed to one device still wins. `renderOffline` is unchanged unless asked: its default context is the page's.
