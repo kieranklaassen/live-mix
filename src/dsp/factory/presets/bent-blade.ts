@@ -248,7 +248,7 @@ export const BENT_BLADE_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'bent-blade-choir-struck-fifths',
     name: 'Fifths rung and left',
-    category: 'bell',
+    category: 'keys',
     description:
       'Soft mallets that wake a fifth above and an octave under each key a moment after the blow, in an airy tail.',
     instrument: {

@@ -237,7 +237,7 @@ export const BRONZE_VOWELS_PRESETS: readonly FactoryPreset[] = [
   {
     id: 'bronze-vowels-answer-wide',
     name: 'One says oo, one says ee',
-    category: 'bell',
+    category: 'keys',
     description:
       'Every strike turns the ringing bells to the opposite vowel, each key at its own pace, spread wide in bright air.',
     instrument: { deviceId: 'bronze-vowels', preset: 'Answering bells', params: { volume: -4.8 } },

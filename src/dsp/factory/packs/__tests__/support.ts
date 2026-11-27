@@ -110,6 +110,9 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'dry-brush',
   'closed-eyes',
   'bent-blade',
+  'clock-room',
+  'ridge-lines',
+  'night-drum',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(

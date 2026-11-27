@@ -336,7 +336,7 @@ export const RINGING_ORDER_DESCRIPTOR = wasmDeviceDescriptor(RINGING_ORDER_DEVIC
       cover: 0.3,
       bite: 0.1,
       gap: 0,
-      volume: -12,
+      volume: -6.8,
     },
     'Moving air': {
       voice: 4,
@@ -379,7 +379,7 @@ export const RINGING_ORDER_DESCRIPTOR = wasmDeviceDescriptor(RINGING_ORDER_DEVIC
       weight: 0.6,
       swing: 0.5,
       bite: 0.45,
-      volume: -11.9,
+      volume: -10.5,
     },
     'Quarter hour': {
       method: 5,

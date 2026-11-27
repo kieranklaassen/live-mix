@@ -295,7 +295,7 @@ export const DRY_BRUSH_PRESETS: readonly FactoryPreset[] = [
         release: 3,
         spread: 20,
         ink: 0.9,
-        volume: -6,
+        volume: -4.5,
       },
     },
     effects: [

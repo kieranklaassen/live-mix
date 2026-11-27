@@ -93,6 +93,9 @@ import { UNDERVOICE_PRESETS } from './undervoice'
 import { DRY_BRUSH_PRESETS } from './dry-brush'
 import { CLOSED_EYES_PRESETS } from './closed-eyes'
 import { BENT_BLADE_PRESETS } from './bent-blade'
+import { CLOCK_ROOM_PRESETS } from './clock-room'
+import { RIDGE_LINES_PRESETS } from './ridge-lines'
+import { NIGHT_DRUM_PRESETS } from './night-drum'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -186,4 +189,7 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...DRY_BRUSH_PRESETS,
   ...CLOSED_EYES_PRESETS,
   ...BENT_BLADE_PRESETS,
+  ...CLOCK_ROOM_PRESETS,
+  ...RIDGE_LINES_PRESETS,
+  ...NIGHT_DRUM_PRESETS,
 ]

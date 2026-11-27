@@ -213,6 +213,9 @@ export const PLATE_PALETTES = {
   'dry-brush': { plate: '#706a5e', ink: '#ffffff', accent: '#ffc24a' },
   'closed-eyes': { plate: '#9446ac', ink: '#ffffff', accent: '#ffe27a' },
   'bent-blade': { plate: '#7ca68e', ink: '#0f1a14', accent: '#94102a' },
+  'clock-room': { plate: '#827c4c', ink: '#050401', accent: '#fff0c2' },
+  'ridge-lines': { plate: '#2876a6', ink: '#ffffff', accent: '#ffc45a' },
+  'night-drum': { plate: '#280a64', ink: '#f4efff', accent: '#ffb347' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

@@ -6,13 +6,16 @@ import { SET as WALKING_VOICES } from '../../sets/walking-voices'
 import { SET as UNSUNG_VOICE } from '../../sets/unsung-voice'
 import { SET as BRONZE_VOWELS } from '../../sets/bronze-vowels'
 import { SET as TURNED_TIME } from '../../sets/turned-time'
+import { SET as NIGHT_DRUM } from '../../sets/night-drum'
 import { SET as UNDERVOICE } from '../../sets/undervoice'
 import { SET as DRY_BRUSH } from '../../sets/dry-brush'
 import { SET as CLOSED_EYES } from '../../sets/closed-eyes'
 import { SET as COMMON_AIR } from '../../sets/common-air'
 import { SET as SLOW_ACCORD } from '../../sets/slow-accord'
 import { SET as DEEP_ROOTS } from '../../sets/deep-roots'
+import { SET as CLOCK_ROOM } from '../../sets/clock-room'
 import { SET as BENT_BLADE } from '../../sets/bent-blade'
+import { SET as RIDGE_LINES } from '../../sets/ridge-lines'
 import { SET as CHORD_CLOCK } from '../../sets/chord-clock'
 import { SET as SETTING_GLASS } from '../../sets/setting-glass'
 import { SET as STANDING_WATER } from '../../sets/standing-water'
@@ -28,13 +31,16 @@ export const SETS: readonly InstrumentSet[] = [
   UNSUNG_VOICE,
   BRONZE_VOWELS,
   TURNED_TIME,
+  NIGHT_DRUM,
   UNDERVOICE,
   DRY_BRUSH,
   CLOSED_EYES,
   COMMON_AIR,
   SLOW_ACCORD,
   DEEP_ROOTS,
+  CLOCK_ROOM,
   BENT_BLADE,
+  RIDGE_LINES,
   CHORD_CLOCK,
   SETTING_GLASS,
   STANDING_WATER,

@@ -90,6 +90,24 @@ const SETS: readonly Set_[] = [
     ],
   },
   {
+    device: 'night-drum',
+    name: 'Night Drum',
+    description:
+      'Tuned hand drums rolled, brushed, rubbed and hummed into: breathing pads, speaking basses, moans, kettle bells and one bare thread.',
+    directions: [
+      'Fingertip pads',
+      'Speaking basses',
+      'Rubbed moans',
+      'Hummed voices',
+      'Kettle bells',
+      'Dry hand keys',
+      'Paired skins',
+      'Bare thunder',
+      'Thread drones',
+      'Plucked skins',
+    ],
+  },
+  {
     device: 'undervoice',
     name: 'Undervoice',
     description:
@@ -198,6 +216,24 @@ const SETS: readonly Set_[] = [
     ],
   },
   {
+    device: 'clock-room',
+    name: 'Clock Room',
+    description:
+      "Clocks on one wall that learn each other's time: long cases, parlours, tube bells, cups, coils and voices that breathe in step.",
+    directions: [
+      'Learning walls',
+      'Opposed pairs',
+      'Parlour keys',
+      'Hanging tubes',
+      'Rubbed drones',
+      'Cups under glass',
+      'Low cases',
+      'Shared swings',
+      'Ticking rooms',
+      'Breathing walls',
+    ],
+  },
+  {
     device: 'bent-blade',
     name: 'Bent Blade',
     description:
@@ -213,6 +249,24 @@ const SETS: readonly Set_[] = [
       'Thumb plucks',
       'Breath on steel',
       'Wavering bells',
+    ],
+  },
+  {
+    device: 'ridge-lines',
+    name: 'Ridge Lines',
+    description:
+      'Rows of hills sliding behind each other, drawn in overtones: slow trains, bowed cliffs, dunes, towers, pines and winter bells.',
+    directions: [
+      'Slow train pads',
+      'Roof keys',
+      'Cliff leads',
+      'Dune basses',
+      'Tower plucks',
+      'Pine strings',
+      'Ridge voices',
+      'Still organs',
+      'Haze drones',
+      'Winter bells',
     ],
   },
   {

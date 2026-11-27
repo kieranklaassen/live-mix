@@ -108,6 +108,9 @@ import { UNDERVOICE_FACES } from './undervoice'
 import { DRY_BRUSH_FACES } from './dry-brush'
 import { CLOSED_EYES_FACES } from './closed-eyes'
 import { BENT_BLADE_FACES } from './bent-blade'
+import { CLOCK_ROOM_FACES } from './clock-room'
+import { RIDGE_LINES_FACES } from './ridge-lines'
+import { NIGHT_DRUM_FACES } from './night-drum'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -217,4 +220,7 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DRY_BRUSH_FACES,
   ...CLOSED_EYES_FACES,
   ...BENT_BLADE_FACES,
+  ...CLOCK_ROOM_FACES,
+  ...RIDGE_LINES_FACES,
+  ...NIGHT_DRUM_FACES,
 }

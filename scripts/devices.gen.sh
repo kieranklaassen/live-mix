@@ -66,6 +66,8 @@ build_generated_devices() {
     cpp/devices/chorus/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device clarinet \
     cpp/devices/clarinet/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device clock-room \
+    cpp/devices/clock-room/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device closed-eyes \
     cpp/devices/closed-eyes/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device club-kit \
@@ -184,6 +186,8 @@ build_generated_devices() {
     cpp/devices/modal-bells/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device murmuration \
     cpp/devices/murmuration/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device night-drum \
+    cpp/devices/night-drum/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device noise-floor \
     cpp/devices/noise-floor/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device octaves \
@@ -224,6 +228,8 @@ build_generated_devices() {
     cpp/devices/reverse-delay/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device rewind \
     cpp/devices/rewind/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device ridge-lines \
+    cpp/devices/ridge-lines/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ring \
     cpp/devices/ring/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ringing-order \
@@ -423,6 +429,8 @@ test_generated_devices() {
     cpp/test/chorus_test.cpp
   native_test clarinet_test \
     cpp/test/clarinet_test.cpp
+  native_test clock_room_test \
+    cpp/test/clock_room_test.cpp
   native_test closed_eyes_test \
     cpp/test/closed_eyes_test.cpp
   native_test club_kit_test \
@@ -541,6 +549,8 @@ test_generated_devices() {
     cpp/test/modal_bells_test.cpp
   native_test murmuration_test \
     cpp/test/murmuration_test.cpp
+  native_test night_drum_test \
+    cpp/test/night_drum_test.cpp
   native_test noise_floor_test \
     cpp/test/noise_floor_test.cpp
   native_test octaves_test \
@@ -581,6 +591,8 @@ test_generated_devices() {
     cpp/test/reverse_delay_test.cpp
   native_test rewind_test \
     cpp/test/rewind_test.cpp
+  native_test ridge_lines_test \
+    cpp/test/ridge_lines_test.cpp
   native_test ring_test \
     cpp/test/ring_test.cpp
   native_test ringing_order_test \

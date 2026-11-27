@@ -1981,6 +1981,9 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'dry-brush': { ...PLATE_PALETTES['dry-brush'], finish: 'brushed', cap: 'pointer' },
   'closed-eyes': { ...PLATE_PALETTES['closed-eyes'], finish: 'matte', cap: 'disc' },
   'bent-blade': { ...PLATE_PALETTES['bent-blade'], finish: 'brushed', cap: 'skirt' },
+  'clock-room': { ...PLATE_PALETTES['clock-room'], finish: 'brushed', cap: 'pointer' },
+  'ridge-lines': { ...PLATE_PALETTES['ridge-lines'], finish: 'grain', cap: 'pointer' },
+  'night-drum': { ...PLATE_PALETTES['night-drum'], finish: 'fade', cap: 'disc' },
 }
 
 /**

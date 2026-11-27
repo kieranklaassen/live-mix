@@ -32,6 +32,7 @@ import { CHORD_CLOCK_DESCRIPTOR, CHORD_CLOCK_DEVICE } from './chord-clock.gen'
 import { CHORD_HARP_DESCRIPTOR, CHORD_HARP_DEVICE } from './chord-harp.gen'
 import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
 import { CLARINET_DESCRIPTOR, CLARINET_DEVICE } from './clarinet.gen'
+import { CLOCK_ROOM_DESCRIPTOR, CLOCK_ROOM_DEVICE } from './clock-room.gen'
 import { CLOSED_EYES_DESCRIPTOR, CLOSED_EYES_DEVICE } from './closed-eyes.gen'
 import { CLUB_KIT_DESCRIPTOR, CLUB_KIT_DEVICE } from './club-kit.gen'
 import { COLOURED_NOISE_DESCRIPTOR, COLOURED_NOISE_DEVICE } from './coloured-noise.gen'
@@ -91,6 +92,7 @@ import { MELT_DESCRIPTOR, MELT_DEVICE } from './melt.gen'
 import { MICRO_LOOPER_DESCRIPTOR, MICRO_LOOPER_DEVICE } from './micro-looper.gen'
 import { MODAL_BELLS_DESCRIPTOR, MODAL_BELLS_DEVICE } from './modal-bells.gen'
 import { MURMURATION_DESCRIPTOR, MURMURATION_DEVICE } from './murmuration.gen'
+import { NIGHT_DRUM_DESCRIPTOR, NIGHT_DRUM_DEVICE } from './night-drum.gen'
 import { NOISE_FLOOR_DESCRIPTOR, NOISE_FLOOR_DEVICE } from './noise-floor.gen'
 import { OCTAVES_DESCRIPTOR, OCTAVES_DEVICE } from './octaves.gen'
 import { ORBITS_DESCRIPTOR, ORBITS_DEVICE } from './orbits.gen'
@@ -111,6 +113,7 @@ import { RE_AMP_DESCRIPTOR, RE_AMP_DEVICE } from './re-amp.gen'
 import { REVEAL_DESCRIPTOR, REVEAL_DEVICE } from './reveal.gen'
 import { REVERSE_DELAY_DESCRIPTOR, REVERSE_DELAY_DEVICE } from './reverse-delay.gen'
 import { REWIND_DESCRIPTOR, REWIND_DEVICE } from './rewind.gen'
+import { RIDGE_LINES_DESCRIPTOR, RIDGE_LINES_DEVICE } from './ridge-lines.gen'
 import { RING_DESCRIPTOR, RING_DEVICE } from './ring.gen'
 import { RINGING_ORDER_DESCRIPTOR, RINGING_ORDER_DEVICE } from './ringing-order.gen'
 import { ROTARY_DESCRIPTOR, ROTARY_DEVICE } from './rotary.gen'
@@ -208,6 +211,7 @@ export * from './chord-clock.gen'
 export * from './chord-harp.gen'
 export * from './chorus.gen'
 export * from './clarinet.gen'
+export * from './clock-room.gen'
 export * from './closed-eyes.gen'
 export * from './club-kit.gen'
 export * from './coloured-noise.gen'
@@ -267,6 +271,7 @@ export * from './melt.gen'
 export * from './micro-looper.gen'
 export * from './modal-bells.gen'
 export * from './murmuration.gen'
+export * from './night-drum.gen'
 export * from './noise-floor.gen'
 export * from './octaves.gen'
 export * from './orbits.gen'
@@ -287,6 +292,7 @@ export * from './re-amp.gen'
 export * from './reveal.gen'
 export * from './reverse-delay.gen'
 export * from './rewind.gen'
+export * from './ridge-lines.gen'
 export * from './ring.gen'
 export * from './ringing-order.gen'
 export * from './rotary.gen'
@@ -386,6 +392,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   CHORD_HARP_DESCRIPTOR,
   CHORUS_DESCRIPTOR,
   CLARINET_DESCRIPTOR,
+  CLOCK_ROOM_DESCRIPTOR,
   CLOSED_EYES_DESCRIPTOR,
   CLUB_KIT_DESCRIPTOR,
   COLOURED_NOISE_DESCRIPTOR,
@@ -445,6 +452,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   MICRO_LOOPER_DESCRIPTOR,
   MODAL_BELLS_DESCRIPTOR,
   MURMURATION_DESCRIPTOR,
+  NIGHT_DRUM_DESCRIPTOR,
   NOISE_FLOOR_DESCRIPTOR,
   OCTAVES_DESCRIPTOR,
   ORBITS_DESCRIPTOR,
@@ -465,6 +473,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   REVEAL_DESCRIPTOR,
   REVERSE_DELAY_DESCRIPTOR,
   REWIND_DESCRIPTOR,
+  RIDGE_LINES_DESCRIPTOR,
   RING_DESCRIPTOR,
   RINGING_ORDER_DESCRIPTOR,
   ROTARY_DESCRIPTOR,
@@ -565,6 +574,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   CHORD_HARP_DEVICE,
   CHORUS_DEVICE,
   CLARINET_DEVICE,
+  CLOCK_ROOM_DEVICE,
   CLOSED_EYES_DEVICE,
   CLUB_KIT_DEVICE,
   COLOURED_NOISE_DEVICE,
@@ -624,6 +634,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   MICRO_LOOPER_DEVICE,
   MODAL_BELLS_DEVICE,
   MURMURATION_DEVICE,
+  NIGHT_DRUM_DEVICE,
   NOISE_FLOOR_DEVICE,
   OCTAVES_DEVICE,
   ORBITS_DEVICE,
@@ -644,6 +655,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   REVEAL_DEVICE,
   REVERSE_DELAY_DEVICE,
   REWIND_DEVICE,
+  RIDGE_LINES_DEVICE,
   RING_DEVICE,
   RINGING_ORDER_DEVICE,
   ROTARY_DEVICE,
@@ -751,6 +763,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'chord-harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'chorus', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'clarinet', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'clock-room', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'closed-eyes', instrument: true, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'club-kit', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'coloured-noise', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
@@ -810,6 +823,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'micro-looper', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 16 },
   { id: 'modal-bells', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'murmuration', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
+  { id: 'night-drum', instrument: true, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'noise-floor', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'octaves', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'orbits', instrument: false, samples: false, zones: false, meters: 15, memoryMb: 32 },
@@ -837,6 +851,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'reveal', instrument: false, samples: false, zones: false, meters: 47, memoryMb: 4 },
   { id: 'reverse-delay', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 20 },
   { id: 'rewind', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'ridge-lines', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'ring', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'ringing-order', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'rotary', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
