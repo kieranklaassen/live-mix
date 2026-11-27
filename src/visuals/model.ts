@@ -18,8 +18,17 @@
 import type { JsonObject, JsonValue } from '../core/json'
 
 import { DEFAULT_PALETTE, isVisualPalette } from './palettes'
-import { PRESET_ID, presetKnob, presetName, type VisualPreset } from './preset'
+import {
+  lookNamed,
+  PRESET_ID,
+  presetKnob,
+  presetName,
+  type PresetKnob,
+  type VisualLook,
+  type VisualPreset,
+} from './preset'
 import { VISUAL_STYLES, visualStyle } from './styles'
+import { cleanWorld, type VisualWorld } from './world'
 
 /** The entry that holds a piece's visuals. */
 export const VISUALS_META = 'visuals'
@@ -215,6 +224,13 @@ export interface Visual {
   variation: 0 | 1
   /** The preset whose world a style is drawn in, by its id (`preset.ts`); left out, as the style draws itself. */
   preset?: string
+  /**
+   * The world a style is drawn in, where it is no preset's: a look made by chance or one a person kept, carried by
+   * value. `preset` is then the one it is a variation of, which a build from before there were such looks draws.
+   */
+  world?: VisualWorld
+  /** What that look is called; left out where it has no name. */
+  called?: string
   /** The stroke it is linked to: it shows while that stroke sounds. Null, it is drawn in the Visuals section. */
   stroke: string | null
   /** Its row in the Visuals section, from 0 at the top. */
@@ -375,6 +391,21 @@ function knobsFromJson(kind: string, json: JsonValue | undefined): Record<string
   return knobs
 }
 
+/** A world as the document keeps it: plain data as it is. */
+function worldJson(world: VisualWorld): JsonObject {
+  return cleanWorld(world) as JsonObject
+}
+
+/** The look a visual carries by value, from what was kept; nothing where it has none. */
+function lookFromJson(
+  world: JsonValue | undefined,
+  called: JsonValue | undefined,
+): { world?: VisualWorld; called?: string } {
+  if (typeof world !== 'object' || world === null || Array.isArray(world)) return {}
+  const name = typeof called === 'string' ? lookNamed(called) : ''
+  return { world: cleanWorld(world), ...(name === '' ? {} : { called: name }) }
+}
+
 /** The visuals as the document keeps them. */
 export function visualsToJson(set: VisualSet): JsonObject {
   const json: JsonObject = {
@@ -385,6 +416,8 @@ export function visualsToJson(set: VisualSet): JsonObject {
       const entry: JsonObject = { id: visual.id, kind: visual.kind }
       if (visual.variation === 1) entry.variation = 1
       if (visual.preset !== undefined) entry.preset = visual.preset
+      if (visual.world !== undefined) entry.world = worldJson(visual.world)
+      if (visual.called !== undefined) entry.called = visual.called
       if (visual.stroke !== null) entry.stroke = visual.stroke
       else {
         entry.lane = visual.lane
@@ -460,6 +493,7 @@ export function visualsFromJson(json: JsonValue | undefined): VisualSet {
       variation: entry.variation === 1 ? 1 : 0,
       // A preset of a later build is kept as it was written; the style is drawn as it draws itself.
       ...(typeof preset === 'string' && PRESET_ID.test(preset) ? { preset } : {}),
+      ...lookFromJson(entry.world, entry.called),
       stroke: typeof stroke === 'string' && stroke !== '' && stroke.length <= 80 ? stroke : null,
       lane: cleanLane(entry.lane),
       beat: cleanBeat(entry.beat),
@@ -507,9 +541,10 @@ export function visualById(set: VisualSet, id: string | null): Visual | null {
   return id === null ? null : (set.list.find((visual) => visual.id === id) ?? null)
 }
 
-/** What a visual is called where one is named: its kind, with its preset, or with "b" for a style's second variation. */
+/** What a visual is called where one is named: its kind, with its look's name or its preset's, or with "b" for a style's second variation. */
 export function visualLabel(visual: Visual): string {
   const style = visualStyle(visual.kind)
+  if (style && visual.called !== undefined) return `${style.name}: ${visual.called}`
   if (style && visual.preset !== undefined) return `${style.name}: ${presetName(visual.preset)}`
   return style && visual.variation === 1 ? `${style.name} b` : visualKindName(visual.kind)
 }
@@ -528,7 +563,7 @@ export interface VisualEdit {
 function presetKnobs(
   kind: string,
   knobs: Readonly<Record<string, VisualKnob>>,
-  preset: VisualPreset | null,
+  preset: VisualPreset | VisualLook | null,
 ): Readonly<Record<string, VisualKnob>> {
   const first = firstKnobs(kind)
   const next: Record<string, VisualKnob> = { ...knobs }
@@ -539,13 +574,25 @@ function presetKnobs(
   return next
 }
 
-/** A new visual of a kind at a place, in a preset where one is given. Nothing is added past the most a piece holds, or for a kind this build does not have. */
+/** What a visual keeps of the preset or the look it is drawn in. */
+function worn(look: VisualPreset | VisualLook | null): Pick<Visual, 'preset' | 'world' | 'called'> {
+  if (look === null) return {}
+  if ('id' in look) return { preset: look.id }
+  const called = lookNamed(look.called ?? '')
+  return {
+    ...(look.from === undefined ? {} : { preset: look.from }),
+    world: cleanWorld(look.world),
+    ...(called === '' ? {} : { called }),
+  }
+}
+
+/** A new visual of a kind at a place, in a preset or a look where one is given. Nothing is added past the most a piece holds, or for a kind this build does not have. */
 export function addVisual(
   set: VisualSet,
   kind: string,
   place: VisualPlace = {},
   variation: 0 | 1 = 0,
-  preset: VisualPreset | null = null,
+  preset: VisualPreset | VisualLook | null = null,
 ): VisualEdit {
   if (set.list.length >= VISUAL_MAX || !isVisualKind(kind)) return { set, visual: null }
   const linked = 'stroke' in place
@@ -554,7 +601,7 @@ export function addVisual(
     id: createVisualId(),
     kind,
     variation: world ? world.variation : visualStyle(kind) ? variation : 0,
-    ...(world ? { preset: world.id } : {}),
+    ...worn(world),
     stroke: linked ? place.stroke : null,
     lane: linked ? 0 : cleanLane(place.lane ?? freeLane(set)),
     beat: linked ? 0 : cleanBeat(place.beat ?? 0),
@@ -642,33 +689,90 @@ export function setVisualVariation(set: VisualSet, id: string, variation: 0 | 1)
 }
 
 /**
- * Draws a style in a preset: its variation, its world, and Size, Glow and Colour where the preset has them. Level and
- * where the visual is stay. With null the preset comes off: the style is drawn as it draws itself, with those three
- * where a new visual has them.
+ * Draws a style in a preset or a look: its variation, its world, and Size, Glow and Colour where it has them. Level
+ * and where the visual is stay. With null it comes off: the style is drawn as it draws itself, with those three where
+ * a new visual has them.
  */
 export function setVisualPreset(
   set: VisualSet,
   id: string,
-  preset: VisualPreset | null,
+  preset: VisualPreset | VisualLook | null,
 ): VisualSet {
   return change(set, id, (visual) => {
     if (!visualStyle(visual.kind)) return visual
-    const { preset: was, ...plain } = visual
-    if (preset === null && was === undefined) return visual
+    const plain = { ...visual }
+    delete plain.preset
+    delete plain.world
+    delete plain.called
+    if (preset === null && visual.preset === undefined && visual.world === undefined) return visual
     const knobs = presetKnobs(visual.kind, visual.knobs, preset)
     return preset
-      ? { ...plain, variation: preset.variation, preset: preset.id, knobs }
+      ? { ...plain, variation: preset.variation, ...worn(preset), knobs }
       : { ...plain, knobs }
   })
 }
 
-/** Gives a visual another kind, where it is and as it is linked. Its knobs start anew when the new kind has other knobs, and a preset comes off: it is of the kind it was. */
+/** A knob as a look keeps it. One that follows the visual's own stroke stays where it stands: a look has no stroke. */
+function keptKnob(knob: VisualKnob | undefined, first: VisualKnob): PresetKnob {
+  const { value, follows } = knob ?? first
+  return follows === null || follows === 'stroke' ? value : [value, follows]
+}
+
+/**
+ * How a visual is drawn now, to be kept and put on others: its variation, its world (its own, or that of the preset
+ * it is in, which is handed over) and where Size, Glow and Colour stand. Null for a bend, which has no look.
+ */
+export function visualLook(visual: Visual, preset: VisualPreset | null = null): VisualLook | null {
+  if (!visualStyle(visual.kind)) return null
+  const first = firstKnobs(visual.kind)
+  return {
+    variation: visual.variation,
+    size: keptKnob(visual.knobs.size, first.size),
+    glow: keptKnob(visual.knobs.glow, first.glow),
+    colour: keptKnob(visual.knobs.colour, first.colour),
+    world: cleanWorld(visual.world ?? preset?.world ?? {}),
+    ...(visual.called === undefined ? {} : { called: visual.called }),
+    ...(visual.preset === undefined ? {} : { from: visual.preset }),
+  }
+}
+
+const isKnob = (value: unknown): value is PresetKnob => {
+  const given: readonly unknown[] = Array.isArray(value) ? value : [value]
+  const [at, follows] = given
+  if (typeof at !== 'number' || !Number.isFinite(at)) return false
+  return Array.isArray(value)
+    ? typeof follows === 'string' && isVisualSource(follows) && follows !== 'stroke'
+    : true
+}
+
+/** A look from what was kept outside a piece; null for what is none. */
+export function lookFrom(value: unknown): VisualLook | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  const { variation, world, size, glow, colour, called, from } = value as Record<string, unknown>
+  if (typeof world !== 'object' || world === null || Array.isArray(world)) return null
+  const knob = (put: unknown): PresetKnob | undefined => {
+    if (!isKnob(put)) return undefined
+    return typeof put === 'number' ? round3(clamp01(put)) : [round3(clamp01(put[0])), put[1]]
+  }
+  const look: VisualLook = { variation: variation === 1 ? 1 : 0, world: cleanWorld(world) }
+  const knobs = { size: knob(size), glow: knob(glow), colour: knob(colour) }
+  for (const name of ['size', 'glow', 'colour'] as const)
+    if (knobs[name] !== undefined) look[name] = knobs[name]
+  const name = typeof called === 'string' ? lookNamed(called) : ''
+  if (name !== '') look.called = name
+  if (typeof from === 'string' && PRESET_ID.test(from)) look.from = from
+  return look
+}
+
+/** Gives a visual another kind, where it is and as it is linked. Its knobs start anew when the new kind has other knobs, and a preset or a look comes off: it is of the kind it was. */
 export function setVisualKind(set: VisualSet, id: string, kind: string): VisualSet {
   if (!isVisualKind(kind)) return set
   return change(set, id, (visual) => {
     if (visual.kind === kind) return visual
     const plain = { ...visual }
     delete plain.preset
+    delete plain.world
+    delete plain.called
     const same = paints(visual.kind) && paints(kind)
     return {
       ...plain,

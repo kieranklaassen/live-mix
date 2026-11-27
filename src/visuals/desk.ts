@@ -23,7 +23,8 @@ import {
   type PerformNow,
   type PerformReading,
 } from './perform'
-import type { VisualPreset } from './preset'
+import type { VisualLook, VisualPreset } from './preset'
+import { STAND_IN, STAND_IN_SEC } from './stand-in'
 
 /** The piece and the music as they are now. */
 export interface DeskReading {
@@ -56,38 +57,6 @@ interface Followed {
 
 /** Two asks closer together than this are the same frame, in milliseconds. */
 const SAME_FRAME_MS = 2
-
-/** The piece a style is shown with where the real one has no strokes: sixteen seconds, a few sounds of each kind. */
-const STAND_IN_SEC = 16
-const standIn = (
-  id: number,
-  slot: FollowedStroke['slot'],
-  startSec: number,
-  durationSec: number,
-  depth: number,
-  colour: FollowedStroke['colour'],
-): FollowedStroke => ({
-  id: `stand-in-${id}`,
-  startSec,
-  durationSec,
-  fadeInSec: 0.6,
-  fadeOutSec: 0.6,
-  depth,
-  thickness: 0.16,
-  gain: 0.8,
-  slot,
-  colour,
-})
-const STAND_IN: readonly FollowedStroke[] = [
-  standIn(1, 'drone', 0, 16, 0.84, [0.25, 0.62, 0.68]),
-  standIn(2, 'pad', 0.6, 7, 0.52, [0.5, 0.36, 0.72]),
-  standIn(3, 'pad', 8.6, 6.4, 0.4, [0.5, 0.36, 0.72]),
-  standIn(4, 'texture', 3, 9, 0.68, [0.74, 0.56, 0.3]),
-  standIn(5, 'melodic', 5, 3, 0.22, [0.42, 0.68, 0.34]),
-  standIn(6, 'melodic', 12.4, 2.6, 0.14, [0.42, 0.68, 0.34]),
-  standIn(7, 'hits', 2, 1.1, 0.3, [0.78, 0.36, 0.32]),
-  standIn(8, 'hits', 10, 1.1, 0.27, [0.78, 0.36, 0.32]),
-]
 
 export class VisualDesk {
   private readonly follower = new VisualFollower()
@@ -159,12 +128,12 @@ export class VisualDesk {
       : { energy: reading.energy, space: reading.space, tone: reading.tone }
   }
 
-  /** The frame that shows one kind alone at `now`, or one preset of it, in the piece's palette and grain: what the browser draws. */
+  /** The frame that shows one kind alone at `now`, or one preset or look of it, in the piece's palette and grain: what the browser draws. */
   sample(
     kind: string,
     variation: 0 | 1,
     now: number,
-    preset: VisualPreset | null = null,
+    preset: VisualPreset | VisualLook | null = null,
   ): VisualFrame {
     const frame = this.frame(now)
     // `frame` has just read it, or read it earlier in this same frame.

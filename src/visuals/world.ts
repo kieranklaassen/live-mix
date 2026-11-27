@@ -87,6 +87,53 @@ export const WORLD_RANGES: Readonly<Record<string, readonly [least: number, most
   edge: [0, 1],
 }
 
+const COLOUR = /^#[0-9a-f]{6}$/
+
+const isColour = (value: unknown): value is WorldColour =>
+  typeof value === 'string' && COLOUR.test(value.toLowerCase())
+
+/** To the thousandth, so a number is not kept as a long fraction; never -0, which is not read back the same. */
+const round3 = (value: number): number => Math.round(value * 1000) / 1000 || 0
+
+/** The colours of a list of that many, in small letters; undefined where it is not that. */
+function coloursOf(value: unknown, count: number): WorldColour[] | undefined {
+  return Array.isArray(value) && value.length === count && value.every(isColour)
+    ? value.map((colour: WorldColour) => colour.toLowerCase())
+    : undefined
+}
+
+/**
+ * A world from what was kept or handed over: each number within its range, what is not of a world left out. It is
+ * what a piece keeps, so the same world is always written the same.
+ */
+export function cleanWorld(value: unknown): VisualWorld {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
+  const given = value as Record<string, unknown>
+  const world: Record<string, unknown> = {}
+  const finite = (entry: unknown): entry is number =>
+    typeof entry === 'number' && Number.isFinite(entry)
+  if (Array.isArray(given.own)) {
+    const own = given.own
+      .slice(0, OWN_SLOTS)
+      .map((entry: unknown) => (finite(entry) ? round3(clamp(entry, -1, 1)) : 0))
+    while (own.length > 0 && own[own.length - 1] === 0) own.pop()
+    if (own.length > 0) world.own = own
+  }
+  const kinds = coloursOf(given.kinds, KIND_SLOTS.length)
+  if (kinds) world.kinds = kinds
+  const tones = coloursOf(given.tones, 3)
+  if (tones) world.tones = tones
+  if (isColour(given.mist)) world.mist = given.mist.toLowerCase()
+  const at: readonly unknown[] = Array.isArray(given.at) ? given.at : []
+  if (at.length === 2 && finite(at[0]) && finite(at[1]))
+    world.at = [round3(clamp(at[0], -2, 2)), round3(clamp(at[1], -2, 2))]
+  for (const [key, [least, most]] of Object.entries(WORLD_RANGES)) {
+    const entry = Object.hasOwn(given, key) ? given[key] : undefined
+    if (finite(entry)) world[key] = round3(clamp(entry, least, most))
+  }
+  return world
+}
+
 /** A world as a shader is handed it. */
 export interface WorldUniforms {
   own: Float32Array
@@ -153,6 +200,14 @@ export function worldUniforms(world: VisualWorld): WorldUniforms {
 
 const clamp01 = (value: number): number => clamp(value, 0, 1)
 
+/** A style's text with its own numbers written in. It reads each by a plain number only (a test holds every style to that). */
+export function withOwn(text: string, own: ArrayLike<number>): string {
+  return text.replace(/\buOwn\[(\d)\]/g, (_, slot: string) => {
+    const value = String(own[Number(slot)] ?? 0)
+    return `(${/^-?\d+$/.test(value) ? `${value}.0` : value})`
+  })
+}
+
 /** The colours of the kinds in this world, from the sounds' own. */
 export function worldKinds(world: VisualWorld, own: Float32Array, into: Float32Array): void {
   into.set(own)
@@ -169,14 +224,15 @@ export function worldKinds(world: VisualWorld, own: Float32Array, into: Float32A
 const NEAR = 24
 
 /**
- * The picture of the piece in this world's colours: each cell keeps how loud it is, and its colour goes where the
- * kinds nearest to it went.
+ * The picture of the piece in this world's colours: each cell keeps how loud it is, in the colours of the kinds it is
+ * of. Where that is not known, its colour goes where the kinds nearest to it went.
  */
 export function worldMap(
   map: Uint8Array,
   was: Float32Array,
   now: Float32Array,
   into: Uint8Array,
+  whose?: Uint8Array,
 ): void {
   const kinds = KIND_SLOTS.length
   for (let cell = 0; cell < MAP_W * MAP_H * 4; cell += 4) {
@@ -189,6 +245,7 @@ export function worldMap(
     const r = map[cell] / loud
     const g = map[cell + 1] / loud
     const b = map[cell + 2] / loud
+    const first = (cell / 4) * kinds
     let all = 1e-9
     let toR = 0
     let toG = 0
@@ -197,7 +254,9 @@ export function worldMap(
       const dr = r - was[kind]
       const dg = g - was[kind + 1]
       const db = b - was[kind + 2]
-      const share = Math.exp(-NEAR * (dr * dr + dg * dg + db * db))
+      const share = whose
+        ? whose[first + kind / 3]
+        : Math.exp(-NEAR * (dr * dr + dg * dg + db * db))
       all += share
       toR += share * now[kind]
       toG += share * now[kind + 1]

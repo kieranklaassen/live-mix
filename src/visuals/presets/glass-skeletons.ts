@@ -1,0 +1,138 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'lamp-of-leaded-panes',
+    name: 'Lamp of leaded panes',
+    what: 'A round lamp of small panes in amber, plum and green hangs lit in a dark room.',
+    variation: 0,
+    size: 0.62,
+    world: {
+      own: [0, -1, -0.25, -0.5, -1, 0, 1, 0],
+      kinds: ['#a8622a', '#d8963c', '#7a3a50', '#4f7a5c', '#e8c48a'],
+      keep: 0.05,
+      pace: 0.6,
+      at: [-0.12, 0],
+      vivid: 0.3,
+      contrast: 0.25,
+      light: -0.1,
+    },
+  },
+  {
+    id: 'urchin-shell-on-sand',
+    name: 'Urchin shell on sand',
+    what: 'One great empty urchin shell, mauve and full of round holes, lies close up on warm bright sand.',
+    variation: 0,
+    size: 0.55,
+    world: {
+      own: [-0.55, -1, -0.45, 0.85, 1, 0, 0, 0],
+      kinds: ['#8a5a6a', '#9a4f68', '#b8706c', '#e8d4c8', '#ecd2a4'],
+      keep: 0.05,
+      pace: 0.5,
+      contrast: 0.15,
+    },
+  },
+  {
+    id: 'lattice-across-fog-light',
+    name: 'Lattice across fog light',
+    what: 'The dark bars of a huge broken lattice turn before a white lamp in sea fog.',
+    variation: 0,
+    world: {
+      own: [-0.8, -1, 0.2, -0.9, 0, 0.6, -0.9, 0],
+      kinds: ['#4a7480', '#4a6a74', '#3a5660', '#8ab0b4', '#dce8e4'],
+      keep: 0.05,
+      pace: 0.8,
+    },
+  },
+  {
+    id: 'pollen-in-a-green-shaft',
+    name: 'Pollen in a green shaft',
+    what: 'A crowd of small spined golden grains sinks slowly through deep green light.',
+    variation: 0,
+    world: {
+      own: [1, -0.1, 0, -0.95, 0.8, 0, 0.4, 1],
+      kinds: ['#2c5a44', '#e0a838', '#d8843c', '#e8c860', '#f0d890'],
+      keep: 0.03,
+      pace: 0.8,
+      vivid: 0.25,
+      contrast: 0.15,
+    },
+  },
+  {
+    id: 'plate-nine-engraved',
+    name: 'Plate nine engraved',
+    what: 'An old engraving of one spined shell, cut in dark brown on cream paper.',
+    variation: 0,
+    size: 0.6,
+    world: {
+      own: [-0.35, 0.6, 0, 1, 0, 0, -0.3, -1],
+      kinds: ['#5a4030', '#8a6a50', '#6a5040', '#4a3426', '#efe4cc'],
+      keep: 0.04,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'torn-brass-cage',
+    name: 'Torn brass cage',
+    what: 'A huge cage of brass with its side torn open turns before indigo, a blue light inside it.',
+    variation: 0,
+    size: 0.6,
+    world: {
+      own: [-0.5, -1, 0.9, -1, 1, 0.75, 0.5, 0],
+      kinds: ['#3c50a0', '#c89a4a', '#a8742e', '#e0bc70', '#e8d8b0'],
+      keep: 0.05,
+      pace: 0.9,
+    },
+  },
+  {
+    id: 'cracked-husks-lit-amber',
+    name: 'Cracked husks lit amber',
+    what: 'A few great broken husks of lattice hang in brown dark, each lit amber from within.',
+    variation: 1,
+    world: {
+      own: [-0.6, -1, 0.6, -1, -0.7, 0.7, 1, 0.3],
+      kinds: ['#3a2416', '#d88a3a', '#9a4a3a', '#c8b070', '#f4dca8'],
+      keep: 0.04,
+      pace: 0.5,
+      light: -0.05,
+    },
+  },
+  {
+    id: 'tray-of-chalk-buttons',
+    name: 'Tray of chalk buttons',
+    what: 'Round, starred and toothed buttons of coloured chalk lie in rows on straw paper.',
+    variation: 1,
+    world: {
+      own: [0, -0.8, -0.1, 1, 1, -1, 0, 0],
+      kinds: ['#6a7f86', '#b8684a', '#8a8f5a', '#c89a4a', '#e6d8b4'],
+      keep: 0.06,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'burrs-on-apricot',
+    name: 'Burrs on apricot',
+    what: 'A few great black burrs and stars lie close up against a warm apricot glow.',
+    variation: 1,
+    world: {
+      own: [-0.55, 0.8, 0, 0.9, 0, 0, -1, 0],
+      kinds: ['#3a2420', '#5a3428', '#4a2c2c', '#7a4a30', '#e8a878'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'glow-eggs-sinking',
+    name: 'Glow eggs sinking',
+    what: 'Long pale eggs and needles, each with its own small light, sink through blue water.',
+    variation: 1,
+    world: {
+      own: [0.45, 0.3, 0.9, -0.95, -0.7, 0, 1, 1],
+      kinds: ['#2a5a94', '#5a8ab4', '#7ab0b8', '#b8d4d0', '#c8dce0'],
+      keep: 0.08,
+      pace: 0.9,
+    },
+  },
+]
+
+export default presets

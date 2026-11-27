@@ -12,7 +12,7 @@ import {
 } from '../model'
 import { visualPalette } from '../palettes'
 import type { VisualPreset } from '../preset'
-import { worldKinds, worldMap, worldSignals, worldUniforms } from '../world'
+import { worldKinds, worldMap, worldSignals, worldUniforms, withOwn } from '../world'
 
 const FROZEN: VisualPreset = {
   id: 'frozen-bay',
@@ -130,5 +130,36 @@ describe('a world', () => {
     expect(into[1]).toBeLessThan(5)
     expect(into[3]).toBe(200)
     expect([...into.slice(4, 8)]).toEqual([0, 0, 0, 0])
+  })
+
+  it('goes by the kinds a cell is of, whatever colour its sound has and whether it sounds', () => {
+    const now = new Float32Array(15)
+    now.set([0, 1, 0], 3)
+    const signals = quietSignals()
+    // A red pad: as red as a hit is at rest.
+    signals.map.set([200, 0, 0, 200], 0)
+    signals.mapKinds?.set([0, 255, 0, 0, 0], 0)
+    const into = new Uint8Array(signals.map.length)
+    for (const pad of [
+      [1, 0, 0],
+      [0.5, 0.36, 0.72],
+    ]) {
+      signals.kindColours.set(pad, 3)
+      worldMap(signals.map, signals.kindColours, now, into, signals.mapKinds)
+      expect([...into.slice(0, 4)]).toEqual([0, expect.closeTo(200, -1), 0, 200])
+    }
+  })
+})
+
+describe('the own numbers of a style, written into its shader', () => {
+  it('are the numbers of the world, each in brackets and as a number with a point', () => {
+    const text = 'float a = 1.0-uOwn[0]; b = uOwn[1]*uOwn[7]; c = suOwn[0];'
+    expect(withOwn(text, [-1, 0.25])).toBe('float a = 1.0-(-1.0); b = (0.25)*(0.0); c = suOwn[0];')
+  })
+
+  it('are written as the world is handed to a shader', () => {
+    expect(withOwn('uOwn[0] uOwn[1] uOwn[2]', worldUniforms(FROZEN.world).own)).toBe(
+      '(0.5) (-1.0) (1.0)',
+    )
   })
 })

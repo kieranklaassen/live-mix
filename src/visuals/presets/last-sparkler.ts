@@ -1,0 +1,138 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'one-ember-over-snow',
+    name: 'One ember over snow',
+    what: 'A single glowing drop hangs over a drift of blue snow and warms a small patch of it.',
+    variation: 0,
+    world: {
+      own: [0, 0, 1, -0.35, 0, 0, 0.15, -0.55],
+      kinds: ['#4a6a9a', '#2a3a66', '#7a8ab0', '#e0b080', '#ffe0b0'],
+      keep: 0.06,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'ink-sparks-on-rice-paper',
+    name: 'Ink sparks on rice paper',
+    what: 'A red drop throws a round burst of sparks, drawn in black ink on pale paper.',
+    variation: 0,
+    world: {
+      own: [0, 0, 0, 1, 0, 0.35, 0.35, 1],
+      kinds: ['#8a7a66', '#e0d0b4', '#4a4a58', '#c0301f', '#8a2a20'],
+      keep: 0.04,
+      tones: ['#1c1512', '#b8976a', '#f3e8d0'],
+      toned: 0.25,
+      contrast: 0.25,
+      light: -0.15,
+      vivid: 0.45,
+    },
+  },
+  {
+    id: 'sparks-in-a-bamboo-grove',
+    name: 'Sparks in a bamboo grove',
+    what: 'Jade stems of bamboo stand all round the fire and are lit on the side that faces it.',
+    variation: 0,
+    world: {
+      own: [0, 0, -0.45, -0.2, -1, 0.15, 0.2, 0.4],
+      kinds: ['#3f7a4f', '#7a9a4a', '#2f5f58', '#d8c070', '#ffe0a0'],
+      keep: 0.05,
+      light: 0.25,
+      contrast: 0.3,
+    },
+  },
+  {
+    id: 'willow-fire-before-the-moon',
+    name: 'Willow fire before the moon',
+    what: 'Long threads of fire bow down before a huge ivory moon, all of it doubled in the lake.',
+    variation: 1,
+    world: {
+      own: [0, 0, 0, -0.45, 1, 0.5, 0, 0.7],
+      kinds: ['#1f2f58', '#4a4a80', '#6a6a90', '#f0e0c0', '#fff0d0'],
+      keep: 0.05,
+    },
+  },
+  {
+    id: 'plum-blossom-fire',
+    name: 'Plum blossom fire',
+    what: 'Every spark opens into a five petalled blossom under a rose and violet evening.',
+    variation: 0,
+    world: {
+      own: [0, 1, 0, -0.8, 0, 0.15, 0, 0.7],
+      kinds: ['#4a3a6a', '#b0607a', '#d89a90', '#f4c8b8', '#ffe8d8'],
+      keep: 0.05,
+      pace: 0.7,
+    },
+  },
+  {
+    id: 'rope-of-fire-on-the-river',
+    name: 'Rope of fire on the river',
+    what: 'Gold threads fall all along a rope hung over the river and go out in the water.',
+    variation: 1,
+    world: {
+      own: [-1, 0, 0, -0.75, 0, 0.6, 0, 1],
+      kinds: ['#1f4a58', '#a8603a', '#2a3a58', '#f0c060', '#fff0c0'],
+      keep: 0.05,
+      light: 0.2,
+      contrast: 0.25,
+    },
+  },
+  {
+    id: 'fireflies-over-tall-grass',
+    name: 'Fireflies over tall grass',
+    what: 'Soft round lights drift out over seeding grass in a green blue summer night.',
+    variation: 1,
+    world: {
+      own: [0.6, -1, -1, -0.5, 0, 0, -1, -0.4],
+      kinds: ['#1f4a44', '#2f6a58', '#8aa04a', '#d8e07a', '#f4f0a8'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'nine-strings-at-the-eaves',
+    name: 'Nine strings at the eaves',
+    what: 'Nine drops on nine paper strings burn side by side, some near and some far off.',
+    variation: 0,
+    world: {
+      own: [1, 0, 0, 0, 0, 0, 0.3, 0],
+      kinds: ['#c8602a', '#d89040', '#a8503a', '#f0c880', '#fff0d0'],
+      keep: 0.1,
+      near: 1.15,
+    },
+  },
+  {
+    id: 'chandelier-over-a-green-cove',
+    name: 'Chandelier over a green cove',
+    what: 'A pale drop over still green water holds up thin arms, each with a round light at its tip.',
+    variation: 1,
+    world: {
+      own: [0, -0.8, 0, -1, 0, -1, 0.3, 1],
+      kinds: ['#14404a', '#2a7a78', '#6a5a80', '#f0b8a0', '#ffe0c8'],
+      keep: 0.04,
+      tones: ['#04141a', '#3a8a88', '#f4e0c8'],
+      toned: 0.6,
+      light: 0.1,
+      contrast: 0.25,
+    },
+  },
+  {
+    id: 'ember-among-winter-birches',
+    name: 'Ember among winter birches',
+    what: 'Pale trunks stand in snow in flat white daylight, with one small red drop between them.',
+    variation: 0,
+    world: {
+      own: [0, 0, 0.9, 1, -1, 0.2, 0.4, 0],
+      kinds: ['#7a8a98', '#c8d4dc', '#5a6470', '#d83a20', '#e07040'],
+      keep: 0.04,
+      tones: ['#131c2a', '#7f98b4', '#f3f6fa'],
+      toned: 0.22,
+      contrast: 0.3,
+      light: -0.2,
+      vivid: 0.5,
+    },
+  },
+]
+
+export default presets

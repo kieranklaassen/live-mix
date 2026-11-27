@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { isVisualSource, STYLE_KNOBS } from '../model'
 import { PRESET_ID, presetKnob, presetName, type VisualPreset } from '../preset'
@@ -122,6 +122,13 @@ describe('the presets', () => {
     }
   })
 
+  it('read their own numbers by a plain number only, as they are written into the shader', () => {
+    for (const { style } of all)
+      expect(readFileSync(join(SHADERS, `${style}.glsl`), 'utf8'), style).not.toMatch(
+        /\buOwn(?!\[[0-7]\])/,
+      )
+  })
+
   it('are listed with their words as they are written', async () => {
     const words = await loadPresetWords()
     expect(words).toEqual(
@@ -176,5 +183,28 @@ describe('the presets that have shipped', () => {
   it('has every preset there is', () => {
     if (process.env.UPDATE_SHIPPED_VISUAL_PRESETS) return
     expect(Object.keys(now).filter((id) => !(id in shipped))).toEqual([])
+  })
+})
+
+describe('presets that could not be fetched', () => {
+  it('are none, also while they are asked for again, and are there once they come', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const sources = PRESET_SOURCES as Record<string, () => Promise<readonly VisualPreset[]>>
+    let answer: () => Promise<readonly VisualPreset[]> = () => Promise.reject(new Error('no line'))
+    sources['of-the-test'] = () => answer()
+    try {
+      expect(visualPresetNow('of-the-test', 'one')).toBeUndefined()
+      await expect(loadVisualPresets('of-the-test')).rejects.toThrow('no line')
+      expect(visualPresetNow('of-the-test', 'one')).toBeNull()
+      vi.advanceTimersByTime(6000)
+      answer = () => Promise.resolve([{ ...each[0].preset, id: 'one' }])
+      // Asked for again here, and none until then.
+      expect(visualPresetNow('of-the-test', 'one')).toBeNull()
+      await loadVisualPresets('of-the-test')
+      expect(visualPresetNow('of-the-test', 'one')?.id).toBe('one')
+    } finally {
+      delete sources['of-the-test']
+      vi.useRealTimers()
+    }
   })
 })

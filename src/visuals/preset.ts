@@ -26,6 +26,28 @@ export interface VisualPreset {
   world: VisualWorld
 }
 
+/**
+ * A look of a style that is no preset: one made by chance (`vary.ts`), or one a person set and kept. A visual carries
+ * it by value, world and all, so a piece opens the same where nothing of it is known.
+ */
+export interface VisualLook extends Pick<
+  VisualPreset,
+  'variation' | 'size' | 'glow' | 'colour' | 'world'
+> {
+  /** What it is called. */
+  called?: string
+  /** The preset it is a variation of, by its id; left out, of the style as it draws itself. */
+  from?: string
+}
+
+/** The longest a look's name is. */
+export const LOOK_NAME_MAX = 40
+
+/** A look's name as it is kept: no space around it, one where several were typed, and no longer than a name is. */
+export function lookNamed(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').slice(0, LOOK_NAME_MAX).trim()
+}
+
 /** A preset as a list shows it. */
 export interface VisualPresetWords {
   /** The style it is of. */

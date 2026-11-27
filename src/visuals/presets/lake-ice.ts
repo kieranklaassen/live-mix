@@ -1,0 +1,137 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'leaves-under-brown-ice',
+    name: 'Leaves under brown ice',
+    what: 'Rust, ochre and plum leaves lie frozen at every depth of a tea brown woodland pool.',
+    variation: 0,
+    world: {
+      own: [0.85, 1, -1, -0.9, -1, -0.55, 0, 0],
+      kinds: ['#5a3a1c', '#b5712c', '#8f3527', '#d9a441', '#e8c98a'],
+      keep: 0.06,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'turquoise-blocks-at-sunup',
+    name: 'Turquoise blocks at sunup',
+    what: 'The ice has split into tall clear blocks of turquoise, and a low gold sun comes through them.',
+    variation: 0,
+    world: {
+      own: [-0.9, 0, 1, 0, -1, 0.7, 0.8, 0],
+      kinds: ['#1f5f6b', '#3fa7a8', '#7fc4c0', '#f0c987', '#fff0d0'],
+      keep: 0.1,
+      at: [0.1, 0],
+    },
+  },
+  {
+    id: 'rime-stars-on-black-water',
+    name: 'Rime stars on black water',
+    what: 'Six armed frost stars of every size stand white on water that is almost black.',
+    variation: 0,
+    world: {
+      own: [1, -1, -1, 0, -1, -0.5, 0, 0],
+      kinds: ['#5b6b78', '#8fa3b0', '#a9b4bd', '#d8e2e8', '#ffffff'],
+      keep: 0.05,
+      tones: ['#04070b', '#74899a', '#f4f8fb'],
+      toned: 0.75,
+      contrast: 0.25,
+      pace: 0.3,
+    },
+  },
+  {
+    id: 'swept-hole-in-the-snow',
+    name: 'Swept hole in the snow',
+    what: 'A window has been swept in the snow, and stacks of bubbles stand under it in a low sun.',
+    variation: 0,
+    world: {
+      own: [0.2, 0, 0, 0, 0.8, 0.75, 1, 0],
+      kinds: ['#1f4a5f', '#5a8fa8', '#8aa8b8', '#d8e8ea', '#ffffff'],
+      keep: 0.1,
+    },
+  },
+  {
+    id: 'school-rings-at-noon',
+    name: 'School rings at noon',
+    what: 'Rings within rings are cut in pale noon ice, seen from straight above.',
+    variation: 1,
+    world: {
+      own: [0, 1, 0, 1, -0.6, -1, 0, -1],
+      kinds: ['#7f9db0', '#5f84a0', '#9a8fb0', '#2f4f70', '#b5654a'],
+      keep: 0.08,
+      contrast: 0.3,
+      light: -0.12,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'race-lanes-at-red-dusk',
+    name: 'Race lanes at red dusk',
+    what: 'Long straight lanes run over the lake to a pale sun on the far hills, under a red sky.',
+    variation: 1,
+    world: {
+      own: [0, -1, 0, -1, -0.5, 1, 1, -1],
+      kinds: ['#722830', '#cc4c38', '#983c3c', '#f09656', '#f6d8b0'],
+      keep: 0.06,
+      vivid: 0.22,
+    },
+  },
+  {
+    id: 'carp-in-a-winter-pond',
+    name: 'Carp in a winter pond',
+    what: 'Orange and white carp glide slowly under a dark sheet of clear ice.',
+    variation: 0,
+    world: {
+      own: [0, 0, -1, 0, -1, -0.9, 0, -1],
+      kinds: ['#e8e2d4', '#e0642a', '#f0a850', '#f4ecdc', '#f2e6d0'],
+      keep: 0.04,
+      light: -0.1,
+      contrast: 0.2,
+    },
+  },
+  {
+    id: 'red-leaves-in-milk-ice',
+    name: 'Red leaves in milk ice',
+    what: 'A few great red leaves hang one under another in ice as pale and still as milk.',
+    variation: 0,
+    world: {
+      own: [-0.8, 1, -1, 1, -1, -0.25, 0, 0],
+      kinds: ['#d0561f', '#b02a24', '#93203a', '#cc3a20', '#d98a4a'],
+      keep: 0.04,
+      contrast: 0.45,
+      light: -0.12,
+      vivid: 0.3,
+      pace: 0.3,
+    },
+  },
+  {
+    id: 'moon-through-the-rushes',
+    name: 'Moon through the rushes',
+    what: 'A moon lays its path over blue ice behind a thick stand of rushes.',
+    variation: 1,
+    world: {
+      own: [-0.9, 0, 0, 0, -0.6, 0.25, 1, 1],
+      kinds: ['#1f2f4a', '#3a5478', '#5a6f8a', '#c8d8e6', '#eaf2f8'],
+      keep: 0.05,
+      tones: ['#060b16', '#4a6488', '#eef4fa'],
+      toned: 0.55,
+      pace: 0.7,
+      light: 0.1,
+      contrast: 0.28,
+    },
+  },
+  {
+    id: 'lantern-over-white-bubbles',
+    name: 'Lantern over white bubbles',
+    what: 'One lantern stands over black ice full of flat white bubbles, rank behind rank.',
+    variation: 1,
+    world: {
+      own: [-1, 0, -1, -0.2, -1, 0.35, 0, -1],
+      kinds: ['#28364a', '#8a9ab0', '#b07f5a', '#e8d2b0', '#fff0dc'],
+      keep: 0.06,
+    },
+  },
+]
+
+export default presets

@@ -3,6 +3,12 @@
 // b: Squeezed between walls
 // what: A great soft body of ochre sailcloth, blown tight and wider at one shoulder, stands in a pale studio, tied by five coloured belts, each at its own tilt, with a buckle and a slack end. Or the same body fills a gap between two plain walls under a low ceiling, pressed flat where they hold it and swelling out toward us.
 // follows: Each kind of sound draws in its own belt and the cloth bulges beside it. Loudness and the drone fill it, lows are its breath, texture deepens the creases, the phrase twists it. Bands dimple the tufts, keys light the buttons, a voice the room. A hit flares and snaps one belt, a cue pulls all five. The piece runs in the belts' stripes; the loop sways the sun.
+// own: 0 the form: 1 tall and narrow toward its top, -1 low and broad; 1 1 lobed all round like a gourd, -1 a square bale; 2 the belts: 1 as broad as bandages, -1 thin cords; 3 1 drawn in hard, -1 hardly drawn in at all; 4 the stuff: 1 bright foil, -1 a rough pile; 5 the place: 1 a dark room and one low lamp, -1 under open sky on ground in the colour of the drone (b: walls in it); 6 1 striped in the colours of texture and phrase, -1 lit from within; 7 1 a row of them, -1 it floats over the floor. With any of them the cloth is in the colour of texture
+float baUp(float x) { return max(x, .0); }
+float baDn(float x) { return max(-x, .0); }
+vec3 baCl = vec3(.57, .26, .045); // the cloth
+float baRow = .0; // where in the row
+vec3 baSkew(vec3 q) { return vec3(dot(q, vec3(.6, .5, .62)), dot(q, vec3(-.71, .7, .1)), dot(q, vec3(-.37, -.5, .78))); }
 // an if that is stepped over whole
 #define BA_IF(c) for (int go = (c) ? 1 : 0; go > 0; go--)
 #define BA_FIVE(F) F(0) F(1) F(2) F(3) F(4)
@@ -13,7 +19,7 @@ float baC[5], baT[5], baH[5]; // how far the plane is from the middle, how tight
 vec4 baK[5];  // where a belt is buckled, and how long its slack end hangs
 float baAir, baSag, baTwist, baWr, baGain, baPx, baSnap;
 vec3 baL;
-const float baF = -.9;  // the floor
+float baF = -.9;  // the floor
 const vec3 baGap = vec3(-.97, .9, .64);  // the walls' inner edges and the slab's underside
 const vec3 baFront = vec3(-1.26, -1.3, -1.2); // how near to us each of them comes
 const vec3 baSeam = vec3(.982, -.19, .0);  // the plane of the seam
@@ -35,8 +41,11 @@ float baBag(vec3 q, float y0, float P) {
  vec3 r = baB ? vec3(1.46, 1.12, 1.33) : vec3(1.1 + .3 * side * q.y, 1.06 + .16 * (q.x - .3) * sat(q.y * 1.5), 1.0);
  r.xz *= 1.0 + (.12 + .2 * baSag) * low;
  r.y *= 1.0 - .06 * baSag;
+ if (uOwn[0] > .0) r.xz *= 1.0 - .42 * uOwn[0] * clamp(q.y - .1, baB ? -.1 : -.5, 1.0);
  vec3 a = q / r; a *= a;
  float d = (sqrt(mix(a.x + a.y + a.z, sqrt(dot(a, a)), .6)) - 1.0) * .95 * P;
+ if (uOwn[1] > .0) { float l = length(q.xz); float a5 = abs(sin(4.5 * atan(q.x, q.z + 1e-5))); d = (d - .15 * uOwn[1] * (sqrt(a5 * a5 * .4 + a5 * .6 + .02) - .75) * l / (l + .3)) * (1.0 - .2 * uOwn[1]); }
+ if (uOwn[1] < .0) { a *= a * 2.2; d = mix(d, (sqrt(sqrt(sqrt(dot(a, a) + 1e-6))) - 1.0) * .9 * P, -uOwn[1]); }
  return -smin(-d, y0 - baF, .16);
 }
 // A belt draws the cloth in towards its own middle, in its own plane.
@@ -98,6 +107,7 @@ float baFine(vec3 q0) {
   }
   h += .03 * BA_DOWN(.075, .062, v) - .012 * BA_DOWN(.045, .036, v) + .03 * BA_DOWN(.026, .02, v);
  }
+ if (uOwn[4] < .0) h -= uOwn[4] * (.034 * noise(baSkew(q * 14.0)) + .017 * noise(baSkew(q * 31.0)) + .007 * noise(baSkew(q * 73.0)));
  return h * bare * .85 + up * .014;
 }
 const float baLean[5] = float[5](.059, -.018, -.033, .065, -.063); // which way each slack end hangs
@@ -161,6 +171,8 @@ vec3 baLightAt(vec3 n, float sun, float ao) {
  vec3 sky = vec3(.3, .33, .38) * (.6 + .4 * n.y) * (1.0 + .3 * uMic);
  vec3 side = vec3(.12, .125, .13) * sat(.5 + .5 * n.x);
  vec3 under = vec3(.26, .23, .18) * sat(.4 - .6 * n.y);
+ float nt = baUp(uOwn[5]);
+ key *= mix(vec3(1.0), vec3(1.25, .88, .55), nt) * (1.0 - .75 * baDn(uOwn[6])); sky *= 1.0 - .88 * nt; side *= 1.0 - nt; under *= 1.0 - .9 * nt;
  return key * sat(dot(n, baL) * .9 + .1) * sun + (sky + side + under) * ao;
 }
 void baFace(inout float t, inout vec3 n, inout vec3 alb, float s, vec3 m, float a) { if (s < t) { t = s; n = m; alb = vec3(a); } }
@@ -172,7 +184,7 @@ vec3 baRoom(vec3 ro, vec3 rd, out vec3 q, out vec3 n) {
  const vec3 us = vec3(.0, .0, -1.0);
  BA_IF(!baB) {
   // the floor runs up into the wall in one soft bend
-  float tw = (3.4 - ro.z) / rd.z, k = smoothstep(-1.2, 1.2, t - tw);
+  float tw = (3.4 + 60.0 * baDn(uOwn[5]) - ro.z) / rd.z, k = smoothstep(-1.2, 1.2, t - tw);
   t = smin(t, tw, 1.2);
   n = normalize(mix(n, us, k));
  }
@@ -188,10 +200,17 @@ vec3 baRoom(vec3 ro, vec3 rd, out vec3 q, out vec3 n) {
   if (s.z > tz.z) baFace(t, n, alb, s.z, vec3(.0, -1.0, .0), .6);
  }
  q = ro + rd * t;
+ if (uOwn[5] < .0) { vec3 k = uKind[0] * uKind[0]; float g = baB ? .6 * noise((q + vec3(baRow, .0, .0)) * 2.5) + .4 * noise(q * 17.0) : noise((q.xz + vec2(baRow, .0)) * vec2(1.2, 3.5) + noise(q.xz + vec2(baRow, .0))); alb = mix(alb, k * (baB ? alb * 1.5 : vec3(1.1)) * (.75 + .5 * g) + .02, -uOwn[5]); }
  if (baB) alb *= 1.0 - .8 * smoothstep(-.3, .8, q.z) * step(abs(n.z), .5);
  return alb;
 }
+vec3 baSky(vec3 rd) { return mix(sqrt(uKind[3]) * .95, uKind[1] * uKind[1], smoothstep(-.02, .28, rd.y / length(rd) + .06 * noise(rd.xy * vec2(2.0, 9.0) / rd.z))); }
 vec3 render(vec2 p) {
+ float many = baUp(uOwn[7]), fl = baDn(uOwn[7]), kk = uOwn[0], own = abs(kk);
+ p = (p - vec2(.0, -.4)) / vec2(1.0 - .3 * baUp(kk) + .35 * baDn(kk), 1.0 + .1 * baUp(kk) - .36 * baDn(kk)) + vec2(.0, -.4);
+ own = sat(6.0 * (own + abs(uOwn[1]) + abs(uOwn[2]) + abs(uOwn[3]) + abs(uOwn[4]) + abs(uOwn[5]) + abs(uOwn[6]) + many + fl));
+ baCl = mix(baCl, uKind[2] * uKind[2] * .8 + .015, own);
+ baF = -.9 - .75 * fl;
  baB = uVar > .5;
  baSide = baB ? -.36 : .42;
  baGain = .4 + 1.3 * uEnergy;
@@ -205,22 +224,29 @@ vec3 render(vec2 p) {
  float lv[5] = float[5](sat(uDrone * g), sat(uPad * g), sat(uTexture * g), .85 * sat(uPhrase * g), .8 * baSnap);
  vec2 sway = .05 * sin(uTime * vec2(.31, .23));
  // the belts in their order: drone, pad, texture, phrase, hit; standing, then squeezed
-#define BA_BELT(k, n, o, e, m, r, f) baN[k] = baB ? m : n; baC[k] = baB ? r.x : o.x; baH[k] = baB ? r.y : o.y; baT[k] = (.1 + .18 * lv[k] + .07 * pull) * (baB ? .72 : 1.0); baK[k] = baB ? f : e; baK[k].z = baK[k].z * baAir * (1.0 - baT[k]) - .03; baSwing[k] = k == 0 ? .0 : k < 3 ? sway.x : sway.y;
+ float baTg = 1.0 + 1.1 * baUp(uOwn[3]) - .92 * baDn(uOwn[3]), baWd = uOwn[2] == .0 ? 1.0 : uOwn[2] > .0 ? 1.0 + 1.3 * uOwn[2] : 1.0 + .8 * uOwn[2];
+#define BA_BELT(k, n, o, e, m, r, f) baN[k] = baB ? m : n; baC[k] = baB ? r.x : o.x; baH[k] = baB ? r.y : o.y; baT[k] = (.1 + .18 * lv[k] + .07 * pull) * (baB ? .72 : 1.0) * baTg; if (uOwn[3] > .0) baT[k] = min(baT[k], .48); baH[k] *= baWd; baK[k] = baB ? f : e; baK[k].z = baK[k].z * baAir * (1.0 - baT[k]) - .03; baSwing[k] = k == 0 ? .0 : k < 3 ? sway.x : sway.y;
  BA_BELT(0, vec3(.122, .985, .122), vec2(-.5, .07), vec4(.12, -.417, -.972, .6), vec3(.359, .928, .1), vec2(-.5, .075), vec4(.36, -.586, -1.134, .6))
  BA_BELT(1, vec3(-.202, .969, -.141), vec2(-.12, .082), vec4(.56, -.131, -.955, .6), vec3(-.141, .985, -.101), vec2(0, .085), vec4(-.14, -.107, -1.176, .62))
  BA_BELT(2, vec3(.162, .982, .101), vec2(.36, .042), vec4(-.5, .537, -.942, .5), vec3(.55, .829, .1), vec2(.6, .045), vec4(.24, .667, -1.112, .5))
  BA_BELT(3, vec3(-.9, .42, .12), vec2(.04, .055), vec4(.12, .595, -.948, 1), vec3(-.756, .647, .099), vec2(-.12, .06), vec4(.46, .482, -1.146, .8))
  BA_BELT(4, vec3(-.08, .984, .163), vec2(.57, .05), vec4(.5, .761, -.863, .4), vec3(.975, .223, .0), vec2(-.6, .055), vec4(-.66, .195, -1.115, .55))
  baL = normalize(baB ? vec3(-.7, .62, -.6) : vec3(-.8, .66, -.36));
+ baL = normalize(baL + vec3(.0, 1.3 * many - .34 * baUp(uOwn[5]), .0));
  baL.xz *= rot((baB ? .16 : .3) * sin(TAU * uLoop));
 
  float asp = uRes.x / uRes.y;
- float D = baB ? 4.6 : 6.6, foc = (baB ? 1.7 : 2.34) * min(mix(1.06, .94, uSpace), asp * .85);
+ float D = (baB ? 4.6 : 6.6) * (1.0 + .65 * many + .12 * fl), foc = (baB ? 1.7 : 2.34) * min(mix(1.06, .94, uSpace), asp * .85);
  float az = .1 * sin(uTime * .037) + (baB ? .26 : .08);
  vec3 ta = baB ? vec3(-.16, -.02, -.4) : vec3(.1, .06, .0);
  vec3 ro = ta + vec3(sin(az) * D, baB ? .1 : .7, -cos(az) * D);
  vec3 fw = normalize(ta - ro), rt = normalize(cross(vec3(.0, 1.0, .0), fw)), up = cross(fw, rt);
  vec3 rd = normalize(fw * foc + rt * p.x + up * p.y);
+ if (many > .0) {
+  float S = mix(9.0, baB ? 2.5 : 2.75, many), id = floor((ro.x + rd.x * ((baB ? -1.25 : .0) - ro.z) / rd.z) / S + .5);
+  baRow = id * S; ro.x -= baRow;
+  if (id != .0) { float h = hash11(id); baAir *= .86 + .22 * h; baTwist += (h - .5) * .5; for (int k = 0; k < 5; k++) if (!baB) { baN[k].x *= 1.4 - 2.2 * h; baN[k] = normalize(baN[k]); } }
+ }
  baPx = D / (foc * uRes.y);
 
  // the body, marched inside a ball
@@ -240,11 +266,12 @@ vec3 render(vec2 p) {
    t += max(d, .004);
    if (d < .02) break;
   }
-  for (int i = 0; i < 20 && t < tEnd; i++) {
+  int far = uOwn[1] > .0 ? 60 : 20;
+  for (int i = 0; i < far && t < tEnd; i++) {
    float d = baBody(ro + rd * t);
    if (d < best) { best = d; tb = t; }
    if (d < .001) break;
-   t += max(d * .88, .004);
+   t += max(d * .88, far > 20 ? max(.004, 1.2 * baPx) : .004);
   }
   cover = best < .001 ? 1.0 : BA_DOWN(.8, .0, best / baPx);
  }
@@ -257,7 +284,7 @@ vec3 render(vec2 p) {
   vec3 q, n, alb = baRoom(ro, rd, q, n), n0 = n;
   float sh = 1.0, hol = 1.0;
   BA_IF(n.y > .5) alb *= .97 + .05 * noise(q.xz * vec2(2.0, 5.0));
-  BA_IF(near && n.y > .5 && abs(q.x - baK[0].x) < .5 && q.z < -.8) {
+  BA_IF(near && fl == .0 && n.y > .5 && abs(q.x - baK[0].x) < .5 && q.z < -.8) {
    // the lowest belt's end runs out over the floor
    vec4 b = baK[0];
    float dn = b.y - baF, u = b.z - .16 * dn - q.z;
@@ -273,11 +300,16 @@ vec3 render(vec2 p) {
   BA_IF(!baB && dot(q, q) < 7.0) d = baBag((q + n0 * .22) * vec3(1.14, 1.0, 1.14), 1.0, 1.0);
   BA_IF(baB && dot(q, q) < 3.6) d = baBody(q + n0 * .22);
   if (baB) d = mix(1.0, d, BA_DOWN(3.6, 2.2, dot(q, q)));
+  float mid = many > .0 ? mix(1.0, BA_DOWN(1.25, .75, abs(q.x)), many) : 1.0;
+  if (many > .0) d = mix(1.0, d, mid);
   float ao = clamp(.3 + d / .5, .06, 1.0) * hol;
   BA_IF(baB && abs(n.z) < .5) { sh *= baShut(q + n0 * .01); ao *= 1.0 - .5 * smoothstep(-1.1, -.1, q.z); }
-  BA_IF(t1 > .0 && n.y > -.5 && (!baB || n.y > .5)) sh *= mix(1.0, baCast(q, t0, t1, mix(4.0, 11.0, uTone)), smoothstep(.0, 1.0, t1 - t0));
-  col = alb * baLightAt(n, sh, ao) * (1.0 - .14 * smoothstep(-2.0, 3.0, q.x));
-  col += vec3(.1, .05, .01) * (1.0 - sat(d / .5)) * ao; // ochre thrown back by the cloth
+  BA_IF(t1 > .0 && n.y > -.5 && (!baB || n.y > .5)) sh *= mix(1.0, baCast(q, t0, t1, mix(4.0, 11.0, uTone)), smoothstep(.0, 1.0, t1 - t0) * mid);
+  col = alb * baLightAt(n, sh, ao) * (1.0 - .14 * (1.0 - many) * smoothstep(-2.0, 3.0, q.x));
+  col += mix(vec3(.1, .05, .01), baCl * .2, own) * (1.0 - sat(d / .5)) * ao * (1.0 + 5.0 * baDn(uOwn[6])); // thrown back by the cloth
+  col *= mix(1.0, .05 + .95 * exp(-.2 * mix(dot(q, q), dot(q.yz, q.yz), many)), baUp(uOwn[5]));
+  if (uOwn[6] < .0) col -= uOwn[6] * baCl * alb * (.5 + uPad) * exp(-.5 * dot(q, q) + .6) * mid;
+  if (uOwn[5] < .0 && !baB) col = mix(col, baSky(rd), -uOwn[5] * smoothstep(9.0, 34.0, length(q - ro)));
  }
  // the body
  BA_IF(cover > .0) {
@@ -290,20 +322,21 @@ vec3 render(vec2 p) {
   vec3 ta1 = normalize(cross(n0, vec3(.13, .31, .94))), ta2 = cross(n0, ta1), hf = vec3(.0);
   for (int i = 0; i < 3; i++) { vec3 o = vec3(i == 0, i == 1, i == 2); hf += o * baFine(q + (ta1 * o.y + ta2 * o.z) * e); }
   float f0 = hf.x;
-  vec3 n = normalize(n0 - (ta1 * (hf.y - f0) + ta2 * (hf.z - f0)) / e);
-  vec3 w = baTurn(q), alb = vec3(.57, .26, .045) * (.84 + .32 * noise(w.xy * 1.7 + 8.0 + w.z));
+  vec3 n = normalize(n0 - (ta1 * (hf.y - f0) + ta2 * (hf.z - f0)) * (1.0 - .45 * baUp(uOwn[4])) / e);
+  vec3 w = baTurn(q), alb = baCl * (.84 + .32 * noise(w.xy * 1.7 + 8.0 + w.z));
   // the sail is sewn from panels
   float across = dot(w, baSeam) + baSide, pl = abs(abs(fract(across / .56 + .5) - .5) * .56 - .28);
+  if (uOwn[6] > .0) alb = mix(alb, uKind[3] * uKind[3] * .85 + .02, uOwn[6] * smoothstep(-.06, .06, sin(PI * (across / .56 + .5) + .001)));
   alb *= 1.0 - .3 * sat(1.0 - pl / (.004 + baPx)) + .08 * sat(1.0 - abs(pl - .022) / .02);
   BA_IF(w.z < .0 && abs(across) < .15) {
    // the seam's two rows of stitches and its buttons
    vec4 u = baTuft(w);
    float st = BA_DOWN(.007 + baPx, .004, abs(abs(u.x) - .026)) * smoothstep(.1, .3, abs(fract(u.y * 26.0) - .5));
-   alb = mix(alb, vec3(.75, .55, .28), .6 * st);
+   alb = mix(alb, mix(vec3(.75, .55, .28), alb * 1.5, own), .6 * st);
    alb *= 1.0 - .6 * BA_DOWN(.005 + baPx, .002, abs(u.x));
    float r = length(u.xy), bt = BA_DOWN(.027 + baPx, .027 - baPx, r);
-   alb += vec3(.5, .3, .1) * uKeys * BA_DOWN(.15, .02, r);
-   alb = mix(alb * (1.0 - .4 * BA_DOWN(.05, .02, r)), vec3(.2, .075, .03) * (1.0 + 9.0 * uKeys + 3.0 * uBands[int(u.z)]), bt);
+   alb += mix(vec3(.5, .3, .1), baCl, own) * uKeys * BA_DOWN(.15, .02, r);
+   alb = mix(alb * (1.0 - .4 * BA_DOWN(.05, .02, r)), mix(vec3(.2, .075, .03), baCl * .35, own) * (1.0 + 9.0 * uKeys + 3.0 * uBands[int(u.z)]), bt);
    shine = bt;
   }
   float v = length(w - baValve * dot(w, baValve)) + step(.0, w.z);
@@ -339,6 +372,14 @@ vec3 render(vec2 p) {
   vec3 li = baLightAt(n, sh, ao), c = alb * li;
   more *= li * cover;
   c += alb * alb * .6 * (1.0 - ao) * (.3 + sh);
+  if (uOwn[4] > .0) {
+   vec3 rf = reflect(normalize(rd), n);
+   float lamp = dot(rf, baL), f = 1.0 + dot(normalize(rd), n);
+   float env = (mix(.12, .62, smoothstep(-.35, .25, rf.y + .25 * noise(rf * 3.0))) + .5 * smoothstep(.3, .9, rf.x * .6 + rf.y)) * (1.0 - .75 * baUp(uOwn[5])) * ao + (.7 * smoothstep(.55, .8, lamp) + 2.5 * smoothstep(.93, .97, lamp)) * (.25 + .75 * sh);
+   c = mix(c, (sqrt(alb) * (1.0 - .5 * f * f * f) + .5 * f * f * f) * env * 1.25 * vec3(1.0, .98, .95), uOwn[4] * (1.0 - .8 * belt));
+  }
+  if (uOwn[4] < .0) { float f = 1.0 + dot(normalize(rd), n0); c = mix(c, c * (.85 + .3 * noise(baSkew(w * 23.0))) + alb * f * f * (.5 + sh) * .9 * ao, -uOwn[4]); }
+  if (uOwn[6] < .0) { float f = sat(-dot(normalize(rd), n)); c = mix(c, (baCl * (.35 + 1.9 * f * f) + .5 * baCl * baCl * f * f * f) * (.7 + .6 * uPad + .4 * uLevel + .3 * uCue) * (.4 + .6 * hol), -uOwn[6] * (1.0 - .85 * belt)); }
   c += alb * glow * 3.0 + .5 * shine * pow(sat(dot(n, normalize(baL - rd))), 40.0) * sh;
   col = mix(col, c, cover);
  }

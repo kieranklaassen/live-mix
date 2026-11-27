@@ -1,0 +1,136 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'milk-fjord-morning',
+    name: 'Milk fjord morning',
+    what: 'A row of small white peaks stands in pale turquoise water, with long blue ice hanging below.',
+    variation: 0,
+    world: {
+      own: [0.6, 1, 0.35, 0, 1, 0, 0, 0],
+      kinds: ['#6fa8a6', '#8fb4b8', '#e0d2b8', '#f2ead8', '#d98a70'],
+      keep: 0.05,
+      pace: 0.7,
+      contrast: 0.15,
+      light: -0.14,
+    },
+  },
+  {
+    id: 'lone-floe-at-moonset',
+    name: 'Lone floe at moonset',
+    what: 'One small lump of ice, faintly lit from within, under a low moon in a wide black sea.',
+    variation: 0,
+    world: {
+      own: [0.3, -0.7, 0.35, 0, -1, 0, 0, 0],
+      kinds: ['#2a4668', '#7fa6b8', '#8f98a8', '#d8d2c0', '#f0e6cc'],
+      keep: 0.05,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'sandstone-sea-stack',
+    name: 'Sandstone sea stack',
+    what: 'A tall rock of red and cream layers rises from a warm green sea under a wide sky.',
+    variation: 0,
+    world: {
+      own: [0.2, 0, 0.8, 1, 0.45, 0.3, 0, 0],
+      kinds: ['#4f8a80', '#b0623f', '#e0c090', '#f0d8b0', '#f4e6cc'],
+      keep: 0.05,
+    },
+  },
+  {
+    id: 'slate-slabs-underwater',
+    name: 'Slate slabs underwater',
+    what: 'Broken plates of grey slate lie stacked deep under the surface in slanting green light.',
+    variation: 0,
+    world: {
+      own: [0.2, 0, -1, 0.85, 0, 0, -1, -1],
+      kinds: ['#4f7468', '#4a5058', '#8a8878', '#d8d8b8', '#f0ecd0'],
+      keep: 0.05,
+      contrast: 0.2,
+    },
+  },
+  {
+    id: 'rose-jelly-bell',
+    name: 'Rose jelly bell',
+    what: 'A round rose bell of clear flesh hangs in dark blue water and trails its long threads.',
+    variation: 0,
+    world: {
+      own: [-0.5, -0.12, -1, -0.9, -0.75, 0, 1, 1],
+      kinds: ['#2c5a98', '#e09aa4', '#e8b8b0', '#f2d8c8', '#f6e8dc'],
+      keep: 0.05,
+      pace: 0.8,
+      light: 0.15,
+      vivid: 0.25,
+    },
+  },
+  {
+    id: 'pack-ice-from-below',
+    name: 'Pack ice from below',
+    what: 'Broken floes float close together on a bright rippled ceiling of water, seen from beneath.',
+    variation: 1,
+    world: {
+      own: [-0.1, 1, -1, 0, 0.6, 0, 0, 0],
+      kinds: ['#7a9aa8', '#a8c0c4', '#d8ccb0', '#eee6d4', '#d88a70'],
+      keep: 0.05,
+      pace: 0.7,
+      near: 0.8,
+    },
+  },
+  {
+    id: 'amber-drop-in-resin',
+    name: 'Amber drop in resin',
+    what: 'A great rounded drop of clear amber hangs in honey light with a slow gleam above it.',
+    variation: 1,
+    world: {
+      own: [0, 0, 0, -1, 0.35, 0.8, 1, 0],
+      kinds: ['#a8752e', '#d08a2a', '#e8b860', '#f6dca0', '#fbeccb'],
+      keep: 0.05,
+      tones: ['#1c0f06', '#b0702a', '#fbe6b4'],
+      toned: 0.45,
+      contrast: 0.3,
+      vivid: 0.15,
+      light: -0.12,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'boulder-under-lake-crust',
+    name: 'Boulder under lake crust',
+    what: 'From under a frozen lake the snow light comes through cracked ice past a dark boulder.',
+    variation: 1,
+    world: {
+      own: [0, -0.25, 0.1, 0.9, 0, -1, 0.4, -0.3],
+      kinds: ['#5f7f86', '#3f464a', '#6a6a60', '#d0d8d4', '#f0f0e8'],
+      keep: 0.05,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'hanging-root-garden',
+    name: 'Hanging root garden',
+    what: 'A green rock hangs from the surface over dark water, trailing pale green roots that move with the water.',
+    variation: 1,
+    world: {
+      own: [0.3, 0.2, 0.75, 0.7, -0.45, 0, 0.2, 0.55],
+      kinds: ['#24605e', '#6a8a5c', '#a8c490', '#d0d8a8', '#f0ecc8'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'lens-under-lake-snow',
+    name: 'Lens under lake snow',
+    what: 'A broad blue lens of clear ice hangs in dim water under a lake lidded with snow.',
+    variation: 0,
+    world: {
+      own: [-0.8, 0, 0.6, -1, -0.15, -1, 0.6, 0],
+      kinds: ['#34628c', '#4f8fc4', '#7fb0d8', '#e6ecf0', '#d9a870'],
+      keep: 0.04,
+      pace: 0.6,
+      vivid: 0.3,
+    },
+  },
+]
+
+export default presets

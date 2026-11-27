@@ -1,0 +1,138 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'chalk-disc-behind-ranges',
+    name: 'Chalk disc behind ranges',
+    what: 'A round of chalk white light stands behind jagged scratched ranges, which turn dark across it.',
+    variation: 0,
+    world: {
+      own: [0, -0.7, 0, 0.9, 0.5, 0, -1, 0],
+      kinds: ['#4f6f86', '#8a9aa8', '#5a6a70', '#c9c0a8', '#d98a5a'],
+      keep: 0.05,
+      tones: ['#0a0d14', '#6f8290', '#f4efe2'],
+      toned: 0.6,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'loose-curl-of-clear-film',
+    name: 'Loose curl of clear film',
+    what: 'A loose curl of clear film lies on a grey table, with calm rust and blue lines of ink along it.',
+    variation: 0,
+    world: {
+      own: [0, -0.3, 1, -0.6, 0.2, 0, 0.8, -1],
+      kinds: ['#2f5f8f', '#b5532f', '#6f7f4f', '#3a3f4a', '#a82f2a'],
+      keep: 0.05,
+      pace: 0.4,
+      tones: ['#18201e', '#8c9088', '#f4ead2'],
+      toned: 0.3,
+      vivid: 0.4,
+      light: -0.16,
+      contrast: 0.05,
+    },
+  },
+  {
+    id: 'blistered-amber-strip',
+    name: 'Blistered amber strip',
+    what: 'A deep red strip has burnt through to the lamp in places, with amber blisters round each hole.',
+    variation: 0,
+    world: {
+      own: [0, -0.3, -0.5, 0.3, 0, 0.8, 0.7, 0],
+      kinds: ['#6f1f1a', '#d9863f', '#b5502a', '#f0c88a', '#e8923a'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'lit-carriages-going-away',
+    name: 'Lit carriages going away',
+    what: 'Bright windows in a row and thin rails of light run off to the right through a blue night.',
+    variation: 0,
+    world: {
+      own: [0, 0, -1, -0.6, 0.4, 0, 0.8, 1],
+      light: 0.2,
+      kinds: ['#2c5490', '#7f9fd0', '#b5a06f', '#e8d8a8', '#f0b86a'],
+      keep: 0.05,
+      pace: 1.4,
+    },
+  },
+  {
+    id: 'proof-sheet-of-squalls',
+    name: 'Proof sheet of squalls',
+    what: 'Strips of small frames lie one under another on cream film, each a squall of sepia ink.',
+    variation: 0,
+    world: {
+      own: [0, 0.75, 1, 0.8, 0.2, -1, 0, 0],
+      tones: ['#2a1a12', '#a88a6a', '#f6efe0'],
+      toned: 0.75,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'pond-drops-in-darkfield',
+    name: 'Pond drops in darkfield',
+    what: 'Drops of turquoise and gold light of every size hang apart on black, with one mauve thread.',
+    variation: 1,
+    world: {
+      own: [0, -0.6, 1, 1, -0.6, 0, 0.85, 0],
+      kinds: ['#3f9a8f', '#c9b04a', '#7fb56a', '#d8e0c8', '#d9734a'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'frost-flowers-on-a-slide',
+    name: 'Frost flowers on a slide',
+    what: 'Great fans of blue crystals have grown over the whole of a glass slide, edge to edge.',
+    variation: 1,
+    world: {
+      own: [0, -0.5, 0, -0.4, 1, 0, 0.8, 0],
+      kinds: ['#3f6f9f', '#8fa8c9', '#b5c9d8', '#4a5a78', '#c9a0b5'],
+      keep: 0.05,
+      tones: ['#14243f', '#7fa3c4', '#f2f6f8'],
+      toned: 0.6,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'one-pool-of-madder',
+    name: 'One pool of madder',
+    what: 'One great pool of madder red dries on white film, its rim drawn dark and smooth.',
+    variation: 1,
+    world: {
+      own: [0, -0.35, 0, -1, -1, 0, 1, 0],
+      kinds: ['#a8433c', '#dba08c', '#c97a66', '#5a3a42', '#26304a'],
+      keep: 0.04,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'sheet-of-small-petals',
+    name: 'Sheet of small petals',
+    what: 'Loose petals in rose and coral ink lie scattered in small pale frames, in rows on one dark sheet.',
+    variation: 1,
+    world: {
+      own: [0, 0.75, 0, 0.7, -0.6, 0, 1, 0],
+      kinds: ['#c4504a', '#e0907a', '#8a5a8f', '#4a3f5a', '#b83f5a'],
+      keep: 0.05,
+      pace: 0.6,
+      contrast: 0.1,
+      light: -0.05,
+    },
+  },
+  {
+    id: 'magic-lantern-wheel',
+    name: 'Magic lantern wheel',
+    what: 'A wheel of painted glass glows in the dark, its pictures melting one into the next.',
+    variation: 1,
+    world: {
+      own: [1, 0, 0, -0.5, 0.3, 0, 0.8, 0],
+      kinds: ['#2f7f8f', '#d98a3f', '#b54a5a', '#4a3a5a', '#e0a83a'],
+      keep: 0.05,
+      pace: 0.7,
+    },
+  },
+]
+
+export default presets

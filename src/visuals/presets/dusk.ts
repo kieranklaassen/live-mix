@@ -1,0 +1,135 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'ridges-folded-in-haze',
+    name: 'Ridges folded in haze',
+    what: 'Five blue ridges stand one behind another with haze lying between, under a peach evening.',
+    variation: 0,
+    world: {
+      own: [0.4, 1, 0, -1, 0, 1, 0, 0],
+      kinds: ['#4f7ca8', '#8fa4c4', '#f4b080', '#e09c98', '#f0d0a0'],
+      keep: 0.05,
+      pace: 0.6,
+      vivid: -0.1,
+    },
+  },
+  {
+    id: 'red-sun-of-cut-paper',
+    name: 'Red sun of cut paper',
+    what: 'A great vermilion sun stands in a sky cut from sheets of paper, over a dark ruffled sea.',
+    variation: 0,
+    world: {
+      own: [1, 0, -0.7, -1, 0, 1, 1, 0],
+      kinds: ['#4a8f98', '#8fb8a8', '#d8402a', '#f0c890', '#f0d8a8'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'green-veils-over-ridges',
+    name: 'Green veils over ridges',
+    what: 'Tall veils of green light hang down to ridge behind dark ridge, with a thin moon among them.',
+    variation: 0,
+    world: {
+      own: [-0.7, 0.45, 0, -1, -1, 1, 0, 0],
+      kinds: ['#4f8fa8', '#8a6fb0', '#5fc08f', '#8fd8a8', '#d8f0d8'],
+      keep: 0.05,
+      pace: 0.7,
+    },
+  },
+  {
+    id: 'cloud-floor-at-six',
+    name: 'Cloud floor at six',
+    what: 'From above the weather a floor of cloud runs out white and apricot to the morning.',
+    variation: 0,
+    world: {
+      own: [0.35, 0, 1, -0.7, 0.8, 1, 0, 0],
+      contrast: 0.25,
+      kinds: ['#7fa4d0', '#c09ac0', '#f4a870', '#f0b8a0', '#f8e0b8'],
+      keep: 0.05,
+      pace: 0.8,
+    },
+  },
+  {
+    id: 'reeds-and-a-nail-moon',
+    name: 'Reeds and a nail moon',
+    what: 'Reeds stand black at the edge of a still lake with a moon no wider than a nail paring.',
+    variation: 0,
+    world: {
+      own: [-1, -1, 0, -0.9, 0, 1, 0, 0],
+      kinds: ['#27475f', '#40687c', '#5f8f98', '#7fa8a8', '#d8d8b8'],
+      keep: 0.05,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'lights-let-out-on-the-ebb',
+    name: 'Lights let out on the ebb',
+    what: 'Small warm lights drift up from a bay at night and come down again in the water.',
+    variation: 0,
+    world: {
+      own: [-0.8, 0, 0, -0.8, 0, 1, 0, 1],
+      kinds: ['#2a3560', '#5a4070', '#d89050', '#b86a60', '#f0c890'],
+      at: [0, -0.2],
+      answer: 0.75,
+      light: -0.1,
+      keep: 0.05,
+      pace: 0.8,
+    },
+  },
+  {
+    id: 'evening-in-bottle-ends',
+    name: 'Evening in bottle ends',
+    what: 'A window made of round bottle ends, with a piece of the evening upside down in each.',
+    variation: 1,
+    world: {
+      own: [0.5, 0, 0, -0.4, 0, 1, 0, 1],
+      kinds: ['#3f6050', '#98785a', '#e0803a', '#d8a060', '#f0d8a0'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'four-tall-panes-west',
+    name: 'Four tall panes west',
+    what: 'Broad panes cut a sun and its hills into long slices of plum, rose and clay.',
+    variation: 1,
+    world: {
+      own: [0.8, 0.8, 0, -1, 0, 1, 0.8, -1],
+      kinds: ['#4a3560', '#9a5070', '#e88860', '#d86a68', '#f8d0a0'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'frost-on-the-west-door',
+    name: 'Frost on the west door',
+    what: 'A pale winter afternoon seen through a ribbed glass door, snow hills one behind another.',
+    variation: 1,
+    world: {
+      own: [0, 0.8, 0, 0.8, 0.85, 1, 0, 0],
+      kinds: ['#6088a8', '#98b0c8', '#e0c8a0', '#d0b0a8', '#e09070'],
+      at: [0, -0.2],
+      contrast: 0.2,
+      keep: 0.05,
+      vivid: -0.15,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'reeds-before-pale-sequins',
+    name: 'Reeds before pale sequins',
+    what: 'Reeds stand black before a pale evening made all of round dots, cream where the sun is low.',
+    variation: 1,
+    world: {
+      own: [0.6, -1, 0, 0.5, 0.5, 1, -1, 0],
+      kinds: ['#2f7f98', '#8f709f', '#e8905a', '#e0707a', '#f0d8b0'],
+      keep: 0.05,
+      contrast: 0.1,
+      pace: 0.6,
+    },
+  },
+]
+
+export default presets

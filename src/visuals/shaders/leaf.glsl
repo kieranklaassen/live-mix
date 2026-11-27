@@ -3,6 +3,7 @@
 // b: Wing
 // what: One leaf seen very close with the sun behind it: the mid-rib, the side veins, the fine net and the glowing cells between, and drops of dew that each hold a tiny upside-down picture of the sky; or the wing of a dragonfly, dark glass cells in a gold net.
 // follows: Light runs along the mid-rib with the low band, out along the side veins with the middle and through the fine net with the high; the fields between the veins take the colours of the sounds there; a hit makes the dewdrops shiver and flash; the fuller the mix the more sun comes through.
+// own: 0 1 far off and whole, -1 so near that a few cells fill it; 1 1 a ring of blades round one stalk (b: both pairs of wings), -1 many close ribs; 2 1 cut in between the side veins as a fern is (b: a broad scalloped wing), -1 long and narrow; 3 1 it lies on a ground in the colour of the drone, -1 other leaves stand behind it; 4 1 a skeleton, only its veins are left, -1 thick and lit from the front; 5 1 a few great cells, -1 a fine small net; 6 1 beads of dew all over, -0.4 dry, -1 eaten into holes; 7 1 dyed in the sounds' colours, -1 the same in marks and bands
 
 // A net of cells: how far to the nearest wall, the middle of the cell, and a number of its own.
 float lfNet(vec2 x, out vec2 centre, out float id) {
@@ -38,16 +39,73 @@ float lfWingShape(vec2 q, out float w, out float across) {
   float taper = sqrt(sat(1.0 - pow(max(q.x - 0.05, 0.0) / (tipU - 0.05), 2.4)));
   float rootw = 1.0 + 0.2 * min(q.x, 0.0);
   float vc = 0.07 - 0.05 * q.x;
-  float top = vc + 0.17 * taper * rootw, bot = vc - 0.31 * taper * rootw;
+  float up = 0.17, dn = 0.31;
+  if (uOwn[0] > 0.0 || uOwn[1] > 0.0) rootw *= mix(1.0, 0.2 + 0.8 * smoothstep(-1.0, -0.25, q.x), max(max(uOwn[0], 0.0), max(uOwn[1], 0.0)));
+  if (uOwn[2] > 0.0) {
+    float open = smoothstep(-0.95, 0.1, q.x);
+    up *= 1.0 + 0.25 * uOwn[2] * open;
+    dn *= 1.0 + uOwn[2] * open * (0.75 + 0.18 * (abs(sin(q.x * 10.5)) - 0.6) + 0.5 * exp(-pow((q.x - 0.28) * 9.0, 2.0)));
+  }
+  if (uOwn[2] < 0.0) { up *= 1.0 + 0.45 * uOwn[2]; dn *= 1.0 + 0.5 * uOwn[2]; }
+  float top = vc + up * taper * rootw, bot = vc - dn * taper * rootw;
   across = max(top - bot, 1e-3);
   w = (q.y - bot) / across;
   return min(min(top - q.y, q.y - bot), (tipU - q.x) * 0.6);
 }
 
+// Beads of dew all over.
+vec3 lfBeads(vec2 q, vec3 col, vec2 sun, float px, float many, float bright, float size) {
+  vec2 ld = normalize(sun - q + 1e-3);
+  for (int k = 0; k < 2; k++) {
+    float sc = (k == 0 ? 8.0 : 21.0) / size;
+    vec2 g = rot(0.4 + 0.5 * float(k)) * q * sc + 3.7 * float(k), id = floor(g), f = fract(g) - 0.5;
+    vec2 h = hash22(id);
+    float r = (0.1 + 0.36 * h.x * h.x) * step(0.12 + 0.2 * float(k), h.y) * smoothstep(0.0, 1.0, many * 1.6 - 0.6 * fract(h.y * 7.1));
+    if (r < 0.02) continue;
+    vec2 e = (f - (fract(h.yx * 13.7) - 0.5) * (0.96 - 2.0 * r)) / r;
+    e = rot(-0.4 - 0.5 * float(k)) * e;
+    float d = length(e), a = dot(e, -ld), in1 = smoothstep(1.0, 1.0 - min(0.6, 2.5 * px * sc / r), d);
+    float kick = sat(uHits * step(0.6, fract(h.x * 5.3)) + 0.6 * uCue * step(0.5, h.x));
+    col *= 1.0 - 0.45 * exp(-pow(length(e + ld * 0.4) / 1.15, 4.0)) * (1.0 - in1);
+    vec3 pic = col * (0.45 + 0.8 * sat(a)) + (0.02 + 0.5 * col) * sat(a) * sat(a);
+    pic += vec3(1.0, 0.98, 0.94) * (0.5 + 0.5 * bright) * smoothstep(0.32, 0.12, length(e - ld * 0.48));
+    pic += uKind[4] * 1.4 * kick * (1.0 - 0.6 * d);
+    col = mix(col, pic, in1);
+  }
+  return col;
+}
+// The ground, in the drone's colour.
+vec3 lfGround(vec2 p) {
+  vec3 k = uKind[0];
+  vec2 c = p - vec2(-0.3, 0.25);
+  float grain = 0.86 + 0.18 * noise(p * 130.0) + 0.14 * noise(p * vec2(34.0, 60.0)) - 0.1 * noise(p * 6.0);
+  return k * k * (0.5 + 0.75 * exp(-dot(c, c) * 0.9)) * grain * (0.95 + 0.2 * uLevel);
+}
+// Other leaves that stand behind, farther and softer.
+vec3 lfBehind(vec2 p) {
+  vec3 c = mix(uKind[0] * uKind[0] * 0.06, uKind[1] * uKind[1] * 0.16, sat(0.5 + p.y)) * (0.6 + 0.5 * uLevel);
+  for (int k = 0; k < 3; k++) {
+    float fk = float(k), sc = 1.05 - 0.2 * fk;
+    vec2 g = rot(0.9 - 0.75 * fk + 0.025 * sin(uTime * (0.13 + 0.05 * fk) + fk)) * (p + vec2(0.17 * fk, 0.31 * fk)) * sc;
+    g.y += 0.06 * g.x * g.x;
+    g.x /= 1.9;
+    float row = floor(g.y * 2.6 + 0.5);
+    g.x += 0.5 * hash11(row * 3.1 + fk);
+    float h = hash21(vec2(floor(g.x), row) + 7.0 * fk);
+    vec2 f = vec2(fract(g.x) - 0.5, g.y - row / 2.6);
+    float hw = 0.135 * (0.7 + 0.3 * h) * sqrt(max(1.0 - 4.6 * f.x * f.x, 0.0)) * (0.9 - f.x), blur = 0.04 - 0.012 * fk;
+    float in1 = smoothstep(-blur, blur, hw - abs(f.y)), ss = fract((f.x - 0.4 * abs(f.y)) * 14.0) - 0.5;
+    vec3 lf = kindColour(0.2 + 2.4 * h);
+    lf *= lf * (0.1 + 0.13 * fk) * (0.5 + 0.7 * uLevel) * (0.55 + 0.5 * step(0.0, f.y) + 0.4 * exp(-abs(f.y) / (0.012 + blur * 0.4)) + 0.12 * exp(-ss * ss * 60.0));
+    c = mix(c, lf, in1 * step(0.2, h));
+  }
+  return c;
+}
 // one drop of dew: where it sits on the leaf and how big it is; the nearest one to this place is kept
 #define LF_TRY(I, X, Y, R) ci = vec2(X, Y) * squash + shift; dd = length(q - ci) / (R * small); if (dd < best) { best = dd; fi = I; c = ci; r = R * small; }
 // Dew: each drop is a little lens. q is the place on the leaf, sun where the light is, col what lies under.
 vec3 lfDew(vec2 q, vec3 col, vec2 sun, float px, vec2 squash, vec2 shift, float small, float bright) {
+  if (uOwn[6] < 0.0) { small *= 1.0 + 2.4 * uOwn[6]; if (small < 0.03) return col; }
   float best = 1e3, fi = 0.0;
   vec2 c = vec2(0.0);
   float r = 1.0;
@@ -79,12 +137,12 @@ vec3 lfDew(vec2 q, vec3 col, vec2 sun, float px, vec2 squash, vec2 shift, float 
   sky += mix(vec3(1.0, 0.9, 0.7), uKind[4] * 2.0, 0.5) * kick * 1.5 * exp(-sd * 2.5);
   vec3 ground = mix(col * 0.25 + vec3(0.004, 0.02, 0.01), col * 0.7 + vec3(0.02, 0.035, 0.03) * bright, smoothstep(0.0, -0.3, hz));
   vec3 pic = mix(sky, ground, smoothstep(0.07, -0.07, hz));
-  pic *= 0.45 + 0.55 * sqrt(sat(1.0 - d * d));                                   // the edge of the drop is dark
+  pic *= 0.45 + 0.55 * sqrt(sat(1.0 - d * d)); // the edge of the drop is dark
   pic += vec3(1.0, 0.9, 0.55) * pow(sat(a), 2.0) * smoothstep(0.5, 0.97, d) * (0.3 + 0.6 * bright); // a bright crescent on the far side
   pic += vec3(0.85, 1.0, 1.0) * 0.6 * smoothstep(0.17, 0.07, length((e - vec2(-0.38, 0.42)) * vec2(1.0, 1.4)));
-  pic += vec3(0.7, 0.85, 0.8) * 0.12 * (0.4 + bright) * smoothstep(0.75, 0.98, d);                // the thin lit rim all round
+  pic += vec3(0.7, 0.85, 0.8) * 0.12 * (0.4 + bright) * smoothstep(0.75, 0.98, d); // the thin lit rim all round
   float inside = smoothstep(1.0, 1.0 - 2.5 * px / r, d);
-  float shade = exp(-pow(length(dq + ld * 0.3) / 1.2, 4.0));                      // its soft shadow, away from the light
+  float shade = exp(-pow(length(dq + ld * 0.3) / 1.2, 4.0)); // its soft shadow, away from the light
   float halo = kick * exp(-max(d - 1.0, 0.0) * 3.5);
   col = col * (1.0 - 0.5 * shade * (1.0 - inside)) + mix(vec3(1.0, 0.9, 0.6), uKind[4] * 1.6, 0.6) * halo * 0.35 * (1.0 - inside);
   return mix(col, pic, inside);
@@ -104,47 +162,94 @@ vec3 render(vec2 p) {
   bool wing = uVar > 0.5;
   float lvl = 0.25 + 0.95 * smoothstep(0.3, 1.0, uLevel);
   vec3 gold = vec3(1.0, 0.8, 0.34);
+  float far = max(uOwn[0], 0.0), many = max(uOwn[1], 0.0), ribs = max(-uOwn[1], 0.0), lie = max(uOwn[3], 0.0);
+  float bare = max(uOwn[4], 0.0), thick = max(-uOwn[4], 0.0), worn = max(-uOwn[6] - 0.4, 0.0) / 0.6, dye = abs(uOwn[7]), marks = max(-uOwn[7], 0.0);
+  float z = exp2((wing && uOwn[0] > 0.0 ? 0.8 : 1.35) * uOwn[0]) * exp2(many * (wing ? 1.25 : 2.1)), fine = exp2(-1.35 * uOwn[5]), wide1 = (z > 1.0 ? sqrt(z) : 1.0) * exp2(0.7 * uOwn[5]), even = max(max(lie, thick), 0.7 * bare), whole = max(max(far, many), lie);
+  if (dye > 0.0) gold = mix(gold, uKind[3] * uKind[3] * 1.2, dye);
+  float veins = 0.0, body = 1e3;
+  vec3 lying = vec3(0.0), kA = mix(uKind[0], uKind[3], lie);
+  if (lie > 0.0) lying = lfGround(p);
   vec2 q, uv, sun, netX;
   float px, sharp, soft, edge, netS, lift;
   float hw = 1.0, av = 0.0, sd = 1.0, sn = 0.0, k0 = 0.0, along = 0.0, dSide = 1.0; // the leaf
-  float w = 0.0, across = 1.0, rr = 1.0;                                             // the wing
-  const float N = 4.0;
+  float w = 0.0, across = 1.0, rr = 1.0; // the wing
+  float N = 4.0 * exp2(1.3 * ribs);
   const vec2 pole = vec2(0.1, -0.5);
   if (!wing) {
     q = p - vec2(0.02 * sin(t * 0.13), 0.014 * sin(t * 0.17 + 1.0));
-    lift = 0.12 + 0.07 * sin(t * 0.21) + 0.04 * sin(t * 0.34 + 2.0);              // the far end rises and falls in the wind
+    lift = 0.12 + 0.07 * sin(t * 0.21) + 0.04 * sin(t * 0.34 + 2.0);
     q /= 1.0 + lift * dot(q, vec2(cos(0.48), sin(0.48)));
     q = rot(0.48 + 0.03 * sin(t * 0.11)) * q * 1.12;
-    uv = vec2(q.x, q.y - 0.09 * q.x * q.x + 0.03);
-    px = 1.6 / uRes.y;
-    sharp = exp(-pow((uv.x - 0.1 - 0.25 * sin(t * 0.08)) / 0.8, 2.0));            // only a band across the leaf is in focus
+    float split = 1e3;
+    if (uOwn[0] != 0.0 || many > 0.0) {
+      q *= z;
+      q.x -= 0.15 * far * (1.0 - many);
+    }
+    if (many > 0.0) {
+      q.x += 2.1 * (1.0 - many) - 0.15 * many;
+      float a = length(q) > 1e-4 ? atan(q.y, q.x) : 0.0, part = TAU / (1.0 + 6.0 * many), k = floor(a / part + 0.5), r = length(q);
+      split = r * min(sin(min(PI - abs(a), 1.5)), sin(min(0.5 * part - abs(a - k * part), 1.5)));
+      a -= k * part;
+      q = r * vec2(cos(a), sin(a)) - vec2(2.1, 0.0);
+    }
+    uv = vec2(q.x, q.y - 0.09 * (1.0 - many) * q.x * q.x + 0.03 * (1.0 - many));
+    px = 1.6 / uRes.y * z;
+    sharp = exp(-pow((uv.x - 0.1 - 0.25 * sin(t * 0.08)) / 0.8, 2.0));
+    sharp = mix(sharp, 1.0, whole);
     soft = px + 0.011 * (1.0 - sharp);
     hw = 0.7 * sqrt(max(1.0 - pow((uv.x + 0.2) / 1.9, 2.0), 0.0));
+    if (many > 0.0) hw *= 1.0 + 0.3 * many;
+    if (uOwn[2] < 0.0) hw *= 1.0 + 0.76 * uOwn[2];
+    if (whole > 0.0) hw *= mix(1.0, sqrt(sat((1.72 - uv.x) * 0.7)), whole);
     av = abs(uv.y); sd = uv.y < 0.0 ? -1.0 : 1.0;
-    float s = uv.x - 0.75 * av - 1.1 * av * av;                                   // the same all along one side vein
+    float s = uv.x - 0.75 * av - 1.1 * av * av;
     sn = s * N + (sd > 0.0 ? 0.5 : 0.0);
     k0 = floor(sn);
     along = sn - k0 - 0.5 - (hash21(vec2(k0, sd * 7.0 + 11.0)) - 0.5) * 0.36;
     dSide = abs(along) / (N * length(vec2(1.0, 0.75 + 2.2 * av)));
-    edge = hw + 0.022 * (1.0 - smoothstep(0.0, 0.5, abs(along))) - av;            // a small tooth where each vein ends
-    netX = (uv + 0.012 * vec2(noise(uv * 9.0), noise(uv * 9.0 + 31.0))) * 23.0;
-    netS = 1.0 / 23.0;
+    edge = hw + 0.022 * (1.0 - smoothstep(0.0, 0.5, abs(along))) - av;
+    if (uOwn[2] > 0.0) {
+      float out1 = av / max(hw, 0.05), lobe = 0.52 * sqrt(sat(1.02 - out1 * out1)) * (0.55 + 0.45 * smoothstep(0.0, 0.4, out1));
+      float cut = (lobe - abs(along)) / (N * length(vec2(1.0, 0.75 + 2.2 * av)));
+      float deep = hw * mix(0.95, 0.1, uOwn[2]) - av;
+      edge = min(edge, max(cut, deep));
+    }
+    if (many > 0.0) edge = smin(edge, split - 0.02 * many, 0.16 * many);
+    if (whole > 0.0 || uOwn[2] < 0.0) edge = min(edge, hw * (1.2 - 0.2 * many) - av - 2.2 * soft);
+    netS = 1.0 / (23.0 * fine);
+    if (z > 1.0) netS *= pow(z, 0.8);
+    netX = (uv + 0.012 * vec2(noise(uv * 9.0), noise(uv * 9.0 + 31.0))) / netS;
     sun = vec2(0.24 + 0.06 * sin(t * 0.05), 0.15);
   } else {
     q = p - vec2(0.02 * sin(t * 0.12), 0.012 * sin(t * 0.19 + 2.0));
     lift = 0.1 + 0.08 * sin(t * 0.23) + 0.04 * sin(t * 0.37 + 1.0);
     q /= 1.0 + lift * dot(q, vec2(sin(0.3), cos(0.3)));
-    q = rot(-0.3 + 0.025 * sin(t * 0.1)) * q * 0.8 + vec2(0.1, 0.02);
+    if (many > 0.0) {
+      float mx = mix(-2.0, 0.0, many);
+      q.x = mx + abs(q.x - mx);
+      body = q.x - mx;
+      q.y -= 0.1 * many;
+    }
+    q = rot(-0.3 + 0.025 * sin(t * 0.1) + 0.52 * many) * q * (0.8 * z) + vec2(0.1 - 0.93 * many - 0.16 * far * (1.0 - many), 0.02 - 0.02 * many - 0.1 * far * (1.0 - many));
     uv = q;
-    px = 1.2 / uRes.y;
+    px = 1.2 / uRes.y * z;
     sharp = exp(-pow((q.x + 0.05 - 0.2 * sin(t * 0.08)) / 0.85, 2.0));
+    sharp = mix(sharp, 1.0, whole);
     soft = px + 0.006 * (1.0 - sharp);
     edge = lfWingShape(q, w, across);
+    if (far > 0.0) edge = min(edge, (q.x + 1.02) * 0.3 + 1.0 - far);
     vec2 rel = q - pole;
-    rr = length(rel);
-    netX = vec2(log(rr), atan(rel.y, rel.x)) * 15.0;                              // cells small along the trailing edge, larger toward the front
-    netS = rr / 15.0;
+    rr = max(length(rel), 1e-3);
+    float dense = 15.0 * fine;
+    if (z > 1.0) dense /= pow(z, 0.55);
+    netX = vec2(log(rr), atan(rel.y, rel.x)) * dense; // cells small along the trailing edge, larger toward the front
+    netS = rr / dense;
     sun = vec2(0.9, 0.75);
+  }
+  if (worn > 0.0) {
+    vec2 hq = wing ? q * 1.6 : uv;
+    float hole = 0.75 * noise(hq * 4.3 / sqrt(z) + 5.0) + 0.25 * noise(hq * 11.0 / sqrt(z)) - mix(0.02, 0.36, worn);
+    edge = min(edge, max(hole * 0.22 * sqrt(z), wing ? (w - 0.8) * across : 0.02 * wide1 - av));
   }
   vec2 c1; float id1;
   float e1 = lfNet(netX, c1, id1) * netS;
@@ -152,42 +257,71 @@ vec3 render(vec2 p) {
   vec3 col;
   float bright;
   if (!wing) {
-    c1 /= 23.0;
+    c1 *= netS;
     float id2;
     float e2 = lfHex(netX * 3.6, id2);
-    // the piece: out from the mid-rib is the loop, from the stalk to the tip is the room
+    if (z > 1.0) { float hx = smoothstep(1.2, 4.0, netS / (3.6 * px)); id2 = mix(0.5, id2, hx); e2 = mix(0.14, e2, hx); }
     float cav = abs(c1.y), cs = c1.x - 0.75 * cav - 1.1 * cav * cav;
     vec4 m = piece(vec2(0.02 + 0.96 * sat(cav / 0.62), sat((cs + 1.7) / 2.6)));
     vec3 hue = pow(m.rgb / max(m.a, 0.001), vec3(1.5)) * 1.5;
 
-    // the light behind
     float ds = length(uv - sun);
+    if (z > 1.0) ds /= z;
     float glow = exp(-ds * ds * 4.5), wide = exp(-ds * 1.7);
-    float dap = smoothstep(0.3, 0.72, noise(uv * 2.1 + vec2(t * 0.05, -t * 0.03))); // the soft shadows of other leaves
+    float dap = smoothstep(0.3, 0.72, noise(uv * 2.1 + vec2(t * 0.05, -t * 0.03)));
     float light = (0.03 + 0.5 * wide * wide * (0.4 + 0.6 * lvl) + 0.12 * wide * lvl + 1.5 * glow * lvl) * mix(0.3, 1.0, dap);
     bright = lvl * (0.4 + 0.6 * dap);
+    if (even > 0.0) light = mix(light, (0.3 + 0.34 * exp(-dot(p - vec2(-0.3, 0.25), p - vec2(-0.3, 0.25)) * 1.6)) * (0.8 + 0.35 * lvl) * mix(0.8, 1.0, dap), even);
+    if (even > 0.0) glow *= 1.0 - 0.8 * even;
 
     vec3 green = mix(vec3(0.008, 0.17, 0.035), vec3(0.2, 0.6, 0.02), id1 * 0.5 + 0.5 * id2);
-    green = mix(green, vec3(1.0, 0.62, 0.06), sat(glow * 0.85 + 0.25 * id2 * wide));
+    vec3 sunny = vec3(1.0, 0.62, 0.06), pale = vec3(0.6, 0.95, 0.2);
+    if (dye > 0.0) {
+      float n1 = noise(uv * vec2(1.1, 1.7) / sqrt(z) + 4.0), n2 = noise(uv * vec2(2.6, 2.0) / sqrt(z) + 19.0);
+      vec3 d1 = mix(kA, uKind[1], smoothstep(0.3, 0.7, n1 + 0.2 * (id1 - 0.5)));
+      d1 = mix(d1, uKind[2], smoothstep(0.5, 0.8, n2 + 0.2 * (id2 - 0.5)));
+      if (marks > 0.0) {
+        float out1 = av / max(hw, 0.05), fe = abs(along) + 1.6 * (out1 - 0.52) * (out1 - 0.52) + 0.05 * sin(av * 40.0 / sqrt(z));
+        vec3 d2 = mix(kA, uKind[1], smoothstep(0.41, 0.33, fe));
+        d2 = mix(d2, uKind[2], smoothstep(0.24, 0.17, fe) * smoothstep(0.5, 0.62, fract(0.5 * sn) + 0.4));
+        d2 = mix(d2, uKind[2], smoothstep(0.1, 0.07, edge / max(hw, 0.05) + 0.03 * n2));
+        d1 = mix(d1, d2, marks);
+      }
+      green = mix(green, d1 * d1 * (0.75 + 0.35 * id1), dye);
+      sunny = mix(sunny, mix(uKind[3], d1, 0.4) * uKind[3] * 1.1, dye);
+      pale = mix(pale, mix(uKind[3] * uKind[3], vec3(0.7), 0.25), dye);
+    }
+    green = mix(green, sunny, sat(glow * 0.85 + 0.25 * id2 * wide));
     float cell = mix(1.0, (0.55 + 0.6 * smoothstep(0.0, 0.14, e2)) * (0.75 + 0.5 * id2), sharp);
     col = green * light * cell * (0.85 + 0.3 * id1) * 1.7;
+    if (thick > 0.0) {
+      vec2 gv = normalize(vec2(1.0, -sd * (0.75 + 2.2 * av))), from = normalize(vec2(-0.5, 0.85));
+      float lit = dot(gv, from) * sign(along) * -exp(-abs(along) * 4.0) * smoothstep(0.0, 0.05, abs(along)) * 0.9;
+      lit += dot(uv - c1, from) / netS * 0.75 * smoothstep(1.6, 0.5, netS / px * 0.02 + 0.5);
+      lit += sd * from.y * (0.3 - 0.75 * exp(-av * 5.0));
+      float lamp = light * (0.35 + 1.0 * sat(0.5 + 0.55 * lit)) * (0.8 + 0.4 * noise(uv * 60.0 / z));
+      vec3 hide = (green * 1.25 + 0.015) * lamp * 1.7 + (0.02 + 0.17 * pale) * light * pow(sat(0.35 + 0.65 * lit), 5.0);
+      col = mix(col, hide, thick);
+    }
+    if (lie > 0.0) col = mix(col, col * 0.9 + 0.35 * lying * green, lie * (1.0 - thick));
     float lum = dot(col, vec3(0.3, 0.6, 0.1));
     col = mix(col, hue * (lum * 1.6 + 0.015), 0.5 * sat(m.a * 1.3));
     col += hue * m.a * m.a * 0.12 * smoothstep(0.0, 0.01, e1) * (0.3 + light);
 
-    // veins, finest first
-    vec3 pale = vec3(0.6, 0.95, 0.2);
-    float mNet = lfLine(e1, 0.0011, soft);
-    col *= 1.0 - 0.25 * smoothstep(0.006, 0.0011, e1) * sharp;
+    if (lie > 0.0) pale = mix(pale, mix(pale * 0.75, uKind[3] * uKind[3] * 0.5, bare), lie);
+    float mNet = lfLine(e1, 0.0011 * wide1, soft);
+    col *= 1.0 - 0.25 * smoothstep(0.006 * wide1, 0.0011 * wide1, e1) * sharp;
     col = mix(col, pale * light * 1.1, mNet * 0.55);
-    float ks = k0 - (along < 0.0 ? 1.0 : 0.0);                                    // which field between two side veins
+    float ks = k0 - (along < 0.0 ? 1.0 : 0.0);
     float d3 = abs(fract(av * 8.0 + hash11(ks + sd * 3.0) + 0.12 * sin(sn * TAU)) - 0.5) / 8.0;
-    float m3 = lfLine(d3, 0.0014, soft);
+    float m3 = lfLine(d3, 0.0014 * wide1, soft);
     col *= 1.0 - 0.2 * smoothstep(0.007, 0.0014, d3) * sharp;
     col = mix(col, pale * light * 1.1, m3 * 0.5);
     col += mix(gold, uKind[2] * 1.6, 0.6) * uHigh * max(mNet, m3) * (0.2 + 1.3 * noise(uv * 5.0 + vec2(tr * 0.7, 0.0))) * 0.7;
 
     float wSide = 0.0015 + 0.006 * sat(1.0 - av / max(hw, 0.05));
+    wSide *= wide1;
+    if (ribs > 0.0) wSide *= 1.0 - 0.4 * ribs;
     float mSide = lfLine(dSide, wSide, soft);
     col *= 1.0 - 0.35 * smoothstep(wSide * 4.0 + soft, wSide, dSide);
     col = mix(col, pale * light * 1.4, mSide);
@@ -195,87 +329,157 @@ vec3 render(vec2 p) {
     col += mix(gold, mix(uKind[1], uKind[3], hash11(k0 + sd)) * 1.7, 0.65) * uMid * pv * (mSide + 0.35 * exp(-dSide / 0.012)) * 0.6;
 
     float wMid = 0.005 + 0.016 * sat(1.0 - (uv.x + 1.0) / 2.4);
+    wMid *= 0.5 + 0.5 * wide1;
     float mMid = lfLine(av, wMid, soft);
     col *= 1.0 - 0.4 * smoothstep(wMid * 3.5 + soft, wMid, av);
     col = mix(col, pale * light * 1.6 * (0.75 + 0.25 * smoothstep(wMid, 0.0, av)), mMid);
     float pm = pow(0.5 + 0.5 * sin(uv.x * 5.0 - tr * 2.0), 3.0);
     col += mix(gold, uKind[0] * 1.7, 0.6) * (0.04 + 0.9 * uLow * pm) * (mMid + 0.45 * exp(-av / 0.03));
 
+    if (bare > 0.0) veins = sat(max(max(mNet * 1.6, m3), max(mSide, mMid) * 1.5) + 0.03 + m.a * m.a * (0.3 + 0.2 * id1) + 0.5 * exp(-max(edge, 0.0) / (0.006 * wide1)));
+    if (bare > 0.0) col = mix(col, pale * (light * 0.9 + 0.12) * (1.0 - 0.6 * lie), bare * 0.5 * sat(mNet * 1.6 + m3));
+    if (many > 0.0) col = mix(col, mix(uKind[4], uKind[2], 0.5) * uKind[4] * light, many * dye * exp(-max(uv.x + 1.8, 0.0) * 2.2));
     // a cool sheen on the near skin, moving as the leaf lifts
     col += vec3(0.2, 0.4, 0.45) * 0.05 * exp(-pow((uv.x * 0.5 + uv.y - 0.2 + 3.0 * (lift - 0.12)) * 2.4, 2.0));
-    col += gold * light * 0.5 * exp(-max(edge, 0.0) / 0.006);                     // the lit edge of the leaf
+    if (worn > 0.0) col *= 1.0 - 0.75 * worn * exp(-max(edge, 0.0) / 0.03) * (0.4 + 0.6 * noise(uv * 4.0));
+    col += gold * light * 0.5 * (1.0 - 0.8 * lie) * exp(-max(edge, 0.0) / (0.006 * wide1));
   } else {
-    c1 /= 15.0;
+    c1 *= netS / rr;
     vec2 cc = pole + exp(c1.x) * vec2(cos(c1.y), sin(c1.y));
     float cw = (cc.y - (q.y - w * across)) / across;
-    // along the leading edge, a ladder of long cells
     float lad = step(0.86, w);
-    float lu = q.x * 18.0 + 0.3 * sin(q.x * 5.0);
+    float rung = 18.0 * (z > 1.0 ? pow(fine / z, 0.35) : pow(fine, 0.35)) * (1.0 + ribs);
+    float lu = q.x * rung + 0.3 * sin(q.x * 5.0);
     float lk = floor(lu);
-    float eLad = min((0.5 - abs(fract(lu - (hash11(lk) - 0.5) * 0.3) - 0.5)) / 18.0, min(abs(w - 0.86), abs(1.0 - w)) * across);
+    float eLad = min((0.5 - abs(fract(lu - (hash11(lk) - 0.5) * 0.3) - 0.5)) / rung, min(abs(w - 0.86), abs(1.0 - w)) * across);
     float cellEdge = mix(e1, eLad, lad);
     float cid = mix(id1, hash11(lk * 1.7 + 4.0), lad);
-    vec2 at = mix(vec2(cc.x, cw), vec2((lk + 0.5) / 18.0, 0.93), lad);
+    vec2 at = mix(vec2(cc.x, cw), vec2((lk + 0.5) / rung, 0.93), lad);
 
-    // the piece: along the wing is the loop, from the leading edge to the trailing is the room
     vec4 m = piece(vec2(sat((at.x + 0.85) / 1.6), sat(1.0 - at.y)));
     vec3 hue = pow(m.rgb / max(m.a, 0.001), vec3(1.3)) * 1.3;
     float loud = sat(m.a * (0.7 + 0.6 * uEnergy));
 
-    // the long veins fan out from the root and end on the trailing edge
     float fan = w + 0.3 * (q.x + 1.0) * (1.0 - w);
-    float eLong = abs(fract(fan * 5.0 + 0.5) - 0.5) / 5.0 * across / max(1.0 - 0.3 * (q.x + 1.0), 0.2) * (1.0 - lad) + lad;
+    float fans = 5.0 * exp2(1.2 * ribs);
+    float eLong = abs(fract(fan * fans + 0.5) - 0.5) / fans * across / max(1.0 - 0.3 * (q.x + 1.0), 0.2) * (1.0 - lad) + lad;
     eLong = min(eLong, abs(w - 0.86) * across);
 
     // the skin of each cell: a film of oil colours, lit where a band of sky is mirrored in it
     float film = cid * 0.14 + 1.3 * noise(q * 2.6) + w * 0.9 + q.x * 0.5 + lift * 4.0 + t * 0.02;
     vec3 oil = pal(film, vec3(0.5, 0.45, 0.55), vec3(0.45, 0.4, 0.45), vec3(1.0), vec3(0.0, 0.35, 0.6));
+    float spot = 0.0;
+    if (dye > 0.0) {
+      float n1 = noise(q * 3.0 / sqrt(z) + 4.0);
+      vec3 d1 = mix(kA, uKind[1], smoothstep(0.35, 0.65, fract(film * 0.5) * 0.5 + 0.5 * n1 * 1.2));
+      d1 = mix(d1, uKind[2], smoothstep(0.55, 0.8, 0.6 * cid + 0.5 * noise(q * 5.0 + 9.0)));
+      if (marks > 0.0) {
+        float bx = q.x + 0.16 * sin(w * 5.0) + 0.04 * sin(w * 31.0) + 0.04 * n1;
+        vec3 d2 = mix(kA, uKind[1], smoothstep(0.06, 0.1, abs(fract(bx * 1.25 + 0.1) - 0.5)));
+        d2 = mix(d2, uKind[2], smoothstep(0.17, 0.1, abs(w - 0.02 - 0.05 * abs(sin(q.x * 18.0)))) + smoothstep(0.6, 0.66, bx));
+        vec2 ev = vec2(q.x - 0.3, (w - 0.45) * across);
+        float ed = length(ev);
+        d2 = mix(d2, uKind[2] * 0.5, smoothstep(0.125, 0.115, ed));
+        d2 = mix(d2, uKind[3], smoothstep(0.1, 0.092, ed));
+        d2 = mix(d2, uKind[2] * 0.3, smoothstep(0.065, 0.055, ed));
+        spot = smoothstep(0.065, 0.02, ed) * marks;
+        d1 = mix(d1, d2, marks);
+      }
+      oil = mix(oil, d1 * d1 * 1.15, dye);
+    }
     float band = exp(-pow((q.x * 0.8 + q.y * 0.6 - 0.7 * sin(t * 0.115) + (cid - 0.5) * 0.35) / 0.22, 2.0));
     float inner = smoothstep(0.0, 0.016, cellEdge);
     col = oil * (0.008 + 0.16 * band * lvl) * (0.5 + 0.5 * inner) * (0.4 + 1.2 * cid);
+    if (thick > 0.0) { // thick: scales like roof tiles, lit from the front
+      vec2 sv = vec2(q.x * 46.0, w * 34.0) / sqrt(z);
+      sv.x += 0.5 * mod(floor(sv.y), 2.0);
+      vec2 sf = fract(sv) - 0.5;
+      float scale = 0.72 + 0.42 * smoothstep(0.5, 0.1, length(sf * vec2(1.0, 0.75) - vec2(0.0, 0.12))) * (0.6 + 0.8 * hash21(floor(sv)));
+      scale = mix(scale, 0.95, smoothstep(0.35, 0.8, px * 46.0 / sqrt(z)));
+      float lamp = (0.35 + 0.45 * exp(-dot(p - vec2(-0.3, 0.25), p - vec2(-0.3, 0.25)) * 1.4)) * (0.75 + 0.45 * lvl) * (0.8 + 0.35 * sin(fan * fans * TAU));
+      col = mix(col, (oil + 0.02) * scale * lamp * (0.8 + 0.3 * inner), thick);
+    }
+    if (lie > 0.0) col = mix(col, lying * mix(vec3(1.0), 0.12 + 0.95 * oil, 0.75) * (0.75 + 0.25 * cid) * (0.8 + 0.2 * inner) + col * 0.4, lie * (1.0 - thick));
+    col += uKind[4] * spot * 0.6 * sat(uHits + uCue);
     col += hue * mix(vec3(1.0), oil * 1.6, 0.4) * loud * (0.15 + 1.3 * loud) * (0.4 + 0.6 * inner) * (0.55 + 0.45 * cid);
     col += oil * uHigh * 0.25 * pow(noise(q * 14.0 + vec2(tr * 0.8, cid * 9.0)), 3.0);
     bright = lvl * 0.7;
+    if (dye > 0.0) col += oil * dye * (0.1 + 0.25 * lvl) * (0.6 + 0.6 * cid) * (0.5 + 0.5 * inner) * (1.0 - thick) * (1.0 - lie);
 
-    // the net of veins: gold where the light catches it
     float lit = 0.07 + 0.5 * band * lvl + 0.5 * loud;
-    float mNet = lfLine(cellEdge, 0.0011, soft);
+    if (even > 0.0) lit = mix(lit, 0.4 + 0.4 * loud, even * (1.0 - 0.75 * lie));
+    float mNet = lfLine(cellEdge, 0.0011 * wide1 * (1.0 + lie), soft);
     vec3 vein = gold * lit * 0.5 + mix(gold, uKind[2] * 1.5, 0.5) * uHigh * 0.5 * noise(q * 6.0 + vec2(tr * 0.6, 0.0));
     col = mix(col, vein, mNet);
-    float mLong = lfLine(eLong, 0.0024, soft);
-    float pl = pow(0.5 + 0.5 * sin(q.x * 9.0 - tr * 2.4 + floor(fan * 5.0 + 0.5) * 1.9), 3.0);
+    float mLong = lfLine(eLong, 0.0024 * wide1, soft);
+    float pl = pow(0.5 + 0.5 * sin(q.x * 9.0 - tr * 2.4 + floor(fan * fans + 0.5) * 1.9), 3.0);
     vec3 vlong = gold * lit * 0.6 + mix(gold, mix(uKind[1], uKind[3], fract(fan * 2.5)) * 1.7, 0.65) * uMid * pl * 1.2;
+    if (ribs > 0.0) vlong = mix(vlong, gold * (0.1 + lit), 0.8 * ribs * (1.0 - lie));
     col = mix(col, vlong, mLong);
     col += vlong * 0.25 * exp(-eLong / 0.01) * uMid * pl;
     float eFront = (1.0 - w) * across;
-    float mFront = lfLine(eFront, 0.006, soft);
+    float mFront = lfLine(eFront, 0.006 * wide1, soft);
     float pf = pow(0.5 + 0.5 * sin(q.x * 5.0 - tr * 2.0), 3.0);
     vec3 vfront = gold * (0.1 + lit * 0.9) + mix(gold, uKind[0] * 1.7, 0.6) * (0.05 + 1.3 * uLow * pf);
     col = mix(col, vfront, mFront);
     col += vfront * 0.3 * exp(-eFront / 0.03) * uLow * pf;
-    // the dark mark near the tip takes the hit
     float mark = smoothstep(0.0, 0.008, min(min(q.x - 0.44, 0.57 - q.x), (w - 0.86) * across));
     col = mix(col, vec3(0.25, 0.1, 0.03) * (0.3 + lit) + uKind[4] * 1.6 * sat(uHits + 0.7 * uCue), mark * 0.9);
-    col += gold * 0.2 * lit * exp(-max(edge, 0.0) / 0.004);
+    if (worn > 0.0) col *= 1.0 - 0.7 * worn * exp(-max(edge, 0.0) / 0.025);
+    col += gold * 0.2 * lit * exp(-max(edge, 0.0) / (0.004 * wide1));
+    if (bare > 0.0) veins = sat(max(mNet * 1.5, max(mLong, mFront)) + 0.04 + loud * loud * 0.5 + 0.5 * exp(-max(edge, 0.0) / (0.005 * wide1)));
   }
   col = lfDew(uv, col, sun, px, wing ? vec2(1.05, 0.5) : vec2(1.0), wing ? vec2(0.0, 0.05) : vec2(0.0), wing ? 0.55 : 1.0, bright);
+  if (uOwn[6] > 0.0) col = lfBeads(uv, col, sun, px, uOwn[6], bright, (wing ? 0.62 : 1.0) * sqrt(z));
 
   // what lies behind: the dark garden, far lights out of focus, and behind the wing its other wing
   vec3 back = wing ? lfBokeh(p, vec3(0.3, 0.2, 0.06), vec3(0.03, 0.12, 0.14)) * (0.03 + 0.08 * uLevel)
                    : vec3(0.004, 0.012, 0.007) + lfBokeh(p, vec3(0.5, 0.36, 0.08), vec3(0.06, 0.25, 0.1)) * (0.1 + 0.25 * uLevel);
+  if (uOwn[3] != 0.0) back = mix(back, lie > 0.0 ? lying * (1.0 - 0.6 * (1.0 - 0.75 * bare) * smoothstep(-0.16 * sqrt(z), 0.02, edge)) : lfBehind(p), abs(uOwn[3]));
+  if (!wing && whole > 0.0 && many < 1.0) {
+    float st = lfLine(abs(uv.y + 0.04 * (uv.x + 2.0) * (uv.x + 2.0)), 0.03, soft) * step(uv.x, -1.7) * smoothstep(-3.1, -2.9, uv.x);
+    back = mix(back, mix(uKind[3] * uKind[3] * 0.3, gold * 0.25, 0.5), st * whole * (1.0 - many));
+  }
   if (wing) {
     vec2 q2 = rot(-0.72 + 0.03 * sin(t * 0.09)) * (p - vec2(-0.25, 0.1)) * 0.8 + vec2(-0.25, 0.0);
+    if (far > 0.0) q2 = mix(q2, rot(-0.72 + 0.03 * sin(t * 0.09)) * (p - vec2(-0.25, 0.1)) * (0.8 * z) + vec2(-0.55, 0.0), far);
+    if (many > 0.0) q2 = mix(q2, rot(-0.22 + 0.03 * sin(t * 0.09)) * vec2(abs(p.x - 0.02 * sin(t * 0.12)), p.y - 0.02) * (0.86 * z) + vec2(-0.83, 0.0), many);
     float w2, across2;
     float edge2 = lfWingShape(q2, w2, across2);
+    if (many > 0.0) edge2 *= 1.0 + 2.0 * many;
     float fan2 = w2 + 0.3 * (q2.x + 1.0) * (1.0 - w2);
     float lines = pow(abs(cos(fan2 * 5.0 * PI)), 6.0) * (1.0 - smoothstep(0.8, 0.9, w2)) + smoothstep(0.84, 0.99, w2);
+    float hi;
+    if (many > 0.0) lines = mix(lines, max(0.5 * lines, smoothstep(0.1, 0.02, lfHex(q2 * vec2(13.0, 17.0) * fine, hi)) * step(w2, 0.9)), many);
     vec3 film2 = pal(w2 * 0.9 + q2.x * 0.5 + lift * 4.0, vec3(0.5, 0.45, 0.55), vec3(0.45, 0.4, 0.45), vec3(1.0), vec3(0.0, 0.35, 0.6));
     vec3 hind = (film2 * 0.012 + gold * 0.04 * lines) * (0.5 + lvl);
+    if (dye > 0.0 || thick > 0.0) {
+      vec3 hd = mix(uKind[1], kA, smoothstep(0.3, 0.7, noise(q2 * 4.0)));
+      if (marks > 0.0) hd = mix(hd, uKind[2], marks * smoothstep(0.06, 0.1, abs(fract(q2.x * 1.4 + 0.12 * sin(w2 * 6.0)) - 0.5)));
+      hd = mix(film2 * film2, hd * hd, dye) * (0.03 + 0.3 * thick + 0.12 * many * dye) * (0.5 + 0.6 * lvl) * (1.0 - 0.45 * lines);
+      hind = mix(hind, hd + gold * 0.06 * lines, max(thick, dye));
+    }
+    if (lie > 0.0) back *= 1.0 - 0.45 * lie * smoothstep(-0.12 * sqrt(z), 0.02, edge2);
+    if (thick > 0.0) back *= 1.0 - 0.9 * thick * smoothstep(-0.01, 0.03, edge2);
+    if (many > 0.0) hind *= 1.0 + 1.5 * many;
+    if (lie > 0.0) hind = mix(hind, back * 0.3 * film2, lie * (1.0 - thick) * 0.5);
     back += hind * smoothstep(-0.01, 0.03, edge2);
-    col += hind * 0.5 * smoothstep(-0.01, 0.03, edge2);
+    col += hind * 0.5 * (1.0 - thick) * smoothstep(-0.01, 0.03, edge2);
   }
+  if (uOwn[6] < 0.0 || z != 1.0) {
+    float k = sat(uHits * step(0.8, id1) + uCue * step(0.6, fract(id1 * 7.3))) * (0.4 + 0.6 * smoothstep(0.0, 0.3, e1 / netS));
+    col = mix(col, uKind[4] * uKind[4] * 1.3 + 0.3 * col, 0.75 * k);
+    veins = max(veins, 0.6 * k);
+  }
+  if (bare > 0.0) col = mix(back * mix(1.0, 0.85, lie), col, mix(1.0, veins, bare));
   col = mix(back, col, smoothstep(-soft, soft, edge));
-  col *= 1.0 - 0.45 * dot(p, p);
+  if (body < 0.2) {
+    float by = p.y - 0.06, th = (by - 0.04) / 0.1, seg = max(0.04 * sqrt(sat(1.0 - th * th)), 0.024 * sqrt(sat(1.0 + by / 0.42)) * step(by, 0.06) * (1.0 + 0.1 * cos(by * 90.0)));
+    float bd = seg - body, rnd = sat(bd / max(seg, 1e-3));
+    vec3 bc = mix(gold * 0.1, uKind[2] * uKind[2] * 0.5, 0.4 + 0.5 * dye) * (0.15 + 0.9 * sqrt(rnd)) * (0.7 + 0.5 * uLow + 0.3 * cos(by * 90.0));
+    col = mix(col, bc, smoothstep(-0.002, 0.002, bd) * step(1e-4, seg) * many);
+  }
+  col *= 1.0 - 0.45 * (1.0 - 0.6 * lie) * min(dot(p, p), 1.0);
   col = max(mix(vec3(dot(col, vec3(0.3, 0.6, 0.1))), col, 1.2), 0.0);
   return screenOf(col * 1.3);
 }

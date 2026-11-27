@@ -1,0 +1,135 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'ring-atolls-from-the-air',
+    name: 'Ring atolls from the air',
+    what: 'White rings of land stand in a warm green sea under a pale noon sky, seen from high up.',
+    variation: 0,
+    world: {
+      own: [0.1, 0.5, 0, -1, 1, 0.8, 0, 0.35],
+      kinds: ['#e0d2a8', '#b8c08a', '#0a7a84', '#b4dce0', '#fff0d0'],
+      keep: 0.03,
+      vivid: 0.35,
+      space: -0.4,
+      contrast: 0.2,
+    },
+  },
+  {
+    id: 'cinder-cones-in-dust',
+    name: 'Cinder cones in dust',
+    what: 'Rust red cones stand about a dusty plain, and table mountains fade into an ochre sky.',
+    variation: 0,
+    world: {
+      own: [-0.2, -0.3, 1, 0, 1, 1, -1, 0.1],
+      kinds: ['#7a2410', '#c05a24', '#a86a3a', '#f0b878', '#f6dca8'],
+      keep: 0.05,
+    },
+  },
+  {
+    id: 'ice-moon-of-a-ringed-giant',
+    name: 'Ice moon of a ringed giant',
+    what: 'A blue white plain of old ice lies under a great banded planet and its rings.',
+    variation: 0,
+    world: {
+      own: [0.2, -0.75, 0, 0, -1, -1, 0, 0.1],
+      kinds: ['#7aa0b8', '#c8b090', '#90b0c0', '#d8e4e8', '#e6cfa8'],
+      keep: 0.1,
+    },
+  },
+  {
+    id: 'pocked-crust-from-orbit',
+    name: 'Pocked crust from orbit',
+    what: 'A grey crust pocked all over slides past far below, half of it gone into night.',
+    variation: 0,
+    world: {
+      own: [0.7, 1, 0, 0, 0, 0, 0, 0],
+      kinds: ['#8a8478', '#9a948a', '#a89c8a', '#c8c0b0', '#e8dcc8'],
+      keep: 0.05,
+      vivid: -0.5,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'gypsum-dunes-facing-the-sun',
+    name: 'Gypsum dunes facing the sun',
+    what: 'Long white dunes with lavender hollows run away to a low pale sun.',
+    variation: 0,
+    world: {
+      own: [0, -0.35, 0, 1, 0.85, 1, -0.4, -1],
+      kinds: ['#77709a', '#d8ccd4', '#7a84b0', '#f0d8cc', '#fff0d8'],
+      keep: 0.03,
+      vivid: 0.35,
+      contrast: 0.1,
+      light: -0.08,
+    },
+  },
+  {
+    id: 'horn-peaks-at-last-sun',
+    name: 'Horn peaks at last sun',
+    what: 'Tall sharp peaks stand brown in a rose haze, and the sun goes down between them.',
+    variation: 1,
+    world: {
+      own: [0.5, -1, 0, 0, 0.9, 1, 1, -1],
+      kinds: ['#263250', '#3a3850', '#4a4a80', '#f0988a', '#f8d0a0'],
+      keep: 0.03,
+      contrast: 0.15,
+      space: -0.4,
+      vivid: 0.15,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'soda-wells-in-cream-rock',
+    name: 'Soda wells in cream rock',
+    what: 'Shallow green water lies in the hollows of a cream desert, with table mountains behind.',
+    variation: 1,
+    world: {
+      own: [0, 0.15, 0, -0.85, 1, 1, -1, 0],
+      kinds: ['#6a5a48', '#c8a880', '#2a7a7c', '#f0d0a8', '#f8e8d0'],
+      keep: 0.03,
+      vivid: 0.3,
+      contrast: 0.35,
+      space: -0.3,
+    },
+  },
+  {
+    id: 'snow-mounds-at-noon',
+    name: 'Snow mounds at noon',
+    what: 'Round mounds of snow crowd a white plain under a clear pale blue sky.',
+    variation: 1,
+    world: {
+      own: [0.5, 0.2, 1, 0, 1, -1, 0.5, 0.1],
+      kinds: ['#c0d0dc', '#d8e0e4', '#2f74b4', '#c4dcec', '#fff2dc'],
+      keep: 0.03,
+      vivid: 0.3,
+      light: -0.04,
+      contrast: 0.25,
+      space: -0.3,
+    },
+  },
+  {
+    id: 'acid-pools-in-violet-crust',
+    name: 'Acid pools in violet crust',
+    what: 'Bright yellow green pools lie in a violet crust, with a swollen planet low behind.',
+    variation: 1,
+    world: {
+      own: [-0.1, 0.45, 0, -0.75, -1, 1, 0, 0.4],
+      kinds: ['#4a2f5a', '#8a4f7a', '#c4cc30', '#e0c890', '#d88a5a'],
+      keep: 0.05,
+    },
+  },
+  {
+    id: 'crater-tarns-by-low-sun',
+    name: 'Crater tarns by low sun',
+    what: 'Still water stands between bare rims and carries the track of a small low sun.',
+    variation: 1,
+    world: {
+      own: [0.3, 0.25, 0, -1, 0, 0, 0.2, -1],
+      kinds: ['#3a4a58', '#5a6a78', '#34586a', '#c8a890', '#f0d0a0'],
+      keep: 0.05,
+    },
+  },
+]
+
+export default presets

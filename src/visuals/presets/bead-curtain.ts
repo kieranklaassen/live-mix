@@ -1,0 +1,135 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'amber-beads-on-linen',
+    name: 'Amber beads on linen',
+    what: 'A few strings of large clear amber beads hang before a sunlit linen wall.',
+    variation: 0,
+    world: {
+      own: [-0.6, 0, 0, 1, 0, 1, 0, 0.3],
+      kinds: ['#a8581c', '#d8bc88', '#c9822c', '#e8b45a', '#8a2f1a'],
+      keep: 0.05,
+      pace: 0.5,
+      contrast: 0.2,
+    },
+  },
+  {
+    id: 'pearl-doorway',
+    name: 'Pearl doorway',
+    what: 'Strings of pearls part in an arch, and a blue and rose evening shows through.',
+    variation: 0,
+    world: {
+      own: [0.2, 0, 1, -1, 1, 0, 0, 0],
+      kinds: ['#4a6a9a', '#c98a92', '#e6d8d0', '#f0c8a0', '#f6ece0'],
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'lustre-of-cut-drops',
+    name: 'Lustre of cut drops',
+    what: 'Cut glass drops hang in a deep point like a lamp, gold where the light runs down them.',
+    variation: 0,
+    world: {
+      own: [0.1, -1, -1, 0, 0, 0.35, 0, 0],
+      kinds: ['#d08a30', '#f0c070', '#b8702a', '#f6dca0', '#d86a3a'],
+      light: 0.2,
+      tones: ['#24120a', '#b07a3c', '#fbe7b8'],
+      toned: 0.45,
+      keep: 0.05,
+      pace: 0.6,
+    },
+  },
+  {
+    id: 'bladder-weed',
+    name: 'Bladder weed',
+    what: 'Strands of weed with round floats wave in green water, every float another size.',
+    variation: 0,
+    world: {
+      own: [-0.1, 0, 0, -1, 1, -0.4, -1, 0.8],
+      kinds: ['#1f5a52', '#3f8a74', '#7a7a34', '#a89a4a', '#c8d0a0'],
+      keep: 0.05,
+      pace: 0.8,
+    },
+  },
+  {
+    id: 'jet-fringe-on-white',
+    name: 'Jet fringe on white',
+    what: 'A fringe of thin black tubes hangs to a point before a plain white wall.',
+    variation: 0,
+    world: {
+      own: [0.6, 1, -1, 1, 0.9, 0.35, 0.12, 0],
+      kinds: ['#1c1c1e', '#dcd9d2', '#3a3836', '#24262a', '#8a2a24'],
+      keep: 0.02,
+      tones: ['#08080a', '#4a4846', '#f7f5f0'],
+      toned: 0.85,
+      contrast: 0.65,
+      light: -0.17,
+      pace: 0.7,
+    },
+  },
+  {
+    id: 'beadwork-panel',
+    name: 'Beadwork panel',
+    what: 'Thousands of small beads in brick, indigo and ochre sit close and draw the piece as a picture.',
+    variation: 0,
+    world: {
+      own: [0.9, 0, 0, 0, 1, 0.2, 0, -1],
+      kinds: ['#2c3f74', '#a8482c', '#c9963c', '#e6d8b8', '#f0e8d4'],
+      keep: 0.05,
+    },
+  },
+  {
+    id: 'rain-into-a-grey-lake',
+    name: 'Rain into a grey lake',
+    what: 'Fine rain falls out of a grey evening and opens rings on still water.',
+    variation: 1,
+    world: {
+      own: [0.6, 0.2, -1, -0.8, 0, -0.5, 0.12, 0],
+      kinds: ['#5a6c7c', '#8f9aa4', '#7a8a98', '#c4ccd0', '#e6eaea'],
+      keep: 0.05,
+      vivid: -0.2,
+    },
+  },
+  {
+    id: 'bubbles-in-cider',
+    name: 'Bubbles in cider',
+    what: 'Thin round bubbles of every size drift up through clear golden cider.',
+    variation: 1,
+    world: {
+      own: [-0.4, 0, 0, -1, -1, -0.5, -1, 0.7],
+      kinds: ['#8a4a14', '#d89a34', '#c98a3c', '#f0cf86', '#fbeec4'],
+      keep: 0.05,
+    },
+  },
+  {
+    id: 'red-berries-at-blue-dusk',
+    name: 'Red berries at blue dusk',
+    what: 'Red and white berries of every size fall slowly through a blue winter dusk.',
+    variation: 1,
+    world: {
+      own: [-0.75, 0, 0, -1, 1, 0.1, 0, 0.75],
+      kinds: ['#4f6c90', '#c2ccd8', '#a83028', '#c03a30', '#8a1a20'],
+      keep: 0.02,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'sparks-off-a-grindstone',
+    name: 'Sparks off a grindstone',
+    what: 'Orange sparks of every size stream aside through the dim red and brown light of a smithy.',
+    variation: 1,
+    world: {
+      own: [0.5, 0.55, 0, -0.22, 0, -0.2, 0.95, 0.4],
+      kinds: ['#3a1208', '#7a2c10', '#f09430', '#f6a850', '#f8d498'],
+      keep: 0.05,
+      light: 0.1,
+      vivid: 0.25,
+      contrast: 0.2,
+      pace: 1.2,
+    },
+  },
+]
+
+export default presets

@@ -1,0 +1,137 @@
+import type { VisualPreset } from '../preset'
+
+const presets: readonly VisualPreset[] = [
+  {
+    id: 'graphite-squall',
+    name: 'Graphite squall',
+    what: 'Grey shafts of rain stand in ranks before a pale sky and lie in the flat water below.',
+    variation: 0,
+    world: {
+      own: [-0.5, 0.5, 1, 0.8, -0.15, -0.5, 0, 0],
+      kinds: ['#6a747e', '#8a9096', '#7c8288', '#d4d8da', '#98a0a6'],
+      keep: 0.05,
+      pace: 0.4,
+      vivid: -0.5,
+      contrast: 0.5,
+      light: -0.12,
+    },
+  },
+  {
+    id: 'lantern-frost-pillars',
+    name: 'Lantern frost pillars',
+    what: 'Single pillars of warm and cold light stand straight up over a snowfield in still air.',
+    variation: 0,
+    world: {
+      own: [-0.2, -0.6, -1, -0.25, 0, -0.2, -0.6, 1],
+      kinds: ['#4a6a9a', '#d08a3a', '#7f9ac0', '#e8b870', '#d0605a'],
+      keep: 0.05,
+      pace: 0.25,
+      vivid: 0.3,
+    },
+  },
+  {
+    id: 'one-green-veil',
+    name: 'One green veil',
+    what: 'One slow veil of pale green folds over black peaks and lies in the lake below them.',
+    variation: 0,
+    world: {
+      own: [0.8, 1, 0, 0, -1, -0.4, 0.9, -0.3],
+      kinds: ['#4fb88a', '#3f9a8a', '#7ac090', '#b8e0b0', '#90d0b0'],
+      keep: 0.05,
+      pace: 0.4,
+      vivid: 0.3,
+    },
+  },
+  {
+    id: 'corona-overhead',
+    name: 'Corona overhead',
+    what: 'Looking straight up, rose and violet rays close round one dark patch full of stars.',
+    variation: 0,
+    world: {
+      own: [0, 0.4, 0, -0.5, 0.2, 1, 0, -0.8],
+      kinds: ['#544a9a', '#a83a4a', '#b86a5a', '#6a4a98', '#e0b0c0'],
+      keep: 0.05,
+      pace: 0.6,
+      contrast: 0.3,
+      vivid: 0.35,
+    },
+  },
+  {
+    id: 'dyed-silk-noon',
+    name: 'Dyed silk noon',
+    what: 'Broad cloths of rose and indigo hang one behind the other before a pale noon sky.',
+    variation: 0,
+    world: {
+      own: [1, -0.5, 1, 1, 0.8, -0.2, 0, 0.6],
+      kinds: ['#4a5a9a', '#b8607a', '#c98a5a', '#f0dcae', '#7a9a8a'],
+      keep: 0.05,
+      pace: 0.3,
+      light: -0.05,
+      contrast: 0.12,
+    },
+  },
+  {
+    id: 'kelp-alley',
+    name: 'Kelp alley',
+    what: 'Tall kelp stands dark against green light that comes down between the leaves.',
+    variation: 1,
+    world: {
+      own: [-0.2, -0.5, 0, 0, 0.5, -0.2, -1, 0],
+      kinds: ['#1f4a44', '#5f9a6a', '#6a7a3a', '#c8d090', '#e0d8a0'],
+      keep: 0.05,
+      pace: 0.5,
+    },
+  },
+  {
+    id: 'limestone-sinkhole',
+    name: 'Limestone sinkhole',
+    what: 'One great shaft of daylight falls through a round hole into black water over pale sand.',
+    variation: 1,
+    world: {
+      own: [0, 0, -1, 0, 0.8, -0.6, 1, -0.3],
+      kinds: ['#1f3a52', '#5f8a9a', '#a89878', '#d8e0d0', '#e8dcc0'],
+      keep: 0.05,
+      pace: 0.4,
+    },
+  },
+  {
+    id: 'lagoon-shallows-noon',
+    name: 'Lagoon shallows noon',
+    what: 'Bright turquoise shallows, a net of white light on the sand below.',
+    variation: 1,
+    world: {
+      own: [0.3, 0, 0, 1, -0.1, -0.5, 1, 0],
+      kinds: ['#2f8a98', '#8fd8cc', '#d8c8a0', '#f4f0dc', '#f0a890'],
+      keep: 0.05,
+      pace: 0.7,
+      contrast: 0.15,
+      vivid: 0.2,
+    },
+  },
+  {
+    id: 'under-pack-ice',
+    name: 'Under pack ice',
+    what: 'From under the ice, light comes in only by the cracks between grey white plates.',
+    variation: 1,
+    world: {
+      own: [0.3, 0, 0, -0.2, -0.3, 0.2, 0, 1],
+      kinds: ['#16304a', '#7f9ab0', '#a0b4c0', '#d8e8f0', '#f0f4f8'],
+      keep: 0.05,
+      pace: 0.3,
+    },
+  },
+  {
+    id: 'plankton-dusk',
+    name: 'Plankton dusk',
+    what: 'Countless motes hang in a violet sea, the last light slanting in from one side.',
+    variation: 1,
+    world: {
+      own: [0.2, 0.35, 0.8, -0.9, 0.2, 0, 0, -1],
+      kinds: ['#4a3a78', '#a0607a', '#d08a6a', '#f0c8a0', '#f0e0d0'],
+      keep: 0.05,
+      pace: 0.4,
+    },
+  },
+]
+
+export default presets

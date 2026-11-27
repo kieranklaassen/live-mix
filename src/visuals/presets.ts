@@ -30,6 +30,7 @@ export function loadVisualPresets(style: string): Promise<readonly VisualPreset[
     (presets) => {
       loaded.set(style, presets)
       loading.delete(style)
+      failedAt.delete(style)
       return presets
     },
     (error: unknown) => {
@@ -46,8 +47,12 @@ export function loadVisualPresets(style: string): Promise<readonly VisualPreset[
 export function visualPresetsNow(style: string): readonly VisualPreset[] | undefined {
   const known = loaded.get(style)
   if (known) return known
-  // Not fetched a moment ago, as on a line that dropped: asked for again in a while.
-  if (Date.now() - (failedAt.get(style) ?? -Infinity) < FETCH_AGAIN_MS) return NONE
+  // Not fetched, as on a line that dropped: none, also while they are asked for again, which is done now and then.
+  const failed = failedAt.get(style)
+  if (failed !== undefined) {
+    if (Date.now() - failed >= FETCH_AGAIN_MS) loadVisualPresets(style).catch(() => undefined)
+    return NONE
+  }
   loadVisualPresets(style).catch(() => undefined)
   return loaded.get(style)
 }

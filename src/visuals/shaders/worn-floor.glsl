@@ -3,6 +3,7 @@
 // b: Rained on
 // what: An old floor of ivory, rose and dark green marble lozenges that read as boxes standing up or sinking in, seen at a slant, chipped, veined and trodden hollow, low window light in one long bar across it; or the same stones in a yard after rain, from straight above, hollow ones holding sky and bare branches, a few leaves fallen.
 // follows: The drone warms the rose stones, the pad the ivory, texture the green, in their veins too; a melody lights veins and leaves; the piece polishes the floor or tints the sky. Lows deepen the hollows or raise the water. A hit lights one box, in the rain with a drop. A cue moves the sun across and back, the loop a little. Keys glint, a voice warms, Tone sharpens.
+// own: 0 1 a chequer of large squares, -1 crazy paving of broken slabs; 1 1 wedges laid in rings round a middle, -1 herringbone brick; 2 1 rounded cobbles standing up, -1 stones trodden to deep bowls; 3 1 drifted over (a: sand, b: snow), -1 moss and grass in the joints; 4 1 sun through a lattice of panes (b: full sun and the tree's shadow), -1 no sun, even grey light (b: night, a moon in the pools); 5 of a, the eye: 1 low along the floor, -1 from straight above; of b, the water: 1 clear water over all of it, -1 dry; 6 1 many small stones, -1 a few great ones; 7 1 dyed in the sounds' colours, -1 all of one pale stone
 const vec2 wfE0 = vec2(0.8660254, 0.5), wfE1 = vec2(-0.8660254, 0.5), wfE2 = vec2(0.0, -1.0);
 const vec2 wfS = vec2(1.7320508, 3.0);
 vec2 wfMid;   // the middle of the box
@@ -12,11 +13,66 @@ vec2 wfGu, wfGv; // how those two grow over the floor
 float wfEdge; // how far in from its edge
 vec2 wfOut, wfDish; // straight in from that edge; the slope of a stone that is dished
 vec3 wfH;     // three numbers of the stone's own
+// A soft step from a to b, whichever is the larger.
+float wfStep(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x * (3.0 - 2.0 * x); }
+float wfSq(float x) { return x * x; }
 // The middle of the box that a place on the floor falls in (a box is one long).
 vec2 wfBox(vec2 w) {
   vec2 a = w - wfS * floor(w / wfS + 0.5), b = w - wfS * 0.5;
   b -= wfS * floor(b / wfS + 0.5);
   return w - (dot(a, a) < dot(b, b) ? a : b);
+}
+// The floor laid another way: wholly at 1, in patches before it.
+void wfLaid(vec2 w) {
+  float N = 0.02 + 0.96 * noise(w * 0.3 + 30.0), a = abs(uOwn[0]), b = abs(uOwn[1]), e1 = 9.0, seam = 9.0;
+  vec2 id = vec2(0.0), size = vec2(1.0), u, gu = vec2(1.0, 0.0), gv = vec2(0.0, 1.0);
+  if (b < 1.0 && b > 0.0) seam = abs(b - N) * 2.2;
+  if (a < 1.0 && a > 0.0) seam = min(seam, abs(a - N) * 2.2);
+  if (b > N && uOwn[1] > 0.0) {          // rings
+    vec2 q = w - vec2(0.4, 0.5);
+    float l = length(q), i = floor(l / 0.95 + 0.5), many = max(6.0 * i, 1.0), th = fract(atan(q.y, q.x + 1e-5) / TAU + 0.5 + i * 0.137) * many, j = floor(th), arc = max(TAU * l / many, 0.1);
+    gu = q / max(l, 1e-3); gv = vec2(-gu.y, gu.x);
+    u = vec2(l / 0.95 + 0.5 - i, th - j); size = vec2(0.95, arc);
+    float at = ((j + 0.5) / many - 0.5 - i * 0.137) * TAU;
+    wfMid = vec2(0.4, 0.5) + 0.95 * i * vec2(cos(at), sin(at));
+    wfK = mod(i + j, 3.0); id = vec2(i, j);
+    if (i < 0.5) { u = 0.5 + q / 0.95; e1 = 0.475 - l; size = vec2(0.95); gv = vec2(0.0, 1.0); gu = vec2(1.0, 0.0); }
+  } else if (b > N) {                    // herringbone
+    vec2 p = rot(0.785) * w * 1.45, c = floor(p);
+    float d = mod(c.x - c.y, 4.0);
+    size = d < 1.5 ? vec2(2.0, 1.0) : vec2(1.0, 2.0);
+    id = d < 0.5 || d > 2.5 ? c : d < 1.5 ? c - vec2(1.0, 0.0) : c - vec2(0.0, 1.0);
+    u = (p - id) / size; wfMid = (id + 0.5 * size) * rot(0.785) / 1.45;
+    gu *= rot(0.785); gv *= rot(0.785); size /= 1.45;
+    wfK = floor(hash21(id + 3.0) * 2.99);
+    if (d > 1.5) id += 50.0;
+  } else if (a > N && uOwn[0] > 0.0) {   // squares
+    id = floor(w / 1.3); u = w / 1.3 - id; size = vec2(1.3);
+    wfMid = (id + 0.5) * 1.3; wfK = 2.0 * mod(id.x + id.y, 2.0);
+  } else if (a > N) {                    // broken slabs
+    vec2 p = w / 1.25, c = floor(p), off = vec2(0.0);
+    float near = 9.0;
+    for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+      vec2 n = c + vec2(float(i), float(j)), o = n + 0.5 + 0.75 * (hash22(n + 17.0) - 0.5) - p;
+      if (dot(o, o) < near) { near = dot(o, o); off = o; id = n; }
+    }
+    for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) {
+      vec2 n = id + vec2(float(i), float(j)), o = n + 0.5 + 0.75 * (hash22(n + 17.0) - 0.5) - p, v = o - off;
+      if (dot(v, v) < 1e-4) continue;
+      float e = dot(0.5 * (o + off), normalize(v)) * 1.25;
+      if (e < e1) { e1 = e; wfOut = -normalize(v) * 1.1547; }
+    }
+    u = clamp(0.5 - off * 0.62, 0.02, 0.98); wfMid = w + off * 1.25; size = vec2(2.0);
+    wfK = floor(hash21(id + 5.0) * 2.99);
+  } else { wfEdge = min(wfEdge, seam); return; }
+  wfUV = u; wfGu = gu / size; wfGv = gv / size;
+  vec2 f = 4.0 * u * (1.0 - u), e = min(u, 1.0 - u) * size;
+  wfDish = -4.0 * (wfGu * (1.0 - 2.0 * u.x) * f.y + wfGv * (1.0 - 2.0 * u.y) * f.x);
+  wfEdge = min(e.x, e.y);
+  if (e1 < 8.0) wfEdge = e1; else wfOut = 1.1547 * (e.x < e.y ? gu * sign(0.5 - u.x) : gv * sign(0.5 - u.y));
+  wfEdge = min(wfEdge, seam);
+  float h = hash21(id * 0.731 + 43.1);
+  wfH = vec3(h, hash21(id + h * 9.7), hash21(id * 1.37 + h * 31.1 + 5.0));
 }
 void wfStone(vec2 w) {
   wfMid = wfBox(w);
@@ -34,10 +90,26 @@ void wfStone(vec2 w) {
   vec2 id = floor(wfMid / (wfS * 0.5) + 0.5) + 40.0 + 100.0 * wfK;
   float h = hash21(id * 0.731 + 3.1);
   wfH = vec3(h, hash21(id + h * 9.7), hash21(id * 1.37 + h * 31.1 + 5.0));
+  if (uOwn[0] != 0.0 || uOwn[1] != 0.0) wfLaid(w);
+  if (uOwn[2] > 0.0) {                   // round at the corners
+    vec2 c = abs(2.0 * wfUV - 1.0); c *= c;
+    float d = sqrt(dot(c, c) + 1e-5), g = 0.5 / (length(wfGu) + length(wfGv));
+    wfEdge = mix(wfEdge, min(wfEdge, (1.0 - d) * g * 1.1), uOwn[2]);
+  }
 }
-// A soft step from a to b, whichever is the larger.
-float wfStep(float a, float b, float x) { x = sat((x - a) / (b - a)); return x * x * (3.0 - 2.0 * x); }
-float wfSq(float x) { return x * x; }
+// Whether the stone here is the one at a place.
+float wfIs(vec2 at) { return uOwn[0] != 0.0 || uOwn[1] != 0.0 ? max(step(length(at - wfMid), 0.93), 0.4 * step(length(at - wfMid), 1.9)) : step(length(wfBox(at) - wfMid), 0.1); }
+// What lies over the stones: x how much, y its light.
+vec2 wfOver(vec2 w, float gap, float aa) {
+  float a = abs(uOwn[3]), lie = noise(w * 0.42 + 50.0) * 0.65 + noise(w * 1.3 + 8.0) * 0.35, f = noise(w * 23.0), d = noise(w * 9.0);
+  if (uOwn[3] > 0.0) {
+    float at = lie + 0.18 * wfStep(0.14, 0.0, gap) - 0.05 * d - 0.82 + 0.5 * a, on = wfStep(0.0, 0.07 + aa, at);
+    float rip = uVar < 0.5 ? sin(dot(w, vec2(7.0, 10.0)) + 5.0 * noise(w * 0.8)) / (1.0 + 9.0 * aa) : 0.0;
+    return vec2(on * sat(a * 4.0), 0.85 + 0.13 * rip + 0.1 * (f - 0.5) + 0.7 * (noise(w * 1.3 + vec2(8.1, 7.92)) - noise(w * 1.3 + 8.0)) + 0.25 * (lie - 0.5));
+  }
+  float g = wfStep(0.0, 0.05 + aa, (0.03 + 0.34 * lie * lie) * a * 1.3 - max(gap, -0.02) + 0.06 * (d - 0.5) + 0.09 * a * (f - 0.6));
+  return vec2(g * sat(a * 4.0), 0.35 + 0.9 * f * d + 0.5 * d);
+}
 // The marble's colour; vein is how much of a vein runs here.
 vec3 wfMarble(vec2 w, float k, float aa, out float vein, out float cloud) {
   vec2 m = rot(wfH.x * TAU) * w + wfH.yz * 60.0;
@@ -60,6 +132,11 @@ vec3 wfMarble(vec2 w, float k, float aa, out float vein, out float cloud) {
     c = mix(vec3(0.022, 0.035, 0.032), vec3(0.06, 0.085, 0.07), cloud * 0.6 + 0.4 * c2 * c2) * own;
     c = mix(c, vec3(0.36, 0.40, 0.35), broad * 0.10 * wfH.z + vein * 0.6);
   }
+  if (uOwn[7] > 0.0) {                   // as glazed clay, in the sounds' colours
+    vec3 hue = k < 0.5 ? uKind[1] : k < 1.5 ? uKind[0] : uKind[2];
+    c = mix(c, hue * hue * (0.75 + 0.4 * wfH.y) * (0.8 + 0.4 * cloud) + 0.25 * vein * hue, uOwn[7]);
+  }
+  if (uOwn[7] < 0.0) c = mix(c, (vec3(0.6, 0.55, 0.465) - 0.07 * k) * (0.72 + 0.4 * wfH.y) * (0.8 + 0.35 * cloud) * (1.0 - 0.35 * vein), -uOwn[7]);
   return c * (0.92 + 0.16 * c2);
 }
 // Which marble it is of: its face's, but for a few mended with another.
@@ -86,19 +163,19 @@ vec4 wfSaid(vec2 p) {
 const vec2 wfLong = vec2(1.0, 0.8); // the stones are cut a little long, away from the eye
 vec3 wfDry(vec2 p) {
   const float F = 1.25;
-  float tip = 0.76, st = sin(tip), ct = cos(tip);
+  float M = uOwn[6] == 0.0 ? 1.0 : exp2(uOwn[6] * 0.9), tip = 0.76 - 0.33 * max(uOwn[5], 0.0) + 0.7 * max(-uOwn[5], 0.0), st = uOwn[5] == 0.0 ? sin(0.76) : sin(tip), ct = uOwn[5] == 0.0 ? cos(0.76) : cos(tip);
   float high = 5.0 + 1.2 * (uSpace - 0.5);
   // the eye looks down at a slant
   vec3 rd = normalize(vec3(p.x, p.y * ct - F * st, p.y * st + F * ct));
   rd.y = min(rd.y, -0.05);
   float dist = high / -rd.y;
   vec2 g = rd.xz * dist; // the floor
-  g.y -= high / tan(tip);
+  g.y -= high / (uOwn[5] == 0.0 ? tan(0.76) : tan(tip));
   vec2 gx = dFdx(g), gy = dFdy(g);
   mat2 turn = rot(-0.36);
   g += 0.12 * vec2(sin(uTime * 0.021), cos(uTime * 0.017));
-  vec2 w = turn * (g * wfLong) + vec2(0.35, 0.2);
-  gx = turn * (gx * wfLong); gy = turn * (gy * wfLong);
+  vec2 w = turn * (g * wfLong) * M + vec2(0.35, 0.2);
+  gx = turn * (gx * wfLong) * M; gy = turn * (gy * wfLong) * M;
   float foot = 0.7 * (length(gx) + length(gy));
   wfStone(w);
   vec2 u = wfUV;
@@ -113,17 +190,19 @@ vec3 wfDry(vec2 p) {
   float bowl = 16.0 * u.x * (1.0 - u.x) * u.y * (1.0 - u.y);
   float deep = (0.016 + wear * soft * 0.06) * (0.75 + 0.6 * uLow);
   slope += wfDish * deep;
+  if (uOwn[2] != 0.0) slope += wfDish * (uOwn[2] > 0.0 ? -0.2 * uOwn[2] : -0.13 * uOwn[2]);
   vec2 acrossWay = turn * vec2(1.0, -0.55 + 0.36 * cos(g.y * 0.33 + 0.6));
   slope += acrossWay * way * wear * 0.14 * (0.6 + 0.7 * uLow);
   float rough = noise(w * 5.0 + wfH.xy * 30.0), fine = noise(w * 19.0);
   float corner = max(u.x * u.y, (1.0 - u.x) * (1.0 - u.y)), odd = wfH.z * wfH.z;
-  float chip = wfStep(0.62, 0.9, rough) * (0.012 + 0.10 * odd * odd * odd) + 0.10 * wfStep(0.75, 0.95, wfH.x * corner + 0.15 * rough);
+  float chip = wfStep(0.62, 0.9, rough) * (0.012 + 0.10 * odd * odd * odd) + 0.10 * wfStep(0.75, 0.95, wfH.x * corner + 0.15 * rough) + 0.03 * max(uOwn[2], 0.0);
   float gap = wfEdge - chip - 0.008 - 0.010 * rough;
   float ef = 0.5 * (abs(dot(gx, wfOut)) + abs(dot(gy, wfOut))) + 0.002;
   float stone = wfStep(-ef, ef, gap);
   stone = mix(stone, 0.96, sat(ef * 9.0 - 0.25));
   slope += wfOut * 0.866 * wfStep(0.035 + 0.07 * wear, 0.0, gap) * (0.35 - 0.1 * wear) / (1.0 + ef * 30.0);
   slope += (vec2(fine, noise(w * 19.0 + 7.3)) - 0.5) * 0.05 * (1.0 - 0.7 * wear) / (1.0 + 20.0 * foot);
+  if (uOwn[5] > 0.0) slope /= 1.0 + 6.0 * uOwn[5] * foot;
   float h = -bowl * deep - wear * 0.25 * (0.65 + 0.6 * uLow) + (wfH.z - 0.5) * 0.05;
   float vein, cloud;
   vec3 col = wfMarble(w, k, foot, vein, cloud);
@@ -142,6 +221,13 @@ vec3 wfDry(vec2 p) {
   col = mix(col, vec3(0.30, 0.265, 0.22), 0.20 * dust + 0.35 * dust * wfStep(0.16, 0.0, wfEdge));
   col *= 0.72 + 0.28 * wfStep(0.0, 0.10, gap);
   col = mix(vec3(0.075, 0.063, 0.05) * (0.6 + 0.8 * fine), col, stone);
+  vec2 over = vec2(0.0);
+  if (uOwn[3] != 0.0) {
+    over = wfOver(w, gap, foot);
+    col = mix(col, uOwn[3] > 0.0 ? vec3(0.62, 0.49, 0.34) * over.y : vec3(0.05, 0.085, 0.022) * over.y, over.x);
+    slope *= 1.0 - 0.8 * over.x;
+    vein *= 1.0 - over.x;
+  }
   vec2 L = turn * normalize(vec2(-0.93, 0.36));
   float graze = clamp(1.0 - dot(slope, L) * 4.2, 0.0, 2.1);
   float move = 1.3 * 4.0 * uCue * (1.0 - uCue) + 0.35 * (0.5 - 0.5 * cos(TAU * uLoop)) + 0.45 * sin(uTime * 0.03);
@@ -154,6 +240,11 @@ vec3 wfDry(vec2 p) {
   bar *= 1.0 - 0.8 * wfStep(0.13 + pen * 0.5, 0.02, abs(across + 0.12)); // the mullion
   float leaf = noise(gs * 1.3 + vec2(uTime * 0.05, 0.4 * sin(uTime * 0.11)));
   float dapple = wfStep(0.22, 0.5, leaf + 0.12 * (wob - 0.5));
+  if (uOwn[4] > 0.0) {                   // a lattice of many panes
+    vec2 la = vec2(along + across, along - across) / 1.05, lo = abs(fract(la) - 0.5);
+    float pane = wfStep(0.42 + pen, 0.42 - pen, max(lo.x, lo.y)) * wfStep(3.4, 3.2, abs(across)) * (0.75 + 0.25 * hash21(floor(la) + 60.0));
+    bar = mix(bar, pane, uOwn[4]);
+  }
   bar *= mix(0.62, 1.0, dapple);
   bar *= wfStep(9.0, 2.0, along - 1.5);
   float next = across - 5.2; // the next window's bar, far off
@@ -162,6 +253,7 @@ vec3 wfDry(vec2 p) {
   vec3 sky = vec3(0.34, 0.41, 0.52) * (0.27 - 0.03 * clamp(g.x, -5.0, 5.0));
   sky *= max(1.0 - dot(slope, L) * 2.2, 0.2);
   vec4 pc = wfSaid(p);
+  if (uOwn[4] < 0.0) { bar *= 1.0 + uOwn[4]; sky *= 1.0 - 3.6 * uOwn[4] * (0.8 + 0.2 * uLevel + 0.6 * uCue); sky = mix(sky, vec3(dot(sky, vec3(0.36))), -0.6 * uOwn[4]); }
   vec3 light = col * (sky + sun * bar * graze);
   light += col * vec3(0.5, 0.36, 0.22) * (0.18 + 0.35 * uMic) * exp(-across * across * 0.25);
   // polish: the far window mirrored in the stones, broken by each one's tilt
@@ -169,7 +261,7 @@ vec3 wfDry(vec2 p) {
   n.xz = n.xz * turn;
   vec3 r = reflect(rd, n);
   float fr = 0.05 + 0.6 * pow(1.0 - sat(dot(-rd, n)), 4.0);
-  float polish = sat(0.25 + 0.75 * wear + pc.a) * stone * (1.0 - 0.5 * vein);
+  float polish = sat(0.25 + 0.75 * wear + pc.a) * stone * (1.0 - 0.5 * vein) * (1.0 - over.x);
   vec2 rr = r.xz / max(r.y, 0.05);
   float win = exp(-wfSq((rr.x + 0.25) * 2.2)) * wfStep(0.7, 1.7, rr.y);
   light += fr * polish * win * vec3(0.75, 0.85, 1.0) * (1.5 + 1.0 * uMid + 1.4 * uKeys);
@@ -177,14 +269,15 @@ vec3 wfDry(vec2 p) {
   float f = fract(uTime / 3.0), lit = 0.0;
   if (uHits > 0.004) for (int i = 0; i < 2; i++) {
     float sl = wfSlot(float(i));
-    vec2 at = (vec2(hash11(sl), hash11(sl + 7.7)) - 0.5) * vec2(min(uRes.x / uRes.y, 1.8) * 2.6, 3.2);
-    vec2 m = wfBox(turn * (at * wfLong) + vec2(0.35, 0.2));
+    vec2 at = (vec2(hash11(sl), hash11(sl + 7.7)) - 0.5) * vec2(min(uRes.x / uRes.y, 1.8) * 2.6, 3.2) * (1.0 - 0.6 * max(uOwn[5], 0.0));
+    vec2 m = turn * (at * wfLong) * M + vec2(0.35, 0.2);
     float fade = wfStep(0.85, 1.0, f);
-    lit += (i == 0 ? 1.0 - fade : fade) * step(length(m - wfMid), 0.1);
+    lit += (i == 0 ? 1.0 - fade : fade) * wfIs(m);
   }
   float face = wfK < 0.5 ? 1.0 : (wfK < 1.5 ? 0.62 : 0.4);
+  if (uOwn[0] != 0.0 || uOwn[1] != 0.0) face = max(face, 0.9);
   light += lit * uHits * stone * face * (col * 3.4 + 0.14) * mix(vec3(1.0, 0.85, 0.65), uKind[4], 0.5) * (0.6 + uEnergy);
-  light *= 1.0 - 0.45 * wfStep(1.0, 6.5, g.y);
+  light *= 1.0 - (0.45 + 0.3 * max(uOwn[5], 0.0)) * wfStep(1.0, 6.5 + 9.0 * max(uOwn[5], 0.0), g.y);
   return screenOf(light * 1.25);
 }
 // A bare branch lying along x from 0 to len, with twigs on twigs: how dark it is at q.
@@ -240,10 +333,11 @@ vec3 wfRing(vec2 p, vec2 at, float age, float size, float amount) {
 }
 vec3 wfRain(vec2 p) {
   float px = 1.0 / uRes.y;
-  float scale = 4.3 + 0.8 * (uSpace - 0.5);
+  float scale = (4.3 + 0.8 * (uSpace - 0.5)) * exp2(uOwn[6] * 0.9), flood = max(uOwn[5], 0.0), night = max(-uOwn[4], 0.0);
   vec2 g = p + 0.02 * vec2(sin(uTime * 0.021), cos(uTime * 0.017));
   vec2 w = rot(0.21) * g * scale + vec2(0.3, 0.55);
   float foot = px * scale;
+  if (flood > 0.0) w += flood * 0.09 * vec2(noise(g * 7.0 + uTime * 0.17) - 0.5, noise(g * 7.0 - uTime * 0.15 + 30.0) - 0.5);
   wfStone(w);
   vec2 u = wfUV;
   float k = wfKind();
@@ -253,7 +347,7 @@ vec3 wfRain(vec2 p) {
   float way = g.y - 0.55 * g.x + 0.10 - 0.13 * sin(g.x * 3.3 + 0.8);
   float wear = exp(-way * way * 9.0) * (0.55 + 0.8 * big);
   float odd = wfH.z * wfH.z, corner = max(u.x * u.y, (1.0 - u.x) * (1.0 - u.y));
-  float chip = wfStep(0.62, 0.9, rough) * (0.015 + 0.07 * odd * odd * odd) + 0.08 * wfStep(0.8, 0.98, wfH.x * corner + 0.12 * rough);
+  float chip = wfStep(0.62, 0.9, rough) * (0.015 + 0.07 * odd * odd * odd) + 0.08 * wfStep(0.8, 0.98, wfH.x * corner + 0.12 * rough) + 0.03 * max(uOwn[2], 0.0);
   float gap = wfEdge - chip - 0.014 - 0.012 * rough;
   float ef = foot * 0.9;
   float stone = wfStep(-ef, ef, gap);
@@ -261,9 +355,13 @@ vec3 wfRain(vec2 p) {
   float own = fract(wfH.y * 7.13 + wfH.x);
   float brim = wfStep(-0.02, 0.26, gap);
   float deep = 0.66 * wear + 0.80 * (own - 0.5) + 0.26 * brim + 0.35 * (big - 0.5) + 0.32 * (mid - 0.5) + 0.05 * (rough - 0.5);
-  deep += 0.08 * (uLow - 0.2) - 0.58;
+  deep += 0.08 * (uLow - 0.2) - 0.58 + (uOwn[5] < 0.0 ? 0.9 * uOwn[5] : 1.3 * flood);
+  if (uOwn[2] > 0.0) deep -= uOwn[2] * (0.5 * brim - 0.22); else deep -= uOwn[2] * 0.3 * (16.0 * u.x * (1.0 - u.x) * u.y * (1.0 - u.y) - 0.4);
+  vec2 over = vec2(0.0);
+  if (uOwn[3] != 0.0) { over = wfOver(w, gap, foot); deep -= over.x * 0.8; }
   float pool = deep - 0.26 * brim + 0.26 - 0.8 * (own - 0.5) + 0.8 * min(own - 0.5, 0.0);
   float film = wfStep(-0.006 - foot, 0.012 + foot, deep) * max(wfStep(-ef, ef, gap - 0.004), 0.62 * wfStep(0.02, 0.22, pool));
+  if (flood > 0.0) film = mix(film, 1.0, wfStep(0.1, 0.9, flood));
   float lip = exp(-wfSq((deep - 0.03) * 30.0)) * film;
   float vein, cloud;
   vec3 col = wfMarble(w, k, foot, vein, cloud);
@@ -276,8 +374,11 @@ vec3 wfRain(vec2 p) {
   vec3 joint = mix(vec3(0.05, 0.042, 0.033), vec3(0.055, 0.075, 0.025), wfStep(0.45, 0.7, mid)) * (0.6 + 0.8 * fine);
   col *= 0.72 + 0.28 * wfStep(0.0, 0.10, gap);
   col = mix(joint, col, stone);
+  if (uOwn[3] != 0.0) col = mix(col, uOwn[3] > 0.0 ? vec3(0.78, 0.8, 0.84) * over.y : vec3(0.06, 0.1, 0.025) * over.y, over.x);
   vec2 slope = (wfH.xy - 0.5) * 0.14 + wfDish * 0.03 + wfOut * 0.866 * wfStep(0.06, 0.0, gap) * 0.35;
   slope += (vec2(fine, noise(w * 21.0 + 7.3)) - 0.5) * 0.12;
+  if (uOwn[2] != 0.0) slope += wfDish * (uOwn[2] > 0.0 ? -0.22 * uOwn[2] : -0.12 * uOwn[2]);
+  slope *= 1.0 - 0.8 * over.x;
   float lit = max(1.0 + dot(-slope, vec2(-0.75, 0.66)) * 1.5, 0.15);
   vec3 light = col * vec3(0.80, 0.88, 1.0) * 0.78 * lit * (0.85 - 0.35 * g.x + 0.5 * g.y);
   // a thin sun in one band
@@ -285,6 +386,21 @@ vec3 wfRain(vec2 p) {
   float band_ = dot(g, vec2(-0.5, 0.866)) - 0.16 + move;
   band_ = wfStep(0.17, 0.07, abs(band_) + 0.05 * (mid - 0.5)) * (0.6 + 0.7 * uCue + 0.25 * uLevel);
   light *= 1.0 + band_ * vec3(1.5, 1.0, 0.52) * lit;
+  if (uOwn[4] != 0.0) {
+    if (uOwn[4] > 0.0) {                 // full sun, and the tree's shadow on the stones
+      vec2 t = g + 0.03 * (noise(g * 3.0) - 0.5);
+      float sh = wfBranch(rot(-0.5) * (t - vec2(-1.05, -0.62)), 2.0, 0.085, 1.0, 0.012);
+      sh = max(sh, wfBranch(rot(-0.95) * (t - vec2(-0.6, -0.8)), 1.6, 0.06, 23.0, 0.012));
+      sh = max(sh, wfBranch(rot(-0.08) * (t - vec2(-1.2, -0.3)), 1.9, 0.045, 9.0, 0.012));
+      light *= mix(vec3(1.0), vec3(1.9, 1.62, 1.22) * mix(1.0, 0.2, sh) * lit, uOwn[4]);
+    }
+    light *= mix(vec3(1.0), vec3(0.13, 0.17, 0.25) * (0.6 + 0.8 * lit), night);
+  }
+  if (flood > 0.0) {                     // light gathered by the water
+    vec2 q = g * 5.5;
+    float n1 = noise(vec3(q, uTime * 0.12)), n2 = noise(vec3(q * 1.7 + 9.0, uTime * 0.15)), ca = 1.0 - abs(n1 + 0.5 * n2 - 0.75) * 3.0;
+    light *= mix(vec3(1.0), (1.3 + 5.5 * wfSq(max(ca, 0.0)) * (0.6 + 0.5 * uMid)) * vec3(0.78, 1.0, 0.98), flood);
+  }
   // rings on the water
   vec3 ring = vec3(0.0);
   for (int i = 0; i < 3; i++) {
@@ -298,7 +414,7 @@ vec3 wfRain(vec2 p) {
     vec2 at = vec2(x, 0.55 * x - 0.10 + 0.13 * sin(x * 3.3 + 0.8));
     ring += wfRing(g, at, 1.0 - uHits, 0.22, on * (1.0 - uHits) * 5.0);
     splash += on * exp(-dot(g - at, g - at) * 700.0);
-    hitLit += on * step(length(wfBox(rot(0.21) * at * scale + vec2(0.3, 0.55)) - wfMid), 0.1);
+    hitLit += on * wfIs(rot(0.21) * at * scale + vec2(0.3, 0.55));
   }
   // the sky in it
   vec2 drift = 8.0 * vec2(cos(uTime * 0.037), sin(uTime * 0.037)) + 20.0;
@@ -306,6 +422,12 @@ vec3 wfRain(vec2 p) {
   float cl = noise(m * 2.1 + vec2(uTime * 0.02, 3.0)) * 0.65 + 0.35 * noise(m * 5.0 - vec2(0.0, uTime * 0.013));
   vec3 sky = mix(vec3(0.27, 0.38, 0.54), vec3(1.15, 1.10, 1.0), wfStep(0.3, 0.7, cl + 0.25 * (uTone - 0.5)));
   sky *= 0.72 + 0.55 * wfStep(-0.5, 0.6, g.x * 0.7 + g.y) + band_ * vec3(0.30, 0.24, 0.15) + 0.35 * uMic * vec3(1.0, 0.7, 0.4);
+  if (night > 0.0) {
+    vec2 c = g * 26.0, o = fract(c) - 0.5; float h = hash21(floor(c) + 70.0), d = length(m - vec2(0.02, -0.1));
+    vec3 dark = vec3(0.012, 0.022, 0.05) * (0.6 + 1.2 * cl) + wfStep(0.1, 0.0, length(o - 0.5 * vec2(fract(h * 17.0) - 0.5, fract(h * 53.0) - 0.5))) * step(0.72, h) * 0.5 * wfStep(0.75, 0.4, cl);
+    dark += vec3(1.5, 1.4, 1.15) * wfStep(0.085, 0.078, d) * (0.75 + 0.3 * cl) + vec3(0.16, 0.2, 0.3) * exp(-d * 5.0) * (0.4 + cl);
+    sky = mix(sky, dark, night);
+  }
   vec4 pc = wfSaid(p);
   float said = sat(pc.a * (0.9 + 1.6 * uEnergy));
   vec3 tint = pc.rgb / max(pc.a, 0.05);
@@ -322,7 +444,7 @@ vec3 wfRain(vec2 p) {
   }
   sky *= clamp(1.0 + 0.5 * ring.z, 0.5, 1.6);
   sky = mix(sky, vec3(0.02, 0.02, 0.024), 0.96 * tree);
-  float mirror = film * (0.52 + 0.14 * tree + 0.30 * wfStep(0.0, 0.5, deep));
+  float mirror = film * (0.52 + 0.14 * tree + 0.30 * wfStep(0.0, 0.5, deep)) * (1.0 - 0.9 * flood);
   light = mix(light, sky * 0.95, mirror);
   light += (lip * (0.10 + 0.5 * uKeys) + splash * 0.9) * vec3(0.8, 0.88, 1.0);
   float face = wfK < 0.5 ? 1.0 : (wfK < 1.5 ? 0.62 : 0.35);

@@ -3,7 +3,11 @@
 // b: Flower weight
 // what: One glass marble hugely enlarged on white paper in window light: five ribbons of coloured glass twist round a white netted core, and sun comes through it as a patch of colours in its shadow; or a low clear dome close by, rings of cut flower canes under the thick glass, on a blue foot with white threads.
 // follows: Each kind of sound is a ribbon, or a ring of flowers: louder is wider and deeper, and the piece tints it. Bands are the fine white threads. Travel turns the glass, the loop passes as a light, drone slides the window's reflection. A hit lights a bubble and the sun through the glass, a cue rolls or turns the glass and back, keys make canes glint.
-const vec3 MR_L = normalize(vec3(0.70, 0.585, 0.40));  // towards the window's sun, behind on the right
+// own: 0 1 a scatter of smaller ones round it, -1 a row of its like going off; 1 the eye: 1 low along the table, -1 from straight above; 2 the ground: 1 black lacquer that mirrors, -1 rippled sand in the drone's colour; 3 the hour: 1 a low warm sun and long shadows, -1 a moon overhead; 4 1 wound tight, -1 straight lengthwise (b: 1 many small canes, -1 a few great ones); 5 1 drawn out to fine lace (b: small far dots), -1 melted and run like ink; 6 1 of solid banded stone (b: the flowers on its skin), -1 a hollow bubble; 7 1 paper in the drone's colour and the glass milky in the kinds' own, -1 all of bottle glass in the pad's colour
+vec3 MR_L;  // towards the window's sun, behind on the right
+vec3 mrAlb, mrSun, mrSky;             // the ground, the sun on it, the sky on it
+float mrLow;                          // one when one of the others is drawn: it stands alone
+vec4 mrSet[7];                        // the others: where, how large, how turned
 bool mrB;
 vec3 mrC;              // middle of the marble
 mat3 mrF;              // world to the marble's own frame, the cane's axis is its z
@@ -29,12 +33,17 @@ void mrRibbon(vec3 q, vec3 d, float c, float s, inout vec3 col, inout vec3 thr) 
   float a = (atan(q.y, q.x + 1e-6) - mrTw * q.z + mrTurn) / TAU * 5.0;
   float id = floor(mod(floor(a) + 0.5, 5.0)), f = fract(a) - 0.5;
   int k = min(int(id), 4);
+  if (uOwn[5] < 0.0) {
+    vec3 g = q * 2.6 + vec3(0.0, 0.0, mrTurn);
+    a -= uOwn[5] * (2.2 * noise(g) + 0.8 * noise(g * 2.7) - 1.5); id = floor(mod(floor(a) + 0.5, 5.0)); f = fract(a) - 0.5; k = min(int(id), 4);
+  }
   float R = sqrt(max(1.0 - q.z * q.z, 1e-4)), m = mrAmt[k];
   float hw = (0.2 + 0.2 * m) * (1.0 - 0.45 * s * s) * (0.75 + 0.25 * R);
   vec3 n = normalize(vec3(q.xy, q.z * c * c));
   float face = abs(dot(n, d));
   float w = 5.0 * mrPx / (TAU * c * R + 1e-3) * 1.2 / (0.2 + face) + 0.012;
   float e = mrIs(w, abs(f) - hw) * smoothstep(0.02, 0.16, face);
+  if (e > 0.0 && uOwn[5] > 0.0) { float cw = 8.0 * w; e *= mix(1.0, mrIs(0.06 + cw, abs(fract(f * 8.0) - 0.5) - 0.1) / (1.0 + cw), uOwn[5]); }
   if (e <= 0.0) return;
   float v = f / hw;
   // the cane's own drawing: milk glass laid in stripes under the colour
@@ -97,6 +106,8 @@ vec3 mrTint(vec3 q, float w) {
 vec3 mrRoom(vec3 r, float slide, float soft) {
   vec3 c = mix(vec3(0.1, 0.105, 0.12), vec3(0.62, 0.64, 0.68), smoothstep(0.1, 0.95, r.y));
   c *= 0.8 + 0.4 * r.x;
+  if (uOwn[2] > 0.0) c *= 1.0 - 0.95 * uOwn[2];
+  if (uOwn[7] > 0.0) c *= mix(vec3(1.0), uKind[0] * 1.1, uOwn[7]);
   vec3 W = normalize(vec3(0.55, 0.66, -0.2));
   W.xz = rot(slide) * W.xz;
   vec3 u = normalize(cross(vec3(0.0, 1.0, 0.0), W)), v = cross(W, u);
@@ -150,13 +161,23 @@ vec3 mrPaper(vec3 q, vec3 extra) {
   float so = 0.5, wide = uSpace - 0.5;
   vec2 z = vec2(4.6, 3.3) + wide, e = 1.0 - smoothstep(z - so, z + so, abs(a + vec2(0.6, 1.0)));
   float sun = e.x * e.y * (1.0 - 0.6 * mrBell((a.y + 3.0) / 0.2));
-  vec3 sky = vec3(0.66, 0.72, 0.80) * (0.85 + 0.05 * q.x), o = q - mrC, l = MR_L;
+  if (uOwn[1] != 0.0 || uOwn[2] != 0.0) sun = mix(sun, 1.0, max(abs(uOwn[1]), max(-uOwn[2], 0.0)) * 0.8);
+  vec3 sky = mrSky * (0.85 + 0.05 * q.x), o = q - mrC, l = MR_L;
   if (mrB) { o /= MR_E; l = normalize(l / MR_E); }
   float s = -dot(o, l), y = length(o + l * s);
   float pen = (0.06 + 0.09 * max(s, 0.0)) * mix(1.6, 0.5, uTone);
   float sh = mix(1.0, smoothstep(1.0 - pen, 1.0 + pen, y), smoothstep(-0.6, 0.2, s));
   float occ = 0.75 / pow(dot(o, o), 1.5);
-  return vec3(0.95, 0.955, 0.96) * (sky * (1.0 - occ) * 0.72 + vec3(0.74, 0.69, 0.61) * sun * (sh + extra + 0.1 * (1.0 - sh)));
+  if (uOwn[0] != 0.0 && mrLow < 0.5) for (int i = 0; i < 7; i++) {
+    vec4 b = mrSet[i];
+    vec3 m = (q - vec3(b.x, 0.0, b.y)) / b.z - vec3(0.0, mrB ? 0.3 : 1.0, 0.0);
+    if (mrB) m /= MR_E;
+    float z = -dot(m, l), g = length(m + l * z), pe = (0.06 + 0.09 * max(z, 0.0)) * mix(1.6, 0.5, uTone);
+    sh *= mix(1.0, smoothstep(1.0 - pe, 1.0 + pe, g), smoothstep(-0.6, 0.2, z));
+    occ = max(occ, 0.75 / pow(max(dot(m, m), 0.8), 1.5));
+  }
+  if (uOwn[6] < 0.0) sh = mix(sh, 1.0, -0.8 * uOwn[6]);
+  return mrAlb * (sky * (1.0 - min(occ, 1.0)) * 0.72 + mrSun * sun * (sh + extra + 0.1 * (1.0 - sh)));
 }
 // The paper as it is looked at.
 vec3 mrTable(vec3 ro, vec3 rd) {
@@ -164,11 +185,33 @@ vec3 mrTable(vec3 ro, vec3 rd) {
   if (mrB) { o /= MR_E; l = normalize(l / MR_E); }
   float s = -dot(o, l);
   vec3 t = o + l * s;
+  float many = 1.0;
+  if (uOwn[0] != 0.0) { 
+    float near = s > 0.0 ? length(t) : 9.0;
+    for (int i = 0; i < 7; i++) {
+      vec4 b = mrSet[i];
+      vec3 m = (q - vec3(b.x, 0.0, b.y)) / b.z - vec3(0.0, mrB ? 0.3 : 1.0, 0.0);
+      if (mrB) m /= MR_E;
+      float z = -dot(m, l), g = length(m + l * z);
+      if (z > 0.5 && g < near && b.z > 0.02) { near = g; s = z; t = m + l * z; o = m; many = smoothstep(0.02, 0.15, b.z); }
+    }
+  }
   ca = mrB ? mrPool(o, s, length(t)) : mrCaustic(t, s);
+  if (uOwn[6] != 0.0) ca *= 1.0 - abs(uOwn[6]);
+  if (uOwn[3] < 0.0) ca *= 1.0 - 1.6 * uOwn[3];
+  ca *= many * (1.0 + (2.0 + 9.0 * sat(uLevel + 0.4)) * max(uOwn[2], 0.0));
   ca *= 1.0 + 1.3 * uHits + 0.6 * uCue;
   ca /= 1.0 + 0.16 * ca;
   vec3 c = mrPaper(q, ca) * (0.985 + 0.02 * noise(q.xz * 41.0) + 0.02 * noise(rot(0.7) * q.xz * vec2(9.0, 60.0)));
-  return mix(c, vec3(0.4, 0.43, 0.47), smoothstep(7.0, 14.0, length(q.xz)));
+  vec3 wall = vec3(0.4, 0.43, 0.47);
+  if (uOwn[2] < 0.0) {
+    float far = length(q.xz), hz = q.z * 5.0 + 1.6 * q.x + 2.4 * noise(q.xz * 0.9), fade = smoothstep(9.0, 2.0, far);
+    float slope = cos(hz + 0.5 * sin(hz)) * (0.5 + noise(q.xz * 1.7 + 9.0));
+    c *= 1.0 - uOwn[2] * ((slope * 0.34) * fade + 0.22 * (hash21(floor(q.xz * 90.0)) - 0.5) * fade);
+  }
+  float oth = abs(uOwn[1]) + abs(uOwn[2]) + abs(uOwn[3]) + abs(uOwn[7]);
+  if (oth > 0.0) wall = mix(wall, (mrAlb * 0.9 + 0.01) * (mrSky * 0.75 + mrSun * 0.12) * (0.75 + 0.5 * smoothstep(-0.2, 0.25, rd.y)), sat(2.0 * oth));
+  return mix(c, wall, smoothstep(7.0, 14.0, length(q.xz)));
 }
 // What a ray comes to outside.
 vec3 mrOut(vec3 q, vec3 d) {
@@ -191,6 +234,24 @@ void mrBubble(vec3 o, vec3 d, vec4 s, float hit, inout vec3 c) {
   vec3 k = c * (1.0 - 0.72 * ring) + spot * 0.9 + 0.12 * (1.0 - ring) + hit * mrGain * 2.0 * (uKind[4] * 0.5 + 0.6) * (1.0 - 0.6 * ring);
   c = mix(c, k, mrIs(w, r - 1.0));
 }
+// Banded stone, where e is on the ball.
+vec3 mrStone(vec3 e, out float loud) {
+  float wob = fbm(e * 2.3 + vec3(0.0, 0.0, 4.0)), lat = e.z * 4.6 + 1.7 * wob + 0.35 * sin(mrTw * e.z) + 8.0, b = fract(lat);
+  int k = int(mod(floor(lat), 5.0)), k2 = (k + 1) % 5;
+  float h = smoothstep(0.55, 1.0, b);
+  loud = mix(mrAmt[k], mrAmt[k2], h);
+  vec3 c = mix(mrCol[k], mrCol[k2], h);
+  c *= 0.5 + 0.35 * wob + 0.35 * noise(vec3(e.xy * 3.0, lat * 9.0)) + 0.25 * loud;
+  return mix(c * c, vec3(dot(c, vec3(0.4))), 0.25) + 0.35 * mrBell((b - 0.5) / 0.04) * wob;
+}
+// A hollow one: what stands behind, the rim, and oil on it.
+vec3 mrHollow(vec3 behind, vec3 e, vec3 n, vec3 rd, float fr) {
+  float rim = 1.0 - sat(-dot(rd, n)), sw = fbm(e * 1.7 + vec3(0.0, uTime * 0.03, mrTurn)) * 4.0 + e.y * 2.0 + 20.0;
+  vec3 oil = kindColour(mod(sw, 1.0) * 3.0 * (1.0 - smoothstep(0.75, 1.0, mod(sw, 1.0)))), room = mrRoom(reflect(rd, n), 0.5 * uDrone - 0.2, 0.02);
+  vec3 flip = reflect(rd, n); flip.xy = -flip.xy;
+  vec4 pm = piece(vec2(0.5 + 0.49 * e.x, 0.5 - 0.49 * e.y));
+  return behind * (1.0 - 0.75 * rim * rim) * (1.0 - 0.3 * pm.a * mrGain) + pm.rgb * pm.rgb * 0.8 * mrGain + oil * oil * (0.06 + 1.1 * rim * rim + (3.6 * uLevel * mrGain + 1.2 * band(0.5 + 0.5 * e.x)) * rim) + (uKind[4] * 0.7 + 0.2) * uHits * mrBell((length(n + vec3(0.2, -0.4, 0.8)) - 2.0 * (1.0 - uHits)) / 0.25) + room * (0.05 + 0.35 * fr) + 0.025 * mrRoom(flip, 0.0, 0.1);
+}
 vec3 mrBall(vec3 ro, vec3 rd, float t) {
   vec3 q = ro + rd * t, n = normalize(q - mrC);
   vec3 d = refract(rd, n, 1.0 / 1.5);
@@ -201,7 +262,17 @@ vec3 mrBall(vec3 ro, vec3 rd, float t) {
   vec3 out1 = refract(d, -x, 1.5);
   float fr = 0.04 + 0.96 * pow(1.0 - sat(-dot(rd, n)), 5.0);
   vec3 c = col + thr * exp(-vec3(0.06, 0.025, 0.04) * L) * mrOut(x + mrC, out1);
+  if (uOwn[7] < 0.0) c *= mix(vec3(1.0), exp(-(1.05 - uKind[1]) * (0.35 + 0.9 * L)) * 1.5, -uOwn[7]);
   for (int i = 0; i < 5; i++) mrBubble(e, d, vec4(mrRoll(MR_AIR[i].xyz), MR_AIR[i].w), i == 0 ? uHits : 0.0, c);
+  if (uOwn[6] > 0.0) {
+    float loud; vec3 st = mrStone(mrF * e, loud);
+    float sun = sat(dot(n, MR_L) * 0.8 + 0.2);
+    st *= mrSun * 2.1 * sun * sun + mrSky * (0.28 + 0.3 * n.y) + 0.25 * loud * loud + 0.3 * mrAlb * sat(-n.y);
+    float g = length(n - normalize(vec3(-0.3, 0.8, -0.5)));
+    st += (uKind[4] * 0.6 + 0.3) * mrGain * (uHits * mrBell((g - 1.7 * (1.0 - uHits)) / 0.2) + uCue * 0.4 * mrBell((g - 2.0 * (1.0 - uCue)) / 0.4));
+    c = mix(c, st, uOwn[6]); fr *= 1.0 - 0.5 * uOwn[6];
+  }
+  if (uOwn[6] < 0.0) c = mix(c, mrHollow(mrOut(q, rd), mrF * e, n, rd, fr), -uOwn[6]);
   return mix(c, mrRoom(reflect(rd, n), 0.5 * uDrone - 0.2, mix(0.045, 0.008, uTone)), fr);
 }
 float mrIn;  // how far inside a squashed ball's outline the ray that met it went
@@ -245,17 +316,24 @@ vec3 mrSkirt(float th, float tau, float w) {
 vec3 mrCushion(vec3 q, vec3 d) {
   vec3 u = q / MR_K, n = normalize(u / MR_K);
   float tau = atan(length(u.xz), u.y), th = atan(u.x, u.z + 1e-5) + mrTurn;
-  const float H = 0.27;
+  float H = 0.27, rows = 5.5;
+  if (uOwn[4] != 0.0) { rows = floor(5.0 * exp2(uOwn[4]) + 0.5) + 0.5; H = 1.485 / rows; }
+  if (uOwn[5] < 0.0) {
+    float st = smoothstep(1.55, 1.1, tau), g = st * (noise(u * 4.0 + 3.0) - 0.5), g2 = st * (noise(u * 3.4 + 40.0) - 0.5);
+    tau = max(tau - uOwn[5] * 0.34 * g * smoothstep(0.0, 0.3, tau), 0.0); th -= uOwn[5] * 0.9 * g2;
+  }
   float j = floor(tau / H + 0.5);
   float gather = sat(0.5 - 0.55 * dot(u, MR_L));
   float face = abs(dot(n, d));
-  if (j > 5.5) return mrSkirt(th, tau, mrPx / (0.2 + face)) * (0.4 + 0.9 * gather * gather) * (1.0 - smoothstep(1.6, 2.6, tau));
+  if (j > rows) return mrSkirt(th, tau, mrPx / (0.2 + face)) * (0.4 + 0.9 * gather * gather) * (1.0 - smoothstep(1.6, 2.6, tau));
   int k = 4 - max(int(j) - 1, 0);
+  if (uOwn[4] != 0.0) k = 4 - int(clamp((j - 1.0) * 5.5 / rows, 0.0, 4.0));
   float N = max(6.0 * j, 1.0), a = th / TAU * N + 0.5 * mod(j, 2.0), id = floor(mod(floor(a) + 0.5, N)), odd = mod(id, 2.0);
   vec2 v = j < 0.5 ? u.xz / (0.5 * H) : vec2((fract(a) - 0.5) * 2.0 * min(1.0, sin(tau) * TAU / (N * H) * 1.12), (tau / H - j) * 2.0);
   float z = hash21(vec2(id, j + 3.0));
   vec2 v0 = v;
   v += 0.14 * (vec2(z, fract(z * 13.7)) - 0.5);
+  if (uOwn[5] > 0.0) { v *= 1.0 + 1.5 * uOwn[5]; v0 *= 1.0 + 1.5 * uOwn[5]; }
   v = rot(z * 6.0) * v * (0.93 + 0.1 * fract(z * 7.3));
   float w = 2.0 * mrPx / (MR_K.x * H) / (0.25 + face) + 0.02, m = mrAmt[k];
   vec3 c = mrCane(v, k, odd, 0.35 + 0.65 * m, w) * (0.86 + 0.28 * fract(z * 5.1));
@@ -263,7 +341,7 @@ vec3 mrCushion(vec3 q, vec3 d) {
   c *= 1.0 + 0.22 * clamp(tip, -1.0, 1.0);
   c = mix(c, vec3(0.035, 0.05, 0.1), smoothstep(0.92, 1.05, r) * 0.9) * (1.0 - 0.3 * smoothstep(0.6, 1.0, r));
   float at = fract(th / TAU + 0.5);
-  vec4 pm = piece(vec2(at, (5.5 - j) / 5.5)) * smoothstep(0.0, 0.06, min(at, 1.0 - at));
+  vec4 pm = piece(vec2(at, (rows - j) / rows)) * smoothstep(0.0, 0.06, min(at, 1.0 - at));
   c = mix(c, c * (0.35 + 1.2 * pm.rgb / max(pm.a, 0.05)), 0.4 * sat(pm.a * mrGain));
   float glow = pm.a * 0.3 + mrBell((tau - 2.6 * uLoop + 0.5) / 0.2) * 0.5 * m
     + (k == 4 ? uHits : 0.0) + uKeys * pow(0.5 + 0.499 * sin(id * 2.4 + j * 1.7 + uTime * 0.6), 8.0) * 0.7;
@@ -293,8 +371,46 @@ vec3 mrDome(vec3 ro, vec3 rd, float t) {
     d = reflect(d, -nx); o = x; thr *= vec3(0.86, 0.92, 0.92);
   }
   for (int i = 0; i < 5; i++) mrBubble(e, d0, vec4(MR_AIR[i].x * 0.7, 0.36, MR_AIR[i].z * 0.5 + 0.2, MR_AIR[i].w * 0.8), i == 0 ? uHits : 0.0, c);
+  if (uOwn[7] < 0.0) c *= mix(vec3(1.0), exp(-(1.05 - uKind[1]) * (0.8 + 1.3 * mrIn)) * 1.6, -uOwn[7]);
+  if (uOwn[6] > 0.0) {
+    vec3 sk = mrCushion(e / MR_E * MR_K, rd) * (mrSun * 1.5 * sat(dot(n, MR_L) * 0.8 + 0.25) + mrSky * (0.35 + 0.3 * n.y));
+    float g = length(e - vec3(-0.3, 0.6, -0.4));
+    sk += (uKind[4] * 0.6 + 0.2) * mrGain * uHits * mrBell((g - 1.4 * (1.0 - uHits)) / 0.2);
+    c = mix(c, sk * 1.2, uOwn[6]); fr *= 1.0 - 0.75 * uOwn[6];
+  }
+  if (uOwn[6] < 0.0) {
+    vec3 hol = mrHollow(mrOut(e + mrC, rd), e, n, rd, fr);
+    c = mix(c, hol, -uOwn[6]);
+  }
   c *= 1.0 - 0.5 * (1.0 - smoothstep(0.0, 0.35, -dot(rd, n)));
   return mix(c, mrRoom(reflect(rd, n), 0.5 * uDrone - 0.2, mix(0.045, 0.008, uTone)), fr);
+}
+// Whichever stands nearest along a ray, and how far it covers what is behind.
+vec4 mrThings(vec3 ro, vec3 rd) {
+  float best = 1e3, miss = 2.0, r = 1.0; int at = -1;
+  vec3 C0 = vec3(0.0, mrB ? 0.3 : 1.0, 0.0), from = ro - mrC + C0, was = mrC;
+  for (int i = -1; i < 7; i++) {
+    float z = 1.0; vec3 o = from;
+    if (i >= 0) { if (uOwn[0] == 0.0) break; vec4 b = mrSet[i]; z = b.z; o = (ro - vec3(b.x, 0.0, b.y)) / z; }
+    if (z < 0.03) continue;
+    vec3 m = o - C0, d = rd;
+    if (mrB) { m /= MR_E; d = rd / MR_E; }
+    float dd = dot(d, d), bb = -dot(m, d) / dd, g = length(m + d * bb);
+    if (bb < 0.0 || g > 1.0 + 2.0 * mrPx / z) continue;
+    float t = (bb - sqrt(max(1.0 - g * g, 0.0) / dd)) * z;
+    if (mrB && ro.y + rd.y * t < -mrPx) continue;
+    if (t < best) { best = t; miss = g; at = i; r = z; }
+  }
+  if (best > 900.0) return vec4(0.0);
+  float px = mrPx, turn = mrTurn;
+  vec3 o = at < 0 ? ro : (ro - vec3(mrSet[max(at, 0)].xy, 0.0).xzy) / r;
+  if (at >= 0) { mrC = C0; mrPx /= r; mrTurn += mrSet[at].w; mrLow = 1.0; }
+  float cov = mrIs(0.8, (miss - 1.0) / mrPx);
+  if (mrB) cov *= smoothstep(-mrPx, mrPx, o.y + rd.y * best / r);
+  if (mrB) mrEgg(o - mrC, rd, MR_E);
+  vec3 c = mrB ? mrDome(o, rd, best / r) : mrBall(o, rd, best / r);
+  mrC = was; mrPx = px; mrTurn = turn; mrLow = 0.0;
+  return vec4(c, cov);
 }
 vec3 render(vec2 p) {
   mrB = uVar > 0.5;
@@ -305,8 +421,26 @@ vec3 render(vec2 p) {
     mrAmt[k] = sat(amt[k] * (0.6 + 0.8 * uEnergy));
     vec3 c = uKind[k]; float hi = max(max(c.r, c.g), max(c.b, 0.05)), lo = min(min(c.r, c.g), c.b);
     mrCol[k] = sat((c - 0.66 * lo) / (hi - 0.66 * lo + 0.02));
+    if (uOwn[7] > 0.0) mrCol[k] = mix(mrCol[k], uKind[k], uOwn[7]);
+  }
+  MR_L = normalize(vec3(0.70, 0.585, 0.40));
+  mrAlb = vec3(0.95, 0.955, 0.96); mrSun = vec3(0.74, 0.69, 0.61); mrSky = vec3(0.66, 0.72, 0.80); mrLow = 0.0;
+  if (uOwn[7] > 0.0) mrAlb = mix(mrAlb, uKind[0], uOwn[7]);
+  if (uOwn[2] > 0.0) mrAlb = mix(mrAlb, vec3(0.005, 0.005, 0.007), uOwn[2]);
+  if (uOwn[2] < 0.0) mrAlb = mix(mrAlb, uKind[0], -uOwn[2]);
+  if (uOwn[3] > 0.0) { MR_L = normalize(mix(MR_L, vec3(0.80, 0.30, 0.46), uOwn[3])); mrSun = mix(mrSun, vec3(1.0, 0.6, 0.3), uOwn[3]); mrSky = mix(mrSky, vec3(0.38, 0.36, 0.46), uOwn[3]); }
+  if (uOwn[3] < 0.0) { MR_L = normalize(mix(MR_L, vec3(0.3, 0.9, 0.25), -uOwn[3])); mrSun = mix(mrSun, vec3(0.2, 0.25, 0.33), -uOwn[3]); mrSky = mix(mrSky, vec3(0.06, 0.085, 0.15), -uOwn[3]); }
+  if (uOwn[0] != 0.0) for (int i = 0; i < 7; i++) {
+    float n = float(i), in1 = smoothstep(0.1 * n, 0.1 * n + 0.35, abs(uOwn[0]));
+    vec4 b = n < 1.0 ? vec4(-2.1, 0.7, 0.55, 1.1) : n < 2.0 ? vec4(1.55, 1.5, 0.62, 2.7) : n < 3.0 ? vec4(-1.35, -1.3, 0.34, 4.0) : n < 4.0 ? vec4(-0.75, 2.9, 0.7, 5.2) : n < 5.0 ? vec4(1.25, -0.95, 0.3, 0.4) : n < 6.0 ? vec4(-3.0, 2.6, 0.45, 3.3) : vec4(-2.6, -0.7, 0.22, 2.0);
+    if (uOwn[0] < 0.0) { float k = n < 5.0 ? n + 1.0 : 4.0 - n; b = vec4(vec2(-1.66, 1.2) * k, 1.0, n * 1.9); }
+    if (mrB && uOwn[0] < 0.0) b.xy = vec2(-1.85, 1.0) * (n < 5.0 ? n + 1.0 : 4.0 - n);
+    if (mrB && uOwn[0] > 0.0) b.xy *= 1.12;
+    mrSet[i] = vec4(b.xy, max(b.z * in1, 0.01), b.w);
   }
   float E = mrB ? 0.66 : 0.42;
+  if (uOwn[1] > 0.0) E = mix(E, mrB ? 0.2 : 0.1, uOwn[1]);
+  if (uOwn[1] < 0.0) E = mix(E, 1.45, -uOwn[1]);
   p = (p - (mrB ? vec2(0.2 * sat((asp - 0.5) / 1.28), -0.07) : vec2(0.19 * min(1.0, asp / 1.78), 0.06))) / zoom;
   vec3 F = vec3(0.0, -sin(E), cos(E)), U = vec3(0.0, cos(E), sin(E));
   float fl = mrB ? 0.24 : 0.41, D = 8.0;
@@ -316,12 +450,25 @@ vec3 render(vec2 p) {
   vec3 A = mrRoll(normalize(vec3(0.5, 0.74, -0.46))), X = normalize(cross(A, vec3(0.0, 0.0, 1.0)));
   mrF = transpose(mat3(X, cross(A, X), A));
   mrTw = 2.5 + 0.25 * sin(uTime * 0.04);
+  if (uOwn[4] != 0.0) mrTw += uOwn[4] * (uOwn[4] > 0.0 ? 5.0 : 2.5);
   mrTurn = mod(uTravel * 0.06 + uTime * 0.012, TAU);
   if (mrB) mrTurn = mod(uTravel * 0.03, TAU) + 0.3 * c4;
   vec3 ro = vec3(0.0, mrC.y, 0.0) - F * D, rd = normalize(F + (vec3(p.x, 0.0, 0.0) + U * p.y) * fl);
   vec3 c = vec3(0.0);
   float miss, cov;
-  if (mrB) {
+  if (uOwn[0] != 0.0 || uOwn[2] > 0.0) {
+    vec4 th = mrThings(ro, rd);
+    if (th.a < 1.0) {
+      c = mrTable(ro, rd);
+      if (uOwn[2] > 0.0 && rd.y < -0.01) {
+        vec3 q = ro - rd * (ro.y / rd.y), up = rd * vec3(1.0, -1.0, 1.0);
+        float fr = uOwn[2] * (mrB ? 0.55 : 1.0) * (0.07 + 0.6 * pow(1.0 - sat(-rd.y), 4.0));
+        vec4 m = mrThings(q, up);
+        c += fr * mix(mrRoom(up, 0.3, 0.06) * 0.35, m.rgb, m.a);
+      }
+    }
+    c = mix(c, th.rgb, th.a);
+  } else if (mrB) {
     vec3 o = (ro - mrC) / MR_E, d = normalize(rd / MR_E);
     miss = length(o - d * dot(o, d)); cov = mrIs(0.8, (miss - 1.0) / mrPx);
     float t = mrEgg(ro - mrC, rd, MR_E).x;
@@ -336,6 +483,7 @@ vec3 render(vec2 p) {
     if (cov < 1.0) c = mrTable(ro, rd);
     if (cov > 0.0) c = mix(c, mrBall(ro, rd, -b - sqrt(max(1.0 - miss * miss, 0.0))), cov);
   }
+  if (uOwn[3] < 0.0) c *= mix(vec3(1.0), vec3(0.62, 0.7, 0.85), -uOwn[3]);
   c = 1.0 - exp(-1.55 * max(c, 0.0));
   return pow(c, vec3(0.4545));
 }
