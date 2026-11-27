@@ -1,0 +1,430 @@
+{
+  "id": "slow-accord",
+  "name": "Slow Accord",
+  "category": "instrument",
+  "description": "Struck or swelling metal whose overtones lean, slide and settle one after another, until the strange bell has become the chord you hold.",
+  "class": "SlowAccord",
+  "header": "slow_accord.h",
+  "sources": [],
+  "vector": true,
+  "meters": [
+    {
+      "key": "agreed",
+      "name": "Agreed",
+      "display": true
+    },
+    {
+      "key": "away",
+      "name": "Away",
+      "unit": "ct",
+      "display": true
+    },
+    {
+      "key": "moving",
+      "name": "Moving",
+      "display": true
+    },
+    {
+      "key": "level",
+      "name": "Level",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "material",
+      "name": "Material",
+      "choices": ["Bar", "Plate", "Bell", "Stretched", "Squeezed", "Scattered"],
+      "default": 2,
+      "description": "The metal a key starts as, with its own clashing overtones, ring and knock. Heard from the next key."
+    },
+    {
+      "key": "overtones",
+      "name": "Overtones",
+      "min": 3,
+      "max": 19,
+      "default": 9,
+      "step": 1,
+      "description": "How many overtones the metal has over its note. Few are bare and quick to agree, many are a thick cloud. Heard from the next key.",
+      "taper": "log"
+    },
+    {
+      "key": "bend",
+      "name": "Bend",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How far each overtone travels from where the metal put it to its goal. At nothing the metal stays as it was struck, half way it half agrees."
+    },
+    {
+      "key": "goal",
+      "name": "Goal",
+      "choices": ["Chord", "Own series", "Octaves", "Bass series"],
+      "default": 0,
+      "description": "Where overtones go to agree. The tones of the held chord, the key's own overtones, its octaves, or the overtones of a tone under the lowest key."
+    },
+    {
+      "key": "travel",
+      "name": "Travel",
+      "min": 0.05,
+      "max": 20,
+      "default": 0.3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long one overtone takes to reach its goal. Three at most are on their way at once, whatever is held."
+    },
+    {
+      "key": "order",
+      "name": "Order",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Which overtones go first. Low ones at one end, high ones at the other, and in no order in the middle."
+    },
+    {
+      "key": "manner",
+      "name": "Manner",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "How an overtone travels and then rests. Left it sinks and rises like breath, in the middle it slides and is still, right it hops in strokes and goes on being struck."
+    },
+    {
+      "key": "swing",
+      "name": "Swing",
+      "min": 0,
+      "max": 1,
+      "default": 0.1,
+      "description": "How far an overtone swings past its goal and back before it settles, and how much what has settled goes on swinging, slowly, a pendulum for each key."
+    },
+    {
+      "key": "forward",
+      "name": "Forward",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How far an overtone comes forward out of the cloud while it travels, and how far the cloud steps back behind it."
+    },
+    {
+      "key": "again",
+      "name": "Again",
+      "min": -1,
+      "max": 1,
+      "default": 0.2,
+      "description": "How many overtones leave again after a rest. Left they go back to the metal and come again, right they wander on to other tones, in the middle all stay."
+    },
+    {
+      "key": "rest",
+      "name": "Rest",
+      "min": 0.25,
+      "max": 10,
+      "default": 0.8,
+      "taper": "log",
+      "unit": "s",
+      "description": "The pause before the next overtone leaves again. Short keeps the cloud always on the move, long sends one now and then. Where Again is in the middle nothing leaves."
+    },
+    {
+      "key": "glow",
+      "name": "Glow",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "How strongly arrived overtones sound on while a key is held. At nothing all of it dies away as struck metal does, at full it is sung and hardly struck."
+    },
+    {
+      "key": "glint",
+      "name": "Glint",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "A small bright chime above each overtone as it arrives. The more there is, the longer it rings."
+    },
+    {
+      "key": "leftover",
+      "name": "Leftover",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "What is left of the disagreement. With none arrived overtones stand still. The more there is, the faster they beat and the more they keep the colour of the metal."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.003,
+      "max": 6,
+      "default": 0.01,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a key takes to come up. Short is a hard bright mallet, longer a soft one, and long swells like a bowed or sung tone."
+    },
+    {
+      "key": "ring",
+      "name": "Ring",
+      "min": 0.7,
+      "max": 60,
+      "default": 6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the metal rings by itself. Overtones that have not arrived fade by this, the high ones soonest."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.25,
+      "max": 20,
+      "default": 3.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a key takes to fade once it is let go."
+    },
+    {
+      "key": "touch",
+      "name": "Touch",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "How hard the metal is struck. Soft wakes the low overtones, hard wakes them all with a knock. Playing harder does the same."
+    },
+    {
+      "key": "tilt",
+      "name": "Tilt",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Tips the balance between low and high overtones, from dark and round to bright and thin."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": 0,
+      "max": 1,
+      "default": 0.08,
+      "description": "Turns each tone into breath at the same pitch. A little roughens what is moving, all of it leaves a tuned wind."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "Places the overtones across the stereo field and lets their slow beats move between the sides."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
+  ],
+  "presets": {
+    "Bell into chord": {},
+    "Bell becomes organ": {
+      "goal": 1,
+      "overtones": 10,
+      "travel": 0.8,
+      "glow": 0.8,
+      "attack": 0.006,
+      "release": 1.5,
+      "leftover": 0.05,
+      "forward": 0.4,
+      "ring": 8,
+      "spread": 0.5,
+      "order": 0,
+      "again": 0
+    },
+    "Scattered dawn": {
+      "material": 5,
+      "overtones": 12,
+      "order": 0.9,
+      "travel": 1.2,
+      "attack": 1.6,
+      "glow": 0.75,
+      "release": 7,
+      "glint": 0.45,
+      "forward": 0.6,
+      "spread": 0.9,
+      "volume": -1
+    },
+    "Half bent keys": {
+      "material": 0,
+      "bend": 0.5,
+      "overtones": 5,
+      "glow": 0.12,
+      "ring": 4,
+      "travel": 0.3,
+      "touch": 0.6,
+      "release": 1.0,
+      "air": 0,
+      "glint": 0,
+      "volume": -5.5,
+      "again": 0
+    },
+    "Squeezed bass": {
+      "material": 4,
+      "goal": 3,
+      "overtones": 4,
+      "attack": 0.012,
+      "ring": 3,
+      "glow": 0.55,
+      "touch": 0.6,
+      "tilt": -0.3,
+      "release": 0.5,
+      "spread": 0.15,
+      "glint": 0,
+      "travel": 0.25,
+      "volume": -11.5
+    },
+    "Never resting pad": {
+      "again": 1,
+      "rest": 0.7,
+      "travel": 0.9,
+      "attack": 1.1,
+      "glow": 0.85,
+      "manner": -0.35,
+      "release": 6,
+      "overtones": 9,
+      "glint": 0.1,
+      "spread": 0.8
+    },
+    "Stepped glass": {
+      "material": 3,
+      "manner": 1,
+      "travel": 0.9,
+      "glint": 0.7,
+      "touch": 0.45,
+      "goal": 2,
+      "release": 4,
+      "overtones": 7,
+      "forward": 0.7,
+      "ring": 3,
+      "again": 0
+    },
+    "Halo of the bass": {
+      "material": 1,
+      "goal": 3,
+      "overtones": 12,
+      "attack": 0.7,
+      "glow": 0.75,
+      "order": 0.7,
+      "air": 0.25,
+      "release": 8,
+      "ring": 14,
+      "spread": 0.9,
+      "touch": 0.5,
+      "volume": -9.5
+    },
+    "Quick pluck": {
+      "travel": 0.06,
+      "glow": 0,
+      "ring": 2.2,
+      "overtones": 6,
+      "touch": 0.65,
+      "release": 0.7,
+      "attack": 0.003,
+      "glint": 0.5,
+      "air": 0,
+      "again": 0
+    },
+    "Swinging choir": {
+      "material": 0,
+      "swing": 0.95,
+      "attack": 0.45,
+      "goal": 1,
+      "air": 0.4,
+      "forward": 0.75,
+      "overtones": 9,
+      "travel": 0.7,
+      "glow": 0.75,
+      "release": 2.5,
+      "tilt": 0.15
+    },
+    "Raw metal drone": {
+      "material": 1,
+      "bend": 0,
+      "attack": 3,
+      "ring": 60,
+      "glow": 0.9,
+      "leftover": 0.6,
+      "release": 9,
+      "touch": 0.2,
+      "overtones": 14,
+      "tilt": -0.45,
+      "air": 0.15,
+      "again": 0
+    },
+    "In and out of metal": {
+      "manner": -1,
+      "again": -0.9,
+      "goal": 2,
+      "attack": 0.9,
+      "travel": 1.5,
+      "rest": 0.5,
+      "glow": 0.8,
+      "release": 5,
+      "forward": 0.8,
+      "overtones": 6
+    },
+    "Tuned wind": {
+      "material": 5,
+      "air": 1,
+      "attack": 1.4,
+      "overtones": 10,
+      "glow": 0.8,
+      "release": 4,
+      "tilt": -0.5,
+      "glint": 0,
+      "travel": 0.6,
+      "volume": -4.5
+    },
+    "Cooling plate": {
+      "material": 1,
+      "touch": 0.8,
+      "ring": 22,
+      "travel": 2.6,
+      "order": 1,
+      "glow": 0.45,
+      "release": 6,
+      "overtones": 16,
+      "leftover": 0.5,
+      "attack": 0.004,
+      "volume": -4.5,
+      "again": 0
+    },
+    "Ticking tones": {
+      "material": 0,
+      "manner": 1,
+      "attack": 0.003,
+      "again": 0.9,
+      "rest": 0.25,
+      "travel": 0.25,
+      "glow": 0.5,
+      "overtones": 7,
+      "touch": 0.3,
+      "release": 1.2,
+      "spread": 0.7,
+      "glint": 0.1,
+      "tilt": -0.2
+    },
+    "Dark bars": {
+      "material": 0,
+      "tilt": -0.8,
+      "overtones": 3,
+      "glow": 0.8,
+      "attack": 0.06,
+      "goal": 3,
+      "release": 3,
+      "leftover": 0.35,
+      "swing": 0.4,
+      "touch": 0.2,
+      "volume": -12.5,
+      "again": 0
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Up to twenty partials a key start at the ratios of a metal body and are moved, three at a time over all keys, to tones that agree with the held chord. Ratios of the bar and the bell are the textbook ones rounded; levels, ring times and travel laws are voiced by measurement."
+  }
+}

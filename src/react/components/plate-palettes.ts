@@ -194,6 +194,10 @@ export const PLATE_PALETTES = {
   'wheel-and-dog': { plate: '#8b1200', ink: '#fff1e2', accent: '#ffc861' },
   'silent-keys': { plate: '#7e6c9c', ink: '#0c0718', accent: '#fff3c4' },
   'buzzing-bridge': { plate: '#caa088', ink: '#260d04', accent: '#10309a' },
+  'chord-clock': { plate: '#fa7c52', ink: '#1a0506', accent: '#1428b8' },
+  'setting-glass': { plate: '#a0fabe', ink: '#0c1f16', accent: '#cf3600' },
+  'slow-accord': { plate: '#faca4c', ink: '#1d1606', accent: '#8a2f14' },
+  'wire-lantern': { plate: '#faa0e2', ink: '#2a0523', accent: '#0a35d0' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

@@ -89,6 +89,10 @@ import { HAND_HORN_FACES } from './hand-horn'
 import { WHEEL_AND_DOG_FACES } from './wheel-and-dog'
 import { SILENT_KEYS_FACES } from './silent-keys'
 import { BUZZING_BRIDGE_FACES } from './buzzing-bridge'
+import { CHORD_CLOCK_FACES } from './chord-clock'
+import { SETTING_GLASS_FACES } from './setting-glass'
+import { SLOW_ACCORD_FACES } from './slow-accord'
+import { WIRE_LANTERN_FACES } from './wire-lantern'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -179,4 +183,8 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...WHEEL_AND_DOG_FACES,
   ...SILENT_KEYS_FACES,
   ...BUZZING_BRIDGE_FACES,
+  ...CHORD_CLOCK_FACES,
+  ...SETTING_GLASS_FACES,
+  ...SLOW_ACCORD_FACES,
+  ...WIRE_LANTERN_FACES,
 }

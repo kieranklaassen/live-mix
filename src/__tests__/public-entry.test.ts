@@ -506,6 +506,7 @@ const dspSymbols = [
   // The packs: listed with the bank, their presets fetched apart from it
   'FACTORY_PACKS',
   'FACTORY_PACK_SIZE',
+  'FACTORY_SET_SIZE',
   'FACTORY_SOUND_PACK_SIZE',
   'FACTORY_CHAIN_PACK_SIZE',
   'factoryPack',

@@ -74,6 +74,10 @@ import { WHEEL_AND_DOG_PRESETS } from './wheel-and-dog'
 import { WIND_HARP_PRESETS } from './wind-harp'
 import { ZITHER_PRESETS } from './zither'
 import { ZONE_SAMPLER_PRESETS } from './zone-sampler'
+import { CHORD_CLOCK_PRESETS } from './chord-clock'
+import { SETTING_GLASS_PRESETS } from './setting-glass'
+import { SLOW_ACCORD_PRESETS } from './slow-accord'
+import { WIRE_LANTERN_PRESETS } from './wire-lantern'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -148,4 +152,8 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...TWO_ROADS_PRESETS,
   ...TIERCE_BELLS_PRESETS,
   ...WHEEL_AND_DOG_PRESETS,
+  ...CHORD_CLOCK_PRESETS,
+  ...SETTING_GLASS_PRESETS,
+  ...SLOW_ACCORD_PRESETS,
+  ...WIRE_LANTERN_PRESETS,
 ]

@@ -1962,6 +1962,10 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
     // The whole name leaves the longer presets' names no room at the foot.
     name: 'Bridge',
   },
+  'chord-clock': { ...PLATE_PALETTES['chord-clock'], finish: 'grain', cap: 'pointer' },
+  'setting-glass': { ...PLATE_PALETTES['setting-glass'], finish: 'gloss', cap: 'dot' },
+  'slow-accord': { ...PLATE_PALETTES['slow-accord'], finish: 'hammered', cap: 'dot' },
+  'wire-lantern': { ...PLATE_PALETTES['wire-lantern'], finish: 'linen', cap: 'dot' },
 }
 
 /**

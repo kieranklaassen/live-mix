@@ -26,6 +26,7 @@ import { CANON_DESCRIPTOR, CANON_DEVICE } from './canon.gen'
 import { CASCADE_DESCRIPTOR, CASCADE_DEVICE } from './cascade.gen'
 import { CHAMBER_STRINGS_DESCRIPTOR, CHAMBER_STRINGS_DEVICE } from './chamber-strings.gen'
 import { CHOIR_DESCRIPTOR, CHOIR_DEVICE } from './choir.gen'
+import { CHORD_CLOCK_DESCRIPTOR, CHORD_CLOCK_DEVICE } from './chord-clock.gen'
 import { CHORD_HARP_DESCRIPTOR, CHORD_HARP_DEVICE } from './chord-harp.gen'
 import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
 import { CLARINET_DESCRIPTOR, CLARINET_DEVICE } from './clarinet.gen'
@@ -109,6 +110,7 @@ import { SAMPLER_DESCRIPTOR, SAMPLER_DEVICE } from './sampler.gen'
 import { SATURATOR_DESCRIPTOR, SATURATOR_DEVICE } from './saturator.gen'
 import { SCALE_FILTER_DESCRIPTOR, SCALE_FILTER_DEVICE } from './scale-filter.gen'
 import { SEASONS_DESCRIPTOR, SEASONS_DEVICE } from './seasons.gen'
+import { SETTING_GLASS_DESCRIPTOR, SETTING_GLASS_DEVICE } from './setting-glass.gen'
 import { SHAPED_REVERB_DESCRIPTOR, SHAPED_REVERB_DEVICE } from './shaped-reverb.gen'
 import { SHIMMER_DESCRIPTOR, SHIMMER_DEVICE } from './shimmer.gen'
 import { SHORTWAVE_DESCRIPTOR, SHORTWAVE_DEVICE } from './shortwave.gen'
@@ -117,6 +119,7 @@ import { SILENT_KEYS_DESCRIPTOR, SILENT_KEYS_DEVICE } from './silent-keys.gen'
 import { SINE_SHADOW_DESCRIPTOR, SINE_SHADOW_DEVICE } from './sine-shadow.gen'
 import { SIZE_DESCRIPTOR, SIZE_DEVICE } from './size.gen'
 import { SKIPPING_STONE_DESCRIPTOR, SKIPPING_STONE_DEVICE } from './skipping-stone.gen'
+import { SLOW_ACCORD_DESCRIPTOR, SLOW_ACCORD_DEVICE } from './slow-accord.gen'
 import { SPECTRAL_BLUR_DESCRIPTOR, SPECTRAL_BLUR_DEVICE } from './spectral-blur.gen'
 import { SPIRAL_DESCRIPTOR, SPIRAL_DEVICE } from './spiral.gen'
 import { SPREAD_DESCRIPTOR, SPREAD_DEVICE } from './spread.gen'
@@ -156,6 +159,7 @@ import { WEST_COAST_DESCRIPTOR, WEST_COAST_DEVICE } from './west-coast.gen'
 import { WHEEL_AND_DOG_DESCRIPTOR, WHEEL_AND_DOG_DEVICE } from './wheel-and-dog.gen'
 import { WIND_HARP_DESCRIPTOR, WIND_HARP_DEVICE } from './wind-harp.gen'
 import { WINDING_DOWN_DESCRIPTOR, WINDING_DOWN_DEVICE } from './winding-down.gen'
+import { WIRE_LANTERN_DESCRIPTOR, WIRE_LANTERN_DEVICE } from './wire-lantern.gen'
 import { ZITHER_DESCRIPTOR, ZITHER_DEVICE } from './zither.gen'
 import { ZONE_SAMPLER_DESCRIPTOR, ZONE_SAMPLER_DEVICE } from './zone-sampler.gen'
 
@@ -183,6 +187,7 @@ export * from './canon.gen'
 export * from './cascade.gen'
 export * from './chamber-strings.gen'
 export * from './choir.gen'
+export * from './chord-clock.gen'
 export * from './chord-harp.gen'
 export * from './chorus.gen'
 export * from './clarinet.gen'
@@ -266,6 +271,7 @@ export * from './sampler.gen'
 export * from './saturator.gen'
 export * from './scale-filter.gen'
 export * from './seasons.gen'
+export * from './setting-glass.gen'
 export * from './shaped-reverb.gen'
 export * from './shimmer.gen'
 export * from './shortwave.gen'
@@ -274,6 +280,7 @@ export * from './silent-keys.gen'
 export * from './sine-shadow.gen'
 export * from './size.gen'
 export * from './skipping-stone.gen'
+export * from './slow-accord.gen'
 export * from './spectral-blur.gen'
 export * from './spiral.gen'
 export * from './spread.gen'
@@ -313,6 +320,7 @@ export * from './west-coast.gen'
 export * from './wheel-and-dog.gen'
 export * from './wind-harp.gen'
 export * from './winding-down.gen'
+export * from './wire-lantern.gen'
 export * from './zither.gen'
 export * from './zone-sampler.gen'
 
@@ -342,6 +350,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   CASCADE_DESCRIPTOR,
   CHAMBER_STRINGS_DESCRIPTOR,
   CHOIR_DESCRIPTOR,
+  CHORD_CLOCK_DESCRIPTOR,
   CHORD_HARP_DESCRIPTOR,
   CHORUS_DESCRIPTOR,
   CLARINET_DESCRIPTOR,
@@ -425,6 +434,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SATURATOR_DESCRIPTOR,
   SCALE_FILTER_DESCRIPTOR,
   SEASONS_DESCRIPTOR,
+  SETTING_GLASS_DESCRIPTOR,
   SHAPED_REVERB_DESCRIPTOR,
   SHIMMER_DESCRIPTOR,
   SHORTWAVE_DESCRIPTOR,
@@ -433,6 +443,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SINE_SHADOW_DESCRIPTOR,
   SIZE_DESCRIPTOR,
   SKIPPING_STONE_DESCRIPTOR,
+  SLOW_ACCORD_DESCRIPTOR,
   SPECTRAL_BLUR_DESCRIPTOR,
   SPIRAL_DESCRIPTOR,
   SPREAD_DESCRIPTOR,
@@ -472,6 +483,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   WHEEL_AND_DOG_DESCRIPTOR,
   WIND_HARP_DESCRIPTOR,
   WINDING_DOWN_DESCRIPTOR,
+  WIRE_LANTERN_DESCRIPTOR,
   ZITHER_DESCRIPTOR,
   ZONE_SAMPLER_DESCRIPTOR,
 ]
@@ -502,6 +514,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   CASCADE_DEVICE,
   CHAMBER_STRINGS_DEVICE,
   CHOIR_DEVICE,
+  CHORD_CLOCK_DEVICE,
   CHORD_HARP_DEVICE,
   CHORUS_DEVICE,
   CLARINET_DEVICE,
@@ -585,6 +598,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SATURATOR_DEVICE,
   SCALE_FILTER_DEVICE,
   SEASONS_DEVICE,
+  SETTING_GLASS_DEVICE,
   SHAPED_REVERB_DEVICE,
   SHIMMER_DEVICE,
   SHORTWAVE_DEVICE,
@@ -593,6 +607,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SINE_SHADOW_DEVICE,
   SIZE_DEVICE,
   SKIPPING_STONE_DEVICE,
+  SLOW_ACCORD_DEVICE,
   SPECTRAL_BLUR_DEVICE,
   SPIRAL_DEVICE,
   SPREAD_DEVICE,
@@ -632,6 +647,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   WHEEL_AND_DOG_DEVICE,
   WIND_HARP_DEVICE,
   WINDING_DOWN_DEVICE,
+  WIRE_LANTERN_DEVICE,
   ZITHER_DEVICE,
   ZONE_SAMPLER_DEVICE,
 ]
@@ -669,6 +685,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'cascade', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 16 },
   { id: 'chamber-strings', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'choir', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'chord-clock', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'chord-harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'chorus', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'clarinet', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
@@ -759,6 +776,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'saturator', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'scale-filter', instrument: false, samples: false, zones: false, meters: 12, memoryMb: 4 },
   { id: 'seasons', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
+  { id: 'setting-glass', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'shaped-reverb', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 6 },
   { id: 'shimmer', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'shortwave', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
@@ -774,6 +792,7 @@ export const GENERATED_WASM_DEVICES = [
     meters: 2,
     memoryMb: 12,
   },
+  { id: 'slow-accord', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'spectral-blur', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'spiral', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'spread', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
@@ -820,6 +839,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'wheel-and-dog', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'wind-harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'winding-down', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
+  { id: 'wire-lantern', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'zither', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'zone-sampler', instrument: true, samples: true, zones: true, meters: 0, memoryMb: 64 },
 ] as const

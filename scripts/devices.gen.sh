@@ -54,6 +54,8 @@ build_generated_devices() {
     cpp/devices/chamber-strings/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device choir \
     cpp/devices/choir/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device chord-clock \
+    cpp/devices/chord-clock/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device chord-harp \
     cpp/devices/chord-harp/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device chorus \
@@ -220,6 +222,8 @@ build_generated_devices() {
     cpp/devices/scale-filter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device seasons \
     cpp/devices/seasons/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device setting-glass \
+    cpp/devices/setting-glass/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device shaped-reverb \
     cpp/devices/shaped-reverb/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device shimmer \
@@ -236,6 +240,8 @@ build_generated_devices() {
     cpp/devices/size/device_api.gen.cpp
   MEMORY_BYTES=12582912 EXTRA_EXPORTS=",_device_meter" build_device skipping-stone \
     cpp/devices/skipping-stone/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device slow-accord \
+    cpp/devices/slow-accord/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device spectral-blur \
     cpp/devices/spectral-blur/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device spiral \
@@ -316,6 +322,8 @@ build_generated_devices() {
     cpp/devices/wind-harp/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device winding-down \
     cpp/devices/winding-down/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wire-lantern \
+    cpp/devices/wire-lantern/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device zither \
     cpp/devices/zither/device_api.gen.cpp
   MEMORY_BYTES=67108864 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit,_device_zone_capacity,_device_zone_pool_capacity,_device_zones_begin,_device_zone_sample,_device_zone_sample_buffer,_device_zone_fields,_device_zone_add" build_device zone-sampler \
@@ -373,6 +381,8 @@ test_generated_devices() {
     cpp/test/chamber_strings_test.cpp
   native_test choir_test \
     cpp/test/choir_test.cpp
+  native_test chord_clock_test \
+    cpp/test/chord_clock_test.cpp
   native_test chord_harp_test \
     cpp/test/chord_harp_test.cpp
   native_test chorus_test \
@@ -539,6 +549,8 @@ test_generated_devices() {
     cpp/test/scale_filter_test.cpp
   native_test seasons_test \
     cpp/test/seasons_test.cpp
+  native_test setting_glass_test \
+    cpp/test/setting_glass_test.cpp
   native_test shaped_reverb_test \
     cpp/test/shaped_reverb_test.cpp
   native_test shimmer_test \
@@ -555,6 +567,8 @@ test_generated_devices() {
     cpp/test/size_test.cpp
   native_test skipping_stone_test \
     cpp/test/skipping_stone_test.cpp
+  native_test slow_accord_test \
+    cpp/test/slow_accord_test.cpp
   native_test spectral_blur_test \
     cpp/test/spectral_blur_test.cpp
   native_test spiral_test \
@@ -635,6 +649,8 @@ test_generated_devices() {
     cpp/test/wind_harp_test.cpp
   native_test winding_down_test \
     cpp/test/winding_down_test.cpp
+  native_test wire_lantern_test \
+    cpp/test/wire_lantern_test.cpp
   native_test zither_test \
     cpp/test/zither_test.cpp
   native_test zone_sampler_test \

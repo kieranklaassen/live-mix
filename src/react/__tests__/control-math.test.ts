@@ -359,6 +359,7 @@ describe('the stock devices', () => {
       'canon.followers',
       'cascade.repeats',
       'chamber-strings.players',
+      'chord-clock.ratios',
       'constellation.shuffle',
       'constellation.stars',
       'currents.bands',
@@ -382,9 +383,11 @@ describe('the stock devices', () => {
       'silent-keys.partials',
       'sine-shadow.partials',
       'skipping-stone.skips',
+      'slow-accord.overtones',
       'spiral.voices',
       'wind-harp.strings',
       'winding-down.layers',
+      'wire-lantern.edge',
     ])
   })
 

@@ -1,4 +1,5 @@
-// The packs: a hundred presets each that share one idea of sound. What is here
+// The packs: a hundred presets each that share one idea of sound, and the sets,
+// five hundred on one instrument each (./sets). What is here
 // is only their names, so a host can list them with the rest of the bank; the
 // presets themselves are modules of their own (./shelves), fetched the first
 // time someone asks for them. A pack's sounds to paint with and its effect
@@ -6,8 +7,11 @@
 
 import { type FactoryPack, type FactoryPreset } from '../types'
 import { FOCUSED_PACKS } from './focused'
+import { SET_PACKS } from './sets'
 
-/** How many presets a pack holds. */
+export { FACTORY_SET_SIZE } from './sets'
+
+/** How many presets a pack holds; a set holds `FACTORY_SET_SIZE`. */
 export const FACTORY_PACK_SIZE = 100
 
 /** How many sounds a pack holds, once they are written. */
@@ -244,6 +248,7 @@ export const FACTORY_PACKS: readonly FactoryPack[] = [
     sounds: 0,
     chains: 0,
   })),
+  ...SET_PACKS,
 ]
 
 export function factoryPack(id: string): FactoryPack | undefined {
@@ -276,6 +281,7 @@ async function fetched(): Promise<readonly FactoryPreset[]> {
     import('./shelves/melody').then((module) => module.MELODY),
     import('./shelves/time').then((module) => module.TIME),
     import('./shelves/hands').then((module) => module.HANDS),
+    import('./shelves/instruments').then((module) => module.INSTRUMENTS),
   ])
   return shelves.flat()
 }

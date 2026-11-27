@@ -91,6 +91,10 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'tierce-bells',
   'hand-horn',
   'wheel-and-dog',
+  'chord-clock',
+  'setting-glass',
+  'slow-accord',
+  'wire-lantern',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(

@@ -45,6 +45,7 @@ export {
   FACTORY_CHAIN_PACK_SIZE,
   FACTORY_PACKS,
   FACTORY_PACK_SIZE,
+  FACTORY_SET_SIZE,
   FACTORY_SOUND_PACK_SIZE,
   factoryPack,
   loadFactoryPacks,
