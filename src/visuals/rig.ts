@@ -295,7 +295,7 @@ function buildRig(): VisualRig | false {
         kinds = worldColours
         if (at.uMap) {
           worldsMap ??= texture()
-          worldMap(heard.map, heard.kindColours, worldColours, worldCells)
+          worldMap(heard.map, heard.kindColours, worldColours, worldCells, heard.mapKinds)
           context.activeTexture(context.TEXTURE0)
           context.bindTexture(context.TEXTURE_2D, worldsMap)
           context.texSubImage2D(

@@ -287,9 +287,13 @@ export class VisualFollower {
   private paintMap(strokes: readonly FollowedStroke[], pieceSec: number): void {
     const map = this.signals.map
     const light = this.light
+    const whose = this.whose
+    const kindCount = KIND_SLOTS.length
     light.fill(0)
+    whose.fill(0)
     if (pieceSec > 0) {
       for (const stroke of strokes) {
+        const kind = KIND_SLOTS.indexOf(stroke.slot)
         const strength = 0.22 * stroke.gain + 1.1 * (this.levels.get(stroke.id) ?? 0)
         if (strength < 0.004) continue
         const reach = Math.max(0.05, stroke.thickness * 0.6 + 0.04)
@@ -308,6 +312,7 @@ export class VisualFollower {
             const value = strength * along * Math.exp(-off * off)
             if (value < 0.004) continue
             const cell = (y * MAP_W + x) * 4
+            whose[(y * MAP_W + x) * kindCount + kind] += value
             light[cell] += value * stroke.colour[0]
             light[cell + 1] += value * stroke.colour[1]
             light[cell + 2] += value * stroke.colour[2]
@@ -317,7 +322,8 @@ export class VisualFollower {
       }
     }
     // A cue's flare stays where it fell, spreads and fades.
-    const hit = KIND_SLOTS.indexOf('hits') * 3
+    const hits = KIND_SLOTS.indexOf('hits')
+    const hit = hits * 3
     const colours = this.signals.kindColours
     for (const flare of this.flares) {
       const age = Math.exp(-(this.signals.time - flare.at) / 1.0)
@@ -330,6 +336,7 @@ export class VisualFollower {
           const value = age * Math.exp(-far * far) * 0.9
           if (value < 0.004) continue
           const cell = (y * MAP_W + x) * 4
+          whose[(y * MAP_W + x) * kindCount + hits] += value
           light[cell] += value * colours[hit]
           light[cell + 1] += value * colours[hit + 1]
           light[cell + 2] += value * colours[hit + 2]
@@ -346,7 +353,16 @@ export class VisualFollower {
       map[cell + 2] = light[cell + 2] * scale
       map[cell + 3] = lit * 255
     }
+    const mapKinds = this.signals.mapKinds
+    if (!mapKinds) return
+    for (let cell = 0; cell < MAP_W * MAP_H; cell++) {
+      const sum = light[cell * 4 + 3]
+      const scale = sum > 1e-4 ? 255 / sum : 0
+      for (let kind = cell * kindCount; kind < (cell + 1) * kindCount; kind++)
+        mapKinds[kind] = whose[kind] * scale
+    }
   }
 
   private readonly light = new Float32Array(MAP_W * MAP_H * 4)
+  private readonly whose = new Float32Array(MAP_W * MAP_H * KIND_SLOTS.length)
 }
