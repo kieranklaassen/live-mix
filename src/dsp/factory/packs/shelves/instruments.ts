@@ -15,6 +15,7 @@ import { SET as CLOSED_EYES } from '../../sets/closed-eyes'
 import { SET as COMMON_AIR } from '../../sets/common-air'
 import { SET as SLOW_ACCORD } from '../../sets/slow-accord'
 import { SET as DEEP_ROOTS } from '../../sets/deep-roots'
+import { SET as ROSE_WINDOW } from '../../sets/rose-window'
 import { SET as CLOCK_ROOM } from '../../sets/clock-room'
 import { SET as BENT_BLADE } from '../../sets/bent-blade'
 import { SET as RIDGE_LINES } from '../../sets/ridge-lines'
@@ -42,6 +43,7 @@ export const SETS: readonly InstrumentSet[] = [
   COMMON_AIR,
   SLOW_ACCORD,
   DEEP_ROOTS,
+  ROSE_WINDOW,
   CLOCK_ROOM,
   BENT_BLADE,
   RIDGE_LINES,

@@ -252,6 +252,24 @@ const SETS: readonly Set_[] = [
     ],
   },
   {
+    device: 'rose-window',
+    name: 'Rose Window',
+    description:
+      'Turning roses of harmonics: slow cathedrals, hollow reeds, chime wheels, opening keys, still drones and lace of dust.',
+    directions: [
+      'Cathedral pads',
+      'Hollow reeds',
+      'Petal flutes',
+      'Glass plucks',
+      'Chime wheels',
+      'Petal basses',
+      'Opening keys',
+      'Still drones',
+      'Whirling choirs',
+      'Dust and lace',
+    ],
+  },
+  {
     device: 'clock-room',
     name: 'Clock Room',
     description:

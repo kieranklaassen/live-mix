@@ -238,6 +238,8 @@ build_generated_devices() {
     cpp/devices/ring/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ringing-order \
     cpp/devices/ringing-order/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device rose-window \
+    cpp/devices/rose-window/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device rotary \
     cpp/devices/rotary/device_api.gen.cpp
   MEMORY_BYTES=25165824 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit" build_device sampler \
@@ -605,6 +607,8 @@ test_generated_devices() {
     cpp/test/ring_test.cpp
   native_test ringing_order_test \
     cpp/test/ringing_order_test.cpp
+  native_test rose_window_test \
+    cpp/test/rose_window_test.cpp
   native_test rotary_test \
     cpp/test/rotary_test.cpp
   native_test sampler_test \

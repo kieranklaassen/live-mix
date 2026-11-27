@@ -115,6 +115,7 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'night-drum',
   'returning-wave',
   'climbing-gong',
+  'rose-window',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(

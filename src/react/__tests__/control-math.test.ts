@@ -380,6 +380,7 @@ describe('the stock devices', () => {
       'ridge-lines.repeats',
       'ring.octave',
       'ringing-order.ringers',
+      'rose-window.petals',
       'silent-keys.chord',
       'silent-keys.count',
       'silent-keys.partials',

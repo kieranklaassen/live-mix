@@ -118,6 +118,7 @@ import { REWIND_DESCRIPTOR, REWIND_DEVICE } from './rewind.gen'
 import { RIDGE_LINES_DESCRIPTOR, RIDGE_LINES_DEVICE } from './ridge-lines.gen'
 import { RING_DESCRIPTOR, RING_DEVICE } from './ring.gen'
 import { RINGING_ORDER_DESCRIPTOR, RINGING_ORDER_DEVICE } from './ringing-order.gen'
+import { ROSE_WINDOW_DESCRIPTOR, ROSE_WINDOW_DEVICE } from './rose-window.gen'
 import { ROTARY_DESCRIPTOR, ROTARY_DEVICE } from './rotary.gen'
 import { SAMPLER_DESCRIPTOR, SAMPLER_DEVICE } from './sampler.gen'
 import { SATURATOR_DESCRIPTOR, SATURATOR_DEVICE } from './saturator.gen'
@@ -299,6 +300,7 @@ export * from './rewind.gen'
 export * from './ridge-lines.gen'
 export * from './ring.gen'
 export * from './ringing-order.gen'
+export * from './rose-window.gen'
 export * from './rotary.gen'
 export * from './sampler.gen'
 export * from './saturator.gen'
@@ -482,6 +484,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   RIDGE_LINES_DESCRIPTOR,
   RING_DESCRIPTOR,
   RINGING_ORDER_DESCRIPTOR,
+  ROSE_WINDOW_DESCRIPTOR,
   ROTARY_DESCRIPTOR,
   SAMPLER_DESCRIPTOR,
   SATURATOR_DESCRIPTOR,
@@ -666,6 +669,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   RIDGE_LINES_DEVICE,
   RING_DEVICE,
   RINGING_ORDER_DEVICE,
+  ROSE_WINDOW_DEVICE,
   ROTARY_DEVICE,
   SAMPLER_DEVICE,
   SATURATOR_DEVICE,
@@ -864,6 +868,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'ridge-lines', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'ring', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'ringing-order', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'rose-window', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'rotary', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'sampler', instrument: true, samples: true, zones: false, meters: 0, memoryMb: 24 },
   { id: 'saturator', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },

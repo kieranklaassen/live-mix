@@ -98,6 +98,7 @@ import { RIDGE_LINES_PRESETS } from './ridge-lines'
 import { NIGHT_DRUM_PRESETS } from './night-drum'
 import { RETURNING_WAVE_PRESETS } from './returning-wave'
 import { CLIMBING_GONG_PRESETS } from './climbing-gong'
+import { ROSE_WINDOW_PRESETS } from './rose-window'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -196,4 +197,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...NIGHT_DRUM_PRESETS,
   ...RETURNING_WAVE_PRESETS,
   ...CLIMBING_GONG_PRESETS,
+  ...ROSE_WINDOW_PRESETS,
 ]

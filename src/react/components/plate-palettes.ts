@@ -218,6 +218,7 @@ export const PLATE_PALETTES = {
   'night-drum': { plate: '#280a64', ink: '#f4efff', accent: '#ffb347' },
   'returning-wave': { plate: '#64bed6', ink: '#0c1a20', accent: '#8c0f32' },
   'climbing-gong': { plate: '#be820a', ink: '#020100', accent: '#fff8dc' },
+  'rose-window': { plate: '#dc4658', ink: '#080203', accent: '#ffe08a' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
