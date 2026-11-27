@@ -185,7 +185,7 @@ vec3 spStuff(vec3 was, vec3 light, vec3 g, float deep, float depth, vec3 s, vec3
     c = mix(c, t, -uOwn[4]);
   }
   if (uOwn[7] > 0.0) {
-    float on = smoothstep(0.012, -0.004, s.z - spWear) * smoothstep(-0.17, -0.1, spWear) * smoothstep(0.0, 0.25, uOwn[7]);
+    float on = (1.0 - smoothstep(-0.004, 0.012, s.z - spWear)) * smoothstep(-0.17, -0.1, spWear) * smoothstep(0.0, 0.25, uOwn[7]);
     vec3 dn = normalize(vec3(-spDune * 0.7 + 0.22 * spFine * (vec2(noise(s.xy * 41.0), noise(s.xy * 41.0 + 17.0)) - 0.5), 1.0));
     float face = sat(dot(dn, l)) / max(l.z, 0.2);
     vec3 heap = uKind[2] * (0.35 + 0.65 * uKind[2]) * (0.88 + 0.24 * noise(s.xy * 60.0) * spFine + 0.12 * noise(s.xy * 13.0));
@@ -210,7 +210,7 @@ vec3 spStuff(vec3 was, vec3 light, vec3 g, float deep, float depth, vec3 s, vec3
   if (uOwn[4] > 0.0) {
     float through = smoothstep(0.8, 0.96, depth) * uOwn[4];
     c *= 1.0 - 0.55 * uOwn[4];
-    c += uOwn[4] * behind * 0.3 * sat(depth) * (1.0 - through) * smoothstep(0.35, 0.0, n.z + 0.25);
+    c += uOwn[4] * behind * 0.3 * sat(depth) * (1.0 - through) * (1.0 - smoothstep(0.0, 0.35, n.z + 0.25));
     vec3 hue = g * g / max(m, 0.001);
     c = mix(c, behind * (0.62 + 0.4 * spRing) + hue * (0.1 + 0.5 * m) / (1.0 + m) + uKind[4] * spRing * 0.3, through);
   }
@@ -309,7 +309,7 @@ vec3 render(vec2 p) {
     if (uOwn[4] > 0.0) behind = spSky(mix(0.35 + 0.8 * p.y, v.z + 0.3, floorly), mix(1.0 - 1.1 * length(p - vec2(0.25, 0.05)), toSun, floorly));
     if (other) { vec3 r = reflect(v, vec3(0, 0, 1)); sun = spSky(mix(r.y * 0.6 + 0.3, r.z, floorly), dot(r, normalize(vec3(0.72, 0.68, 0.2)))); }
     if (floorly > 0.0) {
-      sky = smoothstep(0.09, 0.0, -v.z) * floorly;
+      sky = (1.0 - smoothstep(0.0, 0.09, -v.z)) * floorly;
       behind = mix(behind, spSky(v.z * 1.6, toSun), sky);
     }
   } else {

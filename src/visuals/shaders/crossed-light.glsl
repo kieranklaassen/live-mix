@@ -157,7 +157,7 @@ vec3 clFilm(vec2 p, float P) {
     float step_ = 0.024 + 0.02 * h, t = q6.x - 0.577 * q6.y, b = abs(fract(t / step_ + h) - 0.5) * step_;
     float side = max(b - 0.0045 * (0.6 + noise(v * 40.0)), q6.y - (0.03 + 0.45 * t * 0.8) * left * (0.5 + 0.9 * noise(vec2(floor(t / step_ + h) * 1.7, floor(mod(aa, TAU) / a6) + h * 30.0))));
     float dm = min(spine, side);
-    fern = smoothstep(clPx, -clPx * 1.5, dm) * step(q6.x, far);
+    fern = (1.0 - smoothstep(-clPx * 1.5, clPx, dm)) * step(q6.x, far);
     there = mix(there, fern + 0.10 * exp(-max(dm, 0.0) * 60.0) * left * step(q6.x, far), -uOwn[1]);
   }
   float open = f.x;
@@ -303,11 +303,11 @@ vec3 render(vec2 p) {
   if (uOwn[4] > 0.0) {                  // laid back: the near edge at our feet
     float y = 0.24 - p.y, z = 1.0 / max(y, 0.03);
     vec2 w = vec2(p.x * z * 0.6, 0.55 * z - 0.95);
-    p = mix(p, w, uOwn[4] * uOwn[4]); far = uOwn[4] * smoothstep(0.2, 0.0, y); clPx *= mix(1.0, z * 0.9, uOwn[4]);
+    p = mix(p, w, uOwn[4] * uOwn[4]); far = uOwn[4] * (1.0 - smoothstep(0.0, 0.2, y)); clPx *= mix(1.0, z * 0.9, uOwn[4]);
   }
   if (uOwn[4] < 0.0) {
     float r = length(p) / 0.45;
-    eye = mix(1.0, smoothstep(1.0, 0.985, r), -uOwn[4]);
+    eye = mix(1.0, (1.0 - smoothstep(0.985, 1.0, r)), -uOwn[4]);
     p *= mix(1.0, 0.8 + 0.35 * r * r, -uOwn[4]);
   }
   if (uVar < 0.5) c = clFilm(p, P);

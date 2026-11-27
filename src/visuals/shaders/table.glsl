@@ -79,7 +79,7 @@ float tbCoins(vec2 p) {
       vec2 v = (g - c) * vec2(1.0, 1.25);
       if (dot(v, v) > (r + 0.12) * (r + 0.12)) continue;
       float open = 0.5 + 0.5 * sin(uTime * 0.21 + h.y * 50.0);
-      s += (0.4 + 0.6 * open) * (0.5 + 0.5 * h.x) * smoothstep(r + 0.12, r - 0.12, length(v));
+      s += (0.4 + 0.6 * open) * (0.5 + 0.5 * h.x) * (1.0 - smoothstep(r - 0.12, r + 0.12, length(v)));
     }
   }
   return s * open_;
@@ -87,7 +87,7 @@ float tbCoins(vec2 p) {
 // The floor the round table stands on, and the cloth that hangs over its edge. `r` is from the table's middle.
 vec3 tbStone(vec2 p, float id, float dark) {
   float cloud = fbm(p * 2.3 + id * 40.0), vein = fbm(rot(0.6) * p * vec2(1.6, 3.4) + cloud * 1.6 + id * 17.0 + 9.0);
-  float v = smoothstep(0.035, 0.0, abs(vein - 0.5)) * smoothstep(0.3, 0.6, cloud), grit = noise(p * 120.0);
+  float v = (1.0 - smoothstep(0.0, 0.035, abs(vein - 0.5))) * smoothstep(0.3, 0.6, cloud), grit = noise(p * 120.0);
   vec3 c = mix(vec3(0.2), tbDye(uKind[0]), 0.72) * (0.34 + 0.8 * cloud + 0.5 * (id - 0.5)) * (0.82 + 0.36 * grit);
   c += v * (0.22 * tbDye(uKind[3]) + 0.1);
   return c * (1.0 - 0.4 * dark * smoothstep(0.7, 0.75, noise(p * 60.0 + 3.0)));
@@ -154,7 +154,7 @@ vec3 tbWood(vec2 p, out float fine) {
     if (old > 0.0) {
       float split = abs(noise(vec2(along * 1.3 + id * 9.0, p.y * 34.0 + id * 5.0)) - 0.5);
       float run = smoothstep(0.52, 0.66, noise(vec2(along * 1.1 + id * 21.0, row * 3.0 + v * 1.3)));
-      col *= 1.0 - 0.8 * old * smoothstep(0.055, 0.0, split) * run;
+      col *= 1.0 - 0.8 * old * (1.0 - smoothstep(0.0, 0.055, split)) * run;
       col *= 1.0 - 0.6 * knot;
       col *= 1.0 - 0.35 * old * smoothstep(0.45, 0.75, fbm(whole * 2.2 + 40.0));
     }
@@ -204,7 +204,7 @@ vec3 tbCloth(vec2 p, out float fine) {
     if (coarse > 0.0) {                                    // thick yarn: fibres run along it, and it is dark in the holes
       float fibre = noise(mix(vec2(t.x * 9.0 + f.y * 6.0, t.y * 2.2), vec2(t.x * 2.2, t.y * 9.0 + f.x * 6.0), over));
       tone += coarse * show * (0.28 * (fibre - 0.5) + 0.5 * (thread - 0.75));
-      light -= coarse * show * 0.75 * smoothstep(0.45, 0.1, thread);
+      light -= coarse * show * 0.75 * (1.0 - smoothstep(0.1, 0.45, thread));
     }
     if (many > 0.0) {                                      // narrow stripes, no two of one width
       float s = q.x * 26.0, w = floor(s), e = fract(s) - 0.15 - 0.7 * hash11(w + 3.0);
@@ -234,14 +234,14 @@ vec3 tbCloth(vec2 p, out float fine) {
       tbSlope += sewn * 0.5 * d * smoothstep(0.1, 0.5, max(abs(d.x), abs(d.y)));
       light += sewn * 0.75 * (fract(h * 5.3 + half_ * 0.37) - 0.5);
       float run = (cf.x < 0.5 ? cf.x : cf.y), dash = step(0.35, fract((abs(d.x) > abs(d.y) ? cf.y : cf.x) * w * 70.0));
-      mark += sewn * 0.5 * dash * smoothstep(0.0016, 0.0006, abs(e - 0.016)) * smoothstep(0.006, 0.002, tbPx);
+      mark += sewn * 0.5 * dash * (1.0 - smoothstep(0.0006, 0.0016, abs(e - 0.016))) * (1.0 - smoothstep(0.002, 0.006, tbPx));
     }
     tone += light;
     col = mix(vec3(0.035, 0.07, 0.068), vec3(0.15, 0.24, 0.215), sat(tone)) * (1.0 + 0.6 * min(light, 0.0) + 0.9 * max(light, 0.0));
     if (pale > 0.0) col = mix(col, mix(vec3(0.34, 0.31, 0.27), vec3(0.84, 0.81, 0.76), sat(0.35 + tone * 0.85)), pale);
     if (felt > 0.0) {
       float mat_ = 0.3 * noise(p * 46.0 + 3.0 * noise(p * 17.0)) + 0.3 * noise(p * 150.0) + 0.2 * noise(p * 11.0) + 0.1;
-      float hair = smoothstep(0.06, 0.0, abs(noise(rot(1.1) * p * vec2(24.0, 70.0) + 4.0 * noise(p * 9.0)) - 0.5));
+      float hair = (1.0 - smoothstep(0.0, 0.06, abs(noise(rot(1.1) * p * vec2(24.0, 70.0) + 4.0 * noise(p * 9.0)) - 0.5)));
       vec3 wool = (tbDye(uKind[0]) * 0.8 + 0.02) * (0.45 + 0.9 * mat_ + 0.22 * hair) * (1.0 + 1.1 * light) * (0.6 + 0.8 * lie);
       col = mix(col, wool, felt); fine = mix(fine, mat_ + 0.2, felt);
     }
@@ -266,7 +266,7 @@ vec3 render(vec2 p) {
   tbPx = 1.0 / (uRes.y * (0.5 + uSize)); tbSlope = vec2(0.0);
   if (uOwn[5] < 0.0) {                                     // along the table, which goes away from us
     float w = 1.0 + 1.5 * uOwn[5] * (p.y + 0.1);
-    away = smoothstep(0.62, 0.16, w) * -uOwn[5];
+    away = (1.0 - smoothstep(0.16, 0.62, w)) * -uOwn[5];
     w = max(w, 0.1);
     p = vec2(p.x, p.y + 0.1) / w - vec2(0.0, 0.1);
     tbPx /= w * w;
@@ -306,7 +306,7 @@ vec3 render(vec2 p) {
       vec2 s = vec2(p.x + 0.52 * p.y, p.y - 0.12 * p.x) + 0.012 * vec2(sin(uTime * 0.05), cos(uTime * 0.04)) - vec2(0.03, 0.02);
       vec2 c = s / vec2(0.36, 0.43) + vec2(1.5, 1.0), in_ = fract(c), n = floor(c);
       float soft = 0.05 + 0.1 * sat(0.5 - p.y);
-      vec2 b = smoothstep(0.02, 0.02 + soft, in_) * smoothstep(0.98, 0.98 - soft, in_);
+      vec2 b = smoothstep(0.02, 0.02 + soft, in_) * (1.0 - smoothstep(0.98 - soft, 0.98, in_));
       float pane = b.x * b.y * step(0.0, n.x) * step(n.x, 2.0) * step(0.0, n.y) * step(n.y, 1.0);
       vec3 day = vec3(1.0, 0.93, 0.8) * (0.42 + 0.35 * uEnergy + 0.4 * uLevel) * pane * (0.8 + 0.35 * noise(s * 2.0 + uTime * 0.03));
       day *= mix(vec3(1.0), sound, 0.3 * sat(uLevel * 1.5));
@@ -342,7 +342,7 @@ vec3 render(vec2 p) {
     vec2 on = vec2(seen.x / 1.78 + 0.5, 0.5 - seen.y) + 0.07 * (vec2(fbm(seen * 4.0 + 1.0), fbm(seen * 4.0 + 21.0)) - 0.5);
     vec4 s = piece(sat(on));
     vec4 sw = 0.5 * s + 0.125 * (piece(sat(on + vec2(0.02, 0.0))) + piece(sat(on - vec2(0.02, 0.0))) + piece(sat(on + vec2(0.0, 0.03))) + piece(sat(on - vec2(0.0, 0.03))));
-    float a = smoothstep(0.02, 0.3, sw.a), rimmed = smoothstep(0.02, 0.1, sw.a) * smoothstep(0.24, 0.1, sw.a);
+    float a = smoothstep(0.02, 0.3, sw.a), rimmed = smoothstep(0.02, 0.1, sw.a) * (1.0 - smoothstep(0.1, 0.24, sw.a));
     vec3 hue = sw.rgb / max(sw.a, 0.02);
     ground = mix(ground, tbDye(hue) * (0.12 + 1.7 * dot(ground, vec3(0.34))), -uOwn[3] * a * 0.9);
     ground *= 1.0 + uOwn[3] * 0.4 * rimmed;
@@ -356,9 +356,9 @@ vec3 render(vec2 p) {
     if (uOwn[5] < 0.0) { float w = 1.0 / max(1.0 - 1.5 * uOwn[5] * (c.y + 0.1), 0.05); cs = (c + vec2(0.0, 0.1)) * w - vec2(0.0, 0.1); }
     vec4 m1 = piece(sat(vec2(cs.x / 1.78 + 0.5, 0.5 - cs.y)));
     float a = sat(m1.a * 1.2), r = uOwn[7] * (0.2 + 0.2 * a), l = length(v), px = tbPx / cell;
-    float sh = smoothstep(r * 1.9, r * 0.6, length(v - vec2(0.09, -0.12)));
+    float sh = (1.0 - smoothstep(r * 0.6, r * 1.9, length(v - vec2(0.09, -0.12))));
     light *= 1.0 - 0.65 * sh * smoothstep(0.0, 0.3, uOwn[7]);
-    float in_ = smoothstep(r + px, r - px, l);
+    float in_ = (1.0 - smoothstep(r - px, r + px, l));
     vec3 n = vec3(v / max(r, 0.01), sqrt(max(1.0 - l * l / max(r * r, 1e-4), 0.0)));
     vec3 to = normalize(vec3(mix(lamp - seen, vec2(-0.5, 0.5), 0.5), 0.45));
     float lit = sat(dot(n, to)), spec = pow(sat(2.0 * lit * n.z - to.z), 24.0);
@@ -380,18 +380,18 @@ vec3 render(vec2 p) {
       if (l > 2.2) continue;
       vec2 from = normalize(mix(lamp - c, vec2(-0.6, 0.55), max(0.35, abs(uOwn[4]))) + vec2(1e-4, 0.0));
       float lean = dot(dir, from);
-      light *= 1.0 - 0.7 * smoothstep(1.5, 0.75, length(v + from * r * 0.28) / max(r, 1e-3)) * smoothstep(0.0, 0.3, -uOwn[7]);
-      float in_ = smoothstep(1.0 + px, 1.0 - px, l), pot = smoothstep(0.84 - px, 0.84 + px, l), wet = smoothstep(0.72 + px, 0.72 - px, l);
+      light *= 1.0 - 0.7 * (1.0 - smoothstep(0.75, 1.5, length(v + from * r * 0.28) / max(r, 1e-3))) * smoothstep(0.0, 0.3, -uOwn[7]);
+      float in_ = (1.0 - smoothstep(1.0 - px, 1.0 + px, l)), pot = smoothstep(0.84 - px, 0.84 + px, l), wet = (1.0 - smoothstep(0.72 - px, 0.72 + px, l));
       vec3 hue = tbDye(uKind[i]);
       float base = 0.25 + 0.45 * max(light.r, max(light.g, light.b)) + 0.12 * up * pool;
       float speck = step(0.8, noise(v * 160.0 + f * 9.0)) * 0.35;
       vec3 glaze = mix(vec3(0.5, 0.47, 0.42), hue, 0.3) * (1.0 - speck);
-      float lip = 0.6 + 0.5 * lean * smoothstep(0.82, 1.0, l) - 0.55 * lean * smoothstep(0.95, 0.75, l) * (1.0 - wet);
+      float lip = 0.6 + 0.5 * lean * smoothstep(0.82, 1.0, l) - 0.55 * lean * (1.0 - smoothstep(0.75, 0.95, l)) * (1.0 - wet);
       vec3 bowl = glaze * lip * base;
-      float inner = smoothstep(0.86, 0.3, length(v / max(r, 1e-3) + from * 0.2));
+      float inner = (1.0 - smoothstep(0.3, 0.86, length(v / max(r, 1e-3) + from * 0.2)));
       float ring = sin(l * 26.0 - uTime * 1.1 + f) * exp(-l * 2.0) * (0.04 + 0.12 * loud);
       vec3 tea = hue * (0.2 + 0.5 * inner + ring) * base * 1.1 + hue * (0.1 + 0.9 * loud) * (0.25 + 0.75 * inner) * (0.35 + 0.65 * uEnergy);
-      tea += vec3(1.0, 0.93, 0.82) * smoothstep(0.2, 0.1, length((v / max(r, 1e-3) - from * 0.36) * vec2(1.0, 1.0))) * 0.2 * (0.5 + up * pool);
+      tea += vec3(1.0, 0.93, 0.82) * (1.0 - smoothstep(0.1, 0.2, length((v / max(r, 1e-3) - from * 0.36) * vec2(1.0, 1.0)))) * 0.2 * (0.5 + up * pool);
       bowl = mix(bowl, glaze * 0.28 * base * (1.0 - 0.6 * lean), (1.0 - pot) * 0.6);
       bowl = mix(bowl, tea, wet);
       ground = mix(ground, vec3(0.0), in_);
@@ -407,7 +407,7 @@ vec3 render(vec2 p) {
       float lean = dot(n, from), e = length(n);
       light *= 1.0 + 0.9 * max(-lean, 0.0) * e - 0.6 * max(lean, 0.0) * e - 0.3 * smoothstep(0.75, 1.0, e);
       vec2 s = n - from * 0.5;
-      over += (warm * (0.3 + 0.7 * pool * up) + sound * uLevel * 0.6) * smoothstep(0.05, 0.01, dot(s, s)) * k * 0.7;
+      over += (warm * (0.3 + 0.7 * pool * up) + sound * uLevel * 0.6) * (1.0 - smoothstep(0.01, 0.05, dot(s, s))) * k * 0.7;
       over += sound * 0.1 * max(-lean, 0.0) * e * e * (0.4 + uLevel) * k;
     } else light *= 1.0 - 0.45 * drop.w * k;
   }
@@ -427,7 +427,7 @@ vec3 render(vec2 p) {
       float grain = noise(rot(0.35) * v * vec2(3.0, 40.0)), board = fract((rot(0.35) * v).y * 4.5);
       vec3 under = mix(floor_, mix(vec3(0.3, 0.28, 0.25), tbDye(uKind[0]), 0.4), 0.45 * max(uOwn[2], 0.0)) * (0.7 + 0.5 * grain) * (0.5 + 0.5 * smoothstep(0.0, 0.03, min(board, 1.0 - board)));
       under *= (0.35 + 1.1 * exp(-max(l - R, 0.0) * 2.4)) * (0.5 + 0.9 * up);
-      under *= 1.0 - 0.75 * smoothstep(0.3, 0.0, length(v - vec2(0.05, -0.06)) - R - hang);
+      under *= 1.0 - 0.75 * (1.0 - smoothstep(0.0, 0.3, length(v - vec2(0.05, -0.06)) - R - hang));
       under += tbDye(uKind[0]) * uDrone * 0.04 * exp(-max(l - R, 0.0) * 3.0);
       // the edge of a board is turned and catches the lamp; a cloth goes over it and hangs
       float turn = smoothstep(R - 0.022, R, l);

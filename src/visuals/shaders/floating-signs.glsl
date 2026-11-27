@@ -50,12 +50,12 @@ float fsMark(float d, vec3 pig, float lv) {
     vec2 g = vec2(dFdx(d), dFdy(d));
     float run = length(g) / gPx;
     g /= max(length(g), 1e-5);
-    float to = dot(g, vec2(-0.64, 0.77)) * smoothstep(0.35, 0.75, run) * smoothstep(1.7, 1.35, run);   // no side where two edges meet
-    gC *= 1.0 - uOwn[3] * 0.3 * exp(-max(d, 0.0) * 34.0) * smoothstep(-0.004, 0.0, d) * smoothstep(0.09, 0.03, d);
+    float to = dot(g, vec2(-0.64, 0.77)) * smoothstep(0.35, 0.75, run) * (1.0 - smoothstep(1.35, 1.7, run));   // no side where two edges meet
+    gC *= 1.0 - uOwn[3] * 0.3 * exp(-max(d, 0.0) * 34.0) * smoothstep(-0.004, 0.0, d) * (1.0 - smoothstep(0.03, 0.09, d));
     if (d > 0.01) return 0.0;
     float in_ = sat(-d / 0.03), o = 1.0 - in_, c = fsLay(d, pig, 1.0);
     gC *= 1.0 + c * uOwn[3] * (o * o * to * 0.7 + 0.1);
-    gC += c * uOwn[3] * 0.3 * smoothstep(0.75, 1.0, to) * smoothstep(0.12, 0.35, in_) * smoothstep(0.75, 0.35, in_);
+    gC += c * uOwn[3] * 0.3 * smoothstep(0.75, 1.0, to) * smoothstep(0.12, 0.35, in_) * (1.0 - smoothstep(0.35, 0.75, in_));
     return c;
   }
   return d > 0.01 ? 0.0 : fsLay(d, pig, (gN ? 0.5 : 0.66) + (gN ? 0.5 : 0.34) * lv);

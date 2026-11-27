@@ -73,12 +73,12 @@ float sbOther(vec2 p,vec2 c,vec2 u,float was,float on,float pool,float m,float f
  float wide=exp(-dot(lit,lit)*(2.4-1.2*uSpace)),mw=sat(pm.a)*sbGain,hz=floorY+.15,yH=hz-p.y;
  float lay=mix(step(.0,yH),1.,flatly); // 1 on the ground, 0 on the wall or the sky
  vec2 sh=mix((u-vec2(.5,-.52))/vec2(1.,.16),(u-vec2(.3,-.26))/vec2(.9,.82),flatly);
- float shadow=exp(-dot(sh,sh)*dot(sh,sh))*smoothstep(1.25,.85,max(abs(u.x),abs(u.y))-.6*(1.-flatly));
+ float shadow=exp(-dot(sh,sh)*dot(sh,sh))*(1.0 - smoothstep(.85, 1.25,max(abs(u.x),abs(u.y))-.6*(1.-flatly)));
  float grit=noise(p*vec2(9.,60.)+3.);
  // black: flat, then sand, then water
  float g=mix(was,(wide*(.13+.16*uDrone)*(1.-.8*max(uOwn[1],.0))+(.1+.2*wide)*mw)*(.75+.5*grit)*(1.-.92*shadow),flatly);
  // pale: a sheet, or a shelf against a wall
- float shelf=mix(.84-.1*(1.-wide),mix(.5,.9,on),smoothstep(floorY+.06,floorY+.03,p.y));
+ float shelf=mix(.84-.1*(1.-wide),mix(.5,.9,on),(1.0 - smoothstep(floorY+.03, floorY+.06,p.y)));
  float sheet=mix(shelf-.2*m*on,.9-.1*(1.-wide)-.22*mw*(.6+.4*grit),flatly);
  sheet+=.05*(uDrone-.3)*wide;
  sheet*= 1.-.62*shadow*mix(on,1.,flatly);
@@ -87,9 +87,9 @@ float sbOther(vec2 p,vec2 c,vec2 u,float was,float on,float pool,float m,float f
  if (sbBack>.0) {
   float r=length(p-mix(vec2(c.x-.13,floorY+.17),vec2(.0),flatly)),R=mix(.23,.3,flatly);
   float glow=exp(-max(r-R,.0)*4.2);
-  float sun=smoothstep(R+.012,R-.012,r)*(.62+.14*uLevel+.1*uCue+.12*(noise(p*vec2(3.,9.)+uTravel*.01)-.5))+glow*glow*(.2+.18*uDrone);
-  float floor_=exp(-pow(low.x/.45,2.))*(.16+.25*uDrone+.3*m)*smoothstep(front-.004,front+.004,p.y)*(.6+.5*grit);
-  g=mix(g,mix(sun,floor_*(1.-.8*shadow),mix(smoothstep(floorY+.05,floorY+.044,p.y),.0,flatly)),sbBack*(1.-.45*sbPale));
+  float sun=(1.0 - smoothstep(R-.012, R+.012,r))*(.62+.14*uLevel+.1*uCue+.12*(noise(p*vec2(3.,9.)+uTravel*.01)-.5))+glow*glow*(.2+.18*uDrone);
+  float floor_=exp(-pow(abs(low.x)/.45,2.))*(.16+.25*uDrone+.3*m)*smoothstep(front-.004,front+.004,p.y)*(.6+.5*grit);
+  g=mix(g,mix(sun,floor_*(1.-.8*shadow),mix((1.0 - smoothstep(floorY+.044, floorY+.05,p.y)),.0,flatly)),sbBack*(1.-.45*sbPale));
  }
  if (sand>.0) {
   float z=.2/(max(yH,.0)+.03),far=smoothstep(.0,.1,yH);
@@ -108,7 +108,7 @@ float sbOther(vec2 p,vec2 c,vec2 u,float was,float on,float pool,float m,float f
   float back=mix(mix(.03+.1*uDrone,.8,sbPale),.0,flatly),depth=exp(-max(below,.0)*3.);
   // the sky again, in the water
   float r=length(vec2(p.x+.06*(run-.5),wl+below)-vec2(c.x-.13,floorY+.17));
-  float s=(back+.07*(1.-sbPale))*depth*(.7+.5*run)+sbBack*(smoothstep(.25,.2,r)*.5+.22*exp(-max(r-.2,.0)*5.))*(.6+.6*run)*(1.-.6*sbPale);
+  float s=(back+.07*(1.-sbPale))*depth*(.7+.5*run)+sbBack*((1.0 - smoothstep(.2, .25,r))*.5+.22*exp(-max(r-.2,.0)*5.))*(.6+.6*run)*(1.-.6*sbPale);
   s+=.32*smoothstep(.62,.8,run)*depth*(.25+mw+uHigh*.3)*exp(-pow(low.x/.5,2.))*mix(1.,-.8,sbPale);
   s+=sbBell(below/.002)*.4*exp(-pow(low.x/.3,2.))*(.5+m);
   float up=mix(mix(.03+(.08+.12*uDrone)*exp(-max(-below,.0)*6.)*(.6+.4*wide),.86,sbPale),g,sbBack);
@@ -266,7 +266,7 @@ float sbLone(vec2 p) {
    float thin=h.y<.5?(.16+.7*smoothstep(-.1,.9,-n.z))*(.45+.75*noise(vec2(h.y*9.,atan(h.w,h.z+1e-5)*2.)))*(.45+.55*smoothstep(.0,.45,gap)):h.y<1.5?.95-.45*length(h.zw):.6;
    tone=mix(tone,thin*(.62+.3*uLevel+.25*uDrone)*(.8+.5*exp(.25*min(h.y,.0)))+.4*tone*(1.-sbPale),sbLamp);
   }
-  if (mirror>.0) tone=mix(under,tone*.62+.1*sbPale+.12*sbBack,mirror*smoothstep(.5,.0,(wl-p.y)/size));
+  if (mirror>.0) tone=mix(under,tone*.62+.1*sbPale+.12*sbBack,mirror*(1.0 - smoothstep(.0, .5,(wl-p.y)/size)));
  }
  return tone;
 }
@@ -359,7 +359,7 @@ float sbShade(float kind,float s,float x,float k) {
   }
   if (sbLamp>.0) { // light from under each lip
    float l=(.55+.25*uLevel+.3*smoothstep(up-.2,up+.2,uPhrase))*(.8+.4*chip);
-   tone=mix(tone,kind>2.5?.05+.1*exp(-abs(s+.1)/.1):kind>1.5?tone*.3+l*.85*exp((s-sbTd)/(.3*sbTd)):l*1.25*smoothstep(-.02,-.06,s)*exp((s+.05)/(.45*sbTh)),sbLamp);
+   tone=mix(tone,kind>2.5?.05+.1*exp(-abs(s+.1)/.1):kind>1.5?tone*.3+l*.85*exp((s-sbTd)/(.3*sbTd)):l*1.25*(1.0 - smoothstep(-.06, -.02,s))*exp((s+.05)/(.45*sbTh)),sbLamp);
   }
   if (sbDye>.0) sbHue=mix(sbHue,mix(kindColour(3.*abs(fract(k*.5/n*.34+.1)*2.-1.)),pm.a>.02?pm.rgb/pm.a:uKind[0],sat(pm.a*1.6)*.85),sbDye);
  }
@@ -428,7 +428,7 @@ float sbStair(vec2 p) {
    float dn=dot(rd.xz,fw),t=dot(P.xz-ro.xz,fw)/(abs(dn)<1e-4?1e-4:dn);
    vec3 q=ro+rd*t-P; float qx=dot(q.xz,vec2(fw.y,-fw.x)),w=.42*sbW,hgt=2.3*min(sbTh/.5,1.2);
    float dd=max(abs(qx)-w,q.y<hgt-w?-1.:length(vec2(qx,q.y-hgt+w))-w);
-   float door=smoothstep(.02,-.02,dd)*step(.0,t),halo=exp(-max(dd,.0)*1.6)*step(.0,t);
+   float door=(1.0 - smoothstep(-.02, .02,dd))*step(.0,t),halo=exp(-max(dd,.0)*1.6)*step(.0,t);
    around=mix(around,(.74+.16*uLevel+.1*uCue)*door*(.85+.15*noise(vec2(qx*3.,q.y*4.-uTravel*.05)))+(1.-door)*(halo*halo*(.2+.2*uDrone)+.5*around*sbPale),sbBack);
   }
  }

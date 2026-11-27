@@ -60,7 +60,7 @@ float tiGrain(vec2 p, float turn, float cell) {
 vec2 tiRays(vec2 q) {
   float r = length(q), a = r > 1e-4 ? atan(q.y, q.x) : 0.0, s = sin(a * 11.0 + uTime * 0.05), w = 22.0 * tiPx / (tiBig * max(r, 0.05));
   float fade = tiRamp(sat(1.15 - 0.75 * r), 0.8);
-  return vec2(smoothstep(-w, w, s), smoothstep(w, -w, s)) * fade;
+  return vec2(smoothstep(-w, w, s), (1.0 - smoothstep(-w, w, s))) * fade;
 }
 // two other ways to shade: cut lines, and round dots
 float tiLine(vec2 p, float k) {
@@ -233,9 +233,9 @@ float tiLand(vec2 p, int k, out float d) {
   if (tiForm > 0.0 && k < 4) {
     float a = x * vec4(2.6, 1.1, 0.9, 1.3)[k] + vec4(0.1, 0.68, 1.05, 0.95)[k], b = a * 2.7 + 0.3, f = 2.0 * abs(fract(a) - 0.5), g = 2.0 * abs(fract(b) - 0.5);
     f = 1.0 - f; g = 1.0 - g;
-    float peak = foot - 0.06 + (k == 0 ? 0.3 * f * (0.65 + 0.35 * sin(floor(a) * 2.3 + 1.0)) + 0.05 * g + 0.03 : k == 1 ? (0.42 * f + 0.06 * g) * smoothstep(0.1, 0.75, x) : k == 2 ? (0.55 * f + 0.07 * g) * smoothstep(0.1, -0.5, x) : (0.36 * f + 0.07 * g) + 0.5);
+    float peak = foot - 0.06 + (k == 0 ? 0.3 * f * (0.65 + 0.35 * sin(floor(a) * 2.3 + 1.0)) + 0.05 * g + 0.03 : k == 1 ? (0.42 * f + 0.06 * g) * smoothstep(0.1, 0.75, x) : k == 2 ? (0.55 * f + 0.07 * g) * (1.0 - smoothstep(-0.5, 0.1, x)) : (0.36 * f + 0.07 * g) + 0.5);
     top = mix(top, peak - 0.3 * tiFew, tiForm);
-    tiFace = tiForm * step(0.5, fract(a + 0.1 * g * (0.5 + 4.0 * (top - p.y)))) * smoothstep(0.24, 0.1, top - p.y + 0.08 * g);
+    tiFace = tiForm * step(0.5, fract(a + 0.1 * g * (0.5 + 4.0 * (top - p.y)))) * (1.0 - smoothstep(0.1, 0.24, top - p.y + 0.08 * g));
   }
   if (town > 0.0) {
     float base = k == 3 ? top : k == 0 ? foot + 0.01 : foot + 0.45 * max(top - foot, -0.05), roof = cw * (0.62 - 1.1 * abs(u - 0.5)) * tiWide * 0.75;
@@ -416,7 +416,7 @@ vec3 render(vec2 p) {
     // rain: long thin strokes, ink on the bare sheet and bare on the ink, under a dark lid of cloud
     vec2 q = rot(-0.2) * p * vec2(34.0, 4.0);
     float i = floor(q.x), h = hash11(i + 3.0), y = q.y + h * 17.0 + uTime * (0.3 + 0.25 * h), j = floor(y), hh = hash21(vec2(i, j));
-    float s = -uOwn[7] * step(0.35, hh) * tiIn((abs(q.x - i - 0.5) - 0.085) / 34.0) * smoothstep(0.0, 0.05, y - j) * smoothstep(0.35 + 0.6 * fract(hh * 7.0), 0.3 + 0.6 * fract(hh * 7.0), y - j);
+    float s = -uOwn[7] * step(0.35, hh) * tiIn((abs(q.x - i - 0.5) - 0.085) / 34.0) * smoothstep(0.0, 0.05, y - j) * (1.0 - smoothstep(0.3 + 0.6 * fract(hh * 7.0), 0.35 + 0.6 * fract(hh * 7.0), y - j));
     t.x = max(t.x, -uOwn[7] * tiRamp(sat((p.y - 0.26 + 0.14 * noise(p * vec2(3.0, 5.0) + uTravel * vec2(0.03, 0.0))) * 3.4), 0.8) * (1.0 - 0.6 * max(t.y, t.z)));
     t.x += s * (0.85 - 1.7 * t.x); t.yz *= 1.0 - s;
   }

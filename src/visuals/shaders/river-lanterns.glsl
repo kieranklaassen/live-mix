@@ -37,7 +37,7 @@ vec3 rlPale() { return mix(vec3(1.05),rlLin(uKind[0],1.),.55); }
 // Round pads on the water: how much there, and how light.
 vec2 rlPads(vec2 u,float want,float aa) {
 	vec2 id=floor(u),a=mod(id,289.); float n=hash21(a+77.),h=fract(n*57.3);
-	float here=sst(want+.05,want-.05,.4*n+.6*rlN(id*.21+9.)); if (here<.01) return vec2(.0);
+	float here=(1.0 - sst(want-.05, want+.05,.4*n+.6*rlN(id*.21+9.))); if (here<.01) return vec2(.0);
 	float rad=.22+.2*h; vec2 l=u-id-.5-(vec2(fract(n*91.3),fract(n*13.7))-.5)*(.96-2.*rad);
 	float r=length(l); if (r>rad+aa) return vec2(.0);
 	float an=abs(mod(r>1e-4?atan(l.y,l.x)+n*40.:.0,TAU)-PI);
@@ -54,7 +54,7 @@ vec4 rlAir(vec2 at,float blur) {
 		vec2 id=vec2(col,floor(g.y)),a=vec2(col,mod(id.y,289.)); float n=hash21(a+13.+f*41.);
 		vec2 h=vec2(fract(n*91.7),fract(n*47.1)),l=g-id-.5-(h-.5)*.46,o=at-l*cs;
 		vec4 pc=piece(vec2(o.x/1.78+.5,sat(.9-o.y*1.4)));
-		float show=max(sst(.36,.3,n),.6*sst(.1,.5,pc.a))*sst(.0,.1+.03*f,o.y);
+		float show=max((1.0 - sst(.3, .36,n)),.6*sst(.1,.5,pc.a))*sst(.0,.1+.03*f,o.y);
 		if (show<.01) continue;
 		l=rot(.14*sin(uTime*.4+n*50.))*l;
 		int kd=int(fract(n*313.7)*4.99); vec3 paper=rlPap(kd); float lit=rlB(kd,h.x,pc.a,f*.17)*(1.+.5*uKeys),aa=(1.3/uRes.y+blur*.02)/cs;
@@ -63,7 +63,7 @@ vec4 rlAir(vec2 at,float blur) {
 		float body=rlIn(aa,abs(l.x)-w)*rlIn(aa,abs(l.y)-.175),heart=exp(-dot(l+vec2(.0,.11),l+vec2(.0,.11))*22.);
 		vec3 b=mix(paper*paper*.7,mix(paper,vec3(1.,.6,.25),.5),heart)*lit*(.25+1.5*heart)*(1.-.45*sst(.35,1.,abs(l.x)/max(w,.01)));
 		b+=rlDay*(paper*.3+.1); b*=1.-.5*rlOff(.03,.05+aa*3.,v)*(1.-sat(aa*6.));
-		c+=paper*lit*show*.13*exp(-dot(l,l)*34.)*sst(.5,.3,max(abs(l.x),abs(l.y)))*(1.-.7*rlDay);
+		c+=paper*lit*show*.13*exp(-dot(l,l)*34.)*(1.0 - sst(.3, .5,max(abs(l.x),abs(l.y))))*(1.-.7*rlDay);
 		float over=body*show;
 		c=mix(c,b,over); ease*=1.-over;
 	}
@@ -300,7 +300,7 @@ vec3 rlRiver(vec2 p) {
 		float id=floor(p.x*34.)+float(i),n=hash11(id+300.),x0=(id+.2+.6*fract(n*31.))/34.,side=sst(.35,.95,abs(x0+.1)/rlWd);
 		float top=rlGrow*side*(.2+.8*n),h=(p.y+.55)/max(top,1e-3); if (h>1.) continue;
 		float x=p.x-x0-(n-.5)*.06*h*h-.012*h*h*sin(uTime*.5+n*9.+x0*3.);
-		float w=mix(.0042,.001,h)+.005*sst(.1,.0,abs(h-.84)-.05)*step(.6,fract(n*71.));
+		float w=mix(.0042,.001,h)+.005*(1.0 - sst(.0, .1,abs(h-.84)-.05))*step(.6,fract(n*71.));
 		c=mix(c,mix(vec3(.004,.009,.008),vec3(.11,.13,.08),rlDay),rlIn(px,abs(x)-w));
 	}
 	c+=air;

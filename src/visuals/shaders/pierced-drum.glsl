@@ -157,7 +157,7 @@ vec3 pdSky(vec3 rd) {
   c += vec3(0.8, 0.85, 1.0) * step(0.962, h) * exp(-(30.0 + 900.0 * (1.0 - h)) * dot(fract(g) - 0.5 - 0.3 * (hash22(id + 3.1) - 0.5), fract(g) - 0.5 - 0.3 * (hash22(id + 3.1) - 0.5))) * (h - 0.955) * 22.0 * smoothstep(0.03, 0.2, up);
   if (day > 0.0) c = mix(c, mix(vec3(0.95, 0.9, 0.82), 0.45 * uKind[1] + 0.35, smoothstep(0.0, 0.7, up)), day);
   float ridge = 0.02 + 0.07 * noise(vec2(az * 3.0 + 20.0, 1.0)) + 0.02 * noise(vec2(az * 11.0, 5.0));
-  return mix(c, mix(vec3(0.004, 0.006, 0.011), vec3(0.5, 0.48, 0.47), day), smoothstep(0.004, -0.004, rd.y - ridge) * 0.8);
+  return mix(c, mix(vec3(0.004, 0.006, 0.011), vec3(0.5, 0.48, 0.47), day), (1.0 - smoothstep(-0.004, 0.004, rd.y - ridge)) * 0.8);
 }
 // The room along a ray: what is seen of its walls, floor or ceiling, where and which way it faces.
 vec3 pdRoom(vec3 ro, vec3 rd, float pf, float past, out float t, out vec3 P, out vec3 N) {
@@ -277,7 +277,7 @@ vec3 pdDrum(vec3 col, vec3 ro, vec3 rd, float t, float pf) {
         if (dd < 0.0015 || q > q0 + 0.6) break;
         q += dd * 0.95;
       }
-      edge = smoothstep(0.006 + fpx, 0.003, dd);
+      edge = (1.0 - smoothstep(0.003, 0.006 + fpx, dd));
       vec3 n = normalize(mix(vec3(Q.x, 0.0, Q.z) / max(length(Q.xz), 1e-3), Q / max(length(Q), 1e-3), globe));
       nz = sat(-dot(n, v)); up = n.y;
     }
@@ -290,7 +290,7 @@ vec3 pdDrum(vec3 col, vec3 ro, vec3 rd, float t, float pf) {
     float tp = (pdH - o.y) / v.y; vec3 K = o + v * tp;
     float rk = length(K.xz), cap = pdFall(-fpx, fpx, rk - pdR) * uOwn[4] * seen * (1.0 - globe);
     vec3 in_ = pdAll * (0.35 + 2.2 * exp(-rk * rk * 60.0)) * 1.4 + night;
-    col = mix(col, mix(mix(in_, vec3(0.35), day * 0.8), vec3(0.02 + 0.5 * day), smoothstep(0.02, 0.012, abs(rk - pdR + 0.014))), cap * step(0.0, tp));
+    col = mix(col, mix(mix(in_, vec3(0.35), day * 0.8), vec3(0.02 + 0.5 * day), (1.0 - smoothstep(0.012, 0.02, abs(rk - pdR + 0.014)))), cap * step(0.0, tp));
     edge *= 1.0 - cap;
   }
   if (edge > 0.0) {
@@ -363,7 +363,7 @@ vec3 render(vec2 p) {
       float rr = length(X.xz), h = X.y * pdR / max(rr, 0.05), a = atan(X.x, X.z + 1e-6) + pdTurn.x;
       vec2 q = vec2(pdCell(a - pdTurn.x + pdTurn.y, 4.0), abs(h) - 0.16 * step(0.17, abs(h)) * 2.0);
       float c = two ? cos(a * n + h * 24.0) : cos(a * n) * cos(PI * h / B);
-      sum += (pdInk[0] * smoothstep(0.0, 0.9, c) * smoothstep(0.0, 0.5, 1.1 - dot(q, q) * 30.0) * 1.8 + (pdInk[1] + pdInk[3]) * smoothstep(0.55, 1.0, cos(a * 7.0 - h * 9.0 + 2.0)) * 0.8) * smoothstep(pdR * 0.95, pdR * 1.3, length(vec2(rr, 0.5 * X.y))) * smoothstep(pdH, pdH - 0.1, abs(h));
+      sum += (pdInk[0] * smoothstep(0.0, 0.9, c) * smoothstep(0.0, 0.5, 1.1 - dot(q, q) * 30.0) * 1.8 + (pdInk[1] + pdInk[3]) * smoothstep(0.55, 1.0, cos(a * 7.0 - h * 9.0 + 2.0)) * 0.8) * smoothstep(pdR * 0.95, pdR * 1.3, length(vec2(rr, 0.5 * X.y))) * (1.0 - smoothstep(pdH - 0.1, pdH, abs(h)));
     }
     float curl = 0.4 + noise(vec2(p.x * 2.4 - uTime * 0.03, p.y * 2.4 - uTime * 0.05)) * 0.7 + 0.35 * noise(vec2(p.x * 6.0 + uTime * 0.04, p.y * 5.0 - uTime * 0.07));
     col = col * (1.0 + 0.45 * uOwn[3]) + (sum * (a1 - a0) / (dist * 22.0) * 0.4 + pdAll * 0.035 / (0.4 + dist)) * curl * -uOwn[3];

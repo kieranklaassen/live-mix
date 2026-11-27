@@ -61,7 +61,7 @@ float hbPast(vec3 P, vec3 S) {
   float s = (at - S.x) / max(P.x - S.x, 0.01), q = abs(mod(mix(S.z, P.z, s) + 2.5, 3.0) - 1.5), w = 0.03 + 0.4 * max(1.0 - s, 0.0);
   if (hbAny == 0.0) return s > 1.0 ? 1.0 : smoothstep(hbPw - w, hbPw + w, q);
   float k = 1.0;
-  if (hbP > 0.0) k = s > 1.0 ? 1.0 : mix(1.0, smoothstep(hbP - w, hbP + w, q), smoothstep(0.0, 0.1, hbP) * smoothstep(0.0, -1.0, S.x - at));
+  if (hbP > 0.0) k = s > 1.0 ? 1.0 : mix(1.0, smoothstep(hbP - w, hbP + w, q), smoothstep(0.0, 0.1, hbP) * (1.0 - smoothstep(-1.0, 0.0, S.x - at)));
   if (uOwn[0] > 0.0) {
     vec2 d = P.xz - S.xz;
     float dd = max(dot(d, d), 1e-3), il = inversesqrt(dd), id = il * il;
@@ -169,8 +169,8 @@ float hbStuff(vec3 P, vec3 N, float px) {
   }
   if (uOwn[6] < 0.0) {                             // rock and bark
     vec2 q = N.y > 0.5 ? P.xz : hbWood > 0.5 ? vec2((P.x + P.z) * 6.0, P.y * 0.8) : vec2(P.z + P.x, P.y) * 1.2;
-    float fine = smoothstep(0.12, 0.02, px), r = fbm(q * 1.1 + 4.0), v = noise(q * 4.1 + 2.0 * r);
-    r = mix(0.52, r, smoothstep(0.3, 0.05, px)); alb *= mix(1.0, (0.12 + 1.15 * r * r) * mix(1.0, 0.35 + 1.2 * v, fine), -uOwn[6]);
+    float fine = (1.0 - smoothstep(0.02, 0.12, px)), r = fbm(q * 1.1 + 4.0), v = noise(q * 4.1 + 2.0 * r);
+    r = mix(0.52, r, (1.0 - smoothstep(0.05, 0.3, px))); alb *= mix(1.0, (0.12 + 1.15 * r * r) * mix(1.0, 0.35 + 1.2 * v, fine), -uOwn[6]);
   }
   return alb * ao;
 }
@@ -286,7 +286,7 @@ vec3 hbPage(vec3 ro, vec3 rd, float t1, vec3 P1, vec3 N1, float px, vec3 S, vec3
   vec3 P = ro + rd * (meets > 0.0 ? min(t, t1) : t1), w = P - S;
   float gx = uOwn[4] != 0.0 ? dot(w, ax) : dot(w.xz, c), off = uOwn[4] != 0.0 ? dot(w, cross(n, ax)) : dot(w.xz, vec2(-c.y, c.x)), half_ = max(gx * 1.07 * wide, 0.1), foot = meets > 0.0 ? min(px / (max(abs(nd), 0.02) * half_), 0.6) : 0.0;
   float m = smoothstep(-0.1, 0.4, gx) * (1.0 - smoothstep(1.0 - soft - foot, 1.02 + 0.3 * foot, abs(off) / half_)), past = hbPast(P, S);
-  if (uOwn[3] > 0.0) m *= mix(1.0, hbFine(1.1 * off / half_ + 3.0 * tip.x, f + 1.0) * 1.3, uOwn[3] * smoothstep(0.5, 0.08, foot));
+  if (uOwn[3] > 0.0) m *= mix(1.0, hbFine(1.1 * off / half_ + 3.0 * tip.x, f + 1.0) * 1.3, uOwn[3] * (1.0 - smoothstep(0.08, 0.5, foot)));
   // the line it draws, and its light on what is near
   float dl = abs(side), lw = (0.032 + 1.28 * px) * slant, near = max(1.0 - 0.25 * dl, 0.0);
   float sum = (1.0 - smoothstep(0.0, lw, dl)) * 0.52 * past + (0.036 + 0.048 * uCue + 0.032 * uMic) * near * near * near;

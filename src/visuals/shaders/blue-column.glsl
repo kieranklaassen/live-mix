@@ -320,7 +320,7 @@ vec3 bcRim(vec2 p) {
   c = mix(hole, ground, smoothstep(-pxw, pxw, out_ * max(-rd.y, 0.15)));
  }
  C = C1; R = R1;
- if (o7 < 0.0) c += well * 0.2 * exp(-pow((p.x - F * C.x / max(C.y, 1.0)) * C.y / (R * 0.8), 2.0)) * smoothstep(-0.25, 0.1, p.y) * exp(-max(p.y, 0.0) * 2.5) * (0.5 + bcN(vec2(p.x * 12.0, p.y * 3.0 + 64.0 - bcRun(t * 0.15))));
+ if (o7 < 0.0) c += well * 0.2 * exp(-pow(abs(p.x - F * C.x / max(C.y, 1.0)) * C.y / (R * 0.8), 2.0)) * smoothstep(-0.25, 0.1, p.y) * exp(-max(p.y, 0.0) * 2.5) * (0.5 + bcN(vec2(p.x * 12.0, p.y * 3.0 + 64.0 - bcRun(t * 0.15))));
  float sl = p.x + 0.35 * p.y - 0.05 * sin(t * 0.07) + 0.9 * uCue * (1.0 - uCue), ray = bcN(vec2(sl * 7.0 + 20.0, 4.0 + 0.6 * sin(t * 0.06)));
  c += bcTop * vec3(0.5, 0.9, 1.0) * (0.05 + 0.04 * uPad + 0.14 * uCue) * smoothstep(0.4, 0.95, ray) * smoothstep(-0.5, 0.5, p.y);
  float lz = C.y - R * (0.25 + 0.2 * high + 0.55 * max(-o6, 0.0)), kk = p.y / F, fw = 1.0 / max(cs + kk * sn, 0.05), dep = lz * fw, pl = dep / (F * uRes.y);

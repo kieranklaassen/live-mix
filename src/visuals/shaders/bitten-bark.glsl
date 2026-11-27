@@ -182,7 +182,7 @@ vec3 btLake(vec2 p, vec3 day) {
   vec3 sky = mix(day * mix(vec3(0.95), vec3(1.25, 0.95, 0.7), DUSK), day * vec3(0.42, 0.55, 0.75), btS(0.0, 0.55, y));
   vec3 c = mix(sky, day * vec3(0.3, 0.36, 0.42) * (1.0 - 0.5 * GREEN), btS(0.008, -0.004, y - 0.06 - 0.05 * noise(vec2(p.x * 2.3, 5.0)) - 0.01 * noise(vec2(p.x * 30.0, 2.0))));
   vec3 wa = mix(day * vec3(0.55, 0.62, 0.7), day * vec3(0.09, 0.13, 0.16), btS(0.0, -0.5, y));
-  float gl = exp(-pow(abs(p.x - 0.36) * 4.0 / (0.5 - y), 2.0));
+  float gl = exp(-pow(abs(p.x - 0.36) * 4.0 / max(0.5 - y, 0.001), 2.0));
   wa += day * (0.22 * btS(0.35, 0.8, n) + (0.35 + 0.6 * DUSK) * gl * btS(0.5, 0.75, n) * (1.0 + uHigh));
   c = mix(c, wa * mix(vec3(1.0), vec3(0.75, 1.0, 0.6), GREEN), btS(0.004, -0.004, y));
   for (float i = 0.0; i < 2.0; i++) {

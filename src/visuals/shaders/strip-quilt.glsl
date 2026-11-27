@@ -472,7 +472,7 @@ vec3 sqLine(vec2 p) {
    float z = 9.0 + 8.0 * float(i);
    vec2 k = eye * z + vec2(uTime * 0.12, uTime * (0.9 + 0.3 * float(i))), c = floor(k), o = hash22(c + 17.0 * float(i)) - 0.5;
    vec2 d = k - c - 0.5 - 0.6 * o;
-   col = mix(col, vec3(0.98), uOwn[4] * 0.75 * smoothstep(0.1, 0.03, length(d)) * step(0.45, hash21(c + 3.3)));
+   col = mix(col, vec3(0.98), uOwn[4] * 0.75 * (1.0 - smoothstep(0.03, 0.1, length(d))) * step(0.45, hash21(c + 3.3)));
   }
   }
   // pegs

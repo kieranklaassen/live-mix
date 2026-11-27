@@ -25,13 +25,13 @@ vec3 tcSkyWas(vec2 p) {
 vec3 tcBehind(vec3 c, vec2 p) {
   if (uOwn[5] > 0.0) {
     float l = dot(c, vec3(0.3, 0.55, 0.15));
-    c = mix(c, mix(uKind[1], vec3(1.0), 0.35 + 0.45*smoothstep(0.1, -0.5, p.y))*(0.35 + 0.72*l), 0.75*uOwn[5]);
+    c = mix(c, mix(uKind[1], vec3(1.0), 0.35 + 0.45*(1.0 - smoothstep(-0.5, 0.1, p.y)))*(0.35 + 0.72*l), 0.75*uOwn[5]);
   }
   if (uOwn[2] > 0.0) {
     float h = sat(0.5 - p.y);
     vec3 n = mix(vec3(0.02, 0.03, 0.06), vec3(0.05, 0.075, 0.12), h*h) + uKind[0]*(0.03 + 0.10*h*h*h);
     vec2 g = p*46.0, v = fract(g) - 0.5; float r = hash21(floor(g));
-    n += vec3(0.75, 0.78, 0.8)*smoothstep(0.08, 0.02, length(v - 0.6*(hash22(floor(g) + 3.0) - 0.5)))*step(0.9, r)*(0.25 + 4.0*(r - 0.9))*smoothstep(-0.3, 0.2, p.y);
+    n += vec3(0.75, 0.78, 0.8)*(1.0 - smoothstep(0.02, 0.08, length(v - 0.6*(hash22(floor(g) + 3.0) - 0.5))))*step(0.9, r)*(0.25 + 4.0*(r - 0.9))*smoothstep(-0.3, 0.2, p.y);
     c = mix(c, n, uOwn[2]);
   }
   if (uOwn[2] < 0.0) {
@@ -42,14 +42,14 @@ vec3 tcBehind(vec3 c, vec2 p) {
     vec2 d = p - (uVar < 0.5 ? vec2(0.1, -0.04) : vec2(0.2, 0.06)); float l = length(d);
     vec3 warm = mix(vec3(1.0, 0.72, 0.42), mix(uKind[4], uKind[3], 0.35), max(uOwn[5], 0.0)), disc = mix(vec3(1.0, 0.93, 0.74), mix(uKind[4], vec3(1.0), 0.25), max(uOwn[5], 0.0));
     c = mix(c, warm*(0.85 + 0.2*uLevel), uOwn[3]*0.75*exp(-l*l*3.2)*(1.0 - 0.6*max(uOwn[2], 0.0)));
-    c = mix(c, disc, uOwn[3]*smoothstep(0.272, 0.268, l)*(0.86 + 0.14*smoothstep(-0.25, 0.2, d.y)));
+    c = mix(c, disc, uOwn[3]*(1.0 - smoothstep(0.268, 0.272, l))*(0.86 + 0.14*smoothstep(-0.25, 0.2, d.y)));
   }
   if (uOwn[3] < 0.0) {
     vec3 far = mix(c, vec3(0.75), 0.15), near = mix(vec3(0.16, 0.21, 0.22), uKind[0]*0.35, 0.6)*(1.0 - 0.7*max(uOwn[2], 0.0));
     for (int i = 0; i < 4; i++) {
       float f = float(i), x = p.x*(0.9 + 0.35*f) + f*7.3 + 0.004*uTime*(f + 1.0)*0.3;
       float y = -0.13 - 0.105*f + (0.17 - 0.025*f)*(noise(vec2(x*2.1, f)) - 0.5) + 0.05*noise(vec2(x*6.0, f + 9.0)) + 0.012*noise(vec2(x*24.0, f));
-      float in_ = smoothstep(tcPx, -tcPx, p.y - y);
+      float in_ = (1.0 - smoothstep(-tcPx, tcPx, p.y - y));
       vec3 k = mix(far, near, 0.22 + 0.24*f);
       k = mix(k, far, 0.75*sat((y - p.y)*5.0));          // mist lies in the valleys
       c = mix(c, k, in_*min(1.0, -uOwn[3]*2.0));
@@ -202,7 +202,7 @@ vec3 tcKite(vec2 p) {
       if (dn < 0.0 || dn > len) continue;
       float q = dn/len, x = V[k].x - 0.55*dn*(0.6 + q) + (0.016 + 0.05*q)*q*sin(dn*17.0 - uTime*0.9 + fk*2.0);
       float tw = cos(dn*21.0 - uTime*0.7 + fk*1.7), w = 0.0015 + 0.014*abs(tw)*(1.0 - 0.75*q)*smoothstep(0.0, 0.05, q);
-      float a = sat(0.5 + (w - abs(p.x - x)*0.86)/tcPx)*smoothstep(1.0, 0.75, q);
+      float a = sat(0.5 + (w - abs(p.x - x)*0.86)/tcPx)*(1.0 - smoothstep(0.75, 1.0, q));
       vec3 c = mix(vec3(0.72, 0.12, 0.06), uKind[k%5]*uKind[k%5], max(uOwn[5], 0.0)); c = mix(c, vec3(0.9, 0.88, 0.84), max(-uOwn[5], 0.0));
       tr *= mix(vec3(1.0), c*0.75 + 0.06, a); add += c*a*(0.05 + 0.06*tw + 0.35*lv[k]*uEnergy + 0.25*max(uOwn[2], 0.0));
     }

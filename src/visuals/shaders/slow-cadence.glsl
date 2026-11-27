@@ -127,7 +127,7 @@ vec3 scRound(vec3 col, vec3 sheet, vec2 q, vec4 eye) {
   vec2 s = q + scLight * 0.16;
   float ball = 0.42 / max(-uOwn[5], 1e-4), off = smoothstep(ball - 0.002, ball + 0.004, length(q));
   if (uOwn[3] < 0.0) sheet = mix(sheet, mix(vec3(0.62, 0.58, 0.53), vec3(0.93, 0.905, 0.86), smoothstep(-0.6, 0.6, dot(q, vec2(-0.5, 0.62)))) * (1.0 + 0.04 * scTooth), -0.9 * uOwn[3]);
-  vec3 back = sheet * (1.0 - 0.45 * smoothstep(ball + 0.2, ball - 0.12, length(s)));
+  vec3 back = sheet * (1.0 - 0.45 * (1.0 - smoothstep(ball - 0.12, ball + 0.2, length(s))));
   return mix(col * eye.w, back, off);
 }
 
@@ -241,7 +241,7 @@ vec3 scArms(vec2 p) {
     vec3 tone = mix(vec3(0.95, 0.92, 0.85), m.rgb * 1.15 + 0.1, 0.75 * m.a);
     if (scDyed > 0.0) {
       tone = mix(tone, mix(scDye(n, x), m.rgb, 0.5 * m.a) * mix(1.1, 0.75, inked), scDyed);
-      if (blade > 0.0) tone *= 1.0 + blade * (0.42 * sign(fract(psi - at + 0.5) - 0.5) * smoothstep(0.0, 0.004, d) * -0.6 + 0.25 * (t - 0.5) + 0.3 * smoothstep(0.003, 0.0, d));
+      if (blade > 0.0) tone *= 1.0 + blade * (0.42 * sign(fract(psi - at + 0.5) - 0.5) * smoothstep(0.0, 0.004, d) * -0.6 + 0.25 * (t - 0.5) + 0.3 * (1.0 - smoothstep(0.0, 0.003, d)));
       tone = mix(tone, uKind[4], scHit(x)) * (1.0 + 0.35 * scCue(x));
       amt *= 1.0 + 0.5 * max(inked, blade);
     }

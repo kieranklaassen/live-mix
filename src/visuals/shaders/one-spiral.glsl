@@ -202,7 +202,7 @@ vec3 osCord(float x, float s, vec2 out_, vec3 col, float seen) {
   float tw = fract(s + 0.32 * x), ply = sin(PI * tw);
   float l = 0.30 + 0.62 * up + 0.42 * x * dot(out_, vec2(cos(az), sin(az)));
   l *= mix(0.82, 0.66 + 0.46 * ply, seen);
-  return col * max(l, 0.0) * smoothstep(1.0, 0.72, abs(x)) + col * 0.04;
+  return col * max(l, 0.0) * (1.0 - smoothstep(0.72, 1.0, abs(x))) + col * 0.04;
 }
 
 vec3 osEngraved(vec2 p) {

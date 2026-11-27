@@ -126,7 +126,7 @@ vec3 wfAir(vec2 p, float fieldY) {
     c = mix(c, c * mix(tint * (0.5 + 0.6 * tint), vec3(1.0), 0.12 + 0.25 * low) + vec3(0.34, 0.24, 0.12) * (0.6 + 0.6 * uPad) * exp(-l * l * (10.0 - 3.0 * uPad)) * (1.0 - low), wfSun);
     c *= mix(vec3(1.0), vec3(0.12, 0.155, 0.235) * (1.0 - 0.5 * y + 1.1 * low), wfNight);
     c += wfNight * vec3(0.17, 0.19, 0.22) * (0.75 + 0.45 * uPad) * (exp(-l * l * 12.0) + 0.5 * exp(-l * 6.0));
-    c = mix(c, mix(vec3(1.0, 0.95, 0.84), vec3(0.9, 0.92, 0.9), wfNight), smoothstep(0.066, 0.06, l) * (wfSun + wfNight) * (0.92 - 0.3 * wfNight * noise(p * 26.0)) * sat(1.0 - uOwn[5] * 0.6));
+    c = mix(c, mix(vec3(1.0, 0.95, 0.84), vec3(0.9, 0.92, 0.9), wfNight), (1.0 - smoothstep(0.06, 0.066, l)) * (wfSun + wfNight) * (0.92 - 0.3 * wfNight * noise(p * 26.0)) * sat(1.0 - uOwn[5] * 0.6));
   }
   return c;
 }
@@ -163,7 +163,7 @@ vec3 wfWeather(vec3 c, vec2 p) {
     float h = hash21(id + f * 19.0);
     vec2 o = rot(h * 6.3 + 0.4 * sin(uTime * 0.5 + h * 30.0)) * (g - id - 0.5 - 0.44 * (vec2(h, fract(h * 57.3)) - 0.5) - 0.1 * vec2(sin(uTime * (0.5 + h) + h * 40.0), 0.0));
     float r = 0.05 + 0.06 * fract(h * 31.0);
-    c = mix(c, mix(uKind[4], vec3(1.0), 0.1 + 0.2 * h) * (1.0 - 0.45 * wfNight * (1.0 - uHits)), smoothstep(1.0, -1.0, (length(o * vec2(1.0, 1.7)) - r) / (z * wfPx + 0.02)) * step(fract(h * 91.0), fall * 0.62) * mix(0.95, 0.5, f / 3.0) * (0.78 + 0.22 * uHits));
+    c = mix(c, mix(uKind[4], vec3(1.0), 0.1 + 0.2 * h) * (1.0 - 0.45 * wfNight * (1.0 - uHits)), (1.0 - smoothstep(-1.0, 1.0, (length(o * vec2(1.0, 1.7)) - r) / (z * wfPx + 0.02))) * step(fract(h * 91.0), fall * 0.62) * mix(0.95, 0.5, f / 3.0) * (0.78 + 0.22 * uHits));
   }
   for (int j = 0; j < (birds > 0.0 ? 2 : 0); j++) {
     float f = float(j), z = 8.0 + 4.0 * f;
@@ -352,7 +352,7 @@ vec3 wfOrchard(vec2 p) {
         col = wfLay(col, air, wfInk(kind), a, c);
         if (wfLeaf > 0.0) {
           float lit, leaf = wfLeaves(t, vec2(0.0, 0.62), vec2(0.5, 0.4), h * 20.0, wfPx / sc, lit);
-          col = wfLay(col * (1.0 - 0.15 * wfLeaf * c * smoothstep(0.25, 0.06, abs(t.x)) * exp(-wfSq(t.x / 0.36) - wfSq((t.y - 0.005) / 0.025))), air, wfLeafInk(lit), leaf, c);
+          col = wfLay(col * (1.0 - 0.15 * wfLeaf * c * (1.0 - smoothstep(0.06, 0.25, abs(t.x))) * exp(-wfSq(t.x / 0.36) - wfSq((t.y - 0.005) / 0.025))), air, wfLeafInk(lit), leaf, c);
         }
         col = mix(col, air * 1.02, wfCap * c * step(fi, 2.5) * (1.0 - wfLeaf));
       }

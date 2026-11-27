@@ -234,7 +234,7 @@ vec3 behindAt(vec3 ro, vec3 rd) {
     float pool = mix(exp(-dot(g, g) / 6.5), 1.0, air * 0.9);
     c = mix(c, (mix(vec3(0.21, 0.18, 0.19), vec3(0.62, 0.6, 0.57), max(uOwn[4], 0.0)) * pool * sat(gL.y) * 2.6), exp(-t * 0.08));
   }
-  if (d < t && d > 0.0 && q.y > 0.0) c += rich(piece(vec2(uLoop, 0.94 - 0.88 * sat(q.y / (gD.y + gD.w)))).rgb, 1.8) * (0.5 + 1.3 * uLevel) * smoothstep(gD.w, gD.w * 0.8, inDisc(q.xy));
+  if (d < t && d > 0.0 && q.y > 0.0) c += rich(piece(vec2(uLoop, 0.94 - 0.88 * sat(q.y / (gD.y + gD.w)))).rgb, 1.8) * (0.5 + 1.3 * uLevel) * (1.0 - smoothstep(gD.w * 0.8, gD.w, inDisc(q.xy)));
   return c;
 }
 // The disc's own light at a height on it (0 the plain, 1 its top): the piece here in the loop, the front of the room lowest.

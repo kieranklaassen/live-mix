@@ -43,7 +43,7 @@ vec3 swGrains(vec2 s, float z, mat2 turn, float cell, float seed, float dens, fl
     vec2 t = swUp((c + 0.01 * vec2(-c.y, c.x) / (length(c) + 0.01)) * turn, z) - swUp(c * turn, z);
     t /= length(t) + 1e-6;
     float al = abs(dot(d, t)) / (0.36 * cell), ac = abs(dot(d, vec2(-t.y, t.x))) / (0.15 * cell);
-    body = mix(body, smoothstep(1.0, 0.75, ac + 0.35 * al * al) * smoothstep(1.0, 0.85, al) * (0.5 + 0.7 * h2.x) / (0.4 + 2.5 * big) * (0.75 + 0.25 * cos(ac * 9.0 + h.y * 6.0)), swHard);
+    body = mix(body, (1.0 - smoothstep(0.75, 1.0, ac + 0.35 * al * al)) * (1.0 - smoothstep(0.85, 1.0, al)) * (0.5 + 0.7 * h2.x) / (0.4 + 2.5 * big) * (0.75 + 0.25 * cos(ac * 9.0 + h.y * 6.0)), swHard);
   }
   return mix(warm, cool, smoothstep(0.25, 0.8, h.x)) * body * on * edge * (0.26 + 2.5 * big) * sat(0.25 + 0.85 * own / sg);
 }
@@ -210,7 +210,7 @@ vec3 swTrails(vec2 p, vec2 pole, float len) {
     float body = exp(-((r - rs) * (r - rs) + past * past) / (2.0 * sg * sg)) * smoothstep(0.0, 0.45, x) * few;
     if (stroke > 0.0) {
       float across = (r - rs) / sg, bristle = noise(vec2(across * 5.0 + ring * 7.0, ang * 14.0 * (0.4 + r) + ring)) * 0.6 + noise(vec2(across * 13.0 + ring * 3.0, ang * 40.0 * (0.3 + r))) * 0.4;
-      float lick = smoothstep(1.35, 1.0, abs(across) + 0.6 * (bristle - 0.5)) * smoothstep(1.0, 0.97, x + 0.05 * bristle) * smoothstep(0.0, 0.35, x - 0.3 * bristle) * few;
+      float lick = (1.0 - smoothstep(1.0, 1.35, abs(across) + 0.6 * (bristle - 0.5))) * (1.0 - smoothstep(0.97, 1.0, x + 0.05 * bristle)) * smoothstep(0.0, 0.35, x - 0.3 * bristle) * few;
       body = mix(body, lick * (0.25 + 0.75 * bristle) * 0.8, stroke);
     }
     body *= swFall(0.5, 0.4, abs(r / dr - ring - 0.5)) * swFall(1.0, 0.985, a - sec);
@@ -320,10 +320,10 @@ vec3 swPole(vec2 p) {
     vec2 m = rot(0.75) * (p - vec2(0.1, 0.05));
     float n = fbm(m * 5.0 + 3.0), f = fbm(m * vec2(9.0, 16.0) + 11.0), riv = (m.y + 0.2 * (n - 0.5)) / 0.18;
     riv = exp(-riv * riv);
-    col += uOwn[7] * riv * (0.2 + 2.6 * n * n) * smoothstep(0.85, 0.25, f) * mix(vec3(0.5, 0.58, 0.8), uKind[1], 0.5) * (0.5 + 0.5 * uPad + 0.35 * uLevel);
+    col += uOwn[7] * riv * (0.2 + 2.6 * n * n) * (1.0 - smoothstep(0.25, 0.85, f)) * mix(vec3(0.5, 0.58, 0.8), uKind[1], 0.5) * (0.5 + 0.5 * uPad + 0.35 * uLevel);
     vec2 g = m * 190.0, id = floor(g), h = hash22(id + 3.0);
     float gr = length(g - id - 0.2 - 0.6 * h);
-    col += uOwn[7] * smoothstep(0.22, 0.05, gr) * smoothstep(1.02 - 0.5 * riv * n, 1.08 - 0.5 * riv * n, hash21(id + 9.0) + 0.06) * (0.5 + 0.6 * h.x) * smoothstep(0.05, 0.3, up);
+    col += uOwn[7] * (1.0 - smoothstep(0.05, 0.22, gr)) * smoothstep(1.02 - 0.5 * riv * n, 1.08 - 0.5 * riv * n, hash21(id + 9.0) + 0.06) * (0.5 + 0.6 * h.x) * smoothstep(0.05, 0.3, up);
   }
   col += swTrails(p * (1.04 - 0.08 * uSpace), pole, len) * (0.45 + 0.8 * (1.0 - veil)) * smoothstep(-0.02, 0.3 - 0.2 * low, up);
   if (uOwn[1] < 0.0) {
@@ -362,7 +362,7 @@ vec3 swPole(vec2 p) {
   if (paper > 0.0) { near1 = mix(near1, vec3(0.75, 0.76, 0.76), paper); near2 = mix(near2, vec3(0.3, 0.31, 0.32), paper); haze = mix(haze, vec3(1.1, 1.05, 0.92) * (0.6 + 0.6 * mist), paper); }
   if (peaks > 0.0) {
     float dp = f1 - p.y, g = fbm(vec2(p.x * 9.0 + p.y * 5.0, p.y * 7.0 - p.x * 2.0)) - 0.5, slope = noise(vec2(p.x * 7.0 - p.y * 5.0, p.y * 6.0)) * 0.6 + noise(vec2(p.x * 19.0 - p.y * 15.0, p.y * 11.0)) * 0.4;
-    float snow = smoothstep(0.3, -0.02, dp + 0.5 * g) , face = smoothstep(0.42, 0.6, slope + 0.35 * g);
+    float snow = (1.0 - smoothstep(-0.02, 0.3, dp + 0.5 * g)) , face = smoothstep(0.42, 0.6, slope + 0.35 * g);
     vec3 cold = mix(mix(vec3(0.10, 0.14, 0.22), uKind[0] * 0.3, 0.4), mix(vec3(0.5, 0.52, 0.58), uKind[3], 0.3) * (0.7 + 0.6 * uDrone), face);
     cold = mix(cold, mix(vec3(0.8, 0.82, 0.86), vec3(1.8, 1.75, 1.65), face), paper);
     near1 = mix(near1, mix(near1 * 1.6 + 0.02, cold, snow), peaks);

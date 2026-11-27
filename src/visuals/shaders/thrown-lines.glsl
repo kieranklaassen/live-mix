@@ -179,7 +179,7 @@ vec3 render(vec2 p) {
     float den = max(1.0 - 1.45 * uOwn[6] * p.y, 0.12);
     p = vec2(p.x * 1.25, p.y * 1.35 + 0.08 * uOwn[6]) / den * mix(1.0, 0.8, uOwn[6]);
     p = mix(eye, p, sat(uOwn[6] * 2.5));
-    away = uOwn[6] * smoothstep(1.0, 0.25, den); tlPx /= den;
+    away = uOwn[6] * (1.0 - smoothstep(0.25, 1.0, den)); tlPx /= den;
   }
   float ball = 0.0, round_ = 1.0;
   if (uOwn[6] < 0.0 && !cloth) {                                 // wound on a ball

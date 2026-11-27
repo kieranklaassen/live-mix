@@ -158,7 +158,7 @@ vec4 fiInk(vec2 p, float wide, float soft) {
     ink = mix(ink, dot_, -uOwn[4]);
   }
   if (uOwn[5] > 0.0) {                               // each ring a ridge, lit from one side
-    fiLit = -sin(TAU * f) * dot(gx / max(length(gx), 1e-3), vec2(-0.6, 0.8)) * found * edge * open * seam * (1.0 - smoothstep(0.25, 0.7, fw)) * (row > 2.5 ? mix(1.0, smoothstep(0.75, 0.4, rad), few) * (1.0 - few) : 1.0);
+    fiLit = -sin(TAU * f) * dot(gx / max(length(gx), 1e-3), vec2(-0.6, 0.8)) * found * edge * open * seam * (1.0 - smoothstep(0.25, 0.7, fw)) * (row > 2.5 ? mix(1.0, (1.0 - smoothstep(0.4, 0.75, rad)), few) * (1.0 - few) : 1.0);
     ink *= 1.0 - 0.5 * uOwn[5] * (1.0 - sat(uOwn[4]));
   }
   // a hit: one fresh drop in the newest heart, its rings black with it; the keys tint that nest
@@ -272,7 +272,7 @@ vec3 fiBath(vec2 p, float half_) {
         vec2 dir = u / max(e, 1e-4);
         float n2 = sat(n * n), up = dot(dir, vec2(-0.6, 0.8)), sh = length(u / r - vec2(-0.3, 0.4));
         paint *= 1.0 + uOwn[5] * (0.75 * up * n2 - 0.25 * n2 * n2 + 0.12);
-        paint += uOwn[5] * 0.5 * smoothstep(0.24, 0.04, sh);
+        paint += uOwn[5] * 0.5 * (1.0 - smoothstep(0.04, 0.24, sh));
       }
       col += in_ * paint;
       left -= in_;

@@ -289,14 +289,14 @@ vec3 render(vec2 p) {
   float shade = 1.0, far = 0.0;
   if (uOwn[6] > 0.0) {
     float dn = max(1.0 - 1.25 * uOwn[6] * (p.y + 0.08), 0.22);
-    far = uOwn[6] * smoothstep(1.2, 0.4, dn);
+    far = uOwn[6] * (1.0 - smoothstep(0.4, 1.2, dn));
     p = mix(p, vec2(p.x, p.y * 1.15) / dn, min(4.0 * uOwn[6], 1.0)); pvPx *= 1.0 / dn;
   }
   if (uOwn[6] < 0.0) {
     float am = -uOwn[6], wd = 0.9 * noise(vec2(p.x * 2.4, p.y * 0.5 + 4.0)) + 0.06 * sin(uTime * 0.09 + p.y * 2.0);
     float ph = p.x * 15.0 + 9.0 * wd, deep = 0.55 + 0.45 * sin(p.x * 3.1 + 1.0);
     float f = sin(ph) + 0.3 * sin(2.0 * ph + 1.0);
-    shade = 1.0 + am * deep * (0.24 * f - 0.12) - 0.14 * am * smoothstep(0.4, -1.2, f);
+    shade = 1.0 + am * deep * (0.24 * f - 0.12) - 0.14 * am * (1.0 - smoothstep(-1.2, 0.4, f));
     p += am * deep * vec2(0.034 * cos(ph), 0.012 * f);
   }
   vec2 cl = pvCloth(p);

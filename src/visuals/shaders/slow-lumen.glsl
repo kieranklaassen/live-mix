@@ -102,7 +102,7 @@ vec3 slGrains(vec3 col, vec3 base, vec2 p) {
     float many = i == 0 ? 92.0 : 131.0, w = many / uRes.y;
     vec2 c = rot(0.35 + 0.8 * float(i)) * p * many + vec2(0.0, -0.25 * uTime), id = floor(c); vec2 f = fract(c) - 0.5 - 0.6 * (hash22(id + 3.0 * float(i)) - 0.5);
     float h = hash21(id + 7.7), r = (0.2 + 0.16 * h) * smoothstep(0.03 + 0.5 * h * h, 0.1 + 0.6 * h * h, much);
-    lit = max(lit, smoothstep(r + w, r - w, length(f)) * step(0.03, r) * (i == 0 ? 1.0 : 0.6));
+    lit = max(lit, (1.0 - smoothstep(r - w, r + w, length(f))) * step(0.03, r) * (i == 0 ? 1.0 : 0.6));
   }
   return mix(col, base + d * (0.12 + 2.3 * lit), keep);
 }
@@ -258,7 +258,7 @@ vec3 render(vec2 p) {
     float far = -0.22 - p.y, still = 1.0 + uOwn[6];
     vec2 m = vec2(p.x + (0.002 + 0.05 * far) * sin(far * 60.0 / (0.25 + far) + uTime * 0.6 + 2.0 * noise(vec2(p.x * 5.0, far * 30.0))) * smoothstep(0.0, 0.05, far), -0.22 + far * 1.25);
     vec3 c = (uVar < 0.5 ? slUnfolding(m) : slTurning(m)) * (0.78 - 0.5 * far) ;
-    c *= 1.0 - 0.18 * smoothstep(0.012, 0.0, far);
+    c *= 1.0 - 0.18 * (1.0 - smoothstep(0.0, 0.012, far));
     if (still > 0.0) c = mix(c, uVar < 0.5 ? slUnfolding(p) : slTurning(p), still);
     return c;
   }

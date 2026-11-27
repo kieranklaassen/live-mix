@@ -157,7 +157,7 @@ void twLayer(int i, float d, float e, float h) {
       vec3 lamp = mix(uKind[0], uKind[3], smoothstep(-0.45, 0.4, twP.y + 0.12 * sin(twP.x * 2.0 + uTravel * 0.05)));
       lamp *= (0.82 + 0.2 * uDrone) * (1.12 - 0.35 * length(twP * vec2(0.8, 1.0))) * (0.9 + 0.2 * noise(twP * 2.4));
       vec2 low = twP - vec2(-0.22, -0.12);
-      lamp += (1.0 - lamp) * uKind[3] * 0.5 * smoothstep(0.1, 0.09, length(low)) + 0.16 * uKind[3] * exp(-dot(low, low) * 7.0);
+      lamp += (1.0 - lamp) * uKind[3] * 0.5 * (1.0 - smoothstep(0.09, 0.1, length(low))) + 0.16 * uKind[3] * exp(-dot(low, low) * 7.0);
       c = mix(c, i == 5 ? lamp : thin, twBack);
     }
     if (d < 0.11) {
@@ -171,7 +171,7 @@ void twLayer(int i, float d, float e, float h) {
         float away = max(d, 0.0) + 0.012 * mid + 0.006 * twFray.y;
         c *= mix(vec3(1.0), vec3(0.4, 0.24, 0.14), twBurn * exp(-max(away, 0.0) * 30.0));
         edge = mix(edge, vec3(0.035, 0.026, 0.022) * (1.0 + 0.8 * twFray.x), twBurn);
-        core = mix(core, smoothstep(0.004, -0.004, away - lip * 1.5), twBurn);
+        core = mix(core, (1.0 - smoothstep(-0.004, 0.004, away - lip * 1.5)), twBurn);
       }
       c = mix(c, edge, core);
       if (twBurn > 0.0) c += twBurn * vec3(1.0, 0.36, 0.1) * exp(-max(d, 0.0) * 260.0) * (0.25 + 0.5 * uLevel) * sat(0.2 + 1.4 * noise(twP * 9.0 + vec2(uTime * 0.12, fi)) - 0.35);
@@ -296,7 +296,7 @@ vec3 render(vec2 p) {
   vec3 col = mix(twCol * (1.0 + 0.5 * wrinkle), twOver, twOverA);
   if (uOwn[6] < 0.0) {
     float grow = fbm(p * 2.6 + 3.0) + 0.13 * noise(rot(0.6) * p * 15.0) + 0.09 * noise(rot(0.25) * p * 34.0) + 0.06 * noise(rot(1.0) * p * 80.0), on = -uOwn[6] * 0.15 + 0.02 * uTexture, g2 = noise(p * 8.0 + 40.0);
-    float there = smoothstep(0.0, 0.025, grow - 0.77 + on) * sat(-uOwn[6] * 4.0), rim = smoothstep(0.07, 0.0, grow - 0.77 + on);
+    float there = smoothstep(0.0, 0.025, grow - 0.77 + on) * sat(-uOwn[6] * 4.0), rim = (1.0 - smoothstep(0.0, 0.07, grow - 0.77 + on));
     vec3 moss = mix(uKind[2], uKind[3], smoothstep(0.35, 0.65, g2)) * (0.62 + 0.3 * noise(rot(0.4) * p * 100.0) + 0.35 * rim);
     col = mix(col, moss * (0.85 + 0.25 * smoothstep(0.0, 0.1, grow - 0.8)), there * 0.94);
     col *= 1.0 - 0.3 * -uOwn[6] * smoothstep(-0.05, 0.0, grow - 0.77 + on) * (1.0 - there);

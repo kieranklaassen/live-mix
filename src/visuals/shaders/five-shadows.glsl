@@ -119,9 +119,9 @@ float fsBlades(vec2 p, float z, float seed) {
     float lean = (h2 - 0.5) * 1.5 + (0.04 + 0.12 * uTexture) * sin(uTime * (0.5 + 0.4 * h1) + h2 * 20.0);
     float x = q.x - id - 0.5 - 0.5 * (h1 - 0.5) - lean * y * y;
     float w = (0.085 + 0.07 * h2) * sat(1.0 - y) * (0.4 + y);
-    float head = step(0.45, h2) * max(1.0 - pow((y - 0.9) / 0.13, 2.0), 0.0);
+    float head = step(0.45, h2) * max(1.0 - pow(abs(y - 0.9) / 0.13, 2.0), 0.0);
     w = max(w, head * (0.07 + 0.06 * h1)) - 0.5 * s * smoothstep(0.98, 1.06, y);
-    c = max(c, fsStrip(x, max(w, 0.0), s) * smoothstep(1.08, 1.0, y));
+    c = max(c, fsStrip(x, max(w, 0.0), s) * (1.0 - smoothstep(1.0, 1.08, y)));
   }
   return c;
 }
@@ -276,9 +276,9 @@ vec3 fsWall(inout vec2 p) {
     q.x += 0.5 * mod(row, 2.0);
     vec2 f = fract(q) - 0.5;
     f.y *= 0.866;
-    float r = length(f), in_ = smoothstep(0.43, 0.39, r), rise = sqrt(max(0.1849 - r * r, 0.0));
+    float r = length(f), in_ = (1.0 - smoothstep(0.39, 0.43, r)), rise = sqrt(max(0.1849 - r * r, 0.0));
     fsHill += uOwn[6] * f * 1.1 * in_;
-    take *= mix(1.0, 0.34 + in_ * (0.12 + 1.15 * rise - 0.5 * f.x + 0.6 * f.y + 0.5 * smoothstep(0.14, 0.02, length(f - vec2(-0.14, 0.16)))), -uOwn[6]);
+    take *= mix(1.0, 0.34 + in_ * (0.12 + 1.15 * rise - 0.5 * f.x + 0.6 * f.y + 0.5 * (1.0 - smoothstep(0.02, 0.14, length(f - vec2(-0.14, 0.16))))), -uOwn[6]);
     p -= f * cell * -uOwn[6] * 0.85;
   }
   return take;

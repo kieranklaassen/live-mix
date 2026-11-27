@@ -289,13 +289,13 @@ vec3 cwStuff(vec3 c, vec2 p, float edge, vec3 brush, float st2, float patchy, fl
     float seed = 0.8 + 0.35 * noise(p * 26.0 + brush.z) + 0.15 * st2;
     vec3 g = c * mix(vec3(1.0), c, 0.6) * lamp * seed * (0.55 + 0.75 * cwA) * (1.0 - 0.35 * exp(-edge * 45.0)) * 1.35;
     float lead = 1.0 - smoothstep(0.0045, 0.0045 + 2.0 * px, edge);
-    g = mix(g, vec3(0.03, 0.032, 0.035) + 0.07 * smoothstep(0.004, 0.0, edge) * lamp, lead);
+    g = mix(g, vec3(0.03, 0.032, 0.035) + 0.07 * (1.0 - smoothstep(0.0, 0.004, edge)) * lamp, lead);
     c = mix(c, g, uOwn[4]);
   }
   if (uOwn[4] < 0.0) {
     vec2 slope = cwSlope;
     slope /= max(length(slope), 1.0);
-    float bev = smoothstep(0.034, 0.0, edge);
+    float bev = (1.0 - smoothstep(0.0, 0.034, edge));
     bev *= bev;
     float lit = dot(slope, normalize(vec2(0.62, -0.75))) * bev;
     float grain = 0.85 + 0.3 * noise(vec2(brush.x * 130.0, brush.y * 6.0 + brush.z));

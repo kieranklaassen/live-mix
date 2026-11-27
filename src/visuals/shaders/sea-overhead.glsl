@@ -462,7 +462,7 @@ vec3 render(vec2 p) {
   for (int i = 0; i < 3; i++) {
    float fi = float(i), n = 18.0 + 17.0 * fi, X = p.x * n + fi * 7.7 + (p.y * (0.8 + 0.2 * fi)), col = floor(X), h = hash11(mod(col, 173.0) + fi * 31.0);
    float f = fract((p.y * (0.75 + 0.25 * fi)) - uTime * (0.34 + 0.1 * h) + h * 7.0), dx = (X - col - 0.5) / n * uRes.y;
-   float st = exp(-dx * dx * 1.6) * ss(0.0, 0.3, f) * ss(0.4, 0.36, f) * step(0.3, h);
+   float st = exp(-dx * dx * 1.6) * ss(0.0, 0.3, f) * (1.0 - ss(0.36, 0.4, f)) * step(0.3, h);
    c += -uOwn[5] * st * (0.16 - 0.035 * fi) * (vec3(0.75, 0.85, 0.9) + 0.8 * uKind[1] * uPad) * (0.7 + 0.5 * uHigh);
   }
  }

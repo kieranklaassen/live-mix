@@ -41,7 +41,8 @@ void rpHill(vec2 s,float at,float wide,float base,float high,float seed,float to
  float top=base + high*(mix(m*m*(3. - 2.*m),m,sharp) + bump*near);
  float up=length(vec2(1.,high / wide*mix(6.*m*(1. - m),1.,sharp))),d=(top - s.y) / up;
  if (d<-.015) return;
- float dd=max(d,.0),low=smoothstep(base + .02,base + .02 + .5*high,s.y)*near,white=max(-uOwn[5],.0);
+ float lo=sat((s.y - base - .02) / (high<.0 ? min(.5*high,-.0001) : max(.5*high,.0001))); // high may lie either side of nothing
+ float dd=max(d,.0),low=lo*lo*(3. - 2.*lo)*near,white=max(-uOwn[5],.0);
  float fold=(t + .10 - .13*sin(dd*26. + seed*5.) - .16*(rpN.y - .5))*wide;
  float flank=smoothstep(-rpPx,rpPx,fold),thin=mix(exp(-dd*5.),.15 + .85*smoothstep(.0,.09,dd)*exp(-dd*2.),white);
  float body=tone*thin*(.25 + flank*(.75 + .35*exp(-max(fold,.0)*130.)) + .35*(1. - ink)*(1. - flank))*(.8 + .4*rpM.y);

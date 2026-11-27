@@ -31,11 +31,11 @@ vec3 fiCloth(vec2 p, vec2 weave, vec3 taken, float lit) {
     float was = abs(noise(a) - 0.5) + 0.5 * abs(noise(a * 2.3 + 9.0) - 0.5) + 0.25 * abs(noise(a * 5.1) - 0.5);
     float now = abs(noise(b) - 0.5) + 0.5 * abs(noise(b * 2.3 + 9.0) - 0.5) + 0.25 * abs(noise(b * 5.1) - 0.5);
     lit += fiPaper * (2.2 * (was - now) + 0.05 * (noise(vec2(p.x * 190.0 + 30.0 * noise(p * 5.0), p.y * 14.0)) - 0.5));
-    taken *= 1.0 + fiPaper * 0.5 * smoothstep(0.05, 0.0, abs(noise(a) - 0.5));
+    taken *= 1.0 + fiPaper * 0.5 * (1.0 - smoothstep(0.0, 0.05, abs(noise(a) - 0.5)));
   }
   if (fiSack > 0.0) {
     lit += fiSack * (0.2 * weave.x + 0.06 * weave.y);
-    taken += fiSack * vec3(0.12, 0.17, 0.27) + fiSack * 0.5 * smoothstep(-0.2, -0.6, weave.x);
+    taken += fiSack * vec3(0.12, 0.17, 0.27) + fiSack * 0.5 * (1.0 - smoothstep(-0.6, -0.2, weave.x));
   }
   if (uOwn[5] < 0.0) taken = mix(taken, (fiInk * 1.25 + 0.5) * exp(-1.9 * dot(taken, vec3(0.3333))) + 0.2 * taken, -uOwn[5]);
   vec3 cotton = vec3(0.925, 0.912, 0.88) * (1.0 + 0.02 * weave.y);
@@ -238,7 +238,7 @@ vec3 fiRings(vec2 p) {
 vec2 fiLay(vec2 p) {
   if (uOwn[6] > 0.0) {
     float s = p.x * 10.0 + 1.1 * sin(p.x * 4.3 + 1.0) + 1.6 * noise(p * vec2(2.0, 0.8) + 3.0) + 0.25 * sin(uTime * 0.17 + p.y * 2.0), deep = uOwn[6] * (0.65 - 0.5 * p.y);
-    fiLit += deep * (0.27 * sin(s) - 0.42 * smoothstep(0.2, -1.0, sin(s + 0.9)) + 0.1 * sin(s * 2.0 + 1.0));
+    fiLit += deep * (0.27 * sin(s) - 0.42 * (1.0 - smoothstep(-1.0, 0.2, sin(s + 0.9))) + 0.1 * sin(s * 2.0 + 1.0));
     p.x += 0.05 * deep * cos(s);
     p.y -= 0.02 * deep * sin(s);
   }

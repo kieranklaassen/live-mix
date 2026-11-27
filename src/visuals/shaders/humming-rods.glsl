@@ -315,7 +315,7 @@ vec3 hrRoom(vec2 p) {
   float nearHalf = (1. - hrUp(w, wy - H - tipE * tz)), farHalf = (1. - hrUp(w, wy - H + tipE * tz));
   float op = (1. - exp(-cover * 3.2)) * .97 * mix(1., .55 + .45 * u * u, sat(A / r * .15 - .2));
   float ends = .5 * (nearHalf + farHalf) * smoothstep(R.y - w, R.y + w, wy);
-  if (hrS > 0. || uOwn[6] < 0.) ends = mix(ends, smoothstep(lo - w, lo + w, wy) * smoothstep(hi + w, hi - w, wy), max(hrS, max(-uOwn[6], 0.)));
+  if (hrS > 0. || uOwn[6] < 0.) ends = mix(ends, smoothstep(lo - w, lo + w, wy) * (1.0 - smoothstep(hi - w, hi + w, wy)), max(hrS, max(-uOwn[6], 0.)));
   op *= ends;
   vec3 V = -normalize(rd), Lw = normalize(hrLamp - vec3(R.x, wy, hrZ));
   vec3 Tn = rt * (sw.y * u) - fw * (sw.y * z) + vec3(0., 1., 0.), Tf = rt * (sw.y * u) + fw * (sw.y * z) + vec3(0., 1., 0.);

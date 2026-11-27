@@ -321,14 +321,14 @@ vec3 bmTrace(vec2 p) {
     p.y += Rb * (1.0 - ring);
     float an = length(p) > 1e-5 ? atan(p.x, p.y) : 0.0;
     p = vec2(Rb * an, length(p) - Rb);
-    cut = mix(smoothstep(PI, 2.0, abs(an)), 1.0, ring) * smoothstep(0.0, 0.06, p.y + Rb);
+    cut = mix((1.0 - smoothstep(2.0, PI, abs(an))), 1.0, ring) * smoothstep(0.0, 0.06, p.y + Rb);
     bmKB = mix(bmKB, 2.335 * vec3(1.0, 2.0, floor(3.5 + 2.6 * uOwn[0])), ring); bmAmp = 1.0 - 0.35 * ring;
   }
   if (rows > 0.0) {
     float zoom = 1.0 + 1.7 * rows, D = mix(4.0, 0.8, rows);
     p *= zoom; bmPx *= zoom; float id = floor(p.y / D + 0.5);
     p.y -= id * D; T += id * 43.0; p.x += 0.21 * id; bmAmp = 1.0 - 0.35 * rows;
-    cut = smoothstep(0.5 * D, 0.5 * D - 0.05, abs(p.y));
+    cut = (1.0 - smoothstep(0.5 * D - 0.05, 0.5 * D, abs(p.y)));
   }
   bmSwing(T);
   const int n = 13; float dt = 0.1 / bmF;

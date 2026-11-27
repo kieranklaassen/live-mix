@@ -58,7 +58,7 @@ vec3 wmPool(vec3 q) { vec2 c=q.xz - vec2(.15+.1*sin(uTime*.021), 1.2); return wm
 vec3 wmMist(vec3 c, vec3 q, float t) {
  float k=noise(vec2(q.x*1.1+uTime*.05, q.y*2.2+q.z*1.7))*.6+noise(vec2(q.x*2.7 - uTime*.07, q.y*4.+q.z*3.))*.4;
  float far=uVar < .5 ? sat(q.z*.42+.1) : sat(t*.2 - .15);
- return mix(c, (uKind[0]*.3+.1)*(.35*wmGlow+.75*wmDay+.35*wmDark+.4*wmCard+.3*uLevel)*mix(vec3(1.), wmWarmC*1.6, .3*wmGlow*wmS(1., 0., q.z)), sat(wmFog*far*(.35+1.1*k)*wmF(.3, 1.7, q.y - .25*q.z)*wmS(-.05, .5, q.z)*1.3));
+ return mix(c, (uKind[0]*.3+.1)*(.35*wmGlow+.75*wmDay+.35*wmDark+.4*wmCard+.3*uLevel)*mix(vec3(1.), wmWarmC*1.6, .3*wmGlow*(1.0 - wmS(0., 1., q.z))), sat(wmFog*far*(.35+1.1*k)*wmF(.3, 1.7, q.y - .25*q.z)*wmS(-.05, .5, q.z)*1.3));
 }
 // Canvas of roller i at q: painted bands along the ridge, scalloped foam, seams; then the two lights.
 vec3 wmCanvas(vec3 q, int i, float t, vec3 rd) {
@@ -172,7 +172,7 @@ vec3 wmFloor(vec3 ro, vec3 rd) {
  float t=-ro.y/min(rd.y, -1e-3); vec3 q=ro+rd*t;
  float bo=q.x/.12, e=abs(fract(bo) - .5), k=wmF(.1, .4, t*wmPx*(1. - rd.x/min(rd.y, -.02))*8.);
  vec3 c=vec3(.13, .085, .05)*mix(.8, (.6+.5*hash21(vec2(floor(bo), 3.)))*(.8+.4*noise(vec2(q.x*60., q.z*4.)))*(1. - .6*wmS(.44, .5, e)), k);
- if (wmCard > 0.) c=mix(c, wmBone*.6*(.8+.2*wmS(.5, .44, e)), wmCard);
+ if (wmCard > 0.) c=mix(c, wmBone*.6*(.8+.2*(1.0 - wmS(.44, .5, e))), wmCard);
  vec3 f=c*wmWarmC*wmLamp(q.x)*1.6/(.2+3.*max(q.z, 0.))*wmF(.0, 1.2, q.z)*wmS(-.05, .0, q.z);
  if (wmDay+wmDark+wmCard > 0.) f+=c*(wmDay*.45*uKind[1]+wmDark*wmPool(q)*.4+wmCard*.4*(1. - .9*wmDark))*wmS(-.05, .05, q.z);
  return wmFog > 0. ? mix(f, wmMist(f, q, t), .55) : f;

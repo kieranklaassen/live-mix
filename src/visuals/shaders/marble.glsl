@@ -205,7 +205,7 @@ vec3 mrTable(vec3 ro, vec3 rd) {
   vec3 c = mrPaper(q, ca) * (0.985 + 0.02 * noise(q.xz * 41.0) + 0.02 * noise(rot(0.7) * q.xz * vec2(9.0, 60.0)));
   vec3 wall = vec3(0.4, 0.43, 0.47);
   if (uOwn[2] < 0.0) {
-    float far = length(q.xz), hz = q.z * 5.0 + 1.6 * q.x + 2.4 * noise(q.xz * 0.9), fade = smoothstep(9.0, 2.0, far);
+    float far = length(q.xz), hz = q.z * 5.0 + 1.6 * q.x + 2.4 * noise(q.xz * 0.9), fade = (1.0 - smoothstep(2.0, 9.0, far));
     float slope = cos(hz + 0.5 * sin(hz)) * (0.5 + noise(q.xz * 1.7 + 9.0));
     c *= 1.0 - uOwn[2] * ((slope * 0.34) * fade + 0.22 * (hash21(floor(q.xz * 90.0)) - 0.5) * fade);
   }
@@ -319,7 +319,7 @@ vec3 mrCushion(vec3 q, vec3 d) {
   float H = 0.27, rows = 5.5;
   if (uOwn[4] != 0.0) { rows = floor(5.0 * exp2(uOwn[4]) + 0.5) + 0.5; H = 1.485 / rows; }
   if (uOwn[5] < 0.0) {
-    float st = smoothstep(1.55, 1.1, tau), g = st * (noise(u * 4.0 + 3.0) - 0.5), g2 = st * (noise(u * 3.4 + 40.0) - 0.5);
+    float st = (1.0 - smoothstep(1.1, 1.55, tau)), g = st * (noise(u * 4.0 + 3.0) - 0.5), g2 = st * (noise(u * 3.4 + 40.0) - 0.5);
     tau = max(tau - uOwn[5] * 0.34 * g * smoothstep(0.0, 0.3, tau), 0.0); th -= uOwn[5] * 0.9 * g2;
   }
   float j = floor(tau / H + 0.5);

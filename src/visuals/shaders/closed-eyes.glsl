@@ -113,7 +113,7 @@ float ceDapple(vec2 p) {
   float fk = float(k), z = 2.2 + 1.3 * fk;
   vec2 g = rot(0.5 * fk) * p * z + 9.0 * fk + 0.18 * vec2(sin(uTime * 0.21 + fk), cos(uTime * 0.17 + 2.0 * fk)), id = floor(g), h = hash22(id + 5.0);
   float d = length(fract(g) - 0.5 - 0.3 * (h - 0.5)), rr = 0.16 + 0.17 * h.x;
-  s += step(0.3, h.y) * (0.5 + 0.5 * h.x) * smoothstep(rr + 0.02 * z, rr - 0.02 * z, d) * (0.75 + 0.25 * d / rr);
+  s += step(0.3, h.y) * (0.5 + 0.5 * h.x) * (1.0 - smoothstep(rr - 0.02 * z, rr + 0.02 * z, d)) * (0.75 + 0.25 * d / rr);
  }
  return s;
 }
@@ -161,7 +161,7 @@ vec3 ceSun(vec2 p) {
  float ring = band(sat(r * 1.1)) * on;
  float sun = 0.3 + 0.95 * exp(-r * r * (5.5 - 2.4 * uSpace)) * (1.0 + 0.7 * uLevel * on) + 0.22 * uLevel * on + 0.22 * ring + 0.25 * uMic * exp(-r * r * 9.0);
  if (uOwn[3] > 0.0) {
-  float disc = smoothstep(0.185, 0.165, length(s)), aura = exp(-max(length(s) - 0.17, 0.0) * 5.0);
+  float disc = (1.0 - smoothstep(0.165, 0.185, length(s))), aura = exp(-max(length(s) - 0.17, 0.0) * 5.0);
   sun = mix(sun, 0.14 + 2.6 * disc + (0.4 + 0.4 * uLevel * on) * aura + 0.2 * uLevel * on + 0.25 * ring, uOwn[3]);
   thick = mix(thick, 0.3 * thick * (1.0 - 0.7 * disc) + 0.08 + 1.0 * (1.0 - aura), uOwn[3]);
  }
@@ -186,7 +186,7 @@ vec3 ceSun(vec2 p) {
  float empty = max(-uOwn[4], 0.0), ves = 0.0;
  if (empty < 1.0) ves = (uOwn[0] == 0.0 && uOwn[1] == 0.0 ? ceVessels(eye) : ceVesselsOwn(eye)) * (1.0 - empty);
  if (ceAll > 0.0) show = mix(show, max(show, 0.45 + 0.35 * uPad * on), ceAll);
- if (uOwn[1] < 0.0) thick -= 3.2 * uOwn[1] * smoothstep(0.125, 0.105, length(eye + 0.004 * sin(eye.yx * 40.0)));
+ if (uOwn[1] < 0.0) thick -= 3.2 * uOwn[1] * (1.0 - smoothstep(0.105, 0.125, length(eye + 0.004 * sin(eye.yx * 40.0))));
  thick += ves * show * 1.5;
  // three threads afloat: they sink, and slip when the eye goes after them
  float fl = 0.0, halo = 0.0;
@@ -401,7 +401,7 @@ vec3 render(vec2 p) {
   c = mix(mix(back, c, 1.0 - globe), c, inside);
  }
  if (lay > 0.0) {
-  float far = smoothstep(0.42, 0.06, d);
+  float far = (1.0 - smoothstep(0.06, 0.42, d));
   float up = max(-d, 0.0);
   vec3 haze = mix(sqrt(uKind[1]) * (0.35 + 0.35 * uLevel), vec3(0.95, 0.93, 0.9), 0.7 * pale);
   vec3 sky = mix(haze, uKind[0] * mix(0.35, 1.0, pale), smoothstep(0.0, 0.3, up));
@@ -410,7 +410,7 @@ vec3 render(vec2 p) {
  if (dots > 0.0) {
   float l = dot(c, vec3(0.3, 0.55, 0.15)), px = N / uRes.y;
   float big = mix(0.06 + 0.4 * sqrt(sat(l * 1.25)), 0.05 + 0.42 * sqrt(sat(1.1 - l)), pale);
-  float on = smoothstep(big + px, big - px, length(cell));
+  float on = (1.0 - smoothstep(big - px, big + px, length(cell)));
   vec3 bead = c * mix(1.25, 0.9, pale), under = mix(c * 0.1, vec3(0.95, 0.93, 0.88), pale);
   c = mix(c, mix(under, bead, on), dots);
  }

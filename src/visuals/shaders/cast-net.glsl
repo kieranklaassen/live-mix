@@ -377,7 +377,7 @@ vec3 cnAbove(vec2 p, bool a) {
  if (uOwn[6] > .0) col = cnPads(col, rot(.4) * p * 7.5 + 20., 7.5 * cnPx);
  float t = fract(uTime / 45.), deep = exp2(-uOwn[4]);
  vec2 e = p - (a ? vec2(.12, .02) : vec2(-.06, .02));
- col = mix(col, cnLit, uHits * .9 * cnRing(e, .30 + .25 * (1. - uHits), 900.) + .5 * uCue * exp(-pow(60. * (length(e) - .7 + .6 * uCue), 2.)));
+ col = mix(col, cnLit, uHits * .9 * cnRing(e, .30 + .25 * (1. - uHits), 900.) + .5 * uCue * exp(-pow(60. * abs(length(e) - .7 + .6 * uCue), 2.)));
  if (a) {
   vec2 boat = vec2(-.5, -.14) + .004 * sin(.4 * uTime), hand = boat + rot(-.35) * vec2(.14, .0);
   vec4 A = cnPose(vec4(hand, .03, .9), vec4(.14, .03, .36 + .07 * (uLevel - .4), .95), vec4(.14, .02, .40, .97), vec4(-.26, -.04, .06, .8), t);

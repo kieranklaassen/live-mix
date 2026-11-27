@@ -174,15 +174,15 @@ vec3 mwStools(vec2 p, vec3 col, float g) {
     float lamp = .25 + .9 * uTexture + 1.2 * uKeys;
     col += tint * lamp * .12 * MWT * exp(-3. * dot(q, q)) * (1. - m.w);
     vec3 stem = mix(tint, vec3(.9, .85, .7), .6) * (.04 + .75 * g + .3 * lamp * exp(-u * 6.)) * (.35 + .5 * sat(1. - sx * sx) + .35 * sx) * mix(.8, 1.15, noise(vec2(sx * 4. + f, p.y * 12.)));
-    col = mix(col, stem, smoothstep(1. + 4. * px, 1. - 4. * px, abs(sx)) * step(p.y, c.y));
+    col = mix(col, stem, (1. - smoothstep(1. - 4. * px, 1. + 4. * px, abs(sx))) * step(p.y, c.y));
     float e = length(vec2(q.x, (q.y + .02) * 4.2)), gill = abs(fract(q.x / (.25 + .75 * sqrt(max(1. - q.x * q.x, 0.))) * 9.) - .5);
-    col = mix(col, tint * (.1 + .55 * lamp + .3 * g) * (.45 + gill), smoothstep(1. + px, 1. - px, e));
+    col = mix(col, tint * (.1 + .55 * lamp + .3 * g) * (.45 + gill), 1. - smoothstep(1. - px, 1. + px, e));
     vec2 k = vec2(q.x, (q.y + .12 * (1. - q.x * q.x)) / (.62 + .25 * fract(f * .37))); float r = length(k), z = sqrt(max(1. - r * r, 0.));
     vec2 sp = vec2(k.x / (.35 + .65 * z), k.y) * 3.2 + f; vec2 si = floor(sp); vec2 sh = hash22(si + f);
     float spot = (1.0 - smoothstep(.26, .32, length(sp - si - .35 - .3 * sh))) * step(.35, sh.x) * z;
     float lit = sat(dot(vec3(k, z), normalize(vec3(mwSun - c, .35))) * .6 + .4);
     vec3 cap = mix(tint * .85, vec3(.95, .9, .8), .8 * spot) * (.05 + (.25 + 1.2 * g) * lit * lit) * mix(vec3(1.), mwSunC, .7) + tint * (.5 + g) * (1. - z) * (1. - z) * .5 * lit;
-    col = mix(col, cap, smoothstep(1. + px, 1. - px, r) * smoothstep(-px, px, q.y + .1 * (1. - q.x * q.x)));
+    col = mix(col, cap, (1. - smoothstep(1. - px, 1. + px, r)) * smoothstep(-px, px, q.y + .1 * (1. - q.x * q.x)));
     col = mix(col, far, m.w * .55);
   }
   return col;

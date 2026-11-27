@@ -376,7 +376,7 @@ vec3 nlBoats(vec2 p) {
     col = mix(col, rc, rock * (1.0 - afl) * (1.0 - .35 * low));
     col = mix(col, (vec3(.05) + nlDay * .7) * (.6 + .5 * nlUp(-.015, .015, -t.x)) * mix(vec3(1.0), nlInk(4) * .6, nlUp(.45, .55, abs(fract(t.y * 12.0) - .5) * 2.0)), tow * (1.0 - afl));
     float c = cos(uTime * .11), beam = exp(-l.y * l.y / pow(.004 + .07 * abs(l.x), 2.0) - abs(l.x) * 1.1 / max(abs(c), .06)), m2 = dot(l, l), lit = (own - .2 + .7 * uLevel + .5 * uPad) * (1.0 + .5 * uHits) * (1.0 - afl);
-    col += mix(green, vec3(1.0, .85, .6), .5) * lit * (1.0 - .6 * nlDay) * (beam * (.1 + .16 * thick) + 5.0 * exp(-m2 / .00008) + .35 * exp(-sqrt(m2) / .03) + isSea * .5 * glint * exp(-pow((rx + .1 * rip) / (.02 + .1 * d), 2.0) - d * 5.0) * (1.0 - rock));
+    col += mix(green, vec3(1.0, .85, .6), .5) * lit * (1.0 - .6 * nlDay) * (beam * (.1 + .16 * thick) + 5.0 * exp(-m2 / .00008) + .35 * exp(-sqrt(m2) / .03) + isSea * .5 * glint * exp(-pow(abs(rx + .1 * rip) / max(.02 + .1 * d, .001), 2.0) - d * 5.0) * (1.0 - rock));
     there = max(there * (1.0 - wet), rock * (1.0 - low) * (1.0 - afl)); wet = .0;
   }
   return col + (air + cores) * (1.0 - there * (1.0 - wet));

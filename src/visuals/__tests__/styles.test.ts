@@ -28,6 +28,15 @@ function headerOf(text: string): Record<string, string> {
   return header
 }
 
+/** Drawn since before this was held, with the edges of a soft step the other way round, and left as they are drawn. */
+const TURNED_STEPS = `
+  black-hole clouds colour-field crystal-hall curtains daylight-smoke dot-globe dot-screen dot-tunnel dot-wall
+  dusk flowers folded-stone grid-land hills leaf light-tunnel liquid-metal lit-cloud meadow melt moire night-sea
+  pin-relief pond press prism ribbons ripples silk soft-lights still-life strung-form sunflower
+`
+  .trim()
+  .split(/\s+/)
+
 describe('the list of styles', () => {
   it('has two hundred and forty-one styles', () => {
     expect(VISUAL_STYLES).toHaveLength(241)
@@ -95,6 +104,17 @@ describe('the shaders', () => {
       ]),
     )
     expect(written).toEqual(listed)
+  })
+
+  // GLSL leaves `smoothstep` undefined where its first edge is not the lower one. Software rendering works it out all the
+  // same, and what a graphics card or a compiler that folds it does is its own affair.
+  it('writes no soft step with its edges the wrong way round', () => {
+    const NUMBER = String.raw`\s*(-?\d*\.?\d+\.?|-?\d+\.)\s*`
+    const step = new RegExp(String.raw`\bsmoothstep\(${NUMBER},${NUMBER},`, 'g')
+    const turned = shaderIds.filter((id) =>
+      [...textOf(id).matchAll(step)].some((found) => Number(found[1]) >= Number(found[2])),
+    )
+    expect(turned).toEqual(TURNED_STEPS)
   })
 
   it('has the function that draws the picture in every shader', () => {

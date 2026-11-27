@@ -111,7 +111,7 @@ vec3 sqPigment(vec2 c, float row, float odd, vec4 r, out float dens) {
   vec3 lean = mix(vec3(0.90, 0.98, 1.10), vec3(1.12, 0.96, 0.82), sat(w));
   ink = mix(ink, pow(hue * 0.94 * lean + 0.04, vec3(mix(mix(1.9, 0.62, lift), mix(1.25, 0.9, lift), abs(uOwn[4])))), 0.68 * loud);
   ink *= 1.0 - vec3(-0.03, 0.15, 0.08) * smoothstep(0.7, 0.8, r.w) * (1.0 - 0.85 * abs(uOwn[4]));
-  if (uOwn[2] < 0.0) ink *= 1.0 + 0.36 * uOwn[2] * smoothstep(0.26, 0.06, distance(ink, sqHue));
+  if (uOwn[2] < 0.0) ink *= 1.0 + 0.36 * uOwn[2] * (1.0 - smoothstep(0.06, 0.26, distance(ink, sqHue)));
   dens = mix(0.74 + 0.5 * r.w, 1.2, 0.5 * loud) * (1.0 + 0.25 * b);
   // a hit: the washes under one soft circle pale
   vec2 hc = vec2(sqWrap(uv.x - uLoop) * 2.0 * sqHalf.x, c.y - 0.1 * sin(TAU * uLoop));
@@ -131,7 +131,7 @@ vec3 sqWash(vec3 ground, vec3 ink, float dens, float d, vec2 q, vec4 r) {
   float on = smoothstep(-e, e, d);
   float ds = max(d, 0.0);
   if (uOwn[7] < 0.0) {
-    float line = smoothstep(0.0075 + e, 0.0045, ds + 0.004 * (sqWob - 0.5)) + 0.10 * sqLoud;
+    float line = (1.0 - smoothstep(0.0045, 0.0075 + e, ds + 0.004 * (sqWob - 0.5))) + 0.10 * sqLoud;
     on *= mix(1.0, sat(line + 0.06), -uOwn[7]);
   }
   float rim = exp(-ds / (0.0030 + 0.0012 * r.x));
@@ -175,7 +175,7 @@ vec3 sqWash(vec3 ground, vec3 ink, float dens, float d, vec2 q, vec4 r) {
     float fine = 1.0 - smoothstep(0.0009, 0.0026, sqPx), f = 560.0 + 260.0 * r.w;
     float weave = sin(w.x * f + 1.5 * sin(w.y * f * 0.5)) * sin(w.y * f * 0.55), rib = r.y > 0.55 ? sin((w.x + w.y * (r.x - 0.3)) * 190.0) : 0.0;
     vec3 patch_ = was * (1.0 + fine * (0.20 * weave + 0.12 * rib)) * (0.84 + 0.26 * smoothstep(0.0, 0.03, ds)) * (1.0 + 0.16 * dot(q, vec2(-0.4, 0.5)) * exp(-ds / 0.016));
-    float along = abs(q.x) > abs(q.y) ? sqP.y : sqP.x, st = smoothstep(0.0016 + sqPx, 0.0006, abs(ds - 0.0085)) * smoothstep(-0.2, 0.3, sin(along * 330.0));
+    float along = abs(q.x) > abs(q.y) ? sqP.y : sqP.x, st = (1.0 - smoothstep(0.0006, 0.0016 + sqPx, abs(ds - 0.0085))) * smoothstep(-0.2, 0.3, sin(along * 330.0));
     patch_ = mix(patch_, mix(sqHue, vec3(0.93, 0.9, 0.84), 0.5 + 0.4 * uKeys), st * 0.75);
     was = mix(was, mix(was, patch_, on), cloth);
   }
@@ -364,7 +364,7 @@ vec3 render(vec2 p) {
     float dim = 1.0 - 0.68 * max(uOwn[2], 0.0);
     float cloud = fbm(vec2(eye.x * 1.6 + uTime * 0.004, (eye.y - SQ_HOR / k + 0.5) * 7.0 + 3.0));
     vec3 sky = mix(low * mix(1.0, dim, 0.5), high * dim, sqrt(up)) * (0.93 + 0.14 * cloud + 0.06 * (sqGrain - 0.5));
-    col = mix(col, sky, k * max(smoothstep(0.20, 0.03, far), smoothstep(0.012, 0.0, far)));
+    col = mix(col, sky, k * max((1.0 - smoothstep(0.03, 0.20, far)), (1.0 - smoothstep(0.0, 0.012, far))));
   }
   return col;
 }

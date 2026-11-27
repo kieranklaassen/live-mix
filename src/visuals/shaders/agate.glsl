@@ -350,7 +350,7 @@ vec3 agCountry(vec2 p) {
  }
  col *= lit;
  if (worn > 0.0) col = mix(col, vec3(1.3, 1.24, 1.12) * sat(0.2 + 0.62 * dot(col * col, vec3(0.4, 0.55, 0.25))), worn);
- if (night > 0.0) col *= mix(vec3(1.0), vec3(0.2, 0.27, 0.4) + (0.6 + 0.6 * uLevel) * vec3(0.95, 1.0, 1.05) * exp(-sl * sl * 9.0) + vec3(0.5) * exp(-pow((q.x - sunX) * 4.0, 2.0)) * step(0.0, wy), night);
+ if (night > 0.0) col *= mix(vec3(1.0), vec3(0.2, 0.27, 0.4) + (0.6 + 0.6 * uLevel) * vec3(0.95, 1.0, 1.05) * exp(-sl * sl * 9.0) + vec3(0.5) * exp(-pow(abs(q.x - sunX) * 4.0, 2.0)) * step(0.0, wy), night);
  if (night > 0.0 && wy < agPx && max(rs.x, max(rs.y, rs.z)) < agPx) col += night * vec3(1.3, 1.25, 1.1) * agS(0.072, 0.066, sl) * (0.7 + 0.5 * mist);
  // the ferns, each spreading with one kind of sound
  float tr = 0.0, size = sqrt(near);

@@ -257,8 +257,8 @@ vec3 dcSheet(vec2 p) {
   float tf = abs(fract(th.x) - 0.5) * 2.0, big = (0.006 + 0.016 * noise(vec2(u * 9.0, 4.0))) * (1.0 + 9.0 * max(uOwn[1], 0.0));   // 0 at a tip of the hem, 1 between two
   float e0 = y - dcHem(u), slit = 1.0;
   if (cut > 0.0) {
-    float r = u * 5.0 + 0.6 * sin(u * 4.0), id = floor(r), wr = 1.0 - cut * (0.12 + 0.3 * hash11(id + 3.0) + 0.35 * smoothstep(0.35, -0.4, y));
-    slit = smoothstep(wr + 0.03, wr - 0.03, abs(fract(r) - 0.5) * 2.0);
+    float r = u * 5.0 + 0.6 * sin(u * 4.0), id = floor(r), wr = 1.0 - cut * (0.12 + 0.3 * hash11(id + 3.0) + 0.35 * (1.0 - smoothstep(-0.4, 0.35, y)));
+    slit = (1.0 - smoothstep(wr - 0.03, wr + 0.03, abs(fract(r) - 0.5) * 2.0));
     e0 += cut * 0.3 * (hash11(id + 19.0) - 0.5);
   }
   float e = e0 - big * tf * tf;
@@ -305,7 +305,7 @@ vec3 dcSheet(vec2 p) {
     float facing = 1.0 / sqrt(1.0 + slope * slope);
     if (uOwn[7] < 0.0) {
       vec2 g = vec2(u * 62.0, e0 * 62.0 + 0.5 * mod(floor(u * 62.0), 2.0)), h = fract(g) - 0.5;
-      c *= mix(1.0, 1.7 * smoothstep(0.1, -0.1, length(h * vec2(min(stretch, 1.0), 1.0)) - 0.16 - 0.26 * sat(dot(c, vec3(0.6)))), -uOwn[7]);
+      c *= mix(1.0, 1.7 * (1.0 - smoothstep(-0.1, 0.1, length(h * vec2(min(stretch, 1.0), 1.0)) - 0.16 - 0.26 * sat(dot(c, vec3(0.6))))), -uOwn[7]);
     }
     if (front > 0.0) {
       float lamb = sat(0.4 + 0.75 * dot(normalize(vec3(1.6 * slope, 0.05, 1.0)), vec3(-0.53, 0.33, 0.78)));
@@ -336,7 +336,7 @@ vec3 dcSheet(vec2 p) {
     col = mix(col, vec3(1.0, 0.78, 0.5) * lit * (0.03 + 1.6 * spec * spec), cd * (1.0 - over));
     col += vec3(1.0, 0.75, 0.45) * lit * 0.1 * exp(-dd * 1.1) * (1.0 - smoothstep(2.0, 4.0, dd)) * (1.0 - smoothstep(0.5, 0.9, tf)) * (1.0 - over) * step(1e-4, R);
   }
-  if (uOwn[7] > 0.0) col = mix(col, dcDay() * (0.22 + 0.4 * day), uOwn[7] * (0.25 + 0.7 * smoothstep(0.45, -0.5, p.y + 0.25 * (noise(p * vec2(2.0, 4.0) + vec2(50.0 + 0.04 * t, 9.0)) - 0.5))));
+  if (uOwn[7] > 0.0) col = mix(col, dcDay() * (0.22 + 0.4 * day), uOwn[7] * (0.25 + 0.7 * (1.0 - smoothstep(-0.5, 0.45, p.y + 0.25 * (noise(p * vec2(2.0, 4.0) + vec2(50.0 + 0.04 * t, 9.0)) - 0.5)))));
   // the drop a hit lets go
   float age = 1.0 - uHits, fx = (uLoop - 0.5) * 1.4, fs = uHits * (1.0 - smoothstep(0.3, 0.75, age));
   vec2 q = p - vec2(fx, mix(dcHem(fx) - 0.03, -0.62, sat(age * age * 6.0)));

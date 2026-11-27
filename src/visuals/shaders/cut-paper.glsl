@@ -58,7 +58,7 @@ vec3 clSteps(vec3 a, vec3 b, float d, float dS, float n, float way) {
   float t = -d / st, i = clamp(floor(t), 0.0, n), x = max(t - i, 0.0);
   vec3 c = mix(mix(a, b, (i - 1.0) / n), mix(a, b, i / n), smoothstep(0.0, clPx / st * 1.5 + .01, x));
   float lit = clamp((dS - d) / st * 1.4, -1.0, 1.0);
-  float sh = way > 0.0 ? (i < n ? smoothstep(1.0, .45, 1.0 - x) * sat(-lit) : 0.0) : exp(-x * 2.2) * sat(lit);
+  float sh = way > 0.0 ? (i < n ? (1.0 - smoothstep(.45, 1.0, 1.0 - x)) * sat(-lit) : 0.0) : exp(-x * 2.2) * sat(lit);
   return c * (1.0 - .5 * sh) + .12 * exp(-x * x * 60.0) * step(.5, i) * lit * way;
 }
 // Gouache: what the flat brush did at q, in the sheet's own frame. x how thick, y how dry.
@@ -211,7 +211,7 @@ vec3 clA(vec2 p) {
     flapShade = 1.0 - .42 * (1.0 - smoothstep(-.012, .012, dfs)) * smoothstep(.05, .2, abs(den));
   }
   float body = clIn(d), flap = clIn(df), face = clamp((ds - d) / up, -1.0, 1.0);
-  if (clLong > 1.0 || uOwn[6] > 0.0) ds += .08 * smoothstep(.008, 0.0, nn - np);
+  if (clLong > 1.0 || uOwn[6] > 0.0) ds += .08 * (1.0 - smoothstep(0.0, .008, nn - np));
   col *= mix((1.0 - .45 * (1.0 - smoothstep(-up * .8, up * .8, ds))) * flapShade, 1.0, max(body, flap));
   vec3 front = c * (1.02 - (.08 + .08 * s) * (q.x * .8 - q.y * .4) / z) + .10 * face * smoothstep(-.0025, 0.0, d);
   front *= 1.0 + 1.6 * max(uOwn[5], 0.0);
@@ -386,7 +386,7 @@ vec3 render(vec2 p) {
   vec3 col = uVar < .5 ? clA(q) : clB(q);
   if (disc < 9.0) {
     clTurn = 0; clPx = px;
-    col *= 1.0 - .4 * uOwn[7] * smoothstep(.17, .135, disc);
+    col *= 1.0 - .4 * uOwn[7] * (1.0 - smoothstep(.135, .17, disc));
     col = mix(col, clPaint(3) * (1.0 - .08 * clBrush(clAt, 2.0).x), uOwn[7] * clIn(disc - .145));
     col = mix(col, clPaint(0), uOwn[7] * clIn(disc - .07));
   }

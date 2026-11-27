@@ -56,7 +56,7 @@ vec3 siSky(vec2 p) {
  vec3 c = mix(uKind[1] * 0.75 + 0.2, uKind[0] * uKind[0] * 0.6, ss(-0.5, 0.45, p.y + 0.12 * noise(p * 1.5)));
  c += 0.12 * uKind[3] * exp(-dot(p - vec2(0.2, -0.45), p - vec2(0.2, -0.45)) * 4.0) * (1.0 + uLevel);
  vec2 g = p * 34.0, id = floor(g), h = hash22(id + 5.0);
- c += step(0.7, h.x) * ss(0.02 + 0.1 * h.y, 0.0, length(fract(g) - 0.5 - 0.6 * (h - 0.5))) * ss(-0.25, 0.3, p.y) * (0.5 + 0.3 * sin(uTime * (0.3 + h.y) + 40.0 * h.x));
+ c += step(0.7, h.x) * (1.0 - ss(0.0, 0.02 + 0.1 * h.y, length(fract(g) - 0.5 - 0.6 * (h - 0.5)))) * ss(-0.25, 0.3, p.y) * (0.5 + 0.3 * sin(uTime * (0.3 + h.y) + 40.0 * h.x));
  vec4 w = piece(vec2(0.5 + p.x / 1.9, 0.5 - p.y / 1.1) + 0.2 * (vec2(noise(p * 4.0), noise(p * 5.0 + 9.0)) - 0.5));
  c = mix(c, w.rgb / max(w.a, 0.05), 0.3 * sat(w.a));
  if (uVar > 0.5) { // on some other world, its neighbour

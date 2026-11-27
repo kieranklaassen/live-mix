@@ -412,7 +412,7 @@ vec4 ucIn(vec2 p, out vec2 at, out float px, out float lit, out float amb, out v
  if (lampOn || dd > .0 && -b + sqrt(dd) > .0) {
  vec3 e = q + l * (-b + sqrt(max(dd, .0)));
  if (lampOn) e = normalize(q + vec3(.0, .22, .0));
- float gone = ucGone(e), open = ucS(-.05, .05, gone), first = within > 1. ? ucS(-.05, .05, ucGone(q + l * (-b - sqrt(dd)))) : 1.;
+ float gone = ucGone(e), open = ucS(-.05, .05, gone), first = within > 1. ? ucS(-.05, .05, ucGone(q + l * (-b - sqrt(max(dd, .0))))) : 1.;
  if (!lampOn) lit = max(lit, open * first);
  if (open < 1.) spots = ucGlow(normalize(e), .004, mix(.0065, .0025, uTone) * length(e - q), bare) * (1. - open) * (lampOn ? ucS(.98, 1.06, within) * exp(1.1 - 1.1 * within) * 2.4 : first * .5);
  if (lampOn) spots += vec3(1.1, .72, .42) * (1. - ucS(.92, 1.02, within) + ucS(-.15, .2, gone) * ucS(.95, 1.1, within)) * exp(-2.6 * within) * 4.4;

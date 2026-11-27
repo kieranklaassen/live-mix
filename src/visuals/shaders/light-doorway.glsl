@@ -56,7 +56,7 @@ float ldBars(vec2 q, float hw, float hi, float s) {
   vec2 cell = ldBar > 0.0 ? vec2(2.0 * hw / max(floor(hw / 0.22 + 0.5), 2.0), hi / 4.0) : vec2(1e3, 0.115);
   vec2 w = ldBar > 0.0 ? vec2(0.016) : vec2(0.0, 0.034);
   vec2 d = abs(fract((q + vec2(hw, 0.0)) / cell + 0.5) - 0.5) * cell;
-  vec2 k = smoothstep(w + s, w - s, d) * w / (w + 0.5 * max(s - w, 0.0) + 1e-5);
+  vec2 k = (1.0 - smoothstep(w - s, w + s, d)) * w / (w + 0.5 * max(s - w, 0.0) + 1e-5);
   return 1.0 - abs(ldBar) * max(k.x, k.y);
 }
 vec3 ldSky(vec3 rd) {
@@ -64,7 +64,7 @@ vec3 ldSky(vec3 rd) {
   vec3 c = mix(uKind[1] * uKind[1], uKind[0] * uKind[0] * 0.5, sqrt(u)) * mix(0.14, 0.9, ldDay);
   vec2 g = rd.xy / (abs(rd.z) + 0.6) * 46.0, id = floor(g);
   float h = hash21(id);
-  return c + (1.0 - ldDay) * 0.35 * step(0.955, h) * u * smoothstep(0.1, 0.0, length(fract(g) - 0.5)) * (0.7 + 0.3 * sin(uTime * 0.5 + h * 900.0));
+  return c + (1.0 - ldDay) * 0.35 * step(0.955, h) * u * (1.0 - smoothstep(0.0, 0.1, length(fract(g) - 0.5))) * (0.7 + 0.3 * sin(uTime * 0.5 + h * 900.0));
 }
 float ldBlocks(vec2 q, float px) {
   float row = floor(q.y / 0.36), h = hash11(row + 2.0);
@@ -72,12 +72,12 @@ float ldBlocks(vec2 q, float px) {
   vec2 e = (0.5 - abs(f)) * vec2(0.74, 0.36);
   float d = min(e.x, e.y) + 0.016 * (noise(q * 14.0) - 0.5), own = hash21(id + 9.0);
   float face = (0.62 + 0.5 * own) * (0.72 + 0.35 * noise(q * 9.0) + 0.25 * noise(q * 31.0));
-  face *= 1.0 + 0.28 * (smoothstep(0.05, 0.0, (0.5 - f.y) * 0.36) - smoothstep(0.06, 0.0, (0.5 + f.y) * 0.36));
+  face *= 1.0 + 0.28 * ((1.0 - smoothstep(0.0, 0.05, (0.5 - f.y) * 0.36)) - (1.0 - smoothstep(0.0, 0.06, (0.5 + f.y) * 0.36)));
   return face * mix(0.4, 1.0, smoothstep(0.0, 0.014 + px, d - 0.008));
 }
 float ldDunes(vec2 q, float px) {
   float r = sin(q.y * 26.0 + 5.0 * noise(q * 0.9) + 2.4 * noise(q * vec2(1.3, 3.1) + 7.0));
-  return 0.86 + 0.3 * r * smoothstep(0.12, 0.02, px) * (0.4 + 0.8 * noise(q * 0.7 + 3.0)) + 0.16 * noise(q * 60.0) * smoothstep(0.03, 0.005, px);
+  return 0.86 + 0.3 * r * (1.0 - smoothstep(0.02, 0.12, px)) * (0.4 + 0.8 * noise(q * 0.7 + 3.0)) + 0.16 * noise(q * 60.0) * (1.0 - smoothstep(0.005, 0.03, px));
 }
 vec2 ldRipple(vec2 q) { return vec2(noise(q * 3.0 + vec2(0.0, 0.13 * uTime)), noise(q * 3.0 + vec2(17.0, -0.11 * uTime))) - 0.5; }
 
@@ -274,7 +274,7 @@ vec3 ldRoom(vec3 ro, vec3 rd, float px, float t, int id, vec3 gl) {
   far.x = ldWrap(far.x);
   float m = ldRise(w, ldHw - far.x) * smoothstep(0.0, 2.0 * w, far.x + ldHw) * ldRise(w * 2.2, ldHi - far.y) * ldPast(P, far + rr * 0.02, w);
   float f1 = 1.0 - rr.y, f2 = f1 * f1;
-  if (ldForm) m *= smoothstep(w, -w, ldGapD(far.xy)) * ldBars(far.xy, ldHw, ldHi, w);
+  if (ldForm) m *= (1.0 - smoothstep(-w, w, ldGapD(far.xy))) * ldBars(far.xy, ldHw, ldHi, w);
   if (ldWater > 0.0) {
     vec3 wall = 0.55 * paint * (amb + ldRich(ldAt(vec3(far.xy, -0.02), vec3(0.0, 0.0, -1.0), 0.0), 1.5));
     wall = mix(wall, ldSky(rr), ldAir);
@@ -323,7 +323,7 @@ vec3 ldDoor(vec2 p) {
       vec3 d = L - P, ink = i % 3 == 0 ? ldRay[0] + ldRay[1] : i % 3 == 1 ? ldRay[2] : ldRay[3];
       float s = -P.z / max(d.z, 0.5);
       vec2 X = P.xy + d.xy * s;
-      float g = smoothstep(0.1, -0.1, ldGapD(X)) * ldPast(P, L, 0.1) * ldBars(vec2(ldWrap(X.x), X.y), ldHw, ldHi, 0.03) * smoothstep(0.0, -0.1, P.z);
+      float g = (1.0 - smoothstep(-0.1, 0.1, ldGapD(X))) * ldPast(P, L, 0.1) * ldBars(vec2(ldWrap(X.x), X.y), ldHw, ldHi, 0.03) * (1.0 - smoothstep(-0.1, 0.0, P.z));
       air += (ink + ldHome + ldMean * 0.5 + 0.3 * ldInk[4]) * g / (1.0 + 0.35 * dot(P, P));
     }
     c = c * (1.0 - 0.45 * ldHaze * (1.0 - open)) + ldHaze * air * far * 0.04 * (0.75 + 0.5 * noise(vec3(q * 3.0, uTime * 0.06)));
@@ -358,7 +358,7 @@ vec3 lwAt(float u, float y, vec3 own, vec3 opp, vec3 lo, vec3 hi) {
 float lwSun(vec3 P, float s) {
   vec2 X = P.xz - vec2(0.6, 0.5) * (lwTop - P.y) + vec2(0.35, 0.5) * lwR + 0.12 * ldWave.xy;
   float e = 0.05 + s;
-  return smoothstep(e, -e, max(abs(X.x) - 0.75, abs(X.y) - 1.1)) * ldBars(X + vec2(0.0, 1.1), 0.75, 2.2, s + 0.01);
+  return (1.0 - smoothstep(-e, e, max(abs(X.x) - 0.75, abs(X.y) - 1.1))) * ldBars(X + vec2(0.0, 1.1), 0.75, 2.2, s + 0.01);
 }
 vec3 lwWall(vec3 P, vec3 N, float px) {
   bool side = abs(N.x) > 0.5;
@@ -454,9 +454,9 @@ vec3 ldWell(vec2 p) {
     vec2 X = P.xz + rd.xz * (lwTop - P.y) / rd.y, ax = abs(X);
     float in1 = lwR - max(ax.x, ax.y), dx = fwidth(in1) + 0.01;
     vec3 sk = ax.x > ax.y ? (X.x < 0.0 ? lwQ[1] : lwQ[2]) : (X.y > 0.0 ? lwQ[3] : lwQ[0]);
-    vec3 lid = mix(lwAll * 0.05, sk * 0.5 + 0.06, smoothstep(dx, -dx, in1 - lwSlot)) + sk * 0.12 * exp(-max(in1 - lwSlot, 0.0) * 3.0);
+    vec3 lid = mix(lwAll * 0.05, sk * 0.5 + 0.06, (1.0 - smoothstep(-dx, dx, in1 - lwSlot))) + sk * 0.12 * exp(-max(in1 - lwSlot, 0.0) * 3.0);
     if (uOwn[7] != 0.0) lid *= mix(1.0, ldBars(X, lwR, 2.0 * lwR, dx), 0.9);
-    if (ldDay > 0.0) lid = mix(lid, smoothstep(dx, -dx, lwSlot - in1) * 0.12 * uKind[2] + smoothstep(dx, -dx, in1 - lwSlot) * vec3(0.5), 0.6 * ldDay);
+    if (ldDay > 0.0) lid = mix(lid, (1.0 - smoothstep(-dx, dx, lwSlot - in1)) * 0.12 * uKind[2] + (1.0 - smoothstep(-dx, dx, in1 - lwSlot)) * vec3(0.5), 0.6 * ldDay);
     wall = mix(wall, lid, open * smoothstep(-0.02, 0.02, P.y - lwTop));
   }
   vec3 c = add + fr * wall;

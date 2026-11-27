@@ -185,7 +185,7 @@ float bcDash(vec2 g, float on, float aa) {
   return bcCut(abs(f.y + 0.5 * (fract(h * 91.0) - 0.5) + 0.08 * t) - 0.16 * s * (1.0 - t * t), aa) * step(abs(t), 1.0) * step(0.001, s);
 }
 vec3 bcGouge(vec3 c, vec2 p, float D) {
-  float l = log2(D);
+  float l = log2(max(D, 0.0001));
   c = mix(c, c * bcWash, 0.8 * bcDash(vec2(p.x / D * 1.5, l * 11.0), 0.08 + 0.4 * uPad, 0.06));
   return mix(c, bcInk, bcDash(vec2(p.x / D * 6.0, l * 22.0 + 3.0), 0.02 + 0.32 * uTexture, 0.12));
 }

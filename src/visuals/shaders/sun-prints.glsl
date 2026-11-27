@@ -13,7 +13,7 @@ vec4 suWarp;                // how the water bent the weed before it dried
 vec2 suSun;                 // which way a lifted plant throws its shade
 float suCov(float d, float b) {
   float a = 1.0 - smoothstep(-b, b, d);
-  if (uOwn[7] < 0.0) { float w = 0.0018 + 0.6 * b; a *= 1.0 + 0.95 * uOwn[7] * smoothstep(-w,-2.0 * w, d); }
+  if (uOwn[7] < 0.0) { float w = 0.0018 + 0.6 * b; a *= 1.0 + 0.95 * uOwn[7] * (1.0 - smoothstep(-2.0 * w, -w, d)); }
   return a;
 }
 float suLine(float d, float w, float b) { return (1.0 - smoothstep(w - b, w + b, d)) * w / (w + 0.8 * max(b - w,0.0)); }
@@ -313,7 +313,7 @@ void suSprigs(vec2 p, bool sea) {
   float g = 4.3, big = sea ? 1.36 : 1.1, px = suPx;
   vec2 q = p * g + vec2(0.5,0.15 + 0.5 * mod(floor(p.x * g + 0.5),2.0)), id = floor(q), h = hash22(id + 5.0), h2 = hash22(id + 47.0);
   vec2 c = abs(q - id - 0.5);
-  suKeep *= smoothstep(0.5,0.465, max(c.x, c.y));          // a tip that reaches its cell's side thins out there
+  suKeep *= (1.0 - smoothstep(0.465, 0.5, max(c.x, c.y)));          // a tip that reaches its cell's side thins out there
   q = rot((h2.x - 0.5) * 1.5) * (q - id - 0.5 + 0.12 * (h - 0.5)) * big;
   int kind = int(h.x * 3.99);
   float lean = (h2.y - 0.5) * 1.4;
@@ -378,7 +378,7 @@ vec3 render(vec2 p) {
         float fk = float(k), y = 0.24 - 0.135 * fk + (0.13 - 0.01 * fk) * (noise(vec2(p.x * (1.3 + 0.35 * fk) + 7.3 * fk,2.0)) - 0.5) + 0.012 * (noise(vec2(p.x * 31.0, fk)) - 0.5) + 0.004 * (noise(vec2(p.x * 160.0, fk)) - 0.5) - p.y;
         float in_ = smoothstep(-suPx, suPx, y);
         hills = mix(hills,0.42 + 0.17 * fk, in_);
-        torn = mix(torn, smoothstep(0.011,0.004, y + 0.006 * noise(p * vec2(60.0,90.0))), in_);
+        torn = mix(torn, (1.0 - smoothstep(0.004, 0.011, y + 0.006 * noise(p * vec2(60.0,90.0)))), in_);
       } while (++k < 5);
     }
     suPetals(p, sea);
@@ -446,7 +446,7 @@ vec3 render(vec2 p) {
     e = e * suT * coat;
     if (old > 0.0) {
       float jag = 0.010 * (noise(p * 24.0) - 0.5), cx = min(abs(p.x - 0.31 * suWide + jag), abs(p.x + 0.35 * suWide + 0.5 * jag)), cy = abs(p.y - 0.03 - jag), flake = noise(p * vec2(31.0,34.0)) * 0.6 + noise(p * 97.0) * 0.4;
-      float worn = smoothstep(0.018,0.0, min(cx, cy) - 0.030 * smoothstep(0.55,0.9, flake)) + 0.5 * smoothstep(0.64,0.8, noise(p * 5.0) * 0.6 + flake * 0.4);
+      float worn = (1.0 - smoothstep(0.0, 0.018, min(cx, cy) - 0.030 * smoothstep(0.55,0.9, flake))) + 0.5 * smoothstep(0.64,0.8, noise(p * 5.0) * 0.6 + flake * 0.4);
       e = max(e * (1.0 - old * (0.85 * sat(worn) + 0.20)),0.0);
     }
     e += 0.1 * (grain - 0.5) * smoothstep(0.02,0.4, e);
@@ -463,7 +463,7 @@ vec3 render(vec2 p) {
     page = mix(page, page * mix(vec3(1.0), mix(uKind[0], uKind[1], hills),0.8) * (1.18 - 0.35 * hills), max(-uOwn[6],0.0) * (1.0 - torn));
     page = mix(page, uKind[1] * (0.82 + 0.16 * blot.y) + 0.1,0.75 * max(-uOwn[1],0.0) * coat);
     float front = p.x - mix(-suHalf - 0.35, suHalf + 0.35, uLoop);
-    page *= 1.0 - 0.05 * exp(-front * front * 30.0) - 0.10 * uCue * smoothstep(0.3,-0.1, p.y - mix(0.3,-0.85,1.0 - uCue));
+    page *= 1.0 - 0.05 * exp(-front * front * 30.0) - 0.10 * uCue * (1.0 - smoothstep(-0.1, 0.3, p.y - mix(0.3,-0.85,1.0 - uCue)));
     col = mix(col, mix(page, min(ink * (0.85 + 0.3 * grain), page), dens * 0.96), rev);
     bare = mix(bare,1.0 - 0.5 * dens, rev); coat = mix(coat,1.0, rev);
   }

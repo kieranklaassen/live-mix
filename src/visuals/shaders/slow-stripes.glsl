@@ -170,7 +170,7 @@ vec3 render(vec2 p) {
   vec3 dye = m.rgb / max(m.a, 0.001);
   dye = mix(vec3(dot(dye, vec3(0.3, 0.6, 0.1))), dye, b ? 0.76 : 0.88) * 0.84 + 0.08;
   if (uOwn[4] != 0.0) dye = mix(dye, m.rgb / max(m.a, 0.001), abs(uOwn[4]));
-  if (uOwn[4] < 0.0) dye = mix(dye, col * 0.78, -uOwn[4] * smoothstep(0.3, 0.08, distance(dye, uKind[0])));
+  if (uOwn[4] < 0.0) dye = mix(dye, col * 0.78, -uOwn[4] * (1.0 - smoothstep(0.08, 0.3, distance(dye, uKind[0]))));
   col = mix(col, dye, heard * (b ? 0.12 + 0.78 * third : 0.4 + 0.5 * third));
   col = mix(col, uKind[4] * 0.85, sat(hit * 0.8));
   col *= mix(b ? vec3(0.88, 0.88, 0.91) : vec3(0.80, 0.82, 0.88), vec3(1.09, 1.06, 1.02), shade);
@@ -216,10 +216,10 @@ vec3 render(vec2 p) {
     float dim = 1.0 - 0.72 * max(uOwn[4], 0.0);
     vec3 sky = mix(low * mix(1.0, dim, 0.45), high * dim, sqrt(up)) * (0.94 + 0.12 * uLevel);
     vec2 o = eye - vec2(0.27, SS_HOR / k - 0.385);          // a low sun or moon
-    float disc = k * (smoothstep(0.052, 0.046, length(o)) + 0.3 * exp(-dot(o, o) * 40.0));
+    float disc = k * ((1.0 - smoothstep(0.046, 0.052, length(o))) + 0.3 * exp(-dot(o, o) * 40.0));
     sky = mix(sky, mix(vec3(0.99, 0.96, 0.9), uKind[3] * 0.5 + 0.5, 0.5), sat(disc) * mix(0.75, 1.0, max(uOwn[4], 0.0)));
     float haze = exp(-max(far, 0.0) * 8.0) * k;
-    seen = mix(seen, sky, max(haze, smoothstep(0.012, 0.0, far)));
+    seen = mix(seen, sky, max(haze, (1.0 - smoothstep(0.0, 0.012, far))));
   }
   return seen;
 }

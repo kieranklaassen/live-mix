@@ -156,7 +156,7 @@ vec2 tcEye(vec2 p) {
   return vec2(p.x, p.y) * s / w + vec2(0.0, 0.08 * k);
 }
 vec3 tcBeyond(vec3 col, vec2 p) {
-  float sh = smoothstep(0.62, 0.34, length(p - vec2(0.1, -0.1))), pale = max(uOwn[2], 0.0);
+  float sh = (1.0 - smoothstep(0.34, 0.62, length(p - vec2(0.1, -0.1)))), pale = max(uOwn[2], 0.0);
   return col * (0.62 - 0.45 * sh * (1.0 - 0.3 * pale)) * (1.0 + 0.5 * pale);
 }
 vec3 tcSky(vec2 p) {
@@ -282,7 +282,7 @@ vec3 tcBoard(vec2 p) {
       col = col * (1.0 - 0.35 * k * see * max(uOwn[1], 0.0) * smoothstep(0.0, 2.0 * px, d)) + cl * mix(1.0, 0.25, max(uOwn[2], 0.0));
       if (uOwn[2] > 0.0) col = mix(col, col * mix(vec3(1.0), paint, 0.75), k * uOwn[2] * see * smoothstep(0.0, 2.0 * px, d) * (0.3 + 0.5 * dot(v, v)));
     }
-    if (uOwn[4] != 0.0) col *= 1.0 - 0.5 * abs(uOwn[4]) * less * smoothstep(px, -px, d) * exp(min(d, 0.0) / (0.006 + 0.08 * r));
+    if (uOwn[4] != 0.0) col *= 1.0 - 0.5 * abs(uOwn[4]) * less * (1.0 - smoothstep(-px, px, d)) * exp(min(d, 0.0) / (0.006 + 0.08 * r));
     col = mix(col, paint, on * (0.82 + 0.15 * thin) * see);
     rake *= 1.0 - 0.6 * on * thin;
     col *= 1.0 - 0.5 * on * (1.0 - on) * see;
@@ -409,7 +409,7 @@ vec3 tcPaper(vec2 p) {
     if (over > 0.0) laid = mix(laid, mix(col, wash * (0.6 + 0.45 * loud + 0.4 * wet), W * (under ? 0.9 * lay : 0.95)), over);
     col = laid;
     if (uOwn[5] > 0.0) { col += tcClear(v, wash, loud) * uOwn[5] * see * smoothstep(0.0, 2.0 * px, d) * lay * (night + 0.25 * max(uOwn[1], 0.0)); }
-    if (uOwn[1] != 0.0) col = mix(col, tcRelief(col, v, max(uOwn[5], 0.0)), see * smoothstep(0.0, 2.0 * px, d) * max(lay, 0.15) * smoothstep(3.0, 1.0, r));
+    if (uOwn[1] != 0.0) col = mix(col, tcRelief(col, v, max(uOwn[5], 0.0)), see * smoothstep(0.0, 2.0 * px, d) * max(lay, 0.15) * (1.0 - smoothstep(1.0, 3.0, r)));
     float w = 0.0008 + 0.0016 * smoothstep(0.02, 0.2, r) + (0.0008 * uDrone * ans + 0.0016 * cue) * smoothstep(0.03, 0.2, r);
     float l = (1.0 - smoothstep(w - 0.6 * px, w + 0.6 * px, abs(d - w))) * dry;
     float gap = min(0.0085, 0.2 * r) + 2.0 * w;

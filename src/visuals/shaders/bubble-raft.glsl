@@ -205,7 +205,7 @@ vec3 brAbove(vec2 p) {
     vec3 dye = mix(mix(vec3(0.93, 0.91, 0.88) * (0.75 + 0.3 * lean), uKind[1], 0.6 * brSun), brPaint(id), abs(uOwn[5]));
     dye = mix(dye, tint, play * 0.8);
     c = brStuff(c, vec3(d, n), dye, normalize(vec3(L * 0.8, 0.62)), tone, t);
-    float sh = smoothstep(0.36, -0.02, brOff);
+    float sh = (1.0 - smoothstep(-0.02, 0.36, brOff));
     water *= 1.0 - 0.25 * max(uOwn[4], 0.0) * sh * sh * 0.7;
   }
   c += (brGlint * (0.16 + 0.6 * uKind[4]) + 0.4 * spark) * (1.0 - t * 0.5);

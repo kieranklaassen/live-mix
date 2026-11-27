@@ -74,10 +74,10 @@ float blThread(vec2 q, float px) {
   float s = 0.0, y = max(-q.y, 0.0);
   for (int k = 0; k < 2; k++) {
     float n = k == 0 ? 34.0 : 21.0, x = (q.x + y * 0.1 * sin(uTime * 0.23 + y * 5.0 + q.x * 3.0 + float(k) * 2.0)) * n, id = floor(x), h = hash11(id + 40.0 * float(k));
-    float in_ = smoothstep(0.5, 0.25, abs(id / n)), len = (0.5 + 0.5 * h) * in_ + 0.1 * uPhrase + 0.02, d = abs(fract(x) - 0.2 - 0.6 * hash11(id + 7.0)) / n;
-    s += in_ * smoothstep(2.0 * px, 0.0, d) * smoothstep(len, 0.4 * len, y) * (0.4 + 0.6 * h);
+    float in_ = (1.0 - smoothstep(0.25, 0.5, abs(id / n))), len = (0.5 + 0.5 * h) * in_ + 0.1 * uPhrase + 0.02, d = abs(fract(x) - 0.2 - 0.6 * hash11(id + 7.0)) / n;
+    s += in_ * (1.0 - smoothstep(0.0, 2.0 * px, d)) * (1.0 - smoothstep(0.4 * len, len, y)) * (0.4 + 0.6 * h);
     float b = fract(y * 6.0 * (0.5 + h) - uTime * 0.05 + h * 9.0) - 0.5;
-    s += in_ * exp(-(d * d * 9e4 + b * b * 60.0)) * smoothstep(len, 0.6 * len, y) * h;
+    s += in_ * exp(-(d * d * 9e4 + b * b * 60.0)) * (1.0 - smoothstep(0.6 * len, len, y)) * h;
   }
   return s;
 }
@@ -126,7 +126,7 @@ vec3 blWater(vec2 p, float clear) {
 vec3 blAir(vec2 p, float hor, vec3 L, float turn, float px) {
   vec3 sky = mix(vec3(0.875, 0.855, 0.81), vec3(0.60, 0.685, 0.715), smoothstep(0.29 + min(blSea, 0.2), 0.53, p.y + 0.03 * noise(p * vec2(2.0, 9.0))));
   if (uOwn[4] != 0.0) sky = blHue(sky);
-  if (uOwn[4] < 0.0) { vec2 m = p - vec2(0.42, hor + 0.1 + 0.5 * blDn(blSea)); float d = length(m); sky += blDn(uOwn[4]) * vec3(0.9, 0.86, 0.74) * (smoothstep(0.034, 0.031, d) + 0.1 * exp(-d * 9.0)); }
+  if (uOwn[4] < 0.0) { vec2 m = p - vec2(0.42, hor + 0.1 + 0.5 * blDn(blSea)); float d = length(m); sky += blDn(uOwn[4]) * vec3(0.9, 0.86, 0.74) * ((1.0 - smoothstep(0.031, 0.034, d)) + 0.1 * exp(-d * 9.0)); }
   float y = p.y - hor, far = p.x;
   vec2 cq = vec2(p.x + 0.12, y);
   if (uOwn[1] != 0.0 || blSea != 0.0) {
@@ -262,7 +262,7 @@ vec3 blSplit(vec2 p) {
   if (frozen > 0.0) {
     float lie = frozen * (0.028 + 0.02 * noise(vec2(p.x * 6.0, 3.0)) + 0.012 * noise(vec2(p.x * 25.0, 8.0))), under = frozen * (0.02 + 0.035 * noise(vec2(p.x * 9.0, 1.0)));
     vec3 snow = blHue(vec3(0.93, 0.95, 0.96) * (0.82 + 0.18 * smoothstep(-0.02, lie, dl)) + 0.1 * (noise(p * vec2(60.0, 200.0)) - 0.5));
-    col = mix(col, snow * mix(vec3(0.5, 0.68, 0.72), vec3(1.0), smoothstep(-0.02, 0.005, dl)), smoothstep(lie + px, lie - px, dl) * smoothstep(-under - 2.0 * px, -under, dl));
+    col = mix(col, snow * mix(vec3(0.5, 0.68, 0.72), vec3(1.0), smoothstep(-0.02, 0.005, dl)), (1.0 - smoothstep(lie - px, lie + px, dl)) * smoothstep(-under - 2.0 * px, -under, dl));
   }
   return mix(col, blHue(vec3(0.965, 0.975, 0.955)), exp(-thick * thick) * 0.8 * (1.0 - frozen));
 }
@@ -279,7 +279,7 @@ vec3 blCeil(vec2 c, vec2 sun, float t) {
   if (uOwn[5] < 0.0) {
     float f = noise(c * 3.0) * 0.6 + noise(c * 11.0) * 0.4, k = 1.0, i = 0.0;
     for (; i < 3.0; i++) { vec2 q = rot(1.1 * i + 0.4) * c; k = min(k, abs(mod(q.x + i, 1.5) - 0.75 + 0.5 * blZig(q.y * 1.7, i) + 0.07 * blZig(q.y * 9.0, i + 5.0)) * (1.0 + i)); }
-    col = mix(col, mix(vec3(0.5, 0.66, 0.68), vec3(0.93, 0.95, 0.93), f * (0.6 + 0.6 * sd)) - 0.5 * smoothstep(0.02, 0.0, k) - 0.14 * smoothstep(0.16, 0.0, k), -uOwn[5]);
+    col = mix(col, mix(vec3(0.5, 0.66, 0.68), vec3(0.93, 0.95, 0.93), f * (0.6 + 0.6 * sd)) - 0.5 * (1.0 - smoothstep(0.0, 0.02, k)) - 0.14 * (1.0 - smoothstep(0.0, 0.16, k)), -uOwn[5]);
   }
   col = blHue(col);
   return col + (1.0 - 0.6 * uOwn[4]) * vec3(0.20, 0.19, 0.14) * sd * (0.35 + (0.85 + 0.5 * uHigh) * smoothstep(0.1, 0.8, s));
@@ -312,7 +312,7 @@ vec3 blBeneath(vec2 p) {
   blLean = 1.0;
   vec3 sky = vec3(0.50, 0.63, 0.60);
   if (blCover < 1.0 || blThick < 0.6) sky = mix(blCeil(rd.xz * top, sun, t), sky, 0.16 * (1.0 - clear) + 0.08 * uSpace);
-  if (uOwn[2] > 0.0) sky = mix(sky, blHue(vec3(0.17, 0.28, 0.28)), uOwn[2] * smoothstep(0.42, 0.06, rd.y));
+  if (uOwn[2] > 0.0) sky = mix(sky, blHue(vec3(0.17, 0.28, 0.28)), uOwn[2] * (1.0 - smoothstep(0.06, 0.42, rd.y)));
   if (uOwn[7] < 0.0) { vec2 s = p - vec2(0.32, 0.24); sky += blDn(uOwn[7]) * (0.16 + 0.1 * uHigh) * vec3(1.0, 0.97, 0.85) * smoothstep(0.4, 0.8, noise(vec2(9.0 * atan(s.x, 0.15 + abs(s.y)), 0.1 * t)) + 0.2 * exp(-4.0 * dot(s, s))) * exp(-1.2 * dot(s, s)); }
   vec3 col = sky;
   if (blCover > 0.0) {

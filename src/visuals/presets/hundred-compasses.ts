@@ -126,7 +126,7 @@ const presets: readonly VisualPreset[] = [
     size: 0.5,
     glow: [0.85, 'drone'],
     world: {
-      own: [-1, 1, 0.5, -1, 0, 0, 0, 1],
+      own: [-1, 1, 0.5, -1, 0, -0.4, 0, 1],
       kinds: ['#3f6fa8', '#7a8fd0', '#e0a050', '#f0d090', '#e8e0d0'],
       keep: 0.1,
       contrast: 0.4,

@@ -151,7 +151,7 @@ vec3 render(vec2 p) {
         vec3 tint = mix(uKind[0], uKind[1], smoothstep(0.3, 0.7, fbm(d3 * 2.4 + 3.0)));
         tint = mix(tint, hue, 0.6) * (0.94 + 0.12 * g1);
         vec3 sheen = mix(uKind[3], uKind[2], smoothstep(0.35, 0.95, mu + 0.25 * (noise(d3 * 3.0) - 0.5)));
-        tint = mix(tint, sheen, 0.4 * smoothstep(0.9, 0.35, mu));
+        tint = mix(tint, sheen, 0.4 * (1.0 - smoothstep(0.35, 0.9, mu)));
         vec3 ball = tint * (0.4 + 0.6 * tint) * (0.07 + 0.1 * pale + 1.25 * day * day) + tint * 0.12 * pow(1.0 - mu, 2.0) * (1.0 + 2.0 * pale);
         float sp = sat(dot(reflect(rd, n), normalize(vec3(-0.62, 0.5, -0.5))));
         ball += vec3(1.0, 0.97, 0.92) * (0.5 * pow(sp, 24.0) + 0.1 * pow(sp, 4.0)) * (1.0 - 0.5 * max(-uOwn[2], 0.0));
@@ -197,7 +197,7 @@ vec3 render(vec2 p) {
   if (eclipse && uOwn[6] < 0.0) {              // the corona in dots, large where it is bright
     float row = floor(b * 24.0), rm = (row + 0.5) / 24.0, m = floor(TAU * rm * 24.0 + 0.5), a = (atan(pl.y, pl.x + 1e-6) / TAU + 0.5) * m + 0.5 * mod(row, 2.0);
     float k = length(vec2(fract(a) - 0.5, b * 24.0 - row - 0.5)), r1 = 0.5 * sqrt(sat(cor * (0.5 + 0.9 * uLevel) * 1.6));
-    cor = mix(cor, smoothstep(r1 + 0.06, r1 - 0.06, k) * (0.5 + cor), -uOwn[6]);
+    cor = mix(cor, (1.0 - smoothstep(r1 - 0.06, r1 + 0.06, k)) * (0.5 + cor), -uOwn[6]);
   }
   if (eclipse && uOwn[6] > 0.0) {              // the corona in fine lines round it
     float lv = 15.0 * out_ + 5.0 * (noise(dir * 2.6 + 3.0) - 0.5) * min(out_ * 4.0, 1.0), fl = 22.0 * 2.3 / uRes.y, li = abs(fract(lv - uTime * 0.04) - 0.5);
@@ -220,7 +220,7 @@ vec3 render(vec2 p) {
   if (eclipse && uOwn[2] != 0.0) {             // what shows of the star itself
     float lm = sqrt(max(1.0 - b * b / (gR * gR), 0.0));
     vec3 k = mix(corCol * corCol, mix(corCol, vec3(1.0, 0.96, 0.88), 0.5), smoothstep(0.0, 0.8, lm));
-    col += k * (0.75 + 0.5 * lm + 0.6 * uLevel + 0.9 * max(uOwn[2], 0.0)) * min(abs(uOwn[2]) * 4.0, 1.0) * behind * smoothstep(gR + 0.004, gR - 0.004, b) * (0.75 + 0.5 * s2);
+    col += k * (0.75 + 0.5 * lm + 0.6 * uLevel + 0.9 * max(uOwn[2], 0.0)) * min(abs(uOwn[2]) * 4.0, 1.0) * behind * (1.0 - smoothstep(gR - 0.004, gR + 0.004, b)) * (0.75 + 0.5 * s2);
   }
   if (uOwn[7] > 0.0) {                         // shells of gas, each thrown out in its time
     for (int k = 0; k < 3; k++) {
@@ -288,7 +288,7 @@ vec3 render(vec2 p) {
         vec3 f = fire(0.25 + 0.7 * nz * (0.6 + lv), hk) * (0.3 + 0.7 * lv) + hk * 0.3 * pow(1.0 - mu, 2.0);
         if (uOwn[3] < 0.0) { float la = sat(dot(n, normalize(vec3(-0.62, 0.5, -0.5)))); f = mix(f, hk * (0.06 + 1.2 * la) + 0.4 * pow(la, 30.0), -uOwn[3]); }
         if (uOwn[3] > 0.0) f *= 1.0 - 0.6 * uOwn[3];
-        col = mix(col, f, vis * smoothstep(sz, sz - 0.006, l) * min(uOwn[0] * 6.0, 1.0));
+        col = mix(col, f, vis * (1.0 - smoothstep(sz - 0.006, sz, l)) * min(uOwn[0] * 6.0, 1.0));
       } else col += hk * vis * uOwn[0] * exp(-(l - sz) * 11.0) * 0.4 * lv * (1.0 - 0.6 * pale);
     }
   }
@@ -299,15 +299,15 @@ vec3 render(vec2 p) {
     vec3 ax = normalize(cross(dn, vec3(0, 0, 1))); vec2 uv = vec2(dot(q, ax), dot(q, cross(dn, ax)));
     float an = uTime * 0.12 / max(rr, 0.5), gap = noise(vec2(rr * 26.0, 3.0)) * 0.55 + noise(vec2(rr * 7.0, 8.0)) * 0.6;
     vec2 tu = rot(an - floor(an / TAU) * TAU) * uv;
-    float edge = smoothstep(gR * 1.3, gR * 1.42, rr) * smoothstep(gR * 3.0, gR * 2.3, rr);
+    float edge = smoothstep(gR * 1.3, gR * 1.42, rr) * (1.0 - smoothstep(gR * 2.3, gR * 3.0, rr));
     float al = edge * smoothstep(0.25, 0.75, gap) * (0.75 + 0.5 * noise(uv * 30.0));
     float hid = tp > tHit || (eclipse && bm < gm && tp > tc) || (eclipse && uOwn[2] != 0.0 && b < gR && tp > tc) ? 0.0 : 1.0;
     float ang = atan(uv.y, uv.x + 1e-6) / TAU + 0.5;
     vec4 pm = piece(vec2(ang, sat(1.0 - (rr / gR - 1.3) / 1.5)));
-    vec3 dust = mix(uKind[2], uKind[1], gap) * (0.16 + 0.5 * uLevel + 0.5 * exp(-(rr - gR) * 2.0)) + pm.rgb * 0.7 * smoothstep(0.0, 0.05, ang) * smoothstep(1.0, 0.95, ang);
+    vec3 dust = mix(uKind[2], uKind[1], gap) * (0.16 + 0.5 * uLevel + 0.5 * exp(-(rr - gR) * 2.0)) + pm.rgb * 0.7 * smoothstep(0.0, 0.05, ang) * (1.0 - smoothstep(0.95, 1.0, ang));
     if (pale > 0.0) dust *= 1.0 + 0.4 * pale;
     // the ball's shadow lies over the far side of it
-    if (uOwn[3] < 0.0) { vec3 sl = normalize(vec3(-0.62, 0.5, -0.5)); float al2 = dot(q, sl); vec3 of = q - sl * al2; dust *= 1.0 + uOwn[3] * 0.85 * smoothstep(gR + 0.05, gR - 0.05, length(of)) * step(al2, 0.0); }
+    if (uOwn[3] < 0.0) { vec3 sl = normalize(vec3(-0.62, 0.5, -0.5)); float al2 = dot(q, sl); vec3 of = q - sl * al2; dust *= 1.0 + uOwn[3] * 0.85 * (1.0 - smoothstep(gR - 0.05, gR + 0.05, length(of))) * step(al2, 0.0); }
     col = mix(col, dust, -uOwn[0] * 0.92 * al * hid);
   }
   if (uOwn[7] < 0.0) {                         // cloud goes by in front

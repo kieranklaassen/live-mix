@@ -121,7 +121,7 @@ vec3 gsMotes(vec2 p) {
   id.y = mod(id.y, 256.0);
   vec2 h = hash22(id + f * 19.0);
   float r = 0.03 + 0.09 * h.y * h.y;
-  c += smoothstep(r, r * 0.3, length(fract(w) - 0.5 - 0.7 * (h - 0.5))) * step(h.x, 0.45) * mix(vec3(0.7), kindColour(h.y * 4.0), 0.5) * (0.25 + 0.45 * uBands[i * 4 + 2]);
+  c += (1.0 - smoothstep(r * 0.3, r, length(fract(w) - 0.5 - 0.7 * (h - 0.5)))) * step(h.x, 0.45) * mix(vec3(0.7), kindColour(h.y * 4.0), 0.5) * (0.25 + 0.45 * uBands[i * 4 + 2]);
   }
   return c * gsSink * (1.0 - 1.6 * gsDay);
 }
@@ -151,7 +151,7 @@ vec3 gsLattice(vec2 p) {
   if (gsDay > 0.0) ground = mix(ground, uKind[4] * uKind[4] * mix(1.0, 2.6, exp(-dot(q, q) * 1.6)) * (0.85 + 0.15 * uLevel + 0.12 * uDrone + 0.1 * uPad), gsDay);
   float out1 = length(bg - mid) - 0.95 + 0.75 * uHits;
   ground *= 1.0 + gsDay * uHits * (0.9 - 1.5 * gsHatch) * exp(-60.0 * out1 * out1);
-  if (gsBack2 > 0.0) ground += gsBack2 * uKind[4] * uKind[4] * (0.55 + 0.35 * uLevel + 0.45 * uDrone + 0.35 * uPad) * (1.5 * smoothstep(0.43, 0.2, length(bg - mid)) + 0.5 * exp(-4.0 * length(bg - mid)));
+  if (gsBack2 > 0.0) ground += gsBack2 * uKind[4] * uKind[4] * (0.55 + 0.35 * uLevel + 0.45 * uDrone + 0.35 * uPad) * (1.5 * (1.0 - smoothstep(0.2, 0.43, length(bg - mid))) + 0.5 * exp(-4.0 * length(bg - mid)));
   vec3 ro = vec3(0.0, 0.0, -GS_FAR), rd = normalize(vec3(p - mid, GS_LENS));
   float a = TAU * fract(uTime / 120.0 + own1), tilt = 0.42 + 0.06 * sin(TAU * fract(uTime / 170.0));
   mat3 ya = mat3(cos(a), 0.0, sin(a), 0.0, 1.0, 0.0, -sin(a), 0.0, cos(a));

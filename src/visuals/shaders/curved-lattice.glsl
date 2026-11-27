@@ -80,7 +80,7 @@ vec3 render(vec2 p) {
       float a1 = a * 60.0 * (1.0 + 1.6 * hard - 0.72 * soft) / (1.0 + t * 0.14), a2 = 1.0 / (1.0 + a * a * 90.0);
       float w = 1.0 / (1.0 + a1 * a1 * a1) + 0.06 * a2 * a2 * (1.0 - 0.8 * hard + 1.5 * soft);
       if (uOwn[5] > 0.0) w += 0.1 * uOwn[5] * step(away, thick);           // fat ones are full of light
-      if (uOwn[6] != 0.0) w *= smoothstep(0.35, -0.25, clWhere(at));
+      if (uOwn[6] != 0.0) w *= (1.0 - smoothstep(-0.25, 0.35, clWhere(at)));
       // colour slides with depth: teal near, through violet, to amber
       vec3 hue = vec3(0.5, 0.42, 0.52) + vec3(0.5, 0.4, 0.48) * cos(TAU * ((t * 0.07 + uLoop) * vec3(1.0, 0.9, 0.8) + vec3(0.52, 0.3, 0.12)));
       float way = abs(4.0 * fract(t * 0.045 + uLoop + 0.07 * s.y) - 2.0); vec3 own = mix(mix(uKind[0], uKind[1], sat(way)), uKind[3], sat(way - 1.0)); hue = mix(hue, own * own * 1.25, clMine);

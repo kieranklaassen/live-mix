@@ -99,7 +99,7 @@ float esGrown(vec2 q, int k, float lv) {
     return min(d, max(abs(q.x - 0.1 * q.y) - 0.014, q.y - 0.5));
   }
   if (k == 3) {
-    float at = floor(q.y * 8.0), node = 0.008 * exp(-900.0 * pow(q.y - (clamp(at, 1.0, 7.0) + 0.5) * 0.125, 2.0));
+    float at = floor(q.y * 8.0), node = 0.008 * exp(-900.0 * pow(abs(q.y - (clamp(at, 1.0, 7.0) + 0.5) * 0.125), 2.0));
     float d = max(min(abs(q.x - 0.07 - sway) - 0.017 - node, abs(q.x + 0.09 + sway * 0.6) - 0.012 - node), q.y - 1.0);
     for (int i = -1; i < 2; i++) { // a leaf reaches over its own joint into the next
       float n = clamp(at + float(i), 1.0, 7.0), side = mod(n, 2.0) * 2.0 - 1.0, l = piece(vec2(uLoop, 0.05 + 0.12 * n)).a;
@@ -127,7 +127,7 @@ float esTurned(vec2 q, int k, float lv) {
     return min(min(d, abs(R - 0.24) - 0.012), R - 0.07);
   }
   if (k == 1) {
-    float y = q.y - 0.32, e = esP(0.62 - y), rr = 0.07 + 0.13 * smoothstep(0.62, 0.45, y) + 0.2 * exp(-y * 6.0) * (1.0 + 0.2 * lv);
+    float y = q.y - 0.32, e = esP(0.62 - y), rr = 0.07 + 0.13 * (1.0 - smoothstep(0.45, 0.62, y)) + 0.2 * exp(-y * 6.0) * (1.0 + 0.2 * lv);
     float d = max((abs(q.x) - rr) * 0.75, abs(y - 0.28) - 0.28);
     d = min(d, length(q - vec2(0.06 * sin(uTime * 0.9) * (0.3 + lv), 0.3)) - 0.06);
     return min(d, min(abs(length(q - vec2(0.0, 0.95)) - 0.06) - 0.018, 1.0 + e));
@@ -354,8 +354,8 @@ vec3 render(vec2 p) {
     vec2 m = esAt - vec2(-0.36, 0.3);
     vec3 night = mix(vec3(0.16, 0.21, 0.3), vec3(0.03, 0.045, 0.085), sat(top * 3.0)) + 0.16 * exp(-dot(m, m) * 9.0);
     vec2 sg = esAt * 46.0, sf = fract(sg) - 0.5;
-    night += smoothstep(0.12, 0.02, length(sf - 0.6 * (hash22(floor(sg)) - 0.5))) * step(0.86, hash21(floor(sg) + 4.0)) * 0.6;
-    if (uOwn[5] < 0.0) night = mix(night, vec3(0.86, 0.87, 0.82), smoothstep(0.052, 0.049, length(m)) * -uOwn[5]);
+    night += (1.0 - smoothstep(0.02, 0.12, length(sf - 0.6 * (hash22(floor(sg)) - 0.5)))) * step(0.86, hash21(floor(sg) + 4.0)) * 0.6;
+    if (uOwn[5] < 0.0) night = mix(night, vec3(0.86, 0.87, 0.82), (1.0 - smoothstep(0.049, 0.052, length(m))) * -uOwn[5]);
     sky = mix(sky, night, uOwn[4]);
   }
   // thin cloud before the sun, and the one cloud of a cue
@@ -371,7 +371,7 @@ vec3 render(vec2 p) {
     float n = fbm(P.xz * vec2(1.5, 2.2) + 5.0), pud = smoothstep(0.47, 0.5, n) * (st ? smoothstep(0.9, 1.0, bright) : 1.0);
     vec2 rp = P.xz * 9.0;
     vec2 cell = floor(rp), o = fract(rp) - 0.5;
-    float ring = length(o - 0.4 * (hash22(cell) - 0.5)), age = fract(uTime * 0.35 + hash21(cell)), wave = sin((ring - age * 0.5) * 60.0) * exp(-pow((ring - age * 0.5) * 12.0, 2.0)) * (1.0 - age) * step(0.6, hash21(cell + 7.0));
+    float ring = length(o - 0.4 * (hash22(cell) - 0.5)), age = fract(uTime * 0.35 + hash21(cell)), wave = sin((ring - age * 0.5) * 60.0) * exp(-pow(abs(ring - age * 0.5) * 12.0, 2.0)) * (1.0 - age) * step(0.6, hash21(cell + 7.0));
     vec3 up = mix(mix(vec3(0.86, 0.88, 0.84), vec3(0.5, 0.6, 0.66), sat(0.55 - 0.9 * p.y)), vec3(0.14, 0.18, 0.26), esP(uOwn[4]));
     up *= 1.12 - 0.85 * esDark;
     col = mix(col, mix(col * vec3(0.62, 0.64, 0.68), up * (1.0 + 0.25 * wave), 0.16 + 0.76 * pud), uOwn[6]);

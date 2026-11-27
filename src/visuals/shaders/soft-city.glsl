@@ -242,7 +242,7 @@ vec3 scAvenue(vec2 p) {
  col *= 1.0 - 0.45 * exp(-kerb * kerb) * scFall(70.0, 20.0, dist) * hor * dry;
  if (scSnow > 0.0) {
   float lie = noise(vec2(across * 0.5, along * 0.35)), rut = exp(-pow(abs(abs(across) - 0.9) * 2.2, 2.0)) * scFall(60.0, 8.0, dist);
-  col = mix(col, mix(vec3(0.10, 0.115, 0.16), vec3(1.25, 1.25, 1.22), scDay) * (0.75 + 0.4 * lie - 0.3 * rut) * (1.0 - 0.35 * close * scFall(0.0, 0.5, down)), scSnow * hor);
+  col = mix(col, mix(vec3(0.10, 0.115, 0.16), vec3(1.25, 1.25, 1.22), scDay) * (0.75 + 0.4 * lie - 0.3 * rut) * (1.0 - 0.35 * close * smoothstep(0.0, 0.5, down)), scSnow * hor);
  }
  if (scDay > 0.0) col = scOn(col + vec3(0.006, 0.007, 0.011) * hor, scWet, hor * mix(0.9, 0.35, scSnow));
  else col += (vec3(0.006, 0.007, 0.011) + scWet * mix(mix(0.6 + 0.6 * stone * close * dry, 1.05, pud), 0.55, scSnow)) * hor;

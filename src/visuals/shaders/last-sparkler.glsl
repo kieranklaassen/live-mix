@@ -26,7 +26,7 @@ if(d>1.25*R)return 0.;
 if(flower>0.){
 float an=atan(r.y,r.x+1e-6)+seed*40.,c=abs(cos(an*2.5)),x=d/R,edge=.5+.5*pow(c,.7)-.16*smoothstep(.93,1.,c);
 float soft=lsPx*2./R,in1=lsDn(edge+soft,edge-soft,x);
-res+=flower*in1*(.05+.2*x*x+.14*smoothstep(.2,0.,1.-c)*x+.3*lsDn(.07+soft,0.,abs(x-edge+.03))+.6*lsBump(x*7.));
+res+=flower*in1*(.05+.2*x*x+.14*(1.0 - smoothstep(0., .2,1.-c))*x+.3*lsDn(.07+soft,0.,abs(x-edge+.03))+.6*lsBump(x*7.));
 }
 if(disc>0.)res+=disc*lsDn(1.,.8,d/R)*(.28+.3*smoothstep(.5,.9,d/R));
 return res;
@@ -39,14 +39,14 @@ float cl=fbm(vec2(p.x*1.3+t*3.,up*4.5)),v=sat(up*1.15+.35*(cl-.5));
 vec3 c=mix(lsHue(1)*(.28+.3*uPad),lsHue(0)*(.1+.1*uDrone),smoothstep(0.,.55,v));
 c+=lsHue(2)*(.05+.2*uTexture)*smoothstep(.45,.75,cl)*lsDn(.7,.1,v);
 vec4 m=piece(clamp(vec2((p.x+.86)/1.72,.95-up*1.2)+.3*(vec2(cl,noise(vec2(p.x*3.+t*3.,up*9.)))-.5),.01,.99));
-c+=m.rgb*m.rgb*.5*smoothstep(.38,.7,cl)*smoothstep(1.,.6,abs(p.x));
+c+=m.rgb*m.rgb*.5*smoothstep(.38,.7,cl)*(1.0 - smoothstep(.6, 1.,abs(p.x)));
 vec2 g=p*46.,id=floor(g),h=hash22(id);
 c+=.5*step(.93,h.x)*lsDn(.12,.02,length(fract(g)-.5-.6*(h.yx-.5)))*smoothstep(.25,.6,v)*(.5+.5*sin(uTime*(.3+h.y)+h.y*40.));
 col=mix(col,col+c,lsDye);
 }
 if(lsPale>0.){
 float cl=fbm(vec2(p.x*1.1+t*3.,p.y*2.6+3.));
-vec4 m=piece(clamp(vec2((p.x+.86)/1.72,.5-p.y)+.35*(vec2(cl,fbm(p*2.3-t))-.5),.01,.99))*smoothstep(.95,.55,abs(p.x));
+vec4 m=piece(clamp(vec2((p.x+.86)/1.72,.5-p.y)+.35*(vec2(cl,fbm(p*2.3-t))-.5),.01,.99))*(1.0 - smoothstep(.55, .95,abs(p.x)));
 col=mix(col,mix(vec3(1.75,1.7,1.6),m.rgb/max(m.a,.05),.4*sat(m.a)*(.5+cl))*mix(vec3(1.),min(lsHue(1)+.3,1.1),.1+.35*smoothstep(.4,.7,cl)+.15*uPad)*(.88+.12*uLevel),lsPale);
 }
 if(uOwn[4]>0.){
@@ -228,7 +228,7 @@ for(int i=0;i<9;i++){
 float f=float(i),h=hash11(f*3.1+5.),h2=fract(h*43.7),near=.35+.65*fract(f*.618+.1);
 float shown=smoothstep(0.,.25,lsMany*1.25-.1*f),loud=lsKl[i % 4]+uBands[i+3];
 float ox=(f-4.)*.215+.07*(h-.5),away=ox+.12-.27*willow;
-ox+=.11*(away<0.?-1.:1.)*smoothstep(.2,0.,abs(away));
+ox+=.11*(away<0.?-1.:1.)*(1.0 - smoothstep(0., .2,abs(away)));
 vec2 q=p-vec2(ox,.02+.34*(h2-.5)+.08*(1.-near)+.6*(1.-shown));
 q.x+=.006*sin(uTime*(.4+.2*h)+f*2.)*(.3-q.y);
 float R=(.006+.012*near)*(.8+.4*sat(loud))*shown*exp2(.7*uOwn[6]),d=length(q*vec2(1.,q.y>0.?.75:1.)),on=.3+.7*sat(loud)+.5*uCue;

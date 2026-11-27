@@ -119,7 +119,7 @@ float hbLay(vec2 p, bool first, out float cov) {
     float h0 = hash21(vec2(n, hbSeed));
     vec2 h = vec2(h0, fract(h0 * 57.31));
     float far = mix(hbLen, 0.62 + 0.5 * hbG, br);
-    alive = smoothstep(far + 0.1, far - 0.1, (n + 0.5) * l / hbL) * step(-0.5, n);
+    alive = (1.0 - smoothstep(far - 0.1, far + 0.1, (n + 0.5) * l / hbL)) * step(-0.5, n);
     hbSeed += 7.3 * n;
     mat2 tip = rot((h.x - 0.5) * 1.7 * br);
     if (uOwn[7] > 0.0) { vec2 to = vec2(-0.02, 0.023) * uOwn[7]; shift = tip * vec2(dot(to, hbDir), dot(to, vec2(-hbDir.y, hbDir.x))); }
@@ -137,11 +137,11 @@ float hbLay(vec2 p, bool first, out float cov) {
   if (bleed > 0.0 && !hbShape) { w *= 1.0 + 0.22 * bleed; v += bleed * 0.06 * hbSq(hbW * 12.0) / (0.4 + hbSq(hbW * 12.0)) * hbRag.x * (fract(hbSeed) > 0.5 ? 1.0 : -1.0) + bleed * 0.008 * hbRag.y; }
   float y = v / w, ay = abs(y);
   hbAt = vec2(x, y);
-  if (hbShape) { cov = smoothstep(1.02, 0.8, ay) * smoothstep(-0.02, 0.02, x) * smoothstep(1.0, 0.95, x / mix(hbLen, 1.0, sat(abs(uOwn[6]) - uOwn[2]))) * alive; hbSeed = seed0; return 0.0; }
+  if (hbShape) { cov = (1.0 - smoothstep(0.8, 1.02, ay)) * smoothstep(-0.02, 0.02, x) * (1.0 - smoothstep(0.95, 1.0, x / mix(hbLen, 1.0, sat(abs(uOwn[6]) - uOwn[2])))) * alive; hbSeed = seed0; return 0.0; }
   if (first) { hbN1 = 0.5; hbMap = 0.0; }
   if (uOwn[2] < 0.0 && uOwn[7] > 0.0) {                // the shadow of a dab
     vec2 at = vec2((s + shift.x) / len, abs(v + shift.y * 1.2) / w);
-    hbCast = smoothstep(1.02, 0.8, at.y) * smoothstep(-0.02, 0.02, at.x) * smoothstep(1.0, 0.95, at.x) * alive;
+    hbCast = (1.0 - smoothstep(0.8, 1.02, at.y)) * smoothstep(-0.02, 0.02, at.x) * (1.0 - smoothstep(0.95, 1.0, at.x)) * alive;
   }
   if (x < -0.06 || x > 1.18 || ay > 1.06 || alive <= 0.0) { hbSeed = seed0; return drip * dripHigh; }
   // the sides waver, each in its own way; the start is set down blunt

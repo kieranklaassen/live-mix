@@ -280,7 +280,7 @@ float ifPool(vec2 q) {
     g.x += 0.5 * mod(floor(g.y), 2.0) + 0.2;
     vec2 id = floor(g), f = g - id - 0.5 - 0.12 * (hash22(id) - 0.5);
     vec2 c = (id + 0.5 - vec2(0.5 * mod(id.y, 2.0) + 0.2, 0.0)) * vec2(0.36, 0.31);
-    float r = (0.3 + 0.2 * hash21(id + 5.0)) * smoothstep(0.78, 0.6, length(c));
+    float r = (0.3 + 0.2 * hash21(id + 5.0)) * (1.0 - smoothstep(0.6, 0.78, length(c)));
     in_ = mix(in_, 5.0 * (r * r - dot(f, f)) - 0.05 - 0.4 * smoothstep(0.7, 0.8, length(c)), -uOwn[6]);
   }
   return in_;

@@ -109,9 +109,9 @@ vec3 bpClouds(vec2 at, float z, vec2 p, float sharp) {
   float f = noise(at * 2.7 + 4.0), g = noise(at * 6.1 + 11.0), e = 0.5 * (f + g);
   vec2 lines = abs(vec2(noise(at * vec2(2.3, 3.1) + 1.5 * f), noise(at * vec2(4.7, 3.7) + 1.1 * g + 20.0)) - 0.5);
   float fine1 = abs(noise(at * vec2(9.0, 13.0) + 2.0 * e + 40.0) - 0.5);
-  float crack = sat(smoothstep(0.035, 0.004, lines.x) + 0.8 * smoothstep(0.03, 0.0, lines.y) + 0.5 * smoothstep(0.07, 0.0, fine1));
+  float crack = sat((1.0 - smoothstep(0.004, 0.035, lines.x)) + 0.8 * (1.0 - smoothstep(0.0, 0.03, lines.y)) + 0.5 * (1.0 - smoothstep(0.0, 0.07, fine1)));
   vec3 crust = mix(vec3(0.72, 0.76, 0.78), uKind[1] * uKind[1], 0.45) * (0.62 + 0.5 * g) * mix(vec3(1.0), 0.45 + c, 0.75);
-  c = mix(c, mix(crust, uKind[2] * uKind[2] * 0.5, crack * (0.55 + 0.4 * f)) * (1.0 + 0.3 * smoothstep(0.1, 0.03, lines.x) * (1.0 - crack)), ice);
+  c = mix(c, mix(crust, uKind[2] * uKind[2] * 0.5, crack * (0.55 + 0.4 * f)) * (1.0 + 0.3 * (1.0 - smoothstep(0.03, 0.1, lines.x)) * (1.0 - crack)), ice);
  }
  if (sea > 0.0) {                         // deep water, some land, and cloud lying along the belts
   float land = fbm(at * vec2(1.7, 2.1) + 2.0), shore = smoothstep(0.5, 0.535, land);
@@ -227,7 +227,7 @@ vec3 bpStorm(vec2 p) {
   vec3 tone = mix(vec3(1.0, 0.42, 0.18), vec3(1.0, 0.97, 0.92), smoothstep(0.0, 0.42, mu0));
   vec3 disc = c * tone * lit * 2.15 + pale * plume * open * 1.6 + c * vec3(0.0035, 0.005, 0.009);
   disc += c * 0.1 * bpUp(uOwn[6]);
-  if (uOwn[2] < 0.0) disc -= uOwn[2] * vec3(1.0, 0.85, 0.6) * 0.4 * pow(sat(dot(n, normalize(sun + vec3(0.0, 0.0, 1.0)))), 60.0) * open * smoothstep(0.35, 0.1, c.g);
+  if (uOwn[2] < 0.0) disc -= uOwn[2] * vec3(1.0, 0.85, 0.6) * 0.4 * pow(sat(dot(n, normalize(sun + vec3(0.0, 0.0, 1.0)))), 60.0) * open * (1.0 - smoothstep(0.1, 0.35, c.g));
   disc += mix(vec3(0.4, 0.5, 0.65), uKind[0], bpAny) * pow(1.0 - z, 4.0) * (0.25 + 0.3 * uMic) * smoothstep(-0.1, 0.5, mu0);
   // keys: far lightning under the clouds of the night side
   vec2 kv = (bpW - vec2(0.95 + 0.1 * sin(uTime * 0.2), 0.25 + 0.2 * sin(uTime * 0.13))) / vec2(0.12, 0.07);
@@ -242,7 +242,7 @@ vec3 bpStorm(vec2 p) {
   float a = bpRing(length(X.xz), min(px / abs(rd.y), 0.3));
   float b = dot(X, sunP), off = length(X - sunP * b);
   float dark = b < 0.0 ? (1.0 - smoothstep(0.98, 1.02, off)) : 0.0;
-  col = mix(col, vec3(0.62, 0.53, 0.43) * (0.62 + 1.5 * uCue + 0.9 * bpAny * uHits * exp(-pow((length(X.xz) - 1.3 - 1.1 * (1.0 - uHits)) * 3.0, 2.0))) * (1.0 - 0.98 * dark) * mix(vec3(1.0), 0.35 + uKind[1] * 1.1, bpAny), a * 0.92 * (1.0 - bpUp(-uOwn[4])));
+  col = mix(col, vec3(0.62, 0.53, 0.43) * (0.62 + 1.5 * uCue + 0.9 * bpAny * uHits * exp(-pow(abs(length(X.xz) - 1.3 - 1.1 * (1.0 - uHits)) * 3.0, 2.0))) * (1.0 - 0.98 * dark) * mix(vec3(1.0), 0.35 + uKind[1] * 1.1, bpAny), a * 0.92 * (1.0 - bpUp(-uOwn[4])));
  }
  if (uOwn[7] < 0.0) for (int j = 0; j < 5; j++) {  // a row of moons round it
   float f = float(j), turn = uTime * (0.012 - 0.0015 * f) + f * 1.35 - 1.1, far = 1.14 + 0.2 * f;
@@ -352,7 +352,7 @@ vec3 bpRim(vec2 p) {
   float t = -ro.y / rd.y, zz = sqrt(max(1.0 - r * r, 0.0));
   vec3 X = ro + rd * t;
   float a = bpRing(length(X.xz), min(mix(2.5 / uRes.y, px, far) / abs(rd.y), 0.3)), away = dot(q, toSun);
-  if (r > 1.0 || t > zz) col = mix(col, mix(vec3(0.62, 0.53, 0.43), uKind[1], bpAny) * (1.0 + bpAny * uHits * exp(-pow((length(X.xz) - 1.3 - 1.2 * (1.0 - uHits)) * 2.5, 2.0))) * (0.05 + 1.1 * paper * (0.4 + 0.6 * uLevel)  + 0.5 * smoothstep(-0.6, 1.4, away) + 0.3 * bpUp(uOwn[5]) + 0.4 * uCue), a * 0.85 * uOwn[4] * (r > 1.0 ? 1.0 : smoothstep(0.3, 0.7, far)));
+  if (r > 1.0 || t > zz) col = mix(col, mix(vec3(0.62, 0.53, 0.43), uKind[1], bpAny) * (1.0 + bpAny * uHits * exp(-pow(abs(length(X.xz) - 1.3 - 1.2 * (1.0 - uHits)) * 2.5, 2.0))) * (0.05 + 1.1 * paper * (0.4 + 0.6 * uLevel)  + 0.5 * smoothstep(-0.6, 1.4, away) + 0.3 * bpUp(uOwn[5]) + 0.4 * uCue), a * 0.85 * uOwn[4] * (r > 1.0 ? 1.0 : smoothstep(0.3, 0.7, far)));
  }
  return col + flare;
 }

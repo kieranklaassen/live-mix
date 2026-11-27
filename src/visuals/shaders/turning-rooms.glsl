@@ -171,7 +171,7 @@ vec3 trWall(vec3 q, float u, inout float ao) {
     float y = (q.y + 1.0) / 0.25, row = floor(y), x = u / 0.56 + 0.5 * mod(row, 2.0) + 0.2 * hash11(row), id = floor(x);
     vec2 f = abs(vec2(fract(x), fract(y)) - 0.5);
     float e = min((0.5 - f.x) * 0.56, (0.5 - f.y) * 0.25), h = hash21(vec2(id, row) + 7.0), m = noise(vec2(u, q.y) * 9.0) * 0.6 + noise(vec2(u, q.y) * 31.0) * 0.4;
-    vec3 b = trPaint * (0.72 + 0.4 * h) * (0.75 + 0.5 * m) * (1.0 - 0.6 * (1.0 - smoothstep(0.0, 0.016 + trPx, e))) * (1.0 + 0.12 * smoothstep(0.04, 0.02, e));
+    vec3 b = trPaint * (0.72 + 0.4 * h) * (0.75 + 0.5 * m) * (1.0 - 0.6 * (1.0 - smoothstep(0.0, 0.016 + trPx, e))) * (1.0 + 0.12 * (1.0 - smoothstep(0.02, 0.04, e)));
     c = mix(c, b, uOwn[5]);
     ao = mix(ao, was, uOwn[5]);
   }

@@ -291,7 +291,7 @@ vec3 fsJelly(vec3 col, vec2 s) {
   float w = 1.+.1*beat, y = x.y/(.85-.08*beat), e = length(vec2(x.x/w, y)), rim = -.12+.06*cos(x.x*14./w)-.15*(1.-sat(x.x*x.x));
   float bell = fsS(1.02, .97, e)*fsS(rim-.04, rim+.04, y), skin = pow(sat(e), 5.)+.5*fsS(.12, .0, abs(y-rim)), ribs = .6+.4*cos(x.x/max(w*sqrt(max(1.-y*y, .05)), .1)*13.);
   float arms = .0;
-  for (int k = 0; k < 5; k++) { float fk = float(k)-2., v = sat(-x.y/3.4), c = fk*.34*w*(1.-.5*v)+(.1+.3*v)*sin(x.y*1.9+uTime*.6+fk+fi)*v*1.6; arms += exp(-pow((x.x-c)/(.05+.05*v*abs(fk-.4)), 2.))*(1.-v)*fsS(.1, -.1, x.y); }
+  for (int k = 0; k < 5; k++) { float fk = float(k)-2., v = sat(-x.y/3.4), c = fk*.34*w*(1.-.5*v)+(.1+.3*v)*sin(x.y*1.9+uTime*.6+fk+fi)*v*1.6; arms += exp(-pow(abs(x.x-c)/(.05+.05*v*abs(fk-.4)), 2.))*(1.-v)*fsS(.1, -.1, x.y); }
   vec3 k = mix(uKind[3]*(.5+.9*uPhrase), uKind[1]*(.5+.9*uPad), h)+.08;
   col = mix(col, col*.75+k*(.08+.75*skin*(.6+.4*ribs)+.16*ribs*(1.-e)), bell*show*.9)+k*arms*.28*show*(1.-bell);
  }

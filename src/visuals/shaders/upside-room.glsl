@@ -111,7 +111,7 @@ void urTrees(vec2 w, float b, float crest, inout vec3 c) {
 vec3 urTint(vec3 c, float x, float dv) { vec4 m = piece(vec2(.5 - x * .9, sat(.95 - dv * 3.6))); return mix(c, (.5 * m.rgb + .1) * (.3 + 2.5 * c), .65 * sat(m.a) * urUp(.55, .42, abs(x))); }
 float urPeak(float x, float s) { return (1. - abs(2. * noise(vec2(x * 5.5 + s, s)) - 1.)) * .7 + (1. - abs(2. * noise(vec2(x * 13. + s, s)) - 1.)) * .24 + noise(vec2(x * 41., s)) * .06; }
 vec3 urSeaAt(vec3 mir, float x, float dv) {
-  float n = noise(vec2(x * 9. / (dv + .05), 24. * log(dv + .02) + uTime * .5)), m = noise(vec2(x * 24. / (dv + .05), 46. * log(dv + .02) - uTime * .7));
+  float n = noise(vec2(x * 9. / (dv + .05), 24. * log(max(dv + .02, .001)) + uTime * .5)), m = noise(vec2(x * 24. / (dv + .05), 46. * log(max(dv + .02, .001)) - uTime * .7));
   vec3 c = mir * mix(vec3(.34, .46, .52), vec3(.62, .7, .72), n) * mix(vec3(1.), .5 + uKind[3], max(uOwn[7], 0.));
   float path = exp(-abs(x - (uVar > .5 ? .012 : -.085)) / (.03 + .5 * dv));
   return urTint(c, x, dv) + (uOwn[2] < 0. ? vec3(.5, .56, .7) : urLow) * 1.3 * path * urUp(.5, .75, .5 * n + .5 * m);

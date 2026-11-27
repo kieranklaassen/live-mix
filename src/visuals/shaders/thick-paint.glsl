@@ -70,7 +70,7 @@ void tpStroke(int k, vec2 q, vec2 sc, vec2 cell, vec2 ql, vec4 M, vec4 R, float 
   float da = (m.x - 0.5) * (lt ? 0.5 * R.x : R.x), life = fract(uTime * 0.015625 + m.z), wide = lt ? sat(12.0 - 12.0 * life) * sat(1.0 + 3.0 * R.w - 2.7 * m.y) : 1.0;
   tsIn = 900.0 * min(M.x - dot(M.yz, d) + R.y * (push - 0.5), c.x * ce.x + M.w);
   vec2 hf = full * vec2(tpLong * (0.82 + 0.18 * m.y), 0.68 + 0.22 * m.x);
-  if (uOwn[5] != 0.0) hf *= vec2(1.0, 1.0 - 0.36 * abs(uOwn[5])) * (1.0 - max(uOwn[5], 0.0) * 0.85 * smoothstep(0.5, 0.35, m.z));
+  if (uOwn[5] != 0.0) hf *= vec2(1.0, 1.0 - 0.36 * abs(uOwn[5])) * (1.0 - max(uOwn[5], 0.0) * 0.85 * (1.0 - smoothstep(0.35, 0.5, m.z)));
   float grow = lt ? 0.85 * min(0.12 + 20.0 * life, 1.0) : 1.0;
   float dx = d.x + da * d.y;
   tsD = vec2(lt ? dx + (0.85 - grow) * hf.x : dx, d.y - da * d.x + (m.w - 0.5) * 0.65 * dx * dx * ifx);   // bent a little, as a wrist bends it
@@ -130,7 +130,7 @@ void tpPaint(float reg, float cy, float h, float v, out vec3 a, out vec3 b) {
     vec2 d = off - (one ? vec2(-0.36, 0.2) : vec2(0.2, 0.17)); float l = length(d);
     vec3 disc = mix(vec3(1.0, 0.93, 0.66), uKind[4], max(uOwn[4], 0.0));
     s = mix(s, mix(vec3(0.93, 0.6, 0.34), mix(uKind[4], uKind[3], 0.85), max(uOwn[4], 0.0)), uOwn[6] * sat((0.95 - 0.45 * max(uOwn[4], 0.0) - 0.5 * min(uOwn[4], 0.0) * -1.0) * exp(-l * 2.6) + 0.14 * sin(l * 42.0) * exp(-l * 2.5)) * (0.75 + 0.3 * uLevel));
-    s = mix(s, disc, uOwn[6] * smoothstep(0.125, 0.105, l));
+    s = mix(s, disc, uOwn[6] * (1.0 - smoothstep(0.105, 0.125, l)));
   }
   s = mix(s, vec3(1.0, 0.82, 0.56), tpWarm);
   vec3 e = mix(mix(tpDeep, one ? vec3(0.76, 0.45, 0.29) : vec3(0.42, 0.55, 0.51), w.x), one ? vec3(1.0, 0.80, 0.49) : vec3(0.62, 0.60, 0.58), w.y);

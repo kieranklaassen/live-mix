@@ -151,7 +151,7 @@ vec3 tpLitter(vec3 c, vec2 p, vec2 sun, float px) {
         s = max(abs(o.x) - hl, abs(o.y) - hw * tpLeaf(o.x / hl));
         at = 0.5 + 0.5 * u.y / max(hw, 1e-3);
       }
-      dark = max(dark, sz * smoothstep(0.06, -0.02, s));
+      dark = max(dark, sz * (1.0 - smoothstep(-0.02, 0.06, s)));
       float cv = sat(0.5 - d * cell / px) * step(0.01, sz), key = tpE > 0.5 ? (id.y + 0.7 * r.y) * cell : 0.0;
       if (cv > 0.0 && key < first) {
         vec3 to = mix(mix(vec3(0.66, 0.53, 0.38), vec3(0.3, 0.27, 0.25), h), ink * (0.8 + 0.4 * r.x), 0.3 + 0.7 * max(abs(uOwn[5]), max(uOwn[6], 0.0))) * (0.78 + 0.4 * sat(at));
@@ -247,7 +247,7 @@ vec3 tpPicture(vec2 p) {
   float haze = 0.0;
   if (uOwn[7] > 0.0) {
     float hi = 1.0 - 1.15 * uOwn[7] * (p.y + 0.12), s = 1.0 / max(hi, 0.1);
-    haze = smoothstep(0.45, 0.14, hi);
+    haze = (1.0 - smoothstep(0.14, 0.45, hi));
     tpP = vec2(p.x * s, (p.y + 0.12 * uOwn[7]) * s * (1.0 + 0.7 * uOwn[7]));
     tpPx *= min(s, 5.0); tpUp.y *= 1.0 + 0.75 * uOwn[7];
   }
@@ -300,8 +300,8 @@ vec3 tpPicture(vec2 p) {
     c *= mix(vec3(lit) * (1.0 - (1.0 - tpDay) * dark) * tpAo, stand, tpE);
     c *= 1.0 + (rim > 0.0 ? 0.25 + 0.3 * tpE : 0.45) * rim;
     c += max(rim, 0.0) * (0.05 + 0.1 * tpE * tpDay) + hit * uHits * vec3(0.5, 0.34, 0.16) * (0.5 + 0.5 * uEnergy);
-    if (uOwn[5] > 0.0) c = mix(c, c * 0.9 + 0.16 * tpC.z * (0.3 + tpDay) + tpInk * 0.16 * (0.3 + tpQ.w) * tpDay + 0.05 * smoothstep(0.25, 0.0, abs(fract(q.x * 1.7 + q.y * 3.0 + tpMd.y) - 0.5)), uOwn[5]);
-    if (uOwn[6] > 0.0) c = mix(c, mix(vec3(tpGrey(tpInk)), tpInk, 0.85) * (0.4 + 0.2 * tpC.z + 0.75 * tpQ.w) * (0.75 + 0.35 * tpGrey(c)) + (0.04 + 0.3 * tpQ.w) * smoothstep(1.0, 0.0, abs(q.y) / max(tpC.x, 1e-3)) * mix(tpInk, vec3(0.9), 0.4), uOwn[6]);
+    if (uOwn[5] > 0.0) c = mix(c, c * 0.9 + 0.16 * tpC.z * (0.3 + tpDay) + tpInk * 0.16 * (0.3 + tpQ.w) * tpDay + 0.05 * (1.0 - smoothstep(0.0, 0.25, abs(fract(q.x * 1.7 + q.y * 3.0 + tpMd.y) - 0.5))), uOwn[5]);
+    if (uOwn[6] > 0.0) c = mix(c, mix(vec3(tpGrey(tpInk)), tpInk, 0.85) * (0.4 + 0.2 * tpC.z + 0.75 * tpQ.w) * (0.75 + 0.35 * tpGrey(c)) + (0.04 + 0.3 * tpQ.w) * (1.0 - smoothstep(0.0, 1.0, abs(q.y) / max(tpC.x, 1e-3))) * mix(tpInk, vec3(0.9), 0.4), uOwn[6]);
     vec3 un = uOwn[6] > 0.0 ? tpUnder * (1.0 - 0.9 * uOwn[6]) + tpHalo * (0.3 + board) : tpUnder;
     col = mix(un, c, tpCov);
   } else col *= (1.0 - (1.0 - tpDay) * dark) * tpAo;
