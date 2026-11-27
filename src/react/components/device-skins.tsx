@@ -1984,6 +1984,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'clock-room': { ...PLATE_PALETTES['clock-room'], finish: 'brushed', cap: 'pointer' },
   'ridge-lines': { ...PLATE_PALETTES['ridge-lines'], finish: 'grain', cap: 'pointer' },
   'night-drum': { ...PLATE_PALETTES['night-drum'], finish: 'fade', cap: 'disc' },
+  'returning-wave': { ...PLATE_PALETTES['returning-wave'], finish: 'fade', cap: 'dot' },
 }
 
 /**

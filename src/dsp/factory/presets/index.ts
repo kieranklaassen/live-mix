@@ -96,6 +96,7 @@ import { BENT_BLADE_PRESETS } from './bent-blade'
 import { CLOCK_ROOM_PRESETS } from './clock-room'
 import { RIDGE_LINES_PRESETS } from './ridge-lines'
 import { NIGHT_DRUM_PRESETS } from './night-drum'
+import { RETURNING_WAVE_PRESETS } from './returning-wave'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -192,4 +193,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...CLOCK_ROOM_PRESETS,
   ...RIDGE_LINES_PRESETS,
   ...NIGHT_DRUM_PRESETS,
+  ...RETURNING_WAVE_PRESETS,
 ]

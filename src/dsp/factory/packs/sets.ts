@@ -54,6 +54,24 @@ const SETS: readonly Set_[] = [
     ],
   },
   {
+    device: 'returning-wave',
+    name: 'Returning Wave',
+    description:
+      'Bright pulses that dissolve into haze and come back whole: pads, keys, organs and bells, some home in a blink and some in minutes.',
+    directions: [
+      'Dissolving pads',
+      'Glass keys',
+      'Breathing organs',
+      'Ring bells',
+      'Tunnel basses',
+      'Frozen colours',
+      'Plucked flickers',
+      'Choirs and moving air',
+      'Minute drones',
+      'Lamps and signals',
+    ],
+  },
+  {
     device: 'bronze-vowels',
     name: 'Bronze Vowels',
     description:

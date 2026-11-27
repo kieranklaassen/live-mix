@@ -222,6 +222,8 @@ build_generated_devices() {
     cpp/devices/radio/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device re-amp \
     cpp/devices/re-amp/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device returning-wave \
+    cpp/devices/returning-wave/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device reveal \
     cpp/devices/reveal/device_api.gen.cpp
   MEMORY_BYTES=20971520 EXTRA_EXPORTS=",_device_meter" build_device reverse-delay \
@@ -585,6 +587,8 @@ test_generated_devices() {
     cpp/test/radio_test.cpp
   native_test re_amp_test \
     cpp/test/re_amp_test.cpp
+  native_test returning_wave_test \
+    cpp/test/returning_wave_test.cpp
   native_test reveal_test \
     cpp/test/reveal_test.cpp
   native_test reverse_delay_test \

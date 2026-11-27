@@ -110,6 +110,7 @@ import { PRISM_DESCRIPTOR, PRISM_DEVICE } from './prism.gen'
 import { PULSES_DESCRIPTOR, PULSES_DEVICE } from './pulses.gen'
 import { RADIO_DESCRIPTOR, RADIO_DEVICE } from './radio.gen'
 import { RE_AMP_DESCRIPTOR, RE_AMP_DEVICE } from './re-amp.gen'
+import { RETURNING_WAVE_DESCRIPTOR, RETURNING_WAVE_DEVICE } from './returning-wave.gen'
 import { REVEAL_DESCRIPTOR, REVEAL_DEVICE } from './reveal.gen'
 import { REVERSE_DELAY_DESCRIPTOR, REVERSE_DELAY_DEVICE } from './reverse-delay.gen'
 import { REWIND_DESCRIPTOR, REWIND_DEVICE } from './rewind.gen'
@@ -289,6 +290,7 @@ export * from './prism.gen'
 export * from './pulses.gen'
 export * from './radio.gen'
 export * from './re-amp.gen'
+export * from './returning-wave.gen'
 export * from './reveal.gen'
 export * from './reverse-delay.gen'
 export * from './rewind.gen'
@@ -470,6 +472,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   PULSES_DESCRIPTOR,
   RADIO_DESCRIPTOR,
   RE_AMP_DESCRIPTOR,
+  RETURNING_WAVE_DESCRIPTOR,
   REVEAL_DESCRIPTOR,
   REVERSE_DELAY_DESCRIPTOR,
   REWIND_DESCRIPTOR,
@@ -652,6 +655,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   PULSES_DEVICE,
   RADIO_DEVICE,
   RE_AMP_DEVICE,
+  RETURNING_WAVE_DEVICE,
   REVEAL_DEVICE,
   REVERSE_DELAY_DEVICE,
   REWIND_DEVICE,
@@ -848,6 +852,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'pulses', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'radio', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 're-amp', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
+  { id: 'returning-wave', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'reveal', instrument: false, samples: false, zones: false, meters: 47, memoryMb: 4 },
   { id: 'reverse-delay', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 20 },
   { id: 'rewind', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
