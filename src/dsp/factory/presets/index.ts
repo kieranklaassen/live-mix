@@ -80,6 +80,8 @@ import { SLOW_ACCORD_PRESETS } from './slow-accord'
 import { WIRE_LANTERN_PRESETS } from './wire-lantern'
 import { SINGING_SAND_PRESETS } from './singing-sand'
 import { COMMON_AIR_PRESETS } from './common-air'
+import { STANDING_WATER_PRESETS } from './standing-water'
+import { RINGING_ORDER_PRESETS } from './ringing-order'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -160,4 +162,6 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...WIRE_LANTERN_PRESETS,
   ...SINGING_SAND_PRESETS,
   ...COMMON_AIR_PRESETS,
+  ...STANDING_WATER_PRESETS,
+  ...RINGING_ORDER_PRESETS,
 ]

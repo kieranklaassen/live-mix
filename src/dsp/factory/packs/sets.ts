@@ -90,6 +90,42 @@ const SETS: readonly Set_[] = [
     ],
   },
   {
+    device: 'standing-water',
+    name: 'Standing Water',
+    description:
+      'Shaken water read along a circle: pools, ripples, striped flutes, mercury bells, films of oil and throats of water.',
+    directions: [
+      'Pool pads',
+      'Late basses',
+      'Ripple keys',
+      'Stripe flutes',
+      'Mercury bells',
+      'Oil drones',
+      'Eightfold shimmers',
+      'Quarrelling swells',
+      'Pin plucks',
+      'Throats of water',
+    ],
+  },
+  {
+    device: 'ringing-order',
+    name: 'Ringing Order',
+    description:
+      'Overtones that take turns like ringers in a tower: peals, melted rows, plucked canons, half muffled bells and answering sides.',
+    directions: [
+      'Fused pads',
+      'Plain keys',
+      'Canon plucks',
+      'Covered bass',
+      'Half muffled bells',
+      'Slow hum drones',
+      'Breath textures',
+      'Reed voices',
+      'Opposed pulses',
+      'Quarter hours',
+    ],
+  },
+  {
     device: 'wire-lantern',
     name: 'Wire Lantern',
     description:

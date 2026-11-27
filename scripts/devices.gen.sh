@@ -214,6 +214,8 @@ build_generated_devices() {
     cpp/devices/rewind/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ring \
     cpp/devices/ring/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ringing-order \
+    cpp/devices/ringing-order/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device rotary \
     cpp/devices/rotary/device_api.gen.cpp
   MEMORY_BYTES=25165824 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit" build_device sampler \
@@ -256,6 +258,8 @@ build_generated_devices() {
     cpp/devices/spring-reverb/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device staircase \
     cpp/devices/staircase/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device standing-water \
+    cpp/devices/standing-water/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stereo-detune \
     cpp/devices/stereo-detune/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device still-point \
@@ -545,6 +549,8 @@ test_generated_devices() {
     cpp/test/rewind_test.cpp
   native_test ring_test \
     cpp/test/ring_test.cpp
+  native_test ringing_order_test \
+    cpp/test/ringing_order_test.cpp
   native_test rotary_test \
     cpp/test/rotary_test.cpp
   native_test sampler_test \
@@ -587,6 +593,8 @@ test_generated_devices() {
     cpp/test/spring_reverb_test.cpp
   native_test staircase_test \
     cpp/test/staircase_test.cpp
+  native_test standing_water_test \
+    cpp/test/standing_water_test.cpp
   native_test stereo_detune_test \
     cpp/test/stereo_detune_test.cpp
   native_test still_point_test \

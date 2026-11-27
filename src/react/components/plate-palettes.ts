@@ -200,6 +200,8 @@ export const PLATE_PALETTES = {
   'wire-lantern': { plate: '#faa0e2', ink: '#2a0523', accent: '#0a35d0' },
   'singing-sand': { plate: '#fad094', ink: '#2b1a0a', accent: '#b3260b' },
   'common-air': { plate: '#82ca82', ink: '#10240f', accent: '#7a1f3d' },
+  'standing-water': { plate: '#0aa6b8', ink: '#04171a', accent: '#93001e' },
+  'ringing-order': { plate: '#94a646', ink: '#12160a', accent: '#5a1a8c' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

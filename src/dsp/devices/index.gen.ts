@@ -106,6 +106,7 @@ import { REVEAL_DESCRIPTOR, REVEAL_DEVICE } from './reveal.gen'
 import { REVERSE_DELAY_DESCRIPTOR, REVERSE_DELAY_DEVICE } from './reverse-delay.gen'
 import { REWIND_DESCRIPTOR, REWIND_DEVICE } from './rewind.gen'
 import { RING_DESCRIPTOR, RING_DEVICE } from './ring.gen'
+import { RINGING_ORDER_DESCRIPTOR, RINGING_ORDER_DEVICE } from './ringing-order.gen'
 import { ROTARY_DESCRIPTOR, ROTARY_DEVICE } from './rotary.gen'
 import { SAMPLER_DESCRIPTOR, SAMPLER_DEVICE } from './sampler.gen'
 import { SATURATOR_DESCRIPTOR, SATURATOR_DEVICE } from './saturator.gen'
@@ -127,6 +128,7 @@ import { SPIRAL_DESCRIPTOR, SPIRAL_DEVICE } from './spiral.gen'
 import { SPREAD_DESCRIPTOR, SPREAD_DEVICE } from './spread.gen'
 import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.gen'
 import { STAIRCASE_DESCRIPTOR, STAIRCASE_DEVICE } from './staircase.gen'
+import { STANDING_WATER_DESCRIPTOR, STANDING_WATER_DEVICE } from './standing-water.gen'
 import { STEREO_DETUNE_DESCRIPTOR, STEREO_DETUNE_DEVICE } from './stereo-detune.gen'
 import { STILL_POINT_DESCRIPTOR, STILL_POINT_DEVICE } from './still-point.gen'
 import { STOPS_DESCRIPTOR, STOPS_DEVICE } from './stops.gen'
@@ -269,6 +271,7 @@ export * from './reveal.gen'
 export * from './reverse-delay.gen'
 export * from './rewind.gen'
 export * from './ring.gen'
+export * from './ringing-order.gen'
 export * from './rotary.gen'
 export * from './sampler.gen'
 export * from './saturator.gen'
@@ -290,6 +293,7 @@ export * from './spiral.gen'
 export * from './spread.gen'
 export * from './spring-reverb.gen'
 export * from './staircase.gen'
+export * from './standing-water.gen'
 export * from './stereo-detune.gen'
 export * from './still-point.gen'
 export * from './stops.gen'
@@ -434,6 +438,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   REVERSE_DELAY_DESCRIPTOR,
   REWIND_DESCRIPTOR,
   RING_DESCRIPTOR,
+  RINGING_ORDER_DESCRIPTOR,
   ROTARY_DESCRIPTOR,
   SAMPLER_DESCRIPTOR,
   SATURATOR_DESCRIPTOR,
@@ -455,6 +460,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SPREAD_DESCRIPTOR,
   SPRING_REVERB_DESCRIPTOR,
   STAIRCASE_DESCRIPTOR,
+  STANDING_WATER_DESCRIPTOR,
   STEREO_DETUNE_DESCRIPTOR,
   STILL_POINT_DESCRIPTOR,
   STOPS_DESCRIPTOR,
@@ -600,6 +606,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   REVERSE_DELAY_DEVICE,
   REWIND_DEVICE,
   RING_DEVICE,
+  RINGING_ORDER_DEVICE,
   ROTARY_DEVICE,
   SAMPLER_DEVICE,
   SATURATOR_DEVICE,
@@ -621,6 +628,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SPREAD_DEVICE,
   SPRING_REVERB_DEVICE,
   STAIRCASE_DEVICE,
+  STANDING_WATER_DEVICE,
   STEREO_DETUNE_DEVICE,
   STILL_POINT_DEVICE,
   STOPS_DEVICE,
@@ -780,6 +788,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'reverse-delay', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 20 },
   { id: 'rewind', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'ring', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
+  { id: 'ringing-order', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'rotary', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'sampler', instrument: true, samples: true, zones: false, meters: 0, memoryMb: 24 },
   { id: 'saturator', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
@@ -808,6 +817,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'spread', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'spring-reverb', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'staircase', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'standing-water', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'stereo-detune', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'still-point', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'stops', instrument: false, samples: false, zones: false, meters: 7, memoryMb: 4 },

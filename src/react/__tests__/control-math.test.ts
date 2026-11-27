@@ -378,6 +378,7 @@ describe('the stock devices', () => {
       'pulses.shift',
       'pulses.steps',
       'ring.octave',
+      'ringing-order.ringers',
       'silent-keys.chord',
       'silent-keys.count',
       'silent-keys.partials',

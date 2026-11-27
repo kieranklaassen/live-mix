@@ -95,6 +95,8 @@ import { SLOW_ACCORD_FACES } from './slow-accord'
 import { WIRE_LANTERN_FACES } from './wire-lantern'
 import { SINGING_SAND_FACES } from './singing-sand'
 import { COMMON_AIR_FACES } from './common-air'
+import { STANDING_WATER_FACES } from './standing-water'
+import { RINGING_ORDER_FACES } from './ringing-order'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -191,4 +193,6 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...WIRE_LANTERN_FACES,
   ...SINGING_SAND_FACES,
   ...COMMON_AIR_FACES,
+  ...STANDING_WATER_FACES,
+  ...RINGING_ORDER_FACES,
 }
