@@ -388,6 +388,7 @@ describe('the stock devices', () => {
       'skipping-stone.skips',
       'slow-accord.overtones',
       'spiral.voices',
+      'walking-voices.people',
       'wind-harp.strings',
       'winding-down.layers',
       'wire-lantern.edge',

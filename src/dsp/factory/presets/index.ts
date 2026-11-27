@@ -82,6 +82,9 @@ import { SINGING_SAND_PRESETS } from './singing-sand'
 import { COMMON_AIR_PRESETS } from './common-air'
 import { STANDING_WATER_PRESETS } from './standing-water'
 import { RINGING_ORDER_PRESETS } from './ringing-order'
+import { WALKING_VOICES_PRESETS } from './walking-voices'
+import { UNSUNG_VOICE_PRESETS } from './unsung-voice'
+import { DEEP_ROOTS_PRESETS } from './deep-roots'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -164,4 +167,7 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...COMMON_AIR_PRESETS,
   ...STANDING_WATER_PRESETS,
   ...RINGING_ORDER_PRESETS,
+  ...WALKING_VOICES_PRESETS,
+  ...UNSUNG_VOICE_PRESETS,
+  ...DEEP_ROOTS_PRESETS,
 ]

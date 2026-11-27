@@ -74,6 +74,8 @@ build_generated_devices() {
     cpp/devices/constellation/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device currents \
     cpp/devices/currents/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device deep-roots \
+    cpp/devices/deep-roots/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device distance \
     cpp/devices/distance/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drone \
@@ -308,6 +310,8 @@ build_generated_devices() {
     cpp/devices/twin-bars/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device underwater \
     cpp/devices/underwater/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device unsung-voice \
+    cpp/devices/unsung-voice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device vessel \
     cpp/devices/vessel/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device vintage-digital \
@@ -316,6 +320,8 @@ build_generated_devices() {
     cpp/devices/vinyl/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device vowel-reverb \
     cpp/devices/vowel-reverb/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device walking-voices \
+    cpp/devices/walking-voices/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device warp \
     cpp/devices/warp/device_api.gen.cpp
   MEMORY_BYTES=5242880 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wavetable \
@@ -409,6 +415,8 @@ test_generated_devices() {
     cpp/test/constellation_test.cpp
   native_test currents_test \
     cpp/test/currents_test.cpp
+  native_test deep_roots_test \
+    cpp/test/deep_roots_test.cpp
   native_test distance_test \
     cpp/test/distance_test.cpp
   native_test drone_test \
@@ -643,6 +651,8 @@ test_generated_devices() {
     cpp/test/twin_bars_test.cpp
   native_test underwater_test \
     cpp/test/underwater_test.cpp
+  native_test unsung_voice_test \
+    cpp/test/unsung_voice_test.cpp
   native_test vessel_test \
     cpp/test/vessel_test.cpp
   native_test vintage_digital_test \
@@ -651,6 +661,8 @@ test_generated_devices() {
     cpp/test/vinyl_test.cpp
   native_test vowel_reverb_test \
     cpp/test/vowel_reverb_test.cpp
+  native_test walking_voices_test \
+    cpp/test/walking_voices_test.cpp
   native_test warp_test \
     cpp/test/warp_test.cpp
   native_test wavetable_test \

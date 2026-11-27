@@ -99,6 +99,9 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'common-air',
   'standing-water',
   'ringing-order',
+  'walking-voices',
+  'unsung-voice',
+  'deep-roots',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(

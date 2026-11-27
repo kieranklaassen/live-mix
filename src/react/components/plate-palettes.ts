@@ -202,6 +202,9 @@ export const PLATE_PALETTES = {
   'common-air': { plate: '#82ca82', ink: '#10240f', accent: '#7a1f3d' },
   'standing-water': { plate: '#0aa6b8', ink: '#04171a', accent: '#93001e' },
   'ringing-order': { plate: '#94a646', ink: '#12160a', accent: '#5a1a8c' },
+  'walking-voices': { plate: '#be82d6', ink: '#14081a', accent: '#800c26' },
+  'unsung-voice': { plate: '#beca82', ink: '#14180a', accent: '#a3271c' },
+  'deep-roots': { plate: '#0a643a', ink: '#f4f8ee', accent: '#f2b65c' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

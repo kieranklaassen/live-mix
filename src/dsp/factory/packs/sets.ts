@@ -18,6 +18,42 @@ interface Set_ {
 
 const SETS: readonly Set_[] = [
   {
+    device: 'walking-voices',
+    name: 'Walking Voices',
+    description:
+      'A crowd of singers that walks from chord to chord: choirs near and far, hummed and whistled, led by one voice or grounded by the basses.',
+    directions: [
+      'Surge hymns',
+      'Perfect pools',
+      'Hummed vigils',
+      'Whistling fields',
+      'Leaders and shadows',
+      'Bass floors',
+      'Gathered keys',
+      'Slow glaciers',
+      'Strings on foot',
+      'Quarrels',
+    ],
+  },
+  {
+    device: 'unsung-voice',
+    name: 'Unsung Voice',
+    description:
+      'The voice that appears where the overtones of held keys meet: halos, descants, crowns of bells and breath lines over warm, close chords.',
+    directions: [
+      'Chapel four',
+      'Glass descant',
+      'Plucked halo',
+      'Bowed fog',
+      'Bell crown',
+      'Beating seconds',
+      'Low partner',
+      'Breath line',
+      'Reed keys',
+      'Dark drone',
+    ],
+  },
+  {
     device: 'common-air',
     name: 'Common Air',
     description:
@@ -51,6 +87,24 @@ const SETS: readonly Set_[] = [
       'Quick pluck',
       'Swinging choir',
       'Raw metal',
+    ],
+  },
+  {
+    device: 'deep-roots',
+    name: 'Deep Roots',
+    description:
+      'Notes that grow downward until a bass appears that nobody played: rooted pads, canopies, seeds, peat drones and late foundations.',
+    directions: [
+      'Rooted pads',
+      'Glass canopies',
+      'Plucked seeds',
+      'One-finger basses',
+      'Chalk bells',
+      'Peat drones',
+      'Falling gravel',
+      'Breath elders',
+      'Pulsing roots',
+      'Late foundations',
     ],
   },
   {

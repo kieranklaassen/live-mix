@@ -36,6 +36,7 @@ import { COMMON_AIR_DESCRIPTOR, COMMON_AIR_DEVICE } from './common-air.gen'
 import { COMMON_TONES_DESCRIPTOR, COMMON_TONES_DEVICE } from './common-tones.gen'
 import { CONSTELLATION_DESCRIPTOR, CONSTELLATION_DEVICE } from './constellation.gen'
 import { CURRENTS_DESCRIPTOR, CURRENTS_DEVICE } from './currents.gen'
+import { DEEP_ROOTS_DESCRIPTOR, DEEP_ROOTS_DEVICE } from './deep-roots.gen'
 import { DISTANCE_DESCRIPTOR, DISTANCE_DEVICE } from './distance.gen'
 import { DRONE_DESCRIPTOR, DRONE_DEVICE } from './drone.gen'
 import { DROPLETS_DESCRIPTOR, DROPLETS_DEVICE } from './droplets.gen'
@@ -152,10 +153,12 @@ import { TINE_PIANO_DESCRIPTOR, TINE_PIANO_DEVICE } from './tine-piano.gen'
 import { TREMOLO_DESCRIPTOR, TREMOLO_DEVICE } from './tremolo.gen'
 import { TWIN_BARS_DESCRIPTOR, TWIN_BARS_DEVICE } from './twin-bars.gen'
 import { UNDERWATER_DESCRIPTOR, UNDERWATER_DEVICE } from './underwater.gen'
+import { UNSUNG_VOICE_DESCRIPTOR, UNSUNG_VOICE_DEVICE } from './unsung-voice.gen'
 import { VESSEL_DESCRIPTOR, VESSEL_DEVICE } from './vessel.gen'
 import { VINTAGE_DIGITAL_DESCRIPTOR, VINTAGE_DIGITAL_DEVICE } from './vintage-digital.gen'
 import { VINYL_DESCRIPTOR, VINYL_DEVICE } from './vinyl.gen'
 import { VOWEL_REVERB_DESCRIPTOR, VOWEL_REVERB_DEVICE } from './vowel-reverb.gen'
+import { WALKING_VOICES_DESCRIPTOR, WALKING_VOICES_DEVICE } from './walking-voices.gen'
 import { WARP_DESCRIPTOR, WARP_DEVICE } from './warp.gen'
 import { WAVETABLE_DESCRIPTOR, WAVETABLE_DEVICE } from './wavetable.gen'
 import { WEATHER_DESCRIPTOR, WEATHER_DEVICE } from './weather.gen'
@@ -201,6 +204,7 @@ export * from './common-air.gen'
 export * from './common-tones.gen'
 export * from './constellation.gen'
 export * from './currents.gen'
+export * from './deep-roots.gen'
 export * from './distance.gen'
 export * from './drone.gen'
 export * from './droplets.gen'
@@ -317,10 +321,12 @@ export * from './tine-piano.gen'
 export * from './tremolo.gen'
 export * from './twin-bars.gen'
 export * from './underwater.gen'
+export * from './unsung-voice.gen'
 export * from './vessel.gen'
 export * from './vintage-digital.gen'
 export * from './vinyl.gen'
 export * from './vowel-reverb.gen'
+export * from './walking-voices.gen'
 export * from './warp.gen'
 export * from './wavetable.gen'
 export * from './weather.gen'
@@ -368,6 +374,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   COMMON_TONES_DESCRIPTOR,
   CONSTELLATION_DESCRIPTOR,
   CURRENTS_DESCRIPTOR,
+  DEEP_ROOTS_DESCRIPTOR,
   DISTANCE_DESCRIPTOR,
   DRONE_DESCRIPTOR,
   DROPLETS_DESCRIPTOR,
@@ -484,10 +491,12 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   TREMOLO_DESCRIPTOR,
   TWIN_BARS_DESCRIPTOR,
   UNDERWATER_DESCRIPTOR,
+  UNSUNG_VOICE_DESCRIPTOR,
   VESSEL_DESCRIPTOR,
   VINTAGE_DIGITAL_DESCRIPTOR,
   VINYL_DESCRIPTOR,
   VOWEL_REVERB_DESCRIPTOR,
+  WALKING_VOICES_DESCRIPTOR,
   WARP_DESCRIPTOR,
   WAVETABLE_DESCRIPTOR,
   WEATHER_DESCRIPTOR,
@@ -536,6 +545,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   COMMON_TONES_DEVICE,
   CONSTELLATION_DEVICE,
   CURRENTS_DEVICE,
+  DEEP_ROOTS_DEVICE,
   DISTANCE_DEVICE,
   DRONE_DEVICE,
   DROPLETS_DEVICE,
@@ -652,10 +662,12 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   TREMOLO_DEVICE,
   TWIN_BARS_DEVICE,
   UNDERWATER_DEVICE,
+  UNSUNG_VOICE_DEVICE,
   VESSEL_DEVICE,
   VINTAGE_DIGITAL_DEVICE,
   VINYL_DEVICE,
   VOWEL_REVERB_DEVICE,
+  WALKING_VOICES_DEVICE,
   WARP_DEVICE,
   WAVETABLE_DEVICE,
   WEATHER_DEVICE,
@@ -711,6 +723,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'common-tones', instrument: false, samples: false, zones: false, meters: 72, memoryMb: 8 },
   { id: 'constellation', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 8 },
   { id: 'currents', instrument: false, samples: false, zones: false, meters: 12, memoryMb: 4 },
+  { id: 'deep-roots', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'distance', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'drone', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'droplets', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
@@ -841,6 +854,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'tremolo', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'twin-bars', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'underwater', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
+  { id: 'unsung-voice', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'vessel', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   {
     id: 'vintage-digital',
@@ -852,6 +866,7 @@ export const GENERATED_WASM_DEVICES = [
   },
   { id: 'vinyl', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 8 },
   { id: 'vowel-reverb', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
+  { id: 'walking-voices', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'warp', instrument: false, samples: false, zones: false, meters: 21, memoryMb: 4 },
   { id: 'wavetable', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 5 },
   { id: 'weather', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },

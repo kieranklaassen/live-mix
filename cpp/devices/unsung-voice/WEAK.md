@@ -1,0 +1,5 @@
+Unsung Voice: nobody has heard it, every claim is a figure.
+
+Listen first to the defaults on D3 A3 F4 C5 E5 for ten seconds: is the line a voice that nobody sings, or a whistle laid on top? It stands 26 dB over its neighbours with the throat and 16 with the reed. The keys step back 6 dB a fourth either way of it. Then one key alone, a soft and a hard touch, "Only the unsung" and "Beating seconds".
+
+What worries. Tolerance works in stairs: which meetings a chord has depends on the chord. A meeting it only just lets in is softer and trembles; with one key it does nothing. The print hardly sees Vibrato and Glide, and over bright keys the line's knobs barely move it. A lone C2 sings far up, on its ninth or twelfth overtone. Long Pace with low Linger leaves near silence between strikes once Lift has taken the keys away. Bodies are 4.1 to 7.4 dB apart at the defaults; hollow is nearest to throat. scripts/dev-device.sh builds without the vector flag and calls the result too dear; the shipped build costs 1.9 % at most.

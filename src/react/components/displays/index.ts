@@ -97,6 +97,9 @@ import { SINGING_SAND_FACES } from './singing-sand'
 import { COMMON_AIR_FACES } from './common-air'
 import { STANDING_WATER_FACES } from './standing-water'
 import { RINGING_ORDER_FACES } from './ringing-order'
+import { WALKING_VOICES_FACES } from './walking-voices'
+import { UNSUNG_VOICE_FACES } from './unsung-voice'
+import { DEEP_ROOTS_FACES } from './deep-roots'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -195,4 +198,7 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...COMMON_AIR_FACES,
   ...STANDING_WATER_FACES,
   ...RINGING_ORDER_FACES,
+  ...WALKING_VOICES_FACES,
+  ...UNSUNG_VOICE_FACES,
+  ...DEEP_ROOTS_FACES,
 }

@@ -2,8 +2,11 @@
 
 import { setId, setPresets, type InstrumentSet } from '../../sets/set'
 import { type FactoryPreset } from '../../types'
+import { SET as WALKING_VOICES } from '../../sets/walking-voices'
+import { SET as UNSUNG_VOICE } from '../../sets/unsung-voice'
 import { SET as COMMON_AIR } from '../../sets/common-air'
 import { SET as SLOW_ACCORD } from '../../sets/slow-accord'
+import { SET as DEEP_ROOTS } from '../../sets/deep-roots'
 import { SET as CHORD_CLOCK } from '../../sets/chord-clock'
 import { SET as SETTING_GLASS } from '../../sets/setting-glass'
 import { SET as STANDING_WATER } from '../../sets/standing-water'
@@ -13,8 +16,11 @@ import { SET as SINGING_SAND } from '../../sets/singing-sand'
 
 /** The tables, in the order of `FACTORY_PACKS`. */
 export const SETS: readonly InstrumentSet[] = [
+  WALKING_VOICES,
+  UNSUNG_VOICE,
   COMMON_AIR,
   SLOW_ACCORD,
+  DEEP_ROOTS,
   CHORD_CLOCK,
   SETTING_GLASS,
   STANDING_WATER,
