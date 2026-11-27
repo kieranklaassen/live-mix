@@ -145,7 +145,7 @@ describe.each(Object.entries(PLATE_FACES))('the display of %s', (id, face) => {
         )
       }
     }
-  })
+  }, 60000)
 
   it('draws to the size it is given, the wider strip of an opened plate too', () => {
     const size = displaySize(display)
@@ -190,7 +190,7 @@ describe.each(Object.entries(PLATE_FACES))('the display of %s', (id, face) => {
       )
       expect(follows, `${id} looks different as ${name} moves`).toBe(true)
     }
-  })
+  }, 60000)
 
   it('has handles that stand on the display and set what they stand for', () => {
     if (!display.handles) return

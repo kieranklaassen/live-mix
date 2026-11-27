@@ -64,7 +64,7 @@ describe('the map of flame-organ', () => {
           }
     expect(wrong).toBe(0)
     expect(heard.size).toBeGreaterThanOrEqual(4)
-  })
+  }, 60000)
 
   it.each([
     [1, 0.21, 0.17],

@@ -197,6 +197,14 @@ function nibNow({ state, notes, now, powered }: DisplayFrame<State>, at: Layout)
   if (note.id !== state.id) [state.id, state.since] = [note.id, now]
   return dryBrushX(at, note.age, note.released ?? 0)
 }
+/** A hair on the paper at one column. */
+interface Run {
+  path: number
+  hair: number
+  c: number
+  x: number
+  y: number
+}
 function drawStroke(frame: DisplayFrame<State>, at: Layout, nib: number): void {
   const { ctx, colours, state } = frame
   const paper = GROUND[Math.round(frame.value('paper'))]
@@ -218,24 +226,33 @@ function drawStroke(frame: DisplayFrame<State>, at: Layout, nib: number): void {
       return [x, at.middle + at.field.h * clamp((y - at.middle) / at.field.h + reach, -0.5, 0.5)]
     })
   kit.fillBetween(ctx, edge(-1), edge(1), colours.ink, INK.fill)
+  const spread = frame.value('spread') / 6
+  const laid: Run[] = []
+  for (let i = 0; i < HAIRS; i++) {
+    const side = (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * (2 / HAIRS)
+    const core = i < 8 ? 0.55 : 1
+    const apart = spread * (chance(i, 7) - 0.5)
+    columns.forEach(({ x, y, open, m }, c) => {
+      if (m.loud[i] <= 0.012) return
+      const short = 1 - m.wet[i]
+      const skips = clamp(short * dry * 1.5 + caught, 0, 0.9) * core
+      if (skips > 0 && chance(i + 40, Math.floor(c / 2)) < skips) return
+      const loose = apart * (1 + 2 * dry * short)
+      const place = y + side * open + loose + 4 * (1 - tone) * (chance(i + 9, c) - 0.5)
+      if (Math.abs(place - at.middle) >= at.field.h / 2) return
+      const path = Math.min(3, Math.floor(m.loud[i] * 6)) + (x <= nib ? 0 : 4)
+      laid.push({ path, hair: i, c, x, y: place })
+    })
+  }
   // Four strengths of hair, laid and still to come: eight paths and not two thousand.
   for (let path = 0; path < 8; path++) {
     ctx.beginPath()
-    for (let i = 0; i < HAIRS; i++) {
-      const side = (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * (2 / HAIRS)
-      let drawing = false
-      columns.forEach(({ x, y, open, m }, c) => {
-        const skips = clamp((1 - m.wet[i]) * dry * 1.5 + caught, 0, 0.9) * (i < 8 ? 0.55 : 1)
-        const there = m.loud[i] > 0.012 && chance(i + 40, Math.floor(c / 2)) >= skips
-        const strength = Math.min(3, Math.floor(m.loud[i] * 6)) + (x <= nib ? 0 : 4)
-        const loose =
-          (frame.value('spread') / 6) * (chance(i, 7) - 0.5) * (1 + 2 * dry * (1 - m.wet[i]))
-        const hair = y + side * open + loose + 4 * (1 - tone) * (chance(i + 9, c) - 0.5)
-        const on = there && strength === path && Math.abs(hair - at.middle) < at.field.h / 2
-        if (on && !drawing) ctx.moveTo(x - 1.2, hair)
-        if (on) ctx.lineTo(x, hair)
-        drawing = on
-      })
+    let [hair, after] = [-1, -1]
+    for (const run of laid) {
+      if (run.path !== path) continue
+      if (run.hair !== hair || run.c !== after) ctx.moveTo(run.x - 1.2, run.y)
+      ctx.lineTo(run.x, run.y)
+      ;[hair, after] = [run.hair, run.c + 1]
     }
     ctx.globalAlpha = (path < 4 ? 1 : 0.4) * [0.55, 0.7, 0.85, 1][path % 4]
     ctx.strokeStyle = colours.ink

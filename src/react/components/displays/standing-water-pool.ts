@@ -19,6 +19,9 @@ import {
   type Water,
 } from './standing-water-parts'
 
+const CORNER_X = [0, 1, 1, 0]
+const CORNER_Y = [0, 0, 1, 1]
+
 /** The area of a grid of values over `level`, as one path. */
 export function contour(
   ctx: CanvasRenderingContext2D,
@@ -28,25 +31,41 @@ export function contour(
   { x: left, y: top, w: dx, h: dy }: Box,
 ): void {
   const rows = values.length / columns
-  const corners = [0, 0, 1, 0, 1, 1, 0, 1]
+  let first = true
+  const put = (x: number, y: number): void => {
+    if (first) ctx.moveTo(left + x * dx, top + y * dy)
+    else ctx.lineTo(left + x * dx, top + y * dy)
+    first = false
+  }
+  let strip = -1
+  const endStrip = (r: number, c: number): void => {
+    if (strip >= 0) ctx.rect(left + strip * dx, top + r * dy, (c - strip) * dx, dy)
+    strip = -1
+  }
   for (let r = 0; r + 1 < rows; r++) {
     for (let c = 0; c + 1 < columns; c++) {
-      let first = true
+      const at = r * columns + c
+      const over =
+        Number(values[at] > level) +
+        Number(values[at + 1] > level) +
+        Number(values[at + columns] > level) +
+        Number(values[at + columns + 1] > level)
+      // Cells that are wholly over it are one strip as far as they run.
+      if (over === 4) {
+        if (strip < 0) strip = c
+        continue
+      }
+      endStrip(r, c)
+      if (over === 0) continue
+      first = true
       for (let i = 0; i < 4; i++) {
         const j = (i + 1) & 3
-        const [ax, ay, bx, by] = [
-          corners[2 * i],
-          corners[2 * i + 1],
-          corners[2 * j],
-          corners[2 * j + 1],
-        ]
-        const a = values[(r + ay) * columns + c + ax]
-        const b = values[(r + by) * columns + c + bx]
-        const put = (x: number, y: number): void => {
-          if (first) ctx.moveTo(left + x * dx, top + y * dy)
-          else ctx.lineTo(left + x * dx, top + y * dy)
-          first = false
-        }
+        const ax = CORNER_X[i]
+        const ay = CORNER_Y[i]
+        const bx = CORNER_X[j]
+        const by = CORNER_Y[j]
+        const a = values[at + ay * columns + ax]
+        const b = values[at + by * columns + bx]
         if (a > level) put(c + ax, r + ay)
         if (a > level !== b > level) {
           const t = (level - a) / (b - a)
@@ -55,36 +74,51 @@ export function contour(
       }
       if (!first) ctx.closePath()
     }
+    endStrip(r, columns - 1)
   }
 }
 
-/** The reading over the pool: 0 where the water lies still, 1 at the brightest the knobs allow. */
+/**
+ * The reading over a grid of the pool, row by row: 0 where the water lies still, 1 at the brightest
+ * the knobs allow. A wave's angle is a sum over the two axes, so its sines are asked along each axis
+ * and not at every point.
+ */
 export function waterField(
   ask: Ask,
   ripples: readonly Ripple[],
   strength: number,
   [x, y, radius]: readonly [number, number, number],
-  at: (n: number) => readonly [number, number],
-  count: number,
+  across: Float64Array,
+  down: Float64Array,
 ): Float32Array {
   const reading = waterReading(ask)
+  const count = across.length * down.length
   const out = new Float32Array(count)
-  let power = 0
   const bend = (radius * radius) / (0.35 * radius * radius + 1)
-  for (let n = 0; n < count; n++) {
-    const [px, py] = at(n)
-    const far = Math.hypot(px - x, py - y) + 1e-6
-    const [tx, ty] = [-(py - y) / far, (px - x) / far]
-    let sum = 0
-    for (const { a, kx, ky, p, fine } of ripples) {
-      const run = kx * px + ky * py + p
-      if (reading === SLOPE) sum -= a * (kx * tx + ky * ty) * Math.sin(run)
-      else sum += a * Math.cos(run) * (reading === CAUSTIC ? -fine * fine : 1)
+  for (const { a, kx, ky, p, fine } of ripples) {
+    const cosX = across.map((px) => Math.cos(kx * px + p))
+    const sinX = across.map((px) => Math.sin(kx * px + p))
+    const height = reading === CAUSTIC ? -a * fine * fine : a
+    for (let r = 0, n = 0; r < down.length; r++) {
+      const py = down[r]
+      const [cosY, sinY] = [Math.cos(ky * py), Math.sin(ky * py)]
+      for (let c = 0; c < across.length; c++, n++) {
+        if (reading === SLOPE) {
+          // Along the circle that runs through this point.
+          const steep = ky * (across[c] - x) - kx * (py - y)
+          out[n] -= a * steep * (sinX[c] * cosY + cosX[c] * sinY)
+        } else out[n] += height * (cosX[c] * cosY - sinX[c] * sinY)
+      }
     }
-    if (reading === SLOPE) sum *= radius / (0.5 * radius + 0.6)
-    if (reading === CAUSTIC) sum *= bend
-    out[n] = sum
-    power += sum * sum
+  }
+  let power = 0
+  for (let n = 0; n < count; n++) {
+    if (reading === SLOPE) {
+      const [px, py] = [across[n % across.length], down[Math.floor(n / across.length)]]
+      out[n] *= radius / (0.5 * radius + 0.6) / (Math.hypot(px - x, py - y) + 1e-6)
+    }
+    if (reading === CAUSTIC) out[n] *= bend
+    power += out[n] * out[n]
   }
   const depth = waterDepth(ask, strength)
   const gain = waterBendGain(ask, strength, Math.sqrt(power / Math.max(1, count)))

@@ -138,14 +138,13 @@ function drawPool(
   ctx.globalAlpha = 1
   ctx.clip()
 
-  const cell = pool.w * pool.h > 9000 ? 2 : 1.5
+  const cell = pool.w * pool.h > 9000 ? 3 : 2
   const columns = Math.ceil(pool.w / cell) + 1
-  const count = columns * (Math.ceil(pool.h / cell) + 1)
-  const place = (n: number): readonly [number, number] => [
-    ((n % columns) * cell - pool.w / 2) / scale,
-    (Math.floor(n / columns) * cell - pool.h / 2) / scale,
-  ]
-  const field = waterField(ask, ripples, strength, circle, place, count)
+  const rows = Math.ceil(pool.h / cell) + 1
+  const along = (n: number, wide: number): Float64Array =>
+    Float64Array.from({ length: n }, (_, i) => (i * cell - wide / 2) / scale)
+  const [across, down] = [along(columns, pool.w), along(rows, pool.h)]
+  const field = waterField(ask, ripples, strength, circle, across, down)
   CONTOURS.forEach((level, n) => {
     ctx.beginPath()
     contour(ctx, field, columns, level, { x: pool.x, y: pool.y, w: cell, h: cell })
