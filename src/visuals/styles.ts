@@ -244,6 +244,186 @@ export const VISUAL_STYLES: readonly VisualStyle[] = [
       'Each kind swells and whitens the bubbles at its own depth, or its own strokes; the piece says which stacks are full, or where powder is bright. The mix is the daylight or the lamp, bands brighten single bubbles or strokes. A hit runs a hairline crack or throws powder; a cue lights one long crack, or the lamp and one stroke. The loop skates a circle.',
   },
   {
+    id: 'ball-stairs',
+    name: 'Ball stairs',
+    group: 'dots',
+    variations: ['Slow flood', 'Swimming bath'],
+    what: 'A white staircase curves down from a bright opening, and a slow flood of matte balls comes down it, heaped deep at the turn and barred with shade, a gold ball on top, the nearest out of focus; or an empty swimming bath under long windows, full of balls to the brim, with a board over it and a red ring lying among them.',
+    follows:
+      'The drone deepens the heap, the pad lifts the skylight, a phrase sends swells through, texture specks the balls; each kind swells its own colour. Low, middle and high lift it left, middle and right, the piece tints it. Travel pours it; the loop moves the gold ball. A hit nudges a ring of balls, a cue rolls light through and lifts the gold, keys glow.',
+  },
+  {
+    id: 'beaded-rings',
+    name: 'Beaded rings',
+    group: 'dots',
+    variations: ['In the weave', 'Coming through'],
+    what: 'Inside a weave of beaded rings, each threaded through every other: huge ivory, rust and slate beads overhead, small ones far back in grey haze, and low down an opening where a warm glow comes in and one straight string crosses; or, on pale bone, a bunch of tiny rings at the left opens, sweeps past the frame and comes back.',
+    follows:
+      'Each kind of sound beads four rings: the louder, the fatter and the more dyed. The piece tints each bead by its place, bands swell the small beads, travel carries all along, and the loop turns the weave through a fourth direction. A hit sends a lit bead round four rings, a cue opens the weave and brightens it, keys and voice fill the straight string.',
+  },
+  {
+    id: 'row-of-weights',
+    name: 'Row of weights',
+    group: 'dots',
+    variations: ['Down the aisle', 'Lamps on cords'],
+    what: 'A long white hall in side light: two dozen brass balls hang in a row from a beam, each on shorter threads than the last, and swing across the aisle as a snake, as files, a scatter and a line again, their shadows on the plaster; or a dark room at night where glass lamps on long and short cords draw the same wave over a wet floor.',
+    follows:
+      'Drone, pads and the mix set how wide they swing, each band a few neighbours. A phrase lays a second wave across; the loop winds the row a little out of step and home. The piece tints each weight, pads lift the light, texture shivers the threads. A hit is a glint passed along, a cue draws all into line; keys glint, a voice lights window or door.',
+  },
+  {
+    id: 'living-skin',
+    name: 'Living skin',
+    group: 'dots',
+    variations: ['Near flank', 'Over gravel'],
+    what: "A cuttlefish's flank very near, going up to the right into soft focus: elastic dots of brown, rust and yellow over a pale sheen, a frilled fin below, and at lower left its eye, a dark curved slot under a gold lid; or the whole animal hanging over pebbles and clean sand, its shadow below, weed at the right, green hills far off.",
+    follows:
+      'The piece is worn by the size of the dots: along the body the loop, back to belly the room; it tints stones too. Drone opens brown, phrase rust, pad yellow, texture the blue-green flecks; bands lay moving bars. A hit is a dark flush from the eye, a cue blanches the skin. Low waves the fin, keys open giant dots, a voice widens the pupil.',
+  },
+  {
+    id: 'grain-yard',
+    name: 'Grain yard',
+    group: 'dots',
+    variations: ['Drying mats', 'Winnowing'],
+    what: 'A mud roof in low morning sun with round straw mats of maize, red chillies, lentils and rice combed into furrows, the nearest cut by the frame, a rake left on one half-cleared mat and other roofs stepping down into haze; or grain tossed from a shallow basket before a dark barn door, falling to a heap while the chaff blows off.',
+    follows:
+      'Each kind dyes a mat or a layer of the toss in its colour; bands cut the furrows or fill the toss; the piece thickens and tints the nearest mat, or tints the heap. A hit runs over the chillies or along the toss; a cue is a bright rake stroke or a high throw. The loop walks round the furrows, travel turns the sun, keys light grains, voice lifts chaff.',
+  },
+  {
+    id: 'button-sea',
+    name: 'Button sea',
+    group: 'dots',
+    variations: ['Sewn night', 'Spilled tin'],
+    what: 'A night sea sewn on blue felt: rows of shell, horn, glass and bone buttons, small at the horizon and large at the hem, under a chipped shell moon ringed with stitches, with a felt boat; or a tin tipped over on a worn white table by a window, its buttons spilled toward you, some on edge and one rolling.',
+    follows:
+      'Each band rocks its own row and lifts its light, low the swell; each kind of sound colours one family of buttons, and the piece lays shine where its strokes are. A hit is a ring of buttons that knock, a cue a wave from the horizon to the hem, or a button rolled through. Travel sails the boat and rolls the one on edge. Keys light the moon, or the tin.',
+  },
+  {
+    id: 'umbrella-square',
+    name: 'Umbrella square',
+    group: 'dots',
+    variations: ['Morning rain', 'Lit from shops'],
+    what: 'A wet stone square seen from a high balcony, its rail and one leaf soft in the corner: people under black umbrellas cross the tram rails in loose streams, one saffron umbrella among them; or the same at night, a crowd waiting with gold rims in the light of shops, round a pool of lamplight where one red umbrella turns.',
+    follows:
+      'More sound brings more people, where the piece lies. Drone wets the stones, pad brightens the sky, texture is rain, phrase sends a file along a curve (at night round the lamp; each kind is a shop window). Bands widen umbrellas, keys light ribs, the loop walks the saffron one over; a hit twirls it and flings a ring of drops, a cue tips all to the light.',
+  },
+  {
+    id: 'night-landing',
+    name: 'Night landing',
+    group: 'dots',
+    variations: ['Window seat', 'Squid boats'],
+    what: 'A plain of towns seen at night from a descending aeroplane: streets as beaded strings, a dark river with its bridges, lamps crowding to dust under a last green dusk, the tip of a wing with its red lamp; or a black sea under low cloud, where a fleet of fishing boats burns with pale pillars of light, one boat close by.',
+    follows:
+      'The quarters and boats light up where the piece sounds, low notes to the left and high to the right; each kind has its own family of lamps, the drone the dusk. A hit is lightning inside a far cloud, a cue sends a wave of light over the plain and tips the horizon; keys are headlights or glitter, the voice lights the haze or the near boat.',
+  },
+  {
+    id: 'coral-spawn',
+    name: 'Spawning night',
+    group: 'dots',
+    variations: ['On the reef', 'Morning slick'],
+    what: "A coral reef under moonlit water, a diver's small lamp behind it: rose and cream beads sit in the brain coral, the shelves and the branches, let go and rise in loose columns to the surface; or the sea at dawn from a drifting boat, ribbons of pink beads winding to a low island, a turtle crossing, an oar's blade in the water.",
+    follows:
+      "Each kind is one coral or ribbon: its level is how many beads rise or lie there. Lows sway the water, bands and the piece thicken the beads by height, distance and place. Pads bring up moonlight or the glow of dawn, a voice the lamp or dawn. A hit frees one coral's crop, or runs out as a bright ring; a cue is a front through all. Keys light single beads.",
+  },
+  {
+    id: 'long-dancer',
+    name: 'Long dancer',
+    group: 'dots',
+    variations: ['Silk on poles', 'Lamp spine'],
+    what: 'From an upper window at dusk, a cloth body sixty paces long, hooped pale silk with faded bands, coils over and under itself along a street of lit doors, carried on poles by a file of people; or at street level in the dark the same body hung with thousands of small paper lamps, near ones soft discs, wet paving doubling them.',
+    follows:
+      'The piece lies along the body and glows where it sounds; each kind of sound has its own bands or lamps. Travel carries it on, drone widens the coils, phrase throws one high, bands lift it, pad lights it from within, texture stirs paper and smoke. A hit is a jolt passed pole to pole, a cue opens the coil, keys light single hoops or lamps.',
+  },
+  {
+    id: 'flung-iron',
+    name: 'Flung iron',
+    group: 'dots',
+    variations: ['Town wall', 'Dripping roof'],
+    what: 'A winter night before a long cold town wall with a black gate: someone small in a sheepskin coat flings molten iron at the stones, and gold grains fan out, bend and fall on the snow; or an open frame roofed with willow boughs that drips fire, curtains of grains falling past dark branches and posts, with puddles to double them.',
+    follows:
+      'A hit throws: grains burst from the strike, which wanders with the loop; a cue throws across the whole wall or roof. The mix keeps grains flying, bands set their reach. Strokes light the stones or thicken the curtain where they lie. Drone is the furnace or the glow, pad embers and smoke, texture bouncing grains, phrase one long arc, keys a handful more.',
+  },
+  {
+    id: 'roost-rings',
+    name: 'Roost rings',
+    group: 'dots',
+    variations: ['First light', 'Rain band'],
+    what: 'A pale relief map seen at a slant before sunrise, a coast with a river and two islands, and over it thousands of fine specks: birds leaving their roosts in wide broken rings of slate, rose, ochre and green that drift and thin with the wind. Or the same coast as a bowed band of rain in mist grey and indigo grains comes over.',
+    follows:
+      "Each kind has a roost and its ring thickens as it sounds. Drone lays haze or deepens the rain, pad widens the trailing veil, texture is dust and insects, phrase sends birds along the coast or round the band's end. The spectrum draws spokes, the loop sweeps round once. A hit puts up one flock, a cue a ring from each roost or a line ahead. Keys are red specks.",
+  },
+  {
+    id: 'fizz',
+    name: 'Fizz',
+    group: 'dots',
+    variations: ['Noon table', 'Glass floor'],
+    what: 'A tall glass of sparkling water on a white garden table in hard sun: ice, a slice of lemon, chains of bubbles, drops jumping over the rim, a blue shadow full of a net of light, a straw hat and garden behind; or the view up from the floor of the glass: the bright surface, ice and lemon overhead, bubbles leaving.',
+    follows:
+      "Each band feeds its own chain: louder is bigger, brighter, closer set. Pad is the light in the water, drone the garden's colour, texture the jumping drops or the outer chains, phrase the lemon. The piece tints the net of light or the wall. A hit frees a cluster and a wave of light, a cue ducks an ice block, keys light the drops or the hoop.",
+  },
+  {
+    id: 'juggled',
+    name: 'Juggled',
+    group: 'dots',
+    variations: ['Behind the wall', 'Night fountain'],
+    what: 'A long low whitewashed wall under a pale sky, a bare tree far right, and behind it unseen hands juggling: painted balls rise and fall in crossing arcs, each with a trail of dots where it was; or looking down a round brick shaft at night, where pale balls fountain up from a small lamp, turn just under us and fall back to points.',
+    follows:
+      'Each kind is a juggler of its own: louder brings in more of its balls, and the bands swell them. The piece tints the sky or the bricks, the pad the foot of the sky. A hit lights one ball at its top; a cue passes a soft light along the wall, or sends one up the shaft. The low band warms the sky or feeds the lamp, keys chalk an arc or brighten the rims.',
+  },
+  {
+    id: 'ring-rubble',
+    name: "Planet's ring",
+    group: 'dots',
+    variations: ['Among lumps', 'Combed lane'],
+    what: "Inside a planet's ring: lumps of dirty white ice from house size to dust in one thin sheet that runs to a bright line, the nearest pocked and cut by the left edge, before a great pale striped planet; or just over the sheet, along a black lane with scalloped edges that a small moon has cleared through hundreds of fine grooves.",
+    follows:
+      "Lumps gather and catch light where the piece sounds, or its colours lie on the grooves. Drone is the planet's shine, pad the dust, texture the grains; a phrase bends a wave along sheet or lane. Bands light stripes and grooves. A hit puffs ice where two lumps touch or at the moon, a cue takes the planet's shadow across. Keys glint, a voice lights the planet.",
+  },
+  {
+    id: 'tiny-crowd',
+    name: 'Tiny crowd',
+    group: 'dots',
+    variations: ['Cockle beach', 'Sledge hill'],
+    what: 'A wide beach at low water from high up, with a creek, pools of sky and some two hundred tiny people with long shadows gathering cockles, and one white kite, past a grassy dune; or a broad white hill of sledge tracks under a low sun, strings of people climbing, one red sledge, a smoking hut and a bare near tree.',
+    follows:
+      'The piece dyes coats and land where it sounds. Drone sets people walking and fills the smoke; pads tint sky and shadows; textures raise ripples or tracks; a phrase sends a line across. Bands lift sixteen kites or the wood. A hit throws up gulls or snow and a group leaps; a cue draws all one way and runs light. Keys bring dogs, voice window or sun.',
+  },
+  {
+    id: 'colony',
+    name: 'Colony',
+    group: 'dots',
+    variations: ['Huddle', 'Pink flight'],
+    what: 'A pale ice shelf under a thin sun: a huddle of upright birds fills the right, pale fronts and gold throats, each loose one with a long blue shadow, and late ones walk in file from a far blue berg; or a salt lake from the air, milky jade to rust with white crust lines, pink birds in flight over their dark twins, others wading.',
+    follows:
+      'Loudness draws the huddle closer and the flock fuller; each kind lights a ring of the crowd or lanes of the flight; more birds stand where the piece is loud; bands flap wings. A hit sends a ring of nudges or of light on water; a cue blows snow across or banks the flock and lights it. Pad and voice thicken steam, sheen or mist; keys send out single birds.',
+  },
+  {
+    id: 'packed-sand',
+    name: 'Packed sand',
+    group: 'dots',
+    variations: ['In the bottle', 'Falling hills'],
+    what: 'The shoulder of a great round bottle by a window, packed with dyed sand grain by grain: level bands, a row of points, a striped hill with dark trees, water with one sail, far peaks; or two panes of glass with striped mountains of sand in water, threads of sand falling from a raft of bubbles, a low sun behind.',
+    follows:
+      'The piece lies in the bands and the hills: where it is loud they thicken and take its colours; a light stands where the loop is. Drone and pad dye the sand, texture speckles it, a phrase fills the sail or tints the ridges. The spectrum is the sixteen points, or the threads. A hit lets a pinch slide, a cue pours a new colour, keys glint.',
+  },
+  {
+    id: 'flip-discs',
+    name: 'Flip board',
+    group: 'dots',
+    variations: ['Waiting hall', 'Rolling front'],
+    what: 'A station hall in grey morning light: over one waiting traveller hangs a long board of small round plates, black on one side and chalk yellow on the other, turning into dunes and weather. Or close along the board, near plates out of focus, each on its pins over a well, a front of turning rolling away from us.',
+    follows:
+      'The piece turns plates bright in its colours, the loop along the board, the room up it. Bands stand along its foot. Each kind tints a window; its colour falls on the floor. The loop is a seam of plates on edge. A hit lights and tips a ring of plates; a cue turns every plate over in one slanting wave. Keys turn single plates; Space is haze and focus.',
+  },
+  {
+    id: 'parasols',
+    name: 'Parasols',
+    group: 'dots',
+    variations: ['Beach rows', 'Night stalls'],
+    what: 'A wide beach at noon from a balcony: rows of plain and striped parasols, large at the lower left, specks along the shore, each with its round blue shade, towels, a plank way, a red ball, turquoise water; or a market square at dusk packed with square canopies lit from below, dim lanes, steam, one white canopy half open.',
+    follows:
+      'Each kind of sound opens and dyes its own parasols or lights its own canopies, and so does the piece where it lies; bands swell or light the rows. A hit runs over the parasols as colour, or flares a few lamps. A cue is a gust, or light, going away from you. Lows bring up the surf, a melody opens the white canopy, keys glint.',
+  },
+  {
     id: 'black-hole',
     name: 'Black hole',
     group: 'worlds',
@@ -406,6 +586,159 @@ export const VISUAL_STYLES: readonly VisualStyle[] = [
       'The piece lies round the land and a patch of sun goes round with the loop. Drones raise the middle hills, pads fill the pools, textures colour the heather, phrases the leaves; trees grow where it is loud. Bands are the far hills, level the sun. A hit sends up birds where the loop is, a cue sends wind right round. Keys open flowers, a voice lights the lamp.',
   },
   {
+    id: 'one-sided-road',
+    name: 'One-sided road',
+    group: 'worlds',
+    variations: ['Twisted lane', 'Knotted canal'],
+    what: 'A broad band of land hangs in a pale morning sky with one half turn in it: a lane, striped fields, red roofs, poplars, washing and a yellow bus; where the land rolls over, houses stand sideways and the lane runs on along what was beneath. Or a stone canal on arches tied in a knot over evening mist, with lamps and barges.',
+    follows:
+      'The bus goes twice round, both faces, in one loop; barges drift on. The piece flowers in the fields or tints the water. Each kind lights its houses or lamps; bands raise poplars or brighten lamps; pad brings cloud or mist. A hit puffs chimneys or rings the water; a cue turns it and sends light round. Keys open flowers or glints, a voice lights windows.',
+  },
+  {
+    id: 'walking-village',
+    name: 'Walking village',
+    group: 'worlds',
+    variations: ['Low tide', 'Among the legs'],
+    what: 'A wide wet flat at evening, and across it a few fishing sheds on thin jointed legs going from right to left, each lifting one foot at a time out of its reflection, the nearest so near that only its legs and floor are seen; or deep dusk low down in the herd, plank floors overhead with light falling through the gaps.',
+    follows:
+      'Travel is the walk. Each kind has a shed: its window and smoke take that colour and brighten. Loud bends the knees, drone brings water, texture roughens it, phrase passes a nod down the line, bands thicken smoke, keys light panes. A hit lifts the near foot and sends a ring, a cue makes all crouch. The loop swings the lantern; the piece lies on the flat.',
+  },
+  {
+    id: 'indoor-tide',
+    name: 'Indoor tide',
+    group: 'worlds',
+    variations: ['Dining room', 'Stair falls'],
+    what: 'A pale house in morning light whose ground floor is the sea: clear water lies ankle deep on the boards of a dining room, a set table and three chairs stand in it, and the double door gives on the horizon; or a calm river comes down a white stair as falling sheets, past a banister and a coat on its peg, into a pool on tiles.',
+    follows:
+      'Drone colours the sea, drone and pad lift the water, pad brightens the net of light on the walls, texture tints the clouds, phrase, keys and a voice light the lamp, low raises the waves, the bands are the falls on the steps, and the piece lies as light under the water. A hit drops a ring on the water; a cue sends one long wave through the house.',
+  },
+  {
+    id: 'step-well',
+    name: 'Step well',
+    group: 'worlds',
+    variations: ['Noon triangles', 'At the pool'],
+    what: 'A great square pit of honey stone seen from its edge: tier under tier of small paired stairs, one wall in sun and one in shade, down to a still green pool, with one yellow cloth left to dry; or afloat on that pool, before three storeys of pillared galleries doubled in the water and a toothed edge of stairs against a white sky.',
+    follows:
+      "The drone and the pad fill the well, and the pad moves the sun's edge; texture brings lichen; a phrase sends light down the flights like feet; each kind colours one tier, and in b lights a bay; a hit drops a pebble and throws nets of light on the stone; a cue lays sky on the pool; keys light lamps in niches; bands lift columns; the piece stains the stone.",
+  },
+  {
+    id: 'big-sleepers',
+    name: 'Big sleepers',
+    group: 'worlds',
+    variations: ['The shaggy one', 'Harbour guest'],
+    what: 'At dawn a hillside is asleep: an enormous mossy back with birches on its spine and sheep on its shoulder, a head with a round ear laid on an arm, a croft and its smoke in the crook. Or a smooth grey creature as big as a hill lies curled round a harbour, lit windows along its side, a lighthouse by its tail.',
+    follows:
+      "The drone deepens the breath and warms the coat, pads light the sun in fur or on skin, texture is wind or ripples, a phrase runs down the body. Bands raise tufts or waves, the piece flowers in the coat or lights windows, each boat is a kind. A hit twitches the ear or lights the harbour, a cue stretches it; the loop is a cloud's shadow or the beam.",
+  },
+  {
+    id: 'music-box-town',
+    name: 'Music box town',
+    group: 'worlds',
+    variations: ['Round the barrel', 'Star wheels'],
+    what: 'A little town stands on a slowly turning brass barrel: small over the top against a warm grey wall, it rolls down to a steel comb where each roof lifts a tooth; or the town stands on a slotted brass disc that turns over five toothed wheels, each a round square with trees and a fountain, in a dark box.',
+    follows:
+      "Houses rise and light the street where the piece sounds, at the comb what sounds now. Bands lift and light the teeth, or the rim's slots. Drone is the sheen of brass, pad the window, texture the brushing; each kind lights its houses, or its wheel and fountain. A hit runs out along the teeth or the rim, a cue lights every window, keys and voice a few.",
+  },
+  {
+    id: 'toy-railway',
+    name: 'Toy railway',
+    group: 'worlds',
+    variations: ['Over the table', 'Engine view'],
+    what: 'A model railway in window light: mossy hills, a plaster tunnel, a tin bridge by painted water, a station, sponge trees and a red engine with four coaches on a figure of eight, the room soft behind; or the view from the engine, rails ahead, a hill close by, a folded paper sky and, once a round, the room.',
+    follows:
+      'the loop takes the train round, or the paper sun; travel the ride and the clouds; drone swells the hills, pad the sun; coaches and trees take the kinds; phrase smoke, bands poplars; a hit lights the signal, or the fire; a cue the station, coaches and lamp; keys the windows, voice the lamp; space pulls back; the piece tints hills and sky',
+  },
+  {
+    id: 'hedge-maze',
+    name: 'Hedge maze',
+    group: 'worlds',
+    variations: ['Fogged lanes', 'Clipped court'],
+    what: 'A round maze of clipped yew seen from a low tower after dawn, its lanes full of white mist, a pale pavilion in the middle and one lantern walking in; or a formal court on a still afternoon, box clipped to cones, balls and a spiral on pale gravel, their shadows all one way, and a canal leading to a jet of water.',
+    follows:
+      'The drone is the height of the mist, the pad the sun, texture the dew, the phrase a breath through the lanes. Each kind colours a quarter of the maze, or its own clipped bodies. The bands swell sixteen yew balls, or raise sixteen jets. The loop walks the lantern, or a glint on the water. A hit puts up a bird; a cue sends a ring or band of light across.',
+  },
+  {
+    id: 'street-carpet',
+    name: 'Street carpet',
+    group: 'worlds',
+    variations: ['Before the crowd', 'After the crowd'],
+    what: 'A cobbled street before breakfast, and down its middle a thick carpet of dyed sawdust, petals and pine needles, cut by the shadows of roofs and a balustrade, a sack of red sawdust by its edge; or the same carpet from above once people have walked over it, its colours dragged, the stones showing, a straw hat left behind.',
+    follows:
+      'Drone dyes the sawdust, pad the petals, texture the needles, phrase the wavy border; the bands cut sixteen scallops. The piece lies along the street and colours each part of the carpet as it sounds. A hit throws down petals, a cue lets the sun cross, keys light single petals. Travel moves the view a little, or the petals by the kerb; voice brings haze.',
+  },
+  {
+    id: 'balloon-morning',
+    name: 'Balloon morning',
+    group: 'worlds',
+    variations: ['Over the mist', 'Own shadow'],
+    what: 'Painted silk balloons hang over a valley full of white mist, with poplars and a bell tower standing out of it, one so near that we see up into its mouth; or straight down over a wicker rim, fields and a river with our own round shadow in a ring of light.',
+    follows:
+      "Each kind lights a balloon, which climbs a little, or gores of the shadow. Bands are gores of the near one, the piece its dye or the fields' colours. Drone thickens the mist, pad warms the sun, texture draws seams and rows, phrase sways. A hit is one roar of flame, a cue lights all, keys light windows.",
+  },
+  {
+    id: 'sail-caravan',
+    name: 'Sail caravan',
+    group: 'worlds',
+    variations: ['Salt crossing', 'Ice boats'],
+    what: 'A white salt plain cracked into six-sided plates, and a caravan of carts under patched sails, the nearest so near that the late sun glows through its cloth, and far ahead one small blue sail; or night on a frozen lake: ice boats under tall pale sails, stars and moonlight in black ice, the white scratches of their runners.',
+    follows:
+      'Each kind has a sail: its level fills the cloth and lights it in its colour. Drone lengthens shadows and mirage, pad is the sun or moon behind, texture blows salt or frost, phrase passes a gust along. A hit lights one sail, a cue leans them all and runs light over them. Bands are battens, the piece is the patches, loop moves the blue sail, keys glint.',
+  },
+  {
+    id: 'reed-hall',
+    name: 'Reed hall',
+    group: 'worlds',
+    variations: ['Arches inside', 'Over the marsh'],
+    what: 'Inside a long hall built only of reeds: bundles bend overhead in arch after arch, white marsh light comes through a lattice at the far end and lies in lozenges on the mats, a thread of smoke rises over coffee pots; or the same hall from a boat at dawn, mirrored in still water, with someone poling past in the mist.',
+    follows:
+      "Each arch is a place in the loop: what sounds there warms its reeds, the playhead walks down. Drone is the far light or sun, pad the gold, texture dust or ripples, phrase the smoke or the boat's lamp. Bands open columns of the lattice and ruffle the water. A hit flares the hearth as someone passes, or is a fish ring; a cue lets the sun in, keys light holes.",
+  },
+  {
+    id: 'endless-shelves',
+    name: 'Endless shelves',
+    group: 'worlds',
+    variations: ['Down the shaft', 'Ladder row'],
+    what: "Leaning over a worn rail and a pile of old books, we look down a five-sided well of shelves and small round lamps that pales to a milky glow; on a landing below somebody's lamp walks, and a leaf of paper falls. Or, from floor height, a long aisle of books with a ladder across a far pin of daylight, one wall nearly bare.",
+    follows:
+      'The piece lights the spines where it sounds and stains them: across is the loop, down or along the room. Drone is the glow or the daylight, pad the lamps, texture dust and scuffed leather, phrase moves the far lamp or the ladder; each kind has a binding. Bands light lamps, keys the gilt, a hit drops a sheet, a cue lights all lamps in turn.',
+  },
+  {
+    id: 'sugar-hills',
+    name: 'Sugar hills',
+    group: 'worlds',
+    variations: ['Iced buns', 'Sweet counter'],
+    what: 'Iced buns as big as hills on a pale pink tray, seen from crumb height: icing has run down in thick lobes, sprinkles throw small shadows, far buns go soft, and one cherry has rolled off. Or glass jars of balls and tube slices before a bright street, their colour lying on the marble.',
+    follows:
+      'Each kind ices its own bun, lower as it is louder, or fills its own jars; the bands set how long drips are and how bright sweets. The piece tints sprinkles or sweets. A hit drops fresh sprinkles, or a sweet; a cue pours a new coat over the near bun, or sends a shaft of sun along. Keys light sprinkles or glass, a voice the wall or marble.',
+  },
+  {
+    id: 'eye-crater',
+    name: 'Dark pool',
+    group: 'worlds',
+    variations: ['Outer slope', 'Fringed lake'],
+    what: 'A round black lake in a crater whose walls are a forest of grey-blue and amber ropes: from the near slope, over a ragged golden lip, the water is cut by the frame and holds one tall window of light; or from high above, the ropes running off wide, half in the long shade of grasses, a bright curl of light on the amber.',
+    follows:
+      'The pool opens in quiet and draws in as the sound grows bright. The piece dyes the land, the loop round it, the room outward. A drone colours the deep, a pad is wet shine, texture fine threads, a phrase glows along one braid, bands raise sixteen sectors. A hit lights and shivers the window, a cue passes a lid of shade, keys light flecks, a voice the lip.',
+  },
+  {
+    id: 'passed-along',
+    name: 'Passed along',
+    group: 'worlds',
+    variations: ['Arms by day', 'Lamps at anchor'],
+    what: 'Hill behind hill at dawn, with a tower and three jointed arms on crest after crest, the nearest huge at the left, the last a tick in the haze, each taking up the shape of the one before; or ships at anchor on a foggy night, where a blinking lamp is answered hull by hull.',
+    follows:
+      "The phrase opens the near arms or the near lamp, and farther stations repeat the message seconds later. The drone lifts the mist, the pad lights the sky, texture brings birds or glints on the water, the bands lean the arms, the loop moves the sun or a boat's beam, a hit lights one station after another, a cue all at once, keys the windows.",
+  },
+  {
+    id: 'alley-sun',
+    name: 'Alley sun',
+    group: 'worlds',
+    variations: ['Smoke of stalls', 'Cat stair'],
+    what: 'A narrow market alley in shade, where sun comes down past washing and turns cooking smoke into four slanting blades, the brightest on a bicycle and two stacked baskets; or a stone stair that goes down into shade and up into white light, every tread with its lit lip, a cat on one sunny step, washing strung above.',
+    follows:
+      'Drone thickens the smoke; pad widens the sun; texture is steam at the stall, mist below the stair; phrase slides light along the paving or up the treads; bands light slats and lips, the piece glows in windows and behind slats. A hit runs down the blades or up the stair; a cue sends sun along it all. Keys light bulbs and windows; the loop swings the sun.',
+  },
+  {
     id: 'colour-field',
     name: 'Colour field',
     group: 'gradients',
@@ -530,6 +863,96 @@ export const VISUAL_STYLES: readonly VisualStyle[] = [
     what: 'Coloured waxes laid warm in many coats and pulled back by one long blade: pale, red, honey and blue smears with cords, skips and islands, like land seen from a train, to a rolled edge where the dark coat still stands; or the bright coats lie under black wax, and slanting hatch scratched above and below one line lets them shine.',
     follows:
       'Drone brings up the blue coat low down, texture the honey, phrase the green, pad the mauve above. The piece stains the wax where it lies; bands open skips or hatching along the height. A hit is a fresh nick or scratches, a cue a gleam along the edge or line, the loop moves it. Highs sharpen scratches, keys gleam, a voice warms, Tone hardens, Space widens it.',
+  },
+  {
+    id: 'car-wash',
+    name: 'Car wash',
+    group: 'gradients',
+    variations: ['Foam ropes', 'Blower drops'],
+    what: 'The view through a windscreen in a car wash: pink, yellow and pale blue foam slides down in ropes and lumps, lace at the edges, with lamps along the tunnel, a small square of daylight far off, and a great blue brush pressing in from the left; or the last stage, drops driven up the glass and a door lifting on white day.',
+    follows:
+      'Pad lights the left lamps, drone the right; the piece tints what is seen through. Bands feed the foam ropes or make drops glint; texture is froth and fine drops; low presses the brush or the air. A hit slaps on a fresh gob, or runs up through the drops; a cue brings the brush across, or lifts the door. Keys and the phrase light bubbles, or swell the runs.',
+  },
+  {
+    id: 'dust-wall',
+    name: 'Dust wall',
+    group: 'gradients',
+    variations: ['Leaning wall', 'Saffron inside'],
+    what: 'A wall of dust a mile high leans over a straw plain, burnt orange above and brown-violet at its foot, pale turquoise sky still ahead; a small white van with lit lamps drives out from under it past telegraph poles; or inside: saffron above, rust below, a small pale blue sun, a gate, poles, a water tower, grit, a weed rolling by.',
+    follows:
+      'A fuller mix raises the wall and leans it further, the low end swells its folds, bands from foot to top; the drone warms the dust, each kind tints a fold or a bank, texture is the grit, the piece lies as light on the plain or in the air. A hit is dry lightning inside, a cue a gust that lays the grass, keys spark on the wires, a voice brightens lamps or sun.',
+  },
+  {
+    id: 'mountain-shadow',
+    name: "Mountain's shadow",
+    group: 'gradients',
+    variations: ['Cone of shade', 'Climbing shade'],
+    what: "From a summit at sunrise the mountain's own shadow lies as one huge blue triangle over ridges and low cloud, its tip on a grey-violet band under rose, with a cairn and two climbers on near rocks; or from a terrace at evening the last pink light on a wall of snow peaks, the shade climbing, fog, a lit hut, lamps and a railing.",
+    follows:
+      'The loop draws the shade back and forth and the level glows at its edge. Drone and pad colour the low and the high sky; each kind lights its own range or peak; the bands lift the tops; the piece lies as colour in the cloud, and low notes thicken it. A hit flashes in a window, a cue pours cloud over a col, keys light lamps, a voice warms the near light.',
+  },
+  {
+    id: 'wire-cabins',
+    name: 'Wire cabins',
+    group: 'gradients',
+    variations: ['Above the cloud', 'Lit chain'],
+    what: 'A cable sags over a white sea of cloud towards a station on a far blue peak, and round-cornered cabins ride it, one of them red, its shadow in a pale ring of colours on the cloud; or a night slope with firs seen from below, where lit cabins climb in a chain through torn mist, each with its cone of light on the snow.',
+    follows:
+      'Each kind of sound lights its own cabins; drone lifts the cloud, pad is its peach light, texture tears shreds from it, a phrase sways the line so cabins nod in turn. Bands are sixteen far peaks, the piece tints the banks, loop slants the sun or moon. A hit swings the nearest cabin, a cue opens a valley with a village. Keys light windows, voice the station.',
+  },
+  {
+    id: 'glass-brick',
+    name: 'Glass bricks',
+    group: 'gradients',
+    variations: ['Garden behind', 'Stair at night'],
+    what: 'A curved wall of square glass blocks with a garden behind: each block holds its own blur of lawn, hedge, red flowers and sky, upside down, and an enamel basin with a towel stands low right; or a round stair tower at night, dark steps climbing left before blocks full of street lamps and shop windows, with a tram passing.',
+    follows:
+      'Each kind is a coloured thing behind the glass, a soft patch or a lamp, and grows with its level; the piece tints the blocks and the bands brighten the columns. A hit lights a block and those beside it; a cue takes a lamp across from right to left. Keys catch on the rims. Tone clears or ripples the glass. In the garden a voice brings someone in a light coat.',
+  },
+  {
+    id: 'dyers-bank',
+    name: "Dyer's bank",
+    group: 'gradients',
+    variations: ['Cloth on sand', 'Vat yard'],
+    what: 'Long strips of dyed cloth pegged out to dry on a pale river bank in low sun, one held up by the wind with its shadow under it, a bolt still rolled, someone walking by with the next bundle; or a yard of stone vats of dye seen from a roof, most of it in blue shade, one bar of sun crossing it.',
+    follows:
+      "Each kind of sound dyes its own cloths or vats, deeper and wetter as it plays, and the piece deepens them along their length or across the yard. Low lifts the wind's wave; the bands fill the vats. A hit is a flap along one cloth, or a drop in two vats; a cue rolls out the bolt, or sends rings through the big vats. Keys glint on water.",
+  },
+  {
+    id: 'blue-column',
+    name: 'Blue column',
+    group: 'gradients',
+    variations: ['On the cable', 'Sand rim'],
+    what: "One column of sea, pale turquoise above and violet-black below: a ship's hull, a thread of cable, a round steel chamber whose lamp just touches the flank of something very large that is leaving, and small lights far down; or a white sand shelf where sand pours in thin falls into a round hole, a diver on a line at its edge.",
+    follows:
+      "A drone lets light go deeper. Each kind lights a creature; pads also the sun's rays or net, a phrase the line, texture the specks. Bands light the great flank, or the falls, which lows surge. The piece lights far creatures, or stains the hole. A hit throws a ring of sparks, or a sheet of sand; a cue swings the beam or the sun. Voice and keys add light.",
+  },
+  {
+    id: 'thin-air',
+    name: 'Thin air',
+    group: 'gradients',
+    variations: ['Edge of space', 'Dawn launch'],
+    what: 'At the edge of space a great clear balloon, slack below, hangs at the left with the sun in its folds and a small box on a thread, high above clouds on a curved blue earth; or a snow plain at dawn, where a tall bubble of film stands on a limp train that lies along the snow and climbs in an S, with three people and a red lamp.',
+    follows:
+      'Drone and pad fill the gas and smooth its folds; drone lights the thin air or the dawn, pad glows in the film, texture crinkles film and snow. The phrase sways the thread or the train, the bands light sixteen gores, the piece tints the clouds or the snow. A hit flashes at the foot and runs up one seam, a cue is the sun coming up, keys light small lamps.',
+  },
+  {
+    id: 'hot-gather',
+    name: 'Hot gather',
+    group: 'gradients',
+    variations: ['At the bench', 'Pulled thread'],
+    what: 'A dim glass shop: an iron pipe over a bench carries a pear of molten glass, white-orange at the tip, rose, then bottle green at the neck, two bubbles inside, a bucket steaming below, firelit brick at the left; or two small figures in a dark hall pull one glowing thread between them, its light lying on the wet floor.',
+    follows:
+      'Drone is the heat of the glass, pad the furnace, the mix swells the bubble, low is the sag. The bands and the piece colour ribbons along the glass or the thread; texture is threads wound on, phrase lights the bubbles or a place on the thread. A hit drops a glowing bead in the water, a cue is one breath that fattens the glass, keys light the pipe.',
+  },
+  {
+    id: 'before-curtain',
+    name: 'Before the show',
+    group: 'gradients',
+    variations: ['Under the hem', 'Gathered swags'],
+    what: 'From the side of the front row a velvet curtain falls in deep pleats to a gold fringe; lamps we cannot see spill under its hem and along the waxed boards, and a thin parting glows; or the stage from its middle, cream silk drawn up in swags five deep over a painted sky with a low sun and a tree on wheels.',
+    follows:
+      'Each kind is a lamp behind, or lights one depth of silk. Pad opens the parting, drone warms the folds, texture is dust, phrase darkens the wheeled shadow or tree. Bands send light up the pleats, or lift the swags. A hit pushes a pleat or lights the far swags; a cue raises all a moment. Loop moves the oval or sun, keys gild the gold, the piece tints the sky.',
   },
   {
     id: 'meadow',
@@ -739,6 +1162,123 @@ export const VISUAL_STYLES: readonly VisualStyle[] = [
       'The piece is written up the walls bed by bed and the playhead climbs it; drone parts the walls, pad warms the light, phrase lights one seam, texture sifts sand or lets drops fall, the bands brighten their own beds or lengths of ice, keys glint. A hit stands a shaft of sun in the passage, a cue floods it from far to near, and the music walks us on.',
   },
   {
+    id: 'behind-the-fall',
+    name: 'Behind the fall',
+    group: 'nature',
+    variations: ['From the ledge', 'Five falls'],
+    what: 'From a wet ledge in the hollow behind a great fall, black rock and ferns on the left, the water sliding past in ropes and veils green and gold with daylight, and where it thins a valley with one white house; or five falls at unlike depths down grey cliffs into mist, a hut with a lit window, near pines, a pale arc in the spray.',
+    follows:
+      'The bands thicken the water, low in the middle, high at its edges, or fall by fall; each kind is one rope or one fall in its colour. Drone is body and mist, pad the light, texture spray, phrase a surge. A hit throws drops or fills its fall, a cue parts the water or sweeps sun along the cliffs. The piece is moss and wet on the rock, the loop moves the sun.',
+  },
+  {
+    id: 'storm-eye',
+    name: 'Storm eye',
+    group: 'nature',
+    variations: ['From orbit', 'Inside the wall'],
+    what: 'From far above at sunrise a white wheel of cloud turns over a dark blue sea, its arms lit from the left and throwing long shadows, a stepped well at its middle, a thin line of air round the world; or low inside the well, walls of cloud going right round under a disc of sky, one side bright, one in blue shade.',
+    follows:
+      'A fuller piece turns the wheel faster; each part lifts and tints the cloud at its own place. The drone deepens the well, the pad veils, texture roughens the tops, the phrase lets an arm out or lights the edges of the shade, the bands raise towers round the wall, a hit glows in one tower, a cue opens the eye and closes it, keys glint on the sea.',
+  },
+  {
+    id: 'moss-walker',
+    name: 'Moss walker',
+    group: 'nature',
+    variations: ['In the moss', 'Ash grey'],
+    what: 'A fat soft eight-legged beast in a wrinkled coat walks slowly through wet moss, the sun behind leaves like sails, drops that hold the wood upside down, red stalks with spore lanterns above; or the same beast in matt silver with bright rims on a field of pierced shells and broken blades, another rolled up asleep behind it.',
+    follows:
+      'Travel carries its step, the bands how high each leg lifts; in silence it stops and curls a little. Drone is its girth, pad the light, texture leaf edges or dust, phrase lifts the snout. The piece glows in leaf cells or in shells. A hit drops a drop and sends out a ring, a cue fills the drops with sun or draws a beam down, keys light lanterns or shells.',
+  },
+  {
+    id: 'dew-web',
+    name: 'Dew web',
+    group: 'nature',
+    variations: ['One orb', 'Gorse at dawn'],
+    what: "A spider's wheel hung between dry stalks at first light, torn on one side, every thread strung with drops that each hold a small upside-down dawn, the sun's disc just behind its middle. Or a slope of gorse in mist, the sun low ahead, dozens of small white webs spread on the spines, and one wheel hanging dark against the sun.",
+    follows:
+      'A drop swells and takes colour where the piece sounds: round the wheel is the loop, middle to edge is the room. On the slope the webs do. The drone sways the webs, the pad widens the haze, texture brings finer dew, the phrase runs a light along, bands draw threads bright. A hit plucks a spoke, or lights one place; a cue lifts the sun. Keys glint.',
+  },
+  {
+    id: 'roped-pines',
+    name: 'Roped pines',
+    group: 'nature',
+    variations: ['Snow garden', 'Under the ropes'],
+    what: 'A winter garden across a black pond: old pines, each inside a cone of straw ropes that run down taut from the tip of a tall pole, snow on every bough, all of it upside down in the water; or under the biggest of them, looking up the trunk, ropes out like rays with snow along them, dark plates of needles against a pale sun.',
+    follows:
+      'A rope shivers and takes colour where the piece sounds: round the cone is the loop, down the rope is the room. The drone brightens the day, the pad warms the sun, texture is the snowfall, a phrase brings a bird by, sixteen ropes shine with the bands, low ripples the pond. A hit drops a load of snow, a cue lights the ropes gold, keys glint on them.',
+  },
+  {
+    id: 'salt-steps',
+    name: 'Salt steps',
+    group: 'nature',
+    variations: ['Mountain pans', 'Shore cones'],
+    what: 'A steep brown valley side at first sun, stepped with small hand-built salt pools behind crusted white lips, some dry, some holding tea-brown, rose or sky, a rake left across one and someone at work higher up; or level shore flats at evening, rows of white salt cones leading to a windmill, pink ponds that repeat the sky.',
+    follows:
+      'Each pool is a place of the piece: it fills and colours as it sounds, then dries white. The drone floods the top rows, the pad tints the sky, texture sparkles on crystals, the phrase is running or bright water; bands light the rows or raise the cones. A hit rings in one pool, a cue sends the sun over the slope or along the cones, keys glint, clouds travel.',
+  },
+  {
+    id: 'between-tides',
+    name: 'Between tides',
+    group: 'nature',
+    variations: ['Drying harbour', 'Under the pier'],
+    what: 'A stone harbour at low water: three boats lean on ribbed shining mud, a pale measuring board stands by the wall, and as the piece fills, a sheet of water lifts them upright and doubles them; or under an old pier rows of posts, black with weed and pale with shells, go out to sea over bars of light on sand.',
+    follows:
+      'Drone and pad bring the tide in. Drone deepens its breath, pad milks the water, texture roughens mud, ripples and foam, a phrase swings a boat or colours the foam, low rocks boats, bands stir sixteen strips of water or light, the piece tints the water. A hit rings, a cue sends sun through the gap or planks, keys light lamps or shells, the loop turns the sun.',
+  },
+  {
+    id: 'cast-net',
+    name: 'Cast net',
+    group: 'nature',
+    variations: ['Thrown open', 'Lift nets'],
+    what: 'A pearl-grey lake at sunrise: somebody in a wide hat stands in a flat boat and has thrown a net, which hangs in the air as a great ring of mesh with the sun through it, falls, and is drawn in. Or an estuary at dusk: shore nets on bent poles and long beams, held by stones, the near one dripping; a heron waits.',
+    follows:
+      "The fuller the music, the wider the net. The mesh shows the piece: round it or along it is the loop. Drone is mist and the sun's height, pad colour on the water, texture ripple, the phrase leans the net or dips a beam, bands light the weights or the drops. A hit is a ring of splashes; a cue a far throw, or the near beam dips. Keys are fish, a voice ripples.",
+  },
+  {
+    id: 'pollen-fur',
+    name: 'Pollen fur',
+    group: 'nature',
+    variations: ['In the coat', 'On the stamens'],
+    what: "Inside a bumblebee's coat, small as a mite: feathered golden hairs rise rank behind rank into amber dusk over dark armour, with netted, spiked and furrowed pollen hanging between them and a low sun behind; or inside a flower, pale stamens under rose petals, their split heads crusted with grains, a soft striped visitor landing.",
+    follows:
+      'Each kind is one grain, at its place in the piece: it swells, lights, lengthens its spikes. Drone hums in hairs, pad lights the air, texture brightens barbs, crust and dust. Bands sway hairs and stamens, the phrase bends stamens. A hit shakes a puff loose, a cue lets daylight in and opens the wings; keys glint, Tone lengthens spikes, travel rolls a grain.',
+  },
+  {
+    id: 'root-bridge',
+    name: 'Grown bridge',
+    group: 'nature',
+    variations: ['Across the gorge', 'Walking over'],
+    what: 'A green gorge in rain mist: long roots led across from two fig trees have grown into one hanging bridge, a younger one above, hair roots below, pale pools, and one small walker under an umbrella; or the way over from inside it, flat stones on plaited roots, roots and ribs on both sides and overhead, the far bank bright in mist.',
+    follows:
+      'The piece wets, lights and slightly thickens the roots where it sounds along the bridge. The drone is the depth of the mist, the pad the green, texture the rain; a phrase lights the umbrella. Sixteen bands sway the hanging tufts. A hit drops water and runs out along the roots; a cue lets the sun in; keys sparkle the drops; travel walks us over.',
+  },
+  {
+    id: 'quick-garden',
+    name: 'Weeks in minutes',
+    group: 'nature',
+    variations: ['Climbing beans', 'Bulbs on glass'],
+    what: "Beans climb five strings out of dark soil before grey-green paper with a window's light on it; a bent seedling waits, tips grope in slow circles, and a tendril near the eye curls round the last string; or five bulbs in waisted glasses on a windowsill, roots combing down, one flower leaning, two still shut, rain on the pane.",
+    follows:
+      "Each kind is one plant: it climbs or opens, greens and flowers as it sounds. Drone thickens its stem and the roots, pad lifts leaves, texture wets the pane, phrase widens a tip's circle. Bands lift leaves or open the flower row by row. Light swings with the loop. A hit runs up a string and tightens the tendril, or lights a glass; a cue is one night passing.",
+  },
+  {
+    id: 'beetle-drawer',
+    name: 'Beetle drawer',
+    group: 'nature',
+    variations: ['Open drawer', 'One back'],
+    what: 'A museum drawer pulled out by a north window: pinned beetles on cream paper, big horned ones near, jewel and leaf beetles behind, with one empty place kept by its pin; or a single wing case from close by, a long dome of rows of pits like polished bowls holding green and ember light, hairs along the seam, the window beyond.',
+    follows:
+      "The piece opens the wing cases in its places, or fills the bowls there. Drone slides the sheen, pad is the window, texture deepens fine punctures, the phrase runs along a row or warms the hairs; bands light beetles or bowls. A hit snaps one pair open, or runs out over the bowls; a cue sweeps the window's reflection. Keys glint; a voice warms the seam.",
+  },
+  {
+    id: 'steam-line',
+    name: 'Steam line',
+    group: 'nature',
+    variations: ['Trestle at night', 'Iron footbridge'],
+    what: 'A short dark train of six amber windows crosses a low iron trestle over a wide wet valley under the moon, its steam lying down behind it, its lights broken on the river; or a winter morning on an iron footbridge, steam rising through the lattice and thinning to show wet rails, signals and snowy roofs.',
+    follows:
+      'The loop runs the train through once. The phrase and six bands light its windows; drone thickens mist and steam, pad the moon or sun, texture sparks and frost; the piece tints the mist. A hit opens a firebox, a cue sends up a great puff, keys light far windows, a voice the nearest lamp.',
+  },
+  {
     id: 'floated-ink',
     name: 'Floating ink',
     group: 'paint',
@@ -865,6 +1405,60 @@ export const VISUAL_STYLES: readonly VisualStyle[] = [
       'Drone, pad, texture and phrase each slide their own family of planes and glaze them with their colour; the piece tints scattered dabs where its sounds lie; the spectrum stipples the lit facets; a hit opens one pale plane; a cue slides the shading off its edges while a light crosses. Keys light the guitar strings, a voice the window or the bottle.',
   },
   {
+    id: 'slice-of-country',
+    name: 'Slice of country',
+    group: 'paint',
+    variations: ['Valley block', 'Fire block'],
+    what: 'A wedge of countryside cut out like cake hangs over cream paper with one soft shadow: fields, woods, a barn and a looped river on top, folded beds of rock in watercolour on its two cut faces, broken by one fault; or a block half out of the frame, a smoking cone on top and in its grey rock a pale red chamber and a branching dyke.',
+    follows:
+      'The beds are the piece laid on its side: what sounds wets its stretch of bed to full colour. Drone bows the folds, pad moves a light over the land, texture grains the sand beds, the phrase silvers the river or heats the dyke, bands thicken sixteen beds. A hit lights and slips the fault, a cue lights the near edge and opens the faces, keys light windows.',
+  },
+  {
+    id: 'river-plates',
+    name: 'River plates',
+    group: 'paint',
+    variations: ['Plate rack', 'Round the jar'],
+    what: 'Eleven blue and white dishes stand in a wooden rack in morning light, and one river painted in five washes of cobalt runs on from dish to dish past hills and reeds; its boat turns pale as it crosses the dark wood. Or one great jar, so near that it fills the view, a wide strait and its ridges going round into shade.',
+    follows:
+      "A drone darkens the ridges, a pad lays the sky's wash, texture hatches the water, a phrase inks the reeds. Bands raise the ridges; the piece sets shores and islands. The loop moves the boat and sways the jar. A hit flushes five birds and rings the water; a cue floods one dish, or the jar's sky, with deep blue. Keys brighten the window's mark.",
+  },
+  {
+    id: 'moon-terrace',
+    name: 'Moon terrace',
+    group: 'paint',
+    variations: ['First rain', 'Moonrise'],
+    what: 'Watercolour on burnished paper: a white house low down, its front, sides and roof all turned to us, a garden laid open, a pink cloth cut by the frame, a wide slate-green sky with a pearled roll of rain cloud and egrets; or the same house small over a night lake, a great round moon, its path in fine strokes, lamp boats, lotus.',
+    follows:
+      "The drone deepens the field, the pad lowers the cloud or spreads the moon's halo, texture rain or strokes on the lake, a phrase brings egrets or lights the boats. Bands swell the scallops; the piece colours cushions and lamps. A hit is a thread of lightning or a ring in the water, a cue lights every window, keys the pavilions, the loop moves egrets or moon.",
+  },
+  {
+    id: 'brushed-sand',
+    name: 'Brushed sand',
+    group: 'paint',
+    variations: ['Marsh', 'Harbour town'],
+    what: 'Brown sand on a lit milk glass, drawn by fingers: a wide marsh with water in bare level swipes, flicked reeds, a far line of dabbed trees and one heron standing near; or a steep town at night rubbed out of a dark sheet, its windows and stairs, a quay lamp with its long reflection, a small boat and one under sail.',
+    follows:
+      "Drone deepens the sand at the frame or in the night sky, pad wipes the sky open, texture strews grains, a phrase redraws the heron's neck or fills the sail. The piece bares and tints the water; bands are the reeds or the windows. The loop is one finger crossing, a hit a smear of light that fills in, a cue softens all edges, keys are gaps between grains.",
+  },
+  {
+    id: 'lifted-roofs',
+    name: 'Lifted roofs',
+    group: 'paint',
+    variations: ['Rooms and clouds', 'Snowed veranda'],
+    what: "A long house seen from above with its roofs left off: straw mats, painted walls, blinds, the rooms slanting down to the left between banks of worn gold cloud, a robe's five-edged hem lying out from under a blind by a lamp; or its veranda on a snowy evening, a blue stream, a bridge of planks in a zigzag and a bent plum.",
+    follows:
+      'Drone and loudness draw back the gold clouds, a cue parts them. Pad warms the rooms, texture stirs the mats or thickens the snow, a phrase carries a lantern along the veranda with the loop. Each kind spreads one edge of the hem, patterned by the piece. Bands raise the blinds, a hit slides a panel open, keys add gold flecks and blossom.',
+  },
+  {
+    id: 'black-crowd',
+    name: 'Black crowd',
+    group: 'paint',
+    variations: ['Skating pond', 'Ferry landing'],
+    what: "A wood block print on cream paper: a crowd of coats and hats run together into one black mass at the edge of a frozen pond at evening, with a few skaters out alone under a leaning lamp; or a black crowd coming down a gangway from a ferry's white side and over a pale quay, steam as bare paper, a bollard cut by the left edge.",
+    follows:
+      'The drone widens the black mass; pads cut gloss into the ground and roll more steam; texture is gouge marks; a phrase bares and tints hats, and sends skaters wider; a hit cuts a white gap that runs through the crowd. A cue bares hats and edges, and draws people out. Bands raise heads at the rim, the piece tints the ground, keys put on red mufflers.',
+  },
+  {
     id: 'moon-jar',
     name: 'One jar',
     group: 'made',
@@ -980,6 +1574,69 @@ export const VISUAL_STYLES: readonly VisualStyle[] = [
     what: 'Seven wheels of heavy rag paper, scalloped, slotted and hand-washed, on one brass pin over the page of an open book; through slots that happen to line up one sees a vermilion ground, a sliver or a whole wedge. Or seven square frames turned against each other, a well of stepped paper corners with slits down to the same red.',
     follows:
       'The sheets turn at 1 to 7 parts of one long period and all agree about every nine minutes, when the red opens. Each kind of sound lifts its own sheet and deepens its wash, the bands open sixteen windows, the piece tints the printed border, a hit sends light out over the cut edges, a cue spreads the pile, the thread is the hand of the loop.',
+  },
+  {
+    id: 'oiled-umbrellas',
+    name: 'Oiled umbrellas',
+    group: 'made',
+    variations: ['Drying lawn', 'Three hubs'],
+    what: 'A lawn early in the day, set with opened paper umbrellas drying against the low sun; each lights up like a lamp and throws a tinted disc with its ribs on the grass, and the far ones crowd to a ribbon by a misty wood. Or lying under three of them: split bamboo, rings of thread, leaf shade on the paper, a wedge of sky.',
+    follows:
+      'The piece dyes each paper by its place, and kinds open the umbrellas wider. The drone lowers the sun, the pad lets more light through, texture shows oil and fibres, a phrase rolls one round, sixteen bands light the panels. A hit runs out over one paper as it tips, a cue sends a bar of light and a gust, keys light the threads, the loop swings the sun.',
+  },
+  {
+    id: 'blanket-country',
+    name: 'Blanket country',
+    group: 'made',
+    variations: ['Under the lamp', 'Moonlit pillows'],
+    what: 'A country seen from a pillow under one warm lamp: a checked fold at the left, hills of felted wool in moss, rust and oatmeal stitched along their hems, a blue satin ribbon winding between, a small wooden house with lit windows; or white pillows as snow peaks in moonlight, a dark crease for a road, a toy boat high up.',
+    follows:
+      'The piece dyes the cloth where it lies. Drones lift the hills in a deep breath; pads warm the lamp or moon; textures raise the nap and creases; a phrase is a foot moving under the cloth. Bands swell sixteen creases. A hit pats, a cue draws up a blanket edge. The loop runs a gleam down the satin or road. Keys light stitches, voice the windows or lantern.',
+  },
+  {
+    id: 'pecking-hens',
+    name: 'Pecking hens',
+    group: 'made',
+    variations: ['One paddle', 'Whole yard'],
+    what: 'A wooden paddle over a mint table, painted hens in a ring on it with strings to a ball that swings below, so they peck in turn at scattered grain; or a shelf by a pale wall: four hens on crossed slats, two small geese behind, a hare that rocks on a bow, and two large soft hens near the eye.',
+    follows:
+      'Each hen has her kind and pecks deeper as it sounds. Drone swings the ball or works the slats, pad tips the paddle or the far slats, texture, keys and voice hop the grain, phrase rocks the hare; a hit makes a hen peck in a ring of light, a cue runs along the birds; bands lengthen tails and petals; the piece is the grain, or leaves on the shelf.',
+  },
+  {
+    id: 'groaning-wheels',
+    name: 'Groaning wheels',
+    group: 'made',
+    variations: ['Under the rim', 'Across the river'],
+    what: 'Close beneath a wooden water wheel as tall as a house: wet black spokes crossing, boards and box buckets climbing out of the river, each spilling a curtain that breaks to beads before a low sun. Or, from the far bank, three wheels of unlike size turn against a stone channel on arches, with white water, swimmers and a palm.',
+    follows:
+      'Travel turns the wheels, faster when the music is full. Each bucket is a place of the loop and one band, and pours as full as they are. Drone lifts the river, pad warms the light, texture is mist, phrase lights wet spokes or runs along the channel, low bands stir the water. A hit is a splash off a board, a cue brightens bow and curtains, keys brighten drops.',
+  },
+  {
+    id: 'painted-grotto',
+    name: 'Painted grotto',
+    group: 'made',
+    variations: ['Through the tank', 'Cloud rails'],
+    what: 'Through a tank with three large goldfish, wet and round in the light, a painted grotto of grey rock, cloth weed, a paper sun and a giant clam with pearls; or a painted sky tacked to a batten, rows of cut cotton clouds on rails, a hung cloud and its foil rain.',
+    follows:
+      'Drone brightens the limelight, pad sways the weed or rolls the clouds, texture is bubbles or foil glitter, a phrase steers fish or hung cloud, bands raise weed or clouds. A hit lets go a puff of smoke and the clam gapes, a cue runs a second tint over all, the loop moves the sun, keys light pearls or gilt edges.',
+  },
+  {
+    id: 'bitten-bark',
+    name: 'Bitten bark',
+    group: 'made',
+    variations: ['Held to light', 'On blue snow'],
+    what: 'A torn sheet of birch bark stands against a cold bright window: folded, bitten and opened, it holds sprays of leaves, dragonflies and stars as hundreds of points of light, a frosted wood soft behind it; or a long strip of bark on blue snow in low sun, every bite a small hollow with a lit and a dark side, its end still rolled.',
+    follows:
+      'The piece is folded into it: a bite is as bright or deep as the sound at its place. Drone is the light, pad the warmth of the bark, texture its dark pores. A phrase runs along the vines, the bands lie round the petals, keys and voice wake single bites. A hit bites a new mark and its mirrors. A cue folds the bark and opens it. Travel drifts snow or the roll.',
+  },
+  {
+    id: 'half-made-world',
+    name: 'Half-made world',
+    group: 'made',
+    variations: ['Pasted halfway', 'Peeled flat'],
+    what: "A plaster ball stands at a globe-maker's window, half dressed in hand-coloured paper with the land, coast and hills of no known country; one wet leaf hangs from its equator, others wait in rolls over the bare white; or the twelve leaves lie in a slanting row on green cloth, their tips curling up into the light.",
+    follows:
+      'The piece colours the country: round is the loop, pole to pole the room. The loop turns the ball, or lifts the tips where it plays. Drone stains the sea, pad the land, texture hatches the coast, a phrase inks a red route, bands stand at the equator. A hit flushes and presses a leaf, a cue sends light over and lifts tips. Keys prick gold, a voice wets it.',
   },
   {
     id: 'small-suns',
@@ -1117,6 +1774,96 @@ export const VISUAL_STYLES: readonly VisualStyle[] = [
       'Drone, pads, texture and phrase are each a beam or a sheet of their own, opening and brightening as they sound; a hit lights one more and dies; a cue widens them all and fills the haze; the low band thickens the haze, the bands light it from floor to roof by day, highs and keys bring out dust or fine smoke; a voice mists the hall or lifts the night walls.',
   },
   {
+    id: 'beam-shadows',
+    name: 'Beam shadows',
+    group: 'light',
+    variations: ['Long wall', 'Granary lane'],
+    what: 'A long mud wall smoothed by hand runs from huge at the right to small in the haze, bristling with beam ends whose shadows slide over the swollen plaster round one blue-black doorway; or a lane between round granaries in painted clay and straw hats, with a log ladder in a bar of sun.',
+    follows:
+      "The drone swells walls and heat, the pad draws shadows out, texture roughens the plaster, a phrase sends a kite's shadow over; each kind tints its own stretch of clay. Bands set beam lengths and painted teeth, the piece lies in it as damp patches, the loop moves the sun. A hit drops a puff of dust, a cue swings the sun out and back with a pool of light.",
+  },
+  {
+    id: 'drowned-columns',
+    name: 'Drowned columns',
+    group: 'light',
+    variations: ['Lamp boat', 'Broken roof'],
+    what: 'A flooded hall underground: ranks of stone columns in black-green water, one huge and close, go off into the dark; a flat boat with one lamp hangs among them and lights their wet sides; or a piece of the roof has fallen, and noon comes down past hanging roots onto a small island with one green tree.',
+    follows:
+      'Drone opens the far dark, pads brighten lamp or noon, texture draws a net of water light on the vaults, a phrase drifts the boat or lights the leaves, the loop turns the boat. Each kind is a sunken lamp, the piece is dye on the water, bands light the ranks. A hit drops a ring whose bright line climbs the columns; a cue raises the sunken lamps. Keys spark.',
+  },
+  {
+    id: 'stained-sand',
+    name: 'Stained sand',
+    group: 'light',
+    variations: ['Planted sheets', 'Wet evening'],
+    what: 'Clear coloured sheets, a disc, a leaf, a ring, a wave, a comb and more, stand planted in white sand, and the low sun lays their long coloured shadows through one another, with a ball of clear resin among them; or the same at dusk after a wave, when the sand is a mirror and a pale sun stands behind a cherry disc.',
+    follows:
+      'The drone lowers the sun, the pad deepens the colours, texture makes sand glitter and the mirror tremble, a phrase lights the leaf, the spectrum sets the teeth of the comb. The piece stains the sand. A hit lights the ball, which hops, and sends a ring over the sand; a cue sways all the sheets once, keys raise slips, the loop swings the sun.',
+  },
+  {
+    id: 'sleeper-berth',
+    name: 'Sleeping car',
+    group: 'light',
+    variations: ['Lower berth', 'Corridor'],
+    what: 'Lying awake in the lower berth of a night train: a dark veneered wall with a line of inlay, the berth above, a blanket, a glass in a net, a small blue lamp, and bars of light that come in under the blind and walk over it all; or the empty corridor, pools of light in file on the carpet, an amber lamp at its far end.',
+    follows:
+      "Drone is the still moonlight, pad a slow station lamp, phrase a lamp passing by, texture the rain in their light; a hit lights one more lamp for a moment, a cue the reading lamp or a compartment. The bands and the piece light inlay, brass and carpet, low and a voice the lamps inside, keys a glint; travel is the train's pace, the loop swings the moon.",
+  },
+  {
+    id: 'hide-shadows',
+    name: 'Hide shadows',
+    group: 'light',
+    variations: ['Lit cloth', 'Players side'],
+    what: "A cotton cloth glows amber round an oil flame; on it play shadows of pierced, stained hide: a heavy tree, a long boat, a deer with flowers in its flank, herons, hill and cloud; or the stage from behind: the naked lamp, coloured hides on their sticks, huge dark ones at the frame, the watchers' heads through the sheet.",
+    follows:
+      "Each sound presses its hide to the cloth, from a huge soft stain to a sharp shadow, or lifts and lights it: drone tree, pad hill and cloud, texture deer, phrase herons and wingbeats, the mix the boat, the bands its oars and the hill's scales. A hit makes the lamp flare and jump, a cue sends a great shadow across, keys open leaves, the loop rows the boat.",
+  },
+  {
+    id: 'sun-yard',
+    name: 'Sun instruments',
+    group: 'light',
+    variations: ['Shadow stair', 'Sunk bowl'],
+    what: "A yard of rose plaster in early sun: a huge stair cut off by the sky, two quarter rings of marble, and the stair's edge laying one knife of blue shade across the left ring; or a white bowl sunk in the paving, ruled with a net of slate, half in its own shade, with a ring on a wire and the ring's shadow on its slope.",
+    follows:
+      "The loop is the sun: the shade goes out along the marble and back, and the piece, inlaid there, lights where it is. Drone deepens sky and shade, pad and voice warm it, texture wears the plaster, a phrase climbs the stair and opens the ring's shadow, the bands colour sixteen marks, keys are birds. A hit gilds the shade's line and drops a leaf; a cue is cloud.",
+  },
+  {
+    id: 'stage-ghost',
+    name: 'Ghost in glass',
+    group: 'light',
+    variations: ['Parlour set', 'Under the stage'],
+    what: 'A stage parlour in low gold light. Across it leans a sheet of glass, known by one cold seam, and in it stand pale things that are not there: a tree, a lilac, a cage, a lamp; or the trick from the side, with the pit where the real ones lean under lamps.',
+    follows:
+      'Each kind is one ghost, as bright as it is loud: drone the tree, pad (or a voice) the lilac, texture falling petals, phrase the cage and its swing, hits the lamps. Bands light leaves and bars. The loop turns them to and fro. The sheen of the glass drifts, keys set glints on its edge, a cue dims the room round them.',
+  },
+  {
+    id: 'seen-through',
+    name: 'Seen through',
+    group: 'light',
+    variations: ['Great coil', 'Tulip bed'],
+    what: 'Shells on a warm white plate as rays see them: a great worn coil cut by the right edge, its uneven chambers as grey arcs, with the ghost of a tall spire lying through it and two whelks at the left; or a bed of tulips, petals as overlapping veils with seeds and filaments sharp inside, and one head alone, bowed over.',
+    follows:
+      'Loudness is exposure. The drone thickens walls and stems, pad fills chambers and flowers as the loop goes round, texture brings growth lines and veins, the phrase turns the spire or the bowed head and colours the seeds. The bands and the piece tint. A hit parts the outlines, a cue sends a band of black film across. Keys glint as grains, a voice pales it.',
+  },
+  {
+    id: 'rolled-show',
+    name: 'Cranked show',
+    group: 'light',
+    variations: ['Barn night', 'Behind the roll'],
+    what: 'In a dim barn a wooden box on straw bales, its front a paper window with a lamp behind: cut black country winds past between two rollers, houses, poles, a bare tree, a wolf, a train, a moon of bare paper; or the box from behind: the naked bulb, two great rollers, a crank, the pale sheet with a road and a fox.',
+    follows:
+      'The piece stains the sky and lifts the hills as it passes the bulb, and fuller music winds faster. Drone raises and tints the far hills, pad dyes the dusk, texture lights stars and windows, the phrase is chimney smoke, the bands are the reeds. A hit flares the bulb and a window, a cue brightens the lamp, keys open pinholes, a voice warms the light.',
+  },
+  {
+    id: 'vapour-tracks',
+    name: 'Threads in vapour',
+    group: 'light',
+    variations: ['Cloud box', 'Plate of curls'],
+    what: 'A low look across the black velvet floor of a glass box full of mist, lit by a slit lamp from the right, where white trails condense, thicken and sink; or a pale photographic plate crossed by a sheaf of beaded lines, with one fork whose two threads curl into tightening spirals.',
+    follows:
+      'Each band shoots its own direction or line; the piece places the fat trails, or stains and darkens the beads; the phrase draws the curls, texture the crooked threads; the drone thickens the mist or clouds the plate, the pad widens trails; a hit is a fork, a cue bends the curls the other way, keys add beads.',
+  },
+  {
     id: 'humming-rods',
     name: 'Humming rods',
     group: 'form',
@@ -1216,6 +1963,105 @@ export const VISUAL_STYLES: readonly VisualStyle[] = [
       'Drone, pad, texture and phrase each have their own strips, which lengthen, rise and take its colour; card shows the piece along its length. Bands stretch the slivers, keys too. The low raises the pile, or the walls. A hit kicks a red strip and throws a bar of light, a cue warms the light and lengthens every shadow; a voice brightens the bare board.',
   },
   {
+    id: 'jelly-palace',
+    name: 'Jelly palace',
+    group: 'form',
+    variations: ['Unmoulded', 'Inside the aspic'],
+    what: 'A jelly in the shape of a palace, raspberry, lemon and clear, stands on a white damask cloth in window sun; the light lies in front as a pool of colour with a silver spoon in it, a green fish and an amber ring behind. Or we are inside one: a honey hall with ribs, fruit and bubbles hanging, a bite gone at the left.',
+    follows:
+      "A hit makes it wobble, and light runs out over the cloth or up the ribs; a cue cuts a clean wedge and lets it close. The drone deepens the colour, the pad is the sun, texture is the fish's stripes and the bubbles, a phrase leans the towers or rocks the fruit. The spectrum lights flutes and ribs, the piece tints the pool or the floor, the loop moves the sun.",
+  },
+  {
+    id: 'card-hills',
+    name: 'Card hills',
+    group: 'form',
+    variations: ['White model', 'Poured lake'],
+    what: 'A valley built of some twenty glued sheets of white card stands in low window light, every sheet a contour with a cut edge and its shadow, with a wood of dried yarrow and one red-roofed house; or sheets of cork that step down into a hollow filled with clear resin, honey at the shore and green below, the window lying on it.',
+    follows:
+      'The piece is the land: a place that sounds swells, its edges in the colour of its kind. Drone lifts the valley floor or the resin, pad warms the light, texture stirs trees or the net of light, the phrase is a thread on one contour, bands lift spurs, keys light the house or the shore. A hit slips one sheet out, a cue swings the light, the loop is the hour.',
+  },
+  {
+    id: 'straw-walkers',
+    name: 'Straw walkers',
+    group: 'form',
+    variations: ['Over the snow', 'Rag coats'],
+    what: 'Five walking sheaves of straw taller than any fence, with no face and no hands, come in file over a blue-shadowed snowfield under a low white sun, the nearest too tall for the picture; or the same five in a yard before a limewashed wall, in coats of cloth strips that fly out as they turn, fall, and wrap the other way.',
+    follows:
+      'Each kind of sound is a walker, its loudness the step and sway, or how wide the coat flies. The drone is the near one; the pad fluffs the second, the phrase turns the third. Texture is loose straw in the air. Bands ruffle the tiers, the piece tints them. A hit is a stamp of snow and a jolt of all the bells, a cue a bow, or a whirl, from near to far.',
+  },
+  {
+    id: 'woven-walls',
+    name: 'Woven walls',
+    group: 'form',
+    variations: ['Basket half made', 'Fish trap'],
+    what: 'Small, inside a great basket still being woven: a coiled cane floor, a wall of light and dark strands rising to a ragged edge, bare uprights against a blue sky with one cloud, the sun in stripes over floor and wall; or inside a long bamboo trap in green water, hoops running to a bright toothed mouth, fish and bubbles.',
+    follows:
+      'The edge rises and sinks with the loop; the piece dyes the strands where it sounds. The drone moves the sun, the pad opens the weave or thickens the beams, texture is dust or bubbles, a phrase winds a bright strand, bands bend uprights or thicken bars. A hit flicks the loose end or scatters fish and runs as light, a cue floods the gaps, keys light crossings.',
+  },
+  {
+    id: 'bone-nave',
+    name: 'Bone nave',
+    group: 'form',
+    variations: ['Sea floor lamp', 'Daylit hall'],
+    what: "Inside a whale's bones on the dark sea floor: ribs like the arches of a nave, the near ones cut by the frame, a stump and a gap among them, a lamp outside laying their shadows on pale silt, the long skull dim past the end; or the same bones hung in a hall with a glass roof, their shadows on a sunlit wall, a visitor below.",
+    follows:
+      'Each rib pair is a band of sound and glows up from its tips; the piece tints the silt or the wall. Drone lights the far end, pad thickens the haze, texture is flakes or dust, the phrase a slow eel of light, or a sway of the bones. A hit puffs up silt, or lights one pair; a cue brings a second lamp, or walks the shadows. Keys light anemones, or lamps.',
+  },
+  {
+    id: 'chair-ride',
+    name: 'Chair ride',
+    group: 'form',
+    variations: ['From the grass', 'Far lit top'],
+    what: 'From the grass, a chair ride turns overhead on a hazy day: painted crown with mirrors, striped mast, empty slatted chairs on chains, near ones big and dark, far ones tiny, over flags and grass; or the ride far off over a wet meadow at blue dusk, bulbs and chairs drawn into rings of light, broken in a puddle.',
+    follows:
+      'Drone and pad swing the chairs out, pad lifts the crown; sound turns it faster. Each kind colours its own chairs, a phrase runs a wave round, texture is flags and seeds, or steam. The piece tints the canvas, bands light the boards, keys bulbs, loop the sun, voice the tents. A hit flashes mirrors and swings a chair, a cue tips the crown.',
+  },
+  {
+    id: 'false-journey',
+    name: 'False journey',
+    group: 'form',
+    variations: ['Carriage side', 'Behind the belts'],
+    what: 'From a polished old compartment, a landscape made of belts: gravel, bushes, sawn fences and huts, and behind them a slow painted canvas of lakes, birches and mountains under a glass roof; or the set from behind, each belt a loop on its drum beside the carriage, sun barred over it all.',
+    follows:
+      "Each kind colours a belt: drone the mountains, pad lakes and birches, texture bushes, phrase huts and fences; a hit sends one telegraph pole past. Bands are the birches' heights, fuller music runs the belts faster and lifts the sun, the loop sways its bars. A cue rocks the carriage; keys light the vase or the panes.",
+  },
+  {
+    id: 'steep-balconies',
+    name: 'Steep balconies',
+    group: 'form',
+    variations: ['Up the well', 'Down the rails'],
+    what: 'The bottom of a court, looking up between two facing fronts of unlike balconies, warm plaster in sun and blue in shade, washing strung across a leaning wedge of sky and one red blanket four floors up; or hanging over the top rail, where round balconies ladder down to a paved court with a round bed, a tree and a hand cart.',
+    follows:
+      'Drone lowers the sun and the shadow climbs; pad warms the walls; texture stirs leaves; a phrase sends a shadow up the storeys; kinds dye the washing; bands open curtains; the piece colours curtains and shutters; a hit flashes panes and throws patches of sun; a cue leans the view and lifts the light; keys light windows; the loop turns the sun.',
+  },
+  {
+    id: 'dove-tower',
+    name: 'Dove tower',
+    group: 'form',
+    variations: ['Ringed niches', 'Melon field'],
+    what: 'Looking up from the floor of a round mud-brick dove tower: rings of small arched niches by the thousand, a leaning pillar, and daylight from the lattice above lying long and pale down one wall; or three squat banded towers in a field of melons in level evening sun, and a wheel of birds turning from sun to shade.',
+    follows:
+      'The piece lies round the walls, up the room: a sounding niche warms and a dove sits in it; outside it lights vines and melons. The drone moves the daylight, or wets furrows; pad warms the earth, texture is dust, bands light the rings, a phrase climbs as a bird, a voice warms the sun, keys light niches or melons. A hit sends out a pair, a cue lifts the birds.',
+  },
+  {
+    id: 'grown-stairs',
+    name: 'Grown stairs',
+    group: 'form',
+    variations: ['Colour city', 'Salt windows'],
+    what: 'A crystal of metal seen so near that it is a town: hollow blocks stepping down at right angles, a dusty skin of straw, rose and slate on every terrace, one deep square well lit from within and a window at the left; or cubes of salt on a pale plate, stepped like nested window frames, the sun through them drawing bright lines.',
+    follows:
+      "A drone deepens the hollows; a pad slides the colours, or widens the sun; texture rules fine steps, or frosts the salt; a phrase runs a light round the well, or brightens the lines; bands lift blocks; the piece tints each place; a hit rings one block's rims outward; a cue moves the sun; keys glint on corners; with the loop one ring grows and draws back.",
+  },
+  {
+    id: 'wax-loaf',
+    name: 'Wax loaf',
+    group: 'form',
+    variations: ['Cut face', 'Fanned slices'],
+    what: 'A thick loaf of coloured wax comes forward under a steel blade in window light, its honey side thumbed, its cut face a garden of clay: ringed eye, leaves, tongues, ribbon, rolled core; slices and a curled shaving lie by; or twenty thin slices fanned in a curve over white paper, each a moment later of the same forms.',
+    follows:
+      'The forms flow on as the music travels. Drone swells the eye, pad the tongues, texture the leaves, phrase the ribbon, each staining its own clay; bands pinch everything from middle to rim; the rolled core is painted with the piece and sways with the loop. A hit lights and opens a seed; a cue drops a slice, or lifts them along the fan. A voice warms the rim.',
+  },
+  {
     id: 'slow-cadence',
     name: 'Coming round',
     group: 'rule',
@@ -1304,6 +2150,60 @@ export const VISUAL_STYLES: readonly VisualStyle[] = [
     what: 'A round of pale paper cut into curved leaves over a dark green sheet, large in the middle and smaller and smaller towards a rim they never reach; the frame cuts the round; or a cap of clear glass cased in cobalt on a table, the same leaves cut through the colour, their shadows seen through the glass.',
     follows:
       'All of it slides slowly through itself, faster as the music fills, and sways with the loop. Drone and pad ink the two sorts of dark leaf, the piece inks those at its place, texture and phrase tint the light ones. The bands light rings towards the rim. A hit colours a few leaves, a cue sends a ring of shade to the rim, keys gild the veins.',
+  },
+  {
+    id: 'mirror-column',
+    name: 'Mirror column',
+    group: 'rule',
+    variations: ['Round column', 'Pointed cone'],
+    what: 'A curved smear of paint on a sheet on a sunlit table, and in the polished column standing in it the smear is a pear tree on a hill, a boat and two birds. Or, from nearly overhead, a ring of red and black petals turned inside out, which closes in a mirror cone into a pond with one long fish.',
+    follows:
+      'The drone raises the hill or deepens the pond, the pad fills the crown, texture stirs leaves or scales, the phrase moves boat or fish. The bands are branches or petals, the piece washes into sky and water, the loop swings the sun. A hit drops a pear or rings the water; a cue steps our view aside; keys are berries, a voice warms the light.',
+  },
+  {
+    id: 'domino-run',
+    name: 'Domino run',
+    group: 'rule',
+    variations: ['Schoolroom floor', 'Garden wall'],
+    what: 'Some two hundred and fifty painted wooden slabs stand in one line on a schoolroom floor in late sun, from close at the right through a double spiral to the far wall; a long fall runs along it and the fallen stand up again behind; or stone slabs on a stepped garden wall and across a plank, trees and sky behind, a ball at the end.',
+    follows:
+      'The loop is where the fall has come to. Each kind paints a stretch of the line, the piece each slab, and the clouds; drone tints the low sky, melody the lawn and hills, pads lift the shade, texture the lichen. Lows and Tone brighten the sun, bands stir what stands. A hit lights and tips a few slabs, a cue shivers the line, keys light some. Space widens.',
+  },
+  {
+    id: 'hundred-compasses',
+    name: 'Hundred compasses',
+    group: 'rule',
+    variations: ['Carried magnet', 'Floating corks'],
+    what: 'A long sheet of cream paper covered with small brass compasses, seen low from one end, window light on every glass and one large old compass in front; something unseen is carried under the cloth and the needles swirl round it; or a white basin of water where corks, each with an upright needle, float in rings above their shadows.',
+    follows:
+      'The piece tints the paper or the water and turns the needles at its place. Drone holds north or draws the rings in, pad widens the swirl or the rings, texture trembles, the phrase strengthens the magnet. Bands pull columns or lift corks. A hit runs outward in a ring, a cue spins the needles round or opens the rings, keys glint, the loop turns north.',
+  },
+  {
+    id: 'book-organ',
+    name: 'Street organ',
+    group: 'rule',
+    variations: ['Folding card', 'Pipe front'],
+    what: "A book of buff card, punched with slots, climbs fold by fold out of its stack, runs under the brass keys of a street organ and falls away in lazy zigzags; sun through each slot lays a bar of light on the green bench. Or the organ's front at evening: worn gold and cream pipes, trumpets, bells and drums under an arch of bulbs.",
+    follows:
+      'The piece cuts the slots, loop along and room across, and stains card or pipes. Bands lift sixteen keys or light pipes. Drone sways folds or bellows, pad warms bench or arch, texture is fibre or bulbs, phrase lights rollers or trumpets, notes light keys or bells. A hit runs down the rollers or strikes the drums; a cue throws up a fold or lights the bulbs.',
+  },
+  {
+    id: 'old-courses',
+    name: 'Old courses',
+    group: 'rule',
+    variations: ['Flood plain', 'Crescent lake'],
+    what: 'Early morning from a balloon: one river in great loops, the sun lying along two of its bends, and round it the pale combed lines of every bed it has left, with poplars and crescent lakes; or winter close above one cut-off lake under thin ice, old banks round it as rows of bare willow, and one thread of fox tracks.',
+    follows:
+      'The piece colours fields and willow rows; the loop runs through the beds in turn. Drone widens the river or mists the ice, pad brings mist and sun, texture pale reeds or rime, phrase grows a bend or sways the willow, low, mid and high swell bends, bands light rows. A hit runs glitter or a crack, a cue floods the plain or lights rows, keys bring birds.',
+  },
+  {
+    id: 'ribbon-pole',
+    name: 'Plaited pole',
+    group: 'rule',
+    variations: ['Village green', 'Down the braid'],
+    what: 'A tall garlanded pole from straight above on a mown green, sixteen ribbons running from it to dancers in white who weave round it, their morning shadows beside them; or looking up the pole, where a tight plait of coloured lozenges ends and the ribbons flare out under the sky with the sun through them.',
+    follows:
+      'The loop winds the plait down the pole and lets it out again. Each ribbon carries a band and widens with it, and the piece is dyed along it. Drone leans the pole, pad lights the cloth, texture flutters it, a phrase sends one ribbon wide; travel walks them round; a hit runs down the ribbons on one side, a cue down all, with petals on the green.',
   },
   {
     id: 'table',

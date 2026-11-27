@@ -29,8 +29,8 @@ function headerOf(text: string): Record<string, string> {
 }
 
 describe('the list of styles', () => {
-  it('has a hundred and forty-one styles', () => {
-    expect(VISUAL_STYLES).toHaveLength(141)
+  it('has two hundred and forty-one styles', () => {
+    expect(VISUAL_STYLES).toHaveLength(241)
   })
 
   it('gives each style an id of its own, in lowercase with dashes', () => {
