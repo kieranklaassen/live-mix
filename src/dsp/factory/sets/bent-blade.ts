@@ -1480,7 +1480,7 @@ Ice over the wires | Thumb plucks | leak=.15 edge=.35 damp=.1 bend=1 wellWidth=.
       name: 'Breath on steel',
       category: 'wind',
       rows: `
-Flute cut from a fender | Breath on steel | secondWell=None rasp=.25 edge=.35 bend=.8 swell=.12 glide=.08 steel=.1 width=.3 rate=6 wander=.1 volume=4 | room | aria | A clear blown line with a little air round it
+Flute cut from steel | Breath on steel | secondWell=None rasp=.25 edge=.35 bend=.8 swell=.12 glide=.08 steel=.1 width=.3 rate=6 wander=.1 volume=4 | room | aria | A clear blown line with a little air round it
 Shepherd at the pass | Breath on steel | secondWell=None rasp=.45 edge=.5 tremble=.4 rate=6 swell=.2 glide=.2 wander=.15 wellWidth=.02 volume=5 | valley | sighs | Hollow blown calls with a light shake
 Furnace piper | Breath on steel | secondWell=None rasp=.35 edge=.2 pressure=.7 swell=.15 glide=.12 concord=1 steel=0 rate=3.4 wander=.15 volume=-4.5 | valve | lament | A warm low-lit flute, blown hard
 One finger of daylight | Breath on steel | secondWell=None rasp=.15 edge=.6 bend=1 swell=.35 leak=.15 wellWidth=.2 glide=.05 wander=.1 tremble=.1 volume=6 | shining | answer | A clean bright blown tone

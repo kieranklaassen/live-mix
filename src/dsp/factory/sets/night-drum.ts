@@ -396,10 +396,6 @@ export const SET: InstrumentSet = {
       effects: [{ deviceId: 'swarm-reverb', preset: 'Mine shaft', params: { mix: 0.3 } }],
       words: ', down a mine shaft',
     },
-    pipe: {
-      effects: [{ deviceId: 'swarm-reverb', preset: 'Metal pipe', params: { mix: 0.22 } }],
-      words: ', along a metal pipe',
-    },
     gated: {
       effects: [{ deviceId: 'shaped-reverb', preset: 'Gated', params: { mix: 0.34 } }],
       words: ', in a room that stops short',
@@ -582,10 +578,6 @@ export const SET: InstrumentSet = {
     grains: {
       effects: [{ deviceId: 'grain-delay', preset: 'Plain repeat', params: { mix: 0.26 } }],
       words: ', with plain grainy repeats',
-    },
-    subshadow: {
-      effects: [{ deviceId: 'grain-delay', preset: 'Sub shadow', params: { mix: 0.26 } }],
-      words: ', with a low grainy shadow',
     },
     trem: {
       effects: [
@@ -862,13 +854,6 @@ export const SET: InstrumentSet = {
     section: {
       effects: [{ deviceId: 'pad-follower', preset: 'Barely there' }],
       words: ', with a faint string section after it',
-    },
-    bead: {
-      effects: [
-        { deviceId: 'buzzing-bridge', preset: 'Loose caps', params: { mix: 0.5 } },
-        { deviceId: 'ether-reverb', preset: 'Room', params: { mix: 0.15 } },
-      ],
-      words: ', with loose caps rattling along',
     },
     singer: {
       effects: [

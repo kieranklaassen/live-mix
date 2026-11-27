@@ -225,16 +225,6 @@ export const SET: InstrumentSet = {
       effects: [{ deviceId: 'vinyl', preset: 'Warped', params: { crackle: 0.15, surface: 0.1 } }],
       words: ', on a slow warped record',
     },
-    kitchen: {
-      effects: [
-        {
-          deviceId: 'radio',
-          preset: 'Kitchen radio',
-          params: { static: 0.06, interference: 0.03 },
-        },
-      ],
-      words: ', from a kitchen radio',
-    },
     farstation: {
       effects: [
         { deviceId: 'radio', preset: 'Far station', params: { static: 0.12, interference: 0.05 } },
@@ -333,13 +323,6 @@ export const SET: InstrumentSet = {
     lapping: {
       effects: [{ deviceId: 'glimmer', preset: 'Light on water' }],
       words: ', each band lit in turn like water',
-    },
-    ripples: {
-      effects: [
-        { deviceId: 'glimmer', preset: 'Rising ripple', params: { depth: 0.7 } },
-        { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.15 } },
-      ],
-      words: ', ripples running up through it',
     },
     twinkle: {
       effects: [
@@ -443,10 +426,6 @@ export const SET: InstrumentSet = {
         { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.2 } },
       ],
       words: ', with old pipes behind',
-    },
-    openvowel: {
-      effects: [{ deviceId: 'imprint', preset: 'Open vowel' }],
-      words: ', shaped by an open vowel',
     },
     tubevowel: {
       effects: [{ deviceId: 'imprint', preset: 'Hollow tube', params: { amount: 0.8 } }],
@@ -1151,10 +1130,6 @@ export const SET: InstrumentSet = {
         { deviceId: 'plate-reverb', preset: 'Faint sheen', params: { mix: 0.15 } },
       ],
       words: ', the colours falling without end',
-    },
-    airup: {
-      effects: [{ deviceId: 'reveal', preset: 'Air' }],
-      words: ', the air brought forward',
     },
     keyed: {
       effects: [{ deviceId: 'scale-filter', preset: 'Wide and gentle' }],

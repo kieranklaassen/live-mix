@@ -250,10 +250,6 @@ export const SET: InstrumentSet = {
       effects: [{ deviceId: 're-amp', preset: 'Warm stack', params: { noise: 0.02, drive: 0.35 } }],
       words: ', through a warm stack of loudspeakers',
     },
-    downhall: {
-      effects: [{ deviceId: 're-amp', preset: 'Down the hall', params: { noise: 0.02 } }],
-      words: ', from a loudspeaker down the hall',
-    },
     board: {
       effects: [{ deviceId: 'vessel', preset: 'Wooden body', params: { mix: 0.4 } }],
       words: ', set on a wooden board',
@@ -391,13 +387,6 @@ export const SET: InstrumentSet = {
         { deviceId: 'hall-reverb', preset: 'Faint halo' },
       ],
       words: ', in a cloud of near copies',
-    },
-    revealed: {
-      effects: [
-        { deviceId: 'reveal', preset: 'Overtones', params: { mix: 0.7 } },
-        { deviceId: 'spread', preset: 'Wide top' },
-      ],
-      words: ', its quiet overtones brought up, dry',
     },
     lifted: {
       effects: [

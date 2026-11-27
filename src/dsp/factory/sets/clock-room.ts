@@ -772,25 +772,6 @@ export const SET: InstrumentSet = {
         { atSec: 4.5, durSec: 2.6, note: 72, gain: 0.76 },
       ],
     },
-    high: {
-      notes: [
-        { atSec: 0, durSec: 2, note: 76, gain: 0.55 },
-        { atSec: 1.4, durSec: 2, note: 83, gain: 0.5 },
-        { atSec: 2.9, durSec: 2, note: 81, gain: 0.5 },
-        { atSec: 4.4, durSec: 2.8, note: 88, gain: 0.45 },
-      ],
-    },
-    crystal: {
-      notes: [
-        { atSec: 0, durSec: 0.6, note: 84, gain: 0.69 },
-        { atSec: 0.5, durSec: 0.6, note: 79, gain: 0.69 },
-        { atSec: 1, durSec: 0.6, note: 88, gain: 0.62 },
-        { atSec: 2.2, durSec: 0.6, note: 81, gain: 0.69 },
-        { atSec: 2.7, durSec: 0.6, note: 76, gain: 0.69 },
-        { atSec: 3.6, durSec: 1.2, note: 86, gain: 0.62 },
-        { atSec: 5, durSec: 2, note: 83, gain: 0.62 },
-      ],
-    },
     figure: {
       notes: [
         { atSec: 0, durSec: 0.5, note: 57, gain: 0.83 },

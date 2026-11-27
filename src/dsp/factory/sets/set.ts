@@ -68,9 +68,10 @@ function settings(
     const cut = word.indexOf('=')
     const key = word.slice(0, cut)
     const value = word.slice(cut + 1)
-    const choice = set.names[key]?.findIndex((name) => name === value.replace(/_/g, ' ')) ?? -1
+    const choice = set.names[key]?.indexOf(value.replaceAll('_', ' ')) ?? -1
     const number = choice >= 0 ? choice : Number(value)
-    if (cut < 1 || value === '' || !Number.isFinite(number)) fail(set, line, `"${word}"`)
+    if (cut < 1 || value === '' || !Number.isFinite(number) || key in params)
+      fail(set, line, `"${word}"`)
     params[key] = number
   }
   return params
@@ -85,15 +86,16 @@ function effectsOf(set: InstrumentSet, line: string, text: string): [SetChain, P
   for (const word of over) {
     const read = /^(\d)\.(\w+)=(-?[\d.]+)$/.exec(word)
     const effect = read ? effects[Number(read[1]) - 1] : undefined
-    if (!read || !effect) return fail(set, line, `"${word}"`)
-    effect.params[read[2]] = Number(read[3])
+    const value = Number(read?.[3])
+    if (!read || !effect || !Number.isFinite(value)) return fail(set, line, `"${word}"`)
+    effect.params[read[2]] = value
   }
   return [chain, effects]
 }
 
 /** A direction's rows, one to a preset. */
 export function setRows(direction: SetDirection): string[] {
-  return direction.rows.split('\n').filter((line) => line.includes('|'))
+  return direction.rows.split('\n').filter((line) => line.trim() !== '')
 }
 
 /** The presets a set's table says. */

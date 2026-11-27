@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { measureAudio } from '../../../__tests__/render-support'
+import { STOCK_WASM_DEVICES } from '../../../registry'
 import {
   levelProblems,
   presetProblems,
@@ -64,8 +65,11 @@ export function setProblems(set: InstrumentSet, knobs: readonly string[]): strin
   const effects = tally(presets.flatMap(({ effects }) => effects.map(({ deviceId }) => deviceId)))
   for (const [id, count] of effects)
     if (count > SET_LIMITS.onOneEffect) problems.push(`${count} presets with ${id}`)
+  for (const id of Object.keys(set.chains)) if (!chains.has(id)) problems.push(`chain ${id} unused`)
   const phrases = new Set(rows.map((row) => row.split('|')[4].trim()).filter((id) => id !== '-'))
   if (phrases.size < SET_LIMITS.phrases) problems.push(`${phrases.size} phrases in use`)
+  for (const id of Object.keys(set.phrases))
+    if (!phrases.has(id)) problems.push(`phrase ${id} unused`)
   const set_ = tally(presets.flatMap(({ instrument }) => Object.keys(instrument.params ?? {})))
   for (const knob of knobs)
     if ((set_.get(knob) ?? 0) < SET_LIMITS.knob)
@@ -80,6 +84,12 @@ export function describeSet(set: InstrumentSet, knobs: readonly string[]): void 
 
     it('is whole', () => {
       expect(setProblems(set, knobs)).toEqual([])
+    })
+
+    it("calls the choices of the instrument's knobs what the instrument does", () => {
+      const device = STOCK_WASM_DEVICES.find(({ id }) => id === set.device)
+      for (const [knob, names] of Object.entries(set.names))
+        expect(names, knob).toEqual(device?.params[knob].choices)
     })
 
     it('names each preset once and sets no two alike', () => {

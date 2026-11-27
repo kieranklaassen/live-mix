@@ -786,13 +786,6 @@ export const SET: InstrumentSet = {
       effects: [{ deviceId: 'grain-cloud', preset: 'Slow smear', params: { mix: 0.4 } }],
       words: 'smeared into slow grains',
     },
-    tideunder: {
-      effects: [
-        { deviceId: 'grain-cloud', preset: 'Low tide', params: { mix: 0.3 } },
-        { deviceId: 'fdn-reverb', preset: 'Thin veil' },
-      ],
-      words: 'with an octave of grains beneath',
-    },
     hang: {
       effects: [{ deviceId: 'spectral-blur', preset: 'Hanging mist', params: { mix: 0.4 } }],
       words: 'hanging on in a mist',
