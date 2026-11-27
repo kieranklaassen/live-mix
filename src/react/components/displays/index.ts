@@ -94,6 +94,7 @@ import { SETTING_GLASS_FACES } from './setting-glass'
 import { SLOW_ACCORD_FACES } from './slow-accord'
 import { WIRE_LANTERN_FACES } from './wire-lantern'
 import { SINGING_SAND_FACES } from './singing-sand'
+import { COMMON_AIR_FACES } from './common-air'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -189,4 +190,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...SLOW_ACCORD_FACES,
   ...WIRE_LANTERN_FACES,
   ...SINGING_SAND_FACES,
+  ...COMMON_AIR_FACES,
 }

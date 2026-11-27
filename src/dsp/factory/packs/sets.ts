@@ -18,6 +18,24 @@ interface Set_ {
 
 const SETS: readonly Set_[] = [
   {
+    device: 'common-air',
+    name: 'Common Air',
+    description:
+      'Reeds that share one breath, lean on each other and settle into tune: tides, mouths, lullabies, locked fifths and sleepers.',
+    directions: [
+      'Mountain mouth',
+      'Last breath',
+      'Circular drone',
+      'Paper lullaby',
+      'Reed bass',
+      'Chiff keys',
+      'Locked fifths',
+      'Breath tide',
+      'Steel bells',
+      'Five sleepers',
+    ],
+  },
+  {
     device: 'slow-accord',
     name: 'Slow Accord',
     description:

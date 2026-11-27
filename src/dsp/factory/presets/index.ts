@@ -79,6 +79,7 @@ import { SETTING_GLASS_PRESETS } from './setting-glass'
 import { SLOW_ACCORD_PRESETS } from './slow-accord'
 import { WIRE_LANTERN_PRESETS } from './wire-lantern'
 import { SINGING_SAND_PRESETS } from './singing-sand'
+import { COMMON_AIR_PRESETS } from './common-air'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -158,4 +159,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...SLOW_ACCORD_PRESETS,
   ...WIRE_LANTERN_PRESETS,
   ...SINGING_SAND_PRESETS,
+  ...COMMON_AIR_PRESETS,
 ]

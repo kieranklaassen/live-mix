@@ -66,6 +66,8 @@ build_generated_devices() {
     cpp/devices/club-kit/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device coloured-noise \
     cpp/devices/coloured-noise/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device common-air \
+    cpp/devices/common-air/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device common-tones \
     cpp/devices/common-tones/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device constellation \
@@ -395,6 +397,8 @@ test_generated_devices() {
     cpp/test/club_kit_test.cpp
   native_test coloured_noise_test \
     cpp/test/coloured_noise_test.cpp
+  native_test common_air_test \
+    cpp/test/common_air_test.cpp
   native_test common_tones_test \
     cpp/test/common_tones_test.cpp
   native_test constellation_test \

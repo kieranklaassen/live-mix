@@ -1967,6 +1967,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'slow-accord': { ...PLATE_PALETTES['slow-accord'], finish: 'hammered', cap: 'dot' },
   'wire-lantern': { ...PLATE_PALETTES['wire-lantern'], finish: 'linen', cap: 'dot' },
   'singing-sand': { ...PLATE_PALETTES['singing-sand'], finish: 'grain', cap: 'disc' },
+  'common-air': { ...PLATE_PALETTES['common-air'], finish: 'fade', cap: 'skirt' },
 }
 
 /**
