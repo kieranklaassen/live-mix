@@ -204,15 +204,16 @@ import {
 
 |             | Count | Groups                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | ----------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Presets** | 1,408 | Twenty for each of the fifty-five stock instruments that came before the beat and breath devices, thirty for each of those six and 24 each for Hand Horn, Tierce Bells and Wheel and Dog, 24 more basses on the ones that were there before the bass instruments, and 32 with a note maker in front: pads, keys, basses, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                                                                                                                                                                                                                                                          |
+| **Presets** | 1,908 | Twenty for each of the fifty-five stock instruments that came before the beat and breath devices, thirty for each of those six and 24 each for Hand Horn, Tierce Bells and Wheel and Dog, twenty for each of the twenty-five instruments of November (Walking Voices to Singing Sand), 24 more basses on the ones that were there before the bass instruments, and 32 with a note maker in front: pads, keys, basses, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                                                                                                                                                             |
 | **Chains**  | 385   | Space (44), echo (43), tape (43), motion (81), texture (78), pitch (66), master (30); every WASM effect is in at least one                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | **Sounds**  | 325   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round), nine made from other sounds; 68 of bass: single notes (23), held tones that loop (9) and lines that come round (36); 76 loops of drums (32), glitches (20) and pitched pulses (24); and 81 for house: on the Club Kit, grooves (12) and layers (24) that come round, fills (6) and single hits (15), then risers, sweeps and booms (12) and chord riffs and bass lines that come round (12). 174 keep time: those 76, 35 of the bass lines, and of the house sounds the grooves, layers, fills and riffs and nine of the risers and sweeps. Fifteen of those end: the fills and those nine |
 
 The bank is data: importing it loads no module and touches no audio. A host
 lists it before audio starts and renders only what someone asks to hear.
 
-Beside the bank are the packs, a hundred presets each, which are fetched
-apart from it: see [Packs](#packs).
+Beside the bank are the packs, a hundred presets each, and the sets, five
+hundred presets of one instrument each, which are fetched apart from it: see
+[Packs](#packs) and [Sets](#sets-of-one-instrument-instruments).
 
 - `renderPresetPreview(preset)` plays the preset's phrase (its category's:
   a held chord for a pad, a broken chord for keys and plucked strings, six
@@ -1178,7 +1179,9 @@ it is made. No artist names, trademarks or praise.
 
 A pack is a hundred presets that share one idea. It stands on a shelf
 (`FactoryPack.shelf`), so a host can list the packs in groups: `scenes`,
-`harmony`, `melody`, `time` and `hands`.
+`harmony`, `melody`, `time` and `hands`. A sixth shelf, `instruments`, holds
+the sets: five hundred presets of one instrument each
+([Sets](#sets-of-one-instrument-instruments)).
 
 The twenty-five packs of the scenes share a sound: a room, a way of working, a
 kind of tape. Each has at least two presets for each of the thirty-four
@@ -1197,7 +1200,8 @@ An instrument that comes after the packs shipped is not asked of the scenes
 (`AFTER_THE_PACKS` in `packs/__tests__/support.ts`, today `zone-sampler`, the
 three kits, the four bass instruments, the thirteen invented ones from
 `flock` on, the six beat and breath instruments from `binaural` on, and
-`hand-horn`, `tierce-bells` and `wheel-and-dog`): a
+`hand-horn`, `tierce-bells` and `wheel-and-dog`, and the twenty-five that have
+a set of their own): a
 pack is exactly a hundred presets and a shipped preset stays what it is, so
 two more could only come in by dropping two that shipped. Its presets are in
 the bank.
@@ -1206,6 +1210,7 @@ the bank.
 import {
   FACTORY_PACKS, // FactoryPack[]: id, name, description, count, sounds, chains
   FACTORY_PACK_SIZE, // 100
+  FACTORY_SET_SIZE, // 500, what a pack on the shelf `instruments` holds
   factoryPack,
   loadFactoryPacks, // () => Promise<readonly FactoryPreset[]>
 } from '@kieranklaassen/live-mix/dsp'
@@ -1215,7 +1220,7 @@ const mine = presets.filter((preset) => preset.pack === FACTORY_PACKS[0].id)
 ```
 
 `FACTORY_PACKS` is a few lines of names and comes with the bank. The presets
-do not: all 12,500 of them are modules of their own, one for each shelf
+do not: all 25,000 of them are modules of their own, one for each shelf
 (`src/dsp/factory/packs/shelves/`), behind a dynamic `import()`, which a bundler
 keeps out of the script a page starts with. `loadFactoryPacks()` fetches them
 once and hands back the same list from then on; a fetch that fails is tried
@@ -1379,6 +1384,50 @@ and the packs never meet.
 
 <!-- end of focused packs -->
 
+#### Sets of one instrument (`instruments`)
+
+A set is five hundred presets of one instrument in ten directions of fifty: a
+direction is what the instrument is played for. A host finds a set's
+instrument in `FactoryPack.instrument` and its ten directions, in order, in
+`FactoryPack.directions`; each of its presets says which one it is in
+(`FactoryPreset.direction`). The twenty-five instruments of November have one
+each, 12,500 presets:
+
+| Set                                       | What it is                                                                                                                               |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **Walking Voices** (`walking-voices-set`) | A crowd of singers that walks from chord to chord: choirs near and far, hummed and whistled, led by one voice or grounded by the basses. |
+| **Unsung Voice** (`unsung-voice-set`)     | The voice that appears where the overtones of held keys meet: halos, descants, crowns of bells and breath lines over warm, close chords. |
+| **Returning Wave** (`returning-wave-set`) | Bright pulses that dissolve into haze and come back whole: pads, keys, organs and bells, some home in a blink and some in minutes.       |
+| **Climbing Gong** (`climbing-gong-set`)   | Gongs whose energy climbs register by register after the stroke: dawns, temples, soft plates, bowed metal and rolling walls.             |
+| **Bronze Vowels** (`bronze-vowels-set`)   | Bells that open their mouths as they fade: temple syllables, sung bronze, lullabies of glass, and answers between one bell and the next. |
+| **Turned Time** (`turned-time-set`)       | Struck glass, bells, strings and reeds sent back towards their own beginnings: some land softly, some hover, some pass straight through. |
+| **Night Drum** (`night-drum-set`)         | Tuned hand drums rolled, brushed, rubbed and hummed into: breathing pads, speaking basses, moans, kettle bells and one bare thread.      |
+| **Undervoice** (`undervoice-set`)         | Throats that sing under themselves, from an octave below the key down to single drips: chants, doors, floors, creaks and monks.          |
+| **Dry Brush** (`dry-brush-set`)           | Strokes of ink from wet wash to split hairs: pads that stain the page, pen keys, dotted rain, seals on stone and feathered sweeps.       |
+| **Closed Eyes** (`closed-eyes-set`)       | Notes that tire while you look at them and leave their opposite behind: afterimages of pads, keys, vowels, bowls and slow blinks.        |
+| **Common Air** (`common-air-set`)         | Reeds that share one breath, lean on each other and settle into tune: tides, mouths, lullabies, locked fifths and sleepers.              |
+| **Slow Accord** (`slow-accord-set`)       | Strange metal that settles overtone by overtone into the chord you hold: bells, organs, dawns, squeezed basses and swinging choirs.      |
+| **Deep Roots** (`deep-roots-set`)         | Notes that grow downward until a bass appears that nobody played: rooted pads, canopies, seeds, peat drones and late foundations.        |
+| **Rose Window** (`rose-window-set`)       | Turning roses of harmonics: slow cathedrals, hollow reeds, chime wheels, opening keys, still drones and lace of dust.                    |
+| **Clock Room** (`clock-room-set`)         | Clocks on one wall that learn each other's time: long cases, parlours, tube bells, cups, coils and voices that breathe in step.          |
+| **Bent Blade** (`bent-blade-set`)         | A steel blade that keeps one singing note where it bends: sopranos, ghosts, moons of mallets, sliding basses and breath on steel.        |
+| **Ridge Lines** (`ridge-lines-set`)       | Rows of hills sliding behind each other, drawn in overtones: slow trains, bowed cliffs, dunes, towers, pines and winter bells.           |
+| **Chord Clock** (`chord-clock-set`)       | Pulses that quicken into tones and leave a chord's own polyrhythm circling: pads, counters, engines, octave stairs and looms.            |
+| **Setting Glass** (`setting-glass-set`)   | Molten chords that clear from the top down as they cool: dawns, quenched keys, salt drones, shattered bells and obsidian.                |
+| **Standing Water** (`standing-water-set`) | Shaken water read along a circle: pools, ripples, striped flutes, mercury bells, films of oil and throats of water.                      |
+| **Ringing Order** (`ringing-order-set`)   | Overtones that take turns like ringers in a tower: peals, melted rows, plucked canons, half muffled bells and answering sides.           |
+| **Spun Wire** (`spun-wire-set`)           | Wheels of tuned wires spun past a plucker, from single plucks to sung tones: ladders, gears, woven voices and the last few turns.        |
+| **Flame Organ** (`flame-organ-set`)       | Small flames that make their glass tubes sing: candle flutes, coal basses, beating pairs, furnace choirs and dying embers.               |
+| **Wire Lantern** (`wire-lantern-set`)     | Wire strung on the edges of a solid and turned past the ears: open harps, handmade bells, rings, blown corners and muted ones.           |
+| **Singing Sand** (`singing-sand-set`)     | Grains that fall into step until a slope sings: dune pads, squeaking keys, glass beaches, aftershocks and far rain.                      |
+
+A set is written as a table and not as a list of objects
+(`src/dsp/factory/sets/<instrument>.ts`, read by `sets/set.ts`): its chains
+and its phrases once, and a row for each preset with what it changes, which
+keeps 12,500 of them a fraction of the text the same objects would be. What a
+row says is at the top of `set.ts`. `packs/sets.ts` has what a host is told
+before a table is fetched, and a test holds it to the tables.
+
 ### What a pack is held to
 
 `src/dsp/factory/packs/__tests__/<pack id>.pack.test.ts` renders every preset
@@ -1386,7 +1435,7 @@ of its pack, and `packs.test.ts` reads across them:
 
 | Entry  | Rule                                                                                                                                              |
 | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pack   | Exactly 100 presets, a kebab-case id, a name of at most 24 characters, a one-sentence description                                                 |
+| Pack   | Exactly 100 presets (a set: exactly 500), a kebab-case id, a name of at most 24 characters, a one-sentence description                            |
 | Scenes | At least two presets for each instrument (`AFTER_THE_PACKS` left out)                                                                             |
 | Others | At least 3 instruments and at most 65 presets on one, at least 4 phrases of its own with at least 50 presets heard on one                         |
 | Preset | The bank's rules, and tighter levels: raw preview peak at or below −8 dBFS, loudest 400 ms between −30 and −22 dBFS, no DC offset, 1 to 4 effects |
@@ -1444,6 +1493,27 @@ they hint by sound, place, weather and hour. Each preset is written by hand
 as a designed sound, starting from the instrument and not only from its
 effects, and a description says only what its chain and its measurements
 bear out.
+
+### Writing a set
+
+A set's table goes in `sets/<instrument>.ts`, its entry in `packs/sets.ts` and
+its line in `packs/shelves/instruments.ts`, with a `<instrument>.set.test.ts`
+beside the others. What it is held to is `SET_LIMITS` in
+`sets/__tests__/support.ts`: ten directions of fifty rows, at least forty
+chains and ten phrases of its own, no chain on more than 25 presets and no
+effect on more than 150, each of the instrument's own knobs set by 25 presets
+or more, every preset inside the levels of a pack's, and no two nearer than
+1 dB on the phrase all are compared on. The last is measured by the bench
+only, and the test renders one preset in 25 unless `FACTORY_PACKS=all` is set:
+
+```bash
+SET_BENCH=<instrument> pnpm vitest run src/dsp/factory/sets/__tests__/bench.test.ts
+cat tmp/bench/<instrument>.txt
+```
+
+Each of the twenty-five was written by one worker and checked at the bench by
+another, all 500 rendered: no level, word or neighbour was outside its limit
+at the end. Nobody has heard one.
 
 ## Pack sounds
 
