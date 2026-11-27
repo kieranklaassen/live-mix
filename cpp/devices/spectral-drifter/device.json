@@ -15,7 +15,8 @@
           "<juce_dsp/juce_dsp.h> -> <algorithm>, <cstdint>, dsp_util.h",
           "setBloom: juce::jlimit -> std::clamp (:73)",
           "juce::MathConstants<float>::pi -> kPi (:118)",
-          "hasDenormalState()/isSilentState() test hooks"
+          "hasDenormalState()/isSilentState() test hooks",
+          "the grains are one array for each part of their state, and starting one anew is restartGrain(); the same arithmetic in the same order"
         ]
       },
       {
@@ -25,10 +26,11 @@
         "deviations": [
           "juce::MathConstants<float>::pi -> kPi (:15, :31)",
           "livemix::flush_denormal on the eight one-pole filter states (no flush-to-zero in WASM)",
-          "hasDenormalState()/isSilentState() bodies"
+          "hasDenormalState()/isSilentState() bodies",
+          "the eight grains are worked in plain loops over the arrays, built with the vector instructions; the same arithmetic in the same order"
         ]
       }
     ],
-    "note": "SpectralDrifter.h/.cpp are kkfonie's Bloom drifter with the JUCE references replaced and denormal flushes added; the algorithm and constants are unchanged. spectral_drifter_device.* and device_api.cpp are live-mix host code: one drifter per channel, Bloom's equal-power mix and 5 ms bloom ramp, Bloom's per-line age tracker (PluginProcessor.cpp:323-343) run on the input or a manual age, and the ABI. Bloom's 25 % drift re-injection into its FDN loop is not reproduced (an insert has no loop)."
+    "note": "SpectralDrifter.h/.cpp are kkfonie's Bloom drifter with the JUCE references replaced and denormal flushes added, and its loops laid out for the vector instructions; the algorithm, the constants and the order of the sums are unchanged. spectral_drifter_device.* and device_api.cpp are live-mix host code: one drifter per channel, Bloom's equal-power mix and 5 ms bloom ramp, Bloom's per-line age tracker (PluginProcessor.cpp:323-343) run on the input or a manual age, and the ABI. Bloom's 25 % drift re-injection into its FDN loop is not reproduced (an insert has no loop)."
   }
 }

@@ -12,7 +12,13 @@ inline float flush_denormal(float x) {
 
 // The same for what only dies away: a level no sum can feel long before it is
 // this small, let go before it is too small for the machine to be quick with.
-inline float settle_to_zero(float x) { return (x > -1.0e-30f && x < 1.0e-30f) ? 0.0f : x; }
+// Lower than the one above, since nothing is added to it again: it has only to
+// stay clear of the smallest numbers (1.2e-38).
+constexpr float kSettleThreshold = 1.0e-30f;
+
+inline float settle_to_zero(float x) {
+  return (x > -kSettleThreshold && x < kSettleThreshold) ? 0.0f : x;
+}
 
 inline float clamp01(float x) {
   if (x < 0.0f) return 0.0f;

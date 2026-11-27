@@ -10,6 +10,7 @@
 import type { VisualFrame } from './frame'
 import { have } from './have'
 import type { VisualFilter } from './perform'
+import { visualPresetNow } from './presets'
 import { visualRig } from './rig'
 
 /** A style is never drawn wider than this; a larger screen is given it enlarged. */
@@ -199,6 +200,11 @@ export function createStage(): Stage {
       rig?.hear(frame.signals)
       for (const step of frame.layers) {
         if ('paint' in step) {
+          const preset = step.preset ? visualPresetNow(step.paint, step.preset) : null
+          if (preset === undefined) {
+            later = rig !== null
+            continue
+          }
           const at = rig?.draw(
             {
               id: step.paint,
@@ -207,6 +213,7 @@ export function createStage(): Stage {
               glow: step.glow,
               hue: step.hue,
               palette: frame.palette,
+              world: preset?.world,
             },
             drawnWidth,
             drawnHeight,

@@ -40,9 +40,12 @@ instrument_exports=",_device_note_on,_device_note_off"
 # EXTRA_FLAGS for a device whose sources use the vector instructions (-msimd128),
 # and MEMORY_BYTES for a device that needs more than the default 4 MiB of
 # fixed linear memory (long delay lines, sample buffers).
+# SCALAR=1 leaves the vector instructions out of every device, to compare its
+# plain loops with what ships (scripts/vector-sound.mjs). Never commit that build.
 build_device() {
   local name="$1"
   shift
+  if [ -n "${SCALAR:-}" ]; then local EXTRA_FLAGS=""; fi
   emcc "$@" \
     -I cpp/common \
     -std=c++17 -O3 ${EXTRA_FLAGS:-} -fno-exceptions -fno-rtti --no-entry \

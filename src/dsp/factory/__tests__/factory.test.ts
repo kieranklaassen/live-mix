@@ -9,8 +9,8 @@
 //
 // Whether a preset is beautiful is not something a test can say.
 
-import { readdirSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { readFileSync, readdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
@@ -95,8 +95,9 @@ describe('the rendered presets', () => {
     }
   })
 
-  it('have a file for every share', () => {
-    const files = readdirSync(dirname(fileURLToPath(import.meta.url)))
+  it('have a file for every share, which runs that share', () => {
+    const here = dirname(fileURLToPath(import.meta.url))
+    const files = readdirSync(here)
     for (const [kind, shares] of [
       ['presets', PRESET_SHARES],
       ['chains', CHAIN_SHARES],
@@ -106,6 +107,10 @@ describe('the rendered presets', () => {
       expect(found).toEqual(
         Array.from({ length: shares }, (_, n) => `factory.${kind}-${n + 1}.test.ts`),
       )
+      for (const [n, name] of found.entries()) {
+        const calls = readFileSync(join(here, name), 'utf8').match(/^describe.*$/gm)
+        expect(calls, name).toEqual([`describe${kind[0].toUpperCase()}${kind.slice(1)}(${n})`])
+      }
     }
   })
 })

@@ -22,7 +22,8 @@ function headerOf(text: string): Record<string, string> {
   for (const line of text.split('\n')) {
     const found = /^\/\/\s*([a-z]+):(.*)$/.exec(line)
     if (!found) break
-    header[found[1]] = found[2].trim()
+    // What each of its own numbers does (`world.ts`) is said to whoever writes a preset, not in the list.
+    if (found[1] !== 'own') header[found[1]] = found[2].trim()
   }
   return header
 }

@@ -91,6 +91,13 @@ struct Room {
   Level level[3];
 };
 
+// The page reads the counts where `src/core/tracks/space-kernel-abi.ts` says they are, and lays out three sizes.
+static_assert(kQuantum == 128, "SPACE_ROOM_QUANTUM");
+static_assert(offsetof(Room, quiet) == 1 * sizeof(int32_t), "SPACE_ROOM_QUIET");
+static_assert(offsetof(Room, tail) == 2 * sizeof(int32_t), "SPACE_ROOM_TAIL");
+static_assert(offsetof(Room, in) == 4 * sizeof(int32_t), "SPACE_ROOM_STATE_INTS");
+static_assert(sizeof(Room::level) / sizeof(Level) == 3, "SPACE_PARTITIONS");
+
 inline void clear(f32* to, int count) {
   const Vec nothing = wasm_f32x4_splat(0.0f);
   for (int j = 0; j < count; j += 4) store(to + j, nothing);

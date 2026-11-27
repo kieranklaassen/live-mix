@@ -16,7 +16,10 @@
       {
         "path": "Felt/Source/ModalBank.h",
         "copiedTo": "ModalBank.h",
-        "sha256": "e7f9a49513b37ba8a3db0c326906a59653c8086ac1a414badb1ea6d90a419b79"
+        "sha256": "e7f9a49513b37ba8a3db0c326906a59653c8086ac1a414badb1ea6d90a419b79",
+        "deviations": [
+          "the strips go through processVectors where there are vector instructions, two strips at a time; the same operations on the same numbers in the same order, and process is the loop it is held to"
+        ]
       },
       {
         "path": "Felt/Source/ModeTable.h",
@@ -71,7 +74,10 @@
       },
       {
         "path": "Felt/Source/StereoWidener.cpp",
-        "usedFrom": "../stereo-widener/StereoWidener.cpp"
+        "usedFrom": "../stereo-widener/StereoWidener.cpp",
+        "deviations": [
+          "the bass crossover's two states are let go under 1e-30 (settle_to_zero), as WASM has no flush-to-zero"
+        ]
       },
       {
         "path": "Felt/Source/FeltVoice.h + FeltVoice.cpp",

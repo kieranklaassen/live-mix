@@ -18,6 +18,7 @@
 import type { JsonObject, JsonValue } from '../core/json'
 
 import { DEFAULT_PALETTE, isVisualPalette } from './palettes'
+import { PRESET_ID, presetKnob, presetName, type VisualPreset } from './preset'
 import { VISUAL_STYLES, visualStyle } from './styles'
 
 /** The entry that holds a piece's visuals. */
@@ -212,6 +213,8 @@ export interface Visual {
   kind: string
   /** Which of a style's two variations: 0 is a, 1 is b. */
   variation: 0 | 1
+  /** The preset whose world a style is drawn in, by its id (`preset.ts`); left out, as the style draws itself. */
+  preset?: string
   /** The stroke it is linked to: it shows while that stroke sounds. Null, it is drawn in the Visuals section. */
   stroke: string | null
   /** Its row in the Visuals section, from 0 at the top. */
@@ -381,6 +384,7 @@ export function visualsToJson(set: VisualSet): JsonObject {
     list: set.list.map((visual) => {
       const entry: JsonObject = { id: visual.id, kind: visual.kind }
       if (visual.variation === 1) entry.variation = 1
+      if (visual.preset !== undefined) entry.preset = visual.preset
       if (visual.stroke !== null) entry.stroke = visual.stroke
       else {
         entry.lane = visual.lane
@@ -446,7 +450,7 @@ export function visualsFromJson(json: JsonValue | undefined): VisualSet {
   const list: Visual[] = []
   for (const entry of Array.isArray(json.list) ? json.list : []) {
     if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue
-    const { id, kind, stroke } = entry
+    const { id, kind, stroke, preset } = entry
     if (typeof id !== 'string' || id === '' || id.length > 80 || seen.has(id)) continue
     if (typeof kind !== 'string' || !/^[a-z][a-z0-9-]{0,39}$/.test(kind)) continue
     seen.add(id)
@@ -454,6 +458,8 @@ export function visualsFromJson(json: JsonValue | undefined): VisualSet {
       id,
       kind,
       variation: entry.variation === 1 ? 1 : 0,
+      // A preset of a later build is kept as it was written; the style is drawn as it draws itself.
+      ...(typeof preset === 'string' && PRESET_ID.test(preset) ? { preset } : {}),
       stroke: typeof stroke === 'string' && stroke !== '' && stroke.length <= 80 ? stroke : null,
       lane: cleanLane(entry.lane),
       beat: cleanBeat(entry.beat),
@@ -501,9 +507,10 @@ export function visualById(set: VisualSet, id: string | null): Visual | null {
   return id === null ? null : (set.list.find((visual) => visual.id === id) ?? null)
 }
 
-/** What a visual is called where one is named: its kind, and "b" for a style's second variation. */
+/** What a visual is called where one is named: its kind, with its preset, or with "b" for a style's second variation. */
 export function visualLabel(visual: Visual): string {
   const style = visualStyle(visual.kind)
+  if (style && visual.preset !== undefined) return `${style.name}: ${presetName(visual.preset)}`
   return style && visual.variation === 1 ? `${style.name} b` : visualKindName(visual.kind)
 }
 
@@ -517,24 +524,42 @@ export interface VisualEdit {
   visual: Visual | null
 }
 
-/** A new visual of a kind at a place. Nothing is added past the most a piece holds, or for a kind this build does not have. */
+/** The knobs of a visual with a preset's put where the preset has them. Level is the person's own. */
+function presetKnobs(
+  kind: string,
+  knobs: Readonly<Record<string, VisualKnob>>,
+  preset: VisualPreset | null,
+): Readonly<Record<string, VisualKnob>> {
+  const first = firstKnobs(kind)
+  const next: Record<string, VisualKnob> = { ...knobs }
+  for (const knob of ['size', 'glow', 'colour'] as const) {
+    const put = preset?.[knob]
+    next[knob] = put === undefined ? first[knob] : presetKnob(put)
+  }
+  return next
+}
+
+/** A new visual of a kind at a place, in a preset where one is given. Nothing is added past the most a piece holds, or for a kind this build does not have. */
 export function addVisual(
   set: VisualSet,
   kind: string,
   place: VisualPlace = {},
   variation: 0 | 1 = 0,
+  preset: VisualPreset | null = null,
 ): VisualEdit {
   if (set.list.length >= VISUAL_MAX || !isVisualKind(kind)) return { set, visual: null }
   const linked = 'stroke' in place
+  const world = visualStyle(kind) ? preset : null
   const visual: Visual = {
     id: createVisualId(),
     kind,
-    variation: visualStyle(kind) ? variation : 0,
+    variation: world ? world.variation : visualStyle(kind) ? variation : 0,
+    ...(world ? { preset: world.id } : {}),
     stroke: linked ? place.stroke : null,
     lane: linked ? 0 : cleanLane(place.lane ?? freeLane(set)),
     beat: linked ? 0 : cleanBeat(place.beat ?? 0),
     beats: linked ? null : place.beats === undefined ? null : cleanBeats(place.beats),
-    knobs: firstKnobs(kind),
+    knobs: world ? presetKnobs(kind, firstKnobs(kind), world) : firstKnobs(kind),
   }
   return { set: { ...set, list: [...set.list, visual] }, visual }
 }
@@ -616,14 +641,37 @@ export function setVisualVariation(set: VisualSet, id: string, variation: 0 | 1)
   )
 }
 
-/** Gives a visual another kind, where it is and as it is linked. Its knobs start anew when the new kind has other knobs. */
+/**
+ * Draws a style in a preset: its variation, its world, and Size, Glow and Colour where the preset has them. Level and
+ * where the visual is stay. With null the preset comes off: the style is drawn as it draws itself, with those three
+ * where a new visual has them.
+ */
+export function setVisualPreset(
+  set: VisualSet,
+  id: string,
+  preset: VisualPreset | null,
+): VisualSet {
+  return change(set, id, (visual) => {
+    if (!visualStyle(visual.kind)) return visual
+    const { preset: was, ...plain } = visual
+    if (preset === null && was === undefined) return visual
+    const knobs = presetKnobs(visual.kind, visual.knobs, preset)
+    return preset
+      ? { ...plain, variation: preset.variation, preset: preset.id, knobs }
+      : { ...plain, knobs }
+  })
+}
+
+/** Gives a visual another kind, where it is and as it is linked. Its knobs start anew when the new kind has other knobs, and a preset comes off: it is of the kind it was. */
 export function setVisualKind(set: VisualSet, id: string, kind: string): VisualSet {
   if (!isVisualKind(kind)) return set
   return change(set, id, (visual) => {
     if (visual.kind === kind) return visual
+    const plain = { ...visual }
+    delete plain.preset
     const same = paints(visual.kind) && paints(kind)
     return {
-      ...visual,
+      ...plain,
       kind,
       variation: visualStyle(kind) ? visual.variation : 0,
       knobs: same ? visual.knobs : firstKnobs(kind),

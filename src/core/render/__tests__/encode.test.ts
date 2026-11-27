@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { runInNewContext } from 'node:vm'
 
 import { describe, expect, it } from 'vitest'
 
@@ -9,6 +10,7 @@ import {
   deinterleave,
   encodeWav,
   interleave,
+  planarFromAudioBuffer,
   readWavInfo,
   wavBlob,
 } from '../encode'
@@ -264,5 +266,18 @@ describe('encodeWav', () => {
     const wav = encodeWav({ channels: [ramp(8)], sampleRate: 48000 })
     new DataView(wav).setUint16(34, 0, true) // bits per sample
     expect(() => readWavInfo(wav)).toThrow(/no bits/)
+  })
+})
+
+describe('planarFromAudioBuffer', () => {
+  it("copies into arrays of its own, also from a buffer of another page's", () => {
+    const theirs = runInNewContext('Float32Array.of(0.25, -0.5, 1)') as Float32Array<ArrayBuffer>
+    expect(theirs).not.toBeInstanceOf(Float32Array)
+    const buffer = { numberOfChannels: 1, sampleRate: RATE, getChannelData: () => theirs }
+    const { channels, sampleRate } = planarFromAudioBuffer(buffer as unknown as AudioBuffer)
+    expect(sampleRate).toBe(RATE)
+    expect(channels[0]).toBeInstanceOf(Float32Array)
+    expect(channels[0].buffer).not.toBe(theirs.buffer)
+    expect(Array.from(channels[0])).toEqual([0.25, -0.5, 1])
   })
 })

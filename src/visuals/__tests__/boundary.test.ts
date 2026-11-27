@@ -27,7 +27,9 @@ const PLAIN = [
   'model.ts',
   'palettes.ts',
   'perform.ts',
+  'preset.ts',
   'styles.ts',
+  'world.ts',
 ]
 
 describe('the visuals entry', () => {
@@ -45,11 +47,16 @@ describe('the visuals entry', () => {
       'palettes.ts',
       'perform.ts',
       'picture.ts',
+      'preset-sources.ts',
+      'preset-words.ts',
+      'preset.ts',
+      'presets.ts',
       'rig.ts',
       'shader-sources.ts',
       'stage.ts',
       'styles.ts',
       'sync.ts',
+      'world.ts',
     ])
   })
 
@@ -57,7 +64,9 @@ describe('the visuals entry', () => {
     const outside = SOURCES.flatMap(({ name, source }) =>
       [...source.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*)['"]([^'"]+)['"]/g)]
         .map((match) => ({ specifier: match[1], line: match[0] }))
-        .filter(({ specifier }) => !/^\.\/(?:shaders\/)?[a-z0-9-]+(?:\.glsl)?$/.test(specifier))
+        .filter(
+          ({ specifier }) => !/^\.\/(?:shaders\/|presets\/)?[a-z0-9-]+(?:\.glsl)?$/.test(specifier),
+        )
         .map(({ specifier }) => `${name} imports ${specifier}`),
     )
 

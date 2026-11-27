@@ -641,8 +641,11 @@ engine does, but for a strip set before the render, which starts at its value.
 ## Browser support and iOS
 
 The engine needs `AudioContext`, `AudioWorklet` and WebAssembly — current
-Chrome, Edge, Firefox and Safari, desktop and mobile. It never needs
-`SharedArrayBuffer`, so no COOP/COEP headers. Where a browser lacks
+Chrome, Edge, Firefox and Safari, desktop and mobile. Some forty of its devices are
+built with WASM SIMD (Safari 16.4 or later). It never needs
+`SharedArrayBuffer`, so no COOP/COEP headers: `spaceKernel` uses one where the
+page is cross-origin isolated and leaves rooms to the browser where it is not.
+Where a browser lacks
 `cancelAndHoldAtTime` (Firefox) the lane writers fall back to cancel + set.
 WASM devices and worklets also run inside an `OfflineAudioContext` in
 Chromium and Firefox, which is what the offline render uses.

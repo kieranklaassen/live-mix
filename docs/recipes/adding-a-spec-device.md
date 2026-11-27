@@ -117,7 +117,7 @@ A device that does one thing to eight grains, eight lines or sixteen partials ca
 - An FFT of the kit (`kit/fft.h`, `kit/stft.h`) is four bins at a time in a device built this way.
 - `sin_turn_8` and `tanh_8` (`cpp/common/vector_math.h`) give what `std::sin` and `std::tanh` give, bit for bit.
 
-Every lane does the same arithmetic the plain loop did, so the sound is the same to the last bit: `node scripts/same-sound.mjs <id>` shows it. The spectral drifter's eight grains went from 48 to 20 microseconds a block this way, and the bloom reverb from 72 to 30.
+Every lane does the same arithmetic the plain loop did, so the sound is the same to the last bit: `node scripts/same-sound.mjs <id>` shows it for a device that was there before. Where the two are apart, behind `#if defined(__wasm_simd128__)`, the native tests build the plain loop alone and the `.wasm` has the other alone: after a change to either, `SCALAR=1 bash scripts/build-wasm.sh <dir>` and `node scripts/vector-sound.mjs <dir>` compare the two. A browser without WASM SIMD (Safari before 16.4) cannot load a device built this way. The spectral drifter's eight grains went from 48 to 20 microseconds a block this way, and the bloom reverb from 72 to 30.
 
 ## Spectral devices
 

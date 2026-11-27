@@ -16,6 +16,7 @@ uniform float uCalm, uPull, uArcMid, uArcWide; // the page's colour choice, hand
 uniform float uVar;       // 0 is variation a, 1 is variation b
 uniform float uBands[16]; // the spectrum, low to high
 uniform vec3 uKind[5];    // the colours of drone, pad, texture, phrase, hit
+uniform float uOwn[8];    // the style's own numbers, each -1 to 1, from the world a preset draws it in. All 0 is the style as it draws itself: say what each does in the `// own:` line.
 uniform sampler2D uMap;   // the piece as it sounds now, see piece()
 out vec4 fragColor;
 
