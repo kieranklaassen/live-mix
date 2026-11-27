@@ -78,6 +78,7 @@ import { CHORD_CLOCK_PRESETS } from './chord-clock'
 import { SETTING_GLASS_PRESETS } from './setting-glass'
 import { SLOW_ACCORD_PRESETS } from './slow-accord'
 import { WIRE_LANTERN_PRESETS } from './wire-lantern'
+import { SINGING_SAND_PRESETS } from './singing-sand'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -156,4 +157,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...SETTING_GLASS_PRESETS,
   ...SLOW_ACCORD_PRESETS,
   ...WIRE_LANTERN_PRESETS,
+  ...SINGING_SAND_PRESETS,
 ]

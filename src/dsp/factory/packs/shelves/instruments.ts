@@ -6,6 +6,7 @@ import { SET as SLOW_ACCORD } from '../../sets/slow-accord'
 import { SET as CHORD_CLOCK } from '../../sets/chord-clock'
 import { SET as SETTING_GLASS } from '../../sets/setting-glass'
 import { SET as WIRE_LANTERN } from '../../sets/wire-lantern'
+import { SET as SINGING_SAND } from '../../sets/singing-sand'
 
 /** The tables, in the order of `FACTORY_PACKS`. */
 export const SETS: readonly InstrumentSet[] = [
@@ -13,6 +14,7 @@ export const SETS: readonly InstrumentSet[] = [
   CHORD_CLOCK,
   SETTING_GLASS,
   WIRE_LANTERN,
+  SINGING_SAND,
 ]
 
 /** In the order of `FACTORY_PACKS`. */

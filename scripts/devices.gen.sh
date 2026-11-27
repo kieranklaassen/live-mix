@@ -236,6 +236,8 @@ build_generated_devices() {
     cpp/devices/silent-keys/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sine-shadow \
     cpp/devices/sine-shadow/device_api.gen.cpp
+  EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device singing-sand \
+    cpp/devices/singing-sand/device_api.gen.cpp
   EXTRA_FLAGS="-msimd128" MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device size \
     cpp/devices/size/device_api.gen.cpp
   MEMORY_BYTES=12582912 EXTRA_EXPORTS=",_device_meter" build_device skipping-stone \
@@ -563,6 +565,8 @@ test_generated_devices() {
     cpp/test/silent_keys_test.cpp
   native_test sine_shadow_test \
     cpp/test/sine_shadow_test.cpp
+  native_test singing_sand_test \
+    cpp/test/singing_sand_test.cpp
   native_test size_test \
     cpp/test/size_test.cpp
   native_test skipping_stone_test \

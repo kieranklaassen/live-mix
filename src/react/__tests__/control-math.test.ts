@@ -382,6 +382,8 @@ describe('the stock devices', () => {
       'silent-keys.count',
       'silent-keys.partials',
       'sine-shadow.partials',
+      'singing-sand.cluster',
+      'singing-sand.layerOrder',
       'skipping-stone.skips',
       'slow-accord.overtones',
       'spiral.voices',

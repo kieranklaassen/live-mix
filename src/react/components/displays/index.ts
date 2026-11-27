@@ -93,6 +93,7 @@ import { CHORD_CLOCK_FACES } from './chord-clock'
 import { SETTING_GLASS_FACES } from './setting-glass'
 import { SLOW_ACCORD_FACES } from './slow-accord'
 import { WIRE_LANTERN_FACES } from './wire-lantern'
+import { SINGING_SAND_FACES } from './singing-sand'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -187,4 +188,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...SETTING_GLASS_FACES,
   ...SLOW_ACCORD_FACES,
   ...WIRE_LANTERN_FACES,
+  ...SINGING_SAND_FACES,
 }

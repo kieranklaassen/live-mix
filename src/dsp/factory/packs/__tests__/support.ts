@@ -95,6 +95,7 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'setting-glass',
   'slow-accord',
   'wire-lantern',
+  'singing-sand',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(

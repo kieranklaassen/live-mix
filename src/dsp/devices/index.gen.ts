@@ -117,6 +117,7 @@ import { SHORTWAVE_DESCRIPTOR, SHORTWAVE_DEVICE } from './shortwave.gen'
 import { SIFT_DESCRIPTOR, SIFT_DEVICE } from './sift.gen'
 import { SILENT_KEYS_DESCRIPTOR, SILENT_KEYS_DEVICE } from './silent-keys.gen'
 import { SINE_SHADOW_DESCRIPTOR, SINE_SHADOW_DEVICE } from './sine-shadow.gen'
+import { SINGING_SAND_DESCRIPTOR, SINGING_SAND_DEVICE } from './singing-sand.gen'
 import { SIZE_DESCRIPTOR, SIZE_DEVICE } from './size.gen'
 import { SKIPPING_STONE_DESCRIPTOR, SKIPPING_STONE_DEVICE } from './skipping-stone.gen'
 import { SLOW_ACCORD_DESCRIPTOR, SLOW_ACCORD_DEVICE } from './slow-accord.gen'
@@ -278,6 +279,7 @@ export * from './shortwave.gen'
 export * from './sift.gen'
 export * from './silent-keys.gen'
 export * from './sine-shadow.gen'
+export * from './singing-sand.gen'
 export * from './size.gen'
 export * from './skipping-stone.gen'
 export * from './slow-accord.gen'
@@ -441,6 +443,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SIFT_DESCRIPTOR,
   SILENT_KEYS_DESCRIPTOR,
   SINE_SHADOW_DESCRIPTOR,
+  SINGING_SAND_DESCRIPTOR,
   SIZE_DESCRIPTOR,
   SKIPPING_STONE_DESCRIPTOR,
   SLOW_ACCORD_DESCRIPTOR,
@@ -605,6 +608,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SIFT_DEVICE,
   SILENT_KEYS_DEVICE,
   SINE_SHADOW_DEVICE,
+  SINGING_SAND_DEVICE,
   SIZE_DEVICE,
   SKIPPING_STONE_DEVICE,
   SLOW_ACCORD_DEVICE,
@@ -783,6 +787,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'sift', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'silent-keys', instrument: false, samples: false, zones: false, meters: 16, memoryMb: 4 },
   { id: 'sine-shadow', instrument: false, samples: false, zones: false, meters: 48, memoryMb: 4 },
+  { id: 'singing-sand', instrument: true, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'size', instrument: false, samples: false, zones: false, meters: 28, memoryMb: 4 },
   {
     id: 'skipping-stone',

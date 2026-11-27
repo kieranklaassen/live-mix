@@ -89,6 +89,24 @@ const SETS: readonly Set_[] = [
       'Muted corners',
     ],
   },
+  {
+    device: 'singing-sand',
+    name: 'Singing Sand',
+    description:
+      'Grains that fall into step until a slope sings: dune pads, squeaking keys, glass beaches, aftershocks and far rain.',
+    directions: [
+      'Dune pads',
+      'Bass slopes',
+      'Squeaking keys',
+      'Glass beach bells',
+      'Dissolving voices',
+      'Aftershocks',
+      'Locked drones',
+      'Cluster organs',
+      'Flint plucks',
+      'Far rain',
+    ],
+  },
 ]
 
 const IN_A_DIRECTION = 50
