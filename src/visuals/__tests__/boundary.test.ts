@@ -28,7 +28,10 @@ const PLAIN = [
   'palettes.ts',
   'perform.ts',
   'preset.ts',
+  'stand-in.ts',
   'styles.ts',
+  'tint.ts',
+  'vary.ts',
   'world.ts',
 ]
 
@@ -51,11 +54,15 @@ describe('the visuals entry', () => {
       'preset-words.ts',
       'preset.ts',
       'presets.ts',
+      'proof.ts',
       'rig.ts',
       'shader-sources.ts',
       'stage.ts',
+      'stand-in.ts',
       'styles.ts',
       'sync.ts',
+      'tint.ts',
+      'vary.ts',
       'world.ts',
     ])
   })

@@ -19,8 +19,9 @@ import {
 } from './model'
 import { visualPalette, type VisualPalette } from './palettes'
 import { stayShare, type VisualFilter } from './perform'
-import { presetKnob, type VisualPreset } from './preset'
+import { presetKnob, type VisualLook, type VisualPreset } from './preset'
 import { visualStyle } from './styles'
+import type { VisualWorld } from './world'
 
 /** The parts the spectrum is handed to a style in, low to high. */
 export const SPECTRUM_BANDS = 16
@@ -74,6 +75,8 @@ export type VisualLayer =
       hue: number
       /** The preset whose world it is drawn in, by its id. */
       preset?: string
+      /** The world it is drawn in, where it is no preset's. */
+      world?: VisualWorld
     }
   | { bend: 'trails'; length: number; push: number }
   | { bend: 'mirror'; fold: number }
@@ -182,7 +185,11 @@ export function frameOf(
         size: knob('size'),
         glow: knob('glow'),
         hue: knob('colour') - 0.5,
-        ...(visual.preset === undefined ? {} : { preset: visual.preset }),
+        ...(visual.world !== undefined
+          ? { world: visual.world }
+          : visual.preset !== undefined
+            ? { preset: visual.preset }
+            : {}),
       })
       continue
     }
@@ -208,7 +215,7 @@ export function frameOf(
 
 /** A knob of a style looked at alone: where its preset puts it, else where a new visual has it. */
 function sampleKnob(
-  preset: VisualPreset | null,
+  preset: VisualPreset | VisualLook | null,
   knob: 'size' | 'glow' | 'colour',
   signals: VisualSignals,
 ): number {
@@ -223,14 +230,14 @@ function sampleKnob(
   )
 }
 
-/** The frame that shows one style alone, or one preset of it, as the list shows it beside its name. */
+/** The frame that shows one style alone, or one preset or look of it, as the list shows it beside its name. */
 export function sampleFrame(
   kind: string,
   variation: 0 | 1,
   signals: VisualSignals,
   palette: VisualPalette,
   grain: number,
-  preset: VisualPreset | null = null,
+  preset: VisualPreset | VisualLook | null = null,
 ): VisualFrame {
   return {
     signals,
@@ -243,7 +250,11 @@ export function sampleFrame(
             size: sampleKnob(preset, 'size', signals),
             glow: sampleKnob(preset, 'glow', signals),
             hue: sampleKnob(preset, 'colour', signals) - 0.5,
-            ...(preset ? { preset: preset.id } : {}),
+            ...(preset === null
+              ? {}
+              : 'id' in preset
+                ? { preset: preset.id }
+                : { world: preset.world }),
           },
         ]
       : [],

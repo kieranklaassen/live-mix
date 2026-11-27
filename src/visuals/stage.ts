@@ -200,7 +200,8 @@ export function createStage(): Stage {
       rig?.hear(frame.signals)
       for (const step of frame.layers) {
         if ('paint' in step) {
-          const preset = step.preset ? visualPresetNow(step.paint, step.preset) : null
+          const preset =
+            step.preset && !step.world ? visualPresetNow(step.paint, step.preset) : null
           if (preset === undefined) {
             later = rig !== null
             continue
@@ -213,7 +214,7 @@ export function createStage(): Stage {
               glow: step.glow,
               hue: step.hue,
               palette: frame.palette,
-              world: preset?.world,
+              world: step.world ?? preset?.world,
             },
             drawnWidth,
             drawnHeight,

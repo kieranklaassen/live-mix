@@ -11,6 +11,7 @@
  *   const scope = new SyncScope()                                  // how far the picture is behind the sound:
  *   hearTrace(context, engine.master, clock).read((at, level) => scope.put('sound', at, level))
  *   scope.put('picture', clock(), lightOf(canvas)); scope.behind('picture', 'sound', clock())
+ *   newLook({ kind, base }).then((look) => setVisualPreset(set, id, look))   // a variation made by chance
  *   new VisualDesk(() => ({ ..., perform: { rides, ladder, overSec } }))  // the picture follows a performance
  *
  * Separate entry on purpose: it imports nothing from the rest of the library
@@ -57,6 +58,7 @@ export {
   liftPedal,
   liftPedals,
   linkVisual,
+  lookFrom,
   movePedal,
   paints,
   pedalOf,
@@ -74,6 +76,7 @@ export {
   visualByNumber,
   visualKindName,
   visualLabel,
+  visualLook,
   visualNumber,
   visualsFromJson,
   visualsToJson,
@@ -100,15 +103,30 @@ export {
   type VisualStyle,
 } from './styles'
 export {
+  LOOK_NAME_MAX,
   PRESET_ID,
+  lookNamed,
   presetKnob,
   presetName,
   type PresetKnob,
+  type VisualLook,
   type VisualPreset,
   type VisualPresetWords,
 } from './preset'
 export { loadPresetWords, loadVisualPresets, visualPresetNow, visualPresetsNow } from './presets'
-export { OWN_SLOTS, WORLD_RANGES, type VisualWorld, type WorldColour } from './world'
+export { OWN_SLOTS, WORLD_RANGES, cleanWorld, type VisualWorld, type WorldColour } from './world'
+export { colourWord, lookName, lookWords, variedLook, type Chance, type VaryFrom } from './vary'
+export {
+  lookFault,
+  measurePicture,
+  newLook,
+  pictureColour,
+  picturesApart,
+  proofLook,
+  type LookFault,
+  type LookPicture,
+  type NewLookRequest,
+} from './proof'
 export {
   DEFAULT_PALETTE,
   VISUAL_PALETTES,

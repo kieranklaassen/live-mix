@@ -731,6 +731,21 @@ const motionSymbols = [
 // Every value `./visuals` exports: a host draws and keeps a piece's visuals
 // with these names, so none may go quietly.
 const visualsSymbols = [
+  'LOOK_NAME_MAX',
+  'cleanWorld',
+  'colourWord',
+  'lookFault',
+  'lookFrom',
+  'lookName',
+  'lookNamed',
+  'lookWords',
+  'measurePicture',
+  'newLook',
+  'pictureColour',
+  'picturesApart',
+  'proofLook',
+  'variedLook',
+  'visualLook',
   'DEFAULT_GRAIN',
   'STYLE_KNOBS',
   'VISUALS_META',
