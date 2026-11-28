@@ -4,6 +4,14 @@ Solo-maintainer library, `0.x`, no support promise: it contains exactly what
 its two consumers use (KD8 — every catalogue item is Core, Dream or
 Maybe-never, and YAGNI applies to carrying cost, not ambition).
 
+**Closed to pull requests, open to remix**
+([the remix model](https://ghuntley.com/remix/)). A pull request from outside
+is closed unread: fork the library and pin your fork, or patch the pinned
+commit in your own build, and open an issue that links the fork if the idea
+should be known here. A change that fits is written again in this repository
+and the issue is credited. The pull requests this document speaks of from here
+on are the maintainer's own, which is how a change reaches `main`.
+
 ## Commands
 
 ```sh
